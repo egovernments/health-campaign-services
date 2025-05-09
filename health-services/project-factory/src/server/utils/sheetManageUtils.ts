@@ -6,7 +6,7 @@ import { callMdmsSchema, createAndUploadFileWithOutRequest } from "../api/generi
 import { getLocalizedHeaders, getLocalizedMessagesHandlerViaLocale, handledropdownthings } from "./genericUtils";
 import { getLocalisationModuleName } from "./localisationUtils";
 import { getLocalizedName } from "./campaignUtils";
-import {  adjustRowHeight, enrichTemplateMetaData, freezeUnfreezeColumns, manageMultiSelect, updateFontNameToRoboto } from "./excelUtils";
+import { adjustRowHeight, enrichTemplateMetaData, freezeUnfreezeColumns, manageMultiSelect, updateFontNameToRoboto } from "./excelUtils";
 import * as path from 'path';
 import { ColumnProperties, SheetMap } from "../models/SheetMap";
 import { logger } from "./logger";
@@ -14,7 +14,7 @@ import { generatedResourceStatuses } from "../config/constants";
 import fs from 'fs';
 
 
-export async function initializeGenerateAndGetResponse( tenantId: string, type: string, hierarchyType: string,campaignId: string, userUuid : string, templateConfig: any, locale: string = config.localisation.defaultLocale) {
+export async function initializeGenerateAndGetResponse(tenantId: string, type: string, hierarchyType: string, campaignId: string, userUuid: string, templateConfig: any, locale: string = config.localisation.defaultLocale, additionalDetails: any = {}) {
     const currentTime = Date.now();
     const responseToSend = {
         id: uuidV4(),
@@ -24,15 +24,15 @@ export async function initializeGenerateAndGetResponse( tenantId: string, type: 
         campaignId: campaignId,
         locale: locale,
         status: generatedResourceStatuses.inprogress,
-        additionalDetails: {},
-        auditDetails : {
+        additionalDetails,
+        auditDetails: {
             lastModifiedTime: currentTime,
             createdTime: currentTime,
             createdBy: userUuid,
             lastModifiedBy: userUuid
         }
     };
-    await produceModifiedMessages({ generatedResource: [responseToSend]}, config?.kafka?.KAFKA_CREATE_GENERATED_RESOURCE_DETAILS_TOPIC);
+    await produceModifiedMessages({ generatedResource: [responseToSend] }, config?.kafka?.KAFKA_CREATE_GENERATED_RESOURCE_DETAILS_TOPIC);
     generateResource(responseToSend, templateConfig);
     return responseToSend;
 }
@@ -48,14 +48,14 @@ async function generateResource(responseToSend: any, templateConfig: any) {
         responseToSend.fileStoreid = fileResponse?.[0]?.fileStoreId;
         if (!responseToSend.fileStoreid) throw new Error("FileStoreId not created.");
         responseToSend.status = generatedResourceStatuses.completed;
-        await produceModifiedMessages({ generatedResource: [responseToSend]}, config?.kafka?.KAFKA_UPDATE_GENERATED_RESOURCE_DETAILS_TOPIC);
+        await produceModifiedMessages({ generatedResource: [responseToSend] }, config?.kafka?.KAFKA_UPDATE_GENERATED_RESOURCE_DETAILS_TOPIC);
     } catch (error) {
         console.log(error)
         await handleErrorDuringGenerate(responseToSend, error);
     }
 }
 
-async function handleErrorDuringGenerate(responseToSend:any, error: any) {
+async function handleErrorDuringGenerate(responseToSend: any, error: any) {
     responseToSend.status = generatedResourceStatuses.failed, responseToSend.additionalDetails = {
         ...responseToSend.additionalDetails,
         error: {
@@ -68,10 +68,10 @@ async function handleErrorDuringGenerate(responseToSend:any, error: any) {
     await produceModifiedMessages({ generatedResource: [responseToSend] }, config?.kafka?.KAFKA_UPDATE_GENERATED_RESOURCE_DETAILS_TOPIC);
 }
 
-async function createBasicTemplateViaConfig(responseToSend:any,templateConfig: any, localizationMap: any) {
+async function createBasicTemplateViaConfig(responseToSend: any, templateConfig: any, localizationMap: any) {
     const newWorkbook = new ExcelJS.Workbook();
     const tenantId = responseToSend?.tenantId;
-    for(const sheet of templateConfig?.sheets) {
+    for (const sheet of templateConfig?.sheets) {
         const schemaName = sheet?.schemaName;
         const schema = await callMdmsSchema(tenantId, schemaName);
         sheet.schema = schema;
@@ -85,12 +85,12 @@ async function createBasicTemplateViaConfig(responseToSend:any,templateConfig: a
         }
         try {
             const { TemplateClass } = await import(classFilePath);
-            const sheetMap : SheetMap = await TemplateClass.generate(templateConfig, responseToSend, localizationMap);
+            const sheetMap: SheetMap = await TemplateClass.generate(templateConfig, responseToSend, localizationMap);
             mergeSheetMapAndSchema(sheetMap, templateConfig, localizationMap);
-            for(const sheet of templateConfig?.sheets) {
+            for (const sheet of templateConfig?.sheets) {
                 const sheetName = getLocalizedName(sheet?.sheetName, localizationMap);
                 logger.info(`Generating sheet ${sheetName}`);
-                const sheetData : any = sheetMap?.[sheetName];
+                const sheetData: any = sheetMap?.[sheetName];
                 const worksheet = getOrCreateWorksheet(newWorkbook, sheetName);
                 await fillSheetMapInWorkbook(worksheet, sheetData);
                 const schema = sheet?.schema;
@@ -109,7 +109,7 @@ async function createBasicTemplateViaConfig(responseToSend:any,templateConfig: a
             throw error;
         }
     }
-    else{
+    else {
         logger.info(`Template generation skipped for ${responseToSend?.type} according to the config.`);
     }
     return newWorkbook;
@@ -170,7 +170,7 @@ function mergeSheetMapAndSchema(sheetMap: SheetMap, templateConfig: any, localiz
 
 
 
-function mergeAndGetDynamicColumns(dynamicColumns: any, schema: any, localizationMap: any) : any {
+function mergeAndGetDynamicColumns(dynamicColumns: any, schema: any, localizationMap: any): any {
     if (!dynamicColumns) dynamicColumns = {};
 
     let maxOrderNumber = Number.MAX_SAFE_INTEGER;
@@ -218,7 +218,7 @@ function mergeAndGetDynamicColumns(dynamicColumns: any, schema: any, localizatio
 
     // Return sorted by orderNumber
     return Object.fromEntries(
-        Object.entries(dynamicColumns).sort(([, a]:any, [, b]:any) => a.orderNumber - b.orderNumber)
+        Object.entries(dynamicColumns).sort(([, a]: any, [, b]: any) => a.orderNumber - b.orderNumber)
     );
 }
 
@@ -265,7 +265,7 @@ function processDynamicColumns(worksheet: ExcelJS.Worksheet, sheetData: any) {
     return columnNameToIndexMap;
 }
 
-function applyColumnProperties(row : ExcelJS.Row, cell: ExcelJS.Cell, columnProps: ColumnProperties) {
+function applyColumnProperties(row: ExcelJS.Row, cell: ExcelJS.Cell, columnProps: ColumnProperties) {
     const column = cell.worksheet.getColumn(cell.col);
 
     // Apply column-level properties like width and hidden
@@ -316,7 +316,7 @@ function addDataToWorksheet(
 function applyCellFormatting(worksheet: ExcelJS.Worksheet, rowCount: number, columnNameToIndexMap: Record<string, number>, sheetData: any) {
     const startRow = 0;
 
-    for (let i = startRow; i <= rowCount+1; i++) {
+    for (let i = startRow; i <= rowCount + 1; i++) {
         const row = worksheet.getRow(i);
         row.eachCell((cell, colNumber) => {
             cell.alignment = {
