@@ -8,9 +8,6 @@ COPY ${WORK_DIR}/pom.xml    ./pom.xml
 COPY build/maven/start.sh   ./start.sh
 COPY ${WORK_DIR}/src        ./src
 
-# Allow Lombok’s annotation processor to see JDK compiler internals
-ENV MAVEN_OPTS="--add-exports=jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED"
-
 # Make your script executable (line endings fixed later)
 RUN chmod +x start.sh
 
