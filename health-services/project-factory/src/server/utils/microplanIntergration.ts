@@ -166,10 +166,6 @@ function consolidateUserRoles(
   return result;
 }
 
-//   // Example Usage
-//   const consolidatedData = consolidateUserRoles(userBoundaryMap, boundaryiwthchildrednMap);
-//   console.log(JSON.stringify(consolidatedData, null, 2));
-
 const getPlanCensusMapByBoundaryCode = (censusArray: any = []) => {
   return censusArray?.reduce((acc: any, curr: any) => {
     acc[curr?.boundaryCode] = curr;

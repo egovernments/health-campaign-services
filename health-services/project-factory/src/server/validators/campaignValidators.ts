@@ -504,7 +504,7 @@ async function validateTargetSheetData(data: any, request: any, boundaryValidati
 async function validateHeadersOfTargetSheet(request: any, differentTabsBasedOnLevel: any, localizationMap?: any) {
     const fileUrl = await validateFile(request);
     const targetWorkbook: any = await getTargetWorkbook(fileUrl);
-    const hierarchy = await getHierarchy(request, request?.body?.ResourceDetails?.tenantId, request?.body?.ResourceDetails?.hierarchyType);
+    const hierarchy = await getHierarchy(request?.body?.ResourceDetails?.tenantId, request?.body?.ResourceDetails?.hierarchyType);
     const finalValidHeadersForTargetSheetAsPerCampaignType = await getFinalValidHeadersForTargetSheetAsPerCampaignType(request, hierarchy, differentTabsBasedOnLevel, localizationMap);
     logger.info("finalValidHeadersForTargetSheetAsPerCampaignType :" + JSON.stringify(finalValidHeadersForTargetSheetAsPerCampaignType));
     logger.info("validating headers of target sheet started")
@@ -628,7 +628,7 @@ function validateHeadersOfTabsWithTargetInTargetSheet(targetWorkbook: any, expec
 async function validateBoundarySheetData(request: any, fileUrl: any, localizationMap?: any) {
     const localizedBoundaryTab = getLocalizedName(getBoundaryTabName(), localizationMap);
     const headersOfBoundarySheet = await getHeadersOfBoundarySheet(fileUrl, localizedBoundaryTab, false, localizationMap);
-    const hierarchy = await getHierarchy(request, request?.body?.ResourceDetails?.tenantId, request?.body?.ResourceDetails?.hierarchyType);
+    const hierarchy = await getHierarchy(request?.body?.ResourceDetails?.tenantId, request?.body?.ResourceDetails?.hierarchyType);
     const modifiedHierarchy = hierarchy.map(ele => `${request?.body?.ResourceDetails?.hierarchyType}_${ele}`.toUpperCase())
     const localizedHierarchy = getLocalizedHeaders(modifiedHierarchy, localizationMap);
     await validateHeaders(localizedHierarchy, headersOfBoundarySheet, request, localizationMap)
@@ -1319,7 +1319,7 @@ async function validateFilters(request: any, boundaryData: any[]) {
     const boundaryMap = new Map<string, string>();
     // map boundary code and type 
     createBoundaryMap(boundaryData, boundaryMap);
-    const hierarchy = await getHierarchy(request, request?.query?.tenantId, request?.query?.hierarchyType);
+    const hierarchy = await getHierarchy(request?.query?.tenantId, request?.query?.hierarchyType);
     // validation of filters object
     validateBoundariesOfFilters(boundaries, boundaryMap, hierarchy);
 

@@ -1,3 +1,6 @@
+import { checkGenerateFlowClasses } from './generateFlowClasses/generateFlowClassChecker';
+checkGenerateFlowClasses();
+
 import App from './app';
 import controllers from './controllers';
 import config from "./config";
