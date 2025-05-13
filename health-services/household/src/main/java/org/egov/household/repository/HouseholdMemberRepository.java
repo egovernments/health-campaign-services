@@ -47,7 +47,7 @@ public class HouseholdMemberRepository extends GenericRepository<HouseholdMember
                                                 Integer offset,
                                                 String tenantId,
                                                 Long lastChangedSince,
-                                                Boolean includeDeleted) {
+                                                Boolean includeDeleted) throws InvalidTenantIdException {
 
         Map<String, Object> paramsMap = new HashMap<>();
         StringBuilder queryBuilder = new StringBuilder();
@@ -78,10 +78,10 @@ public class HouseholdMemberRepository extends GenericRepository<HouseholdMember
         paramsMap.put("lastModifiedTime", lastChangedSince);
 
         queryBuilder.append(" ORDER BY id ASC ");
+        query = multiStateInstanceUtil.replaceSchemaPlaceholder(queryBuilder.toString(), tenantId);
+        Long totalCount = constructTotalCountCTEAndReturnResult(query, paramsMap, this.namedParameterJdbcTemplate);
 
-        Long totalCount = constructTotalCountCTEAndReturnResult(queryBuilder.toString(), paramsMap, this.namedParameterJdbcTemplate);
-
-        queryBuilder.append(" LIMIT :limit OFFSET :offset");
+        queryBuilder = new StringBuilder(query).append(" LIMIT :limit OFFSET :offset");
         paramsMap.put("limit", limit);
         paramsMap.put("offset", offset);
 

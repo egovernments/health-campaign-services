@@ -74,7 +74,7 @@ class HouseholdMemberFindTest {
 
     @Test
     @DisplayName("should call find if more parameters are available")
-    void shouldCallFindIfMoreParametersAreAvailable() throws QueryBuilderException {
+    void shouldCallFindIfMoreParametersAreAvailable() throws QueryBuilderException, InvalidTenantIdException {
         HouseholdMemberSearchRequest householdMemberSearchRequest = HouseholdMemberSearchRequest.builder()
                 .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
                 .householdMemberSearch(HouseholdMemberSearch.builder()
