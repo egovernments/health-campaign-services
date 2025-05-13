@@ -1,5 +1,6 @@
 package digit.repository.rowmapper;
 
+import digit.util.CommonUtil;
 import digit.util.QueryUtil;
 import digit.web.models.*;
 import org.egov.common.contract.models.AuditDetails;
@@ -64,7 +65,13 @@ public class PlanConfigRowMapper implements ResultSetExtractor<List<PlanConfigur
 
             planConfigurationMap.put(planConfigId, planConfigEntry);
         }
-        return new ArrayList<>(planConfigurationMap.values());
+
+        List<PlanConfiguration> planConfigurations = new ArrayList<>(planConfigurationMap.values());
+
+        // Sort the list of operations in the plan configuration object by execution order.
+        sortOperationsByExecutionOrder(planConfigurations);
+        return planConfigurations;
+
     }
 
     /**
@@ -203,6 +210,21 @@ public class PlanConfigRowMapper implements ResultSetExtractor<List<PlanConfigur
         }
 
         resourceMappingSet.add(mappingId);
+    }
+
+    /**
+     * Sorts the operations within each PlanConfiguration in the provided list
+     * based on their execution order in ascending order.
+     *
+     * @param planConfigurations List of PlanConfiguration objects containing operations to be sorted.
+     */
+    public void sortOperationsByExecutionOrder(List<PlanConfiguration> planConfigurations) {
+        for (PlanConfiguration planConfiguration : planConfigurations) {
+            List<Operation> operations = planConfiguration.getOperations();
+            if (!ObjectUtils.isEmpty(operations)) {
+                operations.sort(Comparator.comparing(Operation::getExecutionOrder));
+            }
+        }
     }
 
 }

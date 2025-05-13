@@ -9,9 +9,6 @@ import org.springframework.util.ObjectUtils;
 
 import java.util.*;
 
-import static digit.config.ServiceConstants.ADDITIONAL_DETAILS_QUERY;
-import static digit.config.ServiceConstants.FACILITY_ID_SEARCH_PARAMETER_KEY;
-
 @Component
 public class PlanQueryBuilder {
 
@@ -64,7 +61,7 @@ public class PlanQueryBuilder {
     }
 
     public String getPlanSearchQuery(PlanSearchCriteria planSearchCriteria, List<Object> preparedStmtList) {
-        String query = buildPlanSearchQuery(planSearchCriteria, preparedStmtList, Boolean.FALSE, Boolean.FALSE);
+        String query = buildPlanSearchQuery(planSearchCriteria, preparedStmtList);
         query = queryUtil.addOrderByClause(query, PLAN_SEARCH_QUERY_ORDER_BY_CLAUSE);
         query = getPaginatedQuery(query, planSearchCriteria, preparedStmtList);
         return query;
@@ -78,8 +75,8 @@ public class PlanQueryBuilder {
      * @return
      */
     public String getPlanCountQuery(PlanSearchCriteria criteria, List<Object> preparedStmtList) {
-        String query = buildPlanSearchQuery(criteria, preparedStmtList, Boolean.TRUE, Boolean.FALSE);
-        return query;
+        String query = buildPlanSearchQuery(criteria, preparedStmtList);
+        return PLAN_SEARCH_QUERY_COUNT_WRAPPER + query + ") AS subquery";
     }
 
     /**
@@ -90,13 +87,38 @@ public class PlanQueryBuilder {
      * @return A SQL query string to get the status count of Plans for a given search criteria.
      */
     public String getPlanStatusCountQuery(PlanSearchCriteria searchCriteria, List<Object> preparedStmtList) {
-        PlanSearchCriteria planSearchCriteria = PlanSearchCriteria.builder()
-                .tenantId(searchCriteria.getTenantId())
-                .planConfigurationId(searchCriteria.getPlanConfigurationId())
-                .campaignId(searchCriteria.getCampaignId())
-                .jurisdiction(searchCriteria.getJurisdiction())
-                .build();
-        return buildPlanSearchQuery(planSearchCriteria, preparedStmtList, Boolean.FALSE, Boolean.TRUE);
+
+        StringBuilder builder = new StringBuilder();
+
+        if (!ObjectUtils.isEmpty(searchCriteria.getTenantId())) {
+            queryUtil.addClauseIfRequired(builder, preparedStmtList);
+            builder.append(" tenant_id = ? ");
+            preparedStmtList.add(searchCriteria.getTenantId());
+        }
+
+        if (!ObjectUtils.isEmpty(searchCriteria.getCampaignId())) {
+            queryUtil.addClauseIfRequired(builder, preparedStmtList);
+            builder.append(" campaign_id = ? ");
+            preparedStmtList.add(searchCriteria.getCampaignId());
+        }
+
+        if (!ObjectUtils.isEmpty(searchCriteria.getPlanConfigurationId())) {
+            queryUtil.addClauseIfRequired(builder, preparedStmtList);
+            builder.append(" plan_configuration_id = ? ");
+            preparedStmtList.add(searchCriteria.getPlanConfigurationId());
+        }
+
+        if (!CollectionUtils.isEmpty(searchCriteria.getJurisdiction())) {
+            queryUtil.addClauseIfRequired(builder, preparedStmtList);
+            builder.append(" ARRAY [ ")
+                    .append(queryUtil.createQuery(searchCriteria.getJurisdiction().size()))
+                    .append(" ]::text[] ");
+
+            builder.append(" && string_to_array(boundary_ancestral_path, '|') ");
+            queryUtil.addToPreparedStatement(preparedStmtList, searchCriteria.getJurisdiction());
+        }
+
+        return PLAN_STATUS_COUNT_QUERY.replace("{INTERNAL_QUERY}", builder);
     }
 
     /**
@@ -106,11 +128,19 @@ public class PlanQueryBuilder {
      * @param preparedStmtList
      * @return
      */
-    private String buildPlanSearchQuery(PlanSearchCriteria planSearchCriteria, List<Object> preparedStmtList, boolean isCount, boolean isStatusCount) {
+    private String buildPlanSearchQuery(PlanSearchCriteria planSearchCriteria, List<Object> preparedStmtList) {
         StringBuilder builder = new StringBuilder(PLAN_SEARCH_BASE_QUERY);
 
-        if(isStatusCount) {
-            builder = new StringBuilder();
+        if (!CollectionUtils.isEmpty(planSearchCriteria.getIds())) {
+            queryUtil.addClauseIfRequired(builder, preparedStmtList);
+            builder.append(" id IN ( ").append(queryUtil.createQuery(planSearchCriteria.getIds().size())).append(" )");
+            queryUtil.addToPreparedStatement(preparedStmtList, planSearchCriteria.getIds());
+        }
+
+        if (!ObjectUtils.isEmpty(planSearchCriteria.getPlanConfigurationId())) {
+            queryUtil.addClauseIfRequired(builder, preparedStmtList);
+            builder.append(" plan_configuration_id = ? ");
+            preparedStmtList.add(planSearchCriteria.getPlanConfigurationId());
         }
 
         if (!ObjectUtils.isEmpty(planSearchCriteria.getTenantId())) {
@@ -119,10 +149,10 @@ public class PlanQueryBuilder {
             preparedStmtList.add(planSearchCriteria.getTenantId());
         }
 
-        if (!CollectionUtils.isEmpty(planSearchCriteria.getIds())) {
+        if (!ObjectUtils.isEmpty(planSearchCriteria.getStatus())) {
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
-            builder.append(" id IN ( ").append(queryUtil.createQuery(planSearchCriteria.getIds().size())).append(" )");
-            queryUtil.addToPreparedStatement(preparedStmtList, planSearchCriteria.getIds());
+            builder.append(" status = ? ");
+            preparedStmtList.add(planSearchCriteria.getStatus());
         }
 
         if (!CollectionUtils.isEmpty(planSearchCriteria.getLocality())) {
@@ -135,18 +165,6 @@ public class PlanQueryBuilder {
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
             builder.append(" campaign_id = ? ");
             preparedStmtList.add(planSearchCriteria.getCampaignId());
-        }
-
-        if (!ObjectUtils.isEmpty(planSearchCriteria.getPlanConfigurationId())) {
-            queryUtil.addClauseIfRequired(builder, preparedStmtList);
-            builder.append(" plan_configuration_id = ? ");
-            preparedStmtList.add(planSearchCriteria.getPlanConfigurationId());
-        }
-
-        if (!ObjectUtils.isEmpty(planSearchCriteria.getStatus())) {
-            queryUtil.addClauseIfRequired(builder, preparedStmtList);
-            builder.append(" status = ? ");
-            preparedStmtList.add(planSearchCriteria.getStatus());
         }
 
         if (!ObjectUtils.isEmpty(planSearchCriteria.getAssignee())) {
@@ -168,32 +186,15 @@ public class PlanQueryBuilder {
 
         if (!CollectionUtils.isEmpty(planSearchCriteria.getFiltersMap())) {
             Map<String, Set<String>> filtersMap = planSearchCriteria.getFiltersMap();
-            for (String key : filtersMap.keySet()) {
-                if (FACILITY_ID_SEARCH_PARAMETER_KEY.equals(key)) {
-                    // its for facility multi select then no need to add to preparedStmtList
-                    String partialQueryJsonString = queryUtil.preparePartialJsonStringFromFilterMap(planSearchCriteria.getFiltersMap(), preparedStmtList, key);
-                    builder.append(partialQueryJsonString);
-                } else {
-                    // handle all other keys normally.
-                    queryUtil.addClauseIfRequired(builder, preparedStmtList);
-                    builder.append(ADDITIONAL_DETAILS_QUERY);
-                    String partialQueryJsonString = queryUtil.preparePartialJsonStringFromFilterMap(planSearchCriteria.getFiltersMap(), preparedStmtList, key);
-                    preparedStmtList.add(partialQueryJsonString);
-                }
+
+            for (Map.Entry<String,Set<String>> entry : filtersMap.entrySet()) {
+                queryUtil.addClauseIfRequired(builder, preparedStmtList);
+                builder.append("additional_details->'")
+                        .append(entry.getKey()).append("' ??| ARRAY [")
+                        .append(queryUtil.createQuery(entry.getValue().size()))
+                        .append("]::text[] ");
+                preparedStmtList.addAll(entry.getValue());
             }
-        }
-
-        StringBuilder countQuery = new StringBuilder();
-        if (isCount) {
-
-            countQuery.append(PLAN_SEARCH_QUERY_COUNT_WRAPPER).append(builder);
-            countQuery.append(") AS subquery");
-
-            return countQuery.toString();
-        }
-
-        if (isStatusCount) {
-            return PLAN_STATUS_COUNT_QUERY.replace("{INTERNAL_QUERY}", builder);
         }
 
         return builder.toString();
@@ -208,7 +209,7 @@ public class PlanQueryBuilder {
 
         // Append limit
         paginatedQuery.append(" LIMIT ? ");
-        preparedStmtList.add(ObjectUtils.isEmpty(planSearchCriteria.getLimit()) ? config.getDefaultLimit() : planSearchCriteria.getLimit());
+        preparedStmtList.add(ObjectUtils.isEmpty(planSearchCriteria.getLimit()) ? config.getDefaultLimit() : Math.min(planSearchCriteria.getLimit(), config.getMaxLimit()));
 
         return paginatedQuery.toString();
     }
