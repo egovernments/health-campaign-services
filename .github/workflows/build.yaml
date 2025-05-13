@@ -51,6 +51,7 @@ on:
           - "egov-user"
           - "egov-workflow-v2"
           - "gateway"
+          - "individual"
           - "internal-gateway-scg"
           - "internal-gateway"
           - "libraries"
