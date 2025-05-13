@@ -20,7 +20,6 @@ export async function initializeGenerateAndGetResponse(
     hierarchyType: string,
     campaignId: string,
     userUuid: string,
-    templateConfig: any,
     locale: string = config.localisation.defaultLocale
 ) {
     const currentTime = Date.now();
@@ -64,8 +63,6 @@ export async function initializeGenerateAndGetResponse(
         config.kafka.KAFKA_CREATE_GENERATED_RESOURCE_DETAILS_TOPIC
     );
 
-    generateResource(newResource, templateConfig);
-
     return newResource;
 }
 
@@ -87,7 +84,7 @@ const markAsExpired = (resources: any[], currentTime: number, userUuid: string) 
 
 
 
-async function generateResource(responseToSend: any, templateConfig: any) {
+export async function generateResource(responseToSend: any, templateConfig: any) {
     try {
         const localizationMapHierarchy = responseToSend?.hierarchyType && await getLocalizedMessagesHandlerViaLocale(responseToSend?.locale, responseToSend?.tenantId, getLocalisationModuleName(responseToSend?.hierarchyType), true);
         const localizationMapModule = await getLocalizedMessagesHandlerViaLocale(responseToSend?.locale, responseToSend?.tenantId);

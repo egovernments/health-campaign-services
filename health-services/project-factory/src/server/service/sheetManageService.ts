@@ -1,5 +1,5 @@
 import { templateConfigs } from "../config/templateConfigs";
-import { initializeGenerateAndGetResponse } from "../utils/sheetManageUtils";
+import { generateResource, initializeGenerateAndGetResponse } from "../utils/sheetManageUtils";
 import config from "../config";
 import GenerateTemplateQuery from "../models/GenerateTemplateQuery";
 
@@ -11,6 +11,7 @@ export async function generateDataService(generateRequestQuery: GenerateTemplate
     hierarchyType = String(hierarchyType);
     campaignId = String(campaignId);
     const templateConfig = JSON.parse(JSON.stringify(templateConfigs?.[String(type)]));
-    const responseToSend = initializeGenerateAndGetResponse(tenantId, type, hierarchyType, campaignId, userUuid, templateConfig, locale);
+    const responseToSend = await initializeGenerateAndGetResponse(tenantId, type, hierarchyType, campaignId, userUuid, locale);
+    generateResource(responseToSend, templateConfig);
     return responseToSend;
 }
