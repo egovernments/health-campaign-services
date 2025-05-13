@@ -1,8 +1,12 @@
-export const templateConfigs : any = {
+// Configuration object for defining sheet templates for different modules (like user, boundary)
+export const templateConfigs: any = {
+    // Configuration for the 'user' module
     user: {
         sheets: [
             {
+                // Sheet name to be used in the Excel file
                 sheetName: "HCM_README_SHEETNAME",
+                // Refers to the schema used to generate columns for this sheet
                 schemaName: "user-readme"
             },
             {
@@ -14,10 +18,14 @@ export const templateConfigs : any = {
                 schemaName: "boundary-data"
             }
         ],
+        // Enable processing of input Excel sheets into JSON
         processing: true,
+        // Enable generation of Excel templates from schema
         generation: true
     },
-    boundary:{
+
+    // Configuration for the 'boundary' module
+    boundary: {
         sheets: [
             {
                 sheetName: "HCM_README_SHEETNAME",

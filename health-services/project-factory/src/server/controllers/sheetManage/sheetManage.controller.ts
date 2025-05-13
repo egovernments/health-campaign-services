@@ -13,7 +13,23 @@ class SheetManageController {
     constructor() {
         this.router.post(`${this.path}/_generate`, this.generateData);
     }
-
+    
+    /**
+     * Generates Excel template data based on request parameters.
+     *
+     * @param req - Express request object containing:
+     *   - Query parameters:
+     *     - type: string (template config type e.g., 'user', 'boundary')
+     *     - tenantId: string (tenant identifier)
+     *     - hierarchyType: string (boundary hierarchy type)
+     *     - campaignId: string (optional campaign ID)
+     *   - Body:
+     *     - RequestInfo.userInfo.uuid: string (UUID of the user requesting generation)
+     *
+     * @param res - Express response object used to send the generated resource or error response.
+     *
+     * @returns JSON response containing the generated template resource.
+     */
     generateData = async (req: express.Request, res: express.Response) => {
         try {
             const { type, tenantId, hierarchyType, campaignId } = req.query as Record<string, string>;
