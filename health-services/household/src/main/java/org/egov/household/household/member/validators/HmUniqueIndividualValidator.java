@@ -71,24 +71,23 @@ public class HmUniqueIndividualValidator implements Validator<HouseholdMemberBul
                     householdMember.setIndividualClientReferenceId(individual.getClientReferenceId());
 
                     log.info("finding individuals mappings in household member");
-                        try {
-                            List<HouseholdMember> individualSearchResult = householdMemberRepository
-                                    .findIndividual(tenantId, individual.getId()).getResponse();
-                            if(!individualSearchResult.isEmpty()) {
-                                Error error = Error.builder().errorMessage(INDIVIDUAL_ALREADY_MEMBER_OF_HOUSEHOLD_MESSAGE)
-                                        .errorCode(INDIVIDUAL_ALREADY_MEMBER_OF_HOUSEHOLD)
-                                        .type(Error.ErrorType.NON_RECOVERABLE)
-                                        .exception(new CustomException(INDIVIDUAL_ALREADY_MEMBER_OF_HOUSEHOLD,
-                                                INDIVIDUAL_ALREADY_MEMBER_OF_HOUSEHOLD_MESSAGE))
-                                        .build();
-                                log.info("found error in individual mapping {}", error);
-                                populateErrorDetails(householdMember, error, errorDetailsMap);
-                            }
-                        } catch (InvalidTenantIdException exception) {
-                            Error error = getErrorForInvalidTenantId(tenantId, exception);
+                    try {
+                        List<HouseholdMember> individualSearchResult = householdMemberRepository
+                                .findIndividual(tenantId, individual.getId()).getResponse();
+                        if(!individualSearchResult.isEmpty()) {
+                            Error error = Error.builder().errorMessage(INDIVIDUAL_ALREADY_MEMBER_OF_HOUSEHOLD_MESSAGE)
+                                    .errorCode(INDIVIDUAL_ALREADY_MEMBER_OF_HOUSEHOLD)
+                                    .type(Error.ErrorType.NON_RECOVERABLE)
+                                    .exception(new CustomException(INDIVIDUAL_ALREADY_MEMBER_OF_HOUSEHOLD,
+                                            INDIVIDUAL_ALREADY_MEMBER_OF_HOUSEHOLD_MESSAGE))
+                                    .build();
                             log.info("found error in individual mapping {}", error);
                             populateErrorDetails(householdMember, error, errorDetailsMap);
                         }
+                    } catch (InvalidTenantIdException exception) {
+                        Error error = getErrorForInvalidTenantId(tenantId, exception);
+                        populateErrorDetails(householdMember, error, errorDetailsMap);
+                    }
                 }
             });
         }

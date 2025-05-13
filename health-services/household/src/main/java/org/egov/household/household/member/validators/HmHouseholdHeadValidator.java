@@ -5,7 +5,6 @@ import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.Error;
 import org.egov.common.models.household.HouseholdMember;
 import org.egov.common.models.household.HouseholdMemberBulkRequest;
-import org.egov.common.utils.CommonUtils;
 import org.egov.common.validator.Validator;
 import org.egov.household.repository.HouseholdMemberRepository;
 import org.egov.household.service.HouseholdMemberEnrichmentService;
@@ -91,7 +90,6 @@ public class HmHouseholdHeadValidator implements Validator<HouseholdMemberBulkRe
                 }
             } catch (InvalidTenantIdException exception) {
                 Error error = getErrorForInvalidTenantId(tenantId, exception);
-                log.error("validation failed for facility tenantId: {} with error :{}", householdMember.getTenantId(), error);
                 populateErrorDetails(householdMember, error, errorDetailsMap);
             }
 

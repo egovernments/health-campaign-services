@@ -9,7 +9,6 @@ import org.egov.common.models.household.HouseholdBulkRequest;
 import org.egov.common.utils.CommonUtils;
 import org.egov.common.validator.Validator;
 import org.egov.household.repository.HouseholdRepository;
-import org.egov.tracer.model.CustomException;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
@@ -29,7 +28,6 @@ import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.common.utils.ValidatorUtils.*;
 import static org.egov.household.Constants.GET_ID;
-import static org.egov.household.Constants.TENANT_ID_EXCEPTION;
 
 @Component
 @Order(value = 2)
@@ -65,14 +63,8 @@ public class HNonExsistentEntityValidator implements Validator<HouseholdBulkRequ
                 });
             } catch (InvalidTenantIdException exception) {
                 entities.forEach(household -> {
-                    if (!StringUtils.isEmpty(household.getTenantId())) {
-                        Error error = getErrorForInvalidTenantId(tenantId, exception);
-                        populateErrorDetails(household, error, errorDetailsMap);
-                    } else {
-                        Error error = getErrorForNullTenantId();
-                        populateErrorDetails(household, error, errorDetailsMap);
-                    }
-
+                    Error error = getErrorForInvalidTenantId(tenantId, exception);
+                    populateErrorDetails(household, error, errorDetailsMap);
                 });
             }
 

@@ -65,7 +65,6 @@ public class HmRowVersionValidator implements Validator<HouseholdMemberBulkReque
                 } catch (InvalidTenantIdException exception) {
                     validHouseholdMembers.stream().forEach(householdMember -> {
                         Error error = getErrorForInvalidTenantId(tenantId, exception);
-                        log.error("validation failed for facility tenantId: {} with error :{}", householdMember.getTenantId(), error);
                         populateErrorDetails(householdMember, error, errorDetailsMap);
                     });
                 }

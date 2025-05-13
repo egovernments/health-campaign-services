@@ -14,7 +14,6 @@ import org.egov.common.models.household.HouseholdSearch;
 import org.egov.common.utils.CommonUtils;
 import org.egov.common.validator.Validator;
 import org.egov.household.repository.HouseholdRepository;
-import org.egov.tracer.model.CustomException;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
@@ -23,8 +22,6 @@ import org.springframework.util.StringUtils;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.common.utils.ValidatorUtils.*;
-import static org.egov.common.utils.ValidatorUtils.getErrorForNullTenantId;
-import static org.egov.household.Constants.TENANT_ID_EXCEPTION;
 
 /**
  * Validator class for checking the existence of entities with the given client reference IDs.
@@ -97,21 +94,9 @@ public class HExistentEntityValidator implements Validator<HouseholdBulkRequest,
                 });
             } catch (InvalidTenantIdException exception) {
                 entities.forEach(household -> {
-                    if ( household.getTenantId() != null && !household.getTenantId().isEmpty()) {
-                        // If an exception occurs, populate error details for the household entity
-                        Error error = getErrorForInvalidTenantId(tenantId, exception);
-                        populateErrorDetails(household, error, errorDetailsMap);
-                    } else {
-                        if (!StringUtils.isEmpty(household.getTenantId())) {
-                            Error error = getErrorForInvalidTenantId(tenantId, exception);
-                            populateErrorDetails(household, error, errorDetailsMap);
-                        } else {
-
-                            Error error = getErrorForNullTenantId();
-                            populateErrorDetails(household, error, errorDetailsMap);
-                        }
-                    }
-
+                    // If an exception occurs, populate error details for the household entity
+                    Error error = getErrorForInvalidTenantId(tenantId, exception);
+                    populateErrorDetails(household, error, errorDetailsMap);
                 });
             }
 

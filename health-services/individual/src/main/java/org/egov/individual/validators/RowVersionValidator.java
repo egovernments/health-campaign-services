@@ -8,7 +8,6 @@ import org.egov.common.models.individual.IndividualBulkRequest;
 import org.egov.common.utils.CommonUtils;
 import org.egov.common.validator.Validator;
 import org.egov.individual.repository.IndividualRepository;
-import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
@@ -28,8 +27,6 @@ import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.common.utils.ValidatorUtils.getErrorForInvalidTenantId;
 import static org.egov.common.utils.ValidatorUtils.getErrorForRowVersionMismatch;
-import static org.egov.individual.Constants.INVALID_TENANT_ID;
-import static org.egov.individual.Constants.INVALID_TENANT_ID_MSG;
 
 @Component
 @Order(value = 5)
