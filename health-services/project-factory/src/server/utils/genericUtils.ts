@@ -937,7 +937,7 @@ async function generateFacilityAndBoundarySheet(tenantId: string, request: any, 
   const typeWithoutWith = type.includes('With') ? type.split('With')[0] : type;
   // Get facility and boundary data
   logger.info("Generating facilities started");
-  const allFacilities = await getAllFacilities(tenantId, request.body);
+  const allFacilities = await getAllFacilities(tenantId);
   request.body.generatedResourceCount = allFacilities?.length;
   logger.info(`Facilities generation completed and found ${allFacilities?.length} facilities`);
   let facilitySheetDataFinal: any;

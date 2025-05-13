@@ -23,6 +23,24 @@ export const templateConfigs: any = {
         // Enable generation of Excel templates from schema
         generation: true
     },
+    facility: {
+        sheets: [
+            {
+                sheetName: "HCM_README_SHEETNAME",
+                schemaName: "facility-readme"
+            },
+            {
+                sheetName: "HCM_ADMIN_CONSOLE_FACILITIES",
+                schemaName: "facility"
+            },
+            {
+                sheetName: "HCM_ADMIN_CONSOLE_BOUNDARY_DATA",
+                schemaName: "boundary-data"
+            }
+        ],
+        processing: true,
+        generation: true
+    },
 
     // Configuration for the 'boundary' module
     boundary: {

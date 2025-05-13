@@ -147,7 +147,10 @@ async function createBasicTemplateViaConfig(responseToSend: any, templateConfig:
                 const columnsToUnFreezeTillData = Object.keys(sheetData?.dynamicColumns || {}).filter(
                     (columnName) => sheetData.dynamicColumns[columnName]?.unFreezeColumnTillData
                 )
-                freezeUnfreezeColumns(worksheet, getLocalizedHeaders(columnsToFreeze, localizationMap), getLocalizedHeaders(columnsToUnFreezeTillData, localizationMap));
+                const columnsToFreezeColumnIfFilled = Object.keys(sheetData?.dynamicColumns || {}).filter(
+                    (columnName) => sheetData.dynamicColumns[columnName]?.freezeColumnIfFilled
+                )
+                freezeUnfreezeColumns(worksheet, getLocalizedHeaders(columnsToFreeze, localizationMap), getLocalizedHeaders(columnsToUnFreezeTillData, localizationMap), getLocalizedHeaders(columnsToFreezeColumnIfFilled, localizationMap));
                 manageMultiSelect(worksheet, schema, localizationMap);
                 await handledropdownthings(worksheet, schema, localizationMap);
                 updateFontNameToRoboto(worksheet);
