@@ -129,6 +129,21 @@ export function enrichTemplateMetaData(updatedWorkbook: any, locale: string, cam
   logger.info("Enriched template metadata");
 }
 
+export function getLocaleFromWorkbook(workbook: any): string | null {
+  logger.info("Extracting locale from workbook...");
+
+  if (!workbook?.keywords) {
+    logger.warn("No keywords found in workbook. Returning null.");
+    return null;
+  }
+
+  const locale = workbook.keywords.split("#")[0]?.trim();
+
+  logger.info("Locale extracted:", locale);
+  return locale || null;
+}
+
+
 function updateFontNameToRoboto(worksheet: ExcelJS.Worksheet) {
   logger.info("Updating font name to Roboto...");
   worksheet?.eachRow({ includeEmpty: true }, (row) => {

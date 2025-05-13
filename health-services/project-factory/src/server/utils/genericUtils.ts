@@ -1677,6 +1677,12 @@ function modifyBoundaryDataHeadersWithMap(
   });
 }
 
+export async function getRelatedDataWithCampaign(type: string, campaignNumber: string) {
+  let queryString = `SELECT * FROM ${config?.DB_CONFIG.DB_CAMPAIGN_DATA_TABLE_NAME} WHERE type = $1 AND campaignNumber = $2`;
+  let relatedData = await executeQuery(queryString, [type, campaignNumber]);
+  return relatedData?.rows;
+}
+
 
 export {
   errorResponder,

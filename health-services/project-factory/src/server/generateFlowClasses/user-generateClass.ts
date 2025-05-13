@@ -7,7 +7,7 @@ import { logger } from "../utils/logger";
 
 // This will be a dynamic template class for different types
 export class TemplateClass {
-    // Static generate function
+    // Static generate function 
     static async generate(templateConfig: any, responseToSend: any, localizationMap: any): Promise<SheetMap> {
         logger.info("Generating template...");
         logger.info(`Response to send ${JSON.stringify(responseToSend)}`);

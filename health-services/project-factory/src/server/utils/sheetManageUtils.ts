@@ -2,17 +2,18 @@ import { v4 as uuidV4 } from "uuid";
 import config from "../config";
 import { produceModifiedMessages } from "../kafka/Producer";
 import * as ExcelJS from "exceljs";
-import { callMdmsSchema, createAndUploadFileWithOutRequest } from "../api/genericApis";
+import { callMdmsSchema, createAndUploadFileWithOutRequest, getJsonData, getSheetDataFromWorksheet } from "../api/genericApis";
 import { getLocalizedHeaders, getLocalizedMessagesHandlerViaLocale, handledropdownthings, searchAllGeneratedResources } from "./genericUtils";
 import { getLocalisationModuleName } from "./localisationUtils";
 import { getLocalizedName } from "./campaignUtils";
-import { adjustRowHeight, enrichTemplateMetaData, freezeUnfreezeColumns, manageMultiSelect, updateFontNameToRoboto } from "./excelUtils";
+import { adjustRowHeight, enrichTemplateMetaData, freezeUnfreezeColumns, getExcelWorkbookFromFileURL, getLocaleFromWorkbook, manageMultiSelect, updateFontNameToRoboto } from "./excelUtils";
 import * as path from 'path';
 import { ColumnProperties, SheetMap } from "../models/SheetMap";
 import { logger } from "./logger";
-import { generatedResourceStatuses } from "../config/constants";
+import { generatedResourceStatuses, resourceDetailsStatuses } from "../config/constants";
 import fs from 'fs';
-
+import { ResourceDetails } from "../config/models/resourceDetailsSchema";
+import { fetchFileFromFilestore } from "../api/coreApis";
 
 export async function initializeGenerateAndGetResponse(
     tenantId: string,
@@ -20,7 +21,6 @@ export async function initializeGenerateAndGetResponse(
     hierarchyType: string,
     campaignId: string,
     userUuid: string,
-    templateConfig: any,
     locale: string = config.localisation.defaultLocale
 ) {
     const currentTime = Date.now();
@@ -64,10 +64,37 @@ export async function initializeGenerateAndGetResponse(
         config.kafka.KAFKA_CREATE_GENERATED_RESOURCE_DETAILS_TOPIC
     );
 
-    generateResource(newResource, templateConfig);
-
     return newResource;
 }
+
+export async function initializeProcessAndGetResponse(
+    ResourceDetails: ResourceDetails,
+    userUuid: string,
+    templateConfig: any,
+    locale: string = config.localisation.defaultLocale
+) {
+    const currentTime = Date.now();
+    const newResourceDetails = {
+        id: uuidV4(),
+        ...ResourceDetails,
+        locale,
+        status: generatedResourceStatuses.inprogress,
+        additionalDetails: {},
+        auditDetails: {
+            createdTime: currentTime,
+            lastModifiedTime: currentTime,
+            createdBy: userUuid,
+            lastModifiedBy: userUuid,
+        },
+    };
+
+    const persistMessage: any = { ResourceDetails: newResourceDetails };
+    await produceModifiedMessages(persistMessage, config?.kafka?.KAFKA_CREATE_RESOURCE_DETAILS_TOPIC); 
+    
+    processResource(newResourceDetails, templateConfig, locale);
+    return newResourceDetails;
+}
+
 
 const markAsExpired = (resources: any[], currentTime: number, userUuid: string) =>
     resources.map((resource) => {
@@ -87,7 +114,7 @@ const markAsExpired = (resources: any[], currentTime: number, userUuid: string) 
 
 
 
-async function generateResource(responseToSend: any, templateConfig: any) {
+export async function generateResource(responseToSend: any, templateConfig: any) {
     try {
         const localizationMapHierarchy = responseToSend?.hierarchyType && await getLocalizedMessagesHandlerViaLocale(responseToSend?.locale, responseToSend?.tenantId, getLocalisationModuleName(responseToSend?.hierarchyType), true);
         const localizationMapModule = await getLocalizedMessagesHandlerViaLocale(responseToSend?.locale, responseToSend?.tenantId);
@@ -105,6 +132,68 @@ async function generateResource(responseToSend: any, templateConfig: any) {
     }
 }
 
+async function processResource(ResoureDetails: any, templateConfig: any, locale: string) {
+    try {
+        const fileUrl = await fetchFileFromFilestore(ResoureDetails?.fileStoreId, ResoureDetails?.tenantId);
+        const workBook = await getExcelWorkbookFromFileURL(fileUrl);
+        locale = getLocaleFromWorkbook(workBook) || "";
+        if(!locale){
+            throw new Error("Locale not found in the file metadata.");
+        }
+        const localizationMapHierarchy = ResoureDetails?.hierarchyType && await getLocalizedMessagesHandlerViaLocale(locale, ResoureDetails?.tenantId, getLocalisationModuleName(ResoureDetails?.hierarchyType), true);
+        const localizationMapModule = await getLocalizedMessagesHandlerViaLocale(locale, ResoureDetails?.tenantId);
+        const localizationMap = { ...(localizationMapHierarchy || {}), ...localizationMapModule };
+        await processRequest(ResoureDetails, workBook, templateConfig, localizationMap);
+        await produceModifiedMessages({ ResoureDetails}, config?.kafka?.KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC);
+    } catch (error) {
+        console.log(error)
+        await handleErrorDuringProcess(ResoureDetails, error);
+    }
+}
+
+async function processRequest(ResoureDetails: any, workBook: any, templateConfig: any, localizationMap: any) {
+    const wholeSheetData: any = {};
+    for (const sheet of templateConfig?.sheets || []) {
+        const sheetName = getLocalizedName(sheet?.sheetName, localizationMap);
+        const worksheet = workBook.getWorksheet(sheetName);
+        const sheetData = getSheetDataFromWorksheet(worksheet);
+        const jsonData = getJsonData(sheetData, true);
+        wholeSheetData[sheetName] = jsonData;
+    }
+    const className = `${ResoureDetails?.type}-processClass`;
+    let classFilePath = path.join(__dirname, '..', 'processFlowClasses', `${className}.js`);
+    if (!fs.existsSync(classFilePath)) {
+        // fallback for local dev with ts-node
+        classFilePath = path.join(__dirname, '..', 'processFlowClasses', `${className}.ts`);
+    }
+    try {
+        const { TemplateClass } = await import(classFilePath);
+        const sheetMap: SheetMap = await TemplateClass.process(ResoureDetails, wholeSheetData, localizationMap);
+        mergeSheetMapAndSchema(sheetMap, templateConfig, localizationMap);
+        for (const sheet of templateConfig?.sheets) {
+            const sheetName = getLocalizedName(sheet?.sheetName, localizationMap);
+            const sheetData: any = sheetMap?.[sheetName];
+            const worksheet = getOrCreateWorksheet(workBook, sheetName);
+            await fillSheetMapInWorkbook(worksheet, sheetData);
+            const schema = sheet?.schema;
+            const columnsToFreeze = Object.keys(sheetData?.dynamicColumns || {}).filter(
+                (columnName) => sheetData.dynamicColumns[columnName]?.freezeColumn
+            );
+            const columnsToUnFreezeTillData = Object.keys(sheetData?.dynamicColumns || {}).filter(
+                (columnName) => sheetData.dynamicColumns[columnName]?.unFreezeColumnTillData
+            )
+            freezeUnfreezeColumns(worksheet, getLocalizedHeaders(columnsToFreeze, localizationMap), getLocalizedHeaders(columnsToUnFreezeTillData, localizationMap));
+            manageMultiSelect(worksheet, schema, localizationMap);
+            await handledropdownthings(worksheet, schema, localizationMap);
+            updateFontNameToRoboto(worksheet);
+        }
+    } catch (error) {
+        logger.error(`Error importing or calling process function from ${classFilePath}`);
+        console.error(error);
+        throw error;
+    }
+}
+
 async function handleErrorDuringGenerate(responseToSend: any, error: any) {
     responseToSend.status = generatedResourceStatuses.failed, responseToSend.additionalDetails = {
         ...responseToSend.additionalDetails,
@@ -116,6 +205,19 @@ async function handleErrorDuringGenerate(responseToSend: any, error: any) {
         }
     }
     await produceModifiedMessages({ generatedResource: [responseToSend] }, config?.kafka?.KAFKA_UPDATE_GENERATED_RESOURCE_DETAILS_TOPIC);
+}
+
+async function handleErrorDuringProcess(ResoureDetails: any, error: any) {
+    ResoureDetails.status = resourceDetailsStatuses.failed, ResoureDetails.additionalDetails = {
+        ...ResoureDetails.additionalDetails,
+        error: {
+            status: error.status,
+            code: error.code,
+            description: error.description,
+            message: error.message
+        }
+    }
+    await produceModifiedMessages({ ResoureDetails}, config?.kafka?.KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC);
 }
 
 async function createBasicTemplateViaConfig(responseToSend: any, templateConfig: any, localizationMap: any) {

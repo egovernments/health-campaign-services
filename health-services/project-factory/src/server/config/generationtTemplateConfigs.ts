@@ -1,4 +1,4 @@
-export const templateConfigs : any = {
+export const generationtTemplateConfigs : any = {
     user: {
         sheets: [
             {
@@ -14,7 +14,6 @@ export const templateConfigs : any = {
                 schemaName: "boundary-data"
             }
         ],
-        processing: true,
         generation: true
     },
     boundary:{
@@ -24,7 +23,6 @@ export const templateConfigs : any = {
                 schemaName: "target-readme"
             }
         ],
-        processing: true,
         generation: true
     }
 }

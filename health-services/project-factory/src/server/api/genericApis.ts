@@ -36,7 +36,7 @@ const getTargetWorkbook = async (fileUrl: string, localizationMap?: any) => {
   return workbook;
 };
 
-function getJsonData(sheetData: any, getRow = false, getSheetName = false, sheetName = "sheet1") {
+export function getJsonData(sheetData: any, getRow = false, getSheetName = false, sheetName = "sheet1") {
   const jsonData: any[] = [];
   const headers = sheetData[0]; // Extract the headers from the first row
 
