@@ -86,12 +86,12 @@ export async function initializeProcessAndGetResponse(
             createdBy: userUuid,
             lastModifiedBy: userUuid,
         },
+        processedFileStoreId: null,
+        action : "process"
     };
 
     const persistMessage: any = { ResourceDetails: newResourceDetails };
     await produceModifiedMessages(persistMessage, config?.kafka?.KAFKA_CREATE_RESOURCE_DETAILS_TOPIC); 
-    
-    processResource(newResourceDetails, templateConfig, locale);
     return newResourceDetails;
 }
 
@@ -132,7 +132,7 @@ export async function generateResource(responseToSend: any, templateConfig: any)
     }
 }
 
-async function processResource(ResoureDetails: any, templateConfig: any, locale: string) {
+export async function processResource(ResoureDetails: any, templateConfig: any, locale: string) {
     try {
         const fileUrl = await fetchFileFromFilestore(ResoureDetails?.fileStoreId, ResoureDetails?.tenantId);
         const workBook = await getExcelWorkbookFromFileURL(fileUrl);
@@ -182,7 +182,10 @@ async function processRequest(ResoureDetails: any, workBook: any, templateConfig
             const columnsToUnFreezeTillData = Object.keys(sheetData?.dynamicColumns || {}).filter(
                 (columnName) => sheetData.dynamicColumns[columnName]?.unFreezeColumnTillData
             )
-            freezeUnfreezeColumns(worksheet, getLocalizedHeaders(columnsToFreeze, localizationMap), getLocalizedHeaders(columnsToUnFreezeTillData, localizationMap));
+            const columnsToFreezeColumnIfFilled = Object.keys(sheetData?.dynamicColumns || {}).filter(
+                (columnName) => sheetData.dynamicColumns[columnName]?.freezeColumnIfFilled
+            )
+            freezeUnfreezeColumns(worksheet, getLocalizedHeaders(columnsToFreeze, localizationMap), getLocalizedHeaders(columnsToUnFreezeTillData, localizationMap), getLocalizedHeaders(columnsToFreezeColumnIfFilled, localizationMap));
             manageMultiSelect(worksheet, schema, localizationMap);
             await handledropdownthings(worksheet, schema, localizationMap);
             updateFontNameToRoboto(worksheet);

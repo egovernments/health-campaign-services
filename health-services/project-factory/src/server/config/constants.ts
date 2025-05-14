@@ -118,10 +118,16 @@ export const resourceDataStatuses: any = {
     accepted: "data-accepted"
 }
 
-export const resourceDetailsStatuses: any = {
+export const resourceDetailsStatuses = {
     failed: "failed",
     completed: "completed",
     inprogress: "inprogress"
+}
+
+export const dataRowStatuses = {
+    failed: "failed",
+    completed: "completed",
+    pending: "pending"
 }
 
 
