@@ -6,6 +6,7 @@ import { getRelatedDataWithCampaign } from "../utils/genericUtils";
 import { dataRowStatuses } from "../config/constants";
 import { produceModifiedMessages } from "../kafka/Producer";
 import config from "../config";
+import { DataTransformer, transformConfigs } from "../config/transFormConfig";
 
 // This will be a dynamic template class for different types
 export class TemplateClass {
@@ -93,6 +94,12 @@ export class TemplateClass {
         const allCurrentUsers = await getRelatedDataWithCampaign("user",campaignNumber);
         const usersToCreate = allCurrentUsers?.filter((user: any) => (user?.status === dataRowStatuses.pending || user?.status === dataRowStatuses.failed));
         logger.info(`${usersToCreate?.length} users to create`);
+        const userRowDatas = usersToCreate?.map((user: any) => user?.data);
+        const transFormConfig = transformConfigs?.["employeeHrms"];
+        const transformer = new DataTransformer(transFormConfig);
+        logger.info("Transforming users...");
+        const transformerUserDatas = await transformer.transform(userRowDatas);
+        logger.info(`${transformerUserDatas?.length} transformed users`);
         // TODO
     }
 }
