@@ -9,8 +9,9 @@ import { getCampaignSearchResponse, getHierarchy } from './campaignApis';
 const _ = require('lodash'); // Import lodash library
 import { enrichTemplateMetaData, getExcelWorkbookFromFileURL } from "../utils/excelUtils";
 import { processMapping } from "../utils/campaignMappingUtils";
-import { defaultRequestInfo, searchBoundaryRelationshipData } from "./coreApis";
+import { defaultRequestInfo, searchBoundaryRelationshipData, searchMDMSDataViaV2Api } from "./coreApis";
 import { getLocaleFromRequestInfo } from "../utils/localisationUtils";
+import { MDMSModels } from "../models";
 
 //Function to get Workbook with different tabs (for type target)
 const getTargetWorkbook = async (fileUrl: string, localizationMap?: any) => {
@@ -1547,23 +1548,16 @@ export async function callMdmsSchema(
   tenantId: string,
   type: any
 ) {
-  const RequestInfo = defaultRequestInfo?.RequestInfo;
-  const requestBody = {
-    RequestInfo,
+  const MdmsCriteria : MDMSModels.MDMSv2RequestCriteria= {
     MdmsCriteria: {
       tenantId: tenantId,
+      schemaCode: "HCM-ADMIN-CONSOLE.schemas",
       uniqueIdentifiers: [
-        type
-      ],
-      schemaCode: "HCM-ADMIN-CONSOLE.schemas"
+        `${type}`
+      ]
     }
   };
-  const url = config.host.mdmsV2 + config.paths.mdms_v2_search;
-  const header = {
-    ...defaultheader,
-    cachekey: `mdmsv2Seacrh${requestBody?.MdmsCriteria?.tenantId}${type}${requestBody?.MdmsCriteria?.schemaCode}`
-  }
-  const response = await httpRequest(url, requestBody, undefined, undefined, undefined, header);
+  const response = await searchMDMSDataViaV2Api(MdmsCriteria, true);
   if (!response?.mdms?.[0]?.data) {
     throwError("COMMON", 500, "INTERNAL_SERVER_ERROR", "Error occured during schema search for " + type);
   }

@@ -621,6 +621,7 @@ export function freezeUnfreezeColumns(
   worksheet: ExcelJS.Worksheet,
   columnsToFreeze: string[],
   columnsToUnFreezeTillData: string[],
+  columnsToFreezeIfFilled: string[]
 ) {
   logger.info(`Freezing columns: ${columnsToFreeze}`);
   const headerRow = worksheet.getRow(1);
@@ -648,14 +649,22 @@ export function freezeUnfreezeColumns(
   // Step 2: Unlock default editable area, skipping frozen columns and empty headers
   for (let r = 2; r <= unfrozeTillRow; r++) {
     for (let c = 1; c <= unfrozeTillColumn; c++) {
-      const headerValue = worksheet.getCell(1, c).value;
+      const headerValue : any = worksheet.getCell(1, c).value;
       if (!freezeIndexes.includes(c) && !tillDataIndexes.includes(c) && headerValue) {
-        worksheet.getCell(r, c).protection = { locked: false };
+        if(columnsToFreezeIfFilled.includes(headerValue)) {
+          const value = worksheet.getCell(r, c).value;
+          if (value === null || value === undefined || value === "") {
+            worksheet.getCell(r, c).protection = { locked: false };
+          }
+        }
+        else{
+          worksheet.getCell(r, c).protection = { locked: false }; 
+        }
       }
     }
   }
 
-  // 🔹 Step 2.1: Unlock columns in columnsToFreezeTillData only till last data row
+  // 🔹 Step 2.1: Unlock columns in columnsToUnFreezeTillData only till last data row
   let lastDataRow = worksheet.lastRow?.number ?? 1;
   for (let r = 2; r <= lastDataRow; r++) {
     for (const col of tillDataIndexes) {

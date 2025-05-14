@@ -54,7 +54,7 @@ import {
 } from "../utils/microplanUtils";
 import { getTransformedLocale } from "../utils/localisationUtils";
 import { BoundaryModels } from "../models";
-import { searchBoundaryRelationshipData, searchBoundaryRelationshipDefinition } from "./coreApis";
+import { defaultRequestInfo, searchBoundaryRelationshipData, searchBoundaryRelationshipDefinition } from "./coreApis";
 
 /**
  * Enriches the campaign data with unique IDs and generates campaign numbers.
@@ -104,10 +104,10 @@ async function getAllFacilitiesInLoop(
  * @param requestBody The request body containing additional parameters.
  * @returns An array of facilities.
  */
-async function getAllFacilities(tenantId: string, requestBody: any) {
+async function getAllFacilities(tenantId: string) {
   // Retrieve all facilities for the given tenant ID
   const facilitySearchBody = {
-    RequestInfo: requestBody?.RequestInfo,
+    RequestInfo: defaultRequestInfo,
     Facility: { isPermanent: true },
   };
 
