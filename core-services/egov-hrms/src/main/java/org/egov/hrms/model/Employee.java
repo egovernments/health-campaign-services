@@ -1,50 +1,12 @@
-/*
- * eGov suite of products aim to improve the internal efficiency,transparency,
- * accountability and the service delivery of the government  organizations.
- *
- *  Copyright (C) 2016  eGovernments Foundation
- *
- *  The updated version of eGov suite of products as by eGovernments Foundation
- *  is available at http://www.egovernments.org
- *
- *  This program is free software: you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation, either version 3 of the License, or
- *  any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program. If not, see http://www.gnu.org/licenses/ or
- *  http://www.gnu.org/licenses/gpl.html .
- *
- *  In addition to the terms of the GPL license to be adhered to in using this
- *  program, the following additional terms are to be complied with:
- *
- *      1) All versions of this program, verbatim or modified must carry this
- *         Legal Notice.
- *
- *      2) Any misrepresentation of the origin of the material is prohibited. It
- *         is required that all modified versions of this material be marked in
- *         reasonable ways as different from the original version.
- *
- *      3) This license does not grant any rights to any user of the program
- *         with regards to rights under trademark law for use of the trade names
- *         or trademarks of eGovernments Foundation.
- *
- *  In case of any queries, you can reach eGovernments Foundation at contact@egovernments.org.
- */
-
 package org.egov.hrms.model;
 
+import com.google.common.html.HtmlEscapers;
 import lombok.*;
 import org.egov.hrms.web.contract.User;
 import org.hibernate.validator.constraints.NotEmpty;
-import org.hibernate.validator.constraints.SafeHtml;
 import org.springframework.validation.annotation.Validated;
+import org.owasp.html.HtmlPolicyBuilder;
+import org.owasp.html.PolicyFactory;
 
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
@@ -62,21 +24,19 @@ import java.util.List;
 @Builder
 public class Employee {
 
+    private static final PolicyFactory POLICY = new HtmlPolicyBuilder().toFactory();
+
     private Long id;
 
-    @SafeHtml
     @Size(max = 1024)
     private String uuid;
 
-    @SafeHtml
     @Size(min = 1, max = 256)
     private String code;
 
-    @SafeHtml
     @Size(max = 250)
     private String employeeStatus;
 
-    @SafeHtml
     @NotNull
     @Size(max = 250)
     private String employeeType;
@@ -85,35 +45,32 @@ public class Employee {
 
     @Valid
     @NotEmpty
-    @Size(min = 1,max = 50)
+    @Size(min = 1, max = 50)
     private List<Jurisdiction> jurisdictions = new ArrayList<>();
-
 
     @Valid
     private List<Assignment> assignments = new ArrayList<>();
 
     @Valid
-    @Size(max=25)
+    @Size(max = 25)
     private List<ServiceHistory> serviceHistory = new ArrayList<>();
-
 
     private Boolean IsActive;
 
     @Valid
-    @Size(max=25)
+    @Size(max = 25)
     private List<EducationalQualification> education = new ArrayList<>();
 
     @Valid
-    @Size(max=25)
+    @Size(max = 25)
     private List<DepartmentalTest> tests = new ArrayList<>();
 
-    @SafeHtml
     @NotNull
     @Size(max = 250)
     private String tenantId;
 
     @Valid
-    @Size(max=50)
+    @Size(max = 50)
     private List<EmployeeDocument> documents = new ArrayList<>();
 
     @Valid
@@ -124,10 +81,32 @@ public class Employee {
     private AuditDetails auditDetails;
 
     private Boolean reActivateEmployee;
-    
+
     @Valid
     @NotNull
     private User user;
 
+    public void setUuid(String uuid) {
+        this.uuid = sanitize(uuid);
+    }
 
+    public void setCode(String code) {
+        this.code = sanitize(code);
+    }
+
+    public void setEmployeeStatus(String employeeStatus) {
+        this.employeeStatus = sanitize(employeeStatus);
+    }
+
+    public void setEmployeeType(String employeeType) {
+        this.employeeType = sanitize(employeeType);
+    }
+
+    public void setTenantId(String tenantId) {
+        this.tenantId = sanitize(tenantId);
+    }
+
+    private String sanitize(String input) {
+        return input == null ? null : POLICY.sanitize(input);
+    }
 }
