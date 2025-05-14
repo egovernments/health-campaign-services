@@ -6,13 +6,15 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 
+import static org.egov.common.utils.MultiStateInstanceUtil.SCHEMA_REPLACE_STRING;
+
 @Component
 public class DocumentQueryBuilder {
 
     private static final String FETCH_DOCUMENT_QUERY = "select d.id as documentId, d.projectId as document_projectId, d.documentType as document_documentType, " +
             " d.fileStoreId as document_fileStoreId, d.documentUid as document_documentUid, d.additionalDetails as document_additionalDetails, d.status as document_status, " +
             "d.createdBy as document_createdBy, d.createdTime as document_createdTime, d.lastModifiedBy as document_lastModifiedBy, d.lastModifiedTime as document_lastModifiedTime " +
-            " from project_document d ";
+            " from " + SCHEMA_REPLACE_STRING +".project_document d ";
 
     /* Constructs document search query based on project Ids */
     public String getDocumentSearchQuery(Set<String> projectIds, List<Object> preparedStmtList) {

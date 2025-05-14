@@ -29,6 +29,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import static org.egov.common.utils.CommonUtils.getTenantId;
 import static org.egov.project.util.ProjectConstants.PROJECT_PARENT_HIERARCHY_SEPERATOR;
 
 @Service
@@ -283,11 +284,12 @@ public class ProjectEnrichment {
         ProjectRequest projectRequest = ProjectRequest.builder()
             .projects(projects)
             .build();
+        String tenantId = getTenantId(projects);
 
         /*
          * Push the ProjectRequest to the Kafka topic for updating projects
          */
-        producer.push(projectConfiguration.getUpdateProjectTopic(), projectRequest);
+        producer.push(tenantId, projectConfiguration.getUpdateProjectTopic(), projectRequest);
     }
 
 

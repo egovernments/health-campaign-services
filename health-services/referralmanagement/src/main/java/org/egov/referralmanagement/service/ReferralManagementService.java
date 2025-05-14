@@ -10,6 +10,7 @@ import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.ds.Tuple;
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.ErrorDetails;
 import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.referralmanagement.Referral;
@@ -164,7 +165,7 @@ public class ReferralManagementService {
                                            Integer offset,
                                            String tenantId,
                                            Long lastChangedSince,
-                                           Boolean includeDeleted) {
+                                           Boolean includeDeleted) throws InvalidTenantIdException {
         log.info("received request to search referrals");
         String idFieldName = getIdFieldName(referralSearchRequest.getReferral());
         if (isSearchByIdOnly(referralSearchRequest.getReferral(), idFieldName)) {
@@ -173,7 +174,7 @@ public class ReferralManagementService {
                             .singletonList(referralSearchRequest.getReferral())),
                     referralSearchRequest.getReferral());
             log.info("fetching referrals with ids: {}", ids);
-            List<Referral> referrals = referralRepository.findById(ids, idFieldName, includeDeleted).getResponse().stream()
+            List<Referral> referrals = referralRepository.findById(tenantId, ids, idFieldName, includeDeleted).getResponse().stream()
                     .filter(lastChangedSince(lastChangedSince))
                     .filter(havingTenantId(tenantId))
                     .filter(includeDeleted(includeDeleted))
@@ -202,9 +203,10 @@ public class ReferralManagementService {
         try {
             if (!validReferrals.isEmpty()) {
                 log.info("processing {} valid entities", validReferrals.size());
+                String tenantId = CommonUtils.getTenantId(validReferrals);
                 List<String> referralIds = validReferrals.stream().map(entity -> entity.getId()).collect(Collectors.toSet()).stream().collect(Collectors.toList());
                 List<Referral> existingReferrals = referralRepository
-                        .findById(referralIds, false);
+                        .findById(tenantId, referralIds, false);
                 referralManagementEnrichmentService.delete(existingReferrals, referralRequest);
                 referralRepository.save(existingReferrals,
                         referralManagementConfiguration.getDeleteReferralTopic());

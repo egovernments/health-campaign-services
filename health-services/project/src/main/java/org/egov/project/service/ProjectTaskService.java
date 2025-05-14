@@ -10,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.ds.Tuple;
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.common.models.ErrorDetails;
 import org.egov.common.models.core.SearchResponse;
@@ -223,7 +224,7 @@ public class ProjectTaskService {
     }
 
     public SearchResponse<Task> search(TaskSearch taskSearch, Integer limit, Integer offset, String tenantId,
-                                 Long lastChangedSince, Boolean includeDeleted) {
+                                 Long lastChangedSince, Boolean includeDeleted) throws InvalidTenantIdException {
 
         log.info("received request to search project task");
 
@@ -234,7 +235,7 @@ public class ProjectTaskService {
                             .singletonList(taskSearch)),
                     taskSearch);
             log.info("fetching project tasks with ids: {}", ids);
-            SearchResponse<Task> searchResponse = projectTaskRepository.findById(ids,
+            SearchResponse<Task> searchResponse = projectTaskRepository.findById(tenantId, ids,
                             idFieldName, includeDeleted);
             return SearchResponse.<Task>builder().response(searchResponse.getResponse().stream()
                     .filter(lastChangedSince(lastChangedSince))

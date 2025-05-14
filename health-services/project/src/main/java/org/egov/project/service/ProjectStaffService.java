@@ -35,6 +35,7 @@ import java.util.Map;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+import static org.egov.common.utils.CommonUtils.getTenantId;
 import static org.egov.common.utils.CommonUtils.handleErrors;
 import static org.egov.common.utils.CommonUtils.havingTenantId;
 import static org.egov.common.utils.CommonUtils.includeDeleted;
@@ -122,10 +123,11 @@ public class ProjectStaffService {
         List<ProjectStaff> validEntities = tuple.getX();
         try {
             if (!validEntities.isEmpty()) {
+                String tenantId = getTenantId(validEntities);
                 log.info("processing {} valid entities", validEntities.size());
                 enrichmentService.create(validEntities, request);
                 // Pushing the data as ProjectStaffBulkRequest for Attendance Service Consumer
-                producer.push(projectConfiguration.getProjectStaffAttendanceTopic(), new ProjectStaffBulkRequest(request.getRequestInfo(),validEntities));
+                producer.push(tenantId, projectConfiguration.getProjectStaffAttendanceTopic(), new ProjectStaffBulkRequest(request.getRequestInfo(),validEntities));
                 // Pushing the data as list for persister consumer
                 projectStaffRepository.save(validEntities, projectConfiguration.getCreateProjectStaffTopic());
                 log.info("successfully created project staff");
@@ -235,7 +237,7 @@ public class ProjectStaffService {
             log.info("searching project staff by id");
             List<String> ids = projectStaffSearchRequest.getProjectStaff().getId();
             log.info("fetching project staff with ids: {}", ids);
-            List<ProjectStaff> projectStaffs = projectStaffRepository.findById(ids, includeDeleted).stream()
+            List<ProjectStaff> projectStaffs = projectStaffRepository.findById(tenantId, ids, includeDeleted).stream()
                     .filter(lastChangedSince(lastChangedSince))
                     .filter(havingTenantId(tenantId))
                     .filter(includeDeleted(includeDeleted))

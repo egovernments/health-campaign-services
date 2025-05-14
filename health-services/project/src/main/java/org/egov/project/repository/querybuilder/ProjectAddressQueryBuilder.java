@@ -15,6 +15,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 
+import static org.egov.common.utils.MultiStateInstanceUtil.SCHEMA_REPLACE_STRING;
 import static org.egov.project.util.ProjectConstants.DOT;
 
 @Component
@@ -32,8 +33,8 @@ public class ProjectAddressQueryBuilder {
             " addr.type as address_type, addr.addressLine1 as address_addressLine1, addr.addressLine2 as address_addressLine2, addr.landmark as address_landmark, addr.city as address_city, addr.pinCode as address_pinCode, " +
             " addr.buildingName as address_buildingName, addr.street as address_street, addr.boundaryType as address_boundaryType, addr.boundary as address_boundary " +
             " " +
-            "from project prj " +
-            "left join project_address addr " +
+            "from " + SCHEMA_REPLACE_STRING + ".project prj " +
+            "left join " + SCHEMA_REPLACE_STRING + ".project_address addr " +
             "on prj.id = addr.projectId ";
 
     private final String paginationWrapper = "SELECT * FROM " +
@@ -42,8 +43,8 @@ public class ProjectAddressQueryBuilder {
             " result) result_offset " +
             "WHERE offset_ > ? AND offset_ <= ?";
 
-    private static final String PROJECTS_COUNT_QUERY = "SELECT COUNT(*) FROM project prj " +
-            "left join project_address addr " +
+    private static final String PROJECTS_COUNT_QUERY = "SELECT COUNT(*) FROM " + SCHEMA_REPLACE_STRING + ".project prj " +
+            "left join " + SCHEMA_REPLACE_STRING + ".project_address addr " +
             "on prj.id = addr.projectId ";;
 
     /**

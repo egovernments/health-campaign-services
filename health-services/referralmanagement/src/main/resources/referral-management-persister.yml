@@ -156,3 +156,351 @@ serviceMaps:
             - jsonPath: $.*.rowVersion
             - jsonPath: $.*.isDeleted
             - jsonPath: $.*.id
+
+    - version: 1.0
+      description: Saves a hfreferral
+      fromTopic: save-hfreferral-topic
+      isTransaction: true
+      isAuditEnabled: true
+      module: REFERRALMANAGEMENT
+      objecIdJsonPath: $.id
+      tenantIdJsonPath: $.tenantId
+      userUuidJsonPath: $.[0].auditDetails.createdBy
+      transactionCodeJsonPath: $.clientReferenceId
+      auditAttributeBasePath: $.*
+      queryMaps:
+        - query: INSERT INTO hf_referral(id, clientReferenceId, tenantId, projectid, projectFacilityId, symptom, symptomsurveyid, beneficiaryid, referralcode, nationallevelid, additionalDetails, createdBy, createdTime, lastModifiedBy, lastModifiedTime, clientCreatedBy, clientCreatedTime, clientLastModifiedBy, clientLastModifiedTime, rowVersion, isDeleted) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.id
+            - jsonPath: $.*.clientReferenceId
+            - jsonPath: $.*.tenantId
+            - jsonPath: $.*.projectId
+            - jsonPath: $.*.projectFacilityId
+            - jsonPath: $.*.symptom
+            - jsonPath: $.*.symptomSurveyId
+            - jsonPath: $.*.beneficiaryId
+            - jsonPath: $.*.referralCode
+            - jsonPath: $.*.nationalLevelId
+            - jsonPath: $.*.additionalFields
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.*.auditDetails.createdBy
+            - jsonPath: $.*.auditDetails.createdTime
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.clientAuditDetails.createdBy
+            - jsonPath: $.*.clientAuditDetails.createdTime
+            - jsonPath: $.*.clientAuditDetails.lastModifiedBy
+            - jsonPath: $.*.clientAuditDetails.lastModifiedTime
+            - jsonPath: $.*.rowVersion
+            - jsonPath: $.*.isDeleted
+
+    - version: 1.0
+      description: Updates a hfreferral
+      fromTopic: update-hfreferral-topic
+      isTransaction: true
+      isAuditEnabled: true
+      module: REFERRALMANAGEMENT
+      objecIdJsonPath: $.id
+      tenantIdJsonPath: $.tenantId
+      userUuidJsonPath: $.[0].auditDetails.createdBy
+      transactionCodeJsonPath: $.clientReferenceId
+      auditAttributeBasePath: $.*
+      queryMaps:
+        - query: UPDATE hf_referral SET clientReferenceId = ?, tenantId = ?, projectid = ?, projectFacilityId = ?, symptom = ?, symptomsurveyid = ?, beneficiaryid = ?, referralcode = ?, nationallevelid = ?, additionalDetails = ?, lastModifiedBy = ?, lastModifiedTime = ?, clientLastModifiedBy = ?, clientLastModifiedTime = ?, rowVersion = ? WHERE ID = ?;
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.clientReferenceId
+            - jsonPath: $.*.tenantId
+            - jsonPath: $.*.projectId
+            - jsonPath: $.*.projectFacilityId
+            - jsonPath: $.*.symptom
+            - jsonPath: $.*.symptomSurveyId
+            - jsonPath: $.*.beneficiaryId
+            - jsonPath: $.*.referralCode
+            - jsonPath: $.*.nationalLevelId
+            - jsonPath: $.*.additionalFields
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.clientAuditDetails.lastModifiedBy
+            - jsonPath: $.*.clientAuditDetails.lastModifiedTime
+            - jsonPath: $.*.rowVersion
+            - jsonPath: $.*.id
+
+    - version: 1.0
+      description: Deletes a hfreferral
+      fromTopic: delete-hfreferral-topic
+      isTransaction: true
+      isAuditEnabled: true
+      module: REFERRALMANAGEMENT
+      objecIdJsonPath: $.id
+      tenantIdJsonPath: $.tenantId
+      userUuidJsonPath: $.[0].auditDetails.createdBy
+      transactionCodeJsonPath: $.clientReferenceId
+      auditAttributeBasePath: $.*
+      queryMaps:
+        - query: UPDATE hf_referral SET lastModifiedBy = ?, lastModifiedTime = ?, clientLastModifiedBy = ?, clientLastModifiedTime = ?, rowVersion = ?, isDeleted = ? WHERE ID = ?;
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.clientAuditDetails.lastModifiedBy
+            - jsonPath: $.*.clientAuditDetails.lastModifiedTime
+            - jsonPath: $.*.rowVersion
+            - jsonPath: $.*.isDeleted
+            - jsonPath: $.*.id
+
+    - version: 1.0
+      description: Saves a side effect
+      fromTopic: statea-save-side-effect-topic
+      isTransaction: true
+      queryMaps:
+        - query: INSERT INTO statea.SIDE_EFFECT(id, clientReferenceId, tenantId, taskId, taskClientReferenceId, projectBeneficiaryId, projectBeneficiaryClientReferenceId, symptoms, additionalDetails, createdBy, createdTime, lastModifiedBy, lastModifiedTime, clientCreatedBy, clientCreatedTime, clientLastModifiedBy, clientLastModifiedTime, rowVersion, isDeleted) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.id
+            - jsonPath: $.*.clientReferenceId
+            - jsonPath: $.*.tenantId
+            - jsonPath: $.*.taskId
+            - jsonPath: $.*.taskClientReferenceId
+            - jsonPath: $.*.projectBeneficiaryId
+            - jsonPath: $.*.projectBeneficiaryClientReferenceId
+            - jsonPath: $.*.symptoms
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.*.additionalFields
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.*.auditDetails.createdBy
+            - jsonPath: $.*.auditDetails.createdTime
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.clientAuditDetails.createdBy
+            - jsonPath: $.*.clientAuditDetails.createdTime
+            - jsonPath: $.*.clientAuditDetails.lastModifiedBy
+            - jsonPath: $.*.clientAuditDetails.lastModifiedTime
+            - jsonPath: $.*.rowVersion
+            - jsonPath: $.*.isDeleted
+
+    - version: 1.0
+      description: Updates a side effect
+      fromTopic: statea-update-side-effect-topic
+      isTransaction: true
+      queryMaps:
+        - query: UPDATE statea.SIDE_EFFECT SET tenantId = ?, taskId = ?, taskClientReferenceId = ?, projectBeneficiaryId = ?, projectBeneficiaryClientReferenceId = ?, symptoms = ?, additionalDetails = ?, lastModifiedBy = ?, lastModifiedTime = ?, clientLastModifiedBy = ?, clientLastModifiedTime = ?, rowVersion = ?, isDeleted = ? WHERE ID = ?;
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.tenantId
+            - jsonPath: $.*.taskId
+            - jsonPath: $.*.taskClientReferenceId
+            - jsonPath: $.*.projectBeneficiaryId
+            - jsonPath: $.*.projectBeneficiaryClientReferenceId
+            - jsonPath: $.*.symptoms
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.*.additionalFields
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.clientAuditDetails.lastModifiedBy
+            - jsonPath: $.*.clientAuditDetails.lastModifiedTime
+            - jsonPath: $.*.rowVersion
+            - jsonPath: $.*.isDeleted
+            - jsonPath: $.*.id
+
+    - version: 1.0
+      description: Deletes a side effect
+      fromTopic: statea-delete-side-effect-topic
+      isTransaction: true
+      queryMaps:
+        - query: UPDATE statea.SIDE_EFFECT SET lastModifiedBy = ?, lastModifiedTime = ?, clientLastModifiedBy = ?, clientLastModifiedTime = ?, rowVersion = ?, isDeleted = ? WHERE ID = ?;
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.clientAuditDetails.lastModifiedBy
+            - jsonPath: $.*.clientAuditDetails.lastModifiedTime
+            - jsonPath: $.*.rowVersion
+            - jsonPath: $.*.isDeleted
+            - jsonPath: $.*.id
+
+    - version: 1.0
+      description: Saves a referral
+      fromTopic: statea-save-referral-topic
+      isTransaction: true
+      queryMaps:
+        - query: INSERT INTO statea.REFERRAL(id, clientReferenceId, tenantId, projectBeneficiaryId, projectBeneficiaryClientReferenceId, referrerId, recipientId, recipientType, reasons, additionalDetails, sideEffectId, sideEffectClientReferenceId, createdBy, createdTime, lastModifiedBy, lastModifiedTime, clientCreatedBy, clientCreatedTime, clientLastModifiedBy, clientLastModifiedTime, rowVersion, isDeleted) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.id
+            - jsonPath: $.*.clientReferenceId
+            - jsonPath: $.*.tenantId
+            - jsonPath: $.*.projectBeneficiaryId
+            - jsonPath: $.*.projectBeneficiaryClientReferenceId
+            - jsonPath: $.*.referrerId
+            - jsonPath: $.*.recipientId
+            - jsonPath: $.*.recipientType
+            - jsonPath: $.*.reasons
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.*.additionalFields
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.*.sideEffect.id
+            - jsonPath: $.*.sideEffect.clientReferenceId
+            - jsonPath: $.*.auditDetails.createdBy
+            - jsonPath: $.*.auditDetails.createdTime
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.clientAuditDetails.createdBy
+            - jsonPath: $.*.clientAuditDetails.createdTime
+            - jsonPath: $.*.clientAuditDetails.lastModifiedBy
+            - jsonPath: $.*.clientAuditDetails.lastModifiedTime
+            - jsonPath: $.*.rowVersion
+            - jsonPath: $.*.isDeleted
+
+    - version: 1.0
+      description: Updates a referral
+      fromTopic: statea-update-referral-topic
+      isTransaction: true
+      queryMaps:
+        - query: UPDATE statea.REFERRAL SET tenantId = ?, projectBeneficiaryId = ?, projectBeneficiaryClientReferenceId = ?, referrerId = ?, recipientId = ?, recipientType = ?, reasons = ?, additionalDetails = ?, sideEffectId = ?, sideEffectClientReferenceId = ?, lastModifiedBy = ?, lastModifiedTime = ?, clientLastModifiedBy = ?, clientLastModifiedTime = ?, rowVersion = ?, isDeleted = ? WHERE ID = ?;
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.tenantId
+            - jsonPath: $.*.projectBeneficiaryId
+            - jsonPath: $.*.projectBeneficiaryClientReferenceId
+            - jsonPath: $.*.referrerId
+            - jsonPath: $.*.recipientId
+            - jsonPath: $.*.recipientType
+            - jsonPath: $.*.reasons
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.*.additionalFields
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.*.sideEffect.id
+            - jsonPath: $.*.sideEffect.clientReferenceId
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.clientAuditDetails.lastModifiedBy
+            - jsonPath: $.*.clientAuditDetails.lastModifiedTime
+            - jsonPath: $.*.rowVersion
+            - jsonPath: $.*.isDeleted
+            - jsonPath: $.*.id
+
+    - version: 1.0
+      description: Deletes a referral
+      fromTopic: statea-delete-referral-topic
+      isTransaction: true
+      queryMaps:
+        - query: UPDATE statea.REFERRAL SET lastModifiedBy = ?, lastModifiedTime = ?, clientLastModifiedBy = ?, clientLastModifiedTime = ?, rowVersion = ?, isDeleted = ? WHERE ID = ?;
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.clientAuditDetails.lastModifiedBy
+            - jsonPath: $.*.clientAuditDetails.lastModifiedTime
+            - jsonPath: $.*.rowVersion
+            - jsonPath: $.*.isDeleted
+            - jsonPath: $.*.id
+
+    - version: 1.0
+      description: Saves a hfreferral
+      fromTopic: statea-save-hfreferral-topic
+      isTransaction: true
+      isAuditEnabled: true
+      module: REFERRALMANAGEMENT
+      objecIdJsonPath: $.id
+      tenantIdJsonPath: $.tenantId
+      userUuidJsonPath: $.[0].auditDetails.createdBy
+      transactionCodeJsonPath: $.clientReferenceId
+      auditAttributeBasePath: $.*
+      queryMaps:
+        - query: INSERT INTO statea.hf_referral(id, clientReferenceId, tenantId, projectid, projectFacilityId, symptom, symptomsurveyid, beneficiaryid, referralcode, nationallevelid, additionalDetails, createdBy, createdTime, lastModifiedBy, lastModifiedTime, clientCreatedBy, clientCreatedTime, clientLastModifiedBy, clientLastModifiedTime, rowVersion, isDeleted) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.id
+            - jsonPath: $.*.clientReferenceId
+            - jsonPath: $.*.tenantId
+            - jsonPath: $.*.projectId
+            - jsonPath: $.*.projectFacilityId
+            - jsonPath: $.*.symptom
+            - jsonPath: $.*.symptomSurveyId
+            - jsonPath: $.*.beneficiaryId
+            - jsonPath: $.*.referralCode
+            - jsonPath: $.*.nationalLevelId
+            - jsonPath: $.*.additionalFields
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.*.auditDetails.createdBy
+            - jsonPath: $.*.auditDetails.createdTime
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.clientAuditDetails.createdBy
+            - jsonPath: $.*.clientAuditDetails.createdTime
+            - jsonPath: $.*.clientAuditDetails.lastModifiedBy
+            - jsonPath: $.*.clientAuditDetails.lastModifiedTime
+            - jsonPath: $.*.rowVersion
+            - jsonPath: $.*.isDeleted
+
+    - version: 1.0
+      description: Updates a hfreferral
+      fromTopic: statea-update-hfreferral-topic
+      isTransaction: true
+      isAuditEnabled: true
+      module: REFERRALMANAGEMENT
+      objecIdJsonPath: $.id
+      tenantIdJsonPath: $.tenantId
+      userUuidJsonPath: $.[0].auditDetails.createdBy
+      transactionCodeJsonPath: $.clientReferenceId
+      auditAttributeBasePath: $.*
+      queryMaps:
+        - query: UPDATE statea.hf_referral SET clientReferenceId = ?, tenantId = ?, projectid = ?, projectFacilityId = ?, symptom = ?, symptomsurveyid = ?, beneficiaryid = ?, referralcode = ?, nationallevelid = ?, additionalDetails = ?, lastModifiedBy = ?, lastModifiedTime = ?, clientLastModifiedBy = ?, clientLastModifiedTime = ?, rowVersion = ? WHERE ID = ?;
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.clientReferenceId
+            - jsonPath: $.*.tenantId
+            - jsonPath: $.*.projectId
+            - jsonPath: $.*.projectFacilityId
+            - jsonPath: $.*.symptom
+            - jsonPath: $.*.symptomSurveyId
+            - jsonPath: $.*.beneficiaryId
+            - jsonPath: $.*.referralCode
+            - jsonPath: $.*.nationalLevelId
+            - jsonPath: $.*.additionalFields
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.clientAuditDetails.lastModifiedBy
+            - jsonPath: $.*.clientAuditDetails.lastModifiedTime
+            - jsonPath: $.*.rowVersion
+            - jsonPath: $.*.id
+
+    - version: 1.0
+      description: Deletes a hfreferral
+      fromTopic: statea-delete-hfreferral-topic
+      isTransaction: true
+      isAuditEnabled: true
+      module: REFERRALMANAGEMENT
+      objecIdJsonPath: $.id
+      tenantIdJsonPath: $.tenantId
+      userUuidJsonPath: $.[0].auditDetails.createdBy
+      transactionCodeJsonPath: $.clientReferenceId
+      auditAttributeBasePath: $.*
+      queryMaps:
+        - query: UPDATE statea.hf_referral SET lastModifiedBy = ?, lastModifiedTime = ?, clientLastModifiedBy = ?, clientLastModifiedTime = ?, rowVersion = ?, isDeleted = ? WHERE ID = ?;
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.clientAuditDetails.lastModifiedBy
+            - jsonPath: $.*.clientAuditDetails.lastModifiedTime
+            - jsonPath: $.*.rowVersion
+            - jsonPath: $.*.isDeleted
+            - jsonPath: $.*.id

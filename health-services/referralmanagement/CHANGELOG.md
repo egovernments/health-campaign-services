@@ -1,6 +1,12 @@
 # Changelog
 All notable changes to this module will be documented in this file.
 
+# 1.2.0 - 2025-05-07
+* Enabled multi-schema support using dynamic schema replacement in SQL queries.
+* Refactored repositories to validate and apply tenant-specific logic.
+* Enhanced error handling and validators for tenant awareness.
+* Modified migration scripts for central instance compatibility.
+
 ## 1.0.3 - 2024-08-09
 - Upgraded downsync logic.
 - Added `ExistentEntityValidator` fixes
