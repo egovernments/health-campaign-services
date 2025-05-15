@@ -284,6 +284,25 @@ public class CommonUtils {
             }
         }
     }
+    public void putValueBasedOnType(ObjectNode objectNode, String key, Object value, Class<?> type) {
+        if (value == null) {
+            objectNode.putNull(key);
+            return;
+        }
+        if (type == Integer.class) {
+            objectNode.put(key, Integer.parseInt(value.toString()));
+        } else if (type == Long.class) {
+            objectNode.put(key, Long.parseLong(value.toString()));
+        } else if (type == Double.class) {
+            objectNode.put(key, Double.parseDouble(value.toString()));
+        } else if (type == Boolean.class) {
+            objectNode.put(key, Boolean.parseBoolean(value.toString()));
+        } else if (type == String.class) {
+            objectNode.put(key, value.toString());
+        } else {
+            objectNode.putPOJO(key, value);
+        }
+    }
 
 //    public ObjectNode additionalFieldsToDetails(List<Object> fields) {
 //        ObjectNode additionalDetails = objectMapper.createObjectNode();
