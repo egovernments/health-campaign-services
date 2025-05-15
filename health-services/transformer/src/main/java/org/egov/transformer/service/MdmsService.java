@@ -1,6 +1,7 @@
 package org.egov.transformer.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import digit.models.coremodels.mdms.*;
 import lombok.extern.slf4j.Slf4j;
@@ -29,6 +30,7 @@ public class MdmsService {
     private final ServiceRequestClient restRepo;
     private final String mdmsHost;
     private final String mdmsUrl;
+    private final ObjectMapper mapper;
     private final TransformerProperties transformerProperties;
     private static Map<String, String> transformerLocalizations = new HashMap<>();
     private static Map<String, String> transformerElasticIndexLabelsMap = new HashMap<>();
@@ -37,10 +39,11 @@ public class MdmsService {
     @Autowired
     public MdmsService(ServiceRequestClient restRepo,
                        @Value("${egov.mdms.host}") String mdmsHost,
-                       @Value("${egov.mdms.search.endpoint}") String mdmsUrl, TransformerProperties transformerProperties) {
+                       @Value("${egov.mdms.search.endpoint}") String mdmsUrl, ObjectMapper mapper, TransformerProperties transformerProperties) {
         this.restRepo = restRepo;
         this.mdmsHost = mdmsHost;
         this.mdmsUrl = mdmsUrl;
+        this.mapper = mapper;
         this.transformerProperties = transformerProperties;
     }
 
@@ -169,6 +172,33 @@ public class MdmsService {
             log.error("error while fetching ELASTIC_INDEX_LABELS from MDMS: {}", ExceptionUtils.getStackTrace(e));
         }
         return transformerElasticIndexLabelsMap.getOrDefault(label, label);
+    }
+
+    public JsonNode fetchChecklistInfoFromMDMS(String tenantId, String checklistName){
+        JsonNode checklistInfo = null;
+        RequestInfo requestInfo = RequestInfo.builder()
+                .userInfo(User.builder().uuid("transformer-uuid").build())
+                .build();
+        MdmsCriteriaReq mdmsCriteriaReq = getMdmsRequest(requestInfo, tenantId, transformerProperties.getTransformerChecklistInfoMDMSMaster(), transformerProperties.getTransformerChecklistInfoMDMSModule(), "");
+        try {
+            MdmsResponse mdmsResponse = fetchConfig(mdmsCriteriaReq, MdmsResponse.class);
+            JSONArray mdmsArray = mdmsResponse.getMdmsRes().get(transformerProperties.getTransformerChecklistInfoMDMSModule())
+                    .get(transformerProperties.getTransformerChecklistInfoMDMSMaster());
+            if (mdmsArray != null && !mdmsArray.isEmpty()) {
+                JsonNode mdmsInfo = mapper.convertValue(mdmsArray, JsonNode.class);
+
+                for (JsonNode node : mdmsInfo) {
+                    if (node.has(checklistName)) {
+                        checklistInfo = node.get(checklistName);
+                        break;
+                    }
+                }
+            }
+        }
+        catch (Exception e) {
+            log.error("error while fetching checklist info from MDMS: {}", ExceptionUtils.getStackTrace(e));
+        }
+        return checklistInfo;
     }
 
 
