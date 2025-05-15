@@ -1,8 +1,14 @@
-// === Transform Config ===
+import { generateUserPassword } from "../api/campaignApis";
+import { searchBoundaryRelationshipData } from "../api/coreApis";
+import { getBoundaryCodeAndBoundaryTypeMapping } from "../utils/campaignUtils";
+import { logger } from "../utils/logger";
+import config from ".";
+
+// === transformConfigs ===
 export const transformConfigs: any = {
     employeeHrms: {
         metadata: {
-            tenantId: "mz",
+            tenantId: "dev",
             hierarchy: "MICROPLAN"
         },
         fields: {
@@ -78,6 +84,10 @@ export const transformConfigs: any = {
                         "$hierarchy": {
                             type: "string",
                             value: "${metadata.hierarchy}"
+                        },
+                        "$boundaryType": {
+                            type: "string",
+                            value: "${metadata.hierarchy}"
                         }
                     }
                 }
@@ -99,15 +109,16 @@ export const transformConfigs: any = {
 type RowData = Record<string, any>;
 
 export class DataTransformer {
-    private config: any;
-    private transformFunctionMap: Record<string, (data: any) => any>;
+    private transformConfig: any;
+    private transformFunctionMap: Record<string, (data: any, transformConfig: any) => any>;
 
-    constructor(config: any) {
-        this.config = config;
+    constructor(transformConfig: any) {
+        this.transformConfig = transformConfig;
         this.transformFunctionMap = {
             transformEmployee: this.transformEmployee.bind(this),
             transformBulkEmployee: this.transformBulkEmployee.bind(this)
         };
+
     }
 
     public async transform(rowData: RowData[]): Promise<any> {
@@ -125,30 +136,32 @@ export class DataTransformer {
             throw new Error("Bulk transformation requires an array of data.");
         }
 
-        const transformedData = rowData.map((data) => this.transformSingle(data)); // Apply single transformation to each item
-        const transformFnName = this.config.transFormBulk;
+        const transformedData = rowData.map((data) => this.transformSingle(data));
+        const transformFnName = this.transformConfig.transFormBulk;
 
         if (transformFnName && this.transformFunctionMap[transformFnName]) {
-            return this.transformFunctionMap[transformFnName](transformedData);
+            return this.transformFunctionMap[transformFnName](transformedData, this.transformConfig); // ✅ Pass transformConfig
         }
 
         return transformedData;
     }
 
+
     private transformSingle(rowData: RowData): any {
         const transformed: any = {};
-        this.processFields(this.config.fields, rowData, transformed);
-        const transformFnName = this.config.transFormSingle;
+        this.processFields(this.transformConfig.fields, rowData, transformed);
+        const transformFnName = this.transformConfig.transFormSingle;
 
         if (transformFnName && this.transformFunctionMap[transformFnName]) {
-            return this.transformFunctionMap[transformFnName](transformed);
+            return this.transformFunctionMap[transformFnName](transformed, this.transformConfig);  // ✅ Pass transformConfig
         }
 
         return transformed;
     }
 
+
     private resolveTemplate(template: string): string {
-        const metadata = this.config.metadata || {};
+        const metadata = this.transformConfig.metadata || {};
         return template.replace(/\$\{metadata\.(\w+)\}/g, (_, key) => metadata[key] ?? "");
     }
 
@@ -169,17 +182,25 @@ export class DataTransformer {
                     .split(fieldConfig.source.delimiter || ",")
                     .map((v: string) => v.trim());
 
-                return parts.map((item: string) => {
+                return parts.map((item: any) => {
                     if (fieldConfig.items?.type === "object") {
                         const obj: Record<string, any> = {};
+
                         for (const [key, prop] of Object.entries(fieldConfig.items.properties)) {
-                            // Remove dollar sign from field keys in the array items
                             const finalKey = key.startsWith("$") ? key.substring(1) : key;
 
                             if ((prop as any).valueFrom === "self") {
+                                // same‑element copy
                                 obj[finalKey] = item;
+
                             } else if ("value" in (prop as any)) {
+                                // constant / template
                                 obj[finalKey] = this.resolveTemplate((prop as any).value);
+
+                            } else if ((prop as any).source) {
+                                // NEW  ➜ support nested `source`
+                                const v = this.processField(prop, rowData);   // reuse existing logic
+                                obj[finalKey] = v;
                             }
                         }
                         return obj;
@@ -224,17 +245,41 @@ export class DataTransformer {
     }
 
     // === Custom Transform Functions ===
-    private transformEmployee(data: any): any {
+    private transformEmployee(data: any, transformConfig: any): any {
         data.status = "ACTIVE";
+        // Example use of transformConfig.metadata
+        if (transformConfig.metadata?.hierarchy) {
+            data.hierarchyUsed = transformConfig.metadata.hierarchy;
+        }
         return data;
     }
 
-    private transformBulkEmployee(data: any[]): any {
-        // Bulk transformation logic here (if needed)
-        data.forEach(item => {
-            item.status2 = "ACTIVE";
-        });
+    private async transformBulkEmployee(data: any[], transformConfig: any): Promise<any> {
+        logger.info("Enriching boundary type in jurisdictions for employee create data.");
+        const boundaryRelationshipResponse = await searchBoundaryRelationshipData(transformConfig?.metadata?.tenantId, transformConfig?.metadata?.hierarchy, true);
+        if (!boundaryRelationshipResponse?.TenantBoundary?.[0]?.boundary) {
+            throw new Error("Boundary relationship search failed");
+        }
+        const boundaryCodeAndBoundaryTypeMapping = getBoundaryCodeAndBoundaryTypeMapping(boundaryRelationshipResponse?.TenantBoundary?.[0]?.boundary);
+        if (data?.length > 0) {
+            data.forEach(item => {
+                if (item?.jurisdictions?.length > 0) {
+                    item?.jurisdictions?.forEach((jurisdiction: any) => {
+                        jurisdiction.boundaryType = boundaryCodeAndBoundaryTypeMapping[jurisdiction.boundary];
+                    })
+                }
+                if(!item?.user?.password) {
+                    if (config.user.userPasswordAutoGenerate) {
+                        item.user.password = generateUserPassword();
+                    }
+                    else{
+                        item.user.password = config.user.userDefaultPassword;
+                    }
+                }
+            });
+        }
         return data;
     }
+
 }
 

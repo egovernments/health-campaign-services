@@ -1680,7 +1680,19 @@ function modifyBoundaryDataHeadersWithMap(
 export async function getRelatedDataWithCampaign(type: string, campaignNumber: string) {
   let queryString = `SELECT * FROM ${config?.DB_CONFIG.DB_CAMPAIGN_DATA_TABLE_NAME} WHERE type = $1 AND campaignNumber = $2`;
   let relatedData = await executeQuery(queryString, [type, campaignNumber]);
-  return relatedData?.rows;
+  if(!relatedData?.rows) return [];
+  let rows = [];
+  for(let i = 0; i < relatedData?.rows?.length; i++) {
+    rows.push({
+      campaignNumber : relatedData?.rows[i]?.campaignnumber,
+      type : relatedData?.rows[i]?.type,
+      data : relatedData?.rows[i]?.data,
+      uniqueIdentifier : relatedData?.rows[i]?.uniqueidentifier,
+      status : relatedData?.rows[i]?.status,
+      uniqueIdAfterProcess : relatedData?.rows[i]?.uniqueidafterprocess
+    })
+  }
+  return rows;
 }
 
 

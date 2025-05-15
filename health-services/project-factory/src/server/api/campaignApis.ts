@@ -1109,7 +1109,7 @@ function convertUserRoles(employees: any[], request: any) {
   }
 }
 
-function generateUserPassword() {
+export function generateUserPassword() {
   // Function to generate a random lowercase letter
   function getRandomLowercaseLetter() {
     const letters = "abcdefghijklmnopqrstuvwxyz";

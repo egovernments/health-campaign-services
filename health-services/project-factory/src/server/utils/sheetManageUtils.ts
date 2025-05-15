@@ -210,9 +210,9 @@ async function handleErrorDuringGenerate(responseToSend: any, error: any) {
     await produceModifiedMessages({ generatedResource: [responseToSend] }, config?.kafka?.KAFKA_UPDATE_GENERATED_RESOURCE_DETAILS_TOPIC);
 }
 
-async function handleErrorDuringProcess(ResoureDetails: any, error: any) {
-    ResoureDetails.status = resourceDetailsStatuses.failed, ResoureDetails.additionalDetails = {
-        ...ResoureDetails.additionalDetails,
+async function handleErrorDuringProcess(ResourceDetails: any, error: any) {
+    ResourceDetails.status = resourceDetailsStatuses.failed, ResourceDetails.additionalDetails = {
+        ...ResourceDetails.additionalDetails,
         error: {
             status: error.status,
             code: error.code,
@@ -220,7 +220,7 @@ async function handleErrorDuringProcess(ResoureDetails: any, error: any) {
             message: error.message
         }
     }
-    await produceModifiedMessages({ ResoureDetails}, config?.kafka?.KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC);
+    await produceModifiedMessages({ ResourceDetails: ResourceDetails }, config?.kafka?.KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC);
 }
 
 async function createBasicTemplateViaConfig(responseToSend: any, templateConfig: any, localizationMap: any) {
