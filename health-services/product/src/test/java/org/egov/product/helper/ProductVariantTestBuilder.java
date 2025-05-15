@@ -3,7 +3,6 @@ package org.egov.product.helper;
 import org.egov.common.helper.AuditDetailsTestBuilder;
 import org.egov.common.models.product.ProductVariant;
 
-
 public class ProductVariantTestBuilder {
     private ProductVariant.ProductVariantBuilder builder;
 
@@ -23,8 +22,6 @@ public class ProductVariantTestBuilder {
         this.builder.productId("some-product-id")
                 .id(null)
                 .tenantId("some-tenant-id")
-                .variation("some-variation")
-                .sku("some-sku-code")
                 .rowVersion(1);
         return this;
     }

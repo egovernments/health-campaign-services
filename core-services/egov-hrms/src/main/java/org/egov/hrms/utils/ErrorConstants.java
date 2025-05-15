@@ -203,4 +203,8 @@ public class ErrorConstants {
 
 	public static final String HRMS_PASSWORD_REQUIRED_MSG = "Password is required";
 
+	public static final String TENANT_ID_EXCEPTION = "TENANT_ID_EXCEPTION";
+
+	public static final String TENANT_ID_EXCEPTION_MESSAGE = "tenant id cannot be null or empty";
+
 }

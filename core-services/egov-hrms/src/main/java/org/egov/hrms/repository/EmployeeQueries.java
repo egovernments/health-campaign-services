@@ -37,21 +37,21 @@ public class EmployeeQueries {
 			+ "react.uuid as react_uuid, react.reasonforreactivation as react_reasonforreactivation, react.effectivefrom as react_effectivefrom, react.ordernumber as react_ordernumber, "
 			+ "react.remarks as react_remarks, react.tenantid as react_tenantid, react.createdby as react_createdby, "
 			+ "react.createddate as react_createddate, react.lastmodifiedby as react_lastmodifiedby, react.lastmodifieddate as react_lastmodifieddate "
-			+ "FROM eg_hrms_employee employee LEFT JOIN eg_hrms_assignment assignment ON employee.uuid = assignment.employeeid LEFT JOIN eg_hrms_educationaldetails education "
-			+ "ON employee.uuid = education.employeeid LEFT JOIN eg_hrms_departmentaltests depttest ON employee.uuid = depttest.employeeid LEFT JOIN eg_hrms_empdocuments docs "
-			+ "ON employee.uuid = docs.employeeid LEFT JOIN eg_hrms_servicehistory history ON employee.uuid = history.employeeid LEFT JOIN eg_hrms_jurisdiction jurisdiction "
-			+ "ON employee.uuid = jurisdiction.employeeid LEFT JOIN eg_hrms_deactivationdetails deact ON employee.uuid = deact.employeeid LEFT JOIN eg_hrms_reactivationdetails react "
+			+ "FROM %s.eg_hrms_employee employee LEFT JOIN %s.eg_hrms_assignment assignment ON employee.uuid = assignment.employeeid LEFT JOIN %s.eg_hrms_educationaldetails education "
+			+ "ON employee.uuid = education.employeeid LEFT JOIN %s.eg_hrms_departmentaltests depttest ON employee.uuid = depttest.employeeid LEFT JOIN %s.eg_hrms_empdocuments docs "
+			+ "ON employee.uuid = docs.employeeid LEFT JOIN %s.eg_hrms_servicehistory history ON employee.uuid = history.employeeid LEFT JOIN %s.eg_hrms_jurisdiction jurisdiction "
+			+ "ON employee.uuid = jurisdiction.employeeid LEFT JOIN %s.eg_hrms_deactivationdetails deact ON employee.uuid = deact.employeeid LEFT JOIN %s.eg_hrms_reactivationdetails react "
 			+ "ON employee.uuid = react.employeeid WHERE ";
 
 	public static final String HRMS_PAGINATION_WRAPPER = "SELECT * FROM "
 			+ "(SELECT *, DENSE_RANK() OVER (ORDER BY employee_uuid) offset_ FROM " + "({})" + " result) result_offset "
 			+ "WHERE offset_ > $offset AND offset_ <= $limit";
 	
-	public static final String HRMS_POSITION_SEQ = "SELECT NEXTVAL('EG_HRMS_POSITION')";
+	public static final String HRMS_POSITION_SEQ = "SELECT NEXTVAL('%s.EG_HRMS_POSITION')";
 
-	public static final String HRMS_GET_ASSIGNMENT = "select distinct(employeeid)  from eg_hrms_assignment assignment where assignment.tenantid notnull  ";
+	public static final String HRMS_GET_ASSIGNMENT = "select distinct(employeeid)  from %s.eg_hrms_assignment assignment where assignment.tenantid notnull  ";
 
-	public static final String HRMS_COUNT_EMP_QUERY = "SELECT active, count(*) FROM eg_hrms_employee WHERE tenantid ";
+	public static final String HRMS_COUNT_EMP_QUERY = "SELECT active, count(*) FROM %s.eg_hrms_employee WHERE tenantid ";
 
-	public static final String HRMS_GET_UNASSIGNED_EMPLOYEES = "SELECT employee.uuid from eg_hrms_employee employee LEFT JOIN eg_hrms_assignment assignment ON employee.uuid = assignment.employeeid where assignment.employeeid is null";
+	public static final String HRMS_GET_UNASSIGNED_EMPLOYEES = "SELECT employee.uuid from %s.eg_hrms_employee employee LEFT JOIN %s.eg_hrms_assignment assignment ON employee.uuid = assignment.employeeid where assignment.employeeid is null";
 }

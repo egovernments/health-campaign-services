@@ -1,6 +1,7 @@
 package org.egov.common.utils;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.Error;
 import org.egov.tracer.model.CustomException;
 
@@ -22,6 +23,14 @@ public class ValidatorUtils {
                 .type(Error.ErrorType.RECOVERABLE)
                 .exception(new CustomException("NULL_ID", "Id cannot be null")).build();
     }
+
+    public static Error getErrorForNullTenantId() {
+        return Error.builder().errorMessage("TenantId cannot be null").errorCode("NULL_TENANT_ID")
+                .type(Error.ErrorType.RECOVERABLE)
+                .exception(new CustomException("NULL_TENANT_ID", "TenantId cannot be null")).build();
+    }
+
+
 
     public static Error getErrorForAddressType() {
         return Error.builder().errorMessage("Invalid address").errorCode("INVALID_ADDRESS")
@@ -109,6 +118,15 @@ public class ValidatorUtils {
                 .errorCode("IS_DELETED_TRUE_SUB_ENTITY")
                 .type(Error.ErrorType.RECOVERABLE)
                 .exception(new CustomException("IS_DELETED_TRUE_SUB_ENTITY", "isDeleted cannot be true for sub entity"))
+                .build();
+    }
+
+    public static Error getErrorForInvalidTenantId(String tenantId, InvalidTenantIdException exception) {
+        return Error.builder()
+                .errorMessage(String.format("tenantId : %s is not valid", tenantId))
+                .errorCode("TENANT_ID_INVALID")
+                .type(Error.ErrorType.NON_RECOVERABLE)
+                .exception(exception)
                 .build();
     }
 
