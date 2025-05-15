@@ -411,18 +411,17 @@ public class IndividualService {
         List<Individual> validIndividuals = new ArrayList<>(individualList);
         if (properties.isUserSyncEnabled()) {
             for (Individual individual : individualList) {
+                if (!Boolean.TRUE.equals(individual.getIsSystemUser())) continue;
                 try {
                     if (apiOperation.equals(ApiOperation.UPDATE)) {
                         userIntegrationService.updateUser(individual, request.getRequestInfo());
                         log.info("successfully updated user for {} ",
                                 individual.getName());
                     } else if (apiOperation.equals(ApiOperation.CREATE)) {
-                        if (Boolean.TRUE.equals(individual.getIsSystemUser())) {
                         List<UserRequest> userRequests = userIntegrationService.createUser(individual,
                                 request.getRequestInfo());
                             individual.setUserId(Long.toString(userRequests.get(0).getId()));
                             individualList.get(0).setUserUuid(userRequests.get(0).getUuid());
-                        }
                         log.info("successfully created user for {} ",
                                 individual.getName());
                     } else {
