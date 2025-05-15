@@ -76,9 +76,11 @@ public class EmployeeRepository {
 			criteria.setUuids(empUuids);
 		}
 		String query = queryBuilder.getEmployeeSearchQuery(criteria, preparedStmtList, true);
+
 		String queryWithOutLimitAndOffset = queryBuilder.getEmployeeSearchQuery(criteria, preparedStmtListWithOutLimitAndOffset , false);
 		try {
-			query = multiStateInstanceUtil.replaceSchemaPlaceholder(tenantId, query);
+			query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
+			queryWithOutLimitAndOffset = multiStateInstanceUtil.replaceSchemaPlaceholder(queryWithOutLimitAndOffset, tenantId);
 		} catch (InvalidTenantIdException e) {
 			throw new CustomException(ErrorConstants.TENANT_ID_EXCEPTION, e.getMessage());
 		}
@@ -100,7 +102,7 @@ public class EmployeeRepository {
 		String tenantId = criteria.getTenantId();
 		String query = queryBuilder.getUnassignedEmployeesSearchQuery(criteria, preparedStmtList);
 		try {
-			query = multiStateInstanceUtil.replaceSchemaPlaceholder(tenantId, query);
+			query = multiStateInstanceUtil.replaceSchemaPlaceholder(query,tenantId);
 		} catch (InvalidTenantIdException e) {
 			throw new CustomException(ErrorConstants.TENANT_ID_EXCEPTION, e.getMessage());
 		}
@@ -117,8 +119,9 @@ public class EmployeeRepository {
 		List<String> employeesIds = new ArrayList<>();
 		List <Object> preparedStmtList = new ArrayList<>();
 		String tenantId = criteria.getTenantId();
-		String query = queryBuilder.getAssignmentSearchQuery(criteria, preparedStmtList);        try {
-			query = multiStateInstanceUtil.replaceSchemaPlaceholder(tenantId, query);
+		String query = queryBuilder.getAssignmentSearchQuery(criteria, preparedStmtList);
+		try {
+			query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
 		} catch (InvalidTenantIdException e) {
 			throw new CustomException(ErrorConstants.TENANT_ID_EXCEPTION, e.getMessage());
 		}
@@ -143,7 +146,7 @@ public class EmployeeRepository {
 		String query = queryBuilder.getPositionSeqQuery();
 		Long id = null;
 		try {
-			query = multiStateInstanceUtil.replaceSchemaPlaceholder(tenantId, query);
+			query = multiStateInstanceUtil.replaceSchemaPlaceholder( query, tenantId);
 		} catch (InvalidTenantIdException e) {
 			throw new CustomException(ErrorConstants.TENANT_ID_EXCEPTION, e.getMessage());
 		}
@@ -169,7 +172,7 @@ public class EmployeeRepository {
 		String query = queryBuilder.getEmployeeCountQuery(tenantId, preparedStmtList);
 		log.info("query; "+query);
         try {
-			query = multiStateInstanceUtil.replaceSchemaPlaceholder(tenantId, query);
+			query = multiStateInstanceUtil.replaceSchemaPlaceholder( query, tenantId);
         } catch (InvalidTenantIdException e) {
             throw new CustomException(ErrorConstants.TENANT_ID_EXCEPTION, e.getMessage());
         }

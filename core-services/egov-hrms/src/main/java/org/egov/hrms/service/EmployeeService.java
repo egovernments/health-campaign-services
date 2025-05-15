@@ -229,8 +229,6 @@ public class EmployeeService {
 					criteria.setUuids(userUUIDs);
 			}
 		}
-		if(userChecked)
-			criteria.setTenantId(null);
         List <Employee> employees = new ArrayList<>();
         if(!((!CollectionUtils.isEmpty(criteria.getRoles()) || !CollectionUtils.isEmpty(criteria.getNames()) || !StringUtils.isEmpty(criteria.getPhone())) && CollectionUtils.isEmpty(criteria.getUuids()))) {
 			Map<String, Object> response = repository.fetchEmployees(criteria, requestInfo);
@@ -239,6 +237,8 @@ public class EmployeeService {
 			totalCount = (Long) response.get("totalCount");
 		}
         List<String> uuids = employees.stream().map(Employee :: getUuid).collect(Collectors.toList());
+		if(userChecked)
+			criteria.setTenantId(null);
 		if(!CollectionUtils.isEmpty(uuids)){
             Map<String, Object> userSearchCriteria = new HashMap<>();
 			userSearchCriteria.put(HRMSConstants.HRMS_USER_SERACH_CRITERIA_USERTYPE_CODE, HRMSConstants.HRMS_USER_SERACH_CRITERIA_USERTYPE);
