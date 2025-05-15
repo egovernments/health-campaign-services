@@ -108,4 +108,14 @@ public interface Constants {
     String LNG = "lng";
     String STAFF = "STAFF";
     String BOUNDARY_CODE_KEY = "boundaryCode";
+
+    String KEY_VALUE = "keyValue";
+    String VALUE_TYPE = "valueType";
+    String VALUE = "value";
+    String INTEGER = "Integer";
+    String STRING = "String";
+    String DOUBLE = "Double";
+    String LONG = "Long";
+    String BOOLEAN = "Boolean";
+
 }

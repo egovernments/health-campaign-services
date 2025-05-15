@@ -12,10 +12,7 @@ import org.egov.transformer.models.upstream.AttributeValue;
 import org.egov.transformer.models.upstream.Service;
 import org.egov.transformer.models.upstream.ServiceDefinition;
 import org.egov.transformer.producer.Producer;
-import org.egov.transformer.service.BoundaryService;
-import org.egov.transformer.service.ProjectService;
-import org.egov.transformer.service.ServiceDefinitionService;
-import org.egov.transformer.service.UserService;
+import org.egov.transformer.service.*;
 import org.egov.transformer.utils.CommonUtils;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
@@ -36,6 +33,7 @@ public class ServiceTaskTransformationService {
     private final CommonUtils commonUtils;
     private final UserService userService;
     private final BoundaryService boundaryService;
+    private final MdmsService mdmsService;
     private final Map<String, String> specialSprayingStringValueKeys = new HashMap<String, String>() {{
         put("SPECIAL_SPRAYING_1", "specialSpraying");
         put("SPECIAL_SPRAYING_1.SS_1_OP7.ADT1", "otherSpecialSprayingComment");
@@ -46,8 +44,16 @@ public class ServiceTaskTransformationService {
         put("SPECIAL_SPRAYING_2", "quantityUsed");
         put("SPECIAL_SPRAYING_3", "roomsSprayed");
     }};
+    private static final Map<String, Class<?>> typeMap = new HashMap<>();
+    static {
+        typeMap.put(INTEGER, Integer.class);
+        typeMap.put(STRING, String.class);
+        typeMap.put(DOUBLE, Double.class);
+        typeMap.put(BOOLEAN, Boolean.class);
+        typeMap.put(LONG, Long.class);
+    }
 
-    public ServiceTaskTransformationService(Producer producer, TransformerProperties transformerProperties, ObjectMapper objectMapper, ServiceDefinitionService serviceDefinitionService, ProjectService projectService, CommonUtils commonUtils, UserService userService, BoundaryService boundaryService) {
+    public ServiceTaskTransformationService(Producer producer, TransformerProperties transformerProperties, ObjectMapper objectMapper, ServiceDefinitionService serviceDefinitionService, ProjectService projectService, CommonUtils commonUtils, UserService userService, BoundaryService boundaryService, MdmsService mdmsService) {
         this.producer = producer;
         this.transformerProperties = transformerProperties;
         this.objectMapper = objectMapper;
@@ -56,6 +62,7 @@ public class ServiceTaskTransformationService {
         this.commonUtils = commonUtils;
         this.userService = userService;
         this.boundaryService = boundaryService;
+        this.mdmsService = mdmsService;
     }
 
     public void transform(List<Service> serviceList) {
@@ -71,6 +78,7 @@ public class ServiceTaskTransformationService {
         producer.push(topic, serviceIndexV1List);
         filterFinanceChecklists(serviceIndexV1List);
         filterSpecialSpraying(serviceIndexV1List);
+        filterChecklistsForExtraTransformation(serviceIndexV1List);
     }
 
     private ServiceIndexV1 transform(Service service) {
@@ -221,5 +229,55 @@ public class ServiceTaskTransformationService {
         if (!CollectionUtils.isEmpty(specialSprayingChecklists)) {
             producer.push(topic, specialSprayingChecklists);
         }
+    }
+
+    private void filterChecklistsForExtraTransformation(List<ServiceIndexV1> serviceIndexV1List) {
+        if (serviceIndexV1List == null || serviceIndexV1List.isEmpty()) {
+            log.info("No service index data to process.");
+            return;
+        }
+        List<String> checklistNames = Arrays.asList(transformerProperties.getChecklistsForExtraTransformation().split(","));
+        List<ServiceIndexV1> checklistList = serviceIndexV1List.stream()
+                .filter(service -> checklistNames.contains(service.getChecklistName()))
+                .collect(Collectors.toList());
+        if (CollectionUtils.isEmpty(checklistList)) return;
+
+        log.info("{} checklist(s) will go through extra transformation", checklistList.size());
+
+        for (ServiceIndexV1 service : checklistList) {
+            JsonNode checklistInfo = mdmsService.fetchChecklistInfoFromMDMS(service.getTenantId(), service.getChecklistName());
+            ObjectNode transformedChecklist = objectMapper.createObjectNode();
+            List<AttributeValue> attributeValues = service.getAttributes();
+            for (AttributeValue attributeValue : attributeValues) {
+                String attributeCode = attributeValue.getAttributeCode();
+                Object value = getValueFromChecklist(attributeValue);
+
+                if (checklistInfo == null || !checklistInfo.has(attributeCode)) {
+                    // MDMS info not found — adding raw attribute code and value
+                    transformedChecklist.putPOJO(attributeCode, value);
+                    continue;
+                }
+
+                JsonNode attrSpecificMap = checklistInfo.get(attributeCode);
+                String keyVal = String.valueOf(attrSpecificMap.get(KEY_VALUE));
+                Class<?> valueType = typeMap.getOrDefault(attrSpecificMap.get(VALUE_TYPE).asText(), Object.class);
+                commonUtils.putValueBasedOnType(transformedChecklist, keyVal , value, valueType);
+            }
+            service.setTransformedChecklist(transformedChecklist);
+        }
+
+        String topic = transformerProperties.getTransformerProducerExtraTransformedChecklistIndexV1Topic();
+        producer.push(topic, checklistList);
+    }
+
+    private Object getValueFromChecklist(AttributeValue attributeValue) {
+        Object valueMap = attributeValue.getValue();
+
+        if (valueMap instanceof Map) {
+            Map<String, Object> map = (Map<String, Object>) valueMap;
+            return map.getOrDefault(VALUE, null);
+        }
+
+        return null;
     }
 }

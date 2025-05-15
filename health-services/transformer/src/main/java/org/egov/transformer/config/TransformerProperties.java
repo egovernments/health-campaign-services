@@ -50,6 +50,9 @@ public class TransformerProperties {
     @Value("${transformer.producer.special.spraying.checklist.index.v1.topic}")
     private String transformerProducerSpecialSprayingChecklistIndexV1Topic;
 
+    @Value("${transformer.producer.extra.transformed.checklist.index.v1.topic}")
+    private String transformerProducerExtraTransformedChecklistIndexV1Topic;
+
     @Value("${transformer.producer.create.pgr.topic}")
     private String transformerProducerCreatePgrTopic;
 
@@ -224,4 +227,13 @@ public class TransformerProperties {
 
     @Value("${special.spraying.checklist.name}")
     private String specialSprayingChecklistName;
+
+    @Value("${checklist.extraTransformation.names}")
+    private String checklistsForExtraTransformation;
+
+    @Value("${transformer.checklist.info.mdms.master}")
+    private String transformerChecklistInfoMDMSMaster;
+
+    @Value("${transformer.checklist.info.mdms.module}")
+    private String transformerChecklistInfoMDMSModule;
 }
