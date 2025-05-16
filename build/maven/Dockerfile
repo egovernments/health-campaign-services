@@ -1,29 +1,35 @@
-
-FROM egovio/alpine-maven-builder-jdk-8:1-master-NA-6036091e AS build
-#FROM ghcr.io/egovernments/alpine-maven-builder-jdk-8:1-master-na-6036091e AS build
+# ─── BUILD STAGE ────────────────────────────────────────────────────────────────
+FROM maven:3.9.6-amazoncorretto-17 AS build
 ARG WORK_DIR
 WORKDIR /app
 
-# copy the project files
-COPY ${WORK_DIR}/pom.xml ./pom.xml
-COPY build/maven/start.sh ./start.sh
+# Copy project files
+COPY ${WORK_DIR}/pom.xml    ./pom.xml
+COPY build/maven/start.sh   ./start.sh
+COPY ${WORK_DIR}/src        ./src
 
-# not useful for stateless builds
-# RUN mvn -B dependency:go-offline
+# Make your script executable (line endings fixed later)
+RUN chmod +x start.sh
 
-COPY ${WORK_DIR}/src ./src
-RUN mvn -B -f /app/pom.xml package
+# Build the fat JAR
+RUN mvn -B -f pom.xml clean package
 
-
-# Create runtime image
-FROM egovio/8-openjdk-alpine
-#FROM ghcr.io/egovernments/8-openjdk-alpine:latest
-
+# ─── RUNTIME STAGE ──────────────────────────────────────────────────────────────
+FROM amazoncorretto:17-alpine AS runtime
 
 WORKDIR /opt/egov
 
-COPY --from=build /app/target/*.jar /app/start.sh /opt/egov/
+# Install dos2unix on Alpine
+RUN apk add --no-cache dos2unix
 
-RUN chmod +x /opt/egov/start.sh
+# Copy over the JAR and start script
+COPY --from=build /app/target/*.jar   ./app.jar
+COPY --from=build /app/start.sh       ./start.sh
 
-CMD ["/opt/egov/start.sh"]
+# Normalize line endings & ensure executable bit
+RUN dos2unix start.sh && chmod +x start.sh
+
+# (Optional) check arch at runtime
+RUN uname -m
+
+CMD ["./start.sh"]
