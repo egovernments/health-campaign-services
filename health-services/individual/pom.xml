@@ -26,14 +26,15 @@
     <build>
         <sourceDirectory>src/main/java</sourceDirectory>
         <plugins>
-            <!-- 1. Compile under JDK17 and open the module to Lombok -->
+
+            <!-- 1. Compiler plugin: fork on JDK17, open the module for Lombok -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.10.1</version>
                 <configuration>
-                    <!-- now building & targeting 17 -->
-                    <release>${java.version}</release>
+                    <source>${maven.compiler.source}</source>
+                    <target>${maven.compiler.target}</target>
                     <fork>true</fork>
                     <compilerArgs>
                         <arg>--add-exports</arg>
@@ -42,16 +43,19 @@
                 </configuration>
             </plugin>
 
-            <!-- 2. Spring Boot fat-JAR repackaging -->
+            <!-- 2. Spring Boot fat-jar repackaging -->
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <executions>
                     <execution>
-                        <goals><goal>repackage</goal></goals>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
                     </execution>
                 </executions>
             </plugin>
+
         </plugins>
     </build>
 
@@ -66,7 +70,7 @@
             <artifactId>spring-boot-starter-jdbc</artifactId>
         </dependency>
 
-        <!-- eGov common -->
+        <!-- eGov common modules -->
         <dependency>
             <groupId>org.egov.common</groupId>
             <artifactId>health-services-common</artifactId>
@@ -78,7 +82,7 @@
             <version>1.0.12-SNAPSHOT</version>
         </dependency>
 
-        <!-- Flyway & PostgreSQL -->
+        <!-- Flyway & PostgreSQL driver -->
         <dependency>
             <groupId>org.flywaydb</groupId>
             <artifactId>flyway-core</artifactId>
@@ -103,7 +107,7 @@
             <version>1.5.18</version>
         </dependency>
 
-        <!-- Lombok (modern) -->
+        <!-- Lombok (modern release) -->
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
