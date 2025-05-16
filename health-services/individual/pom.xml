@@ -11,8 +11,10 @@
     <name>individual</name>
 
     <properties>
-        <!-- Build on Java 17 -->
+        <!-- build & target on Java 17 -->
         <java.version>17</java.version>
+        <maven.compiler.source>${java.version}</maven.compiler.source>
+        <maven.compiler.target>${java.version}</maven.compiler.target>
     </properties>
 
     <parent>
@@ -24,24 +26,23 @@
     <build>
         <sourceDirectory>src/main/java</sourceDirectory>
         <plugins>
-            <!-- 1. Compile under JDK17, but emit Java-8 bytecode -->
+            <!-- 1. Compile under JDK17 and open the module to Lombok -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.10.1</version>
                 <configuration>
-                    <!-- produce Java-8–compatible classes -->
-                    <release>8</release>
+                    <!-- now building & targeting 17 -->
+                    <release>${java.version}</release>
                     <fork>true</fork>
                     <compilerArgs>
-                        <!-- allow Lombok to see Javac internals -->
                         <arg>--add-exports</arg>
                         <arg>jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED</arg>
                     </compilerArgs>
                 </configuration>
             </plugin>
 
-            <!-- 2. Spring Boot repackage -->
+            <!-- 2. Spring Boot fat-JAR repackaging -->
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
@@ -102,7 +103,7 @@
             <version>1.5.18</version>
         </dependency>
 
-        <!-- Lombok (modern release) -->
+        <!-- Lombok (modern) -->
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
@@ -123,7 +124,7 @@
             </exclusions>
         </dependency>
 
-        <!-- JSON & Bean Validation -->
+        <!-- JSON & Validation -->
         <dependency>
             <groupId>com.fasterxml.jackson.datatype</groupId>
             <artifactId>jackson-datatype-jsr310</artifactId>
