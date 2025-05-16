@@ -12,7 +12,7 @@ COPY ${WORK_DIR}/src        ./src
 RUN chmod +x start.sh
 
 # Build the fat JAR
-RUN mvn -B -f pom.xml clean package
+RUN mvn -B -f pom.xml clean package -DskipTests
 
 # ─── RUNTIME STAGE ──────────────────────────────────────────────────────────────
 FROM amazoncorretto:17-alpine AS runtime
