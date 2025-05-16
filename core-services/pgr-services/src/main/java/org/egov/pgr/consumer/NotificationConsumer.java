@@ -30,7 +30,7 @@ public class NotificationConsumer {
      * @param record The Kafka record received, represented as a HashMap containing message data.
      * @param topic  The topic from which the record is received, extracted from Kafka headers.
      */
-    @KafkaListener(topicPattern = ".*(${pgr.kafka.create.topic}|${pgr.kafka.update.topic})")
+    @KafkaListener(topicPattern = "(${pgr.kafka.tenant.id.pattern}){0,1}(${pgr.kafka.create.topic}|${pgr.kafka.update.topic}){1}")
     public void listen(final HashMap<String, Object> record, @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
             ServiceRequest request = mapper.convertValue(record, ServiceRequest.class);
