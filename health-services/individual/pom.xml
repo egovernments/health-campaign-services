@@ -2,18 +2,17 @@
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
                              http://maven.apache.org/maven-v4_0_0.xsd">
+
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.egov</groupId>
     <artifactId>individual</artifactId>
-    <packaging>jar</packaging>
     <version>1.1.1</version>
+    <packaging>jar</packaging>
     <name>individual</name>
 
     <properties>
-        <!-- still targeting 1.8 bytecode, but building on Corretto-17 -->
-        <java.version>1.8</java.version>
-        <maven.compiler.source>${java.version}</maven.compiler.source>
-        <maven.compiler.target>${java.version}</maven.compiler.target>
+        <!-- Build on Java 17 -->
+        <java.version>17</java.version>
     </properties>
 
     <parent>
@@ -25,29 +24,30 @@
     <build>
         <sourceDirectory>src/main/java</sourceDirectory>
         <plugins>
-            <!-- 1. Compiler plugin: add-exports so Lombok’s processor can access Javac internals -->
+            <!-- 1. Compile under JDK17, but emit Java-8 bytecode -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.10.1</version>
                 <configuration>
+                    <!-- produce Java-8–compatible classes -->
+                    <release>8</release>
                     <fork>true</fork>
                     <compilerArgs>
+                        <!-- allow Lombok to see Javac internals -->
                         <arg>--add-exports</arg>
                         <arg>jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED</arg>
                     </compilerArgs>
                 </configuration>
             </plugin>
 
-            <!-- 2. Spring Boot repackaging -->
+            <!-- 2. Spring Boot repackage -->
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <executions>
                     <execution>
-                        <goals>
-                            <goal>repackage</goal>
-                        </goals>
+                        <goals><goal>repackage</goal></goals>
                     </execution>
                 </executions>
             </plugin>
@@ -65,7 +65,7 @@
             <artifactId>spring-boot-starter-jdbc</artifactId>
         </dependency>
 
-        <!-- eGov common libs -->
+        <!-- eGov common -->
         <dependency>
             <groupId>org.egov.common</groupId>
             <artifactId>health-services-common</artifactId>
@@ -77,7 +77,7 @@
             <version>1.0.12-SNAPSHOT</version>
         </dependency>
 
-        <!-- Flyway & Postgres -->
+        <!-- Flyway & PostgreSQL -->
         <dependency>
             <groupId>org.flywaydb</groupId>
             <artifactId>flyway-core</artifactId>
@@ -102,7 +102,7 @@
             <version>1.5.18</version>
         </dependency>
 
-        <!-- Lombok (upgrade to latest) -->
+        <!-- Lombok (modern release) -->
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
@@ -123,7 +123,7 @@
             </exclusions>
         </dependency>
 
-        <!-- JSON & Validation -->
+        <!-- JSON & Bean Validation -->
         <dependency>
             <groupId>com.fasterxml.jackson.datatype</groupId>
             <artifactId>jackson-datatype-jsr310</artifactId>
