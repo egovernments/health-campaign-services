@@ -810,7 +810,7 @@ async function createFacilityAndBoundaryFile(facilitySheetData: any, boundaryShe
 
 export async function handledropdownthings(sheet: any, schema: any, localizationMap: any) {
   logger.info(sheet.rowCount)
-  const dropdowns = Object.entries(schema.properties)
+  const dropdowns = Object.entries(schema?.properties || {})
     .filter(([key, value]: any) => Array.isArray(value.enum) && value.enum.length > 0)
     .reduce((result: any, [key, value]: any) => {
       // Transform the key using localisedValue function
@@ -1677,9 +1677,12 @@ function modifyBoundaryDataHeadersWithMap(
   });
 }
 
-export async function getRelatedDataWithCampaign(type: string, campaignNumber: string) {
+export async function getRelatedDataWithCampaign(type: string, campaignNumber: string, status ?: string) {
   let queryString = `SELECT * FROM ${config?.DB_CONFIG.DB_CAMPAIGN_DATA_TABLE_NAME} WHERE type = $1 AND campaignNumber = $2`;
-  let relatedData = await executeQuery(queryString, [type, campaignNumber]);
+  if(status) queryString += ` AND status = $3`;
+  const arrayStatements = [type, campaignNumber];
+  if(status) arrayStatements.push(status);
+  let relatedData = await executeQuery(queryString, arrayStatements);
   if(!relatedData?.rows) return [];
   let rows = [];
   for(let i = 0; i < relatedData?.rows?.length; i++) {

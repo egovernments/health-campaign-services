@@ -621,6 +621,7 @@ export function freezeUnfreezeColumns(
   worksheet: ExcelJS.Worksheet,
   columnsToFreeze: string[],
   columnsToUnFreezeTillData: string[],
+  columnsToFreezeTillData: string[],
   columnsToFreezeIfFilled: string[]
 ) {
   logger.info(`Freezing columns: ${columnsToFreeze}`);
@@ -641,6 +642,10 @@ export function freezeUnfreezeColumns(
     .map(header => headerMap[header])
     .filter((col): col is number => !!col);
 
+  const freezeTillDataIndexes = columnsToFreezeTillData
+    .map(header => headerMap[header])
+    .filter((col): col is number => !!col);
+
   const rowCount = worksheet.rowCount;
   const maxCol = worksheet.columnCount;
   const unfrozeTillRow = Number(config.values.unfrozeTillRow);
@@ -649,24 +654,22 @@ export function freezeUnfreezeColumns(
   // Step 2: Unlock default editable area, skipping frozen columns and empty headers
   for (let r = 2; r <= unfrozeTillRow; r++) {
     for (let c = 1; c <= unfrozeTillColumn; c++) {
-      const headerValue : any = worksheet.getCell(1, c).value;
+      const headerValue: any = worksheet.getCell(1, c).value;
       if (!freezeIndexes.includes(c) && !tillDataIndexes.includes(c) && headerValue) {
-        if(columnsToFreezeIfFilled.includes(headerValue)) {
+        if (columnsToFreezeIfFilled.includes(headerValue)) {
           const value = worksheet.getCell(r, c).value;
           if (value === null || value === undefined || value === "") {
             worksheet.getCell(r, c).protection = { locked: false };
           }
-        }
-        else{
-          worksheet.getCell(r, c).protection = { locked: false }; 
+        } else {
+          worksheet.getCell(r, c).protection = { locked: false };
         }
       }
     }
   }
 
   // 🔹 Step 2.1: Unlock columns in columnsToUnFreezeTillData only till last data row
-  let lastDataRow = worksheet.lastRow?.number ?? 1;
-  for (let r = 2; r <= lastDataRow; r++) {
+  for (let r = 2; r <= rowCount; r++) {
     for (const col of tillDataIndexes) {
       worksheet.getCell(r, col).protection = { locked: false };
     }
@@ -684,8 +687,19 @@ export function freezeUnfreezeColumns(
     }
   }
 
+  // 🔹 Step 4.1: Lock columns in columnsToFreezeTillData till last data row
+  for (let r = 2; r <= rowCount; r++) {
+    for (const col of freezeTillDataIndexes) {
+      worksheet.getCell(r, col).protection = { locked: true };
+    }
+  }
+
   // Step 5: Apply or remove protection
-  if (freezeIndexes.length > 0 || tillDataIndexes.length > 0) {
+  if (
+    freezeIndexes.length > 0 ||
+    tillDataIndexes.length > 0 ||
+    freezeTillDataIndexes.length > 0
+  ) {
     worksheet.protect('passwordhere', {
       selectLockedCells: true,
       selectUnlockedCells: true
@@ -694,7 +708,5 @@ export function freezeUnfreezeColumns(
     worksheet.unprotect();
   }
 }
-
-
 
 export { getNewExcelWorkbook, getExcelWorkbookFromFileURL, formatWorksheet, addDataToSheet, lockTargetFields, updateFontNameToRoboto, formatFirstRow, formatOtherRows, finalizeSheet, protectSheet };

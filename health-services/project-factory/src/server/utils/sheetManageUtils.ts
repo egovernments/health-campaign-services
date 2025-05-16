@@ -144,6 +144,11 @@ export async function processResource(ResoureDetails: any, templateConfig: any, 
         const localizationMapModule = await getLocalizedMessagesHandlerViaLocale(locale, ResoureDetails?.tenantId);
         const localizationMap = { ...(localizationMapHierarchy || {}), ...localizationMapModule };
         await processRequest(ResoureDetails, workBook, templateConfig, localizationMap);
+        enrichTemplateMetaData(workBook, locale, ResoureDetails?.campaignId);
+        const fileResponse = await createAndUploadFileWithOutRequest(workBook, ResoureDetails?.tenantId);
+        ResoureDetails.fileStoreid = fileResponse?.[0]?.fileStoreId;
+        if (!ResoureDetails.fileStoreid) throw new Error("FileStoreId not created.");
+        ResoureDetails.status = generatedResourceStatuses.completed;
         await produceModifiedMessages({ ResoureDetails}, config?.kafka?.KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC);
     } catch (error) {
         console.log(error)
@@ -158,6 +163,8 @@ async function processRequest(ResoureDetails: any, workBook: any, templateConfig
         const worksheet = workBook.getWorksheet(sheetName);
         const sheetData = getSheetDataFromWorksheet(worksheet);
         const jsonData = getJsonData(sheetData, true);
+        const schema = await callMdmsSchema(ResoureDetails?.tenantId, sheet?.schemaName);
+        sheet.schema = schema;
         wholeSheetData[sheetName] = jsonData;
     }
     const className = `${ResoureDetails?.type}-processClass`;
@@ -174,7 +181,7 @@ async function processRequest(ResoureDetails: any, workBook: any, templateConfig
             const sheetName = getLocalizedName(sheet?.sheetName, localizationMap);
             const sheetData: any = sheetMap?.[sheetName];
             const worksheet = getOrCreateWorksheet(workBook, sheetName);
-            await fillSheetMapInWorkbook(worksheet, sheetData);
+            await fillSheetMapInWorkbook(worksheet, sheetData, true);
             const schema = sheet?.schema;
             const columnsToFreeze = Object.keys(sheetData?.dynamicColumns || {}).filter(
                 (columnName) => sheetData.dynamicColumns[columnName]?.freezeColumn
@@ -185,7 +192,10 @@ async function processRequest(ResoureDetails: any, workBook: any, templateConfig
             const columnsToFreezeColumnIfFilled = Object.keys(sheetData?.dynamicColumns || {}).filter(
                 (columnName) => sheetData.dynamicColumns[columnName]?.freezeColumnIfFilled
             )
-            freezeUnfreezeColumns(worksheet, getLocalizedHeaders(columnsToFreeze, localizationMap), getLocalizedHeaders(columnsToUnFreezeTillData, localizationMap), getLocalizedHeaders(columnsToFreezeColumnIfFilled, localizationMap));
+            const columnsToFreezeTillData = Object.keys(sheetData?.dynamicColumns || {}).filter(
+                (columnName) => sheetData.dynamicColumns[columnName]?.freezeTillData
+            )
+            freezeUnfreezeColumns(worksheet, getLocalizedHeaders(columnsToFreeze, localizationMap), getLocalizedHeaders(columnsToUnFreezeTillData, localizationMap), getLocalizedHeaders(columnsToFreezeTillData, localizationMap), getLocalizedHeaders(columnsToFreezeColumnIfFilled, localizationMap));
             manageMultiSelect(worksheet, schema, localizationMap);
             await handledropdownthings(worksheet, schema, localizationMap);
             updateFontNameToRoboto(worksheet);
@@ -258,7 +268,10 @@ async function createBasicTemplateViaConfig(responseToSend: any, templateConfig:
                 const columnsToFreezeColumnIfFilled = Object.keys(sheetData?.dynamicColumns || {}).filter(
                     (columnName) => sheetData.dynamicColumns[columnName]?.freezeColumnIfFilled
                 )
-                freezeUnfreezeColumns(worksheet, getLocalizedHeaders(columnsToFreeze, localizationMap), getLocalizedHeaders(columnsToUnFreezeTillData, localizationMap), getLocalizedHeaders(columnsToFreezeColumnIfFilled, localizationMap));
+                const columnsToFreezeTillData = Object.keys(sheetData?.dynamicColumns || {}).filter(
+                    (columnName) => sheetData.dynamicColumns[columnName]?.freezeTillData
+                )
+                freezeUnfreezeColumns(worksheet, getLocalizedHeaders(columnsToFreeze, localizationMap), getLocalizedHeaders(columnsToUnFreezeTillData, localizationMap), getLocalizedHeaders(columnsToFreezeTillData, localizationMap), getLocalizedHeaders(columnsToFreezeColumnIfFilled, localizationMap));
                 manageMultiSelect(worksheet, schema, localizationMap);
                 await handledropdownthings(worksheet, schema, localizationMap);
                 updateFontNameToRoboto(worksheet);
@@ -343,6 +356,7 @@ function mergeAndGetDynamicColumns(dynamicColumns: any, schema: any, localizatio
         target.freezeColumnIfFilled ??= source.freezeColumnIfFilled;
         target.showInProcessed ??= source.showInProcessed;
         target.unFreezeColumnTillData ??= source.unFreezeColumnTillData;
+        target.freezeTillData ??= source.freezeTillData;
 
         if (!isMulti) {
             target.freezeColumn ??= source.freezeColumn;
@@ -387,8 +401,8 @@ function mergeAndGetDynamicColumns(dynamicColumns: any, schema: any, localizatio
 
 
 
-async function fillSheetMapInWorkbook(worksheet: ExcelJS.Worksheet, sheetData: any) {
-    const columnNameToIndexMap = processDynamicColumns(worksheet, sheetData);
+async function fillSheetMapInWorkbook(worksheet: ExcelJS.Worksheet, sheetData: any, isProcessedFile = false) {
+    const columnNameToIndexMap = processDynamicColumns(worksheet, sheetData, isProcessedFile);
     addDataToWorksheet(worksheet, sheetData, columnNameToIndexMap);
     logger.info(`Added data to sheet ${worksheet.name}`);
 }
@@ -402,7 +416,7 @@ function getOrCreateWorksheet(workbook: ExcelJS.Workbook, sheetName: string) {
     return worksheet;
 }
 
-function processDynamicColumns(worksheet: ExcelJS.Worksheet, sheetData: any) {
+function processDynamicColumns(worksheet: ExcelJS.Worksheet, sheetData: any, isProcessedFile = false) {
     const columnNameToIndexMap: Record<string, number> = {};
 
     if (!sheetData.dynamicColumns) return columnNameToIndexMap;
@@ -418,7 +432,7 @@ function processDynamicColumns(worksheet: ExcelJS.Worksheet, sheetData: any) {
         headerCell.value = columnName;
 
         // Apply column-level props (like width/hidden) and cell-level styles to header
-        applyColumnProperties(headerRow, headerCell, sheetData.dynamicColumns[columnName]);
+        applyColumnProperties(headerRow, headerCell, sheetData.dynamicColumns[columnName],isProcessedFile);
     });
 
     headerRow.commit(); // Commit the row after updating cells
@@ -427,12 +441,13 @@ function processDynamicColumns(worksheet: ExcelJS.Worksheet, sheetData: any) {
     return columnNameToIndexMap;
 }
 
-function applyColumnProperties(row: ExcelJS.Row, cell: ExcelJS.Cell, columnProps: ColumnProperties) {
+function applyColumnProperties(row: ExcelJS.Row, cell: ExcelJS.Cell, columnProps: ColumnProperties, isProcessedFile = false) {
     const column = cell.worksheet.getColumn(cell.col);
 
     // Apply column-level properties like width and hidden
     column.width = columnProps.width ?? 40; // Default width = 40
     if (columnProps.hideColumn !== undefined) column.hidden = columnProps.hideColumn;
+    if( isProcessedFile && columnProps.showInProcessed) column.hidden = false;
 
     cell.font = { ...cell.font, bold: true };
     adjustRowHeight(row, cell, column.width);
@@ -474,23 +489,32 @@ function addDataToWorksheet(
 
 
 
-
-function applyCellFormatting(worksheet: ExcelJS.Worksheet, rowCount: number, columnNameToIndexMap: Record<string, number>, sheetData: any) {
-    const startRow = 0;
-
-    for (let i = startRow; i <= rowCount + 1; i++) {
+function applyCellFormatting(
+    worksheet: ExcelJS.Worksheet,
+    rowCount: number,
+    columnNameToIndexMap: Record<string, number>,
+    sheetData: any
+) {
+    for (let i = 1; i <= rowCount + 1; i++) {
         const row = worksheet.getRow(i);
-        row.eachCell((cell, colNumber) => {
-            cell.alignment = {
-                ...cell.alignment,
-                wrapText: cell.value ? true : false
-            };
+        if (!row.hasValues) continue;
+
+        for (let colNumber = 1; colNumber <= row.cellCount; colNumber++) {
+            const cell = row.getCell(colNumber);
+            if (!cell.value) continue;
+
+            if (i <= 1) {
+                cell.alignment = { ...(cell.alignment || {}), wrapText: true };
+            }
+
             processBoldFormatting(cell);
             adjustRowHeightIfNeeded(row, cell, colNumber, columnNameToIndexMap, sheetData);
-        });
+        }
+
         row.commit();
     }
 }
+
 
 function processBoldFormatting(cell: ExcelJS.Cell) {
     if (typeof cell.value !== 'string') return;
