@@ -217,7 +217,7 @@ public class CommonUtils {
     }
 
     //TODO move below cycle fetching logic to mdmsService
-    public Integer fetchCycleIndex(String tenantId, String projectTypeId, AuditDetails auditDetails) {
+    public String fetchCycleIndex(String tenantId, String projectTypeId, AuditDetails auditDetails) {
         Long createdTime = auditDetails.getCreatedTime();
         JsonNode projectType = projectService.fetchProjectTypes(tenantId, null, projectTypeId);
         if (projectType.has(CYCLES)) {
@@ -229,7 +229,7 @@ public class CommonUtils {
                     Long startDate = currentCycle.get(START_DATE).asLong();
                     Long endDate = currentCycle.get(END_DATE).asLong();
                     if (isWithinCycle(createdTime, startDate, endDate) || isBetweenCycles(createdTime, cycles, i)) {
-                        return currentCycle.get(ID).asInt();
+                        return String.format("%02d", currentCycle.get(ID).asInt());
                     }
                 }
             }
