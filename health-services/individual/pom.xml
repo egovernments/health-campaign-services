@@ -17,17 +17,17 @@
         <maven.compiler.target>${java.version}</maven.compiler.target>
     </properties>
 
+    <!-- UPGRADED here to a Spring Boot that understands Java 17 -->
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>2.2.6.RELEASE</version>
+        <version>2.7.12</version>
     </parent>
 
     <build>
         <sourceDirectory>src/main/java</sourceDirectory>
         <plugins>
-
-            <!-- 1. Compiler plugin: fork on JDK17, open the module for Lombok -->
+            <!-- 1) Compiler: fork on JDK17 and open the module for Lombok -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
@@ -43,19 +43,11 @@
                 </configuration>
             </plugin>
 
-            <!-- 2. Spring Boot fat-jar repackaging -->
+            <!-- 2) Spring Boot fat-jar -->
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>repackage</goal>
-                        </goals>
-                    </execution>
-                </executions>
             </plugin>
-
         </plugins>
     </build>
 
@@ -70,7 +62,7 @@
             <artifactId>spring-boot-starter-jdbc</artifactId>
         </dependency>
 
-        <!-- eGov common modules -->
+        <!-- eGov common -->
         <dependency>
             <groupId>org.egov.common</groupId>
             <artifactId>health-services-common</artifactId>
@@ -82,7 +74,7 @@
             <version>1.0.12-SNAPSHOT</version>
         </dependency>
 
-        <!-- Flyway & PostgreSQL driver -->
+        <!-- Flyway & PostgreSQL -->
         <dependency>
             <groupId>org.flywaydb</groupId>
             <artifactId>flyway-core</artifactId>
