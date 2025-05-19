@@ -30,7 +30,6 @@ public class MdmsService {
     private final ServiceRequestClient restRepo;
     private final String mdmsHost;
     private final String mdmsUrl;
-    private final ObjectMapper mapper;
     private final TransformerProperties transformerProperties;
     private static Map<String, String> transformerLocalizations = new HashMap<>();
     private static Map<String, String> transformerElasticIndexLabelsMap = new HashMap<>();
@@ -39,11 +38,10 @@ public class MdmsService {
     @Autowired
     public MdmsService(ServiceRequestClient restRepo,
                        @Value("${egov.mdms.host}") String mdmsHost,
-                       @Value("${egov.mdms.search.endpoint}") String mdmsUrl, ObjectMapper mapper, TransformerProperties transformerProperties) {
+                       @Value("${egov.mdms.search.endpoint}") String mdmsUrl, TransformerProperties transformerProperties) {
         this.restRepo = restRepo;
         this.mdmsHost = mdmsHost;
         this.mdmsUrl = mdmsUrl;
-        this.mapper = mapper;
         this.transformerProperties = transformerProperties;
     }
 
@@ -185,6 +183,7 @@ public class MdmsService {
             JSONArray mdmsArray = mdmsResponse.getMdmsRes().get(transformerProperties.getTransformerChecklistInfoMDMSModule())
                     .get(transformerProperties.getTransformerChecklistInfoMDMSMaster());
             if (mdmsArray != null && !mdmsArray.isEmpty()) {
+                ObjectMapper mapper = new ObjectMapper();
                 JsonNode mdmsInfo = mapper.convertValue(mdmsArray, JsonNode.class);
 
                 for (JsonNode node : mdmsInfo) {
