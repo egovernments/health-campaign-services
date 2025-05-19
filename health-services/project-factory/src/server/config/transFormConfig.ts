@@ -1,6 +1,6 @@
 import { generateUserPassword } from "../api/campaignApis";
 import { searchBoundaryRelationshipData } from "../api/coreApis";
-import { getBoundaryCodeAndBoundaryTypeMapping } from "../utils/campaignUtils";
+import { createIdRequests, createUniqueUserNameViaIdGen, getBoundaryCodeAndBoundaryTypeMapping } from "../utils/campaignUtils";
 import { logger } from "../utils/logger";
 import config from ".";
 
@@ -103,6 +103,59 @@ export const transformConfigs: any = {
         },
         transFormSingle: "transformEmployee",
         transFormBulk: "transformBulkEmployee"
+    },
+    Facility: {
+        metadata: {
+            tenantId: "dev",
+            hierarchy: "MICROPLAN"
+        },
+        fields: {
+            "$Facility.tenantId": {
+                type: "string",
+                value: "${metadata.tenantId}"
+            },
+            "$Facility.name": {
+                type: "string",
+                source: { header: "HCM_ADMIN_CONSOLE_FACILITY_NAME" }
+            },
+            "$Facility.isPermanent": {
+                type: "string",
+                source: {
+                    header: "HCM_ADMIN_CONSOLE_FACILITY_STATUS",
+                    transform: {
+                        mapping: {
+                            "Permanent": "true",
+                            "Temporary": "false",
+                            "%default%": "true"
+                        }
+                    }
+                }
+            },
+            "$Facility.usage": {
+                type: "string",
+                source: { header: "HCM_ADMIN_CONSOLE_FACILITY_TYPE" }
+            },
+            "$Facility.storageCapacity": {
+                type: "number",
+                source: { header: "HCM_ADMIN_CONSOLE_FACILITY_CAPACITY" }
+            },
+            "$Facility.address": {
+                type: "object",
+                properties: {
+                    "$locality": {
+                        type: "object",
+                        properties: {
+                            "$code": {
+                                type: "string",
+                                source: { header: "HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY" }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        transFormSingle: "transformFacility",
+        transFormBulk: "transformBulkFacility"
     }
 };
 
@@ -255,6 +308,9 @@ export class DataTransformer {
     }
 
     private async transformBulkEmployee(data: any[], transformConfig: any): Promise<any> {
+        const idRequests = createIdRequests(data);
+        let result = await createUniqueUserNameViaIdGen(idRequests);
+        let curr = 0;
         logger.info("Enriching boundary type in jurisdictions for employee create data.");
         const boundaryRelationshipResponse = await searchBoundaryRelationshipData(transformConfig?.metadata?.tenantId, transformConfig?.metadata?.hierarchy, true);
         if (!boundaryRelationshipResponse?.TenantBoundary?.[0]?.boundary) {
@@ -268,13 +324,17 @@ export class DataTransformer {
                         jurisdiction.boundaryType = boundaryCodeAndBoundaryTypeMapping[jurisdiction.boundary];
                     })
                 }
-                if(!item?.user?.password) {
-                    if (config.user.userPasswordAutoGenerate) {
-                        item.user.password = generateUserPassword();
-                    }
-                    else{
-                        item.user.password = config.user.userDefaultPassword;
-                    }
+                if (config.user.userPasswordAutoGenerate) {
+                    item.user.password = generateUserPassword();
+                }
+                else {
+                    item.user.password = config.user.userDefaultPassword;
+                }
+                if(!item?.user?.userName || item?.user?.userName === "undefined" || item?.user?.userName.trim() === "")
+                {
+                    item.user.userName = result?.idResponses?.[curr]?.id;
+                    item.code = result?.idResponses?.[curr]?.id;
+                    curr++;
                 }
             });
         }

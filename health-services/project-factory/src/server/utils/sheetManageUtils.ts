@@ -163,9 +163,10 @@ async function processRequest(ResoureDetails: any, workBook: any, templateConfig
         const worksheet = workBook.getWorksheet(sheetName);
         const sheetData = getSheetDataFromWorksheet(worksheet);
         const jsonData = getJsonData(sheetData, true);
+        wholeSheetData[sheetName] = jsonData;
+        if(!sheet?.schemaName) continue;
         const schema = await callMdmsSchema(ResoureDetails?.tenantId, sheet?.schemaName);
         sheet.schema = schema;
-        wholeSheetData[sheetName] = jsonData;
     }
     const className = `${ResoureDetails?.type}-processClass`;
     let classFilePath = path.join(__dirname, '..', 'processFlowClasses', `${className}.js`);
@@ -179,6 +180,7 @@ async function processRequest(ResoureDetails: any, workBook: any, templateConfig
         mergeSheetMapAndSchema(sheetMap, templateConfig, localizationMap);
         for (const sheet of templateConfig?.sheets) {
             const sheetName = getLocalizedName(sheet?.sheetName, localizationMap);
+            if(!sheetMap?.[sheetName]?.data?.length) continue;
             const sheetData: any = sheetMap?.[sheetName];
             const worksheet = getOrCreateWorksheet(workBook, sheetName);
             await fillSheetMapInWorkbook(worksheet, sheetData, true);
@@ -200,6 +202,15 @@ async function processRequest(ResoureDetails: any, workBook: any, templateConfig
             await handledropdownthings(worksheet, schema, localizationMap);
             updateFontNameToRoboto(worksheet);
         }
+
+        for(const sheet of templateConfig?.sheets){
+            if (sheet?.lockWholeSheetInProcessedFile) {
+                const sheetName = getLocalizedName(sheet?.sheetName, localizationMap);
+                const worksheet = getOrCreateWorksheet(workBook, sheetName);
+                await worksheet.protect('passwordhere', { selectLockedCells: true });
+            }
+        }
+
     } catch (error) {
         logger.error(`Error importing or calling process function from ${classFilePath}`);
         console.error(error);
@@ -357,6 +368,9 @@ function mergeAndGetDynamicColumns(dynamicColumns: any, schema: any, localizatio
         target.showInProcessed ??= source.showInProcessed;
         target.unFreezeColumnTillData ??= source.unFreezeColumnTillData;
         target.freezeTillData ??= source.freezeTillData;
+        target.adjustHeight ??= source.adjustHeight;
+        target.wrapText ??= source.wrapText;
+
 
         if (!isMulti) {
             target.freezeColumn ??= source.freezeColumn;
@@ -503,12 +517,12 @@ function applyCellFormatting(
             const cell = row.getCell(colNumber);
             if (!cell.value) continue;
 
-            if (i <= 1) {
+            if (i <= 1 ) {
                 cell.alignment = { ...(cell.alignment || {}), wrapText: true };
             }
 
             processBoldFormatting(cell);
-            adjustRowHeightIfNeeded(row, cell, colNumber, columnNameToIndexMap, sheetData);
+            adjustRowHeightAndWrapIfNeeded(row, cell, colNumber, columnNameToIndexMap, sheetData);
         }
 
         row.commit();
@@ -555,7 +569,7 @@ function processBoldFormatting(cell: ExcelJS.Cell) {
     cell.value = { richText };
 }
 
-function adjustRowHeightIfNeeded(row: ExcelJS.Row, cell: ExcelJS.Cell, colNumber: number,
+function adjustRowHeightAndWrapIfNeeded(row: ExcelJS.Row, cell: ExcelJS.Cell, colNumber: number,
     columnNameToIndexMap: Record<string, number>, sheetData: any) {
     if (!sheetData.dynamicColumns) return;
 
@@ -567,6 +581,9 @@ function adjustRowHeightIfNeeded(row: ExcelJS.Row, cell: ExcelJS.Cell, colNumber
         const columnWidth = sheetData.dynamicColumns[columnName]?.width ??
             cell.worksheet.getColumn(colNumber).width ?? 40;
         adjustRowHeight(row, cell, columnWidth);
+    }
+    if(columnName && sheetData.dynamicColumns[columnName]?.wrapText) {
+        cell.alignment = { ...(cell.alignment || {}), wrapText: true };
     }
 }
 

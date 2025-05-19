@@ -1183,7 +1183,7 @@ async function enrichEmployees(employees: any[], request: any) {
   convertUserRoles(employees, request);
   const idRequests = createIdRequests(employees);
   request.body.idRequests = idRequests;
-  let result = await createUniqueUserNameViaIdGen(request);
+  let result = await createUniqueUserNameViaIdGen(idRequests);
   var i = 0;
   for (const employee of employees) {
     const { user } = employee;

@@ -8,6 +8,8 @@ interface ColumnProperties {
     unFreezeColumnTillData?: boolean;
     freezeColumnIfFilled?: boolean;
     showInProcessed?: boolean;
+    freezeTillData?: boolean;
+    wrapText?: boolean;
 }
 
 interface SheetMap {

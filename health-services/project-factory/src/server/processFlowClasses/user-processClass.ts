@@ -9,6 +9,7 @@ import config from "../config";
 import { DataTransformer, transformConfigs } from "../config/transFormConfig";
 import { defaultRequestInfo } from "../api/coreApis";
 import { httpRequest } from "../utils/request";
+import { decrypt, encrypt } from "../utils/cryptUtils";
 
 // This will be a dynamic template class for different types
 export class TemplateClass {
@@ -24,10 +25,10 @@ export class TemplateClass {
         const reverseMap = this.getReverseLocalizationMap(localizationMap);
         const campaign = await this.getCampaignDetails(resourceDetails);
 
-        const sheetData = wholeSheetData[getLocalizedName("HCM_ADMIN_CONSOLE_USER_LIST", localizationMap)];
+        const userSheetData = wholeSheetData[getLocalizedName("HCM_ADMIN_CONSOLE_USER_LIST", localizationMap)];
         const mobileKey = getLocalizedName("HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER", localizationMap);
 
-        const newUsers = await this.extractNewUsers(sheetData, mobileKey, campaign.campaignNumber, resourceDetails, reverseMap);
+        const newUsers = await this.extractNewUsers(userSheetData, mobileKey, campaign.campaignNumber, resourceDetails, reverseMap);
         await this.persistInBatches(newUsers, config.kafka.KAFKA_SAVE_SHEET_DATA_TOPIC);
 
         const waitTime = Math.max(5000, newUsers.length * 8);
@@ -43,6 +44,8 @@ export class TemplateClass {
                 data[getLocalizedName(key, localizationMap)] = u?.data[key];
             }
             data["#status#"] = "CREATED";
+            data[getLocalizedName("UserName", localizationMap)] = decrypt(u?.data?.["UserName"]);
+            data[getLocalizedName("Password", localizationMap)] = decrypt(u?.data?.["Password"]);
             return data;
         });
         const sheetMap : SheetMap = {};
@@ -156,6 +159,8 @@ export class TemplateClass {
                     if (existing) {
                         existing.status = dataRowStatuses.completed;
                         existing.data["UserService Uuids"] = serviceUuid;
+                        existing.data["UserName"] = encrypt(user?.user?.userName);
+                        existing.data["Password"] = encrypt(user?.user?.password);
                         existing.uniqueIdAfterProcess = serviceUuid;
                         successfulUsers.push(existing);
                     }
@@ -205,7 +210,7 @@ export class TemplateClass {
 
         try {
             const response = await httpRequest(url, requestBody);
-            const map: Record<string, string> = {};
+            const map: any = {};
             for (const user of response?.Employees) {
                 map[user?.user?.mobileNumber] = user?.user?.userServiceUuid;
             }

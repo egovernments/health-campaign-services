@@ -102,7 +102,7 @@ import {
 import { changeCreateDataForMicroplan, lockSheet } from "./microplanUtils";
 const _ = require("lodash");
 import { searchDataService } from "../service/dataManageService";
-import { searchBoundaryRelationshipData, searchMDMSDataViaV1Api, searchMDMSDataViaV2Api } from "../api/coreApis";
+import { defaultRequestInfo, searchBoundaryRelationshipData, searchMDMSDataViaV1Api, searchMDMSDataViaV2Api } from "../api/coreApis";
 import { deleteRedisCacheKeysWithPrefix } from "./redisUtils";
 import {
   fetchFacilityData,
@@ -3918,13 +3918,13 @@ function createIdRequests(employees: any[]): any[] {
   }
 }
 
-async function createUniqueUserNameViaIdGen(request: any) {
+async function createUniqueUserNameViaIdGen(idRequests : any) {
   const idgenurl = config?.host?.idGenHost + config?.paths?.idGen;
   try {
     // Make HTTP request to ID generation service
     const result = await httpRequest(
       idgenurl,
-      request?.body,
+      {RequestInfo: defaultRequestInfo?.RequestInfo, idRequests},
       undefined,
       undefined,
       undefined,
