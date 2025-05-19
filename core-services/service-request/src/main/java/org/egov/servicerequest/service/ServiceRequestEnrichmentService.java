@@ -9,6 +9,7 @@ import org.egov.servicerequest.web.models.ServiceDefinition;
 import org.egov.servicerequest.web.models.ServiceDefinitionRequest;
 import org.egov.servicerequest.web.models.ServiceRequest;
 import org.springframework.stereotype.Component;
+import org.egov.servicerequest.web.models.AttributeValue;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -173,6 +174,45 @@ public class ServiceRequestEnrichmentService {
                 attributeDefinition.setValues(emptyStringList);
             }
         });
+
+    }
+
+    private void updateAttributeValue(AttributeValue attributeValue, AttributeValue existingAttributeValue, RequestInfo requestInfo){
+
+        attributeValue.setId(existingAttributeValue.getId());
+
+        attributeValue.setAuditDetails(existingAttributeValue.getAuditDetails());
+
+        attributeValue.setReferenceId(existingAttributeValue.getReferenceId());
+
+        attributeValue.getAuditDetails().setLastModifiedTime(System.currentTimeMillis());
+
+        attributeValue.getAuditDetails().setLastModifiedBy(requestInfo.getUserInfo().getUuid());
+
+    }
+
+    public void enrichServiceUpdateRequest(ServiceRequest serviceRequest,org.egov.servicerequest.web.models.Service servicefromDb) {
+        Service service = serviceRequest.getService();
+        RequestInfo requestInfo = serviceRequest.getRequestInfo();
+        List<AttributeValue> attributeValues = service.getAttributes();
+
+        Map<String,AttributeValue> existingAttributeCode = servicefromDb
+                .getAttributes()
+                .stream()
+                .collect(Collectors.toMap(AttributeValue::getAttributeCode, a->a));
+
+        service.setId(servicefromDb.getId());
+        service.setAuditDetails(servicefromDb.getAuditDetails());
+        service.getAuditDetails().setLastModifiedBy(requestInfo.getUserInfo().getUuid());
+        service.getAuditDetails().setLastModifiedTime(System.currentTimeMillis());
+
+        attributeValues.forEach(attributeValue -> {
+            if(existingAttributeCode.containsKey(attributeValue.getAttributeCode())){
+                updateAttributeValue(attributeValue, existingAttributeCode.get(attributeValue.getAttributeCode()), requestInfo);
+            }
+        });
+
+        Map<String, Object> attributeCodeVsValueMap = convertAttributeValuesIntoJson(serviceRequest);
 
     }
 }

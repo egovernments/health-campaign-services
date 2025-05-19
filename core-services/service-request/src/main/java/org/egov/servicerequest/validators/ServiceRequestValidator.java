@@ -4,22 +4,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.egov.servicerequest.config.Configuration;
 import org.egov.servicerequest.repository.ServiceDefinitionRequestRepository;
 import org.egov.servicerequest.repository.ServiceRequestRepository;
-import org.egov.servicerequest.web.models.AttributeDefinition;
-import org.egov.servicerequest.web.models.Service;
-import org.egov.servicerequest.web.models.ServiceDefinition;
-import org.egov.servicerequest.web.models.ServiceDefinitionCriteria;
-import org.egov.servicerequest.web.models.ServiceDefinitionSearchRequest;
-import org.egov.servicerequest.web.models.ServiceRequest;
+import org.egov.servicerequest.web.models.*;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import org.springframework.util.CollectionUtils;
 
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 import static org.egov.servicerequest.error.ErrorCode.*;
 
@@ -165,6 +156,23 @@ public class ServiceRequestValidator {
     public void validateUpdateRequest(ServiceRequest serviceRequest) {
     }
 
-    public void validateServiceUpdateRequest(ServiceRequest serviceRequest) {
+    private List<Service> validateService(List<ServiceDefinition> serviceDefinition){
+        List<Service> service = serviceRequestRepository.getService(
+                ServiceSearchRequest.builder().serviceCriteria(
+                        ServiceCriteria.builder().serviceDefIds(Collections.singletonList(serviceDefinition.get(0).getId())).build()
+                ).build()
+        );
+        // If the service mapping doesn't exist throw an error
+        if(CollectionUtils.isEmpty(service)){
+            throw new CustomException(VALID_SERVICE_DOES_NOT_EXIST_ERR_CODE, VALID_SERVICE_DOES_NOT_EXIST_ERR_MSG);
+        }
+        return service;
+    }
+
+    public List<Service> validateServiceUpdateRequest(ServiceRequest serviceRequest) {
+        List<ServiceDefinition> serviceDefinitions = validateServiceDefID(serviceRequest.getService().getTenantId(), serviceRequest.getService().getServiceDefId());
+        validateAttributeValuesAgainstServiceDefinition(serviceDefinitions.get(0), serviceRequest.getService());
+        List<Service> services=validateService(serviceDefinitions);
+        return services;
     }
 }

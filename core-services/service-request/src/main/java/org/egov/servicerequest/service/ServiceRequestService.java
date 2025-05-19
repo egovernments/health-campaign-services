@@ -4,15 +4,22 @@ import org.egov.servicerequest.config.Configuration;
 import org.egov.servicerequest.kafka.Producer;
 import org.egov.servicerequest.repository.ServiceRequestRepository;
 import org.egov.servicerequest.validators.ServiceRequestValidator;
+import org.egov.servicerequest.web.models.ServiceCriteria;
+import org.egov.servicerequest.web.models.ServiceDefinition;
 import org.egov.servicerequest.web.models.ServiceRequest;
 import org.egov.servicerequest.web.models.ServiceSearchRequest;
+import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+
+import static org.egov.servicerequest.error.ErrorCode.VALID_SERVICE_DOES_NOT_EXIST_ERR_CODE;
+import static org.egov.servicerequest.error.ErrorCode.VALID_SERVICE_DOES_NOT_EXIST_ERR_MSG;
 
 @Service
 public class ServiceRequestService {
@@ -63,9 +70,15 @@ public class ServiceRequestService {
 
     public org.egov.servicerequest.web.models.Service updateService(ServiceRequest serviceRequest) {
 
-        // TO DO
+        org.egov.servicerequest.web.models.Service service = serviceRequest.getService();
 
-        return serviceRequest.getService();
+        List<org.egov.servicerequest.web.models.Service> services=serviceRequestValidator.validateServiceUpdateRequest(serviceRequest);
+
+        enrichmentService.enrichServiceUpdateRequest(serviceRequest,services.get(0));
+
+        producer.push(config.getServiceUpdateTopic(), serviceRequest);
+
+        return service;
     }
 
 }
