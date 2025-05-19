@@ -63,15 +63,13 @@ public class ServiceRequestService {
 
     public org.egov.servicerequest.web.models.Service updateService(ServiceRequest serviceRequest) {
 
-        org.egov.servicerequest.web.models.Service service = serviceRequest.getService();
-
         List<org.egov.servicerequest.web.models.Service> services=serviceRequestValidator.validateServiceUpdateRequest(serviceRequest);
 
         enrichmentService.enrichServiceUpdateRequest(serviceRequest,services.get(0));
 
         producer.push(config.getServiceUpdateTopic(), serviceRequest);
 
-        return service;
+        return serviceRequest.getService();
     }
 
 }
