@@ -3,6 +3,7 @@ package org.egov.transformer.transformationservice;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.egov.common.models.household.AdditionalFields;
 import org.egov.common.models.household.Field;
 import org.egov.common.models.household.Household;
@@ -105,7 +106,14 @@ public class HouseholdMemberTransformationService {
                     householdMember.getClientAuditDetails().getLastModifiedBy() ,
                     householdMember.getTenantId());
         }
-        String cycleIndex = commonUtils.fetchCycleIndex(householdMember.getTenantId(), String.valueOf(additionalDetails.get(PROJECT_TYPE_ID)), householdMember.getClientAuditDetails());
+        String projectIdProjectTypeId = commonUtils.projectDetailsFromUserId(householdMember.getClientAuditDetails().getCreatedBy(), householdMember.getTenantId());
+
+        String projectTypeId = null;
+        if (!StringUtils.isEmpty(projectIdProjectTypeId)) {
+            projectTypeId = projectIdProjectTypeId.split(":")[1];
+        }
+        log.info("HOUSEHOLD MEMBER ADD INFO {}, {}", additionalDetails, additionalDetails.get(PROJECT_TYPE_ID));
+        String cycleIndex = commonUtils.fetchCycleIndexFromTime(householdMember.getTenantId(), projectTypeId, householdMember.getClientAuditDetails().getCreatedTime());
         additionalDetails.put(CYCLE_INDEX, cycleIndex);
         HouseholdMemberIndexV1 householdMemberIndexV1 = HouseholdMemberIndexV1.builder()
                 .householdMember(householdMember)

@@ -159,7 +159,7 @@ public class ProjectTaskTransformationService {
         ObjectNode additionalDetails = objectMapper.createObjectNode();
         if (task.getAdditionalFields() != null) {
             addAdditionalDetails(task.getAdditionalFields(), additionalDetails);
-            addCycleIndex(additionalDetails, task.getAuditDetails(), tenantId, projectTypeId);
+            addCycleIndex(additionalDetails, task.getClientAuditDetails(), tenantId, projectTypeId);
         }
         // TODO below code is commented because the additionalFields is removed from taskResource but his has to be added back
 //        if (taskResource.getAdditionalFields() != null) {
@@ -220,7 +220,7 @@ public class ProjectTaskTransformationService {
     //This cycleIndex logic has to be changed if we send all required additionalDetails from app
     private void addCycleIndex(ObjectNode additionalDetails, AuditDetails auditDetails, String tenantId, String projectTypeId) {
         if (!additionalDetails.has(CYCLE_INDEX)) {
-            String cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectTypeId, auditDetails);
+            String cycleIndex = commonUtils.fetchCycleIndexFromTime(tenantId, projectTypeId, auditDetails.getCreatedTime());
             additionalDetails.put(CYCLE_INDEX, cycleIndex);
         }
     }
