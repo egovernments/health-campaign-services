@@ -120,8 +120,8 @@ public class ServiceDefinitionRequestValidator {
         //Validate if a  Service Definition exists
         List<ServiceDefinition> serviceDefinitionList = validateExistence(serviceDefinition);
 
-        //Validate if a Service exists corresponding to this Service Definition
-        validateService(serviceDefinitionList);
+        // Validate if a Service exists corresponding to this Service Definition
+        // validateService(serviceDefinitionList);
 
         // Validate if all attribute definitions provided as part of service definitions have unique code
         validateAttributeDefinitionUniqueness(serviceDefinition);
