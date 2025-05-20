@@ -18,6 +18,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.models.core.Role;
 import org.egov.common.models.individual.*;
+import org.egov.common.models.individual.*;
 import org.egov.hrms.config.PropertiesManager;
 import org.egov.hrms.repository.RestCallRepository;
 import org.egov.hrms.utils.HRMSConstants;
@@ -62,7 +63,6 @@ public class IndividualService implements UserService {
         }
         return userResponse;
     }
-
     public UserResponse createUserByLocality(UserRequest userRequest, String localityCode) {
         IndividualRequest request = mapToIndividualRequest(userRequest,localityCode);
         StringBuilder uri = new StringBuilder();
@@ -151,6 +151,15 @@ public class IndividualService implements UserService {
                 .mobileNumber(userRequest.getUser().getMobileNumber())
                 .dateOfBirth(convertMillisecondsToDate(userRequest.getUser().getDob()))
                 .tenantId(userRequest.getUser().getTenantId())
+                .additionalFields(AdditionalFields.builder()
+                        .schema("Individual")
+                        .version(1)
+                        .build()
+                        .addFieldsItem(Field.builder()
+                                .key("userType")
+                                .value(userRequest.getUser().getIdentificationMark())
+                                .build())
+                )
                 .address(Collections.singletonList(Address.builder()
                         .type(AddressType.CORRESPONDENCE)
                         .addressLine1(userRequest.getUser().getCorrespondenceAddress())
@@ -275,12 +284,22 @@ public class IndividualService implements UserService {
                 .isSystemUserActive(userRequest.getUser().getActive())
                 .name(Name.builder()
                         .givenName(userRequest.getUser().getName())
+                        .familyName(userRequest.getUser().getSignature())
                         .build())
                 .gender(Gender.fromValue(userRequest.getUser().getGender()))
                 .email(userRequest.getUser().getEmailId())
                 .mobileNumber(userRequest.getUser().getMobileNumber())
                 .dateOfBirth(convertMillisecondsToDate(userRequest.getUser().getDob()))
                 .tenantId(userRequest.getUser().getTenantId())
+                .additionalFields(AdditionalFields.builder()
+                        .schema("Individual")
+                        .version(1)
+                        .build()
+                        .addFieldsItem(Field.builder()
+                                .key("userType")
+                                .value(userRequest.getUser().getIdentificationMark())
+                                .build())
+                )
                 .address(Collections.singletonList(Address.builder()
                                 .type(AddressType.CORRESPONDENCE)
                                 .addressLine1(userRequest.getUser().getCorrespondenceAddress())

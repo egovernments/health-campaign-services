@@ -11,6 +11,7 @@ import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.utils.MultiStateInstanceUtil;
 import org.egov.hrms.utils.ErrorConstants;
 import org.egov.hrms.utils.HRMSUtils;
+import org.egov.hrms.web.contract.EmployeeCountResponse;
 import org.egov.hrms.web.contract.EmployeeSearchCriteria;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -50,20 +51,14 @@ public class EmployeeRepository {
 	 * @param requestInfo
 	 * @return
 	 */
-	public Map<String, Object> fetchEmployees(EmployeeSearchCriteria criteria, RequestInfo requestInfo){
-		Long totalCount = 0L;
-		String tenantId = criteria.getTenantId();
+	public EmployeeCountResponse fetchEmployees(EmployeeSearchCriteria criteria, RequestInfo requestInfo){
 		List<Employee> employees = new ArrayList<>();
 		List<Object> preparedStmtList = new ArrayList<>();
-		List<Object> preparedStmtListWithOutLimitAndOffset = new ArrayList<>();
-		Map<String, Object> response = new HashMap<>();
+		List<Object> preparedStmtListCount = new ArrayList<>();
 		if(hrmsUtils.isAssignmentSearchReqd(criteria)) {
 			List<String> empUuids = fetchEmployeesforAssignment(criteria, requestInfo);
-			if (CollectionUtils.isEmpty(empUuids)) {
-				response.put("employees", employees);
-				response.put("totalCount", totalCount);
-				return response;
-			}
+			if (CollectionUtils.isEmpty(empUuids))
+				return new EmployeeCountResponse(employees, 0);
 			else {
 				if(!CollectionUtils.isEmpty(criteria.getUuids()))
 					criteria.setUuids(criteria.getUuids().stream().filter(empUuids::contains).collect(Collectors.toList()));
@@ -75,15 +70,18 @@ public class EmployeeRepository {
 			List<String> empUuids = fetchUnassignedEmployees(criteria, requestInfo);
 			criteria.setUuids(empUuids);
 		}
-		String query = queryBuilder.getEmployeeSearchQuery(criteria, preparedStmtList, true);
-
-		String queryWithOutLimitAndOffset = queryBuilder.getEmployeeSearchQuery(criteria, preparedStmtListWithOutLimitAndOffset , false);
+		List<Employee> employeesCount = new ArrayList<>();
+		String queryCount = queryBuilder.getEmployeeSearchQueryWithoutPagination(criteria, preparedStmtListCount);
+		int count=0;
 		try {
-			query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
-			queryWithOutLimitAndOffset = multiStateInstanceUtil.replaceSchemaPlaceholder(queryWithOutLimitAndOffset, tenantId);
-		} catch (InvalidTenantIdException e) {
-			throw new CustomException(ErrorConstants.TENANT_ID_EXCEPTION, e.getMessage());
+			employeesCount = jdbcTemplate.query(queryCount, preparedStmtListCount.toArray(),rowMapper);
+			 count = employeesCount.size();
+		}catch(Exception e) {
+			log.error("Exception while making the db call: ",e);
+			log.error("query; "+queryCount);
 		}
+
+		String query = queryBuilder.getEmployeeSearchQuery(criteria, preparedStmtList);
 		try {
 			employees = jdbcTemplate.query(query, preparedStmtList.toArray(),rowMapper);
 			totalCount = jdbcTemplate.query(queryWithOutLimitAndOffset, preparedStmtList.toArray(),rowMapper).spliterator().getExactSizeIfKnown();
@@ -91,9 +89,7 @@ public class EmployeeRepository {
 			log.error("Exception while making the db call: ",e);
 			log.error("query; "+query);
 		}
-		response.put("employees", employees);
-		response.put("totalCount", totalCount);
-		return response;
+		return new EmployeeCountResponse(employees, count);
 	}
 
 	private List<String> fetchUnassignedEmployees(EmployeeSearchCriteria criteria, RequestInfo requestInfo) {

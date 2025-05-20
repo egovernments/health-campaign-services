@@ -70,8 +70,7 @@ public class EmployeeResponse {
 	@JsonProperty("Employees")
 	private List<Employee> employees;
 
-	@JsonProperty("TotalCount")
-	@Builder.Default
-	private Long totalCount = 0L;
+	@JsonProperty("Count")
+	private Integer count;
 
 }
