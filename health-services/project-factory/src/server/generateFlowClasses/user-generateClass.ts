@@ -1,42 +1,83 @@
-import { getReadMeConfig } from "../utils/genericUtils";
+import { getReadMeConfig, getRelatedDataWithCampaign } from "../utils/genericUtils";
 import { SheetMap } from "../models/SheetMap";
 import { getLocalizedName, populateBoundariesRecursively } from "../utils/campaignUtils";
 import { searchProjectTypeCampaignService } from "../service/campaignManageService";
 import { searchBoundaryRelationshipData, searchBoundaryRelationshipDefinition } from "../api/coreApis";
 import { logger } from "../utils/logger";
+import { dataRowStatuses } from "../config/constants";
+import { decrypt } from "../utils/cryptUtils";
 
 // This will be a dynamic template class for different types
 export class TemplateClass {
     // Static generate function 
     static async generate(templateConfig: any, responseToSend: any, localizationMap: any): Promise<SheetMap> {
         logger.info("Generating template...");
-        logger.info(`Response to send ${JSON.stringify(responseToSend)}`);
-        const campaignDetailsResponse: any = await searchProjectTypeCampaignService({ tenantId: responseToSend.tenantId, ids: [responseToSend?.campaignId] });
-        if(!campaignDetailsResponse?.CampaignDetails?.[0]) throw new Error("Campaign not found");
-        const campaignDetails: any = campaignDetailsResponse?.CampaignDetails?.[0];
-        const readMeConfig = await getReadMeConfig(responseToSend.tenantId, responseToSend.type);
-        const readMeColumnHeader = getLocalizedName(Object.keys(templateConfig?.sheets?.[0]?.schema?.properties)?.[0], localizationMap);
-        const readMeData: any = this.getReadMeData(readMeConfig, readMeColumnHeader, localizationMap);
-        const boundaryData: any = await this.getBoundaryData( campaignDetails, localizationMap);
-        const boundaryDynamicColumns: any = await this.getBoundaryDynamicColumns(campaignDetails?.tenantId, campaignDetails?.hierarchyType, localizationMap);
+        logger.info(`Input payload: ${JSON.stringify(responseToSend)}`);
+
+        const { tenantId, type, campaignId } = responseToSend;
+
+        // Fetch campaign details
+        const campaignResp = await searchProjectTypeCampaignService({ tenantId, ids: [campaignId] });
+        const campaignDetails = campaignResp?.CampaignDetails?.[0];
+        if (!campaignDetails) throw new Error("Campaign not found");
+
+        const { campaignNumber, hierarchyType } = campaignDetails;
+
+        // Localized keys for sheet names and column headers
+        const templateSheetForReadMe = templateConfig?.sheets?.[0];
+        const readMeHeaderKey = Object.keys(templateSheetForReadMe?.schema?.properties || {})[0];
+        const localizedReadMeHeader = getLocalizedName(readMeHeaderKey, localizationMap);
+        const readMeSheetName = getLocalizedName(templateSheetForReadMe?.sheetName, localizationMap);
+        const boundarySheetName = getLocalizedName("HCM_ADMIN_CONSOLE_BOUNDARY_DATA", localizationMap);
+        const userListSheetName = getLocalizedName("HCM_ADMIN_CONSOLE_USER_LIST", localizationMap);
+
+        // Prepare ReadMe sheet
+        const readMeConfig = await getReadMeConfig(tenantId, type);
+        const readMeData = this.getReadMeData(readMeConfig, localizedReadMeHeader, localizationMap);
+
+        // Prepare Boundary sheet
+        const boundaryData = await this.getBoundaryData(campaignDetails, localizationMap);
+        const boundaryDynamicColumns = await this.getBoundaryDynamicColumns(tenantId, hierarchyType, localizationMap);
+
+        // Prepare User List sheet
+        const users = await getRelatedDataWithCampaign(type, campaignNumber, dataRowStatuses.completed);
+        const userData = users.map((u: any) => {
+            const rawData = u?.data || {};
+            const localizedData: Record<string, any> = {};
+
+            for (const key in rawData) {
+                localizedData[getLocalizedName(key, localizationMap)] = rawData[key];
+            }
+
+            localizedData["#status#"] = "CREATED";
+            localizedData[getLocalizedName("UserName", localizationMap)] = decrypt(rawData["UserName"]);
+            localizedData[getLocalizedName("Password", localizationMap)] = decrypt(rawData["Password"]);
+
+            return localizedData;
+        });
+
+        // Construct the final SheetMap
         const sheetMap: SheetMap = {
-            [getLocalizedName(templateConfig?.sheets?.[0]?.sheetName, localizationMap)]: {
+            [readMeSheetName]: {
                 data: readMeData,
                 dynamicColumns: {
-                    [readMeColumnHeader]: {
-                        adjustHeight: true,
-                        width: 120
-                    }
+                    [localizedReadMeHeader]: { adjustHeight: true, width: 120 }
                 }
             },
-            [getLocalizedName("HCM_ADMIN_CONSOLE_BOUNDARY_DATA", localizationMap)]: {
+            [boundarySheetName]: {
                 data: boundaryData,
                 dynamicColumns: boundaryDynamicColumns
+            },
+            [userListSheetName]: {
+                data: userData,
+                dynamicColumns: null
             }
-        }; // Initialize the SheetMap object
-        logger.info(`SheetMap generated for template of type ${responseToSend.type}.`);
+        };
+
+        logger.info(`SheetMap generated for template type: ${type}`);
         return sheetMap;
     }
+
 
     static getReadMeData(readMeConfig: any, readMeColumnHeader: any, localizationMap: any) {
         const dataArray = [];
