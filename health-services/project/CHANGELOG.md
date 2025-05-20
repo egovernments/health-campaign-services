@@ -1,5 +1,11 @@
 All notable changes to this module will be documented in this file.
 
+## 1.1.7 - 2025-03-04
+- Upgraded to health models 1.0.26
+
+## 1.1.6 - 2025-01-27
+- Added isAncestorProjectId param for search projects API to support search projects with ancestor project id as well
+
 ## 1.1.5 - 2024-08-07
 - Added UserAction functionality with support for Location capture.
 

@@ -5,6 +5,13 @@ serviceMaps:
       description: Persists service definition details in service definition table
       fromTopic: save-service-definition
       isTransaction: true
+      isAuditEnabled: true
+      module: SERVICE-REQUEST
+      objecIdJsonPath: $.id
+      tenantIdJsonPath: $.tenantId
+      userUuidJsonPath: $.[0].auditDetails.createdBy
+      transactionCodeJsonPath: $.id
+      auditAttributeBasePath: $.*
       queryMaps:
 
         - query: INSERT INTO eg_service_definition(id, tenantid, code, isactive, createdby, lastmodifiedby, createdtime, lastmodifiedtime, additionaldetails, clientid) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
@@ -26,7 +33,7 @@ serviceMaps:
 
             - jsonPath: $.ServiceDefinition.auditDetails.lastModifiedTime
 
-            - jsonPath: $.ServiceDefinition.additionalDetails
+            - jsonPath: $.ServiceDefinition.additionalFields
               type: JSON
               dbType: JSONB
 
@@ -66,7 +73,7 @@ serviceMaps:
 
             - jsonPath: $.ServiceDefinition.attributes.*.auditDetails.lastModifiedTime
 
-            - jsonPath: $.ServiceDefinition.attributes.*.additionalDetails
+            - jsonPath: $.ServiceDefinition.attributes.*.additionalFields
               type: JSON
               dbType: JSONB
 
@@ -74,6 +81,13 @@ serviceMaps:
       description: Persists service details in service table
       fromTopic: save-service
       isTransaction: true
+      isAuditEnabled: true
+      module: SERVICE-REQUEST
+      objecIdJsonPath: $.id
+      tenantIdJsonPath: $.tenantId
+      userUuidJsonPath: $.[0].auditDetails.createdBy
+      transactionCodeJsonPath: $.id
+      auditAttributeBasePath: $.*
       queryMaps:
 
 
@@ -96,7 +110,7 @@ serviceMaps:
 
             - jsonPath: $.Service.auditDetails.lastModifiedTime
 
-            - jsonPath: $.Service.additionalDetails
+            - jsonPath: $.Service.additionalFields
               type: JSON
               dbType: JSONB
 
@@ -126,29 +140,30 @@ serviceMaps:
 
             - jsonPath: $.Service.attributes.*.auditDetails.lastModifiedTime
 
-            - jsonPath: $.Service.attributes.*.additionalDetails
+            - jsonPath: $.Service.attributes.*.additionalFields
               type: JSON
               dbType: JSONB
 
 
     - version: 1.0
       description: Update Service Definition
-      fromTopic: update-service-definition
+      fromTopic: update-service-definition-health
       isTransaction: true
       queryMaps:
 
-        - query: UPDATE eg_service_definition SET lastmodifiedby = ?, lastmodifiedtime = ?, isactive = ?, additionaldetails = ? WHERE id = ?
+        - query: UPDATE eg_service_definition SET lastmodifiedby = ?, lastmodifiedtime = ?, additionaldetails = ?, isactive = ? WHERE id = ?
+
           basePath: $.ServiceDefinition
           jsonMaps:
             - jsonPath: $.ServiceDefinition.auditDetails.lastModifiedBy
 
             - jsonPath: $.ServiceDefinition.auditDetails.lastModifiedTime
 
-            - jsonPath: $.ServiceDefinition.isActive
-
-            - jsonPath: $.ServiceDefinition.additionalDetails
+            - jsonPath: $.ServiceDefinition.additionalFields
               type: JSON
               dbType: JSONB
+
+            - jsonPath: $.ServiceDefinition.isActive
 
             - jsonPath: $.ServiceDefinition.id
 
@@ -185,7 +200,7 @@ serviceMaps:
 
             - jsonPath: $.ServiceDefinition.attributes.*.auditDetails.lastModifiedTime
 
-            - jsonPath: $.ServiceDefinition.attributes.*.additionalDetails
+            - jsonPath: $.ServiceDefinition.attributes.*.additionalFields
               type: JSON
               dbType: JSONB
 
@@ -207,6 +222,6 @@ serviceMaps:
 
             - jsonPath: $.ServiceDefinition.attributes.*.auditDetails.lastModifiedTime
 
-            - jsonPath: $.ServiceDefinition.attributes.*.additionalDetails
+            - jsonPath: $.ServiceDefinition.attributes.*.additionalFields
               type: JSON
               dbType: JSONB
