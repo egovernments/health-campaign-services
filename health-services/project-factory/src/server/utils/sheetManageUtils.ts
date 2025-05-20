@@ -146,8 +146,8 @@ export async function processResource(ResourceDetails: any, templateConfig: any,
         await processRequest(ResourceDetails, workBook, templateConfig, localizationMap);
         enrichTemplateMetaData(workBook, locale, ResourceDetails?.campaignId);
         const fileResponse = await createAndUploadFileWithOutRequest(workBook, ResourceDetails?.tenantId);
-        ResourceDetails.fileStoreid = fileResponse?.[0]?.fileStoreId;
-        if (!ResourceDetails.fileStoreid) throw new Error("FileStoreId not created.");
+        ResourceDetails.processedFileStoreId = fileResponse?.[0]?.fileStoreId;
+        if (!ResourceDetails.processedFileStoreId) throw new Error("FileStoreId not created.");
         ResourceDetails.status = generatedResourceStatuses.completed;
         await produceModifiedMessages({ ResourceDetails : ResourceDetails }, config?.kafka?.KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC);
     } catch (error) {
