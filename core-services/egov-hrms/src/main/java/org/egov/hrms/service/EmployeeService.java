@@ -278,14 +278,6 @@ public class EmployeeService {
 			else{
 				response = userService.createUser(request);
 			}
-			UserResponse response;
-			if(userService instanceof IndividualService) {
-				String localityCode = (employee.getJurisdictions()!=null && !employee.getJurisdictions().isEmpty())? employee.getJurisdictions().get(0).getBoundary() : null;
-				response = individualService.createUserByLocality(request, localityCode);
-			}
-			else{
-				response = userService.createUser(request);
-			}
 			User user = response.getUser().get(0);
 			employee.setId(UUID.fromString(user.getUuid()).getMostSignificantBits());
 			employee.setUuid(user.getUuid());

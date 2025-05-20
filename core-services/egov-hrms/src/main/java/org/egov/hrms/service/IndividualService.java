@@ -18,7 +18,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.models.core.Role;
 import org.egov.common.models.individual.*;
-import org.egov.common.models.individual.*;
 import org.egov.hrms.config.PropertiesManager;
 import org.egov.hrms.repository.RestCallRepository;
 import org.egov.hrms.utils.HRMSConstants;
