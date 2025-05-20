@@ -88,7 +88,6 @@ public class EmployeeRepository {
 		}
 		try {
 			employees = jdbcTemplate.query(query, preparedStmtList.toArray(),rowMapper);
-			totalCount = jdbcTemplate.query(queryWithOutLimitAndOffset, preparedStmtList.toArray(),rowMapper).spliterator().getExactSizeIfKnown();
 		}catch(Exception e) {
 			log.error("Exception while making the db call: ",e);
 			log.error("query; "+query);
