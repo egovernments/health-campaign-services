@@ -259,7 +259,7 @@ public class ServiceTaskTransformationService {
                 }
 
                 JsonNode attrSpecificMap = checklistInfo.get(attributeCode);
-                String keyVal = String.valueOf(attrSpecificMap.get(KEY_VALUE));
+                String keyVal = attrSpecificMap.get(KEY_VALUE).asText();
                 Class<?> valueType = typeMap.getOrDefault(attrSpecificMap.get(VALUE_TYPE).asText(), Object.class);
                 commonUtils.putValueBasedOnType(transformedChecklist, keyVal , value, valueType);
             }
