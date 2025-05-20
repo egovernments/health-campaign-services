@@ -177,6 +177,13 @@ public class ServiceRequestEnrichmentService {
 
     }
 
+    /**
+        * Updates an attribute value using data from an existing attribute value.
+        *
+        * @param attributeValue The attribute value to update
+        * @param existingAttributeValue The existing attribute value from the database
+        * @param requestInfo The request information containing user details
+     */
     private void updateAttributeValue(AttributeValue attributeValue, AttributeValue existingAttributeValue, RequestInfo requestInfo){
 
         attributeValue.setId(existingAttributeValue.getId());
@@ -191,18 +198,26 @@ public class ServiceRequestEnrichmentService {
 
     }
 
-    public void enrichServiceUpdateRequest(ServiceRequest serviceRequest,org.egov.servicerequest.web.models.Service servicefromDb) {
+    /**
+        * Enriches a service update request by updating IDs, audit details, and attribute values
+        * based on the existing service data from the database.
+        *
+        * @param serviceRequest The service update request to enrich
+        * @param serviceFromDb The existing service data from the database
+        * @return A map of attribute codes to their original values
+     */
+    public void enrichServiceUpdateRequest(ServiceRequest serviceRequest,org.egov.servicerequest.web.models.Service serviceFromDb) {
         Service service = serviceRequest.getService();
         RequestInfo requestInfo = serviceRequest.getRequestInfo();
         List<AttributeValue> attributeValues = service.getAttributes();
 
-        Map<String,AttributeValue> existingAttributeCode = servicefromDb
+        Map<String,AttributeValue> existingAttributeCode = serviceFromDb
                 .getAttributes()
                 .stream()
                 .collect(Collectors.toMap(AttributeValue::getAttributeCode, a->a));
 
-        service.setId(servicefromDb.getId());
-        service.setAuditDetails(servicefromDb.getAuditDetails());
+        service.setId(serviceFromDb.getId());
+        service.setAuditDetails(serviceFromDb.getAuditDetails());
         service.getAuditDetails().setLastModifiedBy(requestInfo.getUserInfo().getUuid());
         service.getAuditDetails().setLastModifiedTime(System.currentTimeMillis());
 
