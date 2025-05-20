@@ -106,9 +106,6 @@ public class EmployeeService {
 	@Autowired
 	private IndividualService individualService;
 
-	@Autowired
-	private IndividualService individualService;
-
 	/**
 	 * Service method for create employee. Does following:
 	 * 1. Sets ids to all the objects using idgen service.
