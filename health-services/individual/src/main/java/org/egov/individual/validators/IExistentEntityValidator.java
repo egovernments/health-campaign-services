@@ -6,10 +6,12 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.Error;
 import org.egov.common.models.individual.Individual;
 import org.egov.common.models.individual.IndividualBulkRequest;
 import org.egov.common.models.individual.IndividualSearch;
+import org.egov.common.utils.CommonUtils;
 import org.egov.common.validator.Validator;
 import org.egov.individual.repository.IndividualRepository;
 import org.springframework.core.annotation.Order;
@@ -19,6 +21,7 @@ import org.springframework.util.StringUtils;
 
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
+import static org.egov.common.utils.ValidatorUtils.getErrorForInvalidTenantId;
 import static org.egov.common.utils.ValidatorUtils.getErrorForUniqueEntity;
 
 /**
@@ -55,7 +58,7 @@ public class IExistentEntityValidator implements Validator<IndividualBulkRequest
     public Map<Individual, List<Error>> validate(IndividualBulkRequest request) {
         // Map to hold individual entities and their associated error details
         Map<Individual, List<Error>> errorDetailsMap = new HashMap<>();
-
+        String tenantId = CommonUtils.getTenantId(request.getIndividuals()); // Extract tenant ID from the request
         // Get the list of individual entities from the request
         List<Individual> entities = request.getIndividuals();
 
@@ -78,16 +81,26 @@ public class IExistentEntityValidator implements Validator<IndividualBulkRequest
         // Check if the client reference ID list is not empty before querying the database
         if (!CollectionUtils.isEmpty(clientReferenceIdList)) {
             // Query the repository to find existing entities by client reference IDs
-            List<String> existingClientReferenceIds =
-                    individualRepository.validateClientReferenceIdsFromDB(clientReferenceIdList, Boolean.TRUE);
+            try {
+                List<String> existingClientReferenceIds =
+                        individualRepository.validateClientReferenceIdsFromDB( tenantId, clientReferenceIdList, Boolean.TRUE);
 
-            // For each existing client reference ID, populate error details for uniqueness
-            existingClientReferenceIds.forEach(clientReferenceId -> {
-                // Get a predefined error object for unique entity validation
-                Error error = getErrorForUniqueEntity();
-                // Populate error details for the individual entity associated with the client reference ID
-                populateErrorDetails(map.get(clientReferenceId), error, errorDetailsMap);
-            });
+                // For each existing client reference ID, populate error details for uniqueness
+                existingClientReferenceIds.forEach(clientReferenceId -> {
+                    // Get a predefined error object for unique entity validation
+                    Error error = getErrorForUniqueEntity();
+                    // Populate error details for the individual entity associated with the client reference ID
+                    populateErrorDetails(map.get(clientReferenceId), error, errorDetailsMap);
+                });
+
+            } catch (InvalidTenantIdException exception) {
+                entities.forEach(individual -> {
+                    Error error = getErrorForInvalidTenantId(tenantId, exception);
+                    populateErrorDetails(individual, error, errorDetailsMap);
+                });
+            }
+
+
         }
 
         // Return the map containing individual entities and their associated error details

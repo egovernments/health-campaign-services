@@ -13,6 +13,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static org.egov.common.utils.MultiStateInstanceUtil.SCHEMA_REPLACE_STRING;
+
 @Service
 public class EmployeeQueryBuilder {
 	
@@ -28,10 +30,12 @@ public class EmployeeQueryBuilder {
 	 * @param criteria
 	 * @return
 	 */
-	public String getEmployeeSearchQuery(EmployeeSearchCriteria criteria,List <Object> preparedStmtList ) {
+	public String getEmployeeSearchQuery(EmployeeSearchCriteria criteria,List <Object> preparedStmtList, Boolean addPagination ) {
 		StringBuilder builder = new StringBuilder(EmployeeQueries.HRMS_GET_EMPLOYEES);
+		builder = new StringBuilder(String.format(String.valueOf(builder), SCHEMA_REPLACE_STRING, SCHEMA_REPLACE_STRING ,SCHEMA_REPLACE_STRING, SCHEMA_REPLACE_STRING, SCHEMA_REPLACE_STRING,
+				SCHEMA_REPLACE_STRING, SCHEMA_REPLACE_STRING, SCHEMA_REPLACE_STRING, SCHEMA_REPLACE_STRING));
 		addWhereClause(criteria, builder, preparedStmtList);
-		return paginationClause(criteria, builder);
+		return paginationClause(criteria, builder, addPagination);
 	}
 	public String getEmployeeSearchQueryWithoutPagination(EmployeeSearchCriteria criteria,List <Object> preparedStmtList ) {
 		StringBuilder builder = new StringBuilder(EmployeeQueries.HRMS_GET_EMPLOYEES);
@@ -41,6 +45,7 @@ public class EmployeeQueryBuilder {
 
 	public String getEmployeeCountQuery(String tenantId, List <Object> preparedStmtList ) {
 		StringBuilder builder = new StringBuilder(EmployeeQueries.HRMS_COUNT_EMP_QUERY);
+		builder = new StringBuilder(String.format(String.valueOf(builder), SCHEMA_REPLACE_STRING));
 		if(tenantId.equalsIgnoreCase(properties.stateLevelTenantId)){
 			builder.append("LIKE ? ");
 			preparedStmtList.add(tenantId+"%");
@@ -54,7 +59,7 @@ public class EmployeeQueryBuilder {
 	}
 	
 	public String getPositionSeqQuery() {
-		return EmployeeQueries.HRMS_POSITION_SEQ;
+		return  String.format(EmployeeQueries.HRMS_POSITION_SEQ, SCHEMA_REPLACE_STRING) ;
 	}
 	
 	/**
@@ -98,26 +103,31 @@ public class EmployeeQueryBuilder {
 		}
 	}
 	
-	public String paginationClause(EmployeeSearchCriteria criteria, StringBuilder builder) {
+	public String paginationClause(EmployeeSearchCriteria criteria, StringBuilder builder, Boolean addPagination) {
 		String pagination = EmployeeQueries.HRMS_PAGINATION_WRAPPER;
 		pagination = pagination.replace("{}", builder.toString());
-		if(null != criteria.getOffset())
-			pagination = pagination.replace("$offset", criteria.getOffset().toString());
-		else
-			pagination = pagination.replace("$offset", "0");
-		
-		if(null != criteria.getLimit()){
-			Integer limit = criteria.getLimit() + criteria.getOffset();
-			pagination = pagination.replace("$limit", limit.toString());
+
+		if (!addPagination) {
+			pagination = pagination.replace( " WHERE offset_ > $offset AND offset_ <= $limit" , "");
+		} else  {
+			if(null != criteria.getOffset())
+				pagination = pagination.replace("$offset", criteria.getOffset().toString());
+			else
+				pagination = pagination.replace("$offset", "0");
+
+			if(null != criteria.getLimit()){
+				Integer limit = criteria.getLimit() + criteria.getOffset();
+				pagination = pagination.replace("$limit", limit.toString());
+			}
+			else
+				pagination = pagination.replace("$limit", defaultLimit.toString());
 		}
-		else
-			pagination = pagination.replace("$limit", defaultLimit.toString());
-		
 		return pagination;
 	}
 
 	public String getAssignmentSearchQuery(EmployeeSearchCriteria criteria, List<Object> preparedStmtList) {
 		StringBuilder builder = new StringBuilder(EmployeeQueries.HRMS_GET_ASSIGNMENT);
+		builder = new StringBuilder(String.format(String.valueOf(builder), SCHEMA_REPLACE_STRING));
 		addWhereClauseAssignment(criteria, builder, preparedStmtList);
 		return builder.toString();
 	}
@@ -165,6 +175,7 @@ public class EmployeeQueryBuilder {
 
 	public String getUnassignedEmployeesSearchQuery(EmployeeSearchCriteria criteria, List<Object> preparedStmtList) {
 		StringBuilder builder = new StringBuilder(EmployeeQueries.HRMS_GET_UNASSIGNED_EMPLOYEES);
+		builder = new StringBuilder(String.format(String.valueOf(builder), SCHEMA_REPLACE_STRING, SCHEMA_REPLACE_STRING));
 		addWhereClauseAssignment(criteria, builder, preparedStmtList);
 		return builder.toString();
 	}

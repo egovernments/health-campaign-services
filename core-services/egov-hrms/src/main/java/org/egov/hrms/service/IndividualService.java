@@ -18,16 +18,19 @@ import org.apache.commons.lang3.StringUtils;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.models.core.Role;
 import org.egov.common.models.individual.*;
+import org.egov.common.models.individual.*;
 import org.egov.hrms.config.PropertiesManager;
 import org.egov.hrms.repository.RestCallRepository;
 import org.egov.hrms.utils.HRMSConstants;
 import org.egov.hrms.web.contract.User;
 import org.egov.hrms.web.contract.UserRequest;
 import org.egov.hrms.web.contract.UserResponse;
+import org.egov.hrms.web.models.IndividualBulkResponse;
 import org.egov.hrms.web.models.IndividualSearch;
 import org.egov.hrms.web.models.IndividualSearchRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import static org.egov.hrms.utils.HRMSConstants.HRMS_USER_SEARCH_CRITERA_USER_SERVICE_UUIDS;
 import static org.egov.hrms.utils.HRMSConstants.SYSTEM_GENERATED;
 
 @Slf4j
@@ -66,7 +69,7 @@ public class IndividualService implements UserService {
         uri.append(propertiesManager.getIndividualHost());
         uri.append(propertiesManager.getIndividualCreateEndpoint());
         IndividualResponse response = restCallRepository
-                .fetchResult(uri, request, IndividualResponse.class);
+          .fetchResult(uri, request, IndividualResponse.class);
         UserResponse userResponse = null;
         if (response != null && response.getIndividual() != null) {
             log.info("response received from individual service");
@@ -224,6 +227,7 @@ public class IndividualService implements UserService {
                                 mobileNumberList
                         )
                         .id((List<String>) userSearchCriteria.get("uuid"))
+                        .userUuid((List<String>) userSearchCriteria.get(HRMS_USER_SEARCH_CRITERA_USER_SERVICE_UUIDS))
                         .roleCodes((List<String>) userSearchCriteria.get("roleCodes"))
                         .username(usernameList)
                         // given name
@@ -359,6 +363,7 @@ public class IndividualService implements UserService {
                 .responseInfo(response.getResponseInfo())
                 .user(response.getIndividual().stream()
                         .map(IndividualService::getUser).collect(Collectors.toList()))
+                .totalCount(response.getTotalCount())
                 .build();
         return userResponse;
     }

@@ -26,7 +26,7 @@ config:
     build:
       - work-dir: "health-services/product"
         image-name: "product"
-        dockerfile: "build/maven/Dockerfile"
+        dockerfile: "build/17/maven/Dockerfile"
       - work-dir: "health-services/product/src/main/resources/db"
         image-name: "product-db"
   - name: "builds/health-campaign-services/health-services/project"
@@ -178,10 +178,10 @@ config:
   - name: "builds/health-campaign-services/core-services/service-request"
     build:
       - work-dir: "core-services/service-request"
-        image-name: "service-request"
+        image-name: "health-service-request"
         dockerfile: "build/maven/Dockerfile"
       - work-dir: "core-services/service-request/src/main/resources/db"
-        image-name: "service-request-db"
+        image-name: "health-service-request-db"
   - name: "builds/health-campaign-services/health-services/libraries/health-services-models"
     build:
       - work-dir: "health-services/libraries/health-services-models"
