@@ -146,6 +146,64 @@ serviceMaps:
 
 
     - version: 1.0
+      description: Update service details in service table
+      fromTopic: update-service
+      isTransaction: true
+      queryMaps:
+
+
+        - query: UPDATE eg_service SET lastmodifiedby = ?, lastmodifiedtime = ?, additionaldetails = ? WHERE id = ?
+          basePath: $.Service
+          jsonMaps:
+            - jsonPath: $.Service.auditDetails.lastModifiedBy
+
+            - jsonPath: $.Service.auditDetails.lastModifiedTime
+
+            - jsonPath: $.Service.additionalFields
+              type: JSON
+              dbType: JSONB
+
+            - jsonPath: $.Service.id
+
+
+        - query: INSERT INTO eg_service_attribute_value(id, referenceid, attributecode, value, createdby, lastmodifiedby, createdtime, lastmodifiedtime, additionaldetails) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (id) DO UPDATE SET "value"=?, lastmodifiedby=?, lastmodifiedtime=?, additionaldetails=?;
+          basePath: $.Service.attributes.*
+          jsonMaps:
+            - jsonPath: $.Service.attributes.*.id
+
+            - jsonPath: $.Service.attributes.*.referenceId
+
+            - jsonPath: $.Service.attributes.*.attributeCode
+
+            - jsonPath: $.Service.attributes.*.value
+              type: JSON
+              dbType: JSONB
+
+            - jsonPath: $.Service.attributes.*.auditDetails.createdBy
+
+            - jsonPath: $.Service.attributes.*.auditDetails.lastModifiedBy
+
+            - jsonPath: $.Service.attributes.*.auditDetails.createdTime
+
+            - jsonPath: $.Service.attributes.*.auditDetails.lastModifiedTime
+
+            - jsonPath: $.Service.attributes.*.additionalFields
+              type: JSON
+              dbType: JSONB
+
+            - jsonPath: $.Service.attributes.*.value
+              type: JSON
+              dbType: JSONB
+
+            - jsonPath: $.Service.attributes.*.auditDetails.lastModifiedBy
+
+            - jsonPath: $.Service.attributes.*.auditDetails.lastModifiedTime
+
+            - jsonPath: $.Service.attributes.*.additionalFields
+              type: JSON
+              dbType: JSONB
+
+    - version: 1.0
       description: Update Service Definition
       fromTopic: update-service-definition-health
       isTransaction: true
