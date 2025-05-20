@@ -9,12 +9,10 @@ import org.egov.common.models.project.ProjectBeneficiary;
 import org.egov.common.models.referralmanagement.Referral;
 import org.egov.transformer.config.TransformerProperties;
 
+import org.egov.transformer.models.boundary.BoundaryHierarchyResult;
 import org.egov.transformer.models.downstream.ReferralIndexV1;
 import org.egov.transformer.producer.Producer;
-import org.egov.transformer.service.FacilityService;
-import org.egov.transformer.service.IndividualService;
-import org.egov.transformer.service.ProjectService;
-import org.egov.transformer.service.UserService;
+import org.egov.transformer.service.*;
 import org.egov.transformer.utils.CommonUtils;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
@@ -38,19 +36,21 @@ public class ReferralTransformationService {
     private final ProjectService projectService;
     private final IndividualService individualService;
     private final FacilityService facilityService;
+    private final BoundaryService boundaryService;
 
     private final CommonUtils commonUtils;
 
     private final ObjectMapper objectMapper;
 
     public ReferralTransformationService(TransformerProperties transformerProperties,
-                                         Producer producer, UserService userService, ProjectService projectService, IndividualService individualService, FacilityService facilityService, CommonUtils commonUtils, ObjectMapper objectMapper) {
+                                         Producer producer, UserService userService, ProjectService projectService, IndividualService individualService, FacilityService facilityService, BoundaryService boundaryService, CommonUtils commonUtils, ObjectMapper objectMapper) {
         this.transformerProperties = transformerProperties;
         this.producer = producer;
         this.userService = userService;
         this.projectService = projectService;
         this.individualService = individualService;
         this.facilityService = facilityService;
+        this.boundaryService = boundaryService;
         this.commonUtils = commonUtils;
         this.objectMapper = objectMapper;
     }
@@ -74,18 +74,28 @@ public class ReferralTransformationService {
         List<ProjectBeneficiary> projectBeneficiaryList = projectService.searchBeneficiary(referral.getProjectBeneficiaryClientReferenceId(), tenantId);
         Map<String, Object> individualDetails = new HashMap<>();
         Map<String, String> boundaryHierarchy = new HashMap<>();
+        Map<String, String> boundaryHierarchyCode = new HashMap<>();
 
+        String projectId = null;
+        String projectType = null;
         String projectTypeId = null;
+        String projectName = null;
         if (!CollectionUtils.isEmpty(projectBeneficiaryList)) {
             ProjectBeneficiary projectBeneficiary = projectBeneficiaryList.get(0);
             individualDetails = individualService.getIndividualInfo(projectBeneficiary.getBeneficiaryClientReferenceId(), tenantId);
-            String projectId = projectBeneficiary.getProjectId();
+            projectId = projectBeneficiary.getProjectId();
             Project project = projectService.getProject(projectId, tenantId);
             projectTypeId = project.getProjectTypeId();
+            projectType = project.getProjectType();
+            projectName = project.getName();
             if (individualDetails.containsKey(ADDRESS_CODE)) {
-                boundaryHierarchy = projectService.getBoundaryHierarchyWithLocalityCode((String) individualDetails.get(ADDRESS_CODE), tenantId);
+                BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode((String) individualDetails.get(ADDRESS_CODE), tenantId);
+                boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
+                boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
             } else {
-                boundaryHierarchy = projectService.getBoundaryHierarchyWithLocalityCode(projectId, tenantId);
+                BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithProjectId(projectId, tenantId);
+                boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
+                boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
             }
         }
         String facilityName = Optional.of(referral)
@@ -96,7 +106,7 @@ public class ReferralTransformationService {
 
         Map<String, String> userInfoMap = userService.getUserInfo(tenantId, referral.getAuditDetails().getCreatedBy());
 
-        Integer cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectTypeId, referral.getAuditDetails());
+        String cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectTypeId, referral.getAuditDetails());
         ObjectNode additionalDetails = objectMapper.createObjectNode();
         additionalDetails.put(CYCLE_INDEX, cycleIndex);
         if (individualDetails.containsKey(HEIGHT) && individualDetails.containsKey(DISABILITY_TYPE)) {
@@ -116,11 +126,12 @@ public class ReferralTransformationService {
                 .individualId(individualDetails.containsKey(INDIVIDUAL_ID) ? (String) individualDetails.get(INDIVIDUAL_ID) : null)
                 .gender(individualDetails.containsKey(GENDER) ? (String) individualDetails.get(GENDER) : null)
                 .boundaryHierarchy(boundaryHierarchy)
+                .boundaryHierarchyCode(boundaryHierarchyCode)
                 .taskDates(commonUtils.getDateFromEpoch(referral.getClientAuditDetails().getLastModifiedTime()))
                 .syncedDate(commonUtils.getDateFromEpoch(referral.getAuditDetails().getLastModifiedTime()))
                 .additionalDetails(additionalDetails)
                 .build();
-
+        referralIndexV1.setProjectInfo(projectId, projectType, projectTypeId, projectName);
         return referralIndexV1;
     }
 }

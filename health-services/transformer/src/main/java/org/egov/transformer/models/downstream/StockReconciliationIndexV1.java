@@ -14,7 +14,7 @@ import java.util.Map;
 @NoArgsConstructor
 @Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class StockReconciliationIndexV1 {
+public class StockReconciliationIndexV1 extends ProjectInfo {
 
 
     @JsonProperty("stockReconciliation")
@@ -22,6 +22,9 @@ public class StockReconciliationIndexV1 {
 
     @JsonProperty("boundaryHierarchy")
     private Map<String, String> boundaryHierarchy;
+
+    @JsonProperty("boundaryHierarchyCode")
+    private Map<String, String> boundaryHierarchyCode;
 
     @JsonProperty("localityCode")
     private String localityCode;

@@ -17,7 +17,7 @@ import java.util.Map;
 @NoArgsConstructor
 @Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class ReferralIndexV1 {
+public class ReferralIndexV1 extends ProjectInfo {
     @JsonProperty("referral")
     private Referral referral;
     @JsonProperty("tenantId")
@@ -36,6 +36,8 @@ public class ReferralIndexV1 {
     private Integer age;
     @JsonProperty("boundaryHierarchy")
     private Map<String, String> boundaryHierarchy;
+    @JsonProperty("boundaryHierarchyCode")
+    private Map<String, String> boundaryHierarchyCode;
     @JsonProperty("facilityName")
     private String facilityName;
     @JsonProperty("individualId")
