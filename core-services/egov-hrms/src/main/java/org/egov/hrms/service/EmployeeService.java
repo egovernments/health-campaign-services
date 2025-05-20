@@ -106,9 +106,6 @@ public class EmployeeService {
 	@Autowired
 	private IndividualService individualService;
 
-	@Autowired
-	private IndividualService individualService;
-
 	/**
 	 * Service method for create employee. Does following:
 	 * 1. Sets ids to all the objects using idgen service.
@@ -273,14 +270,6 @@ public class EmployeeService {
 		enrichUser(employee);
 		UserRequest request = UserRequest.builder().requestInfo(requestInfo).user(employee.getUser()).build();
 		try {
-			UserResponse response;
-			if(userService instanceof IndividualService) {
-				String localityCode = (employee.getJurisdictions()!=null && !employee.getJurisdictions().isEmpty())? employee.getJurisdictions().get(0).getBoundary() : null;
-				response = individualService.createUserByLocality(request, localityCode);
-			}
-			else{
-				response = userService.createUser(request);
-			}
 			UserResponse response;
 			if(userService instanceof IndividualService) {
 				String localityCode = (employee.getJurisdictions()!=null && !employee.getJurisdictions().isEmpty())? employee.getJurisdictions().get(0).getBoundary() : null;

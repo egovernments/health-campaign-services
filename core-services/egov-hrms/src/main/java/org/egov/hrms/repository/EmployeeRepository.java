@@ -75,16 +75,15 @@ public class EmployeeRepository {
 		int count=0;
 		try {
 			employeesCount = jdbcTemplate.query(queryCount, preparedStmtListCount.toArray(),rowMapper);
-			 count = employeesCount.size();
+			count = employeesCount.size();
 		}catch(Exception e) {
 			log.error("Exception while making the db call: ",e);
 			log.error("query; "+queryCount);
 		}
 
-		String query = queryBuilder.getEmployeeSearchQuery(criteria, preparedStmtList);
+		String query = queryBuilder.getEmployeeSearchQuery(criteria, preparedStmtList, true);
 		try {
 			employees = jdbcTemplate.query(query, preparedStmtList.toArray(),rowMapper);
-			totalCount = jdbcTemplate.query(queryWithOutLimitAndOffset, preparedStmtList.toArray(),rowMapper).spliterator().getExactSizeIfKnown();
 		}catch(Exception e) {
 			log.error("Exception while making the db call: ",e);
 			log.error("query; "+query);
