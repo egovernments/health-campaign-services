@@ -175,11 +175,11 @@ config:
       - work-dir: "health-services/transformer"
         image-name: "transformer"
         dockerfile: "build/17/maven/Dockerfile"
-  - name: "builds/health-campaign-services/core-services/service-request"
+  - name: "builds/health-campaign-services/core-services/health-service-request"
     build:
       - work-dir: "core-services/service-request"
         image-name: "health-service-request"
-        dockerfile: "build/maven/Dockerfile"
+        dockerfile: "build/17/maven/Dockerfile"
       - work-dir: "core-services/service-request/src/main/resources/db"
         image-name: "health-service-request-db"
   - name: "builds/health-campaign-services/health-services/libraries/health-services-models"
