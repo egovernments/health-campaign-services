@@ -109,7 +109,7 @@ public class ServiceDefinitionRequestValidator {
         );
         // If the service mapping doesn't exist throw an error
         if(CollectionUtils.isEmpty(service)){
-            throw new CustomException(VALID_SERVICE_DOES_NOT_EXIST_ERR_CODE, VALID_SERVICE_DOES_NOT_EXIST_ERR_MSG);
+            throw new CustomException(VALID_SERVICE_DOES_N0T_EXIST_ERR_CODE, VALID_SERVICE_DOES_N0T_EXIST_ERR_MSG);
         }
     }
 
