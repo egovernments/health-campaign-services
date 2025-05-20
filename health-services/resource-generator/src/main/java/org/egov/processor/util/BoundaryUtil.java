@@ -30,13 +30,19 @@ public class BoundaryUtil {
 		this.mapper = mapper;
 	}
 
+	/**
+	 * Searches for boundary relationships based on the given tenant ID and hierarchy type.
+	 *
+	 * @param tenantId                 The tenant ID for which the boundary search is performed.
+	 * @param hierarchyType            The hierarchy type of the boundary.
+	 * @param planConfigurationRequest The request object containing request info.
+	 */
 	public BoundarySearchResponse search(String tenantId, String hierarchyType,PlanConfigurationRequest planConfigurationRequest) {
 		String boundaryRelationShipSearchLink = getBoundaryRelationShipSearchLink(tenantId, hierarchyType);
 		Object response;
-		BoundarySearchResponse searchResponse = null;
 		try {
 			response = serviceRequestRepository.fetchResult(new StringBuilder(boundaryRelationShipSearchLink),planConfigurationRequest.getRequestInfo());
-			return searchResponse = mapper.convertValue(response, BoundarySearchResponse.class);
+			return mapper.convertValue(response, BoundarySearchResponse.class);
 
 		} catch (Exception ex) {
 			log.error("Boundary relationship response error!!", ex);
@@ -44,6 +50,13 @@ public class BoundaryUtil {
 		}
 	}
 
+	/**
+	 * Constructs the boundary relationship search URL by replacing placeholders with actual values.
+	 *
+	 * @param tenantId      The tenant ID to be included in the search URL.
+	 * @param hierarchyType The hierarchy type to be included in the search URL.
+	 * @return       		The constructed boundary relationship search URL.
+	 */
 	private String getBoundaryRelationShipSearchLink(String tenantId, String hierarchyType) {
 		String fileStoreServiceLink = config.getEgovBoundaryServiceHost() + config.getEgovBoundaryRelationshipSearchEndpoint();
 		fileStoreServiceLink = fileStoreServiceLink.replace(TENANTID_REPLACER, tenantId);

@@ -83,4 +83,7 @@ public class Configuration {
 
     @Value("${census.default.limit}")
     private Integer defaultLimit;
+
+    @Value("${census.default.max.limit}")
+    private Integer defaultMaxLimit;
 }

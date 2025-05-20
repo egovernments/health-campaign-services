@@ -12,6 +12,7 @@ import org.springframework.web.client.RestTemplate;
 
 import java.util.Collections;
 
+import static digit.config.ErrorConstants.*;
 import static digit.config.ServiceConstants.*;
 
 @Slf4j

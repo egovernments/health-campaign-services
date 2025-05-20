@@ -41,7 +41,7 @@ public class ProjectFactoryCreatePlanFacilityConsumer {
     public void listen(Map<String, Object> consumerRecord, @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
             PlanFacilityRequest planFacilityRequest = objectMapper.convertValue(consumerRecord, PlanFacilityRequest.class);
-            String hierarchyType = commonUtil.extractFieldsFromJsonObject(planFacilityRequest.getPlanFacility().getAdditionalDetails(), HIERARCHY_TYPE).toString();
+            String hierarchyType = commonUtil.extractFieldsFromJsonObject(planFacilityRequest.getPlanFacility().getAdditionalDetails(), HIERARCHY_TYPE, String.class);
 
             if(!StringUtils.isEmpty(hierarchyType))
                 enrichment.enrichJurisdictionMapping(planFacilityRequest, hierarchyType);
