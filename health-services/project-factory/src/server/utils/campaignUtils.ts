@@ -102,7 +102,7 @@ import {
 import { changeCreateDataForMicroplan, lockSheet } from "./microplanUtils";
 const _ = require("lodash");
 import { searchDataService } from "../service/dataManageService";
-import { searchBoundaryRelationshipData, searchMDMSDataViaV1Api, searchMDMSDataViaV2Api } from "../api/coreApis";
+import { defaultRequestInfo, searchBoundaryRelationshipData, searchMDMSDataViaV1Api, searchMDMSDataViaV2Api } from "../api/coreApis";
 import { deleteRedisCacheKeysWithPrefix } from "./redisUtils";
 import {
   fetchFacilityData,
@@ -1808,6 +1808,72 @@ function mapTargets(boundaryResponses: any, codesTargetMapping: any) {
   }
 }
 
+export async function populateBoundariesRecursively(
+  boundaryResponse: any,
+  boundaries: any,
+  includeAllChildren: any,
+  boundaryCodes: any,
+  boundaryChildren: any,
+  parent: any = null
+) {
+  if (!boundaryResponse) return;
+
+  if (!boundaryCodes.has(boundaryResponse.code)) {
+    boundaries.push({
+      code: boundaryResponse?.code,
+      type: boundaryResponse?.boundaryType,
+      insertedAfter: true,
+      parent: parent
+    });
+    boundaryCodes.add(boundaryResponse?.code);
+  }
+
+  if (
+    includeAllChildren &&
+    boundaryResponse?.children &&
+    Array.isArray(boundaryResponse?.children) &&
+    boundaryResponse?.children?.length > 0
+  ) {
+    for (const child of boundaryResponse.children) {
+      await populateBoundariesRecursively(
+        child,
+        boundaries,
+        true,
+        boundaryCodes,
+        boundaryChildren,
+        boundaryResponse.code
+      );
+    }
+  } else if (
+    boundaryResponse?.children &&
+    Array.isArray(boundaryResponse?.children) &&
+    boundaryResponse?.children?.length > 0
+  ) {
+    for (const child of boundaryResponse.children) {
+      if (boundaryCodes.has(child.code) && boundaryChildren[child.code]) {
+        await populateBoundariesRecursively(
+          child,
+          boundaries,
+          true,
+          boundaryCodes,
+          boundaryChildren,
+          boundaryResponse.code
+        );
+      } else if (boundaryCodes.has(child.code)) {
+        await populateBoundariesRecursively(
+          child,
+          boundaries,
+          false,
+          boundaryCodes,
+          boundaryChildren,
+          boundaryResponse.code
+        );
+      }
+    }
+  }
+}
+
+
 async function processBoundary(
   boundaryResponse: any,
   boundaries: any,
@@ -1820,7 +1886,7 @@ async function processBoundary(
     boundaries.push({
       code: boundaryResponse?.code,
       type: boundaryResponse?.boundaryType,
-      insertedAfter: true,
+      insertedAfter: true
     });
     boundaryCodes.add(boundaryResponse?.code);
   }
@@ -2536,7 +2602,6 @@ async function processBasedOnAction(request: any, actionInUrl: any) {
 
 async function getLocalizedHierarchy(request: any, localizationMap: any) {
   var hierarchy = await getHierarchy(
-    request,
     request?.query?.tenantId,
     request?.query?.hierarchyType
   );
@@ -3006,7 +3071,7 @@ async function autoGenerateBoundaryCodesForGeoJson(
     fileResponse?.fileStoreIds?.[0]?.url
   );
   const hierarchy =
-    (await getHierarchy(request, tenantId, hierarchyType)) || [];
+    (await getHierarchy(tenantId, hierarchyType)) || [];
   const dataFromGeoJson = getGeoJsonData(boundaryData, hierarchy);
   const childParentMap = getChildParentMap(dataFromGeoJson);
   const countMap = new Map<{ key: string; value: string }, number>();
@@ -3307,7 +3372,7 @@ const autoGenerateBoundaryCodes = async (
 ) => {
   const { hierarchyType, tenantId } = request?.body?.ResourceDetails || {};
   const hierarchy =
-    (await getHierarchy(request, tenantId, hierarchyType)) || [];
+    (await getHierarchy(tenantId, hierarchyType)) || [];
   const headersOfBoundarySheet = hierarchy.map(
     (e) => `${hierarchyType.toUpperCase()}_${e.toUpperCase()}`
   );
@@ -3782,7 +3847,7 @@ async function getDifferentTabGeneratedBasedOnConfig(
     localizationMap
   );
   let differentTabsBasedOnLevel = await getBoundaryOnWhichWeSplit(
-    request,
+    request?.query?.campaignId,
     request?.query?.tenantId
   );
   differentTabsBasedOnLevel = getLocalizedName(
@@ -3818,18 +3883,19 @@ async function getDifferentTabGeneratedBasedOnConfig(
   return boundaryDataGeneratedAfterDifferentTabSeparation;
 }
 
-async function getBoundaryOnWhichWeSplit(request: any, tenantId: any) {
-  const responseFromCampaignSearch = await getCampaignSearchResponse(request);
+async function getBoundaryOnWhichWeSplit(campaignId: string, tenantId: string) {
+  const campaignDetailsResponse: any = await searchProjectTypeCampaignService({ tenantId, ids: [campaignId] });
+  const campaignDetails: any = campaignDetailsResponse?.CampaignDetails?.[0];
   const MdmsCriteria: any = {
     tenantId: tenantId,
     schemaCode: `${config.values.moduleName}.${config.masterNameForSplitBoundariesOn}`,
     filters: {
-      hierarchy: responseFromCampaignSearch?.CampaignDetails?.[0].hierarchyType,
+      hierarchy: campaignDetails?.hierarchyType,
     },
   };
   const mdmsResponse: any = await searchMDMSDataViaV2Api(MdmsCriteria);
   if (!Array.isArray(mdmsResponse?.mdms) || mdmsResponse.mdms.length === 0) {
-    throwError("MDMS", 500, "MDMS_DATA_NOT_FOUND_ERROR", `${responseFromCampaignSearch?.CampaignDetails?.[0].hierarchyType} hierarchy not configured in mdms data 
+    throwError("MDMS", 500, "MDMS_DATA_NOT_FOUND_ERROR", `${campaignDetails?.hierarchyType} hierarchy not configured in mdms data 
                 ${config.values.moduleName}.${config.masterNameForSplitBoundariesOn}`)
   }
   return mdmsResponse?.mdms?.[0]?.data?.splitBoundariesOn;
@@ -3852,13 +3918,13 @@ function createIdRequests(employees: any[]): any[] {
   }
 }
 
-async function createUniqueUserNameViaIdGen(request: any) {
+async function createUniqueUserNameViaIdGen(idRequests : any) {
   const idgenurl = config?.host?.idGenHost + config?.paths?.idGen;
   try {
     // Make HTTP request to ID generation service
     const result = await httpRequest(
       idgenurl,
-      request?.body,
+      {RequestInfo: defaultRequestInfo?.RequestInfo, idRequests},
       undefined,
       undefined,
       undefined,

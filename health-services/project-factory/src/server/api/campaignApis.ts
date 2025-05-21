@@ -54,7 +54,7 @@ import {
 } from "../utils/microplanUtils";
 import { getTransformedLocale } from "../utils/localisationUtils";
 import { BoundaryModels } from "../models";
-import { searchBoundaryRelationshipData, searchBoundaryRelationshipDefinition } from "./coreApis";
+import { defaultRequestInfo, searchBoundaryRelationshipData, searchBoundaryRelationshipDefinition } from "./coreApis";
 
 /**
  * Enriches the campaign data with unique IDs and generates campaign numbers.
@@ -104,10 +104,10 @@ async function getAllFacilitiesInLoop(
  * @param requestBody The request body containing additional parameters.
  * @returns An array of facilities.
  */
-async function getAllFacilities(tenantId: string, requestBody: any) {
+async function getAllFacilities(tenantId: string) {
   // Retrieve all facilities for the given tenant ID
   const facilitySearchBody = {
-    RequestInfo: requestBody?.RequestInfo,
+    RequestInfo: defaultRequestInfo,
     Facility: { isPermanent: true },
   };
 
@@ -1017,7 +1017,7 @@ async function processValidate(
       ...localizationMap,
       ...localizationMapForHierarchy,
     };
-    let differentTabsBasedOnLevel = await getBoundaryOnWhichWeSplit(request, request?.body?.ResourceDetails?.tenantId);
+    let differentTabsBasedOnLevel = await getBoundaryOnWhichWeSplit(request?.body?.ResourceDetails?.campaignId, request?.body?.ResourceDetails?.tenantId);
     differentTabsBasedOnLevel = getLocalizedName(
       `${request?.body?.ResourceDetails?.hierarchyType}_${differentTabsBasedOnLevel}`.toUpperCase(),
       localizationMap
@@ -1109,7 +1109,7 @@ function convertUserRoles(employees: any[], request: any) {
   }
 }
 
-function generateUserPassword() {
+export function generateUserPassword() {
   // Function to generate a random lowercase letter
   function getRandomLowercaseLetter() {
     const letters = "abcdefghijklmnopqrstuvwxyz";
@@ -1183,7 +1183,7 @@ async function enrichEmployees(employees: any[], request: any) {
   convertUserRoles(employees, request);
   const idRequests = createIdRequests(employees);
   request.body.idRequests = idRequests;
-  let result = await createUniqueUserNameViaIdGen(request);
+  let result = await createUniqueUserNameViaIdGen(idRequests);
   var i = 0;
   for (const employee of employees) {
     const { user } = employee;
@@ -1961,7 +1961,6 @@ function generateHierarchyList(data: any[], parentChain: any = []) {
 }
 
 const getHierarchy = async (
-  request: any,
   tenantId: string,
   hierarchyType: string
 ) => {

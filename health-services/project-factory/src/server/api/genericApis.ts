@@ -9,7 +9,9 @@ import { getCampaignSearchResponse, getHierarchy } from './campaignApis';
 const _ = require('lodash'); // Import lodash library
 import { enrichTemplateMetaData, getExcelWorkbookFromFileURL } from "../utils/excelUtils";
 import { processMapping } from "../utils/campaignMappingUtils";
-import { defaultRequestInfo, searchBoundaryRelationshipData } from "./coreApis";
+import { defaultRequestInfo, searchBoundaryRelationshipData, searchMDMSDataViaV2Api } from "./coreApis";
+import { getLocaleFromRequestInfo } from "../utils/localisationUtils";
+import { MDMSModels } from "../models";
 
 //Function to get Workbook with different tabs (for type target)
 const getTargetWorkbook = async (fileUrl: string, localizationMap?: any) => {
@@ -35,7 +37,7 @@ const getTargetWorkbook = async (fileUrl: string, localizationMap?: any) => {
   return workbook;
 };
 
-function getJsonData(sheetData: any, getRow = false, getSheetName = false, sheetName = "sheet1") {
+export function getJsonData(sheetData: any, getRow = false, getSheetName = false, sheetName = "sheet1") {
   const jsonData: any[] = [];
   const headers = sheetData[0]; // Extract the headers from the first row
 
@@ -434,7 +436,9 @@ async function createAndUploadFile(
 ) {
   let retries: any = 3;
   // Enrich metadatas
-  enrichTemplateMetaData(updatedWorkbook, request);
+  if (request?.body?.RequestInfo && request?.query?.campaignId) {
+    enrichTemplateMetaData(updatedWorkbook, getLocaleFromRequestInfo(request?.body?.RequestInfo), request?.query?.campaignId);
+  }
   while (retries--) {
     try {
       // Write the updated workbook to a buffer
@@ -459,6 +463,55 @@ async function createAndUploadFile(
         {
           "Content-Type": "multipart/form-data",
           "auth-token": request?.body?.RequestInfo?.authToken || request?.RequestInfo?.authToken,
+        }
+      );
+
+      // Extract response data
+      const responseData = fileCreationResult?.files;
+      if (responseData) {
+        return responseData;
+      }
+    }
+    catch (error: any) {
+      console.error(`Attempt failed:`, error.message);
+
+      // Add a delay before the next retry (2 seconds)
+      await new Promise((resolve) => setTimeout(resolve, 5000));
+    }
+  }
+  throw new Error("Error while uploading excel file: INTERNAL_SERVER_ERROR");
+}
+
+export async function createAndUploadFileWithOutRequest(
+  updatedWorkbook: any,
+  tenantId: any
+) {
+  let retries: any = 3;
+  while (retries--) {
+    try {
+      // Write the updated workbook to a buffer
+      logger.info("Creating form data for file upload...");
+      const buffer = await updatedWorkbook.xlsx.writeBuffer();
+
+      // Create form data for file upload
+      const formData = new FormData();
+      formData.append("file", buffer, "filename.xlsx");
+      formData.append(
+        "tenantId",
+        tenantId
+      );
+      formData.append("module", "HCM-ADMIN-CONSOLE-SERVER");
+      logger.info("Form data created.");
+
+      // Make HTTP request to upload file
+      var fileCreationResult = await httpRequest(
+        config.host.filestore + config.paths.filestore,
+        formData,
+        undefined,
+        undefined,
+        undefined,
+        {
+          "Content-Type": "multipart/form-data"
         }
       );
 
@@ -764,7 +817,6 @@ async function getBoundarySheetData(
   if (!boundaryData || boundaryData.length === 0) {
     logger.info(`boundary data not found for hierarchyType : ${hierarchyType}`);
     const hierarchy = await getHierarchy(
-      request,
       request?.query?.tenantId,
       hierarchyType
     );
@@ -1405,6 +1457,62 @@ function convertIntoSchema(data: any, isUpdate: boolean) {
   return data;
 }
 
+function convertIntoNewSchema(data: any) {
+  const properties: any = {};
+  const errorMessage: any = {};
+  const required: any[] = [];
+  let columns: any[] = [];
+  const unique: any[] = [];
+  const columnsNotToBeFreezed: any[] = [];
+  const columnsToBeFreezed: any[] = [];
+  const columnsToHide: any[] = [];
+
+  for (const propType of ['enumProperties', 'numberProperties', 'stringProperties']) {
+    if (data.properties[propType] && Array.isArray(data.properties[propType]) && data.properties[propType]?.length > 0) {
+      for (const property of data.properties[propType]) {
+        properties[property?.name] = {
+          ...property,
+          type: propType === 'stringProperties' ? 'string' : propType === 'numberProperties' ? 'number' : undefined
+        };
+        if (property?.errorMessage)
+          errorMessage[property?.name] = property?.errorMessage;
+
+        if (property?.isRequired && required.indexOf(property?.name) === -1) {
+          required.push({ name: property?.name, orderNumber: property?.orderNumber });
+        }
+        if (property?.isUnique && unique.indexOf(property?.name) === -1) {
+          unique.push(property?.name);
+        }
+        if (!property?.freezeColumn || property?.freezeColumn == false) {
+          columnsNotToBeFreezed.push(property?.name);
+        }
+        if (property?.freezeColumn) {
+          columnsToBeFreezed.push(property?.name);
+        }
+        if (property?.hideColumn) {
+          columnsToHide.push(property?.name);
+        }
+      }
+    }
+  }
+
+  const descriptionToFieldMap: Record<string, string> = {};
+
+  for (const [key, field] of Object.entries(properties)) {
+    // Cast field to `any` since it is of type `unknown`
+    const typedField = field as any;
+
+    if (typedField.isRequired) {
+      descriptionToFieldMap[typedField.description] = key;
+    }
+  }
+  data.descriptionToFieldMap = descriptionToFieldMap;
+
+
+  enrichSchema(data, properties, required, columns, unique, columnsNotToBeFreezed, columnsToBeFreezed, columnsToHide, errorMessage);
+  return data;
+}
+
 
 
 async function callMdmsTypeSchema(
@@ -1434,6 +1542,26 @@ async function callMdmsTypeSchema(
     throwError("COMMON", 500, "INTERNAL_SERVER_ERROR", "Error occured during schema search");
   }
   return convertIntoSchema(response?.mdms?.[0]?.data, isUpdate);
+}
+
+export async function callMdmsSchema(
+  tenantId: string,
+  type: any
+) {
+  const MdmsCriteria : MDMSModels.MDMSv2RequestCriteria= {
+    MdmsCriteria: {
+      tenantId: tenantId,
+      schemaCode: "HCM-ADMIN-CONSOLE.schemas",
+      uniqueIdentifiers: [
+        `${type}`
+      ]
+    }
+  };
+  const response = await searchMDMSDataViaV2Api(MdmsCriteria, true);
+  if (!response?.mdms?.[0]?.data) {
+    throwError("COMMON", 500, "INTERNAL_SERVER_ERROR", "Error occured during schema search for " + type);
+  }
+  return convertIntoNewSchema(response?.mdms?.[0]?.data);
 }
 
 // async function getMDMSV1Data(request: any, moduleName: string, masterName: string, tenantId: string) {

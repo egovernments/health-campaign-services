@@ -225,11 +225,9 @@ const trimError = (e: any) => {
 }
 
 /* Fetches data from the database */
-async function searchGeneratedResources(request: any) {
+async function searchGeneratedResources(searchQuery : any, locale : any) {
   try {
-    const { type, tenantId, hierarchyType, id, status, campaignId } = request.query;
-    const msgIdRaw = request.body.RequestInfo?.msgId;
-    const locale = msgIdRaw?.split('|')[1] || null;
+    const { type, tenantId, hierarchyType, id, status, campaignId } = searchQuery;
     let queryString = `SELECT * FROM ${config?.DB_CONFIG.DB_GENERATED_RESOURCE_DETAILS_TABLE_NAME} WHERE `;
     let queryConditions: string[] = [];
     let queryValues: any[] = [];
@@ -269,6 +267,55 @@ async function searchGeneratedResources(request: any) {
 
     // Add sorting and limiting
     queryString += " ORDER BY createdTime DESC OFFSET 0 LIMIT 1";
+
+    const queryResult = await executeQuery(queryString, queryValues);
+    return generatedResourceTransformer(queryResult?.rows);
+  } catch (error: any) {
+    console.log(error)
+    logger.error(`Error fetching data from the database: ${error.message}`);
+    throwError("COMMON", 500, "INTERNAL_SERVER_ERROR", error?.message);
+    return null; // Return null in case of an error
+  }
+}
+
+async function searchAllGeneratedResources(searchQuery: any, locale: any) {
+  try {
+    const { type, tenantId, hierarchyType, id, status, campaignId } = searchQuery;
+    let queryString = `SELECT * FROM ${config?.DB_CONFIG.DB_GENERATED_RESOURCE_DETAILS_TABLE_NAME} WHERE `;
+    let queryConditions: string[] = [];
+    let queryValues: any[] = [];
+    if (id) {
+      queryConditions.push(`id = $${queryValues.length + 1}`);
+      queryValues.push(id);
+    }
+    if (type) {
+      queryConditions.push(`type = $${queryValues.length + 1}`);
+      queryValues.push(type);
+    }
+
+    if (hierarchyType) {
+      queryConditions.push(`hierarchyType = $${queryValues.length + 1}`);
+      queryValues.push(hierarchyType);
+    }
+    if (tenantId) {
+      queryConditions.push(`tenantId = $${queryValues.length + 1}`);
+      queryValues.push(tenantId);
+    }
+    if (campaignId) {
+      queryConditions.push(`campaignId = $${queryValues.length + 1}`);
+      queryValues.push(campaignId);
+    }
+    if (status) {
+      const statusArray = status.split(',').map((s: any) => s.trim());
+      const statusConditions = statusArray.map((_: any, index: any) => `status = $${queryValues.length + index + 1}`);
+      queryConditions.push(`(${statusConditions.join(' OR ')})`);
+      queryValues.push(...statusArray);
+    }
+    if (locale) {
+      queryConditions.push(`locale = $${queryValues.length + 1}`);
+      queryValues.push(locale);
+    }
+    queryString += queryConditions.join(" AND ");
 
     const queryResult = await executeQuery(queryString, queryValues);
     return generatedResourceTransformer(queryResult?.rows);
@@ -590,7 +637,7 @@ async function createReadMeSheet(request: any, workbook: any, mainHeader: any, l
     readMeConfig = await getReadMeConfigForMicroplan(request);
   }
   else {
-    readMeConfig = await getReadMeConfig(request);
+    readMeConfig = await getReadMeConfig(request?.query?.tenantId, request?.query?.type);
   }
   const headerSet = new Set();
   const datas = readMeConfig.texts
@@ -679,10 +726,10 @@ function modifyRequestForLocalisation(request: any, tenantId: string) {
   return updatedRequest;
 }
 
-async function getReadMeConfig(request: any) {
+export async function getReadMeConfig(tenantId: string , type : string) {
   const MdmsCriteria = {
     MdmsCriteria: { // ✅ Now it matches `MDMSv1RequestCriteria`
-      tenantId: request?.query?.tenantId,
+      tenantId,
       moduleDetails: [
         {
           moduleName: "HCM-ADMIN-CONSOLE",
@@ -696,11 +743,11 @@ async function getReadMeConfig(request: any) {
   if (mdmsResponse?.MdmsRes?.["HCM-ADMIN-CONSOLE"]?.ReadMeConfig) {
     const readMeConfigsArray = mdmsResponse?.MdmsRes?.["HCM-ADMIN-CONSOLE"]?.ReadMeConfig
     for (const readMeConfig of readMeConfigsArray) {
-      if (readMeConfig?.type == request?.query?.type) {
+      if (readMeConfig?.type == type) {
         return readMeConfig
       }
     }
-    throwError("MDMS", 500, "INVALID_README_CONFIG", `Readme config for type ${request?.query?.type} not found.`);
+    throwError("MDMS", 500, "INVALID_README_CONFIG", `Readme config for type ${type} not found.`);
     return {}
   }
   else {
@@ -747,13 +794,6 @@ async function createFacilityAndBoundaryFile(facilitySheetData: any, boundaryShe
   hideUniqueIdentifierColumn(facilitySheet, createAndSearch?.["facility"]?.uniqueIdentifierColumn);
   changeFirstRowColumnColour(facilitySheet, 'E06666');
 
-  // let receivedDropdowns = request.body?.dropdowns;
-
-  // if (!receivedDropdowns || Object.keys(receivedDropdowns)?.length == 0) {
-  //   logger.info("No dropdowns found");
-  //   receivedDropdowns = setDropdownFromSchema(request, schema, localizationMap);
-  //   logger.info("refetched drodowns", JSON.stringify(receivedDropdowns))
-  // }
   await handledropdownthings(facilitySheet, schema, localizationMap);
   protectSheet(facilitySheet);
   await handleHiddenColumns(facilitySheet, request.body?.hiddenColumns);
@@ -768,9 +808,9 @@ async function createFacilityAndBoundaryFile(facilitySheetData: any, boundaryShe
   request.body.fileDetails = fileDetails;
 }
 
-async function handledropdownthings(sheet: any, schema: any, localizationMap: any) {
+export async function handledropdownthings(sheet: any, schema: any, localizationMap: any) {
   logger.info(sheet.rowCount)
-  const dropdowns = Object.entries(schema.properties)
+  const dropdowns = Object.entries(schema?.properties || {})
     .filter(([key, value]: any) => Array.isArray(value.enum) && value.enum.length > 0)
     .reduce((result: any, [key, value]: any) => {
       // Transform the key using localisedValue function
@@ -778,8 +818,8 @@ async function handledropdownthings(sheet: any, schema: any, localizationMap: an
       result[newKey] = value.enum;
       return result;
     }, {});
-  if (dropdowns) {
-    logger.info("Dropdowns provided:", dropdowns);
+  if (dropdowns && Object.keys(dropdowns)?.length > 0) {
+    logger.info(`Managing dropdowns: ${JSON.stringify(dropdowns)}`);
     for (const key of Object.keys(dropdowns)) {
       let dropdownColumnIndex = -1;
       if (dropdowns[key]) {
@@ -897,7 +937,7 @@ async function generateFacilityAndBoundarySheet(tenantId: string, request: any, 
   const typeWithoutWith = type.includes('With') ? type.split('With')[0] : type;
   // Get facility and boundary data
   logger.info("Generating facilities started");
-  const allFacilities = await getAllFacilities(tenantId, request.body);
+  const allFacilities = await getAllFacilities(tenantId);
   request.body.generatedResourceCount = allFacilities?.length;
   logger.info(`Facilities generation completed and found ${allFacilities?.length} facilities`);
   let facilitySheetDataFinal: any;
@@ -1156,7 +1196,7 @@ async function updateAndPersistGenerateRequest(newEntryResponse: any, oldEntryRe
 */
 async function processGenerate(request: any, enableCaching = false, filteredBoundary?: any) {
   // fetch the data from db  to check any request already exists
-  const responseData = await searchGeneratedResources(request);
+  const responseData = await searchGeneratedResources(request?.query, getLocaleFromRequestInfo(request?.body?.RequestInfo));
   // modify response from db 
   const modifiedResponse = await enrichAuditDetails(responseData);
   // generate new random id and make filestore id null
@@ -1338,7 +1378,7 @@ async function getDataSheetReady(boundaryData: any, request: any, localizationMa
     throwError("COMMON", 400, "VALIDATION_ERROR", "Boundary list is empty or not an array.");
   }
 
-  const hierarchy = await getHierarchy(request, request?.query?.tenantId, request?.query?.hierarchyType);
+  const hierarchy = await getHierarchy(request?.query?.tenantId, request?.query?.hierarchyType);
   const startIndex = boundaryType ? hierarchy.indexOf(boundaryType) : -1;
   const reducedHierarchy = startIndex !== -1 ? hierarchy.slice(startIndex) : hierarchy;
   const modifiedReducedHierarchy = getLocalizedHeaders(reducedHierarchy.map(ele => `${request?.query?.hierarchyType}_${ele}`.toUpperCase()), localizationMap);
@@ -1446,6 +1486,12 @@ async function getLocalizedMessagesHandlerViaRequestInfo(RequestInfo: any, tenan
   const localisationcontroller = Localisation.getInstance();
   const locale = getLocaleFromRequestInfo(RequestInfo);
   const localizationResponse = await localisationcontroller.getLocalisedData(module, locale, tenantId);
+  return localizationResponse;
+}
+
+async function getLocalizedMessagesHandlerViaLocale(locale: string, tenantId: any, module = config.localisation.localizationModule, overrideCache = false) {
+  const localisationcontroller = Localisation.getInstance();
+  const localizationResponse = await localisationcontroller.getLocalisedData(module, locale, tenantId, overrideCache);
   return localizationResponse;
 }
 
@@ -1631,6 +1677,27 @@ function modifyBoundaryDataHeadersWithMap(
   });
 }
 
+export async function getRelatedDataWithCampaign(type: string, campaignNumber: string, status ?: string) {
+  let queryString = `SELECT * FROM ${config?.DB_CONFIG.DB_CAMPAIGN_DATA_TABLE_NAME} WHERE type = $1 AND campaignNumber = $2`;
+  if(status) queryString += ` AND status = $3`;
+  const arrayStatements = [type, campaignNumber];
+  if(status) arrayStatements.push(status);
+  let relatedData = await executeQuery(queryString, arrayStatements);
+  if(!relatedData?.rows) return [];
+  let rows = [];
+  for(let i = 0; i < relatedData?.rows?.length; i++) {
+    rows.push({
+      campaignNumber : relatedData?.rows[i]?.campaignnumber,
+      type : relatedData?.rows[i]?.type,
+      data : relatedData?.rows[i]?.data,
+      uniqueIdentifier : relatedData?.rows[i]?.uniqueidentifier,
+      status : relatedData?.rows[i]?.status,
+      uniqueIdAfterProcess : relatedData?.rows[i]?.uniqueidafterprocess
+    })
+  }
+  return rows;
+}
+
 
 export {
   errorResponder,
@@ -1658,7 +1725,7 @@ export {
   matchData,
   enrichResourceDetails,
   modifyBoundaryData,
-  // getBoundaryRelationshipData,
+  searchAllGeneratedResources,
   getDataSheetReady,
   modifyTargetData,
   calculateKeyIndex,
@@ -1683,5 +1750,6 @@ export {
   hideUniqueIdentifierColumn,
   createHeaderToHierarchyMap,
   modifyBoundaryDataHeadersWithMap,
-  extractFrenchOrPortugeseLocalizationMap
+  extractFrenchOrPortugeseLocalizationMap,
+  getLocalizedMessagesHandlerViaLocale
 };

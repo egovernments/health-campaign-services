@@ -6,7 +6,6 @@ import config from "../config";
 import { freezeUnfreezeColumnsForProcessedFile, getColumnIndexByHeader, hideColumnsOfProcessedFile } from "./onGoingCampaignUpdateUtils";
 import { getLocalizedName } from "./campaignUtils";
 import createAndSearch from "../config/createAndSearch";
-import { getLocaleFromRequestInfo } from "./localisationUtils";
 import { usageColumnStatus } from "../config/constants";
 /**
  * Function to create a new Excel workbook using the ExcelJS library
@@ -67,7 +66,7 @@ export async function validateFileMetaDataViaFileUrl(fileUrl: string, expectedLo
   if (!fileUrl) {
     throwError("COMMON", 400, "VALIDATION_ERROR", "There is an issue while reading the file as no file URL was found.");
   }
-  else if(action === "validate"){
+  else if (action === "validate") {
     const workbook = await getExcelWorkbookFromFileURL(fileUrl);
     if (!workbook) {
       throwError("COMMON", 400, "VALIDATION_ERROR", "There is an issue while reading the file as no workbook was found.");
@@ -124,13 +123,29 @@ export const validateFileMetadata = (workbook: any, expectedLocale: string, expe
 };
 
 
-export function enrichTemplateMetaData(updatedWorkbook : any, request : any ){
-  if(request?.body?.RequestInfo && request?.query?.campaignId){
-    updatedWorkbook.keywords = `${getLocaleFromRequestInfo(request?.body?.RequestInfo)}#${request?.query?.campaignId}`
-  }
+export function enrichTemplateMetaData(updatedWorkbook: any, locale: string, campaignId: string) {
+  logger.info("Enriching template metadata...");
+  updatedWorkbook.keywords = `${locale}#${campaignId}`
+  logger.info("Enriched template metadata");
 }
 
+export function getLocaleFromWorkbook(workbook: any): string | null {
+  logger.info("Extracting locale from workbook...");
+
+  if (!workbook?.keywords) {
+    logger.warn("No keywords found in workbook. Returning null.");
+    return null;
+  }
+
+  const locale = workbook.keywords.split("#")[0]?.trim();
+
+  logger.info("Locale extracted:", locale);
+  return locale || null;
+}
+
+
 function updateFontNameToRoboto(worksheet: ExcelJS.Worksheet) {
+  logger.info("Updating font name to Roboto...");
   worksheet?.eachRow({ includeEmpty: true }, (row) => {
     row.eachCell({ includeEmpty: true }, (cell) => {
       // Preserve existing font properties
@@ -143,6 +158,7 @@ function updateFontNameToRoboto(worksheet: ExcelJS.Worksheet) {
       };
     });
   });
+  logger.info("Font name updated to Roboto.");
 }
 
 function formatWorksheet(worksheet: any, datas: any, headerSet: any) {
@@ -238,7 +254,8 @@ function addDataToSheet(
   manageMultiSelect(sheet, schema, localizationMap, fileUrl, sheetData);
 }
 
-function manageMultiSelect(sheet: any, schema: any, localizationMap?: any, fileUrl?: string, sheetData?: any[]) {
+
+export function manageMultiSelect(sheet: any, schema: any, localizationMap?: any, fileUrl?: string, sheetData?: any[]) {
   const headerRow = sheet.getRow(1); // Assuming first row is the header
   const rowsLength = sheetData?.length || 0;
   const isChildOfSomeCampaign = Boolean(fileUrl);
@@ -383,9 +400,10 @@ function adjustColumnWidth(sheet: any, colNumber: number, columnWidth: number) {
 }
 
 // Function to adjust row height based on content
-function adjustRowHeight(row: any, cell: any, columnWidth: number) {
+export function adjustRowHeight(row: any, cell: any, columnWidth: number) {
   const text = cell.value ? cell.value.toString() : '';
-  const lines = Math.ceil(text.length / (columnWidth - 2)); // Approximate number of lines
+  const denominator = Math.max(1, columnWidth - 10);
+  const lines = Math.ceil(text.length / denominator);
   row.height = Math.max(row.height ?? 0, lines * 15);
 }
 
@@ -414,7 +432,7 @@ function finalizeSheet(request: any, sheet: any, frozeCells: boolean, frozeWhole
   let columnsToBeFreezed: any[] = [];
   let columnsToHide: any[] = [];
   if (fileUrl) {
-    columnsToHide = ["HCM_ADMIN_CONSOLE_BOUNDARY_CODE_OLD",...schema?.columnsToHide];
+    columnsToHide = ["HCM_ADMIN_CONSOLE_BOUNDARY_CODE_OLD", ...schema?.columnsToHide];
     columnsToHide.forEach((column: any) => {
       const localizedColumn = getLocalizedName(column, localizationMap);
       const columnIndex = getColumnIndexByHeader(sheet, localizedColumn);
@@ -522,5 +540,173 @@ export const findColumnByHeader = (header: string, worksheet: any) => {
   return "";
 };
 
+export function addHeadersFromSchema(
+  worksheet: ExcelJS.Worksheet,
+  schema: any,
+  localizationMap?: Record<string, string>
+) {
+  const properties = schema?.properties || {};
+
+  // Step 1: Sort properties based on orderNumber
+  const sortedProps: any[] = Object.entries(properties)
+    .sort(([_, a]: any, [__, b]: any) => (a.orderNumber || 0) - (b.orderNumber || 0));
+
+  const expandedProps: {
+    key: string;
+    header: string;
+    width: number;
+    color?: string;
+    hidden?: boolean;
+  }[] = [];
+
+  // Step 2: Expand multi-select fields
+  for (const [key, prop] of sortedProps) {
+    const baseHeader = getLocalizedName(key, localizationMap);
+    const width = prop.width || 40;
+
+    if (prop.multiSelectDetails?.maxSelections) {
+      const max = prop.multiSelectDetails.maxSelections;
+
+      for (let i = 1; i <= max; i++) {
+        expandedProps.push({
+          key: `${key}_MULTISELECT_${i}`,
+          header: `${baseHeader} ${i}`,
+          width,
+          color: prop.color,
+          hidden: false,
+        });
+      }
+    }
+
+    expandedProps.push({
+      key,
+      header: baseHeader,
+      width,
+      color: prop.color,
+      hidden: prop.hideColumn,
+    });
+  }
+
+  // Step 3: Set worksheet columns
+  worksheet.columns = expandedProps.map(({ key, header, width, hidden }) => ({
+    header,
+    key,
+    width,
+    hidden: hidden || false,
+  }));
+
+  // Step 4: Apply styles to header row
+  const headerRow = worksheet.getRow(1);
+  expandedProps.forEach(({ color, width }, index) => {
+    const cell = headerRow.getCell(index + 1);
+
+    if (color) {
+      cell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: color.replace('#', '') },
+      };
+    }
+
+    cell.font = { bold: true, size: 12 };
+    cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+    cell.protection = { locked: true };
+
+    adjustRowHeight(headerRow, cell, Number(width));
+  });
+}
+
+
+export function freezeUnfreezeColumns(
+  worksheet: ExcelJS.Worksheet,
+  columnsToFreeze: string[],
+  columnsToUnFreezeTillData: string[],
+  columnsToFreezeTillData: string[],
+  columnsToFreezeIfFilled: string[]
+) {
+  logger.info(`Freezing columns: ${columnsToFreeze}`);
+  const headerRow = worksheet.getRow(1);
+  const headerMap: Record<string, number> = {};
+
+  // Step 1: Map headers to column indices
+  headerRow.eachCell((cell: any, col) => {
+    const header = cell.value;
+    if (header) headerMap[header] = col;
+  });
+
+  const freezeIndexes = columnsToFreeze
+    .map(header => headerMap[header])
+    .filter((col): col is number => !!col);
+
+  const tillDataIndexes = columnsToUnFreezeTillData
+    .map(header => headerMap[header])
+    .filter((col): col is number => !!col);
+
+  const freezeTillDataIndexes = columnsToFreezeTillData
+    .map(header => headerMap[header])
+    .filter((col): col is number => !!col);
+
+  const rowCount = worksheet.rowCount;
+  const maxCol = worksheet.columnCount;
+  const unfrozeTillRow = Number(config.values.unfrozeTillRow);
+  const unfrozeTillColumn = Number(config.values.unfrozeTillColumn);
+
+  // Step 2: Unlock default editable area, skipping frozen columns and empty headers
+  for (let r = 2; r <= unfrozeTillRow; r++) {
+    for (let c = 1; c <= unfrozeTillColumn; c++) {
+      const headerValue: any = worksheet.getCell(1, c).value;
+      if (!freezeIndexes.includes(c) && !tillDataIndexes.includes(c) && headerValue) {
+        if (columnsToFreezeIfFilled.includes(headerValue)) {
+          const value = worksheet.getCell(r, c).value;
+          if (value === null || value === undefined || value === "") {
+            worksheet.getCell(r, c).protection = { locked: false };
+          }
+        } else {
+          worksheet.getCell(r, c).protection = { locked: false };
+        }
+      }
+    }
+  }
+
+  // 🔹 Step 2.1: Unlock columns in columnsToUnFreezeTillData only till last data row
+  for (let r = 2; r <= rowCount; r++) {
+    for (const col of tillDataIndexes) {
+      worksheet.getCell(r, col).protection = { locked: false };
+    }
+  }
+
+  // Step 3: Lock the first row (header) always
+  for (let c = 1; c <= maxCol; c++) {
+    worksheet.getCell(1, c).protection = { locked: true };
+  }
+
+  // Step 4: Lock only the specified frozen columns (excluding first row)
+  for (let r = 2; r <= rowCount; r++) {
+    for (const col of freezeIndexes) {
+      worksheet.getCell(r, col).protection = { locked: true };
+    }
+  }
+
+  // 🔹 Step 4.1: Lock columns in columnsToFreezeTillData till last data row
+  for (let r = 2; r <= rowCount; r++) {
+    for (const col of freezeTillDataIndexes) {
+      worksheet.getCell(r, col).protection = { locked: true };
+    }
+  }
+
+  // Step 5: Apply or remove protection
+  if (
+    freezeIndexes.length > 0 ||
+    tillDataIndexes.length > 0 ||
+    freezeTillDataIndexes.length > 0
+  ) {
+    worksheet.protect('passwordhere', {
+      selectLockedCells: true,
+      selectUnlockedCells: true
+    });
+  } else {
+    worksheet.unprotect();
+  }
+}
 
 export { getNewExcelWorkbook, getExcelWorkbookFromFileURL, formatWorksheet, addDataToSheet, lockTargetFields, updateFontNameToRoboto, formatFirstRow, formatOtherRows, finalizeSheet, protectSheet };
