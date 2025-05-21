@@ -11,6 +11,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.data.query.builder.GenericQueryBuilder;
 import org.egov.common.data.query.builder.QueryFieldChecker;
@@ -147,6 +148,43 @@ public class IndividualRepository extends GenericRepository<Individual> {
             }
             return SearchResponse.<Individual>builder().build();
         }
+    }
+    public SearchResponse<Individual> findByName(String givenName, String familyName, String otherNames, String tenantId, Integer limit, Integer offset, Boolean includeDeleted) throws InvalidTenantIdException{
+        Map<String, Object> paramsMap = new HashMap<>();
+        String query = String.format(getQuery("SELECT * FROM %s.individual WHERE tenantId = :tenantId", includeDeleted), SCHEMA_REPLACE_STRING);
+        query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
+
+        if (StringUtils.isNotBlank(givenName)) {
+            query += " AND givenName ILIKE :givenName";
+            paramsMap.put("givenName", "%" + givenName + "%");
+        }
+
+        if (StringUtils.isNotBlank(familyName)) {
+            query += " AND familyName ILIKE :familyName";
+            paramsMap.put("familyName", "%" + familyName + "%");
+        }
+
+        if (StringUtils.isNotBlank(otherNames)) {
+            query += " AND otherNames ILIKE :otherNames";
+            paramsMap.put("otherNames", "%" + otherNames + "%");
+        }
+
+        if (Boolean.FALSE.equals(includeDeleted)) {
+            query += " AND isDeleted = false";
+        }
+
+        query += " ORDER BY createdTime DESC LIMIT :limit OFFSET :offset";
+
+        paramsMap.put("tenantId", tenantId);
+        paramsMap.put("limit", limit);
+        paramsMap.put("offset", offset);
+
+        List<Individual> individuals = this.namedParameterJdbcTemplate.query(query, paramsMap, this.rowMapper);
+
+        return SearchResponse.<Individual>builder()
+                .totalCount((long) individuals.size())
+                .response(individuals)
+                .build();
     }
 
     /**
