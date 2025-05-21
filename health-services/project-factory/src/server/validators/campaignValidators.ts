@@ -31,6 +31,9 @@ import { validateFileMetaDataViaFileUrl } from "../utils/excelUtils";
 import { getLocaleFromRequest } from "../utils/localisationUtils";
 import { ResourceDetails } from "../config/models/resourceDetailsSchema";
 import { fetchFileFromFilestore, searchBoundaryRelationshipDefinition } from "../api/coreApis";
+import { processTemplateConfigs } from "../config/processTemplateConfigs";
+import { GenerateTemplateQuery } from "../models/GenerateTemplateQuery";
+import { generationtTemplateConfigs } from "../config/generationtTemplateConfigs";
 
 
 
@@ -1577,10 +1580,12 @@ export function validateEmptyActive(data: any, type: string, localizationMap?: {
 
 export async function validateResourceDetails(ResourceDetails : ResourceDetails) {
     logger.info("validating resource details");
+    const type = ResourceDetails?.type;
     const hierarchyType = ResourceDetails?.hierarchyType;
     const campaignId = ResourceDetails?.campaignId;
     const tenantId = ResourceDetails?.tenantId;
     const fileStoreId = ResourceDetails?.fileStoreId;
+    validateTypeForProcess(type);
     await validateHierarchyDefination(hierarchyType,tenantId);
     await validateCampaignViaId(campaignId,tenantId);
     try {
@@ -1621,6 +1626,25 @@ async function validateCampaignViaId(campaignId : string,tenantId : string) {
     else {
         throwError(`CAMPAIGN`, 400, "VALIDATION_ERROR", `campaignId not found or invalid`);
     }
+}
+
+function validateTypeForProcess(type : string){
+    const config = JSON.parse(JSON.stringify(processTemplateConfigs));
+    const types = Object.keys(config);
+    if(!types.includes(type)){
+        throwError("CAMPAIGN", 400, "VALIDATION_ERROR", `type ${type} not found or invalid`);
+    }
+}
+
+export async function validateGenerateQuery(generateTemplateQuery : GenerateTemplateQuery){
+    const config = JSON.parse(JSON.stringify(generationtTemplateConfigs));
+    const types = Object.keys(config);
+    if(!types.includes(generateTemplateQuery.type)){
+        throwError("CAMPAIGN", 400, "VALIDATION_ERROR", `type ${generateTemplateQuery.type} not found or invalid`);
+    }
+    const tenantId = generateTemplateQuery.tenantId;
+    await validateHierarchyDefination(generateTemplateQuery.hierarchyType, tenantId);
+    await validateCampaignViaId(generateTemplateQuery.campaignId, tenantId);
 }
 
 

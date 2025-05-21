@@ -4,11 +4,12 @@ import { generateResource, initializeGenerateAndGetResponse, initializeProcessAn
 import config from "../config";
 import {GenerateTemplateQuery} from "../models/GenerateTemplateQuery";
 import { ResourceDetails } from "../config/models/resourceDetailsSchema";
-import { validateResourceDetails } from "../validators/campaignValidators";
+import { validateGenerateQuery, validateResourceDetails } from "../validators/campaignValidators";
 
 
 export async function generateDataService(generateRequestQuery: GenerateTemplateQuery, userUuid: string, locale : string = config.localisation.defaultLocale) {
     let { type, tenantId, hierarchyType, campaignId } = generateRequestQuery;
+    await validateGenerateQuery(generateRequestQuery);
     tenantId = String(tenantId);
     type = String(type);
     hierarchyType = String(hierarchyType);
