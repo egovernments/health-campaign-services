@@ -230,12 +230,10 @@ public class EmployeeService {
 			}
 		}
         List <Employee> employees = new ArrayList<>();
-        if(!((!CollectionUtils.isEmpty(criteria.getRoles()) || !CollectionUtils.isEmpty(criteria.getNames()) || !StringUtils.isEmpty(criteria.getPhone())) && CollectionUtils.isEmpty(criteria.getUuids()))) {
-			Map<String, Object> response = repository.fetchEmployees(criteria, requestInfo);
-			// Extract the List<Employee> and total count from the map
-			employees = (List<Employee>) response.get("employees");
-			totalCount = (Long) response.get("totalCount");
-		}
+		EmployeeCountResponse employeeCountResponse=new EmployeeCountResponse();
+        if(!((!CollectionUtils.isEmpty(criteria.getRoles()) || !CollectionUtils.isEmpty(criteria.getNames()) || !StringUtils.isEmpty(criteria.getPhone())) && CollectionUtils.isEmpty(criteria.getUuids())))
+			employeeCountResponse = repository.fetchEmployees(criteria, requestInfo);
+		employees=employeeCountResponse.getEmployees();
         List<String> uuids = employees.stream().map(Employee :: getUuid).collect(Collectors.toList());
 		if(userChecked)
 			criteria.setTenantId(null);
@@ -258,8 +256,7 @@ public class EmployeeService {
             }
 		}
 		return EmployeeResponse.builder().responseInfo(factory.createResponseInfoFromRequestInfo(requestInfo, true))
-				.employees(employees)
-				.totalCount(totalCount).build();
+				.employees(employees).count(employeeCountResponse.getCount()).build();
 	}
 	
 	
