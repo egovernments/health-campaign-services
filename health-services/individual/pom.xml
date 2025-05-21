@@ -17,7 +17,6 @@
         <maven.compiler.target>${java.version}</maven.compiler.target>
     </properties>
 
-    <!-- UPGRADED here to a Spring Boot that understands Java 17 -->
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
@@ -27,7 +26,7 @@
     <build>
         <sourceDirectory>src/main/java</sourceDirectory>
         <plugins>
-            <!-- 1) Compiler: fork on JDK17 and open the module for Lombok -->
+            <!-- Compiler plugin: fork on JDK17 and open module for Lombok -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
@@ -43,7 +42,7 @@
                 </configuration>
             </plugin>
 
-            <!-- 2) Spring Boot fat-jar -->
+            <!-- Spring Boot fat-jar repackaging -->
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
@@ -74,7 +73,7 @@
             <version>1.0.12-SNAPSHOT</version>
         </dependency>
 
-        <!-- Flyway & PostgreSQL -->
+        <!-- Flyway & PostgreSQL (SCRAM-capable) -->
         <dependency>
             <groupId>org.flywaydb</groupId>
             <artifactId>flyway-core</artifactId>
@@ -82,7 +81,7 @@
         <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
-            <version>42.2.2.jre7</version>
+            <version>42.6.0</version>
         </dependency>
 
         <!-- Testing -->
@@ -120,7 +119,7 @@
             </exclusions>
         </dependency>
 
-        <!-- JSON & Validation -->
+        <!-- JSON & Bean Validation -->
         <dependency>
             <groupId>com.fasterxml.jackson.datatype</groupId>
             <artifactId>jackson-datatype-jsr310</artifactId>
