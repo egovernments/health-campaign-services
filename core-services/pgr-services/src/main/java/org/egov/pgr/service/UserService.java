@@ -61,11 +61,13 @@ public class UserService {
     public void enrichUsers(List<ServiceWrapper> serviceWrappers){
 
         Set<String> uuids = new HashSet<>();
+        if (CollectionUtils.isEmpty(serviceWrappers)) return;
+        String tenantId = serviceWrappers.get(0).getService().getTenantId();
         serviceWrappers.forEach(serviceWrapper -> {
             uuids.add(serviceWrapper.getService().getAccountId());
         });
 
-        Map<String, User> idToUserMap = searchBulkUser(new LinkedList<>(uuids));
+        Map<String, User> idToUserMap = searchBulkUser(tenantId, new LinkedList<>(uuids));
 
         serviceWrappers.forEach(serviceWrapper -> {
             serviceWrapper.getService().setUser(idToUserMap.get(serviceWrapper.getService().getAccountId()));
@@ -200,10 +202,11 @@ public class UserService {
      * @param uuids
      * @return
      */
-    private Map<String,User> searchBulkUser(List<String> uuids){
+    private Map<String,User> searchBulkUser(String tenantId, List<String> uuids){
 
         UserSearchRequest userSearchRequest =new UserSearchRequest();
         userSearchRequest.setActive(true);
+        userSearchRequest.setTenantId(tenantId);
 
 
         if(!CollectionUtils.isEmpty(uuids))
