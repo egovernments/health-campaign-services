@@ -164,6 +164,7 @@ public class ServiceRequestValidator {
     private void validateDepartment(ServiceRequest request, Object mdmsData){
 
         String serviceCode = request.getService().getServiceCode();
+        String tenantId = request.getService().getTenantId();
         List<String> assignes = request.getWorkflow().getAssignes();
 
         List<String> hrmsAssignes = request.getWorkflow().getHrmsAssignees();
@@ -171,7 +172,7 @@ public class ServiceRequestValidator {
         if(CollectionUtils.isEmpty(assignes))
             return;
 
-        List<String> departments = hrmsUtil.getDepartment(assignes, hrmsAssignes, request.getRequestInfo());
+        List<String> departments = hrmsUtil.getDepartment(tenantId, assignes, hrmsAssignes, request.getRequestInfo());
 
         String jsonPath = MDMS_DEPARTMENT_SEARCH.replace("{SERVICEDEF}",serviceCode);
 
