@@ -4,10 +4,12 @@ import { generateResource, initializeGenerateAndGetResponse, initializeProcessAn
 import config from "../config";
 import {GenerateTemplateQuery} from "../models/GenerateTemplateQuery";
 import { ResourceDetails } from "../config/models/resourceDetailsSchema";
+import { validateGenerateQuery, validateResourceDetails } from "../validators/campaignValidators";
 
 
 export async function generateDataService(generateRequestQuery: GenerateTemplateQuery, userUuid: string, locale : string = config.localisation.defaultLocale) {
     let { type, tenantId, hierarchyType, campaignId } = generateRequestQuery;
+    await validateGenerateQuery(generateRequestQuery);
     tenantId = String(tenantId);
     type = String(type);
     hierarchyType = String(hierarchyType);
@@ -19,6 +21,7 @@ export async function generateDataService(generateRequestQuery: GenerateTemplate
 }
 
 export async function processDataService(ResourceDetails : ResourceDetails, userUuid: string, locale : string = config.localisation.defaultLocale) {
+    await validateResourceDetails(ResourceDetails);
     const processTemplateConfig = JSON.parse(JSON.stringify(processTemplateConfigs?.[String(ResourceDetails.type)]));
     const responseToSend = await initializeProcessAndGetResponse(ResourceDetails, userUuid, processTemplateConfig, locale);
     processResource(responseToSend, processTemplateConfig, locale);

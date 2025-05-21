@@ -35,17 +35,16 @@ class SheetManageController {
     generateData = async (req: express.Request, res: express.Response) => {
         try {
             logger.info(`DATA GENERATE REQUEST RECEIVED`);
-            await validateGenerateRequest(req);
             const parsed: any = generateTemplateQuerySchema.safeParse(req.query);
             if (!parsed.success) {
                 const errors = parsed.error.errors.map((err: any) => `${err.message}`);
                 throwError("COMMON", 400, "VALIDATION_ERROR", errors.join("; "));
             }
-            const data: GenerateTemplateQuery = parsed.data;
+            const generateTemplateQuery: GenerateTemplateQuery = parsed.data;
             const userUuid = req.body?.RequestInfo?.userInfo?.uuid;
             const locale = getLocaleFromRequest(req);
 
-            const GeneratedResource = await generateDataService(data, userUuid, locale);
+            const GeneratedResource = await generateDataService(generateTemplateQuery, userUuid, locale);
 
             return sendResponse(res, { GeneratedResource }, req);
         } catch (e: any) {

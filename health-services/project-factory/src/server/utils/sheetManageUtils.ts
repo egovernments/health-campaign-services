@@ -132,31 +132,31 @@ export async function generateResource(responseToSend: any, templateConfig: any)
     }
 }
 
-export async function processResource(ResoureDetails: any, templateConfig: any, locale: string) {
+export async function processResource(ResourceDetails: any, templateConfig: any, locale: string) {
     try {
-        const fileUrl = await fetchFileFromFilestore(ResoureDetails?.fileStoreId, ResoureDetails?.tenantId);
+        const fileUrl = await fetchFileFromFilestore(ResourceDetails?.fileStoreId, ResourceDetails?.tenantId);
         const workBook = await getExcelWorkbookFromFileURL(fileUrl);
         locale = getLocaleFromWorkbook(workBook) || "";
         if(!locale){
             throw new Error("Locale not found in the file metadata.");
         }
-        const localizationMapHierarchy = ResoureDetails?.hierarchyType && await getLocalizedMessagesHandlerViaLocale(locale, ResoureDetails?.tenantId, getLocalisationModuleName(ResoureDetails?.hierarchyType), true);
-        const localizationMapModule = await getLocalizedMessagesHandlerViaLocale(locale, ResoureDetails?.tenantId);
+        const localizationMapHierarchy = ResourceDetails?.hierarchyType && await getLocalizedMessagesHandlerViaLocale(locale, ResourceDetails?.tenantId, getLocalisationModuleName(ResourceDetails?.hierarchyType), true);
+        const localizationMapModule = await getLocalizedMessagesHandlerViaLocale(locale, ResourceDetails?.tenantId);
         const localizationMap = { ...(localizationMapHierarchy || {}), ...localizationMapModule };
-        await processRequest(ResoureDetails, workBook, templateConfig, localizationMap);
-        enrichTemplateMetaData(workBook, locale, ResoureDetails?.campaignId);
-        const fileResponse = await createAndUploadFileWithOutRequest(workBook, ResoureDetails?.tenantId);
-        ResoureDetails.fileStoreid = fileResponse?.[0]?.fileStoreId;
-        if (!ResoureDetails.fileStoreid) throw new Error("FileStoreId not created.");
-        ResoureDetails.status = generatedResourceStatuses.completed;
-        await produceModifiedMessages({ ResoureDetails}, config?.kafka?.KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC);
+        await processRequest(ResourceDetails, workBook, templateConfig, localizationMap);
+        enrichTemplateMetaData(workBook, locale, ResourceDetails?.campaignId);
+        const fileResponse = await createAndUploadFileWithOutRequest(workBook, ResourceDetails?.tenantId);
+        ResourceDetails.processedFileStoreId = fileResponse?.[0]?.fileStoreId;
+        if (!ResourceDetails.processedFileStoreId) throw new Error("FileStoreId not created.");
+        ResourceDetails.status = generatedResourceStatuses.completed;
+        await produceModifiedMessages({ ResourceDetails : ResourceDetails }, config?.kafka?.KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC);
     } catch (error) {
         console.log(error)
-        await handleErrorDuringProcess(ResoureDetails, error);
+        await handleErrorDuringProcess(ResourceDetails, error);
     }
 }
 
-async function processRequest(ResoureDetails: any, workBook: any, templateConfig: any, localizationMap: any) {
+async function processRequest(ResourceDetails: any, workBook: any, templateConfig: any, localizationMap: any) {
     const wholeSheetData: any = {};
     for (const sheet of templateConfig?.sheets || []) {
         const sheetName = getLocalizedName(sheet?.sheetName, localizationMap);
@@ -165,10 +165,10 @@ async function processRequest(ResoureDetails: any, workBook: any, templateConfig
         const jsonData = getJsonData(sheetData, true);
         wholeSheetData[sheetName] = jsonData;
         if(!sheet?.schemaName) continue;
-        const schema = await callMdmsSchema(ResoureDetails?.tenantId, sheet?.schemaName);
+        const schema = await callMdmsSchema(ResourceDetails?.tenantId, sheet?.schemaName);
         sheet.schema = schema;
     }
-    const className = `${ResoureDetails?.type}-processClass`;
+    const className = `${ResourceDetails?.type}-processClass`;
     let classFilePath = path.join(__dirname, '..', 'processFlowClasses', `${className}.js`);
     if (!fs.existsSync(classFilePath)) {
         // fallback for local dev with ts-node
@@ -176,7 +176,7 @@ async function processRequest(ResoureDetails: any, workBook: any, templateConfig
     }
     try {
         const { TemplateClass } = await import(classFilePath);
-        const sheetMap: SheetMap = await TemplateClass.process(ResoureDetails, wholeSheetData, localizationMap);
+        const sheetMap: SheetMap = await TemplateClass.process(ResourceDetails, wholeSheetData, localizationMap);
         mergeSheetMapAndSchema(sheetMap, templateConfig, localizationMap);
         for (const sheet of templateConfig?.sheets) {
             const sheetName = getLocalizedName(sheet?.sheetName, localizationMap);

@@ -171,6 +171,7 @@ export class TemplateClass {
             } catch (err) {
                 console.error("Error in batch creation:", err);
                 await this.handleBatchFailure(batch, usersToCreate, localizationMap);
+                throw new Error(`Error in user batch creation: ${err}`);
             }
         }
         const waitTime = Math.max(5000, transformedUsers.length * 8);
