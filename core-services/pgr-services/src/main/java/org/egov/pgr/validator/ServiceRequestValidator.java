@@ -78,12 +78,14 @@ public class ServiceRequestValidator {
     public void validateUpdate(ServiceRequest request, Object mdmsData) {
 
         String id = request.getService().getId();
+        String tenantId = request.getService().getTenantId();
         validateSource(request.getService().getSource());
         validateMDMS(request, mdmsData);
         validateDepartment(request, mdmsData);
         validateReOpen(request);
         RequestSearchCriteria criteria = RequestSearchCriteria.builder().ids(Collections.singleton(id)).build();
         criteria.setIsPlainSearch(false);
+        criteria.setTenantId(tenantId);
         List<ServiceWrapper> serviceWrappers = null;
         try {
             serviceWrappers = repository.getServiceWrappers(criteria);
