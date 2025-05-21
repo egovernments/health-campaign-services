@@ -3,7 +3,6 @@ import { searchBoundaryRelationshipData } from "../api/coreApis";
 import { createIdRequests, createUniqueUserNameViaIdGen, getBoundaryCodeAndBoundaryTypeMapping } from "../utils/campaignUtils";
 import { logger } from "../utils/logger";
 import config from ".";
-
 // === transformConfigs ===
 export const transformConfigs: any = {
     employeeHrms: {
@@ -139,117 +138,82 @@ export const transformConfigs: any = {
                 type: "number",
                 source: { header: "HCM_ADMIN_CONSOLE_FACILITY_CAPACITY" }
             },
-            "$Facility.address": {
-                type: "object",
-                properties: {
-                    "$locality": {
-                        type: "object",
-                        properties: {
-                            "$code": {
-                                type: "string",
-                                source: { header: "HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY" }
-                            }
-                        }
-                    }
-                }
+            "$Facility.address.locality.code": {
+                type: "string",
+                source: { header: "HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY" }
             }
         },
         transFormSingle: "transformFacility",
         transFormBulk: "transformBulkFacility"
     }
 };
-
 type RowData = Record<string, any>;
-
 export class DataTransformer {
     private transformConfig: any;
     private transformFunctionMap: Record<string, (data: any, transformConfig: any) => any>;
-
     constructor(transformConfig: any) {
         this.transformConfig = transformConfig;
         this.transformFunctionMap = {
             transformEmployee: this.transformEmployee.bind(this),
             transformBulkEmployee: this.transformBulkEmployee.bind(this)
         };
-
     }
-
     public async transform(rowData: RowData[]): Promise<any> {
         // Ensure rowData is always an array
         if (!Array.isArray(rowData)) {
             throw new Error("Input data must be an array for transformation.");
         }
-
         // Proceed with bulk transformation
         return this.transformBulk(rowData);
     }
-
     private transformBulk(rowData: RowData[]): any {
         if (!Array.isArray(rowData)) {
             throw new Error("Bulk transformation requires an array of data.");
         }
-
         const transformedData = rowData.map((data) => this.transformSingle(data));
         const transformFnName = this.transformConfig.transFormBulk;
-
         if (transformFnName && this.transformFunctionMap[transformFnName]) {
             return this.transformFunctionMap[transformFnName](transformedData, this.transformConfig); // ✅ Pass transformConfig
         }
-
         return transformedData;
     }
-
-
     private transformSingle(rowData: RowData): any {
         const transformed: any = {};
         this.processFields(this.transformConfig.fields, rowData, transformed);
         const transformFnName = this.transformConfig.transFormSingle;
-
         if (transformFnName && this.transformFunctionMap[transformFnName]) {
             return this.transformFunctionMap[transformFnName](transformed, this.transformConfig);  // ✅ Pass transformConfig
         }
-
         return transformed;
     }
-
-
     private resolveTemplate(template: string): string {
         const metadata = this.transformConfig.metadata || {};
         return template.replace(/\$\{metadata\.(\w+)\}/g, (_, key) => metadata[key] ?? "");
     }
-
     private applyMapping(mapping: Record<string, any>, value: any): any {
         return mapping[value] ?? mapping["%default%"] ?? value;
     }
-
     private processField(fieldConfig: any, rowData: RowData): any {
         if ("value" in fieldConfig) {
             return this.resolveTemplate(fieldConfig.value.toString());
         }
-
         if (fieldConfig.source) {
             const rawValue = rowData[fieldConfig.source.header] ?? null;  // Change empty string to null
-
             if (fieldConfig.type === "array") {
                 const parts = rawValue
                     .split(fieldConfig.source.delimiter || ",")
                     .map((v: string) => v.trim());
-
                 return parts.map((item: any) => {
                     if (fieldConfig.items?.type === "object") {
                         const obj: Record<string, any> = {};
-
                         for (const [key, prop] of Object.entries(fieldConfig.items.properties)) {
                             const finalKey = key.startsWith("$") ? key.substring(1) : key;
-
                             if ((prop as any).valueFrom === "self") {
                                 // same‑element copy
                                 obj[finalKey] = item;
-
                             } else if ("value" in (prop as any)) {
                                 // constant / template
                                 obj[finalKey] = this.resolveTemplate((prop as any).value);
-
                             } else if ((prop as any).source) {
                                 // NEW  ➜ support nested `source`
                                 const v = this.processField(prop, rowData);   // reuse existing logic
@@ -261,42 +225,33 @@ export class DataTransformer {
                     return item;
                 });
             }
-
             let value = rawValue;
             if (fieldConfig.source.transform?.mapping) {
                 value = this.applyMapping(fieldConfig.source.transform.mapping, rawValue);
             }
-
             return value;
         }
-
         return null;  // If the field doesn't exist, return null
     }
-
     private setDeepValue(obj: any, path: string, value: any): void {
         const parts = path.split(".");
         let current = obj;
-
         for (let i = 0; i < parts.length - 1; i++) {
             if (!current[parts[i]]) {
                 current[parts[i]] = {};
             }
             current = current[parts[i]];
         }
-
         current[parts[parts.length - 1]] = value;
     }
-
     private processFields(fields: any, rowData: RowData, result: Record<string, any>): void {
         for (const [key, field] of Object.entries(fields)) {
             const value = this.processField(field, rowData);
-
             // Remove dollar sign from field key before setting it in the transformed data
             const finalKey = key.startsWith("$") ? key.substring(1) : key;
             this.setDeepValue(result, finalKey, value);
         }
     }
-
     // === Custom Transform Functions ===
     private transformEmployee(data: any, transformConfig: any): any {
         data.status = "ACTIVE";
@@ -306,7 +261,6 @@ export class DataTransformer {
         }
         return data;
     }
-
     private async transformBulkEmployee(data: any[], transformConfig: any): Promise<any> {
         const idRequests = createIdRequests(data);
         let result = await createUniqueUserNameViaIdGen(idRequests);
@@ -340,6 +294,4 @@ export class DataTransformer {
         }
         return data;
     }
-
 }
-
