@@ -184,7 +184,6 @@ export class TemplateClass {
         logger.info(`${facilitiesToCreate?.length} facilities to create`);
 
         const facilityRowDatas = facilitiesToCreate.map((facility: any) => facility?.data);
-        console.log(facilityRowDatas);
 
         // Dummy transformer config (replace later with actual one)
         const transformConfig = transformConfigs?.["Facility"];
@@ -207,7 +206,6 @@ export class TemplateClass {
                 const response: any = await this.createFacilitiesOneByOne(facilityItem?.Facility);
 
                 const createdFacility = response?.Facility;
-                console.log(createdFacility);
 
                 if (createdFacility) {
                     const uniqueKey = createdFacility?.name + "_" + campaignNumber;
@@ -249,7 +247,6 @@ export class TemplateClass {
             RequestInfo: defaultRequestInfo?.RequestInfo,
             Facility: facility
         };
-        console.log(requestBody);
 
         let response: any;
         try {
