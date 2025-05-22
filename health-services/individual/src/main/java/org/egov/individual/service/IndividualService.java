@@ -335,16 +335,18 @@ public class IndividualService {
                 );
 
                 encryptedIndividualList = response.getResponse();
-                List<Individual> decryptedIndividualList = (!encryptedIndividualList.isEmpty())
-                        ? individualEncryptionService.decrypt(encryptedIndividualList, "IndividualDecrypt", requestInfo)
-                        :encryptedIndividualList;
-
+                List<Individual> decryptedIndividualList;
+                if (!encryptedIndividualList.isEmpty()) {
+                    decryptedIndividualList = individualEncryptionService.decrypt(encryptedIndividualList, "IndividualDecrypt", requestInfo);
+                } else {
+                    decryptedIndividualList = encryptedIndividualList;
+                }
                 response.setResponse(decryptedIndividualList);
                 return response;
 
             } catch (Exception exception) {
-                log.error(NAME_BASED_SEARCH_EXCEPTION_MESSAGE, exception);
-                throw new CustomException(NAME_BASED_SEARCH_FAILED_CODE, exception.getMessage());
+                log.error("error occurred during name based search", ExceptionUtils.getStackTrace(exception));
+                throw new CustomException(NAME_BASED_SEARCH_FAILED_CODE,NAME_BASED_SEARCH_EXCEPTION_MESSAGE);
             }
         }
         //encrypt search criteria
