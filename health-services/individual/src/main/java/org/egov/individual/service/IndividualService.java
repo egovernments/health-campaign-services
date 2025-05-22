@@ -18,17 +18,7 @@ import org.egov.common.utils.CommonUtils;
 import org.egov.common.validator.Validator;
 import org.egov.individual.config.IndividualProperties;
 import org.egov.individual.repository.IndividualRepository;
-import org.egov.individual.validators.AadharNumberValidator;
-import org.egov.individual.validators.AadharNumberValidatorForCreate;
-import org.egov.individual.validators.AddressTypeValidator;
-import org.egov.individual.validators.IsDeletedSubEntityValidator;
-import org.egov.individual.validators.IsDeletedValidator;
-import org.egov.individual.validators.MobileNumberValidator;
-import org.egov.individual.validators.NonExistentEntityValidator;
-import org.egov.individual.validators.NullIdValidator;
-import org.egov.individual.validators.RowVersionValidator;
-import org.egov.individual.validators.UniqueEntityValidator;
-import org.egov.individual.validators.UniqueSubEntityValidator;
+import org.egov.individual.validators.*;
 import org.egov.individual.web.models.IndividualSearch;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,28 +26,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ReflectionUtils;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-import static org.egov.common.utils.CommonUtils.getIdFieldName;
-import static org.egov.common.utils.CommonUtils.getIdList;
-import static org.egov.common.utils.CommonUtils.getIdMethod;
-import static org.egov.common.utils.CommonUtils.getIdToObjMap;
-import static org.egov.common.utils.CommonUtils.handleErrors;
-import static org.egov.common.utils.CommonUtils.havingTenantId;
-import static org.egov.common.utils.CommonUtils.includeDeleted;
-import static org.egov.common.utils.CommonUtils.isSearchByIdOnly;
-import static org.egov.common.utils.CommonUtils.lastChangedSince;
-import static org.egov.common.utils.CommonUtils.notHavingErrors;
-import static org.egov.common.utils.CommonUtils.populateErrorDetails;
+import static org.egov.common.utils.CommonUtils.*;
 import static org.egov.individual.Constants.SET_INDIVIDUALS;
 import static org.egov.individual.Constants.VALIDATION_ERROR;
 
@@ -253,9 +226,12 @@ public class IndividualService {
                     encryptedIndividualList.forEach(encryptedIndividual -> {
                         List<Identifier> newIdentifiers = encryptedIndividual.getIdentifiers();
                         List<String> newIdentifiersIds = getIdList(newIdentifiers);
-                        List<Identifier> identifierList = existingIdentifiers.get(encryptedIndividual.getId()).stream()
-                                .filter(identifier -> !newIdentifiersIds.contains(identifier.getId()))
-                                .collect(Collectors.toList());
+                        List<Identifier> identifierList = null;
+                        if (existingIdentifiers != null && existingIdentifiers.get(encryptedIndividual.getId()) != null) {
+                            identifierList = existingIdentifiers.get(encryptedIndividual.getId()).stream()
+                                    .filter(identifier -> !newIdentifiersIds.contains(identifier.getId()))
+                                    .collect(Collectors.toList());
+                        }
 
                         if (identifierList != null) {
                             newIdentifiers.addAll(identifierList);
