@@ -27,6 +27,7 @@ public class SelectQueryBuilder implements GenericQueryBuilder {
         } catch (Exception exception) {
             throw new QueryBuilderException(exception.getMessage());
         }
+
         return build(object, tableName);
     }
 

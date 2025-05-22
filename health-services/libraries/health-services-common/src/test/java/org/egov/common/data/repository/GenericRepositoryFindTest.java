@@ -61,9 +61,9 @@ class GenericRepositoryFindTest {
     void setUp() {
         someObjects = new ArrayList<>();
         someObjects.add(SomeObject.builder()
-                .id("some-id")
-                .otherField("other-field")
-                .isDeleted(false)
+                        .id("some-id")
+                        .otherField("other-field")
+                        .isDeleted(false)
                 .build());
         someObjects.add(SomeObject.builder()
                 .id("other-id")
