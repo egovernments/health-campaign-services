@@ -83,7 +83,7 @@ public class RmRecipientIdValidator implements Validator<ReferralBulkRequest, Re
 
         List<String> invalidStaffIds = new ArrayList<>(projectStaffUuidList);
         // fetch valid identifiers and remove it from invalidStaffIds
-        ValidatorUtil.validateAndEnrichStaffIds(request.getRequestInfo(), userService, projectStaffUuidList, invalidStaffIds);
+        ValidatorUtil.validateAndEnrichStaffIds(tenantId, request.getRequestInfo(), userService, projectStaffUuidList, invalidStaffIds);
 
         // fetch valid facilities and remove it from invalidfacilityIds
         List<String> invalidFacilityIds = new ArrayList<>(facilityIdList);
