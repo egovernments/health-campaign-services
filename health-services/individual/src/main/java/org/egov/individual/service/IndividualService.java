@@ -342,9 +342,9 @@ public class IndividualService {
                 response.setResponse(decryptedIndividualList);
                 return response;
 
-            } catch (Exception ex) {
-                log.error("Error during name-based search: {}", ExceptionUtils.getStackTrace(ex));
-                throw new CustomException("NAME_SEARCH_FAILED", ex.getMessage());
+            } catch (Exception exception) {
+                log.error(NAME_BASED_SEARCH_EXCEPTION_MESSAGE, exception);
+                throw new CustomException(NAME_BASED_SEARCH_FAILED_CODE, exception.getMessage());
             }
         }
         //encrypt search criteria
