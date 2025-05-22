@@ -2,11 +2,9 @@ package org.egov.common.data.repository;
 
 import org.egov.common.data.query.builder.SelectQueryBuilder;
 import org.egov.common.data.query.exception.QueryBuilderException;
-import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.helpers.SomeObject;
 import org.egov.common.helpers.SomeRepository;
 import org.egov.common.helpers.SomeRowMapper;
-import org.egov.common.utils.MultiStateInstanceUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -37,8 +35,6 @@ import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class GenericRepositoryFindTest {
-    @Mock
-    private MultiStateInstanceUtil multiStateInstanceUtil;
     @InjectMocks
     private SomeRepository someRepository;
 
@@ -65,9 +61,9 @@ class GenericRepositoryFindTest {
     void setUp() {
         someObjects = new ArrayList<>();
         someObjects.add(SomeObject.builder()
-                        .id("some-id")
-                        .otherField("other-field")
-                        .isDeleted(false)
+                .id("some-id")
+                .otherField("other-field")
+                .isDeleted(false)
                 .build());
         someObjects.add(SomeObject.builder()
                 .id("other-id")
@@ -77,53 +73,43 @@ class GenericRepositoryFindTest {
                 .collect(Collectors.toList());
         lenient().when(redisTemplate.opsForHash()).thenReturn(hashOperations);
         ReflectionTestUtils.setField(someRepository, "timeToLive", "60");
-        ReflectionTestUtils.setField(someRepository, "multiStateInstanceUtil", multiStateInstanceUtil);
     }
 
     @Test
     @DisplayName("should find objects by ids and return the results")
-    void shouldFindObjectsByIdsAndReturnTheResults() throws InvalidTenantIdException {
+    void shouldFindObjectsByIdsAndReturnTheResults() {
         when(hashOperations.multiGet(anyString(), anyList())).thenReturn(Collections.emptyList());
         when(namedParameterJdbcTemplate.query(anyString(), anyMap(), any(RowMapper.class)))
                 .thenReturn(someObjects);
-        String queryAfterReplacement = "some-query";
-        when(multiStateInstanceUtil.replaceSchemaPlaceholder(anyString(), anyString()))
-                .thenReturn(queryAfterReplacement);
 
-        List<SomeObject> result = someRepository.findById("some-tenant-id", someObjectIds);
+        List<SomeObject> result = someRepository.findById(someObjectIds);
 
         assertEquals(someObjectIds.size(), result.size());
     }
 
     @Test
     @DisplayName("should return empty list if the record is not found in db and cache")
-    void shouldReturnEmptyListIfRecordIsNotFoundInDbAndCache() throws InvalidTenantIdException {
+    void shouldReturnEmptyListIfRecordIsNotFoundInDbAndCache() {
         when(hashOperations.multiGet(anyString(), anyList())).thenReturn(Collections.emptyList());
         when(namedParameterJdbcTemplate.query(anyString(), anyMap(), any(RowMapper.class)))
                 .thenReturn(Collections.emptyList());
-        String queryAfterReplacement = "some-query";
-        when(multiStateInstanceUtil.replaceSchemaPlaceholder(anyString(), anyString()))
-                .thenReturn(queryAfterReplacement);
 
-        List<SomeObject> result = someRepository.findById("mz", someObjectIds);
+        List<SomeObject> result = someRepository.findById(someObjectIds);
 
         assertEquals(result.size(), 0);
     }
 
     @Test
     @DisplayName("should get objects from db for the search request")
-    void shouldReturnObjectsFromDBForSearchRequest() throws QueryBuilderException, InvalidTenantIdException {
+    void shouldReturnObjectsFromDBForSearchRequest() throws QueryBuilderException {
         List<SomeObject> result = new ArrayList<>(someObjects);
         List<SomeObject> deleted = result.stream().filter(someObject -> someObject.getIsDeleted() == Boolean.TRUE)
                 .collect(Collectors.toList());
         result.removeAll(deleted);
-        when(selectQueryBuilder.build(any(Object.class), anyString(), anyString()))
-                .thenReturn("Select * from {schema}.some_table where id='some-id' and isdeleted=false");
+        when(selectQueryBuilder.build(any(Object.class), anyString()))
+                .thenReturn("Select * from some_table where id='some-id' and isdeleted=false");
         when(namedParameterJdbcTemplate.query(any(String.class), any(Map.class), any(SomeRowMapper.class)))
                 .thenReturn(result);
-        String queryAfterReplacement = "some-query";
-        when(multiStateInstanceUtil.replaceSchemaPlaceholder(anyString(), anyString()))
-                .thenReturn(queryAfterReplacement);
 
         List<SomeObject> productVariantResponse = someRepository.find(someObjects.get(0),
                 2, 0, "default", null, false);
@@ -133,12 +119,9 @@ class GenericRepositoryFindTest {
 
     @Test
     @DisplayName("get products from db which are deleted")
-    void shouldReturnObjectsFromDBForSearchRequestWithDeletedIncluded() throws QueryBuilderException, InvalidTenantIdException {
-        when(selectQueryBuilder.build(any(Object.class), anyString(), anyString()))
+    void shouldReturnObjectsFromDBForSearchRequestWithDeletedIncluded() throws QueryBuilderException {
+        when(selectQueryBuilder.build(any(Object.class), anyString()))
                 .thenReturn("Select * from some_table where id='some-id' and otherfield='other-field'");
-        String queryAfterReplacement = "some-query";
-        when(multiStateInstanceUtil.replaceSchemaPlaceholder(anyString(), anyString()))
-                .thenReturn(queryAfterReplacement);
         when(namedParameterJdbcTemplate.query(any(String.class), any(Map.class), any(SomeRowMapper.class)))
                 .thenReturn(someObjects);
 
@@ -150,7 +133,7 @@ class GenericRepositoryFindTest {
 
     @Test
     @DisplayName("should validate id using column name")
-    void shouldReturnValidIdsFromDBOrCache() throws InvalidTenantIdException {
+    void shouldReturnValidIdsFromDBOrCache() {
         when(hashOperations.multiGet(anyString(), anyList())).thenReturn(
                 Arrays.asList(SomeObject.builder().id("id1").isDeleted(Boolean.FALSE).build()
                         ,SomeObject.builder().isDeleted(Boolean.FALSE).id("id2").build()));
@@ -161,10 +144,7 @@ class GenericRepositoryFindTest {
         idsToValidate.add("id2");
         idsToValidate.add("id3");
         idsToValidate.add("id4");
-        String queryAfterReplacement = "some-query";
-        when(multiStateInstanceUtil.replaceSchemaPlaceholder(anyString(), anyString()))
-                .thenReturn(queryAfterReplacement);
-        List<String> idsFound = someRepository.validateIds("", idsToValidate, "id");
+        List<String> idsFound = someRepository.validateIds(idsToValidate, "id");
 
         assertEquals(idsFound.size(), 4);
     }
