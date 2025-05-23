@@ -49,7 +49,7 @@ public class StockRepository extends GenericRepository<Stock> {
         if (lastChangedSince != null) {
             query += "AND lastModifiedTime>=:lastModifiedTime ";
         }
-        if (searchObject.getTransactionType() != null &&  !query.contains("transactionType")) {
+        if (searchObject.getTransactionType() != null &&  searchObject.getTransactionType().get(0) != null && !query.contains("transactionType")) {
             query += "AND transactionType=:transactionType ";
         }
         query += "ORDER BY id ASC";
@@ -58,8 +58,8 @@ public class StockRepository extends GenericRepository<Stock> {
         paramsMap.put("isDeleted", includeDeleted);
         paramsMap.put("lastModifiedTime", lastChangedSince);
 
-        if (searchObject.getTransactionType() != null && !paramsMap.containsKey("transactionType")) {
-            paramsMap.put("transactionType", searchObject.getTransactionType().toString());
+        if (searchObject.getTransactionType() != null &&  searchObject.getTransactionType().get(0) != null && !paramsMap.containsKey("transactionType")) {
+            paramsMap.put("transactionType", searchObject.getTransactionType().get(0).toString());
         }
         query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
         Long totalCount = constructTotalCountCTEAndReturnResult(query, paramsMap, namedParameterJdbcTemplate);
