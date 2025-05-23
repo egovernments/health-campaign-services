@@ -7,6 +7,7 @@ import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.stock.Stock;
 import org.egov.common.models.stock.StockSearch;
+import org.egov.common.models.stock.TransactionType;
 import org.egov.common.producer.Producer;
 import org.egov.stock.repository.rowmapper.StockRowMapper;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,6 +15,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -49,8 +51,8 @@ public class StockRepository extends GenericRepository<Stock> {
         if (lastChangedSince != null) {
             query += "AND lastModifiedTime>=:lastModifiedTime ";
         }
-        if (searchObject.getTransactionType() != null &&  searchObject.getTransactionType().get(0) != null && !query.contains("transactionType")) {
-            query += "AND transactionType=:transactionType ";
+        if (searchObject.getTransactionType() != null &&  !searchObject.getTransactionType().isEmpty() && !query.contains("transactionType")) {
+            query += "AND transactionType IN (:transactionType) ";
         }
         query += "ORDER BY id ASC";
         Map<String, Object> paramsMap = selectQueryBuilder.getParamsMap();
@@ -58,8 +60,12 @@ public class StockRepository extends GenericRepository<Stock> {
         paramsMap.put("isDeleted", includeDeleted);
         paramsMap.put("lastModifiedTime", lastChangedSince);
 
-        if (searchObject.getTransactionType() != null &&  searchObject.getTransactionType().get(0) != null && !paramsMap.containsKey("transactionType")) {
-            paramsMap.put("transactionType", searchObject.getTransactionType().get(0).toString());
+        if (searchObject.getTransactionType() != null &&  !searchObject.getTransactionType().isEmpty() && !paramsMap.containsKey("transactionType")) {
+            List<String> transactionTypeStringValues = new ArrayList<>();
+            for (TransactionType transactionType : searchObject.getTransactionType()) {
+                transactionTypeStringValues.add(transactionType.toString());
+            }
+            paramsMap.put("transactionType", transactionTypeStringValues);
         }
         query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
         Long totalCount = constructTotalCountCTEAndReturnResult(query, paramsMap, namedParameterJdbcTemplate);
