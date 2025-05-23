@@ -42,8 +42,7 @@ package org.egov.hrms.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.*;
-import org.owasp.html.HtmlPolicyBuilder;
-import org.owasp.html.PolicyFactory;
+import org.egov.tracer.annotations.CustomSafeHtml;
 import org.springframework.validation.annotation.Validated;
 
 import javax.validation.constraints.NotNull;
@@ -58,15 +57,16 @@ import javax.validation.constraints.NotNull;
 @ToString
 public class Assignment {
 
-	private static final PolicyFactory POLICY = new HtmlPolicyBuilder().toFactory();
-
+	@CustomSafeHtml
 	private String id;
 
 	private Long position;
 
+	@CustomSafeHtml
 	@NotNull
 	private String designation;
 
+	@CustomSafeHtml
 	@NotNull
 	private String department;
 
@@ -75,10 +75,13 @@ public class Assignment {
 
 	private Long toDate;
 
+	@CustomSafeHtml
 	private String govtOrderNumber;
 
+	@CustomSafeHtml
 	private String tenantid;
 
+	@CustomSafeHtml
 	private String reportingTo;
 
 	@JsonProperty("isHOD")
@@ -90,32 +93,4 @@ public class Assignment {
 
 	private AuditDetails auditDetails;
 
-	// Constructor for creating an Assignment object with mandatory fields
-	public void setId(String id) {
-		this.id = sanitize(id);
-	}
-
-	public void setDesignation(String designation) {
-		this.designation = sanitize(designation);
-	}
-
-	public void setDepartment(String department) {
-		this.department = sanitize(department);
-	}
-
-	public void setGovtOrderNumber(String govtOrderNumber) {
-		this.govtOrderNumber = sanitize(govtOrderNumber);
-	}
-
-	public void setTenantid(String tenantid) {
-		this.tenantid = sanitize(tenantid);
-	}
-
-	public void setReportingTo(String reportingTo) {
-		this.reportingTo = sanitize(reportingTo);
-	}
-
-	private String sanitize(String input) {
-		return input == null ? null : POLICY.sanitize(input);
-	}
 }
