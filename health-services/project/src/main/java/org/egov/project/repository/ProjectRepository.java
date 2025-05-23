@@ -14,7 +14,6 @@ import org.egov.common.models.project.ProjectRequest;
 import org.egov.common.models.project.ProjectSearch;
 import org.egov.common.models.project.Target;
 import org.egov.common.producer.Producer;
-import org.egov.common.utils.CommonUtils;
 import org.egov.project.repository.querybuilder.DocumentQueryBuilder;
 import org.egov.project.repository.querybuilder.ProjectAddressQueryBuilder;
 import org.egov.project.repository.querybuilder.TargetQueryBuilder;
