@@ -33,6 +33,15 @@ public class PGRRepository {
 
     private final MultiStateInstanceUtil multiStateInstanceUtil;
 
+    /**
+     * Constructs a PGRRepository with the required query builder, row mapper, JDBC template,
+     * and multi-state instance utility.
+     *
+     * @param queryBuilder the PGRQueryBuilder used for building database queries
+     * @param rowMapper the PGRRowMapper used for mapping rows from the database
+     * @param jdbcTemplate the JdbcTemplate used for executing SQL queries
+     * @param multiStateInstanceUtil the MultiStateInstanceUtil used for multi-state specific operations
+     */
     @Autowired
     public PGRRepository(PGRQueryBuilder queryBuilder, PGRRowMapper rowMapper, JdbcTemplate jdbcTemplate, MultiStateInstanceUtil multiStateInstanceUtil) {
         this.queryBuilder = queryBuilder;
@@ -43,9 +52,13 @@ public class PGRRepository {
 
 
     /**
-     * searches services based on search criteria and then wraps it into serviceWrappers
-     * @param criteria
-     * @return
+     * Retrieves a list of ServiceWrapper objects based on the specified search criteria.
+     * Each ServiceWrapper contains a Service object and its associated Workflow.
+     *
+     * @param criteria the search criteria used to retrieve the services. It contains
+     *                 various filters such as tenantId, serviceCode, applicationStatus, etc.
+     * @return a list of ServiceWrapper objects containing services and their associated workflows
+     * @throws InvalidTenantIdException if the tenant ID specified in the criteria is invalid
      */
     public List<ServiceWrapper> getServiceWrappers(RequestSearchCriteria criteria) throws InvalidTenantIdException {
         List<Service> services = getServices(criteria);
@@ -61,9 +74,12 @@ public class PGRRepository {
     }
 
     /**
-     * searches services based on search criteria
-     * @param criteria
-     * @return
+     * Retrieves a list of Service objects based on the specified search criteria.
+     *
+     * @param criteria the search criteria used to filter and retrieve the services. It may include parameters like tenantId,
+     *                 application status, locality, and other relevant filters.
+     * @return a list of Service objects that match the specified search criteria.
+     * @throws InvalidTenantIdException if the tenant ID provided in the criteria is invalid.
      */
     public List<Service> getServices(RequestSearchCriteria criteria) throws InvalidTenantIdException {
         List<Object> preparedStmtList = new ArrayList<>();
@@ -74,9 +90,13 @@ public class PGRRepository {
     }
 
     /**
-     * Returns the count based on the search criteria
-     * @param criteria
-     * @return
+     * Retrieves the count of records based on the specified search criteria.
+     *
+     * @param criteria the search criteria containing various filters such as tenantId,
+     *                 serviceCode, applicationStatus, locality, and more, used
+     *                 for constructing the query to count matching records.
+     * @return the total count of records that match the provided search criteria.
+     * @throws InvalidTenantIdException if the tenant ID specified in the criteria is invalid.
      */
     public Integer getCount(RequestSearchCriteria criteria) throws InvalidTenantIdException {
         List<Object> preparedStmtList = new ArrayList<>();
@@ -86,7 +106,15 @@ public class PGRRepository {
         return count;
     }
 
-
+    /**
+     * Fetches dynamic data for a given tenant, including the count of resolved complaints
+     * and the average resolution time.
+     *
+     * @param tenantId the tenant identifier for which dynamic data is to be fetched
+     * @return a map containing dynamic data where keys represent data types (e.g., complaints resolved,
+     *         average resolution time) and their corresponding values as integers
+     * @throws InvalidTenantIdException if the provided tenant ID is invalid
+     */
 	public Map<String, Integer> fetchDynamicData(String tenantId) throws InvalidTenantIdException {
 		List<Object> preparedStmtListCompalintsResolved = new ArrayList<>();
 		String query = queryBuilder.getResolvedComplaints(tenantId,preparedStmtListCompalintsResolved );

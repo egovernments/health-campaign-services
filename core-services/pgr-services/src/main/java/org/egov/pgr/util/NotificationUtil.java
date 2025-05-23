@@ -131,6 +131,7 @@ public class NotificationUtil {
 
     /**
      * Send the SMSRequest on the SMSNotification kafka topic
+     * @param tenantId the ID of the tenant
      * @param smsRequestList The list of SMSRequest to be sent
      */
     public void sendSMS(String tenantId, List<SMSRequest> smsRequestList) {
@@ -141,7 +142,7 @@ public class NotificationUtil {
             }
             for (SMSRequest smsRequest : smsRequestList) {
                 producer.push(tenantId, config.getSmsNotifTopic(), smsRequest);
-                log.info("Messages: " + smsRequest.getMessage());
+                log.info("Messages: {}", smsRequest.getMessage());
             }
         }
     }
@@ -149,6 +150,7 @@ public class NotificationUtil {
     /**
      * Pushes the event request to Kafka Queue.
      *
+     * @param tenantId the ID of the tenant
      * @param request EventRequest Object
      */
     public void sendEventNotification(String tenantId, EventRequest request) {

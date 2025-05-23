@@ -188,6 +188,13 @@ public class PGRService {
     }
 
 
+    /**
+     * Fetches dynamic data for the specified tenant.
+     *
+     * @param tenantId The identifier of the tenant for which the dynamic data is to be retrieved.
+     * @return A map containing dynamic data, where keys are of type String and values are of type Integer.
+     * @throws InvalidTenantIdException If the provided tenantId is invalid.
+     */
 	public Map<String, Integer> getDynamicData(String tenantId) throws InvalidTenantIdException {
 		
 		Map<String,Integer> dynamicData = repository.fetchDynamicData(tenantId);

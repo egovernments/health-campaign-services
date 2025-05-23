@@ -198,9 +198,13 @@ public class UserService {
     }
 
     /**
-     * calls the user search API based on the given list of user uuids
-     * @param uuids
-     * @return
+     * Searches for users based on their unique identifiers (UUIDs) within a specific tenant
+     * and returns a mapping of UUIDs to their corresponding user details.
+     *
+     * @param tenantId the ID of the tenant to which the users belong
+     * @param uuids a list of unique user identifiers to be searched
+     * @return a map where the keys are user UUIDs and the values are the corresponding User objects
+     * @throws CustomException if no users are found for the provided UUIDs
      */
     private Map<String,User> searchBulkUser(String tenantId, List<String> uuids){
 
