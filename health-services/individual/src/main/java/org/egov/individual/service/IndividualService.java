@@ -318,6 +318,37 @@ public class IndividualService {
 
             return searchResponse;
         }
+        else if (individualSearch.getName() != null) {
+            try {
+                String givenName = individualSearch.getName().getGivenName();
+                String familyName = individualSearch.getName().getFamilyName();
+                String otherNames = individualSearch.getName().getOtherNames();
+
+                SearchResponse<Individual> response = individualRepository.findByName(
+                        givenName,
+                        familyName,
+                        otherNames,
+                        tenantId,
+                        limit,
+                        offset,
+                        includeDeleted
+                );
+
+                encryptedIndividualList = response.getResponse();
+                List<Individual> decryptedIndividualList;
+                if (!encryptedIndividualList.isEmpty()) {
+                    decryptedIndividualList = individualEncryptionService.decrypt(encryptedIndividualList, "IndividualDecrypt", requestInfo);
+                } else {
+                    decryptedIndividualList = encryptedIndividualList;
+                }
+                response.setResponse(decryptedIndividualList);
+                return response;
+
+            } catch (Exception exception) {
+                log.error("error occurred during name based search", ExceptionUtils.getStackTrace(exception));
+                throw new CustomException(NAME_BASED_SEARCH_FAILED_CODE,NAME_BASED_SEARCH_EXCEPTION_MESSAGE);
+            }
+        }
         //encrypt search criteria
 
         IndividualSearch encryptedIndividualSearch;
