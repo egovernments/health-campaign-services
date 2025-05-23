@@ -26,7 +26,7 @@ config:
     build:
       - work-dir: "health-services/product"
         image-name: "product"
-        dockerfile: "build/maven/Dockerfile"
+        dockerfile: "build/17/maven/Dockerfile"
       - work-dir: "health-services/product/src/main/resources/db"
         image-name: "product-db"
   - name: "builds/health-campaign-services/health-services/project"

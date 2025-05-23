@@ -1,7 +1,7 @@
 package org.egov.hrms.model;
 
 import lombok.*;
-import org.hibernate.validator.constraints.SafeHtml;
+import org.egov.tracer.annotations.CustomSafeHtml;
 import org.springframework.validation.annotation.Validated;
 
 import javax.validation.constraints.NotNull;
@@ -16,30 +16,24 @@ import javax.validation.constraints.NotNull;
 @Builder
 public class ReactivationDetails {
 
-	@SafeHtml
+	@CustomSafeHtml
 	private String id;
 
-	@SafeHtml
+	@CustomSafeHtml
 	@NotNull
 	private String reasonForReactivation;
 
-	@SafeHtml
+	@CustomSafeHtml
 	private String orderNo;
 
-	@SafeHtml
+	@CustomSafeHtml
 	private String remarks;
 
 	@NotNull
 	private Long effectiveFrom;
 
-	@SafeHtml
+	@CustomSafeHtml
 	private String tenantId;
 
 	private AuditDetails auditDetails;
-
-
-
-
 }
-
-

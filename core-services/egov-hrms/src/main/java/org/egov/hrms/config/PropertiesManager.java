@@ -154,4 +154,7 @@ public class PropertiesManager {
 
 	@Value("${hrms.email.notification.website.link}")
 	public String emailNotificationWebsiteLink;
+
+	@Value("${is.environment.central.instance}")
+	public boolean isCentralInstance;
 }

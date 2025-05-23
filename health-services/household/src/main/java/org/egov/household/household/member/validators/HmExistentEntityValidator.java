@@ -6,10 +6,12 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.Error;
 import org.egov.common.models.household.HouseholdMember;
 import org.egov.common.models.household.HouseholdMemberBulkRequest;
 import org.egov.common.models.household.HouseholdMemberSearch;
+import org.egov.common.utils.CommonUtils;
 import org.egov.common.validator.Validator;
 import org.egov.household.repository.HouseholdMemberRepository;
 import org.springframework.core.annotation.Order;
@@ -19,6 +21,7 @@ import org.springframework.util.StringUtils;
 
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
+import static org.egov.common.utils.ValidatorUtils.getErrorForInvalidTenantId;
 import static org.egov.common.utils.ValidatorUtils.getErrorForUniqueEntity;
 
 /**
@@ -53,6 +56,9 @@ public class HmExistentEntityValidator implements Validator<HouseholdMemberBulkR
      */
     @Override
     public Map<HouseholdMember, List<Error>> validate(HouseholdMemberBulkRequest request) {
+
+        // Extract tenant ID from the request
+        String tenantId = CommonUtils.getTenantId(request.getHouseholdMembers()); // Extract tenant ID from the request;
         // Map to hold HouseholdMember entities and their associated error details
         Map<HouseholdMember, List<Error>> errorDetailsMap = new HashMap<>();
 
@@ -78,16 +84,25 @@ public class HmExistentEntityValidator implements Validator<HouseholdMemberBulkR
         // Check if the client reference ID list is not empty before querying the database
         if (!CollectionUtils.isEmpty(clientReferenceIdList)) {
             // Query the repository to find existing entities by client reference IDs
-            List<String> existingClientReferenceIds =
-                    householdMemberRepository.validateClientReferenceIdsFromDB(clientReferenceIdList, Boolean.TRUE);
+            // This will catch the exception if the tenant ID is invalid
+            try {
+                List<String> existingClientReferenceIds = householdMemberRepository.validateClientReferenceIdsFromDB(tenantId, clientReferenceIdList, Boolean.TRUE);
 
-            // For each existing client reference ID, populate error details for uniqueness
-            existingClientReferenceIds.forEach(clientReferenceId -> {
-                // Get a predefined error object for unique entity validation
-                Error error = getErrorForUniqueEntity();
-                // Populate error details for the HouseholdMember entity associated with the client reference ID
-                populateErrorDetails(map.get(clientReferenceId), error, errorDetailsMap);
-            });
+                // For each existing client reference ID, populate error details for uniqueness
+                existingClientReferenceIds.forEach(clientReferenceId -> {
+                    // Get a predefined error object for unique entity validation
+                    Error error = getErrorForUniqueEntity();
+                    // Populate error details for the HouseholdMember entity associated with the client reference ID
+                    populateErrorDetails(map.get(clientReferenceId), error, errorDetailsMap);
+                });
+            } catch (InvalidTenantIdException exception) {
+                entities.forEach( householdMember -> {
+                    Error error = getErrorForInvalidTenantId(tenantId, exception);
+                    log.error("validation failed for facility tenantId: {} with error :{}", householdMember.getTenantId(), error);
+                    populateErrorDetails(householdMember, error, errorDetailsMap);
+                });
+            }
+
         }
 
         // Return the map containing HouseholdMember entities and their associated error details
