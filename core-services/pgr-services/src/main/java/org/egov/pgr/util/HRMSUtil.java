@@ -40,7 +40,7 @@ public class HRMSUtil {
      */
     public List<String> getDepartment(List<String> uuids, List<String> employeeUuids, RequestInfo requestInfo){
 
-        StringBuilder url = getHRMSURI(uuids);
+        StringBuilder url = getHRMSURI(employeeUuids);
 
         RequestInfoWrapper requestInfoWrapper = RequestInfoWrapper.builder().requestInfo(requestInfo).build();
 

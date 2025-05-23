@@ -45,7 +45,7 @@ public class StockSearch extends EgovOfflineSearchModel {
 
     @JsonProperty("transactionType")
     @Valid
-    private TransactionType transactionType = null;
+    private List<TransactionType> transactionType = null;
 
     @JsonProperty("transactionReason")
     @Valid
