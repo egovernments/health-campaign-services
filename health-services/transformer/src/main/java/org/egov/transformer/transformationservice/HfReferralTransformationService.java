@@ -73,6 +73,7 @@ public class HfReferralTransformationService {
         ObjectNode additionalDetails = objectMapper.createObjectNode();
         additionalDetails.put(CYCLE_INDEX, cycleIndex);
         additionalDetails.put(PROJECT_TYPE_ID, projectTypeId);
+        commonUtils.additionalFieldsToDetails(additionalDetails, hfReferral.getAdditionalFields().getFields());
         HfReferralIndexV1 hfReferralIndexV1 = HfReferralIndexV1.builder()
                 .hfReferral(hfReferral)
                 .userName(userInfoMap.get(USERNAME))

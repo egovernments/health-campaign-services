@@ -110,6 +110,7 @@ public class ReferralTransformationService {
             additionalDetails.put(HEIGHT, (Integer) individualDetails.get(HEIGHT));
             additionalDetails.put(DISABILITY_TYPE,(String) individualDetails.get(DISABILITY_TYPE));
         }
+        commonUtils.additionalFieldsToDetails(additionalDetails, referral.getAdditionalFields().getFields());
         ReferralIndexV1 referralIndexV1 = ReferralIndexV1.builder()
                 .referral(referral)
                 .tenantId(referral.getTenantId())

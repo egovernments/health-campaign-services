@@ -9,6 +9,7 @@ import digit.models.coremodels.AuditDetails;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
+import org.egov.common.models.household.Field;
 import org.egov.common.models.project.Project;
 import org.egov.common.models.project.ProjectStaff;
 import org.egov.transformer.config.TransformerProperties;
@@ -301,6 +302,24 @@ public class CommonUtils {
             objectNode.put(key, value.toString());
         } else {
             objectNode.putPOJO(key, value);
+        }
+    }
+    public void additionalFieldsToDetails(ObjectNode additionalDetails, Object additionalFields) {
+        if (!(additionalFields instanceof List<?>)) {
+            log.info("additionalFields is not of the expected type List<Field>. Skipping addition of fields.");
+            return;
+        }
+
+        for (Object item : (List<?>) additionalFields) {
+            if (item instanceof Field) {
+                Field field = (Field) item;
+                String key = field.getKey();
+                String value = field.getValue();
+
+                if (!additionalDetails.has(key)) {
+                    additionalDetails.put(key, value);
+                }
+            }
         }
     }
 
