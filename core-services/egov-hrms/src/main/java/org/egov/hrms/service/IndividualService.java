@@ -1,16 +1,5 @@
 package org.egov.hrms.service;
 
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
-import java.util.TimeZone;
-import java.util.UUID;
-import java.util.stream.Collectors;
-
 import digit.models.coremodels.AuditDetails;
 import digit.models.coremodels.user.enums.UserType;
 import lombok.extern.slf4j.Slf4j;
@@ -28,6 +17,11 @@ import org.egov.hrms.web.models.IndividualBulkResponse;
 import org.egov.hrms.web.models.IndividualSearch;
 import org.egov.hrms.web.models.IndividualSearchRequest;
 import org.springframework.beans.factory.annotation.Autowired;
+
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.*;
+import java.util.stream.Collectors;
 
 import static org.egov.hrms.utils.HRMSConstants.HRMS_USER_SEARCH_CRITERA_USER_SERVICE_UUIDS;
 import static org.egov.hrms.utils.HRMSConstants.SYSTEM_GENERATED;
@@ -150,14 +144,14 @@ public class IndividualService implements UserService {
                 .mobileNumber(userRequest.getUser().getMobileNumber())
                 .dateOfBirth(convertMillisecondsToDate(userRequest.getUser().getDob()))
                 .tenantId(userRequest.getUser().getTenantId())
-                .additionalFields(AdditionalFields.builder()
+                .additionalFields(userRequest.getUser().getIdentificationMark() != null ? AdditionalFields.builder()
                         .schema("Individual")
                         .version(1)
                         .build()
                         .addFieldsItem(Field.builder()
                                 .key("userType")
                                 .value(userRequest.getUser().getIdentificationMark())
-                                .build())
+                                .build()) : null
                 )
                 .address(Collections.singletonList(Address.builder()
                         .type(AddressType.CORRESPONDENCE)
