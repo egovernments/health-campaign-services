@@ -2,7 +2,6 @@ package org.egov.common.utils;
 
 import lombok.extern.slf4j.Slf4j;
 
-import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.Error;
 import org.egov.tracer.model.CustomException;
 
