@@ -26,7 +26,7 @@ public class URLParams {
      */
     @NotNull
     @Min(0)
-    @Max(1000)
+    @Max(2000)
     @JsonProperty("limit")
     private Integer limit;
 

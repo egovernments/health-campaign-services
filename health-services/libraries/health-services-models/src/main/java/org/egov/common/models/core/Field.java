@@ -24,7 +24,7 @@ import org.springframework.validation.annotation.Validated;
 public class Field {
     @JsonProperty("key")
     @NotNull
-    @Size(min = 2, max = 64)
+    @Size(max = 64)
     private String key = null;
 
     @JsonProperty("value")
