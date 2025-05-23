@@ -199,7 +199,7 @@ public class StockService {
         }
 
         log.info("completed search method for stock");
-        return stockRepository.findWithCount(stockSearchRequest.getStock(),
+        return stockRepository.findStock(stockSearchRequest.getStock(),
                 limit, offset, tenantId, lastChangedSince, includeDeleted);
     }
 }
