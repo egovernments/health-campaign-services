@@ -44,15 +44,20 @@ public class RowVersionValidator implements Validator<IndividualBulkRequest, Ind
     @Override
     public Map<Individual, List<Error>> validate(IndividualBulkRequest request) {
         log.info("validating for row version");
+        // fetch tenant id from request
         String tenantId = CommonUtils.getTenantId(request.getIndividuals());
         Map<Individual, List<Error>> errorDetailsMap = new HashMap<>();
         Method idMethod = getIdMethod(request.getIndividuals());
+        // fetch individuals from request
         List<Individual> individuals = request.getIndividuals();
         Map<String, Individual> iMap = getIdToObjMap(individuals.stream()
                 .filter(notHavingErrors())
                 .collect(Collectors.toList()), idMethod);
         if (!iMap.isEmpty()) {
             List<String> individualIds = new ArrayList<>(iMap.keySet());
+
+            // fetch existing individuals from the repository
+            // catch InvalidTenantIdException
             try {
                 List<Individual> existingIndividuals = individualRepository.findById( tenantId, individualIds,
                         getIdFieldName(idMethod), false).getResponse();

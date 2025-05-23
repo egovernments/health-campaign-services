@@ -9,7 +9,6 @@ import org.egov.common.utils.CommonUtils;
 import org.egov.product.config.ProductConfiguration;
 import org.egov.product.repository.ProductRepository;
 import org.egov.product.web.models.ProductSearchRequest;
-import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -48,6 +47,14 @@ public class ProductService {
         this.productConfiguration = productConfiguration;
     }
 
+    /**
+     * Validates the product IDs against the database.
+     *
+     * @param tenantId   The tenant ID to validate against.
+     * @param productIds The list of product IDs to validate.
+     * @return A list of valid product IDs.
+     * @throws InvalidTenantIdException If the tenant ID is invalid.
+     */
     public List<String> validateProductId( String tenantId , List<String> productIds) throws InvalidTenantIdException {
         return productRepository.validateIds( tenantId, productIds, "id");
     }
@@ -69,11 +76,13 @@ public class ProductService {
 
     public List<Product> update(ProductRequest productRequest) throws Exception {
         identifyNullIds(productRequest.getProduct());
+        // fetch tenantId from the product
         String tenantId= CommonUtils.getTenantId(productRequest.getProduct());
         Map<String, Product> pMap = getIdToObjMap(productRequest.getProduct());
 
         log.info("checking if product already exists");
         List<String> productIds = new ArrayList<>(pMap.keySet());
+        // find products by id
         List<Product> existingProducts = productRepository.findById(tenantId, productIds);
 
         log.info("validate entities for products");

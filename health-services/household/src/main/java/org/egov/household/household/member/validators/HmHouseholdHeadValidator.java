@@ -69,9 +69,10 @@ public class HmHouseholdHeadValidator implements Validator<HouseholdMemberBulkRe
 
         if(householdMember.getIsHeadOfHousehold()){
 
+            // fetch the tenantId from the householdMember
             String tenantId = householdMember.getTenantId();
             log.info("validating if household already has a head");
-
+            // this catches the error if the tenatId is not valid
             try {
                 List<HouseholdMember> householdMembersHeadCheck = householdMembersHeadCheck = householdMemberRepository.findIndividualByHousehold( tenantId, (String) ReflectionUtils.invokeMethod(idMethod, householdMember),
                                 columnName).getResponse().stream().filter(HouseholdMember::getIsHeadOfHousehold)
@@ -92,7 +93,6 @@ public class HmHouseholdHeadValidator implements Validator<HouseholdMemberBulkRe
                 Error error = getErrorForInvalidTenantId(tenantId, exception);
                 populateErrorDetails(householdMember, error, errorDetailsMap);
             }
-
         }
     }
 }

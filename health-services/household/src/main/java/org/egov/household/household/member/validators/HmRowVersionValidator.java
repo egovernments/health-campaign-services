@@ -40,10 +40,19 @@ public class HmRowVersionValidator implements Validator<HouseholdMemberBulkReque
         this.householdMemberRepository = householdMemberRepository;
     }
 
+    /**
+     * Validates the row version of household members in the request.
+     * This method checks if the row version of the household members in the request matches with the existing records in the database.
+     * If there is a mismatch, an error is added to the error details map.
+     *
+     * @param request The bulk request containing HouseholdMember entities.
+     * @return A map containing HouseholdMember entities and their associated error details, if any.
+     */
     @Override
     public Map<HouseholdMember, List<Error>> validate(HouseholdMemberBulkRequest request){
         Map<HouseholdMember, List<Error>> errorDetailsMap = new HashMap<>();
         log.info("validating row version household member");
+        // Extract tenant ID from the request
         String tenantId = CommonUtils.getTenantId(request.getHouseholdMembers());
         List<HouseholdMember> validHouseholdMembers = request.getHouseholdMembers().stream()
                 .filter(notHavingErrors())

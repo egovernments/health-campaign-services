@@ -59,8 +59,18 @@ public class IndividualRepository extends GenericRepository<Individual> {
                 selectQueryBuilder, individualRowMapper, Optional.of("individual"));
     }
 
+    /**
+     * This method fetches the list of individuals based on the provided IDs.
+     *
+     * @param tenantId       The tenant ID for which the search is being performed.
+     * @param ids            The list of IDs to search for.
+     * @param idColumn       The column name representing the ID in the database.
+     * @param includeDeleted  Flag indicating whether to include deleted records.
+     * @return SearchResponse<Individual> A response object containing the total count and the list of individuals found.
+     */
     public SearchResponse<Individual> findById(String tenantId, List<String> ids, String idColumn, Boolean includeDeleted) throws InvalidTenantIdException {
         List<Individual> objFound = new ArrayList<>();
+        // Check if the list of IDs is empty
         try {
             objFound = findInCache( tenantId, ids);
             if (!includeDeleted) {
@@ -81,11 +91,14 @@ public class IndividualRepository extends GenericRepository<Individual> {
             log.info("Error occurred while reading from cache", ExceptionUtils.getStackTrace(e));
         }
 
+        // If the list of IDs is not empty, proceed to fetch from the database
+        // add the schema placeholder to the query
         String individualQuery = String.format(getQuery("SELECT * FROM %s.individual WHERE %s IN (:ids)",
                 includeDeleted), SCHEMA_REPLACE_STRING , idColumn);
         Map<String, Object> paramMap = new HashMap<>();
         paramMap.put("ids", ids);
 
+        // replace the schema placeholder with the tenantId
         individualQuery = multiStateInstanceUtil.replaceSchemaPlaceholder(individualQuery, tenantId);
         Long totalCount = constructTotalCountCTEAndReturnResult(individualQuery, paramMap, this.namedParameterJdbcTemplate);
         List<Individual> individuals = this.namedParameterJdbcTemplate
@@ -96,12 +109,24 @@ public class IndividualRepository extends GenericRepository<Individual> {
         return SearchResponse.<Individual>builder().totalCount(totalCount).response(objFound).build();
     }
 
+    /**
+     * This method fetches the list of individuals based on the search criteria provided.
+     *
+     * @param searchObject    The criteria used to filter the individuals.
+     * @param limit           The maximum number of records to return.
+     * @param offset          The offset for pagination.
+     * @param tenantId        The tenant ID for which the search is being performed.
+     * @param lastChangedSince Timestamp indicating when the records were last changed.
+     * @param includeDeleted   Flag indicating whether to include deleted records.
+     * @return SearchResponse<Individual> A response object containing the total count and the list of individuals found.
+     */
     public SearchResponse<Individual> find(IndividualSearch searchObject, Integer limit, Integer offset,
                                            String tenantId, Long lastChangedSince, Boolean includeDeleted) throws InvalidTenantIdException {
         Map<String, Object> paramsMap = new HashMap<>();
         String query = getQueryForIndividual(searchObject, limit, offset, tenantId, lastChangedSince,
                 includeDeleted, paramsMap);
         if (isProximityBasedSearch(searchObject)) {
+            // If latitude, longitude and search radius are provided, call the findByRadius method
             return findByRadius(tenantId, query, searchObject, includeDeleted, paramsMap);
         }
         if (searchObject.getIdentifier() == null) {
@@ -114,6 +139,7 @@ public class IndividualRepository extends GenericRepository<Individual> {
             return SearchResponse.<Individual>builder().totalCount(totalCount).response(individuals).build();
         } else {
             Map<String, Object> identifierParamMap = new HashMap<>();
+            // If identifier is provided, fetch the identifiers first
             String identifierQuery = getIdentifierQuery(tenantId, searchObject.getIdentifier(), identifierParamMap);
             identifierParamMap.put("isDeleted", includeDeleted);
             List<Identifier> identifiers = this.namedParameterJdbcTemplate
@@ -127,6 +153,8 @@ public class IndividualRepository extends GenericRepository<Individual> {
                     individuals.forEach(individual -> {
                         individual.setIdentifiers(identifiers);
                         List<Address> addresses = null;
+                        // Fetch the addresses for each individual
+                        // catch the InvalidTenantIdException and throw a custom exception
                         try {
                             addresses = getAddressForIndividual( tenantId, individual.getId(), includeDeleted);
                         } catch (InvalidTenantIdException e) {
@@ -136,6 +164,7 @@ public class IndividualRepository extends GenericRepository<Individual> {
                         Map<String, Object> indServerGenIdParamMap = new HashMap<>();
                         indServerGenIdParamMap.put("individualId", individual.getId());
                         indServerGenIdParamMap.put("isDeleted", includeDeleted);
+                        // catch the InvalidTenantIdException and throw a custom exception
                         try {
                             enrichSkills(includeDeleted, individual, indServerGenIdParamMap);
                         } catch (InvalidTenantIdException e) {

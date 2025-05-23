@@ -132,6 +132,7 @@ public class ValidatorUtil {
 
 			UserSearchRequest userSearchRequest = new UserSearchRequest();
 			userSearchRequest.setRequestInfo(requestInfo);
+			// set the tenantId to the user search request
 			userSearchRequest.setTenantId(requestInfo.getUserInfo().getTenantId());
 			userSearchRequest.setUuid(staffIds);
 			List<String> validStaffIds = userService.search(userSearchRequest).stream().map(user -> user.getUuid())

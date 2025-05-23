@@ -48,5 +48,4 @@ public class HouseholdConfiguration {
 
     @Value("${household.type.community.creator.role}")
     private String communityHouseholdCreatorRoleCode;
-
 }

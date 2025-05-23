@@ -56,6 +56,7 @@ public class SrExistentEntityValidator implements Validator<StockReconciliationB
     public Map<StockReconciliation, List<Error>> validate(StockReconciliationBulkRequest request) {
         // Map to hold StockReconciliation entities and their error details
         Map<StockReconciliation, List<Error>> errorDetailsMap = new HashMap<>();
+        // Extract tenant ID from the request
         String tenantId = CommonUtils.getTenantId(request.getStockReconciliation());
         // Get the list of StockReconciliation entities from the request
         List<StockReconciliation> entities = request.getStockReconciliation();
@@ -78,7 +79,8 @@ public class SrExistentEntityValidator implements Validator<StockReconciliationB
 
         // Check if the list of client reference IDs is not empty
         if (!CollectionUtils.isEmpty(clientReferenceIdList)) {
-
+            // Try to query the repository for existing StockReconciliation entities
+            // Catch the InvalidTenantIdException
             try {
                 // Query the repository to find existing StockReconciliation entities with the given client reference IDs
                 List<String> existingClientReferenceIds =
