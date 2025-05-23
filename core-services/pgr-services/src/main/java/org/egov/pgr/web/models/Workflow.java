@@ -7,10 +7,10 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.hibernate.validator.constraints.SafeHtml;
+import org.egov.tracer.annotations.CustomSafeHtml;
 import org.springframework.validation.annotation.Validated;
 
-import javax.validation.Valid;
+import jakarta.validation.Valid;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -19,7 +19,7 @@ import java.util.List;
  */
 @ApiModel(description = "BPA application object to capture the details of land, land owners, and address of the land.")
 @Validated
-@javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2020-07-15T11:35:33.568+05:30")
+@jakarta.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2020-07-15T11:35:33.568+05:30")
 
 @Getter
 @Setter
@@ -27,7 +27,7 @@ import java.util.List;
 @NoArgsConstructor
 @Builder
 public class Workflow   {
-        @SafeHtml
+        @CustomSafeHtml
         @JsonProperty("action")
         private String action = null;
 
@@ -39,7 +39,7 @@ public class Workflow   {
         @Valid
         private List<String> hrmsAssignees = null;
 
-        @SafeHtml
+        @CustomSafeHtml
         @JsonProperty("comments")
         private String comments = null;
 
