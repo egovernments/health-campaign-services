@@ -4,11 +4,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.annotations.ApiParam;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.referralmanagement.beneficiarydownsync.Downsync;
 import org.egov.common.models.referralmanagement.beneficiarydownsync.DownsyncRequest;
 import org.egov.common.models.referralmanagement.beneficiarydownsync.DownsyncResponse;
 import org.egov.common.utils.ResponseInfoFactory;
 import org.egov.referralmanagement.service.DownsyncService;
+import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatus;
@@ -42,7 +44,12 @@ public class BeneficiaryDownsyncController {
     	Downsync.builder().
     	downsyncCriteria(request.getDownsyncCriteria())
     	.build();
-    	Downsync downsync = downsyncService.prepareDownsyncData(request);
+        Downsync downsync = null;
+        try {
+            downsync = downsyncService.prepareDownsyncData(request);
+        } catch (InvalidTenantIdException e) {
+            throw new CustomException("INVALID_TENANT_ID", e.getMessage());
+        }
         DownsyncResponse response = DownsyncResponse.builder()
                 .downsync(downsync)
                 .responseInfo(ResponseInfoFactory

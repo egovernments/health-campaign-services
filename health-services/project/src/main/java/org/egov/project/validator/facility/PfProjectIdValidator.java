@@ -1,6 +1,7 @@
 package org.egov.project.validator.facility;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.Error;
 import org.egov.common.models.project.ProjectFacility;
 import org.egov.common.models.project.ProjectFacilityBulkRequest;
@@ -21,8 +22,10 @@ import static org.egov.common.utils.CommonUtils.getIdFieldName;
 import static org.egov.common.utils.CommonUtils.getIdToObjMap;
 import static org.egov.common.utils.CommonUtils.getMethod;
 import static org.egov.common.utils.CommonUtils.getObjClass;
+import static org.egov.common.utils.CommonUtils.getTenantId;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
+import static org.egov.common.utils.ValidatorUtils.getErrorForInvalidTenantId;
 import static org.egov.common.utils.ValidatorUtils.getErrorForNonExistentRelatedEntity;
 import static org.egov.project.Constants.GET_PROJECT_ID;
 
@@ -49,18 +52,28 @@ public class PfProjectIdValidator implements Validator<ProjectFacilityBulkReques
         if(!validEntities.isEmpty()) {
             Class<?> objClass = getObjClass(validEntities);
             Method idMethod = getMethod(GET_PROJECT_ID, objClass);
+            String tenantId = getTenantId(validEntities);
             Map<String, ProjectFacility> eMap = getIdToObjMap(validEntities, idMethod);
             if (!eMap.isEmpty()) {
                 List<String> entityIds = new ArrayList<>(eMap.keySet());
-                List<String> existingProjectIds = projectRepository.validateIds(entityIds,
-                        getIdFieldName(idMethod));
-                List<ProjectFacility> invalidEntities = validEntities.stream().filter(notHavingErrors()).filter(entity ->
-                                !existingProjectIds.contains(entity.getProjectId()))
-                        .collect(Collectors.toList());
-                invalidEntities.forEach(projectFacility -> {
-                    Error error = getErrorForNonExistentRelatedEntity(projectFacility.getProjectId());
-                    populateErrorDetails(projectFacility, error, errorDetailsMap);
-                });
+                try {
+                    List<String> existingProjectIds = projectRepository.validateIds(tenantId, entityIds,
+                            getIdFieldName(idMethod));
+                    List<ProjectFacility> invalidEntities = validEntities.stream().filter(notHavingErrors()).filter(entity ->
+                                    !existingProjectIds.contains(entity.getProjectId()))
+                            .toList();
+                    invalidEntities.forEach(projectFacility -> {
+                        Error error = getErrorForNonExistentRelatedEntity(projectFacility.getProjectId());
+                        populateErrorDetails(projectFacility, error, errorDetailsMap);
+                    });
+                } catch (InvalidTenantIdException exception) {
+                    // Populating InvalidTenantIdException for all entities
+                    validEntities.forEach(projectFacility -> {
+                        Error error = getErrorForInvalidTenantId(tenantId, exception);
+                        populateErrorDetails(projectFacility, error, errorDetailsMap);
+                    });
+                }
+
             }
         }
         return errorDetailsMap;

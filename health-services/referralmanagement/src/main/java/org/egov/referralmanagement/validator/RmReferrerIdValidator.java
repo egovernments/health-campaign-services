@@ -19,6 +19,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
+import static org.egov.common.utils.CommonUtils.getTenantId;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.common.utils.ValidatorUtils.getErrorForNonExistentEntity;
@@ -62,10 +63,11 @@ public class RmReferrerIdValidator implements Validator<ReferralBulkRequest, Ref
     private List<String> getInvalidStaffIds(List<Referral> referralList, ReferralBulkRequest request) {
         final List<String> projectStaffUuidList = new ArrayList<>();
         referralList.forEach(referral -> addIgnoreNull(projectStaffUuidList, referral.getReferrerId()));
+        String tenantId = getTenantId(request.getReferrals());
 
         List<String> invalidStaffIds = new ArrayList<>(projectStaffUuidList);
         try {
-            ValidatorUtil.validateAndEnrichStaffIds(request.getRequestInfo(), userService, projectStaffUuidList, invalidStaffIds);
+            ValidatorUtil.validateAndEnrichStaffIds(tenantId, request.getRequestInfo(), userService, projectStaffUuidList, invalidStaffIds);
         } catch (Exception e) {
             throw new CustomException("Project Staff failed to fetch", "Exception : "+e.getMessage());
         }

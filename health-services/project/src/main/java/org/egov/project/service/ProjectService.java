@@ -7,6 +7,7 @@ import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.egov.common.contract.request.RequestInfo;
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.core.ProjectSearchURLParams;
 import org.egov.common.models.project.Project;
 import org.egov.common.models.project.ProjectRequest;
@@ -24,6 +25,8 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
+
+import static org.egov.common.utils.CommonUtils.getTenantId;
 
 @Service
 @Slf4j
@@ -57,15 +60,15 @@ public class ProjectService {
         this.objectMapper = new ObjectMapper();
     }
 
-    public List<String> validateProjectIds(List<String> productIds) {
-        return projectRepository.validateIds(productIds, "id");
+    public List<String> validateProjectIds(String tenantId, List<String> productIds) throws InvalidTenantIdException {
+        return projectRepository.validateIds(tenantId, productIds, "id");
     }
 
-    public List<Project> findByIds(List<String> projectIds){
-        return projectRepository.findById(projectIds);
+    public List<Project> findByIds(String tenantId, List<String> projectIds) throws InvalidTenantIdException {
+        return projectRepository.findById(tenantId, projectIds);
     }
 
-    public ProjectRequest createProject(ProjectRequest projectRequest) {
+    public ProjectRequest createProject(ProjectRequest projectRequest) throws InvalidTenantIdException {
         projectValidator.validateCreateProjectRequest(projectRequest);
         //Get parent projects if "parent" is present (For enrichment of projectHierarchy)
         List<Project> parentProjects = getParentProjects(projectRequest);
@@ -74,7 +77,8 @@ public class ProjectService {
             projectValidator.validateParentAgainstDB(projectRequest.getProjects(), parentProjects);
         projectEnrichment.enrichProjectOnCreate(projectRequest, parentProjects);
         log.info("Enriched with Project Number, Ids and AuditDetails");
-        producer.push(projectConfiguration.getSaveProjectTopic(), projectRequest);
+        String tenantId = getTenantId(projectRequest.getProjects());
+        producer.push(tenantId, projectConfiguration.getSaveProjectTopic(), projectRequest);
         log.info("Pushed to kafka");
         return projectRequest;
     }
@@ -96,7 +100,7 @@ public class ProjectService {
             Long createdFrom,
             Long createdTo,
             boolean isAncestorProjectId
-    ) {
+    ) throws InvalidTenantIdException {
         projectValidator.validateSearchProjectRequest(project, limit, offset, tenantId, createdFrom, createdTo);
         List<Project> projects = projectRepository.getProjects(
                 project,
@@ -114,12 +118,12 @@ public class ProjectService {
         return projects;
     }
 
-    public List<Project> searchProject(ProjectSearchRequest projectSearchRequest, @Valid ProjectSearchURLParams urlParams) {
+    public List<Project> searchProject(ProjectSearchRequest projectSearchRequest, @Valid ProjectSearchURLParams urlParams) throws InvalidTenantIdException {
         projectValidator.validateSearchV2ProjectRequest(projectSearchRequest, urlParams);
         return projectRepository.getProjects(projectSearchRequest.getProject(), urlParams);
     }
 
-    public ProjectRequest updateProject(ProjectRequest request) {
+    public ProjectRequest updateProject(ProjectRequest request) throws InvalidTenantIdException {
         /*
          * Validate the update project request
          */
@@ -151,7 +155,7 @@ public class ProjectService {
         return request;
     }
 
-    private void processProjectUpdate(ProjectRequest request, Project project, List<Project> projectsFromDB) {
+    private void processProjectUpdate(ProjectRequest request, Project project, List<Project> projectsFromDB) throws InvalidTenantIdException {
         /*
          * Convert project ID to string for comparison
          */
@@ -210,10 +214,11 @@ public class ProjectService {
          * and push the update to the message broker
          */
         projectEnrichment.enrichProjectOnUpdate(request, project, projectFromDB);
-        producer.push(projectConfiguration.getUpdateProjectTopic(), request);
+        String tenantId = project.getTenantId();
+        producer.push(tenantId, projectConfiguration.getUpdateProjectTopic(), request);
     }
 
-    private void handleUpdateProjectDates(ProjectRequest request, Project project, Project projectFromDB) {
+    private void handleUpdateProjectDates(ProjectRequest request, Project project, Project projectFromDB) throws InvalidTenantIdException {
         /*
          * Save original values of start date, end date, and additional details
          */
@@ -258,7 +263,7 @@ public class ProjectService {
          * Check and enrich cascading project dates and push the update to the message broker
          */
         checkAndEnrichCascadingProjectDates(request, project);
-        producer.push(projectConfiguration.getUpdateProjectDateTopic(), request);
+        producer.push(project.getTenantId(), projectConfiguration.getUpdateProjectDateTopic(), request);
     }
 
 
@@ -267,7 +272,7 @@ public class ProjectService {
      *
      * @param request The project request containing projects and request information.
      */
-    private void checkAndEnrichCascadingProjectDates(ProjectRequest request, Project project) {
+    private void checkAndEnrichCascadingProjectDates(ProjectRequest request, Project project) throws InvalidTenantIdException {
         /*
          * Retrieve tenant ID from the first project in the request
          */
@@ -305,7 +310,7 @@ public class ProjectService {
 
 
     /* Search for parent projects based on "parent" field and returns parent projects  */
-    private List<Project> getParentProjects(ProjectRequest projectRequest) {
+    private List<Project> getParentProjects(ProjectRequest projectRequest) throws InvalidTenantIdException {
         List<Project> parentProjects = null;
         List<Project> projectsForSearchRequest = projectRequest.getProjects().stream().filter(p -> StringUtils.isNotBlank(p.getParent())).collect(Collectors.toList());
         if (projectsForSearchRequest.size() > 0) {
@@ -337,12 +342,12 @@ public class ProjectService {
     /**
      * @return Count of List of matching projects
      */
-    public Integer countAllProjects(ProjectRequest project, String tenantId, Long lastChangedSince, Boolean includeDeleted, Long createdFrom, Long createdTo, boolean isAncestorProjectId) {
+    public Integer countAllProjects(ProjectRequest project, String tenantId, Long lastChangedSince, Boolean includeDeleted, Long createdFrom, Long createdTo, boolean isAncestorProjectId) throws InvalidTenantIdException {
         return projectRepository.getProjectCount(project, tenantId, lastChangedSince, includeDeleted, createdFrom, createdTo, isAncestorProjectId);
     }
 
 
-    public Integer countAllProjects(ProjectSearchRequest projectSearchRequest, ProjectSearchURLParams urlParams) {
+    public Integer countAllProjects(ProjectSearchRequest projectSearchRequest, ProjectSearchURLParams urlParams) throws InvalidTenantIdException {
         return projectRepository.getProjectCount(projectSearchRequest.getProject(), urlParams);
     }
 }

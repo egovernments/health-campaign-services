@@ -1,5 +1,12 @@
 All notable changes to this module will be documented in this file.
 
+# 1.2.0 - 2025-05-07
+* Implemented tenant-based schema handling across repository and SQL layers.
+* Required tenant ID across repository methods with validation logic.
+* Made cache usage tenant-aware.
+* Upgraded health-services-common to 1.0.23-dev-SNAPSHOT.
+* Updated migration script logic for schema support.
+
 ## 1.1.7 - 2025-03-04
 - Upgraded to health models 1.0.26
 
