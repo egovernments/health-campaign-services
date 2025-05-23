@@ -21,7 +21,6 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.egov.common.utils.CommonUtils.constructTotalCountCTEAndReturnResult;
-import static org.egov.common.utils.MultiStateInstanceUtil.SCHEMA_REPLACE_STRING;
 
 @Repository
 public class StockRepository extends GenericRepository<Stock> {
@@ -39,7 +38,7 @@ public class StockRepository extends GenericRepository<Stock> {
             String tenantId,
             Long lastChangedSince,
             Boolean includeDeleted) throws QueryBuilderException, InvalidTenantIdException {
-        String query = selectQueryBuilder.build(searchObject, tableName, SCHEMA_REPLACE_STRING);
+        String query = selectQueryBuilder.build(searchObject, tableName);
         query += " AND tenantId=:tenantId ";
         if (query.contains(tableName + " AND")) {
             query = query.replace(tableName + " AND", tableName + " WHERE");
@@ -68,7 +67,6 @@ public class StockRepository extends GenericRepository<Stock> {
             }
             paramsMap.put("transactionType", transactionTypeStringValues);
         }
-        query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
         Long totalCount = constructTotalCountCTEAndReturnResult(query, paramsMap, namedParameterJdbcTemplate);
 
         query += " LIMIT :limit OFFSET :offset";
