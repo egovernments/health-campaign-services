@@ -1,5 +1,6 @@
 package org.egov.servicerequest.service;
 
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.servicerequest.config.Configuration;
 import org.egov.servicerequest.kafka.Producer;
 import org.egov.servicerequest.repository.ServiceRequestRepository;
@@ -32,7 +33,7 @@ public class ServiceRequestService {
     @Autowired
     private Configuration config;
 
-    public org.egov.servicerequest.web.models.Service createService(ServiceRequest serviceRequest) {
+    public org.egov.servicerequest.web.models.Service createService(ServiceRequest serviceRequest) throws InvalidTenantIdException {
 
         org.egov.servicerequest.web.models.Service service = serviceRequest.getService();
 
@@ -43,7 +44,7 @@ public class ServiceRequestService {
         Map<String, Object> attributeCodeVsValueMap = enrichmentService.enrichServiceRequest(serviceRequest);
 
         // Producer statement to emit service definition to kafka for persisting
-        producer.push(config.getServiceCreateTopic(), serviceRequest);
+        producer.push(service.getTenantId(), config.getServiceCreateTopic(), serviceRequest);
 
         // Restore attribute values to the type in which it was sent in service request
         enrichmentService.setAttributeValuesBackToNativeState(serviceRequest, attributeCodeVsValueMap);
@@ -51,7 +52,7 @@ public class ServiceRequestService {
         return service;
     }
 
-    public List<org.egov.servicerequest.web.models.Service> searchService(ServiceSearchRequest serviceSearchRequest){
+    public List<org.egov.servicerequest.web.models.Service> searchService(ServiceSearchRequest serviceSearchRequest) throws InvalidTenantIdException {
 
         List<org.egov.servicerequest.web.models.Service> listOfServices = serviceRequestRepository.getService(serviceSearchRequest);
 
