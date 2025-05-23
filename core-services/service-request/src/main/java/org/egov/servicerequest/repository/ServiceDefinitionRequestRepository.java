@@ -10,7 +10,6 @@ import org.egov.servicerequest.web.models.ServiceCriteria;
 import org.egov.servicerequest.web.models.ServiceDefinition;
 import org.egov.servicerequest.web.models.ServiceDefinitionCriteria;
 import org.egov.servicerequest.web.models.ServiceDefinitionSearchRequest;
-import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.SingleColumnRowMapper;
