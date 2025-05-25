@@ -61,4 +61,7 @@ public class HRMSConstants {
 
 	public static final String SYSTEM_GENERATED = "SYSTEM_GENERATED";
 
+	public static final String HRMS_BANK_DETAILS_BANK_NAME = "bankName";
+	public static final String HRMS_BANK_DETAILS_CBN_CODE = "cbnCode";
+	public static final String HRMS_BANK_DETAILS_ACCOUNT_NUMBER = "accountNumber";
 }

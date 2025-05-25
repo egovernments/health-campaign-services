@@ -29,6 +29,9 @@ import org.egov.hrms.web.models.IndividualSearch;
 import org.egov.hrms.web.models.IndividualSearchRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import static org.egov.hrms.utils.HRMSConstants.HRMS_BANK_DETAILS_ACCOUNT_NUMBER;
+import static org.egov.hrms.utils.HRMSConstants.HRMS_BANK_DETAILS_BANK_NAME;
+import static org.egov.hrms.utils.HRMSConstants.HRMS_BANK_DETAILS_CBN_CODE;
 import static org.egov.hrms.utils.HRMSConstants.SYSTEM_GENERATED;
 
 @Slf4j
@@ -349,15 +352,15 @@ public class IndividualService implements UserService {
                 BankDetails bankDetail = userRequest.getUser().getBankDetails();
                 bankDetail.getAccountNumber();
                 additionalFields.addFieldsItem(Field.builder()
-                        .key("accountNumber")
+                        .key(HRMS_BANK_DETAILS_ACCOUNT_NUMBER)
                         .value(bankDetail.getAccountNumber())
                         .build());
                 additionalFields.addFieldsItem(Field.builder()
-                        .key("bankName")
+                        .key(HRMS_BANK_DETAILS_BANK_NAME)
                         .value(bankDetail.getBankName())
                         .build());
                 additionalFields.addFieldsItem(Field.builder()
-                        .key("cbnCode")
+                        .key(HRMS_BANK_DETAILS_CBN_CODE)
                         .value(bankDetail.getCbnCode())
                         .build());
         }
@@ -417,9 +420,9 @@ public class IndividualService implements UserService {
                                 .name(role.getName())
                                 .build()).collect(Collectors.toList()))
                 .bankDetails(BankDetails.builder()
-                        .accountNumber(getBankDetailFieldbyKey(individual, "accountNumber"))
-                        .bankName(getBankDetailFieldbyKey(individual, "bankName"))
-                        .cbnCode(getBankDetailFieldbyKey(individual, "cbnCode"))
+                        .accountNumber(getBankDetailFieldbyKey(individual, HRMS_BANK_DETAILS_ACCOUNT_NUMBER))
+                        .bankName(getBankDetailFieldbyKey(individual, HRMS_BANK_DETAILS_BANK_NAME))
+                        .cbnCode(getBankDetailFieldbyKey(individual, HRMS_BANK_DETAILS_CBN_CODE))
                         .build())
                 .build();
     }
