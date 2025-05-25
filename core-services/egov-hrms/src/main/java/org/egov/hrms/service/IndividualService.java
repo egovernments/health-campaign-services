@@ -418,12 +418,20 @@ public class IndividualService implements UserService {
                                 .tenantId(role.getTenantId())
                                 .name(role.getName())
                                 .build()).collect(Collectors.toList()))
-                .bankDetails(BankDetails.builder()
+                .bankDetails(getBankDetails(individual))
+                .build();
+    }
+
+    private static BankDetails getBankDetails(Individual individual) {
+        BankDetails bankDetails = BankDetails.builder()
                         .accountNumber(getBankDetailFieldbyKey(individual, HRMS_BANK_DETAILS_ACCOUNT_NUMBER))
                         .bankName(getBankDetailFieldbyKey(individual, HRMS_BANK_DETAILS_BANK_NAME))
                         .cbnCode(getBankDetailFieldbyKey(individual, HRMS_BANK_DETAILS_CBN_CODE))
-                        .build())
-                .build();
+                        .build();
+        if (bankDetails.getAccountNumber() != null || bankDetails.getBankName() != null || bankDetails.getCbnCode() != null) {
+                return bankDetails;
+        }
+        return null;
     }
 
     private static String getBankDetailFieldbyKey(Individual individual, String key) {
