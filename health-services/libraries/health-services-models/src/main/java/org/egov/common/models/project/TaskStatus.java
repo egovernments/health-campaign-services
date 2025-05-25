@@ -63,7 +63,31 @@ public enum TaskStatus {
      * represents a system-determined ineligibility rather than
      * beneficiary choice.
      */
-    INELIGIBLE("INELIGIBLE");
+    INELIGIBLE("INELIGIBLE"),
+
+    /**
+     * Indicates that the beneficiary is not eligible.
+     * This status signifies that the task has not been processed because
+     * the beneficiary does not meet the eligibility criteria for the
+     * service or intervention. This is different from refusal as it
+     * represents a system-determined ineligibility rather than
+     * beneficiary choice.
+     */
+    BENEFICIARY_INELIGIBLE("BENEFICIARY_INELIGIBLE"),
+
+    /**
+     * Indicates that the beneficiary is ineligible.
+     * This status means that the individual or entity for whom the task
+     * was intended was referred to some institution
+     */
+    BENEFICIARY_REFERRED("BENEFICIARY_REFERRED"),
+
+    /**
+     * Indicates that the redose is administered.
+     * This status means that the individual or entity for whom the task
+     * was intended was given a re dose
+     */
+    VISITED("VISITED");
 
     // The string value associated with the task status.
     private String value;
