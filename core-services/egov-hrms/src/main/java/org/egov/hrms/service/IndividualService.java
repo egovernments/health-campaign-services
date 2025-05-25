@@ -10,6 +10,7 @@ import org.egov.common.models.individual.*;
 import org.egov.hrms.config.PropertiesManager;
 import org.egov.hrms.repository.RestCallRepository;
 import org.egov.hrms.utils.HRMSConstants;
+import org.egov.hrms.web.contract.BankDetails;
 import org.egov.hrms.web.contract.User;
 import org.egov.hrms.web.contract.UserRequest;
 import org.egov.hrms.web.contract.UserResponse;
@@ -22,9 +23,6 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.stream.Collectors;
-
-import static org.egov.hrms.utils.HRMSConstants.HRMS_USER_SEARCH_CRITERA_USER_SERVICE_UUIDS;
-import static org.egov.hrms.utils.HRMSConstants.SYSTEM_GENERATED;
 
 @Slf4j
 public class IndividualService implements UserService {
@@ -144,15 +142,7 @@ public class IndividualService implements UserService {
                 .mobileNumber(userRequest.getUser().getMobileNumber())
                 .dateOfBirth(convertMillisecondsToDate(userRequest.getUser().getDob()))
                 .tenantId(userRequest.getUser().getTenantId())
-                .additionalFields(userRequest.getUser().getIdentificationMark() != null ? AdditionalFields.builder()
-                        .schema("Individual")
-                        .version(1)
-                        .build()
-                        .addFieldsItem(Field.builder()
-                                .key("userType")
-                                .value(userRequest.getUser().getIdentificationMark())
-                                .build()) : null
-                )
+                .additionalFields(buildAdditionalFields(userRequest))
                 .address(Collections.singletonList(Address.builder()
                         .type(AddressType.CORRESPONDENCE)
                         .tenantId(userRequest.getUser().getTenantId())
@@ -220,9 +210,9 @@ public class IndividualService implements UserService {
                         .mobileNumber(
                                 mobileNumberList
                         )
-                        .id((List<String>) userSearchCriteria.get("uuid"))
-                        .userUuid((List<String>) userSearchCriteria.get(HRMS_USER_SEARCH_CRITERA_USER_SERVICE_UUIDS))
-                        .roleCodes((List<String>) userSearchCriteria.get("roleCodes"))
+                        .id((List<String>) userSearchCriteria.get(HRMSConstants.HRMS_USER_SEARCH_CRITERA_UUID))
+                        .userUuid((List<String>) userSearchCriteria.get(HRMSConstants.HRMS_USER_SEARCH_CRITERA_USER_SERVICE_UUIDS))
+                        .roleCodes((List<String>) userSearchCriteria.get(HRMSConstants.HRMS_USER_SEARCH_CRITERA_ROLECODES))
                         .username(usernameList)
                         // given name
                         .individualName((String) userSearchCriteria
@@ -285,15 +275,7 @@ public class IndividualService implements UserService {
                 .mobileNumber(userRequest.getUser().getMobileNumber())
                 .dateOfBirth(convertMillisecondsToDate(userRequest.getUser().getDob()))
                 .tenantId(userRequest.getUser().getTenantId())
-                .additionalFields(userRequest.getUser().getIdentificationMark() != null ? AdditionalFields.builder()
-                        .schema("Individual")
-                        .version(1)
-                        .build()
-                        .addFieldsItem(Field.builder()
-                                .key("userType")
-                                .value(userRequest.getUser().getIdentificationMark())
-                                .build()) : null
-                )
+                .additionalFields(buildAdditionalFields(userRequest))
                 .address(Collections.singletonList(Address.builder()
                                 .type(AddressType.CORRESPONDENCE)
                                 .tenantId(userRequest.getUser().getTenantId())
@@ -316,7 +298,7 @@ public class IndividualService implements UserService {
                                 // Generating a unique identifier ID using UUID
                                 .identifierId(String.valueOf(UUID.randomUUID()))
                                 // Specifying the type of identifier as SYSTEM_GENERATED
-                                .identifierType(SYSTEM_GENERATED)
+                                .identifierType(HRMSConstants.SYSTEM_GENERATED)
                                 .build()))
                 .userDetails(UserDetails.builder()
                         .username(userRequest.getUser().getUserName())
@@ -341,6 +323,46 @@ public class IndividualService implements UserService {
                 .requestInfo(userRequest.getRequestInfo())
                 .individual(individual)
                 .build();
+    }
+
+    private static AdditionalFields buildAdditionalFields(UserRequest userRequest) {
+        AdditionalFields additionalFields = AdditionalFields.builder()
+                .schema("Individual")
+                .version(1)
+                .build();
+
+
+        // Add userType if present
+        if (userRequest.getUser().getIdentificationMark() != null) {
+            additionalFields.addFieldsItem(Field.builder()
+                        .key("userType")
+                        .value(userRequest.getUser().getIdentificationMark())
+                        .build());
+        }
+
+        // Add bank details if present
+        if (userRequest.getUser().getBankDetails() != null) {
+                BankDetails bankDetails = userRequest.getUser().getBankDetails();
+                // Add bank details fields only if they are not null
+                if (bankDetails.getAccountNumber() != null && bankDetails.getBankName() != null && bankDetails.getCbnCode() != null) {
+                        additionalFields.addFieldsItem(Field.builder()
+                                .key(HRMSConstants.HRMS_BANK_DETAILS_ACCOUNT_NUMBER)
+                                .value(bankDetails.getAccountNumber())
+                                .build());
+                        additionalFields.addFieldsItem(Field.builder()
+                                .key(HRMSConstants.HRMS_BANK_DETAILS_BANK_NAME)
+                                .value(bankDetails.getBankName())
+                                .build());
+                        additionalFields.addFieldsItem(Field.builder()
+                                .key(HRMSConstants.HRMS_BANK_DETAILS_CBN_CODE)
+                                .value(bankDetails.getCbnCode())
+                                .build());
+                }
+
+        }
+
+        // If no fields were added, return null
+        return additionalFields.getFields() == null ? null : additionalFields;
     }
 
     private static UserResponse mapToUserResponse(IndividualResponse response) {
@@ -394,7 +416,30 @@ public class IndividualService implements UserService {
                                 .tenantId(role.getTenantId())
                                 .name(role.getName())
                                 .build()).collect(Collectors.toList()))
-
+                .bankDetails(getBankDetails(individual))
                 .build();
+    }
+
+    private static BankDetails getBankDetails(Individual individual) {
+        BankDetails bankDetails = BankDetails.builder()
+                        .accountNumber(getBankDetailFieldbyKey(individual, HRMSConstants.HRMS_BANK_DETAILS_ACCOUNT_NUMBER))
+                        .bankName(getBankDetailFieldbyKey(individual, HRMSConstants.HRMS_BANK_DETAILS_BANK_NAME))
+                        .cbnCode(getBankDetailFieldbyKey(individual, HRMSConstants.HRMS_BANK_DETAILS_CBN_CODE))
+                        .build();
+        if (bankDetails.getAccountNumber() != null || bankDetails.getBankName() != null || bankDetails.getCbnCode() != null) {
+                return bankDetails;
+        }
+        return null;
+    }
+
+    private static String getBankDetailFieldbyKey(Individual individual, String key) {
+        if (individual.getAdditionalFields() != null && individual.getAdditionalFields().getFields() != null) {
+            return individual.getAdditionalFields().getFields().stream()
+                    .filter(field -> field.getKey().equals(key))
+                    .findFirst()
+                    .map(Field::getValue)
+                    .orElse(null);
+        }
+        return null;
     }
 }
