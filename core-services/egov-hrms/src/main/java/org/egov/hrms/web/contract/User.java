@@ -182,5 +182,6 @@ public class User {
     @JsonProperty("rowVersion")
     private Integer rowVersion;
     
-
+    @JsonProperty("bankDetails")
+    private BankDetails bankDetails;
 }

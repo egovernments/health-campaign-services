@@ -21,6 +21,7 @@ import org.egov.common.models.individual.*;
 import org.egov.hrms.config.PropertiesManager;
 import org.egov.hrms.repository.RestCallRepository;
 import org.egov.hrms.utils.HRMSConstants;
+import org.egov.hrms.web.contract.BankDetails;
 import org.egov.hrms.web.contract.User;
 import org.egov.hrms.web.contract.UserRequest;
 import org.egov.hrms.web.contract.UserResponse;
@@ -148,15 +149,7 @@ public class IndividualService implements UserService {
                 .mobileNumber(userRequest.getUser().getMobileNumber())
                 .dateOfBirth(convertMillisecondsToDate(userRequest.getUser().getDob()))
                 .tenantId(userRequest.getUser().getTenantId())
-                .additionalFields(AdditionalFields.builder()
-                        .schema("Individual")
-                        .version(1)
-                        .build()
-                        .addFieldsItem(Field.builder()
-                                .key("userType")
-                                .value(userRequest.getUser().getIdentificationMark())
-                                .build())
-                )
+                .additionalFields(buildAdditionalFields(userRequest))
                 .address(Collections.singletonList(Address.builder()
                         .type(AddressType.CORRESPONDENCE)
                         .addressLine1(userRequest.getUser().getCorrespondenceAddress())
@@ -287,15 +280,7 @@ public class IndividualService implements UserService {
                 .mobileNumber(userRequest.getUser().getMobileNumber())
                 .dateOfBirth(convertMillisecondsToDate(userRequest.getUser().getDob()))
                 .tenantId(userRequest.getUser().getTenantId())
-                .additionalFields(AdditionalFields.builder()
-                        .schema("Individual")
-                        .version(1)
-                        .build()
-                        .addFieldsItem(Field.builder()
-                                .key("userType")
-                                .value(userRequest.getUser().getIdentificationMark())
-                                .build())
-                )
+                .additionalFields(buildAdditionalFields(userRequest))
                 .address(Collections.singletonList(Address.builder()
                                 .type(AddressType.CORRESPONDENCE)
                                 .addressLine1(userRequest.getUser().getCorrespondenceAddress())
@@ -342,6 +327,43 @@ public class IndividualService implements UserService {
                 .requestInfo(userRequest.getRequestInfo())
                 .individual(individual)
                 .build();
+    }
+
+    private static AdditionalFields buildAdditionalFields(UserRequest userRequest) {
+        AdditionalFields additionalFields = AdditionalFields.builder()
+                .schema("Individual")
+                .version(1)
+                .build();
+
+        
+        // Add userType if present
+        if (userRequest.getUser().getIdentificationMark() != null) {
+            additionalFields.addFieldsItem(Field.builder()
+                        .key("userType")
+                        .value(userRequest.getUser().getIdentificationMark())
+                        .build());
+        }
+
+        // Add bank details if present
+        if (userRequest.getUser().getBankDetails() != null) {
+                BankDetails bankDetail = userRequest.getUser().getBankDetails();
+                bankDetail.getAccountNumber();
+                additionalFields.addFieldsItem(Field.builder()
+                        .key("accountNumber")
+                        .value(bankDetail.getAccountNumber())
+                        .build());
+                additionalFields.addFieldsItem(Field.builder()
+                        .key("bankName")
+                        .value(bankDetail.getBankName())
+                        .build());
+                additionalFields.addFieldsItem(Field.builder()
+                        .key("cbnCode")
+                        .value(bankDetail.getCbnCode())
+                        .build());
+        }
+
+        // If no fields were added, return null
+        return additionalFields.getFields() == null ? null : additionalFields;
     }
 
     private static UserResponse mapToUserResponse(IndividualResponse response) {
@@ -394,7 +416,22 @@ public class IndividualService implements UserService {
                                 .tenantId(role.getTenantId())
                                 .name(role.getName())
                                 .build()).collect(Collectors.toList()))
-
+                .bankDetails(BankDetails.builder()
+                        .accountNumber(getBankDetailFieldbyKey(individual, "accountNumber"))
+                        .bankName(getBankDetailFieldbyKey(individual, "bankName"))
+                        .cbnCode(getBankDetailFieldbyKey(individual, "cbnCode"))
+                        .build())
                 .build();
+    }
+
+    private static String getBankDetailFieldbyKey(Individual individual, String key) {
+        if (individual.getAdditionalFields() != null && individual.getAdditionalFields().getFields() != null) {
+            return individual.getAdditionalFields().getFields().stream()
+                    .filter(field -> field.getKey().equals(key))
+                    .findFirst()
+                    .map(Field::getValue)
+                    .orElse(null);
+        }
+        return null;
     }
 }
