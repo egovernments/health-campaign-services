@@ -349,19 +349,23 @@ public class IndividualService implements UserService {
 
         // Add bank details if present
         if (userRequest.getUser().getBankDetails() != null) {
-                BankDetails bankDetail = userRequest.getUser().getBankDetails();
-                additionalFields.addFieldsItem(Field.builder()
-                        .key(HRMS_BANK_DETAILS_ACCOUNT_NUMBER)
-                        .value(bankDetail.getAccountNumber())
-                        .build());
-                additionalFields.addFieldsItem(Field.builder()
-                        .key(HRMS_BANK_DETAILS_BANK_NAME)
-                        .value(bankDetail.getBankName())
-                        .build());
-                additionalFields.addFieldsItem(Field.builder()
-                        .key(HRMS_BANK_DETAILS_CBN_CODE)
-                        .value(bankDetail.getCbnCode())
-                        .build());
+                BankDetails bankDetails = userRequest.getUser().getBankDetails();
+                // Add bank details fields only if they are not null
+                if (bankDetails.getAccountNumber() != null && bankDetails.getBankName() != null && bankDetails.getCbnCode() != null) {
+                        additionalFields.addFieldsItem(Field.builder()
+                                .key(HRMS_BANK_DETAILS_ACCOUNT_NUMBER)
+                                .value(bankDetails.getAccountNumber())
+                                .build());
+                        additionalFields.addFieldsItem(Field.builder()
+                                .key(HRMS_BANK_DETAILS_BANK_NAME)
+                                .value(bankDetails.getBankName())
+                                .build());
+                        additionalFields.addFieldsItem(Field.builder()
+                                .key(HRMS_BANK_DETAILS_CBN_CODE)
+                                .value(bankDetails.getCbnCode())
+                                .build());
+                }
+                
         }
 
         // If no fields were added, return null
