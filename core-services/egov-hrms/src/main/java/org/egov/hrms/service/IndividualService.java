@@ -350,7 +350,6 @@ public class IndividualService implements UserService {
         // Add bank details if present
         if (userRequest.getUser().getBankDetails() != null) {
                 BankDetails bankDetail = userRequest.getUser().getBankDetails();
-                bankDetail.getAccountNumber();
                 additionalFields.addFieldsItem(Field.builder()
                         .key(HRMS_BANK_DETAILS_ACCOUNT_NUMBER)
                         .value(bankDetail.getAccountNumber())
