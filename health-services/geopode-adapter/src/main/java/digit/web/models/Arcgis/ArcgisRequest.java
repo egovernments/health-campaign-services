@@ -1,4 +1,4 @@
-package digit.web.models;
+package digit.web.models.Arcgis;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.Valid;
@@ -10,18 +10,32 @@ import org.egov.common.contract.request.RequestInfo;
 import org.springframework.validation.annotation.Validated;
 
 /**
- * GeopodeBoundaryRequest
+ * ArcgisRequest
  */
 @Validated
+@jakarta.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2023-10-16T17:02:11.361704+05:30[Asia/Kolkata]")
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class GeopodeBoundaryRequest {
+public class ArcgisRequest {
+
     @JsonProperty("RequestInfo")
     @Valid
     private RequestInfo requestInfo = null;
-    @JsonProperty("BoundarySetup")
+
     @Valid
-    private GeopodeBoundary geopodeBoundary = null;
+    @JsonProperty("where")
+    private  String where;
+
+    @Valid
+    @JsonProperty("outFields")
+    private  String outFields;
+
+    @Valid
+    @JsonProperty("f")
+    private String f;
+
+
+
 }

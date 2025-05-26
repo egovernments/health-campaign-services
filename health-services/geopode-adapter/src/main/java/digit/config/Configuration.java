@@ -34,4 +34,31 @@ public class Configuration {
 
     @Value("${egov.boundary.relationship.create.endpoint}")
     private String boundaryRelationshipCreateEndpoint;
+
+    @Value("${egov.boundary.hierarchy.search.endpoint}")
+    private String boundaryHierarchySearchEndpoint;
+
+    @Value("${egov.geopode.arcgis}")
+    private String arcgisEndpoint;
+
+    @Value("${egov.mdms.v2.search.endpoint}")
+    private String mdmsV2EndPoint;
+
+    @Value("${egov.geopode.default.offset}")
+    private String defaultOffset;
+
+    @Value("${egov.geopode.default.limit}")
+    private String defaultLimit;
+
+    @Value("${egov.mdms.tenantId}")
+    private String tenantId;
+
+    @Value("${egov.mdms.schemaCode}")
+    private String schemaCode;
+
+    @Value("${egov.geopode.localHost}")
+    private String geopodeLocalHost;
+
+    @Value("${egov.geopode.arcgis.search}")
+    private String geopodeSearchEndpoint;
 }

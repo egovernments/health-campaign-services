@@ -19,7 +19,16 @@ public class ServiceConstants {
     public static final String BOUNDARY_CREATION_RESPONSE = "GeoPoDe Boundary Creation started successfully!";
     public static final String LOG_PLACEHOLDER = "{}";
 
-    public static final String HIERARCHY_TYPE = "admin1";
+    public static final String[] HIERARCHY_ORDER = { "ADM0_NAME", "ADM1_NAME", "ADM2_NAME", "ADM3_NAME" };
+    public static final String ERROR_IN_SEARCH="Error when fetching from Boundary-definition";
+    public static final String ERROR_IN_ARC_SEARCH="Error when fetching from Arcgis";
+    public static final String HIERARCHY_TYPE = "admin4";
+    public static final String ERROR_FETCHING_FROM_MDMS="Error Fetching Data from mdms";
+    public static final String NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT_ISO_CODE="For given tenatId and ISO code no country exists";
+    public static final String COUNTRY_OUTFIELDS="ADM1_NAME";
+    public static final String FORMAT_VALUE="json";
+    public static final String ERROR_FETCHING_FROM_BOUNDARY="Error Fetching Data from boundary";
+    public static final String ROOT_BOUNDARY_ALREADY_EXISTS="Root Boundary already created";
     public static final String RESPONSE_FROM_GEOPODE_API = "[\n" +
             "  {\n" +
             "    \"feature\": \"admin_0\",\n" +

@@ -2,12 +2,12 @@ package digit.web.models;
 
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import org.springframework.validation.annotation.Validated;
-import jakarta.validation.constraints.*;
+import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
-import lombok.NoArgsConstructor;
-import lombok.Data;
 import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import org.springframework.validation.annotation.Validated;
 
 /**
  * GeopodeBoundary
