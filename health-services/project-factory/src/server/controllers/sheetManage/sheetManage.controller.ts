@@ -2,7 +2,6 @@ import * as express from "express";
 import { generateDataService, processDataService } from "../../service/sheetManageService";
 import { errorResponder, sendResponse, throwError } from "../../utils/genericUtils";
 import { logger } from "../../utils/logger";
-import { validateGenerateRequest } from "../../validators/genericValidator";
 import { getLocaleFromRequest } from "../../utils/localisationUtils";
 import { GenerateTemplateQuery, generateTemplateQuerySchema } from "../../models/GenerateTemplateQuery";
 import { ResourceDetails, resourceDetailsSchema } from "../../config/models/resourceDetailsSchema";

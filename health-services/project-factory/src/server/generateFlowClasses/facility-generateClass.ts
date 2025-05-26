@@ -15,7 +15,7 @@ export class TemplateClass {
         if (!campaignDetailsResponse?.CampaignDetails?.[0]) throw new Error("Campaign not found");
         const campaignDetails: any = campaignDetailsResponse?.CampaignDetails?.[0];
         const readMeConfig = await getReadMeConfig(responseToSend.tenantId, responseToSend.type);
-        const readMeColumnHeader = getLocalizedName(Object.keys(templateConfig?.sheets?.[0]?.schema?.properties)?.[0], localizationMap);
+        const readMeColumnHeader = Object.keys(templateConfig?.sheets?.[0]?.schema?.properties || {})?.[0];
         const readMeData: any = this.getReadMeData(readMeConfig, readMeColumnHeader, localizationMap);
         const allPermanentFacilities = await getAllFacilities(responseToSend?.tenantId);
         const completedFacilitiesRow = await getRelatedDataWithCampaign(responseToSend.type, campaignDetails.campaignNumber, dataRowStatuses.completed);
@@ -37,7 +37,7 @@ export class TemplateClass {
         const boundaryData: any = await this.getBoundaryData(campaignDetails, localizationMap);
         const boundaryDynamicColumns: any = await this.getBoundaryDynamicColumns(campaignDetails?.tenantId, campaignDetails?.hierarchyType, localizationMap);
         const sheetMap: SheetMap = {
-            [getLocalizedName(templateConfig?.sheets?.[0]?.sheetName, localizationMap)]: {
+            [templateConfig?.sheets?.[0]?.sheetName]: {
                 data: readMeData,
                 dynamicColumns: {
                     [readMeColumnHeader]: {
@@ -46,11 +46,11 @@ export class TemplateClass {
                     }
                 }
             },
-            [getLocalizedName(templateConfig?.sheets?.[1]?.sheetName, localizationMap)]: {
+            ["HCM_ADMIN_CONSOLE_FACILITIES"]: {
                 data: facilityData,
                 dynamicColumns: null
             },
-            [getLocalizedName(templateConfig?.sheets?.[2]?.sheetName, localizationMap)]: {
+            ["HCM_ADMIN_CONSOLE_BOUNDARY_DATA"]: {
                 data: boundaryData,
                 dynamicColumns: boundaryDynamicColumns
             }
