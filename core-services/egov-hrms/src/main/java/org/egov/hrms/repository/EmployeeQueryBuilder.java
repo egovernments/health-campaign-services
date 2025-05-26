@@ -39,6 +39,8 @@ public class EmployeeQueryBuilder {
 	}
 	public String getEmployeeSearchQueryWithoutPagination(EmployeeSearchCriteria criteria,List <Object> preparedStmtList ) {
 		StringBuilder builder = new StringBuilder(EmployeeQueries.HRMS_GET_EMPLOYEES);
+		builder = new StringBuilder(String.format(String.valueOf(builder), SCHEMA_REPLACE_STRING, SCHEMA_REPLACE_STRING ,SCHEMA_REPLACE_STRING, SCHEMA_REPLACE_STRING, SCHEMA_REPLACE_STRING,
+				SCHEMA_REPLACE_STRING, SCHEMA_REPLACE_STRING, SCHEMA_REPLACE_STRING, SCHEMA_REPLACE_STRING));
 		addWhereClause(criteria, builder, preparedStmtList);
 		return builder.toString();
 	}
