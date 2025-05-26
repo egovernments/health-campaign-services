@@ -49,7 +49,7 @@ export class TemplateClass {
             return data;
         });
         const sheetMap : SheetMap = {};
-        sheetMap[getLocalizedName("HCM_ADMIN_CONSOLE_USER_LIST", localizationMap)] = {
+        sheetMap["HCM_ADMIN_CONSOLE_USER_LIST"] = {
             data : allData,
             dynamicColumns: null
         };
@@ -75,7 +75,7 @@ export class TemplateClass {
         templateConfig: any,
         localizationMap: Record<string, string>
     ): Promise<any[]> {
-        const userSchema = JSON.stringify(templateConfig?.sheets?.filter((s: any) => s?.sheetName === "HCM_ADMIN_CONSOLE_USER_LIST")[0]?.schema);   
+        const userSchema = JSON.parse(JSON.stringify(templateConfig?.sheets?.filter((s: any) => s?.sheetName === "HCM_ADMIN_CONSOLE_USER_LIST")[0]?.schema));   
         const columns = getAllColumnsFromSchema(userSchema);
         const userMap : any = Object.fromEntries(sheetData.map((row: any) => [row?.[mobileKey], row]).filter(([m]) => m));
 

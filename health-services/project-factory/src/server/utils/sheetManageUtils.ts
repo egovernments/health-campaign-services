@@ -179,10 +179,10 @@ async function processRequest(ResourceDetails: any, workBook: any, templateConfi
         const sheetMap: SheetMap = await TemplateClass.process(ResourceDetails, wholeSheetData, localizationMap, templateConfig);
         mergeSheetMapAndSchema(sheetMap, templateConfig, localizationMap);
         for (const sheet of templateConfig?.sheets) {
-            const sheetName = getLocalizedName(sheet?.sheetName, localizationMap);
-            if(!sheetMap?.[sheetName]?.data?.length) continue;
+            const sheetName = sheet?.sheetName;
+            if (!sheetMap?.[sheetName]?.data?.length) continue;
             const sheetData: any = sheetMap?.[sheetName];
-            const worksheet = getOrCreateWorksheet(workBook, sheetName);
+            const worksheet = getOrCreateWorksheet(workBook, getLocalizedName(sheetName, localizationMap));
             await fillSheetMapInWorkbook(worksheet, sheetData, true, localizationMap);
             const schema = sheet?.schema;
             const columnsToFreeze = Object.keys(sheetData?.dynamicColumns || {}).filter(
