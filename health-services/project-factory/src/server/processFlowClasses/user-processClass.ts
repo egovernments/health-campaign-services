@@ -1,4 +1,4 @@
-import { getLocalizedName } from "../utils/campaignUtils";
+import { getAllColumnsFromSchema, getLocalizedName } from "../utils/campaignUtils";
 import { SheetMap } from "../models/SheetMap";
 import { logger } from "../utils/logger";
 import { searchProjectTypeCampaignService } from "../service/campaignManageService";
@@ -17,18 +17,18 @@ export class TemplateClass {
     static async process(
         resourceDetails: any,
         wholeSheetData: any,
-        localizationMap: Record<string, string>
+        localizationMap: Record<string, string>,
+        templateConfig: any
     ): Promise<SheetMap> {
         logger.info("Processing file...");
         logger.info(`ResourceDetails: ${JSON.stringify(resourceDetails)}`);
 
-        const reverseMap = this.getReverseLocalizationMap(localizationMap);
         const campaign = await this.getCampaignDetails(resourceDetails);
 
         const userSheetData = wholeSheetData[getLocalizedName("HCM_ADMIN_CONSOLE_USER_LIST", localizationMap)];
         const mobileKey = getLocalizedName("HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER", localizationMap);
 
-        const newUsers = await this.extractNewUsers(userSheetData, mobileKey, campaign.campaignNumber, resourceDetails, reverseMap);
+        const newUsers = await this.extractNewUsers(userSheetData, mobileKey, campaign.campaignNumber, resourceDetails, templateConfig, localizationMap);
         await this.persistInBatches(newUsers, config.kafka.KAFKA_SAVE_SHEET_DATA_TOPIC);
 
         const waitTime = Math.max(5000, newUsers.length * 8);
@@ -57,12 +57,6 @@ export class TemplateClass {
         return sheetMap;
     }
 
-    private static getReverseLocalizationMap(localizationMap: Record<string, string>): Map<string, string> {
-        const reverse = new Map<string, string>();
-        Object.entries(localizationMap).forEach(([key, val]) => reverse.set(val, key));
-        return reverse;
-    }
-
     private static async getCampaignDetails(resourceDetails: any): Promise<any> {
         const response = await searchProjectTypeCampaignService({
             tenantId: resourceDetails.tenantId,
@@ -78,20 +72,26 @@ export class TemplateClass {
         mobileKey: string,
         campaignNumber: string,
         resourceDetails: any,
-        reverseMap: Map<string, string>
+        templateConfig: any,
+        localizationMap: Record<string, string>
     ): Promise<any[]> {
+        const userSchema = JSON.stringify(templateConfig?.sheets?.filter((s: any) => s?.sheetName === "HCM_ADMIN_CONSOLE_USER_LIST")[0]?.schema);   
+        const columns = getAllColumnsFromSchema(userSchema);
         const userMap : any = Object.fromEntries(sheetData.map((row: any) => [row?.[mobileKey], row]).filter(([m]) => m));
 
         const existing = await getRelatedDataWithCampaign(resourceDetails?.type, campaignNumber);
         const existingMap : any = {};
         for(const user of existing){
-            existingMap[user?.data?.[reverseMap.get(mobileKey) || mobileKey]] = user;
+            existingMap[user?.data?.["HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER"]] = user;
         }
 
         const newEntries = [];
         for (const [mobile, row] of Object.entries(userMap)) {
             if (existingMap?.[String(mobile)]) continue;
-            const data = Object.fromEntries(Object.entries(row as any).map(([k, v]) => [reverseMap.get(k) || k, v]));
+            const data : any = {};
+            for(const key of columns) {
+                data[key] = (row as Record<string, any>)?.[getLocalizedName(key, localizationMap)];
+            }
             newEntries.push({
                 campaignNumber,
                 data,
