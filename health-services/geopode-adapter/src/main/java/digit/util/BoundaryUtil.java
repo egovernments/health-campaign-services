@@ -2,10 +2,7 @@ package digit.util;
 
 import digit.config.Configuration;
 import digit.web.models.GeopodeBoundaryRequest;
-import digit.web.models.boundaryService.BoundaryTypeHierarchy;
-import digit.web.models.boundaryService.BoundaryTypeHierarchyDefinition;
-import digit.web.models.boundaryService.BoundaryTypeHierarchyRequest;
-import digit.web.models.boundaryService.BoundaryTypeHierarchyResponse;
+import digit.web.models.boundaryService.*;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
@@ -23,8 +20,8 @@ public class BoundaryUtil {
 
 	public BoundaryUtil(Configuration config, RestTemplate restTemplate) {
 		this.config = config;
-        this.restTemplate = restTemplate;
-    }
+		this.restTemplate = restTemplate;
+	}
 
 	public BoundaryTypeHierarchyResponse createBoundaryHierarchy(GeopodeBoundaryRequest request, List<BoundaryTypeHierarchy> boundaryHierarchyList) {
 		BoundaryTypeHierarchyRequest boundaryTypeHierarchyRequest = buildBoundaryHierarchyCreateRequest(request, boundaryHierarchyList);
@@ -50,4 +47,16 @@ public class BoundaryUtil {
 						.build()).build();
 	}
 
+	public BoundaryHierarchyDefinitionResponse fetchBoundaryHierarchyDefinition( BoundaryHierarchyDefinitonSearchRequest request){
+		StringBuilder url=new StringBuilder(config.getBoundaryServiceHost() + config.getBoundaryHierarchySearchEndpoint());
+		BoundaryHierarchyDefinitionResponse response = null;
+
+		try{
+			response=restTemplate.postForObject(url.toString(),request, BoundaryHierarchyDefinitionResponse.class);
+		} catch(CustomException e) {
+			log.error(ERROR_IN_SEARCH, e);
+		}
+
+		return response;
+	}
 }
