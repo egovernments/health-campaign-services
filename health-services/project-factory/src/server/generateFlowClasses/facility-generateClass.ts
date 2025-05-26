@@ -16,24 +16,25 @@ export class TemplateClass {
         const campaignDetails: any = campaignDetailsResponse?.CampaignDetails?.[0];
         const readMeConfig = await getReadMeConfig(responseToSend.tenantId, responseToSend.type);
         const readMeColumnHeader = Object.keys(templateConfig?.sheets?.[0]?.schema?.properties || {})?.[0];
-        const readMeData: any = this.getReadMeData(readMeConfig, readMeColumnHeader, localizationMap);
+        const localizedReadMeHeader = getLocalizedName(readMeColumnHeader, localizationMap);
+        const readMeData: any = this.getReadMeData(readMeConfig, localizedReadMeHeader, localizationMap);
         const allPermanentFacilities = await getAllFacilities(responseToSend?.tenantId);
         const completedFacilitiesRow = await getRelatedDataWithCampaign(responseToSend.type, campaignDetails.campaignNumber, dataRowStatuses.completed);
         const permanentCodes = new Set(
             allPermanentFacilities.map(f => f?.id)
-          );
-          
-          // Filter current facilities that are NOT already in permanent
-          const newFacilities = completedFacilitiesRow?.filter((f: any) =>
+        );
+
+        // Filter current facilities that are NOT already in permanent
+        const newFacilities = completedFacilitiesRow?.filter((f: any) =>
             !permanentCodes.has(f.data?.HCM_ADMIN_CONSOLE_FACILITY_CODE)
-          );
-          
-          
-          // Final merged list = permanent + new
-          const finalFacilityList = [...allPermanentFacilities,   ...newFacilities?.map((f: any) => f.data)]
-          
-          // Generate final data
-          const facilityData = this.getFacilityData(finalFacilityList, localizationMap);
+        );
+
+
+        // Final merged list = permanent + new
+        const finalFacilityList = [...allPermanentFacilities, ...newFacilities?.map((f: any) => f.data)]
+
+        // Generate final data
+        const facilityData = this.getFacilityData(finalFacilityList, localizationMap);
         const boundaryData: any = await this.getBoundaryData(campaignDetails, localizationMap);
         const boundaryDynamicColumns: any = await this.getBoundaryDynamicColumns(campaignDetails?.tenantId, campaignDetails?.hierarchyType, localizationMap);
         const sheetMap: SheetMap = {
@@ -185,15 +186,15 @@ export class TemplateClass {
         }
     }
 
-    static getFacilityData(allFacilities: any,localizationMap:any) {
+    static getFacilityData(allFacilities: any, localizationMap: any) {
         const facilityData = allFacilities.map((facility: any) => {
             return {
                 [getLocalizedName("HCM_ADMIN_CONSOLE_FACILITY_CODE", localizationMap)]: facility?.id || facility?.HCM_ADMIN_CONSOLE_FACILITY_CODE,
                 [getLocalizedName("HCM_ADMIN_CONSOLE_FACILITY_NAME", localizationMap)]: facility?.name || facility?.HCM_ADMIN_CONSOLE_FACILITY_NAME,
                 [getLocalizedName("HCM_ADMIN_CONSOLE_FACILITY_STATUS", localizationMap)]: facility?.isPermanent || facility?.HCM_ADMIN_CONSOLE_FACILITY_STATUS === "Permanent" ? "Permanent" : "Temporary",
                 [getLocalizedName("HCM_ADMIN_CONSOLE_FACILITY_USAGE", localizationMap)]: facility?.HCM_ADMIN_CONSOLE_FACILITY_USAGE || 'Inactive',
-                [getLocalizedName("HCM_ADMIN_CONSOLE_FACILITY_TYPE", localizationMap)]: facility?.HCM_ADMIN_CONSOLE_FACILITY_TYPE ||facility?.usage,
-                [getLocalizedName("HCM_ADMIN_CONSOLE_FACILITY_CAPACITY", localizationMap)]: facility?.HCM_ADMIN_CONSOLE_FACILITY_CAPACITY ||  facility?.storageCapacity,
+                [getLocalizedName("HCM_ADMIN_CONSOLE_FACILITY_TYPE", localizationMap)]: facility?.HCM_ADMIN_CONSOLE_FACILITY_TYPE || facility?.usage,
+                [getLocalizedName("HCM_ADMIN_CONSOLE_FACILITY_CAPACITY", localizationMap)]: facility?.HCM_ADMIN_CONSOLE_FACILITY_CAPACITY || facility?.storageCapacity,
                 [getLocalizedName("HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY", localizationMap)]: facility?.HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY || ""
             };
         });
