@@ -38,6 +38,7 @@ public class StockTransformationService {
     private final BoundaryService boundaryService;
     private final ProductService productService;
     private static final Set<String> ADDITIONAL_DETAILS_DOUBLE_FIELDS = new HashSet<>(Arrays.asList(LAT, LNG));
+    private static final Set<String> ADDITIONAL_DETAILS_INTEGER_FIELDS = new HashSet<>(Arrays.asList(PARTIAL_BLISTERS_RETURNED, WASTED_BLISTERS_RETURNED));
 
     public StockTransformationService(Producer producer, FacilityService facilityService, TransformerProperties transformerProperties, CommonUtils commonUtils, ProjectService projectService, UserService userService, ObjectMapper objectMapper, ProductService productService, BoundaryService boundaryService) {
         this.producer = producer;
@@ -207,7 +208,16 @@ public class StockTransformationService {
                     log.warn("Invalid number format for key '{}': value '{}'. Storing as null.", key, value);
                     additionalDetails.put(key, (JsonNode) null);
                 }
-            } else {
+            }
+            else if (ADDITIONAL_DETAILS_INTEGER_FIELDS.contains(key)) {
+                try {
+                    additionalDetails.put(key, Integer.valueOf(value));
+                } catch (NumberFormatException e) {
+                    log.warn("Invalid number format for key '{}': value '{}'. Storing as null", key, value);
+                    additionalDetails.put(key, (JsonNode) null);
+                }
+            }
+            else {
                 additionalDetails.put(key, value);
             }
         });

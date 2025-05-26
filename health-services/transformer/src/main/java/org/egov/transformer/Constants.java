@@ -16,6 +16,7 @@ public interface Constants {
     String QUANTITY_WASTED = "quantityWasted";
 
     Long RE_ADMINISTERED_DOSES = 2L;
+    String RE_DOSE_QUANTITY_KEY = "reDoseQuantity";
 
     String BENEFICIARY_REFERRED = "BENEFICIARY_REFERRED";
     String TASK_STATUS = "taskStatus";
@@ -37,6 +38,8 @@ public interface Constants {
     String FACILITY = "FACILITY";
     String DISTRICT_WAREHOUSE = "DISTRICT_WAREHOUSE";
     String SATELLITE_WAREHOUSE = "SATELLITE_WAREHOUSE";
+    String PARTIAL_BLISTERS_RETURNED = "partialBlistersReturned";
+    String WASTED_BLISTERS_RETURNED = "wastedBlistersReturned";
     String TYPE_KEY = "type";
     String FACILITY_TARGET_KEY = "target";
     String FIELD_TARGET = "targets";
