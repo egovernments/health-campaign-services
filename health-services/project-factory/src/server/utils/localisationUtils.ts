@@ -1,4 +1,5 @@
 import config from "../config/index";
+import { getLocalizedMessagesHandlerViaLocale } from "./genericUtils";
 
 // Function to extract locale from request object
 export const getLocaleFromRequest = (request: any) => {
@@ -44,3 +45,32 @@ export const convertLocalisationResponseToMap = (messages: any = []) => {
   });
   return localizationMap;
 }
+
+export const checkExistingLocalisations = async () => {
+  const localizationMapModule: any = await getLocalizedMessagesHandlerViaLocale(
+    config.localisation.defaultLocale,
+    config.app.defaultTenantId
+  );
+
+  const valueSet = new Set<string>();
+  const duplicates: { key: string; value: string }[] = [];
+
+  for (const entry of Object.entries(localizationMapModule)) {
+    const [key, value]: any = entry;
+    if (valueSet.has(value)) {
+      duplicates.push({ key, value });
+    } else {
+      valueSet.add(value);
+    }
+  }
+
+  if (duplicates.length > 0) {
+    console.error("Duplicate values found in localisations:");
+    duplicates.forEach(dup => {
+      console.error(`Key: ${dup.key}, Value: ${dup.value}`);
+    });
+    throw new Error("Duplicate localisation values detected.");
+  } else {
+    console.log("✅ No duplicate values in localisations.");
+  }
+};

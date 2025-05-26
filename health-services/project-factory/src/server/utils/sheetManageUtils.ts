@@ -513,7 +513,7 @@ function addDataToWorksheet(
         headers.map(columnName => rowData[columnName] ?? '')
     );
 
-    worksheet.insertRows(3, newRows); // Start inserting data from row 2
+    worksheet.insertRows(3, newRows); // Start inserting data from row 3
 
     applyCellFormatting(worksheet, newRows.length + 1, columnNameToIndexMap, sheetData);
 }

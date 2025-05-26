@@ -46,7 +46,7 @@ export class TemplateClass {
             const localizedData: Record<string, any> = {};
 
             for (const key in rawData) {
-                localizedData[getLocalizedName(key, localizationMap)] = rawData[key];
+                localizedData[key] = rawData[key];
             }
 
             localizedData["#status#"] = "CREATED";
@@ -61,7 +61,7 @@ export class TemplateClass {
             [readMeSheetName]: {
                 data: readMeData,
                 dynamicColumns: {
-                    [readMeColumnUniqueKey]: { adjustHeight: true, width: 120 }
+                    [getLocalizedName(readMeHeaderKey, localizationMap)]: { adjustHeight: true, width: 120 }
                 }
             },
             [boundarySheetName]: {
@@ -150,7 +150,7 @@ export class TemplateClass {
             const entry: Record<string, string> = {};
 
             // Add main boundary code
-            entry[getLocalizedName("HCM_ADMIN_CONSOLE_BOUNDARY_CODE", localizationMap)] = node.code;
+            entry["boundaryCodes"] = node.code;
 
             // Traverse current path
             const fullPath = [...path, node];

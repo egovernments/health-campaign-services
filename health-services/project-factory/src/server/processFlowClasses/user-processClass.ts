@@ -40,7 +40,7 @@ export class TemplateClass {
         const allData = allCurrentUsers?.map((u: any) => {
             const data : any = {};
             for(const key of Object.keys(u?.data)) {
-                data[getLocalizedName(key, localizationMap)] = u?.data[key];
+                data[key] = u?.data[key];
             }
             data["#status#"] = "CREATED";
             data["userUserName"] = u?.data?.["userUserName"] ? decrypt(u.data["userUserName"]) : null;
@@ -161,7 +161,7 @@ export class TemplateClass {
                 await this.persistInBatches(successfulUsers, config.kafka.KAFKA_UPDATE_SHEET_DATA_TOPIC);
             } catch (err) {
                 console.error("Error in batch creation:", err);
-                await this.handleBatchFailure(batch, usersToCreate, localizationMap);
+                await this.handleBatchFailure(batch, usersToCreate);
                 throw new Error(`Error in user batch creation: ${err}`);
             }
         }
@@ -180,8 +180,8 @@ export class TemplateClass {
     }
 
 
-    private static async handleBatchFailure(batch: any[], usersToCreate: any[], localizationMap: Record<string, string>) {
-        const phoneKey = getLocalizedName("HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER", localizationMap);
+    private static async handleBatchFailure(batch: any[], usersToCreate: any[]) {
+        const phoneKey = "userPhoneNumber";
         const batchMobileSet = new Set(batch.map((u: any) => String(u?.user?.mobileNumber)));
         const failedUsers = usersToCreate.filter((u: any) => batchMobileSet.has(String(u?.data?.[phoneKey])));
         failedUsers.forEach(u => u.status = dataRowStatuses.failed);

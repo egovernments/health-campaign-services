@@ -25,10 +25,11 @@ export class TemplateClass {
         const schemaPromise = this.getSchema(tenantId, campaignDetails.projectType);
 
         const sheetsConfig = templateConfig?.sheets?.[0];
-        const readMeColumnHeader = getLocalizedName(Object.keys(sheetsConfig?.schema?.properties || {})[0], localizationMap);
+        const readMeColumnHeader = Object.keys(sheetsConfig?.schema?.properties || {})?.[0];
+        const readMeColumnUniqueKey = sheetsConfig?.schema?.properties?.[readMeColumnHeader]?.uniqueKey || getLocalizedName(readMeColumnHeader, localizationMap);
         const readMeSheetName = getLocalizedName(sheetsConfig?.sheetName, localizationMap);
 
-        const readMeData = this.getReadMeData(readMeConfig, readMeColumnHeader, localizationMap);
+        const readMeData = this.getReadMeData(readMeConfig, readMeColumnUniqueKey, localizationMap);
 
         const {
             boundaries,
