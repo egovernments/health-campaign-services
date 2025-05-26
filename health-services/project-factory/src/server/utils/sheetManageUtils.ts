@@ -2,7 +2,7 @@ import { v4 as uuidV4 } from "uuid";
 import config from "../config";
 import { produceModifiedMessages } from "../kafka/Producer";
 import * as ExcelJS from "exceljs";
-import { callMdmsSchema, createAndUploadFileWithOutRequest, getJsonData, getSheetDataFromWorksheet } from "../api/genericApis";
+import { callMdmsSchema, createAndUploadFileWithOutRequest, getJsonDataBasedOnUniqueKey, getSheetDataFromWorksheet } from "../api/genericApis";
 import { getLocalizedHeaders, getLocalizedMessagesHandlerViaLocale, handledropdownthings, searchAllGeneratedResources } from "./genericUtils";
 import { getLocalisationModuleName } from "./localisationUtils";
 import { getLocalizedName } from "./campaignUtils";
@@ -162,7 +162,7 @@ async function processRequest(ResourceDetails: any, workBook: any, templateConfi
         const sheetName = getLocalizedName(sheet?.sheetName, localizationMap);
         const worksheet = workBook.getWorksheet(sheetName);
         const sheetData = getSheetDataFromWorksheet(worksheet);
-        const jsonData = getJsonData(sheetData, true);
+        const jsonData = getJsonDataBasedOnUniqueKey(sheetData, true);
         wholeSheetData[sheetName] = jsonData;
         if(!sheet?.schemaName) continue;
         const schema = await callMdmsSchema(ResourceDetails?.tenantId, sheet?.schemaName);
@@ -198,7 +198,7 @@ async function processRequest(ResourceDetails: any, workBook: any, templateConfi
                 (columnName) => sheetData.dynamicColumns[columnName]?.freezeTillData
             )
             freezeUnfreezeColumns(worksheet, getLocalizedHeaders(columnsToFreeze, localizationMap), getLocalizedHeaders(columnsToUnFreezeTillData, localizationMap), getLocalizedHeaders(columnsToFreezeTillData, localizationMap), getLocalizedHeaders(columnsToFreezeColumnIfFilled, localizationMap));
-            manageMultiSelect(worksheet, schema, localizationMap);
+            manageMultiSelect(worksheet, schema, localizationMap, undefined, undefined, true);
             await handledropdownthings(worksheet, schema, localizationMap);
             updateFontNameToRoboto(worksheet);
         }
@@ -283,7 +283,7 @@ async function createBasicTemplateViaConfig(responseToSend: any, templateConfig:
                     (columnName) => sheetData.dynamicColumns[columnName]?.freezeTillData
                 )
                 freezeUnfreezeColumns(worksheet, getLocalizedHeaders(columnsToFreeze, localizationMap), getLocalizedHeaders(columnsToUnFreezeTillData, localizationMap), getLocalizedHeaders(columnsToFreezeTillData, localizationMap), getLocalizedHeaders(columnsToFreezeColumnIfFilled, localizationMap));
-                manageMultiSelect(worksheet, schema, localizationMap);
+                manageMultiSelect(worksheet, schema, localizationMap, undefined, undefined, true);
                 await handledropdownthings(worksheet, schema, localizationMap);
                 updateFontNameToRoboto(worksheet);
                 logger.info(`Sheet ${sheetName} generated successfully`);
@@ -301,12 +301,7 @@ async function createBasicTemplateViaConfig(responseToSend: any, templateConfig:
 }
 
 function mergeSheetMapAndSchema(sheetMap: SheetMap, templateConfig: any, localizationMap: any) {
-    const reverseLocalizationMap = new Map<string, string>();
     const localizationCache = new Map<string, string>();
-
-    for (const [key, value] of Object.entries(localizationMap)) {
-        reverseLocalizationMap.set(String(value), key);
-    }
 
     const sheetsProcessed = new Set<string>();
 
@@ -338,11 +333,10 @@ function mergeSheetMapAndSchema(sheetMap: SheetMap, templateConfig: any, localiz
 
         const currentSchema: any = { properties: {} };
         for (const column of Object.keys(dynamicCols)) {
-            const originalKey = reverseLocalizationMap.get(column) || column;
-            currentSchema.properties[originalKey] = dynamicCols[column];
+            currentSchema.properties[column] = dynamicCols[column];
         }
 
-        const rawSheetName = reverseLocalizationMap.get(sheetName) || sheetName;
+        const rawSheetName = sheetName;
 
         templateConfig.sheets.push({
             sheetName: rawSheetName,
@@ -360,7 +354,7 @@ function mergeAndGetDynamicColumns(dynamicColumns: any, schema: any, localizatio
 
     let maxOrderNumber = Number.MAX_SAFE_INTEGER;
 
-    const assignProps = (target: any, source: any, isMulti = false, index = 0, parentOrder = 0) => {
+    const assignProps = (target: any, source: any, localisedKey: string, isMulti = false, index = 0, parentOrder = 0) => {
         target.width ??= source.width ?? 40;
         target.color ??= source.color;
         target.adjustHeight ??= source.adjustHeight;
@@ -371,11 +365,11 @@ function mergeAndGetDynamicColumns(dynamicColumns: any, schema: any, localizatio
         target.adjustHeight ??= source.adjustHeight;
         target.wrapText ??= source.wrapText;
 
-
         if (!isMulti) {
             target.freezeColumn ??= source.freezeColumn;
             target.hideColumn ??= source.hideColumn;
             target.orderNumber ??= source.orderNumber ?? maxOrderNumber;
+            target.uniqueKey ??= source.uniqueKey ?? localisedKey;
         } else {
             const order = parentOrder - 1 + (0.01 * index);
             target.orderNumber ??= order;
@@ -397,13 +391,20 @@ function mergeAndGetDynamicColumns(dynamicColumns: any, schema: any, localizatio
                 const multiKey = `${propertyKey}_MULTISELECT_${i}`;
                 const localizedMultiKey = getLocalizedName(multiKey, localizationMap);
                 dynamicColumns[localizedMultiKey] ??= {};
-                assignProps(dynamicColumns[localizedMultiKey], property, true, i, parentOrder);
+                dynamicColumns[localizedMultiKey].uniqueKey = `${property.uniqueKey}${i}`;
+                assignProps(dynamicColumns[localizedMultiKey], property, localizedMultiKey, true, i, parentOrder);
             }
         }
 
         // Process base column
         dynamicColumns[localizedKey] ??= {};
-        assignProps(dynamicColumns[localizedKey], property);
+        assignProps(dynamicColumns[localizedKey], property, localizedKey);
+    }
+
+    for (const columnKey in dynamicColumns) {
+        if (!dynamicColumns[columnKey]?.uniqueKey) {
+            dynamicColumns[columnKey].uniqueKey = columnKey;
+        }
     }
 
     // Return sorted by orderNumber
@@ -430,30 +431,46 @@ function getOrCreateWorksheet(workbook: ExcelJS.Workbook, sheetName: string) {
     return worksheet;
 }
 
-function processDynamicColumns(worksheet: ExcelJS.Worksheet, sheetData: any, isProcessedFile = false) {
+function processDynamicColumns(
+    worksheet: ExcelJS.Worksheet,
+    sheetData: any,
+    isProcessedFile = false
+) {
     const columnNameToIndexMap: Record<string, number> = {};
 
     if (!sheetData.dynamicColumns) return columnNameToIndexMap;
 
-    const headerRow = worksheet.getRow(1);
+    const headerRow1 = worksheet.getRow(1); // Display names
+    const headerRow2 = worksheet.getRow(2); // Unique keys
 
-    Object.keys(sheetData.dynamicColumns).forEach((columnName, index) => {
+    Object.keys(sheetData.dynamicColumns).forEach((key: string, index: number) => {
         const columnIndex = index + 1;
-        columnNameToIndexMap[columnName] = columnIndex;
+        const column = sheetData.dynamicColumns[key];
 
-        // Set header cell value
-        const headerCell = headerRow.getCell(columnIndex);
-        headerCell.value = columnName;
+        columnNameToIndexMap[column.uniqueKey ?? key] = columnIndex;
 
-        // Apply column-level props (like width/hidden) and cell-level styles to header
-        applyColumnProperties(headerRow, headerCell, sheetData.dynamicColumns[columnName],isProcessedFile);
+        // Row 1: visible header (key)
+        const cell1 = headerRow1.getCell(columnIndex);
+        cell1.value = key;
+
+        // Row 2: internal identifier (uniqueKey)
+        const cell2 = headerRow2.getCell(columnIndex);
+        cell2.value = column.uniqueKey;
+
+        // Apply properties to the visible header (Row 1 only)
+        applyColumnProperties(headerRow1, cell1, column, isProcessedFile);
     });
+    headerRow2.hidden = true;
 
-    headerRow.commit(); // Commit the row after updating cells
-    worksheet.views = [{ state: 'frozen', ySplit: 1 }];
+    headerRow1.commit();
+    headerRow2.commit();
+
+    worksheet.views = [{ state: 'frozen', ySplit: 2 }]; // Freeze top 2 rows
 
     return columnNameToIndexMap;
 }
+
+   
 
 function applyColumnProperties(row: ExcelJS.Row, cell: ExcelJS.Cell, columnProps: ColumnProperties, isProcessedFile = false) {
     const column = cell.worksheet.getColumn(cell.col);
@@ -474,7 +491,7 @@ function applyColumnProperties(row: ExcelJS.Row, cell: ExcelJS.Cell, columnProps
         };
     }
 
-    cell.alignment = { horizontal: 'center' };
+    cell.alignment = { horizontal: 'center' , wrapText: true };
 }
 
 
@@ -485,20 +502,20 @@ function addDataToWorksheet(
     columnNameToIndexMap: Record<string, number>
 ) {
     // Clear all rows starting from row 2 (preserve first row)
-    for (let i = worksheet.rowCount; i > 1; i--) {
+    for (let i = worksheet.rowCount; i > 2; i--) {
         worksheet.spliceRows(i, 1);
     }
 
     // Insert column headers in row 2
     const headers = Object.keys(columnNameToIndexMap);
 
-    const newRows = sheetData.data.map((rowData: any) =>
+    const newRows = sheetData.data.map((rowData  : any) => 
         headers.map(columnName => rowData[columnName] ?? '')
     );
 
-    worksheet.insertRows(2, newRows); // Start inserting data from row 2
+    worksheet.insertRows(3, newRows); // Start inserting data from row 2
 
-    applyCellFormatting(worksheet, newRows.length, columnNameToIndexMap, sheetData);
+    applyCellFormatting(worksheet, newRows.length + 1, columnNameToIndexMap, sheetData);
 }
 
 

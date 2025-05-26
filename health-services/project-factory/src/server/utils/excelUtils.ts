@@ -255,7 +255,7 @@ function addDataToSheet(
 }
 
 
-export function manageMultiSelect(sheet: any, schema: any, localizationMap?: any, fileUrl?: string, sheetData?: any[]) {
+export function manageMultiSelect(sheet: any, schema: any, localizationMap?: any, fileUrl?: string, sheetData?: any[], isDataWithUniqueKey: boolean = false) {
   const headerRow = sheet.getRow(1); // Assuming first row is the header
   const rowsLength = sheetData?.length || 0;
   const isChildOfSomeCampaign = Boolean(fileUrl);
@@ -286,7 +286,7 @@ export function manageMultiSelect(sheet: any, schema: any, localizationMap?: any
       }
 
       // Apply CONCATENATE formula
-      applyConcatenateFormula(sheet, currentColumnIndex, maxSelections);
+      applyConcatenateFormula(sheet, currentColumnIndex, maxSelections, isDataWithUniqueKey);
 
       // Hide the column if specified
       if (schema?.properties[property]?.hideColumn) {
@@ -333,7 +333,7 @@ function applyDropdownsForMultiSelect(sheet: any, currentColumnIndex: number, ma
 // -----------------------------
 // Function to Apply CONCATENATE Formula
 // -----------------------------
-function applyConcatenateFormula(sheet: any, currentColumnIndex: number, maxSelections: number) {
+function applyConcatenateFormula(sheet: any, currentColumnIndex: number, maxSelections: number, isDataWithUniqueKey: boolean = false) {
   const colLetters = [];
   for (let i = 1; i <= maxSelections; i++) {
     const colIndex = currentColumnIndex - maxSelections + i - 1;
@@ -349,7 +349,7 @@ function applyConcatenateFormula(sheet: any, currentColumnIndex: number, maxSele
   const formula = `=IF(AND(${blankCheck}), "", IF(RIGHT(CONCATENATE(${formulaParts.join(",")}),1)=",", LEFT(CONCATENATE(${formulaParts.join(",")}), LEN(CONCATENATE(${formulaParts.join(",")}) )-1), CONCATENATE(${formulaParts.join(",")})))`;
 
 
-  for (let row = 2; row <= sheet.rowCount; row++) {
+  for (let row = isDataWithUniqueKey ? 3 : 2; row <= sheet.rowCount; row++) {
     const rowFormula = formula.replace(/2/g, row.toString());
     sheet.getCell(row, currentColumnIndex).value = {
       formula: rowFormula
@@ -652,7 +652,7 @@ export function freezeUnfreezeColumns(
   const unfrozeTillColumn = Number(config.values.unfrozeTillColumn);
 
   // Step 2: Unlock default editable area, skipping frozen columns and empty headers
-  for (let r = 2; r <= unfrozeTillRow; r++) {
+  for (let r = 3; r <= unfrozeTillRow; r++) {
     for (let c = 1; c <= unfrozeTillColumn; c++) {
       const headerValue: any = worksheet.getCell(1, c).value;
       if (!freezeIndexes.includes(c) && !tillDataIndexes.includes(c) && headerValue) {
@@ -678,17 +678,18 @@ export function freezeUnfreezeColumns(
   // Step 3: Lock the first row (header) always
   for (let c = 1; c <= maxCol; c++) {
     worksheet.getCell(1, c).protection = { locked: true };
+    worksheet.getCell(2, c).protection = { locked: true };
   }
 
   // Step 4: Lock only the specified frozen columns (excluding first row)
-  for (let r = 2; r <= rowCount; r++) {
+  for (let r = 3; r <= rowCount; r++) {
     for (const col of freezeIndexes) {
       worksheet.getCell(r, col).protection = { locked: true };
     }
   }
 
   // 🔹 Step 4.1: Lock columns in columnsToFreezeTillData till last data row
-  for (let r = 2; r <= rowCount; r++) {
+  for (let r = 3; r <= rowCount; r++) {
     for (const col of freezeTillDataIndexes) {
       worksheet.getCell(r, col).protection = { locked: true };
     }

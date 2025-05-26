@@ -22,13 +22,12 @@ export class TemplateClass {
         logger.info("Processing file...");
         logger.info(`ResourceDetails: ${JSON.stringify(resourceDetails)}`);
 
-        const reverseMap = this.getReverseLocalizationMap(localizationMap);
         const campaign = await this.getCampaignDetails(resourceDetails);
 
         const userSheetData = wholeSheetData[getLocalizedName("HCM_ADMIN_CONSOLE_USER_LIST", localizationMap)];
-        const mobileKey = getLocalizedName("HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER", localizationMap);
+        const mobileKey = "userPhoneNumber";
 
-        const newUsers = await this.extractNewUsers(userSheetData, mobileKey, campaign.campaignNumber, resourceDetails, reverseMap);
+        const newUsers = await this.extractNewUsers(userSheetData, mobileKey, campaign.campaignNumber, resourceDetails);
         await this.persistInBatches(newUsers, config.kafka.KAFKA_SAVE_SHEET_DATA_TOPIC);
 
         const waitTime = Math.max(5000, newUsers.length * 8);
@@ -44,8 +43,8 @@ export class TemplateClass {
                 data[getLocalizedName(key, localizationMap)] = u?.data[key];
             }
             data["#status#"] = "CREATED";
-            data[getLocalizedName("UserName", localizationMap)] = decrypt(u?.data?.["UserName"]);
-            data[getLocalizedName("Password", localizationMap)] = decrypt(u?.data?.["Password"]);
+            data["userUserName"] = u?.data?.["userUserName"] ? decrypt(u.data["userUserName"]) : null;
+            data["userPassword"] = u?.data?.["userPassword"] ? decrypt(u.data["userPassword"]) : null;            
             return data;
         });
         const sheetMap : SheetMap = {};
@@ -55,12 +54,6 @@ export class TemplateClass {
         };
         logger.info(`SheetMap generated for template of type ${resourceDetails.type}.`);
         return sheetMap;
-    }
-
-    private static getReverseLocalizationMap(localizationMap: Record<string, string>): Map<string, string> {
-        const reverse = new Map<string, string>();
-        Object.entries(localizationMap).forEach(([key, val]) => reverse.set(val, key));
-        return reverse;
     }
 
     private static async getCampaignDetails(resourceDetails: any): Promise<any> {
@@ -77,24 +70,22 @@ export class TemplateClass {
         sheetData: any[],
         mobileKey: string,
         campaignNumber: string,
-        resourceDetails: any,
-        reverseMap: Map<string, string>
+        resourceDetails: any
     ): Promise<any[]> {
         const userMap : any = Object.fromEntries(sheetData.map((row: any) => [row?.[mobileKey], row]).filter(([m]) => m));
 
         const existing = await getRelatedDataWithCampaign(resourceDetails?.type, campaignNumber);
         const existingMap : any = {};
         for(const user of existing){
-            existingMap[user?.data?.[reverseMap.get(mobileKey) || mobileKey]] = user;
+            existingMap[user?.data?.[mobileKey]] = user;
         }
 
         const newEntries = [];
         for (const [mobile, row] of Object.entries(userMap)) {
             if (existingMap?.[String(mobile)]) continue;
-            const data = Object.fromEntries(Object.entries(row as any).map(([k, v]) => [reverseMap.get(k) || k, v]));
             newEntries.push({
                 campaignNumber,
-                data,
+                data : row,
                 type: resourceDetails?.type,
                 uniqueIdentifier: mobile,
                 uniqueIdAfterProcess: null,
@@ -158,9 +149,9 @@ export class TemplateClass {
                     const existing = mobileToCampaignMap[mobile];
                     if (existing) {
                         existing.status = dataRowStatuses.completed;
-                        existing.data["UserService Uuids"] = serviceUuid;
-                        existing.data["UserName"] = encrypt(user?.user?.userName);
-                        existing.data["Password"] = encrypt(user?.user?.password);
+                        existing.data["userServiceUuids"] = serviceUuid;
+                        existing.data["userUserName"] = encrypt(user?.user?.userName);
+                        existing.data["userPassword"] = encrypt(user?.user?.password);
                         existing.uniqueIdAfterProcess = serviceUuid;
                         successfulUsers.push(existing);
                     }
@@ -182,7 +173,7 @@ export class TemplateClass {
     private static buildMobileNumberToCampaignUserMap(users: any[]) {
         const map: Record<string, any> = {};
         for (const user of users) {
-            const mobile = String(user?.data?.["HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER"]);
+            const mobile = String(user?.data?.["userPhoneNumber"]);
             map[mobile] = user;
         }
         return map;

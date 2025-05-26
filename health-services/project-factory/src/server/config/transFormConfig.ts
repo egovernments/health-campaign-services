@@ -14,16 +14,16 @@ export const transformConfigs: any = {
         fields: {
             "$user.name": {
                 type: "string",
-                source: { header: "HCM_ADMIN_CONSOLE_USER_NAME" }
+                source: { uniqueKey: "userPrefferedName" }
             },
             "$user.mobileNumber": {
                 type: "string",
-                source: { header: "HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER" }
+                source: { uniqueKey: "userPhoneNumber" }
             },
             "$user.roles": {
                 type: "array",
                 source: {
-                    header: "HCM_ADMIN_CONSOLE_USER_ROLE",
+                    uniqueKey: "userRoles",
                     delimiter: ","
                 },
                 items: {
@@ -37,11 +37,11 @@ export const transformConfigs: any = {
             },
             "$user.userName": {
                 type: "string",
-                source: { header: "UserName" }
+                source: { uniqueKey: "userUserName" }
             },
             "$user.password": {
                 type: "string",
-                source: { header: "Password" }
+                source: { uniqueKey: "userPassword" }
             },
             "$user.tenantId": {
                 type: "string",
@@ -54,7 +54,7 @@ export const transformConfigs: any = {
             "$employeeType": {
                 type: "string",
                 source: {
-                    header: "HCM_ADMIN_CONSOLE_USER_EMPLOYMENT_TYPE",
+                    uniqueKey: "userEmployementType",
                     transform: {
                         mapping: {
                             Permanent: "PERMANENT",
@@ -67,7 +67,7 @@ export const transformConfigs: any = {
             "$jurisdictions": {
                 type: "array",
                 source: {
-                    header: "HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY",
+                    uniqueKey: "boundaryCodes",
                     delimiter: ","
                 },
                 items: {
@@ -98,7 +98,7 @@ export const transformConfigs: any = {
             },
             "$code": {
                 type: "string",
-                source: { header: "UserName" }
+                source: { uniqueKey: "userUserName" }
             }
         },
         transFormSingle: "transformEmployee",
@@ -228,7 +228,7 @@ export class DataTransformer {
         }
 
         if (fieldConfig.source) {
-            const rawValue = rowData[fieldConfig.source.header] ?? null;  // Change empty string to null
+            const rawValue = rowData[fieldConfig.source.uniqueKey] ?? null;  // Change empty string to null
 
             if (fieldConfig.type === "array") {
                 const parts = rawValue
@@ -330,7 +330,7 @@ export class DataTransformer {
                 else {
                     item.user.password = config.user.userDefaultPassword;
                 }
-                if(!item?.user?.userName || item?.user?.userName === "undefined" || item?.user?.userName.trim() === "")
+                if(!item?.code || item?.code === "undefined" || item?.code.trim() === "")
                 {
                     item.user.userName = result?.idResponses?.[curr]?.id;
                     item.code = result?.idResponses?.[curr]?.id;

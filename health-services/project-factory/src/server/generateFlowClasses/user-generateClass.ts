@@ -26,14 +26,14 @@ export class TemplateClass {
         // Localized keys for sheet names and column headers
         const templateSheetForReadMe = templateConfig?.sheets?.[0];
         const readMeHeaderKey = Object.keys(templateSheetForReadMe?.schema?.properties || {})[0];
-        const localizedReadMeHeader = getLocalizedName(readMeHeaderKey, localizationMap);
+        const readMeColumnUniqueKey = templateSheetForReadMe?.schema?.properties?.[readMeHeaderKey]?.uniqueKey || getLocalizedName(readMeHeaderKey, localizationMap);
         const readMeSheetName = getLocalizedName(templateSheetForReadMe?.sheetName, localizationMap);
         const boundarySheetName = getLocalizedName("HCM_ADMIN_CONSOLE_BOUNDARY_DATA", localizationMap);
         const userListSheetName = getLocalizedName("HCM_ADMIN_CONSOLE_USER_LIST", localizationMap);
 
         // Prepare ReadMe sheet
         const readMeConfig = await getReadMeConfig(tenantId, type);
-        const readMeData = this.getReadMeData(readMeConfig, localizedReadMeHeader, localizationMap);
+        const readMeData = this.getReadMeData(readMeConfig, readMeColumnUniqueKey, localizationMap);
 
         // Prepare Boundary sheet
         const boundaryData = await this.getBoundaryData(campaignDetails, localizationMap);
@@ -50,8 +50,8 @@ export class TemplateClass {
             }
 
             localizedData["#status#"] = "CREATED";
-            localizedData[getLocalizedName("UserName", localizationMap)] = decrypt(rawData["UserName"]);
-            localizedData[getLocalizedName("Password", localizationMap)] = decrypt(rawData["Password"]);
+            localizedData["userUserName"] = rawData["userUserName"] ? decrypt(rawData["userUserName"]) : null;
+            localizedData["userPassword"] = rawData["userPassword"] ? decrypt(rawData["userPassword"]) : null;            
 
             return localizedData;
         });
@@ -61,7 +61,7 @@ export class TemplateClass {
             [readMeSheetName]: {
                 data: readMeData,
                 dynamicColumns: {
-                    [localizedReadMeHeader]: { adjustHeight: true, width: 120 }
+                    [readMeColumnUniqueKey]: { adjustHeight: true, width: 120 }
                 }
             },
             [boundarySheetName]: {
