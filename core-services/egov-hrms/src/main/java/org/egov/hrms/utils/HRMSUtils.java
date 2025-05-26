@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Random;
 
 import org.egov.hrms.web.contract.EmployeeSearchCriteria;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
@@ -24,6 +25,7 @@ public class HRMSUtils {
 	@Value("${egov.hrms.max.mobile.number}")
 	private String maxMobileNumber;
 	
+	private Random random = new Random();
 	/**
 	 * Generates random password for the user to login. Process:
 	 * 1. Takes a list of parameters for password
@@ -69,10 +71,10 @@ public class HRMSUtils {
 	}
 
 	public String generateMobileNumber() {
-		Random random = new Random();
-		int min = Integer.parseInt(minMobileNumber);
-		int max = Integer.parseInt(maxMobileNumber);
-		int mobileNumber = random.nextInt(max - min + 1) + min;
-		return Integer.toString(mobileNumber);
+		// mobile number greater that 10 digits needs to be handled as long
+		long min = Long.parseLong(minMobileNumber);
+		long max = Long.parseLong(maxMobileNumber);
+		long mobileNumber = random.nextLong(max - min + 1) + min;
+		return Long.toString(mobileNumber);
 	}
 }
