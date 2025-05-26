@@ -4085,6 +4085,21 @@ export function validateUsernamesFormat(data: any[], localizationMap: any) {
   return errors;
 }
 
+export function getAllColumnsFromSchema(schema: any) {
+  const properties = schema?.properties;
+  const columns = Object.keys(properties);
+  for (const header of Object.keys(properties)) {
+    if (properties?.[header]?.multiSelectDetails) {
+      const maxColumns = properties?.[header]?.multiSelectDetails?.maxSelections;
+      for (let i = 1; i <= maxColumns; i++) {
+        columns.push(`${header}_MULTISELECT_${i}`);
+      }
+    }
+  }
+
+  return columns;
+}
+
 
 export {
   generateProcessedFileAndPersist,

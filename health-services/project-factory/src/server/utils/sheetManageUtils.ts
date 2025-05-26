@@ -176,14 +176,14 @@ async function processRequest(ResourceDetails: any, workBook: any, templateConfi
     }
     try {
         const { TemplateClass } = await import(classFilePath);
-        const sheetMap: SheetMap = await TemplateClass.process(ResourceDetails, wholeSheetData, localizationMap);
+        const sheetMap: SheetMap = await TemplateClass.process(ResourceDetails, wholeSheetData, localizationMap, templateConfig);
         mergeSheetMapAndSchema(sheetMap, templateConfig, localizationMap);
         for (const sheet of templateConfig?.sheets) {
-            const sheetName = getLocalizedName(sheet?.sheetName, localizationMap);
-            if(!sheetMap?.[sheetName]?.data?.length) continue;
+            const sheetName = sheet?.sheetName;
+            if (!sheetMap?.[sheetName]?.data?.length) continue;
             const sheetData: any = sheetMap?.[sheetName];
-            const worksheet = getOrCreateWorksheet(workBook, sheetName);
-            await fillSheetMapInWorkbook(worksheet, sheetData, true);
+            const worksheet = getOrCreateWorksheet(workBook, getLocalizedName(sheetName, localizationMap));
+            await fillSheetMapInWorkbook(worksheet, sheetData, true, localizationMap);
             const schema = sheet?.schema;
             const columnsToFreeze = Object.keys(sheetData?.dynamicColumns || {}).filter(
                 (columnName) => sheetData.dynamicColumns[columnName]?.freezeColumn
@@ -264,11 +264,11 @@ async function createBasicTemplateViaConfig(responseToSend: any, templateConfig:
             const sheetMap: SheetMap = await TemplateClass.generate(templateConfig, responseToSend, localizationMap);
             mergeSheetMapAndSchema(sheetMap, templateConfig, localizationMap);
             for (const sheet of templateConfig?.sheets) {
-                const sheetName = getLocalizedName(sheet?.sheetName, localizationMap);
+                const sheetName = sheet?.sheetName;
                 logger.info(`Generating sheet ${sheetName}`);
                 const sheetData: any = sheetMap?.[sheetName];
-                const worksheet = getOrCreateWorksheet(newWorkbook, sheetName);
-                await fillSheetMapInWorkbook(worksheet, sheetData);
+                const worksheet = getOrCreateWorksheet(newWorkbook, getLocalizedName(sheetName, localizationMap));
+                await fillSheetMapInWorkbook(worksheet, sheetData, false, localizationMap);
                 const schema = sheet?.schema;
                 const columnsToFreeze = Object.keys(sheetData?.dynamicColumns || {}).filter(
                     (columnName) => sheetData.dynamicColumns[columnName]?.freezeColumn
@@ -301,51 +301,38 @@ async function createBasicTemplateViaConfig(responseToSend: any, templateConfig:
 }
 
 function mergeSheetMapAndSchema(sheetMap: SheetMap, templateConfig: any, localizationMap: any) {
-    const reverseLocalizationMap = new Map<string, string>();
-    const localizationCache = new Map<string, string>();
-
-    for (const [key, value] of Object.entries(localizationMap)) {
-        reverseLocalizationMap.set(String(value), key);
-    }
 
     const sheetsProcessed = new Set<string>();
 
     // Preprocess sheets in templateConfig
     for (const sheet of templateConfig?.sheets || []) {
         const rawSheetName = sheet?.sheetName;
-        const localizedSheetName = localizationCache.get(rawSheetName)
-            || getLocalizedName(rawSheetName, localizationMap);
-        localizationCache.set(rawSheetName, localizedSheetName);
 
         const dynamicCols = mergeAndGetDynamicColumns(
-            sheetMap?.[localizedSheetName]?.dynamicColumns ?? null,
-            sheet?.schema,
-            localizationMap
+            sheetMap?.[rawSheetName]?.dynamicColumns ?? null,
+            sheet?.schema
         );
 
-        sheetMap[localizedSheetName] = sheetMap[localizedSheetName] || { data: [] };
-        sheetMap[localizedSheetName].dynamicColumns = dynamicCols;
+        sheetMap[rawSheetName] = sheetMap[rawSheetName] || { data: [] };
+        sheetMap[rawSheetName].dynamicColumns = dynamicCols;
 
-        sheetsProcessed.add(localizedSheetName);
+        sheetsProcessed.add(rawSheetName);
     }
 
     // Post-process unmatched sheetMap entries
     for (const [sheetName, sheetData] of Object.entries(sheetMap)) {
         if (sheetsProcessed.has(sheetName)) continue;
 
-        const dynamicCols = mergeAndGetDynamicColumns(sheetData?.dynamicColumns, {}, localizationMap);
+        const dynamicCols = mergeAndGetDynamicColumns(sheetData?.dynamicColumns, {});
         sheetMap[sheetName].dynamicColumns = dynamicCols;
 
         const currentSchema: any = { properties: {} };
         for (const column of Object.keys(dynamicCols)) {
-            const originalKey = reverseLocalizationMap.get(column) || column;
-            currentSchema.properties[originalKey] = dynamicCols[column];
+            currentSchema.properties[column] = dynamicCols[column];
         }
 
-        const rawSheetName = reverseLocalizationMap.get(sheetName) || sheetName;
-
         templateConfig.sheets.push({
-            sheetName: rawSheetName,
+            sheetName: sheetName,
             schema: currentSchema
         });
 
@@ -355,7 +342,7 @@ function mergeSheetMapAndSchema(sheetMap: SheetMap, templateConfig: any, localiz
 
 
 
-function mergeAndGetDynamicColumns(dynamicColumns: any, schema: any, localizationMap: any): any {
+function mergeAndGetDynamicColumns(dynamicColumns: any, schema: any): any {
     if (!dynamicColumns) dynamicColumns = {};
 
     let maxOrderNumber = Number.MAX_SAFE_INTEGER;
@@ -386,24 +373,22 @@ function mergeAndGetDynamicColumns(dynamicColumns: any, schema: any, localizatio
 
     for (const propertyKey in schema?.properties) {
         const property = schema.properties[propertyKey];
-        const localizedKey = getLocalizedName(propertyKey, localizationMap);
 
         // Process multiSelectDetails if any
         if (property?.multiSelectDetails?.maxSelections) {
             const max = property.multiSelectDetails.maxSelections;
-            const parentOrder = dynamicColumns[localizedKey]?.orderNumber ?? property.orderNumber ?? maxOrderNumber;
+            const parentOrder = dynamicColumns[propertyKey]?.orderNumber ?? property.orderNumber ?? maxOrderNumber;
 
             for (let i = 1; i <= max; i++) {
                 const multiKey = `${propertyKey}_MULTISELECT_${i}`;
-                const localizedMultiKey = getLocalizedName(multiKey, localizationMap);
-                dynamicColumns[localizedMultiKey] ??= {};
-                assignProps(dynamicColumns[localizedMultiKey], property, true, i, parentOrder);
+                dynamicColumns[multiKey] ??= {};
+                assignProps(dynamicColumns[multiKey], property, true, i, parentOrder);
             }
         }
 
         // Process base column
-        dynamicColumns[localizedKey] ??= {};
-        assignProps(dynamicColumns[localizedKey], property);
+        dynamicColumns[propertyKey] ??= {};
+        assignProps(dynamicColumns[propertyKey], property);
     }
 
     // Return sorted by orderNumber
@@ -415,9 +400,9 @@ function mergeAndGetDynamicColumns(dynamicColumns: any, schema: any, localizatio
 
 
 
-async function fillSheetMapInWorkbook(worksheet: ExcelJS.Worksheet, sheetData: any, isProcessedFile = false) {
-    const columnNameToIndexMap = processDynamicColumns(worksheet, sheetData, isProcessedFile);
-    addDataToWorksheet(worksheet, sheetData, columnNameToIndexMap);
+async function fillSheetMapInWorkbook(worksheet: ExcelJS.Worksheet, sheetData: any, isProcessedFile = false, localizationMap: any) {
+    const columnNameToIndexMap = processDynamicColumns(worksheet, sheetData, isProcessedFile, localizationMap);
+    addDataToWorksheet(worksheet, sheetData, columnNameToIndexMap, localizationMap);
     logger.info(`Added data to sheet ${worksheet.name}`);
 }
 
@@ -430,7 +415,7 @@ function getOrCreateWorksheet(workbook: ExcelJS.Workbook, sheetName: string) {
     return worksheet;
 }
 
-function processDynamicColumns(worksheet: ExcelJS.Worksheet, sheetData: any, isProcessedFile = false) {
+function processDynamicColumns(worksheet: ExcelJS.Worksheet, sheetData: any, isProcessedFile = false, localizationMap: any) {
     const columnNameToIndexMap: Record<string, number> = {};
 
     if (!sheetData.dynamicColumns) return columnNameToIndexMap;
@@ -439,11 +424,12 @@ function processDynamicColumns(worksheet: ExcelJS.Worksheet, sheetData: any, isP
 
     Object.keys(sheetData.dynamicColumns).forEach((columnName, index) => {
         const columnIndex = index + 1;
+        const localisedColumnName = getLocalizedName(columnName,localizationMap);
         columnNameToIndexMap[columnName] = columnIndex;
 
         // Set header cell value
         const headerCell = headerRow.getCell(columnIndex);
-        headerCell.value = columnName;
+        headerCell.value = localisedColumnName;
 
         // Apply column-level props (like width/hidden) and cell-level styles to header
         applyColumnProperties(headerRow, headerCell, sheetData.dynamicColumns[columnName],isProcessedFile);
@@ -482,7 +468,8 @@ function applyColumnProperties(row: ExcelJS.Row, cell: ExcelJS.Cell, columnProps
 function addDataToWorksheet(
     worksheet: ExcelJS.Worksheet,
     sheetData: any,
-    columnNameToIndexMap: Record<string, number>
+    columnNameToIndexMap: Record<string, number>,
+    localizationMap: any
 ) {
     // Clear all rows starting from row 2 (preserve first row)
     for (let i = worksheet.rowCount; i > 1; i--) {
@@ -490,7 +477,7 @@ function addDataToWorksheet(
     }
 
     // Insert column headers in row 2
-    const headers = Object.keys(columnNameToIndexMap);
+    const headers : any[] = getLocalizedHeaders(Object.keys(columnNameToIndexMap) || [], localizationMap);
 
     const newRows = sheetData.data.map((rowData: any) =>
         headers.map(columnName => rowData[columnName] ?? '')
