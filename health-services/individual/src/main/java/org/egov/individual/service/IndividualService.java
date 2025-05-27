@@ -169,6 +169,7 @@ public class IndividualService {
                             .encrypt(request, validIndividuals, "IndividualEncrypt", isBulk);
                     individualRepository.save(encryptedIndividualList,
                             properties.getSaveIndividualTopic());
+                    // update beneficiary ids in idgen
                     idGenUtil.updateBeneficiaryIds(beneficiaryIds, validIndividuals.get(0).getTenantId(), request.getRequestInfo());
                 }
             }

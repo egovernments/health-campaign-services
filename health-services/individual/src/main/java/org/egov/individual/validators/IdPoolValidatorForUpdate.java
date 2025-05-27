@@ -11,7 +11,7 @@ import org.egov.common.models.idgen.IdRecord;
 import org.egov.common.models.individual.Identifier;
 import org.egov.common.models.individual.Individual;
 import org.egov.common.models.individual.IndividualBulkRequest;
-import org.egov.common.service.IdGenService;
+import org.egov.common.service.BeneficiaryIdGenService;
 import org.egov.common.validator.Validator;
 import org.egov.individual.config.IndividualProperties;
 import org.egov.tracer.model.CustomException;
@@ -22,59 +22,98 @@ import org.springframework.util.CollectionUtils;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.individual.Constants.*;
 
+/**
+ * Validator class for validating beneficiary IDs during update operations on Individual records.
+ * Ensures that:
+ * 1. The provided beneficiary ID exists.
+ * 2. The ID is associated with the user performing the update.
+ */
 @Component
 @Slf4j
 @AllArgsConstructor
-@Order(value = 12)
+@Order(value = 12) // Determines execution order among multiple validators
 public class IdPoolValidatorForUpdate implements Validator<IndividualBulkRequest, Individual> {
 
-    private final IdGenService idGenService;
-
+    private final BeneficiaryIdGenService beneficiaryIdGenService;
     private final IndividualProperties individualProperties;
 
+    /**
+     * Validates each individual in the bulk request for a valid and authorized beneficiary ID.
+     *
+     * @param request Bulk request containing individuals and request info
+     * @return Map of individuals with their corresponding validation errors (if any)
+     */
     @Override
     public Map<Individual, List<Error>> validate(IndividualBulkRequest request) {
         Map<Individual, List<Error>> errorDetailsMap = new HashMap<>();
+
+        // Get the ID of the currently logged-in user
         String userId = request.getRequestInfo().getUserInfo().getUuid();
+
+        // Skip validation if the feature is disabled in config
         if (!individualProperties.getBeneficiaryIdValidationEnabled()) return errorDetailsMap;
 
-        log.info("validating beneficiary id for update");
+        log.info("Validating beneficiary ID for update");
+
         List<Individual> individuals = request.getIndividuals();
 
+        // Retrieve existing ID records for the individuals
         Map<String, IdRecord> idRecordMap = IdPoolValidatorForCreate
-                .getIdRecords(idGenService, individuals, null, request.getRequestInfo());
+                .getIdRecords(beneficiaryIdGenService, individuals, null, request.getRequestInfo());
 
-        if (!individuals.isEmpty()) {
-            for (Individual individual : individuals) {
-               if (!CollectionUtils.isEmpty(individual.getIdentifiers())) {
-                   Identifier identifier = individual.getIdentifiers().stream()
-                           .filter(id -> id.getIdentifierType().contains(UNIQUE_BENEFICIARY_ID))
-                           .findFirst().orElse(null);
-                   if (identifier != null && StringUtils.isNotBlank(identifier.getIdentifierId())) {
-                       if (!idRecordMap.containsKey(identifier.getIdentifierId())) {
-                           updateError(errorDetailsMap, individual, INVALID_BENEFICIARY_ID , "Invalid beneficiary id");
-                       } else if (!userId.equals(idRecordMap.get(identifier.getIdentifierId()).getLastModifiedBy())) {
-                           updateError(errorDetailsMap, individual,  INVALID_USER_ID, "This beneficiary id is dispatched to another user");
-                       }
-                   }
-               }
+        // Iterate through individuals and validate beneficiary IDs
+        for (Individual individual : individuals) {
+            if (!CollectionUtils.isEmpty(individual.getIdentifiers())) {
+
+                // Find the unique beneficiary ID (if present)
+                Identifier identifier = individual.getIdentifiers().stream()
+                        .filter(id -> id.getIdentifierType().contains(UNIQUE_BENEFICIARY_ID))
+                        .findFirst().orElse(null);
+
+                if (identifier != null && StringUtils.isNotBlank(identifier.getIdentifierId())) {
+                    String beneficiaryId = identifier.getIdentifierId();
+
+                    // Check if ID exists in the fetched ID records
+                    if (!idRecordMap.containsKey(beneficiaryId)) {
+                        updateError(errorDetailsMap, individual, INVALID_BENEFICIARY_ID, "Invalid beneficiary id");
+                    }
+                    // Ensure that the ID is associated with the requesting user
+                    else if (!userId.equals(idRecordMap.get(beneficiaryId).getLastModifiedBy())) {
+                        updateError(errorDetailsMap, individual, INVALID_USER_ID, "This beneficiary id is dispatched to another user");
+                    }
+                }
             }
         }
+
         return errorDetailsMap;
     }
 
-    private static void updateError(Map<Individual, List<Error>> errorDetailsMap, Individual individual ,  String errorCode , String errorMessage) {
+    /**
+     * Helper method to add an error to the error map for a specific individual.
+     *
+     * @param errorDetailsMap Map tracking individuals and their validation errors
+     * @param individual      The individual for whom the error occurred
+     * @param errorCode       The error code
+     * @param errorMessage    The human-readable error message
+     */
+    private static void updateError(Map<Individual, List<Error>> errorDetailsMap, Individual individual,
+                                    String errorCode, String errorMessage) {
 
-
+        // Default error message if not provided
         if (StringUtils.isEmpty(errorCode) || StringUtils.isEmpty(errorMessage)) {
             errorCode = INVALID_BENEFICIARY_ID;
             errorMessage = "Invalid beneficiary id";
         }
-        Error error = Error.builder().errorMessage(errorMessage).errorCode(errorCode)
+
+        // Build error object
+        Error error = Error.builder()
+                .errorMessage(errorMessage)
+                .errorCode(errorCode)
                 .type(Error.ErrorType.NON_RECOVERABLE)
-                .exception(new CustomException(errorCode, errorMessage)).build();
+                .exception(new CustomException(errorCode, errorMessage))
+                .build();
+
+        // Add error to the individual's error map
         populateErrorDetails(individual, error, errorDetailsMap);
     }
-
-
 }

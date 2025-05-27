@@ -39,23 +39,6 @@ public class IdGenerationController {
 
 	@Autowired
 	IdGenProducer producer;
-	/**
-	 * description: generate unique ID for property
-	 * 
-	 * @param idGenerationRequest
-	 * @return IdGenerationResponse
-	 * @throws Exception
-	 */
-	@RequestMapping(method = RequestMethod.POST, path = "_generate")
-	public IdGenerationResponse generateIdResponse(
-			@RequestBody @Valid IdGenerationRequest idGenerationRequest)
-			throws Exception {
-
-		IdGenerationResponse idGenerationResponse = idGenerationService
-				.generateIdResponse(idGenerationRequest);
-
-		return idGenerationResponse;
-	}
 
 	/**
 	 * description: generate unique ID for property

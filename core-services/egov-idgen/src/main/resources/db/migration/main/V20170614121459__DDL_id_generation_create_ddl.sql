@@ -1,4 +1,4 @@
-CREATE TABLE id_generator
+CREATE TABLE IF NOT EXISTS id_generator
 (
     id bigserial NOT NULL,
     idname character varying(200) NOT NULL,

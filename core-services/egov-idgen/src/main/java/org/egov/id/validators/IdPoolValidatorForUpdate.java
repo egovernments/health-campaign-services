@@ -1,6 +1,5 @@
 package org.egov.id.validators;
 
-
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -30,53 +29,81 @@ import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 public class IdPoolValidatorForUpdate implements Validator<IdRecordBulkRequest, IdRecord> {
 
     private final PropertiesManager propertiesManager;
-
     private final IdRepository idRepo;
 
-
+    /**
+     * Validates a bulk request for updating IdRecords.
+     * Checks that:
+     * - ID validation is enabled via properties.
+     * - Each IdRecord has a valid status (matching enum).
+     * - The ID string is present and exists in the repository.
+     * Returns a map of IdRecords to their respective validation errors.
+     *
+     * @param request Bulk request containing IdRecords to validate
+     * @return Map of IdRecords to List of validation errors
+     */
     @Override
     public Map<IdRecord, List<Error>> validate(IdRecordBulkRequest request) {
         Map<IdRecord, List<Error>> errorDetailsMap = new HashMap<>();
+
+        // Skip validation if disabled via configuration
         if (!propertiesManager.getIdValidationEnabled()) return errorDetailsMap;
 
-        log.info("validating id for update");
+        log.info("Validating IDs for update");
+
         List<IdRecord> idRecords = request.getIdRecords();
 
+        // Assuming all records have the same tenantId, fetch tenantId from first record
         String tenantId = idRecords.get(0).getTenantId();
-        Map<String, IdRecord> idRecordMap = idRepo.findByIDsAndStatus(
-                idRecords.stream().map(idRecord ->  idRecord.getId()).collect(Collectors.toList()),
-                null,
-                tenantId
-        ).stream().collect(Collectors.toMap(EgovModel::getId , d -> d));
 
+        // Fetch existing IdRecords from DB based on IDs and tenantId
+        Map<String, IdRecord> idRecordMap = idRepo.findByIDsAndStatus(
+                idRecords.stream()
+                        .map(IdRecord::getId)
+                        .collect(Collectors.toList()),
+                null,  // Status filter is null, i.e., fetch irrespective of status
+                tenantId
+        ).stream().collect(Collectors.toMap(EgovModel::getId, record -> record));
+
+        // Validate each IdRecord in the request
         if (!idRecords.isEmpty()) {
             for (IdRecord idRecord : idRecords) {
                 try {
-                    IdStatus status = IdStatus.valueOf(idRecord.getStatus().toUpperCase());
-                    // valid status, you can now use the enum if needed
+                    // Validate if the status string corresponds to a valid enum constant
+                    IdStatus.valueOf(idRecord.getStatus().toUpperCase());
                 } catch (IllegalArgumentException e) {
-                    // Invalid status value
+                    // Invalid status found; add an error entry
                     updateError(errorDetailsMap, idRecord);
                 }
-                if (!StringUtils.isNotBlank(idRecord.getId())) {
-                    if (!idRecordMap.containsKey(idRecord.getId())) {
-                        updateError(errorDetailsMap, idRecord);
-                    }
 
+                // Validate that the ID is not blank and exists in the repository
+                if (!StringUtils.isNotBlank(idRecord.getId()) || !idRecordMap.containsKey(idRecord.getId())) {
+                    updateError(errorDetailsMap, idRecord);
                 }
             }
         }
         return errorDetailsMap;
     }
 
+    /**
+     * Helper method to update the error map with an INVALID_ID error for the given IdRecord.
+     *
+     * @param errorDetailsMap Map tracking errors for IdRecords
+     * @param idRecord The IdRecord that failed validation
+     */
     private static void updateError(Map<IdRecord, List<Error>> errorDetailsMap, IdRecord idRecord) {
         String errorCode = "INVALID_ID";
         String errorMessage = "Invalid id";
-        Error error = Error.builder().errorMessage(errorMessage).errorCode(errorCode)
+
+        // Create a non-recoverable error with the specified code and message
+        Error error = Error.builder()
+                .errorMessage(errorMessage)
+                .errorCode(errorCode)
                 .type(Error.ErrorType.NON_RECOVERABLE)
-                .exception(new CustomException(errorCode, errorMessage)).build();
+                .exception(new CustomException(errorCode, errorMessage))
+                .build();
+
+        // Populate the error details map with this error for the given IdRecord
         populateErrorDetails(idRecord, error, errorDetailsMap);
     }
-
-
 }

@@ -102,7 +102,15 @@ public class IdGenerationService {
     }
 
 
-
+    /**
+     * Generates a pool of IDs in batches for multiple tenants as specified in the request.
+     * Validates each batch, generates IDs according to the configured ID format,
+     * persists generated IDs to Kafka for asynchronous processing, and returns a detailed feedback list.
+     *
+     * @param idPoolGenerationRequest the request containing multiple batch requests with tenant and batch size info
+     * @return IDPoolGenerationResponse containing success or error feedback for each batch processed
+     * @throws CustomException if validation fails or any processing error occurs
+     */
     public IDPoolGenerationResponse generateIDPool(IDPoolGenerationRequest idPoolGenerationRequest) {
         RequestInfo requestInfo = idPoolGenerationRequest.getRequestInfo();
         List<BatchRequest> batchRequestList = idPoolGenerationRequest.getBatchRequestList();
@@ -129,6 +137,7 @@ public class IdGenerationService {
             try {
                 Integer originalBatchSize = batch.getBatchSize();
 
+                // Validate batch size must be > 0
                 if (originalBatchSize <= 0) {
                     log.error("Validation Error - Please make sure the batch size is greater than 0");
                     throw new CustomException("Validation Error:", "Please make sure the batch size is greater than 0");
@@ -136,13 +145,19 @@ public class IdGenerationService {
 
                 log.info("Fetching ID format for tenant: {}", tenantId);
                 String idFormat = fetchIdFormat(tenantId, originalBatchSize, requestInfo);
+
+                // Adjust batch size if ID format involves randomness (e.g. random suffix)
                 Integer adjustedBatchSize = adjustBatchSizeIfRandom(originalBatchSize, idFormat);
                 log.info("Adjusted batch size: {} (original: {})", adjustedBatchSize, originalBatchSize);
 
                 IdRequest finalIdRequest = new IdRequest(idPoolName, tenantId, null, adjustedBatchSize);
+
+                // Generate IDs based on adjusted batch size and ID format
                 List<String> generatedIds = generateIds(finalIdRequest, requestInfo);
 
                 log.info("Successfully generated {} IDs for tenant {}", generatedIds.size(), tenantId);
+
+                // Persist generated IDs asynchronously to Kafka for downstream processing
                 persistToKafka(requestInfo, generatedIds, tenantId);
                 log.info("Successfully pushed IDs to Kafka for tenant {}", tenantId);
 
@@ -161,7 +176,17 @@ public class IdGenerationService {
         return response;
     }
 
-
+    /**
+     * Fetches the ID format string for the specified tenant and batch size.
+     * Validates the configured pool name and handles exceptions from the ID generation service.
+     *
+     * @param tenantId the tenant identifier
+     * @param batchSize the requested batch size of IDs
+     * @param requestInfo contextual request info for audit and tracing
+     * @return the ID format string configured for the tenant
+     * @throws CustomException if configuration is missing or fetching format fails
+     * @throws IllegalArgumentException if fetched ID format is null or empty
+     */
     private String fetchIdFormat(String tenantId, Integer batchSize, RequestInfo requestInfo) {
         log.info("Fetching ID format for tenantId={}, batchSize={}", tenantId, batchSize);
 
@@ -189,6 +214,14 @@ public class IdGenerationService {
         return idFormat;
     }
 
+    /**
+     * Adjusts the batch size by adding a buffer if the ID format contains a random pattern.
+     * This compensates for possible duplicates or retries in ID generation.
+     *
+     * @param batchSize the original requested batch size
+     * @param idFormat the ID format string to check for randomness
+     * @return adjusted batch size, increased by the configured buffer percentage if random pattern detected, otherwise original batch size
+     */
     private Integer adjustBatchSizeIfRandom(Integer batchSize, String idFormat) {
         log.info("Adjusting batch size if ID format is random. Batch size: {}, ID format: {}", batchSize, idFormat);
 
@@ -203,6 +236,15 @@ public class IdGenerationService {
         return batchSize;
     }
 
+    /**
+     * Generates a list of IDs by invoking the underlying ID generation service.
+     * Wraps exceptions to provide consistent error handling.
+     *
+     * @param idRequest the ID request containing pool name, tenant, and batch size details
+     * @param requestInfo contextual request info for auditing and logging
+     * @return list of generated ID strings
+     * @throws RuntimeException if ID generation fails
+     */
     private List<String> generateIds(IdRequest idRequest, RequestInfo requestInfo) {
         try {
             return generateIdFromIdRequest(idRequest, requestInfo);
@@ -212,6 +254,14 @@ public class IdGenerationService {
         }
     }
 
+    /**
+     * Persists generated IDs asynchronously by sending them in batches to a configured Kafka topic.
+     * Uses a buffer of maximum batch size for efficiency.
+     *
+     * @param requestInfo contextual request info for audit fields in generated ID records
+     * @param generatedIds list of generated ID strings to persist
+     * @param tenantId tenant identifier for which IDs are generated
+     */
     private void persistToKafka(RequestInfo requestInfo, List<String> generatedIds, String tenantId) {
         log.info("Starting Kafka persistence for generated IDs. Tenant ID: {}, Total IDs: {}", tenantId, generatedIds.size());
 
@@ -233,6 +283,7 @@ public class IdGenerationService {
             buffer.add(idRecord);
             log.info("Buffered ID [{}] for Kafka persistence.", generatedId);
 
+            // Send batch when buffer is full or last element reached
             if (buffer.size() == MAX_BATCH_SIZE || i == generatedIds.size() - 1) {
                 log.info("Sending batch of {} IDs to Kafka topic: {}", buffer.size(), propertiesManager.getSaveIdPoolTopic());
                 sendBatch(propertiesManager.getSaveIdPoolTopic(), new ArrayList<>(buffer));
@@ -243,8 +294,13 @@ public class IdGenerationService {
         log.info("Completed Kafka persistence for {} generated IDs.", generatedIds.size());
     }
 
-
-
+    /**
+     * Sends a batch of ID records to the specified Kafka topic.
+     * Logs errors on failure and can be extended to support retries or dead-letter queues.
+     *
+     * @param topic the Kafka topic to send the message to
+     * @param entries the list of ID records to send as payload
+     */
     private void sendBatch(String topic, List<IdRecord> entries) {
         try {
             Map<String, Object> payload = new HashMap<>();
@@ -256,7 +312,6 @@ public class IdGenerationService {
             // Optional: Add retry logic or DLQ fallback here
         }
     }
-
 
     /**
      * Description : This method to generate id

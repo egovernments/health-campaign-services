@@ -116,9 +116,11 @@ public class IndividualRepository extends GenericRepository<Individual> {
                 String individualId = identifiers.stream().findAny().get().getIndividualId();
                 String individualClientRefId = identifiers.stream().findAny().get().getIndividualClientReferenceId();
                 if (!ObjectUtils.isEmpty(individualId)) {
+                    // If individualId is present, use it to filter the query
                     query = query.replace(" tenantId=:tenantId ", " tenantId=:tenantId AND id=:individualId ");
                     paramsMap.put("individualId", individualId);
                 } else {
+                    // If individualClientReferenceId is present, use it to filter the query
                     query = query.replace(" tenantId=:tenantId ", " tenantId=:tenantId AND clientReferenceId=:individualClientReferenceId ");
                     paramsMap.put("individualClientReferenceId", individualClientRefId);
                 }
@@ -344,8 +346,10 @@ public class IndividualRepository extends GenericRepository<Individual> {
                 indServerGenIdParamMap.put("clientReferenceId", individual.getClientReferenceId());
                 indServerGenIdParamMap.put("isDeleted", includeDeleted);
                 List<Address> addresses = getAddressForIndividual(individual.getId(), includeDeleted);
+                // Constructing the base query for identifiers
                 String baseQuery = "SELECT * FROM individual_identifier ii WHERE ii.individualId =:individualId ";
                 if (!ObjectUtils.isEmpty(individual.getId()) && !ObjectUtils.isEmpty(individual.getClientReferenceId())) {
+                    // If both individualId and clientReferenceId are present, use them in the query
                     baseQuery = "SELECT * FROM individual_identifier ii WHERE (ii.individualId =:individualId OR ii.individualClientReferenceId=:clientReferenceId) ";
                 }
                 String individualIdentifierQuery = getQuery(baseQuery, includeDeleted);

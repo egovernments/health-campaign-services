@@ -10,12 +10,6 @@ The egov-idgen service generates new id based on the id formats passed. The appl
 
 - egov-mdms-service
 
-### Swagger API Contract
-
-Link to the swagger API contract yaml and editor link like below
-
-http://editor.swagger.io/?url=https://raw.githubusercontent.com/egovernments/egov-services/master/docs/idgen/contracts/v1-0-0.yml#!/
-
 
 ## Service Details
 
@@ -25,7 +19,9 @@ In case of intellij the plugin can be installed directly, for eclipse the lombok
 
 ### API Details
 
-- id/v1/_genearte
+- id/id_pool/_generate
+- id/id_pool/_dispatch
+- id/id_pool/_search
 
 ## Reference document
 
