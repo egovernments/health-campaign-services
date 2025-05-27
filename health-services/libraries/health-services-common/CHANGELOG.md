@@ -1,5 +1,13 @@
 All notable changes to this module will be documented in this file.
 
+# 1.0.23 - 2025-05-07
+- Enabled tenant-specific schemas in SQL queries via query builders and placeholder replacements.
+- Enhanced Redis caching to use schema-aware keys for multi-tenant isolation.
+- Implemented tenant-based Kafka topic routing in message producer logic.
+- Refactored repositories to require and validate tenant ID in all operations.
+- Added services-common dependency.
+- Updated test cases for schema-based queries and added mocks for multi-state utility support.
+
 ## 1.0.18 - 2024-08-09
 - Added validateClientReferenceIdsFromDB method to GenericRepository.
 

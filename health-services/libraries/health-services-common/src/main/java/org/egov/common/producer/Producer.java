@@ -16,8 +16,29 @@ public class Producer {
     @Autowired
     public Producer(CustomKafkaTemplate<String, Object> kafkaTemplate) {
         this.kafkaTemplate = kafkaTemplate;
+        this.multiStateInstanceUtil = multiStateInstanceUtil;
     }
 
+    /**
+     * push objects to kafka with modified topic for a specified tenant based on
+     * central instance environment configuration
+     *
+     * @param tenantId tenant id to get the topic for.
+     * @param topic    topic name to push changes for.
+     * @param value    Object which needs to be pushed.
+     */
+    public void push(String tenantId, String topic, Object value) {
+        String updatedTopic = multiStateInstanceUtil.getStateSpecificTopicName(tenantId, topic);
+        log.info("The Kafka topic for the tenantId : {} is : {}", tenantId, updatedTopic);
+        kafkaTemplate.send(updatedTopic, value);
+    }
+
+    /**
+     * push objects to specified kafka topic
+     *
+     * @param topic    topic name to push changes for.
+     * @param value    Object which needs to be pushed.
+     */
     public void push(String topic, Object value) {
         kafkaTemplate.send(topic, value);
     }

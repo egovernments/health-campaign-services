@@ -17,6 +17,14 @@ public class UpdateQueryBuilder implements GenericQueryBuilder{
     public Map<String, Object> getParamsMap(){
         return paramsMap;
     }
+
+    /**
+     * Generates a SQL clause for updating a database table row
+     *
+     * @param schemaTemplate      the name of the database schema
+     * @param object              an object of the class for which query needs to be built
+     * @return the generated clause as a string
+     */
     @Override
     public String build(Object object) throws QueryBuilderException {
         StringBuilder queryStringBuilder = null;

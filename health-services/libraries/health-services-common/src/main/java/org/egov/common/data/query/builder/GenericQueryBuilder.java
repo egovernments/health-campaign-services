@@ -22,11 +22,31 @@ public interface GenericQueryBuilder {
         return table.name();
     }
 
-    static String selectQueryTemplate(String tableName){
+    /**
+     * Generates a SQL clause for selecting from a database table
+     *
+     * @param schemaTemplate      the name of the database schema
+     * @param tableName           the name of the database table
+     * @return the generated clause as a string
+     */
+    static String selectQueryTemplate(String schemaTemplate, String tableName){
+        if(!org.springframework.util.ObjectUtils.isEmpty(schemaTemplate)) {
+            return String.format("SELECT * FROM %s.%s", schemaTemplate, tableName);
+        }
         return String.format("SELECT * FROM %s", tableName);
     }
 
-    static String updateQueryTemplate(String tableName){
+    /**
+     * Generates a SQL clause for updating a database table
+     *
+     * @param schemaTemplate      the name of the database schema
+     * @param tableName           the name of the database table
+     * @return the generated clause as a string
+     */
+    static String updateQueryTemplate(String schemaTemplate, String tableName){
+        if(!org.springframework.util.ObjectUtils.isEmpty(schemaTemplate)) {
+            return String.format("UPDATE %s.%s", schemaTemplate, tableName);
+        }
         return String.format("UPDATE %s", tableName);
     }
 

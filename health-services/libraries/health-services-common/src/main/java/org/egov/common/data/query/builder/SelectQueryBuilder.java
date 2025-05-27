@@ -19,6 +19,13 @@ public class SelectQueryBuilder implements GenericQueryBuilder {
         return paramsMap;
     }
 
+    /**
+     * Generates a SQL clause for selection from a database table
+     *
+     * @param schemaTemplate      the name of the database schema
+     * @param object              an object of the class for which query needs to be built
+     * @return the generated clause as a string
+     */
     @Override
     public String build(Object object) throws QueryBuilderException {
         String tableName = null;
@@ -31,7 +38,15 @@ public class SelectQueryBuilder implements GenericQueryBuilder {
         return build(object, tableName);
     }
 
-    public String build(Object object, String tableName) throws QueryBuilderException {
+    /**
+     * Generates a SQL clause for selection from a database table
+     *
+     * @param schemaTemplate      the name of the database schema
+     * @param tableName           the name of the database table
+     * @param object              an object of the class for which query needs to be built
+     * @return the generated clause as a string
+     */
+    public String build(Object object, String tableName, String schemaTemplate) throws QueryBuilderException {
         StringBuilder queryStringBuilder = null;
         try {
             List<String> whereClauses = GenericQueryBuilder.getFieldsWithCondition(object, QueryFieldChecker.isNotNull, paramsMap);
