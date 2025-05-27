@@ -34,7 +34,7 @@ export class TemplateClass {
 
         // Prepare Boundary sheet
         const boundaryData = await this.getBoundaryData(campaignDetails, localizationMap);
-        const boundaryDynamicColumns = await this.getBoundaryDynamicColumns(tenantId, hierarchyType, localizationMap);
+        const boundaryDynamicColumns = await this.getBoundaryDynamicColumns(tenantId, hierarchyType);
 
         // Prepare User List sheet
         const users = await getRelatedDataWithCampaign(type, campaignNumber, dataRowStatuses.completed);
@@ -172,7 +172,7 @@ export class TemplateClass {
         return result;
     }
 
-    static async getBoundaryDynamicColumns(tenantId: any, hierarchyType: any, localizationMap: any) {
+    static async getBoundaryDynamicColumns(tenantId: any, hierarchyType: any) {
         const response = await searchBoundaryRelationshipDefinition({
             BoundaryTypeHierarchySearchCriteria: {
                 tenantId: tenantId,

@@ -36,7 +36,7 @@ export class TemplateClass {
         // Generate final data
         const facilityData = this.getFacilityData(finalFacilityList, localizationMap);
         const boundaryData: any = await this.getBoundaryData(campaignDetails, localizationMap);
-        const boundaryDynamicColumns: any = await this.getBoundaryDynamicColumns(campaignDetails?.tenantId, campaignDetails?.hierarchyType, localizationMap);
+        const boundaryDynamicColumns: any = await this.getBoundaryDynamicColumns(campaignDetails?.tenantId, campaignDetails?.hierarchyType);
         const sheetMap: SheetMap = {
             [templateConfig?.sheets?.[0]?.sheetName]: {
                 data: readMeData,
@@ -158,7 +158,7 @@ export class TemplateClass {
         return result;
     }
 
-    static async getBoundaryDynamicColumns(tenantId: any, hierarchyType: any, localizationMap: any) {
+    static async getBoundaryDynamicColumns(tenantId: any, hierarchyType: any) {
         const response = await searchBoundaryRelationshipDefinition({
             BoundaryTypeHierarchySearchCriteria: {
                 tenantId: tenantId,
@@ -175,10 +175,10 @@ export class TemplateClass {
             const result: Record<string, any> = {};
 
             boundaryTypes.forEach((type: string, index: number) => {
-                const localizedKey = getLocalizedName(`${hierarchyType}_${type}`.toUpperCase(), localizationMap);
-                result[localizedKey] = { orderNumber: -1 * (total - index), adjustHeight: true, color: '#f3842d', freezeColumn: true };
+                const key = `${hierarchyType}_${type}`.toUpperCase();
+                result[key] = { orderNumber: -1 * (total - index), adjustHeight: true, color: '#f3842d', freezeColumn: true };
             });
-            result[getLocalizedName("HCM_ADMIN_CONSOLE_BOUNDARY_CODE", localizationMap)] = { adjustHeight: true, width: 80, freezeColumn: true };
+            result["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"] = { adjustHeight: true, width: 80, freezeColumn: true };
             logger.info(`Dynamic columns prepared for boundary data.`);
             return result;
         } else {
@@ -188,16 +188,21 @@ export class TemplateClass {
 
     static getFacilityData(allFacilities: any, localizationMap: any) {
         const facilityData = allFacilities.map((facility: any) => {
+            let capacity = facility?.HCM_ADMIN_CONSOLE_FACILITY_CAPACITY ?? facility?.storageCapacity;
+            if (capacity === undefined || capacity === null) {
+                capacity = null;
+            }
             return {
-                [getLocalizedName("HCM_ADMIN_CONSOLE_FACILITY_CODE", localizationMap)]: facility?.id || facility?.HCM_ADMIN_CONSOLE_FACILITY_CODE,
-                [getLocalizedName("HCM_ADMIN_CONSOLE_FACILITY_NAME", localizationMap)]: facility?.name || facility?.HCM_ADMIN_CONSOLE_FACILITY_NAME,
-                [getLocalizedName("HCM_ADMIN_CONSOLE_FACILITY_STATUS", localizationMap)]: facility?.isPermanent || facility?.HCM_ADMIN_CONSOLE_FACILITY_STATUS === "Permanent" ? "Permanent" : "Temporary",
-                [getLocalizedName("HCM_ADMIN_CONSOLE_FACILITY_USAGE", localizationMap)]: facility?.HCM_ADMIN_CONSOLE_FACILITY_USAGE || 'Inactive',
-                [getLocalizedName("HCM_ADMIN_CONSOLE_FACILITY_TYPE", localizationMap)]: facility?.HCM_ADMIN_CONSOLE_FACILITY_TYPE || facility?.usage,
-                [getLocalizedName("HCM_ADMIN_CONSOLE_FACILITY_CAPACITY", localizationMap)]: facility?.HCM_ADMIN_CONSOLE_FACILITY_CAPACITY || facility?.storageCapacity,
-                [getLocalizedName("HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY", localizationMap)]: facility?.HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY || ""
+                [getLocalizedName("HCM_ADMIN_CONSOLE_FACILITY_CODE", localizationMap)]: facility?.id ?? facility?.HCM_ADMIN_CONSOLE_FACILITY_CODE,
+                [getLocalizedName("HCM_ADMIN_CONSOLE_FACILITY_NAME", localizationMap)]: facility?.name ?? facility?.HCM_ADMIN_CONSOLE_FACILITY_NAME,
+                [getLocalizedName("HCM_ADMIN_CONSOLE_FACILITY_STATUS", localizationMap)]:
+                    facility?.isPermanent || facility?.HCM_ADMIN_CONSOLE_FACILITY_STATUS === "Permanent" ? "Permanent" : "Temporary",
+                [getLocalizedName("HCM_ADMIN_CONSOLE_FACILITY_USAGE", localizationMap)]: facility?.HCM_ADMIN_CONSOLE_FACILITY_USAGE ?? 'Inactive',
+                [getLocalizedName("HCM_ADMIN_CONSOLE_FACILITY_TYPE", localizationMap)]: facility?.HCM_ADMIN_CONSOLE_FACILITY_TYPE ?? facility?.usage,
+                [getLocalizedName("HCM_ADMIN_CONSOLE_FACILITY_CAPACITY", localizationMap)]: capacity,
+                [getLocalizedName("HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY", localizationMap)]: facility?.HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY ?? ""
             };
-        });
+        });        
         return facilityData;
     }
 }

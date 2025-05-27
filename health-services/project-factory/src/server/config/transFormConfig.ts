@@ -143,7 +143,6 @@ export const transformConfigs: any = {
                 source: { header: "HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY" }
             }
         },
-        transFormSingle: "transformFacility",
         transFormBulk: "transformBulkFacility"
     }
 };
@@ -155,7 +154,8 @@ export class DataTransformer {
         this.transformConfig = transformConfig;
         this.transformFunctionMap = {
             transformEmployee: this.transformEmployee.bind(this),
-            transformBulkEmployee: this.transformBulkEmployee.bind(this)
+            transformBulkEmployee: this.transformBulkEmployee.bind(this),
+            transformBulkFacility: this.transformBulkFacility.bind(this)
         };
     }
     public async transform(rowData: RowData[]): Promise<any> {
@@ -291,6 +291,20 @@ export class DataTransformer {
                     curr++;
                 }
             });
+        }
+        return data;
+    }
+
+    private transformBulkFacility(data: any[], transformConfig: any): any {
+        for(const d of data) {
+            const addressCode = d?.Facility?.address?.locality?.code;
+            if (addressCode) {
+                d.Facility.address.locality.code = addressCode?.split(",")[0]?.trim();
+                d.Facility.address.tenantId = d.tenantId;
+            }
+            else {
+                throw new Error("Facility address locality code is missing");
+            }
         }
         return data;
     }

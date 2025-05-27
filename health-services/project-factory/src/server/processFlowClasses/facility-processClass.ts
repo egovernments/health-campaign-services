@@ -21,6 +21,7 @@ export class TemplateClass {
         logger.info(`ResourceDetails: ${JSON.stringify(resourceDetails)}`);
 
         const campaign = await this.getCampaignDetails(resourceDetails);
+        const userUuid = campaign?.auditDetails?.createdBy;
 
         const sheetData = wholeSheetData[getLocalizedName("HCM_ADMIN_CONSOLE_FACILITIES", localizationMap)];
         const facilityName = getLocalizedName("HCM_ADMIN_CONSOLE_FACILITY_NAME", localizationMap);
@@ -33,7 +34,7 @@ export class TemplateClass {
         logger.info(`Waiting for ${waitTime} ms for persistence...`);
         await new Promise((res) => setTimeout(res, waitTime));
 
-        await this.createFacilityFromTableData(resourceDetails, localizationMap);
+        await this.createFacilityFromTableData(resourceDetails, userUuid);
 
         const allCurrentFacilties = await getRelatedDataWithCampaign(resourceDetails?.type, campaign.campaignNumber, dataRowStatuses.completed);
         const allData = allCurrentFacilties?.map((u: any) => {
@@ -154,7 +155,7 @@ export class TemplateClass {
         }
     }
 
-    static async createFacilityFromTableData(resourceDetails: any, localizationMap: Record<string, string>): Promise<any> {
+    static async createFacilityFromTableData(resourceDetails: any, userUuid: string): Promise<any> {
         const response = await searchProjectTypeCampaignService({
             tenantId: resourceDetails.tenantId,
             ids: [resourceDetails?.campaignId],
@@ -203,7 +204,7 @@ export class TemplateClass {
 
             for (const facilityItem of batch) {
 
-                const response: any = await this.createFacilitiesOneByOne(facilityItem?.Facility);
+                const response: any = await this.createFacilitiesOneByOne(facilityItem?.Facility, userUuid);
 
                 const createdFacility = response?.Facility;
 
@@ -240,13 +241,14 @@ export class TemplateClass {
         return sheetData
     }
 
-    static async createFacilitiesOneByOne(facility: any) {
+    static async createFacilitiesOneByOne(facility: any, userUuid: string) {
         const url = config.host.facilityHost + config.paths.facilityCreate; // Update accordingly
 
         const requestBody = {
             RequestInfo: defaultRequestInfo?.RequestInfo,
             Facility: facility
         };
+        requestBody.RequestInfo.userInfo.uuid = userUuid;
 
         let response: any;
         try {
