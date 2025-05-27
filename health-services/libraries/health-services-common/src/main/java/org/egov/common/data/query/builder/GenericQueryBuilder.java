@@ -15,7 +15,7 @@ import java.util.Map;
 import java.util.stream.IntStream;
 
 public interface GenericQueryBuilder {
-    String build(Object object) throws QueryBuilderException;
+    String build(String schemaTemplate, Object object) throws QueryBuilderException;
 
     static String getTableName(Class reflectClass){
         Table table = (Table) reflectClass.getAnnotation(Table.class);
@@ -26,7 +26,21 @@ public interface GenericQueryBuilder {
         return String.format("SELECT * FROM %s", tableName);
     }
 
+    static String selectQueryTemplate(String schemaTemplate, String tableName){
+        if(!org.springframework.util.ObjectUtils.isEmpty(schemaTemplate)) {
+            return String.format("SELECT * FROM %s.%s", schemaTemplate, tableName);
+        }
+        return String.format("SELECT * FROM %s", tableName);
+    }
+
     static String updateQueryTemplate(String tableName){
+        return String.format("UPDATE %s", tableName);
+    }
+
+    static String updateQueryTemplate(String schemaTemplate, String tableName){
+        if(!org.springframework.util.ObjectUtils.isEmpty(schemaTemplate)) {
+            return String.format("UPDATE %s.%s", schemaTemplate, tableName);
+        }
         return String.format("UPDATE %s", tableName);
     }
 

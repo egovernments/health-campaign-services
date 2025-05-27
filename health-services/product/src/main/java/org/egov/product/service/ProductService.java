@@ -1,12 +1,15 @@
 package org.egov.product.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.product.Product;
 import org.egov.common.models.product.ProductRequest;
 import org.egov.common.service.IdGenService;
+import org.egov.common.utils.CommonUtils;
 import org.egov.product.config.ProductConfiguration;
 import org.egov.product.repository.ProductRepository;
 import org.egov.product.web.models.ProductSearchRequest;
+import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -45,13 +48,12 @@ public class ProductService {
         this.productConfiguration = productConfiguration;
     }
 
-    public List<String> validateProductId(List<String> productIds) {
-        return productRepository.validateIds(productIds, "id");
+    public List<String> validateProductId( String tenantId , List<String> productIds) throws InvalidTenantIdException {
+        return productRepository.validateIds( tenantId, productIds, "id");
     }
 
     public List<Product> create(ProductRequest productRequest) throws Exception {
         log.info("Enrichment products started");
-
         log.info("generating ids for products");
         List<String> idList =  idGenService.getIdList(productRequest.getRequestInfo(),
                 getTenantId(productRequest.getProduct()),
@@ -67,11 +69,12 @@ public class ProductService {
 
     public List<Product> update(ProductRequest productRequest) throws Exception {
         identifyNullIds(productRequest.getProduct());
+        String tenantId= CommonUtils.getTenantId(productRequest.getProduct());
         Map<String, Product> pMap = getIdToObjMap(productRequest.getProduct());
 
         log.info("checking if product already exists");
         List<String> productIds = new ArrayList<>(pMap.keySet());
-        List<Product> existingProducts = productRepository.findById(productIds);
+        List<Product> existingProducts = productRepository.findById(tenantId, productIds);
 
         log.info("validate entities for products");
         validateEntities(pMap, existingProducts);
@@ -100,7 +103,7 @@ public class ProductService {
             log.info("searching product by id");
             List<String> ids = productSearchRequest.getProduct().getId();
             log.info("fetching product with ids: {}", ids);
-            return productRepository.findById(ids, includeDeleted).stream()
+            return productRepository.findById( tenantId, ids, includeDeleted).stream()
                     .filter(lastChangedSince(lastChangedSince))
                     .filter(havingTenantId(tenantId))
                     .filter(includeDeleted(includeDeleted))

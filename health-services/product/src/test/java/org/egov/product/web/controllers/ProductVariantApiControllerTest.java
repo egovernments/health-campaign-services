@@ -2,6 +2,7 @@ package org.egov.product.web.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.egov.common.helper.RequestInfoTestBuilder;
+import org.egov.common.models.product.ApiOperation;
 import org.egov.common.models.product.ProductVariant;
 import org.egov.common.models.product.ProductVariantRequest;
 import org.egov.common.models.product.ProductVariantResponse;
@@ -83,21 +84,33 @@ public class ProductVariantApiControllerTest {
     @Test
     @DisplayName("should send error response with error details with 400 bad request for create")
     void shouldSendErrorResWithErrorDetailsWith400BadRequestForCreate() throws Exception {
+        // Build request
+        ProductVariantRequest request = ProductVariantRequestTestBuilder.builder()
+                .withOneProductVariant()
+                .withBadTenantIdInOneProductVariant()
+                .build();
+        request.setApiOperation(ApiOperation.CREATE);
+
+        // Mock the service to simulate a validation failure
+        when(productVariantService.create(any(ProductVariantRequest.class)))
+                .thenThrow(new CustomException("tenantId", "tenantId is invalid"));
+
+        // Perform request
         final MvcResult result = mockMvc.perform(post("/variant/v1/_create")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(ProductVariantRequestTestBuilder.builder()
-                                .withOneProductVariant()
-                                .withBadTenantIdInOneProductVariant()
-                                .build())))
-                .andExpect(status().isBadRequest())
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())  // expect 400
                 .andReturn();
+
+        // Assert error content
         String responseStr = result.getResponse().getContentAsString();
-        ErrorRes response = objectMapper.readValue(responseStr,
-                ErrorRes.class);
+        ErrorRes response = objectMapper.readValue(responseStr, ErrorRes.class);
 
         assertEquals(1, response.getErrors().size());
-        assertTrue(response.getErrors().get(0).getCode().contains("tenantId"));
+        assertEquals("tenantId", response.getErrors().get(0).getCode());
+        assertEquals("tenantId is invalid", response.getErrors().get(0).getMessage());
     }
+
 
     @Test
     @DisplayName("should send 400 bad request in case of incorrect api operation for create")
@@ -147,20 +160,28 @@ public class ProductVariantApiControllerTest {
     @Test
     @DisplayName("should send error response with error details with 400 bad request for update")
     void shouldSendErrorResWithErrorDetailsWith400BadRequestForUpdate() throws Exception {
+        ProductVariantRequest request = ProductVariantRequestTestBuilder.builder()
+                .withOneProductVariantHavingId()
+                .withBadTenantIdInOneProductVariant()
+                .build();
+        request.setApiOperation(ApiOperation.UPDATE);
+
+        // Mock the service to simulate validation failure
+        when(productVariantService.update(any(ProductVariantRequest.class)))
+                .thenThrow(new CustomException("tenantId", "tenantId is invalid"));
+
         final MvcResult result = mockMvc.perform(post("/variant/v1/_update")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(ProductVariantRequestTestBuilder.builder()
-                                .withOneProductVariantHavingId()
-                                .withBadTenantIdInOneProductVariant()
-                                .build())))
-                .andExpect(status().isBadRequest())
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())  // expect 400
                 .andReturn();
+
         String responseStr = result.getResponse().getContentAsString();
-        ErrorRes response = objectMapper.readValue(responseStr,
-                ErrorRes.class);
+        ErrorRes response = objectMapper.readValue(responseStr, ErrorRes.class);
 
         assertEquals(1, response.getErrors().size());
-        assertTrue(response.getErrors().get(0).getCode().contains("tenantId"));
+        assertEquals("tenantId", response.getErrors().get(0).getCode());
+        assertEquals("tenantId is invalid", response.getErrors().get(0).getMessage());
     }
 
     @Test
