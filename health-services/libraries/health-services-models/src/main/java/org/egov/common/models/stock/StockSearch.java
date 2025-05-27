@@ -1,7 +1,5 @@
 package org.egov.common.models.stock;
 
-import java.util.List;
-
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.Valid;
@@ -12,6 +10,8 @@ import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 import org.egov.common.models.core.EgovOfflineSearchModel;
 import org.springframework.validation.annotation.Validated;
+
+import java.util.List;
 
 /**
  * StockSearch
@@ -45,7 +45,7 @@ public class StockSearch extends EgovOfflineSearchModel {
 
     @JsonProperty("transactionType")
     @Valid
-    private TransactionType transactionType = null;
+    private List<TransactionType> transactionType = null;
 
     @JsonProperty("transactionReason")
     @Valid
@@ -57,5 +57,11 @@ public class StockSearch extends EgovOfflineSearchModel {
 
     @JsonProperty("transactingPartyType")
     private String transactingPartyType = null;
+
+    @JsonProperty("receiverId")
+    private List<String> receiverId = null;
+
+    @JsonProperty("receiverType")
+    private SenderReceiverType receiverType;
 }
 

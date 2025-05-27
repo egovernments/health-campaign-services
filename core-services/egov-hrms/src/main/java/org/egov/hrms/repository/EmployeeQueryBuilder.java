@@ -36,6 +36,11 @@ public class EmployeeQueryBuilder {
 		addWhereClause(criteria, builder, preparedStmtList);
 		return paginationClause(criteria, builder, addPagination);
 	}
+	public String getEmployeeSearchQueryWithoutPagination(EmployeeSearchCriteria criteria,List <Object> preparedStmtList ) {
+		StringBuilder builder = new StringBuilder(EmployeeQueries.HRMS_GET_EMPLOYEES);
+		addWhereClause(criteria, builder, preparedStmtList);
+		return builder.toString();
+	}
 
 	public String getEmployeeCountQuery(String tenantId, List <Object> preparedStmtList ) {
 		StringBuilder builder = new StringBuilder(EmployeeQueries.HRMS_COUNT_EMP_QUERY);
