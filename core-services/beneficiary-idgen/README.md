@@ -22,6 +22,7 @@ In case of intellij the plugin can be installed directly, for eclipse the lombok
 - id/id_pool/_generate
 - id/id_pool/_dispatch
 - id/id_pool/_search
+- id/id_pool/_update
 
 ## Reference document
 
