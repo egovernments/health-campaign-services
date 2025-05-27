@@ -27,7 +27,7 @@ public class SelectQueryBuilder implements GenericQueryBuilder {
      * @return the generated clause as a string
      */
     @Override
-    public String build(Object object) throws QueryBuilderException {
+    public String build(String schemaTemplate, Object object) throws QueryBuilderException {
         String tableName = null;
         try {
             tableName = GenericQueryBuilder.getTableName(object.getClass());
@@ -35,7 +35,7 @@ public class SelectQueryBuilder implements GenericQueryBuilder {
             throw new QueryBuilderException(exception.getMessage());
         }
 
-        return build(object, tableName);
+        return build(object, tableName, schemaTemplate);
     }
 
     /**
@@ -50,7 +50,7 @@ public class SelectQueryBuilder implements GenericQueryBuilder {
         StringBuilder queryStringBuilder = null;
         try {
             List<String> whereClauses = GenericQueryBuilder.getFieldsWithCondition(object, QueryFieldChecker.isNotNull, paramsMap);
-            queryStringBuilder = GenericQueryBuilder.generateQuery(GenericQueryBuilder.selectQueryTemplate(tableName), whereClauses);
+            queryStringBuilder = GenericQueryBuilder.generateQuery(GenericQueryBuilder.selectQueryTemplate(schemaTemplate, tableName), whereClauses);
         } catch (Exception exception) {
             throw new QueryBuilderException(exception.getMessage());
         }

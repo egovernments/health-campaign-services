@@ -1,6 +1,8 @@
 package org.egov.common.producer;
 
 import lombok.extern.slf4j.Slf4j;
+
+import org.egov.common.utils.MultiStateInstanceUtil;
 import org.egov.tracer.kafka.CustomKafkaTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -12,9 +14,11 @@ import org.springframework.stereotype.Service;
 public class Producer {
 
     private final CustomKafkaTemplate<String, Object> kafkaTemplate;
+    private final MultiStateInstanceUtil multiStateInstanceUtil;
+
 
     @Autowired
-    public Producer(CustomKafkaTemplate<String, Object> kafkaTemplate) {
+    public Producer(CustomKafkaTemplate<String, Object> kafkaTemplate, MultiStateInstanceUtil multiStateInstanceUtil) {
         this.kafkaTemplate = kafkaTemplate;
         this.multiStateInstanceUtil = multiStateInstanceUtil;
     }

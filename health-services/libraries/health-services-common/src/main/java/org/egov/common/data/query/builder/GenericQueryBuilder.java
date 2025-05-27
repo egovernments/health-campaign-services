@@ -15,7 +15,7 @@ import java.util.Map;
 import java.util.stream.IntStream;
 
 public interface GenericQueryBuilder {
-    String build(Object object) throws QueryBuilderException;
+    String build(String schemaTemplate, Object object) throws QueryBuilderException;
 
     static String getTableName(Class reflectClass){
         Table table = (Table) reflectClass.getAnnotation(Table.class);
