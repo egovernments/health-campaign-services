@@ -118,10 +118,12 @@ public class EmployeeService {
 	 */
 	public EmployeeResponse create(EmployeeRequest employeeRequest) {
 		RequestInfo requestInfo = employeeRequest.getRequestInfo();
+		// Extracting tenantId from the first employee in the request
 		String tenantId = employeeRequest.getEmployees().stream().findAny().get().getTenantId();
 		Map<String, String> pwdMap = new HashMap<>();
 		idGenService.setIds(employeeRequest);
 		employeeRequest.getEmployees().stream().forEach(employee -> {
+			// Enriching the employee object with required parameters
 			enrichCreateRequest(tenantId, employee, requestInfo);
 			createUser(employee, requestInfo);
 			pwdMap.put(employee.getUuid(), employee.getUser().getPassword());
@@ -130,7 +132,7 @@ public class EmployeeService {
 
 		// Setting password as null after sending employeeRequest to email notification topic to send email.
 		employeeRequest.getEmployees().forEach(employee -> employee.getUser().setPassword(null));
-
+		// Pushing the employee request to the HRMS topic for further processing
 		hrmsProducer.push(tenantId, propertiesManager.getSaveEmployeeTopic(), employeeRequest);
 		notificationService.sendNotification(employeeRequest, pwdMap);
 		return generateResponse(employeeRequest);
@@ -235,8 +237,10 @@ public class EmployeeService {
 			employeeCountResponse = repository.fetchEmployees(criteria, requestInfo);
 		employees=employeeCountResponse.getEmployees();
         List<String> uuids = employees.stream().map(Employee :: getUuid).collect(Collectors.toList());
-		if(userChecked)
+		// If the uuids list is not empty, filter the employees list to include only those with matching UUIDs
+		if(userChecked && !propertiesManager.isCentralInstance) {
 			criteria.setTenantId(null);
+		}
 		if(!CollectionUtils.isEmpty(uuids)){
             Map<String, Object> userSearchCriteria = new HashMap<>();
 			userSearchCriteria.put(HRMSConstants.HRMS_USER_SERACH_CRITERIA_USERTYPE_CODE, HRMSConstants.HRMS_USER_SERACH_CRITERIA_USERTYPE);
@@ -331,9 +335,9 @@ public class EmployeeService {
 		});
 		if (employee.getAssignments() != null && !employee.getAssignments().isEmpty()) {
 			employee.getAssignments().stream().forEach(assignment -> {
-//				String tenantId = assignment.getTenantid();
 				assignment.setId(UUID.randomUUID().toString());
 				assignment.setAuditDetails(auditDetails);
+				// Set the position ID to the next value from the sequence
 				assignment.setPosition(getPosition(tenantId));
 			});
 		}

@@ -14,7 +14,6 @@ import org.egov.common.models.household.HouseholdMemberSearch;
 import org.egov.common.utils.CommonUtils;
 import org.egov.common.validator.Validator;
 import org.egov.household.repository.HouseholdMemberRepository;
-import org.egov.tracer.model.CustomException;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
@@ -58,6 +57,7 @@ public class HmExistentEntityValidator implements Validator<HouseholdMemberBulkR
     @Override
     public Map<HouseholdMember, List<Error>> validate(HouseholdMemberBulkRequest request) {
 
+        // Extract tenant ID from the request
         String tenantId = CommonUtils.getTenantId(request.getHouseholdMembers()); // Extract tenant ID from the request;
         // Map to hold HouseholdMember entities and their associated error details
         Map<HouseholdMember, List<Error>> errorDetailsMap = new HashMap<>();
@@ -84,7 +84,7 @@ public class HmExistentEntityValidator implements Validator<HouseholdMemberBulkR
         // Check if the client reference ID list is not empty before querying the database
         if (!CollectionUtils.isEmpty(clientReferenceIdList)) {
             // Query the repository to find existing entities by client reference IDs
-
+            // This will catch the exception if the tenant ID is invalid
             try {
                 List<String> existingClientReferenceIds = householdMemberRepository.validateClientReferenceIdsFromDB(tenantId, clientReferenceIdList, Boolean.TRUE);
 

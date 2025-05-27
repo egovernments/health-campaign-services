@@ -195,6 +195,7 @@ public class StockReconciliationService {
             List<String> ids = (List<String>) ReflectionUtils.invokeMethod(getIdMethod(Collections
                             .singletonList(request.getStockReconciliation())),
                     request.getStockReconciliation());
+            // fetch stock reconciliation by id
             List<StockReconciliation> stockReconciliations = stockRepository.findById(tenantId, ids, includeDeleted, idFieldName).stream()
                     .filter(lastChangedSince(lastChangedSince))
                     .filter(havingTenantId(tenantId))

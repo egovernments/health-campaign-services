@@ -38,7 +38,6 @@ import static org.egov.product.Constants.INVALID_TENANT_ID_MESSAGE;
 @Slf4j
 public class ProductVariantService {
 
-
     private final IdGenService idGenService;
 
     private final ProductService productService;
@@ -59,11 +58,13 @@ public class ProductVariantService {
 
     public List<ProductVariant> create(ProductVariantRequest request) throws Exception {
         log.info("validating product ids");
+        // Get the tenant ID from the product variant
         String tenantId = getTenantId(request.getProductVariant());
         Set<Object> rawIds =  getSet(request.getProductVariant(), "getProductId");
         Set<String> productIds = rawIds.stream()
                 .map(Object::toString)
                 .collect(Collectors.toSet());
+        // catch the exception and throw a custom exception
         validateIds(productIds,
                  ids -> {
                      try {
@@ -87,14 +88,14 @@ public class ProductVariantService {
 
     public List<ProductVariant> update(ProductVariantRequest request) {
         identifyNullIds(request.getProductVariant());
-
+        // Get the tenant ID from the product variant
         String tenantId = getTenantId(request.getProductVariant());
-
         log.info("validating product ids");
         Set<Object> rawIds = getSet(request.getProductVariant(), "getProductId");
         Set<String> productIds = rawIds.stream()
                 .map(Object::toString)
                 .collect(Collectors.toSet());
+        // catch the exception and throw a custom exception
         validateIds(productIds,
                 ids -> {
                     try {
@@ -108,6 +109,7 @@ public class ProductVariantService {
         log.info("checking if already exists");
         List<String> productVariantIds = new ArrayList<>(pvMap.keySet());
         List<ProductVariant> existingProductVariants = null;
+        // catch the exception and throw a custom exception
         try {
             existingProductVariants = productVariantRepository
                     .findById(tenantId, productVariantIds);

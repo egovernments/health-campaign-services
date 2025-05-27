@@ -1,6 +1,5 @@
 package org.egov.household.household.member.validators;
 
-import io.swagger.models.auth.In;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.exception.InvalidTenantIdException;
@@ -71,6 +70,8 @@ public class HmUniqueIndividualValidator implements Validator<HouseholdMemberBul
                     householdMember.setIndividualClientReferenceId(individual.getClientReferenceId());
 
                     log.info("finding individuals mappings in household member");
+                    // Check if the individual is already a member of a household
+                    // If yes, add an error to the error details map
                     try {
                         List<HouseholdMember> individualSearchResult = householdMemberRepository
                                 .findIndividual(tenantId, individual.getId()).getResponse();

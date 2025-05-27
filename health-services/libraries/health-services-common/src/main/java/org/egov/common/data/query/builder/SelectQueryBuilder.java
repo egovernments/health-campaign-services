@@ -20,21 +20,22 @@ public class SelectQueryBuilder implements GenericQueryBuilder {
     }
 
     @Override
-    public String build(String schemaTemplate, Object object) throws QueryBuilderException {
+    public String build(Object object) throws QueryBuilderException {
         String tableName = null;
         try {
             tableName = GenericQueryBuilder.getTableName(object.getClass());
         } catch (Exception exception) {
             throw new QueryBuilderException(exception.getMessage());
         }
-        return build(object, tableName, schemaTemplate);
+
+        return build(object, tableName);
     }
 
-    public String build(Object object, String tableName, String schemaTemplate) throws QueryBuilderException {
+    public String build(Object object, String tableName) throws QueryBuilderException {
         StringBuilder queryStringBuilder = null;
         try {
             List<String> whereClauses = GenericQueryBuilder.getFieldsWithCondition(object, QueryFieldChecker.isNotNull, paramsMap);
-            queryStringBuilder = GenericQueryBuilder.generateQuery(GenericQueryBuilder.selectQueryTemplate(schemaTemplate, tableName), whereClauses);
+            queryStringBuilder = GenericQueryBuilder.generateQuery(GenericQueryBuilder.selectQueryTemplate(tableName), whereClauses);
         } catch (Exception exception) {
             throw new QueryBuilderException(exception.getMessage());
         }

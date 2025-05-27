@@ -36,6 +36,7 @@ public class SRowVersionValidator implements Validator<StockBulkRequest, Stock> 
     @Override
     public Map<Stock, List<Error>> validate(StockBulkRequest request) {
         Map<Stock, List<Error>> errorDetailsMap = new HashMap<>();
+        // Extract tenant ID from the request
         String tenantId = CommonUtils.getTenantId(request.getStock());
         log.info("validating row version stock");
         Method idMethod = getIdMethod(request.getStock());
@@ -45,6 +46,7 @@ public class SRowVersionValidator implements Validator<StockBulkRequest, Stock> 
                 .collect(Collectors.toList()), idMethod);
         if (!eMap.isEmpty()) {
             List<String> entityIds = new ArrayList<>(eMap.keySet());
+            // Catc the InvalidTenantIdException
             try {
                 List<Stock> existingEntities = stockRepository.findById(tenantId, entityIds, false,
                         getIdFieldName(idMethod));
