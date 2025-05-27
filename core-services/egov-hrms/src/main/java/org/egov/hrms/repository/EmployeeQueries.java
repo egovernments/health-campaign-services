@@ -5,6 +5,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class EmployeeQueries {
 
+	// Query to get the employee details
 	public static final String HRMS_GET_EMPLOYEES = "SELECT employee.id as employee_id, employee.uuid as employee_uuid, employee.code as employee_code, "
 			+ "employee.dateOfAppointment as employee_doa, employee.employeestatus as employee_status, employeetype as employee_type, employee.active as employee_active, employee.reactivateemployee as employee_reactive, "
 			+ "employee.tenantid as employee_tenantid, employee.createdby as employee_createdby, employee.createddate as employee_createddate, "
@@ -46,12 +47,15 @@ public class EmployeeQueries {
 	public static final String HRMS_PAGINATION_WRAPPER = "SELECT * FROM "
 			+ "(SELECT *, DENSE_RANK() OVER (ORDER BY employee_uuid) offset_ FROM " + "({})" + " result) result_offset "
 			+ "WHERE offset_ > $offset AND offset_ <= $limit";
-	
+
+	// Query to get the employee count
 	public static final String HRMS_POSITION_SEQ = "SELECT NEXTVAL('%s.EG_HRMS_POSITION')";
 
+	// Query to get the employee count based on active status
 	public static final String HRMS_GET_ASSIGNMENT = "select distinct(employeeid)  from %s.eg_hrms_assignment assignment where assignment.tenantid notnull  ";
-
+	// Query to get the employee count based on active status
 	public static final String HRMS_COUNT_EMP_QUERY = "SELECT active, count(*) FROM %s.eg_hrms_employee WHERE tenantid ";
 
+	// Query to get the employee count based on active status
 	public static final String HRMS_GET_UNASSIGNED_EMPLOYEES = "SELECT employee.uuid from %s.eg_hrms_employee employee LEFT JOIN %s.eg_hrms_assignment assignment ON employee.uuid = assignment.employeeid where assignment.employeeid is null";
 }

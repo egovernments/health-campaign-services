@@ -1,8 +1,7 @@
 package org.egov.hrms.model;
 
 import lombok.*;
-import org.owasp.html.HtmlPolicyBuilder;
-import org.owasp.html.PolicyFactory;
+import org.egov.tracer.annotations.CustomSafeHtml;
 import org.springframework.validation.annotation.Validated;
 
 import javax.validation.constraints.NotNull;
@@ -17,45 +16,25 @@ import javax.validation.constraints.NotNull;
 @Builder
 public class DeactivationDetails {
 
-	private static final PolicyFactory POLICY = new HtmlPolicyBuilder().toFactory();
-
+	@CustomSafeHtml
 	private String id;
 
+	@CustomSafeHtml
 	@NotNull
 	private String reasonForDeactivation;
 
+	@CustomSafeHtml
 	private String orderNo;
 
+	@CustomSafeHtml
 	private String remarks;
 
 	@NotNull
 	private Long effectiveFrom;
 
+	@CustomSafeHtml
 	private String tenantId;
 
 	private AuditDetails auditDetails;
 
-	public void setId(String id) {
-		this.id = sanitize(id);
-	}
-
-	public void setReasonForDeactivation(String reasonForDeactivation) {
-		this.reasonForDeactivation = sanitize(reasonForDeactivation);
-	}
-
-	public void setOrderNo(String orderNo) {
-		this.orderNo = sanitize(orderNo);
-	}
-
-	public void setRemarks(String remarks) {
-		this.remarks = sanitize(remarks);
-	}
-
-	public void setTenantId(String tenantId) {
-		this.tenantId = sanitize(tenantId);
-	}
-
-	private String sanitize(String input) {
-		return input == null ? null : POLICY.sanitize(input);
-	}
 }

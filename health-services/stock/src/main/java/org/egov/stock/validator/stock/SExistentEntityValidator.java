@@ -56,6 +56,7 @@ public class SExistentEntityValidator implements Validator<StockBulkRequest, Sto
     public Map<Stock, List<Error>> validate(StockBulkRequest request) {
         // Map to hold Stock entities and their error details
         Map<Stock, List<Error>> errorDetailsMap = new HashMap<>();
+        // Extract tenant ID from the request
         String tenantId = CommonUtils.getTenantId(request.getStock()); // Extract tenant ID from the request
         // Get the list of Stock entities from the request
         List<Stock> entities = request.getStock();
@@ -79,7 +80,7 @@ public class SExistentEntityValidator implements Validator<StockBulkRequest, Sto
         // Check if the list of client reference IDs is not empty
         if (!CollectionUtils.isEmpty(clientReferenceIdList)) {
             // Query the repository to find existing Stock entities with the given client reference IDs
-
+            // This method will throw an exception if the tenant ID is invalid
             try {
                 List<String> existingClientReferenceIds = stockRepository.validateClientReferenceIdsFromDB(tenantId, clientReferenceIdList, Boolean.TRUE);
                 // For each existing client reference ID, add an error to the map for the corresponding Stock entity

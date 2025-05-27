@@ -41,6 +41,7 @@ public class HmHouseholdValidator implements Validator<HouseholdMemberBulkReques
     @Override
     public Map<HouseholdMember, List<Error>> validate(HouseholdMemberBulkRequest householdMemberBulkRequest) {
         HashMap<HouseholdMember, List<Error>> errorDetailsMap = new HashMap<>();
+        // Extract tenant ID from the requests
         String tenantId = CommonUtils.getTenantId(householdMemberBulkRequest.getHouseholdMembers());
         List<HouseholdMember> householdMembers = householdMemberBulkRequest.getHouseholdMembers();
 
@@ -55,6 +56,8 @@ public class HmHouseholdValidator implements Validator<HouseholdMemberBulkReques
         List<String> houseHoldIds = getIdList(householdMembers, idMethod);
 
         log.info("finding valid household ids from household service");
+        // Fetching valid household ids from the household service
+        // catches the InvalidTenantIdException
         try {
             List<Household> validHouseHoldIds = householdService.findById(tenantId, houseHoldIds, columnName, false).getResponse();
 

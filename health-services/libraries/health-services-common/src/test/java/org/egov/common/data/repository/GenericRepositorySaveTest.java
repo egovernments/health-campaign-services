@@ -50,13 +50,11 @@ class GenericRepositorySaveTest {
         someObjects = new ArrayList<>();
         someObjects.add(SomeObject.builder()
                         .id("some-id")
-                        .tenantId("some-tenant-id")
                         .otherField("other-field")
                         .isDeleted(false)
                 .build());
         someObjects.add(SomeObject.builder()
                 .id("other-id")
-                        .tenantId("other-tenant-id")
                 .isDeleted(true)
                 .build());
         lenient().when(redisTemplate.opsForHash()).thenReturn(hashOperations);
@@ -70,7 +68,7 @@ class GenericRepositorySaveTest {
                 .save(someObjects, TOPIC);
 
         assertEquals(result, someObjects);
-        verify(producer, times(1)).push(any(String.class), any(String.class), any(Object.class));
+        verify(producer, times(1)).push(any(String.class), any(Object.class));
     }
 
     @Test
@@ -81,7 +79,7 @@ class GenericRepositorySaveTest {
 
         InOrder inOrder = inOrder(producer, hashOperations);
 
-        inOrder.verify(producer, times(1)).push(any(String.class), any(String.class), any(Object.class));
+        inOrder.verify(producer, times(1)).push(any(String.class), any(Object.class));
         inOrder.verify(hashOperations, times(1))
                 .putAll(any(String.class), any(Map.class));
     }

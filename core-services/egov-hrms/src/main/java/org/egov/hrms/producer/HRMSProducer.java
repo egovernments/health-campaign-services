@@ -14,16 +14,22 @@ public class HRMSProducer {
     @Autowired
     private CustomKafkaTemplate<String, Object> kafkaTemplate;
 
+    // This is used to get the tenantId from the request
     @Autowired
     private HRMSUtils hrmsUtils;
 
     @Autowired
     MultiStateInstanceUtil multiStateInstanceUtil;
 
+    /*
+     * This method is used to push the data to the kafka topic.
+     * The topic name is fetched from the config file and the data is pushed to the topic.
+     * The topic name is updated with the tenantId.
+     */
     public void push(String tenantId, String topic, Object value) {
+        // Updated topic name with tenantId prefixed
         String updatedTopic =  multiStateInstanceUtil.getStateSpecificTopicName(tenantId, topic);
         log.info("The Kafka topic for the tenantId : " + tenantId + " is : " + updatedTopic);
-        log.info("Topic: "+topic);
         kafkaTemplate.send(updatedTopic, value);
     }
 

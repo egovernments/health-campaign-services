@@ -58,6 +58,7 @@ public class IExistentEntityValidator implements Validator<IndividualBulkRequest
     public Map<Individual, List<Error>> validate(IndividualBulkRequest request) {
         // Map to hold individual entities and their associated error details
         Map<Individual, List<Error>> errorDetailsMap = new HashMap<>();
+        // extract tenant ID from the request
         String tenantId = CommonUtils.getTenantId(request.getIndividuals()); // Extract tenant ID from the request
         // Get the list of individual entities from the request
         List<Individual> entities = request.getIndividuals();
@@ -81,6 +82,7 @@ public class IExistentEntityValidator implements Validator<IndividualBulkRequest
         // Check if the client reference ID list is not empty before querying the database
         if (!CollectionUtils.isEmpty(clientReferenceIdList)) {
             // Query the repository to find existing entities by client reference IDs
+            // catch any InvalidTenantIdException that may occur
             try {
                 List<String> existingClientReferenceIds =
                         individualRepository.validateClientReferenceIdsFromDB( tenantId, clientReferenceIdList, Boolean.TRUE);

@@ -41,14 +41,19 @@ public class SrRowVersionValidator implements Validator<StockReconciliationBulkR
     @Override
     public Map<StockReconciliation, List<Error>> validate(StockReconciliationBulkRequest request) {
         Map<StockReconciliation, List<Error>> errorDetailsMap = new HashMap<>();
+        // Extract tenant ID from the request
         String tenantId = CommonUtils.getTenantId(request.getStockReconciliation());
         log.info("validating row version stock reconciliation");
+        // Get the ID method for the StockReconciliation entity
         List<StockReconciliation> entities = request.getStockReconciliation();
         Method idMethod = getIdMethod(entities);
+        // Create a map of entity IDs to StockReconciliation objects
         Map<String, StockReconciliation> eMap = getIdToObjMap(entities.stream()
                 .filter(notHavingErrors())
                 .collect(Collectors.toList()), idMethod);
         if (!eMap.isEmpty()) {
+            // Check for existing entities in the database
+            // Catch the InvalidTenantIdException
             try {
                 List<String> entityIds = new ArrayList<>(eMap.keySet());
                 List<StockReconciliation> existingEntities = stockReconciliationRepository.findById(tenantId, entityIds, false,
