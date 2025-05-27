@@ -5,7 +5,7 @@ import { callMdmsSchema } from "../api/genericApis";
 import { getBoundaryOnWhichWeSplit, getLocalizedName, populateBoundariesRecursively } from "../utils/campaignUtils";
 import { searchBoundaryRelationshipData } from "../api/coreApis";
 import { getHierarchy } from "../api/campaignApis";
-import { getReadMeConfig } from "../utils/genericUtils";
+import { getLocalizedHeaders, getReadMeConfig } from "../utils/genericUtils";
 
 // This will be a dynamic template class for different types
 export class TemplateClass {
@@ -25,8 +25,8 @@ export class TemplateClass {
         const schemaPromise = this.getSchema(tenantId, campaignDetails.projectType);
 
         const sheetsConfig = templateConfig?.sheets?.[0];
-        const readMeColumnHeader = getLocalizedName(Object.keys(sheetsConfig?.schema?.properties || {})[0], localizationMap);
-        const readMeSheetName = getLocalizedName(sheetsConfig?.sheetName, localizationMap);
+        const readMeColumnHeader = Object.keys(sheetsConfig?.schema?.properties || {})?.[0];
+        const readMeSheetName = sheetsConfig?.sheetName
 
         const readMeData = this.getReadMeData(readMeConfig, readMeColumnHeader, localizationMap);
 
@@ -35,7 +35,7 @@ export class TemplateClass {
             splitOn,
             structuredBoundaries,
             localisedSolitOn,
-            localisedHierarchyAfterSplit,
+            hierarchyAfterSplitCode,
         } = await this.prepareBoundaryData(campaignDetails, tenantId, campaignId, localizationMap);
 
         const [filteredBoundaries, schema] = await Promise.all([
@@ -44,7 +44,7 @@ export class TemplateClass {
                 splitOn,
                 boundaries,
                 localisedSolitOn,
-                localisedHierarchyAfterSplit,
+                hierarchyAfterSplitCode,
                 localizationMap
             )),
             schemaPromise
@@ -53,15 +53,16 @@ export class TemplateClass {
         const groupedBySheetName = this.groupBoundariesBySheetName(
             filteredBoundaries,
             localisedSolitOn,
-            localisedHierarchyAfterSplit
+            hierarchyAfterSplitCode,
+            localizationMap
         );
 
-        const dynamicColumns = this.getLocalizedDynamicColumns(schema, localizationMap);
+        const dynamicColumns = this.getDynamicColumns(schema);
 
         return this.buildSheetMap(
             groupedBySheetName,
             dynamicColumns,
-            localisedHierarchyAfterSplit,
+            hierarchyAfterSplitCode,
             readMeData,
             readMeColumnHeader,
             readMeSheetName,
@@ -72,20 +73,21 @@ export class TemplateClass {
 
     static getReadMeData(readMeConfig: any, readMeColumnHeader: any, localizationMap: any) {
         const dataArray = [];
+        const localisedReadMeColumnHeader = getLocalizedName(readMeColumnHeader, localizationMap);
         for (const text of readMeConfig?.texts) {
             if(!text?.inSheet) continue;
-            dataArray.push({ [readMeColumnHeader]: "" });
-            dataArray.push({ [readMeColumnHeader]: "" });
+            dataArray.push({ [localisedReadMeColumnHeader]: "" });
+            dataArray.push({ [localisedReadMeColumnHeader]: "" });
             let header = getLocalizedName(text.header, localizationMap);
             if (text.isHeaderBold) {
                 header = `**${header}**`;
             }
             dataArray.push({
-                [readMeColumnHeader]: header
+                [localisedReadMeColumnHeader]: header
             })
             for (const description of text.descriptions) {
                 dataArray.push({
-                    [readMeColumnHeader]: getLocalizedName(description.text, localizationMap)
+                    [localisedReadMeColumnHeader]: getLocalizedName(description.text, localizationMap)
                 })
             }
         }
@@ -125,9 +127,9 @@ export class TemplateClass {
         const hierarchyDef = await getHierarchy(tenantId, campaignDetails?.hierarchyType);
         const hierarchyAfterSplit = hierarchyDef.slice(hierarchyDef.indexOf(splitOn));
 
-        const localisedSolitOn = getLocalizedName(`${campaignDetails?.hierarchyType}_${splitOn}`.toUpperCase(), localizationMap);
-        const localisedHierarchyAfterSplit = hierarchyAfterSplit.map((h: string) =>
-            getLocalizedName(`${campaignDetails?.hierarchyType}_${h}`.toUpperCase(), localizationMap)
+        const localisedSolitOn = `${campaignDetails?.hierarchyType}_${splitOn}`.toUpperCase();
+        const hierarchyAfterSplitCode = hierarchyAfterSplit.map((h: string) =>
+            `${campaignDetails?.hierarchyType}_${h}`.toUpperCase()
         );
 
         return {
@@ -139,7 +141,7 @@ export class TemplateClass {
             structuredBoundaries,
             hierarchyAfterSplit,
             localisedSolitOn,
-            localisedHierarchyAfterSplit
+            hierarchyAfterSplitCode
         };
     }
 
@@ -151,15 +153,17 @@ export class TemplateClass {
         localisedHierarchyAfterSplit: string[],
         localizationMap: any
     ) {
+        const hierarchyAfterSplit = getLocalizedHeaders(localisedHierarchyAfterSplit, localizationMap);
         const sheetNames = boundaries
             .filter((b: any) => b.type === splitOn)
-            .map((b: any) => getLocalizedName(b.code, localizationMap));
+            .map((b: any) => b.code);
         const boundaryCodeKey = getLocalizedName("HCM_ADMIN_CONSOLE_BOUNDARY_CODE", localizationMap);
+        const localisedSplitOnType = getLocalizedName(localisedSolitOn, localizationMap);
         return structuredBoundaries
-            .filter((b: any) => sheetNames.includes(b[localisedSolitOn]))
+            .filter((b: any) => sheetNames.includes(b[localisedSplitOnType]))
             .map((b: any) => {
                 const filtered: any = {};
-                for (const key of localisedHierarchyAfterSplit) {
+                for (const key of hierarchyAfterSplit) {
                     if (key in b) filtered[key] = b[key];
                 }
                 filtered[boundaryCodeKey] = b[boundaryCodeKey];
@@ -167,11 +171,15 @@ export class TemplateClass {
             });
     }
 
-    private static groupBoundariesBySheetName(boundaries: any[], localisedSolitOn: string, localisedHierarchyAfterSplit: string[]) {
+    private static groupBoundariesBySheetName(boundaries: any[], localisedSolitOn: string, localisedHierarchyAfterSplit: string[], localizationMap: any) {
         const lowestLevelKey = localisedHierarchyAfterSplit[localisedHierarchyAfterSplit.length - 1];
+        const splitOnType = getLocalizedName(localisedSolitOn, localizationMap);
+        // const boundaryCodeLocalizedName = getLocalizedName("HCM_ADMIN_CONSOLE_BOUNDARY_CODE", localizationMap);
+        const localisedLowestLevelKey = getLocalizedName(lowestLevelKey, localizationMap);
+    
         return boundaries.reduce((acc: Record<string, any[]>, b: any) => {
-            const sheetName = b[localisedSolitOn];
-            const lowestValue = b[lowestLevelKey];
+            const sheetName = b[splitOnType];
+            const lowestValue = b[localisedLowestLevelKey];
             if (!sheetName || !lowestValue || lowestValue.trim() === "") return acc;
 
             if (!acc[sheetName]) acc[sheetName] = [];
@@ -180,11 +188,10 @@ export class TemplateClass {
         }, {});
     }
 
-    private static getLocalizedDynamicColumns(schema: any, localizationMap: any): Record<string, any> {
+    private static getDynamicColumns(schema: any): Record<string, any> {
         const dynamicColumns: Record<string, any> = {};
         for (const key of Object.keys(schema?.properties || {})) {
-            const localizedKey = getLocalizedName(key, localizationMap);
-            dynamicColumns[localizedKey] = schema.properties[key];
+            dynamicColumns[key] = schema.properties[key];
         }
         return dynamicColumns;
     }
@@ -200,12 +207,11 @@ export class TemplateClass {
     ): SheetMap {
         const sheetMap: SheetMap = {};
         const hierarchyDynamicColumns = buildHierarchyColumns(localisedHierarchyAfterSplit);
-        const boundaryCodeColumn = getLocalizedName("HCM_ADMIN_CONSOLE_BOUNDARY_CODE", localizationMap);
 
         const commonDynamicColumns = {
             ...baseDynamicColumns,
             ...hierarchyDynamicColumns,
-            [boundaryCodeColumn]: {
+            ["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"]: {
                 color: "#f3842d",
                 hideColumn: true,
                 orderNumber: -1,
@@ -214,9 +220,15 @@ export class TemplateClass {
         };
 
         for (const [sheetName, data] of Object.entries(groupedBySheetName)) {
+            const localisedData = data.map((d: any) => {
+                for(let key in d) {
+                    d[key] = getLocalizedName(d[key], localizationMap);
+                }
+                return d;
+            })
             sheetMap[sheetName] = {
                 dynamicColumns: { ...commonDynamicColumns },
-                data
+                data : localisedData
             };
         }
 
@@ -276,8 +288,7 @@ export class TemplateClass {
             const fullPath = [...path, node];
             for (const b of fullPath) {
                 const localizedKey = getLocalizedName(`${hierarchyType}_${b.type}`.toUpperCase(), localizationMap);
-                const localizedValue = getLocalizedName(b.code, localizationMap);
-                entry[localizedKey] = localizedValue;
+                entry[localizedKey] = b.code;
             }
 
             result.push(entry);
