@@ -190,7 +190,7 @@ export class TemplateClass {
 
 
     private static async handleBatchFailure(batch: any[], usersToCreate: any[], localizationMap: Record<string, string>) {
-        const phoneKey = getLocalizedName("HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER", localizationMap);
+        const phoneKey = "HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER";
         const batchMobileSet = new Set(batch.map((u: any) => String(u?.user?.mobileNumber)));
         const failedUsers = usersToCreate.filter((u: any) => batchMobileSet.has(String(u?.data?.[phoneKey])));
         failedUsers.forEach(u => u.status = dataRowStatuses.failed);
