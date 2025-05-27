@@ -8,9 +8,7 @@ public enum HouseHoldType {
 
 	FAMILY("FAMILY"),
 
-	COMMUNITY("COMMUNITY"),
-
-	OTHER("OTHER");
+	COMMUNITY("COMMUNITY");
 
 	private String value;
 

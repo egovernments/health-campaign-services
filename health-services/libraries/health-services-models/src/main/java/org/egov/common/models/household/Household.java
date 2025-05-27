@@ -35,6 +35,7 @@ public class Household extends EgovOfflineModel {
     private Address address = null;
 
     @JsonProperty("householdType")
+    @NotNull
     private HouseHoldType householdType = null;
 
     //TODO remove
