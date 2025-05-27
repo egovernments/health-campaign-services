@@ -1,6 +1,13 @@
 All notable changes to this module will be documented in this file.
 
  
+ ## 1.0.28 - 2025-05-22
+
+- Removed `OTHER` type from `HouseHoldType` enum.
+- Made `householdType` in `Household` model a required (`@NotNull`) field to enforce mandatory
+data entry.
+- Upgraded `health-services-models` version to `1.0.28-dev-SNAPSHOT`
+
 ## 1.0.26 - 2025-03-04
  
 - Added INELIGIBLE in TaskStatus Enum for project tasks
