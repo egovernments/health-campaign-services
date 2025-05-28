@@ -79,8 +79,7 @@ public class HouseholdMemberEnrichmentService {
         log.info("getting houseHoldIds for householdMembers");
         List<String> houseHoldIds = getIdList(householdMembers, idMethod);
         log.info("finding households from householdService with ids: {}", houseHoldIds);
-        List<Household> householdList = null;
-        householdList = householdService.findById( tenantId, houseHoldIds, columnName, false).getResponse();
+        List<Household> householdList =  householdService.findById( tenantId, houseHoldIds, columnName, false).getResponse();
         log.info("getting method for householdList with columnName: {}", columnName);
         Method householdMethod = getIdMethod(householdList, columnName);
         log.info("getting Map of households");

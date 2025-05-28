@@ -240,9 +240,6 @@ public class EmployeeService {
 		}
         List<String> uuids = employees.stream().map(Employee :: getUuid).collect(Collectors.toList());
 		// If the uuids list is not empty, filter the employees list to include only those with matching UUIDs
-		if(userChecked && !propertiesManager.isCentralInstance) {
-			criteria.setTenantId(null);
-		}
 		if(!CollectionUtils.isEmpty(uuids)){
             Map<String, Object> userSearchCriteria = new HashMap<>();
 			userSearchCriteria.put(HRMSConstants.HRMS_USER_SERACH_CRITERIA_USERTYPE_CODE, HRMSConstants.HRMS_USER_SERACH_CRITERIA_USERTYPE);
