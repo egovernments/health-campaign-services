@@ -6,7 +6,6 @@ import { searchBoundaryRelationshipData, searchBoundaryRelationshipDefinition } 
 import { logger } from "../utils/logger";
 import { getAllFacilities } from "../api/campaignApis";
 import { dataRowStatuses } from "../config/constants";
-import { DataTransformer, transformConfigs } from "../config/transFormConfig";
 export class TemplateClass {
 
     static async generate(templateConfig: any, responseToSend: any, localizationMap: any): Promise<SheetMap> {
@@ -35,8 +34,8 @@ export class TemplateClass {
         const finalFacilityList = [...allPermanentFacilities, ...newFacilities?.map((f: any) => f.data)]
 
         // Generate final data
-        const {structuredBoundaries : boundaryData, codesOfBoundaries}: any = await this.getBoundaryData(campaignDetails, localizationMap);
-        const facilityData : any = await this.getFacilityData(finalFacilityList, codesOfBoundaries, localizationMap);
+        const facilityData = this.getFacilityData(finalFacilityList, localizationMap);
+        const boundaryData: any = await this.getBoundaryData(campaignDetails, localizationMap);
         const boundaryDynamicColumns: any = await this.getBoundaryDynamicColumns(campaignDetails?.tenantId, campaignDetails?.hierarchyType);
         const sheetMap: SheetMap = {
             [templateConfig?.sheets?.[0]?.sheetName]: {
@@ -106,9 +105,8 @@ export class TemplateClass {
             boundaryChildren
         );
         const structuredBoundaries = this.structureBoundaries(boundaries, campaignDetails?.hierarchyType, localizationMap);
-        const codesOfBoundaries = new Set(boundaries.map((b: any) => b.code));
         logger.info(`Structured boundaries prepared.`);
-        return {structuredBoundaries,codesOfBoundaries};
+        return structuredBoundaries;
     }
 
     static structureBoundaries(boundaries: any[], hierarchyType: any, localizationMap: any) {
@@ -188,33 +186,23 @@ export class TemplateClass {
         }
     }
 
-    static async getFacilityData(allFacilities: any, codesOfBoundaries: any, localizationMap: any) {
-        const transformer = new DataTransformer(transformConfigs.Facility);
-        let allFacilitiesRecursed = allFacilities.map((facility: any) => {
-            return {
-                Facility : facility
+    static getFacilityData(allFacilities: any, localizationMap: any) {
+        const facilityData = allFacilities.map((facility: any) => {
+            let capacity = facility?.HCM_ADMIN_CONSOLE_FACILITY_CAPACITY ?? facility?.storageCapacity;
+            if (capacity === undefined || capacity === null) {
+                capacity = null;
             }
-        })
-        const data = await transformer.reverseTransform(allFacilitiesRecursed);
-        const result = data
-            .filter((d: any) => {
-                const boundaryCode = d?.["HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY"];
-                return codesOfBoundaries.has(boundaryCode); // Keep if code is valid
-            })
-            .map((d: any) => {
-                // Default to 'Inactive' if usage value is missing
-                d["HCM_ADMIN_CONSOLE_FACILITY_USAGE"] = d?.["HCM_ADMIN_CONSOLE_FACILITY_USAGE"] ?? 'Inactive';
-
-                // Localize keys
-                const facility: Record<string, any> = {};
-                for (const key in d) {
-                    const localizedKey = getLocalizedName(key, localizationMap);
-                    facility[localizedKey] = d[key];
-                }
-
-                return facility;
-            });
-        
-        return result;
+            return {
+                [getLocalizedName("HCM_ADMIN_CONSOLE_FACILITY_CODE", localizationMap)]: facility?.id ?? facility?.HCM_ADMIN_CONSOLE_FACILITY_CODE,
+                [getLocalizedName("HCM_ADMIN_CONSOLE_FACILITY_NAME", localizationMap)]: facility?.name ?? facility?.HCM_ADMIN_CONSOLE_FACILITY_NAME,
+                [getLocalizedName("HCM_ADMIN_CONSOLE_FACILITY_STATUS", localizationMap)]:
+                    facility?.isPermanent || facility?.HCM_ADMIN_CONSOLE_FACILITY_STATUS === "Permanent" ? "Permanent" : "Temporary",
+                [getLocalizedName("HCM_ADMIN_CONSOLE_FACILITY_USAGE", localizationMap)]: facility?.HCM_ADMIN_CONSOLE_FACILITY_USAGE ?? 'Inactive',
+                [getLocalizedName("HCM_ADMIN_CONSOLE_FACILITY_TYPE", localizationMap)]: facility?.HCM_ADMIN_CONSOLE_FACILITY_TYPE ?? facility?.usage,
+                [getLocalizedName("HCM_ADMIN_CONSOLE_FACILITY_CAPACITY", localizationMap)]: capacity,
+                [getLocalizedName("HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY", localizationMap)]: facility?.HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY ?? ""
+            };
+        });        
+        return facilityData;
     }
 }
