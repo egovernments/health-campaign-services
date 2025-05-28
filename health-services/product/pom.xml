@@ -7,14 +7,18 @@
     <name>product</name>
     <version>1.2.0</version>
     <properties>
+        <log4j2.version>2.17.1</log4j2.version>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <java.version>17</java.version>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <lombok.version>1.18.22</lombok.version>
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
     </properties>
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>2.7.18</version>
+        <version>3.2.2</version>
         <relativePath/>
     </parent>
     <build>
@@ -69,6 +73,12 @@
             <groupId>io.swagger</groupId>
             <artifactId>swagger-core</artifactId>
             <version>1.5.18</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>javax.validation</groupId>
+                    <artifactId>validation-api</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <!-- Egov dependencies -->
         <dependency>
@@ -94,11 +104,6 @@
             <version>2.9.0-SNAPSHOT</version>
         </dependency>
         <dependency>
-            <groupId>org.hibernate.validator</groupId>
-            <artifactId>hibernate-validator</artifactId>
-            <version>6.2.5.Final</version>
-        </dependency>
-        <dependency>
             <groupId>org.egov.common</groupId>
             <artifactId>health-services-common</artifactId>
             <version>1.0.23-SNAPSHOT</version>
@@ -112,12 +117,6 @@
         <dependency>
             <groupId>com.fasterxml.jackson.datatype</groupId>
             <artifactId>jackson-datatype-jsr310</artifactId>
-        </dependency>
-        <!-- Bean Validation API support -->
-        <dependency>
-            <groupId>javax.validation</groupId>
-            <artifactId>validation-api</artifactId>
-            <version>2.0.1.Final</version>
         </dependency>
         <dependency>
             <groupId>org.egov.services</groupId>

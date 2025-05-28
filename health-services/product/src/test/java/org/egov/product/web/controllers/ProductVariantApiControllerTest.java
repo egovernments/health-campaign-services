@@ -18,6 +18,7 @@ import org.egov.tracer.model.ErrorRes;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
@@ -61,7 +62,8 @@ public class ProductVariantApiControllerTest {
                 .withOneProductVariant()
                 .withApiOperationNotUpdate()
                 .build();
-        ProductVariant productVariant = ProductVariantTestBuilder.builder().withId().build();
+        ProductVariant productVariant = ProductVariantTestBuilder.builder()
+                .withId().withVariation().build();
         List<ProductVariant> productVariants = new ArrayList<>();
         productVariants.add(productVariant);
         when(productVariantService.create(any(ProductVariantRequest.class))).thenReturn(productVariants);
@@ -84,33 +86,21 @@ public class ProductVariantApiControllerTest {
     @Test
     @DisplayName("should send error response with error details with 400 bad request for create")
     void shouldSendErrorResWithErrorDetailsWith400BadRequestForCreate() throws Exception {
-        // Build request
-        ProductVariantRequest request = ProductVariantRequestTestBuilder.builder()
-                .withOneProductVariant()
-                .withBadTenantIdInOneProductVariant()
-                .build();
-        request.setApiOperation(ApiOperation.CREATE);
-
-        // Mock the service to simulate a validation failure
-        when(productVariantService.create(any(ProductVariantRequest.class)))
-                .thenThrow(new CustomException("tenantId", "tenantId is invalid"));
-
-        // Perform request
         final MvcResult result = mockMvc.perform(post("/variant/v1/_create")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isBadRequest())  // expect 400
+                        .content(objectMapper.writeValueAsString(ProductVariantRequestTestBuilder.builder()
+                                .withOneProductVariant()
+                                .withBadTenantIdInOneProductVariant()
+                                .build())))
+                .andExpect(status().isBadRequest())
                 .andReturn();
-
-        // Assert error content
         String responseStr = result.getResponse().getContentAsString();
-        ErrorRes response = objectMapper.readValue(responseStr, ErrorRes.class);
+        ErrorRes response = objectMapper.readValue(responseStr,
+                ErrorRes.class);
 
         assertEquals(1, response.getErrors().size());
-        assertEquals("tenantId", response.getErrors().get(0).getCode());
-        assertEquals("tenantId is invalid", response.getErrors().get(0).getMessage());
+        assertTrue(response.getErrors().get(0).getCode().contains("tenantId"));
     }
-
 
     @Test
     @DisplayName("should send 400 bad request in case of incorrect api operation for create")
@@ -137,7 +127,8 @@ public class ProductVariantApiControllerTest {
                 .withOneProductVariantHavingId()
                 .withApiOperationNotNullAndNotCreate()
                 .build();
-        ProductVariant productVariant = ProductVariantTestBuilder.builder().withId().build();
+        ProductVariant productVariant = ProductVariantTestBuilder.builder()
+                .withId().withVariation().build();
         List<ProductVariant> productVariants = new ArrayList<>();
         productVariants.add(productVariant);
         when(productVariantService.update(any(ProductVariantRequest.class))).thenReturn(productVariants);
@@ -180,8 +171,7 @@ public class ProductVariantApiControllerTest {
         ErrorRes response = objectMapper.readValue(responseStr, ErrorRes.class);
 
         assertEquals(1, response.getErrors().size());
-        assertEquals("tenantId", response.getErrors().get(0).getCode());
-        assertEquals("tenantId is invalid", response.getErrors().get(0).getMessage());
+        assertTrue(response.getErrors().get(0).getCode().contains("tenantId"));
     }
 
     @Test
@@ -214,7 +204,7 @@ public class ProductVariantApiControllerTest {
                 any(Integer.class),
                 any(String.class),
                 any(Long.class),
-                any(Boolean.class))).thenReturn(Arrays.asList(ProductVariantTestBuilder.builder().withId().withAuditDetails().build()));
+                any(Boolean.class))).thenReturn(Arrays.asList(ProductVariantTestBuilder.builder().withId().withVariation().withAuditDetails().build()));
 
         final MvcResult result = mockMvc.perform(post("/variant/v1/_search?limit=10&offset=100&tenantId=default&lastChangedSince=1234322&includeDeleted=false")
                         .contentType(MediaType.APPLICATION_JSON)

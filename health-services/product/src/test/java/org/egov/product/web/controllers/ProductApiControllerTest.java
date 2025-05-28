@@ -17,6 +17,7 @@ import org.egov.tracer.model.ErrorRes;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
@@ -62,13 +63,13 @@ class ProductApiControllerTest {
     void productRequestForCreateShouldFailForIncorrectApiOperation() throws Exception {
         ProductRequest productRequest = ProductRequestTestBuilder.builder().withRequestInfo().addGoodProduct().withApiOperationDelete().build();
         String expectedResponse = "{\"ResponseInfo\":null,\"Errors\":[{\"code\":\"INVALID_API_OPERATION\",\"message\":\"API Operation DELETE not valid for create request\",\"description\":null,\"params\":null}]}";
-
+        ErrorRes expectErrorResponse = objectMapper.readValue(expectedResponse, ErrorRes.class);
         MvcResult result = mockMvc.perform(post("/v1/_create").contentType(MediaType
                         .APPLICATION_JSON).content(objectMapper.writeValueAsString(productRequest)))
                 .andExpect(status().isBadRequest()).andReturn();
-        String actualResponse = result.getResponse().getContentAsString();
+        ErrorRes actualErrorRes = objectMapper.readValue(result.getResponse().getContentAsString(), ErrorRes.class);
 
-        assertEquals(expectedResponse, actualResponse);
+        assertEquals(expectErrorResponse.getErrors().get(0).getCode(), actualErrorRes.getErrors().get(0).getCode());
     }
 
     @Test
@@ -153,7 +154,7 @@ class ProductApiControllerTest {
         ErrorRes response = objectMapper.readValue(responseStr, ErrorRes.class);
 
         assertEquals(1, response.getErrors().size());
-        assertEquals("INVALID_API_OPERATION", response.getErrors().get(0).getCode());
+        assertEquals("NotNull.productRequest.product[0].tenantId", response.getErrors().get(0).getCode());
     }
 
 

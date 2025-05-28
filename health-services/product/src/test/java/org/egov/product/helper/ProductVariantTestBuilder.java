@@ -11,7 +11,7 @@ public class ProductVariantTestBuilder {
     }
 
     public static ProductVariantTestBuilder builder() {
-        return new ProductVariantTestBuilder();
+        return new ProductVariantTestBuilder().withIdNull();
     }
 
     public ProductVariant build() {
@@ -32,7 +32,7 @@ public class ProductVariantTestBuilder {
     }
 
     public ProductVariantTestBuilder withVariation() {
-        withIdNull().builder.variation("some-variation");
+        this.builder.variation("some-variation");
         return this;
     }
 

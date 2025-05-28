@@ -131,7 +131,7 @@ class ProductVariantServiceCreateTest {
     @Test
     @DisplayName("should throw exception for any invalid product id")
     void shouldThrowExceptionForAnyInvalidProductId() throws Exception {
-        when(productService.validateProductId(anyString(), any(List.class))).thenReturn(Collections.emptyList());
+        when(productService.validateProductId(anyString(), anyList())).thenReturn(Collections.emptyList());
 
         assertThrows(CustomException.class, () -> productVariantService.create(request));
     }
