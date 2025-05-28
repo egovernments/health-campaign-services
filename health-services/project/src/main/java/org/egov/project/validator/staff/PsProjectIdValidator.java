@@ -8,6 +8,7 @@ import org.egov.common.validator.Validator;
 import org.egov.project.repository.ProjectRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.annotation.Order;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 
 import java.lang.reflect.Method;
@@ -31,10 +32,12 @@ import static org.egov.common.utils.ValidatorUtils.getErrorForNonExistentRelated
 public class PsProjectIdValidator implements Validator<ProjectStaffBulkRequest, ProjectStaff> {
 
     private final ProjectRepository projectRepository;
+    private final RedisTemplate<String,String> redisTemplate;
 
     @Autowired
-    public PsProjectIdValidator(ProjectRepository projectRepository) {
+    public PsProjectIdValidator(ProjectRepository projectRepository,RedisTemplate redisTemplate) {
         this.projectRepository = projectRepository;
+        this.redisTemplate = redisTemplate;
     }
 
 
@@ -49,8 +52,28 @@ public class PsProjectIdValidator implements Validator<ProjectStaffBulkRequest, 
                 .stream().filter(notHavingErrors()).collect(Collectors.toList()), idMethod);
         if (!eMap.isEmpty()) {
             List<String> entityIds = new ArrayList<>(eMap.keySet());
-            List<String> existingProjectIds = projectRepository.validateIds(entityIds,
+            List<String> existingProjectIds = new ArrayList<>();
+            List<String> cacheMissIds = new ArrayList<>();
+
+            for (String id : entityIds) {
+                String redisKey = "project-create-cache-" + id;
+                try {
+                    if (Boolean.TRUE.equals(redisTemplate.hasKey(redisKey))) {
+                        existingProjectIds.add(id); // found in cache
+                    } else {
+                        cacheMissIds.add(id); // not in cache
+                    }
+                }catch (Exception ex) {
+                    log.error("Redis error while checking key: {}", redisKey, ex);
+                    cacheMissIds.add(id); // fallback to DB if Redis fails
+                }
+            }
+            // Fallback to DB only for cache misses
+            if (!cacheMissIds.isEmpty()) {
+                List<String> dbValidIds = projectRepository.validateIds(cacheMissIds,
                     getIdFieldName(idMethod));
+                existingProjectIds.addAll(dbValidIds);
+            }
             List<ProjectStaff> invalidEntities = entities.stream().filter(notHavingErrors()).filter(entity ->
                     !existingProjectIds.contains(entity.getProjectId()))
                             .collect(Collectors.toList());
