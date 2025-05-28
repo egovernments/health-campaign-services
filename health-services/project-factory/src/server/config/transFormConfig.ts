@@ -109,6 +109,10 @@ export const transformConfigs: any = {
             hierarchy: "MICROPLAN"
         },
         fields: {
+            "$Facility.id": {
+                type: "string",
+                source: { header: "HCM_ADMIN_CONSOLE_FACILITY_CODE" }
+            },
             "$Facility.tenantId": {
                 type: "string",
                 value: "${metadata.tenantId}"
@@ -125,7 +129,7 @@ export const transformConfigs: any = {
                         mapping: {
                             "Permanent": "true",
                             "Temporary": "false",
-                            "%default%": "true"
+                            "%default%": "false"
                         }
                     }
                 }
@@ -201,8 +205,8 @@ export class DataTransformer {
             const rawValue = rowData[fieldConfig.source.header] ?? null;  // Change empty string to null
             if (fieldConfig.type === "array") {
                 const parts = rawValue
-                    .split(fieldConfig.source.delimiter || ",")
-                    .map((v: string) => v.trim());
+                    ? rawValue.split(fieldConfig.source.delimiter || ",").map((v:any) => v.trim())
+                    : [];
                 return parts.map((item: any) => {
                     if (fieldConfig.items?.type === "object") {
                         const obj: Record<string, any> = {};
@@ -251,6 +255,104 @@ export class DataTransformer {
             const finalKey = key.startsWith("$") ? key.substring(1) : key;
             this.setDeepValue(result, finalKey, value);
         }
+    }
+
+    public async reverseTransform(bodyData: any | any[]): Promise<any[]> {
+        const list = Array.isArray(bodyData) ? bodyData : [bodyData];
+        return this.reverseTransformBulk(list);
+    }
+
+    /** Bulk reverse: array of body objects → array of sheet rows */
+    private reverseTransformBulk(bodies: any[]): any[] {
+        // step 1: do base reverse mapping
+        const rows = bodies.map(body => this.reverseTransformSingle(body));
+
+        // step 2: custom hook?
+        const fnName = this.transformConfig.reverseTransformBulk;
+        if (fnName && this.transformFunctionMap[fnName]) {
+            return this.transformFunctionMap[fnName](rows, this.transformConfig);
+        }
+        return rows;
+    }
+
+    /** Single reverse: one body object → one sheet row */
+    private reverseTransformSingle(body: any): Record<string, any> {
+        const row: Record<string, any> = {};
+        this.reverseProcessFields(this.transformConfig.fields, body, row);
+        // custom hook?
+        const fnName = this.transformConfig.reverseTransformSingle;
+        if (fnName && this.transformFunctionMap[fnName]) {
+            return this.transformFunctionMap[fnName](row, this.transformConfig);
+        }
+        return row;
+    }
+
+    /** Walk the `fields` config, pulling values out of `body` and writing into `row` by header */
+    private reverseProcessFields(fields: any, body: any, row: Record<string, any>) {
+        for (const [key, fieldConfig] of Object.entries(fields) as [string, any][]) {
+            if (!fieldConfig.source?.header) continue;
+            const header = fieldConfig.source.header;
+            const path = key.startsWith("$") ? key.substring(1) : key;
+            const raw = this.getDeepValue(body, path);
+
+            // —— handle primitive transform-mapping inversion ——
+            if (fieldConfig.source.transform?.mapping && raw != null) {
+                const mapping: Record<string, string> = fieldConfig.source.transform.mapping;
+
+                // 1) collect explicit in→out pairs, skipping "%default%"
+                const explicit: [string, string][] = Object.entries(mapping)
+                    .filter(([inKey]) => inKey !== "%default%");
+
+                // 2) build out→in map only from explicit entries
+                const invMap: Record<string, string> = {};
+                explicit.forEach(([inKey, outVal]) => {
+                    invMap[outVal] = inKey;
+                });
+
+                // 4) decide result:
+                //    a) if raw matches an explicit outVal ⇒ that inKey
+                //    b) otherwise ⇒ use first explicit inKey (Permanent)
+                const inverted = invMap[raw];
+                if (inverted) {
+                    row[header] = inverted;
+                } else {
+                    // if raw equals the defaultOut, or raw never matched, we still
+                    // want to treat it as the first explicit (e.g. "Permanent")
+                    row[header] = explicit[0][0];
+                }
+            }
+            //-----------------------------------------
+            else if (fieldConfig.type === "array" && Array.isArray(raw)) {
+                const delim = fieldConfig.source.delimiter || ",";
+                if (fieldConfig.items?.type === "object") {
+                    row[header] = raw
+                        .map((item: any) => {
+                            const props = fieldConfig.items.properties;
+                            const selfProp = Object.entries(props)
+                                .find(([_, p]) => (p as any).valueFrom === "self");
+                            if (selfProp) {
+                                const outKey = selfProp[0].replace(/^\$/, "");
+                                return item[outKey];
+                            }
+                            return JSON.stringify(item);
+                        })
+                        .join(delim);
+                } else {
+                    row[header] = raw.join(delim);
+                }
+            }
+            //-----------------------------------------
+            else {
+                row[header] = raw;
+            }
+        }
+    }
+      
+      
+
+    /** Utility: deep‐get a dotted path from object */
+    private getDeepValue(obj: any, path: string): any {
+        return path.split(".").reduce((o, p) => (o ? o[p] : undefined), obj);
     }
     // === Custom Transform Functions ===
     private transformEmployee(data: any, transformConfig: any): any {
