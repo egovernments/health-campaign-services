@@ -1,6 +1,8 @@
 package org.egov.project.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.time.Duration;
+import java.util.Collections;
 import org.egov.common.contract.models.AuditDetails;
 import jakarta.validation.Valid;
 import java.util.Map;
@@ -19,6 +21,7 @@ import org.egov.project.util.ProjectServiceUtil;
 import org.egov.project.validator.project.ProjectValidator;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -44,18 +47,22 @@ public class ProjectService {
 
     private final ObjectMapper objectMapper;
 
-    @Autowired
-    public ProjectService(
-            ProjectRepository projectRepository,
-            ProjectValidator projectValidator, ProjectEnrichment projectEnrichment, ProjectConfiguration projectConfiguration, Producer producer,ProjectServiceUtil projectServiceUtil) {
-        this.projectRepository = projectRepository;
-        this.projectValidator = projectValidator;
-        this.projectEnrichment = projectEnrichment;
-        this.projectConfiguration = projectConfiguration;
-        this.producer = producer;
-        this.projectServiceUtil = projectServiceUtil;
-        this.objectMapper = new ObjectMapper();
-    }
+  @Autowired
+  private RedisTemplate<String, String> redisTemplate;
+
+
+  @Autowired
+  public ProjectService(
+      ProjectRepository projectRepository,
+      ProjectValidator projectValidator, ProjectEnrichment projectEnrichment, ProjectConfiguration projectConfiguration, Producer producer, ProjectServiceUtil projectServiceUtil) {
+    this.projectRepository = projectRepository;
+    this.projectValidator = projectValidator;
+    this.projectEnrichment = projectEnrichment;
+    this.projectConfiguration = projectConfiguration;
+    this.producer = producer;
+    this.projectServiceUtil = projectServiceUtil;
+    this.objectMapper = new ObjectMapper();
+  }
 
     public List<String> validateProjectIds(List<String> productIds) {
         return projectRepository.validateIds(productIds, "id");
@@ -65,19 +72,34 @@ public class ProjectService {
         return projectRepository.findById(projectIds);
     }
 
-    public ProjectRequest createProject(ProjectRequest projectRequest) {
-        projectValidator.validateCreateProjectRequest(projectRequest);
-        //Get parent projects if "parent" is present (For enrichment of projectHierarchy)
-        List<Project> parentProjects = getParentProjects(projectRequest);
-        //Validate Parent in request against projects fetched form database
-        if (parentProjects != null)
-            projectValidator.validateParentAgainstDB(projectRequest.getProjects(), parentProjects);
-        projectEnrichment.enrichProjectOnCreate(projectRequest, parentProjects);
-        log.info("Enriched with Project Number, Ids and AuditDetails");
-        producer.push(projectConfiguration.getSaveProjectTopic(), projectRequest);
-        log.info("Pushed to kafka");
-        return projectRequest;
+  public ProjectRequest createProject(ProjectRequest projectRequest) {
+    projectValidator.validateCreateProjectRequest(projectRequest);
+//Get parent projects if "parent" is present (For enrichment of projectHierarchy)
+    List<Project> parentProjects = getParentProjects(projectRequest);
+    //Validate Parent in request against projects fetched form database
+    if (parentProjects != null) {
+      projectValidator.validateParentAgainstDB(projectRequest.getProjects(), parentProjects);
     }
+    projectEnrichment.enrichProjectOnCreate(projectRequest, parentProjects);
+    log.info("Enriched with Project Number, Ids and AuditDetails");
+    producer.push(projectConfiguration.getSaveProjectTopic(), projectRequest);
+    log.info("Pushed to kafka");
+
+    // ✅ Save project IDs in Redis after Kafka push
+    for (Project project : projectRequest.getProjects()) {
+      String redisKey = "project-create-cache-" + project.getId();
+
+      if (StringUtils.isNotBlank(project.getProjectHierarchy())) {
+        redisTemplate.opsForValue()
+            .set(redisKey, project.getProjectHierarchy(), Duration.ofDays(1));
+        log.info("Cached projectHierarchy for project {} in Redis", project.getId());
+      } else {
+        log.warn("ProjectHierarchy is blank for project {}, not caching in Redis", project.getId());
+      }
+    }
+
+    return projectRequest;
+  }
 
     /**
      * Search for projects based on various criteria
@@ -304,16 +326,64 @@ public class ProjectService {
     }
 
 
-    /* Search for parent projects based on "parent" field and returns parent projects  */
-    private List<Project> getParentProjects(ProjectRequest projectRequest) {
-        List<Project> parentProjects = null;
-        List<Project> projectsForSearchRequest = projectRequest.getProjects().stream().filter(p -> StringUtils.isNotBlank(p.getParent())).collect(Collectors.toList());
-        if (projectsForSearchRequest.size() > 0) {
-            parentProjects = searchProject(getSearchProjectRequest(projectsForSearchRequest, projectRequest.getRequestInfo(), true), projectConfiguration.getMaxLimit(), projectConfiguration.getDefaultOffset(), projectRequest.getProjects().get(0).getTenantId(), null, false, false, false, null, null, false);
-        }
-        log.info("Fetched parent projects from DB");
-        return parentProjects;
+  /* Search for parent projects based on "parent" field and returns parent projects  */
+  private List<Project> getParentProjects(ProjectRequest projectRequest) {
+    List<Project> parentProjects = new ArrayList<>();
+
+    List<Project> projectsWithParent = projectRequest.getProjects().stream()
+        .filter(p -> StringUtils.isNotBlank(p.getParent()))
+        .collect(Collectors.toList());
+
+    if (projectsWithParent.isEmpty()) {
+      return Collections.emptyList();
     }
+
+    List<String> missingParentIds = new ArrayList<>();
+
+    for (Project project : projectsWithParent) {
+      String parentId = project.getParent();
+      String redisKey = "project-create-cache-" + parentId;
+
+      String cachedHierarchy = redisTemplate.opsForValue().get(redisKey);
+      if (StringUtils.isNotBlank(cachedHierarchy)) {
+        log.info("Parent project hierarchy for {} fetched from Redis", parentId);
+
+        Project parent = new Project();
+        parent.setId(parentId);
+        parent.setProjectHierarchy(cachedHierarchy);
+        parentProjects.add(parent);
+      } else {
+        missingParentIds.add(parentId);
+      }
+    }
+
+    if (!missingParentIds.isEmpty()) {
+      List<Project> dbQueryProjects = missingParentIds.stream()
+          .map(id -> Project.builder().id(id)
+              .tenantId(projectRequest.getProjects().get(0).getTenantId()).build())
+          .collect(Collectors.toList());
+
+      ProjectRequest searchRequest = getSearchProjectRequest(dbQueryProjects,
+          projectRequest.getRequestInfo(), false);
+
+      List<Project> dbProjects = searchProject(
+          searchRequest,
+          projectConfiguration.getMaxLimit(),
+          projectConfiguration.getDefaultOffset(),
+          searchRequest.getProjects().get(0).getTenantId(),
+          null, false, false, false, null, null, false
+      );
+
+      for (Project parent : dbProjects) {
+        String redisKey = "project-create-cache-" + parent.getId();
+        redisTemplate.opsForValue().set(redisKey, parent.getProjectHierarchy(), Duration.ofDays(1));
+        parentProjects.add(parent);
+      }
+
+    }
+
+    return parentProjects;
+  }
 
     /* Construct Project Request object for search which contains project id and tenantId */
     private ProjectRequest getSearchProjectRequest(List<Project> projects, RequestInfo requestInfo, Boolean isParentProjectSearch) {
