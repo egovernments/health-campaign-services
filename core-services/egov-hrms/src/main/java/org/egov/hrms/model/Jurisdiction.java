@@ -41,12 +41,11 @@
 package org.egov.hrms.model;
 
 import lombok.*;
-
-import javax.validation.constraints.NotNull;
-import javax.validation.constraints.Size;
-
-import org.hibernate.validator.constraints.SafeHtml;
+import org.egov.tracer.annotations.CustomSafeHtml;
 import org.springframework.validation.annotation.Validated;
+
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
 @Validated
 @EqualsAndHashCode(exclude = {"auditDetails"})
@@ -58,29 +57,28 @@ import org.springframework.validation.annotation.Validated;
 @ToString
 public class Jurisdiction {
 
-    @SafeHtml
+    @CustomSafeHtml
     private String id;
 
-    @SafeHtml
+    @CustomSafeHtml
     @NotNull
-    @Size(min=2, max=100)
+    @Size(min = 2, max = 100)
     private String hierarchy;
 
-    @SafeHtml
+    @CustomSafeHtml
     @NotNull
-    @Size(min=2, max=100)
+    @Size(min = 2, max = 100)
     private String boundary;
 
-    @SafeHtml
+    @CustomSafeHtml
     @NotNull
-    @Size(max=256)
+    @Size(max = 256)
     private String boundaryType;
 
-    @SafeHtml
+    @CustomSafeHtml
     private String tenantId;
 
     private AuditDetails auditDetails;
 
     private Boolean isActive;
-
 }

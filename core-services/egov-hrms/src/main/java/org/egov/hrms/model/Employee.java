@@ -42,13 +42,13 @@ package org.egov.hrms.model;
 
 import lombok.*;
 import org.egov.hrms.web.contract.User;
+import org.egov.tracer.annotations.CustomSafeHtml;
 import org.hibernate.validator.constraints.NotEmpty;
-import org.hibernate.validator.constraints.SafeHtml;
 import org.springframework.validation.annotation.Validated;
 
-import javax.validation.Valid;
-import javax.validation.constraints.NotNull;
-import javax.validation.constraints.Size;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -62,21 +62,22 @@ import java.util.List;
 @Builder
 public class Employee {
 
+    @CustomSafeHtml
     private Long id;
 
-    @SafeHtml
+    @CustomSafeHtml
     @Size(max = 1024)
     private String uuid;
 
-    @SafeHtml
+    @CustomSafeHtml
     @Size(min = 1, max = 256)
     private String code;
 
-    @SafeHtml
+    @CustomSafeHtml
     @Size(max = 250)
     private String employeeStatus;
 
-    @SafeHtml
+    @CustomSafeHtml
     @NotNull
     @Size(max = 250)
     private String employeeType;
@@ -85,35 +86,33 @@ public class Employee {
 
     @Valid
     @NotEmpty
-    @Size(min = 1,max = 50)
+    @Size(min = 1, max = 50)
     private List<Jurisdiction> jurisdictions = new ArrayList<>();
-
 
     @Valid
     private List<Assignment> assignments = new ArrayList<>();
 
     @Valid
-    @Size(max=25)
+    @Size(max = 25)
     private List<ServiceHistory> serviceHistory = new ArrayList<>();
-
 
     private Boolean IsActive;
 
     @Valid
-    @Size(max=25)
+    @Size(max = 25)
     private List<EducationalQualification> education = new ArrayList<>();
 
     @Valid
-    @Size(max=25)
+    @Size(max = 25)
     private List<DepartmentalTest> tests = new ArrayList<>();
 
-    @SafeHtml
+    @CustomSafeHtml
     @NotNull
     @Size(max = 250)
     private String tenantId;
 
     @Valid
-    @Size(max=50)
+    @Size(max = 50)
     private List<EmployeeDocument> documents = new ArrayList<>();
 
     @Valid
@@ -124,10 +123,9 @@ public class Employee {
     private AuditDetails auditDetails;
 
     private Boolean reActivateEmployee;
-    
+
     @Valid
     @NotNull
     private User user;
-
 
 }

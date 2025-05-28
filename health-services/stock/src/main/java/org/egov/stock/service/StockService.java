@@ -190,7 +190,8 @@ public class StockService {
             List<String> ids = (List<String>) ReflectionUtils.invokeMethod(getIdMethod(Collections
                             .singletonList(stockSearchRequest.getStock())),
                     stockSearchRequest.getStock());
-            List<Stock> stocks = stockRepository.findById(ids, includeDeleted, idFieldName).stream()
+            // fetching stock with ids
+            List<Stock> stocks = stockRepository.findById(tenantId, ids, includeDeleted, idFieldName).stream()
                     .filter(lastChangedSince(lastChangedSince))
                     .filter(havingTenantId(tenantId))
                     .filter(includeDeleted(includeDeleted))

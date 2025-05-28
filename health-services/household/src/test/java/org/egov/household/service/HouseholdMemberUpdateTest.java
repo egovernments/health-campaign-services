@@ -1,6 +1,7 @@
 package org.egov.household.service;
 
 import org.egov.common.ds.Tuple;
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.household.Household;
@@ -109,8 +110,9 @@ class HouseholdMemberUpdateTest {
         lenient().when(householdMemberConfiguration.getUpdateTopic()).thenReturn("update-topic");
     }
 
-    private void mockHouseholdFindIds() {
+    private void mockHouseholdFindIds() throws InvalidTenantIdException {
         when(householdService.findById(
+                any(String.class),
                 any(List.class),
                 any(String.class),
                 any(Boolean.class)
@@ -134,8 +136,8 @@ class HouseholdMemberUpdateTest {
         );
     }
 
-    private void mockIndividualMapping(){
-        when(householdMemberRepository.findIndividual(anyString())).thenReturn(SearchResponse.<HouseholdMember>builder().response(Collections.singletonList(
+    private void mockIndividualMapping() throws InvalidTenantIdException {
+        when(householdMemberRepository.findIndividual(anyString(), anyString())).thenReturn(SearchResponse.<HouseholdMember>builder().response(Collections.singletonList(
                 HouseholdMember.builder()
                         .individualId("some-other-individual")
                         .build()

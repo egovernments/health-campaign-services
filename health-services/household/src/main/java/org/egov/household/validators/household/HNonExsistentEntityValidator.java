@@ -1,9 +1,12 @@
 package org.egov.household.validators.household;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.Error;
 import org.egov.common.models.household.Household;
 import org.egov.common.models.household.HouseholdBulkRequest;
+import org.egov.common.utils.CommonUtils;
 import org.egov.common.validator.Validator;
 import org.egov.household.repository.HouseholdRepository;
 import org.springframework.core.annotation.Order;
@@ -23,7 +26,7 @@ import static org.egov.common.utils.CommonUtils.getMethod;
 import static org.egov.common.utils.CommonUtils.getObjClass;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
-import static org.egov.common.utils.ValidatorUtils.getErrorForNonExistentEntity;
+import static org.egov.common.utils.ValidatorUtils.*;
 import static org.egov.household.Constants.GET_ID;
 
 @Component
@@ -39,6 +42,7 @@ public class HNonExsistentEntityValidator implements Validator<HouseholdBulkRequ
 
     @Override
     public Map<Household, List<Error>> validate(HouseholdBulkRequest request) {
+        String tenantId = CommonUtils.getTenantId(request.getHouseholds());
         Map<Household, List<Error>> errorDetailsMap = new HashMap<>();
         List<Household> entities = request.getHouseholds();
         Class<?> objClass = getObjClass(entities);
@@ -47,14 +51,23 @@ public class HNonExsistentEntityValidator implements Validator<HouseholdBulkRequ
                 .stream().filter(notHavingErrors()).collect(Collectors.toList()), idMethod);
         if (!eMap.isEmpty()) {
             List<String> entityIds = new ArrayList<>(eMap.keySet());
-            List<Household> existingEntities = householdRepository.findById(entityIds,
-                    getIdFieldName(idMethod), false).getResponse();
-            List<Household> nonExistentEntities = checkNonExistentEntities(eMap,
-                    existingEntities, idMethod);
-            nonExistentEntities.forEach(task -> {
-                Error error = getErrorForNonExistentEntity();
-                populateErrorDetails(task, error, errorDetailsMap);
-            });
+
+            try {
+                List<Household> existingEntities = householdRepository.findById(tenantId, entityIds,
+                        getIdFieldName(idMethod), false).getResponse();
+                List<Household> nonExistentEntities = checkNonExistentEntities(eMap,
+                        existingEntities, idMethod);
+                nonExistentEntities.forEach(task -> {
+                    Error error = getErrorForNonExistentEntity();
+                    populateErrorDetails(task, error, errorDetailsMap);
+                });
+            } catch (InvalidTenantIdException exception) {
+                entities.forEach(household -> {
+                    Error error = getErrorForInvalidTenantId(tenantId, exception);
+                    populateErrorDetails(household, error, errorDetailsMap);
+                });
+            }
+
         }
 
         return errorDetailsMap;
