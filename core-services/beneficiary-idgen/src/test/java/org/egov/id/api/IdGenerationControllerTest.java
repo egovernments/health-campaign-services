@@ -63,4 +63,78 @@ class IdGenerationControllerTest {
 
         actualPerformResult.andExpect(MockMvcResultMatchers.status().isNotFound());
     }
+
+    @Test
+    void testIdPoolGenerateIDs() throws Exception {
+        IDPoolGenerationRequest idPoolGenerationRequest = new IDPoolGenerationRequest();
+        idPoolGenerationRequest.setRequestInfo(new RequestInfo());
+        idPoolGenerationRequest.setBatchRequestList(new ArrayList<>());
+
+        String content = (new ObjectMapper()).writeValueAsString(idPoolGenerationRequest);
+        MockHttpServletRequestBuilder requestBuilder = MockMvcRequestBuilders.post("/id_pool/_generate")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(content);
+
+        ResultActions actualPerformResult = MockMvcBuilders.standaloneSetup(this.idGenerationController)
+                .build()
+                .perform(requestBuilder);
+
+        actualPerformResult.andExpect(MockMvcResultMatchers.status().isNotFound());
+    }
+
+    @Test
+    void testIdPoolDispatchIDs() throws Exception {
+        IdDispatchRequest idDispatchRequest = new IdDispatchRequest();
+        idDispatchRequest.setRequestInfo(new RequestInfo());
+        idDispatchRequest.setClientInfo(new ClientInfo());
+
+        String content = (new ObjectMapper()).writeValueAsString(idDispatchRequest);
+        MockHttpServletRequestBuilder requestBuilder = MockMvcRequestBuilders.post("/id_pool/_dispatch")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(content);
+
+        ResultActions actualPerformResult = MockMvcBuilders.standaloneSetup(this.idGenerationController)
+                .build()
+                .perform(requestBuilder);
+
+        actualPerformResult.andExpect(MockMvcResultMatchers.status().isNotFound());
+    }
+
+    @Test
+    void testIdPoolSearchGeneratedIDs() throws Exception {
+        IdPoolSearchRequest idPoolSearchRequest = new IdPoolSearchRequest();
+        idPoolSearchRequest.setRequestInfo(new RequestInfo());
+        idPoolSearchRequest.setIdPoolSearch(new IdPoolSearch());
+
+        String content = (new ObjectMapper()).writeValueAsString(idPoolSearchRequest);
+        MockHttpServletRequestBuilder requestBuilder = MockMvcRequestBuilders.post("/id_pool/_search")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(content);
+
+        ResultActions actualPerformResult = MockMvcBuilders.standaloneSetup(this.idGenerationController)
+                .build()
+                .perform(requestBuilder);
+
+        actualPerformResult.andExpect(MockMvcResultMatchers.status().isNotFound());
+    }
+
+
+    @Test
+    void testIdRecordUpdate() throws Exception {
+        IdRecordBulkRequest idRecordBulkRequest = new IdRecordBulkRequest();
+        idRecordBulkRequest.setRequestInfo(new RequestInfo());
+        idRecordBulkRequest.setIdRecords(new ArrayList<>());
+
+        String content = (new ObjectMapper()).writeValueAsString(idRecordBulkRequest);
+        MockHttpServletRequestBuilder requestBuilder = MockMvcRequestBuilders.post("/id_pool/_update")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(content);
+
+        ResultActions actualPerformResult = MockMvcBuilders.standaloneSetup(this.idGenerationController)
+                .build()
+                .perform(requestBuilder);
+
+        actualPerformResult.andExpect(MockMvcResultMatchers.status().isNotFound());
+    }
+
 }
