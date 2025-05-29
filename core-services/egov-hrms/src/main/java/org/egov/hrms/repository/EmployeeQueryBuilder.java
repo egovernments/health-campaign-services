@@ -126,6 +126,10 @@ public class EmployeeQueryBuilder {
 			builder.append(" and assignment.department IN (").append(createQuery(criteria.getDepartments())).append(")");
 			addToPreparedStatement(preparedStmtList, criteria.getDepartments());
 		}
+		if(!CollectionUtils.isEmpty(criteria.getReportingTo())){
+			builder.append(" and assignment.reportingto IN (").append(createQuery(criteria.getReportingTo())).append(")");
+			addToPreparedStatement(preparedStmtList, criteria.getReportingTo());
+		}
 		if(!CollectionUtils.isEmpty(criteria.getDesignations())){
 			builder.append(" and assignment.designation IN (").append(createQuery(criteria.getDesignations())+")");
 			addToPreparedStatement(preparedStmtList,criteria.getDesignations());

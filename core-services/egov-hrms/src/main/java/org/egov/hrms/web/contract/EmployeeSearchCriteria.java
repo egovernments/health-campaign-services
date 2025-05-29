@@ -30,6 +30,8 @@ public class EmployeeSearchCriteria {
 	private List<String> departments;
 	
 	private List<String> designations;
+
+	private List<String> reportingTo;
 	
 	private Long asOnDate;
 
@@ -63,7 +65,8 @@ public class EmployeeSearchCriteria {
 	
 	public boolean isCriteriaEmpty(EmployeeSearchCriteria criteria) {
 		if(CollectionUtils.isEmpty(criteria.getCodes()) && CollectionUtils.isEmpty(criteria.getNames()) 
-				&& CollectionUtils.isEmpty(criteria.getDepartments()) && CollectionUtils.isEmpty(criteria.getDesignations())
+				&& CollectionUtils.isEmpty(criteria.getDepartments()) && CollectionUtils.isEmpty(criteria.getReportingTo())
+				&& CollectionUtils.isEmpty(criteria.getDesignations())
 				&& CollectionUtils.isEmpty(criteria.getIds()) && CollectionUtils.isEmpty(criteria.getEmployeestatuses())
 				&& CollectionUtils.isEmpty(criteria.getEmployeetypes()) && CollectionUtils.isEmpty(criteria.getUuids())
 				&& CollectionUtils.isEmpty(criteria.getPositions()) && StringUtils.isEmpty(criteria.getTenantId())

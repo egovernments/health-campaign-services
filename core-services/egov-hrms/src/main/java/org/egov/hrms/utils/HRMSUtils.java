@@ -59,7 +59,8 @@ public class HRMSUtils {
 
 	public boolean isAssignmentSearchReqd(EmployeeSearchCriteria criteria) {
 		return (! CollectionUtils.isEmpty(criteria.getPositions()) || null != criteria.getAsOnDate()
-				|| !CollectionUtils.isEmpty(criteria.getDepartments()) || !CollectionUtils.isEmpty(criteria.getDesignations()));
+				|| !CollectionUtils.isEmpty(criteria.getDepartments()) || !CollectionUtils.isEmpty(criteria.getDesignations())
+				|| !CollectionUtils.isEmpty(criteria.getReportingTo()));
 	}
 
 	public String generateMobileNumber() {
