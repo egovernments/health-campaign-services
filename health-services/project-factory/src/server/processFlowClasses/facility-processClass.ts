@@ -4,7 +4,8 @@ import { logger } from "../utils/logger";
 import { searchProjectTypeCampaignService } from "../service/campaignManageService";
 import { getRelatedDataWithCampaign } from "../utils/genericUtils";
 import { dataRowStatuses } from "../config/constants";
-import { DataTransformer, transformConfigs } from "../config/transFormConfig";
+import { DataTransformer } from "../utils/transFormUtil";
+import { transformConfigs } from "../config/transformConfigs";
 import { produceModifiedMessages } from "../kafka/Producer";
 import config from "../config";
 import { httpRequest } from "../utils/request";
@@ -205,6 +206,9 @@ export class TemplateClass {
             }
 
             await this.persistInBatches(successfullyCreatedFacilities, config?.kafka?.KAFKA_UPDATE_SHEET_DATA_TOPIC);
+            const waitTime = Math.max(5000, successfullyCreatedFacilities?.length * 8);
+            logger.info(`Waiting for ${waitTime} ms for persistence...`);
+            await new Promise((res) => setTimeout(res, waitTime));
         }
     }
 

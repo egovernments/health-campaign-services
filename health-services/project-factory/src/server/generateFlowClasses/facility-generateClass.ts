@@ -6,7 +6,8 @@ import { searchBoundaryRelationshipData, searchBoundaryRelationshipDefinition } 
 import { logger } from "../utils/logger";
 import { getAllFacilities } from "../api/campaignApis";
 import { dataRowStatuses } from "../config/constants";
-import { DataTransformer, transformConfigs } from "../config/transFormConfig";
+import { DataTransformer } from "../utils/transFormUtil";
+import { transformConfigs } from "../config/transformConfigs";
 export class TemplateClass {
 
     static async generate(templateConfig: any, responseToSend: any, localizationMap: any): Promise<SheetMap> {

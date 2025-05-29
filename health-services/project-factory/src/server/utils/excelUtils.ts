@@ -322,11 +322,11 @@ export function manageMultiSelectUnlocalised(sheet: any, schema: any, fileUrl?: 
 
       // Apply dropdowns for previous columns
       if (Array.isArray(enumsList) && enumsList.length > 0) {
-        applyDropdownsForMultiSelect(sheet, currentColumnIndex, maxSelections, enumsList, isChildOfSomeCampaign, rowsLength);
+        applyDropdownsForMultiSelectForUnlocalised(sheet, currentColumnIndex, maxSelections, enumsList, isChildOfSomeCampaign, rowsLength);
       }
 
       // Apply CONCATENATE formula
-      applyConcatenateFormula(sheet, currentColumnIndex, maxSelections);
+      applyConcatenateFormulaForUnlocalised(sheet, currentColumnIndex, maxSelections);
 
       // Hide the column if specified
       if (schema?.properties[property]?.hideColumn) {
@@ -369,6 +369,36 @@ function applyDropdownsForMultiSelect(sheet: any, currentColumnIndex: number, ma
   }
 }
 
+function applyDropdownsForMultiSelectForUnlocalised(sheet: any, currentColumnIndex: number, maxSelections: number, enumsList: string[], isChildOfSomeCampaign: boolean = false, rowsLength: number = 1) {
+  // Loop through columns for multi-select
+  for (let i = 1; i <= maxSelections; i++) {
+    const colIndex = currentColumnIndex - maxSelections + i - 1;
+
+    // Apply dropdown validation to each cell (skipping the first row)
+    sheet.getColumn(colIndex).eachCell({ includeEmpty: true }, (cell: any, rowNumber: number) => {
+      if (rowNumber > 2) {
+        cell.dataValidation = {
+          type: 'list',
+          formulae: [`"${enumsList.join(',')}"`],
+          showDropDown: true,
+          error: 'Please select a value from the dropdown list.',
+          errorStyle: 'stop',
+          showErrorMessage: true,
+          errorTitle: 'Invalid Entry',
+          allowBlank: true // Allow blank entries
+        };
+      }
+
+      // Freeze the current cell (the multi-select cell itself)
+      if (rowNumber > 2 && rowNumber <= rowsLength && isChildOfSomeCampaign) {
+        cell.protection = {
+          locked: true, // Lock the cell
+        };
+      }
+    });
+  }
+}
+
 
 // -----------------------------
 // Function to Apply CONCATENATE Formula
@@ -390,6 +420,30 @@ function applyConcatenateFormula(sheet: any, currentColumnIndex: number, maxSele
 
 
   for (let row = 2; row <= sheet.rowCount; row++) {
+    const rowFormula = formula.replace(/2/g, row.toString());
+    sheet.getCell(row, currentColumnIndex).value = {
+      formula: rowFormula
+    };
+  }
+}
+
+export function applyConcatenateFormulaForUnlocalised(sheet: any, currentColumnIndex: number, maxSelections: number) {
+  const colLetters = [];
+  for (let i = 1; i <= maxSelections; i++) {
+    const colIndex = currentColumnIndex - maxSelections + i - 1;
+    const colLetter = getColumnLetter(colIndex);
+    colLetters.push(colLetter);
+  }
+
+  const blankCheck = colLetters.map(col => `ISBLANK(${col}2)`).join(", ");
+  const formulaParts = colLetters.map(
+    (col, i) => `IF(ISBLANK(${col}2), "", ${col}2 & IF(${i === colLetters.length - 1}, "", ","))`
+  );
+
+  const formula = `=IF(AND(${blankCheck}), "", IF(RIGHT(CONCATENATE(${formulaParts.join(",")}),1)=",", LEFT(CONCATENATE(${formulaParts.join(",")}), LEN(CONCATENATE(${formulaParts.join(",")}) )-1), CONCATENATE(${formulaParts.join(",")})))`;
+
+
+  for (let row = 3; row <= sheet.rowCount; row++) {
     const rowFormula = formula.replace(/2/g, row.toString());
     sheet.getCell(row, currentColumnIndex).value = {
       formula: rowFormula
