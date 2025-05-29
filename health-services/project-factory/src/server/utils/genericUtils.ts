@@ -875,6 +875,72 @@ export async function handledropdownthings(sheet: any, schema: any, localization
   }
 }
 
+export async function handledropdownthingsUnLocalised(sheet: any, schema: any) {
+  logger.info(sheet.rowCount)
+  const dropdowns = Object.entries(schema?.properties || {})
+    .filter(([key, value]: any) => Array.isArray(value.enum) && value.enum.length > 0)
+    .reduce((result: any, [key, value]: any) => {
+      // Transform the key using localisedValue function
+      result[key] = value.enum;
+      return result;
+    }, {});
+  if (dropdowns && Object.keys(dropdowns)?.length > 0) {
+    logger.info(`Managing dropdowns: ${JSON.stringify(dropdowns)}`);
+    for (const key of Object.keys(dropdowns)) {
+      let dropdownColumnIndex = -1;
+      if (dropdowns[key]) {
+        logger.info(`Processing dropdown key: ${key} with values: ${dropdowns[key]}`);
+        const firstRow = sheet.getRow(1);
+        firstRow.eachCell({ includeEmpty: true }, (cell: any, colNumber: any) => {
+          if (cell.value === key) {
+            dropdownColumnIndex = colNumber;
+            logger.info(`Found column index for dropdown "${key}": ${dropdownColumnIndex}`);
+          }
+        });
+
+        // If dropdown column index is found, set multi-select dropdown for subsequent rows
+        if (dropdownColumnIndex !== -1) {
+          logger.info(`Setting dropdown for column index: ${dropdownColumnIndex}`);
+          sheet.getColumn(dropdownColumnIndex).eachCell({ includeEmpty: true }, (cell: any, rowNumber: any) => {
+            if (rowNumber > 2) {
+              if (cell.protection?.locked) { // Check if the cell is locked
+                cell.protection = { locked: false };
+                // Set dropdown list with no typing allowed
+                cell.dataValidation = {
+                  type: 'list',
+                  formulae: [`"${dropdowns[key].join(',')}"`],
+                  showDropDown: true,
+                  error: 'Please select a value from the dropdown list.',
+                  errorStyle: 'stop',
+                  showErrorMessage: true,
+                  errorTitle: 'Invalid Entry'
+                };
+                cell.protection = { locked: true }; // Lock the cell again after adding dropdown
+              }
+              else {
+                cell.dataValidation = {
+                  type: 'list',
+                  formulae: [`"${dropdowns[key].join(',')}"`],
+                  showDropDown: true,
+                  error: 'Please select a value from the dropdown list.',
+                  errorStyle: 'stop',
+                  showErrorMessage: true,
+                  errorTitle: 'Invalid Entry',
+                  allowBlank: true  // Allow blank entries
+                };
+              }
+            }
+          });
+        } else {
+          logger.info(`Dropdown column index not found for key: ${key}`);
+        }
+      }
+    }
+  } else {
+    logger.info("No dropdowns provided.");
+  }
+}
+
 async function handleHiddenColumns(sheet: any, hiddenColumns: any) {
   // logger.info(sheet)
   logger.info("hiddenColumns", hiddenColumns);

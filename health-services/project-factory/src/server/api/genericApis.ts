@@ -62,31 +62,30 @@ export function getJsonData(sheetData: any, getRow = false, getSheetName = false
   return jsonData;
 }
 
-// function validateFirstRowColumn(createAndSearchConfig: any, worksheet: any, localizationMap: any) {
-//   if (createAndSearchConfig?.parseArrayConfig?.parseLogic) {
-//     const parseLogic = createAndSearchConfig.parseArrayConfig.parseLogic;
-//     // Iterate over each column configuration
-//     for (const columnConfig of parseLogic) {
-//       const { sheetColumn, sheetColumnName } = columnConfig;
-//       const localizedColumnName = getLocalizedName(sheetColumnName, localizationMap);
+export function getJsonDataWithUnlocalisedKey(sheetData: any, getRow = false, getSheetName = false, sheetName = "sheet1") {
+  const jsonData: any[] = [];
+  const headers = sheetData[0]; // Extract the headers from the first row
 
-//       // Get the value of the first row in the current column
-//       if (sheetColumn && localizedColumnName) {
-//         const firstRowValue = worksheet.getCell(sheetColumn + '1').value;
-
-//         // Validate the first row of the current column
-//         if (firstRowValue !== localizedColumnName) {
-//           throwError(
-//             "FILE",
-//             400,
-//             "INVALID_COLUMNS",
-//             `Invalid format: Expected '${localizedColumnName}' in the first row of column ${sheetColumn}.`
-//           );
-//         }
-//       }
-//     }
-//   }
-// }
+  for (let i = 2; i < sheetData.length; i++) {
+    const rowData: any = {};
+    const row = sheetData[i];
+    if (row) {
+      for (let j = 0; j < headers.length; j++) {
+        const key = headers[j];
+        const value = row[j] === undefined || row[j] === "" ? "" : row[j];
+        if (value || value === 0) {
+          rowData[key] = value;
+        }
+      }
+      if (Object.keys(rowData).length > 0) {
+        if (getRow) rowData["!row#number!"] = i + 1;
+        if (getSheetName) rowData["!sheet#name!"] = sheetName;
+        jsonData.push(rowData);
+      }
+    }
+  };
+  return jsonData;
+}
 
 function getSheetDataFromWorksheet(worksheet: any) {
   var sheetData: any[][] = [];

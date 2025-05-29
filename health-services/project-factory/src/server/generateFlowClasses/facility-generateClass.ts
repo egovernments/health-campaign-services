@@ -17,8 +17,7 @@ export class TemplateClass {
         const campaignDetails: any = campaignDetailsResponse?.CampaignDetails?.[0];
         const readMeConfig = await getReadMeConfig(responseToSend.tenantId, responseToSend.type);
         const readMeColumnHeader = Object.keys(templateConfig?.sheets?.[0]?.schema?.properties || {})?.[0];
-        const localizedReadMeHeader = getLocalizedName(readMeColumnHeader, localizationMap);
-        const readMeData: any = this.getReadMeData(readMeConfig, localizedReadMeHeader, localizationMap);
+        const readMeData: any = this.getReadMeData(readMeConfig, readMeColumnHeader, localizationMap);
         const allPermanentFacilities = await getAllFacilities(responseToSend?.tenantId);
         const completedFacilitiesRow = await getRelatedDataWithCampaign(responseToSend.type, campaignDetails.campaignNumber, dataRowStatuses.completed);
         const permanentCodes = new Set(
@@ -30,13 +29,10 @@ export class TemplateClass {
             !permanentCodes.has(f.data?.HCM_ADMIN_CONSOLE_FACILITY_CODE)
         );
 
-
-        // Final merged list = permanent + new
-        const finalFacilityList = [...allPermanentFacilities, ...newFacilities?.map((f: any) => f.data)]
-
         // Generate final data
         const {structuredBoundaries : boundaryData, codesOfBoundaries}: any = await this.getBoundaryData(campaignDetails, localizationMap);
-        const facilityData : any = await this.getFacilityData(finalFacilityList, codesOfBoundaries, localizationMap);
+        const allPermanentFacilitiesTransformed: any = await this.getFacilityData(allPermanentFacilities, codesOfBoundaries);
+        const facilityData = [...allPermanentFacilitiesTransformed, ...newFacilities?.map((f: any) => f.data)]
         const boundaryDynamicColumns: any = await this.getBoundaryDynamicColumns(campaignDetails?.tenantId, campaignDetails?.hierarchyType);
         const sheetMap: SheetMap = {
             [templateConfig?.sheets?.[0]?.sheetName]: {
@@ -135,14 +131,13 @@ export class TemplateClass {
             const entry: Record<string, string> = {};
 
             // Add main boundary code
-            entry[getLocalizedName("HCM_ADMIN_CONSOLE_BOUNDARY_CODE", localizationMap)] = node.code;
+            entry["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"] = node.code;
 
             // Traverse current path
             const fullPath = [...path, node];
             for (const b of fullPath) {
-                const localizedKey = getLocalizedName(`${hierarchyType}_${b.type}`.toUpperCase(), localizationMap);
                 const localizedValue = getLocalizedName(b.code, localizationMap);
-                entry[localizedKey] = localizedValue;
+                entry[`${hierarchyType}_${b.type}`.toUpperCase()] = localizedValue;
             }
 
             result.push(entry);
@@ -188,7 +183,7 @@ export class TemplateClass {
         }
     }
 
-    static async getFacilityData(allFacilities: any, codesOfBoundaries: any, localizationMap: any) {
+    static async getFacilityData(allFacilities: any, codesOfBoundaries: any) {
         const transformer = new DataTransformer(transformConfigs.Facility);
         let allFacilitiesRecursed = allFacilities.map((facility: any) => {
             return {
@@ -204,15 +199,7 @@ export class TemplateClass {
             .map((d: any) => {
                 // Default to 'Inactive' if usage value is missing
                 d["HCM_ADMIN_CONSOLE_FACILITY_USAGE"] = d?.["HCM_ADMIN_CONSOLE_FACILITY_USAGE"] ?? 'Inactive';
-
-                // Localize keys
-                const facility: Record<string, any> = {};
-                for (const key in d) {
-                    const localizedKey = getLocalizedName(key, localizationMap);
-                    facility[localizedKey] = d[key];
-                }
-
-                return facility;
+                return d;
             });
         
         return result;

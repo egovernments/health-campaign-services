@@ -2,11 +2,11 @@ import { v4 as uuidV4 } from "uuid";
 import config from "../config";
 import { produceModifiedMessages } from "../kafka/Producer";
 import * as ExcelJS from "exceljs";
-import { callMdmsSchema, createAndUploadFileWithOutRequest, getJsonData, getSheetDataFromWorksheet } from "../api/genericApis";
-import { getLocalizedHeaders, getLocalizedMessagesHandlerViaLocale, handledropdownthings, searchAllGeneratedResources } from "./genericUtils";
+import { callMdmsSchema, createAndUploadFileWithOutRequest, getJsonDataWithUnlocalisedKey, getSheetDataFromWorksheet } from "../api/genericApis";
+import { getLocalizedMessagesHandlerViaLocale, handledropdownthingsUnLocalised, searchAllGeneratedResources } from "./genericUtils";
 import { getLocalisationModuleName } from "./localisationUtils";
 import { getLocalizedName } from "./campaignUtils";
-import { adjustRowHeight, enrichTemplateMetaData, freezeUnfreezeColumns, getExcelWorkbookFromFileURL, getLocaleFromWorkbook, manageMultiSelect, updateFontNameToRoboto } from "./excelUtils";
+import { adjustRowHeight, enrichTemplateMetaData, freezeUnfreezeColumns, getExcelWorkbookFromFileURL, getLocaleFromWorkbook, manageMultiSelectUnlocalised, updateFontNameToRoboto } from "./excelUtils";
 import * as path from 'path';
 import { ColumnProperties, SheetMap } from "../models/SheetMap";
 import { logger } from "./logger";
@@ -162,7 +162,7 @@ async function processRequest(ResourceDetails: any, workBook: any, templateConfi
         const sheetName = getLocalizedName(sheet?.sheetName, localizationMap);
         const worksheet = workBook.getWorksheet(sheetName);
         const sheetData = getSheetDataFromWorksheet(worksheet);
-        const jsonData = getJsonData(sheetData, true);
+        const jsonData = getJsonDataWithUnlocalisedKey(sheetData, true);
         wholeSheetData[sheetName] = jsonData;
         if(!sheet?.schemaName) continue;
         const schema = await callMdmsSchema(ResourceDetails?.tenantId, sheet?.schemaName);
@@ -197,9 +197,9 @@ async function processRequest(ResourceDetails: any, workBook: any, templateConfi
             const columnsToFreezeTillData = Object.keys(sheetData?.dynamicColumns || {}).filter(
                 (columnName) => sheetData.dynamicColumns[columnName]?.freezeTillData
             )
-            freezeUnfreezeColumns(worksheet, getLocalizedHeaders(columnsToFreeze, localizationMap), getLocalizedHeaders(columnsToUnFreezeTillData, localizationMap), getLocalizedHeaders(columnsToFreezeTillData, localizationMap), getLocalizedHeaders(columnsToFreezeColumnIfFilled, localizationMap));
-            manageMultiSelect(worksheet, schema, localizationMap);
-            await handledropdownthings(worksheet, schema, localizationMap);
+            freezeUnfreezeColumns(worksheet, columnsToFreeze, columnsToUnFreezeTillData, columnsToFreezeTillData, columnsToFreezeColumnIfFilled);
+            manageMultiSelectUnlocalised(worksheet, schema);
+            await handledropdownthingsUnLocalised(worksheet, schema);
             updateFontNameToRoboto(worksheet);
         }
 
@@ -282,9 +282,9 @@ async function createBasicTemplateViaConfig(responseToSend: any, templateConfig:
                 const columnsToFreezeTillData = Object.keys(sheetData?.dynamicColumns || {}).filter(
                     (columnName) => sheetData.dynamicColumns[columnName]?.freezeTillData
                 )
-                freezeUnfreezeColumns(worksheet, getLocalizedHeaders(columnsToFreeze, localizationMap), getLocalizedHeaders(columnsToUnFreezeTillData, localizationMap), getLocalizedHeaders(columnsToFreezeTillData, localizationMap), getLocalizedHeaders(columnsToFreezeColumnIfFilled, localizationMap));
-                manageMultiSelect(worksheet, schema, localizationMap);
-                await handledropdownthings(worksheet, schema, localizationMap);
+                freezeUnfreezeColumns(worksheet, columnsToFreeze, columnsToUnFreezeTillData, columnsToFreezeTillData, columnsToFreezeColumnIfFilled);
+                manageMultiSelectUnlocalised(worksheet, schema);
+                await handledropdownthingsUnLocalised(worksheet, schema);
                 updateFontNameToRoboto(worksheet);
                 logger.info(`Sheet ${sheetName} generated successfully`);
             }
@@ -402,7 +402,7 @@ function mergeAndGetDynamicColumns(dynamicColumns: any, schema: any): any {
 
 async function fillSheetMapInWorkbook(worksheet: ExcelJS.Worksheet, sheetData: any, isProcessedFile = false, localizationMap: any) {
     const columnNameToIndexMap = processDynamicColumns(worksheet, sheetData, isProcessedFile, localizationMap);
-    addDataToWorksheet(worksheet, sheetData, columnNameToIndexMap, localizationMap);
+    addDataToWorksheet(worksheet, sheetData, columnNameToIndexMap);
     logger.info(`Added data to sheet ${worksheet.name}`);
 }
 
@@ -415,31 +415,47 @@ function getOrCreateWorksheet(workbook: ExcelJS.Workbook, sheetName: string) {
     return worksheet;
 }
 
-function processDynamicColumns(worksheet: ExcelJS.Worksheet, sheetData: any, isProcessedFile = false, localizationMap: any) {
+function processDynamicColumns(
+    worksheet: ExcelJS.Worksheet,
+    sheetData: any,
+    isProcessedFile = false,
+    localizationMap: any
+) {
     const columnNameToIndexMap: Record<string, number> = {};
 
     if (!sheetData.dynamicColumns) return columnNameToIndexMap;
 
-    const headerRow = worksheet.getRow(1);
+    const keyRow = worksheet.getRow(1);       // Row 1: Original keys
+    const headerRow = worksheet.getRow(2);    // Row 2: Localized values
+
 
     Object.keys(sheetData.dynamicColumns).forEach((columnName, index) => {
         const columnIndex = index + 1;
-        const localisedColumnName = getLocalizedName(columnName,localizationMap);
+        const localisedColumnName = getLocalizedName(columnName, localizationMap);
         columnNameToIndexMap[columnName] = columnIndex;
 
-        // Set header cell value
+        // Row 1 - Raw key (hidden)
+        const keyCell = keyRow.getCell(columnIndex);
+        keyCell.value = columnName;
+
+        // Row 2 - Localized name
         const headerCell = headerRow.getCell(columnIndex);
         headerCell.value = localisedColumnName;
 
-        // Apply column-level props (like width/hidden) and cell-level styles to header
-        applyColumnProperties(headerRow, headerCell, sheetData.dynamicColumns[columnName],isProcessedFile);
+        applyColumnProperties(headerRow, headerCell, sheetData.dynamicColumns[columnName], isProcessedFile);
     });
 
-    headerRow.commit(); // Commit the row after updating cells
-    worksheet.views = [{ state: 'frozen', ySplit: 1 }];
+    // Hide row with original keys
+    keyRow.hidden = true;
+    keyRow.commit();
+    headerRow.commit();
+
+    // Freeze pane below localized header
+    worksheet.views = [{ state: 'frozen', ySplit: 2 }];
 
     return columnNameToIndexMap;
 }
+
 
 function applyColumnProperties(row: ExcelJS.Row, cell: ExcelJS.Cell, columnProps: ColumnProperties, isProcessedFile = false) {
     const column = cell.worksheet.getColumn(cell.col);
@@ -447,7 +463,9 @@ function applyColumnProperties(row: ExcelJS.Row, cell: ExcelJS.Cell, columnProps
     // Apply column-level properties like width and hidden
     column.width = columnProps.width ?? 40; // Default width = 40
     if (columnProps.hideColumn !== undefined) column.hidden = columnProps.hideColumn;
-    if( isProcessedFile && columnProps.showInProcessed) column.hidden = false;
+    if( isProcessedFile && columnProps.showInProcessed) {
+        column.hidden = false
+    }
 
     cell.font = { ...cell.font, bold: true };
     adjustRowHeight(row, cell, column.width);
@@ -460,7 +478,7 @@ function applyColumnProperties(row: ExcelJS.Row, cell: ExcelJS.Cell, columnProps
         };
     }
 
-    cell.alignment = { horizontal: 'center' };
+    cell.alignment = { horizontal: 'center', wrapText: true };
 }
 
 
@@ -468,22 +486,20 @@ function applyColumnProperties(row: ExcelJS.Row, cell: ExcelJS.Cell, columnProps
 function addDataToWorksheet(
     worksheet: ExcelJS.Worksheet,
     sheetData: any,
-    columnNameToIndexMap: Record<string, number>,
-    localizationMap: any
+    columnNameToIndexMap: Record<string, number>
 ) {
-    // Clear all rows starting from row 2 (preserve first row)
-    for (let i = worksheet.rowCount; i > 1; i--) {
+    // Clear all rows starting from row 3 (preserve first and second row)
+    for (let i = worksheet.rowCount; i > 2; i--) {
         worksheet.spliceRows(i, 1);
     }
 
-    // Insert column headers in row 2
-    const headers : any[] = getLocalizedHeaders(Object.keys(columnNameToIndexMap) || [], localizationMap);
+    const headers : any[] = Object.keys(columnNameToIndexMap);
 
     const newRows = sheetData.data.map((rowData: any) =>
         headers.map(columnName => rowData[columnName] ?? '')
     );
 
-    worksheet.insertRows(2, newRows); // Start inserting data from row 2
+    worksheet.insertRows(3, newRows); // Start inserting data from row 2
 
     applyCellFormatting(worksheet, newRows.length, columnNameToIndexMap, sheetData);
 }
@@ -496,7 +512,7 @@ function applyCellFormatting(
     columnNameToIndexMap: Record<string, number>,
     sheetData: any
 ) {
-    for (let i = 1; i <= rowCount + 1; i++) {
+    for (let i = 1; i <= rowCount + 2; i++) {
         const row = worksheet.getRow(i);
         if (!row.hasValues) continue;
 

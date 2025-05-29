@@ -26,11 +26,10 @@ export class TemplateClass {
         // Localized keys for sheet names and column headers
         const templateSheetForReadMe = templateConfig?.sheets?.[0];
         const readMeHeaderKey = Object.keys(templateSheetForReadMe?.schema?.properties || {})[0];
-        const localizedReadMeHeader = getLocalizedName(readMeHeaderKey, localizationMap);
 
         // Prepare ReadMe sheet
         const readMeConfig = await getReadMeConfig(tenantId, type);
-        const readMeData = this.getReadMeData(readMeConfig, localizedReadMeHeader, localizationMap);
+        const readMeData = this.getReadMeData(readMeConfig, readMeHeaderKey, localizationMap);
 
         // Prepare Boundary sheet
         const boundaryData = await this.getBoundaryData(campaignDetails, localizationMap);
@@ -43,12 +42,12 @@ export class TemplateClass {
             const localizedData: Record<string, any> = {};
 
             for (const key in rawData) {
-                localizedData[getLocalizedName(key, localizationMap)] = rawData[key];
+                localizedData[key] = rawData[key];
             }
 
             localizedData["#status#"] = "CREATED";
-            localizedData[getLocalizedName("UserName", localizationMap)] = decrypt(rawData["UserName"]);
-            localizedData[getLocalizedName("Password", localizationMap)] = decrypt(rawData["Password"]);
+            localizedData["UserName"] = decrypt(rawData["UserName"]);
+            localizedData["Password"] = decrypt(rawData["Password"]);
 
             return localizedData;
         });
@@ -147,14 +146,14 @@ export class TemplateClass {
             const entry: Record<string, string> = {};
 
             // Add main boundary code
-            entry[getLocalizedName("HCM_ADMIN_CONSOLE_BOUNDARY_CODE", localizationMap)] = node.code;
+            entry["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"] = node.code;
 
             // Traverse current path
             const fullPath = [...path, node];
             for (const b of fullPath) {
-                const localizedKey = getLocalizedName(`${hierarchyType}_${b.type}`.toUpperCase(), localizationMap);
+                const key = `${hierarchyType}_${b.type}`.toUpperCase();
                 const localizedValue = getLocalizedName(b.code, localizationMap);
-                entry[localizedKey] = localizedValue;
+                entry[key] = localizedValue;
             }
 
             result.push(entry);

@@ -1,4 +1,4 @@
-import {getAllColumnsFromSchema, getLocalizedName } from "../utils/campaignUtils";
+import { getLocalizedName } from "../utils/campaignUtils";
 import { SheetMap } from "../models/SheetMap";
 import { logger } from "../utils/logger";
 import { searchProjectTypeCampaignService } from "../service/campaignManageService";
@@ -24,10 +24,10 @@ export class TemplateClass {
         const userUuid = campaign?.auditDetails?.createdBy;
 
         const sheetData = wholeSheetData[getLocalizedName("HCM_ADMIN_CONSOLE_FACILITIES", localizationMap)];
-        const facilityName = getLocalizedName("HCM_ADMIN_CONSOLE_FACILITY_NAME", localizationMap);
+        const facilityName = "HCM_ADMIN_CONSOLE_FACILITY_NAME";
         const updatedSheetData = this.addUniqueFacilityKeyInSheetData(sheetData, campaign, facilityName);
 
-        const newFacilities = await this.extractNewFacilities(updatedSheetData, facilityName, campaign.campaignNumber, resourceDetails, templateConfig,localizationMap);
+        const newFacilities = await this.extractNewFacilities(updatedSheetData,campaign.campaignNumber, resourceDetails);
         await this.persistInBatches(newFacilities, config?.kafka?.KAFKA_SAVE_SHEET_DATA_TOPIC);
 
         const waitTime = Math.max(5000, newFacilities.length * 8);
@@ -38,10 +38,7 @@ export class TemplateClass {
 
         const allCurrentFacilties = await getRelatedDataWithCampaign(resourceDetails?.type, campaign.campaignNumber, dataRowStatuses.completed);
         const allData = allCurrentFacilties?.map((u: any) => {
-            const data: any = {};
-            for (const key of Object.keys(u?.data)) {
-                data[getLocalizedName(key, localizationMap)] = u?.data[key];
-            }
+            let data: any = u?.data;
             data["#status#"] = "CREATED";
             return data;
         });
@@ -67,18 +64,13 @@ export class TemplateClass {
 
     private static async extractNewFacilities(
         sheetData: any[],
-        facilityNameKey: string,
         campaignNumber: string,
-        resourceDetails: any,
-        templateConfig: any,
-        localizationMap: any,
+        resourceDetails: any
     ): Promise<any[]> {
-         const facilitySchema = JSON.parse(JSON.stringify(templateConfig?.sheets?.filter((s: any) => s?.sheetName === "HCM_ADMIN_CONSOLE_FACILITIES")[0]?.schema));   
-        const columns = getAllColumnsFromSchema(facilitySchema);
         const facilityMap = Object.fromEntries(
             sheetData
                 .filter((row: any) => {
-                    const code = row?.[getLocalizedName("HCM_ADMIN_CONSOLE_FACILITY_CODE", localizationMap)];
+                    const code = row?.["HCM_ADMIN_CONSOLE_FACILITY_CODE"];
                     return !code; // Only for new entries
                 })
                 .map((row: any) => [row?.uniqueFacilityKey, row])
@@ -88,7 +80,7 @@ export class TemplateClass {
         const alreadyCompletedFacilityMap = Object.fromEntries(
             sheetData
                 .filter((row: any) => {
-                    const code = row?.[getLocalizedName("HCM_ADMIN_CONSOLE_FACILITY_CODE", localizationMap)];
+                    const code = row?.["HCM_ADMIN_CONSOLE_FACILITY_CODE"];
                     return !!code; // Only those with Facility Code
                 })
                 .map((row: any) => [row?.uniqueFacilityKey, row])
@@ -107,36 +99,25 @@ export class TemplateClass {
 
         const newEntries = [];
         // For already existing facility rows with Facility Code
-        for (const [uniqueKey, row] of Object.entries(alreadyCompletedFacilityMap)) {
+        for (const [uniqueKey, row] of Object.entries(alreadyCompletedFacilityMap) as any) {
             if (existingMap.has(uniqueKey)) continue;
-
-            const data : any = {};
-          for(const key of columns) {
-                data[key] = (row as Record<string, any>)?.[getLocalizedName(key, localizationMap)];
-            }
-
+            delete row?.uniqueFacilityKey;
             newEntries.push({
                 campaignNumber,
-                data,
+                data : row,
                 type: resourceDetails?.type,
                 uniqueIdentifier: uniqueKey,
-                uniqueIdAfterProcess: data?.["HCM_ADMIN_CONSOLE_FACILITY_CODE"],
+                uniqueIdAfterProcess: row?.["HCM_ADMIN_CONSOLE_FACILITY_CODE"],
                 status: dataRowStatuses.completed, // Mark as already completed
             });
         }
 
-        for (const [uniqueKey, row] of Object.entries(facilityMap)) {
+        for (const [uniqueKey, row] of Object.entries(facilityMap) as any) {
             if (existingMap.has(uniqueKey)) continue;
-
-
-            const data : any = {};
-           for(const key of columns) {
-                data[key] = (row as Record<string, any>)?.[getLocalizedName(key, localizationMap)];
-            }
-
+            delete row?.uniqueFacilityKey;
             newEntries.push({
                 campaignNumber,
-                data,
+                data : row,
                 type: resourceDetails?.type,
                 uniqueIdentifier: uniqueKey,
                 uniqueIdAfterProcess: null,

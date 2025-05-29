@@ -145,6 +145,10 @@ export const transformConfigs: any = {
             "$Facility.address.locality.code": {
                 type: "string",
                 source: { header: "HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY" }
+            },
+            "$Facility.address.tenantId": {
+                type: "string",
+                value: "${metadata.tenantId}"
             }
         },
         transFormBulk: "transformBulkFacility"
@@ -402,7 +406,6 @@ export class DataTransformer {
             const addressCode = d?.Facility?.address?.locality?.code;
             if (addressCode) {
                 d.Facility.address.locality.code = addressCode?.split(",")[0]?.trim();
-                d.Facility.address.tenantId = d.tenantId;
             }
             else {
                 throw new Error("Facility address locality code is missing");

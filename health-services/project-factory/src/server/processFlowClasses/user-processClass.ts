@@ -1,4 +1,4 @@
-import { getAllColumnsFromSchema, getLocalizedName } from "../utils/campaignUtils";
+import { getLocalizedName } from "../utils/campaignUtils";
 import { SheetMap } from "../models/SheetMap";
 import { logger } from "../utils/logger";
 import { searchProjectTypeCampaignService } from "../service/campaignManageService";
@@ -26,26 +26,23 @@ export class TemplateClass {
         const campaign = await this.getCampaignDetails(resourceDetails);
 
         const userSheetData = wholeSheetData[getLocalizedName("HCM_ADMIN_CONSOLE_USER_LIST", localizationMap)];
-        const mobileKey = getLocalizedName("HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER", localizationMap);
+        const mobileKey = "HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER";
 
-        const newUsers = await this.extractNewUsers(userSheetData, mobileKey, campaign.campaignNumber, resourceDetails, templateConfig, localizationMap);
+        const newUsers = await this.extractNewUsers(userSheetData, mobileKey, campaign.campaignNumber, resourceDetails);
         await this.persistInBatches(newUsers, config.kafka.KAFKA_SAVE_SHEET_DATA_TOPIC);
 
         const waitTime = Math.max(5000, newUsers.length * 8);
         logger.info(`Waiting for ${waitTime} ms for persistence...`);
         await new Promise((res) => setTimeout(res, waitTime));
 
-        await this.createUserFromTableData(resourceDetails, localizationMap);
+        await this.createUserFromTableData(resourceDetails);
 
         const allCurrentUsers = await getRelatedDataWithCampaign(resourceDetails?.type, campaign.campaignNumber, dataRowStatuses.completed);
         const allData = allCurrentUsers?.map((u: any) => {
-            const data : any = {};
-            for(const key of Object.keys(u?.data)) {
-                data[getLocalizedName(key, localizationMap)] = u?.data[key];
-            }
+            const data: any = u?.data;
             data["#status#"] = "CREATED";
-            data[getLocalizedName("UserName", localizationMap)] = decrypt(u?.data?.["UserName"]);
-            data[getLocalizedName("Password", localizationMap)] = decrypt(u?.data?.["Password"]);
+            data["UserName"] = decrypt(u?.data?.["UserName"]);
+            data["Password"] = decrypt(u?.data?.["Password"]);
             return data;
         });
         const sheetMap : SheetMap = {};
@@ -71,12 +68,8 @@ export class TemplateClass {
         sheetData: any[],
         mobileKey: string,
         campaignNumber: string,
-        resourceDetails: any,
-        templateConfig: any,
-        localizationMap: Record<string, string>
+        resourceDetails: any
     ): Promise<any[]> {
-        const userSchema = JSON.parse(JSON.stringify(templateConfig?.sheets?.filter((s: any) => s?.sheetName === "HCM_ADMIN_CONSOLE_USER_LIST")[0]?.schema));   
-        const columns = getAllColumnsFromSchema(userSchema);
         const userMap : any = Object.fromEntries(sheetData.map((row: any) => [row?.[mobileKey], row]).filter(([m]) => m));
 
         const existing = await getRelatedDataWithCampaign(resourceDetails?.type, campaignNumber);
@@ -88,13 +81,9 @@ export class TemplateClass {
         const newEntries = [];
         for (const [mobile, row] of Object.entries(userMap)) {
             if (existingMap?.[String(mobile)]) continue;
-            const data : any = {};
-            for(const key of columns) {
-                data[key] = (row as Record<string, any>)?.[getLocalizedName(key, localizationMap)];
-            }
             newEntries.push({
                 campaignNumber,
-                data,
+                data : row,
                 type: resourceDetails?.type,
                 uniqueIdentifier: mobile,
                 uniqueIdAfterProcess: null,
@@ -113,7 +102,7 @@ export class TemplateClass {
     }
     
 
-    static async createUserFromTableData(resourceDetails: any, localizationMap: Record<string, string>): Promise<any> {
+    static async createUserFromTableData(resourceDetails: any): Promise<any> {
         logger.info("Fetching campaign details...");
         const response = await searchProjectTypeCampaignService({
             tenantId: resourceDetails.tenantId,
@@ -170,7 +159,7 @@ export class TemplateClass {
                 await this.persistInBatches(successfulUsers, config.kafka.KAFKA_UPDATE_SHEET_DATA_TOPIC);
             } catch (err) {
                 console.error("Error in batch creation:", err);
-                await this.handleBatchFailure(batch, usersToCreate, localizationMap);
+                await this.handleBatchFailure(batch, usersToCreate);
                 throw new Error(`Error in user batch creation: ${err}`);
             }
         }
@@ -189,7 +178,7 @@ export class TemplateClass {
     }
 
 
-    private static async handleBatchFailure(batch: any[], usersToCreate: any[], localizationMap: Record<string, string>) {
+    private static async handleBatchFailure(batch: any[], usersToCreate: any[]) {
         const phoneKey = "HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER";
         const batchMobileSet = new Set(batch.map((u: any) => String(u?.user?.mobileNumber)));
         const failedUsers = usersToCreate.filter((u: any) => batchMobileSet.has(String(u?.data?.[phoneKey])));

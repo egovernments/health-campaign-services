@@ -5,7 +5,7 @@ import { callMdmsSchema } from "../api/genericApis";
 import { getBoundaryOnWhichWeSplit, getLocalizedName, populateBoundariesRecursively } from "../utils/campaignUtils";
 import { searchBoundaryRelationshipData } from "../api/coreApis";
 import { getHierarchy } from "../api/campaignApis";
-import { getLocalizedHeaders, getReadMeConfig } from "../utils/genericUtils";
+import { getReadMeConfig } from "../utils/genericUtils";
 
 // This will be a dynamic template class for different types
 export class TemplateClass {
@@ -44,8 +44,7 @@ export class TemplateClass {
                 splitOn,
                 boundaries,
                 localisedSolitOn,
-                hierarchyAfterSplitCode,
-                localizationMap
+                hierarchyAfterSplitCode
             )),
             schemaPromise
         ]);
@@ -73,21 +72,20 @@ export class TemplateClass {
 
     static getReadMeData(readMeConfig: any, readMeColumnHeader: any, localizationMap: any) {
         const dataArray = [];
-        const localisedReadMeColumnHeader = getLocalizedName(readMeColumnHeader, localizationMap);
         for (const text of readMeConfig?.texts) {
             if(!text?.inSheet) continue;
-            dataArray.push({ [localisedReadMeColumnHeader]: "" });
-            dataArray.push({ [localisedReadMeColumnHeader]: "" });
+            dataArray.push({ [readMeColumnHeader]: "" });
+            dataArray.push({ [readMeColumnHeader]: "" });
             let header = getLocalizedName(text.header, localizationMap);
             if (text.isHeaderBold) {
                 header = `**${header}**`;
             }
             dataArray.push({
-                [localisedReadMeColumnHeader]: header
+                [readMeColumnHeader]: header
             })
             for (const description of text.descriptions) {
                 dataArray.push({
-                    [localisedReadMeColumnHeader]: getLocalizedName(description.text, localizationMap)
+                    [readMeColumnHeader]: getLocalizedName(description.text, localizationMap)
                 })
             }
         }
@@ -150,17 +148,14 @@ export class TemplateClass {
         splitOn: string,
         boundaries: any[],
         localisedSolitOn: string,
-        localisedHierarchyAfterSplit: string[],
-        localizationMap: any
+        hierarchyAfterSplit: string[],
     ) {
-        const hierarchyAfterSplit = getLocalizedHeaders(localisedHierarchyAfterSplit, localizationMap);
         const sheetNames = boundaries
             .filter((b: any) => b.type === splitOn)
             .map((b: any) => b.code);
-        const boundaryCodeKey = getLocalizedName("HCM_ADMIN_CONSOLE_BOUNDARY_CODE", localizationMap);
-        const localisedSplitOnType = getLocalizedName(localisedSolitOn, localizationMap);
+        const boundaryCodeKey = "HCM_ADMIN_CONSOLE_BOUNDARY_CODE";
         return structuredBoundaries
-            .filter((b: any) => sheetNames.includes(b[localisedSplitOnType]))
+            .filter((b: any) => sheetNames.includes(b[localisedSolitOn]))
             .map((b: any) => {
                 const filtered: any = {};
                 for (const key of hierarchyAfterSplit) {
@@ -173,13 +168,10 @@ export class TemplateClass {
 
     private static groupBoundariesBySheetName(boundaries: any[], localisedSolitOn: string, localisedHierarchyAfterSplit: string[], localizationMap: any) {
         const lowestLevelKey = localisedHierarchyAfterSplit[localisedHierarchyAfterSplit.length - 1];
-        const splitOnType = getLocalizedName(localisedSolitOn, localizationMap);
-        // const boundaryCodeLocalizedName = getLocalizedName("HCM_ADMIN_CONSOLE_BOUNDARY_CODE", localizationMap);
-        const localisedLowestLevelKey = getLocalizedName(lowestLevelKey, localizationMap);
     
         return boundaries.reduce((acc: Record<string, any[]>, b: any) => {
-            const sheetName = b[splitOnType];
-            const lowestValue = b[localisedLowestLevelKey];
+            const sheetName = b[localisedSolitOn];
+            const lowestValue = b[lowestLevelKey];
             if (!sheetName || !lowestValue || lowestValue.trim() === "") return acc;
 
             if (!acc[sheetName]) acc[sheetName] = [];
@@ -282,13 +274,12 @@ export class TemplateClass {
             const entry: Record<string, string> = {};
 
             // Add main boundary code
-            entry[getLocalizedName("HCM_ADMIN_CONSOLE_BOUNDARY_CODE", localizationMap)] = node.code;
+            entry["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"] = node.code;
 
             // Traverse current path
             const fullPath = [...path, node];
             for (const b of fullPath) {
-                const localizedKey = getLocalizedName(`${hierarchyType}_${b.type}`.toUpperCase(), localizationMap);
-                entry[localizedKey] = b.code;
+                entry[`${hierarchyType}_${b.type}`.toUpperCase()] = b.code;
             }
 
             result.push(entry);

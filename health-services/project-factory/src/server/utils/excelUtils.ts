@@ -296,6 +296,46 @@ export function manageMultiSelect(sheet: any, schema: any, localizationMap?: any
   }
 }
 
+export function manageMultiSelectUnlocalised(sheet: any, schema: any, fileUrl?: string, sheetData?: any[]) {
+  const headerRow = sheet.getRow(1); // Assuming first row is the header
+  const rowsLength = sheetData?.length || 0;
+  const isChildOfSomeCampaign = Boolean(fileUrl);
+
+  for (const property in schema?.properties) {
+    if (schema?.properties[property]?.multiSelectDetails) {
+      const multiSelectDetails = schema?.properties[property]?.multiSelectDetails;
+      const maxSelections = multiSelectDetails?.maxSelections;
+      const enumsList = multiSelectDetails?.enum;
+
+      // Find column index for the current column
+      let currentColumnIndex = -1;
+      headerRow.eachCell((cell: any, colNumber: any) => {
+        if (cell.value === property) {
+          currentColumnIndex = colNumber;
+        }
+      });
+
+      if (currentColumnIndex === -1) {
+        console.warn(`Column with header ${property} not found`);
+        continue;
+      }
+
+      // Apply dropdowns for previous columns
+      if (Array.isArray(enumsList) && enumsList.length > 0) {
+        applyDropdownsForMultiSelect(sheet, currentColumnIndex, maxSelections, enumsList, isChildOfSomeCampaign, rowsLength);
+      }
+
+      // Apply CONCATENATE formula
+      applyConcatenateFormula(sheet, currentColumnIndex, maxSelections);
+
+      // Hide the column if specified
+      if (schema?.properties[property]?.hideColumn) {
+        sheet.getColumn(currentColumnIndex).hidden = true;
+      }
+    }
+  }
+}
+
 // -----------------------------
 // Function to Apply Dropdowns
 // -----------------------------
