@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 
 /**
- * status of request processing - to be enhanced in futuer to include INPROGRESS
+ * status of request processing - to be enhanced in future to include INPROGRESS
  */
 public enum ResponseStatusEnum {
 	SUCCESSFUL("SUCCESSFUL"),

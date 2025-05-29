@@ -15,7 +15,12 @@ public class IdGenProducer {
 
     public void push(String topic, Object value) {
         log.info("Topic: "+topic);
-        kafkaTemplate.send(topic, value);
+        try {
+            kafkaTemplate.send(topic, value);
+            log.debug("Message successfully sent to topic: {}", topic);
+        } catch (Exception e) {
+            log.error("Failed to send message to topic: {}", topic, e);
+        }
     }
 }
 

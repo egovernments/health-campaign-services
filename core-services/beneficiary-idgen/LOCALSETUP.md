@@ -2,18 +2,18 @@
 
 This document will walk you through the dependencies of this service and how to set it up locally
 
-- To setup the egov-idgen service in your local system, clone the [Core Service repository](https://github.com/egovernments/core-services).
+- To setup the beneficiary-idgen service in your local system, clone the [Core Service repository](https://github.com/egovernments/core-services).
 
 ## Dependencies
 
 ### Infra Dependency
 
 - [X] Postgres DB
-- [ ] Redis
+- [X] Redis
 - [ ] Elasticsearch
-- [ ] Kafka
-  - [ ] Consumer
-  - [ ] Producer
+- [X] Kafka
+  - [X] Consumer
+  - [X] Producer
 
 ## Running Locally
 

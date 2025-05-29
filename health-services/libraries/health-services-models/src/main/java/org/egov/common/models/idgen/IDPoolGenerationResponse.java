@@ -26,7 +26,7 @@ import lombok.*;
 @Builder
 public class IDPoolGenerationResponse {
 
-    @JsonProperty("RequestInfo")
+    @JsonProperty("ResponseInfo")
     @NotNull
     private ResponseInfo responseInfo;
 
