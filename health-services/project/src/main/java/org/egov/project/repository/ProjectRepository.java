@@ -8,13 +8,8 @@ import org.egov.common.data.query.builder.SelectQueryBuilder;
 import org.egov.common.data.repository.GenericRepository;
 import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.core.ProjectSearchURLParams;
-import org.egov.common.models.project.Document;
-import org.egov.common.models.project.Project;
-import org.egov.common.models.project.ProjectRequest;
-import org.egov.common.models.project.ProjectSearch;
-import org.egov.common.models.project.Target;
+import org.egov.common.models.project.*;
 import org.egov.common.producer.Producer;
-import org.egov.common.utils.CommonUtils;
 import org.egov.project.repository.querybuilder.DocumentQueryBuilder;
 import org.egov.project.repository.querybuilder.ProjectAddressQueryBuilder;
 import org.egov.project.repository.querybuilder.TargetQueryBuilder;
@@ -28,11 +23,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -96,9 +87,9 @@ public class ProjectRepository extends GenericRepository<Project> {
             }
             //Get Project descendants if includeDescendants flag is true
             if (includeImmediateChildren) {
-                descendants = getProjectImmediateDescendants(projects);
+                descendants = getProjectImmediateDescendants(tenantId, projects);
             } else if (includeDescendants) {
-                descendants = getProjectDescendants(projects);
+                descendants = getProjectDescendants(tenantId, projects);
             }
             List<String> descendantsProjectIds = descendants == null || descendants.isEmpty() ? new ArrayList<>() : descendants.stream().map(Project::getId).collect(Collectors.toList());
             projectIds.addAll(descendantsProjectIds);
@@ -198,8 +189,10 @@ public class ProjectRepository extends GenericRepository<Project> {
     }
 
     /* Fetch Project descendants based on Project ids */
-    private List<Project> getProjectsImmediateDescendantsBasedOnProjectIds(List<String> projectIds, List<Object> preparedStmtListDescendants) {
+    private List<Project> getProjectsImmediateDescendantsBasedOnProjectIds(String tenantId, List<String> projectIds, List<Object> preparedStmtListDescendants) throws InvalidTenantIdException {
         String query = queryBuilder.getProjectImmediateDescendantsSearchQueryBasedOnIds(projectIds, preparedStmtListDescendants);
+        // Replacing schema placeholder with the schema name for the tenant id
+        query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
         List<Project> projects = jdbcTemplate.query(query, addressRowMapper, preparedStmtListDescendants.toArray());
         log.info("Fetched project immediate descendants list based on given Project Ids");
         return projects;
@@ -260,13 +253,13 @@ public class ProjectRepository extends GenericRepository<Project> {
     }
 
     /* Fetch projects where project parent for projects in db contains project ID of requested project.*/
-    private List<Project> getProjectImmediateDescendants(List<Project> projects) {
+    private List<Project> getProjectImmediateDescendants(String tenantId, List<Project> projects) throws InvalidTenantIdException {
         List<String> requestProjectIds = projects.stream().map(Project::getId).collect(Collectors.toList());
 
         List<Object> preparedStmtListDescendants = new ArrayList<>();
         log.info("Fetching immediate descendant projects");
 
-        return getProjectsImmediateDescendantsBasedOnProjectIds(requestProjectIds, preparedStmtListDescendants);
+        return getProjectsImmediateDescendantsBasedOnProjectIds(tenantId, requestProjectIds, preparedStmtListDescendants);
     }
 
     /* Constructs Project Objects with fetched projects, targets and documents using Project id and return list of Projects */
