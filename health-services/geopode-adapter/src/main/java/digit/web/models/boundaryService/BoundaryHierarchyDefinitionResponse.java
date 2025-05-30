@@ -2,14 +2,14 @@
 package digit.web.models.boundaryService;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import jakarta.validation.Valid;
+import lombok.*;
 import org.egov.common.contract.response.ResponseInfo;
+import org.springframework.validation.annotation.Validated;
 
 import java.util.List;
 
+@Validated
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -17,11 +17,13 @@ import java.util.List;
 public class BoundaryHierarchyDefinitionResponse {
 
     @JsonProperty("ResponseInfo")
+    @Valid
     private ResponseInfo responseInfo;
 
     @JsonProperty("totalCount")
     private Integer totalCount;
 
     @JsonProperty("BoundaryHierarchy")
+    @Valid
     private List<BoundaryHierarchy> boundaryHierarchy;
 }

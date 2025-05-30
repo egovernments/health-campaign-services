@@ -24,7 +24,7 @@ public class ServiceConstants {
     public static final String ERROR_IN_ARC_SEARCH="Error when fetching from Arcgis";
     public static final String HIERARCHY_TYPE = "MICROPLAN_NEW";
     public static final String ERROR_FETCHING_FROM_MDMS="Error Fetching Data from mdms";
-    public static final String NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT_ISO_CODE="For given tenatId and ISO code no country exists";
+    public static final String NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT_ISO_CODE="For given tenantId and ISO code no country exists";
     public static final String COUNTRY_OUTFIELDS="ADM1_NAME";
     public static final String FORMAT_VALUE="json";
     public static final String ERROR_FETCHING_FROM_BOUNDARY="Error Fetching Data from boundary";

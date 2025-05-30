@@ -2,7 +2,6 @@ package digit.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import digit.util.ArcgisUtil;
 import digit.web.models.boundaryService.*;
@@ -57,7 +56,7 @@ public class GeopodeAdapterService {
      *
      * @param request
      */
-    public BoundaryHierarchyDefinitionResponse searchBoundaryHierarchyDefinition(BoundaryHierarchyDefinitonSearchRequest request){
+    public BoundaryHierarchyDefinitionResponse searchBoundaryHierarchyDefinition(BoundaryHierarchyDefinitionSearchRequest request){
         BoundaryHierarchyDefinitionResponse boundaryHierarchyDefinitionResponse=boundaryUtil.fetchBoundaryHierarchyDefinition(request);
         return boundaryHierarchyDefinitionResponse;
     }
