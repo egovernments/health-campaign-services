@@ -20,6 +20,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.Collections;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
@@ -120,11 +121,9 @@ class IndividualServiceSearchTest {
 
         RequestInfo requestInfo = RequestInfoTestBuilder.builder().withCompleteRequestInfo().build();
 
-        when(individualRepository.find(any(IndividualSearch.class), anyInt(), anyInt(), anyString(), any(), anyBoolean()))
-                .thenReturn(SearchResponse.<Individual>builder().build());
-
-        when(encryptionService.encrypt(any(IndividualSearch.class), any(String.class))).thenReturn(individualSearch);
-
+        when(individualRepository.findByName(anyString(),anyString(),anyString(),anyString(),anyInt(),anyInt(),anyBoolean()))
+                .thenReturn(SearchResponse.<Individual>builder().response(Collections.emptyList()).build());
+                
         individualService.search(individualSearch, 0, 10,
                 "default", null, false,requestInfo);
 
