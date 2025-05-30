@@ -6,9 +6,8 @@ import digit.web.models.Arcgis.ArcgisRequest;
 import digit.web.models.Arcgis.ArcgisResponse;
 import digit.web.models.GeopodeBoundaryRequest;
 import digit.web.models.boundaryService.BoundaryHierarchyDefinitionResponse;
-import digit.web.models.boundaryService.BoundaryHierarchyDefinitonSearchRequest;
+import digit.web.models.boundaryService.BoundaryHierarchyDefinitionSearchRequest;
 import digit.web.models.boundaryService.BoundaryResponse;
-import digit.web.models.mdmsV2.MdmsResponseV2;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.tracer.model.CustomException;
 import org.springframework.http.HttpStatus;
@@ -23,7 +22,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.server.ResponseStatusException;
 
 import static digit.config.ServiceConstants.*;
-import static digit.config.ServiceConstants.ERROR_IN_SEARCH;
 
 @Slf4j
 @Controller
@@ -46,7 +44,7 @@ public class GeopodeApiController {
 
     @PostMapping("/boundary-definition/_search")
     public ResponseEntity<BoundaryHierarchyDefinitionResponse> searchBoundaryDefinition(
-            @Valid @RequestBody BoundaryHierarchyDefinitonSearchRequest request) {
+            @Valid @RequestBody BoundaryHierarchyDefinitionSearchRequest request) {
 
         BoundaryHierarchyDefinitionResponse response = null;
         try {

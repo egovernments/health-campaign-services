@@ -27,7 +27,7 @@ public class Field {
     private String sqlType;
 
     @JsonProperty("length")
-    private int length;
+    private Integer length;
 
     @JsonProperty("domain")
     private Object domain;

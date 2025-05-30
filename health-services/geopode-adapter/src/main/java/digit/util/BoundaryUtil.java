@@ -20,8 +20,8 @@ public class BoundaryUtil {
 
 	public BoundaryUtil(Configuration config, RestTemplate restTemplate) {
 		this.config = config;
-		this.restTemplate = restTemplate;
-	}
+        this.restTemplate = restTemplate;
+    }
 
 	public BoundaryTypeHierarchyResponse createBoundaryHierarchy(GeopodeBoundaryRequest request, List<BoundaryTypeHierarchy> boundaryHierarchyList) {
 		BoundaryTypeHierarchyRequest boundaryTypeHierarchyRequest = buildBoundaryHierarchyCreateRequest(request, boundaryHierarchyList);
@@ -47,16 +47,16 @@ public class BoundaryUtil {
 						.build()).build();
 	}
 
-	public BoundaryHierarchyDefinitionResponse fetchBoundaryHierarchyDefinition( BoundaryHierarchyDefinitonSearchRequest request){
-		StringBuilder url=new StringBuilder(config.getBoundaryServiceHost() + config.getBoundaryHierarchySearchEndpoint());
-		BoundaryHierarchyDefinitionResponse response = null;
+	public BoundaryHierarchyDefinitionResponse fetchBoundaryHierarchyDefinition( BoundaryHierarchyDefinitionSearchRequest request){
+			StringBuilder url=new StringBuilder(config.getBoundaryServiceHost() + config.getBoundaryHierarchySearchEndpoint());
+			BoundaryHierarchyDefinitionResponse response = null;
 
-		try{
-			response=restTemplate.postForObject(url.toString(),request, BoundaryHierarchyDefinitionResponse.class);
-		} catch(CustomException e) {
-			log.error(ERROR_IN_SEARCH, e);
-		}
+			try{
+				response=restTemplate.postForObject(url.toString(),request, BoundaryHierarchyDefinitionResponse.class);
+			} catch(CustomException e) {
+				log.error(ERROR_IN_SEARCH, e);
+			}
 
-		return response;
+			return response;
 	}
 }
