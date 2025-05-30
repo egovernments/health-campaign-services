@@ -6,10 +6,7 @@ import digit.web.models.Arcgis.ArcgisRequest;
 import digit.web.models.Arcgis.ArcgisResponse;
 import digit.web.models.Arcgis.Feature;
 import digit.web.models.GeopodeBoundaryRequest;
-import digit.web.models.boundaryService.BoundaryHierarchy;
-import digit.web.models.boundaryService.BoundaryHierarchyDefinitionResponse;
-import digit.web.models.boundaryService.BoundaryHierarchyDefinitionSearchCriteria;
-import digit.web.models.boundaryService.BoundaryHierarchyDefinitonSearchRequest;
+import digit.web.models.boundaryService.*;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.tracer.model.CustomException;
 import org.springframework.core.ParameterizedTypeReference;
@@ -43,7 +40,7 @@ public class ChildBoundaryCreationUtil {
     }
     @Async
     public void createChildrenAsync(GeopodeBoundaryRequest request, String parentCode) {
-        BoundaryHierarchyDefinitonSearchRequest boundaryHierarchyDefinitonSearchRequest=buildBoundaryHierarchyDefinitionSearchRequest(request);
+        BoundaryHierarchyDefinitionSearchRequest boundaryHierarchyDefinitonSearchRequest=buildBoundaryHierarchyDefinitionSearchRequest(request);
         BoundaryHierarchyDefinitionResponse boundaryHierarchyDefinitionResponse=null;
 
         try {
@@ -106,7 +103,7 @@ public class ChildBoundaryCreationUtil {
                 String parentName = extractNameFromFeature( parent,parentLevel);
 
                 // Fetch all batches where query is like ?adm0=Mozambique or ?adm1=ProvinceName
-                List<Feature> childResults = fetchAllBatchesForLevel(currentLevel, (String) null,rootCode);
+                List<Feature> childResults = fetchAllBatchesForLevel(currentLevel, parentName,rootCode);
 
                 currentLevelData.addAll(childResults);
             }
@@ -127,10 +124,10 @@ public class ChildBoundaryCreationUtil {
 
         results.put(currentLevel, uniqueFeatures);
 
-        System.out.println("fetch rescursively results current level "+currentLevel+currentLevelData);
+        System.out.println("fetch rescursively results current level "+currentLevel+uniqueFeatures);
 
         // Proceed to the next level recursively
-        fetchLevelRecursively(hierarchyLevels, currentIndex + 1, currentLevelData,results, rootCode);
+        fetchLevelRecursively(hierarchyLevels, currentIndex + 1, uniqueFeatures,results, rootCode);
     }
     /**
      * Fetches all batches for a given level and optional parent filter.
@@ -240,8 +237,8 @@ public class ChildBoundaryCreationUtil {
 
 
 
-    private BoundaryHierarchyDefinitonSearchRequest buildBoundaryHierarchyDefinitionSearchRequest(GeopodeBoundaryRequest request) {
-        return BoundaryHierarchyDefinitonSearchRequest.builder()
+    private BoundaryHierarchyDefinitionSearchRequest buildBoundaryHierarchyDefinitionSearchRequest(GeopodeBoundaryRequest request) {
+        return BoundaryHierarchyDefinitionSearchRequest.builder()
                 .requestInfo(request.getRequestInfo()) // Extract request info from original request
                 .boundaryTypeHierarchySearchCriteria( // Set the search criteria
                         BoundaryHierarchyDefinitionSearchCriteria.builder()
