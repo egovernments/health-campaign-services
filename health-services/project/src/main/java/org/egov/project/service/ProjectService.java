@@ -47,14 +47,13 @@ public class ProjectService {
 
     private final ObjectMapper objectMapper;
 
-  @Autowired
-  private RedisTemplate<String, String> redisTemplate;
+    private final RedisTemplate<String, String> redisTemplate;
 
 
   @Autowired
   public ProjectService(
       ProjectRepository projectRepository,
-      ProjectValidator projectValidator, ProjectEnrichment projectEnrichment, ProjectConfiguration projectConfiguration, Producer producer, ProjectServiceUtil projectServiceUtil) {
+      ProjectValidator projectValidator, ProjectEnrichment projectEnrichment, ProjectConfiguration projectConfiguration, Producer producer, ProjectServiceUtil projectServiceUtil, RedisTemplate redisTemplate) {
     this.projectRepository = projectRepository;
     this.projectValidator = projectValidator;
     this.projectEnrichment = projectEnrichment;
@@ -62,6 +61,7 @@ public class ProjectService {
     this.producer = producer;
     this.projectServiceUtil = projectServiceUtil;
     this.objectMapper = new ObjectMapper();
+    this.redisTemplate = redisTemplate;
   }
 
     public List<String> validateProjectIds(List<String> productIds) {
