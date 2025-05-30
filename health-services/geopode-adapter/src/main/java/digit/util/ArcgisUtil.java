@@ -1,6 +1,5 @@
 package digit.util;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import digit.config.Configuration;
 import digit.web.models.Arcgis.ArcgisResponse;
@@ -11,7 +10,6 @@ import digit.web.models.mdmsV2.MdmsCriteriaV2;
 import digit.web.models.mdmsV2.MdmsResponseV2;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.tracer.model.CustomException;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
@@ -33,13 +31,16 @@ public class ArcgisUtil {
     private Configuration config;
     private RestTemplate restTemplate;
     private MdmsV2Util mdmsV2Util;
-    @Autowired
     private ObjectMapper mapper;
+    private ChildBoundaryCreationUtil childBoundaryCreationUtil;
 
-    public ArcgisUtil(Configuration config, RestTemplate restTemplate, MdmsV2Util mdmsV2Util) {
+    public ArcgisUtil(Configuration config, RestTemplate restTemplate, MdmsV2Util mdmsV2Util, ChildBoundaryCreationUtil childBoundaryCreationUtil,ObjectMapper mapper) {
         this.config = config;
         this.restTemplate = restTemplate;
         this.mdmsV2Util=mdmsV2Util;
+        this.childBoundaryCreationUtil = childBoundaryCreationUtil;
+        this.mapper=mapper;
+
     }
 
     public BoundaryResponse createRoot(GeopodeBoundaryRequest request) {
@@ -53,6 +54,7 @@ public class ArcgisUtil {
         fetchArcGisData(countryName.get()); // For now we are not using the response (e.g., geometry/rings)
 
         BoundaryRequest boundaryRequest = buildBoundaryRequest(countryName, config.getTenantId(), request);
+        childBoundaryCreationUtil.createChildrenAsync(request, countryName.get());
         return sendBoundaryRequest(boundaryRequest);
     }
 

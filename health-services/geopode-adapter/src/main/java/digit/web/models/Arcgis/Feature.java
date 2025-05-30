@@ -19,7 +19,7 @@ public class Feature {
     @Valid
     private Attributes attributes; // Contains ADM1_NAME
 
-    @JsonProperty("geometry")
-    @Valid
-    private Geometry geometry;     // Contains rings
+//    @JsonProperty("geometry")
+//    @Valid
+//    private Geometry geometry;     // Contains rings
 }
