@@ -9,6 +9,7 @@ import digit.web.models.mdmsV2.MdmsCriteriaReqV2;
 import digit.web.models.mdmsV2.MdmsCriteriaV2;
 import digit.web.models.mdmsV2.MdmsResponseV2;
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.contract.request.RequestInfo;
 import org.egov.tracer.model.CustomException;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpMethod;
@@ -53,13 +54,13 @@ public class ArcgisUtil {
 
         fetchArcGisData(countryName.get()); // For now we are not using the response (e.g., geometry/rings)
 
-        BoundaryRequest boundaryRequest = buildBoundaryRequest(countryName, config.getTenantId(), request);
+        BoundaryRequest boundaryRequest = buildBoundaryRequest(countryName, request.getRequestInfo());
         childBoundaryCreationUtil.createChildrenAsync(request, countryName.get());
         return sendBoundaryRequest(boundaryRequest);
     }
 
 
-    private MdmsCriteriaReqV2 buildMdmsV2RequestForRoot(GeopodeBoundaryRequest request) {
+     MdmsCriteriaReqV2 buildMdmsV2RequestForRoot(GeopodeBoundaryRequest request) {
         return MdmsCriteriaReqV2.builder()
                 .requestInfo(request.getRequestInfo())
                 .mdmsCriteriaV2(MdmsCriteriaV2.builder()
@@ -84,9 +85,9 @@ public class ArcgisUtil {
     }
 
 
-    private BoundaryRequest buildBoundaryRequest(Optional<String> countryName, String tenantId, GeopodeBoundaryRequest request){
+    public BoundaryRequest buildBoundaryRequest(Optional<String> countryName, RequestInfo requestInfo){
         return BoundaryRequest.builder()
-                .requestInfo(request.getRequestInfo())
+                .requestInfo(requestInfo)
                 .boundary(List.of(
                         Boundary.builder()
                                 .code(countryName.orElse(null))
@@ -125,7 +126,7 @@ public class ArcgisUtil {
         }
     }
 
-    private BoundaryResponse sendBoundaryRequest(BoundaryRequest boundaryRequest) {
+    public BoundaryResponse sendBoundaryRequest(BoundaryRequest boundaryRequest) {
         //        List<List<List<Double>>> rings=null;
         //        // Access geometry
         //        if (arcresponse.getFeatures() != null && !arcresponse.getFeatures().isEmpty()) {

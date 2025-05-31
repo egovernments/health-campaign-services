@@ -61,4 +61,7 @@ public class Configuration {
 
     @Value("${egov.geopode.arcgis.search}")
     private String geopodeSearchEndpoint;
+
+    @Value("${ egov.boundary.service.hierarchyType")
+    private String hierarchyType;
 }

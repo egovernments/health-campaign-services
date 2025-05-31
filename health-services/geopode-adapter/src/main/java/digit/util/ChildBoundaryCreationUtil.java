@@ -8,6 +8,7 @@ import digit.web.models.Arcgis.Feature;
 import digit.web.models.GeopodeBoundaryRequest;
 import digit.web.models.boundaryService.*;
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.contract.request.RequestInfo;
 import org.egov.tracer.model.CustomException;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpMethod;
@@ -31,12 +32,14 @@ public class ChildBoundaryCreationUtil {
     private RestTemplate restTemplate;
     private Configuration config;
     private ObjectMapper mapper; // Inject ObjectMapper
+    private ArcgisUtil arcgisUtil;
 
-    public ChildBoundaryCreationUtil(BoundaryUtil boundaryUtil,RestTemplate restTemplate,Configuration config,ObjectMapper mapper){
+    public ChildBoundaryCreationUtil(BoundaryUtil boundaryUtil,RestTemplate restTemplate,Configuration config,ObjectMapper mapper,ArcgisUtil arcgisUtil){
         this.boundaryUtil=boundaryUtil;
         this.restTemplate=restTemplate;
         this.config=config;
         this.mapper=mapper;
+        this.arcgisUtil=arcgisUtil;
     }
     @Async
     public void createChildrenAsync(GeopodeBoundaryRequest request, String parentCode) {
@@ -59,7 +62,7 @@ public class ChildBoundaryCreationUtil {
 
         // This will store the final results for each level
         Map<String, List<Feature>> results = new HashMap<>();
-        fetchLevelRecursively(boundaryHierarchyDefinitionArray, 0, null,results,parentCode);
+        fetchLevelRecursively(boundaryHierarchyDefinitionArray, 0, null,results,parentCode,request);
         System.out.println("Results from Child Async"+results);
 
 
@@ -78,12 +81,14 @@ public class ChildBoundaryCreationUtil {
     /**
      * Recursive function to fetch data for each level based on parent data.
      */
-    private void fetchLevelRecursively(List<String> hierarchyLevels, int currentIndex, List<Feature> parentList, Map<String, List<Feature>> results, String rootCode) {
+    private void fetchLevelRecursively(List<String> hierarchyLevels, int currentIndex, List<Feature> parentList, Map<String, List<Feature>> results, String rootCode,GeopodeBoundaryRequest request) {
         System.out.println("fetchLevelRecursively(, hierarchyLevels fetch recur= " + hierarchyLevels); // prints the list of hierarchy levels
         System.out.println("currentIndex = " + currentIndex);       // prints the current index
         System.out.println("parentList = " + parentList);           // prints the list of parent features
 //        System.out.println("fetchLevelRecursively(, results = fetch recur" + results);                 // prints the map of results
         if (currentIndex >= hierarchyLevels.size()) return;
+
+        if (currentIndex >= hierarchyLevels.size()-1) return; //TODO: write the memo logic
 
         String currentLevel = hierarchyLevels.get(currentIndex);
         String parentLevel = currentIndex > 0 ? hierarchyLevels.get(currentIndex - 1) : null;
@@ -104,6 +109,9 @@ public class ChildBoundaryCreationUtil {
 
                 // Fetch all batches where query is like ?adm0=Mozambique or ?adm1=ProvinceName
                 List<Feature> childResults = fetchAllBatchesForLevel(currentLevel, parentName,rootCode);
+
+                initializeChildResults(childResults, currentLevel, request.getRequestInfo());
+                initializeParentChildRelationShip(childResults,parentName,currentLevel,request.getRequestInfo());
 
                 currentLevelData.addAll(childResults);
             }
@@ -127,7 +135,7 @@ public class ChildBoundaryCreationUtil {
         System.out.println("fetch rescursively results current level "+currentLevel+uniqueFeatures);
 
         // Proceed to the next level recursively
-        fetchLevelRecursively(hierarchyLevels, currentIndex + 1, uniqueFeatures,results, rootCode);
+        fetchLevelRecursively(hierarchyLevels, currentIndex + 1, uniqueFeatures,results, rootCode,request);
     }
     /**
      * Fetches all batches for a given level and optional parent filter.
@@ -246,6 +254,28 @@ public class ChildBoundaryCreationUtil {
                                 .build()
                 )
                 .build();
+    }
+
+    private void initializeChildResults(List<Feature> childResults, String currentLevel, RequestInfo requestInfo){
+        for(Feature child: childResults){
+            BoundaryRequest boundaryRequest=arcgisUtil.buildBoundaryRequest( Optional.ofNullable(extractNameFromFeature(child,currentLevel)),requestInfo );
+            arcgisUtil.sendBoundaryRequest(boundaryRequest);
+        }
+    }
+
+    private void initializeParentChildRelationShip(List<Feature> childResults, String parentName, String currentLevel,RequestInfo requestInfo){
+        for(Feature child: childResults) {
+            BoundaryRelationshipRequest boundaryRelationshipRequest =
+                    BoundaryRelationshipRequest.builder()
+                            .requestInfo(requestInfo).boundaryRelationship(BoundaryRelation.builder()
+                                    .code(extractNameFromFeature(child, currentLevel))
+                                    .parent(parentName)
+                                    .boundaryType(currentLevel)
+                                    .hierarchyType(config.getHierarchyType())
+                                    .build()).build();
+            String url = config.getBoundaryServiceHost() + config.getBoundaryRelationshipCreateEndpoint();
+            restTemplate.postForObject(url, boundaryRelationshipRequest, BoundaryRelationshipResponse.class);
+        }
     }
 
     public static List<String> extractOrderedHierarchy(BoundaryHierarchyDefinitionResponse response) {
