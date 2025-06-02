@@ -86,12 +86,10 @@ public class ChildBoundaryCreationUtil {
 //        System.out.println("fetchLevelRecursively(, results = fetch recur" + results);                 // prints the map of results
         if (currentIndex >= hierarchyLevels.size()) return;
 
-        if (currentIndex >= hierarchyLevels.size()-1) return; //TODO: write the memo logic
 
         String currentLevel = hierarchyLevels.get(currentIndex);
         String parentLevel = currentIndex > 0 ? hierarchyLevels.get(currentIndex - 1) : null;
 
-        List<Feature> currentLevelData = new ArrayList<>();
 
         // If root level (e.g., ADM0), make single batch-wise fetch
 
@@ -101,20 +99,9 @@ public class ChildBoundaryCreationUtil {
 
         if (parentList == null) {
             List<Feature> childResults= fetchAllBatchesForLevel(currentLevel,(String) null,rootCode); // No parent filter
-
-            for(Feature child: childResults) {
-                String featureName = extractNameFromFeature(child, currentLevel);
-                if (!seenBoundaryNames.contains(featureName)) {
-                    seenBoundaryNames.add(featureName);      // Mark name as seen
-                    uniqueFeatures.add(child);               // Add feature only if name was not seen
-                    initializeBoundary(child, currentLevel, request.getRequestInfo());
-                }
-                seenBoundaryNames.add(featureName);
-
-            }
+            uniqueFeatures=initializeBoundaryAndRelationship(childResults,null,currentLevel,request.getRequestInfo());
             System.out.println("parentList admin0"+uniqueFeatures);
 
-            System.out.println("currentLevelData"+currentIndex+currentLevelData);
         } else {
             // For each parent element, make a batch fetch based on parent
             for (Feature parent : parentList) {
@@ -124,18 +111,7 @@ public class ChildBoundaryCreationUtil {
                 // Fetch all batches where query is like ?adm0=Mozambique or ?adm1=ProvinceName
                 List<Feature> childResults = fetchAllBatchesForLevel(currentLevel, parentName,rootCode);
 
-                for(Feature child: childResults){
-                    String featureName=extractNameFromFeature(child,currentLevel);
-                    if (!seenBoundaryNames.contains(featureName)) {
-                        seenBoundaryNames.add(featureName);      // Mark name as seen
-                        uniqueFeatures.add(child);               // Add feature only if name was not seen
-                        initializeBoundary(child, currentLevel, request.getRequestInfo());
-                        initializeParentChildRelationShip(child,parentName,currentLevel,request.getRequestInfo());
-                    }
-                    seenBoundaryNames.add(featureName);
-
-                }
-                currentLevelData.addAll(childResults);
+                uniqueFeatures=initializeBoundaryAndRelationship(childResults,parentName,currentLevel,request.getRequestInfo());
             }
         }
 
@@ -266,6 +242,26 @@ public class ChildBoundaryCreationUtil {
                 .build();
     }
 
+    private List<Feature> initializeBoundaryAndRelationship(List<Feature> childResults, String parentName, String currentLevel, RequestInfo requestInfo){
+        List<Feature> uniqueFeatures = new ArrayList<>(); // Will hold unique features
+        Set<String> seenBoundaryNames = new HashSet<>();  // Will track boundary names we've already added
+        for(Feature child: childResults) {
+            String featureName = extractNameFromFeature(child, currentLevel);
+            if (!seenBoundaryNames.contains(featureName)) {
+                seenBoundaryNames.add(featureName);      // Mark name as seen
+                uniqueFeatures.add(child);// Add feature only if name was not seen
+                initializeBoundary(child, currentLevel, requestInfo);
+            }
+            seenBoundaryNames.add(featureName);
+
+        }
+        for(Feature child: uniqueFeatures) {
+            initializeParentChildRelationShip(child,parentName,currentLevel,requestInfo);
+        }
+
+        return uniqueFeatures;
+    }
+
     private void initializeBoundary(Feature child, String currentLevel, RequestInfo requestInfo){
         System.out.println("initialize child "+extractNameFromFeature(child,currentLevel)+currentLevel);
         BoundaryRequest boundaryRequest=boundaryUtil.buildBoundaryRequest( Optional.ofNullable(extractNameFromFeature(child,currentLevel)),requestInfo );
@@ -281,7 +277,8 @@ public class ChildBoundaryCreationUtil {
                                     .code(extractNameFromFeature(child, currentLevel))
                                     .parent(parentName)
                                     .boundaryType(currentLevel)
-                                    .hierarchyType(config.getHierarchyType())
+                                    .tenantId(config.getTenantId())
+                                    .hierarchyType(HIERARCHY_TYPE)
                                     .build()).build();
             System.out.println("intitalize boundary realtionshiop"+boundaryRelationshipRequest);
             String url = config.getBoundaryServiceHost() + config.getBoundaryRelationshipCreateEndpoint();
