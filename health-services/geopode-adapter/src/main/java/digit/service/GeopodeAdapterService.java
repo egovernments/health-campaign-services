@@ -47,8 +47,8 @@ public class GeopodeAdapterService {
      * @param request
      * @throws JsonProcessingException
      */
-    public BoundaryResponse createRootBoundaryData(GeopodeBoundaryRequest request) throws JsonProcessingException {
-        BoundaryResponse boundaryResponse=arcgisUtil.createRoot(request);
+    public ResponseEntity<BoundaryResponse> createRootBoundaryData(GeopodeBoundaryRequest request) throws JsonProcessingException {
+        ResponseEntity<BoundaryResponse> boundaryResponse=arcgisUtil.createRoot(request);
         return boundaryResponse;
     }
 

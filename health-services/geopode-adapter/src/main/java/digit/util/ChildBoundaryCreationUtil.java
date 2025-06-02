@@ -32,14 +32,12 @@ public class ChildBoundaryCreationUtil {
     private RestTemplate restTemplate;
     private Configuration config;
     private ObjectMapper mapper; // Inject ObjectMapper
-    private ArcgisUtil arcgisUtil;
 
-    public ChildBoundaryCreationUtil(BoundaryUtil boundaryUtil,RestTemplate restTemplate,Configuration config,ObjectMapper mapper,ArcgisUtil arcgisUtil){
+    public ChildBoundaryCreationUtil(BoundaryUtil boundaryUtil,RestTemplate restTemplate,Configuration config,ObjectMapper mapper){
         this.boundaryUtil=boundaryUtil;
         this.restTemplate=restTemplate;
         this.config=config;
         this.mapper=mapper;
-        this.arcgisUtil=arcgisUtil;
     }
     @Async
     public void createChildrenAsync(GeopodeBoundaryRequest request, String parentCode) {
@@ -97,9 +95,25 @@ public class ChildBoundaryCreationUtil {
 
         // If root level (e.g., ADM0), make single batch-wise fetch
 
-        if (parentList == null) {
+        // Store current level data in the result map
+        List<Feature> uniqueFeatures = new ArrayList<>(); // Will hold unique features
+        Set<String> seenBoundaryNames = new HashSet<>();  // Will track boundary names we've already added
 
-            currentLevelData = fetchAllBatchesForLevel(currentLevel,(String) null,rootCode); // No parent filter
+        if (parentList == null) {
+            List<Feature> childResults= fetchAllBatchesForLevel(currentLevel,(String) null,rootCode); // No parent filter
+
+            for(Feature child: childResults) {
+                String featureName = extractNameFromFeature(child, currentLevel);
+                if (!seenBoundaryNames.contains(featureName)) {
+                    seenBoundaryNames.add(featureName);      // Mark name as seen
+                    uniqueFeatures.add(child);               // Add feature only if name was not seen
+                    initializeBoundary(child, currentLevel, request.getRequestInfo());
+                }
+                seenBoundaryNames.add(featureName);
+
+            }
+            System.out.println("parentList admin0"+uniqueFeatures);
+
             System.out.println("currentLevelData"+currentIndex+currentLevelData);
         } else {
             // For each parent element, make a batch fetch based on parent
@@ -110,25 +124,21 @@ public class ChildBoundaryCreationUtil {
                 // Fetch all batches where query is like ?adm0=Mozambique or ?adm1=ProvinceName
                 List<Feature> childResults = fetchAllBatchesForLevel(currentLevel, parentName,rootCode);
 
-                initializeChildResults(childResults, currentLevel, request.getRequestInfo());
-                initializeParentChildRelationShip(childResults,parentName,currentLevel,request.getRequestInfo());
+                for(Feature child: childResults){
+                    String featureName=extractNameFromFeature(child,currentLevel);
+                    if (!seenBoundaryNames.contains(featureName)) {
+                        seenBoundaryNames.add(featureName);      // Mark name as seen
+                        uniqueFeatures.add(child);               // Add feature only if name was not seen
+                        initializeBoundary(child, currentLevel, request.getRequestInfo());
+                        initializeParentChildRelationShip(child,parentName,currentLevel,request.getRequestInfo());
+                    }
+                    seenBoundaryNames.add(featureName);
 
+                }
                 currentLevelData.addAll(childResults);
             }
         }
 
-        // Store current level data in the result map
-        List<Feature> uniqueFeatures = new ArrayList<>(); // Will hold unique features
-        Set<String> seenBoundaryNames = new HashSet<>();  // Will track boundary names we've already added
-
-        for (Feature feature : currentLevelData) {
-            String boundaryName = extractNameFromFeature(feature, currentLevel); // Extract boundary name
-
-            if (!seenBoundaryNames.contains(boundaryName)) {
-                seenBoundaryNames.add(boundaryName);      // Mark name as seen
-                uniqueFeatures.add(feature);              // Add feature only if name was not seen
-            }
-        }
 
         results.put(currentLevel, uniqueFeatures);
 
@@ -256,15 +266,15 @@ public class ChildBoundaryCreationUtil {
                 .build();
     }
 
-    private void initializeChildResults(List<Feature> childResults, String currentLevel, RequestInfo requestInfo){
-        for(Feature child: childResults){
-            BoundaryRequest boundaryRequest=arcgisUtil.buildBoundaryRequest( Optional.ofNullable(extractNameFromFeature(child,currentLevel)),requestInfo );
-            arcgisUtil.sendBoundaryRequest(boundaryRequest);
-        }
+    private void initializeBoundary(Feature child, String currentLevel, RequestInfo requestInfo){
+        System.out.println("initialize child "+extractNameFromFeature(child,currentLevel)+currentLevel);
+        BoundaryRequest boundaryRequest=boundaryUtil.buildBoundaryRequest( Optional.ofNullable(extractNameFromFeature(child,currentLevel)),requestInfo );
+        boundaryUtil.sendBoundaryRequest(boundaryRequest);
+
     }
 
-    private void initializeParentChildRelationShip(List<Feature> childResults, String parentName, String currentLevel,RequestInfo requestInfo){
-        for(Feature child: childResults) {
+    private void initializeParentChildRelationShip(Feature child, String parentName, String currentLevel,RequestInfo requestInfo){
+
             BoundaryRelationshipRequest boundaryRelationshipRequest =
                     BoundaryRelationshipRequest.builder()
                             .requestInfo(requestInfo).boundaryRelationship(BoundaryRelation.builder()
@@ -273,9 +283,10 @@ public class ChildBoundaryCreationUtil {
                                     .boundaryType(currentLevel)
                                     .hierarchyType(config.getHierarchyType())
                                     .build()).build();
+            System.out.println("intitalize boundary realtionshiop"+boundaryRelationshipRequest);
             String url = config.getBoundaryServiceHost() + config.getBoundaryRelationshipCreateEndpoint();
             restTemplate.postForObject(url, boundaryRelationshipRequest, BoundaryRelationshipResponse.class);
-        }
+
     }
 
     public static List<String> extractOrderedHierarchy(BoundaryHierarchyDefinitionResponse response) {

@@ -4,11 +4,13 @@ import digit.config.Configuration;
 import digit.web.models.GeopodeBoundaryRequest;
 import digit.web.models.boundaryService.*;
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.contract.request.RequestInfo;
 import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.List;
+import java.util.Optional;
 
 import static digit.config.ServiceConstants.*;
 
@@ -58,5 +60,36 @@ public class BoundaryUtil {
 			}
 
 			return response;
+	}
+
+	public BoundaryResponse sendBoundaryRequest(BoundaryRequest boundaryRequest) {
+		//        List<List<List<Double>>> rings=null;
+		//        // Access geometry
+		//        if (arcresponse.getFeatures() != null && !arcresponse.getFeatures().isEmpty()) {
+		//            Geometry geometry = arcresponse.getFeatures().get(0).getGeometry();  // First feature
+		//            rings = geometry.getRings();  // Actual coordinates
+		//        }
+		//        ObjectMapper mapper = new ObjectMapper();
+		//        JsonNode ringsNode = mapper.valueToTree(rings);
+		String url = config.getBoundaryServiceHost() + config.getBoundaryEntityCreateEndpoint();
+
+		try {
+			return restTemplate.postForObject(url, boundaryRequest, BoundaryResponse.class);
+		} catch (Exception e) {
+			log.error(ERROR_FETCHING_FROM_BOUNDARY, e);
+			throw new CustomException("BOUNDARY_CREATION_FAILED", "Failed to create boundary");
+		}
+	}
+
+	public BoundaryRequest buildBoundaryRequest(Optional<String> countryName, RequestInfo requestInfo){
+		return BoundaryRequest.builder()
+				.requestInfo(requestInfo)
+				.boundary(List.of(
+						Boundary.builder()
+								.code(countryName.orElse(null))
+								.tenantId(config.getTenantId())
+								.build()
+				))
+				.build();
 	}
 }

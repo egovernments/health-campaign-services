@@ -44,7 +44,7 @@ public class ArcgisUtil {
 
     }
 
-    public BoundaryResponse createRoot(GeopodeBoundaryRequest request) {
+    public ResponseEntity<BoundaryResponse> createRoot(GeopodeBoundaryRequest request) {
         MdmsResponseV2 mdmsResponse = fetchMdmsData(request);
         Optional<String> countryName = extractCountryNameFromMdms(mdmsResponse, request.getGeopodeBoundary().getISOCode());
 
@@ -55,8 +55,10 @@ public class ArcgisUtil {
         fetchArcGisData(countryName.get()); // For now we are not using the response (e.g., geometry/rings)
 
         BoundaryRequest boundaryRequest = buildBoundaryRequest(countryName, request.getRequestInfo());
+        BoundaryResponse response = new BoundaryResponse();
+//        sendBoundaryRequest(boundaryRequest);
         childBoundaryCreationUtil.createChildrenAsync(request, countryName.get());
-        return sendBoundaryRequest(boundaryRequest);
+        return ResponseEntity.ok(response);
     }
 
 
