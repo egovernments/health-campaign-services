@@ -61,7 +61,6 @@ public class ChildBoundaryCreationUtil {
         // This will store the final results for each level
         Map<String, List<Feature>> results = new HashMap<>();
         fetchLevelRecursively(boundaryHierarchyDefinitionArray, 0, null,results,parentCode,request);
-        System.out.println("Results from Child Async"+results);
 
 
     }
@@ -80,10 +79,6 @@ public class ChildBoundaryCreationUtil {
      * Recursive function to fetch data for each level based on parent data.
      */
     private void fetchLevelRecursively(List<String> hierarchyLevels, int currentIndex, List<Feature> parentList, Map<String, List<Feature>> results, String rootCode,GeopodeBoundaryRequest request) {
-        System.out.println("fetchLevelRecursively(, hierarchyLevels fetch recur= " + hierarchyLevels); // prints the list of hierarchy levels
-        System.out.println("currentIndex = " + currentIndex);       // prints the current index
-        System.out.println("parentList = " + parentList);           // prints the list of parent features
-//        System.out.println("fetchLevelRecursively(, results = fetch recur" + results);                 // prints the map of results
         if (currentIndex >= hierarchyLevels.size()) return;
 
 
@@ -100,7 +95,6 @@ public class ChildBoundaryCreationUtil {
         if (parentList == null) {
             List<Feature> childResults= fetchAllBatchesForLevel(currentLevel,(String) null,rootCode); // No parent filter
             uniqueFeatures=initializeBoundaryAndRelationship(childResults,null,currentLevel,request.getRequestInfo());
-            System.out.println("parentList admin0"+uniqueFeatures);
 
         } else {
             // For each parent element, make a batch fetch based on parent
@@ -118,7 +112,6 @@ public class ChildBoundaryCreationUtil {
 
         results.put(currentLevel, uniqueFeatures);
 
-        System.out.println("fetch rescursively results current level "+currentLevel+uniqueFeatures);
 
         // Proceed to the next level recursively
         fetchLevelRecursively(hierarchyLevels, currentIndex + 1, uniqueFeatures,results, rootCode,request);
@@ -129,7 +122,6 @@ public class ChildBoundaryCreationUtil {
      */
     //TODO include limit, offset in search call
     private List<Feature> fetchAllBatchesForLevel(String currentLevel, String parentName, String rootCode) {
-        System.out.println("fetchallbatchesForLevel currentLevels " + currentLevel + ", parentName: " + parentName);
         // Skip if it's a root level (e.g., ADM0)
         if (parentName == null) {
             String filter = "ADM0_NAME='" + rootCode + "'";
@@ -164,7 +156,6 @@ public class ChildBoundaryCreationUtil {
      * Calls Arcgis api endpoint
      * */
     private List<Feature> callArcgisAPI(String currentLevel, String whereClause) {
-        System.out.println("callarcgisapi currentLevel = " + currentLevel + ", whereClause = " + whereClause);
         List<Feature> resultList = new ArrayList<>();  // to store features from the response
 
         URI url = UriComponentsBuilder.fromHttpUrl(config.getArcgisEndpoint())
@@ -189,7 +180,6 @@ public class ChildBoundaryCreationUtil {
 
             if (arcgisResponse != null && arcgisResponse.getFeatures() != null) {
                 resultList = arcgisResponse.getFeatures();  // extract the list of features
-                System.out.println("arcgisResponse"+currentLevel+ arcgisResponse.getFeatures());
             }
         } catch (Exception e) {
             System.err.println("ArcGIS API error for level: " + currentLevel + " with where=" + whereClause);
@@ -263,7 +253,6 @@ public class ChildBoundaryCreationUtil {
     }
 
     private void initializeBoundary(Feature child, String currentLevel, RequestInfo requestInfo){
-        System.out.println("initialize child "+extractNameFromFeature(child,currentLevel)+currentLevel);
         BoundaryRequest boundaryRequest=boundaryUtil.buildBoundaryRequest( Optional.ofNullable(extractNameFromFeature(child,currentLevel)),requestInfo );
         boundaryUtil.sendBoundaryRequest(boundaryRequest);
 
@@ -280,7 +269,6 @@ public class ChildBoundaryCreationUtil {
                                     .tenantId(config.getTenantId())
                                     .hierarchyType(HIERARCHY_TYPE)
                                     .build()).build();
-            System.out.println("intitalize boundary realtionshiop"+boundaryRelationshipRequest);
             String url = config.getBoundaryServiceHost() + config.getBoundaryRelationshipCreateEndpoint();
             restTemplate.postForObject(url, boundaryRelationshipRequest, BoundaryRelationshipResponse.class);
 
