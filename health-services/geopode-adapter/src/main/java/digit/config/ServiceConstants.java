@@ -29,6 +29,8 @@ public class ServiceConstants {
     public static final String FORMAT_VALUE="json";
     public static final String ERROR_FETCHING_FROM_BOUNDARY="Error Fetching Data from boundary";
     public static final String ROOT_BOUNDARY_ALREADY_EXISTS="Root Boundary already created";
+    public static final String MDMS_ISO_CODE ="isoCode";
+    public static final String MDMS_NAME="name";
     public static final String RESPONSE_FROM_GEOPODE_API = "[\n" +
             "  {\n" +
             "    \"feature\": \"admin_0\",\n" +

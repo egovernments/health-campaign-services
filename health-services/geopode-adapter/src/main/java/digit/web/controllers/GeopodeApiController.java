@@ -33,8 +33,13 @@ public class GeopodeApiController {
         this.geopodeAdapterService = geopodeAdapterService;
     }
 
+    /**
+     * Request handler for  create the root and its children's data
+     * @param body
+     * @return
+     */
     @PostMapping("/boundary/setup")
-    public ResponseEntity<BoundaryResponse> geopodeBoundaryCreate(@Valid @RequestBody GeopodeBoundaryRequest body) throws JsonProcessingException {
+    public ResponseEntity<BoundaryResponse> geopodeBoundaryCreate(@Valid @RequestBody GeopodeBoundaryRequest body) {
         BoundaryResponse boundaryResponse=geopodeAdapterService.createRootBoundaryData(body);
         if (boundaryResponse == null) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,ROOT_BOUNDARY_ALREADY_EXISTS);
@@ -42,6 +47,11 @@ public class GeopodeApiController {
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(boundaryResponse);
     }
 
+    /**
+     * Request handler for  search for boundary-definition
+     * @param request
+     * @return
+     */
     @PostMapping("/boundary-definition/_search")
     public ResponseEntity<BoundaryHierarchyDefinitionResponse> searchBoundaryDefinition(
             @Valid @RequestBody BoundaryHierarchyDefinitionSearchRequest request) {
@@ -56,6 +66,14 @@ public class GeopodeApiController {
         return ResponseEntity.ok(response);
     }
 
+    /**
+     * Request handler for  search for arcgis-search
+     * @param where
+     * @param outFields
+     * @param format
+     * @param argcgisRequest
+     * @return
+     */
     @GetMapping("/geopode/arcGis/_search")
     public ResponseEntity<ArcgisResponse> searchRootBoundary(
             @RequestParam String where,

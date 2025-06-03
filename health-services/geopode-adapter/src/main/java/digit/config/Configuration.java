@@ -11,8 +11,7 @@ import org.springframework.stereotype.Component;
 @Import({TracerConfiguration.class})
 @NoArgsConstructor
 @AllArgsConstructor
-@Setter
-@Getter
+
 public class Configuration {
 
     //MDMS
@@ -38,16 +37,16 @@ public class Configuration {
     @Value("${egov.boundary.hierarchy.search.endpoint}")
     private String boundaryHierarchySearchEndpoint;
 
-    @Value("${egov.geopode.arcgis}")
+    @Value("${geopode.arcgis}")
     private String arcgisEndpoint;
 
     @Value("${egov.mdms.v2.search.endpoint}")
     private String mdmsV2EndPoint;
 
-    @Value("${egov.geopode.default.offset}")
+    @Value("${geopode.default.offset}")
     private String defaultOffset;
 
-    @Value("${egov.geopode.default.limit}")
+    @Value("${geopode.default.limit}")
     private String defaultLimit;
 
     @Value("${egov.mdms.tenantId}")
@@ -56,9 +55,9 @@ public class Configuration {
     @Value("${egov.mdms.schemaCode}")
     private String schemaCode;
 
-    @Value("${egov.geopode.localHost}")
+    @Value("${geopode.localHost}")
     private String geopodeLocalHost;
 
-    @Value("${egov.geopode.arcgis.search}")
+    @Value("${geopode.arcgis.search}")
     private String geopodeSearchEndpoint;
 }
