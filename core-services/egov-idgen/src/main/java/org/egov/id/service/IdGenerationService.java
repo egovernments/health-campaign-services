@@ -1,12 +1,5 @@
 package org.egov.id.service;
 
-import java.text.SimpleDateFormat;
-import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
-import javax.sql.DataSource;
-
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.models.AuditDetails;
 import org.egov.common.contract.request.RequestInfo;
@@ -18,10 +11,15 @@ import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.BadSqlGrammarException;
-import org.springframework.stereotype.Service;
-import org.springframework.util.ObjectUtils;
-import org.springframework.util.StringUtils;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
+
+import javax.sql.DataSource;
+import java.text.SimpleDateFormat;
+import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 
 /**
@@ -607,7 +605,7 @@ public class IdGenerationService {
             throw new CustomException("SEQ_NUMBER_ERROR","Error retrieving seq number from existing seq in DB");
         }
         for (String seqId : sequenceList) {
-            String seqNumber = String.format("%012d", Integer.parseInt(seqId)).toString();
+            String seqNumber = String.format("%06d", Integer.parseInt(seqId)).toString();
             sequenceLists.add(seqNumber.toString());
         }
         return sequenceLists;
