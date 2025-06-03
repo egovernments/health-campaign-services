@@ -15,6 +15,10 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.*;
 
+import static digit.config.ErrorConstants.PARSING_ERROR_CODE;
+import static digit.config.ErrorConstants.PARSING_ERROR_MESSAGE;
+
+
 @Component
 public class PlanFacilityRowMapper implements ResultSetExtractor<List<PlanFacility>> {
 
@@ -71,7 +75,7 @@ public class PlanFacilityRowMapper implements ResultSetExtractor<List<PlanFacili
                 additionalDetail = objectMapper.readTree(pGobject.getValue());
             }
         } catch (IOException e) {
-            throw new CustomException("PARSING_ERROR", "Failed to parse additionalDetails object");
+            throw new CustomException(PARSING_ERROR_CODE, PARSING_ERROR_MESSAGE);
         }
 
         return additionalDetail;

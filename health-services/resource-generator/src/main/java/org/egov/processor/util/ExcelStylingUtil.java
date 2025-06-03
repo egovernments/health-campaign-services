@@ -6,6 +6,7 @@ import org.springframework.stereotype.Component;
 
 import java.awt.Color;
 
+import static org.egov.processor.config.ErrorConstants.INVALID_HEX;
 import static org.egov.processor.config.ServiceConstants.*;
 
 @Component
