@@ -1836,18 +1836,18 @@ async function createProjectCampaignResourcData(request: any) {
   );
 }
 
-async function confirmProjectParentCreation(request: any, projectId: any) {
+async function confirmProjectParentCreation(tenantId: any, projectId: any) {
   const searchBody = {
-    RequestInfo: request.body.RequestInfo,
+    RequestInfo: defaultRequestInfo?.RequestInfo,
     Projects: [
       {
         id: projectId,
-        tenantId: request.body.CampaignDetails.tenantId,
+        tenantId,
       },
     ],
   };
   const params = {
-    tenantId: request.body.CampaignDetails.tenantId,
+    tenantId,
     offset: 0,
     limit: 5,
   };

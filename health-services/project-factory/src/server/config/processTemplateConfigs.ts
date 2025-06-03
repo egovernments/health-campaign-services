@@ -34,5 +34,15 @@ export const processTemplateConfigs: any = {
                 lockWholeSheetInProcessedFile : true
             }
         ]
+    },
+    boundary: {
+        sheets: [
+            {
+                sheetName: "HCM_README_SHEETNAME",
+                // schemaName: "user-readme",
+                lockWholeSheetInProcessedFile : true
+            }
+        ],
+        enrichmentFunction: "enrichTargetProcessConfig"
     }
 }

@@ -2479,7 +2479,7 @@ async function createProject(
             request?.body?.boundaryProjectMapping?.[parent]?.projectId;
 
           if (parent && parentProjectId) {
-            await confirmProjectParentCreation(request, parentProjectId);
+            await confirmProjectParentCreation(tenantId, parentProjectId);
             Projects[0].parent = parentProjectId;
           } else {
             Projects[0].parent = null;

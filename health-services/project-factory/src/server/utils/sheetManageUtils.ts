@@ -14,6 +14,7 @@ import { generatedResourceStatuses, resourceDetailsStatuses } from "../config/co
 import fs from 'fs';
 import { ResourceDetails } from "../config/models/resourceDetailsSchema";
 import { fetchFileFromFilestore } from "../api/coreApis";
+import { EnrichProcessConfigUtil } from "./EnrichProcessConfigUtil";
 
 export async function initializeGenerateAndGetResponse(
     tenantId: string,
@@ -587,6 +588,13 @@ function adjustRowHeightAndWrapIfNeeded(row: ExcelJS.Row, cell: ExcelJS.Cell, co
     }
     if(columnName && sheetData.dynamicColumns[columnName]?.wrapText) {
         cell.alignment = { ...(cell.alignment || {}), wrapText: true };
+    }
+}
+
+export async function enrichProcessTemplateConfig(ResourceDetails: any, processTemplateConfig: any){
+    if (processTemplateConfig?.enrichmentFunction){
+        const util = new EnrichProcessConfigUtil();
+        await util.execute(processTemplateConfig.enrichmentFunction, ResourceDetails, processTemplateConfig);
     }
 }
 

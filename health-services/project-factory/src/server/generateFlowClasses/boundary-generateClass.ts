@@ -5,7 +5,7 @@ import { callMdmsSchema } from "../api/genericApis";
 import { getBoundaryOnWhichWeSplit, getLocalizedName, populateBoundariesRecursively } from "../utils/campaignUtils";
 import { searchBoundaryRelationshipData } from "../api/coreApis";
 import { getHierarchy } from "../api/campaignApis";
-import { getReadMeConfig } from "../utils/genericUtils";
+import { getReadMeConfig, getRelatedDataWithCampaign } from "../utils/genericUtils";
 
 // This will be a dynamic template class for different types
 export class TemplateClass {
@@ -57,9 +57,19 @@ export class TemplateClass {
         );
 
         const dynamicColumns = this.getDynamicColumns(schema);
+        const currentBoundaryData = await getRelatedDataWithCampaign(type, campaignDetails?.campaignNumber);
+        const boundaryCodeToDataMap = currentBoundaryData.reduce((acc: any, curr: any) => {
+            const data = curr?.data;
+            const code = data?.["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"];
+            if (data && code) {
+                acc[code] = data;
+            }
+            return acc;
+        }, {});        
 
         return this.buildSheetMap(
             groupedBySheetName,
+            boundaryCodeToDataMap,
             dynamicColumns,
             hierarchyAfterSplitCode,
             readMeData,
@@ -190,6 +200,7 @@ export class TemplateClass {
 
     private static buildSheetMap(
         groupedBySheetName: Record<string, any[]>,
+        boundaryCodeToDataMap: Record<string, any[]>,
         baseDynamicColumns: Record<string, any>,
         localisedHierarchyAfterSplit: string[],
         readMeData: any[],
@@ -199,7 +210,6 @@ export class TemplateClass {
     ): SheetMap {
         const sheetMap: SheetMap = {};
         const hierarchyDynamicColumns = buildHierarchyColumns(localisedHierarchyAfterSplit);
-
         const commonDynamicColumns = {
             ...baseDynamicColumns,
             ...hierarchyDynamicColumns,
@@ -213,7 +223,11 @@ export class TemplateClass {
 
         for (const [sheetName, data] of Object.entries(groupedBySheetName)) {
             const localisedData = data.map((d: any) => {
+                const boundaryCode = d["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"];
+                const targetData = boundaryCodeToDataMap[boundaryCode];
+                d = { ...d, ...targetData };
                 for(let key in d) {
+                    if(key === "HCM_ADMIN_CONSOLE_BOUNDARY_CODE") continue;
                     d[key] = getLocalizedName(d[key], localizationMap);
                 }
                 return d;
