@@ -10,16 +10,38 @@ public class ServiceConstants {
     public static final String EXTERNAL_SERVICE_EXCEPTION = "External Service threw an Exception: ";
     public static final String SEARCHER_SERVICE_EXCEPTION = "Exception while fetching from searcher: ";
 
+
     // Error Constants
     public static final String ERROR_WHILE_FETCHING_FROM_MDMS = "Exception occurred while fetching category lists from mdms: ";
 
     public static final String ERROR_CREATING_BOUNDARY_HIERARCHY_WITH_GIVEN_HIERARCHY = "Error encountered while creating boundary hierarchy with given hierarchy ";
+    public static final String ERROR_CREATING_BOUNDARY_ENTITY_WITH_GIVEN_BOUNDARY_CODES = "Error encountered while creating boundary entity for the given boundary codes";
+    public static final String ERROR_CREATING_BOUNDARY_RELATIONSHIP = "Error encountered while creating boundary relationship for the given boundary ";
+
 
     // Common constants
     public static final String BOUNDARY_CREATION_RESPONSE = "GeoPoDe Boundary Creation started successfully!";
     public static final String LOG_PLACEHOLDER = "{}";
 
+<<<<<<< HEAD
+    public static final String[] HIERARCHY_ORDER = { "ADM0_NAME", "ADM1_NAME", "ADM2_NAME", "ADM3_NAME" };
+    public static final String ERROR_IN_SEARCH="Error when fetching from Boundary-definition";
+    public static final String ERROR_IN_ARC_SEARCH="Error when fetching from Arcgis";
+    public static final String HIERARCHY_TYPE = "MICROPLAN_NEW";
+    public static final String ERROR_FETCHING_FROM_MDMS="Error Fetching Data from mdms";
+    public static final String NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT_ISO_CODE="For given tenantId and ISO code no country exists";
+    public static final String COUNTRY_OUTFIELDS="ADM1_NAME";
+    public static final String FORMAT_VALUE="json";
+    public static final String ERROR_FETCHING_FROM_BOUNDARY="Error Fetching Data from boundary";
+    public static final String ERROR_FETCHING_FROM_ARCGIS="Error Fetching Data from arcgis";
+    public static final String ROOT_BOUNDARY_ALREADY_EXISTS="Root Boundary already created";
+    public static final String  FAILED_TO_CREATE_CHILDREN="Failed to create children";
+    public static final String FAILED_TO_DESERIALIZE="Failed to deseralize hierarchy defintion";
+=======
+
+    // Sample Data
     public static final String HIERARCHY_TYPE = "admin1";
+>>>>>>> a426ce93c8ba0af2c7a32739c191133af8188959
     public static final String RESPONSE_FROM_GEOPODE_API = "[\n" +
             "  {\n" +
             "    \"feature\": \"admin_0\",\n" +

@@ -21,8 +21,7 @@ public class GeopodeBoundaryRequest {
     @JsonProperty("RequestInfo")
     @Valid
     private RequestInfo requestInfo = null;
-
-    @JsonProperty("GeopodeBoundary")
+    @JsonProperty("BoundarySetup")
     @Valid
     private GeopodeBoundary geopodeBoundary = null;
 }

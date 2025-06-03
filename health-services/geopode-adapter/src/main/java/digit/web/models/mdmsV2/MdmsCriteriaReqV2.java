@@ -1,5 +1,6 @@
-package digit.web.models.boundaryService;
+package digit.web.models.mdmsV2;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -7,21 +8,19 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.egov.common.contract.request.RequestInfo;
 
-import java.util.List;
+import javax.validation.Valid;
 
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class BoundaryRelationshipRequestDTO {
-
-    @JsonProperty("BoundaryRelationship")
-    private BoundaryRelationshipDTO boundaryRelationshipDTO;
-
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class MdmsCriteriaReqV2 {
     @JsonProperty("RequestInfo")
+    @Valid
     private RequestInfo requestInfo;
 
-    @JsonProperty("BoundaryRelationshipList")
-    private List<BoundaryRelationshipDTO> boundaryRelationshipDTOList;
-
+    @JsonProperty("MdmsCriteria")
+    @Valid
+    private MdmsCriteriaV2 mdmsCriteriaV2;
 }
