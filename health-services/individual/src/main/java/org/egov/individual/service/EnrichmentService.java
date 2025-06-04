@@ -1,10 +1,6 @@
 package org.egov.individual.service;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -206,6 +202,7 @@ public class EnrichmentService {
         List<Identifier> identifiers = individual.getIdentifiers();
         if (identifiers != null) {
             identifiers.forEach(identifier -> identifier.setIndividualId(individual.getId()));
+            identifiers.forEach(identifier -> identifier.setIndividualClientReferenceId(individual.getClientReferenceId()));
             individual.setIdentifiers(identifiers);
         }
         return individual;
