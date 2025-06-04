@@ -11,7 +11,7 @@ import { tracingMiddleware } from "./tracing";
 import { createProxyMiddleware } from "http-proxy-middleware";
 import * as v8 from "v8";
 import { logger } from "./utils/logger";
-import { sendNotificationEmail } from "../server/utils/mailUtil"; // ✅ Import added
+import { sendNotificationEmail } from "./utils/mailUtil"; // ✅ Import added
 
 
 const printMemoryInMB = (memoryInBytes: number) => {
