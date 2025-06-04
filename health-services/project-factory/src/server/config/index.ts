@@ -73,6 +73,7 @@ const config = {
     KAFKA_SAVE_SHEET_DATA_TOPIC: process.env.KAFKA_SAVE_SHEET_DATA_TOPIC || "save-sheet-data",
     KAFKA_UPDATE_SHEET_DATA_TOPIC: process.env.KAFKA_UPDATE_SHEET_DATA_TOPIC || "update-sheet-data",
     KAFKA_TEST_TOPIC: "test-topic-project-factory",
+    KAFKA_NOTIFICATION_EMAIL_TOPIC: process.env.KAFKA_NOTIFICATION_EMAIL_TOPIC || "egov.core.notification.email",
   },
 
   // Database configuration

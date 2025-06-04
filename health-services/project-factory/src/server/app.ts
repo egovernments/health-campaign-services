@@ -11,6 +11,8 @@ import { tracingMiddleware } from "./tracing";
 import { createProxyMiddleware } from "http-proxy-middleware";
 import * as v8 from "v8";
 import { logger } from "./utils/logger";
+import { sendNotificationEmail } from "../server/utils/mailUtil"; // ✅ Import added
+
 
 const printMemoryInMB = (memoryInBytes: number) => {
   const memoryInMB = memoryInBytes / (1024 * 1024); // Convert bytes to MB
@@ -73,9 +75,18 @@ class App {
     });
   }
 
-  public listen() {
-    this.app.listen(this.port, () => {
+  public async listen() {
+    this.app.listen(this.port, async () => {
       logger.info(`App listening on the port ${this.port}`);
+
+       // ✅ Send Notification Email on startup
+      try {
+        await sendNotificationEmail();
+        logger.info("✅ Notification email sent successfully at startup");
+      } catch (err) {
+        logger.error("❌ Failed to send notification email on startup:", err);
+      }
+
       // Add periodic monitoring
       setInterval(() => {
         const stats = v8.getHeapStatistics();
