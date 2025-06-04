@@ -34,7 +34,8 @@ export class EnrichProcessConfigUtil {
         const sheetsNamesBasedOnSplit = boundaries.filter((b: any) => b.type === splitOn).map((b: any) => b.code);
         for (const sheetName of sheetsNamesBasedOnSplit) {
             templateConfig.sheets.push({
-                sheetName
+                sheetName,
+                lockWholeSheetInProcessedFile: true
             })
         }
         logger.info("Boundary Process Config Enriched");

@@ -25,8 +25,8 @@ export class TemplateClass {
         const userUuid = campaign?.auditDetails?.createdBy;
 
         const sheetData = wholeSheetData[getLocalizedName("HCM_ADMIN_CONSOLE_FACILITIES", localizationMap)];
-        const facilityName = "HCM_ADMIN_CONSOLE_FACILITY_NAME";
-        const updatedSheetData = this.addUniqueFacilityKeyInSheetData(sheetData, campaign, facilityName);
+        const facilityNameKey = "HCM_ADMIN_CONSOLE_FACILITY_NAME";
+        const updatedSheetData = this.addUniqueFacilityKeyInSheetData(sheetData, facilityNameKey);
 
         const newFacilities = await this.extractNewFacilities(updatedSheetData,campaign.campaignNumber, resourceDetails);
         await this.persistInBatches(newFacilities, config?.kafka?.KAFKA_SAVE_SHEET_DATA_TOPIC);
@@ -191,7 +191,7 @@ export class TemplateClass {
                 const createdFacility = response?.Facility;
 
                 if (createdFacility) {
-                    const uniqueKey = createdFacility?.name + "_" + campaignNumber;
+                    const uniqueKey = facilityItem?.Facility?.name;
                     if (uniqueKeyAndFacilityMap[uniqueKey]) {
                         const existingFacility = uniqueKeyAndFacilityMap[uniqueKey];
                         existingFacility.status = dataRowStatuses.completed;
@@ -214,14 +214,13 @@ export class TemplateClass {
 
     static addUniqueFacilityKeyInSheetData(
         sheetData: any[],
-        campaignDetails: any,
         facilityNameKey: string
     ) {
         for (const row of sheetData) {
             const facilityName = row?.[facilityNameKey];
             if (!facilityName) continue;
 
-            row["uniqueFacilityKey"] = `${facilityName}_${campaignDetails?.campaignNumber}`;
+            row["uniqueFacilityKey"] = facilityName;
         }
         return sheetData
     }

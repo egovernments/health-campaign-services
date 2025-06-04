@@ -203,19 +203,30 @@ async function processRequest(ResourceDetails: any, workBook: any, templateConfi
             await handledropdownthingsUnLocalised(worksheet, schema);
             updateFontNameToRoboto(worksheet);
         }
-
-        for(const sheet of templateConfig?.sheets){
-            if (sheet?.lockWholeSheetInProcessedFile) {
-                const sheetName = getLocalizedName(sheet?.sheetName, localizationMap);
-                const worksheet = getOrCreateWorksheet(workBook, sheetName);
-                await worksheet.protect('passwordhere', { selectLockedCells: true });
-            }
-        }
-
+        
+        await lockSheetAccordingToConfig(workBook, templateConfig, localizationMap);
     } catch (error) {
         logger.error(`Error importing or calling process function from ${classFilePath}`);
         console.error(error);
         throw error;
+    }
+}
+
+async function lockSheetAccordingToConfig(workBook: any, templateConfig: any, localizationMap: any) {
+    for (const sheet of templateConfig?.sheets) {
+        if (sheet?.lockWholeSheetInProcessedFile) {
+            const sheetName = getLocalizedName(sheet?.sheetName, localizationMap);
+            const worksheet = getOrCreateWorksheet(workBook, sheetName);
+            if (!worksheet) continue;
+            logger.info(`Locking sheet ${sheetName}`);
+            worksheet.eachRow((row) => {
+                row.eachCell((cell) => {
+                    cell.protection = { locked: true };
+                });
+            });
+            await worksheet.protect('passwordhere', { selectLockedCells: true });
+            logger.info(`Sheet ${sheetName} locked successfully`);
+        }
     }
 }
 

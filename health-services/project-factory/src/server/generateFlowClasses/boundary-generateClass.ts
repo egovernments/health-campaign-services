@@ -232,6 +232,12 @@ export class TemplateClass {
                 }
                 return d;
             })
+            // TEST : default target filled for all selected boundaries testing
+            // localisedData.forEach((d: any) => {
+            //     for(const col of Object.keys(baseDynamicColumns)) {
+            //         if(!d[col]) d[col] = 100;
+            //     }
+            // })
             sheetMap[sheetName] = {
                 dynamicColumns: { ...commonDynamicColumns },
                 data : localisedData

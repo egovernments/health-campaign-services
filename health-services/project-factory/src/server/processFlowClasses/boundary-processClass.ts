@@ -35,8 +35,8 @@ export class TemplateClass {
         await this.persistNewBoundaryData(currentBoundaryData, datas, campaignNumber, resourceDetails);
         await this.updateBoundaryData(currentBoundaryData, datas);
 
-        currentBoundaryData = await getRelatedDataWithCampaign(resourceDetails?.type, campaignNumber, dataRowStatuses.pending);
-        currentBoundaryData.push(...await getRelatedDataWithCampaign(resourceDetails?.type, campaignNumber, dataRowStatuses.failed));
+        currentBoundaryData = await getRelatedDataWithCampaign(resourceDetails?.type, campaignNumber);
+        currentBoundaryData.push(...await getRelatedDataWithCampaign(resourceDetails?.type, campaignNumber));
         await this.createAndUpdateProjects(currentBoundaryData, campaignDetails, boundaries, targetConfig);
         return {};
     }
@@ -45,8 +45,8 @@ export class TemplateClass {
         const boundaryChildrenToTypeAndParentMap: any = this.getBoundaryChildrenToTypeAndParentMap(boundaries, currentBoundaryData);
         const { projectCreateBody, Projects } = await this.prepareProjectCreationContext(campaignDetails);
         const sortedBoundaryData = this.topologicallySortBoundaries(currentBoundaryData, boundaryChildrenToTypeAndParentMap);
-        const sortedBoundaryDataForCreate = sortedBoundaryData.filter((d: any) => !d?.uniqueIdAfterProcess);
-        const sortedBoundaryDataForUpdate = sortedBoundaryData.filter((d: any) => d?.uniqueIdAfterProcess);
+        const sortedBoundaryDataForCreate = sortedBoundaryData.filter((d: any) => !d?.uniqueIdAfterProcess && (d?.status == dataRowStatuses.pending || d?.status == dataRowStatuses.failed));
+        const sortedBoundaryDataForUpdate = sortedBoundaryData.filter((d: any) => d?.uniqueIdAfterProcess && (d?.status == dataRowStatuses.pending || d?.status == dataRowStatuses.failed));
         await this.processProjectCreationInOrder(sortedBoundaryDataForCreate, campaignDetails?.tenantId, campaignDetails?.campaignNumber, targetConfig, projectCreateBody, Projects, boundaryChildrenToTypeAndParentMap);
         await this.processProjectUpdateInOrder(sortedBoundaryDataForUpdate, campaignDetails?.tenantId, campaignDetails?.campaignNumber, targetConfig);
     }
@@ -219,6 +219,7 @@ export class TemplateClass {
                 console.error(`Error while updating project for boundary ${boundaryCode}: ${error}`);
                 boundaryData.status = dataRowStatuses.failed;
                 await produceModifiedMessages({ datas: [boundaryData] }, config.kafka.KAFKA_UPDATE_SHEET_DATA_TOPIC);
+                throw error;
             }
         }
     }
@@ -301,6 +302,7 @@ export class TemplateClass {
                 console.error(`Error creating project for boundary ${boundaryCode}: ${error}`);
                 boundaryData.status = dataRowStatuses.failed;
                 await produceModifiedMessages({ datas: [boundaryData] }, config.kafka.KAFKA_UPDATE_SHEET_DATA_TOPIC);
+                throw error;
             }
         }
     }
