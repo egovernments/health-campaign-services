@@ -4,7 +4,7 @@ import config from "../config";
 
 export async function sendNotificationEmail() {
   const message = {
-    requestInfo: defaultRequestInfo,
+    ...defaultRequestInfo,
     email: {
       emailTo: ["nitishsingh776580@gmail.com"],   // set your email here
       subject: "Welcome to eGov",
