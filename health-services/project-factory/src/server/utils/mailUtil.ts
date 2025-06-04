@@ -3,18 +3,18 @@ import { defaultRequestInfo } from "../api/coreApis";
 import config from "../config";
 
 export async function sendNotificationEmail() {
-  const message = {
-    ...defaultRequestInfo,
-    email: {
-      emailTo: ["nitishsingh776580@gmail.com"],   // set your email here
-      subject: "Welcome to eGov",
-      body: "<p>Your complaint has been registered by local.</p>",
-      fileStoreId: { doc1: "filestore-id-abc123" },
-      tenantId: "dev",
-      isHTML: false,
-    },
-  };
+    const message = {
+        requestInfo: defaultRequestInfo.RequestInfo,
+        email: {
+            emailTo: ["nitishsingh776580@gmail.com"],   // set your email here
+            subject: "Welcome to eGov",
+            body: "Your complaint has been registered by local.",
+            fileStoreId: { "4ffb941f-8306-48f7-a655-6fa8ae7e02bb": "doc1" },
+            tenantId: "dev",
+            isHTML: true,
+        },
+    };
 
-  await produceModifiedMessages(message,config?.kafka?.KAFKA_NOTIFICATION_EMAIL_TOPIC);
+    await produceModifiedMessages(message, config?.kafka?.KAFKA_NOTIFICATION_EMAIL_TOPIC);
 }
 
