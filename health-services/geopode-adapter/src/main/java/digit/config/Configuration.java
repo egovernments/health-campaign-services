@@ -28,6 +28,9 @@ public class Configuration {
     @Value("${egov.boundary.entity.create.endpoint}")
     private String boundaryEntityCreateEndpoint;
 
+    @Value("${egov.boundary.entity.search.endpoint}")
+    private String boundaryEntitySearchEndpoint;
+
     @Value("${egov.boundary.hierarchy.create.endpoint}")
     private String boundaryHierarchyCreateEndpoint;
 

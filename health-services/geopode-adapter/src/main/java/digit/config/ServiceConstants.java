@@ -22,7 +22,7 @@ public class ServiceConstants {
     public static final String[] HIERARCHY_ORDER = { "ADM0_NAME", "ADM1_NAME", "ADM2_NAME", "ADM3_NAME" };
     public static final String ERROR_IN_SEARCH="Error when fetching from Boundary-definition";
     public static final String ERROR_IN_ARC_SEARCH="Error when fetching from Arcgis";
-    public static final String HIERARCHY_TYPE = "admin4";
+    public static final String HIERARCHY_TYPE = "MICROPLAN_NEW";
     public static final String ERROR_FETCHING_FROM_MDMS="Error Fetching Data from mdms";
     public static final String NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT_ISO_CODE="For given tenantId and ISO code no country exists";
     public static final String COUNTRY_OUTFIELDS="ADM1_NAME";
@@ -31,6 +31,8 @@ public class ServiceConstants {
     public static final String ROOT_BOUNDARY_ALREADY_EXISTS="Root Boundary already created";
     public static final String MDMS_ISO_CODE ="isoCode";
     public static final String MDMS_NAME="name";
+    public static final String  FAILED_TO_CREATE_CHILDREN="Failed to create children";
+    public static final String FAILED_TO_DESERIALIZE="Failed to deseralize hierarchy defintion";
     public static final String RESPONSE_FROM_GEOPODE_API = "[\n" +
             "  {\n" +
             "    \"feature\": \"admin_0\",\n" +

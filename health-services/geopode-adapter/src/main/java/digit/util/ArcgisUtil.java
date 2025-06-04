@@ -42,14 +42,17 @@ public class ArcgisUtil {
 
     private ServiceRequestRepository serviceRequestRepository;
 
+    private ChildBoundaryCreationUtil childBoundaryCreationUtil;
+
     private ObjectMapper mapper;
 
-    public ArcgisUtil(Configuration config, RestTemplate restTemplate, MdmsV2Util mdmsV2Util,BoundaryUtil boundaryUtil,ServiceRequestRepository serviceRequestRepository) {
+    public ArcgisUtil(Configuration config, RestTemplate restTemplate, MdmsV2Util mdmsV2Util,BoundaryUtil boundaryUtil,ServiceRequestRepository serviceRequestRepository,ChildBoundaryCreationUtil childBoundaryCreationUtil) {
         this.config = config;
         this.restTemplate = restTemplate;
         this.mdmsV2Util=mdmsV2Util;
         this.boundaryUtil=boundaryUtil;
         this.serviceRequestRepository=serviceRequestRepository;
+        this.childBoundaryCreationUtil=childBoundaryCreationUtil;
     }
 
     /**
@@ -67,9 +70,10 @@ public class ArcgisUtil {
         }
 
         serviceRequestRepository.fetchArcGisData(countryName); //TODO: Add geometry in from response (e.g., geometry/rings)
+        BoundaryRequest boundaryRequest=boundaryUtil.buildBoundaryRequest(countryName,config.getTenantId(),request.getRequestInfo());
+        childBoundaryCreationUtil.createChildrenAsync(request, countryName);
 
-        BoundaryRequest boundaryRequest = boundaryUtil.buildBoundaryRequest(countryName, config.getTenantId(), request);
-        return boundaryUtil.sendBoundaryRequest(boundaryRequest);
+        return  new BoundaryResponse();
     }
 
     /**
