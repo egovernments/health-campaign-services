@@ -2,6 +2,10 @@
 All notable changes to this module will be documented in this file.
 
 ## 1.0.3 - 2024-08-09
+- Service Request Services support for downsync API
+- Upgraded to health models 1.0.27
+
+## 1.0.3 - 2024-08-09
 - Upgraded downsync logic.
 - Added `ExistentEntityValidator` fixes
 

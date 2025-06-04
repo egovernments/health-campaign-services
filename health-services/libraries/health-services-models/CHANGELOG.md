@@ -3,7 +3,8 @@ All notable changes to this module will be documented in this file.
 ## 1.0.27 - 2025-04-08
 - Added Service request models
 - Added Relationship model and added for HouseholdMember
-- Added field individualClientReferenceId for Individual Identifier 
+- Added field individualClientReferenceId for Individual Identifier
+- Added models for beneficiary-idgen
 
 ## 1.0.26 - 2025-03-04
 - Added INELIGIBLE in TaskStatus Enum for project tasks
