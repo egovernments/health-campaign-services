@@ -2377,7 +2377,7 @@ async function createProject(
   try {
     logger.info("Create Projects started for the given Campaign");
     var { tenantId, projectType, projectId } = request?.body?.CampaignDetails;
-    const uuid = request?.body?.CampaignDetails?.auditDetails?.createdBy;
+    const uuid = request?.body?.CampaignDetails?.auditDetails?.createdBy || request?.body?.RequestInfo?.userInfo?.uuid;
     var boundaries = request?.body?.boundariesCombined;
     if (boundaries && projectType && !projectId) {
       const MdmsCriteria = {
