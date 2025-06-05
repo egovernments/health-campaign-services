@@ -173,7 +173,6 @@ public class BoundaryUtil {
 				.queryParam("tenantId",config.getTenantId())
 				.queryParam("codes", code)
 				.build().encode().toUri();
-		System.out.println("request for search"+uri);
 		BoundaryResponse boundaryResponse=restTemplate.postForObject(uri, boundaryRequest,BoundaryResponse.class);
 		Boolean hasBoundaries=boundaryResponse!=null && boundaryResponse.getBoundary()!=null && ! boundaryResponse.getBoundary().isEmpty();
 		return hasBoundaries;
