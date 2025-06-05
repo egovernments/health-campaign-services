@@ -11,6 +11,7 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.net.URI;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
@@ -110,13 +111,13 @@ public class BoundaryUtil {
 				.build();
 	}
 
-	public String createUniqueBoundaryName(String code, String currentLevel, RequestInfo requestInfo) {
+	public List<String> createUniqueBoundaryName(String code, String currentLevel, RequestInfo requestInfo) {
 		String baseCode = HIERARCHY_TYPE + '_' + currentLevel +  '_'+code; // base unique code
 		String uniqueCode = baseCode;
 		Boolean isAlreadyThere = checkBoundaryEntitySearchResponse(uniqueCode, requestInfo);
 
 		if (isAlreadyThere) {
-			String trimmedCode = code;
+			String trimmedCode =code.trim().replaceAll("\\s+", "_");;
 			int attempt = 1;
 
 			// Try suffixes like 01, 02... while maintaining length < 64
@@ -148,7 +149,8 @@ public class BoundaryUtil {
 				throw new RuntimeException("Could not generate a unique boundary name after 99 attempts");
 			}
 		}
-		return uniqueCode;
+
+		return Arrays.asList(code, uniqueCode);
 	}
 
 
