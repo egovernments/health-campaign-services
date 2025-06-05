@@ -2377,6 +2377,7 @@ async function createProject(
   try {
     logger.info("Create Projects started for the given Campaign");
     var { tenantId, projectType, projectId } = request?.body?.CampaignDetails;
+    const uuid = request?.body?.CampaignDetails?.auditDetails?.createdBy;
     var boundaries = request?.body?.boundariesCombined;
     if (boundaries && projectType && !projectId) {
       const MdmsCriteria = {
@@ -2479,7 +2480,7 @@ async function createProject(
             request?.body?.boundaryProjectMapping?.[parent]?.projectId;
 
           if (parent && parentProjectId) {
-            await confirmProjectParentCreation(tenantId, parentProjectId);
+            await confirmProjectParentCreation(tenantId, uuid, parentProjectId);
             Projects[0].parent = parentProjectId;
           } else {
             Projects[0].parent = null;

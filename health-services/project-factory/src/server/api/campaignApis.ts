@@ -1836,7 +1836,7 @@ async function createProjectCampaignResourcData(request: any) {
   );
 }
 
-async function confirmProjectParentCreation(tenantId: any, projectId: any) {
+async function confirmProjectParentCreation(tenantId: string, uuid: string, projectId: any) {
   const searchBody = {
     RequestInfo: defaultRequestInfo?.RequestInfo,
     Projects: [
@@ -1846,6 +1846,7 @@ async function confirmProjectParentCreation(tenantId: any, projectId: any) {
       },
     ],
   };
+  searchBody.RequestInfo.userInfo.uuid = uuid;
   const params = {
     tenantId,
     offset: 0,
