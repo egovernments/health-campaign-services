@@ -67,7 +67,7 @@ public class BoundaryUtil {
 	}
 
 	/**
-	 * This method is for creating boundary enitity
+	 * This method is for creating boundary entity
 	 *
 	 * @param boundaryRequest
 	 * @return
@@ -111,13 +111,21 @@ public class BoundaryUtil {
 				.build();
 	}
 
+	/**
+	 * This method is for creating a unique code for the purpose of boundary-entity creation
+	 *
+	 * @param code
+	 * @param currentLevel
+	 * @param requestInfo
+	 * @return
+	 */
 	public List<String> createUniqueBoundaryName(String code, String currentLevel, RequestInfo requestInfo) {
-		String baseCode = HIERARCHY_TYPE + '_' + currentLevel +  '_'+code; // base unique code
+		String baseCode = HIERARCHY_TYPE + '_' + currentLevel +  '_'+code.trim().replaceAll("[^a-zA-Z0-9]", "_"); // base unique code
 		String uniqueCode = baseCode;
 		Boolean isAlreadyThere = checkBoundaryEntitySearchResponse(uniqueCode, requestInfo);
 
 		if (isAlreadyThere) {
-			String trimmedCode =code.trim().replaceAll("\\s+", "_");;
+			String trimmedCode =code.trim().replaceAll("[^a-zA-Z0-9]", "_");
 			int attempt = 1;
 
 			// Try suffixes like 01, 02... while maintaining length < 64
@@ -153,7 +161,12 @@ public class BoundaryUtil {
 		return Arrays.asList(code, uniqueCode);
 	}
 
-
+	/**
+	 * This method is for searching if Boundary code already exists in Boundary-service
+	 * @param code
+	 * @param requestInfo
+	 * @return
+	 */
 	public Boolean checkBoundaryEntitySearchResponse(String code, RequestInfo requestInfo){
 		BoundaryRequest boundaryRequest=BoundaryRequest.builder().requestInfo(requestInfo).build();
 		URI uri = UriComponentsBuilder.fromHttpUrl(config.getBoundaryServiceHost()+config.getBoundaryEntitySearchEndpoint())
@@ -165,5 +178,21 @@ public class BoundaryUtil {
 		Boolean hasBoundaries=boundaryResponse!=null && boundaryResponse.getBoundary()!=null && ! boundaryResponse.getBoundary().isEmpty();
 		return hasBoundaries;
 
+	}
+
+	/**
+	 * This method is building request for BoundaryHierarchyDefinitionSearch
+	 * @param request
+	 * @return
+	 */
+	public BoundaryHierarchyDefinitionSearchRequest buildBoundaryHierarchyDefinitionSearchRequest(GeopodeBoundaryRequest request) {
+		return BoundaryHierarchyDefinitionSearchRequest.builder()
+				.requestInfo(request.getRequestInfo()) // Extract request info from original request
+				.boundaryTypeHierarchySearchCriteria( // Set the search criteria
+						BoundaryHierarchyDefinitionSearchCriteria.builder()
+								.hierarchyType(HIERARCHY_TYPE) // Use the defined hierarchy type
+								.build()
+				)
+				.build();
 	}
 }

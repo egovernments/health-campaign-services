@@ -33,6 +33,7 @@ public class ServiceConstants {
     public static final String MDMS_NAME="name";
     public static final String  FAILED_TO_CREATE_CHILDREN="Failed to create children";
     public static final String FAILED_TO_DESERIALIZE="Failed to deseralize hierarchy defintion";
+    public static final String BOUNDARY_CREATION_INITIATED="The process of creating boundaries has been initiated for ";
     public static final String RESPONSE_FROM_GEOPODE_API = "[\n" +
             "  {\n" +
             "    \"feature\": \"admin_0\",\n" +

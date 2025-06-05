@@ -45,8 +45,8 @@ public class GeopodeAdapterService {
      * @param request
      * @return
      */
-    public BoundaryResponse createRootBoundaryData(GeopodeBoundaryRequest request)  {
-        BoundaryResponse boundaryResponse=arcgisUtil.createRoot(request);
+    public ResponseEntity<String> createRootBoundaryData(GeopodeBoundaryRequest request)  {
+        ResponseEntity<String> boundaryResponse=arcgisUtil.createRoot(request);
         return boundaryResponse;
     }
 

@@ -15,6 +15,7 @@ import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
@@ -61,7 +62,7 @@ public class ArcgisUtil {
      * @param request
      * @return
      */
-    public BoundaryResponse createRoot(GeopodeBoundaryRequest request) {
+    public ResponseEntity<String> createRoot(GeopodeBoundaryRequest request) {
         MdmsResponseV2 mdmsResponse = fetchMdmsData(request);
         String countryName = extractCountryNameFromMdms(mdmsResponse, request.getGeopodeBoundary().getISOCode());
 
@@ -73,7 +74,9 @@ public class ArcgisUtil {
         BoundaryRequest boundaryRequest=boundaryUtil.buildBoundaryRequest(countryName,config.getTenantId(),request.getRequestInfo());
         childBoundaryCreationUtil.createChildrenAsync(request, countryName);
 
-        return  new BoundaryResponse();
+        // return response with status 200 and message
+        String message = BOUNDARY_CREATION_INITIATED + countryName + ".";
+        return ResponseEntity.status(HttpStatus.OK).body(message);
     }
 
     /**

@@ -39,12 +39,12 @@ public class GeopodeApiController {
      * @return
      */
     @PostMapping("/boundary/setup")
-    public ResponseEntity<BoundaryResponse> geopodeBoundaryCreate(@Valid @RequestBody GeopodeBoundaryRequest body) {
-        BoundaryResponse boundaryResponse=geopodeAdapterService.createRootBoundaryData(body);
+    public ResponseEntity<String> geopodeBoundaryCreate(@Valid @RequestBody GeopodeBoundaryRequest body) {
+        ResponseEntity<String> boundaryResponse=geopodeAdapterService.createRootBoundaryData(body);
         if (boundaryResponse == null) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,ROOT_BOUNDARY_ALREADY_EXISTS);
         }
-        return ResponseEntity.status(HttpStatus.ACCEPTED).body(boundaryResponse);
+        return boundaryResponse;
     }
 
     /**
