@@ -9,8 +9,8 @@ export async function sendNotificationEmail() {
             emailTo: ["nitishsingh776580@gmail.com"],   // set your email here
             subject: "Welcome to eGov",
             body: "Your complaint has been registered by local.",
-            fileStoreId: { "4ffb941f-8306-48f7-a655-6fa8ae7e02bb": "doc1" },
-            tenantId: "dev",
+            fileStoreId: { "f4687d00-e675-4932-b736-2396964103f2": "doc1" },
+            tenantId: "mz",
             isHTML: true,
         },
     };
