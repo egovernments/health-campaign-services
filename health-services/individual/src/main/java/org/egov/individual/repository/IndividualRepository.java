@@ -30,6 +30,8 @@ import org.egov.individual.repository.rowmapper.AddressRowMapper;
 import org.egov.individual.repository.rowmapper.IdentifierRowMapper;
 import org.egov.individual.repository.rowmapper.IndividualRowMapper;
 import org.egov.individual.repository.rowmapper.SkillRowMapper;
+import org.egov.individual.web.models.IndividualMapped;
+import org.egov.individual.web.models.IndividualMappedSearch;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -185,6 +187,45 @@ public class IndividualRepository extends GenericRepository<Individual> {
                 .totalCount((long) individuals.size())
                 .response(individuals)
                 .build();
+    }
+
+    public Map<String, IndividualMapped> find(IndividualMappedSearch searchObject, Integer limit, Integer offset,
+            String tenantId) {
+        Map<String, Object> paramsMap = new HashMap<>();
+        String query = getQueryForMappedIndividualSearch(searchObject, limit, offset, tenantId, paramsMap);
+
+        List<Map<String, Object>> results = this.namedParameterJdbcTemplate.queryForList(query, paramsMap);
+
+        Map<String, IndividualMapped> response = new HashMap<>();
+
+        if (!results.isEmpty()) {
+            results.forEach(row -> {
+                IndividualMapped individualMapped = new IndividualMapped();
+
+                // Dynamically set fields based on searchObject parameters
+                for (String field : searchObject.getResponseFields()) {
+                    if (row.containsKey(field)) {
+                        individualMapped.setField(field, row.get(field));
+                    }
+                }
+
+                // Set the key dynamically based on the provided search fields.
+                String key = null;
+
+                if (searchObject.getMobileNumber() != null) {
+                    // Use mobilenumber as the key if provided
+                    key = (String) row.get("mobilenumber");
+                } else if (searchObject.getUsername() != null) {
+                    // Fall back to username as the key if mobilenumber is not provided
+                    key = (String) row.get("username");
+                }
+                if (key != null) {
+                    response.put(key, individualMapped);
+                }
+            });
+        }
+
+        return response;
     }
 
     /**
@@ -372,6 +413,57 @@ public class IndividualRepository extends GenericRepository<Individual> {
         return query;
     }
 
+    private String getQueryForMappedIndividualSearch(IndividualMappedSearch searchObject,
+            Integer limit,
+            Integer offset,
+            String tenantId,
+            Map<String, Object> paramsMap) {
+
+        // Start with a base query structure
+        StringBuilder queryBuilder = new StringBuilder("SELECT ");
+
+
+
+        if(searchObject.getMobileNumber()!=null && searchObject.getMobileNumber().size() > 0){
+           searchObject.getResponseFields().add("mobilenumber");
+        }
+        if(searchObject.getUsername()!=null && searchObject.getUsername().size() > 0){
+            searchObject.getResponseFields().add("username");
+        }
+                // Directly select the fields from responseFields
+        String selectedFields = String.join(",", searchObject.getResponseFields());
+        queryBuilder.append(selectedFields);
+
+        queryBuilder.append(" FROM individual WHERE tenantId = :tenantId");
+
+        // Add tenant ID parameter
+        paramsMap.put("tenantId", tenantId);
+
+        // Filter by mobile numbers if provided
+        if (searchObject.getMobileNumber() != null && !searchObject.getMobileNumber().isEmpty()) {
+            queryBuilder.append(" AND mobilenumber IN (:mobileNumbers)");
+            paramsMap.put("mobileNumbers", searchObject.getMobileNumber());
+        }
+
+        // Filter by username if provided
+        if (searchObject.getUsername() != null && !searchObject.getUsername().isEmpty()) {
+            queryBuilder.append(" AND username IN (:usernames)");
+            paramsMap.put("usernames", searchObject.getUsername());
+        }
+
+        // Pagination: Add limit and offset
+        queryBuilder.append(" ORDER BY createdtime DESC LIMIT :limit OFFSET :offset");
+        paramsMap.put("limit", limit);
+        paramsMap.put("offset", offset);
+
+        // Log the query and parameters
+        log.info("Mapped search query: {}", queryBuilder.toString());
+        log.info("Params: {}", paramsMap);
+
+        return queryBuilder.toString();
+    }
+  
+  
     private String getIdentifierQuery(String tenantId, Identifier identifier, Map<String, Object> paramMap) throws InvalidTenantIdException {
         String identifierQuery = String.format("SELECT * FROM %s.individual_identifier", SCHEMA_REPLACE_STRING);
 
