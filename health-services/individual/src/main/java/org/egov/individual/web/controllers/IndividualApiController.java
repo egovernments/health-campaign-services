@@ -2,6 +2,7 @@ package org.egov.individual.web.controllers;
 
 
 import java.util.List;
+import java.util.Map;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.annotations.ApiParam;
@@ -20,6 +21,8 @@ import org.egov.common.producer.Producer;
 import org.egov.common.utils.ResponseInfoFactory;
 import org.egov.individual.config.IndividualProperties;
 import org.egov.individual.service.IndividualService;
+import org.egov.individual.web.models.IndividualMapped;
+import org.egov.individual.web.models.IndividualMappedSearchRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -39,8 +42,6 @@ public class IndividualApiController {
 
     private final IndividualService individualService;
 
-    private final ObjectMapper objectMapper;
-
     private final HttpServletRequest servletRequest;
 
     private final Producer producer;
@@ -53,7 +54,6 @@ public class IndividualApiController {
                                    HttpServletRequest servletRequest, Producer producer,
                                    IndividualProperties individualProperties) {
         this.individualService = individualService;
-        this.objectMapper = objectMapper;
         this.servletRequest = servletRequest;
         this.producer = producer;
         this.individualProperties = individualProperties;
@@ -104,6 +104,25 @@ public class IndividualApiController {
                 .build();
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }
+
+    @RequestMapping(value = "/v1/_mappedsearch", method = RequestMethod.POST)
+    public ResponseEntity<Map<String, IndividualMapped>> individualV1MappedSearchPost(
+                    @Valid @ModelAttribute URLParams urlParams,
+                    @ApiParam(value = "Individual details.", required = true) @Valid @RequestBody IndividualMappedSearchRequest request) throws Exception {
+
+            // Call the mappedSearch method from the service layer to get the search
+            // response
+            Map<String, IndividualMapped> searchResponse = individualService.mappedSearch(
+                            request.getIndividualMappedSearch(),
+                            urlParams.getLimit(),
+                            urlParams.getOffset(),
+                            urlParams.getTenantId(),
+                            request.getRequestInfo());
+
+            // Return the searchResponse in the body of the response with a status of OK
+            return ResponseEntity.status(HttpStatus.OK).body(searchResponse);
+    }
+
 
     @RequestMapping(value = "/v1/_update", method = RequestMethod.POST)
     public ResponseEntity<IndividualResponse> individualV1UpdatePost(@ApiParam(value = "Details for the Individual.", required = true) @Valid @RequestBody IndividualRequest request, @ApiParam(value = "Client can specify if the resource in request body needs to be sent back in the response. This is being used to limit amount of data that needs to flow back from the server to the client in low bandwidth scenarios. Server will always send the server generated id for validated requests.", defaultValue = "true") @Valid @RequestParam(value = "echoResource", required = false, defaultValue = "true") Boolean echoResource) {
