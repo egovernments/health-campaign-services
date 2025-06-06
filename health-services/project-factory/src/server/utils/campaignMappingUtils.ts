@@ -696,11 +696,11 @@ export async function processMapping(mappingObject: any) {
 
         logger.info("Sending user credential email for campaign: " + mappingObject?.CampaignDetails?.id)
         const resources = mappingObject?.CampaignDetails?.resources || [];
-        const userResource = resources.filter( (res:any) => res.type === "user");
-        const userCreateResourceIds = userResource?.[0]?.createResourceId
+        const userResource = resources.find( (res:any) => res.type === "user");
+        const userCreateResourceIds = userResource?.createResourceId
         const currentResourceSearchResponse = await getResourceFromResourceId(mappingObject, userCreateResourceIds, userResource);
         const userProcessedFileStoreId = currentResourceSearchResponse?.[0]?.processedFilestoreId;
-        const userCredentialFileMap = {[userProcessedFileStoreId]: "userCredentials.xlsx",};
+        const userCredentialFileMap = {[userProcessedFileStoreId]: "userCredentials.xlsx"};
         sendNotificationEmail(userCredentialFileMap,mappingObject?.RequestInfo);
     } catch (error) {
         logger.error("Error in campaign mapping: " + error);
