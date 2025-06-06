@@ -726,7 +726,7 @@ async function addConsolidatedDataToSheet(parentWorkbook: any, sheetName: string
 }
 
 
-async function getFileUrl(fileStoreId: any, tenantId: any) {
+export async function getFileUrl(fileStoreId: any, tenantId: any) {
   const fileResponse = await httpRequest(
     `${config.host.filestore}${config.paths.filestore}/url`,
     {},

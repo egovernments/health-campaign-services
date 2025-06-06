@@ -692,8 +692,11 @@ export async function processMapping(mappingObject: any) {
             CampaignDetails: mappingObject?.CampaignDetails
         }
         await produceModifiedMessages(produceMessage, config?.kafka?.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC)
-        await persistTrack(mappingObject?.CampaignDetails?.id, processTrackTypes.campaignCreation, processTrackStatuses.completed)
-        await sendNotificationEmail();
+        await persistTrack(mappingObject?.CampaignDetails?.id, processTrackTypes.campaignCreation, processTrackStatuses.completed);
+        const resources = mappingObject?.CampaignDetails?.resources || [];
+        const userCredentialFileId = resources.filter( (res:any) => res.type === "user").map((res:any) => res.createResourceId)
+        const userCredentialFileMap = {[userCredentialFileId]: "userCredentials.xlsx",};
+        sendNotificationEmail(userCredentialFileMap,mappingObject?.RequestInfo);
     } catch (error) {
         logger.error("Error in campaign mapping: " + error);
         await enrichAndPersistCampaignWithError(mappingObject, error);
