@@ -18,6 +18,7 @@ import org.egov.common.models.individual.IndividualRequest;
 import org.egov.common.models.individual.IndividualResponse;
 import org.egov.common.models.individual.IndividualSearchRequest;
 import org.egov.common.producer.Producer;
+import org.egov.common.utils.CommonUtils;
 import org.egov.common.utils.ResponseInfoFactory;
 import org.egov.individual.config.IndividualProperties;
 import org.egov.individual.service.IndividualService;

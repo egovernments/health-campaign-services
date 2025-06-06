@@ -9,6 +9,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.ds.Tuple;
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.Error;
 import org.egov.common.models.ErrorDetails;
 import org.egov.common.models.core.Role;
@@ -57,8 +58,7 @@ import static org.egov.common.utils.CommonUtils.isSearchByIdOnly;
 import static org.egov.common.utils.CommonUtils.lastChangedSince;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
-import static org.egov.individual.Constants.SET_INDIVIDUALS;
-import static org.egov.individual.Constants.VALIDATION_ERROR;
+import static org.egov.individual.Constants.*;
 
 @Service
 @Slf4j
@@ -201,6 +201,7 @@ public class IndividualService {
     }
 
     public List<Individual> update(IndividualBulkRequest request, boolean isBulk) {
+        String tenantId =  request.getRequestInfo().getUserInfo().getTenantId();
         Tuple<List<Individual>, Map<Individual, ErrorDetails>> tuple = validate(validators,
                 isApplicableForUpdate, request,
                 isBulk);
@@ -242,7 +243,7 @@ public class IndividualService {
 
                 Map<String, Individual> idToObjMap = getIdToObjMap(encryptedIndividualList);
                 // find existing individuals from db
-                List<Individual> existingIndividuals = individualRepository.findById(new ArrayList<>(idToObjMap.keySet()),
+                List<Individual> existingIndividuals = individualRepository.findById(tenantId, new ArrayList<>(idToObjMap.keySet()),
                         "id", false).getResponse();
 
                 if (identifiersPresent) {
@@ -303,7 +304,11 @@ public class IndividualService {
                             .singletonList(individualSearch)),
                     individualSearch);
 
-            searchResponse = individualRepository.findById(ids, idFieldName, includeDeleted);
+            try {
+                searchResponse = individualRepository.findById(tenantId ,ids, idFieldName, includeDeleted);
+            } catch (InvalidTenantIdException e) {
+                throw new CustomException(INVALID_TENANT_ID, INVALID_TENANT_ID_MSG);
+            }
 
             encryptedIndividualList = searchResponse.getResponse().stream()
                     .filter(lastChangedSince(lastChangedSince))
@@ -319,6 +324,37 @@ public class IndividualService {
             searchResponse.setResponse(decryptedIndividualList);
 
             return searchResponse;
+        }
+        else if (individualSearch.getName() != null) {
+            try {
+                String givenName = individualSearch.getName().getGivenName();
+                String familyName = individualSearch.getName().getFamilyName();
+                String otherNames = individualSearch.getName().getOtherNames();
+
+                SearchResponse<Individual> response = individualRepository.findByName(
+                        givenName,
+                        familyName,
+                        otherNames,
+                        tenantId,
+                        limit,
+                        offset,
+                        includeDeleted
+                );
+
+                encryptedIndividualList = response.getResponse();
+                List<Individual> decryptedIndividualList;
+                if (!encryptedIndividualList.isEmpty()) {
+                    decryptedIndividualList = individualEncryptionService.decrypt(encryptedIndividualList, "IndividualDecrypt", requestInfo);
+                } else {
+                    decryptedIndividualList = encryptedIndividualList;
+                }
+                response.setResponse(decryptedIndividualList);
+                return response;
+
+            } catch (Exception exception) {
+                log.error("error occurred during name based search", ExceptionUtils.getStackTrace(exception));
+                throw new CustomException(NAME_BASED_SEARCH_FAILED_CODE,NAME_BASED_SEARCH_EXCEPTION_MESSAGE);
+            }
         }
         //encrypt search criteria
 
@@ -467,18 +503,17 @@ public class IndividualService {
         List<Individual> validIndividuals = new ArrayList<>(individualList);
         if (properties.isUserSyncEnabled()) {
             for (Individual individual : individualList) {
+                if (!Boolean.TRUE.equals(individual.getIsSystemUser())) continue;
                 try {
                     if (apiOperation.equals(ApiOperation.UPDATE)) {
                         userIntegrationService.updateUser(individual, request.getRequestInfo());
                         log.info("successfully updated user for {} ",
                                 individual.getName());
                     } else if (apiOperation.equals(ApiOperation.CREATE)) {
-                        if (Boolean.TRUE.equals(individual.getIsSystemUser())) {
                         List<UserRequest> userRequests = userIntegrationService.createUser(individual,
                                 request.getRequestInfo());
                             individual.setUserId(Long.toString(userRequests.get(0).getId()));
                             individualList.get(0).setUserUuid(userRequests.get(0).getUuid());
-                        }
                         log.info("successfully created user for {} ",
                                 individual.getName());
                     } else {

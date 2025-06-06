@@ -2,6 +2,7 @@ package org.egov.individual.service;
 
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.data.query.exception.QueryBuilderException;
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.helper.RequestInfoTestBuilder;
 import org.egov.common.models.individual.IndividualSearch;
 import org.egov.common.models.core.SearchResponse;
@@ -19,6 +20,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.Collections;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
@@ -47,13 +49,13 @@ class IndividualServiceSearchTest {
 
     @Test
     @DisplayName("should search only by id if only id is present")
-    void shouldSearchOnlyByIdIfOnlyIdIsPresent() throws QueryBuilderException {
+    void shouldSearchOnlyByIdIfOnlyIdIsPresent() throws QueryBuilderException, InvalidTenantIdException {
         IndividualSearch individualSearch = IndividualSearchTestBuilder.builder()
                 .byId()
                 .build();
         RequestInfo requestInfo = RequestInfoTestBuilder.builder().withCompleteRequestInfo().build();
 
-        when(individualRepository.findById(anyList(), anyString(), anyBoolean()))
+        when(individualRepository.findById(anyString(), anyList(), anyString(), anyBoolean()))
                 .thenReturn(SearchResponse.<Individual>builder().totalCount(1L).response(Collections.singletonList(IndividualTestBuilder.builder()
                         .withId("some-id")
                         .build())).build());
@@ -61,13 +63,13 @@ class IndividualServiceSearchTest {
         individualService.search(individualSearch, 0, 10,
                 "default", null, false,requestInfo);
 
-        verify(individualRepository, times(1)).findById(anyList(),
+        verify(individualRepository, times(1)).findById(anyString(), anyList(),
                 eq("id"), anyBoolean());
     }
 
     @Test
     @DisplayName("should not throw exception in case the array is null")
-    void shouldNotThrowExceptionIfArrayIsNull() throws QueryBuilderException {
+    void shouldNotThrowExceptionIfArrayIsNull() throws QueryBuilderException, InvalidTenantIdException {
         IndividualSearch individualSearch = IndividualSearchTestBuilder.builder()
                 .byNullId()
                 .build();
@@ -85,19 +87,19 @@ class IndividualServiceSearchTest {
         individualService.search(individualSearch, 0, 10,
                 "default", null, false, requestInfo);
 
-        verify(individualRepository, times(0)).findById(anyList(),
+        verify(individualRepository, times(0)).findById(anyString() , anyList(),
                 eq("id"), anyBoolean());
     }
 
     @Test
     @DisplayName("should search only clientReferenceId if only clientReferenceId is present")
-    void shouldSearchByOnlyClientReferenceIdIfOnlyClientReferenceIdIsPresent() throws QueryBuilderException {
+    void shouldSearchByOnlyClientReferenceIdIfOnlyClientReferenceIdIsPresent() throws QueryBuilderException, InvalidTenantIdException {
         IndividualSearch individualSearch = IndividualSearchTestBuilder.builder()
                 .byClientReferenceId()
                 .build();
         RequestInfo requestInfo = RequestInfoTestBuilder.builder().withCompleteRequestInfo().build();
 
-        when(individualRepository.findById(anyList(), anyString(), anyBoolean()))
+        when(individualRepository.findById(anyString(), anyList(), anyString(), anyBoolean()))
                 .thenReturn(SearchResponse.<Individual>builder().response(Collections.singletonList(IndividualTestBuilder.builder()
                         .withId("some-id")
                         .build())).build());
@@ -105,13 +107,13 @@ class IndividualServiceSearchTest {
         individualService.search(individualSearch, 0, 10,
                 "default", null, false,requestInfo);
 
-        verify(individualRepository, times(1)).findById(anyList(),
+        verify(individualRepository, times(1)).findById(anyString(), anyList(),
                 eq("clientReferenceId"), anyBoolean());
     }
 
     @Test
     @DisplayName("should not call findById if parameters other than id are present")
-    void shouldNotCallFindByIdIfParametersOtherThanIdArePresent() throws QueryBuilderException {
+    void shouldNotCallFindByIdIfParametersOtherThanIdArePresent() throws QueryBuilderException, InvalidTenantIdException {
         IndividualSearch individualSearch = IndividualSearchTestBuilder.builder()
                 .byClientReferenceId()
                 .byName()
@@ -119,21 +121,19 @@ class IndividualServiceSearchTest {
 
         RequestInfo requestInfo = RequestInfoTestBuilder.builder().withCompleteRequestInfo().build();
 
-        when(individualRepository.find(any(IndividualSearch.class), anyInt(), anyInt(), anyString(), any(), anyBoolean()))
-                .thenReturn(SearchResponse.<Individual>builder().build());
-
-        when(encryptionService.encrypt(any(IndividualSearch.class), any(String.class))).thenReturn(individualSearch);
-
+        when(individualRepository.findByName(anyString(),anyString(),anyString(),anyString(),anyInt(),anyInt(),anyBoolean()))
+                .thenReturn(SearchResponse.<Individual>builder().response(Collections.emptyList()).build());
+                
         individualService.search(individualSearch, 0, 10,
                 "default", null, false,requestInfo);
 
-        verify(individualRepository, times(0)).findById(anyList(),
+        verify(individualRepository, times(0)).findById(anyString(), anyList(),
                 eq("clientReferenceId"), anyBoolean());
     }
 
     @Test
     @DisplayName("should call find if parameters other than id are present")
-    void shouldCallFindIfParametersOtherThanIdArePresent() throws QueryBuilderException {
+    void shouldCallFindIfParametersOtherThanIdArePresent() throws QueryBuilderException, InvalidTenantIdException {
         IndividualSearch individualSearch = IndividualSearchTestBuilder.builder()
                 .byClientReferenceId()
                 .byGender()

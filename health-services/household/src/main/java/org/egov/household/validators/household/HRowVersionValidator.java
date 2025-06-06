@@ -1,9 +1,11 @@
 package org.egov.household.validators.household;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.Error;
 import org.egov.common.models.household.Household;
 import org.egov.common.models.household.HouseholdBulkRequest;
+import org.egov.common.utils.CommonUtils;
 import org.egov.common.validator.Validator;
 import org.egov.household.repository.HouseholdRepository;
 import org.springframework.core.annotation.Order;
@@ -22,7 +24,7 @@ import static org.egov.common.utils.CommonUtils.getIdMethod;
 import static org.egov.common.utils.CommonUtils.getIdToObjMap;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
-import static org.egov.common.utils.ValidatorUtils.getErrorForRowVersionMismatch;
+import static org.egov.common.utils.ValidatorUtils.*;
 
 @Component
 @Order(value = 5)
@@ -37,6 +39,7 @@ public class HRowVersionValidator implements Validator<HouseholdBulkRequest, Hou
 
     @Override
     public Map<Household, List<Error>> validate(HouseholdBulkRequest request) {
+        String tenantId = CommonUtils.getTenantId(request.getHouseholds());
         Map<Household, List<Error>> errorDetailsMap = new HashMap<>();
         Method idMethod = getIdMethod(request.getHouseholds());
         Map<String, Household> eMap = getIdToObjMap(request.getHouseholds().stream()
@@ -44,14 +47,22 @@ public class HRowVersionValidator implements Validator<HouseholdBulkRequest, Hou
                 .collect(Collectors.toList()), idMethod);
         if (!eMap.isEmpty()) {
             List<String> entityIds = new ArrayList<>(eMap.keySet());
-            List<Household> existingEntities = repository.findById(entityIds,
-                    getIdFieldName(idMethod), false).getResponse();
-            List<Household> entitiesWithMismatchedRowVersion =
-                    getEntitiesWithMismatchedRowVersion(eMap, existingEntities, idMethod);
-            entitiesWithMismatchedRowVersion.forEach(individual -> {
-                Error error = getErrorForRowVersionMismatch();
-                populateErrorDetails(individual, error, errorDetailsMap);
-            });
+            try {
+                List<Household> existingEntities = repository.findById(tenantId, entityIds,
+                        getIdFieldName(idMethod), false).getResponse();
+                List<Household> entitiesWithMismatchedRowVersion =
+                        getEntitiesWithMismatchedRowVersion(eMap, existingEntities, idMethod);
+                entitiesWithMismatchedRowVersion.forEach(individual -> {
+                    Error error = getErrorForRowVersionMismatch();
+                    populateErrorDetails(individual, error, errorDetailsMap);
+                });
+            } catch (InvalidTenantIdException exception) {
+                request.getHouseholds().forEach(household -> {
+                    Error error = getErrorForInvalidTenantId(tenantId, exception);
+                    populateErrorDetails(household, error, errorDetailsMap);
+                });
+            }
+
         }
         return errorDetailsMap;
     }

@@ -11,11 +11,13 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.data.query.builder.GenericQueryBuilder;
 import org.egov.common.data.query.builder.QueryFieldChecker;
 import org.egov.common.data.query.builder.SelectQueryBuilder;
 import org.egov.common.data.repository.GenericRepository;
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.individual.Address;
 import org.egov.common.models.individual.Identifier;
@@ -23,6 +25,7 @@ import org.egov.common.models.individual.Individual;
 import org.egov.common.models.individual.IndividualSearch;
 import org.egov.common.models.individual.Skill;
 import org.egov.common.producer.Producer;
+import org.egov.common.utils.CommonUtils;
 import org.egov.individual.repository.rowmapper.AddressRowMapper;
 import org.egov.individual.repository.rowmapper.IdentifierRowMapper;
 import org.egov.individual.repository.rowmapper.IndividualRowMapper;
@@ -39,6 +42,9 @@ import org.springframework.util.ReflectionUtils;
 
 import static org.egov.common.utils.CommonUtils.constructTotalCountCTEAndReturnResult;
 import static org.egov.common.utils.CommonUtils.getIdMethod;
+import static org.egov.common.utils.MultiStateInstanceUtil.SCHEMA_REPLACE_STRING;
+import static org.egov.individual.Constants.INVALID_TENANT_ID;
+import static org.egov.individual.Constants.INVALID_TENANT_ID_MSG;
 
 @Repository
 @Slf4j
@@ -56,10 +62,10 @@ public class IndividualRepository extends GenericRepository<Individual> {
                 selectQueryBuilder, individualRowMapper, Optional.of("individual"));
     }
 
-    public SearchResponse<Individual> findById(List<String> ids, String idColumn, Boolean includeDeleted) {
+    public SearchResponse<Individual> findById(String tenantId, List<String> ids, String idColumn, Boolean includeDeleted) throws InvalidTenantIdException {
         List<Individual> objFound = new ArrayList<>();
         try {
-            objFound = findInCache(ids);
+            objFound = findInCache( tenantId, ids);
             if (!includeDeleted) {
                 objFound = objFound.stream()
                         .filter(entity -> entity.getIsDeleted().equals(false))
@@ -78,10 +84,12 @@ public class IndividualRepository extends GenericRepository<Individual> {
             log.info("Error occurred while reading from cache", ExceptionUtils.getStackTrace(e));
         }
 
-        String individualQuery = String.format(getQuery("SELECT * FROM individual WHERE %s IN (:ids)",
-                includeDeleted), idColumn);
+        String individualQuery = String.format(getQuery("SELECT * FROM %s.individual WHERE %s IN (:ids)",
+                includeDeleted), SCHEMA_REPLACE_STRING , idColumn);
         Map<String, Object> paramMap = new HashMap<>();
         paramMap.put("ids", ids);
+
+        individualQuery = multiStateInstanceUtil.replaceSchemaPlaceholder(individualQuery, tenantId);
         Long totalCount = constructTotalCountCTEAndReturnResult(individualQuery, paramMap, this.namedParameterJdbcTemplate);
         List<Individual> individuals = this.namedParameterJdbcTemplate
                 .query(individualQuery, paramMap, this.rowMapper);
@@ -92,12 +100,12 @@ public class IndividualRepository extends GenericRepository<Individual> {
     }
 
     public SearchResponse<Individual> find(IndividualSearch searchObject, Integer limit, Integer offset,
-                                           String tenantId, Long lastChangedSince, Boolean includeDeleted) {
+                                           String tenantId, Long lastChangedSince, Boolean includeDeleted) throws InvalidTenantIdException {
         Map<String, Object> paramsMap = new HashMap<>();
         String query = getQueryForIndividual(searchObject, limit, offset, tenantId, lastChangedSince,
                 includeDeleted, paramsMap);
         if (isProximityBasedSearch(searchObject)) {
-            return findByRadius(query, searchObject, includeDeleted, paramsMap);
+            return findByRadius(tenantId, query, searchObject, includeDeleted, paramsMap);
         }
         if (searchObject.getIdentifier() == null) {
             String queryWithoutLimit = query.replace("ORDER BY createdtime DESC LIMIT :limit OFFSET :offset", "");
@@ -109,7 +117,7 @@ public class IndividualRepository extends GenericRepository<Individual> {
             return SearchResponse.<Individual>builder().totalCount(totalCount).response(individuals).build();
         } else {
             Map<String, Object> identifierParamMap = new HashMap<>();
-            String identifierQuery = getIdentifierQuery(searchObject.getIdentifier(), identifierParamMap);
+            String identifierQuery = getIdentifierQuery(tenantId, searchObject.getIdentifier(), identifierParamMap);
             identifierParamMap.put("isDeleted", includeDeleted);
             List<Identifier> identifiers = this.namedParameterJdbcTemplate
                     .query(identifierQuery, identifierParamMap, new IdentifierRowMapper());
@@ -121,18 +129,64 @@ public class IndividualRepository extends GenericRepository<Individual> {
                 if (!individuals.isEmpty()) {
                     individuals.forEach(individual -> {
                         individual.setIdentifiers(identifiers);
-                        List<Address> addresses = getAddressForIndividual(individual.getId(), includeDeleted);
+                        List<Address> addresses = null;
+                        try {
+                            addresses = getAddressForIndividual( tenantId, individual.getId(), includeDeleted);
+                        } catch (InvalidTenantIdException e) {
+                            throw new CustomException( INVALID_TENANT_ID , INVALID_TENANT_ID_MSG);
+                        }
                         individual.setAddress(addresses);
                         Map<String, Object> indServerGenIdParamMap = new HashMap<>();
                         indServerGenIdParamMap.put("individualId", individual.getId());
                         indServerGenIdParamMap.put("isDeleted", includeDeleted);
-                        enrichSkills(includeDeleted, individual, indServerGenIdParamMap);
+                        try {
+                            enrichSkills(includeDeleted, individual, indServerGenIdParamMap);
+                        } catch (InvalidTenantIdException e) {
+                            throw new CustomException(INVALID_TENANT_ID, INVALID_TENANT_ID_MSG);
+                        }
                     });
                 }
                 return SearchResponse.<Individual>builder().response(individuals).build();
             }
             return SearchResponse.<Individual>builder().build();
         }
+    }
+    public SearchResponse<Individual> findByName(String givenName, String familyName, String otherNames, String tenantId, Integer limit, Integer offset, Boolean includeDeleted) throws InvalidTenantIdException{
+        Map<String, Object> paramsMap = new HashMap<>();
+        String query = String.format(getQuery("SELECT * FROM %s.individual WHERE tenantId = :tenantId", includeDeleted), SCHEMA_REPLACE_STRING);
+        query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
+
+        if (StringUtils.isNotBlank(givenName)) {
+            query += " AND givenName ILIKE :givenName";
+            paramsMap.put("givenName", "%" + givenName + "%");
+        }
+
+        if (StringUtils.isNotBlank(familyName)) {
+            query += " AND familyName ILIKE :familyName";
+            paramsMap.put("familyName", "%" + familyName + "%");
+        }
+
+        if (StringUtils.isNotBlank(otherNames)) {
+            query += " AND otherNames ILIKE :otherNames";
+            paramsMap.put("otherNames", "%" + otherNames + "%");
+        }
+
+        if (Boolean.FALSE.equals(includeDeleted)) {
+            query += " AND isDeleted = false";
+        }
+
+        query += " ORDER BY createdTime DESC LIMIT :limit OFFSET :offset";
+
+        paramsMap.put("tenantId", tenantId);
+        paramsMap.put("limit", limit);
+        paramsMap.put("offset", offset);
+
+        List<Individual> individuals = this.namedParameterJdbcTemplate.query(query, paramsMap, this.rowMapper);
+
+        return SearchResponse.<Individual>builder()
+                .totalCount((long) individuals.size())
+                .response(individuals)
+                .build();
     }
 
     public Map<String, IndividualMapped> find(IndividualMappedSearch searchObject, Integer limit, Integer offset,
@@ -181,13 +235,13 @@ public class IndividualRepository extends GenericRepository<Individual> {
      * @param paramsMap
      * @return Fetch all the household which falls under the radius provided using longitude and latitude provided.
      */
-    public SearchResponse<Individual> findByRadius(String query, IndividualSearch searchObject, Boolean includeDeleted, Map<String, Object> paramsMap) {
+    public SearchResponse<Individual> findByRadius(String tenantId, String query, IndividualSearch searchObject, Boolean includeDeleted, Map<String, Object> paramsMap) throws InvalidTenantIdException {
         query = query.replace("LIMIT :limit OFFSET :offset", "");
         paramsMap.put("s_latitude", searchObject.getLatitude());
         paramsMap.put("s_longitude", searchObject.getLongitude());
         if (searchObject.getIdentifier() != null) {
             Map<String, Object> identifierParamMap = new HashMap<>();
-            String identifierQuery = getIdentifierQuery(searchObject.getIdentifier(), identifierParamMap);
+            String identifierQuery = getIdentifierQuery(tenantId, searchObject.getIdentifier(), identifierParamMap);
             identifierParamMap.put("isDeleted", includeDeleted);
             List<Identifier> identifiers = this.namedParameterJdbcTemplate
                     .query(identifierQuery, identifierParamMap, new IdentifierRowMapper());
@@ -209,12 +263,21 @@ public class IndividualRepository extends GenericRepository<Individual> {
                 if (!individuals.isEmpty()) {
                     individuals.forEach(individual -> {
                         individual.setIdentifiers(identifiers);
-                        List<Address> addresses = getAddressForIndividual(individual.getId(), includeDeleted);
+                        List<Address> addresses = null;
+                        try {
+                            addresses = getAddressForIndividual(tenantId, individual.getId(), includeDeleted);
+                        } catch (InvalidTenantIdException e) {
+                            throw new CustomException(INVALID_TENANT_ID, INVALID_TENANT_ID_MSG);
+                        }
                         individual.setAddress(addresses);
                         Map<String, Object> indServerGenIdParamMap = new HashMap<>();
                         indServerGenIdParamMap.put("individualId", individual.getId());
                         indServerGenIdParamMap.put("isDeleted", includeDeleted);
-                        enrichSkills(includeDeleted, individual, indServerGenIdParamMap);
+                        try {
+                            enrichSkills(includeDeleted, individual, indServerGenIdParamMap);
+                        } catch (InvalidTenantIdException e) {
+                            throw new CustomException(INVALID_TENANT_ID, INVALID_TENANT_ID_MSG);
+                        }
                     });
                 }
                 return SearchResponse.<Individual>builder().totalCount(totalCount).response(individuals).build();
@@ -222,13 +285,14 @@ public class IndividualRepository extends GenericRepository<Individual> {
         } else {
             query = cteQuery + ", cte_individual AS (" + query + ")";
             query = query + "SELECT * FROM (SELECT cte_i.*, "+ calculateDistanceFromTwoWaypointsFormulaQuery
-                    +" FROM cte_individual cte_i LEFT JOIN public.individual_address ia ON ia.individualid = cte_i.id LEFT JOIN public.address a ON ia.addressid = a.id , cte_search_criteria_waypoint cte_scw) rt ";
+                    +" FROM cte_individual cte_i LEFT JOIN %s.individual_address ia ON ia.individualid = cte_i.id LEFT JOIN %s.address a ON ia.addressid = a.id , cte_search_criteria_waypoint cte_scw) rt ";
+            query = String.format(query, SCHEMA_REPLACE_STRING, SCHEMA_REPLACE_STRING);
             if(searchObject.getSearchRadius() != null) {
                 query = query + " WHERE rt.distance < :distance ";
             }
             query = query + " ORDER BY distance ASC ";
             paramsMap.put("distance", searchObject.getSearchRadius());
-
+            multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
             Long totalCount = constructTotalCountCTEAndReturnResult(query, paramsMap, this.namedParameterJdbcTemplate);
 
             query = query + "LIMIT :limit OFFSET :offset";
@@ -247,9 +311,11 @@ public class IndividualRepository extends GenericRepository<Individual> {
         return searchObject.getLatitude() != null && searchObject.getLongitude() != null && searchObject.getSearchRadius() != null;
     }
 
-    private void enrichSkills(Boolean includeDeleted, Individual individual, Map<String, Object> indServerGenIdParamMap) {
-        String individualSkillQuery = getQuery("SELECT * FROM individual_skill WHERE individualId =:individualId",
+    private void enrichSkills(Boolean includeDeleted, Individual individual, Map<String, Object> indServerGenIdParamMap) throws InvalidTenantIdException {
+        String individualSkillQuery = getQuery("SELECT * FROM %s.individual_skill WHERE individualId =:individualId",
                 includeDeleted);
+        individualSkillQuery = String.format(individualSkillQuery, SCHEMA_REPLACE_STRING);
+        individualSkillQuery = multiStateInstanceUtil.replaceSchemaPlaceholder(individualSkillQuery, individual.getTenantId());
         List<Skill> skills = this.namedParameterJdbcTemplate.query(individualSkillQuery, indServerGenIdParamMap,
                 new SkillRowMapper());
         individual.setSkills(skills);
@@ -257,8 +323,9 @@ public class IndividualRepository extends GenericRepository<Individual> {
 
     private String getQueryForIndividual(IndividualSearch searchObject, Integer limit, Integer offset,
                                          String tenantId, Long lastChangedSince,
-                                         Boolean includeDeleted, Map<String, Object> paramsMap) {
-        String query = "SELECT * FROM individual";
+                                         Boolean includeDeleted, Map<String, Object> paramsMap) throws InvalidTenantIdException {
+
+        String query = String.format("SELECT * FROM %s.individual", SCHEMA_REPLACE_STRING);
         List<String> whereFields = GenericQueryBuilder.getFieldsWithCondition(searchObject, QueryFieldChecker.isNotNull, paramsMap);
         query = GenericQueryBuilder.generateQuery(query, whereFields).toString().trim();
 
@@ -340,6 +407,7 @@ public class IndividualRepository extends GenericRepository<Individual> {
         paramsMap.put("limit", limit);
         paramsMap.put("offset", offset);
 
+        query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
         log.info("query-------------------------->");
         log.info(query);
         return query;
@@ -394,44 +462,65 @@ public class IndividualRepository extends GenericRepository<Individual> {
 
         return queryBuilder.toString();
     }
+  
+  
+    private String getIdentifierQuery(String tenantId, Identifier identifier, Map<String, Object> paramMap) throws InvalidTenantIdException {
+        String identifierQuery = String.format("SELECT * FROM %s.individual_identifier", SCHEMA_REPLACE_STRING);
 
-    private String getIdentifierQuery(Identifier identifier, Map<String, Object> paramMap) {
-        String identifierQuery = "SELECT * FROM individual_identifier";
+        identifierQuery = multiStateInstanceUtil.replaceSchemaPlaceholder(identifierQuery, tenantId);
         List<String> identifierWhereFields = GenericQueryBuilder.getFieldsWithCondition(identifier,
                 QueryFieldChecker.isNotNull, paramMap);
         return GenericQueryBuilder.generateQuery(identifierQuery, identifierWhereFields).toString();
     }
 
-    private List<Address> getAddressForIndividual(String individualId, Boolean includeDeleted) {
+    private List<Address> getAddressForIndividual(String tenantId, String individualId, Boolean includeDeleted) throws InvalidTenantIdException {
         String addressQuery = getQuery("SELECT a.*, ia.individualId, ia.addressId, ia.createdBy, ia.lastModifiedBy, ia.createdTime, ia.lastModifiedTime, ia.isDeleted" +
                 " FROM (" +
                 "    SELECT individualId, addressId, type, createdBy, lastModifiedBy, createdTime, lastModifiedTime, isDeleted, " +
                 "           ROW_NUMBER() OVER (PARTITION BY individualId, type ORDER BY lastModifiedTime DESC) AS rn" +
-                "    FROM individual_address" +
+                "    FROM %s.individual_address" +
                 "    WHERE individualId = :individualId" +
                 " ) AS ia" +
-                " JOIN address AS a ON ia.addressId = a.id" +
+                " JOIN %s.address AS a ON ia.addressId = a.id" +
                 " WHERE ia.rn = 1 ", includeDeleted, "ia");
+        addressQuery = String.format(addressQuery,SCHEMA_REPLACE_STRING, SCHEMA_REPLACE_STRING );
         Map<String, Object> indServerGenIdParamMap = new HashMap<>();
         indServerGenIdParamMap.put("individualId", individualId);
         indServerGenIdParamMap.put("isDeleted", includeDeleted);
+        addressQuery = multiStateInstanceUtil.replaceSchemaPlaceholder(addressQuery, tenantId);
         return this.namedParameterJdbcTemplate
                 .query(addressQuery, indServerGenIdParamMap, new AddressRowMapper());
     }
 
     private void enrichIndividuals(List<Individual> individuals, Boolean includeDeleted) {
         if (!individuals.isEmpty()) {
+            String tenantId = CommonUtils.getTenantId(individuals);
             individuals.forEach(individual -> {
                 Map<String, Object> indServerGenIdParamMap = new HashMap<>();
                 indServerGenIdParamMap.put("individualId", individual.getId());
                 indServerGenIdParamMap.put("isDeleted", includeDeleted);
-                List<Address> addresses = getAddressForIndividual(individual.getId(), includeDeleted);
-                String individualIdentifierQuery = getQuery("SELECT * FROM individual_identifier ii WHERE ii.individualId =:individualId",
-                        includeDeleted);
+                List<Address> addresses = null;
+                try {
+                    addresses = getAddressForIndividual( tenantId, individual.getId(), includeDeleted);
+                } catch (InvalidTenantIdException e) {
+                    throw new RuntimeException(e);
+                }
+                String individualIdentifierQuery = String.format( getQuery("SELECT * FROM %s.individual_identifier ii WHERE ii.individualId =:individualId",
+                        includeDeleted), SCHEMA_REPLACE_STRING );
+
+                try {
+                    individualIdentifierQuery = multiStateInstanceUtil.replaceSchemaPlaceholder(individualIdentifierQuery, tenantId);
+                } catch (InvalidTenantIdException e) {
+                    throw new CustomException(INVALID_TENANT_ID, INVALID_TENANT_ID_MSG);
+                }
                 List<Identifier> identifiers = this.namedParameterJdbcTemplate
                         .query(individualIdentifierQuery, indServerGenIdParamMap,
                                 new IdentifierRowMapper());
-                enrichSkills(includeDeleted, individual, indServerGenIdParamMap);
+                try {
+                    enrichSkills(includeDeleted, individual, indServerGenIdParamMap);
+                } catch (InvalidTenantIdException e) {
+                    throw new CustomException(INVALID_TENANT_ID, INVALID_TENANT_ID_MSG);
+                }
                 individual.setAddress(addresses);
                 individual.setIdentifiers(identifiers);
             });
