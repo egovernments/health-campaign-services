@@ -24,11 +24,14 @@ import org.egov.common.utils.CommonUtils;
 import org.egov.common.validator.Validator;
 import org.egov.individual.config.IndividualProperties;
 import org.egov.individual.repository.IndividualRepository;
+import org.egov.individual.util.IdGenUtil;
 import org.egov.individual.validators.AadharNumberValidator;
 import org.egov.individual.validators.AadharNumberValidatorForCreate;
 import org.egov.individual.validators.AddressTypeValidator;
 import org.egov.individual.validators.IBoundaryValidator;
 import org.egov.individual.validators.IExistentEntityValidator;
+import org.egov.individual.validators.IdPoolValidatorForCreate;
+import org.egov.individual.validators.IdPoolValidatorForUpdate;
 import org.egov.individual.validators.IsDeletedSubEntityValidator;
 import org.egov.individual.validators.IsDeletedValidator;
 import org.egov.individual.validators.MobileNumberValidator;
@@ -54,8 +57,7 @@ import static org.egov.common.utils.CommonUtils.isSearchByIdOnly;
 import static org.egov.common.utils.CommonUtils.lastChangedSince;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
-import static org.egov.individual.Constants.SET_INDIVIDUALS;
-import static org.egov.individual.Constants.VALIDATION_ERROR;
+import static org.egov.individual.Constants.*;
 
 @Service
 @Slf4j
@@ -75,6 +77,8 @@ public class IndividualService {
 
     private final NotificationService notificationService;
 
+    private final IdGenUtil idGenUtil;
+
     private final Predicate<Validator<IndividualBulkRequest, Individual>> isApplicableForUpdate = validator ->
             validator.getClass().equals(NullIdValidator.class)
                     || validator.getClass().equals(IBoundaryValidator.class)
@@ -86,7 +90,9 @@ public class IndividualService {
                     || validator.getClass().equals(UniqueEntityValidator.class)
                     || validator.getClass().equals(UniqueSubEntityValidator.class)
                     || validator.getClass().equals(MobileNumberValidator.class)
-                    || validator.getClass().equals(AadharNumberValidator.class);
+                    || validator.getClass().equals(AadharNumberValidator.class)
+                    || validator.getClass().equals(IdPoolValidatorForUpdate.class)
+            ;
 
     private final Predicate<Validator<IndividualBulkRequest, Individual>> isApplicableForCreate = validator ->
             validator.getClass().equals(AddressTypeValidator.class)
@@ -94,7 +100,9 @@ public class IndividualService {
                     || validator.getClass().equals(IBoundaryValidator.class)
                     || validator.getClass().equals(UniqueSubEntityValidator.class)
                     || validator.getClass().equals(MobileNumberValidator.class)
-                    || validator.getClass().equals(AadharNumberValidatorForCreate.class);
+                    || validator.getClass().equals(AadharNumberValidatorForCreate.class)
+                    || validator.getClass().equals(IdPoolValidatorForCreate.class)
+            ;
 
     private final Predicate<Validator<IndividualBulkRequest, Individual>> isApplicableForDelete = validator ->
             validator.getClass().equals(NullIdValidator.class)
@@ -107,7 +115,8 @@ public class IndividualService {
                              EnrichmentService enrichmentService,
                              IndividualEncryptionService individualEncryptionService,
                              UserIntegrationService userIntegrationService,
-                             NotificationService notificationService) {
+                             NotificationService notificationService,
+                             IdGenUtil idGenUtil) {
         this.individualRepository = individualRepository;
         this.validators = validators;
         this.properties = properties;
@@ -115,6 +124,7 @@ public class IndividualService {
         this.individualEncryptionService = individualEncryptionService;
         this.userIntegrationService = userIntegrationService;
         this.notificationService = notificationService;
+        this.idGenUtil = idGenUtil;
     }
 
     public List<Individual> create(IndividualRequest request) {
@@ -143,11 +153,24 @@ public class IndividualService {
                 // integrate with user service create call
                 validIndividuals = integrateWithUserService(request, validIndividuals, ApiOperation.CREATE, errorDetailsMap);
                 //encrypt PII data
+
+                // BenificiaryIds to Update
+                List<String> beneficiaryIds = validIndividuals.stream()
+                        .flatMap(d -> Optional.ofNullable(d.getIdentifiers())
+                                .orElse(Collections.emptyList())
+                                .stream()
+                                .filter(identifier -> UNIQUE_BENEFICIARY_ID.equals(identifier.getIdentifierType()))
+                                .findFirst()
+                                .stream())
+                        .map(identifier -> String.valueOf(identifier.getIdentifierId()))
+                        .toList();
                 if (!validIndividuals.isEmpty()) {
                     encryptedIndividualList = individualEncryptionService
                             .encrypt(request, validIndividuals, "IndividualEncrypt", isBulk);
                     individualRepository.save(encryptedIndividualList,
                             properties.getSaveIndividualTopic());
+                    // update beneficiary ids in idgen
+                    idGenUtil.updateBeneficiaryIds(beneficiaryIds, validIndividuals.get(0).getTenantId(), request.getRequestInfo());
                 }
             }
         } catch (CustomException exception) {
@@ -406,18 +429,17 @@ public class IndividualService {
         List<Individual> validIndividuals = new ArrayList<>(individualList);
         if (properties.isUserSyncEnabled()) {
             for (Individual individual : individualList) {
+                if (!Boolean.TRUE.equals(individual.getIsSystemUser())) continue;
                 try {
                     if (apiOperation.equals(ApiOperation.UPDATE)) {
                         userIntegrationService.updateUser(individual, request.getRequestInfo());
                         log.info("successfully updated user for {} ",
                                 individual.getName());
                     } else if (apiOperation.equals(ApiOperation.CREATE)) {
-                        if (Boolean.TRUE.equals(individual.getIsSystemUser())) {
                         List<UserRequest> userRequests = userIntegrationService.createUser(individual,
                                 request.getRequestInfo());
                             individual.setUserId(Long.toString(userRequests.get(0).getId()));
                             individualList.get(0).setUserUuid(userRequests.get(0).getUuid());
-                        }
                         log.info("successfully created user for {} ",
                                 individual.getName());
                     } else {
