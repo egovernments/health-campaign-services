@@ -73,9 +73,10 @@ class App {
     });
   }
 
-  public listen() {
-    this.app.listen(this.port, () => {
+  public async listen() {
+    this.app.listen(this.port, async () => {
       logger.info(`App listening on the port ${this.port}`);
+
       // Add periodic monitoring
       setInterval(() => {
         const stats = v8.getHeapStatistics();
