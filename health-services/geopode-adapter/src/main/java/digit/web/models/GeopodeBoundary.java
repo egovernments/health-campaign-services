@@ -19,11 +19,12 @@ import lombok.Builder;
 @Builder
 public class GeopodeBoundary {
     @JsonProperty("tenantId")
-    @NotNull
+    @NotBlank
     private String tenantId = null;
 
     @JsonProperty("ISOCode")
-    @NotNull
+    @NotBlank
+    @Pattern(regexp = "^[A-Z]{2}$", message = "ISOCode must be 2 uppercase letters")
     private String ISOCode = null;
 
 }

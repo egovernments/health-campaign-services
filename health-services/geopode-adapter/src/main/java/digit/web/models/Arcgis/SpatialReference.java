@@ -15,8 +15,8 @@ import lombok.NoArgsConstructor;
 public class SpatialReference {
 
     @JsonProperty("wkid")
-    private int wkid;
+    private Integer wkid;
 
     @JsonProperty("latestWkid")
-    private int latestWkid;
+    private Integer latestWkid;
 }

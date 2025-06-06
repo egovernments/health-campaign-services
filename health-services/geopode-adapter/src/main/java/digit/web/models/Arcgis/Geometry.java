@@ -2,6 +2,7 @@ package digit.web.models.Arcgis;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -17,5 +18,6 @@ import java.util.List;
 public class Geometry {
 
     @JsonProperty("rings")
+    @Valid
     private List<List<List<Double>>> rings; // 3-level list representing ring coordinates
 }
