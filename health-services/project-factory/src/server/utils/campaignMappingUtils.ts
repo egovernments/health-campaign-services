@@ -10,7 +10,7 @@ import { createCampaignService, searchProjectTypeCampaignService } from "../serv
 import { persistTrack } from "./processTrackUtils";
 import { processTrackTypes, processTrackStatuses } from "../config/constants";
 import { createProjectFacilityHelper, createProjectResourceHelper, createProjectStaffHelper } from "../api/genericApis";
-import { buildSearchCriteria, delinkAndLinkResourcesWithProjectCorrespondingToGivenBoundary, processResources } from "./onGoingCampaignUpdateUtils";
+import { buildSearchCriteria, delinkAndLinkResourcesWithProjectCorrespondingToGivenBoundary, getResourceFromResourceId, processResources } from "./onGoingCampaignUpdateUtils";
 import { searchDataService } from "../service/dataManageService";
 import { getHierarchy } from "../api/campaignApis";
 import { consolidateBoundaries } from "./boundariesConsolidationUtils";
@@ -693,9 +693,14 @@ export async function processMapping(mappingObject: any) {
         }
         await produceModifiedMessages(produceMessage, config?.kafka?.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC)
         await persistTrack(mappingObject?.CampaignDetails?.id, processTrackTypes.campaignCreation, processTrackStatuses.completed);
+
+        logger.info("Sending user credential email for campaign: " + mappingObject?.CampaignDetails?.id)
         const resources = mappingObject?.CampaignDetails?.resources || [];
-        const userCredentialFileId = resources.filter( (res:any) => res.type === "user").map((res:any) => res.createResourceId)
-        const userCredentialFileMap = {[userCredentialFileId]: "userCredentials.xlsx",};
+        const userResource = resources.filter( (res:any) => res.type === "user");
+        const userCreateResourceIds = userResource?.[0]?.createResourceId
+        const currentResourceSearchResponse = await getResourceFromResourceId(mappingObject, userCreateResourceIds, userResource);
+        const userProcessedFileStoreId = currentResourceSearchResponse?.[0]?.processedFilestoreId;
+        const userCredentialFileMap = {[userProcessedFileStoreId]: "userCredentials.xlsx",};
         sendNotificationEmail(userCredentialFileMap,mappingObject?.RequestInfo);
     } catch (error) {
         logger.error("Error in campaign mapping: " + error);
