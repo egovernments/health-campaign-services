@@ -175,6 +175,7 @@ config:
       - work-dir: "health-services/transformer"
         image-name: "transformer"
         dockerfile: "build/17/maven/Dockerfile"
+  #core-services
   - name: "builds/health-campaign-services/core-services/health-service-request"
     build:
       - work-dir: "core-services/service-request"
@@ -278,6 +279,14 @@ config:
         dockerfile: "build/17/maven/Dockerfile"
       - work-dir: "core-services/egov-hrms/src/main/resources/db"
         image-name: "egov-hrms-db"
+  - name: "builds/health-campaign-services/core-services/beneficiary-idgen-17"
+    build:
+      - work-dir: "core-services/beneficiary-idgen"
+        image-name: "beneficiary-idgen"
+        dockerfile: "build/17/maven/Dockerfile"
+      - work-dir: "core-services/beneficiary-idgen/src/main/resources/db"
+        image-name: "beneficiary-idgen-db"
+  #microplan-services
   - name: "builds/health-campaign-services/health-services/plan-service"
     build:
       - work-dir: "health-services/plan-service"
@@ -301,13 +310,6 @@ config:
         dockerfile: "build/17/maven/Dockerfile"
       - work-dir: "health-services/census-service/src/main/resources/db"
         image-name: "census-service-db"
-  - name: "builds/health-campaign-services/core-services/beneficiary-idgen-17"
-    build:
-      - work-dir: "core-services/beneficiary-idgen"
-        image-name: "beneficiary-idgen"
-        dockerfile: "build/17/maven/Dockerfile"
-      - work-dir: "core-services/beneficiary-idgen/src/main/resources/db"
-        image-name: "beneficiary-idgen-db"
   - name: "builds/health-campaign-services/health-services/geopode-adapter"
     build:
       - work-dir: "health-services/geopode-adapter"
