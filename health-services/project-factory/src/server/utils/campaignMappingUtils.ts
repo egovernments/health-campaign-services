@@ -694,14 +694,48 @@ export async function processMapping(mappingObject: any) {
         await produceModifiedMessages(produceMessage, config?.kafka?.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC)
         await persistTrack(mappingObject?.CampaignDetails?.id, processTrackTypes.campaignCreation, processTrackStatuses.completed);
 
-        logger.info("Sending user credential email for campaign: " + mappingObject?.CampaignDetails?.id)
-        const resources = mappingObject?.CampaignDetails?.resources || [];
-        const userResource = resources.find( (res:any) => res.type === "user");
-        const userCreateResourceIds = userResource?.createResourceId
-        const currentResourceSearchResponse = await getResourceFromResourceId(mappingObject, userCreateResourceIds, userResource);
-        const userProcessedFileStoreId = currentResourceSearchResponse?.[0]?.processedFilestoreId;
-        const userCredentialFileMap = {[userProcessedFileStoreId]: "userCredentials.xlsx"};
-        sendNotificationEmail(userCredentialFileMap,mappingObject?.RequestInfo);
+        try {
+            logger.info("Step 1: Starting user credential email process for campaign ID: " + mappingObject?.CampaignDetails?.id);
+
+            const resources = mappingObject?.CampaignDetails?.resources || [];
+            logger.info("Step 2: Extracted resources. Count: " + resources.length);
+
+            const userResource = resources.find((res: any) => res.type === "user");
+            if (!userResource) {
+                logger.error("Step 3: No 'user' type resource found in resources.");
+                throw new Error("User resource not found");
+            }
+            logger.info("Step 3: Found user resource: " + JSON.stringify(userResource));
+
+            const userCreateResourceIds = userResource?.createResourceId;
+            if (!userCreateResourceIds) {
+                logger.error("Step 4: No createResourceId found in user resource.");
+                throw new Error("Create resource ID missing in user resource");
+            }
+            logger.info("Step 4: Found user create resource IDs: " + JSON.stringify(userCreateResourceIds));
+
+            const currentResourceSearchResponse = await getResourceFromResourceId(mappingObject, userCreateResourceIds, userResource);
+            if (!currentResourceSearchResponse || currentResourceSearchResponse.length === 0) {
+                logger.error("Step 5: Resource search response is empty.");
+                throw new Error("No processed resource found");
+            }
+            logger.info("Step 5: Resource search successful: " + JSON.stringify(currentResourceSearchResponse));
+
+            const userProcessedFileStoreId = currentResourceSearchResponse?.[0]?.processedFilestoreId;
+            if (!userProcessedFileStoreId) {
+                logger.error("Step 6: Processed file store ID not found in search response.");
+                throw new Error("Processed file store ID is missing");
+            }
+            logger.info("Step 6: Found processed file store ID: " + userProcessedFileStoreId);
+
+            const userCredentialFileMap = { [userProcessedFileStoreId]: "userCredentials.xlsx" };
+            logger.info("Step 7: Created userCredentialFileMap: " + JSON.stringify(userCredentialFileMap));
+            sendNotificationEmail(userCredentialFileMap, mappingObject?.RequestInfo);
+        } catch (error) {
+            logger.error("Error occurred during user credential email processing: ", error);
+            throw error; // Re-throw to propagate the error if needed
+        }
+
     } catch (error) {
         logger.error("Error in campaign mapping: " + error);
         await enrichAndPersistCampaignWithError(mappingObject, error);
