@@ -707,8 +707,8 @@ export async function processMapping(mappingObject: any) {
             }
             logger.info("Step 3: Found user resource: " + JSON.stringify(userResource));
 
-            const userCreateResourceIds = userResource?.createResourceId;
-            if (!userCreateResourceIds) {
+            const userCreateResourceIds = userResource?.createResourceId ? [userResource.createResourceId] : [];
+            if(userCreateResourceIds.length === 0) {
                 logger.error("Step 4: No createResourceId found in user resource.");
                 throw new Error("Create resource ID missing in user resource");
             }
