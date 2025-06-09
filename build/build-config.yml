@@ -175,7 +175,7 @@ config:
       - work-dir: "health-services/transformer"
         image-name: "transformer"
         dockerfile: "build/17/maven/Dockerfile"
-  #core-services
+  # core-services
   - name: "builds/health-campaign-services/core-services/health-service-request"
     build:
       - work-dir: "core-services/service-request"
@@ -286,7 +286,7 @@ config:
         dockerfile: "build/17/maven/Dockerfile"
       - work-dir: "core-services/beneficiary-idgen/src/main/resources/db"
         image-name: "beneficiary-idgen-db"
-  #microplan-services
+  # microplan-services
   - name: "builds/health-campaign-services/health-services/plan-service"
     build:
       - work-dir: "health-services/plan-service"
