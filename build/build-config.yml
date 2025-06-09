@@ -308,6 +308,11 @@ config:
         dockerfile: "build/17/maven/Dockerfile"
       - work-dir: "core-services/beneficiary-idgen/src/main/resources/db"
         image-name: "beneficiary-idgen-db"
+  - name: "builds/health-campaign-services/health-services/geopode-adapter"
+    build:
+      - work-dir: "health-services/geopode-adapter"
+        image-name: "geopode-adapter"
+        dockerfile: "build/17/maven/Dockerfile"
 # frontend
   - name: builds/health-campaign-services/frontend/workbench-ui
     build:
