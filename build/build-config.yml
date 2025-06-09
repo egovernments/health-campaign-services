@@ -306,6 +306,13 @@ config:
       - work-dir: "health-services/geopode-adapter"
         image-name: "geopode-adapter"
         dockerfile: "build/17/maven/Dockerfile"
+  - name: "builds/health-campaign-services/core-services/beneficiary-idgen-17"
+    build:
+      - work-dir: "core-services/beneficiary-idgen"
+        image-name: "beneficiary-idgen"
+        dockerfile: "build/17/maven/Dockerfile"
+      - work-dir: "core-services/beneficiary-idgen/src/main/resources/db"
+        image-name: "beneficiary-idgen-db"
 # frontend
   - name: builds/health-campaign-services/frontend/workbench-ui
     build:
@@ -318,13 +325,6 @@ config:
       - work-dir: frontend/micro-ui/
         dockerfile: frontend/micro-ui/web/microplan/Dockerfile
         image-name: microplan-ui
-  - name: "builds/health-campaign-services/core-services/beneficiary-idgen-17"
-    build:
-      - work-dir: "core-services/beneficiary-idgen"
-        image-name: "beneficiary-idgen"
-        dockerfile: "build/17/maven/Dockerfile"
-      - work-dir: "core-services/beneficiary-idgen/src/main/resources/db"
-        image-name: "beneficiary-idgen-db"
 
 #Utilities
   - name: "builds/health-campaign-services/health-services/project-factory"
