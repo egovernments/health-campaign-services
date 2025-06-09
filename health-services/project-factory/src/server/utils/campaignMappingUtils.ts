@@ -694,7 +694,6 @@ export async function processMapping(mappingObject: any) {
         await produceModifiedMessages(produceMessage, config?.kafka?.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC)
         await persistTrack(mappingObject?.CampaignDetails?.id, processTrackTypes.campaignCreation, processTrackStatuses.completed);
 
-        try {
             logger.info("Step 1: Starting user credential email process for campaign ID: " + mappingObject?.CampaignDetails?.id);
 
             const resources = mappingObject?.CampaignDetails?.resources || [];
@@ -724,18 +723,12 @@ export async function processMapping(mappingObject: any) {
             const userProcessedFileStoreId = currentResourceSearchResponse?.[0]?.processedFilestoreId;
             if (!userProcessedFileStoreId) {
                 logger.error("Step 6: Processed file store ID not found in search response.");
-                throw new Error("Processed file store ID is missing");
             }
             logger.info("Step 6: Found processed file store ID: " + userProcessedFileStoreId);
 
             const userCredentialFileMap = { [userProcessedFileStoreId]: "userCredentials.xlsx" };
             logger.info("Step 7: Created userCredentialFileMap: " + JSON.stringify(userCredentialFileMap));
-            sendNotificationEmail(userCredentialFileMap, mappingObject?.RequestInfo);
-        } catch (error) {
-            logger.error("Error occurred during user credential email processing: ", error);
-            throw error; // Re-throw to propagate the error if needed
-        }
-
+            sendNotificationEmail(userCredentialFileMap, mappingObject);
     } catch (error) {
         logger.error("Error in campaign mapping: " + error);
         await enrichAndPersistCampaignWithError(mappingObject, error);

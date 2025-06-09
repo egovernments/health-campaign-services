@@ -5,13 +5,14 @@ import { MDMSModels } from "../models";
 import { getLocalizedName } from "./campaignUtils";
 import { getLocalizedMessagesHandlerViaLocale } from "./genericUtils";
 import { getFileUrl } from "./onGoingCampaignUpdateUtils";
-import {logger} from "./logger"; // if you use a custom logger
+import { logger } from "./logger"; // if you use a custom logger
 
 export async function sendNotificationEmail(
-    fileStoreIdMap: Record<string, string>, requestInfo: any
+    fileStoreIdMap: Record<string, string>, mappingObject: any
 ): Promise<void> {
 
     try {
+        const requestInfo = mappingObject?.RequestInfo;
         logger.info("Step 1: Starting sendNotificationEmail");
 
         const locale = requestInfo?.msgId?.split("|")?.[1] || "en-IN";
@@ -21,8 +22,7 @@ export async function sendNotificationEmail(
 
         const localizationMap = await getLocalizedMessagesHandlerViaLocale(locale, tenantId);
         logger.info("Step 3: Fetched localization map");
-        logger.info(localizationMap,"localizationmap");
-
+        
         const MdmsCriteria: MDMSModels.MDMSv2RequestCriteria = {
             MdmsCriteria: {
                 tenantId: tenantId,
@@ -40,11 +40,11 @@ export async function sendNotificationEmail(
         }
         logger.info("Step 5: Fetched email template from MDMS");
 
+        const campaignName = mappingObject?.CampaignDetails?.campaignName || "";
+        const subjectCode = emailTemplate?.data?.subjectCode;
+        const localizedSubject = getLocalizedName(subjectCode, localizationMap);
+        const subject = `${localizedSubject} ${campaignName}`.trim();
 
-
-        logger.info("Subject code to localize: " + emailTemplate?.data?.subjectCode);
-        const subject = getLocalizedName(emailTemplate?.data?.subjectCode, localizationMap);
-        logger.info(subject,"subject")
         const bodyLines = emailTemplate?.data?.bodyCodes.map((code: string) =>
             getLocalizedName(code, localizationMap)
         );
