@@ -175,7 +175,6 @@ config:
       - work-dir: "health-services/transformer"
         image-name: "transformer"
         dockerfile: "build/17/maven/Dockerfile"
-  # core-services
   - name: "builds/health-campaign-services/core-services/health-service-request"
     build:
       - work-dir: "core-services/service-request"
@@ -279,14 +278,6 @@ config:
         dockerfile: "build/17/maven/Dockerfile"
       - work-dir: "core-services/egov-hrms/src/main/resources/db"
         image-name: "egov-hrms-db"
-  - name: "builds/health-campaign-services/core-services/beneficiary-idgen-17"
-    build:
-      - work-dir: "core-services/beneficiary-idgen"
-        image-name: "beneficiary-idgen"
-        dockerfile: "build/17/maven/Dockerfile"
-      - work-dir: "core-services/beneficiary-idgen/src/main/resources/db"
-        image-name: "beneficiary-idgen-db"
-  # microplan-services
   - name: "builds/health-campaign-services/health-services/plan-service"
     build:
       - work-dir: "health-services/plan-service"
@@ -327,6 +318,13 @@ config:
       - work-dir: frontend/micro-ui/
         dockerfile: frontend/micro-ui/web/microplan/Dockerfile
         image-name: microplan-ui
+  - name: "builds/health-campaign-services/core-services/beneficiary-idgen-17"
+    build:
+      - work-dir: "core-services/beneficiary-idgen"
+        image-name: "beneficiary-idgen"
+        dockerfile: "build/17/maven/Dockerfile"
+      - work-dir: "core-services/beneficiary-idgen/src/main/resources/db"
+        image-name: "beneficiary-idgen-db"
 
 #Utilities
   - name: "builds/health-campaign-services/health-services/project-factory"
