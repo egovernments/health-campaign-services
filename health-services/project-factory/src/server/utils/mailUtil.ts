@@ -21,6 +21,7 @@ export async function sendNotificationEmail(
 
         const localizationMap = await getLocalizedMessagesHandlerViaLocale(locale, tenantId);
         logger.info("Step 3: Fetched localization map");
+        logger.info(localizationMap,"localizationmap");
 
         const MdmsCriteria: MDMSModels.MDMSv2RequestCriteria = {
             MdmsCriteria: {
@@ -39,7 +40,11 @@ export async function sendNotificationEmail(
         }
         logger.info("Step 5: Fetched email template from MDMS");
 
+
+
+        logger.info("Subject code to localize: " + emailTemplate?.data?.subjectCode);
         const subject = getLocalizedName(emailTemplate?.data?.subjectCode, localizationMap);
+        logger.info(subject,"subject")
         const bodyLines = emailTemplate?.data?.bodyCodes.map((code: string) =>
             getLocalizedName(code, localizationMap)
         );
