@@ -87,7 +87,7 @@ public class GeopodeAdapterService {
     }
 
     public URI searchArcgisRequestBuilder(ArcgisRequest request){
-        return UriComponentsBuilder.fromHttpUrl(config.getArcgisEndpoint())
+        return UriComponentsBuilder.fromHttpUrl(config.getArcgisHost()+config.getArcgisEnpoint())
                 .queryParam("where", request.getWhere())          // e.g., ADM0_NAME='NIGERIA'
                 .queryParam("outFields", request.getOutFields())  // e.g., ADM1_NAME
                 .queryParam("f", request.getF())                  // e.g., json

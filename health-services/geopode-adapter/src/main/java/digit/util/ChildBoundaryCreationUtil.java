@@ -169,7 +169,7 @@ public class ChildBoundaryCreationUtil {
     private List<Feature> callArcgisAPI(String currentLevel, String whereClause) {
         List<Feature> resultList = new ArrayList<>();  // to store features from the response
 
-        URI url = UriComponentsBuilder.fromHttpUrl(config.getArcgisEndpoint())
+        URI url = UriComponentsBuilder.fromHttpUrl(config.getArcgisHost()+config.getArcgisEnpoint())
                 .queryParam("where", whereClause)                      // e.g., ADM0_NAME='NIGERIA'
                 .queryParam("outFields", currentLevel + "_NAME")       // e.g., ADM1_NAME
                 .queryParam("f", "json")                               // response format

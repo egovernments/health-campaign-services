@@ -57,7 +57,7 @@ public class ServiceRequestRepository {
      * @param countryName
      */
     public void fetchArcGisData(String countryName) {
-        URI uri = UriComponentsBuilder.fromHttpUrl(config.getArcgisEndpoint())
+        URI uri = UriComponentsBuilder.fromHttpUrl(config.getArcgisHost()+config.getArcgisEnpoint())
                 .queryParam("where", "ADM0_NAME='" + countryName + "'")
                 .queryParam("outFields", COUNTRY_OUTFIELDS)
                 .queryParam("f", FORMAT_VALUE)

@@ -40,8 +40,11 @@ public class Configuration {
     @Value("${egov.boundary.hierarchy.search.endpoint}")
     private String boundaryHierarchySearchEndpoint;
 
-    @Value("${geopode.arcgis}")
-    private String arcgisEndpoint;
+    @Value("${geopode.arcgis.host}")
+    private String arcgisHost;
+
+    @Value("${geopode.arcgis.endpoint}")
+    private String arcgisEnpoint;
 
     @Value("${egov.mdms.v2.search.endpoint}")
     private String mdmsV2EndPoint;
