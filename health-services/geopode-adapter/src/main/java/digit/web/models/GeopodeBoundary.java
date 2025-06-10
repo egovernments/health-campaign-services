@@ -24,7 +24,7 @@ public class GeopodeBoundary {
 
     @JsonProperty("ISOCode")
     @NotBlank
-    @Pattern(regexp = "^[A-Z]{2}$", message = "ISOCode must be 2 uppercase letters")
+    @Pattern(regexp = "^[A-Z]{3}$", message = "ISOCode must be 3 uppercase letters")
     private String ISOCode = null;
 
 }
