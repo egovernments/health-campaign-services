@@ -3,7 +3,8 @@ package org.egov.transformer.transformationservice;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
+import lombok.var;
+import org.egov.common.models.project.Field;
 import org.egov.common.models.project.Project;
 import org.egov.common.models.referralmanagement.hfreferral.HFReferral;
 import org.egov.transformer.config.TransformerProperties;
@@ -65,7 +66,23 @@ public class HfReferralTransformationService {
         Project project = projectService.getProject(projectId, tenantId);
         String projectTypeId = project.getProjectTypeId();
 
-        BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithProjectId(projectId, tenantId);
+        List<Field>fields  = hfReferral.getAdditionalFields().getFields();
+
+        String boundaryCode = null;
+        for (var field : fields) {
+            String key = field.getKey();
+            String value = field.getValue();
+            if ("boundaryCode".equalsIgnoreCase(key)) {
+                boundaryCode = value;
+                break;
+            }
+        }
+        BoundaryHierarchyResult boundaryHierarchyResult;
+        if (boundaryCode != null) {
+            boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(boundaryCode, tenantId);
+        } else {
+            boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithProjectId(projectId, tenantId);
+        }
 
         Map<String, String> userInfoMap = userService.getUserInfo(tenantId, hfReferral.getClientAuditDetails().getCreatedBy());
 
