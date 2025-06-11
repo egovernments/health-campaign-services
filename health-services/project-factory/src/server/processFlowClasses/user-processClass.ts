@@ -6,7 +6,8 @@ import { getRelatedDataWithCampaign } from "../utils/genericUtils";
 import { dataRowStatuses } from "../config/constants";
 import { produceModifiedMessages } from "../kafka/Producer";
 import config from "../config";
-import { DataTransformer, transformConfigs } from "../config/transFormConfig";
+import { DataTransformer } from "../utils/transFormUtil";
+import { transformConfigs } from "../config/transformConfigs";
 import { defaultRequestInfo } from "../api/coreApis";
 import { httpRequest } from "../utils/request";
 import { decrypt, encrypt } from "../utils/cryptUtils";
@@ -17,50 +18,41 @@ export class TemplateClass {
     static async process(
         resourceDetails: any,
         wholeSheetData: any,
-        localizationMap: Record<string, string>
+        localizationMap: Record<string, string>,
+        templateConfig: any
     ): Promise<SheetMap> {
         logger.info("Processing file...");
         logger.info(`ResourceDetails: ${JSON.stringify(resourceDetails)}`);
 
-        const reverseMap = this.getReverseLocalizationMap(localizationMap);
         const campaign = await this.getCampaignDetails(resourceDetails);
 
         const userSheetData = wholeSheetData[getLocalizedName("HCM_ADMIN_CONSOLE_USER_LIST", localizationMap)];
-        const mobileKey = getLocalizedName("HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER", localizationMap);
+        const mobileKey = "HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER";
 
-        const newUsers = await this.extractNewUsers(userSheetData, mobileKey, campaign.campaignNumber, resourceDetails, reverseMap);
+        const newUsers = await this.extractNewUsers(userSheetData, mobileKey, campaign.campaignNumber, resourceDetails);
         await this.persistInBatches(newUsers, config.kafka.KAFKA_SAVE_SHEET_DATA_TOPIC);
 
         const waitTime = Math.max(5000, newUsers.length * 8);
         logger.info(`Waiting for ${waitTime} ms for persistence...`);
         await new Promise((res) => setTimeout(res, waitTime));
 
-        await this.createUserFromTableData(resourceDetails, localizationMap);
+        await this.createUserFromTableData(resourceDetails);
 
         const allCurrentUsers = await getRelatedDataWithCampaign(resourceDetails?.type, campaign.campaignNumber, dataRowStatuses.completed);
         const allData = allCurrentUsers?.map((u: any) => {
-            const data : any = {};
-            for(const key of Object.keys(u?.data)) {
-                data[getLocalizedName(key, localizationMap)] = u?.data[key];
-            }
+            const data: any = u?.data;
             data["#status#"] = "CREATED";
-            data[getLocalizedName("UserName", localizationMap)] = decrypt(u?.data?.["UserName"]);
-            data[getLocalizedName("Password", localizationMap)] = decrypt(u?.data?.["Password"]);
+            data["UserName"] = decrypt(u?.data?.["UserName"]);
+            data["Password"] = decrypt(u?.data?.["Password"]);
             return data;
         });
         const sheetMap : SheetMap = {};
-        sheetMap[getLocalizedName("HCM_ADMIN_CONSOLE_USER_LIST", localizationMap)] = {
+        sheetMap["HCM_ADMIN_CONSOLE_USER_LIST"] = {
             data : allData,
             dynamicColumns: null
         };
         logger.info(`SheetMap generated for template of type ${resourceDetails.type}.`);
         return sheetMap;
-    }
-
-    private static getReverseLocalizationMap(localizationMap: Record<string, string>): Map<string, string> {
-        const reverse = new Map<string, string>();
-        Object.entries(localizationMap).forEach(([key, val]) => reverse.set(val, key));
-        return reverse;
     }
 
     private static async getCampaignDetails(resourceDetails: any): Promise<any> {
@@ -77,24 +69,22 @@ export class TemplateClass {
         sheetData: any[],
         mobileKey: string,
         campaignNumber: string,
-        resourceDetails: any,
-        reverseMap: Map<string, string>
+        resourceDetails: any
     ): Promise<any[]> {
         const userMap : any = Object.fromEntries(sheetData.map((row: any) => [row?.[mobileKey], row]).filter(([m]) => m));
 
         const existing = await getRelatedDataWithCampaign(resourceDetails?.type, campaignNumber);
         const existingMap : any = {};
         for(const user of existing){
-            existingMap[user?.data?.[reverseMap.get(mobileKey) || mobileKey]] = user;
+            existingMap[user?.data?.["HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER"]] = user;
         }
 
         const newEntries = [];
         for (const [mobile, row] of Object.entries(userMap)) {
             if (existingMap?.[String(mobile)]) continue;
-            const data = Object.fromEntries(Object.entries(row as any).map(([k, v]) => [reverseMap.get(k) || k, v]));
             newEntries.push({
                 campaignNumber,
-                data,
+                data : row,
                 type: resourceDetails?.type,
                 uniqueIdentifier: mobile,
                 uniqueIdAfterProcess: null,
@@ -113,7 +103,7 @@ export class TemplateClass {
     }
     
 
-    static async createUserFromTableData(resourceDetails: any, localizationMap: Record<string, string>): Promise<any> {
+    static async createUserFromTableData(resourceDetails: any): Promise<any> {
         logger.info("Fetching campaign details...");
         const response = await searchProjectTypeCampaignService({
             tenantId: resourceDetails.tenantId,
@@ -170,7 +160,7 @@ export class TemplateClass {
                 await this.persistInBatches(successfulUsers, config.kafka.KAFKA_UPDATE_SHEET_DATA_TOPIC);
             } catch (err) {
                 console.error("Error in batch creation:", err);
-                await this.handleBatchFailure(batch, usersToCreate, localizationMap);
+                await this.handleBatchFailure(batch, usersToCreate);
                 throw new Error(`Error in user batch creation: ${err}`);
             }
         }
@@ -189,8 +179,8 @@ export class TemplateClass {
     }
 
 
-    private static async handleBatchFailure(batch: any[], usersToCreate: any[], localizationMap: Record<string, string>) {
-        const phoneKey = getLocalizedName("HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER", localizationMap);
+    private static async handleBatchFailure(batch: any[], usersToCreate: any[]) {
+        const phoneKey = "HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER";
         const batchMobileSet = new Set(batch.map((u: any) => String(u?.user?.mobileNumber)));
         const failedUsers = usersToCreate.filter((u: any) => batchMobileSet.has(String(u?.data?.[phoneKey])));
         failedUsers.forEach(u => u.status = dataRowStatuses.failed);

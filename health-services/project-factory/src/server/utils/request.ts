@@ -183,7 +183,7 @@ const httpRequest = async (
           }
         }
         logger.warn(
-          `Waiting for 20 seconds before retrying httprequest with url ${_url}`
+          `Attempt ${attempt} failed for httprequest with url ${_url}. Waiting for 20 seconds before retrying httprequest with url ${_url}`
         );
         await new Promise((resolve) => setTimeout(resolve, 20000));
       } else if (dontThrowError) {
