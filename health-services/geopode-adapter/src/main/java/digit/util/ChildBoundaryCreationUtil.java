@@ -42,7 +42,10 @@ public class ChildBoundaryCreationUtil {
     }
     @Async
     /**
-     * This method is for creating children
+     * This method is used for triggering a recurring function(fetchLevelRecursively) to create children boundaries
+     *
+     * @param request
+     * @param parentCode
      */
     public void createChildrenAsync(GeopodeBoundaryRequest request, String parentCode) {
         BoundaryHierarchyDefinitionSearchRequest boundaryHierarchyDefinitonSearchRequest=boundaryUtil.buildBoundaryHierarchyDefinitionSearchRequest(request);
