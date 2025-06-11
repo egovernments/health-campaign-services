@@ -91,6 +91,8 @@ public class ServiceRequestEnrichmentService {
 
     public Map<String, Object> enrichServiceRequestUpdate(ServiceRequest serviceRequest, Service existingFromDB) {
         Service service = serviceRequest.getService();
+        String serviceId = service.getId();
+        String serviceClientId = service.getClientId();
         RequestInfo requestInfo = serviceRequest.getRequestInfo();
 
         // Enrich audit details for service
@@ -112,10 +114,10 @@ public class ServiceRequestEnrichmentService {
             if (ObjectUtils.isEmpty(attributeValue.getAdditionalDetails()) && !ObjectUtils.isEmpty(existingAttributeValue)) {
                 attributeValue.setAdditionalDetails(existingAttributeValue.getAdditionalDetails());
             }
-            if(!ObjectUtils.isEmpty(service.getClientId())) {
-                attributeValue.setServiceClientReferenceId(service.getClientId());
+            if(!ObjectUtils.isEmpty(serviceClientId)) {
+                attributeValue.setServiceClientReferenceId(serviceClientId);
             }
-            attributeValue.setReferenceId(service.getId());
+            attributeValue.setReferenceId(serviceId);
             attributeValue.setAuditDetails(auditDetails);
         });
 
