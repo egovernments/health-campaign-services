@@ -1,5 +1,9 @@
 All notable changes to this module will be documented in this file.
 
+## 1.1.8 - 2025-06-11
+
+- Added `IndividualClientReferenceId` for Individual Identifiers
+- Updated integration with User service for individual operations
 
 ## 1.1.7 - 2025-04-29 
 
