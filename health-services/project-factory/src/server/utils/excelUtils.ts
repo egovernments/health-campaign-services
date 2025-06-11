@@ -746,7 +746,7 @@ export function freezeUnfreezeColumns(
   const unfrozeTillColumn = Number(config.values.unfrozeTillColumn);
 
   // Step 2: Unlock default editable area, skipping frozen columns and empty headers
-  for (let r = 2; r <= unfrozeTillRow; r++) {
+  for (let r = 3; r <= unfrozeTillRow; r++) {
     for (let c = 1; c <= unfrozeTillColumn; c++) {
       const headerValue: any = worksheet.getCell(1, c).value;
       if (!freezeIndexes.includes(c) && !tillDataIndexes.includes(c) && headerValue) {
@@ -763,44 +763,37 @@ export function freezeUnfreezeColumns(
   }
 
   // 🔹 Step 2.1: Unlock columns in columnsToUnFreezeTillData only till last data row
-  for (let r = 2; r <= rowCount; r++) {
+  for (let r = 3; r <= rowCount; r++) {
     for (const col of tillDataIndexes) {
       worksheet.getCell(r, col).protection = { locked: false };
     }
   }
 
-  // Step 3: Lock the first row (header) always
+  // Step 3: Lock the first row (header) and second row always
   for (let c = 1; c <= maxCol; c++) {
     worksheet.getCell(1, c).protection = { locked: true };
+    worksheet.getCell(2, c).protection = { locked: true };
   }
 
   // Step 4: Lock only the specified frozen columns (excluding first row)
-  for (let r = 2; r <= rowCount; r++) {
+  for (let r = 3; r <= rowCount; r++) {
     for (const col of freezeIndexes) {
       worksheet.getCell(r, col).protection = { locked: true };
     }
   }
 
   // 🔹 Step 4.1: Lock columns in columnsToFreezeTillData till last data row
-  for (let r = 2; r <= rowCount; r++) {
+  for (let r = 3; r <= rowCount; r++) {
     for (const col of freezeTillDataIndexes) {
       worksheet.getCell(r, col).protection = { locked: true };
     }
   }
 
   // Step 5: Apply or remove protection
-  if (
-    freezeIndexes.length > 0 ||
-    tillDataIndexes.length > 0 ||
-    freezeTillDataIndexes.length > 0
-  ) {
     worksheet.protect('passwordhere', {
       selectLockedCells: true,
       selectUnlockedCells: true
     });
-  } else {
-    worksheet.unprotect();
-  }
 }
 
 export { getNewExcelWorkbook, getExcelWorkbookFromFileURL, formatWorksheet, addDataToSheet, lockTargetFields, updateFontNameToRoboto, formatFirstRow, formatOtherRows, finalizeSheet, protectSheet };

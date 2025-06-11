@@ -905,11 +905,11 @@ async function validateBoundaryOfResouces(CampaignDetails: any, request: any, lo
 // }
 
 async function validateProjectCampaignResources(resources: any, request: any) {
-    const requiredTypes = ["user", "facility", "boundaryWithTarget"];
+    const requiredTypes = ["user", "facility", "boundary"];
     const typeCounts: any = {
         "user": 0,
         "facility": 0,
-        "boundaryWithTarget": 0
+        "boundary": 0
     };
 
     const missingTypes: string[] = [];
@@ -1061,8 +1061,8 @@ async function validateById(request: any) {
             logger.debug(`CampaignDetails : ${getFormattedStringForDebug(searchResponse?.CampaignDetails)}`);
             request.body.ExistingCampaignDetails = searchResponse?.CampaignDetails[0];
             if (action != "changeDates") {
-                if (request.body.ExistingCampaignDetails?.status != campaignStatuses?.drafted) {
-                    throwError("COMMON", 400, "VALIDATION_ERROR", `Campaign can only be updated in drafted state. Change action to changeDates if you want to just update date.`);
+                if (!(request.body.ExistingCampaignDetails?.status == campaignStatuses?.drafted || request.body.ExistingCampaignDetails?.status == campaignStatuses?.failed)) {
+                    throwError("COMMON", 400, "VALIDATION_ERROR", `Campaign can only be updated in drafted or failed state. Change action to changeDates if you want to just update date.`);
                 }
             }
         }

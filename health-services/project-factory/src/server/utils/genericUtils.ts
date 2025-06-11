@@ -1831,24 +1831,22 @@ export async function getCampaignDataRowsWithUniqueIdentifiers(type: string, uni
 export async function prepareProcessesInDb(campaignNumber: any) {
   let allCurrentProcesses = await getCurrentProcesses(campaignNumber);
   for (let i = 0; i < allCurrentProcesses?.length; i++) {
-    if (allCurrentProcesses[i]?.status == processStatuses.failed) {
       allCurrentProcesses[i].status = processStatuses.pending;
-    }
   }
   produceModifiedMessages({ processes: allCurrentProcesses }, config.kafka.KAFKA_UPDATE_PROCESS_DATA_TOPIC);
   let allProcessesJson: any = JSON.parse(JSON.stringify(allProcesses))
-  allCurrentProcesses = [];
+  let newProcesses = [];
   for (let processKey in allProcesses) {
     let isProcessNameAvailableInAllCurrentProcesses = allCurrentProcesses.find((process: any) => process?.processName == allProcessesJson[processKey]);
     if (!isProcessNameAvailableInAllCurrentProcesses) {
-      allCurrentProcesses.push({
+      newProcesses.push({
         campaignNumber: campaignNumber,
         processName: allProcessesJson[processKey],
         status: processStatuses.pending
       })
     }
   }
-  produceModifiedMessages({ processes: allCurrentProcesses }, config.kafka.KAFKA_SAVE_PROCESS_DATA_TOPIC);
+  produceModifiedMessages({ processes: newProcesses }, config.kafka.KAFKA_SAVE_PROCESS_DATA_TOPIC);
   // wait for 2 second
   logger.info("Waiting for 2 seconds for processes to get updated...");
   await new Promise(resolve => setTimeout(resolve, 2000));

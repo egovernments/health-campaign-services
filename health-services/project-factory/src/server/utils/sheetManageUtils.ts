@@ -170,7 +170,7 @@ export function checkAllRowsConsistency(jsonData: any) {
     }
 }
 
-async function processRequest(ResourceDetails: any, workBook: any, templateConfig: any, localizationMap: any) {
+export async function processRequest(ResourceDetails: any, workBook: any, templateConfig: any, localizationMap: any) {
     const wholeSheetData: any = {};
     for (const sheet of templateConfig?.sheets || []) {
         const sheetName = getLocalizedName(sheet?.sheetName, localizationMap);
@@ -200,18 +200,22 @@ async function processRequest(ResourceDetails: any, workBook: any, templateConfi
             const worksheet = getOrCreateWorksheet(workBook, getLocalizedName(sheetName, localizationMap));
             await fillSheetMapInWorkbook(worksheet, sheetData, true, localizationMap);
             const schema = sheet?.schema;
-            const columnsToFreeze = Object.keys(sheetData?.dynamicColumns || {}).filter(
-                (columnName) => sheetData.dynamicColumns[columnName]?.freezeColumn
-            );
-            const columnsToUnFreezeTillData = Object.keys(sheetData?.dynamicColumns || {}).filter(
-                (columnName) => sheetData.dynamicColumns[columnName]?.unFreezeColumnTillData
-            )
-            const columnsToFreezeColumnIfFilled = Object.keys(sheetData?.dynamicColumns || {}).filter(
-                (columnName) => sheetData.dynamicColumns[columnName]?.freezeColumnIfFilled
-            )
-            const columnsToFreezeTillData = Object.keys(sheetData?.dynamicColumns || {}).filter(
-                (columnName) => sheetData.dynamicColumns[columnName]?.freezeTillData
-            )
+            const columnsToFreeze = Object.keys(sheetData?.dynamicColumns || {})
+                .filter((i) => sheetData.dynamicColumns[i]?.[1]?.freezeColumn === true)
+                .map((i) => sheetData.dynamicColumns[i]?.[0]);
+
+            const columnsToUnFreezeTillData = Object.keys(sheetData?.dynamicColumns || {})
+                .filter((columnName) => sheetData.dynamicColumns[columnName]?.[1]?.unFreezeColumnTillData)
+                .map((columnName) => sheetData.dynamicColumns[columnName]?.[0]);
+
+            const columnsToFreezeColumnIfFilled = Object.keys(sheetData?.dynamicColumns || {})
+                .filter((columnName) => sheetData.dynamicColumns[columnName]?.[1]?.freezeColumnIfFilled)
+                .map((columnName) => sheetData.dynamicColumns[columnName]?.[0]);
+
+            const columnsToFreezeTillData = Object.keys(sheetData?.dynamicColumns || {})
+                .filter((columnName) => sheetData.dynamicColumns[columnName]?.[1]?.freezeTillData)
+                .map((columnName) => sheetData.dynamicColumns[columnName]?.[0]);
+
             freezeUnfreezeColumns(worksheet, columnsToFreeze, columnsToUnFreezeTillData, columnsToFreezeTillData, columnsToFreezeColumnIfFilled);
             manageMultiSelectUnlocalised(worksheet, schema);
             await handledropdownthingsUnLocalised(worksheet, schema);
@@ -257,7 +261,7 @@ async function handleErrorDuringGenerate(responseToSend: any, error: any) {
     await produceModifiedMessages({ generatedResource: [responseToSend] }, config?.kafka?.KAFKA_UPDATE_GENERATED_RESOURCE_DETAILS_TOPIC);
 }
 
-async function handleErrorDuringProcess(ResourceDetails: any, error: any) {
+export async function handleErrorDuringProcess(ResourceDetails: any, error: any) {
     ResourceDetails.status = resourceDetailsStatuses.failed, ResourceDetails.additionalDetails = {
         ...ResourceDetails.additionalDetails,
         error: {
@@ -296,18 +300,22 @@ async function createBasicTemplateViaConfig(responseToSend: any, templateConfig:
                 const worksheet = getOrCreateWorksheet(newWorkbook, getLocalizedName(sheetName, localizationMap));
                 await fillSheetMapInWorkbook(worksheet, sheetData, false, localizationMap);
                 const schema = sheet?.schema;
-                const columnsToFreeze = Object.keys(sheetData?.dynamicColumns || {}).filter(
-                    (columnName) => sheetData.dynamicColumns[columnName]?.freezeColumn
-                );
-                const columnsToUnFreezeTillData = Object.keys(sheetData?.dynamicColumns || {}).filter(
-                    (columnName) => sheetData.dynamicColumns[columnName]?.unFreezeColumnTillData
-                )
-                const columnsToFreezeColumnIfFilled = Object.keys(sheetData?.dynamicColumns || {}).filter(
-                    (columnName) => sheetData.dynamicColumns[columnName]?.freezeColumnIfFilled
-                )
-                const columnsToFreezeTillData = Object.keys(sheetData?.dynamicColumns || {}).filter(
-                    (columnName) => sheetData.dynamicColumns[columnName]?.freezeTillData
-                )
+                const columnsToFreeze = Object.keys(sheetData?.dynamicColumns || {})
+                    .filter((i) => sheetData.dynamicColumns[i]?.[1]?.freezeColumn === true)
+                    .map((i) => sheetData.dynamicColumns[i]?.[0]);
+
+                const columnsToUnFreezeTillData = Object.keys(sheetData?.dynamicColumns || {})
+                    .filter((columnName) => sheetData.dynamicColumns[columnName]?.[1]?.unFreezeColumnTillData)
+                    .map((columnName) => sheetData.dynamicColumns[columnName]?.[0]);
+
+                const columnsToFreezeColumnIfFilled = Object.keys(sheetData?.dynamicColumns || {})
+                    .filter((columnName) => sheetData.dynamicColumns[columnName]?.[1]?.freezeColumnIfFilled)
+                    .map((columnName) => sheetData.dynamicColumns[columnName]?.[0]);
+
+                const columnsToFreezeTillData = Object.keys(sheetData?.dynamicColumns || {})
+                    .filter((columnName) => sheetData.dynamicColumns[columnName]?.[1]?.freezeTillData)
+                    .map((columnName) => sheetData.dynamicColumns[columnName]?.[0]);
+                
                 freezeUnfreezeColumns(worksheet, columnsToFreeze, columnsToUnFreezeTillData, columnsToFreezeTillData, columnsToFreezeColumnIfFilled);
                 manageMultiSelectUnlocalised(worksheet, schema);
                 await handledropdownthingsUnLocalised(worksheet, schema);
@@ -464,10 +472,12 @@ function processDynamicColumns(
         // Row 1 - Raw key (hidden)
         const keyCell = keyRow.getCell(columnIndex);
         keyCell.value = columnName;
+        keyCell.protection = { locked: true };
 
         // Row 2 - Localized name
         const headerCell = headerRow.getCell(columnIndex);
         headerCell.value = localisedColumnName;
+        headerCell.protection = { locked: true };
 
         applyColumnProperties(headerRow, headerCell, columnConfig, isProcessedFile);
 
@@ -542,6 +552,20 @@ function applyCellFormatting(
     columnNameToIndexMap: Record<string, number>,
     sheetData: any
 ) {
+    if (!sheetData?.dynamicColumns) return;
+
+    // 1. Convert dynamicColumns array to map
+    const dynamicColumnMap: Record<string, any> = Object.fromEntries(sheetData.dynamicColumns);
+
+    // 2. Precompute colIndex → config map for fast O(1) access
+    const columnIndexToConfigMap: Record<number, any> = {};
+    for (const [columnName, index] of Object.entries(columnNameToIndexMap)) {
+        if (dynamicColumnMap[columnName]) {
+            columnIndexToConfigMap[index] = dynamicColumnMap[columnName];
+        }
+    }
+
+    // 3. Loop through rows and cells
     for (let i = 1; i <= rowCount + 2; i++) {
         const row = worksheet.getRow(i);
         if (!row.hasValues) continue;
@@ -550,17 +574,17 @@ function applyCellFormatting(
             const cell = row.getCell(colNumber);
             if (!cell.value) continue;
 
-            if (i <= 1 ) {
+            if (i <= 1) {
                 cell.alignment = { ...(cell.alignment || {}), wrapText: true };
             }
 
             processBoldFormatting(cell);
-            adjustRowHeightAndWrapIfNeeded(row, cell, colNumber, columnNameToIndexMap, sheetData);
+            adjustRowHeightAndWrapIfNeeded(row, cell, colNumber, columnIndexToConfigMap);
         }
 
         row.commit();
     }
-}
+  }
 
 
 function processBoldFormatting(cell: ExcelJS.Cell) {
@@ -602,23 +626,25 @@ function processBoldFormatting(cell: ExcelJS.Cell) {
     cell.value = { richText };
 }
 
-function adjustRowHeightAndWrapIfNeeded(row: ExcelJS.Row, cell: ExcelJS.Cell, colNumber: number,
-    columnNameToIndexMap: Record<string, number>, sheetData: any) {
-    if (!sheetData.dynamicColumns) return;
+function adjustRowHeightAndWrapIfNeeded(
+    row: ExcelJS.Row,
+    cell: ExcelJS.Cell,
+    colNumber: number,
+    columnIndexToConfigMap: Record<number, any>
+) {
+    const properties = columnIndexToConfigMap[colNumber];
+    if (!properties) return;
 
-    const columnName = Object.keys(columnNameToIndexMap).find(
-        key => columnNameToIndexMap[key] === colNumber
-    );
-
-    if (columnName && sheetData.dynamicColumns[columnName]?.adjustHeight) {
-        const columnWidth = sheetData.dynamicColumns[columnName]?.width ??
-            cell.worksheet.getColumn(colNumber).width ?? 40;
+    if (properties.adjustHeight) {
+        const columnWidth = properties.width ?? cell.worksheet.getColumn(colNumber).width ?? 40;
         adjustRowHeight(row, cell, columnWidth);
     }
-    if(columnName && sheetData.dynamicColumns[columnName]?.wrapText) {
+
+    if (properties.wrapText) {
         cell.alignment = { ...(cell.alignment || {}), wrapText: true };
     }
-}
+  }
+  
 
 export async function enrichProcessTemplateConfig(ResourceDetails: any, processTemplateConfig: any){
     if (processTemplateConfig?.enrichmentFunction){

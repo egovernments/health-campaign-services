@@ -113,6 +113,7 @@ import {
   fetchTargetData,
   fetchUserData,
 } from "./microplanIntergration";
+import { getLocaleFromRequestInfo } from "./localisationUtils";
 
 function updateRange(range: any, worksheet: any) {
   let maxColumnIndex = 0;
@@ -1051,6 +1052,64 @@ async function enrichAndPersistCampaignWithError(requestBody: any, error: any) {
     }
   );
   delete requestBody.CampaignDetails.campaignDetails;
+}
+
+export async function enrichAndPersistCampaignWithErrorProcessingTask(campaignDetails: any, parentCampaign: any, useruuid: string, error: any) {
+  if (parentCampaign) {
+    parentCampaign.isActive = true;
+    parentCampaign.campaignDetails = {
+      deliveryRules: parentCampaign?.deliveryRules || [],
+      resources: parentCampaign?.resources || [],
+      boundaries: parentCampaign?.boundaries || [],
+    };
+    parentCampaign.auditDetails.lastModifiedTime = Date.now();
+    parentCampaign.auditDetails.lastModifiedBy = useruuid;
+    const produceMessage: any = {
+      CampaignDetails: parentCampaign,
+    };
+    await produceModifiedMessages(
+      produceMessage,
+      config?.kafka?.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC
+    );
+  }
+  campaignDetails.status = campaignStatuses?.failed;
+  campaignDetails.campaignDetails = {
+    deliveryRules: campaignDetails?.deliveryRules || [],
+    resources: campaignDetails?.resources || [],
+    boundaries: campaignDetails?.boundaries || [],
+  };
+  const currTime = Date.now();
+  // requestBody.CampaignDetails.isActive = false;
+  campaignDetails.auditDetails = {
+    createdBy: useruuid,
+    createdTime: currTime,
+    lastModifiedBy: useruuid,
+    lastModifiedTime: currTime,
+  };
+  campaignDetails.additionalDetails = {
+    ...campaignDetails?.additionalDetails,
+    error: String(
+      error?.message + (error?.description ? ` : ${error?.description}` : "") ||
+      error
+    ),
+  };
+  const topic = config?.kafka?.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC;
+  // wait for 2 seconds
+  logger.info(`Waiting for 2 seconds to persist errors`);
+  await new Promise((resolve) => setTimeout(resolve, 2000));
+  const produceMessage: any = { CampaignDetails: campaignDetails };
+  await produceModifiedMessages(produceMessage, topic);
+  await persistTrack(
+    campaignDetails?.id,
+    processTrackTypes.error,
+    processTrackStatuses.failed,
+    {
+      error: String(
+        error?.message +
+        (error?.description ? ` : ${error?.description}` : "") || error
+      ),
+    }
+  );
 }
 
 async function enrichAndPersistCampaignForCreate(
@@ -2600,7 +2659,9 @@ export async function processAfterPersistNew(request: any, actionInUrl: any) {
       const campaignDetails = request?.body?.CampaignDetails;
       const campaignNumber = campaignDetails?.campaignNumber;
       await prepareProcessesInDb(campaignNumber);
-      await createAllResources(campaignDetails);
+      const useruuid = request?.body?.RequestInfo?.userInfo?.uuid || campaignDetails?.auditDetails?.createdBy;
+      const locale = getLocaleFromRequestInfo(request?.body?.RequestInfo);
+      await createAllResources(campaignDetails, request?.body?.parentCampaign || null , useruuid,locale);
       // await createAllMappings(campaignDetails);
       await enrichAndPersistProjectCampaignRequest(
         request,
@@ -2625,16 +2686,18 @@ export async function processAfterPersistNew(request: any, actionInUrl: any) {
   }
 }
 
-async function createAllResources(campaignDetails: any) {
+async function createAllResources(campaignDetails: any,parentCampaign : any, useruuid: string, locale : string = config.localisation.defaultLocale) {
   let allCurrentProcesses = await getCurrentProcesses(campaignDetails?.campaignNumber);
   const resourcesTask = [allProcesses.facilityCreation,allProcesses.userCreation,allProcesses.projectCreation];
   for (let i = 0; i < resourcesTask?.length; i++) {
     const task = allCurrentProcesses.find((process: any) => process?.processName == resourcesTask[i]);
     if(task && task?.status == processStatuses.pending) {
-      produceModifiedMessages({ taskDetails : 
-        { task: resourcesTask[i],
-        campaignId : campaignDetails?.id
-      }
+      produceModifiedMessages({
+        task,
+        CampaignDetails : campaignDetails,
+        useruuid,
+        locale,
+        parentCampaign
       }, config.kafka.KAFKA_START_ADMIN_CONSOLE_TASK_TOPIC);
     }
   }
@@ -2645,9 +2708,12 @@ async function createAllResources(campaignDetails: any) {
   while(allTaskCompleted == false && anyTaskFailed == false && attempts < 100) {
     logger.info("Waiting for 20 seconds for resources to get created...");
     await new Promise(resolve => setTimeout(resolve, 20000));
-    facilityTask = await getCurrentProcesses(campaignDetails?.campaignNumber, allProcesses.facilityCreation);
-    userTask = await getCurrentProcesses(campaignDetails?.campaignNumber, allProcesses.userCreation);
-    projectTask = await getCurrentProcesses(campaignDetails?.campaignNumber, allProcesses.projectCreation);
+    let facilityTaskArray = await getCurrentProcesses(campaignDetails?.campaignNumber, allProcesses.facilityCreation);
+    facilityTask = facilityTaskArray[0];
+    let userTaskArray = await getCurrentProcesses(campaignDetails?.campaignNumber, allProcesses.userCreation);
+    userTask = userTaskArray[0];
+    let projectTaskArray = await getCurrentProcesses(campaignDetails?.campaignNumber, allProcesses.projectCreation);
+    projectTask = projectTaskArray[0];
     if(facilityTask?.status == processStatuses.completed && userTask?.status == processStatuses.completed && projectTask?.status == processStatuses.completed) {
       allTaskCompleted = true;
     }
@@ -2667,7 +2733,10 @@ async function createAllResources(campaignDetails: any) {
       failedTasks.push(allProcesses.projectCreation);
     }
     throwError("COMMON", 400, "INTERNAL_SERVER_ERROR", `${failedTasks.join(", ")} tasks failed.`);
-  } 
+  }
+  else if(!allTaskCompleted) {
+    throwError("COMMON", 400, "INTERNAL_SERVER_ERROR", "Resources creation timed out.");
+  }
 }
 
 async function processBasedOnAction(request: any, actionInUrl: any) {

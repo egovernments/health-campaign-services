@@ -3,6 +3,7 @@ import config from '../config';
 import { getFormattedStringForDebug, logger } from '../utils/logger';
 import { shutdownGracefully } from '../utils/genericUtils';
 import { handleCampaignMapping } from '../utils/campaignMappingUtils';
+import { handleTaskForCampaign } from '../utils/taskUtils';
 
 // Kafka Configuration
 const kafkaConfig: ConsumerGroupOptions = {
@@ -33,9 +34,9 @@ export function listener() {
                 case config.kafka.KAFKA_START_CAMPAIGN_MAPPING_TOPIC:
                     await handleCampaignMapping(messageObject);
                     break;
-                // case config.kafka.KAFKA_START_ADMIN_CONSOLE_TASK_TOPIC:
-                //     await handleTaskForCampaign(messageObject);
-                //     break;
+                case config.kafka.KAFKA_START_ADMIN_CONSOLE_TASK_TOPIC:
+                    await handleTaskForCampaign(messageObject);
+                    break;
                 default:
                     logger.warn(`Unhandled topic: ${message.topic}`);
             }
