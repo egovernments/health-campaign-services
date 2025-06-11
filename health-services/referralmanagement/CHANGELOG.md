@@ -1,9 +1,10 @@
 # Changelog
 All notable changes to this module will be documented in this file.
-## 1.0.4 - 2025-02-11
-- In downsync, searching household members by individualClientReferenceId instead of individualId
 
-## 1.0.3 - 2024-08-09
+## 1.0.5 - 2025-02-11
+- Downsync logic is fixed to use clientReferenceIds instead of ids.
+
+## 1.0.4- 2024-08-09
 - Service Request Services support for downsync API
 - Upgraded to health models 1.0.27
 
