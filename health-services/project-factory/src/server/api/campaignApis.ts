@@ -5,11 +5,9 @@ import { getFormattedStringForDebug, logger } from "../utils/logger";
 import createAndSearch from "../config/createAndSearch";
 import {
   getDataFromSheet,
-  generateActivityMessage,
   throwError,
   translateSchema,
   replicateRequest,
-  appendProjectTypeToCapacity,
   getLocalizedMessagesHandler,
 } from "../utils/genericUtils";
 import {
@@ -32,6 +30,7 @@ import {
   createIdRequests,
   createUniqueUserNameViaIdGen,
   boundaryGeometryManagement,
+  getBoundaryCodeAndBoundaryTypeMapping,
 } from "../utils/campaignUtils";
 const _ = require("lodash");
 import { produceModifiedMessages } from "../kafka/Producer";
@@ -48,11 +47,11 @@ import { checkAndGiveIfParentCampaignAvailable } from "../utils/onGoingCampaignU
 import { validateMicroplanFacility } from "../validators/microplanValidators";
 import {
   createPlanFacilityForMicroplan,
-  updateFacilityDetailsForMicroplan,
+  isMicroplanRequest
 } from "../utils/microplanUtils";
 import { getTransformedLocale } from "../utils/localisationUtils";
 import { BoundaryModels } from "../models";
-import { searchBoundaryRelationshipDefinition } from "./coreApis";
+import { searchBoundaryRelationshipData, searchBoundaryRelationshipDefinition } from "./coreApis";
 
 /**
  * Enriches the campaign data with unique IDs and generates campaign numbers.
@@ -289,57 +288,6 @@ function updateErrorsForUser(
   });
 }
 
-function updateErrors(
-  newCreatedData: any[],
-  newSearchedData: any[],
-  errors: any[],
-  createAndSearchConfig: any
-) {
-  newCreatedData.forEach((createdElement: any) => {
-    let foundMatch = false;
-    for (const searchedElement of newSearchedData) {
-      let match = true;
-      for (const key in createdElement) {
-        if (
-          createdElement[key] !== searchedElement[key] &&
-          key != "!row#number!"
-        ) {
-          match = false;
-          break;
-        }
-      }
-      if (match) {
-        foundMatch = true;
-        createdElement.id = searchedElement.id;
-        newSearchedData.splice(newSearchedData.indexOf(searchedElement), 1);
-        errors.push({
-          status: "CREATED",
-          rowNumber: createdElement["!row#number!"],
-          isUniqueIdentifier: true,
-          uniqueIdentifier: _.get(
-            searchedElement,
-            createAndSearchConfig.uniqueIdentifier,
-            ""
-          ),
-          errorDetails: "",
-        });
-        break;
-      }
-    }
-    if (!foundMatch) {
-      errors.push({
-        status: "NOT_CREATED",
-        rowNumber: createdElement["!row#number!"],
-        errorDetails: `Can't confirm creation of this data`,
-      });
-      logger.info(
-        "Can't confirm creation of this data of row number : " +
-        createdElement["!row#number!"]
-      );
-    }
-  });
-}
-
 function matchCreatedAndSearchedData(
   createdData: any[],
   searchedData: any[],
@@ -354,20 +302,7 @@ function matchCreatedAndSearchedData(
     delete element[uid];
   });
   var errors: any[] = [];
-  if (request?.body?.ResourceDetails?.type != "user") {
-    if (request?.body?.ResourceDetails?.type == "facility") {
-      newCreatedData?.forEach((element: any) => {
-        delete element.address;
-      });
-    }
-    updateErrors(
-      newCreatedData,
-      newSearchedData,
-      errors,
-      createAndSearchConfig
-    );
-    updateFacilityDetailsForMicroplan(request, newCreatedData);
-  } else {
+  if (request?.body?.ResourceDetails?.type == "user") {
     var userNameAndPassword: any = [];
     updateErrorsForUser(
       request,
@@ -414,16 +349,6 @@ async function getUuidsError(
         status: "INVALID",
         rowNumber: mobileNumberRowNumberMapping[user?.mobileNumber],
         errorDetails: `User with mobileNumber ${user?.mobileNumber} doesn't have username`,
-      });
-      count++;
-    } else if (!user?.userDetails?.password) {
-      logger.info(
-        `User with mobileNumber ${user?.mobileNumber} doesn't have password`
-      );
-      errors.push({
-        status: "INVALID",
-        rowNumber: mobileNumberRowNumberMapping[user?.mobileNumber],
-        errorDetails: `User with mobileNumber ${user?.mobileNumber} doesn't have password`,
       });
       count++;
     } else if (!user?.userUuid) {
@@ -529,7 +454,7 @@ async function getUserWithMobileNumbers(
   }
   // Convert the results array to a Set to eliminate duplicates
   const resultSet = new Set(allResults);
-  logger.info(`Already Existing mobile numbers : ${JSON.stringify(resultSet)}`);
+  logger.info(`Already Existing mobile numbers : ${Array.from(resultSet).join(",")}`);
   return resultSet;
 }
 
@@ -1125,19 +1050,59 @@ function generateUserPassword() {
   return `${firstSequence}@${randomNumber}`;
 }
 
-async function enrichJurisdictions(employee: any, request: any) {
-  employee.jurisdictions = [
-    {
-      tenantId: request?.body?.ResourceDetails?.tenantId,
-      boundaryType: config.values.userMainBoundaryType,
-      boundary: config.values.userMainBoundary,
-      hierarchy: request?.body?.ResourceDetails?.hierarchyType,
-      roles: employee?.user?.roles,
-    },
-  ];
+async function enrichJurisdictions(employee: any, request: any, boundaryCodeAndBoundaryTypeMapping : any) {
+  let jurisdictionsArray = [];
+  if (typeof employee?.jurisdictions === 'string') {
+    jurisdictionsArray = employee.jurisdictions
+      .split(",")
+      .map((jurisdiction: any) => jurisdiction.trim())
+      .filter((jurisdiction: string) => jurisdiction.length > 0);
+  }
+  else if (Array.isArray(employee?.jurisdictions) && employee.jurisdictions.length > 0) {
+    // Check if every element has both boundary and boundaryType
+    jurisdictionsArray = employee?.jurisdictions.map((jurisdiction: any) => jurisdiction?.boundary);
+    const isValidJurisdictions = employee.jurisdictions.every(
+      (jurisdiction: any) => jurisdiction?.boundary && jurisdiction?.boundaryType
+    );
+  
+    // If all elements meet the criteria, return the full jurisdictions array
+    if (isValidJurisdictions) {
+      return employee.jurisdictions;
+    }
+  }
+  
+
+  if(Array.isArray(jurisdictionsArray) && jurisdictionsArray.length > 0) {
+    const jurisdictions = jurisdictionsArray.map((jurisdiction: any) => {
+      return {
+        tenantId: request?.body?.ResourceDetails?.tenantId,
+        boundaryType: boundaryCodeAndBoundaryTypeMapping[jurisdiction],
+        boundary: jurisdiction,
+        hierarchy: request?.body?.ResourceDetails?.hierarchyType,
+        roles: employee?.user?.roles,
+      };
+    })
+    employee.jurisdictions = jurisdictions
+  }
+  else{
+    employee.jurisdictions = [
+      {
+        tenantId: request?.body?.ResourceDetails?.tenantId,
+        boundaryType: config.values.userMainBoundaryType,
+        boundary: config.values.userMainBoundary,
+        hierarchy: request?.body?.ResourceDetails?.hierarchyType,
+        roles: employee?.user?.roles,
+      },
+    ];
+  }
 }
 
 async function enrichEmployees(employees: any[], request: any) {
+  const boundaryRelationshipResponse = await searchBoundaryRelationshipData(request?.body?.ResourceDetails?.tenantId, request?.body?.ResourceDetails?.hierarchyType, true);
+  if(!boundaryRelationshipResponse?.TenantBoundary?.[0]?.boundary) {
+    throw new Error("Boundary relationship search failed");
+  }
+  const boundaryCodeAndBoundaryTypeMapping = getBoundaryCodeAndBoundaryTypeMapping(boundaryRelationshipResponse?.TenantBoundary?.[0]?.boundary);
   convertUserRoles(employees, request);
   const idRequests = createIdRequests(employees);
   request.body.idRequests = idRequests;
@@ -1152,7 +1117,7 @@ async function enrichEmployees(employees: any[], request: any) {
     user.userName = result?.idResponses?.[i]?.id;
     user.password = generatedPassword;
     employee.code = result?.idResponses?.[i]?.id;
-    await enrichJurisdictions(employee, request);
+    await enrichJurisdictions(employee, request, boundaryCodeAndBoundaryTypeMapping);
     if (employee?.user) {
       employee.user.tenantId = request?.body?.ResourceDetails?.tenantId;
       employee.user.dob = 0;
@@ -1189,17 +1154,13 @@ function enrichDataToCreateForUser(
 }
 
 async function handeFacilityProcess(
-  request: any,
   createAndSearchConfig: any,
   params: any,
-  activities: any[],
   newRequestBody: any
 ) {
-  for (const facility of newRequestBody.Facilities) {
-    facility.address = {};
-  }
-  var responsePayload = await httpRequest(
-    createAndSearchConfig?.createBulkDetails?.url,
+  newRequestBody.Facility.address = {};
+  const response = await httpRequest(
+    createAndSearchConfig?.createDetails?.url,
     newRequestBody,
     params,
     "post",
@@ -1207,19 +1168,7 @@ async function handeFacilityProcess(
     undefined,
     true
   );
-  var activity = await generateActivityMessage(
-    request?.body?.ResourceDetails?.tenantId,
-    request.body,
-    newRequestBody,
-    responsePayload,
-    "facility",
-    createAndSearchConfig?.createBulkDetails?.url,
-    responsePayload?.statusCode
-  );
-  logger.info(
-    `Activity : ${createAndSearchConfig?.createBulkDetails?.url} status:  ${responsePayload?.statusCode}`
-  );
-  activities.push(activity);
+  return response?.Facility?.id;
 }
 
 async function handleUserProcess(
@@ -1227,7 +1176,6 @@ async function handleUserProcess(
   createAndSearchConfig: any,
   params: any,
   dataToCreate: any[],
-  activities: any[],
   newRequestBody: any
 ) {
   if (config.values.notCreateUserIfAlreadyThere) {
@@ -1268,19 +1216,6 @@ async function handleUserProcess(
         "Some internal server error occured during user creation."
       );
     }
-    var activity = await generateActivityMessage(
-      request?.body?.ResourceDetails?.tenantId,
-      request.body,
-      newRequestBody,
-      responsePayload,
-      "user",
-      createAndSearchConfig?.createBulkDetails?.url,
-      responsePayload?.statusCode
-    );
-    logger.info(
-      `Activity : ${createAndSearchConfig?.createBulkDetails?.url} status:  ${responsePayload?.statusCode}`
-    );
-    activities.push(activity);
   }
 }
 
@@ -1327,59 +1262,116 @@ async function performAndSaveResourceActivity(
 ) {
   logger.info(type + " create data  ");
   if (createAndSearchConfig?.createBulkDetails?.limit) {
-    const limit = createAndSearchConfig?.createBulkDetails?.limit;
-    const dataToCreate = request?.body?.dataToCreate;
-    const chunks = Math.ceil(dataToCreate.length / limit); // Calculate number of chunks
-    var creationTime = Date.now();
-    var activities: any[] = [];
-    for (let i = 0; i < chunks; i++) {
-      const start = i * limit;
-      const end = (i + 1) * limit;
-      const chunkData = dataToCreate.slice(start, end); // Get a chunk of data
-      const newRequestBody: any = {
-        RequestInfo: request?.body?.RequestInfo,
-      };
-      _.set(
-        newRequestBody,
-        createAndSearchConfig?.createBulkDetails?.createPath,
-        chunkData
-      );
-      creationTime = Date.now();
-      if (type == "facility" || type == "facilityMicroplan") {
-        await handeFacilityProcess(
-          request,
-          createAndSearchConfig,
-          params,
-          activities,
-          newRequestBody
-        );
-      } else if (type == "user") {
-        await handleUserProcess(
-          request,
-          createAndSearchConfig,
-          params,
-          chunkData,
-          activities,
-          newRequestBody
-        );
-      }
-      // wait for 5 seconds after each chunk
-      logger.info(`Waiting for 5 seconds after each chunk`);
-      await new Promise((resolve) => setTimeout(resolve, 5000));
-    }
-    await enrichAlreadyExsistingUser(request);
-    logger.info(`Final waiting for 10 seconds`);
-    await new Promise((resolve) => setTimeout(resolve, 10000));
-    await confirmCreation(
-      createAndSearchConfig,
+    await createBulkData(
       request,
-      dataToCreate,
-      creationTime,
-      activities
-    );
-    await createPlanFacilityForMicroplan(request, localizationMap);
+      createAndSearchConfig,
+      params,
+      type);
+  }
+  else if (createAndSearchConfig?.createDetails) {
+    await createSingleData(
+      request,
+      createAndSearchConfig,
+      params,
+      type,
+      localizationMap);
   }
   await generateProcessedFileAndPersist(request, localizationMap);
+}
+
+
+async function createBulkData(
+  request: any,
+  createAndSearchConfig: any,
+  params: any,
+  type: any,
+) {
+  const limit = createAndSearchConfig?.createBulkDetails?.limit;
+  const dataToCreate = request?.body?.dataToCreate;
+  const chunks = Math.ceil(dataToCreate.length / limit); // Calculate number of chunks
+  let creationTime = Date.now();
+  var activities: any[] = [];
+  for (let i = 0; i < chunks; i++) {
+    const start = i * limit;
+    const end = (i + 1) * limit;
+    const chunkData = dataToCreate.slice(start, end); // Get a chunk of data
+    const newRequestBody: any = {
+      RequestInfo: request?.body?.RequestInfo,
+    };
+    _.set(
+      newRequestBody,
+      createAndSearchConfig?.createBulkDetails?.createPath,
+      chunkData
+    );
+    if (type == "user") {
+      await handleUserProcess(
+        request,
+        createAndSearchConfig,
+        params,
+        chunkData,
+        newRequestBody
+      );
+    }
+    // wait for 5 seconds after each chunk
+    logger.info(`Waiting for 5 seconds after each chunk`);
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+  }
+  await enrichAlreadyExsistingUser(request);
+  logger.info(`Final waiting for 10 seconds`);
+  await new Promise((resolve) => setTimeout(resolve, 10000));
+  await confirmCreation(
+    createAndSearchConfig,
+    request,
+    dataToCreate,
+    creationTime,
+    activities
+  );
+}
+
+async function createSingleData(
+  request: any,
+  createAndSearchConfig: any,
+  params: any,
+  type: any,
+  localizationMap?: { [key: string]: string }
+) {
+  const dataToCreate = request?.body?.dataToCreate;
+  const facilityDataForMicroplan = request?.body?.facilityDataForMicroplan;
+  const isMicroplanSource = await isMicroplanRequest(request);
+  const errors: any[] = [];
+  for (const data of dataToCreate) {
+    const newRequestBody: any = {
+      RequestInfo: request?.body?.RequestInfo,
+    };
+    _.set(newRequestBody, createAndSearchConfig?.createDetails?.createPath, data);
+    if (type == "facility") {
+      const id = await handeFacilityProcess(
+        createAndSearchConfig,
+        params,
+        newRequestBody
+      );
+      if (id) {
+        errors.push({
+          status: "CREATED",
+          rowNumber: data["!row#number!"],
+          isUniqueIdentifier: true,
+          uniqueIdentifier: id,
+          errorDetails: "",
+        });
+        if (isMicroplanSource && facilityDataForMicroplan) {
+          const rowNumber = data['!row#number!'];
+          const microplanFacilityData = facilityDataForMicroplan.find((microplanFacility: any) => microplanFacility['!row#number!'] == rowNumber) || null;
+          if (microplanFacilityData) {
+            microplanFacilityData.facilityDetails.id = id
+          }
+        }
+      }
+    }
+  }
+  request.body.sheetErrorDetails = request?.body?.sheetErrorDetails
+    ? [...request?.body?.sheetErrorDetails, ...errors]
+    : errors;
+  await createPlanFacilityForMicroplan(request, localizationMap);
 }
 
 /**
@@ -1524,27 +1516,23 @@ async function processAfterValidation(
       createAndSearchConfig?.createBulkDetails &&
       request.body.ResourceDetails.status != "invalid"
     ) {
-      _.set(
-        request.body,
-        createAndSearchConfig?.createBulkDetails?.createPath,
-        request?.body?.dataToCreate
-      );
-      const params: any = getParamsViaElements(
-        createAndSearchConfig?.createBulkDetails?.createElements,
-        request
-      );
-      changeBodyViaElements(
-        createAndSearchConfig?.createBulkDetails?.createElements,
-        request
-      );
+      await performAndSaveResourceActivityByChangingBody(
+       request,
+       createAndSearchConfig,
+       localizationMap
+     )
+    }
+    else if (createAndSearchConfig?.createDetails &&
+      request.body.ResourceDetails.status != "invalid") {
       await performAndSaveResourceActivity(
         request,
         createAndSearchConfig,
-        params,
+        {},
         request.body.ResourceDetails.type,
         localizationMap
       );
-    } else if (request.body.ResourceDetails.status == "invalid") {
+    }
+    else if (request.body.ResourceDetails.status == "invalid") {
       await generateProcessedFileAndPersist(request, localizationMap);
     }
   } catch (error: any) {
@@ -1553,6 +1541,33 @@ async function processAfterValidation(
     await handleResouceDetailsError(request, error);
   }
   await persistCreationProcess(request, processTrackStatuses.completed);
+}
+
+async function performAndSaveResourceActivityByChangingBody(
+  request: any,
+  createAndSearchConfig: any, 
+  localizationMap?: { [key: string]: string }
+){
+  _.set(
+    request.body,
+    createAndSearchConfig?.createBulkDetails?.createPath,
+    request?.body?.dataToCreate
+  );
+  const params: any = getParamsViaElements(
+    createAndSearchConfig?.createBulkDetails?.createElements,
+    request
+  );
+  changeBodyViaElements(
+    createAndSearchConfig?.createBulkDetails?.createElements,
+    request
+  );
+  await performAndSaveResourceActivity(
+    request,
+    createAndSearchConfig,
+    params,
+    request.body.ResourceDetails.type,
+    localizationMap
+  );
 }
 
 /**
@@ -1595,7 +1610,7 @@ async function processCreate(request: any, localizationMap?: any) {
       undefined,
       localizationMap
     );
-    const schema = await getSchema(request, tenantId, type, campaignType);
+    const schema = await getSchema(request, tenantId, type);
     await processAfterGettingSchema(
       dataFromSheet,
       schema,
@@ -1609,8 +1624,7 @@ async function processCreate(request: any, localizationMap?: any) {
 async function getSchema(
   request: any,
   tenantId: string,
-  type: string,
-  campaignType: string
+  type: string
 ) {
   let schema: any;
   const isUpdate = request?.body?.parentCampaignObject ? true : false;
@@ -1625,19 +1639,6 @@ async function getSchema(
       type
     );
     schema = mdmsResponse;
-  } else if (type == "facilityMicroplan") {
-    const mdmsResponse = await callMdmsTypeSchema(
-      request,
-      tenantId,
-      isUpdate,
-      "facility",
-      "microplan"
-    );
-    schema = mdmsResponse;
-    logger.info(
-      "Appending project type to capacity for microplan " + campaignType
-    );
-    schema = await appendProjectTypeToCapacity(schema, campaignType);
   } else if (type == "user") {
     logger.info(
       "Fetching schema to validate the created data for type: " + type
@@ -1849,21 +1850,9 @@ async function projectCreate(projectCreateBody: any, request: any) {
     logger.info(
       `for boundary type ${projectCreateResponse?.Project[0]?.address?.boundaryType} and code ${projectCreateResponse?.Project[0]?.address?.boundary}`
     );
-    // if (
-    //   !request.body.newlyCreatedBoundaryProjectMap[
-    //   projectCreateBody?.Projects?.[0]?.address?.boundary
-    //   ]
-    // ) {
-    //   request.body.newlyCreatedBoundaryProjectMap[
-    //     projectCreateBody?.Projects?.[0]?.address?.boundary
-    //   ] = {};
-    // }
     request.body.boundaryProjectMapping[
       projectCreateBody?.Projects?.[0]?.address?.boundary
     ].projectId = projectCreateResponse?.Project[0]?.id;
-    // request.body.newlyCreatedBoundaryProjectMap[
-    //   projectCreateBody?.Projects?.[0]?.address?.boundary
-    // ].projectId = projectCreateResponse?.Project[0]?.id;
   } else {
     throwError(
       "PROJECT",
@@ -1969,10 +1958,10 @@ const getHeadersOfBoundarySheet = async (
 async function getCampaignSearchResponse(request: any) {
   try {
     logger.info(`searching for campaign details`);
-const CampaignDetails = {
-  tenantId: request?.query?.tenantId || request?.body?.ResourceDetails?.tenantId,
-  ids: [request?.query?.campaignId || request?.body?.ResourceDetails?.campaignId],
-};
+    const CampaignDetails = {
+      tenantId: request?.query?.tenantId || request?.body?.ResourceDetails?.tenantId,
+      ids: [request?.query?.campaignId || request?.body?.ResourceDetails?.campaignId],
+    };
     const projectTypeSearchResponse: any =
       await searchProjectTypeCampaignService(CampaignDetails);
     return projectTypeSearchResponse;

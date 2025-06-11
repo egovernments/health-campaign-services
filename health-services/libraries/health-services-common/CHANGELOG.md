@@ -4,6 +4,9 @@ All notable changes to this module will be documented in this file.
 * Introduced BeneficiaryIdGenService to enable integration conditionally with the Beneficiary ID Generation system.
 * Search/Update for Beneficiary ID records using `/id/id_pool/_search` and `/id/id_pool/_update`.
 
+## 1.0.21 - 2025-02-28
+- Fixed populate error details bug in common utils
+
 ## 1.0.18 - 2024-08-09
 - Added validateClientReferenceIdsFromDB method to GenericRepository.
 
