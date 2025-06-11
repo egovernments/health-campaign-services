@@ -71,15 +71,6 @@ public class ChildBoundaryCreationUtil {
 
     }
 
-    /**
-     * Main method to initiate the recursive fetch.
-     */
-//    public void fetchAllHierarchies(List<String> hierarchyLevels, Map<String, List<Object>> results) {
-//        if (hierarchyLevels == null || hierarchyLevels.isEmpty()) return;
-//
-//        // Start recursion with root level (e.g., ADM0), no parent data
-//        fetchLevelRecursively(hierarchyLevels, 0, null,results);
-//    }
 
     /**
      Recursive function to fetch data for each level based on list of parents data.
