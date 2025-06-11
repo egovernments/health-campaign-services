@@ -110,6 +110,7 @@ public class ChildBoundaryCreationUtil {
 
                 // Fetch all batches where query is like ?adm0=Mozambique or ?adm1=ProvinceName
                 List<Feature> childResults = fetchAllBatchesForLevel(currentLevel,parentLevel, parentName,rootCode);
+                log.info("No of children for parent "+parentName+" "+childResults.toArray().length);
                 // Accumulating all parents results
                 currentChildNames.addAll(
                         initializeBoundaryAndRelationship(childResults, parentUniqueName, currentLevel, request.getRequestInfo())
