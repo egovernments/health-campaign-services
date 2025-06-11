@@ -57,33 +57,45 @@ public class HmHouseholdHeadValidator implements Validator<HouseholdMemberBulkRe
             Method idMethod = getIdMethod(householdMembers, HOUSEHOLD_ID_FIELD, HOUSEHOLD_CLIENT_REFERENCE_ID_FIELD);
             String columnName = getHouseholdColumnName(idMethod);
             householdMembers.forEach(householdMember -> {
-                validateHeadOfHousehold(householdMember, idMethod, columnName, errorDetailsMap);
-            });
+                validateHeadOfHousehold(householdMember, idMethod, columnName, errorDetailsMap, householdMembers);
+});
         }
         log.debug("household member Head validation completed successfully, total errors: " + errorDetailsMap.size());
         return errorDetailsMap;
     }
 
-    private void validateHeadOfHousehold(HouseholdMember householdMember, Method idMethod, String columnName,
-                                         HashMap<HouseholdMember, List<Error>> errorDetailsMap) {
+   private void validateHeadOfHousehold(HouseholdMember householdMember, Method idMethod, String columnName,
+                                         HashMap<HouseholdMember, List<Error>> errorDetailsMap,List<HouseholdMember> requestMembers) {
 
         if(householdMember.getIsHeadOfHousehold()){
-            log.info("validating if household already has a head");
-            List<HouseholdMember> householdMembersHeadCheck = householdMemberRepository
-                    .findIndividualByHousehold((String) ReflectionUtils.invokeMethod(idMethod, householdMember),
+        log.info("validating if household already has a head");
+        List<HouseholdMember> householdMembersHeadCheck = householdMemberRepository
+                .findIndividualByHousehold((String) ReflectionUtils.invokeMethod(idMethod, householdMember),
                             columnName).getResponse().stream().filter(HouseholdMember::getIsHeadOfHousehold)
-                    .collect(Collectors.toList());
+                .collect(Collectors.toList());
+                boolean isSameAsExistingHead = householdMembersHeadCheck.stream().allMatch(existing ->
+                (existing.getIndividualId() != null && existing.getIndividualId().equals(householdMember.getIndividualId())) ||
+                (existing.getId() != null && existing.getId().equals(householdMember.getId()))
+        );
 
-            if(!householdMembersHeadCheck.isEmpty()){
-                Error error = Error.builder().errorMessage(HOUSEHOLD_ALREADY_HAS_HEAD_MESSAGE)
-                        .errorCode(HOUSEHOLD_ALREADY_HAS_HEAD)
-                        .type(Error.ErrorType.NON_RECOVERABLE)
+        boolean isReassigning = householdMembersHeadCheck.stream().anyMatch(existing ->
+                requestMembers.stream().anyMatch(reqMember ->
+                        ((existing.getIndividualId() != null && existing.getIndividualId().equals(reqMember.getIndividualId())) ||
+                         (existing.getId() != null && existing.getId().equals(reqMember.getId())))
+                        && (reqMember.getIsHeadOfHousehold() == null || !reqMember.getIsHeadOfHousehold())
+                )
+        );
+
+        if (!householdMembersHeadCheck.isEmpty() && !isSameAsExistingHead && !isReassigning) {
+            Error error = Error.builder().errorMessage(HOUSEHOLD_ALREADY_HAS_HEAD_MESSAGE)
+                    .errorCode(HOUSEHOLD_ALREADY_HAS_HEAD)
+                    .type(Error.ErrorType.NON_RECOVERABLE)
                         .exception(new CustomException(HOUSEHOLD_ALREADY_HAS_HEAD,
                                 HOUSEHOLD_ALREADY_HAS_HEAD_MESSAGE))
-                        .build();
-                log.info("household already has a head, error: {}", error);
-                populateErrorDetails(householdMember, error, errorDetailsMap);
-            }
+                    .build();
+            log.info("household already has a head, error: {}", error);
+            populateErrorDetails(householdMember, error, errorDetailsMap);
         }
     }
+}
 }
