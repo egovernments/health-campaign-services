@@ -1,6 +1,10 @@
 # Changelog
 All notable changes to this module will be documented in this file.
 
+## 1.3.1 - 2025-06-11
+- Added the total Count logic in search based on uuids
+- Fixed the PaginationClause
+
 ## 1.2.7 - 2024-05-29
 - Integrated Boundary v2 functionality
 - Individual model copied and replicated to the 2.9 version

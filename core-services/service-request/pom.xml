@@ -4,7 +4,7 @@
     <artifactId>service-request</artifactId>
     <packaging>jar</packaging>
     <name>service-request</name>
-    <version>1.0.1</version>
+    <version>1.1.0</version>
     <properties>
     <java.version>1.8</java.version>
     <maven.compiler.source>${java.version}</maven.compiler.source>

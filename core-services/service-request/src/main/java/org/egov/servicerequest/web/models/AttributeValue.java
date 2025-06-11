@@ -26,9 +26,16 @@ public class AttributeValue {
     @JsonProperty("id")
     private String id = null;
 
+    @JsonProperty("clientReferenceId")
+    private String clientReferenceId = null;
+
     @JsonProperty("referenceId")
     @Size(min = 2, max = 64)
     private String referenceId = null;
+
+    @JsonProperty("serviceClientReferenceId")
+    @Size(min = 2, max = 64)
+    private String serviceClientReferenceId = null;
 
     @JsonProperty("attributeCode")
     @NotNull

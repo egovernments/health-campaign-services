@@ -28,27 +28,19 @@ public class UserIntegrationService {
         this.individualProperties = individualProperties;
     }
 
-    public List<UserRequest> createUser(List<Individual> validIndividuals,
+    public List<UserRequest> createUser(Individual validIndividual,
                                             RequestInfo requestInfo) {
         log.info("integrating with user service");
-        List<UserRequest> userRequests = validIndividuals.stream()
-                .filter(Individual::getIsSystemUser).map(toUserRequest())
-                .collect(Collectors.toList());
-        return userRequests.stream().flatMap(userRequest -> userService.create(
-                new CreateUserRequest(requestInfo,
-                        userRequest)).stream()).collect(Collectors.toList());
+        UserRequest userRequest = IndividualMapper.toUserRequest(validIndividual, individualProperties);
+        return userService.create(new CreateUserRequest(requestInfo, userRequest));
     }
 
 
-    public List<UserRequest> updateUser(List<Individual> validIndividuals,
+    public List<UserRequest> updateUser(Individual validIndividual,
                                             RequestInfo requestInfo) {
         log.info("updating the user in user service");
-        List<UserRequest> userRequests = validIndividuals.stream()
-                .filter(Individual::getIsSystemUser).map(toUserRequest())
-                .collect(Collectors.toList());
-        return userRequests.stream().flatMap(userRequest -> userService.update(
-                new CreateUserRequest(requestInfo,
-                        userRequest)).stream()).collect(Collectors.toList());
+        UserRequest userRequest = IndividualMapper.toUserRequest(validIndividual, individualProperties);
+        return userService.update(new CreateUserRequest(requestInfo, userRequest));
     }
 
     public List<UserRequest> deleteUser(List<Individual> validIndividuals,

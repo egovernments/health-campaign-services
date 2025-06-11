@@ -62,6 +62,8 @@ public class AttributeDefinition {
 
         MULTIVALUELIST("MultiValueList"),
 
+        NUMERIC("Numeric"),
+
         FILE("File");
 
         private String value;
