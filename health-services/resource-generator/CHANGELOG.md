@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.1 - 2025-01-30
+1. Enhancements for Microplan Estimation Downloadable Excel Report
+2. Enabled support for Mixed Distribution Strategy for Registration and Service Delivery
+3. Changes for supporting filters in Estimation Dashboard
+
 ## 1.0.0 - 2024-12-03
 #### Resource Generator Service
 The Resource Generator Service introduces comprehensive functionalities for microplanning resource estimation and campaign integration:

@@ -14,11 +14,12 @@ import { generatedResourceStatuses, headingMapping, resourceDataStatuses } from 
 import { getLocaleFromRequest, getLocaleFromRequestInfo, getLocalisationModuleName } from "./localisationUtils";
 import { getBoundaryColumnName, getBoundaryTabName, getLatLongMapForBoundaryCodes } from "./boundaryUtils";
 import { getBoundaryDataService, searchDataService } from "../service/dataManageService";
-import { addDataToSheet, formatWorksheet, getNewExcelWorkbook, updateFontNameToRoboto } from "./excelUtils";
+import { addDataToSheet, enrichUsageColumnForFacility, formatWorksheet, getNewExcelWorkbook, protectSheet, updateFontNameToRoboto } from "./excelUtils";
 import createAndSearch from "../config/createAndSearch";
 import { generateDynamicTargetHeaders } from "./targetUtils";
 import { buildSearchCriteria, checkAndGiveIfParentCampaignAvailable, fetchFileUrls, getCreatedResourceIds, modifyProcessedSheetData } from "./onGoingCampaignUpdateUtils";
-import { getReadMeConfigForMicroplan, getRolesForMicroplan, getUserDataFromMicroplanSheet, isMicroplanRequest, modifyBoundaryIfSourceMicroplan } from "./microplanUtils";
+import { getReadMeConfigForMicroplan, getRolesForMicroplan, getUserDataFromMicroplanSheet, isMicroplanRequest } from "./microplanUtils";
+import _ from "lodash";
 const NodeCache = require("node-cache");
 
 const updateGeneratedResourceTopic = config?.kafka?.KAFKA_UPDATE_GENERATED_RESOURCE_DETAILS_TOPIC;
@@ -74,12 +75,11 @@ const throwError = (module = "COMMON", status = 500, code = "UNKNOWN_ERROR", des
   throw error;
 };
 
-
 const replicateRequest = (originalRequest: Request, requestBody: any, requestQuery?: any) => {
   const newRequest = {
     ...originalRequest,
-    body: requestBody,
-    query: requestQuery || originalRequest.query
+    body: _.cloneDeep(requestBody), // Deep clone using lodash
+    query: requestQuery ? _.cloneDeep(requestQuery) : _.cloneDeep(originalRequest.query)
   };
   return newRequest;
 };
@@ -223,33 +223,12 @@ const trimError = (e: any) => {
   return e;
 }
 
-
-async function generateActivityMessage(tenantId: any, requestBody: any, requestPayload: any, responsePayload: any, type: any, url: any, status: any) {
-  const activityMessage = {
-    id: uuidv4(),
-    status: status,
-    retryCount: 0,
-    tenantId: tenantId,
-    type: type,
-    url: url,
-    requestPayload: requestPayload,
-    responsePayload: responsePayload,
-    auditDetails: {
-      createdBy: requestBody?.RequestInfo?.userInfo?.uuid,
-      lastModifiedBy: requestBody?.RequestInfo?.userInfo?.uuid,
-      createdTime: Date.now(),
-      lastModifiedTime: Date.now()
-    },
-    additionalDetails: {},
-    resourceDetailsId: null
-  }
-  return activityMessage;
-}
-
 /* Fetches data from the database */
 async function searchGeneratedResources(request: any) {
   try {
     const { type, tenantId, hierarchyType, id, status, campaignId } = request.query;
+    const msgIdRaw = request.body.RequestInfo?.msgId;
+    const locale = msgIdRaw?.split('|')[1] || null;
     let queryString = `SELECT * FROM ${config?.DB_CONFIG.DB_GENERATED_RESOURCE_DETAILS_TABLE_NAME} WHERE `;
     let queryConditions: string[] = [];
     let queryValues: any[] = [];
@@ -279,6 +258,10 @@ async function searchGeneratedResources(request: any) {
       const statusConditions = statusArray.map((_: any, index: any) => `status = $${queryValues.length + index + 1}`);
       queryConditions.push(`(${statusConditions.join(' OR ')})`);
       queryValues.push(...statusArray);
+    }
+    if (locale) {
+      queryConditions.push(`locale = $${queryValues.length + 1}`);
+      queryValues.push(locale);
     }
 
     queryString += queryConditions.join(" AND ");
@@ -330,7 +313,8 @@ async function generateNewRequestObject(request: any) {
     },
     additionalDetails: additionalDetails,
     count: null,
-    campaignId: request?.query?.campaignId
+    campaignId: request?.query?.campaignId,
+    locale: request?.body?.RequestInfo?.msgId?.split('|')[1] || null
   };
   return [newEntry];
 }
@@ -484,19 +468,19 @@ function correctParentValues(campaignDetails: any) {
   return campaignDetails;
 }
 
-function setDropdownFromSchema(request: any, schema: any, localizationMap?: { [key: string]: string }) {
-  const dropdowns = Object.entries(schema.properties)
-    .filter(([key, value]: any) => Array.isArray(value.enum) && value.enum.length > 0)
-    .reduce((result: any, [key, value]: any) => {
-      // Transform the key using localisedValue function
-      const newKey: any = getLocalizedName(key, localizationMap);
-      result[newKey] = value.enum;
-      return result;
-    }, {});
-  logger.info(`dropdowns to set ${JSON.stringify(dropdowns)}`)
-  request.body.dropdowns = dropdowns;
-  return dropdowns;
-}
+// function setDropdownFromSchema(request: any, schema: any, localizationMap?: { [key: string]: string }) {
+//   const dropdowns = Object.entries(schema.properties)
+//     .filter(([key, value]: any) => Array.isArray(value.enum) && value.enum.length > 0)
+//     .reduce((result: any, [key, value]: any) => {
+//       // Transform the key using localisedValue function
+//       const newKey: any = getLocalizedName(key, localizationMap);
+//       result[newKey] = value.enum;
+//       return result;
+//     }, {});
+//   logger.info(`dropdowns to set ${JSON.stringify(dropdowns)}`)
+//   request.body.dropdowns = dropdowns;
+//   return dropdowns;
+// }
 
 function setHiddenColumns(request: any, schema: any, localizationMap?: { [key: string]: string }) {
   // from schema.properties find the key whose value have value.hideColumn == true
@@ -548,7 +532,7 @@ async function createFacilitySheet(request: any, allFacilities: any[], localizat
   request.body.isSourceMicroplan = isSourceMicroplan;
   let schema: any = await getSchemaBasedOnSource(request, isSourceMicroplan, responseFromCampaignSearch?.CampaignDetails?.[0]?.additionalDetails?.resourceDistributionStrategy);
   const keys = schema?.columns;
-  setDropdownFromSchema(request, schema, localizationMap);
+  // setDropdownFromSchema(request, schema, localizationMap);
   setHiddenColumns(request, schema, localizationMap);
   const headers = ["HCM_ADMIN_CONSOLE_FACILITY_CODE", ...keys]
   let localizedHeaders;
@@ -572,7 +556,7 @@ async function createFacilitySheet(request: any, allFacilities: any[], localizat
   logger.info("facilities generation done ");
   logger.debug(`facility response ${JSON.stringify(facilities)}`)
   const facilitySheetData: any = await createExcelSheet(facilities, localizedHeaders);
-  return facilitySheetData;
+  return { schema, facilitySheetData };
 }
 
 
@@ -746,24 +730,24 @@ async function createFacilityAndBoundaryFile(facilitySheetData: any, boundaryShe
   // Add facility sheet data
   const facilitySheet = workbook.addWorksheet(localizedFacilityTab);
   addDataToSheet(request, facilitySheet, facilitySheetData, undefined, undefined, true, false, localizationMap, fileUrl, schema);
+  enrichUsageColumnForFacility(facilitySheet, localizationMap);
   hideUniqueIdentifierColumn(facilitySheet, createAndSearch?.["facility"]?.uniqueIdentifierColumn);
   changeFirstRowColumnColour(facilitySheet, 'E06666');
 
-  let receivedDropdowns = request.body?.dropdowns;
-  logger.info("started adding dropdowns in facility", JSON.stringify(receivedDropdowns))
+  // let receivedDropdowns = request.body?.dropdowns;
 
-  if (!receivedDropdowns || Object.keys(receivedDropdowns)?.length == 0) {
-    logger.info("No dropdowns found");
-    receivedDropdowns = setDropdownFromSchema(request, schema, localizationMap);
-    logger.info("refetched drodowns", JSON.stringify(receivedDropdowns))
-  }
-  await handledropdownthings(facilitySheet, receivedDropdowns);
+  // if (!receivedDropdowns || Object.keys(receivedDropdowns)?.length == 0) {
+  //   logger.info("No dropdowns found");
+  //   receivedDropdowns = setDropdownFromSchema(request, schema, localizationMap);
+  //   logger.info("refetched drodowns", JSON.stringify(receivedDropdowns))
+  // }
+  await handledropdownthings(facilitySheet, schema, localizationMap);
+  protectSheet(facilitySheet);
   await handleHiddenColumns(facilitySheet, request.body?.hiddenColumns);
 
   // Add boundary sheet to the workbook
   const localizedBoundaryTab = getLocalizedName(getBoundaryTabName(), localizationMap);
   const boundarySheet = workbook.addWorksheet(localizedBoundaryTab);
-  boundarySheetData = modifyBoundaryIfSourceMicroplan(boundarySheetData, request);
   addDataToSheet(request, boundarySheet, boundarySheetData, 'F3842D', 30, false, true);
 
   // Create and upload the fileData at row
@@ -771,11 +755,20 @@ async function createFacilityAndBoundaryFile(facilitySheetData: any, boundaryShe
   request.body.fileDetails = fileDetails;
 }
 
-async function handledropdownthings(sheet: any, dropdowns: any) {
-  let dropdownColumnIndex = -1;
+async function handledropdownthings(sheet: any, schema: any, localizationMap: any) {
+  logger.info(sheet.rowCount)
+  const dropdowns = Object.entries(schema.properties)
+    .filter(([key, value]: any) => Array.isArray(value.enum) && value.enum.length > 0)
+    .reduce((result: any, [key, value]: any) => {
+      // Transform the key using localisedValue function
+      const newKey: any = getLocalizedName(key, localizationMap);
+      result[newKey] = value.enum;
+      return result;
+    }, {});
   if (dropdowns) {
     logger.info("Dropdowns provided:", dropdowns);
     for (const key of Object.keys(dropdowns)) {
+      let dropdownColumnIndex = -1;
       if (dropdowns[key]) {
         logger.info(`Processing dropdown key: ${key} with values: ${dropdowns[key]}`);
         const firstRow = sheet.getRow(1);
@@ -791,16 +784,32 @@ async function handledropdownthings(sheet: any, dropdowns: any) {
           logger.info(`Setting dropdown for column index: ${dropdownColumnIndex}`);
           sheet.getColumn(dropdownColumnIndex).eachCell({ includeEmpty: true }, (cell: any, rowNumber: any) => {
             if (rowNumber > 1) {
-              // Set dropdown list with no typing allowed
-              cell.dataValidation = {
-                type: 'list',
-                formulae: [`"${dropdowns[key].join(',')}"`],
-                showDropDown: true,
-                error: 'Please select a value from the dropdown list.',
-                errorStyle: 'stop',
-                showErrorMessage: true,
-                errorTitle: 'Invalid Entry'
-              };
+              if (cell.protection?.locked) { // Check if the cell is locked
+                cell.protection = { locked: false };
+                // Set dropdown list with no typing allowed
+                cell.dataValidation = {
+                  type: 'list',
+                  formulae: [`"${dropdowns[key].join(',')}"`],
+                  showDropDown: true,
+                  error: 'Please select a value from the dropdown list.',
+                  errorStyle: 'stop',
+                  showErrorMessage: true,
+                  errorTitle: 'Invalid Entry'
+                };
+                cell.protection = { locked: true }; // Lock the cell again after adding dropdown
+              }
+              else {
+                cell.dataValidation = {
+                  type: 'list',
+                  formulae: [`"${dropdowns[key].join(',')}"`],
+                  showDropDown: true,
+                  error: 'Please select a value from the dropdown list.',
+                  errorStyle: 'stop',
+                  showErrorMessage: true,
+                  errorTitle: 'Invalid Entry',
+                  allowBlank: true  // Allow blank entries
+                };
+              }
             }
           });
         } else {
@@ -852,12 +861,13 @@ async function createUserAndBoundaryFile(userSheetData: any, boundarySheetData: 
   let receivedDropdowns = request.body?.dropdowns;
   logger.info("started adding dropdowns in user", JSON.stringify(receivedDropdowns))
 
-  if (!receivedDropdowns || Object.keys(receivedDropdowns)?.length == 0) {
-    logger.info("No dropdowns found");
-    receivedDropdowns = setDropdownFromSchema(request, schema, localizationMap);
-    logger.info("refetched drodowns", JSON.stringify(receivedDropdowns))
-  }
-  await handledropdownthings(userSheet, receivedDropdowns);
+  // if (!receivedDropdowns || Object.keys(receivedDropdowns)?.length == 0) {
+  //   logger.info("No dropdowns found");
+  //   receivedDropdowns = setDropdownFromSchema(request, schema, localizationMap);
+  //   logger.info("refetched drodowns", JSON.stringify(receivedDropdowns))
+  // }
+  await handledropdownthings(userSheet, schema, localizationMap);
+  protectSheet(userSheet);
   await handleHiddenColumns(userSheet, request.body?.hiddenColumns);
   // Add boundary sheet to the workbook
   const localizedBoundaryTab = getLocalizedName(getBoundaryTabName(), localizationMap)
@@ -877,29 +887,31 @@ async function generateFacilityAndBoundarySheet(tenantId: string, request: any, 
   const allFacilities = await getAllFacilities(tenantId, request.body);
   request.body.generatedResourceCount = allFacilities?.length;
   logger.info(`Facilities generation completed and found ${allFacilities?.length} facilities`);
-  let facilitySheetData: any;
+  let facilitySheetDataFinal: any;
   const localizedFacilityTab = getLocalizedName(config?.facility?.facilityTab, localizationMap);
-  let schema: any;
+  let schemaFinal: any;
   if (fileUrl) {
     /* fetch facility from processed file 
     and generate facility sheet data */
-    schema = await callMdmsTypeSchema(request, tenantId, true, typeWithoutWith, "all");
+    schemaFinal = await callMdmsTypeSchema(request, tenantId, true, typeWithoutWith, "all");
     const processedFacilitySheetData = await getSheetData(fileUrl, localizedFacilityTab, false, undefined, localizationMap);
-    const modifiedProcessedFacilitySheetData = modifyProcessedSheetData(typeWithoutWith, processedFacilitySheetData, schema, localizationMap);
-    facilitySheetData = modifiedProcessedFacilitySheetData;
-    setDropdownFromSchema(request, schema, localizationMap);
+    const modifiedProcessedFacilitySheetData = modifyProcessedSheetData(typeWithoutWith, processedFacilitySheetData, schemaFinal, localizationMap);
+    facilitySheetDataFinal = modifiedProcessedFacilitySheetData;
+    // setDropdownFromSchema(request, schema, localizationMap);
   }
   else {
-    facilitySheetData = await createFacilitySheet(request, allFacilities, localizationMap);
+    const { schema, facilitySheetData }: any = await createFacilitySheet(request, allFacilities, localizationMap);
+    facilitySheetDataFinal = facilitySheetData;
+    schemaFinal = schema;
   }
   // request.body.Filters = { tenantId: tenantId, hierarchyType: request?.query?.hierarchyType, includeChildren: true }
   if (filteredBoundary && filteredBoundary.length > 0) {
     logger.info("proceed with the filtered boundary data")
-    await createFacilityAndBoundaryFile(facilitySheetData, filteredBoundary, request, localizationMap, fileUrl, schema);
+    await createFacilityAndBoundaryFile(facilitySheetDataFinal, filteredBoundary, request, localizationMap, fileUrl, schemaFinal);
   }
   else {
     const boundarySheetData: any = await getBoundarySheetData(request, localizationMap);
-    await createFacilityAndBoundaryFile(facilitySheetData, boundarySheetData, request, localizationMap, fileUrl, schema);
+    await createFacilityAndBoundaryFile(facilitySheetDataFinal, boundarySheetData, request, localizationMap, fileUrl, schemaFinal);
   }
 }
 
@@ -910,7 +922,7 @@ async function generateUserSheet(request: any, localizationMap?: { [key: string]
   let schema: any;
   const isUpdate = fileUrl ? true : false;
   schema = await callMdmsTypeSchema(request, tenantId, isUpdate, typeWithoutWith);
-  setDropdownFromSchema(request, schema, localizationMap);
+  // setDropdownFromSchema(request, schema, localizationMap);
   const headers = schema?.columns;
   const localizedHeaders = getLocalizedHeaders(headers, localizationMap);
   const localizedUserTab = getLocalizedName(config?.user?.userTab, localizationMap);
@@ -1006,7 +1018,7 @@ async function generateUserSheetForMicroPlan(
 ) {
   const { tenantId, type } = request?.query;
   const schema = await callMdmsTypeSchema(request, tenantId, false, "user", "microplan");
-  setDropdownFromSchema(request, schema, localizationMap);
+  // setDropdownFromSchema(request, schema, localizationMap);
   const headers = schema?.columns;
   const localizedHeaders = getLocalizedHeaders(headers, localizationMap);
 
@@ -1028,7 +1040,8 @@ async function generateUserSheetForMicroPlan(
     // Create a sheet for each role, using the role name as the sheet name
     const userSheet: any = workbook.addWorksheet(role);
     addDataToSheet(request, userSheet, userSheetData, undefined, undefined, true, false, localizationMap, fileUrl, schema);
-    await handledropdownthings(userSheet, request.body?.dropdowns);
+    await handledropdownthings(userSheet, schema, localizationMap);
+    protectSheet(userSheet);
     await handleHiddenColumns(userSheet, request.body?.hiddenColumns);
   }
 
@@ -1518,7 +1531,6 @@ export {
   cacheResponse,
   getCachedResponse,
   generateAuditDetails,
-  generateActivityMessage,
   searchGeneratedResources,
   generateNewRequestObject,
   updateExistingResourceExpired,

@@ -4,7 +4,7 @@
     <artifactId>resource-generator</artifactId>
     <packaging>jar</packaging>
     <name>file-processor-utility</name>
-    <version>1.0.0</version>
+    <version>1.0.1</version>
     <properties>
     <java.version>17</java.version>
         <geotools.version>32-SNAPSHOT</geotools.version>

@@ -360,9 +360,19 @@ public class ServiceConstants {
 
     public static final String FACILITY_NAME_SEARCH_PARAMETER_KEY = "facilityName";
 
+    public static final String FACILITY_ID_SEARCH_PARAMETER_KEY = "facilityId";
+
     public static final String FACILITY_STATUS_SEARCH_PARAMETER_KEY = "facilityStatus";
 
     public static final String FACILITY_TYPE_SEARCH_PARAMETER_KEY = "facilityType";
+
+    public static final String TERRAIN_CONDITION_SEARCH_PARAMETER_KEY = "accessibilityDetails|terrain|code";
+
+    public static final String ROAD_CONDITION_SEARCH_PARAMETER_KEY = "accessibilityDetails|roadCondition|code";
+
+    public static final String SECURITY_Q1_SEARCH_PARAMETER_KEY = "securityDetails|1|code";
+
+    public static final String SECURITY_Q2_SEARCH_PARAMETER_KEY = "securityDetails|2|code";
 
     public static final String COMMA_DELIMITER = ",";
 
@@ -374,4 +384,11 @@ public class ServiceConstants {
 
     public static final String CONFIRMED_TARGET_POPULATION = "CONFIRMED_HCM_ADMIN_CONSOLE_TARGET_POPULATION";
 
+    public static final String ADDITIONAL_DETAILS_QUERY = " additional_details @> CAST( ? AS jsonb )";
+
+    public static final String JSONB_QUERY_FORMAT = "additional_details @> ?::jsonb";
+
+    public static final String AND_CONDITION = " AND ";
+
+    public static final String OR_CONDITION = " OR ";
 }

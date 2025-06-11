@@ -1,7 +1,7 @@
 // Import necessary types and utilities
 import { BoundaryModels, MDMSModels } from "../models";
 import config from "../config";
-import { httpRequest } from "../utils/request";
+import { defaultheader, httpRequest } from "../utils/request";
 
 // Default request information for MDMS API requests
 export const defaultRequestInfo: any = {
@@ -179,6 +179,10 @@ const searchBoundaryRelationshipData = async (
   const requestBody = {
     ...defaultRequestInfo,
   };
+  const headers : any = {
+        ...defaultheader,
+        cachekey: `boundaryRelationShipSearch${hierarchyType}${tenantId}${""}${includeChildren || ""}`,
+      };
 
   // Construct API URL for boundary hierarchy relationship search
   const url = config.host.boundaryHost + config.paths.boundaryRelationship;
@@ -187,7 +191,10 @@ const searchBoundaryRelationshipData = async (
   const response: BoundaryModels.BoundaryHierarchyRelationshipResponse = await httpRequest(
     url,
     requestBody,
-    { tenantId, hierarchyType, includeChildren, includeParents }
+    { tenantId, hierarchyType, includeChildren, includeParents },
+    undefined,
+    undefined,
+    headers
   );
 
   // Return the response containing boundary relationship data
