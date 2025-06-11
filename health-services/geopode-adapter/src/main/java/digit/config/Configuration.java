@@ -62,8 +62,8 @@ public class Configuration {
     private String schemaCode;
 
     @Value("${geopode.localHost}")
-    private String geopodeLocalHost;
+    private Integer geopodeLocalHost;
 
     @Value("${geopode.arcgis.search}")
-    private String geopodeSearchEndpoint;
+    private Integer geopodeSearchEndpoint;
 }

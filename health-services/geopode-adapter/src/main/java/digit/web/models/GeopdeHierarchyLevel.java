@@ -21,7 +21,7 @@ public class GeopdeHierarchyLevel {
     private String typeCode;
 
     @JsonProperty("level")
-    private int level;
+    private Integer level;
 
     @JsonProperty("parent")
     private String parent;
