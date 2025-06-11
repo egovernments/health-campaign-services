@@ -130,6 +130,33 @@ export const dataRowStatuses = {
     pending: "pending"
 }
 
+export const mappingStatuses = {
+    toBeMapped : "toBeMapped",
+    mapped : "mapped",
+    toBeDeMapped : "toBeDeMapped",
+    deMapped : "deMapped"
+}
+
+export const processStatuses = {
+    failed : "failed",
+    pending : "pending",
+    completed : "completed"
+}
+
+export const allProcesses = {
+    facilityCreation : "CAMPAIGN_FACILITY_CREATION_PROCESS",
+    userCreation : "CAMPAIGN_USER_CREATION_PROCESS",
+    projectCreation : "CAMPAIGN_PROJECT_CREATION_PROCESS",
+    facilityMapping : "CAMPAIGN_FACILITY_MAPPING_PROCESS",
+    userMapping : "CAMPAIGN_USER_MAPPING_PROCESS",
+    resourceMapping : "CAMPAIGN_RESOURCE_MAPPING_PROCESS"
+}
+
+export const sheetDataRowStatuses = {
+    INVALID: "INVALID",
+    CREATED: "CREATED"
+}
+
 
 export const generatedResourceStatuses: any = {
     inprogress: "inprogress",

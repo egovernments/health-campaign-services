@@ -4,13 +4,14 @@ import { defaultRequestInfo, searchBoundaryRelationshipData, searchMDMSDataViaV2
 import { getLocalizedName, populateBoundariesRecursively } from "../utils/campaignUtils";
 import config from "../config";
 import { produceModifiedMessages } from "../kafka/Producer";
-import { getRelatedDataWithCampaign } from "../utils/genericUtils";
-import { dataRowStatuses } from "../config/constants";
+import { getMappingDataRelatedToCampaign, getRelatedDataWithCampaign } from "../utils/genericUtils";
+import { dataRowStatuses, mappingStatuses } from "../config/constants";
 import { logger } from "../utils/logger";
 import { enrichProjectDetailsFromCampaignDetails } from "../utils/transforms/projectTypeUtils";
-// import { confirmProjectParentCreation } from "../api/campaignApis";
+import { confirmProjectParentCreation } from "../api/campaignApis";
 import { httpRequest } from "../utils/request";
 import { fetchProjectsWithBoundaryCodeAndReferenceId } from "../utils/onGoingCampaignUpdateUtils";
+import { validateResourceDetailsBeforeProcess } from "../utils/sheetManageUtils";
 
 export class TemplateClass {
     static async process(
@@ -19,6 +20,9 @@ export class TemplateClass {
         localizationMap: Record<string, string>,
         templateConfig: any
     ): Promise<SheetMap> {
+        await validateResourceDetailsBeforeProcess("boundaryValidation", resourceDetails, localizationMap);
+        logger.info("Processing file...");
+        logger.info(`ResourceDetails: ${JSON.stringify(resourceDetails)}`);
         const {
             campaignDetails,
             boundaries,
@@ -34,11 +38,88 @@ export class TemplateClass {
         let currentBoundaryData = await getRelatedDataWithCampaign(resourceDetails?.type, campaignNumber);
         await this.persistNewBoundaryData(currentBoundaryData, datas, campaignNumber, resourceDetails);
         await this.updateBoundaryData(currentBoundaryData, datas);
+        
+        let currentMappingData = await getMappingDataRelatedToCampaign("resource", campaignNumber);
+        let mappingDataFromSheet = this.extractMappingDataFromSheets(boundaries, "resource", campaignDetails);
 
+        await this.persistMappingData(currentMappingData, mappingDataFromSheet, resourceDetails);
         currentBoundaryData = await getRelatedDataWithCampaign(resourceDetails?.type, campaignNumber);
         currentBoundaryData.push(...await getRelatedDataWithCampaign(resourceDetails?.type, campaignNumber));
         await this.createAndUpdateProjects(currentBoundaryData, campaignDetails, boundaries, targetConfig);
         return {};
+    }
+
+    private static async persistMappingData(currentMappingData: any[], mappingDataFromSheet: any[], resourceDetails: any) {
+        logger.info("Persisting mapping data...");
+        let setOfCombinationForPvarBoundary = new Set();
+        for(let i = 0; i < currentMappingData.length; i++) {
+            setOfCombinationForPvarBoundary.add(`${currentMappingData[i]?.uniqueIdentifierForData}-${currentMappingData[i]?.boundaryCode}`);
+        }
+        let mappingDatasToBePersisted = [];
+        for(let i = 0; i < mappingDataFromSheet.length; i++) {
+            if(!setOfCombinationForPvarBoundary.has(`${mappingDataFromSheet[i]?.uniqueIdentifierForData}-${mappingDataFromSheet[i]?.boundaryCode}`)) {
+                mappingDatasToBePersisted.push(mappingDataFromSheet[i]);
+            }
+        }
+        let batchSize = 100;
+        for (let i = 0; i < mappingDatasToBePersisted.length; i += batchSize) {
+            const batch = mappingDatasToBePersisted.slice(i, i + batchSize);
+            await produceModifiedMessages({ datas: batch }, config.kafka.KAFKA_SAVE_MAPPING_DATA_TOPIC);
+        }
+        let waitTime = Math.max(5000, mappingDatasToBePersisted?.length * 8);
+        logger.info(`Waiting for ${waitTime} ms for persistence...`);
+        await new Promise((res) => setTimeout(res, waitTime));
+    }
+
+    private static extractMappingDataFromSheets(boundaries: any[], type: string, campaignDetails: any): any[] {
+        logger.info("Extracting mapping data from sheets...");
+        // Initialize sets for unique boundary codes and product variant IDs
+        const boundaryCodes = new Set();
+        const allSheetMappingResourceData: any[] = [];
+
+        // Extract boundary codes
+        for (const boundary of boundaries) {
+            if (boundary?.code) {
+                boundaryCodes.add(boundary.code);
+            }
+        }
+
+        // Convert Set to array
+        const boundaryCodesArray = Array.from(boundaryCodes);
+
+        // Extract product variant IDs from cycleData
+        const setOfAllProductVariantIds = new Set();
+        const deliveryRules = campaignDetails?.deliveryRules;
+        if (deliveryRules && Array.isArray(deliveryRules) && deliveryRules.length > 0) {
+            for (const deliveryRule of deliveryRules) {
+                const products = deliveryRule?.resources;
+                if (products) {
+                    for (const product of products) {
+                        setOfAllProductVariantIds.add(product?.productVariantId); // Add pvar ID to the Set
+                    }
+                }
+            }
+        }
+
+        // Create mapping data for each combination of product variant ID and boundary code
+        const productVariantIds = Array.from(setOfAllProductVariantIds);
+        for (let i = 0; i < productVariantIds.length; i++) {
+            const productVariantId = productVariantIds[i];
+            for (let j = 0; j < boundaryCodesArray.length; j++) {
+                const boundaryCode = boundaryCodesArray[j];
+                const newMappingData = {
+                    campaignNumber: campaignDetails?.campaignNumber ?? '',
+                    type,
+                    boundaryCode,
+                    uniqueIdentifierForData: productVariantId,
+                    status: mappingStatuses.toBeMapped,
+                    mappingId : null
+                };
+                allSheetMappingResourceData.push(newMappingData);
+            }
+        }
+        logger.info(`Extracted mapping data from sheets.`);
+        return allSheetMappingResourceData;
     }
 
     private static async createAndUpdateProjects(currentBoundaryData: any[], campaignDetails: any, boundaries: any, targetConfig: any) {
@@ -47,8 +128,9 @@ export class TemplateClass {
         const sortedBoundaryData = this.topologicallySortBoundaries(currentBoundaryData, boundaryChildrenToTypeAndParentMap);
         const sortedBoundaryDataForCreate = sortedBoundaryData.filter((d: any) => !d?.uniqueIdAfterProcess && (d?.status == dataRowStatuses.pending || d?.status == dataRowStatuses.failed));
         const sortedBoundaryDataForUpdate = sortedBoundaryData.filter((d: any) => d?.uniqueIdAfterProcess && (d?.status == dataRowStatuses.pending || d?.status == dataRowStatuses.failed));
-        await this.processProjectCreationInOrder(sortedBoundaryDataForCreate, campaignDetails?.tenantId, campaignDetails?.campaignNumber, targetConfig, projectCreateBody, Projects, boundaryChildrenToTypeAndParentMap);
-        await this.processProjectUpdateInOrder(sortedBoundaryDataForUpdate, campaignDetails?.tenantId, campaignDetails?.campaignNumber, targetConfig);
+        const useruuid = campaignDetails?.auditDetails?.createdBy;
+        await this.processProjectCreationInOrder(sortedBoundaryDataForCreate, campaignDetails?.tenantId, campaignDetails?.campaignNumber, targetConfig, projectCreateBody, Projects, boundaryChildrenToTypeAndParentMap, useruuid);
+        await this.processProjectUpdateInOrder(sortedBoundaryDataForUpdate, campaignDetails?.tenantId, campaignDetails?.campaignNumber, targetConfig, useruuid);
     }
 
 
@@ -148,7 +230,8 @@ export class TemplateClass {
         sortedBoundaryData: any[],
         tenantId: string,
         campaignNumber: string,
-        targetConfig: any
+        targetConfig: any,
+        useruuid: string
     ) {
         for (const boundaryData of sortedBoundaryData) {
             const data = boundaryData?.data;
@@ -191,11 +274,12 @@ export class TemplateClass {
                         });
                     }
                 }
-
+                const RequestInfo = JSON.parse(JSON.stringify(defaultRequestInfo?.RequestInfo));
+                RequestInfo.userInfo.uuid = useruuid;
                 const response = await httpRequest(
                     config.host.projectHost + config.paths.projectUpdate,
                     {
-                        RequestInfo: defaultRequestInfo?.RequestInfo,
+                        RequestInfo,
                         Projects: [projectToUpdate]
                     },
                     undefined,
@@ -232,7 +316,8 @@ export class TemplateClass {
         targetConfig: any,
         projectCreateBody: any,
         Projects: any,
-        boundaryMap: Record<string, { type: string; parent: string | null; projectId?: string }>
+        boundaryMap: Record<string, { type: string; parent: string | null; projectId?: string }>,
+        useruuid: string
     ) {
         for (const boundaryData of sortedBoundaryData) {
             const data = boundaryData?.data;
@@ -248,7 +333,9 @@ export class TemplateClass {
                 if (parent && boundaryMap?.[parent]?.projectId) {
                     const parentProjectId = boundaryMap?.[parent]?.projectId;
                     Projects[0].parent = parentProjectId;
-                    // await confirmProjectParentCreation(campaignDetails?.tenantId, parentProjectId);
+                    if(!config.values.skipParentProjectConfirmation) {
+                        await confirmProjectParentCreation(tenantId, useruuid, parentProjectId);
+                    }
                 }
                 else if (parent && !boundaryMap?.[parent]?.projectId) {
                     throw new Error(`Parent ${parent} of boundary ${boundaryCode} not found in boundaryMap`);

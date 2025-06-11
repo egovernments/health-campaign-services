@@ -5,7 +5,7 @@ import { defaultheader, httpRequest } from "../utils/request";
 import { getCampaignSearchResponse, getHeadersOfBoundarySheet, getHierarchy, handleResouceDetailsError } from "../api/campaignApis";
 import { campaignDetailsSchema } from "../config/models/campaignDetails";
 import Ajv from "ajv";
-import { getDifferentDistrictTabs, getLocalizedHeaders, getMdmsDataBasedOnCampaignType, replicateRequest, throwError } from "../utils/genericUtils";
+import { getDifferentDistrictTabs, getLocalizedHeaders, getMdmsDataBasedOnCampaignType, throwError } from "../utils/genericUtils";
 import { createBoundaryMap, enrichInnerCampaignDetails, generateProcessedFileAndPersist, getFinalValidHeadersForTargetSheetAsPerCampaignType, getLocalizedName } from "../utils/campaignUtils";
 import { validateBodyViaSchema, validateCampaignBodyViaSchema, validateHierarchyType } from "./genericValidator";
 import { searchCriteriaSchema } from "../config/models/SearchCriteria";
@@ -15,7 +15,6 @@ import { downloadRequestSchema } from "../config/models/downloadRequestSchema";
 import { createRequestSchema } from "../config/models/createRequestSchema"
 import { getSheetData, getTargetWorkbook } from "../api/genericApis";
 const _ = require('lodash');
-import { searchDataService } from "../service/dataManageService";
 import { searchProjectTypeCampaignService } from "../service/campaignManageService";
 import { campaignStatuses, resourceDataStatuses, usageColumnStatus } from "../config/constants";
 import { getBoundaryColumnName, getBoundaryTabName } from "../utils/boundaryUtils";
@@ -34,6 +33,7 @@ import { fetchFileFromFilestore, searchBoundaryRelationshipDefinition } from "..
 import { processTemplateConfigs } from "../config/processTemplateConfigs";
 import { GenerateTemplateQuery } from "../models/GenerateTemplateQuery";
 import { generationtTemplateConfigs } from "../config/generationtTemplateConfigs";
+import addErrors from "ajv-errors";
 
 
 
@@ -144,6 +144,54 @@ function validateTargetForNormalCampaigns(data: any, errors: any, localizedTarge
         }
     }
 }
+
+export function validateTargetFromTargetConfigs(
+    datas: any[],
+    errors: any[],
+    targetColumnsToBeValidated: string[],
+    allTargetColumns: string[],
+    localizationMap?: { [key: string]: string },
+    minTarget: number = 1,
+    maxTarget: number = 1000000
+) {
+    const optionalTargetColumns = allTargetColumns.filter(
+        (column: string) => !targetColumnsToBeValidated.includes(column)
+    );
+
+    const errorMessage = (key: string, min: number, max: number) =>
+        `Data in column '${ getLocalizedName(key, localizationMap)}' cannot be empty and should be a number between ${min} and ${max} inclusive.`;
+
+    for (let i = 0; i < datas.length; i++) {
+        const data = datas[i];
+
+        // Required target columns
+        for (const key of targetColumnsToBeValidated) {
+            const value = data[key];
+
+            if (value === undefined || value === null || value === '') {
+                errors.push({ row: i + 3, message: errorMessage(key, minTarget, maxTarget) });
+            } else if (typeof value !== 'number') {
+                errors.push({ row: i + 3, message: errorMessage(key, minTarget, maxTarget) });
+            } else if (value < minTarget || value > maxTarget) {
+                errors.push({ row: i + 3, message: errorMessage(key, minTarget, maxTarget) });
+            }
+        }
+
+        // Optional target columns
+        for (const key of optionalTargetColumns) {
+            const value = data[key];
+
+            if (value !== undefined && value !== null && value !== '') {
+                if (typeof value !== 'number') {
+                    errors.push({ row: i + 3, message: errorMessage(key, minTarget, maxTarget) });
+                } else if (value < minTarget || value > maxTarget) {
+                    errors.push({ row: i + 3, message: errorMessage(key, minTarget, maxTarget) });
+                }
+            }
+        }
+    }
+}
+  
 
 
 async function validateTargets(request: any, data: any[], errors: any[], localizationMap?: any) {
@@ -826,35 +874,35 @@ async function validateBoundaryOfResouces(CampaignDetails: any, request: any, lo
 }
 
 
-async function validateResources(resources: any, request: any) {
-    for (const resource of resources) {
-        if (resource?.resourceId) {
-            var searchBody = {
-                RequestInfo: request?.body?.RequestInfo,
-                SearchCriteria: {
-                    id: [resource?.resourceId],
-                    tenantId: request?.body?.CampaignDetails?.tenantId
-                }
-            }
-            const req: any = replicateRequest(request, searchBody);
-            const res: any = await searchDataService(req);
-            if (res?.[0]) {
-                if (!(res?.[0]?.status == resourceDataStatuses.completed && res?.[0]?.action == "validate")) {
-                    logger.error(`Error during validation of type ${resource.type}, validation is not successful or not completed. Resource id : ${resource?.resourceId}`);
-                    throwError("COMMON", 400, "VALIDATION_ERROR", `Error during validation of type ${resource.type}, validation is not successful or not completed.`);
-                }
-                if (res?.[0]?.fileStoreId != resource?.filestoreId) {
-                    logger.error(`fileStoreId doesn't match for resource with Id ${resource?.resourceId}. Expected fileStoreId ${resource?.filestoreId} but received ${res?.[0]?.fileStoreId}`);
-                    throwError("COMMON", 400, "VALIDATION_ERROR", `Uploaded file doesn't match for resource of type ${resource.type}.`)
-                }
-            }
-            else {
-                logger.error(`No resource data found for resource with Id ${resource?.resourceId}`);
-                throwError("COMMON", 400, "VALIDATION_ERROR", `No resource data found for validation of resource type ${resource.type}.`);
-            }
-        }
-    }
-}
+// async function validateResources(resources: any, request: any) {
+//     for (const resource of resources) {
+//         if (resource?.resourceId) {
+//             // var searchBody = {
+//             //     RequestInfo: request?.body?.RequestInfo,
+//             //     SearchCriteria: {
+//             //         id: [resource?.resourceId],
+//             //         tenantId: request?.body?.CampaignDetails?.tenantId
+//             //     }
+//             // }
+//             // const req: any = replicateRequest(request, searchBody);
+//             // const res: any = await searchDataService(req);
+//             // if (res?.[0]) {
+//             //     if (!(res?.[0]?.status == resourceDataStatuses.completed && res?.[0]?.action == "validate")) {
+//             //         logger.error(`Error during validation of type ${resource.type}, validation is not successful or not completed. Resource id : ${resource?.resourceId}`);
+//             //         throwError("COMMON", 400, "VALIDATION_ERROR", `Error during validation of type ${resource.type}, validation is not successful or not completed.`);
+//             //     }
+//             //     if (res?.[0]?.fileStoreId != resource?.filestoreId) {
+//             //         logger.error(`fileStoreId doesn't match for resource with Id ${resource?.resourceId}. Expected fileStoreId ${resource?.filestoreId} but received ${res?.[0]?.fileStoreId}`);
+//             //         throwError("COMMON", 400, "VALIDATION_ERROR", `Uploaded file doesn't match for resource of type ${resource.type}.`)
+//             //     }
+//             // }
+//             // else {
+//             //     logger.error(`No resource data found for resource with Id ${resource?.resourceId}`);
+//             //     throwError("COMMON", 400, "VALIDATION_ERROR", `No resource data found for validation of resource type ${resource.type}.`);
+//             // }
+//         }
+//     }
+// }
 
 async function validateProjectCampaignResources(resources: any, request: any) {
     const requiredTypes = ["user", "facility", "boundaryWithTarget"];
@@ -895,10 +943,10 @@ async function validateProjectCampaignResources(resources: any, request: any) {
         }
     }
 
-    if (request?.body?.CampaignDetails?.action === "create" && request?.body?.CampaignDetails?.resources) {
-        logger.info(`skipResourceCheckValidationBeforeCreateForLocalTesting flag is ${config.values.skipResourceCheckValidationBeforeCreateForLocalTesting }`);
-        !config.values.skipResourceCheckValidationBeforeCreateForLocalTesting && await validateResources(request.body.CampaignDetails.resources, request);
-    }
+    // if (request?.body?.CampaignDetails?.action === "create" && request?.body?.CampaignDetails?.resources) {
+    //     logger.info(`skipResourceCheckValidationBeforeCreateForLocalTesting flag is ${config.values.skipResourceCheckValidationBeforeCreateForLocalTesting }`);
+    //     // !config.values.skipResourceCheckValidationBeforeCreateForLocalTesting && await validateResources(request.body.CampaignDetails.resources, request);
+    // }
 }
 
 
@@ -1645,6 +1693,82 @@ export async function validateGenerateQuery(generateTemplateQuery : GenerateTemp
     const tenantId = generateTemplateQuery.tenantId;
     await validateHierarchyDefination(generateTemplateQuery.hierarchyType, tenantId);
     await validateCampaignViaId(generateTemplateQuery.campaignId, tenantId);
+}
+
+export function validateDatasWithSchema(
+        sheetDatas: any[],
+        schema: any,
+        errors: any[],
+        localizationMap?: Record<string, string>
+    ) {
+        const ajv = new Ajv({ allErrors: true, strict: false });
+        addErrors(ajv); // Enables custom error messages
+        const validate = ajv.compile(schema);
+
+        const uniqueFields = schema.unique || []; // Expecting schema to have `unique: ["field1", "field2"]`
+        const uniquenessMap: Record<string, Set<any>> = {};
+
+        // Initialize sets for each unique field
+        uniqueFields.forEach((field : any) => {
+            uniquenessMap[field] = new Set();
+        });
+
+        for (let i = 0; i < sheetDatas.length; i++) {
+            const item = sheetDatas[i];
+            const isValid = validate(item);
+
+            if (!isValid && validate.errors) {
+                for (const error of validate.errors) {
+                    let key = error.instancePath || "";
+                    let message = error.message || "";
+
+                    if (key.startsWith("/")) key = key.slice(1);
+
+                    if (error.keyword === "required") {
+                        key = error.params?.missingProperty || "";
+                        message = `Data in column '${getLocalizedName(key, localizationMap)}' is required`;
+                    }
+                    else{
+                        message = `Data in column '${getLocalizedName(key, localizationMap)}' ${message}`;
+                    }
+
+                    errors.push({
+                        row: i + 3,
+                        message,
+                    });
+                }
+            }
+
+            // Uniqueness validation
+            for (const field of uniqueFields) {
+                const value = item[field];
+                if (value !== undefined && value !== null) {
+                    if (uniquenessMap[field].has(value)) {
+                        errors.push({
+                            row: i + 3,
+                            message: `Duplicate value "${value}" found in column '${getLocalizedName(field, localizationMap)}'`,
+                        });
+                    } else {
+                        uniquenessMap[field].add(value);
+                    }
+                }
+            }
+        }
+    }
+
+export function validateActiveFieldMinima(datas:any[], activeKey : string, errors : any[]){
+    let activeCount = 0;
+    for(const data of datas){
+        if(data[activeKey] == usageColumnStatus.active){
+            activeCount++;
+        }
+    }
+    if(activeCount < 1){
+        errors.push({
+            row: 3,
+            message: "At least one active entry is required. All entries are inactive in this sheet.",
+        });
+    }
 }
 
 

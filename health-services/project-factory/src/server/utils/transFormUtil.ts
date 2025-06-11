@@ -313,7 +313,9 @@ export class DataTransformer {
                 : config.user.userDefaultPassword;
 
             // username/id
-            if (!item.user.userName?.trim()) {
+            const userName = item?.user?.userName ? String(item?.user?.userName)?.trim() : null;
+            item.user.userName = userName;
+        if (!item.user.userName) {
                 const id = result.idResponses[idx++].id;
                 item.user.userName = id;
                 item.code = id;

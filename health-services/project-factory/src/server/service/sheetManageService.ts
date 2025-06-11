@@ -25,6 +25,6 @@ export async function processDataService(ResourceDetails : ResourceDetails, user
     const processTemplateConfig = JSON.parse(JSON.stringify(processTemplateConfigs?.[String(ResourceDetails.type)]));
     await enrichProcessTemplateConfig(ResourceDetails, processTemplateConfig);
     const responseToSend = await initializeProcessAndGetResponse(ResourceDetails, userUuid, processTemplateConfig, locale);
-    processResource(responseToSend, processTemplateConfig, locale);
+    processResource(responseToSend, processTemplateConfig);
     return responseToSend;
 }

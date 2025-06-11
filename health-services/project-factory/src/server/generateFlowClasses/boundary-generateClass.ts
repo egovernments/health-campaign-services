@@ -22,7 +22,7 @@ export class TemplateClass {
             this.getCampaignDetails(tenantId, campaignId),
         ]);
 
-        const schemaPromise = this.getSchema(tenantId, campaignDetails.projectType);
+        const boundarySchema = await this.getSchema(tenantId, campaignDetails.projectType);
 
         const sheetsConfig = templateConfig?.sheets?.[0];
         const readMeColumnHeader = Object.keys(sheetsConfig?.schema?.properties || {})?.[0];
@@ -46,7 +46,7 @@ export class TemplateClass {
                 localisedSolitOn,
                 hierarchyAfterSplitCode
             )),
-            schemaPromise
+            boundarySchema
         ]);
 
         const groupedBySheetName = this.groupBoundariesBySheetName(

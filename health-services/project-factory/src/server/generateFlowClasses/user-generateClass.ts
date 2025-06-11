@@ -4,7 +4,7 @@ import { getLocalizedName, populateBoundariesRecursively } from "../utils/campai
 import { searchProjectTypeCampaignService } from "../service/campaignManageService";
 import { searchBoundaryRelationshipData, searchBoundaryRelationshipDefinition } from "../api/coreApis";
 import { logger } from "../utils/logger";
-import { dataRowStatuses } from "../config/constants";
+import { dataRowStatuses, sheetDataRowStatuses } from "../config/constants";
 import { decrypt } from "../utils/cryptUtils";
 
 // This will be a dynamic template class for different types
@@ -45,7 +45,7 @@ export class TemplateClass {
                 localizedData[key] = rawData[key];
             }
 
-            localizedData["#status#"] = "CREATED";
+            localizedData["#status#"] = sheetDataRowStatuses.CREATED;
             localizedData["UserName"] = decrypt(rawData["UserName"]);
             localizedData["Password"] = decrypt(rawData["Password"]);
 

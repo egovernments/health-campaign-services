@@ -10,7 +10,7 @@ import { checkIfSourceIsMicroplan, getConfigurableColumnHeadersBasedOnCampaignTy
 import Localisation from "../controllers/localisationController/localisation.controller";
 import { executeQuery } from "./db";
 import { generatedResourceTransformer } from "./transforms/searchResponseConstructor";
-import { generatedResourceStatuses, headingMapping, resourceDataStatuses } from "../config/constants";
+import { allProcesses, generatedResourceStatuses, headingMapping, processStatuses, resourceDataStatuses } from "../config/constants";
 import { getLocaleFromRequest, getLocaleFromRequestInfo, getLocalisationModuleName } from "./localisationUtils";
 import { getBoundaryColumnName, getBoundaryTabName, getLatLongMapForBoundaryCodes } from "./boundaryUtils";
 import { getBoundaryDataService, searchDataService } from "../service/dataManageService";
@@ -1762,6 +1762,96 @@ export async function getRelatedDataWithCampaign(type: string, campaignNumber: s
     })
   }
   return rows;
+}
+
+export async function getMappingDataRelatedToCampaign(type: string, campaignNumber: string, status?: string) {
+  let queryString = `SELECT * FROM ${config?.DB_CONFIG.DB_CAMPAIGN_MAPPING_DATA_TABLE_NAME} WHERE type = $1 AND campaignNumber = $2`;
+  if (status) queryString += ` AND status = $3`;
+  const arrayStatements = [type, campaignNumber];
+  if (status) arrayStatements.push(status);
+  let relatedData = await executeQuery(queryString, arrayStatements);
+  if (!relatedData?.rows) return [];
+  let rows = [];
+  for (let i = 0; i < relatedData?.rows?.length; i++) {
+    rows.push({
+      campaignNumber: relatedData?.rows[i]?.campaignnumber,
+      type: relatedData?.rows[i]?.type,
+      boundaryCode: relatedData?.rows[i]?.boundarycode,
+      uniqueIdentifierForData: relatedData?.rows[i]?.uniqueidentifierfordata,
+      status: relatedData?.rows[i]?.status,
+      mappingId: relatedData?.rows[i]?.mappingid
+    })
+  }
+  return rows;
+}
+
+export async function getCurrentProcesses(campaignNumber: string, processName ?: string, status ?: string) {
+  let queryString = `SELECT * FROM ${config?.DB_CONFIG.DB_CAMPAIGN_PROCESS_DATA_TABLE_NAME} WHERE campaignNumber = $1`;
+  if (processName) queryString += ` AND processName = $2`;
+  if (status) queryString += ` AND status = $3`;
+  const arrayStatements = [campaignNumber];
+  if (processName) arrayStatements.push(processName);
+  if (status) arrayStatements.push(status);
+  let relatedData = await executeQuery(queryString, arrayStatements);
+  if (!relatedData?.rows) return [];
+  let rows = [];
+  for (let i = 0; i < relatedData?.rows?.length; i++) {
+    rows.push({
+      campaignNumber: relatedData?.rows[i]?.campaignnumber,
+      processName : relatedData?.rows[i]?.processname,
+      status: relatedData?.rows[i]?.status
+    })
+  }
+  return rows;
+}
+
+export async function getCampaignDataRowsWithUniqueIdentifiers(type: string, uniqueIdentifiers: any[], status ?: string) {
+  if(uniqueIdentifiers?.length === 0) return [];
+  let queryString = `SELECT * FROM ${config?.DB_CONFIG.DB_CAMPAIGN_DATA_TABLE_NAME} WHERE type = $1 AND uniqueIdentifier = ANY($2)`;
+  if(status) queryString += ` AND status = $3`;
+  const arrayStatements = [type, uniqueIdentifiers];
+  if(status) arrayStatements.push(status);
+  let relatedData = await executeQuery(queryString, arrayStatements);
+  if(!relatedData?.rows) return [];
+  let rows = [];
+  for(let i = 0; i < relatedData?.rows?.length; i++) {
+    rows.push({
+      campaignNumber : relatedData?.rows[i]?.campaignnumber,
+      type : relatedData?.rows[i]?.type,
+      data : relatedData?.rows[i]?.data,
+      uniqueIdentifier : relatedData?.rows[i]?.uniqueidentifier,
+      status : relatedData?.rows[i]?.status,
+      uniqueIdAfterProcess : relatedData?.rows[i]?.uniqueidafterprocess
+    })
+  }
+  return rows;
+}
+
+
+export async function prepareProcessesInDb(campaignNumber: any) {
+  let allCurrentProcesses = await getCurrentProcesses(campaignNumber);
+  for (let i = 0; i < allCurrentProcesses?.length; i++) {
+    if (allCurrentProcesses[i]?.status == processStatuses.failed) {
+      allCurrentProcesses[i].status = processStatuses.pending;
+    }
+  }
+  produceModifiedMessages({ processes: allCurrentProcesses }, config.kafka.KAFKA_UPDATE_PROCESS_DATA_TOPIC);
+  let allProcessesJson: any = JSON.parse(JSON.stringify(allProcesses))
+  allCurrentProcesses = [];
+  for (let processKey in allProcesses) {
+    let isProcessNameAvailableInAllCurrentProcesses = allCurrentProcesses.find((process: any) => process?.processName == allProcessesJson[processKey]);
+    if (!isProcessNameAvailableInAllCurrentProcesses) {
+      allCurrentProcesses.push({
+        campaignNumber: campaignNumber,
+        processName: allProcessesJson[processKey],
+        status: processStatuses.pending
+      })
+    }
+  }
+  produceModifiedMessages({ processes: allCurrentProcesses }, config.kafka.KAFKA_SAVE_PROCESS_DATA_TOPIC);
+  // wait for 2 second
+  logger.info("Waiting for 2 seconds for processes to get updated...");
+  await new Promise(resolve => setTimeout(resolve, 2000));
 }
 
 

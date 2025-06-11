@@ -38,11 +38,13 @@ import {
   // extractFrenchOrPortugeseLocalizationMap,
   findMapValue,
   getConfigurableColumnHeadersFromSchemaForTargetSheet,
+  getCurrentProcesses,
   getLocalizedHeaders,
   getLocalizedMessagesHandler,
   getMdmsDataBasedOnCampaignType,
   modifyBoundaryData,
   modifyBoundaryDataHeadersWithMap,
+  prepareProcessesInDb,
   replicateRequest,
   throwError,
 } from "./genericUtils";
@@ -54,8 +56,10 @@ import {
 } from "./transforms/searchResponseConstructor";
 import { transformAndCreateLocalisation } from "./transforms/localisationMessageConstructor";
 import {
+  allProcesses,
   campaignStatuses,
   headingMapping,
+  processStatuses,
   processTrackStatuses,
   processTrackTypes,
   resourceDataStatuses,
@@ -2549,7 +2553,7 @@ const updateOrAddTarget = (alreadyPresentTargets: any, beneficiaryType: string, 
   }
 };
 
-async function processAfterPersist(request: any, actionInUrl: any) {
+export async function processAfterPersist(request: any, actionInUrl: any) {
   try {
     const localizationMap = await getLocalizedMessagesHandler(
       request,
@@ -2586,6 +2590,86 @@ async function processAfterPersist(request: any, actionInUrl: any) {
   }
 }
 
+export async function processAfterPersistNew(request: any, actionInUrl: any) {
+  try {
+    const localizationMap = await getLocalizedMessagesHandler(
+      request,
+      request?.body?.CampaignDetails?.tenantId
+    );
+    if (request?.body?.CampaignDetails?.action == "create") {
+      const campaignDetails = request?.body?.CampaignDetails;
+      const campaignNumber = campaignDetails?.campaignNumber;
+      await prepareProcessesInDb(campaignNumber);
+      await createAllResources(campaignDetails);
+      // await createAllMappings(campaignDetails);
+      await enrichAndPersistProjectCampaignRequest(
+        request,
+        actionInUrl,
+        false,
+        localizationMap
+      );
+    } else {
+      await updateProjectDates(request, actionInUrl);
+      await enrichAndPersistProjectCampaignRequest(
+        request,
+        actionInUrl,
+        false,
+        localizationMap
+      );
+    }
+    delete request.body?.boundariesCombined;
+  } catch (error: any) {
+    console.log(error);
+    logger.error(error);
+    await enrichAndPersistCampaignWithError(request?.body, error);
+  }
+}
+
+async function createAllResources(campaignDetails: any) {
+  let allCurrentProcesses = await getCurrentProcesses(campaignDetails?.campaignNumber);
+  const resourcesTask = [allProcesses.facilityCreation,allProcesses.userCreation,allProcesses.projectCreation];
+  for (let i = 0; i < resourcesTask?.length; i++) {
+    const task = allCurrentProcesses.find((process: any) => process?.processName == resourcesTask[i]);
+    if(task && task?.status == processStatuses.pending) {
+      produceModifiedMessages({ taskDetails : 
+        { task: resourcesTask[i],
+        campaignId : campaignDetails?.id
+      }
+      }, config.kafka.KAFKA_START_ADMIN_CONSOLE_TASK_TOPIC);
+    }
+  }
+  let allTaskCompleted = false;
+  let anyTaskFailed = false;
+  let attempts = 0;
+  let facilityTask : any, userTask : any, projectTask : any;
+  while(allTaskCompleted == false && anyTaskFailed == false && attempts < 100) {
+    logger.info("Waiting for 20 seconds for resources to get created...");
+    await new Promise(resolve => setTimeout(resolve, 20000));
+    facilityTask = await getCurrentProcesses(campaignDetails?.campaignNumber, allProcesses.facilityCreation);
+    userTask = await getCurrentProcesses(campaignDetails?.campaignNumber, allProcesses.userCreation);
+    projectTask = await getCurrentProcesses(campaignDetails?.campaignNumber, allProcesses.projectCreation);
+    if(facilityTask?.status == processStatuses.completed && userTask?.status == processStatuses.completed && projectTask?.status == processStatuses.completed) {
+      allTaskCompleted = true;
+    }
+    if(facilityTask?.status == processStatuses.failed || userTask?.status == processStatuses.failed || projectTask?.status == processStatuses.failed) {
+      anyTaskFailed = true;
+    }
+  }
+  if(anyTaskFailed) {
+    let failedTasks = [];
+    if(facilityTask?.status == processStatuses.failed) {
+      failedTasks.push(allProcesses.facilityCreation);
+    }
+    if(userTask?.status == processStatuses.failed) {
+      failedTasks.push(allProcesses.userCreation);
+    }
+    if(projectTask?.status == processStatuses.failed) {
+      failedTasks.push(allProcesses.projectCreation);
+    }
+    throwError("COMMON", 400, "INTERNAL_SERVER_ERROR", `${failedTasks.join(", ")} tasks failed.`);
+  } 
+}
+
 async function processBasedOnAction(request: any, actionInUrl: any) {
   if (actionInUrl == "create") {
     request.body.CampaignDetails.id = uuidv4();
@@ -2598,7 +2682,7 @@ async function processBasedOnAction(request: any, actionInUrl: any) {
   ) {
     callGenerateWhenChildCampaigngetsCreated(request);
   }
-  processAfterPersist(request, actionInUrl);
+  processAfterPersistNew(request, actionInUrl);
 }
 
 async function getLocalizedHierarchy(request: any, localizationMap: any) {

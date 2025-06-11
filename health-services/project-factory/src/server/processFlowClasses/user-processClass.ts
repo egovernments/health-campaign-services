@@ -3,7 +3,7 @@ import { SheetMap } from "../models/SheetMap";
 import { logger } from "../utils/logger";
 import { searchProjectTypeCampaignService } from "../service/campaignManageService";
 import { getRelatedDataWithCampaign } from "../utils/genericUtils";
-import { dataRowStatuses } from "../config/constants";
+import { dataRowStatuses, sheetDataRowStatuses } from "../config/constants";
 import { produceModifiedMessages } from "../kafka/Producer";
 import config from "../config";
 import { DataTransformer } from "../utils/transFormUtil";
@@ -11,6 +11,7 @@ import { transformConfigs } from "../config/transformConfigs";
 import { defaultRequestInfo } from "../api/coreApis";
 import { httpRequest } from "../utils/request";
 import { decrypt, encrypt } from "../utils/cryptUtils";
+import { validateResourceDetailsBeforeProcess } from "../utils/sheetManageUtils";
 
 // This will be a dynamic template class for different types
 export class TemplateClass {
@@ -21,6 +22,7 @@ export class TemplateClass {
         localizationMap: Record<string, string>,
         templateConfig: any
     ): Promise<SheetMap> {
+        await validateResourceDetailsBeforeProcess("userValidation", resourceDetails, localizationMap);
         logger.info("Processing file...");
         logger.info(`ResourceDetails: ${JSON.stringify(resourceDetails)}`);
 
@@ -41,7 +43,7 @@ export class TemplateClass {
         const allCurrentUsers = await getRelatedDataWithCampaign(resourceDetails?.type, campaign.campaignNumber, dataRowStatuses.completed);
         const allData = allCurrentUsers?.map((u: any) => {
             const data: any = u?.data;
-            data["#status#"] = "CREATED";
+            data["#status#"] = sheetDataRowStatuses.CREATED;
             data["UserName"] = decrypt(u?.data?.["UserName"]);
             data["Password"] = decrypt(u?.data?.["Password"]);
             return data;

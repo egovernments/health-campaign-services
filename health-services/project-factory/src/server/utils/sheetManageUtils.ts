@@ -3,7 +3,7 @@ import config from "../config";
 import { produceModifiedMessages } from "../kafka/Producer";
 import * as ExcelJS from "exceljs";
 import { callMdmsSchema, createAndUploadFileWithOutRequest, getJsonDataWithUnlocalisedKey, getSheetDataFromWorksheet } from "../api/genericApis";
-import { getLocalizedMessagesHandlerViaLocale, handledropdownthingsUnLocalised, searchAllGeneratedResources } from "./genericUtils";
+import { getLocalizedMessagesHandlerViaLocale, handledropdownthingsUnLocalised, searchAllGeneratedResources, throwError } from "./genericUtils";
 import { getLocalisationModuleName } from "./localisationUtils";
 import { getLocalizedName } from "./campaignUtils";
 import { adjustRowHeight, enrichTemplateMetaData, freezeUnfreezeColumns, getExcelWorkbookFromFileURL, getLocaleFromWorkbook, manageMultiSelectUnlocalised, updateFontNameToRoboto } from "./excelUtils";
@@ -15,6 +15,7 @@ import fs from 'fs';
 import { ResourceDetails } from "../config/models/resourceDetailsSchema";
 import { fetchFileFromFilestore } from "../api/coreApis";
 import { EnrichProcessConfigUtil } from "./EnrichProcessConfigUtil";
+import { processTemplateConfigs } from "../config/processTemplateConfigs";
 
 export async function initializeGenerateAndGetResponse(
     tenantId: string,
@@ -133,11 +134,11 @@ export async function generateResource(responseToSend: any, templateConfig: any)
     }
 }
 
-export async function processResource(ResourceDetails: any, templateConfig: any, locale: string) {
+export async function processResource(ResourceDetails: any, templateConfig: any) {
     try {
         const fileUrl = await fetchFileFromFilestore(ResourceDetails?.fileStoreId, ResourceDetails?.tenantId);
         const workBook = await getExcelWorkbookFromFileURL(fileUrl);
-        locale = getLocaleFromWorkbook(workBook) || "";
+        let locale = getLocaleFromWorkbook(workBook) || "";
         if(!locale){
             throw new Error("Locale not found in the file metadata.");
         }
@@ -157,6 +158,18 @@ export async function processResource(ResourceDetails: any, templateConfig: any,
     }
 }
 
+export function checkAllRowsConsistency(jsonData: any) {
+    if(!Array.isArray(jsonData)) return;
+    if(!jsonData.length) return;
+    let prevRow = jsonData[0]?.["!row#number!"];
+    for (let i = 1; i < jsonData.length; i++) {
+        if(jsonData[i]?.["!row#number!"] !== prevRow + 1) {
+            throwError("VALIDATION_ERROR", 400, "INVALID_FILE_ERROR", "There should not be any empty gap in sheet rows.");
+        }
+        prevRow = jsonData[i]?.["!row#number!"];
+    }
+}
+
 async function processRequest(ResourceDetails: any, workBook: any, templateConfig: any, localizationMap: any) {
     const wholeSheetData: any = {};
     for (const sheet of templateConfig?.sheets || []) {
@@ -164,6 +177,7 @@ async function processRequest(ResourceDetails: any, workBook: any, templateConfi
         const worksheet = workBook.getWorksheet(sheetName);
         const sheetData = getSheetDataFromWorksheet(worksheet);
         const jsonData = getJsonDataWithUnlocalisedKey(sheetData, true);
+        if (sheet?.validateRowsGap) checkAllRowsConsistency(jsonData);
         wholeSheetData[sheetName] = jsonData;
         if(!sheet?.schemaName) continue;
         const schema = await callMdmsSchema(ResourceDetails?.tenantId, sheet?.schemaName);
@@ -403,10 +417,11 @@ function mergeAndGetDynamicColumns(dynamicColumns: any, schema: any): any {
         assignProps(dynamicColumns[propertyKey], property);
     }
 
-    // Return sorted by orderNumber
-    return Object.fromEntries(
-        Object.entries(dynamicColumns).sort(([, a]: any, [, b]: any) => a.orderNumber - b.orderNumber)
-    );
+    const sortedArray: [string, any][] = Object.entries(dynamicColumns)
+        .sort(([, a]: any, [, b]: any) => a.orderNumber - b.orderNumber);
+      
+    
+    return sortedArray;
 }
 
 
@@ -440,9 +455,9 @@ function processDynamicColumns(
     const keyRow = worksheet.getRow(1);       // Row 1: Original keys
     const headerRow = worksheet.getRow(2);    // Row 2: Localized values
 
+    let columnIndex = 1;
 
-    Object.keys(sheetData.dynamicColumns).forEach((columnName, index) => {
-        const columnIndex = index + 1;
+    for (const [columnName, columnConfig] of sheetData?.dynamicColumns) {
         const localisedColumnName = getLocalizedName(columnName, localizationMap);
         columnNameToIndexMap[columnName] = columnIndex;
 
@@ -454,8 +469,11 @@ function processDynamicColumns(
         const headerCell = headerRow.getCell(columnIndex);
         headerCell.value = localisedColumnName;
 
-        applyColumnProperties(headerRow, headerCell, sheetData.dynamicColumns[columnName], isProcessedFile);
-    });
+        applyColumnProperties(headerRow, headerCell, columnConfig, isProcessedFile);
+
+        columnIndex++;
+    }
+
 
     // Hide row with original keys
     keyRow.hidden = true;
@@ -607,6 +625,31 @@ export async function enrichProcessTemplateConfig(ResourceDetails: any, processT
         const util = new EnrichProcessConfigUtil();
         await util.execute(processTemplateConfig.enrichmentFunction, ResourceDetails, processTemplateConfig);
     }
+}
+
+export async function validateResourceDetailsBeforeProcess(validationProcessType : string, resourceDetails: any, localizationMap : any) {
+    logger.info("Validating resource details before process main function...");
+    const processTemplateConfig = JSON.parse(JSON.stringify(processTemplateConfigs?.[String(validationProcessType)]));
+    const validationResourceDetails = {
+        type : validationProcessType,
+        tenantId : resourceDetails?.tenantId,
+        additionalDetails : resourceDetails?.additionalDetails,
+        fileStoreId : resourceDetails?.fileStoreId,
+        campaignId : resourceDetails?.campaignId,
+        hierarchyType : resourceDetails?.hierarchyType
+    }
+    await enrichProcessTemplateConfig(validationResourceDetails, processTemplateConfig);
+    const fileUrl = await fetchFileFromFilestore(validationResourceDetails?.fileStoreId, validationResourceDetails?.tenantId);
+    const workBook = await getExcelWorkbookFromFileURL(fileUrl);
+    let locale = getLocaleFromWorkbook(workBook) || "";
+    if (!locale) {
+        throw new Error("Locale not found in the file metadata.");
+    }
+    await processRequest(validationResourceDetails, workBook, processTemplateConfig, localizationMap);
+    if (validationResourceDetails?.additionalDetails?.sheetErrors?.length) {
+        throwError("COMMON", 400, "VALIDATION_ERROR", JSON.stringify(validationResourceDetails?.additionalDetails?.sheetErrors));
+    }
+    logger.info("Validated resource details before process main function...");
 }
 
 

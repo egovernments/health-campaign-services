@@ -72,6 +72,11 @@ const config = {
     KAFKA_SAVE_PLAN_FACILITY_TOPIC: process.env.KAFKA_SAVE_PLAN_FACILITY_TOPIC || "project-factory-save-plan-facility",
     KAFKA_SAVE_SHEET_DATA_TOPIC: process.env.KAFKA_SAVE_SHEET_DATA_TOPIC || "save-sheet-data",
     KAFKA_UPDATE_SHEET_DATA_TOPIC: process.env.KAFKA_UPDATE_SHEET_DATA_TOPIC || "update-sheet-data",
+    KAFKA_SAVE_MAPPING_DATA_TOPIC : process.env.KAFKA_SAVE_MAPPING_TOPIC || "save-mapping-data",
+    KAFKA_UPDATE_MAPPING_DATA_TOPIC : process.env.KAFKA_UPDATE_MAPPING_TOPIC || "update-mapping-data",
+    KAFKA_SAVE_PROCESS_DATA_TOPIC: process.env.KAFKA_SAVE_PROCESS_TOPIC || "save-process-data",
+    KAFKA_UPDATE_PROCESS_DATA_TOPIC: process.env.KAFKA_UPDATE_PROCESS_TOPIC || "update-process-data",
+    KAFKA_START_ADMIN_CONSOLE_TASK_TOPIC: process.env.KAFKA_START_TASK_TOPIC || "start-admin-console-task",
     KAFKA_TEST_TOPIC: "test-topic-project-factory",
   },
 
@@ -87,6 +92,8 @@ const config = {
     DB_GENERATED_RESOURCE_DETAILS_TABLE_NAME: `${getDBSchemaName(process.env.DB_SCHEMA)}.eg_cm_generated_resource_details`,
     DB_RESOURCE_DETAILS_TABLE_NAME: `${getDBSchemaName(process.env.DB_SCHEMA)}.eg_cm_resource_details`,
     DB_CAMPAIGN_DATA_TABLE_NAME: `${getDBSchemaName(process.env.DB_SCHEMA)}.eg_cm_campaign_data`,
+    DB_CAMPAIGN_MAPPING_DATA_TABLE_NAME: `${getDBSchemaName(process.env.DB_SCHEMA)}.eg_cm_campaign_mapping_data`,
+    DB_CAMPAIGN_PROCESS_DATA_TABLE_NAME: `${getDBSchemaName(process.env.DB_SCHEMA)}.eg_cm_campaign_process_data`, 
   },
   // Application configuration
   app: {
@@ -172,7 +179,8 @@ const config = {
   // Values configuration
   values: {
     //module name
-    unfrozeTillRow: process.env.UNFROZE_TILL_ROW || "5000",
+    skipParentProjectConfirmation: process.env.SKIP_PARENT_PROJECT_CONFIRMATION === "true",
+    unfrozeTillRow: process.env.UNFROZE_TILL_ROW || "5010",
     unfrozeTillColumn: process.env.UNFROZE_TILL_COLUMN || "26",
     moduleName: process.env.MODULE_NAME || "HCM-ADMIN-CONSOLE",
     readMeTab: process.env.READ_ME_TAB || "HCM_README_SHEETNAME",

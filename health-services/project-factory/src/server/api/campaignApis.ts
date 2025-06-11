@@ -1838,7 +1838,7 @@ async function createProjectCampaignResourcData(request: any) {
 
 async function confirmProjectParentCreation(tenantId: string, uuid: string, projectId: any) {
   const searchBody = {
-    RequestInfo: defaultRequestInfo?.RequestInfo,
+    RequestInfo: JSON.parse(JSON.stringify(defaultRequestInfo?.RequestInfo)),
     Projects: [
       {
         id: projectId,

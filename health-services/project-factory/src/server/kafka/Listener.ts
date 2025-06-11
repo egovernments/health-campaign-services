@@ -16,6 +16,7 @@ const kafkaConfig: ConsumerGroupOptions = {
 // Topic Names
 const topicNames = [
     config.kafka.KAFKA_START_CAMPAIGN_MAPPING_TOPIC,
+    config.kafka.KAFKA_START_ADMIN_CONSOLE_TASK_TOPIC,
     config.kafka.KAFKA_TEST_TOPIC
 ];
 
@@ -32,6 +33,9 @@ export function listener() {
                 case config.kafka.KAFKA_START_CAMPAIGN_MAPPING_TOPIC:
                     await handleCampaignMapping(messageObject);
                     break;
+                // case config.kafka.KAFKA_START_ADMIN_CONSOLE_TASK_TOPIC:
+                //     await handleTaskForCampaign(messageObject);
+                //     break;
                 default:
                     logger.warn(`Unhandled topic: ${message.topic}`);
             }

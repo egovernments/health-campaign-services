@@ -3,13 +3,14 @@ import { SheetMap } from "../models/SheetMap";
 import { logger } from "../utils/logger";
 import { searchProjectTypeCampaignService } from "../service/campaignManageService";
 import { getRelatedDataWithCampaign } from "../utils/genericUtils";
-import { dataRowStatuses } from "../config/constants";
+import { dataRowStatuses, sheetDataRowStatuses } from "../config/constants";
 import { DataTransformer } from "../utils/transFormUtil";
 import { transformConfigs } from "../config/transformConfigs";
 import { produceModifiedMessages } from "../kafka/Producer";
 import config from "../config";
 import { httpRequest } from "../utils/request";
 import { defaultRequestInfo } from "../api/coreApis";
+import { validateResourceDetailsBeforeProcess } from "../utils/sheetManageUtils";
 
 export class TemplateClass {
     static async process(
@@ -18,6 +19,7 @@ export class TemplateClass {
         localizationMap: Record<string, string>,
         templateConfig: any
     ): Promise<SheetMap> {
+        await validateResourceDetailsBeforeProcess("facilityValidation", resourceDetails, localizationMap);
         logger.info("Processing Facility file...");
         logger.info(`ResourceDetails: ${JSON.stringify(resourceDetails)}`);
 
@@ -40,7 +42,7 @@ export class TemplateClass {
         const allCurrentFacilties = await getRelatedDataWithCampaign(resourceDetails?.type, campaign.campaignNumber, dataRowStatuses.completed);
         const allData = allCurrentFacilties?.map((u: any) => {
             let data: any = u?.data;
-            data["#status#"] = "CREATED";
+            data["#status#"] = sheetDataRowStatuses.CREATED;
             return data;
         });
         const sheetMap: SheetMap = {};
@@ -93,7 +95,7 @@ export class TemplateClass {
             .map((f: any): [string, any] | null => {
                 const name = String(f?.data?.["HCM_ADMIN_CONSOLE_FACILITY_NAME"]);
                 if (!name) return null;
-                return [name + "_" + campaignNumber, f];
+                return [name, f];
             })
             .filter((entry): entry is [string, any] => entry !== null);
         const existingMap = new Map<string, any>(existingMapEntries);
