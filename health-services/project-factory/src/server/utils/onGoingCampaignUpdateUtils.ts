@@ -695,7 +695,7 @@ async function processResources(mappingObject: any) {
   mergeParentResources(mappingObject, resources, resourcesArrayFromParentCampaign);
 }
 
-async function getResourceFromResourceId(mappingObject: any, createResourceId: any, resource: any) {
+export async function getResourceFromResourceId(mappingObject: any, createResourceId: any, resource: any) {
   const searchCriteria = buildSearchCriteria(mappingObject, createResourceId, resource?.type);
   const requestBody = replicateRequest(mappingObject, searchCriteria);
   const responseFromDataSearch = await searchDataService(requestBody);

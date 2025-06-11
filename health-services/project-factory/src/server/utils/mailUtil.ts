@@ -5,53 +5,83 @@ import { MDMSModels } from "../models";
 import { getLocalizedName } from "./campaignUtils";
 import { getLocalizedMessagesHandlerViaLocale } from "./genericUtils";
 import { getFileUrl } from "./onGoingCampaignUpdateUtils";
+import { logger } from "./logger"; // if you use a custom logger
 
 export async function sendNotificationEmail(
-    fileStoreIdMap: Record<string, string>, requestInfo: any
+    fileStoreIdMap: Record<string, string>, mappingObject: any
 ): Promise<void> {
 
-    const localizationMap = await getLocalizedMessagesHandlerViaLocale((requestInfo?.msgId?.split("|")?.[1] || "en-IN"), requestInfo?.userInfo?.tenantId);
+    try {
+        const requestInfo = mappingObject?.RequestInfo;
+        logger.info("Step 1: Starting sendNotificationEmail");
 
-    const tenantId = requestInfo?.userInfo?.tenantId;
-    const MdmsCriteria: MDMSModels.MDMSv2RequestCriteria = {
-        MdmsCriteria: {
-            tenantId: tenantId,
-            schemaCode: "HCM-ADMIN-CONSOLE.emailTemplate"
+        const locale = requestInfo?.msgId?.split("|")?.[1] || "en-IN";
+        const tenantId = requestInfo?.userInfo?.tenantId;
+
+        logger.info(`Step 2: Extracted locale: ${locale}, tenantId: ${tenantId}`);
+
+        const localizationMap = await getLocalizedMessagesHandlerViaLocale(locale, tenantId);
+        logger.info("Step 3: Fetched localization map");
+        
+        const MdmsCriteria: MDMSModels.MDMSv2RequestCriteria = {
+            MdmsCriteria: {
+                tenantId: tenantId,
+                schemaCode: "HCM-ADMIN-CONSOLE.emailTemplate"
+            }
+        };
+
+        logger.info("Step 4: Calling MDMS API with criteria: " + JSON.stringify(MdmsCriteria));
+        const mdmsResponse = await searchMDMSDataViaV2Api(MdmsCriteria);
+
+        const emailTemplate = mdmsResponse?.mdms?.[0];
+        if (!emailTemplate) {
+            logger.error("Step 5: Email template not found in MDMS response");
+            throw new Error("Email template not found in MDMS");
         }
-    };
+        logger.info("Step 5: Fetched email template from MDMS");
 
-    const mdmsResponse = await searchMDMSDataViaV2Api(MdmsCriteria);
-    const emailTemplate = mdmsResponse?.mdms?.[0];
+        const campaignName = mappingObject?.CampaignDetails?.campaignName || "";
+        const subjectCode = emailTemplate?.data?.subjectCode;
+        const localizedSubject = getLocalizedName(subjectCode, localizationMap);
+        const subject = `${localizedSubject} ${campaignName}`.trim();
 
-    if (!emailTemplate) throw new Error("Email template not found in MDMS");
+        const bodyLines = emailTemplate?.data?.bodyCodes.map((code: string) =>
+            getLocalizedName(code, localizationMap)
+        );
+        logger.info("Step 6: Constructed localized subject and body lines");
 
-    const subject = getLocalizedName(emailTemplate?.data?.subjectCode, localizationMap);
-    const bodyLines = emailTemplate?.data?.bodyCodes.map((code: string) =>
-        getLocalizedName(code, localizationMap)
-    );
+        const fileUrls = await Promise.all(
+            Object.entries(fileStoreIdMap).map(async ([fileId, fileName]) => {
+                const url = await getFileUrl(fileId, tenantId);
+                logger.info(`Step 7: Fetched file URL for fileStoreId: ${fileId}`);
+                return `<a href="${url}">${fileName}</a>`;
+            })
+        );
 
-    const fileUrls = await Promise.all(
-        Object.entries(fileStoreIdMap).map(async ([fileId, fileName]) => {
-            const url = await getFileUrl(fileId, tenantId);
-            return `<a href="${url}">${fileName}</a>`;
-        })
-    );
+        const allFileUrls = fileUrls.join("<br/>");
+        const fullBody = `${bodyLines.join("<br/>")}<br/><br/>${allFileUrls}`;
+        logger.info("Step 8: Constructed full email body");
 
-    const allFileUrls = fileUrls.join("<br/>");
-    const fullBody = `${bodyLines.join("<br/>")}<br/><br/>${allFileUrls}`;
+        const message = {
+            requestInfo: requestInfo,
+            email: {
+                emailTo: [requestInfo?.userInfo?.emailId],
+                subject,
+                body: fullBody,
+                fileStoreId: fileStoreIdMap,
+                tenantId,
+                isHTML: true,
+            },
+        };
 
-    const message = {
-        requestInfo: requestInfo,
-        email: {
-            emailTo: [requestInfo?.userInfo?.emailId],
-            subject,
-            body: fullBody,
-            fileStoreId: fileStoreIdMap,
-            tenantId,
-            isHTML: true,
-        },
-    };
+        logger.info("Step 9: Prepared email message object");
+        logger.info("Step 10: Producing message to Kafka topic: " + config?.kafka?.KAFKA_NOTIFICATION_EMAIL_TOPIC);
+        await produceModifiedMessages(message, config?.kafka?.KAFKA_NOTIFICATION_EMAIL_TOPIC);
 
+        logger.info("Step 11: Email message successfully produced to Kafka");
 
-    await produceModifiedMessages(message, config?.kafka?.KAFKA_NOTIFICATION_EMAIL_TOPIC);
+    } catch (error) {
+        logger.error("Error occurred in sendNotificationEmail: ", error);
+        throw error;
+    }
 }
