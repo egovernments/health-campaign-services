@@ -45,6 +45,7 @@ public class ServiceRequestValidator {
 
     public void validateServiceRequest(ServiceRequest serviceRequest){
         List<ServiceDefinition> serviceDefinitions = validateServiceDefID(serviceRequest.getService().getTenantId(), serviceRequest.getService().getServiceDefId());
+        validateServiceRequestAlreadyExists(serviceRequest);
         validateAttributeValuesAgainstServiceDefinition(serviceDefinitions.get(0), serviceRequest.getService().getAttributes());
         validateAccountId(serviceRequest.getService());
     }
@@ -167,6 +168,19 @@ public class ServiceRequestValidator {
             throw new CustomException(SERVICE_REQUEST_INVALID_SERVICE_DEF_ID_CODE, SERVICE_REQUEST_INVALID_SERVICE_DEF_ID_MSG);
 
         return serviceDefinitions;
+    }
+
+    private void validateServiceRequestAlreadyExists(ServiceRequest serviceRequest) {
+        Service service = serviceRequest.getService();
+        List<Service> services = serviceRequestRepository.getService(ServiceSearchRequest.builder()
+                .serviceCriteria(ServiceCriteria.builder()
+                        .clientId(service.getClientId())
+                        .tenantId(service.getTenantId())
+                        .build())
+                .build());
+        if (!CollectionUtils.isEmpty(services)) {
+            throw new CustomException(SERVICE_ALREADY_EXISTS_ERR_CODE, SERVICE_ALREADY_EXISTS_FOR_CLIENT_ID_ERR_MSG);
+        }
     }
 
     private List<Service> validateExistingServiceRequest(ServiceRequest serviceRequest) {

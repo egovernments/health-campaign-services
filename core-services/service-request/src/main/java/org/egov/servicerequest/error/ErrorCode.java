@@ -72,6 +72,10 @@ public class ErrorCode {
 
     public static final String SERVICE_DOES_NOT_EXIST_ERR_MSG = "Service does not exist";
 
+    public static final String SERVICE_ALREADY_EXISTS_ERR_CODE = "SERVICE_ALREADY_EXISTS_ERR_CODE";
+
+    public static final String SERVICE_ALREADY_EXISTS_FOR_CLIENT_ID_ERR_MSG = "Service corresponding to the client id already exists";
+
     public static final String SERVICE_ATTRIBUTE_VALUE_INVALID_ERR_CODE = "SERVICE_ATTRIBUTE_VALUE_INVALID_ERR_CODE";
 
     public static final String SERVICE_ATTRIBUTE_VALUE_DOES_NOT_EXIST_ERR_MSG = "Service attribute value does not exist";

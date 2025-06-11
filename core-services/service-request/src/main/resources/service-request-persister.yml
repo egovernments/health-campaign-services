@@ -13,66 +13,40 @@ serviceMaps:
       transactionCodeJsonPath: $.id
       auditAttributeBasePath: $.*
       queryMaps:
-
         - query: INSERT INTO eg_service_definition(id, tenantid, code, isactive, createdby, lastmodifiedby, createdtime, lastmodifiedtime, additionaldetails, clientid) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
           basePath: $.ServiceDefinition
           jsonMaps:
             - jsonPath: $.ServiceDefinition.id
-
             - jsonPath: $.ServiceDefinition.tenantId
-
             - jsonPath: $.ServiceDefinition.code
-
             - jsonPath: $.ServiceDefinition.isActive
-
             - jsonPath: $.ServiceDefinition.auditDetails.createdBy
-
             - jsonPath: $.ServiceDefinition.auditDetails.lastModifiedBy
-
             - jsonPath: $.ServiceDefinition.auditDetails.createdTime
-
             - jsonPath: $.ServiceDefinition.auditDetails.lastModifiedTime
-
             - jsonPath: $.ServiceDefinition.additionalFields
               type: JSON
               dbType: JSONB
-
             - jsonPath: $.ServiceDefinition.clientId
-
-
         - query: INSERT INTO eg_service_attribute_definition(id, referenceid, tenantid, code, datatype, "values", isactive, required, regex, "order", createdby, lastmodifiedby, createdtime, lastmodifiedtime, additionaldetails) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
           basePath: $.ServiceDefinition.attributes.*
           jsonMaps:
             - jsonPath: $.ServiceDefinition.attributes.*.id
-
             - jsonPath: $.ServiceDefinition.attributes.*.referenceId
-
             - jsonPath: $.ServiceDefinition.attributes.*.tenantId
-
             - jsonPath: $.ServiceDefinition.attributes.*.code
-
             - jsonPath: $.ServiceDefinition.attributes.*.dataType
-
             - jsonPath: $.ServiceDefinition.attributes.*.values
               type: ARRAY
               dbType: STRING
-
             - jsonPath: $.ServiceDefinition.attributes.*.isActive
-
             - jsonPath: $.ServiceDefinition.attributes.*.required
-
             - jsonPath: $.ServiceDefinition.attributes.*.regex
-
             - jsonPath: $.ServiceDefinition.attributes.*.order
-
             - jsonPath: $.ServiceDefinition.attributes.*.auditDetails.createdBy
-
             - jsonPath: $.ServiceDefinition.attributes.*.auditDetails.lastModifiedBy
-
             - jsonPath: $.ServiceDefinition.attributes.*.auditDetails.createdTime
-
             - jsonPath: $.ServiceDefinition.attributes.*.auditDetails.lastModifiedTime
-
             - jsonPath: $.ServiceDefinition.attributes.*.additionalFields
               type: JSON
               dbType: JSONB
@@ -89,63 +63,40 @@ serviceMaps:
       transactionCodeJsonPath: $.id
       auditAttributeBasePath: $.*
       queryMaps:
-
-
         - query: INSERT INTO eg_service(id, tenantid, servicedefid, referenceid, createdby, lastmodifiedby, createdtime, lastmodifiedtime, additionaldetails, accountid, clientid) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
           basePath: $.Service
           jsonMaps:
             - jsonPath: $.Service.id
-
             - jsonPath: $.Service.tenantId
-
             - jsonPath: $.Service.serviceDefId
-
             - jsonPath: $.Service.referenceId
-
             - jsonPath: $.Service.auditDetails.createdBy
-
             - jsonPath: $.Service.auditDetails.lastModifiedBy
-
             - jsonPath: $.Service.auditDetails.createdTime
-
             - jsonPath: $.Service.auditDetails.lastModifiedTime
-
             - jsonPath: $.Service.additionalFields
               type: JSON
               dbType: JSONB
-
             - jsonPath: $.Service.accountId
-
             - jsonPath: $.Service.clientId
-
-
-        - query: INSERT INTO eg_service_attribute_value(id, clientReferenceId, referenceid, attributecode, value, createdby, lastmodifiedby, createdtime, lastmodifiedtime, additionaldetails) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+        - query: INSERT INTO eg_service_attribute_value(id, clientReferenceId, serviceClientReferenceId, referenceid, attributecode, value, createdby, lastmodifiedby, createdtime, lastmodifiedtime, additionaldetails) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
           basePath: $.Service.attributes.*
           jsonMaps:
             - jsonPath: $.Service.attributes.*.id
-
             - jsonPath: $.Service.attributes.*.clientReferenceId
-
+            - jsonPath: $.Service.attributes.*.serviceClientReferenceId
             - jsonPath: $.Service.attributes.*.referenceId
-
             - jsonPath: $.Service.attributes.*.attributeCode
-
             - jsonPath: $.Service.attributes.*.value
               type: JSON
               dbType: JSONB
-
             - jsonPath: $.Service.attributes.*.auditDetails.createdBy
-
             - jsonPath: $.Service.attributes.*.auditDetails.lastModifiedBy
-
             - jsonPath: $.Service.attributes.*.auditDetails.createdTime
-
             - jsonPath: $.Service.attributes.*.auditDetails.lastModifiedTime
-
             - jsonPath: $.Service.attributes.*.additionalFields
               type: JSON
               dbType: JSONB
-
 
     - version: 1.0
       description: Update service details in service table
@@ -170,12 +121,13 @@ serviceMaps:
             - jsonPath: $.Service.accountId
             - jsonPath: $.Service.id
         - query: |
-           INSERT INTO eg_service_attribute_value(id, clientReferenceId, referenceid, attributecode, value, createdby, lastmodifiedby, createdtime, lastmodifiedtime, additionaldetails) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-           ON CONFLICT (id) DO UPDATE SET lastmodifiedby = ?, lastmodifiedtime = ?, attributecode = ?, value = ?, additionaldetails = ?;
+            INSERT INTO eg_service_attribute_value(id, clientReferenceId, serviceClientReferenceId, referenceid, attributecode, value, createdby, lastmodifiedby, createdtime, lastmodifiedtime, additionaldetails) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT (id) DO UPDATE SET lastmodifiedby = ?, lastmodifiedtime = ?, attributecode = ?, value = ?, additionaldetails = ?;
           basePath: $.Service.attributes.*
           jsonMaps:
             - jsonPath: $.Service.attributes.*.id
             - jsonPath: $.Service.attributes.*.clientReferenceId
+            - jsonPath: $.Service.attributes.*.serviceClientReferenceId
             - jsonPath: $.Service.attributes.*.referenceId
             - jsonPath: $.Service.attributes.*.attributeCode
             - jsonPath: $.Service.attributes.*.value
@@ -200,81 +152,52 @@ serviceMaps:
 
     - version: 1.0
       description: Update Service Definition
-      fromTopic: update-service-definition-health
+      fromTopic: update-service-definition
       isTransaction: true
       queryMaps:
-
         - query: UPDATE eg_service_definition SET lastmodifiedby = ?, lastmodifiedtime = ?, additionaldetails = ?, isactive = ? WHERE id = ?
-
           basePath: $.ServiceDefinition
           jsonMaps:
             - jsonPath: $.ServiceDefinition.auditDetails.lastModifiedBy
-
             - jsonPath: $.ServiceDefinition.auditDetails.lastModifiedTime
-
             - jsonPath: $.ServiceDefinition.additionalFields
               type: JSON
               dbType: JSONB
-
             - jsonPath: $.ServiceDefinition.isActive
-
             - jsonPath: $.ServiceDefinition.id
 
         - query: INSERT INTO eg_service_attribute_definition(id, referenceid, tenantid, code, datatype, "values", isactive, required, regex, "order", createdby, lastmodifiedby, createdtime, lastmodifiedtime, additionaldetails) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (id) DO UPDATE SET datatype=?, "values"=?, isactive=?, required=?, regex=?, "order"=?, lastmodifiedby=?, lastmodifiedtime=?, additionaldetails=?;
           basePath: $.ServiceDefinition.attributes.*
           jsonMaps:
             - jsonPath: $.ServiceDefinition.attributes.*.id
-
             - jsonPath: $.ServiceDefinition.attributes.*.referenceId
-
             - jsonPath: $.ServiceDefinition.attributes.*.tenantId
-
             - jsonPath: $.ServiceDefinition.attributes.*.code
-
             - jsonPath: $.ServiceDefinition.attributes.*.dataType
-
             - jsonPath: $.ServiceDefinition.attributes.*.values
               type: ARRAY
               dbType: STRING
-
             - jsonPath: $.ServiceDefinition.attributes.*.isActive
-
             - jsonPath: $.ServiceDefinition.attributes.*.required
-
             - jsonPath: $.ServiceDefinition.attributes.*.regex
-
             - jsonPath: $.ServiceDefinition.attributes.*.order
-
             - jsonPath: $.ServiceDefinition.attributes.*.auditDetails.createdBy
-
             - jsonPath: $.ServiceDefinition.attributes.*.auditDetails.lastModifiedBy
-
             - jsonPath: $.ServiceDefinition.attributes.*.auditDetails.createdTime
-
             - jsonPath: $.ServiceDefinition.attributes.*.auditDetails.lastModifiedTime
-
             - jsonPath: $.ServiceDefinition.attributes.*.additionalFields
               type: JSON
               dbType: JSONB
-
             - jsonPath: $.ServiceDefinition.attributes.*.dataType
-
             - jsonPath: $.ServiceDefinition.attributes.*.values
               type: ARRAY
               dbType: STRING
-
             - jsonPath: $.ServiceDefinition.attributes.*.isActive
-
             - jsonPath: $.ServiceDefinition.attributes.*.required
-
             - jsonPath: $.ServiceDefinition.attributes.*.regex
-
             - jsonPath: $.ServiceDefinition.attributes.*.order
-
             - jsonPath: $.ServiceDefinition.attributes.*.auditDetails.lastModifiedBy
-
             - jsonPath: $.ServiceDefinition.attributes.*.auditDetails.lastModifiedTime
-
             - jsonPath: $.ServiceDefinition.attributes.*.additionalFields
               type: JSON
               dbType: JSONB
