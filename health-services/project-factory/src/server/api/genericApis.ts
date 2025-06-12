@@ -967,7 +967,7 @@ async function createStaff(resouceBody: any) {
  * Asynchronously creates project resources based on the provided resource body.
  * @param resouceBody The resource body.
  */
-async function createProjectResource(resouceBody: any) {
+export async function createProjectResource(resouceBody: any) {
   // Create project resources
   const projectResourceCreateUrl =
     `${config.host.projectHost}` + `${config.paths.projectResourceCreate}`;
@@ -988,6 +988,7 @@ async function createProjectResource(resouceBody: any) {
     "Project Resource Creation response :: " +
     getFormattedStringForDebug(projectResourceResponse)
   );
+  return projectResourceResponse;
   // validateProjectResourceResponse(projectResourceResponse);
 }
 

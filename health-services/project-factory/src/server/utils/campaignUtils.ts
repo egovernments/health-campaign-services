@@ -113,7 +113,6 @@ import {
   fetchTargetData,
   fetchUserData,
 } from "./microplanIntergration";
-import { getLocaleFromRequestInfo } from "./localisationUtils";
 
 function updateRange(range: any, worksheet: any) {
   let maxColumnIndex = 0;
@@ -2660,9 +2659,8 @@ export async function processAfterPersistNew(request: any, actionInUrl: any) {
       const campaignNumber = campaignDetails?.campaignNumber;
       await prepareProcessesInDb(campaignNumber);
       const useruuid = request?.body?.RequestInfo?.userInfo?.uuid || campaignDetails?.auditDetails?.createdBy;
-      const locale = getLocaleFromRequestInfo(request?.body?.RequestInfo);
-      await createAllResources(campaignDetails, request?.body?.parentCampaign || null , useruuid,locale);
-      // await createAllMappings(campaignDetails);
+      await createAllResources(campaignDetails, request?.body?.parentCampaign || null , useruuid);
+      await createAllMappings(campaignDetails, request?.body?.parentCampaign || null , useruuid);
       await enrichAndPersistProjectCampaignRequest(
         request,
         actionInUrl,
@@ -2686,7 +2684,7 @@ export async function processAfterPersistNew(request: any, actionInUrl: any) {
   }
 }
 
-async function createAllResources(campaignDetails: any,parentCampaign : any, useruuid: string, locale : string = config.localisation.defaultLocale) {
+async function createAllResources(campaignDetails: any,parentCampaign : any, useruuid: string) {
   let allCurrentProcesses = await getCurrentProcesses(campaignDetails?.campaignNumber);
   const resourcesTask = [allProcesses.facilityCreation,allProcesses.userCreation,allProcesses.projectCreation];
   for (let i = 0; i < resourcesTask?.length; i++) {
@@ -2695,9 +2693,8 @@ async function createAllResources(campaignDetails: any,parentCampaign : any, use
       produceModifiedMessages({
         task,
         CampaignDetails : campaignDetails,
-        useruuid,
-        locale,
-        parentCampaign
+        parentCampaign,
+        useruuid
       }, config.kafka.KAFKA_START_ADMIN_CONSOLE_TASK_TOPIC);
     }
   }
@@ -2706,6 +2703,7 @@ async function createAllResources(campaignDetails: any,parentCampaign : any, use
   let attempts = 0;
   let facilityTask : any, userTask : any, projectTask : any;
   while(allTaskCompleted == false && anyTaskFailed == false && attempts < 100) {
+    logger.info(`Checking attempts for resources : ${attempts}`);
     logger.info("Waiting for 20 seconds for resources to get created...");
     await new Promise(resolve => setTimeout(resolve, 20000));
     let facilityTaskArray = await getCurrentProcesses(campaignDetails?.campaignNumber, allProcesses.facilityCreation);
@@ -2737,6 +2735,62 @@ async function createAllResources(campaignDetails: any,parentCampaign : any, use
   else if(!allTaskCompleted) {
     throwError("COMMON", 400, "INTERNAL_SERVER_ERROR", "Resources creation timed out.");
   }
+  logger.info(`Waiting for 10 seconds for all resources to get persisted...`);
+  await new Promise(resolve => setTimeout(resolve, 10000));
+}
+
+async function createAllMappings(campaignDetails: any, parentCampaign : any, useruuid: string) {
+  let mappingProcesses = [allProcesses.facilityMapping,allProcesses.userMapping,allProcesses.resourceMapping];
+  let allCurrentProcesses = await getCurrentProcesses(campaignDetails?.campaignNumber);
+  for (let i = 0; i < mappingProcesses?.length; i++) {
+    const task : any = allCurrentProcesses.find((process: any) => process?.processName == mappingProcesses[i]);
+    if(task && task?.status == processStatuses.pending) {
+      produceModifiedMessages({
+        task,
+        CampaignDetails : campaignDetails,
+        parentCampaign,
+        useruuid
+      }, config.kafka.KAFKA_START_ADMIN_CONSOLE_MAPPING_TASK_TOPIC);
+    }
+  }
+  let allTaskCompleted = false;
+  let anyTaskFailed = false;
+  let attempts = 0;
+  let facilityMappingTask : any, userMappingTask : any, resourceMappingTask : any;
+  while(allTaskCompleted == false && anyTaskFailed == false && attempts < 100) {
+    logger.info(`Checking attempts for mapping : ${attempts}`);
+    logger.info("Waiting for 20 seconds for mappings to get created...");
+    await new Promise(resolve => setTimeout(resolve, 20000));
+    let facilityMappingTaskArray = await getCurrentProcesses(campaignDetails?.campaignNumber, allProcesses.facilityMapping);
+    facilityMappingTask = facilityMappingTaskArray[0];
+    let userMappingTaskArray = await getCurrentProcesses(campaignDetails?.campaignNumber, allProcesses.userMapping);
+    userMappingTask = userMappingTaskArray[0];
+    let resourceMappingTaskArray = await getCurrentProcesses(campaignDetails?.campaignNumber, allProcesses.resourceMapping);
+    resourceMappingTask = resourceMappingTaskArray[0];
+    if(facilityMappingTask?.status == processStatuses.completed && userMappingTask?.status == processStatuses.completed && resourceMappingTask?.status == processStatuses.completed) {
+      allTaskCompleted = true;
+    }
+    if(facilityMappingTask?.status == processStatuses.failed || userMappingTask?.status == processStatuses.failed || resourceMappingTask?.status == processStatuses.failed) {
+      anyTaskFailed = true;
+    }
+  }
+  if(anyTaskFailed) {
+    let failedTasks = [];
+    if(facilityMappingTask?.status == processStatuses.failed) {
+      failedTasks.push(allProcesses.facilityMapping);
+    }
+    if(userMappingTask?.status == processStatuses.failed) {
+      failedTasks.push(allProcesses.userMapping);
+    }
+    if(resourceMappingTask?.status == processStatuses.failed) {
+      failedTasks.push(allProcesses.resourceMapping);
+    }
+    throwError("COMMON", 400, "INTERNAL_SERVER_ERROR", `${failedTasks.join(", ")} tasks failed.`);
+  }
+  else if(!allTaskCompleted) {
+    throwError("COMMON", 400, "INTERNAL_SERVER_ERROR", "Mappings creation timed out.");
+  }
+  campaignDetails.status = campaignStatuses.completed;
 }
 
 async function processBasedOnAction(request: any, actionInUrl: any) {

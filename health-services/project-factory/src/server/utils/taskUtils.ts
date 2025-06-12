@@ -1,7 +1,6 @@
 import { ResourceDetails } from "../config/models/resourceDetailsSchema";
 import { logger } from "./logger";
 import { getLocalizedMessagesHandlerViaLocale, throwError } from "./genericUtils";
-import { processDataService } from "../service/sheetManageService";
 import { enrichAndPersistCampaignWithErrorProcessingTask } from "./campaignUtils";
 import { allProcesses, processStatuses } from "../config/constants";
 import { processTemplateConfigs } from "../config/processTemplateConfigs";
@@ -16,7 +15,7 @@ import config from "../config";
 
 export async function handleTaskForCampaign(messageObject: any) {
     try {
-        const { CampaignDetails, task, useruuid } = messageObject;
+        const { CampaignDetails, task } = messageObject;
         const processName = task?.processName
         logger.info(`Task for campaign ${CampaignDetails?.id} : ${processName} started..`);
         const resourceType : string = getResourceType(processName);
@@ -48,20 +47,20 @@ export async function handleTaskForCampaign(messageObject: any) {
         const localizationMapHierarchy = resourceDetails?.hierarchyType && await getLocalizedMessagesHandlerViaLocale(locale, resourceDetails?.tenantId, getLocalisationModuleName(resourceDetails?.hierarchyType), true);
         const localizationMapModule = await getLocalizedMessagesHandlerViaLocale(locale, resourceDetails?.tenantId);
         const localizationMap = { ...(localizationMapHierarchy || {}), ...localizationMapModule };
-        await processRequest(resourceDetails, workBook, processTemplateConfig, localizationMap);
         try {
-            await processDataService(resourceDetails, useruuid, locale);
+            await processRequest(resourceDetails, workBook, processTemplateConfig, localizationMap);
         } catch (error) {
             console.log(error)
             await handleErrorDuringProcess(resourceDetails, error);
-            task.status = processStatuses.failed;
-            await produceModifiedMessages({ processes: [task] }, config?.kafka?.KAFKA_UPDATE_PROCESS_DATA_TOPIC);
             throw error;
         }
         logger.info(`Process resource for campaign ${CampaignDetails?.id} : ${processName} completed..`);
         task.status = processStatuses.completed;
         await produceModifiedMessages({ processes: [task] }, config?.kafka?.KAFKA_UPDATE_PROCESS_DATA_TOPIC);
     } catch (error) {
+        let task = messageObject?.task;
+        task.status = processStatuses.failed;
+        await produceModifiedMessages({ processes: [task] }, config?.kafka?.KAFKA_UPDATE_PROCESS_DATA_TOPIC);
         logger.error(`Error in campaign mapping: ${error}`);
         await enrichAndPersistCampaignWithErrorProcessingTask(messageObject?.CampaignDetails, messageObject?.parentCampaign, messageObject?.useruuid, error);
     }

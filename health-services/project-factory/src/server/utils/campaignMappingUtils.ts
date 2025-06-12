@@ -4,8 +4,8 @@ import { getDataFromSheet, getLocalizedMessagesHandlerViaRequestInfo, replicateR
 import { getFormattedStringForDebug, logger } from "./logger";
 import { defaultheader, httpRequest } from "./request";
 import { produceModifiedMessages } from "../kafka/Producer";
-import { enrichAndPersistCampaignWithError, getLocalizedName } from "./campaignUtils";
-import { campaignStatuses, resourceDataStatuses, usageColumnStatus } from "../config/constants";
+import { enrichAndPersistCampaignWithError, enrichAndPersistCampaignWithErrorProcessingTask, getLocalizedName } from "./campaignUtils";
+import { allProcesses, campaignStatuses, processStatuses, resourceDataStatuses, usageColumnStatus } from "../config/constants";
 import { createCampaignService, searchProjectTypeCampaignService } from "../service/campaignManageService";
 import { persistTrack } from "./processTrackUtils";
 import { processTrackTypes, processTrackStatuses } from "../config/constants";
@@ -14,6 +14,7 @@ import { buildSearchCriteria, delinkAndLinkResourcesWithProjectCorrespondingToGi
 import { searchDataService } from "../service/dataManageService";
 import { getHierarchy } from "../api/campaignApis";
 import { consolidateBoundaries } from "./boundariesConsolidationUtils";
+import { startResourceMapping } from "./resourceMappingUtils";
 
 
 async function createBoundaryWithProjectMapping(projects: any, boundaryWithProject: any) {
@@ -695,6 +696,31 @@ export async function processMapping(mappingObject: any) {
     } catch (error) {
         logger.error("Error in campaign mapping: " + error);
         await enrichAndPersistCampaignWithError(mappingObject, error);
+    }
+}
+
+export async function handleMappingTaskForCampaign(messageObject: any) {
+    try {
+        const { CampaignDetails, task, useruuid } = messageObject;
+        const processName = task?.processName
+        logger.info(`Mapping for campaign ${CampaignDetails?.id} : ${processName} started..`);
+        if(processName == allProcesses.resourceMapping) {
+            await startResourceMapping(CampaignDetails, useruuid);
+        }
+        else if(processName == allProcesses.facilityMapping) {
+            //  Todo: need to handle facility mapping
+        }
+        else if (processName == allProcesses.userMapping) {
+            //  Todo: need to handle user mapping
+        }
+        task.status = processStatuses.completed;
+        await produceModifiedMessages({ processes: [task] }, config?.kafka?.KAFKA_UPDATE_PROCESS_DATA_TOPIC);
+    } catch (error) {
+        let task = messageObject?.task;
+        task.status = processStatuses.failed;
+        await produceModifiedMessages({ processes: [task] }, config?.kafka?.KAFKA_UPDATE_PROCESS_DATA_TOPIC);
+        logger.error(`Error in campaign mapping: ${error}`);
+        await enrichAndPersistCampaignWithErrorProcessingTask(messageObject?.CampaignDetails, messageObject?.parentCampaign, messageObject?.useruuid, error);
     }
 }
 
