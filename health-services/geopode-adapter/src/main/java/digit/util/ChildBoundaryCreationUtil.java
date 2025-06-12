@@ -83,7 +83,10 @@ public class ChildBoundaryCreationUtil {
      */
     private void fetchLevelRecursively(List<String> hierarchyLevels, int currentIndex, List<List<String>>  parentList, String rootCode,GeopodeBoundaryRequest request) {
 
-        if (currentIndex >= hierarchyLevels.size()) return;
+        if (currentIndex >= hierarchyLevels.size()){
+            log.info("Finished creating boundaries for "+rootCode);
+            return;
+        };
 
         String currentLevel = hierarchyLevels.get(currentIndex);
         String parentLevel = currentIndex > 0 ? hierarchyLevels.get(currentIndex - 1) : null;

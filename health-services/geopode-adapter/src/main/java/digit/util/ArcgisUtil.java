@@ -123,14 +123,29 @@ public class ArcgisUtil {
      * @return
      */
     private String extractCountryNameFromMdms(MdmsResponseV2 mdmsResponse, String targetIsoCode) {
-        return mdmsResponse.getMdms().stream()
-                .map(mdms -> mdms.getData())
-                .filter(data -> data != null && data.has(MDMS_ISO_CODE) && targetIsoCode.equalsIgnoreCase(data.get(MDMS_ISO_CODE).asText()))
-                .map(data -> data.has(MDMS_NAME) ? data.get(MDMS_NAME).asText() : null)
-                .filter(Objects::nonNull)
-                .findFirst()
-                .orElseThrow(() -> new CustomException(NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT_ISO_CODE, "No country found for ISO code: " + targetIsoCode));
+        try {
+            return mdmsResponse.getMdms().stream()
+                    .map(mdms -> mdms.getData()) // Get data node from each MDMS entry
+                    .filter(data -> data != null
+                            && data.has(MDMS_ISO_CODE)
+                            && targetIsoCode.equalsIgnoreCase(data.get(MDMS_ISO_CODE).asText())) // Match ISO code
+                    .map(data -> data.has(MDMS_NAME) ? data.get(MDMS_NAME).asText() : null) // Extract name if present
+                    .filter(Objects::nonNull) // Filter out nulls
+                    .findFirst() // Take the first match
+                    .orElseThrow(() -> new CustomException(
+                            "COUNTRY_NAME_NOT_FOUND",
+                            "No country found for ISO code: " + targetIsoCode
+                    ));
+        } catch (Exception e) {
+            // Log technical error and rethrow a clean custom exception
+            log.error("Error while extracting country name from MDMS for ISO code: {}", targetIsoCode, e);
+            throw new CustomException(
+                    "MDMS_EXTRACTION_ERROR",
+                    "Failed to extract country name from MDMS for ISO code: " + targetIsoCode
+            );
+        }
     }
+
 
 
 
