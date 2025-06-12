@@ -2690,7 +2690,7 @@ async function createAllResources(campaignDetails: any,parentCampaign : any, use
   for (let i = 0; i < resourcesTask?.length; i++) {
     const task = allCurrentProcesses.find((process: any) => process?.processName == resourcesTask[i]);
     if(task && task?.status == processStatuses.pending) {
-      produceModifiedMessages({
+      await produceModifiedMessages({
         task,
         CampaignDetails : campaignDetails,
         parentCampaign,
@@ -2745,7 +2745,7 @@ async function createAllMappings(campaignDetails: any, parentCampaign : any, use
   for (let i = 0; i < mappingProcesses?.length; i++) {
     const task : any = allCurrentProcesses.find((process: any) => process?.processName == mappingProcesses[i]);
     if(task && task?.status == processStatuses.pending) {
-      produceModifiedMessages({
+      await produceModifiedMessages({
         task,
         CampaignDetails : campaignDetails,
         parentCampaign,

@@ -15,6 +15,7 @@ import { searchDataService } from "../service/dataManageService";
 import { getHierarchy } from "../api/campaignApis";
 import { consolidateBoundaries } from "./boundariesConsolidationUtils";
 import { startResourceMapping } from "./resourceMappingUtils";
+import { startUserMappingAndDemapping } from "./userMappingUtils";
 
 
 async function createBoundaryWithProjectMapping(projects: any, boundaryWithProject: any) {
@@ -708,10 +709,10 @@ export async function handleMappingTaskForCampaign(messageObject: any) {
             await startResourceMapping(CampaignDetails, useruuid);
         }
         else if(processName == allProcesses.facilityMapping) {
-            //  Todo: need to handle facility mapping
+            // Todo: need to handle facility mapping
         }
         else if (processName == allProcesses.userMapping) {
-            //  Todo: need to handle user mapping
+            await startUserMappingAndDemapping(CampaignDetails, useruuid);
         }
         task.status = processStatuses.completed;
         await produceModifiedMessages({ processes: [task] }, config?.kafka?.KAFKA_UPDATE_PROCESS_DATA_TOPIC);

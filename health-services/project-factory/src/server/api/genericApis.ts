@@ -939,7 +939,7 @@ async function getConfigurableColumnHeadersBasedOnCampaignTypeForBoundaryManagem
     );
   }
 }
-async function createStaff(resouceBody: any) {
+export async function createStaff(resouceBody: any) {
   // Create staff
   const staffCreateUrl =
     `${config.host.projectHost}` + `${config.paths.staffCreate}`;
@@ -961,6 +961,7 @@ async function createStaff(resouceBody: any) {
     getFormattedStringForDebug(staffResponse)
   );
   // validateStaffResponse(staffResponse);
+  return staffResponse;
 }
 
 /**

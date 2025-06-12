@@ -2,8 +2,8 @@ import { getLocalizedName } from "../utils/campaignUtils";
 import { SheetMap } from "../models/SheetMap";
 import { logger } from "../utils/logger";
 import { searchProjectTypeCampaignService } from "../service/campaignManageService";
-import { getRelatedDataWithCampaign } from "../utils/genericUtils";
-import { dataRowStatuses, sheetDataRowStatuses } from "../config/constants";
+import { getMappingDataRelatedToCampaign, getRelatedDataWithCampaign } from "../utils/genericUtils";
+import { dataRowStatuses, mappingStatuses, sheetDataRowStatuses, usageColumnStatus } from "../config/constants";
 import { produceModifiedMessages } from "../kafka/Producer";
 import config from "../config";
 import { DataTransformer } from "../utils/transFormUtil";
@@ -28,11 +28,14 @@ export class TemplateClass {
 
         const campaign = await this.getCampaignDetails(resourceDetails);
 
-        const userSheetData = wholeSheetData[getLocalizedName("HCM_ADMIN_CONSOLE_USER_LIST", localizationMap)];
+        const userSheetData : any[] = wholeSheetData[getLocalizedName("HCM_ADMIN_CONSOLE_USER_LIST", localizationMap)];
         const mobileKey = "HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER";
 
-        const newUsers = await this.extractNewUsers(userSheetData, mobileKey, campaign.campaignNumber, resourceDetails);
+        const existingUsers = await getRelatedDataWithCampaign(resourceDetails?.type, campaign.campaignNumber);
+        const newUsers = await this.extractNewUsers(userSheetData, mobileKey, existingUsers, campaign.campaignNumber, resourceDetails);
         await this.persistInBatches(newUsers, config.kafka.KAFKA_SAVE_SHEET_DATA_TOPIC);
+
+        await this.processBoundaryChanges(userSheetData, existingUsers, newUsers, campaign.campaignNumber, resourceDetails);
 
         const waitTime = Math.max(5000, newUsers.length * 8);
         logger.info(`Waiting for ${waitTime} ms for persistence...`);
@@ -57,6 +60,184 @@ export class TemplateClass {
         return sheetMap;
     }
 
+    private static async processBoundaryChanges(userSheetData: any, existingUsers: any, newUsers: any, campaignNumber: string, resourceDetails: any){ 
+        const boundaryKey = "HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY";
+        const usageKey = "HCM_ADMIN_CONSOLE_USER_USAGE";
+        const phoneKey = "HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER";
+        const currentMappings = await getMappingDataRelatedToCampaign("user", campaignNumber);
+
+        const existingUserMobileToDataMapping: any = {};
+        for (const user of existingUsers) {
+            existingUserMobileToDataMapping[user?.data?.[phoneKey]] = user;
+        }
+
+        const boundaryUniqueIdentifierToCurrentMapping: any = {};
+        for (const mapping of currentMappings) {
+            boundaryUniqueIdentifierToCurrentMapping[`${mapping?.uniqueIdentifierForData}#${mapping?.boundaryCode}`] = mapping;
+        }
+
+        await this.processActiveRows(boundaryKey, usageKey, phoneKey, userSheetData, existingUserMobileToDataMapping, boundaryUniqueIdentifierToCurrentMapping, campaignNumber);
+        await this.processInactiveRows(boundaryKey, usageKey, phoneKey, userSheetData, existingUserMobileToDataMapping, boundaryUniqueIdentifierToCurrentMapping, campaignNumber);
+    }
+
+    private static async processActiveRows(
+        boundaryKey: string,
+        usageKey: string,
+        phoneKey: string,
+        userSheetData: any[],
+        existingUserMobileToDataMapping: any,
+        boundaryUniqueIdentifierToCurrentMapping: any,
+        campaignNumber: string
+    ) {
+        const newMappingRow: any[] = [];
+        const demappingRows: any[] = [];
+        const usersToBeUpdated: any[] = [];
+
+        for (const data of userSheetData) {
+            const phone = data?.[phoneKey];
+            const sheetUsage = data?.[usageKey];
+            const existingEntry = existingUserMobileToDataMapping?.[phone];
+            const existingData = existingEntry?.data;
+
+            if (!phone || sheetUsage !== usageColumnStatus.active) continue;
+
+            const sheetBoundaries = data?.[boundaryKey]?.split(",")?.map((b: string) => b.trim()).filter(Boolean) || [];
+
+            if (existingData) {
+                const existingUsage = existingData?.[usageKey];
+                const existingBoundaries = existingData?.[boundaryKey]?.split(",")?.map((b: string) => b.trim()).filter(Boolean) || [];
+
+                // Case 1: Inactive -> Active
+                if (existingUsage === usageColumnStatus.inactive) {
+                    for (const boundary of sheetBoundaries) {
+                        const key = `${phone}#${boundary}`;
+                        if (!boundaryUniqueIdentifierToCurrentMapping?.[key]) {
+                            newMappingRow.push({
+                                campaignNumber,
+                                boundaryCode: boundary,
+                                type: "user",
+                                uniqueIdentifierForData: phone,
+                                mappingId: null,
+                                status: mappingStatuses.toBeMapped,
+                            });
+                        }
+                    }
+
+                    existingData[usageKey] = usageColumnStatus.active;
+                    existingData[boundaryKey] = sheetBoundaries.join(",");
+                    usersToBeUpdated.push(existingEntry); // ✅ Push full entry
+                } else {
+                    // Case 2: Already active, update boundary diffs
+                    for (const boundary of sheetBoundaries) {
+                        const key = `${phone}#${boundary}`;
+                        if (!boundaryUniqueIdentifierToCurrentMapping?.[key]) {
+                            newMappingRow.push({
+                                campaignNumber,
+                                boundaryCode: boundary,
+                                type: "user",
+                                uniqueIdentifierForData: phone,
+                                mappingId: null,
+                                status: mappingStatuses.toBeMapped,
+                            });
+                        }
+                    }
+
+                    for (const boundary of existingBoundaries) {
+                        const key = `${phone}#${boundary}`;
+                        if (!sheetBoundaries.includes(boundary) && boundaryUniqueIdentifierToCurrentMapping?.[key]) {
+                            demappingRows.push({
+                                campaignNumber,
+                                boundaryCode: boundary,
+                                type: "user",
+                                uniqueIdentifierForData: phone,
+                                mappingId: null,
+                                status: mappingStatuses.toBeDeMapped,
+                            });
+                        }
+                    }
+
+                    const sortedSheet = [...sheetBoundaries].sort().join(",");
+                    const sortedExisting = [...existingBoundaries].sort().join(",");
+                    if (sortedSheet !== sortedExisting) {
+                        existingData[boundaryKey] = sortedSheet;
+                        existingData[usageKey] = usageColumnStatus.active;
+                        usersToBeUpdated.push(existingEntry); // ✅ Push full entry
+                    }
+                }
+            }
+        }
+        let batchSize = 100;
+        for(let i = 0; i < newMappingRow.length; i += batchSize){
+            const batch = newMappingRow.slice(i, i + batchSize);
+            await produceModifiedMessages({ datas: batch }, config.kafka.KAFKA_SAVE_MAPPING_DATA_TOPIC);
+        }
+        for(let i = 0; i < demappingRows.length; i += batchSize){
+            const batch = demappingRows.slice(i, i + batchSize);
+            await produceModifiedMessages({ datas: batch }, config.kafka.KAFKA_UPDATE_MAPPING_DATA_TOPIC);
+        }
+        for(let i = 0; i < usersToBeUpdated.length; i += batchSize){
+            const batch = usersToBeUpdated.slice(i, i + batchSize);
+            await produceModifiedMessages({ datas: batch }, config.kafka.KAFKA_UPDATE_SHEET_DATA_TOPIC);
+        }
+    }
+    
+
+    private static async processInactiveRows(
+        boundaryKey: string,
+        usageKey: string,
+        phoneKey: string,
+        userSheetData: any[],
+        existingUserMobileToDataMapping: any,
+        boundaryUniqueIdentifierToCurrentMapping: any,
+        campaignNumber: string
+    ) {
+        const boundariesToBeDemappedRow: any[] = [];
+        const usersToBeUpdated: any[] = [];
+
+        for (const data of userSheetData) {
+            const phone = data?.[phoneKey];
+            const sheetUsage = data?.[usageKey];
+            const existingEntry = existingUserMobileToDataMapping?.[phone];
+            const existingData = existingEntry?.data;
+
+            if (!phone || !existingData || sheetUsage !== usageColumnStatus.inactive || existingData?.[usageKey] !== usageColumnStatus.active) continue;
+
+            const existingBoundaries = existingData?.[boundaryKey]?.split(",")?.map((b: string) => b.trim()).filter(Boolean) || [];
+
+            for (const boundary of existingBoundaries) {
+                const key = `${phone}#${boundary}`;
+                if (boundaryUniqueIdentifierToCurrentMapping?.[key]) {
+                    boundariesToBeDemappedRow.push({
+                        campaignNumber,
+                        boundaryCode: boundary,
+                        type: "user",
+                        uniqueIdentifierForData: phone,
+                        mappingId: null,
+                        status: mappingStatuses.toBeDeMapped,
+                    });
+                }
+            }
+
+            // Update to inactive
+            existingData[usageKey] = usageColumnStatus.inactive;
+            existingData[boundaryKey] = data?.[boundaryKey];
+            usersToBeUpdated.push(existingEntry); // ✅ Push full entry
+        }
+
+        // Send updates in batches
+        const batchSize = 100;
+
+        for (let i = 0; i < boundariesToBeDemappedRow.length; i += batchSize) {
+            const batch = boundariesToBeDemappedRow.slice(i, i + batchSize);
+            await produceModifiedMessages({ datas: batch }, config.kafka.KAFKA_UPDATE_MAPPING_DATA_TOPIC);
+        }
+
+        for (let i = 0; i < usersToBeUpdated.length; i += batchSize) {
+            const batch = usersToBeUpdated.slice(i, i + batchSize);
+            await produceModifiedMessages({ datas: batch }, config.kafka.KAFKA_UPDATE_SHEET_DATA_TOPIC);
+        }
+    }
+
     private static async getCampaignDetails(resourceDetails: any): Promise<any> {
         const response = await searchProjectTypeCampaignService({
             tenantId: resourceDetails.tenantId,
@@ -68,16 +249,15 @@ export class TemplateClass {
     }
 
     private static async extractNewUsers(
-        sheetData: any[],
+        userSheetData: any[],
         mobileKey: string,
+        existingUsers: any,
         campaignNumber: string,
         resourceDetails: any
     ): Promise<any[]> {
-        const userMap : any = Object.fromEntries(sheetData.map((row: any) => [row?.[mobileKey], row]).filter(([m]) => m));
-
-        const existing = await getRelatedDataWithCampaign(resourceDetails?.type, campaignNumber);
+        const userMap: any = Object.fromEntries(userSheetData.map((row: any) => [row?.[mobileKey], row]).filter(([m]) => m));
         const existingMap : any = {};
-        for(const user of existing){
+        for(const user of existingUsers){
             existingMap[user?.data?.["HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER"]] = user;
         }
 
