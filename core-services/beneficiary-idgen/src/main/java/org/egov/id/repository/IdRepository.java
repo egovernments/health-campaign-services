@@ -3,12 +3,15 @@ package org.egov.id.repository;
 import org.egov.common.models.idgen.IdRecord;
 import org.egov.common.models.idgen.IdStatus;
 import org.egov.common.models.idgen.IdTransactionLog;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.jetbrains.annotations.NotNull;
+import org.springframework.jdbc.core.BatchPreparedStatementSetter;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.ObjectUtils;
 
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
 import java.util.*;
 
 /**
@@ -23,21 +26,29 @@ import java.util.*;
 @Repository
 public class IdRepository {
 
-    @Autowired
-    private JdbcTemplate jdbcTemplate;
-
-    @Autowired
-    private NamedParameterJdbcTemplate namedParameterJdbcTemplate;
-
-    @Autowired
-    private IdRecordRowMapper idRecordRowMapper;
-
-    @Autowired
-    private IdTransactionLogRowMapper idTransactionLogRowMapper;
+    private final JdbcTemplate jdbcTemplate;
+    private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
+    private final IdRecordRowMapper idRecordRowMapper;
+    private final IdTransactionLogRowMapper idTransactionLogRowMapper;
 
     // SQL template for updating ID status in bulk
-    private static final String BULK_UPDATE_STATUS_SQL_BASE =
-            "UPDATE id_pool SET status = 'DISPATCHED' WHERE id IN (%s)";
+    private static final String UPDATE_STATUS_DISPATCHED_QUERY =
+            "UPDATE id_pool SET status = 'DISPATCHED' WHERE id = ?";
+
+    /**
+     * Constructs a new IdRepository instance with required dependencies for database operations.
+     *
+     * @param jdbcTemplate The Spring JdbcTemplate for executing SQL queries using standard parameters
+     * @param namedParameterJdbcTemplate The Spring NamedParameterJdbcTemplate for executing SQL queries with named parameters
+     * @param idRecordRowMapper Custom row mapper for converting database rows to IdRecord objects
+     * @param idTransactionLogRowMapper Custom row mapper for converting database rows to IdTransactionLog objects
+     */
+    public IdRepository(JdbcTemplate jdbcTemplate, NamedParameterJdbcTemplate namedParameterJdbcTemplate, IdRecordRowMapper idRecordRowMapper, IdTransactionLogRowMapper idTransactionLogRowMapper) {
+        this.jdbcTemplate = jdbcTemplate;
+        this.namedParameterJdbcTemplate = namedParameterJdbcTemplate;
+        this.idRecordRowMapper = idRecordRowMapper;
+        this.idTransactionLogRowMapper = idTransactionLogRowMapper;
+    }
 
     /**
      * Fetches up to `count` unassigned IDs for a given tenant.
@@ -138,10 +149,17 @@ public class IdRepository {
         // Build placeholders for SQL IN clause (?, ?, ?, ...)
         String placeholders = String.join(",", Collections.nCopies(ids.size(), "?"));
 
-        // Format SQL using placeholders
-        String sql = String.format(BULK_UPDATE_STATUS_SQL_BASE, placeholders);
-
         // Execute bulk update
-        jdbcTemplate.update(sql, ids.toArray());
+        jdbcTemplate.batchUpdate(UPDATE_STATUS_DISPATCHED_QUERY, new BatchPreparedStatementSetter() {
+            @Override
+            public void setValues(@NotNull PreparedStatement ps, int i) throws SQLException {
+                ps.setString(1, ids.get(i));
+            }
+
+            @Override
+            public int getBatchSize() {
+                return ids.size();
+            }
+        });
     }
 }

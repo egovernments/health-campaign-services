@@ -3,7 +3,6 @@ package org.egov.id.config;
 import org.redisson.Redisson;
 import org.redisson.api.RedissonClient;
 import org.redisson.config.Config;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -17,8 +16,11 @@ import org.springframework.context.annotation.Configuration;
 public class RedisConfig {
 
     // Injects Redisson-specific properties defined in application.yaml or properties file
-    @Autowired
-    private RedissonProperties props;
+    private final RedissonProperties props;
+
+    public RedisConfig(RedissonProperties props) {
+        this.props = props;
+    }
 
     /**
      * Creates and configures a RedissonClient bean for Redis interaction.

@@ -14,8 +14,11 @@ import java.sql.SQLException;
 @Component
 public class IdTransactionLogRowMapper implements RowMapper<IdTransactionLog> {
 
-    @Autowired
-    private ObjectMapper objectMapper;
+    private final ObjectMapper objectMapper;
+
+    public IdTransactionLogRowMapper(ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
+    }
 
     @Override
     public IdTransactionLog mapRow(ResultSet rs, int rowNum) throws SQLException {

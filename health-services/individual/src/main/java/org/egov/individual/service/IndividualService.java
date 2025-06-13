@@ -439,7 +439,7 @@ public class IndividualService {
                         List<UserRequest> userRequests = userIntegrationService.createUser(individual,
                                 request.getRequestInfo());
                             individual.setUserId(Long.toString(userRequests.get(0).getId()));
-                            individualList.get(0).setUserUuid(userRequests.get(0).getUuid());
+                            individual.setUserUuid(userRequests.get(0).getUuid());
                         log.info("successfully created user for {} ",
                                 individual.getName());
                     } else {

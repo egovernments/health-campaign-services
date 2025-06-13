@@ -23,6 +23,7 @@ class GlobalExceptionHandlerTest {
     @Mock
     private PropertiesManager propertiesManager;
 
+    @Test
     void testUnknownException() {
         GlobalExceptionHandler globalExceptionHandler = new GlobalExceptionHandler();
         Exception ex = new Exception("An error occurred");
@@ -34,7 +35,7 @@ class GlobalExceptionHandlerTest {
         assertNull(responseInfo.getVer());
         assertNull(responseInfo.getApiId());
         assertNull(responseInfo.getResMsgId());
-        assertEquals(ResponseStatusEnum.FAILED, responseInfo.getStatus());
+        assertEquals(ResponseStatusEnum.FAILED.name(), responseInfo.getStatus());
         assertNull(responseInfo.getMsgId());
         assertNull(responseInfo.getTs());
         Error getResult = errors.get(0);
@@ -56,7 +57,7 @@ class GlobalExceptionHandlerTest {
         assertNull(responseInfo.getVer());
         assertNull(responseInfo.getApiId());
         assertNull(responseInfo.getResMsgId());
-        assertEquals(ResponseStatusEnum.FAILED.toString(), responseInfo.getStatus());
+        assertEquals(ResponseStatusEnum.FAILED.name(), responseInfo.getStatus());
         assertNull(responseInfo.getMsgId());
         assertNull(responseInfo.getTs());
         Error getResult = errors.get(0);
@@ -78,7 +79,7 @@ class GlobalExceptionHandlerTest {
         assertNull(responseInfo.getVer());
         assertNull(responseInfo.getApiId());
         assertNull(responseInfo.getResMsgId());
-        assertEquals(ResponseStatusEnum.FAILED.toString(), responseInfo.getStatus());
+        assertEquals(ResponseStatusEnum.FAILED.name(), responseInfo.getStatus());
         assertNull(responseInfo.getMsgId());
         assertNull(responseInfo.getTs());
         Error getResult = errors.get(0);

@@ -1,6 +1,7 @@
 All notable changes to this module will be documented in this file.
 
 ## 1.0.22 - 2025-06-04
+
 * Introduced BeneficiaryIdGenService to enable integration conditionally with the Beneficiary ID Generation system.
 * Search/Update for Beneficiary ID records using `/id/id_pool/_search` and `/id/id_pool/_update`.
 

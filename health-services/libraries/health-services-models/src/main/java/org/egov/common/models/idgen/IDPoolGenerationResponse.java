@@ -35,5 +35,6 @@ public class IDPoolGenerationResponse {
     @NotNull
     @Valid
     private List<Map<String,String>> idCreationResponse;
+    private List<IDPoolCreationResult> idPoolCreateResponses;
 
 }
