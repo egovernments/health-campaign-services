@@ -42,6 +42,7 @@ import {
   getLocalizedHeaders,
   getLocalizedMessagesHandler,
   getMdmsDataBasedOnCampaignType,
+  getRelatedDataWithCampaign,
   modifyBoundaryData,
   modifyBoundaryDataHeadersWithMap,
   prepareProcessesInDb,
@@ -58,6 +59,7 @@ import { transformAndCreateLocalisation } from "./transforms/localisationMessage
 import {
   allProcesses,
   campaignStatuses,
+  dataRowStatuses,
   headingMapping,
   processStatuses,
   processTrackStatuses,
@@ -1175,6 +1177,34 @@ async function enrichAndPersistCampaignForCreate(
   };
   await produceModifiedMessages(produceMessage, topic);
   delete request.body.CampaignDetails.campaignDetails;
+}
+
+export async function enrichAndPersistCampaignForCreateViaFlow2(
+  campaignDetails: any,
+) {
+  campaignDetails.campaignDetails = {
+    deliveryRules: campaignDetails?.deliveryRules || [],
+    resources: campaignDetails?.resources || [],
+    boundaries: campaignDetails?.boundaries || [],
+  };
+  campaignDetails.boundaryCode = campaignDetails?.boundaryCode || getRootBoundaryCode(campaignDetails?.boundaries);
+  campaignDetails.projectId = campaignDetails?.projectId || await getRootProjectIdViaCampaignNumber(campaignDetails?.campaignNumber, campaignDetails?.boundaryCode);
+
+  campaignDetails.status =
+    campaignDetails.action == "create" ? campaignStatuses.inprogress : campaignStatuses.started;
+  const topic =config?.kafka?.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC;
+  const produceMessage: any = {
+    CampaignDetails: campaignDetails,
+  };
+  await produceModifiedMessages(produceMessage, topic);
+}
+
+async function getRootProjectIdViaCampaignNumber(campaignNumber: string, boundaryCode: string) {
+  if(!campaignNumber || !boundaryCode) {
+    return null;
+  }
+  const rootProjectData = await getRelatedDataWithCampaign("boundary", campaignNumber, dataRowStatuses.completed, boundaryCode);
+  return rootProjectData?.length ? rootProjectData[0]?.uniqueIdAfterProcess : null;
 }
 
 function enrichInnerCampaignDetails(
@@ -2661,12 +2691,7 @@ export async function processAfterPersistNew(request: any, actionInUrl: any) {
       const useruuid = request?.body?.RequestInfo?.userInfo?.uuid || campaignDetails?.auditDetails?.createdBy;
       await createAllResources(campaignDetails, request?.body?.parentCampaign || null , useruuid);
       await createAllMappings(campaignDetails, request?.body?.parentCampaign || null , useruuid);
-      await enrichAndPersistProjectCampaignRequest(
-        request,
-        actionInUrl,
-        false,
-        localizationMap
-      );
+      await enrichAndPersistCampaignForCreateViaFlow2(campaignDetails);
     } else {
       await updateProjectDates(request, actionInUrl);
       await enrichAndPersistProjectCampaignRequest(

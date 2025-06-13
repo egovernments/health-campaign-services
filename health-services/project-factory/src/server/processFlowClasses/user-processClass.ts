@@ -94,7 +94,7 @@ export class TemplateClass {
         const usersToBeUpdated: any[] = [];
 
         for (const data of userSheetData) {
-            const phone = data?.[phoneKey];
+            const phone = String(data?.[phoneKey]);
             const sheetUsage = data?.[usageKey];
             const existingEntry = existingUserMobileToDataMapping?.[phone];
             const existingData = existingEntry?.data;
@@ -150,7 +150,7 @@ export class TemplateClass {
                                 boundaryCode: boundary,
                                 type: "user",
                                 uniqueIdentifierForData: phone,
-                                mappingId: null,
+                                mappingId: boundaryUniqueIdentifierToCurrentMapping?.[key]?.mappingId || null,
                                 status: mappingStatuses.toBeDeMapped,
                             });
                         }
@@ -163,6 +163,18 @@ export class TemplateClass {
                         existingData[usageKey] = usageColumnStatus.active;
                         usersToBeUpdated.push(existingEntry); // ✅ Push full entry
                     }
+                }
+            }
+            else{
+                for (const boundary of sheetBoundaries) {
+                    newMappingRow.push({
+                        campaignNumber,
+                        boundaryCode: boundary,
+                        type: "user",
+                        uniqueIdentifierForData: phone,
+                        mappingId: null,
+                        status: mappingStatuses.toBeMapped,
+                    });
                 }
             }
         }
@@ -195,7 +207,7 @@ export class TemplateClass {
         const usersToBeUpdated: any[] = [];
 
         for (const data of userSheetData) {
-            const phone = data?.[phoneKey];
+            const phone = String(data?.[phoneKey]);
             const sheetUsage = data?.[usageKey];
             const existingEntry = existingUserMobileToDataMapping?.[phone];
             const existingData = existingEntry?.data;
@@ -268,7 +280,7 @@ export class TemplateClass {
                 campaignNumber,
                 data : row,
                 type: resourceDetails?.type,
-                uniqueIdentifier: mobile,
+                uniqueIdentifier: String(mobile),
                 uniqueIdAfterProcess: null,
                 status: dataRowStatuses.pending
             });

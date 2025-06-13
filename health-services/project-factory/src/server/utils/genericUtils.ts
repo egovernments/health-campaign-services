@@ -1743,11 +1743,13 @@ function modifyBoundaryDataHeadersWithMap(
   });
 }
 
-export async function getRelatedDataWithCampaign(type: string, campaignNumber: string, status ?: string) {
+export async function getRelatedDataWithCampaign(type: string, campaignNumber: string, status ?: string, uniqueIdentifier ?: string) {
   let queryString = `SELECT * FROM ${config?.DB_CONFIG.DB_CAMPAIGN_DATA_TABLE_NAME} WHERE type = $1 AND campaignNumber = $2`;
   if(status) queryString += ` AND status = $3`;
   const arrayStatements = [type, campaignNumber];
   if(status) arrayStatements.push(status);
+  if(uniqueIdentifier) queryString += ` AND uniqueIdentifier = $4`;
+  if(uniqueIdentifier) arrayStatements.push(uniqueIdentifier);
   let relatedData = await executeQuery(queryString, arrayStatements);
   if(!relatedData?.rows) return [];
   let rows = [];
