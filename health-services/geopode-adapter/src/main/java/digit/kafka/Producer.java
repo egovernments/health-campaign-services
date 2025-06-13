@@ -10,7 +10,7 @@ import org.springframework.stereotype.Service;
 @Service
 @Slf4j
 public class Producer {
-
+    @Autowired
     private CustomKafkaTemplate<String, Object> kafkaTemplate;
 
     public void push(String topic, Object value) {
