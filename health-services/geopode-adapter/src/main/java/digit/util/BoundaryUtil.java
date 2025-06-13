@@ -13,6 +13,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 import java.net.URI;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 import static digit.config.ServiceConstants.*;
@@ -113,6 +114,7 @@ public class BoundaryUtil {
 
 	/**
 	 * This method is for creating a unique code for the purpose of boundary-entity creation
+	 * If country already initialized in boundary-hierarchy return error
 	 *
 	 * @param code
 	 * @param currentLevel
@@ -123,6 +125,11 @@ public class BoundaryUtil {
 		String baseCode = HIERARCHY_TYPE + '_' + currentLevel +  '_'+code.trim().replaceAll("[^a-zA-Z0-9]", "_"); // base unique code
 		String uniqueCode = baseCode;
 		Boolean isAlreadyThere = checkBoundaryEntitySearchResponse(uniqueCode, requestInfo);
+
+		//If country already initialized in boundary-hierarchy return error
+		if( Objects.equals(currentLevel, ROOT_HIERARCHY_LEVEL) && isAlreadyThere){
+			throw new CustomException(ALREADY_EXISTS,"Country already exists for given HierarchyType");
+		}
 
 		if (isAlreadyThere) {
 			String trimmedCode =code.trim().replaceAll("[^a-zA-Z0-9]", "_");

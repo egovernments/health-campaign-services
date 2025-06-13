@@ -94,11 +94,12 @@ public class ChildBoundaryCreationUtil {
         // If root level (e.g., ADM0), make single batch-wise fetch
         // Will store current search data as [childName,UniqueChildName]
         List<List<String>>  currentChildNames=new ArrayList<>(); // Will hold unique features in format
+        int totalChildrenCount = 0;
 
         if (parentList == null) {
             List<Feature> childResults= fetchAllBatchesForLevel(currentLevel,parentLevel,(String) null,rootCode); // No parent filter
             currentChildNames=initializeBoundaryAndRelationship(childResults,null,currentLevel,request.getRequestInfo());
-
+            totalChildrenCount += childResults.size();
         } else {
             // For each parent element, make a batch fetch based on parent
             for (List<String> pair : parentList) {
@@ -107,6 +108,7 @@ public class ChildBoundaryCreationUtil {
 
                 // Fetch all batches where query is like ?adm0=Mozambique or ?adm1=ProvinceName
                 List<Feature> childResults = fetchAllBatchesForLevel(currentLevel,parentLevel, parentName,rootCode);
+                totalChildrenCount += childResults.size();
                 log.info("No of children for parent "+parentName+" "+childResults.toArray().length);
                 // Accumulating all parents results
                 currentChildNames.addAll(
@@ -115,6 +117,8 @@ public class ChildBoundaryCreationUtil {
             }
         }
 
+        log.info("Total number of children processed for level {} are {} ",currentLevel,totalChildrenCount);
+
         // Proceed to the next level recursively
         // The current boundaryNames become the next-levels parent
         fetchLevelRecursively(hierarchyLevels, currentIndex + 1, currentChildNames, rootCode,request);
@@ -122,7 +126,7 @@ public class ChildBoundaryCreationUtil {
 
 
     /**
-     *  Fetches all batches for a given level and optional parent filter
+     *  Fetches all batches for a given parent filter
      *  The parentName will be passed as a query param (e.g., ?adm0=Mozambique)
      *
      * @param currentLevel
@@ -266,6 +270,7 @@ public class ChildBoundaryCreationUtil {
 
     /**
      * Method initializes boundary-Entity
+     *
      *
      * @param childUniqueCode
      * @param currentLevel
