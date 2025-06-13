@@ -208,6 +208,7 @@ public class ServiceRequestValidator {
                             attributeValue -> attributeValue
                     ));
             attributeValueMap = service.getAttributes().stream()
+                    .filter(attributeValue -> !ObjectUtils.isEmpty(attributeValue.getId()))
                     .collect(Collectors.toMap(
                             AttributeValue::getId,
                             attributeValue -> attributeValue

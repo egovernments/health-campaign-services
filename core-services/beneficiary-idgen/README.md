@@ -2,14 +2,13 @@
 
 The egov-idgen service generates new IDs based on the ID formats provided. The application exposes a REST API to process requests and return generated IDs.
 
-### DB UML Diagram
+## DB UML Diagram
 
 - TBD
 
-### Service Dependencies
+## Service Dependencies
 
 - egov-mdms-service
-
 
 ## Service Details
 
@@ -17,7 +16,7 @@ The application can be run like any other Spring Boot application, but you must 
 
 For IntelliJ IDEA, install the plugin directly. For Eclipse, add the Lombok JAR to the `eclipse.ini` file using:
 
-```
+```ini
 -javaagent:lombok.jar
 ```
 
@@ -31,7 +30,6 @@ For IntelliJ IDEA, install the plugin directly. For Eclipse, add the Lombok JAR 
 ## Reference document
 
 Details on every parameter and its significance are mentioned in the document: `https://digit-discuss.atlassian.net/l/c/eH501QE3`
-
 
 ### Kafka Consumers
 

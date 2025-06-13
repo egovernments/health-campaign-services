@@ -19,6 +19,7 @@ import org.egov.id.repository.IdRepository;
 import org.egov.tracer.model.CustomException;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
+import org.springframework.util.CollectionUtils;
 
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 
@@ -53,6 +54,8 @@ public class IdPoolValidatorForUpdate implements Validator<IdRecordBulkRequest, 
 
         List<IdRecord> idRecords = request.getIdRecords();
 
+        if (CollectionUtils.isEmpty(idRecords)) return errorDetailsMap;
+
         // Assuming all records have the same tenantId, fetch tenantId from first record
         String tenantId = idRecords.get(0).getTenantId();
 
@@ -71,14 +74,16 @@ public class IdPoolValidatorForUpdate implements Validator<IdRecordBulkRequest, 
                 try {
                     // Validate if the status string corresponds to a valid enum constant
                     IdStatus.valueOf(idRecord.getStatus().toUpperCase());
-                } catch (IllegalArgumentException e) {
+                } catch (Exception e) {
                     // Invalid status found; add an error entry
-                    updateError(errorDetailsMap, idRecord);
+                    log.error("Invalid status found for ID: {}", idRecord.getId(), e);
+                    updateError(errorDetailsMap, idRecord, e.getMessage());
                 }
 
                 // Validate that the ID is not blank and exists in the repository
-                if (!StringUtils.isNotBlank(idRecord.getId()) || !idRecordMap.containsKey(idRecord.getId())) {
-                    updateError(errorDetailsMap, idRecord);
+                if (StringUtils.isBlank(idRecord.getId()) || !idRecordMap.containsKey(idRecord.getId())) {
+                    log.error("ID is blank or does not exist in the repository: {}", idRecord.getId());
+                    updateError(errorDetailsMap, idRecord, "ID is blank or does not exist in the repository: " + idRecord.getId());
                 }
             }
         }
@@ -91,9 +96,8 @@ public class IdPoolValidatorForUpdate implements Validator<IdRecordBulkRequest, 
      * @param errorDetailsMap Map tracking errors for IdRecords
      * @param idRecord The IdRecord that failed validation
      */
-    private static void updateError(Map<IdRecord, List<Error>> errorDetailsMap, IdRecord idRecord) {
+    private static void updateError(Map<IdRecord, List<Error>> errorDetailsMap, IdRecord idRecord, String errorMessage) {
         String errorCode = "INVALID_ID";
-        String errorMessage = "Invalid id";
 
         // Create a non-recoverable error with the specified code and message
         Error error = Error.builder()

@@ -3,7 +3,6 @@ package org.egov.common.models.idgen;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
-import jdk.jfr.BooleanFlag;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -33,6 +32,5 @@ public class ClientInfo {
     private String deviceInfo;
 
     @JsonProperty("fetchAllocatedIds")
-    @BooleanFlag
     private Boolean fetchAllocatedIds;
 }

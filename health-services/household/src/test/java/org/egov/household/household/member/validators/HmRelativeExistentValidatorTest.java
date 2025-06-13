@@ -1,10 +1,15 @@
 package org.egov.household.household.member.validators;
 
+import java.util.stream.Stream;
 import org.egov.common.models.household.HouseholdMember;
 import org.egov.common.models.household.Relationship;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.InjectMocks;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -16,83 +21,61 @@ class HmRelativeExistentValidatorTest {
     @InjectMocks
     private HmRelativeExistentValidator hmRelativeExistentValidator;
 
-    @Test
-    void isInvalidRelativeAndSelf_relativeIdMissing() {
-        HouseholdMember householdMember = HouseholdMember.builder()
-                .build();
-        Relationship relationship = Relationship.builder()
-                .build();
-        assertTrue(hmRelativeExistentValidator.isRelativeIdMissing(relationship));
-        assertTrue(hmRelativeExistentValidator.isInvalidRelativeAndSelf(householdMember, relationship));
+    private static Stream<Arguments> invalidRelativeAndSelfScenarios() {
+        return Stream.of(
+                // same household ID and selfId → invalid = false
+                Arguments.of("household-member-id", null, "relative-id", null, "household-member-id", null, false, false),
 
-        relationship.setRelativeId("relative-id");
-        assertFalse(hmRelativeExistentValidator.isInvalidRelativeAndSelf(householdMember, relationship));
+                // different selfId → invalid = true
+                Arguments.of("household-member-id", null, "relative-id", null, "self-household-member-id", null, false, true),
 
-        relationship.setRelativeClientReferenceId("relative-client-reference-id");
-        relationship.setRelativeId(null);
-        assertFalse(hmRelativeExistentValidator.isInvalidRelativeAndSelf(householdMember, relationship));
+                // same clientReferenceId and selfClientReferenceId → invalid = false
+                Arguments.of(null, "household-member-id", "relative-id", null, null, "household-member-id", false, false),
+
+                // different selfClientReferenceId → invalid = true
+                Arguments.of(null, "household-member-id", "relative-id", null, null, "self-household-member-id", false, true),
+
+                // relativeId same as household id → invalid = true
+                Arguments.of("household-member-id", null, "household-member-id", null, null, null, false, true),
+
+                // relativeClientReferenceId same as household member client ref → invalid = true
+                Arguments.of(null, "household-member-id", "relative-id", "household-member-id", null, null, false, true),
+
+                // relativeClientReferenceId different → valid
+                Arguments.of(null, "household-member-id", "relative-id", "self-household-member-id", null, null, false, false)
+        );
     }
 
-    @Test
-    void isInvalidRelativeAndSelf_selfAndHouseholdMemberIdShouldBeSame() {
+
+    @ParameterizedTest
+    @MethodSource("invalidRelativeAndSelfScenarios")
+    void testIsInvalidRelativeAndSelf(
+            String householdMemberId,
+            String householdMemberClientRefId,
+            String relativeId,
+            String relativeClientRefId,
+            String selfId,
+            String selfClientRefId,
+            boolean isRelativeIdMissing,
+            boolean expectedInvalid
+    ) {
         HouseholdMember householdMember = HouseholdMember.builder()
-                .id("household-member-id")
+                .id(householdMemberId)
+                .clientReferenceId(householdMemberClientRefId)
                 .build();
+
         Relationship relationship = Relationship.builder()
-                .relativeId("relative-id")
+                .relativeId(relativeId)
+                .relativeClientReferenceId(relativeClientRefId)
+                .selfId(selfId)
+                .selfClientReferenceId(selfClientRefId)
                 .build();
-        assertFalse(hmRelativeExistentValidator.isInvalidRelativeAndSelf(householdMember, relationship));
 
-        relationship.setSelfId("self-household-member-id");
-        assertTrue(hmRelativeExistentValidator.isInvalidRelativeAndSelf(householdMember, relationship));
+        if (isRelativeIdMissing) {
+            assertTrue(hmRelativeExistentValidator.isRelativeIdMissing(relationship));
+        }
 
-        relationship.setSelfId(householdMember.getId());
-        assertFalse(hmRelativeExistentValidator.isInvalidRelativeAndSelf(householdMember, relationship));
-    }
-
-    @Test
-    void isInvalidRelativeAndSelf_selfAndHouseholdMemberClientReferenceIdShouldBeSame() {
-        HouseholdMember householdMember = HouseholdMember.builder()
-                .clientReferenceId("household-member-id")
-                .build();
-        Relationship relationship = Relationship.builder()
-                .relativeId("relative-id")
-                .build();
-        assertFalse(hmRelativeExistentValidator.isInvalidRelativeAndSelf(householdMember, relationship));
-
-        relationship.setSelfClientReferenceId("self-household-member-id");
-        assertTrue(hmRelativeExistentValidator.isInvalidRelativeAndSelf(householdMember, relationship));
-
-        relationship.setSelfClientReferenceId(householdMember.getClientReferenceId());
-        assertFalse(hmRelativeExistentValidator.isInvalidRelativeAndSelf(householdMember, relationship));
-    }
-
-    @Test
-    void isInvalidRelativeAndSelf_relativeIdAndHouseholdMemberIdShouldNotSame() {
-        HouseholdMember householdMember = HouseholdMember.builder()
-                .id("household-member-id")
-                .build();
-        Relationship relationship = Relationship.builder()
-                .relativeId("self-household-member-id")
-                .build();
-        assertFalse(hmRelativeExistentValidator.isInvalidRelativeAndSelf(householdMember, relationship));
-
-        relationship.setRelativeId(householdMember.getId());
-        assertTrue(hmRelativeExistentValidator.isInvalidRelativeAndSelf(householdMember, relationship));
-    }
-
-    @Test
-    void isInvalidRelativeAndSelf_relativeAndHouseholdMemberClientReferenceIdShouldNotSame() {
-        HouseholdMember householdMember = HouseholdMember.builder()
-                .clientReferenceId("household-member-id")
-                .build();
-        Relationship relationship = Relationship.builder()
-                .relativeClientReferenceId("self-household-member-id")
-                .relativeId("relative-id")
-                .build();
-        assertFalse(hmRelativeExistentValidator.isInvalidRelativeAndSelf(householdMember, relationship));
-
-        relationship.setRelativeClientReferenceId(householdMember.getClientReferenceId());
-        assertTrue(hmRelativeExistentValidator.isInvalidRelativeAndSelf(householdMember, relationship));
+        boolean actualInvalid = hmRelativeExistentValidator.isInvalidRelativeAndSelf(householdMember, relationship);
+        assertEquals(expectedInvalid, actualInvalid);
     }
 }

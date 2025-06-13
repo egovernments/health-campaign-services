@@ -19,7 +19,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.BadSqlGrammarException;
 import org.springframework.stereotype.Service;
-import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 import org.springframework.jdbc.core.JdbcTemplate;
 
@@ -93,8 +92,8 @@ public class IdGenerationService {
                 idResponse.setId(ListOfIds);
                 idResponses.add(idResponse);
             }
-            idGenerationResponse.setIdResponses(idResponses);
         }
+        idGenerationResponse.setIdResponses(idResponses);
         idGenerationResponse.setResponseInfo(ResponseInfoUtil.createResponseInfoFromRequestInfo(requestInfo, true));
 
         return idGenerationResponse;
@@ -126,11 +125,10 @@ public class IdGenerationService {
                 .responseInfo(ResponseInfoUtil.createResponseInfoFromRequestInfo(requestInfo, true))
                 .build();
 
-        List<Map<String, String>> feedback = new ArrayList<>();
+        List<IDPoolCreationResult> createResponses = new ArrayList<>();
         int index = 0;
 
         for (BatchRequest batch : batchRequestList) {
-            Map<String, String> successOrErrorMessage = new HashMap<>();
             log.info("Processing batch index {}: tenantId={}, batchSize={}", index, batch.getTenantId(), batch.getBatchSize());
 
             String tenantId = batch.getTenantId();
@@ -161,17 +159,23 @@ public class IdGenerationService {
                 persistToKafka(requestInfo, generatedIds, tenantId);
                 log.info("Successfully pushed IDs to Kafka for tenant {}", tenantId);
 
-                successOrErrorMessage.put(tenantId, "ID Generation has been processed");
+                IDPoolCreationResult createResponse = IDPoolCreationResult.builder()
+                        .tenantId(tenantId)
+                        .message("ID Generation has been processed")
+                        .build();
+                createResponses.add(createResponse);
             } catch (Exception e) {
                 log.error("Error processing batch index {}: {}", index, e.getMessage(), e);
-                successOrErrorMessage.put(tenantId, e.getMessage());
+                IDPoolCreationResult createResponse = IDPoolCreationResult.builder()
+                        .tenantId(tenantId)
+                        .message(e.getMessage())
+                        .build();
+                createResponses.add(createResponse);
             }
-
-            feedback.add(successOrErrorMessage);
             index++;
         }
 
-        response.setIdCreationResponse(feedback);
+        response.setIdPoolCreateResponses(createResponses);
         log.info("ID pool generation completed for all batches.");
         return response;
     }
@@ -394,17 +398,7 @@ public class IdGenerationService {
             StringBuffer idSelectQuery = new StringBuffer();
             idSelectQuery.append("SELECT format FROM id_generator ").append(" WHERE idname=? and tenantid=?");
 
-           String rs = jdbcTemplate.queryForObject(idSelectQuery.toString(),new Object[]{idName,tenantId}, String.class);
-            if (!StringUtils.isEmpty(rs)) {
-                idFormat = rs;
-            } else {
-                // querying for the id format with idname
-                StringBuffer idNameQuery = new StringBuffer();
-                idNameQuery.append("SELECT format FROM id_generator ").append(" WHERE idname=?");
-                 rs = jdbcTemplate.queryForObject(idSelectQuery.toString(),new Object[]{idName}, String.class);
-                if (!StringUtils.isEmpty(rs))
-                    idFormat = rs;
-            }
+           idFormat = jdbcTemplate.queryForObject(idSelectQuery.toString(), String.class, idName, tenantId);
         } catch (Exception ex){
             log.error("SQL error while trying to retrive format from DB",ex);
         }

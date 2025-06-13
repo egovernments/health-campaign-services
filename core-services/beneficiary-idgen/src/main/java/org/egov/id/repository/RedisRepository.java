@@ -6,6 +6,7 @@ import org.egov.common.models.idgen.IdStatus;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Repository;
+import org.springframework.util.ObjectUtils;
 
 import java.time.Duration;
 import java.util.*;
@@ -25,8 +26,11 @@ import static org.egov.id.utils.Constants.ID_STATUS;
 @Slf4j
 public class RedisRepository {
 
-    @Autowired
-    private RedisTemplate<String, Object> redisTemplate;
+    private final RedisTemplate<String, Object> redisTemplate;
+
+    public RedisRepository(RedisTemplate<String, Object> redisTemplate) {
+        this.redisTemplate = redisTemplate;
+    }
 
     /**
      * Generates a Redis key to uniquely track dispatched ID count per user-device pair.
@@ -51,9 +55,14 @@ public class RedisRepository {
      * Filters out any IDs that are already marked as DISPATCHED in the status hash.
      */
     public List<IdRecord> selectUnassignedIds(int count) {
-        Set<Object> ids = redisTemplate.opsForZSet().range(IdStatus.UNASSIGNED.name(), 0, -1); // Fetch all from sorted set
+        Set<Object> ids = redisTemplate.opsForZSet().range(IdStatus.UNASSIGNED.name(), 0L, count - 1L); // Fetch all from sorted set
         List<IdRecord> unassigned = new ArrayList<>();
         log.debug("Scanning Redis sorted set 'unassigned_ids' for up to {} unassigned IDs", count);
+
+        if(ObjectUtils.isEmpty(ids)) {
+            log.debug("No unassigned IDs found in Redis. Returning empty list.");
+            return unassigned;
+        }
 
         for (Object obj : ids) {
             if (unassigned.size() >= count) break; // Stop if enough IDs are collected
@@ -62,7 +71,7 @@ public class RedisRepository {
 
             // Check if ID is already marked as dispatched in hash
             Object status = redisTemplate.opsForHash().get(ID_STATUS, record.getId());
-            if (status == null || !"dispatched".equalsIgnoreCase(status.toString())) {
+            if (status == null || !IdStatus.DISPATCHED.name().equalsIgnoreCase(status.toString())) {
                 unassigned.add(record); // ID is safe to dispatch
             } else {
                 log.debug("Skipping ID {} as it is already marked dispatched", record.getId());

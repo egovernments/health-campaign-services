@@ -33,6 +33,7 @@ public class IDPoolGenerationRequest {
 
     @JsonProperty("RequestInfo")
     @NotNull
+    @Valid
     private RequestInfo requestInfo;
 
     @JsonProperty("BatchRequestList")

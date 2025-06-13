@@ -80,20 +80,6 @@
       <version>2.2.0</version>
     </dependency>
     <dependency>
-      <groupId>org.springframework.boot</groupId>
-      <artifactId>spring-boot-starter-data-redis</artifactId>
-      <exclusions>
-        <exclusion>
-          <groupId>io.lettuce</groupId>
-          <artifactId>lettuce-core</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <dependency>
-      <groupId>redis.clients</groupId>
-      <artifactId>jedis</artifactId>
-    </dependency>
-    <dependency>
       <groupId>org.redisson</groupId>
       <artifactId>redisson-spring-boot-starter</artifactId>
       <version>3.45.1</version>
@@ -122,10 +108,10 @@
   </dependencies>
   <repositories>
     <repository>
-			<id>repo.egovernments.org</id>
-			<name>eGov DIGIT Releases Repository</name>
-			<url>https://nexus-repo.digit.org/nexus/content/repositories/snapshots/</url>
-		</repository>
+      <id>repo.egovernments.org</id>
+      <name>eGov DIGIT Releases Repository</name>
+      <url>https://nexus-repo.digit.org/nexus/content/repositories/snapshots/</url>
+    </repository>
     <repository>
       <id>repo.egovernments.org.snapshots</id>
       <name>eGov ERP Snapshots Repository</name>

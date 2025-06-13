@@ -20,9 +20,9 @@ public class BatchRequest {
     @JsonProperty("batchSize")
     @NotNull
     @Positive
-    private Integer BatchSize;
+    private Integer batchSize;
 
     @JsonProperty("tenantId")
     @NotNull
-    private String TenantId;
+    private String tenantId;
 }

@@ -10,7 +10,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 /**
- * Error object will be returned as a part of reponse body in conjunction with
+ * Error object will be returned as a part of response body in conjunction with
  * ResponseInfo as part of ErrorResponse whenever the request processing status
  * in the ResponseInfo is FAILED. HTTP return in this scenario will usually be
  * HTTP 400.

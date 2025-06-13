@@ -43,8 +43,7 @@ public class IdGenUtil {
     public static List<IdRecord> convertIdsToIdRecords(List<String> ids, String tenantId, RequestInfo requestInfo, String status) {
 
         return ids.stream().map(id -> {
-            String updateStatus = "";
-            if (StringUtils.isNotBlank(status)) updateStatus = status;
+            String updateStatus = StringUtils.isBlank(status) ? "" : status;
 
             return IdRecord.builder()
                     .id(id)

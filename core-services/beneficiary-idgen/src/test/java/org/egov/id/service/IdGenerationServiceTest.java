@@ -6,48 +6,20 @@ import org.egov.common.models.idgen.*;
 import org.egov.tracer.model.CustomException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.junit.runner.RunWith;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
-import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
 import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.*;
-@RunWith(SpringJUnit4ClassRunner.class)
-@ExtendWith(SpringExtension.class)
 
+@ExtendWith(SpringExtension.class)
 class IdGenerationServiceTest {
 
     @Test
     void testGenerateIdResponse() throws Exception {
 
-        IdGenerationService idGenerationService = new IdGenerationService();
-
-        ArrayList<IdRequest> idRequestList = new ArrayList<>();
-        idRequestList.add(new IdRequest());
-
-        IdGenerationRequest idGenerationRequest = new IdGenerationRequest();
-        idGenerationRequest.setIdRequests(idRequestList);
-        assertThrows(CustomException.class, () -> idGenerationService.generateIdResponse(idGenerationRequest));
-    }
-
-    @Test
-    void testGenerateIdResponse3() throws Exception {
-
-        IdGenerationService idGenerationService = new IdGenerationService();
-
-        ArrayList<IdRequest> idRequestList = new ArrayList<>();
-        idRequestList.add(new IdRequest());
-        IdGenerationRequest idGenerationRequest = new IdGenerationRequest();
-        idGenerationRequest.setIdRequests(idRequestList);
-        assertThrows(CustomException.class, () -> idGenerationService.generateIdResponse(idGenerationRequest));
-
-    }
-
-    @Test
-    void testGenerateIdResponse4() throws Exception {
         IdGenerationService idGenerationService = new IdGenerationService();
 
         ArrayList<IdRequest> idRequestList = new ArrayList<>();

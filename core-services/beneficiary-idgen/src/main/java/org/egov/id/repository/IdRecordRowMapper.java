@@ -19,8 +19,11 @@ import java.sql.SQLException;
 public class IdRecordRowMapper implements RowMapper<IdRecord> {
 
     // Used to deserialize complex fields like JSONB additionalFields
-    @Autowired
-    private ObjectMapper objectMapper;
+    private final ObjectMapper objectMapper;
+
+    public IdRecordRowMapper(ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
+    }
 
     /**
      * Maps a single row of ResultSet to an IdRecord object.

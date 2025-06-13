@@ -5,7 +5,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.idgen.IdRecord;
 import org.egov.common.models.idgen.IdRecordBulkRequest;
 import org.egov.id.service.IdDispatchService;
-import org.egov.id.service.IdGenerationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -37,7 +36,7 @@ public class IdGenerationConsumer {
      * @param objectMapper Jackson ObjectMapper for converting Kafka message payloads
      */
     @Autowired
-    public IdGenerationConsumer(IdDispatchService idDispatchService, IdGenerationService idGenerationService, @Qualifier("objectMapper") ObjectMapper objectMapper) {
+    public IdGenerationConsumer(IdDispatchService idDispatchService, @Qualifier("objectMapper") ObjectMapper objectMapper) {
         this.idDispatchService =  idDispatchService;
         this.objectMapper = objectMapper;
     }
