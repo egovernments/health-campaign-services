@@ -2808,8 +2808,8 @@ async function createAllResources(campaignDetails: any,parentCampaign : any, use
   else if(!allTaskCompleted) {
     throwError("COMMON", 400, "INTERNAL_SERVER_ERROR", "Resources creation timed out.");
   }
-  logger.info(`Waiting for 10 seconds for all resources to get persisted...`);
-  await new Promise(resolve => setTimeout(resolve, 10000));
+  logger.info(`Waiting for 20 seconds for all resources to get persisted...`);
+  await new Promise(resolve => setTimeout(resolve, 20000));
 }
 
 async function createAllMappings(campaignDetails: any, parentCampaign : any, useruuid: string) {

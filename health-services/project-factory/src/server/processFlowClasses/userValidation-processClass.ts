@@ -2,7 +2,7 @@ import { getLocalizedName, populateBoundariesRecursively } from "../utils/campai
 import { SheetMap } from "../models/SheetMap";
 import { logger } from "../utils/logger";
 import config from "../config";
-import { getCampaignDataRowsWithUniqueIdentifiers, throwError } from "../utils/genericUtils";
+import { getCampaignDataRowsWithUniqueIdentifiers, getRelatedDataWithCampaign, throwError } from "../utils/genericUtils";
 import { dataRowStatuses, sheetDataRowStatuses } from "../config/constants";
 import { defaultRequestInfo, searchBoundaryRelationshipData } from "../api/coreApis";
 import { httpRequest } from "../utils/request";
@@ -31,7 +31,7 @@ export class TemplateClass {
         validateDatasWithSchema(userSheetData, userSchema, errors, localizationMap);
         validateActiveFieldMinima(userSheetData,"HCM_ADMIN_CONSOLE_USER_USAGE", errors);
         await this.validatePhoneNumber(userSheetData, resourceDetails.tenantId, errors);
-        await this.validateUserNames(userSheetData, resourceDetails.tenantId, errors);
+        await this.validateUserNames(userSheetData, resourceDetails, errors);
         await this.validateBoundaries(userSheetData, resourceDetails, errors);
 
         this.processErrors(userSheetData, errors, resourceDetails);       
@@ -136,11 +136,15 @@ export class TemplateClass {
         logger.info("Phone number validation completed.");
     }
 
-    private static async validateUserNames(userSheetData: any, tenantId: string, errors: any[]) {
+    private static async validateUserNames(userSheetData: any, resourceDetails: any, errors: any[]) {
         logger.info("Validating user names...");
+        const tenantId = resourceDetails?.tenantId;
+        const campaignDetails = await this.getCampaignDetails(resourceDetails);
         const userNamesToRowMap: any = {};
+        const userDataInDb = await getRelatedDataWithCampaign(campaignDetails?.campaignNumber, "user", dataRowStatuses.completed);
+        const alreadyCreatedUsersPhoneNumberSet = new Set(userDataInDb.map((user: any) => user?.uniqueIdentifier));
         for (let i = 0; i < userSheetData.length; i++) {
-            if (userSheetData[i]["UserName"]) {
+            if (userSheetData[i]["UserName"] && !alreadyCreatedUsersPhoneNumberSet.has(userSheetData[i]["HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER"])) {
                 const userName = userSheetData[i]["UserName"];
                 if (!userSheetData[i]["UserService Uuids"] && userName) {
                     userNamesToRowMap[userName] = i + 3;
