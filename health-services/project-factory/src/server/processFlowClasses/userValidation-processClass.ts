@@ -144,9 +144,9 @@ export class TemplateClass {
         const campaignDetails = await this.getCampaignDetails(resourceDetails);
         const userNamesToRowMap: any = {};
         const userDataInDb = await getRelatedDataWithCampaign(campaignDetails?.campaignNumber, "user", dataRowStatuses.completed);
-        const alreadyCreatedUsersPhoneNumberSet = new Set(userDataInDb.map((user: any) => user?.uniqueIdentifier));
+        const alreadyCreatedUsersPhoneNumberSet = new Set(userDataInDb.map((user: any) => String(user?.uniqueIdentifier)));
         for (let i = 0; i < userSheetData.length; i++) {
-            if (userSheetData[i]["UserName"] && !alreadyCreatedUsersPhoneNumberSet.has(userSheetData[i]["HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER"])) {
+            if (userSheetData[i]["UserName"] && !alreadyCreatedUsersPhoneNumberSet.has(String(userSheetData[i]["HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER"]))) {
                 const userName = userSheetData[i]["UserName"];
                 if (!userSheetData[i]["UserService Uuids"] && userName) {
                     userNamesToRowMap[userName] = i + 3;
