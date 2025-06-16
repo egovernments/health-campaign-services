@@ -34,7 +34,6 @@ public class IDPoolGenerationResponse {
     @JsonProperty("IdCreationResponse")
     @NotNull
     @Valid
-    private List<Map<String,String>> idCreationResponse;
     private List<IDPoolCreationResult> idPoolCreateResponses;
 
 }
