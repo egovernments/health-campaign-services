@@ -24,7 +24,7 @@ import org.egov.common.utils.CommonUtils;
 import org.egov.common.validator.Validator;
 import org.egov.individual.config.IndividualProperties;
 import org.egov.individual.repository.IndividualRepository;
-import org.egov.individual.util.IdGenUtil;
+import org.egov.individual.util.BeneficiaryIdGenUtil;
 import org.egov.individual.validators.AadharNumberValidator;
 import org.egov.individual.validators.AadharNumberValidatorForCreate;
 import org.egov.individual.validators.AddressTypeValidator;
@@ -77,7 +77,7 @@ public class IndividualService {
 
     private final NotificationService notificationService;
 
-    private final IdGenUtil idGenUtil;
+    private final BeneficiaryIdGenUtil beneficiaryIdGenUtil;
 
     private final Predicate<Validator<IndividualBulkRequest, Individual>> isApplicableForUpdate = validator ->
             validator.getClass().equals(NullIdValidator.class)
@@ -116,7 +116,7 @@ public class IndividualService {
                              IndividualEncryptionService individualEncryptionService,
                              UserIntegrationService userIntegrationService,
                              NotificationService notificationService,
-                             IdGenUtil idGenUtil) {
+                             BeneficiaryIdGenUtil beneficiaryIdGenUtil) {
         this.individualRepository = individualRepository;
         this.validators = validators;
         this.properties = properties;
@@ -124,7 +124,7 @@ public class IndividualService {
         this.individualEncryptionService = individualEncryptionService;
         this.userIntegrationService = userIntegrationService;
         this.notificationService = notificationService;
-        this.idGenUtil = idGenUtil;
+        this.beneficiaryIdGenUtil = beneficiaryIdGenUtil;
     }
 
     public List<Individual> create(IndividualRequest request) {
@@ -170,7 +170,7 @@ public class IndividualService {
                     individualRepository.save(encryptedIndividualList,
                             properties.getSaveIndividualTopic());
                     // update beneficiary ids in idgen
-                    idGenUtil.updateBeneficiaryIds(beneficiaryIds, validIndividuals.get(0).getTenantId(), request.getRequestInfo());
+                    beneficiaryIdGenUtil.updateBeneficiaryIds(beneficiaryIds, validIndividuals.get(0).getTenantId(), request.getRequestInfo());
                 }
             }
         } catch (CustomException exception) {

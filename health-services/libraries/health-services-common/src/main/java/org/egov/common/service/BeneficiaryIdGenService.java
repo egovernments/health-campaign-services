@@ -14,11 +14,8 @@ import java.util.List;
 
 /**
  * Service to interact with the Beneficiary ID Generation system.
- * This service is conditionally enabled based on the property:
- * egov.beneficiary.idgen.integration.enabled=true
  */
 @Service
-@ConditionalOnProperty(name = "egov.beneficiary.idgen.integration.enabled", havingValue = "true")
 public class BeneficiaryIdGenService {
 
     private final String healthIdGenHost;

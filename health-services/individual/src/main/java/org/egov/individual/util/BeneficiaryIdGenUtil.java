@@ -18,7 +18,7 @@ import java.util.stream.Collectors;
  */
 @Slf4j
 @Component
-public class IdGenUtil {
+public class BeneficiaryIdGenUtil {
 
     private final BeneficiaryIdGenService beneficiaryIdGenService;
 
@@ -27,7 +27,7 @@ public class IdGenUtil {
      *
      * @param beneficiaryIdGenService Service used to interact with the ID generation system
      */
-    public IdGenUtil(BeneficiaryIdGenService beneficiaryIdGenService) {
+    public BeneficiaryIdGenUtil(BeneficiaryIdGenService beneficiaryIdGenService) {
         this.beneficiaryIdGenService = beneficiaryIdGenService;
     }
 
