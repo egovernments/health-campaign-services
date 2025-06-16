@@ -43,6 +43,14 @@ public class ValidatorUtils {
                 .exception(new CustomException("NON_EXISTENT_RELATED_ENTITY", "Related entity does not exist in db")).build();
     }
 
+    public static Error getErrorForInvalidEntity(String entityName, List<String> ids) {
+        String errorMessage = String.format("%s is not valid %s", entityName, ids);
+        return Error.builder().errorMessage(errorMessage)
+                .errorCode("INVALID_ENTITY")
+                .type(Error.ErrorType.NON_RECOVERABLE)
+                .exception(new CustomException("INVALID_ENTITY", errorMessage)).build();
+    }
+
     public static Error getErrorForNonExistentRelatedEntity(String id) {
         return Error.builder().errorMessage(String.format("Related entity does not exist in db %s", id))
                 .errorCode("NON_EXISTENT_RELATED_ENTITY")
