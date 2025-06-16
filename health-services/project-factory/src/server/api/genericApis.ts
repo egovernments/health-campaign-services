@@ -997,7 +997,7 @@ export async function createProjectResource(resouceBody: any) {
  * Asynchronously creates project facilities based on the provided resource body.
  * @param resouceBody The resource body.
  */
-async function createProjectFacility(resouceBody: any) {
+export async function createProjectFacility(resouceBody: any) {
   // Create project facilities
   const projectFacilityCreateUrl =
     `${config.host.projectHost}` + `${config.paths.projectFacilityCreate}`;
@@ -1018,6 +1018,7 @@ async function createProjectFacility(resouceBody: any) {
     "Project Facility Creation response" +
     getFormattedStringForDebug(projectFacilityResponse)
   );
+  return projectFacilityResponse;
   // validateProjectFacilityResponse(projectFacilityResponse);
 }
 

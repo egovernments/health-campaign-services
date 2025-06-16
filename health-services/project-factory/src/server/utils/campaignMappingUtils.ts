@@ -16,6 +16,7 @@ import { getHierarchy } from "../api/campaignApis";
 import { consolidateBoundaries } from "./boundariesConsolidationUtils";
 import { startResourceMapping } from "./resourceMappingUtils";
 import { startUserMappingAndDemapping } from "./userMappingUtils";
+import { startFacilityMappingAndDemapping } from "./facilityMappingUtils";
 
 
 async function createBoundaryWithProjectMapping(projects: any, boundaryWithProject: any) {
@@ -709,7 +710,7 @@ export async function handleMappingTaskForCampaign(messageObject: any) {
             await startResourceMapping(CampaignDetails, useruuid);
         }
         else if(processName == allProcesses.facilityMapping) {
-            // Todo: need to handle facility mapping
+            await startFacilityMappingAndDemapping(CampaignDetails, useruuid);
         }
         else if (processName == allProcesses.userMapping) {
             await startUserMappingAndDemapping(CampaignDetails, useruuid);
