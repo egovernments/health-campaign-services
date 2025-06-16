@@ -86,6 +86,8 @@ export class TemplateClass {
         const allCurrentUsersInCampaignDataWithPhoneNumbersRows = await getCampaignDataRowsWithUniqueIdentifiers("user", allPhoneNumbersToSearch, dataRowStatuses.completed);
         const setOfAllCurrentUsersInCampaignDataWithPhoneNumbers = new Set(allCurrentUsersInCampaignDataWithPhoneNumbersRows.map((user: any) => String(user?.uniqueIdentifier))); // uniqueIdentifiers of AllCurrentUsersInCampaignDataWithPhoneNumbers
         const allPhoneNumbersNotInCampaignData = allPhoneNumbersToSearch.filter((phoneNumber: any) => !setOfAllCurrentUsersInCampaignDataWithPhoneNumbers.has(String(phoneNumber)));
+        logger.info(`Number of phone numbers not in campaign data: ${allPhoneNumbersNotInCampaignData?.length}`);
+        logger.info(`Phone numbers not in campaign data: ${JSON.stringify(allPhoneNumbersNotInCampaignData)}`);
         const searchBody: any = {
             RequestInfo: defaultRequestInfo.RequestInfo,
             Individual: {
