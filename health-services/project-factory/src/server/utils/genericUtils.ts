@@ -1766,6 +1766,28 @@ export async function getRelatedDataWithCampaign(type: string, campaignNumber: s
   return rows;
 }
 
+export async function getRelatedDataWithUniqueIdentifiers(type : string, uniqueIdentifiers : any[], status ?: string ){
+  let queryString = `SELECT * FROM ${config?.DB_CONFIG.DB_CAMPAIGN_DATA_TABLE_NAME} WHERE type = $1`;
+  if (uniqueIdentifiers?.length > 0) queryString += ` AND uniqueIdentifier = ANY($2)`;
+  if (status) queryString += ` AND status = $3`;
+  const arrayStatements = [type, uniqueIdentifiers];
+  if (status) arrayStatements.push(status);
+  let relatedData = await executeQuery(queryString, arrayStatements);
+  if (!relatedData?.rows) return [];
+  let rows = [];
+  for (let i = 0; i < relatedData?.rows?.length; i++) {
+    rows.push({
+      campaignNumber: relatedData?.rows[i]?.campaignnumber,
+      type: relatedData?.rows[i]?.type,
+      data: relatedData?.rows[i]?.data,
+      uniqueIdentifier: relatedData?.rows[i]?.uniqueidentifier,
+      status: relatedData?.rows[i]?.status,
+      uniqueIdAfterProcess: relatedData?.rows[i]?.uniqueidafterprocess
+    })
+  }
+  return rows;
+}
+
 export async function getMappingDataRelatedToCampaign(type: string, campaignNumber: string, status?: string) {
   let queryString = `SELECT * FROM ${config?.DB_CONFIG.DB_CAMPAIGN_MAPPING_DATA_TABLE_NAME} WHERE type = $1 AND campaignNumber = $2`;
   if (status) queryString += ` AND status = $3`;
@@ -1831,6 +1853,7 @@ export async function getCampaignDataRowsWithUniqueIdentifiers(type: string, uni
 
 
 export async function prepareProcessesInDb(campaignNumber: any) {
+  logger.info("Preparing processes in DB...");
   let allCurrentProcesses = await getCurrentProcesses(campaignNumber);
   for (let i = 0; i < allCurrentProcesses?.length; i++) {
       allCurrentProcesses[i].status = processStatuses.pending;

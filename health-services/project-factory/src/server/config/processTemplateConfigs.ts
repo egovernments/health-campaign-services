@@ -4,7 +4,7 @@ export const processTemplateConfigs: any = {
             {
                 sheetName: "HCM_README_SHEETNAME",
                 // schemaName: "user-readme",
-                lockWholeSheetInProcessedFile : true
+                lockWholeSheet : true
             },
             {
                 sheetName: "HCM_ADMIN_CONSOLE_USER_LIST",
@@ -14,7 +14,7 @@ export const processTemplateConfigs: any = {
             {
                 sheetName: "HCM_ADMIN_CONSOLE_BOUNDARY_DATA",
                 // schemaName: "boundary-data",
-                lockWholeSheetInProcessedFile : true
+                lockWholeSheet : true
             }
         ]
     },
@@ -23,7 +23,7 @@ export const processTemplateConfigs: any = {
             {
                 sheetName: "HCM_README_SHEETNAME",
                 // schemaName: "user-readme",
-                lockWholeSheetInProcessedFile : true
+                lockWholeSheet : true
             },
             {
                 sheetName: "HCM_ADMIN_CONSOLE_FACILITIES",
@@ -33,7 +33,7 @@ export const processTemplateConfigs: any = {
             {
                 sheetName: "HCM_ADMIN_CONSOLE_BOUNDARY_DATA",
                 // schemaName: "boundary-data",
-                lockWholeSheetInProcessedFile : true
+                lockWholeSheet : true
             }
         ]
     },
@@ -42,7 +42,7 @@ export const processTemplateConfigs: any = {
             {
                 sheetName: "HCM_README_SHEETNAME",
                 // schemaName: "user-readme",
-                lockWholeSheetInProcessedFile : true
+                lockWholeSheet : true
             }
         ],
         enrichmentFunction: "enrichTargetProcessConfig"
@@ -52,18 +52,18 @@ export const processTemplateConfigs: any = {
             {
                 sheetName: "HCM_README_SHEETNAME",
                 // schemaName: "user-readme",
-                lockWholeSheetInProcessedFile: true
+                lockWholeSheet: true
             },
             {
                 sheetName: "HCM_ADMIN_CONSOLE_USER_LIST",
-                lockWholeSheetInProcessedFile: true,
+                lockWholeSheet: true,
                 validateRowsGap: true,
                 schemaName: "user"
             },
             {
                 sheetName: "HCM_ADMIN_CONSOLE_BOUNDARY_DATA",
                 // schemaName: "boundary-data",
-                lockWholeSheetInProcessedFile: true
+                lockWholeSheet: true
             }
         ]
     },
@@ -72,18 +72,18 @@ export const processTemplateConfigs: any = {
             {
                 sheetName: "HCM_README_SHEETNAME",
                 // schemaName: "user-readme",
-                lockWholeSheetInProcessedFile: true
+                lockWholeSheet: true
             },
             {
                 sheetName: "HCM_ADMIN_CONSOLE_FACILITIES",
-                lockWholeSheetInProcessedFile: true,
+                lockWholeSheet: true,
                 validateRowsGap: true,
                 schemaName: "facility"
             },
             {
                 sheetName: "HCM_ADMIN_CONSOLE_BOUNDARY_DATA",
                 // schemaName: "boundary-data",
-                lockWholeSheetInProcessedFile: true
+                lockWholeSheet: true
             }
         ]
     },
@@ -92,7 +92,7 @@ export const processTemplateConfigs: any = {
             {
                 sheetName: "HCM_README_SHEETNAME",
                 // schemaName: "user-readme",
-                lockWholeSheetInProcessedFile: true
+                lockWholeSheet: true
             }
         ],
         enrichmentFunction: "enrichTargetProcessConfig"

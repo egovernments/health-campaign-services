@@ -233,6 +233,7 @@ export class TemplateClass {
         targetConfig: any,
         useruuid: string
     ) {
+        logger.info("Processing project update in order");
         for (const boundaryData of sortedBoundaryData) {
             const data = boundaryData?.data;
             const boundaryCode = data?.["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"];
@@ -306,6 +307,7 @@ export class TemplateClass {
                 throw error;
             }
         }
+        logger.info("Project update in order completed");
     }
     
     
@@ -319,6 +321,7 @@ export class TemplateClass {
         boundaryMap: Record<string, { type: string; parent: string | null; projectId?: string }>,
         useruuid: string
     ) {
+        logger.info("Processing project creation in order");
         for (const boundaryData of sortedBoundaryData) {
             const data = boundaryData?.data;
             const boundaryCode = data?.["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"];
@@ -392,6 +395,7 @@ export class TemplateClass {
                 throw error;
             }
         }
+        logger.info("Project creation completed");
     }
     
 

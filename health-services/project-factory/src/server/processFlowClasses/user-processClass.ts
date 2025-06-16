@@ -2,7 +2,7 @@ import { getLocalizedName } from "../utils/campaignUtils";
 import { SheetMap } from "../models/SheetMap";
 import { logger } from "../utils/logger";
 import { searchProjectTypeCampaignService } from "../service/campaignManageService";
-import { getMappingDataRelatedToCampaign, getRelatedDataWithCampaign } from "../utils/genericUtils";
+import { getMappingDataRelatedToCampaign, getRelatedDataWithCampaign, getRelatedDataWithUniqueIdentifiers } from "../utils/genericUtils";
 import { dataRowStatuses, mappingStatuses, sheetDataRowStatuses, usageColumnStatus } from "../config/constants";
 import { produceModifiedMessages } from "../kafka/Producer";
 import config from "../config";
@@ -30,12 +30,15 @@ export class TemplateClass {
 
         const userSheetData : any[] = wholeSheetData[getLocalizedName("HCM_ADMIN_CONSOLE_USER_LIST", localizationMap)];
         const mobileKey = "HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER";
+        const mobileNumbersInSheet = userSheetData?.map((u: any) => u?.[mobileKey]);
 
-        const existingUsers = await getRelatedDataWithCampaign(resourceDetails?.type, campaign.campaignNumber);
-        const newUsers = await this.extractNewUsers(userSheetData, mobileKey, existingUsers, campaign.campaignNumber, resourceDetails);
+        const existingUsersForCampaign = await getRelatedDataWithCampaign(resourceDetails?.type, campaign.campaignNumber);
+
+        const userDataWithMobileNumberButNotOfThisCampaign = await this.getUserDataWithMobileNumberButNotOfThisCampaign(campaign.campaignNumber, mobileNumbersInSheet, resourceDetails);
+        const newUsers = await this.extractNewUsers(userSheetData, mobileKey, existingUsersForCampaign, userDataWithMobileNumberButNotOfThisCampaign, campaign.campaignNumber, resourceDetails);
         await this.persistInBatches(newUsers, config.kafka.KAFKA_SAVE_SHEET_DATA_TOPIC);
 
-        await this.processBoundaryChanges(userSheetData, existingUsers, newUsers, campaign.campaignNumber, resourceDetails);
+        await this.processBoundaryChanges(userSheetData, existingUsersForCampaign, newUsers, campaign.campaignNumber, resourceDetails);
 
         const waitTime = Math.max(5000, newUsers.length * 8);
         logger.info(`Waiting for ${waitTime} ms for persistence...`);
@@ -58,6 +61,12 @@ export class TemplateClass {
         };
         logger.info(`SheetMap generated for template of type ${resourceDetails.type}.`);
         return sheetMap;
+    }
+
+    private static async getUserDataWithMobileNumberButNotOfThisCampaign(campaignNumber: string, mobileNumbersInSheet: string[], resourceDetails: any){
+        const existingUsersWithMobileNumber = await getRelatedDataWithUniqueIdentifiers(resourceDetails?.type, mobileNumbersInSheet, dataRowStatuses.completed);
+        const existingUserWithDifferentCampaign = existingUsersWithMobileNumber?.filter((u: any) => u?.campaignNumber !== campaignNumber);
+        return existingUserWithDifferentCampaign;
     }
 
     private static async processBoundaryChanges(userSheetData: any, existingUsers: any, newUsers: any, campaignNumber: string, resourceDetails: any){ 
@@ -89,6 +98,7 @@ export class TemplateClass {
         boundaryUniqueIdentifierToCurrentMapping: any,
         campaignNumber: string
     ) {
+        logger.info(`Processing active rows for user sheet...`);
         const newMappingRow: any[] = [];
         const demappingRows: any[] = [];
         const usersToBeUpdated: any[] = [];
@@ -191,6 +201,7 @@ export class TemplateClass {
             const batch = usersToBeUpdated.slice(i, i + batchSize);
             await produceModifiedMessages({ datas: batch }, config.kafka.KAFKA_UPDATE_SHEET_DATA_TOPIC);
         }
+        logger.info(`Done processing active rows for user sheet...`);
     }
     
 
@@ -203,6 +214,7 @@ export class TemplateClass {
         boundaryUniqueIdentifierToCurrentMapping: any,
         campaignNumber: string
     ) {
+        logger.info(`Processing inactive rows for user sheet...`);
         const boundariesToBeDemappedRow: any[] = [];
         const usersToBeUpdated: any[] = [];
 
@@ -248,6 +260,7 @@ export class TemplateClass {
             const batch = usersToBeUpdated.slice(i, i + batchSize);
             await produceModifiedMessages({ datas: batch }, config.kafka.KAFKA_UPDATE_SHEET_DATA_TOPIC);
         }
+        logger.info(`Done processing inactive rows for user sheet...`);
     }
 
     private static async getCampaignDetails(resourceDetails: any): Promise<any> {
@@ -264,6 +277,7 @@ export class TemplateClass {
         userSheetData: any[],
         mobileKey: string,
         existingUsers: any,
+        existingUserWithAnotherCampaigns: any,
         campaignNumber: string,
         resourceDetails: any
     ): Promise<any[]> {
@@ -272,18 +286,37 @@ export class TemplateClass {
         for(const user of existingUsers){
             existingMap[user?.data?.["HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER"]] = user;
         }
+        const existingMapWithAnotherCampaigns : any = {};
+        for(const user of existingUserWithAnotherCampaigns){
+            existingMapWithAnotherCampaigns[user?.data?.["HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER"]] = user;
+        }
 
         const newEntries = [];
-        for (const [mobile, row] of Object.entries(userMap)) {
+        for (const [mobile, row ] of Object.entries(userMap) as [string, any]) {
             if (existingMap?.[String(mobile)]) continue;
-            newEntries.push({
-                campaignNumber,
-                data : row,
-                type: resourceDetails?.type,
-                uniqueIdentifier: String(mobile),
-                uniqueIdAfterProcess: null,
+            if(existingMapWithAnotherCampaigns?.[String(mobile)]){
+                const data = existingMapWithAnotherCampaigns?.[String(mobile)]?.data;
+                data["HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY"] = row?.["HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY"];
+                data["HCM_ADMIN_CONSOLE_USER_USAGE"] = row?.["HCM_ADMIN_CONSOLE_USER_USAGE"];
+                newEntries.push({
+                    campaignNumber,
+                    data: existingMapWithAnotherCampaigns?.[String(mobile)]?.data,
+                    type: resourceDetails?.type,
+                    uniqueIdentifier: String(mobile),
+                    uniqueIdAfterProcess: existingMapWithAnotherCampaigns?.[String(mobile)]?.uniqueIdAfterProcess,
+                    status: dataRowStatuses.completed
+                });
+            }
+            else{
+                newEntries.push({
+                    campaignNumber,
+                    data: row,
+                    type: resourceDetails?.type,
+                    uniqueIdentifier: String(mobile),
+                    uniqueIdAfterProcess: null,
                 status: dataRowStatuses.pending
-            });
+                });
+            }
         }
         return newEntries;
     }

@@ -8,7 +8,8 @@ export const generationtTemplateConfigs : any = {
                 // Sheet name to be used in the Excel file
                 sheetName: "HCM_README_SHEETNAME",
                 // Refers to the schema used to generate columns for this sheet
-                schemaName: "user-readme"
+                schemaName: "user-readme",
+                lockWholeSheet: true
             },
             {
                 sheetName: "HCM_ADMIN_CONSOLE_USER_LIST",
@@ -16,17 +17,26 @@ export const generationtTemplateConfigs : any = {
             },
             {
                 sheetName: "HCM_ADMIN_CONSOLE_BOUNDARY_DATA",
-                schemaName: "boundary-data"
+                schemaName: "boundary-data",
+                lockWholeSheet: true
             }
         ],
-        // Enable generation of Excel templates from schema
-        generation: true
+    },
+    userCredential: {
+        sheets: [
+            {
+                sheetName: "HCM_ADMIN_CONSOLE_USER_LIST",
+                schemaName: "user",
+                lockWholeSheet: true
+            }
+        ],
     },
     facility: {
         sheets: [
             {
                 sheetName: "HCM_README_SHEETNAME",
-                schemaName: "facility-readme"
+                schemaName: "facility-readme",
+                lockWholeSheet: true
             },
             {
                 sheetName: "HCM_ADMIN_CONSOLE_FACILITIES",
@@ -34,10 +44,10 @@ export const generationtTemplateConfigs : any = {
             },
             {
                 sheetName: "HCM_ADMIN_CONSOLE_BOUNDARY_DATA",
-                schemaName: "boundary-data"
+                schemaName: "boundary-data",
+                lockWholeSheet: true
             }
         ],
-        generation: true
     },
 
     // Configuration for the 'boundary' module
@@ -45,9 +55,9 @@ export const generationtTemplateConfigs : any = {
         sheets: [
             {
                 sheetName: "HCM_README_SHEETNAME",
-                schemaName: "target-readme"
+                schemaName: "target-readme",
+                lockWholeSheet: true
             }
-        ],
-        generation: true
+        ]
     }
 }

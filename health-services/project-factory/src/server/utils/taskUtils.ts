@@ -11,8 +11,6 @@ import { getLocalisationModuleName } from "./localisationUtils";
 import { produceModifiedMessages } from "../kafka/Producer";
 import config from "../config";
 
-
-
 export async function handleTaskForCampaign(messageObject: any) {
     try {
         const { CampaignDetails, task } = messageObject;
@@ -23,8 +21,8 @@ export async function handleTaskForCampaign(messageObject: any) {
             logger.error(`Resource type not found for process ${processName}`);
             throwError("COMMON", 400, "INTERNAL_SERVER_ERROR", `Resource type not found for process ${processName}`);
         }
-        const fileStoreId = getResorceFilestoreId(CampaignDetails, resourceType);
-        if(!fileStoreId) {
+        const resource = getResorceViaResourceType(CampaignDetails, resourceType);
+        if (!resource?.filestoreId) {
             logger.error(`FileStoreId not found for resource type ${resourceType}`);
             throwError("COMMON", 400, "INTERNAL_SERVER_ERROR", `FileStoreId not found for resource type ${resourceType}`);
         }
@@ -32,7 +30,7 @@ export async function handleTaskForCampaign(messageObject: any) {
             campaignId : CampaignDetails?.id,
             type : resourceType,
             tenantId : CampaignDetails?.tenantId,
-            fileStoreId,
+            fileStoreId: resource?.filestoreId,
             hierarchyType : CampaignDetails?.hierarchyType
         }
         logger.info(`Process resource for campaign ${CampaignDetails?.id} : ${processName} started..`);
@@ -73,11 +71,11 @@ function getResourceType(processName: string) {
     return "";
 }
 
-function getResorceFilestoreId(campaignDetails: any, resourceType: string) {
+function getResorceViaResourceType(campaignDetails: any, resourceType: string) {
     for(let i = 0; i < campaignDetails?.resources?.length; i++) {
         if(campaignDetails?.resources[i]?.type == resourceType) {
-            return campaignDetails?.resources[i]?.filestoreId;
+            return campaignDetails?.resources[i];
         }
     }
-    return "";
+    return null;
 }

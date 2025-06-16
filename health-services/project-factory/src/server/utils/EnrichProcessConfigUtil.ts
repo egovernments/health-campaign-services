@@ -35,7 +35,7 @@ export class EnrichProcessConfigUtil {
         for (const sheetName of sheetsNamesBasedOnSplit) {
             templateConfig.sheets.push({
                 sheetName,
-                lockWholeSheetInProcessedFile: true
+                lockWholeSheet: true
             })
         }
         logger.info("Boundary Process Config Enriched");

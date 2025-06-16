@@ -47,6 +47,7 @@ import {
   modifyBoundaryDataHeadersWithMap,
   prepareProcessesInDb,
   replicateRequest,
+  searchAllGeneratedResources,
   throwError,
 } from "./genericUtils";
 import { enrichProjectDetailsFromCampaignDetails } from "./transforms/projectTypeUtils";
@@ -60,6 +61,7 @@ import {
   allProcesses,
   campaignStatuses,
   dataRowStatuses,
+  generatedResourceStatuses,
   headingMapping,
   processStatuses,
   processTrackStatuses,
@@ -115,6 +117,9 @@ import {
   fetchTargetData,
   fetchUserData,
 } from "./microplanIntergration";
+import { GenerateTemplateQuery } from "../models/GenerateTemplateQuery";
+import { getLocaleFromRequest } from "./localisationUtils";
+import { generateDataService } from "../service/sheetManageService";
 
 function updateRange(range: any, worksheet: any) {
   let maxColumnIndex = 0;
@@ -2685,12 +2690,14 @@ export async function processAfterPersistNew(request: any, actionInUrl: any) {
       request?.body?.CampaignDetails?.tenantId
     );
     if (request?.body?.CampaignDetails?.action == "create") {
+      const locale = getLocaleFromRequest(request);
       const campaignDetails = request?.body?.CampaignDetails;
       const campaignNumber = campaignDetails?.campaignNumber;
       await prepareProcessesInDb(campaignNumber);
       const useruuid = request?.body?.RequestInfo?.userInfo?.uuid || campaignDetails?.auditDetails?.createdBy;
       await createAllResources(campaignDetails, request?.body?.parentCampaign || null , useruuid);
       await createAllMappings(campaignDetails, request?.body?.parentCampaign || null , useruuid);
+      await userCredGeneration(campaignDetails, useruuid, locale);
       await enrichAndPersistCampaignForCreateViaFlow2(campaignDetails);
     } else {
       await updateProjectDates(request, actionInUrl);
@@ -2706,6 +2713,47 @@ export async function processAfterPersistNew(request: any, actionInUrl: any) {
     console.log(error);
     logger.error(error);
     await enrichAndPersistCampaignWithError(request?.body, error);
+  }
+}
+
+async function userCredGeneration(campaignDetails: any, useruuid: string, locale: string = config.localisation.defaultLocale) {
+  logger.info(`Starting user cred generation...`);
+  let userCredGenerationProcess = allProcesses.userCredGeneration;
+  let allCurrentProcesses = await getCurrentProcesses(campaignDetails?.campaignNumber);
+  let task = allCurrentProcesses.find((process: any) => process?.processName == userCredGenerationProcess);
+  if(task && task?.status == processStatuses.pending) {
+    const generateTemplateQuery : GenerateTemplateQuery = {
+       type : "userCredential",
+       campaignId : campaignDetails?.id,
+       tenantId : campaignDetails?.tenantId,
+       hierarchyType : campaignDetails?.hierarchyType
+    }
+    const response = await generateDataService(generateTemplateQuery, useruuid, locale);
+    if(response && response?.id ){
+      let status = response?.status;
+      let attempts = 0
+      while(status == generatedResourceStatuses.inprogress && attempts < 15) {
+        const generatedResources : any = await searchAllGeneratedResources({ id : response?.id, tenantId : campaignDetails?.tenantId }, undefined);
+        if(generatedResources?.length > 0) {
+          status = generatedResources[0]?.status;
+          if(status == generatedResourceStatuses.completed) {
+            break;
+          }
+        }
+        else{
+          throwError("COMMON", 400, "USER_CREDENTIAL_GENERATION_ERROR", "User credential generation failed");
+        }
+        logger.info(`Attempts : ${attempts + 1} | Status : ${status} | Waiting for 20 seconds for user cred generation to get completed...`);
+        await new Promise(resolve => setTimeout(resolve, 20000));
+        attempts++;
+      }
+      if(status != generatedResourceStatuses.completed) {
+        throwError("COMMON", 400, "USER_CREDENTIAL_GENERATION_ERROR", "User credential generation failed");
+      }
+    }
+    else{
+      throwError("COMMON", 400, "USER_CREDENTIAL_GENERATION_ERROR", "User credential generation failed");
+    }
   }
 }
 
@@ -2728,7 +2776,7 @@ async function createAllResources(campaignDetails: any,parentCampaign : any, use
   let attempts = 0;
   let facilityTask : any, userTask : any, projectTask : any;
   while(allTaskCompleted == false && anyTaskFailed == false && attempts < 100) {
-    logger.info(`Checking attempts for resources : ${attempts}`);
+    logger.info(`Checking attempts for resources : ${attempts + 1}`);
     logger.info("Waiting for 20 seconds for resources to get created...");
     await new Promise(resolve => setTimeout(resolve, 20000));
     let facilityTaskArray = await getCurrentProcesses(campaignDetails?.campaignNumber, allProcesses.facilityCreation);
@@ -2765,6 +2813,7 @@ async function createAllResources(campaignDetails: any,parentCampaign : any, use
 }
 
 async function createAllMappings(campaignDetails: any, parentCampaign : any, useruuid: string) {
+  logger.info(`Starting mappings...`);
   let mappingProcesses = [allProcesses.facilityMapping,allProcesses.userMapping,allProcesses.resourceMapping];
   let allCurrentProcesses = await getCurrentProcesses(campaignDetails?.campaignNumber);
   for (let i = 0; i < mappingProcesses?.length; i++) {
@@ -2783,7 +2832,7 @@ async function createAllMappings(campaignDetails: any, parentCampaign : any, use
   let attempts = 0;
   let facilityMappingTask : any, userMappingTask : any, resourceMappingTask : any;
   while(allTaskCompleted == false && anyTaskFailed == false && attempts < 100) {
-    logger.info(`Checking attempts for mapping : ${attempts}`);
+    logger.info(`Checking attempts for mapping : ${attempts + 1}`);
     logger.info("Waiting for 20 seconds for mappings to get created...");
     await new Promise(resolve => setTimeout(resolve, 20000));
     let facilityMappingTaskArray = await getCurrentProcesses(campaignDetails?.campaignNumber, allProcesses.facilityMapping);

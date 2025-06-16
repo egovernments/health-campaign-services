@@ -6,7 +6,7 @@ import { callMdmsSchema, createAndUploadFileWithOutRequest, getJsonDataWithUnloc
 import { getLocalizedMessagesHandlerViaLocale, handledropdownthingsUnLocalised, searchAllGeneratedResources, throwError } from "./genericUtils";
 import { getLocalisationModuleName } from "./localisationUtils";
 import { getLocalizedName } from "./campaignUtils";
-import { adjustRowHeight, enrichTemplateMetaData, freezeUnfreezeColumns, getExcelWorkbookFromFileURL, getLocaleFromWorkbook, manageMultiSelectUnlocalised, updateFontNameToRoboto } from "./excelUtils";
+import { adjustRowHeight, enrichTemplateMetaData, freezeUnfreezeColumns, getExcelWorkbookFromFileURL, getLocaleFromWorkbook, manageMultiSelectUnlocalised, updateFontNameToRoboto, validateFileCmapaignIdInMetaData } from "./excelUtils";
 import * as path from 'path';
 import { ColumnProperties, SheetMap } from "../models/SheetMap";
 import { logger } from "./logger";
@@ -171,6 +171,7 @@ export function checkAllRowsConsistency(jsonData: any) {
 }
 
 export async function processRequest(ResourceDetails: any, workBook: any, templateConfig: any, localizationMap: any) {
+    validateFileCmapaignIdInMetaData(workBook, ResourceDetails?.campaignId);
     const wholeSheetData: any = {};
     for (const sheet of templateConfig?.sheets || []) {
         const sheetName = getLocalizedName(sheet?.sheetName, localizationMap);
@@ -232,21 +233,42 @@ export async function processRequest(ResourceDetails: any, workBook: any, templa
 
 async function lockSheetAccordingToConfig(workBook: any, templateConfig: any, localizationMap: any) {
     for (const sheet of templateConfig?.sheets) {
-        if (sheet?.lockWholeSheetInProcessedFile) {
+        if (sheet?.lockWholeSheet) {
             const sheetName = getLocalizedName(sheet?.sheetName, localizationMap);
             const worksheet = getOrCreateWorksheet(workBook, sheetName);
             if (!worksheet) continue;
+
             logger.info(`Locking sheet ${sheetName}`);
+
+            // Mark all cells as locked
             worksheet.eachRow((row) => {
-                row.eachCell((cell) => {
+                row.eachCell({ includeEmpty: true }, (cell) => {
                     cell.protection = { locked: true };
                 });
             });
-            await worksheet.protect('passwordhere', { selectLockedCells: true });
+
+            // Protect sheet with full options
+            await worksheet.protect('passwordhere', {
+                selectLockedCells: true,
+                selectUnlockedCells: false,
+                formatCells: false,
+                formatColumns: false,
+                formatRows: false,
+                insertColumns: false,
+                insertRows: false,
+                insertHyperlinks: false,
+                deleteColumns: false,
+                deleteRows: false,
+                sort: false,
+                autoFilter: false,
+                pivotTables: false,
+            });
+
             logger.info(`Sheet ${sheetName} locked successfully`);
         }
     }
 }
+
 
 async function handleErrorDuringGenerate(responseToSend: any, error: any) {
     responseToSend.status = generatedResourceStatuses.failed, responseToSend.additionalDetails = {
@@ -282,54 +304,50 @@ async function createBasicTemplateViaConfig(responseToSend: any, templateConfig:
         const schema = await callMdmsSchema(tenantId, schemaName);
         sheet.schema = schema;
     }
-    if (templateConfig?.generation) {
-        const className = `${responseToSend?.type}-generateClass`;
-        let classFilePath = path.join(__dirname, '..', 'generateFlowClasses', `${className}.js`);
-        if (!fs.existsSync(classFilePath)) {
-            // fallback for local dev with ts-node
-            classFilePath = path.join(__dirname, '..', 'generateFlowClasses', `${className}.ts`);
-        }
-        try {
-            const { TemplateClass } = await import(classFilePath);
-            const sheetMap: SheetMap = await TemplateClass.generate(templateConfig, responseToSend, localizationMap);
-            mergeSheetMapAndSchema(sheetMap, templateConfig, localizationMap);
-            for (const sheet of templateConfig?.sheets) {
-                const sheetName = sheet?.sheetName;
-                logger.info(`Generating sheet ${sheetName}`);
-                const sheetData: any = sheetMap?.[sheetName];
-                const worksheet = getOrCreateWorksheet(newWorkbook, getLocalizedName(sheetName, localizationMap));
-                await fillSheetMapInWorkbook(worksheet, sheetData, false, localizationMap);
-                const schema = sheet?.schema;
-                const columnsToFreeze = Object.keys(sheetData?.dynamicColumns || {})
-                    .filter((i) => sheetData.dynamicColumns[i]?.[1]?.freezeColumn === true)
-                    .map((i) => sheetData.dynamicColumns[i]?.[0]);
-
-                const columnsToUnFreezeTillData = Object.keys(sheetData?.dynamicColumns || {})
-                    .filter((columnName) => sheetData.dynamicColumns[columnName]?.[1]?.unFreezeColumnTillData)
-                    .map((columnName) => sheetData.dynamicColumns[columnName]?.[0]);
-
-                const columnsToFreezeColumnIfFilled = Object.keys(sheetData?.dynamicColumns || {})
-                    .filter((columnName) => sheetData.dynamicColumns[columnName]?.[1]?.freezeColumnIfFilled)
-                    .map((columnName) => sheetData.dynamicColumns[columnName]?.[0]);
-
-                const columnsToFreezeTillData = Object.keys(sheetData?.dynamicColumns || {})
-                    .filter((columnName) => sheetData.dynamicColumns[columnName]?.[1]?.freezeTillData)
-                    .map((columnName) => sheetData.dynamicColumns[columnName]?.[0]);
-                
-                freezeUnfreezeColumns(worksheet, columnsToFreeze, columnsToUnFreezeTillData, columnsToFreezeTillData, columnsToFreezeColumnIfFilled);
-                manageMultiSelectUnlocalised(worksheet, schema);
-                await handledropdownthingsUnLocalised(worksheet, schema);
-                updateFontNameToRoboto(worksheet);
-                logger.info(`Sheet ${sheetName} generated successfully`);
-            }
-        } catch (error) {
-            logger.error(`Error importing or calling generate function from ${classFilePath}`);
-            console.error(error);
-            throw error;
-        }
+    const className = `${responseToSend?.type}-generateClass`;
+    let classFilePath = path.join(__dirname, '..', 'generateFlowClasses', `${className}.js`);
+    if (!fs.existsSync(classFilePath)) {
+        // fallback for local dev with ts-node
+        classFilePath = path.join(__dirname, '..', 'generateFlowClasses', `${className}.ts`);
     }
-    else {
-        logger.info(`Template generation skipped for ${responseToSend?.type} according to the config.`);
+    try {
+        const { TemplateClass } = await import(classFilePath);
+        const sheetMap: SheetMap = await TemplateClass.generate(templateConfig, responseToSend, localizationMap);
+        mergeSheetMapAndSchema(sheetMap, templateConfig, localizationMap);
+        for (const sheet of templateConfig?.sheets) {
+            const sheetName = sheet?.sheetName;
+            logger.info(`Generating sheet ${sheetName}`);
+            const sheetData: any = sheetMap?.[sheetName];
+            const worksheet = getOrCreateWorksheet(newWorkbook, getLocalizedName(sheetName, localizationMap));
+            await fillSheetMapInWorkbook(worksheet, sheetData, false, localizationMap);
+            const schema = sheet?.schema;
+            const columnsToFreeze = Object.keys(sheetData?.dynamicColumns || {})
+                .filter((i) => sheetData.dynamicColumns[i]?.[1]?.freezeColumn === true)
+                .map((i) => sheetData.dynamicColumns[i]?.[0]);
+
+            const columnsToUnFreezeTillData = Object.keys(sheetData?.dynamicColumns || {})
+                .filter((columnName) => sheetData.dynamicColumns[columnName]?.[1]?.unFreezeColumnTillData)
+                .map((columnName) => sheetData.dynamicColumns[columnName]?.[0]);
+
+            const columnsToFreezeColumnIfFilled = Object.keys(sheetData?.dynamicColumns || {})
+                .filter((columnName) => sheetData.dynamicColumns[columnName]?.[1]?.freezeColumnIfFilled)
+                .map((columnName) => sheetData.dynamicColumns[columnName]?.[0]);
+
+            const columnsToFreezeTillData = Object.keys(sheetData?.dynamicColumns || {})
+                .filter((columnName) => sheetData.dynamicColumns[columnName]?.[1]?.freezeTillData)
+                .map((columnName) => sheetData.dynamicColumns[columnName]?.[0]);
+
+            freezeUnfreezeColumns(worksheet, columnsToFreeze, columnsToUnFreezeTillData, columnsToFreezeTillData, columnsToFreezeColumnIfFilled);
+            manageMultiSelectUnlocalised(worksheet, schema);
+            await handledropdownthingsUnLocalised(worksheet, schema);
+            updateFontNameToRoboto(worksheet);
+            await lockSheetAccordingToConfig(newWorkbook, templateConfig, localizationMap);
+            logger.info(`Sheet ${sheetName} generated successfully`);
+        }
+    } catch (error) {
+        logger.error(`Error importing or calling generate function from ${classFilePath}`);
+        console.error(error);
+        throw error;
     }
     return newWorkbook;
 }

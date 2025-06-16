@@ -149,7 +149,8 @@ export const allProcesses = {
     projectCreation : "CAMPAIGN_PROJECT_CREATION_PROCESS",
     facilityMapping : "CAMPAIGN_FACILITY_MAPPING_PROCESS",
     userMapping : "CAMPAIGN_USER_MAPPING_PROCESS",
-    resourceMapping : "CAMPAIGN_RESOURCE_MAPPING_PROCESS"
+    resourceMapping : "CAMPAIGN_RESOURCE_MAPPING_PROCESS",
+    userCredGeneration : "CAMPAIGN_USER_CRED_GENERATION_PROCESS",
 }
 
 export const sheetDataRowStatuses = {
