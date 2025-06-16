@@ -2,7 +2,7 @@ import { getLocalizedName, populateBoundariesRecursively } from "../utils/campai
 import { SheetMap } from "../models/SheetMap";
 import { logger } from "../utils/logger";
 import config from "../config";
-import { getCampaignDataRowsWithUniqueIdentifiers, getRelatedDataWithCampaign, throwError } from "../utils/genericUtils";
+import { getCampaignDataRowsWithUniqueIdentifiers, throwError } from "../utils/genericUtils";
 import { dataRowStatuses, sheetDataRowStatuses } from "../config/constants";
 import { defaultRequestInfo, searchBoundaryRelationshipData } from "../api/coreApis";
 import { httpRequest } from "../utils/request";
@@ -141,9 +141,14 @@ export class TemplateClass {
     private static async validateUserNames(userSheetData: any, resourceDetails: any, errors: any[]) {
         logger.info("Validating user names...");
         const tenantId = resourceDetails?.tenantId;
-        const campaignDetails = await this.getCampaignDetails(resourceDetails);
         const userNamesToRowMap: any = {};
-        const userDataInDb = await getRelatedDataWithCampaign(campaignDetails?.campaignNumber, "user", dataRowStatuses.completed);
+        const allPhoneNumbersToSearch = [];
+        for (let i = 0; i < userSheetData.length; i++) {
+            if (userSheetData?.[i]?.["HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER"]) {
+                allPhoneNumbersToSearch.push(String(userSheetData[i]["HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER"]));
+            }
+        }
+        const userDataInDb = await getCampaignDataRowsWithUniqueIdentifiers("user", allPhoneNumbersToSearch, dataRowStatuses.completed);
         const alreadyCreatedUsersPhoneNumberSet = new Set(userDataInDb.map((user: any) => String(user?.uniqueIdentifier)));
         for (let i = 0; i < userSheetData.length; i++) {
             if (userSheetData[i]["UserName"] && !alreadyCreatedUsersPhoneNumberSet.has(String(userSheetData[i]["HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER"]))) {
