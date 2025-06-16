@@ -79,13 +79,13 @@ export class TemplateClass {
         for (let i = 0; i < userSheetData.length; i++) {
             if (userSheetData[i]["HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER"]) {
                 const phoneNumber = userSheetData[i]["HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER"];
-                phoneNumbersToRowMap[phoneNumber] = i + 3;
+                phoneNumbersToRowMap[String(phoneNumber)] = i + 3;
             }
         }
         const allPhoneNumbersToSearch = Object.keys(phoneNumbersToRowMap);
         const allCurrentUsersInCampaignDataWithPhoneNumbersRows = await getCampaignDataRowsWithUniqueIdentifiers("user", allPhoneNumbersToSearch, dataRowStatuses.completed);
-        const setOfAllCurrentUsersInCampaignDataWithPhoneNumbers = new Set(allCurrentUsersInCampaignDataWithPhoneNumbersRows.map((user: any) => user?.uniqueIdentifier)); // uniqueIdentifiers of AllCurrentUsersInCampaignDataWithPhoneNumbers
-        const allPhoneNumbersNotInCampaignData = allPhoneNumbersToSearch.filter((phoneNumber: any) => !setOfAllCurrentUsersInCampaignDataWithPhoneNumbers.has(phoneNumber));
+        const setOfAllCurrentUsersInCampaignDataWithPhoneNumbers = new Set(allCurrentUsersInCampaignDataWithPhoneNumbersRows.map((user: any) => String(user?.uniqueIdentifier))); // uniqueIdentifiers of AllCurrentUsersInCampaignDataWithPhoneNumbers
+        const allPhoneNumbersNotInCampaignData = allPhoneNumbersToSearch.filter((phoneNumber: any) => !setOfAllCurrentUsersInCampaignDataWithPhoneNumbers.has(String(phoneNumber)));
         const searchBody: any = {
             RequestInfo: defaultRequestInfo.RequestInfo,
             Individual: {
