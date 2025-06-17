@@ -979,7 +979,7 @@ function getRootBoundaryCode(boundaries: any[] = []) {
 }
 
 async function enrichRootProjectIdAndBoundaryCode(campaignDetails: any) {
-  campaignDetails.boundaryCode = campaignDetails?.boundaryCode || getRootBoundaryCode(campaignDetails?.boundaries);
+  campaignDetails.boundaryCode = campaignDetails?.boundaryCode || getRootBoundaryCode(campaignDetails?.boundaries) || null;
   campaignDetails.projectId = campaignDetails?.projectId || await getRootProjectIdViaCampaignNumber(campaignDetails?.campaignNumber, campaignDetails?.boundaryCode);
   campaignDetails.projectId = campaignDetails.projectId || null;
 }
@@ -1177,7 +1177,7 @@ export async function enrichAndPersistCampaignForCreateViaFlow2(
     resources: campaignDetails?.resources || [],
     boundaries: campaignDetails?.boundaries || [],
   };
-  campaignDetails.boundaryCode = campaignDetails?.boundaryCode || getRootBoundaryCode(campaignDetails?.boundaries);
+  campaignDetails.boundaryCode = campaignDetails?.boundaryCode || getRootBoundaryCode(campaignDetails?.boundaries) || null;
   campaignDetails.projectId = campaignDetails?.projectId || await getRootProjectIdViaCampaignNumber(campaignDetails?.campaignNumber, campaignDetails?.boundaryCode);
 
   campaignDetails.status =
