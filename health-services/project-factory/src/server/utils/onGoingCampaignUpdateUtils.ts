@@ -239,40 +239,40 @@ function updateTargetValues(originalData: any, newData: any, localizedHeaders: a
   return newData;
 }
 
-function validateBoundariesIfParentPresent(request: any) {
-  const { parentCampaign, CampaignDetails } = request?.body || {};
+// function validateBoundariesIfParentPresent(request: any) {
+//   const { parentCampaign, CampaignDetails } = request?.body || {};
 
-  if (parentCampaign) {
-    const errors: string[] = [];
-    const newBoundaries: any[] = [];
-    const parentCampaignBoundaryCodes = parentCampaign.boundaries.map((boundary: any) => boundary.code);
+//   if (parentCampaign) {
+//     const errors: string[] = [];
+//     const newBoundaries: any[] = [];
+//     const parentCampaignBoundaryCodes = parentCampaign.boundaries.map((boundary: any) => boundary.code);
 
-    CampaignDetails?.boundaries?.forEach((boundary: any) => {
-      if (parentCampaignBoundaryCodes.includes(boundary.code)) {
-        errors.push(boundary.code);
-      } else {
-        if (!boundary?.isRoot) {
-          newBoundaries.push(boundary);
-        } else {
-          throwError(
-            "COMMON",
-            400,
-            "VALIDATION_ERROR",
-            `Boundary with code ${boundary.code} cannot be added as it is marked as root. Root boundary should come from the parent campaign.`
-          );
-        }
-      }
-    });
+//     CampaignDetails?.boundaries?.forEach((boundary: any) => {
+//       if (parentCampaignBoundaryCodes.includes(boundary.code)) {
+//         errors.push(boundary.code);
+//       } else {
+//         if (!boundary?.isRoot) {
+//           newBoundaries.push(boundary);
+//         } else {
+//           throwError(
+//             "COMMON",
+//             400,
+//             "VALIDATION_ERROR",
+//             `Boundary with code ${boundary.code} cannot be added as it is marked as root. Root boundary should come from the parent campaign.`
+//           );
+//         }
+//       }
+//     });
 
-    if (errors.length > 0) {
-      throwError("COMMON", 400, "VALIDATION_ERROR", `Boundary Codes found already in Parent Campaign: ${errors.join(', ')}`);
-    }
-    request.body.boundariesCombined = [...parentCampaign.boundaries, ...newBoundaries];
-  }
-  else {
-    request.body.boundariesCombined = request?.body?.CampaignDetails?.boundaries
-  }
-}
+//     if (errors.length > 0) {
+//       throwError("COMMON", 400, "VALIDATION_ERROR", `Boundary Codes found already in Parent Campaign: ${errors.join(', ')}`);
+//     }
+//     request.body.boundariesCombined = [...parentCampaign.boundaries, ...newBoundaries];
+//   }
+//   else {
+//     request.body.boundariesCombined = request?.body?.CampaignDetails?.boundaries
+//   }
+// }
 
 
 async function callGenerateWhenChildCampaigngetsCreated(request: any) {
@@ -756,7 +756,6 @@ export {
   hideColumnsOfProcessedFile,
   unhideColumnsOfProcessedFile,
   modifyNewSheetData,
-  validateBoundariesIfParentPresent,
   callGenerateWhenChildCampaigngetsCreated,
   getBoundariesFromCampaignSearchResponse,
   fetchProjectsWithProjectId,

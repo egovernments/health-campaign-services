@@ -20,7 +20,7 @@ import { campaignStatuses, resourceDataStatuses, usageColumnStatus } from "../co
 import { getBoundaryColumnName, getBoundaryTabName } from "../utils/boundaryUtils";
 import addAjvErrors from "ajv-errors";
 import { generateTargetColumnsBasedOnDeliveryConditions, isDynamicTargetTemplateForProjectType, modifyDeliveryConditions } from "../utils/targetUtils";
-import { getBoundariesFromCampaignSearchResponse, validateBoundariesIfParentPresent } from "../utils/onGoingCampaignUpdateUtils";
+import { getBoundariesFromCampaignSearchResponse } from "../utils/onGoingCampaignUpdateUtils";
 import { validateExtraBoundariesForMicroplan, validateLatLongForMicroplanCampaigns, validatePhoneNumberSheetWise, validateRequiredTargetsForMicroplanCampaigns, validateUniqueSheetWise, validateUserForMicroplan } from "./microplanValidators";
 import { produceModifiedMessages } from "../kafka/Producer";
 import { isMicroplanRequest, planConfigSearch, planFacilitySearch } from "../utils/microplanUtils";
@@ -1155,7 +1155,6 @@ async function validateCampaignBody(request: any, CampaignDetails: any, actionIn
     else if (action == "create") {
         validateProjectCampaignMissingFields(CampaignDetails);
         await validateParent(request, actionInUrl)
-        validateBoundariesIfParentPresent(request);
         validateProjectDatesForCampaign(request, CampaignDetails);
         await validateCampaignName(request, actionInUrl);
         if (tenantId != request?.body?.RequestInfo?.userInfo?.tenantId) {
@@ -1170,7 +1169,6 @@ async function validateCampaignBody(request: any, CampaignDetails: any, actionIn
     else {
         validateDraftProjectCampaignMissingFields(CampaignDetails);
         await validateParent(request, actionInUrl);
-        validateBoundariesIfParentPresent(request);
         validateProjectDatesForCampaign(request, CampaignDetails);
         await validateCampaignName(request, actionInUrl);
         await validateHierarchyType(request, hierarchyType, tenantId);
