@@ -245,8 +245,8 @@ export async function validateMissingBoundaryFromParent(requestBody : any) {
   const allCurrentCampaignBoundaries : any = await getAllBoundariesFromCampaign(CampaignDetails);
   if(parentCampaign){
     const allParentBoundaries: any = await getAllBoundariesFromCampaign(parentCampaign);
-    const setOfBoundaryCodesFromParent = new Set(allParentBoundaries.map((boundary: any) => boundary.code));
-    const missingBoundaries = allCurrentCampaignBoundaries.filter((boundary: any) => !setOfBoundaryCodesFromParent.has(boundary.code));
+    const setOfBoundaryCodesFromCurrentCampaign : any = new Set(allCurrentCampaignBoundaries.map((boundary: any) => boundary.code));
+    const missingBoundaries = allParentBoundaries.filter((boundary: any) => !setOfBoundaryCodesFromCurrentCampaign.has(boundary.code));
     if (missingBoundaries.length > 0) {
       throw new Error(`Missing boundaries from parent campaign: ${missingBoundaries.map((boundary: any) => boundary.code).join(', ')}`);
     }
