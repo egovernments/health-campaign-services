@@ -19,7 +19,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.BadSqlGrammarException;
 import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
+import org.springframework.util.ObjectUtils;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 
@@ -194,7 +194,7 @@ public class IdGenerationService {
     private String fetchIdFormat(String tenantId, Integer batchSize, RequestInfo requestInfo) {
         log.info("Fetching ID format for tenantId={}, batchSize={}", tenantId, batchSize);
 
-        if (StringUtils.isEmpty(idPoolName)) {
+        if (ObjectUtils.isEmpty(idPoolName)) {
             log.error("Configuration Error - 'id.pool.seq.code' is not set.");
             throw new CustomException("Configuration Error:", "Please configure the 'id.pool.seq.code' on the service level.");
         }
@@ -210,7 +210,7 @@ public class IdGenerationService {
             throw new RuntimeException(e);
         }
 
-        if (StringUtils.isEmpty(idFormat)) {
+        if (ObjectUtils.isEmpty(idFormat)) {
             log.error("ID format cannot be null or empty for tenant {}", tenantId);
             throw new IllegalArgumentException("ID format cannot be null or empty");
         }
@@ -329,22 +329,22 @@ public class IdGenerationService {
 
         List<String> generatedId = new LinkedList<>();
         boolean autoCreateNewSeqFlag = false;
-        if (!StringUtils.isEmpty(idRequest.getIdName()))
+        if (!ObjectUtils.isEmpty(idRequest.getIdName()))
         {
             // If IDName is specified then check if it is defined in MDMS
             String idFormat = getIdFormatFinal(idRequest, requestInfo);
 
             // If the idname is defined then the format should be used
             // else fallback to the format in the request itself
-            if (!StringUtils.isEmpty(idFormat)){
+            if (!ObjectUtils.isEmpty(idFormat)){
                 idRequest.setFormat(idFormat);
                 autoCreateNewSeqFlag=true;
-            }else if(StringUtils.isEmpty(idFormat)){
+            }else if(ObjectUtils.isEmpty(idFormat)){
                 autoCreateNewSeqFlag=false;
             }
         }
 
-        if (StringUtils.isEmpty(idRequest.getFormat()))
+        if (ObjectUtils.isEmpty(idRequest.getFormat()))
             throw new CustomException("ID_NOT_FOUND",
                     "No Format is available in the MDMS for the given name and tenant");
 
@@ -370,7 +370,7 @@ public class IdGenerationService {
                 idFormat = getIdFormatfromDB(idRequest, requestInfo); //from DB
             }
         }catch(Exception ex){
-            if(StringUtils.isEmpty(idFormat)){
+            if(ObjectUtils.isEmpty(idFormat)){
                 throw new CustomException("ID_NOT_FOUND",
                         "No Format is available in the MDMS for the given name and tenant");
             }
@@ -414,18 +414,18 @@ public class IdGenerationService {
      * @throws Exception
      */
 
-    private List getFormattedId(IdRequest idRequest, RequestInfo requestInfo, boolean autoCreateNewSeqFlag) throws Exception {
+    private List<String> getFormattedId(IdRequest idRequest, RequestInfo requestInfo, boolean autoCreateNewSeqFlag) throws Exception {
         List<String> idFormatList = new LinkedList<>();
         String idFormat = idRequest.getFormat();
 
         try{
-            if (!StringUtils.isEmpty(idFormat.trim()) && !StringUtils.isEmpty(idRequest.getTenantId())) {
+            if (!ObjectUtils.isEmpty(idFormat.trim()) && !ObjectUtils.isEmpty(idRequest.getTenantId())) {
                 idFormat = idFormat.replace("[tenantid]", idRequest.getTenantId());
                 idFormat = idFormat.replace("[tenant_id]", idRequest.getTenantId().replace(".", "_"));
                 idFormat = idFormat.replace("[TENANT_ID]", idRequest.getTenantId().replace(".", "_").toUpperCase());
             }
         }catch (Exception ex){
-            if (StringUtils.isEmpty(idFormat)) {
+            if (ObjectUtils.isEmpty(idFormat)) {
                 throw new CustomException("IDGEN_FORMAT_ERROR", "Blank format is not allowed");
             }
         }
