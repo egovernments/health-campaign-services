@@ -240,16 +240,18 @@ function updateTargetValues(originalData: any, newData: any, localizedHeaders: a
   return newData;
 }
 
-export async function validateMissingBoundaryFromParent(campaignDetails: any, parentCampaign: any) {
-  if(!parentCampaign) return;
-  const allParentBoundaries : any =  await getAllBoundariesFromCampaign(parentCampaign);
-  const allCurrentCampaignBoundaries : any = await getAllBoundariesFromCampaign(campaignDetails);
-  const setOfBoundaryCodesFromParent = new Set(allParentBoundaries.map((boundary: any) => boundary.code));
-
-  const missingBoundaries = allCurrentCampaignBoundaries.filter((boundary: any) => !setOfBoundaryCodesFromParent.has(boundary.code));
-  if(missingBoundaries.length > 0) {
-    throw new Error(`Missing boundaries from parent campaign: ${missingBoundaries.map((boundary: any) => boundary.code).join(', ')}`);
+export async function validateMissingBoundaryFromParent(requestBody : any) {
+  const { CampaignDetails, parentCampaign } = requestBody;
+  const allCurrentCampaignBoundaries : any = await getAllBoundariesFromCampaign(CampaignDetails);
+  if(parentCampaign){
+    const allParentBoundaries: any = await getAllBoundariesFromCampaign(parentCampaign);
+    const setOfBoundaryCodesFromParent = new Set(allParentBoundaries.map((boundary: any) => boundary.code));
+    const missingBoundaries = allCurrentCampaignBoundaries.filter((boundary: any) => !setOfBoundaryCodesFromParent.has(boundary.code));
+    if (missingBoundaries.length > 0) {
+      throw new Error(`Missing boundaries from parent campaign: ${missingBoundaries.map((boundary: any) => boundary.code).join(', ')}`);
+    }
   }
+  requestBody.boundariesCombined = allCurrentCampaignBoundaries;
 }
 
 const getAllBoundariesFromCampaign = async (campaignDetails: any) => {

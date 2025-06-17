@@ -978,25 +978,10 @@ function getRootBoundaryCode(boundaries: any[] = []) {
   return "";
 }
 
-function enrichRootProjectId(requestBody: any) {
-  var rootBoundary;
-  if(!requestBody?.boundariesCombined){
-    requestBody.CampaignDetails.projectId =
-      requestBody.CampaignDetails.projectId || null;
-    return;
-  }
-  for (const boundary of requestBody?.boundariesCombined) {
-    if (boundary?.isRoot) {
-      rootBoundary = boundary?.code;
-      break;
-    }
-  }
-  if (rootBoundary) {
-    requestBody.CampaignDetails.projectId =
-      requestBody?.boundaryProjectMapping?.[rootBoundary]?.projectId || null;
-  }
-  requestBody.CampaignDetails.projectId =
-    requestBody.CampaignDetails.projectId || null;
+async function enrichRootProjectIdAndBoundaryCode(campaignDetails: any) {
+  campaignDetails.boundaryCode = campaignDetails?.boundaryCode || getRootBoundaryCode(campaignDetails?.boundaries);
+  campaignDetails.projectId = campaignDetails?.projectId || await getRootProjectIdViaCampaignNumber(campaignDetails?.campaignNumber, campaignDetails?.boundaryCode);
+  campaignDetails.projectId = campaignDetails.projectId || null;
 }
 
 async function enrichAndPersistCampaignWithError(requestBody: any, error: any) {
@@ -1015,8 +1000,6 @@ async function enrichAndPersistCampaignWithError(requestBody: any, error: any) {
   };
   requestBody.CampaignDetails.status = campaignStatuses?.failed;
   // requestBody.CampaignDetails.isActive = false;
-  requestBody.CampaignDetails.boundaryCode =
-    getRootBoundaryCode(requestBody?.boundariesCombined) || null;
   requestBody.CampaignDetails.projectType =
     requestBody?.CampaignDetails?.projectType || null;
   requestBody.CampaignDetails.hierarchyType =
@@ -1034,7 +1017,7 @@ async function enrichAndPersistCampaignWithError(requestBody: any, error: any) {
     lastModifiedTime: Date.now(),
   };
   if (action == "create" && !requestBody?.CampaignDetails?.projectId) {
-    enrichRootProjectId(requestBody);
+    await enrichRootProjectIdAndBoundaryCode(requestBody?.CampaignDetails);
   } else if (!requestBody?.CampaignDetails?.projectId) {
     requestBody.CampaignDetails.projectId = null;
   }
@@ -1150,9 +1133,6 @@ async function enrichAndPersistCampaignForCreate(
   };
   request.body.CampaignDetails.status =
     action == "create" ? campaignStatuses.started : campaignStatuses.drafted;
-  request.body.CampaignDetails.boundaryCode = getRootBoundaryCode(
-    request.body?.boundariesCombined
-  );
   request.body.CampaignDetails.projectType =
     request?.body?.CampaignDetails?.projectType || null;
   request.body.CampaignDetails.hierarchyType =
@@ -1174,7 +1154,7 @@ async function enrichAndPersistCampaignForCreate(
     !request?.body?.CampaignDetails?.projectId &&
     !firstPersist
   ) {
-    enrichRootProjectId(request.body);
+    await enrichRootProjectIdAndBoundaryCode(request.body?.CampaignDetails);
   } else {
     request.body.CampaignDetails.projectId = null;
   }
@@ -1254,11 +1234,6 @@ async function enrichAndPersistCampaignForUpdate(
       : action == "create"
         ? campaignStatuses.started
         : campaignStatuses.drafted;
-  const boundaryCode = !request?.body?.CampaignDetails?.projectId
-    ? getRootBoundaryCode(request.body?.boundariesCombined)
-    : request?.body?.CampaignDetails?.boundaryCode ||
-    ExistingCampaignDetails?.boundaryCode;
-  request.body.CampaignDetails.boundaryCode = boundaryCode;
   request.body.CampaignDetails.startDate =
     request?.body?.CampaignDetails?.startDate ||
     ExistingCampaignDetails?.startDate ||
@@ -1286,7 +1261,7 @@ async function enrichAndPersistCampaignForUpdate(
     lastModifiedTime: Date.now(),
   };
   if (action == "create" && !request?.body?.CampaignDetails?.projectId) {
-    enrichRootProjectId(request.body);
+    await enrichRootProjectIdAndBoundaryCode(request.body?.CampaignDetails);
   } else {
     request.body.CampaignDetails.projectId =
       request?.body?.CampaignDetails?.projectId ||

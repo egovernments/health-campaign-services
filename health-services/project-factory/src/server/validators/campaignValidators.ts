@@ -1144,7 +1144,7 @@ async function validateCampaignBody(request: any, CampaignDetails: any, actionIn
     else if (action == "create") {
         validateProjectCampaignMissingFields(CampaignDetails);
         await validateParent(request, actionInUrl);
-        await validateMissingBoundaryFromParent(CampaignDetails, request?.body?.parentCampaign);
+        await validateMissingBoundaryFromParent(request?.body);
         validateProjectDatesForCampaign(request, CampaignDetails);
         await validateCampaignName(request, actionInUrl);
         if (tenantId != request?.body?.RequestInfo?.userInfo?.tenantId) {
@@ -1159,7 +1159,7 @@ async function validateCampaignBody(request: any, CampaignDetails: any, actionIn
     else {
         validateDraftProjectCampaignMissingFields(CampaignDetails);
         await validateParent(request, actionInUrl);
-        await validateMissingBoundaryFromParent(CampaignDetails, request?.body?.parentCampaign);
+        await validateMissingBoundaryFromParent(request?.body);
         validateProjectDatesForCampaign(request, CampaignDetails);
         await validateCampaignName(request, actionInUrl);
         await validateHierarchyType(request, hierarchyType, tenantId);
