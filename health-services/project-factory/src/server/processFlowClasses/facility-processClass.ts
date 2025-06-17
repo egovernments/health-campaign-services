@@ -3,7 +3,7 @@ import { SheetMap } from "../models/SheetMap";
 import { logger } from "../utils/logger";
 import { searchProjectTypeCampaignService } from "../service/campaignManageService";
 import { getRelatedDataWithCampaign } from "../utils/genericUtils";
-import { dataRowStatuses, sheetDataRowStatuses } from "../config/constants";
+import { dataRowStatuses, mappingStatuses, sheetDataRowStatuses } from "../config/constants";
 import { DataTransformer } from "../utils/transFormUtil";
 import { transformConfigs } from "../config/transformConfigs";
 import { produceModifiedMessages } from "../kafka/Producer";
@@ -23,8 +23,8 @@ interface CampaignMappingRow {
     status: string;
 }
 
-const STATUS_TO_BE_MAPPED = "TO_BE_MAPPED";
-const STATUS_DEMAPPED = "TO_BE_DEMAPPED";
+// const STATUS_TO_BE_MAPPED = "TO_BE_MAPPED";
+// const STATUS_DEMAPPED = "TO_BE_DEMAPPED";
 
 export class TemplateClass {
     static async process(
@@ -386,7 +386,7 @@ export class TemplateClass {
                         type,
                         uniqueIdentifierForData: facility,
                         boundaryCode: bc,
-                        status: STATUS_TO_BE_MAPPED,
+                        status: mappingStatuses?.toBeMapped,
                     });
                 }
             }
@@ -402,7 +402,7 @@ export class TemplateClass {
         for (const row of existing) {
             const bcList = sheetMap[row.uniqueIdentifierForData] || [];
             if (!bcList.includes(row.boundaryCode)) {
-                rows.push({ ...row, status: STATUS_DEMAPPED });
+                rows.push({ ...row, status: mappingStatuses?.toBeDeMapped });
             }
         }
         return rows;
@@ -415,7 +415,7 @@ export class TemplateClass {
 
         for (const row of rows) {
             await executeQuery(query, [
-                STATUS_DEMAPPED,
+                mappingStatuses?.toBeDeMapped,
                 row.campaignNumber,
                 row.type,
                 row.uniqueIdentifierForData,
