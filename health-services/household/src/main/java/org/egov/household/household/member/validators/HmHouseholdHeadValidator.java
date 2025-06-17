@@ -55,7 +55,7 @@ public class HmHouseholdHeadValidator implements Validator<HouseholdMemberBulkRe
         log.debug("validating head of household member");
         List<HouseholdMember> householdMembers = householdMemberBulkRequest.getHouseholdMembers().stream()
                 .filter(notHavingErrors()).collect(Collectors.toList());
-        if(!householdMembers.isEmpty()) {
+        if(!householdMembers.isEmpty()){
             Method idMethod = getIdMethod(householdMembers, HOUSEHOLD_ID_FIELD, HOUSEHOLD_CLIENT_REFERENCE_ID_FIELD);
             String columnName = getHouseholdColumnName(idMethod);
             householdMembers.forEach(householdMember -> {
@@ -67,7 +67,7 @@ public class HmHouseholdHeadValidator implements Validator<HouseholdMemberBulkRe
     }
 
     private void validateHeadOfHousehold(HouseholdMember householdMember, Method memberidMethod, String columnName,
-            HashMap<HouseholdMember, List<Error>> errorDetailsMap, List<HouseholdMember> requestMembers) {
+                                         HashMap<HouseholdMember, List<Error>> errorDetailsMap, List<HouseholdMember> requestMembers) {
 
         if(householdMember.getIsHeadOfHousehold()) {
             log.info("validating if household already has a head");
