@@ -13,11 +13,11 @@ public class PropertiesManager {
 
 	private final Environment environment;
 
-    public PropertiesManager(Environment environment) {
-        this.environment = environment;
-    }
+	public PropertiesManager(Environment environment) {
+		this.environment = environment;
+	}
 
-    public String getInvalidInput() {
+	public String getInvalidInput() {
 		return environment.getProperty("invalid.input");
 	}
 
