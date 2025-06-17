@@ -20,7 +20,7 @@ import { campaignStatuses, resourceDataStatuses, usageColumnStatus } from "../co
 import { getBoundaryColumnName, getBoundaryTabName } from "../utils/boundaryUtils";
 import addAjvErrors from "ajv-errors";
 import { generateTargetColumnsBasedOnDeliveryConditions, isDynamicTargetTemplateForProjectType, modifyDeliveryConditions } from "../utils/targetUtils";
-import { getBoundariesFromCampaignSearchResponse } from "../utils/onGoingCampaignUpdateUtils";
+import { getBoundariesFromCampaignSearchResponse, validateMissingBoundaryFromParent } from "../utils/onGoingCampaignUpdateUtils";
 import { validateExtraBoundariesForMicroplan, validateLatLongForMicroplanCampaigns, validatePhoneNumberSheetWise, validateRequiredTargetsForMicroplanCampaigns, validateUniqueSheetWise, validateUserForMicroplan } from "./microplanValidators";
 import { produceModifiedMessages } from "../kafka/Producer";
 import { isMicroplanRequest, planConfigSearch, planFacilitySearch } from "../utils/microplanUtils";
@@ -35,36 +35,6 @@ import { GenerateTemplateQuery } from "../models/GenerateTemplateQuery";
 import { generationtTemplateConfigs } from "../config/generationtTemplateConfigs";
 import addErrors from "ajv-errors";
 
-
-
-function processBoundary(responseBoundaries: any[], request: any, boundaryItems: any[], parentId?: string) {
-    const { tenantId, hierarchyType } = request.body.ResourceDetails;
-    boundaryItems.forEach((boundaryItem: any) => {
-        const { id, code, boundaryType, children } = boundaryItem;
-        responseBoundaries.push({ tenantId, hierarchyType, parentId, id, code, boundaryType });
-        if (children.length > 0) {
-            processBoundary(responseBoundaries, request, children, id);
-        }
-    });
-}
-async function fetchBoundariesInChunks(request: any) {
-    const { tenantId, hierarchyType } = request.body.ResourceDetails;
-    const params: any = {
-        tenantId, hierarchyType, includeChildren: true
-    };
-    const responseBoundaries: any[] = [];
-    const header = {
-        ...defaultheader,
-        cachekey: `boundaryRelationShipSearch${params?.hierarchyType}${params?.tenantId}${params.codes || ''}${params?.includeChildren || ''}`,
-    }
-    var response = await httpRequest(config.host.boundaryHost + config.paths.boundaryRelationship, request.body, params, undefined, undefined, header);
-    const TenantBoundary = response.TenantBoundary;
-    TenantBoundary.forEach((tenantBoundary: any) => {
-        const { boundary } = tenantBoundary;
-        processBoundary(responseBoundaries, request, boundary);
-    });
-    return responseBoundaries;
-}
 
 function processBoundaryfromCampaignDetails(responseBoundaries: any[], request: any, boundaryItems: any[]) {
     boundaryItems.forEach((boundaryItem: any) => {
@@ -914,7 +884,7 @@ async function validateProjectCampaignResources(resources: any, request: any) {
 
     const missingTypes: string[] = [];
 
-    if (!resources || !Array.isArray(resources) || resources.length === 0) {
+    if (!resources || !Array.isArray(resources)) {
         throwError("COMMON", 400, "VALIDATION_ERROR", "resources should be a non-empty array");
     }
 
@@ -936,10 +906,29 @@ async function validateProjectCampaignResources(resources: any, request: any) {
             missingTypes.push(type);
         }
     }
-    if ((!request?.body?.parentCampaign) || (request?.body?.parentCampaign && request?.body?.CampaignDetails?.boundaries && request.body.CampaignDetails.boundaries.length > 0)) {
+    if (!request?.body?.parentCampaign) {
         if (missingTypes.length > 0) {
             const missingTypesMessage = `Missing resources of types: ${missingTypes.join(', ')}`;
             throwError("COMMON", 400, "VALIDATION_ERROR", missingTypesMessage);
+        }
+    }
+    else if(request?.body?.parentCampaign) {
+        logger.info(`Missing resources of types: ${missingTypes.join(', ')}`);
+        const parentResources = request.body?.parentCampaign?.resources || [];
+
+        for (const missingType of missingTypes) {
+            const fallback = parentResources.find((r: any) => r.type === missingType);
+            if (fallback) {
+                resources.push(fallback);
+                console.log(`Added missing resource type "${missingType}" from parent campaign`);
+            } else {
+                throwError(
+                    "COMMON",
+                    400,
+                    "VALIDATION_ERROR",
+                    `Missing resource of type "${missingType}" and not found in parent campaign`
+                );
+            }
         }
     }
 
@@ -1154,7 +1143,8 @@ async function validateCampaignBody(request: any, CampaignDetails: any, actionIn
     }
     else if (action == "create") {
         validateProjectCampaignMissingFields(CampaignDetails);
-        await validateParent(request, actionInUrl)
+        await validateParent(request, actionInUrl);
+        await validateMissingBoundaryFromParent(CampaignDetails, request?.body?.parentCampaign);
         validateProjectDatesForCampaign(request, CampaignDetails);
         await validateCampaignName(request, actionInUrl);
         if (tenantId != request?.body?.RequestInfo?.userInfo?.tenantId) {
@@ -1169,6 +1159,7 @@ async function validateCampaignBody(request: any, CampaignDetails: any, actionIn
     else {
         validateDraftProjectCampaignMissingFields(CampaignDetails);
         await validateParent(request, actionInUrl);
+        await validateMissingBoundaryFromParent(CampaignDetails, request?.body?.parentCampaign);
         validateProjectDatesForCampaign(request, CampaignDetails);
         await validateCampaignName(request, actionInUrl);
         await validateHierarchyType(request, hierarchyType, tenantId);
@@ -1771,7 +1762,6 @@ export function validateActiveFieldMinima(datas:any[], activeKey : string, error
 
 
 export {
-    fetchBoundariesInChunks,
     validateSheetData,
     validateCreateRequest,
     validateFacilityCreateData,

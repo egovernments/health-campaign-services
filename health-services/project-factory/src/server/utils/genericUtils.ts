@@ -416,11 +416,13 @@ async function fullProcessFlowForNewEntry(newEntryResponse: any, generatedResour
       const resourcesOfParentCampaign = request?.body?.parentCampaignObject?.resources;
       const createdResourceId = getCreatedResourceIds(resourcesOfParentCampaign, type);
       logger.info(` found createdResourceId as ${createdResourceId} `);
-      const searchCriteria = buildSearchCriteria(request, createdResourceId, type);
-      const responseFromDataSearch = await searchDataService(replicateRequest(request, searchCriteria));
+      if(createdResourceId && Array.isArray(createdResourceId) && createdResourceId.length > 0) {
+        const searchCriteria = buildSearchCriteria(request, createdResourceId, type);
+        const responseFromDataSearch = await searchDataService(replicateRequest(request, searchCriteria));
 
-      const processedFileStoreIdForUSerOrFacility = responseFromDataSearch?.[0]?.processedFilestoreId;
-      fileUrlResponse = await fetchFileFromFilestore(processedFileStoreIdForUSerOrFacility, request?.query?.tenantId);
+        const processedFileStoreIdForUSerOrFacility = responseFromDataSearch?.[0]?.processedFilestoreId;
+        fileUrlResponse = await fetchFileFromFilestore(processedFileStoreIdForUSerOrFacility, request?.query?.tenantId);
+      }
 
     }
     if (type === 'boundary') {

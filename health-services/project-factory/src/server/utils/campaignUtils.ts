@@ -980,6 +980,11 @@ function getRootBoundaryCode(boundaries: any[] = []) {
 
 function enrichRootProjectId(requestBody: any) {
   var rootBoundary;
+  if(!requestBody?.boundariesCombined){
+    requestBody.CampaignDetails.projectId =
+      requestBody.CampaignDetails.projectId || null;
+    return;
+  }
   for (const boundary of requestBody?.boundariesCombined) {
     if (boundary?.isRoot) {
       rootBoundary = boundary?.code;

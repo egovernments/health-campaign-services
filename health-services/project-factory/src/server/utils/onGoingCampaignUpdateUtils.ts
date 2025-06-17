@@ -2,7 +2,7 @@ import { searchProjectTypeCampaignService } from "../service/campaignManageServi
 import { getLocalizedHeaders, replicateRequest, throwError } from "./genericUtils";
 import { httpRequest } from "./request";
 import config from "../config/index";
-import { getLocalizedName } from "./campaignUtils";
+import { getLocalizedName, populateBoundariesRecursively } from "./campaignUtils";
 import { logger } from "./logger";
 import { callGenerate } from "./generateUtils";
 // import { getCampaignSearchResponse } from "server/api/campaignApis";
@@ -10,6 +10,7 @@ import { getExcelWorkbookFromFileURL } from "./excelUtils";
 import { createAndUploadFile, getSheetData, getTargetSheetData } from "../api/genericApis";
 import { searchDataService } from "../service/dataManageService";
 import { produceModifiedMessages } from "../kafka/Producer";
+import { searchBoundaryRelationshipData } from "../api/coreApis";
 
 async function getParentCampaignObject(request: any, parentId: any) {
   try {
@@ -34,7 +35,7 @@ function getCreatedResourceIds(resources: any, type: any) {
     ? 'boundaryWithTarget'
     : (type.includes('With') ? type.split('With')[0] : type);
   return resources
-    .filter((item: any) => item.type === processedType)
+    .filter((item: any) => item.type === processedType && item.createResourceId)
     .map((item: any) => item.createResourceId);
 }
 
@@ -238,6 +239,46 @@ function updateTargetValues(originalData: any, newData: any, localizedHeaders: a
   });
   return newData;
 }
+
+export async function validateMissingBoundaryFromParent(campaignDetails: any, parentCampaign: any) {
+  if(!parentCampaign) return;
+  const allParentBoundaries : any =  await getAllBoundariesFromCampaign(parentCampaign);
+  const allCurrentCampaignBoundaries : any = await getAllBoundariesFromCampaign(campaignDetails);
+  const setOfBoundaryCodesFromParent = new Set(allParentBoundaries.map((boundary: any) => boundary.code));
+
+  const missingBoundaries = allCurrentCampaignBoundaries.filter((boundary: any) => !setOfBoundaryCodesFromParent.has(boundary.code));
+  if(missingBoundaries.length > 0) {
+    throw new Error(`Missing boundaries from parent campaign: ${missingBoundaries.map((boundary: any) => boundary.code).join(', ')}`);
+  }
+}
+
+const getAllBoundariesFromCampaign = async (campaignDetails: any) => {
+  const relationship = await searchBoundaryRelationshipData(
+    campaignDetails?.tenantId,
+    campaignDetails?.hierarchyType,
+    true,
+    true,
+    false
+  );
+
+  const rootBoundary = relationship?.TenantBoundary?.[0]?.boundary?.[0];
+  const boundaries = campaignDetails?.boundaries || [];
+  const boundaryChildren = Object.fromEntries(
+    boundaries.map(({ code, includeAllChildren }: any) => [code, includeAllChildren])
+  );
+  const boundaryCodes = new Set(boundaries.map(({ code }: any) => code));
+
+  await populateBoundariesRecursively(
+    rootBoundary,
+    boundaries,
+    boundaryChildren[rootBoundary?.code],
+    boundaryCodes,
+    boundaryChildren
+  );
+
+  return boundaries;
+};
+
 
 // function validateBoundariesIfParentPresent(request: any) {
 //   const { parentCampaign, CampaignDetails } = request?.body || {};
