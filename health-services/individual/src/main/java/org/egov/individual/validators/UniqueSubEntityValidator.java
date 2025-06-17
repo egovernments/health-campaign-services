@@ -101,8 +101,7 @@ public class UniqueSubEntityValidator implements Validator<IndividualBulkRequest
                 List<String> invalidIdentifiers = identifiers.stream()
                         .filter(identifier -> ObjectUtils.isEmpty(identifier.getIdentifierId())
                                 && ObjectUtils.isEmpty(identifier.getIndividualClientReferenceId()))
-                        .map(identifier -> identifier.getIdentifierType() == null ? "UNKNOWN_TYPE"
-                                : identifier.getIdentifierType())
+                        .map(Identifier::getIdentifierType)
                         .toList();
                 if (!CollectionUtils.isEmpty(invalidIdentifiers)) {
                     Error error = getErrorForInvalidEntity("Identifier", invalidIdentifiers);
