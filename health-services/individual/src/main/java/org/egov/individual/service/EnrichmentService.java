@@ -230,6 +230,7 @@ public class EnrichmentService {
                     .clientReferenceId(UUID.randomUUID().toString())
                     .identifierType(SYSTEM_GENERATED)
                     .identifierId(individual.getId())
+                    .individualClientReferenceId(individual.getClientReferenceId())
                     .build());
             individual.setIdentifiers(identifiers);
         }

@@ -18,7 +18,7 @@ import java.util.stream.Collectors;
  */
 @Slf4j
 @Component
-public class IdGenUtil {
+public class BeneficiaryIdGenUtil {
 
     private final BeneficiaryIdGenService beneficiaryIdGenService;
 
@@ -27,7 +27,7 @@ public class IdGenUtil {
      *
      * @param beneficiaryIdGenService Service used to interact with the ID generation system
      */
-    public IdGenUtil(BeneficiaryIdGenService beneficiaryIdGenService) {
+    public BeneficiaryIdGenUtil(BeneficiaryIdGenService beneficiaryIdGenService) {
         this.beneficiaryIdGenService = beneficiaryIdGenService;
     }
 
@@ -43,8 +43,7 @@ public class IdGenUtil {
     public static List<IdRecord> convertIdsToIdRecords(List<String> ids, String tenantId, RequestInfo requestInfo, String status) {
 
         return ids.stream().map(id -> {
-            String updateStatus = "";
-            if (StringUtils.isNotBlank(status)) updateStatus = status;
+            String updateStatus = StringUtils.isBlank(status) ? "" : status;
 
             return IdRecord.builder()
                     .id(id)

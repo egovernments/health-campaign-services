@@ -8,7 +8,7 @@ All notable changes to this module will be documented in this file.
 ## 1.1.7 - 2025-04-29 
 
  - Added validators for beneficiary ID validation in individual creation and update flows.
- - Added the neccesarry application properties for integrations with the new Benificairy Id-gen service 
+- Added the necessary application properties for integration with the new Beneficiary ID generation service
 
 ## 1.1.6 - 2024-08-29 
 

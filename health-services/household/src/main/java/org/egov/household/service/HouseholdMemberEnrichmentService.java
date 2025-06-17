@@ -128,8 +128,6 @@ public class HouseholdMemberEnrichmentService {
             List<Relationship> relationships = householdMember.getMemberRelationships();
             if(CollectionUtils.isEmpty(relationships))
                 continue;
-            List<String> ids = uuidSupplier().apply(relationships.size());
-            enrichForCreate(relationships, ids, request.getRequestInfo(), true);
             enrichRelationshipsForCreate(request, relationships, householdMember, householdMemberMap);
         }
     }
@@ -160,7 +158,7 @@ public class HouseholdMemberEnrichmentService {
             List<Relationship> updatedResources = householdMember.getMemberRelationships();
             if(!CollectionUtils.isEmpty(updatedResources)) {
                 resourcesToCreate = householdMember.getMemberRelationships().stream()
-                        .filter(ObjectUtils::isEmpty).toList();
+                        .filter(relationship -> ObjectUtils.isEmpty(relationship.getId())).toList();
                 resourcesToUpdate = householdMember.getMemberRelationships().stream()
                         .filter(relationship -> !ObjectUtils.isEmpty(relationship.getId())).toList();
             }

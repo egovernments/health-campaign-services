@@ -67,7 +67,7 @@ public class IdPoolValidatorForUpdate implements Validator<IndividualBulkRequest
 
                 // Find the unique beneficiary ID (if present)
                 Identifier identifier = individual.getIdentifiers().stream()
-                        .filter(id -> id.getIdentifierType().contains(UNIQUE_BENEFICIARY_ID))
+                        .filter(id -> UNIQUE_BENEFICIARY_ID.equalsIgnoreCase(id.getIdentifierType()))
                         .findFirst().orElse(null);
 
                 if (identifier != null && StringUtils.isNotBlank(identifier.getIdentifierId())) {

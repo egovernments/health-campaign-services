@@ -1,5 +1,8 @@
 All notable changes to this module will be documented in this file.
 
+## 1.1.8 - 2025-06-16
+- Upgraded to health models 1.0.27
+
 ## 1.1.7 - 2025-03-04
 - Upgraded to health models 1.0.26
 
