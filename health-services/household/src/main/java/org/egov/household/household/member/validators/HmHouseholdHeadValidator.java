@@ -23,17 +23,11 @@ import static org.egov.common.utils.CommonUtils.getIdMethod;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.household.Constants.CLIENT_REFERENCE_ID_FIELD;
-import static org.egov.household.Constants.GET_INDIVIDUAL_CLIENT_REFERENCE_ID;
-import static org.egov.household.Constants.GET_INDIVIDUAL_ID;
 import static org.egov.household.Constants.HOUSEHOLD_ALREADY_HAS_HEAD;
 import static org.egov.household.Constants.HOUSEHOLD_ALREADY_HAS_HEAD_MESSAGE;
 import static org.egov.household.Constants.HOUSEHOLD_CLIENT_REFERENCE_ID_FIELD;
 import static org.egov.household.Constants.HOUSEHOLD_ID_FIELD;
-import static org.egov.household.Constants.HOUSEHOLD_MEMBER_CLIENT_REFERENCE_ID_FIELD;
-import static org.egov.household.Constants.HOUSEHOLD_MEMBER_ID_FIELD;
 import static org.egov.household.Constants.ID_FIELD;
-import static org.egov.household.Constants.INDIVIDUAL_CLIENT_REFERENCE_ID;
-import static org.egov.household.Constants.INDIVIDUAL_ID_FIELD;
 import static org.egov.household.utils.CommonUtils.getHouseholdColumnName;
 
 @Component
@@ -48,8 +42,8 @@ public class HmHouseholdHeadValidator implements Validator<HouseholdMemberBulkRe
     private final HouseholdMemberEnrichmentService householdMemberEnrichmentService;
 
     public HmHouseholdHeadValidator(HouseholdMemberRepository householdMemberRepository,
-            HouseholdService householdService,
-            HouseholdMemberEnrichmentService householdMemberEnrichmentService) {
+                                    HouseholdService householdService,
+                                    HouseholdMemberEnrichmentService householdMemberEnrichmentService) {
         this.householdMemberRepository = householdMemberRepository;
         this.householdService = householdService;
         this.householdMemberEnrichmentService = householdMemberEnrichmentService;
@@ -61,7 +55,7 @@ public class HmHouseholdHeadValidator implements Validator<HouseholdMemberBulkRe
         log.debug("validating head of household member");
         List<HouseholdMember> householdMembers = householdMemberBulkRequest.getHouseholdMembers().stream()
                 .filter(notHavingErrors()).collect(Collectors.toList());
-        if (!householdMembers.isEmpty()) {
+        if(!householdMembers.isEmpty()) {
             Method idMethod = getIdMethod(householdMembers, HOUSEHOLD_ID_FIELD, HOUSEHOLD_CLIENT_REFERENCE_ID_FIELD);
             String columnName = getHouseholdColumnName(idMethod);
             householdMembers.forEach(householdMember -> {
@@ -74,14 +68,13 @@ public class HmHouseholdHeadValidator implements Validator<HouseholdMemberBulkRe
 
     private void validateHeadOfHousehold(HouseholdMember householdMember, Method memberidMethod, String columnName,
             HashMap<HouseholdMember, List<Error>> errorDetailsMap, List<HouseholdMember> requestMembers) {
-            
-        if (householdMember.getIsHeadOfHousehold()) {
-            log.info("validating if household already has a head");        
+
+        if(householdMember.getIsHeadOfHousehold()) {
+            log.info("validating if household already has a head");
             Method memberIdMethod = getIdMethod(requestMembers, ID_FIELD, CLIENT_REFERENCE_ID_FIELD);
             List<HouseholdMember> householdMembersHeadCheck = householdMemberRepository
                     .findIndividualByHousehold((String) ReflectionUtils.invokeMethod(memberidMethod, householdMember),
-                            columnName)
-                    .getResponse().stream().filter(HouseholdMember::getIsHeadOfHousehold)
+                            columnName).getResponse().stream().filter(HouseholdMember::getIsHeadOfHousehold)
                     .collect(Collectors.toList());
 
             boolean isSameAsExistingHead = householdMembersHeadCheck.stream()
@@ -91,15 +84,14 @@ public class HmHouseholdHeadValidator implements Validator<HouseholdMemberBulkRe
                         return existingValue != null && existingValue.equals(currentValue);
                     });
 
-            if (!householdMembersHeadCheck.isEmpty() && !isSameAsExistingHead) {
+            if(!householdMembersHeadCheck.isEmpty() && !isSameAsExistingHead) {
                 HouseholdMember existinghead = householdMembersHeadCheck.get(0);
-
                 Object existingValue = ReflectionUtils.invokeMethod(memberIdMethod, existinghead);
                 Object currentValue = ReflectionUtils.invokeMethod(memberIdMethod, householdMember);
                 boolean isReassigning = existingValue != null && currentValue != null
                         && !existingValue.equals(currentValue);
 
-                if (!isReassigning) {
+                if(!isReassigning) {
                     Error error = Error.builder().errorMessage(HOUSEHOLD_ALREADY_HAS_HEAD_MESSAGE)
                             .errorCode(HOUSEHOLD_ALREADY_HAS_HEAD)
                             .type(Error.ErrorType.NON_RECOVERABLE)
