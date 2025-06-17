@@ -3,15 +3,11 @@ package org.egov.id.repository;
 import org.egov.common.models.idgen.IdRecord;
 import org.egov.common.models.idgen.IdStatus;
 import org.egov.common.models.idgen.IdTransactionLog;
-import org.jetbrains.annotations.NotNull;
-import org.springframework.jdbc.core.BatchPreparedStatementSetter;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.ObjectUtils;
 
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
 import java.util.*;
 
 /**
@@ -30,10 +26,6 @@ public class IdRepository {
     private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
     private final IdRecordRowMapper idRecordRowMapper;
     private final IdTransactionLogRowMapper idTransactionLogRowMapper;
-
-    // SQL template for updating ID status in bulk
-    private static final String UPDATE_STATUS_DISPATCHED_QUERY =
-            "UPDATE id_pool SET status = 'DISPATCHED' WHERE id = ?";
 
     /**
      * Constructs a new IdRepository instance with required dependencies for database operations.
@@ -139,27 +131,4 @@ public class IdRepository {
         return namedParameterJdbcTemplate.query(query, paramMap, this.idRecordRowMapper);
     }
 
-    /**
-     * Bulk updates the status of given ID records to 'DISPATCHED' using a single SQL query.
-     * Skips execution if the input list is null or empty.
-     */
-    public void updateStatusToDispatched(List<String> ids) {
-        if (ids == null || ids.isEmpty()) return;
-
-        // Build placeholders for SQL IN clause (?, ?, ?, ...)
-        String placeholders = String.join(",", Collections.nCopies(ids.size(), "?"));
-
-        // Execute bulk update
-        jdbcTemplate.batchUpdate(UPDATE_STATUS_DISPATCHED_QUERY, new BatchPreparedStatementSetter() {
-            @Override
-            public void setValues(@NotNull PreparedStatement ps, int i) throws SQLException {
-                ps.setString(1, ids.get(i));
-            }
-
-            @Override
-            public int getBatchSize() {
-                return ids.size();
-            }
-        });
-    }
 }

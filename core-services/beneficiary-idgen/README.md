@@ -1,6 +1,6 @@
 # beneficiary-idgen service
 
-The egov-idgen service generates new IDs based on the ID formats provided. The application exposes a REST API to process requests and return generated IDs.
+The beneficiary-idgen service generates new IDs based on the ID formats provided. The application exposes a REST API to process requests and return generated IDs.
 
 ## DB UML Diagram
 
@@ -22,10 +22,10 @@ For IntelliJ IDEA, install the plugin directly. For Eclipse, add the Lombok JAR 
 
 ### API Details
 
-- id/id_pool/_generate
-- id/id_pool/_dispatch
-- id/id_pool/_search
-- id/id_pool/_update
+- POST /id/id_pool/_generate
+- POST /id/id_pool/_dispatch
+- POST /id/id_pool/_search
+- POST /id/id_pool/_update
 
 ## Reference document
 

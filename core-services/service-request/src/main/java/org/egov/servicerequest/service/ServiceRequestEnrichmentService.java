@@ -122,7 +122,7 @@ public class ServiceRequestEnrichmentService {
                 attributeValue.setServiceClientReferenceId(serviceClientId);
             }
             attributeValue.setReferenceId(serviceId);
-            attributeValue.setAuditDetails(auditDetails);
+            attributeValue.setAuditDetails(auditDetailsUpdated);
         });
 
 

@@ -415,7 +415,7 @@ public class IdGenerationService {
      */
 
     private List getFormattedId(IdRequest idRequest, RequestInfo requestInfo, boolean autoCreateNewSeqFlag) throws Exception {
-        List<String> idFormatList = new LinkedList();
+        List<String> idFormatList = new LinkedList<>();
         String idFormat = idRequest.getFormat();
 
         try{
@@ -656,8 +656,8 @@ public class IdGenerationService {
             throw new CustomException("SEQ_NUMBER_ERROR","Error retrieving seq number from existing seq in DB");
         }
         for (String seqId : sequenceList) {
-            String seqNumber = String.format("%012d", Integer.parseInt(seqId)).toString();
-            sequenceLists.add(seqNumber.toString());
+            String seqNumber = String.format("%012d", Long.parseLong(seqId));
+            sequenceLists.add(seqNumber);
         }
         return sequenceLists;
     }

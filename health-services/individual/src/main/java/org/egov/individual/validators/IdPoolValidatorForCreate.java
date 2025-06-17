@@ -102,7 +102,7 @@ public class IdPoolValidatorForCreate implements Validator<IndividualBulkRequest
     private static void createError(Map<Individual, List<Error>> errorDetailsMap, Individual individual, String status, String errorCode, String errorMessage) {
         if (StringUtils.isEmpty(errorCode) || StringUtils.isEmpty(errorMessage)) {
             errorCode = INVALID_BENEFICIARY_ID;
-            errorMessage = "Invalid beneficiary id";
+            errorMessage = String.format("Invalid beneficiary id, status: %s", status);
         }
         Error error = Error.builder()
                 .errorMessage(errorMessage)

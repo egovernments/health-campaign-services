@@ -1,11 +1,7 @@
 package org.egov.id.config;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
-
-import lombok.NoArgsConstructor;
-import lombok.ToString;
 
 /**
  * 
@@ -13,14 +9,15 @@ import lombok.ToString;
  *
  */
 @Configuration
-@ToString
-@NoArgsConstructor
 public class PropertiesManager {
 
-	@Autowired
-	Environment environment;
+	private final Environment environment;
 
-	public String getInvalidInput() {
+    public PropertiesManager(Environment environment) {
+        this.environment = environment;
+    }
+
+    public String getInvalidInput() {
 		return environment.getProperty("invalid.input");
 	}
 

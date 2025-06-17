@@ -201,8 +201,10 @@ public class EnrichmentService {
         log.info("enriching individual id in identifiers");
         List<Identifier> identifiers = individual.getIdentifiers();
         if (identifiers != null) {
-            identifiers.forEach(identifier -> identifier.setIndividualId(individual.getId()));
-            identifiers.forEach(identifier -> identifier.setIndividualClientReferenceId(individual.getClientReferenceId()));
+            identifiers.forEach(identifier -> {
+                identifier.setIndividualId(individual.getId());
+                identifier.setIndividualClientReferenceId(individual.getClientReferenceId());
+            });
             individual.setIdentifiers(identifiers);
         }
         return individual;

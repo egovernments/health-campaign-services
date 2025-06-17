@@ -44,7 +44,7 @@ public class ValidatorUtils {
     }
 
     public static Error getErrorForInvalidEntity(String entityName, List<String> ids) {
-        String errorMessage = String.format("%s is not valid %s", entityName, ids);
+        String errorMessage = String.format("%s not valid %s", entityName, ids);
         return Error.builder().errorMessage(errorMessage)
                 .errorCode("INVALID_ENTITY")
                 .type(Error.ErrorType.NON_RECOVERABLE)
