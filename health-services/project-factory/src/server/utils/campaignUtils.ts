@@ -2730,6 +2730,8 @@ async function userCredGeneration(campaignDetails: any, useruuid: string, locale
     }
     const response = await generateDataService(generateTemplateQuery, useruuid, locale);
     if(response && response?.id ){
+      logger.info(`Waiting for 10 seconds for user cred to template to persist...`);
+      await new Promise(resolve => setTimeout(resolve, 10000));
       let status = response?.status;
       let attempts = 0
       while(status == generatedResourceStatuses.inprogress && attempts < 15) {
