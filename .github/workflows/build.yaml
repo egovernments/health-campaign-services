@@ -22,6 +22,7 @@ on:
           - "build"
           - "chatbot"
           - "docs"
+          - "dashboard-analytics"
           - "egov-accesscontrol"
           - "egov-common-masters"
           - "egov-data-uploader"
