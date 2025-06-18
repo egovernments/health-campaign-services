@@ -89,23 +89,20 @@ public class ServiceTaskTransformationService {
         Project project = projectService.getProject(projectId, tenantId);
         String projectTypeId = project.getProjectTypeId();
         JsonNode serviceAdditionalDetails = service.getAdditionalDetails();
-        log.info("SERVICE ADDITION DETAILS {}", serviceAdditionalDetails);
-        log.info("SERVICE ADDITION FIELDS {}", service.getAdditionalFields());
 
         ObjectNode additionalDetails = objectMapper.createObjectNode();
         additionalFieldsToDetails(additionalDetails, serviceAdditionalDetails);
 
         String localityCode = commonUtils.getLocalityCodeFromAdditionalDetails(additionalDetails);
         List<Double> geoPoint = commonUtils.getGeoPointFromAdditionalDetails(additionalDetails);
+        BoundaryHierarchyResult boundaryHierarchyResult;
         if (localityCode != null) {
-            BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(localityCode, tenantId);
-            boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
-            boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
+            boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(localityCode, tenantId);
         } else {
-            BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithProjectId(projectId, tenantId);
-            boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
-            boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
+            boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithProjectId(projectId, tenantId);
         }
+        boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
+        boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
         String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(service.getAuditDetails().getCreatedTime());
         Map<String, String> userInfoMap = userService.getUserInfo(service.getTenantId(), service.getAuditDetails().getCreatedBy());
         String cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectTypeId, service.getAuditDetails());
@@ -191,18 +188,16 @@ public class ServiceTaskTransformationService {
     }
 
     public void additionalFieldsToDetails(ObjectNode additionalDetails, JsonNode serviceAdditionalFields) {
-        log.info("Service additionalFields {}", serviceAdditionalFields);
-        JsonNode additionalFields = serviceAdditionalFields.has("fields")
+        JsonNode additionalFields = (serviceAdditionalFields != null && serviceAdditionalFields.has("fields"))
                 ? serviceAdditionalFields.get("fields")
                 : NullNode.getInstance();
-
 
         if (!(additionalFields instanceof List<?>)) {
             log.info("additionalFields is not of the expected type List<Field>. Skipping addition of fields.");
             return;
         }
 
-        for (Object item : (List<?>) additionalFields) {
+        for (Object item : additionalFields) {
             if (item instanceof Field) {
                 Field field = (Field) item;
                 String key = field.getKey();
