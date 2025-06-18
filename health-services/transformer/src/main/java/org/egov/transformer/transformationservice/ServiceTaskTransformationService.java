@@ -187,29 +187,27 @@ public class ServiceTaskTransformationService {
         return null;
     }
 
-    public void additionalFieldsToDetails(ObjectNode additionalDetails, JsonNode serviceAdditionalFields) {
+    private void additionalFieldsToDetails(ObjectNode additionalDetails, JsonNode serviceAdditionalFields) {
         JsonNode additionalFields = (serviceAdditionalFields != null && serviceAdditionalFields.has("fields"))
                 ? serviceAdditionalFields.get("fields")
                 : NullNode.getInstance();
-
-        if (!(additionalFields instanceof List<?>)) {
-            log.info("additionalFields is not of the expected type List<Field>. Skipping addition of fields.");
+        log.info("ADDITIONAL FIELDS : {}", additionalFields);
+        if (!additionalFields.isArray()) {
+            log.info("additionalFields is not of the expected type Array. Skipping addition of fields.");
             return;
         }
 
-        for (Object item : additionalFields) {
-            if (item instanceof Field) {
-                Field field = (Field) item;
-                String key = field.getKey();
-                String value = field.getValue();
+        for (JsonNode item : additionalFields) {
+            if (item.has("key") && item.has("value")) {
+                String key = item.get("key").asText();
+                String value = item.get("value").asText();
 
                 if (!additionalDetails.has(key)) {
                     additionalDetails.put(key, value);
                 }
             } else {
-                log.info("FIELD instance type not found in service AdditionalDetails");
+                log.info("Invalid field structure in serviceAdditionalFields: {}", item);
             }
         }
     }
-
 }
