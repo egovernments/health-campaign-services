@@ -1,6 +1,7 @@
 package digit;
 
 
+import io.unlogged.Unlogged;
 import org.egov.tracer.config.TracerConfiguration;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -12,6 +13,7 @@ import org.springframework.context.annotation.Import;
 @ComponentScan(basePackages = { "digit", "digit.web.controllers" , "digit.config", "org.egov.common.utils"})
 public class Main {
 
+    @Unlogged
     public static void main(String[] args) throws Exception {
         SpringApplication.run(Main.class, args);
     }
