@@ -5,6 +5,12 @@ import org.springframework.stereotype.Component;
 @Component
 public class EmployeeQueries {
 
+	public static final String HRMS_GET_EMPLOYEES_TABLES = " FROM eg_hrms_employee employee LEFT JOIN eg_hrms_assignment assignment ON employee.uuid = assignment.employeeid LEFT JOIN eg_hrms_educationaldetails education "
+			+ "ON employee.uuid = education.employeeid LEFT JOIN eg_hrms_departmentaltests depttest ON employee.uuid = depttest.employeeid LEFT JOIN eg_hrms_empdocuments docs "
+			+ "ON employee.uuid = docs.employeeid LEFT JOIN eg_hrms_servicehistory history ON employee.uuid = history.employeeid LEFT JOIN eg_hrms_jurisdiction jurisdiction "
+			+ "ON employee.uuid = jurisdiction.employeeid LEFT JOIN eg_hrms_deactivationdetails deact ON employee.uuid = deact.employeeid LEFT JOIN eg_hrms_reactivationdetails react "
+			+ "ON employee.uuid = react.employeeid WHERE ";
+
 	public static final String HRMS_GET_EMPLOYEES = "SELECT employee.id as employee_id, employee.uuid as employee_uuid, employee.code as employee_code, "
 			+ "employee.dateOfAppointment as employee_doa, employee.employeestatus as employee_status, employeetype as employee_type, employee.active as employee_active, employee.reactivateemployee as employee_reactive, "
 			+ "employee.tenantid as employee_tenantid, employee.createdby as employee_createdby, employee.createddate as employee_createddate, "
@@ -37,11 +43,9 @@ public class EmployeeQueries {
 			+ "react.uuid as react_uuid, react.reasonforreactivation as react_reasonforreactivation, react.effectivefrom as react_effectivefrom, react.ordernumber as react_ordernumber, "
 			+ "react.remarks as react_remarks, react.tenantid as react_tenantid, react.createdby as react_createdby, "
 			+ "react.createddate as react_createddate, react.lastmodifiedby as react_lastmodifiedby, react.lastmodifieddate as react_lastmodifieddate "
-			+ "FROM eg_hrms_employee employee LEFT JOIN eg_hrms_assignment assignment ON employee.uuid = assignment.employeeid LEFT JOIN eg_hrms_educationaldetails education "
-			+ "ON employee.uuid = education.employeeid LEFT JOIN eg_hrms_departmentaltests depttest ON employee.uuid = depttest.employeeid LEFT JOIN eg_hrms_empdocuments docs "
-			+ "ON employee.uuid = docs.employeeid LEFT JOIN eg_hrms_servicehistory history ON employee.uuid = history.employeeid LEFT JOIN eg_hrms_jurisdiction jurisdiction "
-			+ "ON employee.uuid = jurisdiction.employeeid LEFT JOIN eg_hrms_deactivationdetails deact ON employee.uuid = deact.employeeid LEFT JOIN eg_hrms_reactivationdetails react "
-			+ "ON employee.uuid = react.employeeid WHERE ";
+			+ HRMS_GET_EMPLOYEES_TABLES;
+
+	public static final String HRMS_GET_EMPLOYEES_COUNT = "SELECT employee.active, count(*) " + HRMS_GET_EMPLOYEES_TABLES;
 
 	public static final String HRMS_PAGINATION_WRAPPER = "SELECT * FROM "
 			+ "(SELECT *, DENSE_RANK() OVER (ORDER BY employee_uuid) offset_ FROM " + "({})" + " result) result_offset "

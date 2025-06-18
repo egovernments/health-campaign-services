@@ -21,7 +21,7 @@ import org.springframework.util.CollectionUtils;
 @Repository
 @Slf4j
 public class EmployeeRepository {
-	
+
 	@Autowired
 	private EmployeeQueryBuilder queryBuilder;
 	
@@ -44,13 +44,19 @@ public class EmployeeRepository {
 	 * @param requestInfo
 	 * @return
 	 */
-	public List<Employee> fetchEmployees(EmployeeSearchCriteria criteria, RequestInfo requestInfo){
+	public Map<String, Object> fetchEmployees(EmployeeSearchCriteria criteria, RequestInfo requestInfo){
+		Long totalCount = 0L;
 		List<Employee> employees = new ArrayList<>();
 		List<Object> preparedStmtList = new ArrayList<>();
+		List<Object> preparedStmtListWithOutLimitAndOffset = new ArrayList<>();
+		Map<String, Object> response = new HashMap<>();
 		if(hrmsUtils.isAssignmentSearchReqd(criteria)) {
 			List<String> empUuids = fetchEmployeesforAssignment(criteria, requestInfo);
-			if (CollectionUtils.isEmpty(empUuids))
-				return employees;
+			if (CollectionUtils.isEmpty(empUuids)) {
+				response.put("employees", employees);
+				response.put("totalCount", totalCount);
+				return response;
+			}
 			else {
 				if(!CollectionUtils.isEmpty(criteria.getUuids()))
 					criteria.setUuids(criteria.getUuids().stream().filter(empUuids::contains).collect(Collectors.toList()));
@@ -63,13 +69,20 @@ public class EmployeeRepository {
 			criteria.setUuids(empUuids);
 		}
 		String query = queryBuilder.getEmployeeSearchQuery(criteria, preparedStmtList);
+		String employeeCountQuery = queryBuilder.getEmployeeSearchCountQuery(criteria, preparedStmtListWithOutLimitAndOffset);
 		try {
-			employees = jdbcTemplate.query(query, preparedStmtList.toArray(),rowMapper);
+			employees = jdbcTemplate.query(query, preparedStmtList.toArray(), rowMapper);
+			Map<String, String> countResults = jdbcTemplate.query(employeeCountQuery, preparedStmtListWithOutLimitAndOffset.toArray(), countRowMapper);
+            if (countResults != null && countResults.containsKey("totalEmployee")) {
+				totalCount = Long.parseLong(countResults.get("totalEmployee"), 10);
+			}
 		}catch(Exception e) {
 			log.error("Exception while making the db call: ",e);
 			log.error("query; "+query);
 		}
-		return employees;
+		response.put("employees", employees);
+		response.put("totalCount", totalCount);
+		return response;
 	}
 
 	private List<String> fetchUnassignedEmployees(EmployeeSearchCriteria criteria, RequestInfo requestInfo) {

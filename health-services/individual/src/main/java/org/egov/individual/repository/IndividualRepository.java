@@ -33,6 +33,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.CollectionUtils;
+import org.springframework.util.ObjectUtils;
 import org.springframework.util.ReflectionUtils;
 
 import static org.egov.common.utils.CommonUtils.constructTotalCountCTEAndReturnResult;
@@ -112,8 +113,17 @@ public class IndividualRepository extends GenericRepository<Individual> {
             List<Identifier> identifiers = this.namedParameterJdbcTemplate
                     .query(identifierQuery, identifierParamMap, new IdentifierRowMapper());
             if (!identifiers.isEmpty()) {
-                query = query.replace(" tenantId=:tenantId ", " tenantId=:tenantId AND id=:individualId ");
-                paramsMap.put("individualId", identifiers.stream().findAny().get().getIndividualId());
+                String individualId = identifiers.stream().findAny().get().getIndividualId();
+                String individualClientRefId = identifiers.stream().findAny().get().getIndividualClientReferenceId();
+                if (!ObjectUtils.isEmpty(individualId)) {
+                    // If individualId is present, use it to filter the query
+                    query = query.replace(" tenantId=:tenantId ", " tenantId=:tenantId AND id=:individualId ");
+                    paramsMap.put("individualId", individualId);
+                } else {
+                    // If individualClientReferenceId is present, use it to filter the query
+                    query = query.replace(" tenantId=:tenantId ", " tenantId=:tenantId AND clientReferenceId=:individualClientReferenceId ");
+                    paramsMap.put("individualClientReferenceId", individualClientRefId);
+                }
                 List<Individual> individuals = this.namedParameterJdbcTemplate.query(query,
                         paramsMap, this.rowMapper);
                 if (!individuals.isEmpty()) {
@@ -333,10 +343,16 @@ public class IndividualRepository extends GenericRepository<Individual> {
             individuals.forEach(individual -> {
                 Map<String, Object> indServerGenIdParamMap = new HashMap<>();
                 indServerGenIdParamMap.put("individualId", individual.getId());
+                indServerGenIdParamMap.put("clientReferenceId", individual.getClientReferenceId());
                 indServerGenIdParamMap.put("isDeleted", includeDeleted);
                 List<Address> addresses = getAddressForIndividual(individual.getId(), includeDeleted);
-                String individualIdentifierQuery = getQuery("SELECT * FROM individual_identifier ii WHERE ii.individualId =:individualId",
-                        includeDeleted);
+                // Constructing the base query for identifiers
+                String baseQuery = "SELECT * FROM individual_identifier ii WHERE ii.individualId =:individualId ";
+                if (!ObjectUtils.isEmpty(individual.getId()) && !ObjectUtils.isEmpty(individual.getClientReferenceId())) {
+                    // If both individualId and clientReferenceId are present, use them in the query
+                    baseQuery = "SELECT * FROM individual_identifier ii WHERE (ii.individualId =:individualId OR ii.individualClientReferenceId=:clientReferenceId) ";
+                }
+                String individualIdentifierQuery = getQuery(baseQuery, includeDeleted);
                 List<Identifier> identifiers = this.namedParameterJdbcTemplate
                         .query(individualIdentifierQuery, indServerGenIdParamMap,
                                 new IdentifierRowMapper());

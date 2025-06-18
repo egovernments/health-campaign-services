@@ -1,7 +1,6 @@
 package org.egov.servicerequest.error;
 
 import org.springframework.stereotype.Component;
-import org.apache.kafka.common.protocol.types.Field;
 
 @Component
 public class ErrorCode {
@@ -68,6 +67,22 @@ public class ErrorCode {
     public static final String SERVICE_DEFINITION_NOT_EXIST_ERR_CODE = "SERVICE_DEFINITION_NOT_EXIST_ERR_CODE";
 
     public static final String SERVICE_DEFINITION_NOT_EXIST_ERR_MSG = "Provided tenantId and code unique combination does not exist";
+
+    public static final String SERVICE_DOES_NOT_EXIST_ERR_CODE = "SERVICE_NOT_EXIST_ERR_CODE";
+
+    public static final String SERVICE_DOES_NOT_EXIST_ERR_MSG = "Service does not exist";
+
+    public static final String SERVICE_ALREADY_EXISTS_ERR_CODE = "SERVICE_ALREADY_EXISTS_ERR_CODE";
+
+    public static final String SERVICE_ALREADY_EXISTS_FOR_CLIENT_ID_ERR_MSG = "Service corresponding to the client id already exists";
+
+    public static final String SERVICE_ATTRIBUTE_VALUE_INVALID_ERR_CODE = "SERVICE_ATTRIBUTE_VALUE_INVALID_ERR_CODE";
+
+    public static final String SERVICE_ATTRIBUTE_VALUE_DOES_NOT_EXIST_ERR_MSG = "Service attribute value does not exist";
+
+    public static final String SERVICE_ATTRIBUTE_VALUE_DUPLICATE_ERR_MSG = "Service attribute value id is duplicated";
+
+    public static final String SERVICE_ATTRIBUTE_VALUE_ALREADY_EXISTS_ERR_MSG = "Service attribute value code is already existing but no id is passed";
 
     public static final String VALID_SERVICE_EXIST_ERR_CODE = "VALID_SERVICE_EXIST_ERR_CODE";
 

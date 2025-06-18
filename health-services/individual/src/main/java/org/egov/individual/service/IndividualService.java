@@ -1,13 +1,6 @@
 package org.egov.individual.service;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -31,11 +24,14 @@ import org.egov.common.utils.CommonUtils;
 import org.egov.common.validator.Validator;
 import org.egov.individual.config.IndividualProperties;
 import org.egov.individual.repository.IndividualRepository;
+import org.egov.individual.util.BeneficiaryIdGenUtil;
 import org.egov.individual.validators.AadharNumberValidator;
 import org.egov.individual.validators.AadharNumberValidatorForCreate;
 import org.egov.individual.validators.AddressTypeValidator;
 import org.egov.individual.validators.IBoundaryValidator;
 import org.egov.individual.validators.IExistentEntityValidator;
+import org.egov.individual.validators.IdPoolValidatorForCreate;
+import org.egov.individual.validators.IdPoolValidatorForUpdate;
 import org.egov.individual.validators.IsDeletedSubEntityValidator;
 import org.egov.individual.validators.IsDeletedValidator;
 import org.egov.individual.validators.MobileNumberValidator;
@@ -61,8 +57,7 @@ import static org.egov.common.utils.CommonUtils.isSearchByIdOnly;
 import static org.egov.common.utils.CommonUtils.lastChangedSince;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
-import static org.egov.individual.Constants.SET_INDIVIDUALS;
-import static org.egov.individual.Constants.VALIDATION_ERROR;
+import static org.egov.individual.Constants.*;
 
 @Service
 @Slf4j
@@ -82,6 +77,8 @@ public class IndividualService {
 
     private final NotificationService notificationService;
 
+    private final BeneficiaryIdGenUtil beneficiaryIdGenUtil;
+
     private final Predicate<Validator<IndividualBulkRequest, Individual>> isApplicableForUpdate = validator ->
             validator.getClass().equals(NullIdValidator.class)
                     || validator.getClass().equals(IBoundaryValidator.class)
@@ -93,7 +90,9 @@ public class IndividualService {
                     || validator.getClass().equals(UniqueEntityValidator.class)
                     || validator.getClass().equals(UniqueSubEntityValidator.class)
                     || validator.getClass().equals(MobileNumberValidator.class)
-                    || validator.getClass().equals(AadharNumberValidator.class);
+                    || validator.getClass().equals(AadharNumberValidator.class)
+                    || validator.getClass().equals(IdPoolValidatorForUpdate.class)
+            ;
 
     private final Predicate<Validator<IndividualBulkRequest, Individual>> isApplicableForCreate = validator ->
             validator.getClass().equals(AddressTypeValidator.class)
@@ -101,7 +100,9 @@ public class IndividualService {
                     || validator.getClass().equals(IBoundaryValidator.class)
                     || validator.getClass().equals(UniqueSubEntityValidator.class)
                     || validator.getClass().equals(MobileNumberValidator.class)
-                    || validator.getClass().equals(AadharNumberValidatorForCreate.class);
+                    || validator.getClass().equals(AadharNumberValidatorForCreate.class)
+                    || validator.getClass().equals(IdPoolValidatorForCreate.class)
+            ;
 
     private final Predicate<Validator<IndividualBulkRequest, Individual>> isApplicableForDelete = validator ->
             validator.getClass().equals(NullIdValidator.class)
@@ -114,7 +115,8 @@ public class IndividualService {
                              EnrichmentService enrichmentService,
                              IndividualEncryptionService individualEncryptionService,
                              UserIntegrationService userIntegrationService,
-                             NotificationService notificationService) {
+                             NotificationService notificationService,
+                             BeneficiaryIdGenUtil beneficiaryIdGenUtil) {
         this.individualRepository = individualRepository;
         this.validators = validators;
         this.properties = properties;
@@ -122,6 +124,7 @@ public class IndividualService {
         this.individualEncryptionService = individualEncryptionService;
         this.userIntegrationService = userIntegrationService;
         this.notificationService = notificationService;
+        this.beneficiaryIdGenUtil = beneficiaryIdGenUtil;
     }
 
     public List<Individual> create(IndividualRequest request) {
@@ -147,11 +150,28 @@ public class IndividualService {
             if (!validIndividuals.isEmpty()) {
                 log.info("processing {} valid entities", validIndividuals.size());
                 enrichmentService.create(validIndividuals, request);
+                // integrate with user service create call
+                validIndividuals = integrateWithUserService(request, validIndividuals, ApiOperation.CREATE, errorDetailsMap);
                 //encrypt PII data
-                encryptedIndividualList = individualEncryptionService
-                        .encrypt(request, validIndividuals, "IndividualEncrypt", isBulk);
-                individualRepository.save(encryptedIndividualList,
-                        properties.getSaveIndividualTopic());
+
+                // BenificiaryIds to Update
+                List<String> beneficiaryIds = validIndividuals.stream()
+                        .flatMap(d -> Optional.ofNullable(d.getIdentifiers())
+                                .orElse(Collections.emptyList())
+                                .stream()
+                                .filter(identifier -> UNIQUE_BENEFICIARY_ID.equals(identifier.getIdentifierType()))
+                                .findFirst()
+                                .stream())
+                        .map(identifier -> String.valueOf(identifier.getIdentifierId()))
+                        .toList();
+                if (!validIndividuals.isEmpty()) {
+                    encryptedIndividualList = individualEncryptionService
+                            .encrypt(request, validIndividuals, "IndividualEncrypt", isBulk);
+                    individualRepository.save(encryptedIndividualList,
+                            properties.getSaveIndividualTopic());
+                    // update beneficiary ids in idgen
+                    beneficiaryIdGenUtil.updateBeneficiaryIds(beneficiaryIds, validIndividuals.get(0).getTenantId(), request.getRequestInfo());
+                }
             }
         } catch (CustomException exception) {
             log.error("error occurred", ExceptionUtils.getStackTrace(exception));
@@ -162,8 +182,6 @@ public class IndividualService {
         //decrypt
         List<Individual> decryptedIndividualList = individualEncryptionService.decrypt(encryptedIndividualList,
                 "IndividualDecrypt", request.getRequestInfo());
-        // integrate with user service create call
-        integrateWithUserService(request, decryptedIndividualList, ApiOperation.CREATE);
         return decryptedIndividualList;
     }
 
@@ -230,6 +248,8 @@ public class IndividualService {
                     }).collect(Collectors.toList());
                 }
 
+                // integrate with user service update call
+                individualsToEncrypt = integrateWithUserService(request, individualsToEncrypt, ApiOperation.UPDATE, errorDetailsMap);
 
                 // encrypt new data
                 encryptedIndividualList = individualEncryptionService
@@ -261,7 +281,6 @@ public class IndividualService {
                         }
                     });
                 }
-
                 // save
                 individualRepository.save(encryptedIndividualList,
                         properties.getUpdateIndividualTopic());
@@ -275,8 +294,6 @@ public class IndividualService {
         //decrypt
         List<Individual> decryptedIndividualList = individualEncryptionService.decrypt(encryptedIndividualList,
                 "IndividualDecrypt", request.getRequestInfo());
-        // integrate with user service update call
-        integrateWithUserService(request, decryptedIndividualList, ApiOperation.UPDATE);
         return decryptedIndividualList;
     }
 
@@ -385,6 +402,8 @@ public class IndividualService {
             if (!validIndividuals.isEmpty()) {
                 log.info("processing {} valid entities", validIndividuals.size());
                 enrichmentService.delete(validIndividuals, request);
+                // integrate with user service delete call
+                validIndividuals = integrateWithUserService(request, validIndividuals, ApiOperation.DELETE, errorDetailsMap);
                 individualRepository.save(validIndividuals,
                         properties.getDeleteIndividualTopic());
             }
@@ -395,8 +414,6 @@ public class IndividualService {
 
         handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
 
-        // integrate with user service delete call
-        integrateWithUserService(request, validIndividuals, ApiOperation.DELETE);
         return validIndividuals;
     }
 
@@ -406,39 +423,45 @@ public class IndividualService {
         log.info("successfully put individuals in cache");
     }
 
-    private void integrateWithUserService(IndividualBulkRequest request,
-                                          List<Individual> encryptedIndividualList, ApiOperation apiOperation) {
+    private List<Individual> integrateWithUserService(IndividualBulkRequest request,
+                                          List<Individual> individualList, ApiOperation apiOperation,
+                                          Map<Individual, ErrorDetails> errorDetails) {
+        List<Individual> validIndividuals = new ArrayList<>(individualList);
         if (properties.isUserSyncEnabled()) {
-            try {
-                if (apiOperation.equals(ApiOperation.UPDATE)) {
-                    userIntegrationService.updateUser(encryptedIndividualList,
-                            request.getRequestInfo());
-                    log.info("successfully updated user for {} individuals",
-                            encryptedIndividualList.size());
-                } else if (apiOperation.equals(ApiOperation.CREATE)) {
-                    List<UserRequest> userRequests = userIntegrationService.createUser(encryptedIndividualList,
-                            request.getRequestInfo());
-                    for (int i = 0; i < encryptedIndividualList.size(); i++) {
-                        if (Boolean.TRUE.equals(encryptedIndividualList.get(i).getIsSystemUser())) {
-                            encryptedIndividualList.get(i)
-                                    .setUserId(Long.toString(userRequests.get(i).getId()));
-                            encryptedIndividualList.get(i).setUserUuid(userRequests.get(i).getUuid());
-                        }
+            for (Individual individual : individualList) {
+                if (!Boolean.TRUE.equals(individual.getIsSystemUser())) continue;
+                try {
+                    if (apiOperation.equals(ApiOperation.UPDATE)) {
+                        userIntegrationService.updateUser(individual, request.getRequestInfo());
+                        log.info("successfully updated user for {} ",
+                                individual.getName());
+                    } else if (apiOperation.equals(ApiOperation.CREATE)) {
+                        List<UserRequest> userRequests = userIntegrationService.createUser(individual,
+                                request.getRequestInfo());
+                            individual.setUserId(Long.toString(userRequests.get(0).getId()));
+                            individual.setUserUuid(userRequests.get(0).getUuid());
+                        log.info("successfully created user for {} ",
+                                individual.getName());
+                    } else {
+                        userIntegrationService.deleteUser(Collections.singletonList(individual),
+                                request.getRequestInfo());
+                        log.info("successfully soft deleted user for {} ",
+                                individual.getName());
                     }
-                    individualRepository.save(encryptedIndividualList,
-                            properties.getUpdateUserIdTopic());
-                    log.info("successfully created user for {} individuals",
-                            encryptedIndividualList.size());
-                } else {
-                    userIntegrationService.deleteUser(encryptedIndividualList,
-                            request.getRequestInfo());
-                    log.info("successfully soft deleted user for {} individuals",
-                            encryptedIndividualList.size());
+                } catch (Exception exception) {
+                    log.error("error occurred while creating user", ExceptionUtils.getStackTrace(exception));
+                    Error error = Error.builder().errorMessage("User service exception")
+                            .errorCode("USER_SERVICE_ERROR")
+                            .type(Error.ErrorType.NON_RECOVERABLE)
+                            .exception(new CustomException("USER_SERVICE_ERROR", "User service exception")).build();
+                    Map<Individual, List<Error>> errorDetailsMap = new HashMap<>();
+                    populateErrorDetails(individual, error, errorDetailsMap);
+                    populateErrorDetails(request, errorDetails, errorDetailsMap, SET_INDIVIDUALS);
+                    validIndividuals.remove(individual);
                 }
-            } catch (Exception exception) {
-                log.error("error occurred while creating user", ExceptionUtils.getStackTrace(exception));
             }
         }
+        return validIndividuals;
     }
     Boolean isSmsEnabledForRole(IndividualRequest request) {
         if (CollectionUtils.isEmpty(properties.getSmsDisabledRoles()))

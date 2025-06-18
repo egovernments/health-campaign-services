@@ -24,11 +24,20 @@ import javax.validation.constraints.Size;
 @Builder
 public class AttributeValue {
     @JsonProperty("id")
+    @Size(min = 2, max = 64)
     private String id = null;
+
+    @JsonProperty("clientReferenceId")
+    @Size(min = 2, max = 64)
+    private String clientReferenceId = null;
 
     @JsonProperty("referenceId")
     @Size(min = 2, max = 64)
     private String referenceId = null;
+
+    @JsonProperty("serviceClientReferenceId")
+    @Size(min = 2, max = 64)
+    private String serviceClientReferenceId = null;
 
     @JsonProperty("attributeCode")
     @NotNull
