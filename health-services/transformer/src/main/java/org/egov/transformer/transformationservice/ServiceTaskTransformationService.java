@@ -2,6 +2,7 @@ package org.egov.transformer.transformationservice;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.NullNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.household.Field;
@@ -88,6 +89,8 @@ public class ServiceTaskTransformationService {
         Project project = projectService.getProject(projectId, tenantId);
         String projectTypeId = project.getProjectTypeId();
         JsonNode serviceAdditionalDetails = service.getAdditionalDetails();
+        log.info("SERVICE ADDITION DETAILS {}", serviceAdditionalDetails);
+        log.info("SERVICE ADDITION FIELDS {}", service.getAdditionalFields());
 
         ObjectNode additionalDetails = objectMapper.createObjectNode();
         additionalFieldsToDetails(additionalDetails, serviceAdditionalDetails);
@@ -188,7 +191,12 @@ public class ServiceTaskTransformationService {
     }
 
     public void additionalFieldsToDetails(ObjectNode additionalDetails, JsonNode serviceAdditionalFields) {
-        Object additionalFields = serviceAdditionalFields.get("fields");
+        log.info("Service additionalFields {}", serviceAdditionalFields);
+        JsonNode additionalFields = serviceAdditionalFields.has("fields")
+                ? serviceAdditionalFields.get("fields")
+                : NullNode.getInstance();
+
+
         if (!(additionalFields instanceof List<?>)) {
             log.info("additionalFields is not of the expected type List<Field>. Skipping addition of fields.");
             return;
