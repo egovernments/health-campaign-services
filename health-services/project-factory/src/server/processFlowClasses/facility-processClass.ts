@@ -52,6 +52,7 @@ export class TemplateClass {
         await new Promise((res) => setTimeout(res, waitTime));
 
         await this.createFacilityFromTableData(resourceDetails, userUuid);
+        await this.syncFacilityBoundaryMapping(campaign.campaignNumber, sheetData, facilityNameKey, "HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY");
 
         const allCurrentFacilties = await getRelatedDataWithCampaign(resourceDetails?.type, campaign.campaignNumber, dataRowStatuses.completed);
         const allData = allCurrentFacilties?.map((u: any) => {
@@ -65,7 +66,6 @@ export class TemplateClass {
             dynamicColumns: null
         };
         logger.info(`SheetMap generated for template of type ${resourceDetails.type}.`);
-        await this.syncFacilityBoundaryMapping(campaign.campaignNumber, sheetData, facilityNameKey, "HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY");
         return sheetMap;
     }
 

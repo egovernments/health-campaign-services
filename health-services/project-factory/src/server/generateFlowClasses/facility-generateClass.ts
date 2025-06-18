@@ -30,9 +30,18 @@ export class TemplateClass {
             !permanentCodes.has(f.data?.HCM_ADMIN_CONSOLE_FACILITY_CODE)
         );
 
+        const permanentCompletedFacilitiesFromDB = completedFacilitiesRow.filter(
+            (f: any) => permanentCodes.has(f?.data?.HCM_ADMIN_CONSOLE_FACILITY_CODE) // if f.uniqueIdentifier is facility id
+        );
+
+        const dbFacilityUniqueIdentifierToDataMap = new Map(
+            permanentCompletedFacilitiesFromDB.map((f: any) => [f.uniqueIdentifier, f.data])
+        );
+
+
         // Generate final data
-        const {structuredBoundaries : boundaryData, codesOfBoundaries}: any = await this.getBoundaryData(campaignDetails, localizationMap);
-        const allPermanentFacilitiesTransformed: any = await this.getFacilityData(allPermanentFacilities, codesOfBoundaries);
+        const { structuredBoundaries: boundaryData, codesOfBoundaries }: any = await this.getBoundaryData(campaignDetails, localizationMap);
+        const allPermanentFacilitiesTransformed: any = await this.getFacilityData(allPermanentFacilities, codesOfBoundaries, dbFacilityUniqueIdentifierToDataMap);
         const facilityData = [...allPermanentFacilitiesTransformed, ...newFacilities?.map((f: any) => f.data)]
         const boundaryDynamicColumns: any = await this.getBoundaryDynamicColumns(campaignDetails?.tenantId, campaignDetails?.hierarchyType);
         const sheetMap: SheetMap = {
@@ -105,7 +114,7 @@ export class TemplateClass {
         const structuredBoundaries = this.structureBoundaries(boundaries, campaignDetails?.hierarchyType, localizationMap);
         const codesOfBoundaries = new Set(boundaries.map((b: any) => b.code));
         logger.info(`Structured boundaries prepared.`);
-        return {structuredBoundaries,codesOfBoundaries};
+        return { structuredBoundaries, codesOfBoundaries };
     }
 
     static structureBoundaries(boundaries: any[], hierarchyType: any, localizationMap: any) {
@@ -184,25 +193,33 @@ export class TemplateClass {
         }
     }
 
-    static async getFacilityData(allFacilities: any, codesOfBoundaries: any) {
+    static async getFacilityData(allFacilities: any, codesOfBoundaries: any,dbFacilityMap: Map<string, any>) {
         const transformer = new DataTransformer(transformConfigs.Facility);
         let allFacilitiesRecursed = allFacilities.map((facility: any) => {
             return {
-                Facility : facility
+                Facility: facility
             }
         })
         const data = await transformer.reverseTransform(allFacilitiesRecursed);
         const result = data
-            .filter((d: any) => {
-                const boundaryCode = d?.["HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY"];
-                return codesOfBoundaries.has(boundaryCode); // Keep if code is valid
-            })
-            .map((d: any) => {
-                // Default to 'Inactive' if usage value is missing
-                d["HCM_ADMIN_CONSOLE_FACILITY_USAGE"] = d?.["HCM_ADMIN_CONSOLE_FACILITY_USAGE"] ?? 'Inactive';
-                return d;
-            });
-        
-        return result;
-    }
+        .filter((d: any) => {
+            const boundaryCode = d?.["HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY"];
+            return codesOfBoundaries.has(boundaryCode);
+        })
+        .map((d: any) => {
+            const facilityName = d?.["HCM_ADMIN_CONSOLE_FACILITY_NAME"];
+            const transformedUsage = d?.["HCM_ADMIN_CONSOLE_FACILITY_USAGE"];
+
+            // Use usage from DB if missing in transformed data
+            if (!transformedUsage) {
+                const dbData = dbFacilityMap.get(facilityName);
+                const usageFromDB = dbData?.["HCM_ADMIN_CONSOLE_FACILITY_USAGE"];
+                d["HCM_ADMIN_CONSOLE_FACILITY_USAGE"] = usageFromDB ?? "Inactive";
+            }
+
+            return d;
+        });
+
+    return result;
+}
 }
