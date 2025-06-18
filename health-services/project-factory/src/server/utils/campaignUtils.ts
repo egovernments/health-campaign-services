@@ -990,7 +990,6 @@ async function enrichAndPersistCampaignWithError(requestBody: any, error: any) {
     await makeParentInactiveOrActive(requestBody, true);
   }
   requestBody.CampaignDetails = requestBody?.CampaignDetails || {};
-  const action = requestBody?.CampaignDetails?.action;
   requestBody.CampaignDetails.campaignNumber =
     requestBody?.CampaignDetails?.campaignNumber || null;
   requestBody.CampaignDetails.campaignDetails = requestBody?.CampaignDetails
