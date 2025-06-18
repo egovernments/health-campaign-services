@@ -11,9 +11,3 @@ ALTER TABLE INDIVIDUAL_IDENTIFIER
 ALTER TABLE INDIVIDUAL_IDENTIFIER
     ADD COLUMN IF NOT EXISTS clientReferenceId character varying(64)
     DEFAULT gen_random_uuid()::text UNIQUE;
-
--- 4. Fill existing clientReferenceId column with null uuid values
-UPDATE INDIVIDUAL_IDENTIFIER
-    SET clientReferenceId = gen_random_uuid()::text
-    WHERE clientReferenceId IS NULL;
-
