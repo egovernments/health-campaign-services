@@ -45,7 +45,7 @@ public class EmployeeQueries {
 			+ "react.createddate as react_createddate, react.lastmodifiedby as react_lastmodifiedby, react.lastmodifieddate as react_lastmodifieddate "
 			+ HRMS_GET_EMPLOYEES_TABLES;
 
-	public static String HRMS_GET_EMPLOYEES_COUNT = "SELECT employee.active, count(*) " + HRMS_GET_EMPLOYEES_TABLES;
+	public static final String HRMS_GET_EMPLOYEES_COUNT = "SELECT employee.active, count(*) " + HRMS_GET_EMPLOYEES_TABLES;
 
 	public static final String HRMS_PAGINATION_WRAPPER = "SELECT * FROM "
 			+ "(SELECT *, DENSE_RANK() OVER (ORDER BY employee_uuid) offset_ FROM " + "({})" + " result) result_offset "

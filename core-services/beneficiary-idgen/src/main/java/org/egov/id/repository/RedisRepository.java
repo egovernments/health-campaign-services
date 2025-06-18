@@ -47,7 +47,7 @@ public class RedisRepository {
         String key = getKey(userId, deviceId);
         Object value = redisTemplate.opsForValue().get(key); // Fetch from Redis string key
         log.debug("Fetched dispatched count from Redis for key {}: {}", key, value);
-        return value != null ? (Integer) value : 0; // Return 0 if key is not set
+        return value != null ? ((Number) value).intValue() : 0; // Return 0 if key is not set
     }
 
     /**

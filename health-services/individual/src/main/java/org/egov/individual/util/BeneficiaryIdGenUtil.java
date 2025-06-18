@@ -43,7 +43,7 @@ public class BeneficiaryIdGenUtil {
     public static List<IdRecord> convertIdsToIdRecords(List<String> ids, String tenantId, RequestInfo requestInfo, String status) {
 
         return ids.stream().map(id -> {
-            String updateStatus = StringUtils.isBlank(status) ? "" : status;
+            String updateStatus = StringUtils.isBlank(status) ? null : status;
 
             return IdRecord.builder()
                     .id(id)

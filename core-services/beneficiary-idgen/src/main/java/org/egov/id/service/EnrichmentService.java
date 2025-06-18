@@ -28,11 +28,9 @@ public class EnrichmentService {
     }
 
     public void enrichStatusForUpdate(List<IdRecord> validIdRecords , IdRecordBulkRequest request, String status) {
-        validIdRecords.forEach(
-                idRecord -> {
-                    idRecord.setStatus(status);
-                }
-        );
+        for (IdRecord idRecord : validIdRecords) {
+            idRecord.setStatus(status);
+        }
         update(validIdRecords, request);
     }
 

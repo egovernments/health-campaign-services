@@ -1,6 +1,7 @@
 package org.egov.id.config;
 
-import lombok.*;
+import lombok.Getter;
+import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties(prefix = "redisson.redis")

@@ -32,7 +32,6 @@ public class IdGenerationConsumer {
      * Constructor to inject required services and object mapper.
      *
      * @param idDispatchService Service for dispatching IDs
-     * @param idGenerationService (Unused here but injected possibly for side effects or future use)
      * @param objectMapper Jackson ObjectMapper for converting Kafka message payloads
      */
     @Autowired

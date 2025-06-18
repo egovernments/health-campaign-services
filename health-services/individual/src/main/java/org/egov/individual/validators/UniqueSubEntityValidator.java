@@ -101,7 +101,7 @@ public class UniqueSubEntityValidator implements Validator<IndividualBulkRequest
                 List<String> invalidIdentifiers = identifiers.stream()
                         .filter(identifier -> ObjectUtils.isEmpty(identifier.getIdentifierId())
                                 && ObjectUtils.isEmpty(identifier.getIndividualClientReferenceId()))
-                        .map(Identifier::getClientReferenceId)
+                        .map(Identifier::getIdentifierType)
                         .toList();
                 if (!CollectionUtils.isEmpty(invalidIdentifiers)) {
                     Error error = getErrorForInvalidEntity("Identifier", invalidIdentifiers);
@@ -114,7 +114,7 @@ public class UniqueSubEntityValidator implements Validator<IndividualBulkRequest
                 if (identifierMap.keySet().size() != identifiers.size()) {
                     List<String> duplicates = identifierMap.keySet().stream().filter(id ->
                             identifiers.stream()
-                                    .filter(idt -> idt.getIdentifierType().equals(id)).count() > 1
+                                    .filter(idt -> id != null && id.equals(idt.getIdentifierType())).count() > 1
                     ).collect(Collectors.toList());
                     duplicates.forEach( duplicate -> {
                         Error error = getErrorForUniqueSubEntity();
