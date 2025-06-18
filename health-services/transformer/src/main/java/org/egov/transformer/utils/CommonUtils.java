@@ -285,6 +285,7 @@ public class CommonUtils {
             }
         }
     }
+
     public void putValueBasedOnType(ObjectNode objectNode, String key, Object value, Class<?> type) {
         if (value == null) {
             objectNode.putNull(key);
@@ -302,24 +303,6 @@ public class CommonUtils {
             objectNode.put(key, value.toString());
         } else {
             objectNode.putPOJO(key, value);
-        }
-    }
-    public void additionalFieldsToDetails(ObjectNode additionalDetails, Object additionalFields) {
-        if (!(additionalFields instanceof List<?>)) {
-            log.info("additionalFields is not of the expected type List<Field>. Skipping addition of fields.");
-            return;
-        }
-
-        for (Object item : (List<?>) additionalFields) {
-            if (item instanceof Field) {
-                Field field = (Field) item;
-                String key = field.getKey();
-                String value = field.getValue();
-
-                if (!additionalDetails.has(key)) {
-                    additionalDetails.put(key, value);
-                }
-            }
         }
     }
 

@@ -34,6 +34,7 @@ public class MdmsService {
     private static Map<String, String> transformerLocalizations = new HashMap<>();
     private static Map<String, String> transformerElasticIndexLabelsMap = new HashMap<>();
     private static Map<String, HashMap<String, Integer>> mdmsProjectStaffRolesRankCache = new ConcurrentHashMap<>();
+    private static final Map<String, JsonNode> checklistMdmsInfoCache = new ConcurrentHashMap<>();
 
     @Autowired
     public MdmsService(ServiceRequestClient restRepo,
@@ -172,8 +173,13 @@ public class MdmsService {
         return transformerElasticIndexLabelsMap.getOrDefault(label, label);
     }
 
-    public JsonNode fetchChecklistInfoFromMDMS(String tenantId, String checklistName){
+    public JsonNode fetchChecklistInfoFromMDMS(String tenantId, String checklistName) {
         JsonNode checklistInfo = null;
+        if (checklistMdmsInfoCache.containsKey(checklistName)) {
+            log.info("Fetched checklistInfo From cache: {}", checklistName);
+            return checklistMdmsInfoCache.get(checklistName);
+        }
+
         RequestInfo requestInfo = RequestInfo.builder()
                 .userInfo(User.builder().uuid("transformer-uuid").build())
                 .build();
@@ -182,22 +188,30 @@ public class MdmsService {
             MdmsResponse mdmsResponse = fetchConfig(mdmsCriteriaReq, MdmsResponse.class);
             JSONArray mdmsArray = mdmsResponse.getMdmsRes().get(transformerProperties.getTransformerChecklistInfoMDMSModule())
                     .get(transformerProperties.getTransformerChecklistInfoMDMSMaster());
+
             if (mdmsArray != null && !mdmsArray.isEmpty()) {
                 ObjectMapper mapper = new ObjectMapper();
-                JsonNode mdmsInfo = mapper.convertValue(mdmsArray, JsonNode.class);
 
-                for (JsonNode node : mdmsInfo) {
-                    if (node.has(checklistName)) {
-                        checklistInfo = node.get(checklistName);
-                        break;
+                // 3. Convert array to Map<String, JsonNode> for fast lookup
+                for (Object obj : mdmsArray) {
+                    JsonNode node = mapper.convertValue(obj, JsonNode.class);
+                    Iterator<String> fieldNames = node.fieldNames();
+                    while (fieldNames.hasNext()) {
+                        String key = fieldNames.next();
+                        checklistMdmsInfoCache.put(key, node.get(key));
                     }
                 }
+
+                // 4. Return from cache
+                if (checklistMdmsInfoCache.containsKey(checklistName)) {
+                    return checklistMdmsInfoCache.get(checklistName);
+                }
             }
+        } catch (Exception e) {
+            log.info("error while fetching checklist info from MDMS: {}", ExceptionUtils.getStackTrace(e));
+            return null;
         }
-        catch (Exception e) {
-            log.error("error while fetching checklist info from MDMS: {}", ExceptionUtils.getStackTrace(e));
-        }
-        return checklistInfo;
+        return null;
     }
 
 

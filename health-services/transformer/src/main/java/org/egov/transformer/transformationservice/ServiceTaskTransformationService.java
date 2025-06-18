@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.models.household.Field;
 import org.egov.common.models.project.Project;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.models.boundary.BoundaryHierarchyResult;
@@ -34,16 +35,7 @@ public class ServiceTaskTransformationService {
     private final UserService userService;
     private final BoundaryService boundaryService;
     private final MdmsService mdmsService;
-    private final Map<String, String> specialSprayingStringValueKeys = new HashMap<String, String>() {{
-        put("SPECIAL_SPRAYING_1", "specialSpraying");
-        put("SPECIAL_SPRAYING_1.SS_1_OP7.ADT1", "otherSpecialSprayingComment");
-        put("SPECIAL_SPRAYING_4", "insecticideUsed");
-        put("SPECIAL_SPRAYING_5", "additionalComments");
-    }};
-    private final Map<String, String> specialSprayingNumberValueKeys = new HashMap<String, String>() {{
-        put("SPECIAL_SPRAYING_2", "quantityUsed");
-        put("SPECIAL_SPRAYING_3", "roomsSprayed");
-    }};
+
     private static final Map<String, Class<?>> typeMap = new HashMap<>();
     static {
         typeMap.put(INTEGER, Integer.class);
@@ -76,8 +68,6 @@ public class ServiceTaskTransformationService {
                 .map(ServiceIndexV1::getId)
                 .collect(Collectors.toList()));
         producer.push(topic, serviceIndexV1List);
-        filterFinanceChecklists(serviceIndexV1List);
-        filterSpecialSpraying(serviceIndexV1List);
         filterChecklistsForExtraTransformation(serviceIndexV1List);
     }
 
@@ -98,8 +88,12 @@ public class ServiceTaskTransformationService {
         Project project = projectService.getProject(projectId, tenantId);
         String projectTypeId = project.getProjectTypeId();
         JsonNode serviceAdditionalDetails = service.getAdditionalDetails();
-        String localityCode = commonUtils.getLocalityCodeFromAdditionalDetails(serviceAdditionalDetails);
-        List<Double> geoPoint = commonUtils.getGeoPointFromAdditionalDetails(serviceAdditionalDetails);
+
+        ObjectNode additionalDetails = objectMapper.createObjectNode();
+        additionalFieldsToDetails(additionalDetails, serviceAdditionalDetails);
+
+        String localityCode = commonUtils.getLocalityCodeFromAdditionalDetails(additionalDetails);
+        List<Double> geoPoint = commonUtils.getGeoPointFromAdditionalDetails(additionalDetails);
         if (localityCode != null) {
             BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(localityCode, tenantId);
             boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
@@ -112,7 +106,7 @@ public class ServiceTaskTransformationService {
         String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(service.getAuditDetails().getCreatedTime());
         Map<String, String> userInfoMap = userService.getUserInfo(service.getTenantId(), service.getAuditDetails().getCreatedBy());
         String cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectTypeId, service.getAuditDetails());
-        ObjectNode additionalDetails = objectMapper.createObjectNode();
+
         additionalDetails.put(CYCLE_INDEX, cycleIndex);
         additionalDetails.put(PROJECT_TYPE_ID, projectTypeId);
 
@@ -141,94 +135,6 @@ public class ServiceTaskTransformationService {
                 .geoPoint(geoPoint)
                 .build();
         return serviceIndexV1;
-    }
-
-    public void filterFinanceChecklists(List<ServiceIndexV1> serviceIndexV1List) {
-        if (serviceIndexV1List == null || serviceIndexV1List.isEmpty()) {
-            log.info("No finance service index data to process.");
-            return;
-        }
-        List<String> checklistNames = Arrays.asList(transformerProperties.getFinanceChecklistNameList().split(","));
-        List<ServiceIndexV1> financeChecklistList = serviceIndexV1List.stream()
-                .filter(service -> checklistNames.contains(service.getChecklistName()))
-                .collect(Collectors.toList());
-        financeChecklistList.forEach(
-                f -> {
-                    List<AttributeValue> attributeValues = f.getAttributes();
-                    attributeValues.forEach(
-                            att -> {
-                                if (att.getValue() instanceof Map) {
-                                    Map<String, Object> valueMap = (Map<String, Object>) att.getValue();
-                                    Object valueObj = valueMap.get("value");
-
-                                    if (valueObj instanceof String) {
-                                        double value = 0.0;
-                                        try {
-                                            value = Double.parseDouble((String) valueObj);
-                                        } catch (NumberFormatException e) {
-                                            log.info("Invalid Number format so putting 0 for finance key : {}", att.getAttributeCode());
-                                        }
-                                        valueMap.put("value", value);
-                                    }
-                                }
-                            }
-                    );
-                }
-        );
-        String topic = transformerProperties.getTransformerProducerFinanceChecklistIndexV1Topic();
-        if (!CollectionUtils.isEmpty(financeChecklistList)) {
-            producer.push(topic, financeChecklistList);
-        }
-    }
-
-    public void filterSpecialSpraying(List<ServiceIndexV1> serviceIndexV1List) {
-        if (serviceIndexV1List == null || serviceIndexV1List.isEmpty()) {
-            log.info("No special spraying service index data to process.");
-            return;
-        }
-
-        String checklistName = transformerProperties.getSpecialSprayingChecklistName();
-        List<ServiceIndexV1> specialSprayingChecklists = serviceIndexV1List.stream()
-                .filter(service -> checklistName.equals(service.getChecklistName()))
-                .collect(Collectors.toList());
-        specialSprayingChecklists.forEach(
-                ss -> {
-                    List<AttributeValue> attributeValues = ss.getAttributes();
-                    attributeValues.forEach(
-                            att -> {
-                                String attCode = att.getAttributeCode();
-                                Map<String, Object> valueMap;
-                                Object valueObj = null;
-                                if (att.getValue() instanceof Map<?, ?>) {
-                                    valueMap = (Map<String, Object>) att.getValue();
-                                    valueObj = valueMap.getOrDefault("value", null);
-                                }
-                                if (specialSprayingNumberValueKeys.containsKey(attCode)) {
-                                    double value = 0.0;
-                                    if (valueObj instanceof Number) {
-                                        value = ((Number) valueObj).doubleValue();
-                                    } else if (valueObj instanceof String) {
-                                        try {
-                                            value = Double.parseDouble((String) valueObj);
-                                        } catch (NumberFormatException e) {
-                                            log.info("Invalid Number format so putting 0 for finance key : {}", att.getAttributeCode());
-                                        }
-                                    }
-                                    ss.getAdditionalDetails().put(specialSprayingNumberValueKeys.get(attCode), value);
-                                } else if (specialSprayingStringValueKeys.containsKey(attCode)) {
-                                    ss.getAdditionalDetails()
-                                            .put(specialSprayingStringValueKeys.get(attCode),
-                                                    valueObj != null ? valueObj.toString() : "");
-                                }
-                            }
-                    );
-                    ss.setAttributes(null);
-                }
-        );
-        String topic = transformerProperties.getTransformerProducerSpecialSprayingChecklistIndexV1Topic();
-        if (!CollectionUtils.isEmpty(specialSprayingChecklists)) {
-            producer.push(topic, specialSprayingChecklists);
-        }
     }
 
     private void filterChecklistsForExtraTransformation(List<ServiceIndexV1> serviceIndexV1List) {
@@ -280,4 +186,27 @@ public class ServiceTaskTransformationService {
 
         return null;
     }
+
+    public void additionalFieldsToDetails(ObjectNode additionalDetails, JsonNode serviceAdditionalFields) {
+        Object additionalFields = serviceAdditionalFields.get("fields");
+        if (!(additionalFields instanceof List<?>)) {
+            log.info("additionalFields is not of the expected type List<Field>. Skipping addition of fields.");
+            return;
+        }
+
+        for (Object item : (List<?>) additionalFields) {
+            if (item instanceof Field) {
+                Field field = (Field) item;
+                String key = field.getKey();
+                String value = field.getValue();
+
+                if (!additionalDetails.has(key)) {
+                    additionalDetails.put(key, value);
+                }
+            } else {
+                log.info("FIELD instance type not found in service AdditionalDetails");
+            }
+        }
+    }
+
 }

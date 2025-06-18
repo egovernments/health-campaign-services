@@ -3,8 +3,8 @@ package org.egov.transformer.transformationservice;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
 import org.egov.common.models.facility.Facility;
+import org.egov.common.models.project.AdditionalFields;
 import org.egov.common.models.project.Project;
 import org.egov.common.models.project.ProjectBeneficiary;
 import org.egov.common.models.referralmanagement.Referral;
@@ -110,7 +110,7 @@ public class ReferralTransformationService {
             additionalDetails.put(HEIGHT, (Integer) individualDetails.get(HEIGHT));
             additionalDetails.put(DISABILITY_TYPE,(String) individualDetails.get(DISABILITY_TYPE));
         }
-        commonUtils.additionalFieldsToDetails(additionalDetails, referral.getAdditionalFields().getFields());
+        addAdditionalDetails(referral.getAdditionalFields(), additionalDetails);
         ReferralIndexV1 referralIndexV1 = ReferralIndexV1.builder()
                 .referral(referral)
                 .tenantId(referral.getTenantId())
@@ -132,5 +132,14 @@ public class ReferralTransformationService {
 
         return referralIndexV1;
     }
+
+    private void addAdditionalDetails(AdditionalFields additionalFields, ObjectNode additionalDetails) {
+        additionalFields.getFields().forEach(field -> {
+            String key = field.getKey();
+            String value = field.getValue();
+            additionalDetails.put(key, value);
+        });
+    }
+
 }
 

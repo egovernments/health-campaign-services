@@ -1,6 +1,7 @@
 package org.egov.transformer.transformationservice;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.NullNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
 import lombok.var;
@@ -17,8 +18,7 @@ import org.egov.transformer.service.UserService;
 import org.egov.transformer.utils.CommonUtils;
 import org.springframework.stereotype.Component;
 
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static org.egov.transformer.Constants.*;
@@ -36,6 +36,7 @@ public class HfReferralTransformationService {
     private final CommonUtils commonUtils;
 
     private final ObjectMapper objectMapper;
+    private static final Set<String> ADDITIONAL_DETAILS_INTEGER_FIELDS = new HashSet<>(Arrays.asList(AGE));
 
     public HfReferralTransformationService(TransformerProperties transformerProperties,
                                            Producer producer, UserService userService, ProjectService projectService, BoundaryService boundaryService, CommonUtils commonUtils, ObjectMapper objectMapper) {
@@ -66,13 +67,13 @@ public class HfReferralTransformationService {
         Project project = projectService.getProject(projectId, tenantId);
         String projectTypeId = project.getProjectTypeId();
 
-        List<Field>fields  = hfReferral.getAdditionalFields().getFields();
+        List<Field> fields = hfReferral.getAdditionalFields().getFields();
 
         String boundaryCode = null;
         for (var field : fields) {
             String key = field.getKey();
             String value = field.getValue();
-            if ("boundaryCode".equalsIgnoreCase(key)) {
+            if (BOUNDARY_CODE_KEY.equalsIgnoreCase(key)) {
                 boundaryCode = value;
                 break;
             }
@@ -90,7 +91,7 @@ public class HfReferralTransformationService {
         ObjectNode additionalDetails = objectMapper.createObjectNode();
         additionalDetails.put(CYCLE_INDEX, cycleIndex);
         additionalDetails.put(PROJECT_TYPE_ID, projectTypeId);
-        commonUtils.additionalFieldsToDetails(additionalDetails, hfReferral.getAdditionalFields().getFields());
+        addAdditionalDetails(fields, additionalDetails);
         HfReferralIndexV1 hfReferralIndexV1 = HfReferralIndexV1.builder()
                 .hfReferral(hfReferral)
                 .userName(userInfoMap.get(USERNAME))
@@ -104,6 +105,23 @@ public class HfReferralTransformationService {
                 .build();
 
         return hfReferralIndexV1;
+    }
+
+    private void addAdditionalDetails(List<Field> fields, ObjectNode additionalDetails) {
+        fields.forEach(field -> {
+            String key = field.getKey();
+            String value = field.getValue();
+            if (ADDITIONAL_DETAILS_INTEGER_FIELDS.contains(key)) {
+                try {
+                    additionalDetails.put(key, Integer.valueOf(value));
+                } catch (NumberFormatException e) {
+                    log.warn("Invalid number format for key '{}': value '{}'. Storing as null.", key, value);
+                    additionalDetails.set(key, NullNode.getInstance());
+                }
+            } else {
+                additionalDetails.put(key, value);
+            }
+        });
     }
 }
 

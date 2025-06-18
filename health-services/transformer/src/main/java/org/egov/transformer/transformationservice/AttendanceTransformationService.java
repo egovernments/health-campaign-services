@@ -16,7 +16,6 @@ import org.egov.transformer.producer.Producer;
 import org.egov.transformer.service.AttendanceRegisterService;
 import org.egov.transformer.service.BoundaryService;
 import org.egov.transformer.service.IndividualService;
-import org.egov.transformer.service.ProjectService;
 import org.egov.transformer.service.UserService;
 import org.egov.transformer.utils.CommonUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -24,7 +23,6 @@ import org.springframework.stereotype.Component;
 import com.fasterxml.jackson.databind.JsonNode;
 
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -46,7 +44,7 @@ public class AttendanceTransformationService {
     private final AttendanceRegisterService attendanceRegisterService;
     private final IndividualService individualService;
 
-    public AttendanceTransformationService(TransformerProperties transformerProperties, Producer producer, UserService userService, BoundaryService boundaryService, ObjectMapper objectMapper, CommonUtils commonUtils, AttendanceRegisterService attendanceRegisterService, ProjectService projectService, IndividualService individualService) {
+    public AttendanceTransformationService(TransformerProperties transformerProperties, Producer producer, UserService userService, BoundaryService boundaryService, ObjectMapper objectMapper, CommonUtils commonUtils, AttendanceRegisterService attendanceRegisterService, IndividualService individualService) {
         this.transformerProperties = transformerProperties;
         this.producer = producer;
         this.userService = userService;

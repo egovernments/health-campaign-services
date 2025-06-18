@@ -45,7 +45,7 @@ public class ProjectService {
     private final MdmsService mdmsService;
 
     private static Map<String, String> projectTypeIdVsProjectBeneficiaryCache = new HashMap<>();
-
+    private static List<JsonNode> cachedProjectTypes = new ArrayList<>();
 
     public ProjectService(TransformerProperties transformerProperties,
                           ServiceRequestClient serviceRequestClient,
@@ -365,18 +365,27 @@ public class ProjectService {
     }
 
     public JsonNode fetchProjectTypes(String tenantId, String filter, String projectTypeId) {
-        List<JsonNode> projectTypes = new ArrayList<>();
+
+        JsonNode requiredProjectType = cachedProjectTypes.stream()
+                .filter(projectType -> projectType.get(Constants.ID).asText().equals(projectTypeId))
+                .findFirst()
+                .orElse(null);
+
+        if (requiredProjectType != null) {
+            log.info("Fetched projectType from cache {}", projectTypeId);
+            return requiredProjectType;
+        }
         RequestInfo requestInfo = RequestInfo.builder()
                 .userInfo(User.builder().uuid("transformer-uuid").build())
                 .build();
         try {
             JsonNode response = fetchMdmsResponse(requestInfo, tenantId, PROJECT_TYPES, transformerProperties.getMdmsModule(), filter);
-            projectTypes = convertToProjectTypeJsonNodeList(response);
-            JsonNode requiredProjectType = projectTypes.stream()
+            List<JsonNode> projectTypes = convertToProjectTypeJsonNodeList(response);
+            cachedProjectTypes.addAll(projectTypes);
+            return projectTypes.stream()
                     .filter(projectType -> projectType.get(Constants.ID).asText().equals(projectTypeId))
                     .findFirst()
                     .orElseGet(() -> objectMapper.createObjectNode());
-            return requiredProjectType;
 //            JsonNode requiredProjectType = projectTypes.stream().filter(projectType -> projectType.get(Constants.ID).asText().equals(projectTypeId)).findFirst().get();
 //            return requiredProjectType;
         } catch (IOException e) {
