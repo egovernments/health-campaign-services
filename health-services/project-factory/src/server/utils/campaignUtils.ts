@@ -2708,6 +2708,11 @@ async function userCredGeneration(campaignDetails: any, useruuid: string, locale
         }
         logger.info(`Attempts : ${attempts + 1} | Status : ${status} | Waiting for 20 seconds for user cred generation to get completed...`);
         await new Promise(resolve => setTimeout(resolve, 20000));
+        const campaignResp = await searchProjectTypeCampaignService({ tenantId: campaignDetails?.tenantId, ids: [campaignDetails?.id] });
+        const campaignDetailsStatus = campaignResp?.CampaignDetails?.[0]?.status;
+        if (campaignDetailsStatus == campaignStatuses.failed || !campaignDetailsStatus) {
+          throwError("COMMON", 400, "INTERNAL_SERVER_ERROR", "Campaign creation failed during user credential generation");
+        }
         attempts++;
       }
       if(status != generatedResourceStatuses.completed) {
@@ -2753,6 +2758,11 @@ async function createAllResources(campaignDetails: any,parentCampaign : any, use
     }
     if(facilityTask?.status == processStatuses.failed || userTask?.status == processStatuses.failed || projectTask?.status == processStatuses.failed) {
       anyTaskFailed = true;
+    }
+    const campaignResp = await searchProjectTypeCampaignService({ tenantId: campaignDetails?.tenantId, ids: [campaignDetails?.id] });
+    const campaignDetailsStatus = campaignResp?.CampaignDetails?.[0]?.status;
+    if (campaignDetailsStatus == campaignStatuses.failed || !campaignDetailsStatus) {
+      throwError("COMMON", 400, "INTERNAL_SERVER_ERROR", "Campaign creation failed during resources creation.");
     }
     attempts++;
   }
@@ -2811,6 +2821,12 @@ async function createAllMappings(campaignDetails: any, parentCampaign : any, use
     if(facilityMappingTask?.status == processStatuses.failed || userMappingTask?.status == processStatuses.failed || resourceMappingTask?.status == processStatuses.failed) {
       anyTaskFailed = true;
     }
+    const campaignResp = await searchProjectTypeCampaignService({ tenantId: campaignDetails?.tenantId, ids: [campaignDetails?.id] });
+    const campaignDetailsStatus = campaignResp?.CampaignDetails?.[0]?.status;
+    if (campaignDetailsStatus == campaignStatuses.failed || !campaignDetailsStatus) {
+      throwError("COMMON", 400, "INTERNAL_SERVER_ERROR", "Campaign creation failed during mappings creation.");
+    }
+    attempts++;
   }
   if(anyTaskFailed) {
     let failedTasks = [];
