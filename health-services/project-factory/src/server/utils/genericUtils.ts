@@ -1875,8 +1875,8 @@ export async function prepareProcessesInDb(campaignNumber: any) {
   }
   produceModifiedMessages({ processes: newProcesses }, config.kafka.KAFKA_SAVE_PROCESS_DATA_TOPIC);
   // wait for 2 second
-  logger.info("Waiting for 2 seconds for processes to get updated...");
-  await new Promise(resolve => setTimeout(resolve, 2000));
+  logger.info("Waiting for 10 seconds for processes to get updated...");
+  await new Promise(resolve => setTimeout(resolve, 10000));
 }
 
 

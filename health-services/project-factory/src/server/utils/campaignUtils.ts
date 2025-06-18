@@ -2754,6 +2754,7 @@ async function createAllResources(campaignDetails: any,parentCampaign : any, use
     if(facilityTask?.status == processStatuses.failed || userTask?.status == processStatuses.failed || projectTask?.status == processStatuses.failed) {
       anyTaskFailed = true;
     }
+    attempts++;
   }
   if(anyTaskFailed) {
     let failedTasks = [];
