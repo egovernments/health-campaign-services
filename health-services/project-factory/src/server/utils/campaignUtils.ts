@@ -970,6 +970,7 @@ async function generateProcessedFileAndPersist(
 }
 
 function getRootBoundaryCode(boundaries: any[] = []) {
+  if(boundaries?.length == 0) return "";
   for (const boundary of boundaries) {
     if (boundary.isRoot) {
       return boundary.code;
@@ -1016,11 +1017,7 @@ async function enrichAndPersistCampaignWithError(requestBody: any, error: any) {
     lastModifiedBy: requestBody?.RequestInfo?.userInfo?.uuid,
     lastModifiedTime: Date.now(),
   };
-  if (action == "create" && !requestBody?.CampaignDetails?.projectId) {
-    await enrichRootProjectIdAndBoundaryCode(requestBody?.CampaignDetails);
-  } else if (!requestBody?.CampaignDetails?.projectId) {
-    requestBody.CampaignDetails.projectId = null;
-  }
+  await enrichRootProjectIdAndBoundaryCode(requestBody?.CampaignDetails);
   requestBody.CampaignDetails.additionalDetails = {
     ...requestBody?.CampaignDetails?.additionalDetails,
     error: String(
@@ -1149,15 +1146,7 @@ async function enrichAndPersistCampaignForCreate(
     lastModifiedBy: request?.body?.RequestInfo?.userInfo?.uuid,
     lastModifiedTime: Date.now(),
   };
-  if (
-    action == "create" &&
-    !request?.body?.CampaignDetails?.projectId &&
-    !firstPersist
-  ) {
-    await enrichRootProjectIdAndBoundaryCode(request.body?.CampaignDetails);
-  } else {
-    request.body.CampaignDetails.projectId = null;
-  }
+  await enrichRootProjectIdAndBoundaryCode(request.body?.CampaignDetails);
   const topic = firstPersist
     ? config?.kafka?.KAFKA_SAVE_PROJECT_CAMPAIGN_DETAILS_TOPIC
     : config?.kafka?.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC;
@@ -1260,14 +1249,7 @@ async function enrichAndPersistCampaignForUpdate(
     lastModifiedBy: request?.body?.RequestInfo?.userInfo?.uuid,
     lastModifiedTime: Date.now(),
   };
-  if (action == "create" && !request?.body?.CampaignDetails?.projectId) {
-    await enrichRootProjectIdAndBoundaryCode(request.body?.CampaignDetails);
-  } else {
-    request.body.CampaignDetails.projectId =
-      request?.body?.CampaignDetails?.projectId ||
-      ExistingCampaignDetails?.projectId ||
-      null;
-  }
+  await enrichRootProjectIdAndBoundaryCode(request.body?.CampaignDetails);
   delete request.body.CampaignDetails.codesTargetMapping;
   const producerMessage: any = {
     CampaignDetails: request?.body?.CampaignDetails,
