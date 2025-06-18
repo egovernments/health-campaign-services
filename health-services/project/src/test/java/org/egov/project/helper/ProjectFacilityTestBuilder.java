@@ -1,16 +1,16 @@
 package org.egov.project.helper;
 
 import org.egov.common.helper.AuditDetailsTestBuilder;
-import org.egov.common.models.project.AdditionalFields;
+import org.egov.common.models.core.AdditionalFields;
 import org.egov.common.models.project.ProjectFacility;
 
 
 public class ProjectFacilityTestBuilder {
 
-    private ProjectFacility.ProjectFacilityBuilder builder;
+    private ProjectFacility.ProjectFacilityBuilder<ProjectFacility, ?> builder;
 
     public ProjectFacilityTestBuilder() {
-        this.builder = ProjectFacility.builder();
+        this.builder = (ProjectFacility.ProjectFacilityBuilder<ProjectFacility, ?>) ProjectFacility.builder();
     }
 
     public static ProjectFacilityTestBuilder builder() {
@@ -33,7 +33,9 @@ public class ProjectFacilityTestBuilder {
     }
 
     public ProjectFacilityTestBuilder withId() {
-        withIdNull().builder.id("some-id").facilityId("facility-id");
+        withIdNull().builder
+                .facilityId("facility-id")
+                .id("some-id");
         return this;
     }
 
