@@ -237,13 +237,15 @@ export class TemplateClass {
         for (const boundaryData of sortedBoundaryData) {
             const data = boundaryData?.data;
             const boundaryCode = data?.["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"];
+            const RequestInfo = JSON.parse(JSON.stringify(defaultRequestInfo?.RequestInfo));
+            RequestInfo.userInfo.uuid = useruuid;
             try {
                 const projectSearchResponse =
                     await fetchProjectsWithBoundaryCodeAndReferenceId(
                         boundaryCode,
                         tenantId,
                         campaignNumber,
-                        defaultRequestInfo?.RequestInfo
+                        RequestInfo
                     );
                 const projectToUpdate = projectSearchResponse?.Project?.[0];
                 const targetMap: Record<string, number> = {};
@@ -275,8 +277,6 @@ export class TemplateClass {
                         });
                     }
                 }
-                const RequestInfo = JSON.parse(JSON.stringify(defaultRequestInfo?.RequestInfo));
-                RequestInfo.userInfo.uuid = useruuid;
                 const response = await httpRequest(
                     config.host.projectHost + config.paths.projectUpdate,
                     {
