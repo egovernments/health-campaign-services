@@ -40,26 +40,41 @@ export async function sendNotificationEmail(
         }
         logger.info("Step 5: Fetched email template from MDMS");
 
-        const campaignName = mappingObject?.CampaignDetails?.campaignName || "";
-        const subjectCode = emailTemplate?.data?.subjectCode;
-        const localizedSubject = getLocalizedName(subjectCode, localizationMap);
-        const subject = `${localizedSubject} ${campaignName}`.trim();
 
-        const bodyLines = emailTemplate?.data?.bodyCodes.map((code: string) =>
-            getLocalizedName(code, localizationMap)
+        // Step 3: Prepare replacements
+        const campaignName = mappingObject?.CampaignDetails?.campaignName || "";
+        const campaignManagerName = requestInfo?.userInfo?.usernmae || "Campaign Manager";
+
+        // Extracting download link (use only the first file ID)
+        const [firstFileId] = Object.keys(fileStoreIdMap || {});
+        const downloadLink = firstFileId ? await getFileUrl(firstFileId, tenantId) : "#";
+
+        const replacements: Record<string, string> = {
+            campaignName,
+            campaignManagerName,
+            accessLink: downloadLink,
+        };
+
+        const subjectCode = emailTemplate?.data?.subjectCode;
+        const subject = replacePlaceholders(getLocalizedName(subjectCode, localizationMap), replacements);
+
+        const bodyCodes = emailTemplate?.data?.bodyCodes || [];
+        const bodyLines = bodyCodes.map((code: string) =>
+            replacePlaceholders(getLocalizedName(code, localizationMap), replacements)
         );
         logger.info("Step 6: Constructed localized subject and body lines");
+        const fullBody = bodyLines.join("<br/><br/>");
 
-        const fileUrls = await Promise.all(
-            Object.entries(fileStoreIdMap).map(async ([fileId, fileName]) => {
-                const url = await getFileUrl(fileId, tenantId);
-                logger.info(`Step 7: Fetched file URL for fileStoreId: ${fileId}`);
-                return `<a href="${url}">${fileName}</a>`;
-            })
-        );
+        // const fileUrls = await Promise.all(
+        //     Object.entries(fileStoreIdMap).map(async ([fileId, fileName]) => {
+        //         const url = await getFileUrl(fileId, tenantId);
+        //         logger.info(`Step 7: Fetched file URL for fileStoreId: ${fileId}`);
+        //         return `<a href="${url}">${fileName}</a>`;
+        //     })
+        // );
 
-        const allFileUrls = fileUrls.join("<br/>");
-        const fullBody = `${bodyLines.join("<br/>")}<br/><br/>${allFileUrls}`;
+        // const allFileUrls = fileUrls.join("<br/>");
+        // const fullBody = `${bodyLines.join("<br/>")}<br/><br/>${allFileUrls}`;
         logger.info("Step 8: Constructed full email body");
 
         const message = {
@@ -84,4 +99,8 @@ export async function sendNotificationEmail(
         logger.error("Error occurred in sendNotificationEmail: ", error);
         throw error;
     }
+}
+
+function replacePlaceholders(template: string, replacements: Record<string, string>): string {
+  return template.replace(/\{(.*?)\}/g, (_, key) => replacements[key.trim()] ?? '');
 }
