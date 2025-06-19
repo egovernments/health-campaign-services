@@ -193,7 +193,7 @@ export class TemplateClass {
         }
     }
 
-    static async getFacilityData(allFacilities: any, codesOfBoundaries: any,dbFacilityMap: Map<string, any>) {
+    static async getFacilityData(allFacilities: any, codesOfBoundaries: any, dbFacilityMap: Map<string, any>) {
         const transformer = new DataTransformer(transformConfigs.Facility);
         let allFacilitiesRecursed = allFacilities.map((facility: any) => {
             return {
@@ -202,24 +202,27 @@ export class TemplateClass {
         })
         const data = await transformer.reverseTransform(allFacilitiesRecursed);
         const result = data
-        .filter((d: any) => {
-            const boundaryCode = d?.["HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY"];
-            return codesOfBoundaries.has(boundaryCode);
-        })
-        .map((d: any) => {
-            const facilityName = d?.["HCM_ADMIN_CONSOLE_FACILITY_NAME"];
-            const transformedUsage = d?.["HCM_ADMIN_CONSOLE_FACILITY_USAGE"];
+            .filter((d: any) => {
+                const boundaryCode = d?.["HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY"];
+                return codesOfBoundaries.has(boundaryCode);
+            })
+            .map((d: any) => {
+                const facilityName = d?.["HCM_ADMIN_CONSOLE_FACILITY_NAME"];
+                const transformedUsage = d?.["HCM_ADMIN_CONSOLE_FACILITY_USAGE"];
 
-            // Use usage from DB if missing in transformed data
-            if (!transformedUsage) {
+                // Use usage from DB if missing in transformed data
                 const dbData = dbFacilityMap.get(facilityName);
-                const usageFromDB = dbData?.["HCM_ADMIN_CONSOLE_FACILITY_USAGE"];
-                d["HCM_ADMIN_CONSOLE_FACILITY_USAGE"] = usageFromDB ?? "Inactive";
-            }
+                    if (!transformedUsage) {
+                        const usageFromDB = dbData?.["HCM_ADMIN_CONSOLE_FACILITY_USAGE"];
+                        d["HCM_ADMIN_CONSOLE_FACILITY_USAGE"] = usageFromDB ?? "Inactive";
+                    }
+                    if (dbData) {
+                    d["HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY"] = dbData?.["HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY"];
+                }
 
-            return d;
-        });
+                return d;
+            });
 
-    return result;
-}
+        return result;
+    }
 }
