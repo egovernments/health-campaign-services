@@ -118,10 +118,13 @@ public class EmployeeService {
 	 */
 	public EmployeeResponse create(EmployeeRequest employeeRequest) {
 		RequestInfo requestInfo = employeeRequest.getRequestInfo();
+		// Extracting tenantId from the first employee in the request
+		String tenantId = employeeRequest.getEmployees().stream().findAny().get().getTenantId();
 		Map<String, String> pwdMap = new HashMap<>();
 		idGenService.setIds(employeeRequest);
 		employeeRequest.getEmployees().stream().forEach(employee -> {
-			enrichCreateRequest(employee, requestInfo);
+			// Enriching the employee object with required parameters
+			enrichCreateRequest(tenantId, employee, requestInfo);
 			createUser(employee, requestInfo);
 			pwdMap.put(employee.getUuid(), employee.getUser().getPassword());
 		});
@@ -129,8 +132,8 @@ public class EmployeeService {
 
 		// Setting password as null after sending employeeRequest to email notification topic to send email.
 		employeeRequest.getEmployees().forEach(employee -> employee.getUser().setPassword(null));
-
-		hrmsProducer.push(propertiesManager.getSaveEmployeeTopic(), employeeRequest);
+		// Pushing the employee request to the HRMS topic for further processing
+		hrmsProducer.push(tenantId, propertiesManager.getSaveEmployeeTopic(), employeeRequest);
 		notificationService.sendNotification(employeeRequest, pwdMap);
 		return generateResponse(employeeRequest);
 	}
@@ -228,8 +231,6 @@ public class EmployeeService {
 					criteria.setUuids(userUUIDs);
 			}
 		}
-		if(userChecked)
-			criteria.setTenantId(null);
         List <Employee> employees = new ArrayList<>();
         if(!((!CollectionUtils.isEmpty(criteria.getRoles()) || !CollectionUtils.isEmpty(criteria.getNames()) || !StringUtils.isEmpty(criteria.getPhone())) && CollectionUtils.isEmpty(criteria.getUuids()))) {
 			Map<String, Object> response = repository.fetchEmployees(criteria, requestInfo);
@@ -238,6 +239,7 @@ public class EmployeeService {
 			totalCount = (Long) response.get("totalCount");
 		}
         List<String> uuids = employees.stream().map(Employee :: getUuid).collect(Collectors.toList());
+		// If the uuids list is not empty, filter the employees list to include only those with matching UUIDs
 		if(!CollectionUtils.isEmpty(uuids)){
             Map<String, Object> userSearchCriteria = new HashMap<>();
 			userSearchCriteria.put(HRMSConstants.HRMS_USER_SERACH_CRITERIA_USERTYPE_CODE, HRMSConstants.HRMS_USER_SERACH_CRITERIA_USERTYPE);
@@ -319,8 +321,7 @@ public class EmployeeService {
 	 * @param employee
 	 * @param requestInfo
 	 */
-	private void enrichCreateRequest(Employee employee, RequestInfo requestInfo) {
-
+	private void enrichCreateRequest(String tenantId, Employee employee, RequestInfo requestInfo) {
 		AuditDetails auditDetails = AuditDetails.builder()
 				.createdBy(requestInfo.getUserInfo().getUuid())
 				.createdDate(new Date().getTime())
@@ -336,7 +337,8 @@ public class EmployeeService {
 			employee.getAssignments().stream().forEach(assignment -> {
 				assignment.setId(UUID.randomUUID().toString());
 				assignment.setAuditDetails(auditDetails);
-				assignment.setPosition(getPosition());
+				// Set the position ID to the next value from the sequence
+				assignment.setPosition(getPosition(tenantId));
 			});
 		}
 		if(!CollectionUtils.isEmpty(employee.getServiceHistory())) {
@@ -377,8 +379,8 @@ public class EmployeeService {
 	 * Fetches next value from the position sequence table
 	 * @return
 	 */
-	public Long getPosition() {
-		return repository.fetchPosition();
+	public Long getPosition(String tenantId) {
+		return repository.fetchPosition(tenantId);
 	}
 
 	/**
@@ -428,7 +430,7 @@ public class EmployeeService {
 		});
 
 		// Push the updated employee request to the HRMS topic for further processing
-		hrmsProducer.push(propertiesManager.getUpdateTopic(), employeeRequest);
+		hrmsProducer.push(tenantId, propertiesManager.getUpdateTopic(), employeeRequest);
 
 		// (Optional) Send reactivation notifications if needed
 		// notificationService.sendReactivationNotification(employeeRequest);
