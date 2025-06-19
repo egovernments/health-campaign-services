@@ -1408,35 +1408,32 @@ async function enrichAndPersistProjectCampaignRequest(
 }
 
 function getChildParentMap(modifiedBoundaryData: any) {
-  const childParentMap: Map<
+  const childParentMap = new Map<
     { key: string; value: string },
     { key: string; value: string } | null
-  > = new Map();
+  >();
 
-  modifiedBoundaryData.forEach((row: any) => {
+  const stringifiedMap = new Set<string>(); // To avoid deep _.isEqual() lookup
+  modifiedBoundaryData.forEach((row: any[]) => {
     for (let j = row.length - 1; j >= 0; j--) {
       const child = row[j];
       const parent = j - 1 >= 0 ? row[j - 1] : null;
-      const childIdentifier = { key: child.key, value: child.value }; // Unique identifier for the child
-      const parentIdentifier = parent
-        ? { key: parent.key, value: parent.value }
-        : null; // Unique identifier for the parent, set to null if parent doesn't exist
+      const childIdentifier = { key: child.key, value: child.value };
+      const parentIdentifier = parent ? { key: parent.key, value: parent.value } : null;
+      const lookupKey = parentIdentifier
+        ? `${child.key}|${child.value}__${parent.key}|${parent.value}`
+        : `${child.key}|${child.value}__null`;
 
-      // Check if the mapping already exists in the childParentMap
-      const existingMapping = Array.from(childParentMap.entries()).find(
-        ([existingChild, existingParent]) =>
-          _.isEqual(existingChild, childIdentifier) &&
-          _.isEqual(existingParent, parentIdentifier)
-      );
-
-      // If the mapping doesn't exist, add it to the childParentMap
-      if (!existingMapping) {
+      if (!stringifiedMap.has(lookupKey)) {
         childParentMap.set(childIdentifier, parentIdentifier);
+        stringifiedMap.add(lookupKey);
       }
     }
   });
+
   return childParentMap;
 }
+
 
 function getCodeMappingsOfExistingBoundaryCodes(withBoundaryCode: any[], localizationMap: any) {
   const countMap = new Map<{ key: string; value: string }, number>();
@@ -1475,6 +1472,94 @@ function getCodeMappingsOfExistingBoundaryCodes(withBoundaryCode: any[], localiz
   });
   return { mappingMap, countMap };
 }
+
+
+// function getChildParentMap(modifiedBoundaryData: any) {
+//   const tempMap = new Map<string, string | null>();
+//   const keyToObjMap = new Map<string, { key: string; value: string }>();
+
+//   modifiedBoundaryData.forEach((row: any[]) => {
+//     for (let j = row.length - 1; j >= 0; j--) {
+//       const child = row[j];
+//       const parent = j - 1 >= 0 ? row[j - 1] : null;
+
+//       const childKey = `${child.key}|${child.value}`;
+//       const parentKey = parent ? `${parent.key}|${parent.value}` : null;
+
+//       keyToObjMap.set(childKey, child);
+//       if (parentKey) keyToObjMap.set(parentKey, parent);
+
+//       if (!tempMap.has(childKey)) {
+//         tempMap.set(childKey, parentKey);
+//       }
+//     }
+//   });
+
+//   const childParentMap = new Map<
+//     { key: string; value: string },
+//     { key: string; value: string } | null
+//   >();
+
+//   // 🔥 THIS was the bug: key = childKey, value = parentKey
+//   tempMap.forEach((parentKey, childKey) => {
+//     const childObj = keyToObjMap.get(childKey)!;
+//     const parentObj = parentKey ? keyToObjMap.get(parentKey)! : null;
+//     childParentMap.set(childObj, parentObj);
+//   });
+
+//   return childParentMap;
+// }
+
+
+// function getCodeMappingsOfExistingBoundaryCodes(withBoundaryCode: any[], localizationMap: any) {
+//   const tempCountMap = new Map<string, number>();
+//   const tempMappingMap = new Map<string, string>();
+//   const keyObjectMap = new Map<string, { key: string; value: string }>();
+
+//   withBoundaryCode.forEach((row: any[]) => {
+//     const effectiveRow = [];
+
+//     for (const item of row) {
+//       effectiveRow.push(item);
+//       if (item.key === getLocalizedName(config?.boundary?.boundaryCode, localizationMap)) {
+//         break;
+//       }
+//     }
+
+//     const len = effectiveRow.length;
+//     if (len >= 3) {
+//       const grandParent = effectiveRow[len - 3];
+//       const grandParentKey = `${grandParent.key}|${grandParent.value}`;
+
+//       keyObjectMap.set(grandParentKey, grandParent);
+//       tempCountMap.set(grandParentKey, (tempCountMap.get(grandParentKey) || 0) + 1);
+//     }
+
+//     const parent = effectiveRow[len - 2];
+//     const child = effectiveRow[len - 1];
+//     const parentKey = `${parent.key}|${parent.value}`;
+
+//     keyObjectMap.set(parentKey, parent);
+//     tempMappingMap.set(parentKey, child.value);
+//   });
+
+//   // Final result maps
+//   const countMap = new Map<{ key: string; value: string }, number>();
+//   const mappingMap = new Map<{ key: string; value: string }, string>();
+
+//   tempCountMap.forEach((count, strKey) => {
+//     const objKey = keyObjectMap.get(strKey)!;
+//     countMap.set(objKey, count);
+//   });
+
+//   tempMappingMap.forEach((value, strKey) => {
+//     const objKey = keyObjectMap.get(strKey)!;
+//     mappingMap.set(objKey, value);
+//   });
+
+//   return { mappingMap, countMap };
+// }
+
 
 function addBoundaryCodeToData(
   withBoundaryCode: any[],
