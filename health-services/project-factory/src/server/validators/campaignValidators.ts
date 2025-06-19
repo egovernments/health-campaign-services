@@ -641,7 +641,7 @@ async function validateBoundarySheetData(request: any, fileUrl: any, localizatio
     //validate for whether root boundary level column should not be empty
     validateForRootElementExists(boundaryData, localizedHierarchy, localizedBoundaryTab);
     // validate for duplicate rows(array of objects)
-    validateForDupicateRows(boundaryData);
+    validateForDuplicateRows(boundaryData);
 }
 
 function validateForRootElementExists(boundaryData: any[], hierachy: any[], sheetName: string) {
@@ -650,27 +650,41 @@ function validateForRootElementExists(boundaryData: any[], hierachy: any[], shee
         throwError("COMMON", 400, "VALIDATION_ERROR", `Invalid Boundary Sheet. Root level Boundary not present in every row  of Sheet ${sheetName}`)
     }
 }
-function validateForDupicateRows(boundaryData: any[]) {
+function validateForDuplicateRows(boundaryData: any[]) {
+    // Step 1: Trim strings in all rows
     boundaryData = boundaryData.map(row =>
         Object.fromEntries(
-          Object.entries(row).map(([key, value]) =>
-            [key, typeof value === "string" ? value.trim() : value]
-          )
+            Object.entries(row).map(([key, value]) =>
+                [key, typeof value === "string" ? value.trim() : value]
+            )
         )
-      );
-    const uniqueRows = _.uniqWith(boundaryData, (obj1: any, obj2: any) => {
-        // Exclude '!row#number!' property when comparing objects
-        const filteredObj1 = _.omit(obj1, ['!row#number!']);
-        const filteredObj2 = _.omit(obj2, ['!row#number!']);
-        return _.isEqual(filteredObj1, filteredObj2);
-    });
-    const duplicateBoundaryRows = boundaryData.filter(e => !uniqueRows.includes(e));
-    const duplicateRowNumbers = duplicateBoundaryRows.map(obj => obj['!row#number!']);
-    const rowNumbersSeparatedWithCommas = duplicateRowNumbers.join(', ');
+    );
+    const seen = new Set<string>();
+    const duplicateRowNumbers: string[] = [];
+    for (const row of boundaryData) {
+        const rowNumber = row["!row#number!"];
+        const rowCopy = { ...row };
+        delete rowCopy["!row#number!"];
+        // Serialize row as a string (key), which is much faster than deep object comparison
+        const rowKey = JSON.stringify(rowCopy);
+        if (seen.has(rowKey)) {
+            duplicateRowNumbers.push(rowNumber);
+        } else {
+            seen.add(rowKey);
+        }
+    }
     if (duplicateRowNumbers.length > 0) {
+        const rowNumbersSeparatedWithCommas = duplicateRowNumbers.join(', ');
         throwError("COMMON", 400, "VALIDATION_ERROR", `Boundary Sheet has duplicate rows at rowNumber ${rowNumbersSeparatedWithCommas}`);
     }
 }
+
+
+
+
+
+
+
 
 async function validateFile(request: any) {
     const fileResponse = await httpRequest(config.host.filestore + config.paths.filestore + "/url", {}, { tenantId: request?.body?.ResourceDetails?.tenantId, fileStoreIds: request?.body?.ResourceDetails?.fileStoreId }, "get");
