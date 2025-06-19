@@ -1350,30 +1350,23 @@ async function enrichAndPersistProjectCampaignRequest(
 }
 
 function getChildParentMap(modifiedBoundaryData: any) {
-  const childParentMap: Map<
+  const childParentMap = new Map<
     { key: string; value: string },
     { key: string; value: string } | null
-  > = new Map();
-
-  modifiedBoundaryData.forEach((row: any) => {
+  >();
+  const stringifiedMap = new Set<string>(); // To avoid deep _.isEqual() lookup
+  modifiedBoundaryData.forEach((row: any[]) => {
     for (let j = row.length - 1; j >= 0; j--) {
       const child = row[j];
       const parent = j - 1 >= 0 ? row[j - 1] : null;
-      const childIdentifier = { key: child.key, value: child.value }; // Unique identifier for the child
-      const parentIdentifier = parent
-        ? { key: parent.key, value: parent.value }
-        : null; // Unique identifier for the parent, set to null if parent doesn't exist
-
-      // Check if the mapping already exists in the childParentMap
-      const existingMapping = Array.from(childParentMap.entries()).find(
-        ([existingChild, existingParent]) =>
-          _.isEqual(existingChild, childIdentifier) &&
-          _.isEqual(existingParent, parentIdentifier)
-      );
-
-      // If the mapping doesn't exist, add it to the childParentMap
-      if (!existingMapping) {
+      const childIdentifier = { key: child.key, value: child.value };
+      const parentIdentifier = parent ? { key: parent.key, value: parent.value } : null;
+      const lookupKey = parentIdentifier
+        ? `${child.key}|${child.value}__${parent.key}|${parent.value}`
+        : `${child.key}|${child.value}__null`;
+      if (!stringifiedMap.has(lookupKey)) {
         childParentMap.set(childIdentifier, parentIdentifier);
+        stringifiedMap.add(lookupKey);
       }
     }
   });
