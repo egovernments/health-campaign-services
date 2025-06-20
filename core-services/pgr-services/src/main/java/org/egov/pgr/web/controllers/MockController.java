@@ -3,7 +3,6 @@ package org.egov.pgr.web.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.io.IOUtils;
 import org.egov.pgr.util.HRMSUtil;
 import org.egov.pgr.web.models.RequestInfoWrapper;
 import org.egov.pgr.web.models.RequestSearchCriteria;
@@ -20,14 +19,14 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.validation.Valid;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 
-@javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2020-07-15T11:35:33.568+05:30")
+@jakarta.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2020-07-15T11:35:33.568+05:30")
 
 @Controller
 @RequestMapping("/mock")
@@ -59,8 +58,8 @@ public class MockController {
         try {
             Resource resource = resourceLoader.getResource("classpath:mockData.json");
             mockDataFile = resource.getInputStream();
-            log.info("mock file: " + mockDataFile.toString());
-            String res = IOUtils.toString(mockDataFile, StandardCharsets.UTF_8.name());
+            log.info("mock file: {}", mockDataFile);
+            String res = new String(mockDataFile.readAllBytes(), StandardCharsets.UTF_8);
             return new ResponseEntity<>(res, HttpStatus.OK);
         } catch (Exception e) {
             throw new CustomException("FILEPATH_ERROR", "Failed to read file for mock data");
@@ -77,8 +76,8 @@ public class MockController {
         try {
             Resource resource = resourceLoader.getResource("classpath:mockData.json");
             mockDataFile = resource.getInputStream();
-            log.info("mock file: " + mockDataFile.toString());
-            String res = IOUtils.toString(mockDataFile, StandardCharsets.UTF_8.name());
+            log.info("mock file: {}", mockDataFile);
+            String res = new String(mockDataFile.readAllBytes(), StandardCharsets.UTF_8);
             return new ResponseEntity<>(res, HttpStatus.OK);
         } catch (Exception e) {
             throw new CustomException("FILEPATH_ERROR", "Failed to read file for mock data");
@@ -98,8 +97,8 @@ public class MockController {
         try {
             Resource resource = resourceLoader.getResource("classpath:mockData.json");
             mockDataFile = resource.getInputStream();
-            log.info("mock file: " + mockDataFile.toString());
-            String res = IOUtils.toString(mockDataFile, StandardCharsets.UTF_8.name());
+            log.info("mock file: {}", mockDataFile);
+            String res = new String(mockDataFile.readAllBytes(), StandardCharsets.UTF_8);
             return new ResponseEntity<>(res, HttpStatus.OK);
         } catch (Exception e) {
             throw new CustomException("FILEPATH_ERROR", "Failed to read file for mock data");
@@ -113,7 +112,7 @@ public class MockController {
     public ResponseEntity<List<String>> requestsTest(@RequestBody RequestInfoWrapper requestInfoWrapper,
                                                @RequestParam String tenantId, @RequestParam List<String> uuids) {
 
-        List<String> department = hrmsUtil.getDepartment(uuids, uuids, requestInfoWrapper.getRequestInfo());
+        List<String> department = hrmsUtil.getDepartment(tenantId, uuids, uuids, requestInfoWrapper.getRequestInfo());
 
         return  new ResponseEntity<>(department, HttpStatus.OK);
     }
