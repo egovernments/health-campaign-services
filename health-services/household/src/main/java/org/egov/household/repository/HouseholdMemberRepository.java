@@ -1,6 +1,7 @@
 package org.egov.household.repository;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.data.query.builder.GenericQueryBuilder;
 import org.egov.common.data.query.builder.QueryFieldChecker;
 import org.egov.common.data.query.builder.SelectQueryBuilder;
@@ -8,8 +9,10 @@ import org.egov.common.data.repository.GenericRepository;
 import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.household.HouseholdMember;
+import org.egov.common.models.household.Relationship;
 import org.egov.common.models.household.HouseholdMemberSearch;
 import org.egov.common.producer.Producer;
+import org.egov.household.repository.rowmapper.RelationshipRowMapper;
 import org.egov.household.repository.rowmapper.HouseholdMemberRowMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -18,6 +21,7 @@ import org.springframework.stereotype.Repository;
 import org.springframework.util.ReflectionUtils;
 
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -25,6 +29,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static org.egov.common.utils.CommonUtils.constructTotalCountCTEAndReturnResult;
+import static org.egov.common.utils.CommonUtils.getIdList;
 import static org.egov.common.utils.CommonUtils.getIdMethod;
 import static org.egov.common.utils.MultiStateInstanceUtil.SCHEMA_REPLACE_STRING;
 
@@ -32,13 +37,18 @@ import static org.egov.common.utils.MultiStateInstanceUtil.SCHEMA_REPLACE_STRING
 @Slf4j
 public class HouseholdMemberRepository extends GenericRepository<HouseholdMember> {
 
+    private final RelationshipRowMapper relationshipRowMapper;
+
     @Autowired
     protected HouseholdMemberRepository(Producer producer,
                                         NamedParameterJdbcTemplate namedParameterJdbcTemplate,
                                         RedisTemplate<String, Object> redisTemplate,
                                         SelectQueryBuilder selectQueryBuilder,
-                                        HouseholdMemberRowMapper householdMemberRowMapper) {
+                                        HouseholdMemberRowMapper householdMemberRowMapper,
+                                        RelationshipRowMapper relationshipRowMapper
+    ) {
         super(producer, namedParameterJdbcTemplate, redisTemplate, selectQueryBuilder, householdMemberRowMapper, Optional.of("household_member"));
+        this.relationshipRowMapper = relationshipRowMapper;
     }
 
 
@@ -93,13 +103,13 @@ public class HouseholdMemberRepository extends GenericRepository<HouseholdMember
         // replace the schema placeholder with the actual tenant ID
         query = multiStateInstanceUtil.replaceSchemaPlaceholder(queryBuilder.toString(), tenantId);
         Long totalCount = constructTotalCountCTEAndReturnResult(query, paramsMap, this.namedParameterJdbcTemplate);
-
         // Add pagination to the query
         queryBuilder = new StringBuilder(query).append(" LIMIT :limit OFFSET :offset");
         paramsMap.put("limit", limit);
         paramsMap.put("offset", offset);
 
         List<HouseholdMember> householdMembers = this.namedParameterJdbcTemplate.query(queryBuilder.toString(), paramsMap, this.rowMapper);
+        fetchAndSetHouseholdMemberRelationship(householdMembers, includeDeleted);
 
         return SearchResponse.<HouseholdMember>builder().totalCount(totalCount).response(householdMembers).build();
     }
@@ -114,19 +124,27 @@ public class HouseholdMemberRepository extends GenericRepository<HouseholdMember
      * @return SearchResponse<HouseholdMember> A response object containing the list of household members and total count.
      */
     public SearchResponse<HouseholdMember> findById(String tenantId, List<String> ids, String columnName, Boolean includeDeleted) throws InvalidTenantIdException {
-        List<HouseholdMember> objFound = findInCache( tenantId, ids).stream()
-                .filter(entity -> entity.getIsDeleted().equals(includeDeleted))
-                .collect(Collectors.toList());
-        // Check if the list of IDs is empty
-        if (!objFound.isEmpty()) {
-            Method idMethod = getIdMethod(objFound, columnName);
-            ids.removeAll(objFound.stream()
-                    .map(obj -> (String) ReflectionUtils.invokeMethod(idMethod, obj))
-                    .toList());
-            if (ids.isEmpty()) {
-                log.info("all objects were found in the cache, returning objects");
-                return SearchResponse.<HouseholdMember>builder().response(objFound).build();
+        List<HouseholdMember> objFound = new ArrayList<>();;
+        try {
+            objFound = findInCache(tenantId, ids);
+            if (!includeDeleted) {
+                objFound = objFound.stream()
+                        .filter(entity -> !entity.getIsDeleted())
+                        .collect(Collectors.toList());
             }
+            // Check if the list of IDs is empty
+            if (!objFound.isEmpty()) {
+                Method idMethod = getIdMethod(objFound, columnName);
+                ids.removeAll(objFound.stream()
+                        .map(obj -> (String) ReflectionUtils.invokeMethod(idMethod, obj))
+                        .toList());
+                if (ids.isEmpty()) {
+                    log.info("all objects were found in the cache, returning objects");
+                    return SearchResponse.<HouseholdMember>builder().response(objFound).build();
+                }
+            }
+        } catch (Exception e) {
+            log.info("Error occurred while reading from cache {}", ExceptionUtils.getStackTrace(e));
         }
 
         // If the list of IDs is not empty, proceed to fetch from the database
@@ -140,6 +158,7 @@ public class HouseholdMemberRepository extends GenericRepository<HouseholdMember
         // replace the schema placeholder with the actual tenant ID
         query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
         objFound.addAll(this.namedParameterJdbcTemplate.query(query, paramMap, this.rowMapper));
+        fetchAndSetHouseholdMemberRelationship(objFound, includeDeleted);
         putInCache(objFound);
         log.info("returning objects from the database");
         return SearchResponse.<HouseholdMember>builder().response(objFound).build();
@@ -161,7 +180,8 @@ public class HouseholdMemberRepository extends GenericRepository<HouseholdMember
         // replace the schema placeholder with the actual tenant ID
         query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
         List<HouseholdMember> householdMembers = this.namedParameterJdbcTemplate.query(query, paramMap, this.rowMapper);
-        return SearchResponse.<HouseholdMember>builder().totalCount(Long.valueOf(householdMembers.size())).response(householdMembers).build();
+        fetchAndSetHouseholdMemberRelationship(householdMembers, false);
+        return SearchResponse.<HouseholdMember>builder().totalCount((long) householdMembers.size()).response(householdMembers).build();
     }
 
     /**
@@ -186,5 +206,39 @@ public class HouseholdMemberRepository extends GenericRepository<HouseholdMember
         List<HouseholdMember> householdMembers = this.namedParameterJdbcTemplate.query(query, paramMap, this.rowMapper);
 
         return SearchResponse.<HouseholdMember>builder().totalCount(totalCount).response(householdMembers).build();
+    }
+
+    private void fetchAndSetHouseholdMemberRelationship(List<HouseholdMember> householdMembers, Boolean includeDeleted) {
+        if (householdMembers.isEmpty()) {
+            return;
+        }
+        List<String> householdMemberIds = getIdList(householdMembers);
+        Map<String, List<Relationship>> idToObjMap = fetchRelationships(householdMemberIds, includeDeleted);
+        householdMembers.forEach(member -> member.setMemberRelationships(idToObjMap.get(member.getId())));
+    }
+
+    private Map<String, List<Relationship>> fetchRelationships(List<String> selfIds, Boolean includeDeleted) {
+        Map<String, Object> resourceParamsMap = new HashMap<>();
+        StringBuilder resourceQuery = new StringBuilder("SELECT * FROM household_member_relationship WHERE selfId IN (:selfIds) ");
+        resourceParamsMap.put("selfIds", selfIds);
+        if (Boolean.FALSE.equals(includeDeleted)) {
+            resourceQuery.append("AND isDeleted=:isDeleted");
+            resourceParamsMap.put("isDeleted", false);
+        }
+        List<Relationship> relationships = this.namedParameterJdbcTemplate.query(resourceQuery.toString(), resourceParamsMap,
+                this.relationshipRowMapper);
+        Map<String, List<Relationship>> idToObjMap = new HashMap<>();
+
+        relationships.forEach(relationship -> {
+            String memberId = relationship.getSelfId();
+            if (idToObjMap.containsKey(memberId)) {
+                idToObjMap.get(memberId).add(relationship);
+            } else {
+                List<Relationship> memberRelationships = new ArrayList<>();
+                memberRelationships.add(relationship);
+                idToObjMap.put(memberId, memberRelationships);
+            }
+        });
+        return idToObjMap;
     }
 }

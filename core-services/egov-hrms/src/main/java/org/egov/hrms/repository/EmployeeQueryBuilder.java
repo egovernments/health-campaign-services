@@ -28,13 +28,20 @@ public class EmployeeQueryBuilder {
 	 * @param criteria
 	 * @return
 	 */
-	public String getEmployeeSearchQuery(EmployeeSearchCriteria criteria,List <Object> preparedStmtList, Boolean addPagination ) {
+	public String getEmployeeSearchQuery(EmployeeSearchCriteria criteria,List <Object> preparedStmtList) {
 		StringBuilder builder = new StringBuilder(EmployeeQueries.HRMS_GET_EMPLOYEES);
 		// Replace the schema name in the query
 		builder = new StringBuilder(String.format(String.valueOf(builder), SCHEMA_REPLACE_STRING, SCHEMA_REPLACE_STRING ,SCHEMA_REPLACE_STRING, SCHEMA_REPLACE_STRING, SCHEMA_REPLACE_STRING,
 				SCHEMA_REPLACE_STRING, SCHEMA_REPLACE_STRING, SCHEMA_REPLACE_STRING, SCHEMA_REPLACE_STRING));
 		addWhereClause(criteria, builder, preparedStmtList);
-		return paginationClause(criteria, builder, addPagination);
+		return paginationClause(criteria, builder);
+	}
+
+	public String getEmployeeSearchCountQuery(EmployeeSearchCriteria criteria,List <Object> preparedStmtList) {
+		StringBuilder builder = new StringBuilder(EmployeeQueries.HRMS_GET_EMPLOYEES_COUNT);
+		addWhereClause(criteria, builder, preparedStmtList);
+		builder.append(" GROUP BY employee.active");
+		return builder.toString();
 	}
 
 	public String getEmployeeCountQuery(String tenantId, List <Object> preparedStmtList ) {
@@ -99,25 +106,15 @@ public class EmployeeQueryBuilder {
 		}
 	}
 	
-	public String paginationClause(EmployeeSearchCriteria criteria, StringBuilder builder, Boolean addPagination) {
+	public String paginationClause(EmployeeSearchCriteria criteria, StringBuilder builder) {
 		String pagination = EmployeeQueries.HRMS_PAGINATION_WRAPPER;
 		pagination = pagination.replace("{}", builder.toString());
 
-		if (!addPagination) {
-			pagination = pagination.replace( " WHERE offset_ > $offset AND offset_ <= $limit" , "");
-		} else  {
-			if(null != criteria.getOffset())
-				pagination = pagination.replace("$offset", criteria.getOffset().toString());
-			else
-				pagination = pagination.replace("$offset", "0");
-
-			if(null != criteria.getLimit()){
-				Integer limit = criteria.getLimit() + criteria.getOffset();
-				pagination = pagination.replace("$limit", limit.toString());
-			}
-			else
-				pagination = pagination.replace("$limit", defaultLimit.toString());
-		}
+		int offsetVal = criteria.getOffset() != null ? criteria.getOffset() : 0;
+		int limit = criteria.getLimit() != null ? criteria.getLimit() : defaultLimit;
+		limit += offsetVal;
+		pagination = pagination.replace("$offset", Integer.toString(offsetVal, 10));
+		pagination = pagination.replace("$limit", Integer.toString(limit, 10));
 		return pagination;
 	}
 

@@ -42,7 +42,7 @@ public class EmployeeRepository {
 
 	@Autowired
 	private MultiStateInstanceUtil multiStateInstanceUtil;
-	
+
 	/**
 	 * DB Repository that makes jdbc calls to the db and fetches employees.
 	 * 
@@ -76,18 +76,21 @@ public class EmployeeRepository {
 			List<String> empUuids = fetchUnassignedEmployees(criteria, requestInfo);
 			criteria.setUuids(empUuids);
 		}
-		String query = queryBuilder.getEmployeeSearchQuery(criteria, preparedStmtList, true);
-		String queryWithOutLimitAndOffset = queryBuilder.getEmployeeSearchQuery(criteria, preparedStmtListWithOutLimitAndOffset , false);
+		String query = queryBuilder.getEmployeeSearchQuery(criteria, preparedStmtList);
+        String employeeCountQuery = queryBuilder.getEmployeeSearchCountQuery(criteria, preparedStmtListWithOutLimitAndOffset);
 		// Wrap query construction in try-catch to handle invalid tenant scenarios gracefully
 		try {
 			query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
-			queryWithOutLimitAndOffset = multiStateInstanceUtil.replaceSchemaPlaceholder(queryWithOutLimitAndOffset, tenantId);
+            employeeCountQuery = multiStateInstanceUtil.replaceSchemaPlaceholder(employeeCountQuery, tenantId);
 		} catch (InvalidTenantIdException e) {
 			throw new CustomException(ErrorConstants.TENANT_ID_EXCEPTION, e.getMessage());
 		}
 		try {
-			employees = jdbcTemplate.query(query, preparedStmtList.toArray(),rowMapper);
-			totalCount = jdbcTemplate.query(queryWithOutLimitAndOffset, preparedStmtList.toArray(),rowMapper).spliterator().getExactSizeIfKnown();
+			employees = jdbcTemplate.query(query, preparedStmtList.toArray(), rowMapper);
+			Map<String, String> countResults = jdbcTemplate.query(employeeCountQuery, preparedStmtListWithOutLimitAndOffset.toArray(), countRowMapper);
+            if (countResults != null && countResults.containsKey("totalEmployee")) {
+				totalCount = Long.parseLong(countResults.get("totalEmployee"), 10);
+			}
 		}catch(Exception e) {
 			log.error("Exception while making the db call: ",e);
 			log.error("query; "+query);

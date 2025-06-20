@@ -175,13 +175,34 @@ config:
       - work-dir: "health-services/transformer"
         image-name: "transformer"
         dockerfile: "build/17/maven/Dockerfile"
-  - name: "builds/health-campaign-services/core-services/service-request"
+  - name: "builds/health-campaign-services/core-services/health-service-request"
     build:
       - work-dir: "core-services/service-request"
         image-name: "health-service-request"
         dockerfile: "build/maven/Dockerfile"
       - work-dir: "core-services/service-request/src/main/resources/db"
         image-name: "health-service-request-db"
+  - name: "builds/health-campaign-services/core-services/service-request"
+    build:
+      - work-dir: "core-services/service-request"
+        image-name: "service-request"
+        dockerfile: "build/maven/Dockerfile"
+      - work-dir: "core-services/service-request/src/main/resources/db"
+        image-name: "service-request-db"
+  - name: "builds/health-campaign-services/core-services/health-service-request-17"
+    build:
+      - work-dir: "core-services/service-request"
+        image-name: "health-service-request"
+        dockerfile: "build/17/maven/Dockerfile"
+      - work-dir: "core-services/service-request/src/main/resources/db"
+        image-name: "health-service-request-db"
+  - name: "builds/health-campaign-services/core-services/service-request-17"
+    build:
+      - work-dir: "core-services/service-request"
+        image-name: "service-request"
+        dockerfile: "build/17/maven/Dockerfile"
+      - work-dir: "core-services/service-request/src/main/resources/db"
+        image-name: "service-request-db"
   - name: "builds/health-campaign-services/health-services/libraries/health-services-models"
     build:
       - work-dir: "health-services/libraries/health-services-models"
@@ -198,6 +219,20 @@ config:
       - work-dir: "core-services/pgr-services"
         image-name: "health-pgr-services"
         dockerfile: "build/maven/Dockerfile"
+      - work-dir: "core-services/pgr-services/src/main/resources/db"
+        image-name: "health-pgr-services-db"
+  - name: "builds/health-campaign-services/core-services/pgr-services-17"
+    build:
+      - work-dir: "core-services/pgr-services"
+        image-name: "pgr-services"
+        dockerfile: "build/17/maven/Dockerfile"
+      - work-dir: "core-services/pgr-services/src/main/resources/db"
+        image-name: "pgr-services-db"
+  - name: "builds/health-campaign-services/core-services/health-pgr-services-17"
+    build:
+      - work-dir: "core-services/pgr-services"
+        image-name: "health-pgr-services"
+        dockerfile: "build/17/maven/Dockerfile"
       - work-dir: "core-services/pgr-services/src/main/resources/db"
         image-name: "health-pgr-services-db"
   - name: "builds/health-campaign-services/core-services/user-otp"
@@ -266,7 +301,18 @@ config:
         dockerfile: "build/17/maven/Dockerfile"
       - work-dir: "health-services/census-service/src/main/resources/db"
         image-name: "census-service-db"
-
+  - name: "builds/health-campaign-services/health-services/geopode-adapter"
+    build:
+      - work-dir: "health-services/geopode-adapter"
+        image-name: "geopode-adapter"
+        dockerfile: "build/17/maven/Dockerfile"
+  - name: "builds/health-campaign-services/core-services/beneficiary-idgen-17"
+    build:
+      - work-dir: "core-services/beneficiary-idgen"
+        image-name: "beneficiary-idgen"
+        dockerfile: "build/17/maven/Dockerfile"
+      - work-dir: "core-services/beneficiary-idgen/src/main/resources/db"
+        image-name: "beneficiary-idgen-db"
 # frontend
   - name: builds/health-campaign-services/frontend/workbench-ui
     build:

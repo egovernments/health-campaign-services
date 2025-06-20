@@ -249,6 +249,7 @@ public class EmployeeService {
             if(mapOfUsers.isEmpty()){
 				log.info("searching in user service");
             UserResponse userResponse = userService.getUser(requestInfo, userSearchCriteria);
+			totalCount = userResponse.getTotalCount();
 			if(!CollectionUtils.isEmpty(userResponse.getUser())) {
 				mapOfUsers = userResponse.getUser().stream()
 						.collect(Collectors.toMap(User :: getUuid, Function.identity()));

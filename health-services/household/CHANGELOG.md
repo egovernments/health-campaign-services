@@ -1,3 +1,5 @@
+# Change Logs
+
 All notable changes to this module will be documented in this file.
 
 ## 1.2.0 - 2025-04-15
@@ -9,9 +11,14 @@ All notable changes to this module will be documented in this file.
 - Updated migration script logic for schema support.
 - Updated the persister file to handle multiple schemas.
 
+## 1.1.7 - 2025-04-11
+
+- Upgraded health-services-models to 1.0.27
+- Added relationship type support for household members
+
 ## 1.1.6 - 2025-02-28
 
-- Upgraded to health common 1.0.21
+- Upgraded to health commons library version 1.0.21
 
 ## 1.1.5 - 2025-01-28
 
