@@ -11,15 +11,17 @@ import { tracingMiddleware } from "./tracing";
 import { createProxyMiddleware } from "http-proxy-middleware";
 import * as v8 from "v8";
 import { logger } from "./utils/logger";
+import { monitorEventLoopDelay } from "perf_hooks";
 
-const printMemoryInMB = (memoryInBytes: number) => {
-  const memoryInMB = memoryInBytes / (1024 * 1024); // Convert bytes to MB
-  return `${memoryInMB.toFixed(2)} MB`;
-};
+const histogram = monitorEventLoopDelay({ resolution: 20 });
+histogram.enable();
 
 class App {
   public app: express.Application;
   public port: number;
+  private inflight = 0;
+  private readonly MAX_INFLIGHT = parseInt(config.app.maxInFlight || "5");
+  private readonly MAX_EVENT_LOOP_DELAY_MS = parseInt(config.app.maxEventLoopLagMs || "100");
 
   constructor(controllers: any, port: any) {
     this.app = express();
@@ -28,81 +30,70 @@ class App {
     this.initializeMiddlewares();
     this.initializeControllers(controllers);
     this.app.use(invalidPathHandler);
+  }
 
-    // Global error handling for uncaught exceptions
-    process.on("uncaughtException", (err) => {
-      console.error("Unhandled Exception:", err);
-    });
-
-    // Global error handling for unhandled promise rejections
-    process.on("unhandledRejection", (reason, promise) => {
-      console.error("Unhandled Rejection at:", promise, "reason:", reason);
-    });
+  private isMemoryCritical(): boolean {
+    const stats = v8.getHeapStatistics();
+    return stats.used_heap_size / stats.heap_size_limit > 0.6;
   }
 
   private initializeMiddlewares() {
-    this.app.use(
-      bodyParser.json({ limit: config.app.incomingRequestPayloadLimit })
-    );
+    this.app.use((req, res, next) => {
+      this.inflight++;
+      res.on("finish", () => this.inflight--);
+      next();
+    });
+
+    this.app.use(bodyParser.json({ limit: config.app.incomingRequestPayloadLimit }));
     this.app.use(
       bodyParser.urlencoded({
         limit: config.app.incomingRequestPayloadLimit,
         extended: true,
       })
     );
-    // this.app.use(bodyParser.json());
     this.app.use(tracingMiddleware);
     this.app.use(requestMiddleware);
     this.app.use(errorLogger);
     this.app.use(errorResponder);
+
     this.app.use(
       "/tracing",
       createProxyMiddleware({
         target: "http://localhost:16686",
         changeOrigin: true,
-        pathRewrite: {
-          "^/tracing": "/",
-        },
+        pathRewrite: { "^/tracing": "/" },
       })
     );
+
+    // Enhanced /health endpoint
+    this.app.get("/health", (_req, res) => {
+      const memCrit = this.isMemoryCritical();
+      const eventLoopLagMs = Number(histogram.mean) / 1e6; // convert ns to ms
+      const lagCrit = eventLoopLagMs > this.MAX_EVENT_LOOP_DELAY_MS;
+
+      if (this.inflight >= this.MAX_INFLIGHT || memCrit || lagCrit) {
+        const reason = memCrit
+          ? "memory critical"
+          : lagCrit
+            ? `event-loop lag high (${eventLoopLagMs.toFixed(1)}ms)`
+            : "too many in-flight requests";
+        logger.warn(`/health failed: ${reason} (inflight=${this.inflight})`);
+        res.status(500).send("NOT ALIVE");
+      } else {
+        res.status(200).send("ALIVE");
+      }
+    });
   }
 
   private initializeControllers(controllers: any) {
-    controllers.forEach((controller: any) => {
-      this.app.use(config.app?.contextPath, controller.router);
+    controllers.forEach((ctr: any) => {
+      this.app.use(config.app.contextPath, ctr.router);
     });
   }
 
   public listen() {
     this.app.listen(this.port, () => {
-      logger.info(`App listening on the port ${this.port}`);
-      // Add periodic monitoring
-      setInterval(() => {
-        const stats = v8.getHeapStatistics();
-        const usedHeapSize = stats.used_heap_size;
-        const heapLimit = stats.heap_size_limit;
-
-        logger.debug(
-          JSON.stringify({
-            "Heap Usage": {
-              used: printMemoryInMB(usedHeapSize),
-              limit: printMemoryInMB(heapLimit),
-              percentage: ((usedHeapSize / heapLimit) * 100).toFixed(2),
-            },
-          })
-        );
-
-        // Alert if memory usage is above 80%
-        if (usedHeapSize / heapLimit > 0.8) {
-          logger.warn("High memory usage detected");
-        }
-      }, 5 * 60 * 1000); // Every 5 minutes
-      logger.info(
-        "Current App's Heap Configuration Total Available :",
-        printMemoryInMB(v8.getHeapStatistics()?.total_available_size),
-        " max limit set to : ",
-        printMemoryInMB(v8.getHeapStatistics()?.heap_size_limit)
-      );
+      logger.info(`App listening on port ${this.port}`);
     });
   }
 }
