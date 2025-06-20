@@ -7,10 +7,13 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.contract.request.RequestInfo;
+import org.egov.common.ds.Tuple;
 import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.common.models.core.Pagination;
@@ -50,7 +53,9 @@ import org.egov.common.models.service.ServiceSearchRequest;
 import org.egov.common.utils.MultiStateInstanceUtil;
 import org.egov.referralmanagement.Constants;
 import org.egov.referralmanagement.config.ReferralManagementConfiguration;
+import org.egov.referralmanagement.repository.HouseholdRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
@@ -76,13 +81,22 @@ public class DownsyncService {
 
     private final MultiStateInstanceUtil multiStateInstanceUtil;
 
+    private HouseholdRepository householdRepository;
+
+    private static final Integer SEARCH_MAX_COUNT = 1000;
+
+    @Autowired
+    RedisTemplate<String, Object> redisTemplate;
+
     @Autowired
     public DownsyncService( ServiceRequestClient serviceRequestClient,
                             ReferralManagementConfiguration referralManagementConfiguration,
                             NamedParameterJdbcTemplate jdbcTemplate,
                             SideEffectService sideEffectService,
                             ReferralManagementService referralService,
-                            MasterDataService masterDataService, MultiStateInstanceUtil multiStateInstanceUtil) {
+                            MasterDataService masterDataService,
+                            MultiStateInstanceUtil multiStateInstanceUtil,
+                            HouseholdRepository householdRepository) {
 
         this.restClient = serviceRequestClient;
         this.configs = referralManagementConfiguration;
@@ -91,7 +105,7 @@ public class DownsyncService {
         this.referralService = referralService;
         this.masterDataService = masterDataService;
         this.multiStateInstanceUtil = multiStateInstanceUtil;
-
+        this.householdRepository = householdRepository;
     }
 
     /**
@@ -104,13 +118,25 @@ public class DownsyncService {
         Downsync downsync = new Downsync();
         DownsyncCriteria downsyncCriteria = downsyncRequest.getDownsyncCriteria();
 
+        String key = downsyncCriteria.getLocality() + downsyncCriteria.getOffset() + downsyncCriteria.getLimit();
+
+        Object obj = getFromCache(key);
+        if (null != obj) {
+            return (Downsync) obj;
+        }
+
+        List<Household> households = null;
+        List<String> householdClientRefIds = null;
         List<String> individualClientRefIds = null;
         List<String> beneficiaryClientRefIds = null;
         List<String> taskClientRefIds = null;
-        List<String> householdClientRefIds = null;
 
 
         downsync.setDownsyncCriteria(downsyncCriteria);
+        // removing incremental downsync for matview flow
+        if (configs.isEnableMatviewSearch()) {
+            downsyncCriteria.setLastSyncedTime(null);
+        }
         boolean isSyncTimeAvailable = null != downsyncCriteria.getLastSyncedTime();
 
         //Project project = getProjectType(downsyncRequest);
@@ -163,6 +189,8 @@ public class DownsyncService {
             searchServices(downsyncRequest, downsync, individualClientRefIds, householdClientRefIds);
         }
 
+        cacheByKey(downsync, key);
+
         return downsync;
     }
 
@@ -177,6 +205,14 @@ public class DownsyncService {
 
         DownsyncCriteria criteria = downsyncRequest.getDownsyncCriteria();
         RequestInfo requestInfo = downsyncRequest.getRequestInfo();
+
+        if (configs.isEnableMatviewSearch()) {
+            Tuple<Long, List<Household>> res = householdRepository.findByView(criteria.getLocality(), criteria.getLimit(), criteria.getOffset(), criteria.getTenantId());
+            List<Household> households = res.getY();
+            downsync.getDownsyncCriteria().setTotalCount(res.getX());
+            downsync.setHouseholds(households);
+            return households.stream().map(Household::getClientReferenceId).collect(Collectors.toList());
+        }
 
         StringBuilder householdUrl = new StringBuilder(configs.getHouseholdHost())
                 .append(configs.getHouseholdSearchUrl());
@@ -240,10 +276,13 @@ public class DownsyncService {
                     .id(batch)
                     .build();
 
-            IndividualSearchRequest searchRequest = IndividualSearchRequest.builder()
-                    .individual(individualSearch)
-                    .requestInfo(requestInfo)
-                    .build();
+        if(!CollectionUtils.isEmpty(individualIds))
+            individualSearch.setId(new ArrayList<>(individualIds));
+
+        IndividualSearchRequest searchRequest = IndividualSearchRequest.builder()
+                .individual(individualSearch)
+                .requestInfo(requestInfo)
+                .build();
 
             List<Individual> individuals = restClient.fetchResult(url, searchRequest, IndividualBulkResponse.class).getIndividual();
             allIndividuals.addAll(individuals);
@@ -351,10 +390,10 @@ public class DownsyncService {
                     .id(batch)
                     .build();
 
-            HouseholdMemberSearchRequest searchRequest = HouseholdMemberSearchRequest.builder()
-                    .householdMemberSearch(memberSearch)
-                    .requestInfo(downsyncRequest.getRequestInfo())
-                    .build();
+        HouseholdMemberSearchRequest searchRequest = HouseholdMemberSearchRequest.builder()
+                .householdMemberSearch(memberSearch)
+                .requestInfo(downsyncRequest.getRequestInfo())
+                .build();
 
             List<HouseholdMember> members = restClient.fetchResult(memberUrl, searchRequest, HouseholdMemberBulkResponse.class).getHouseholdMembers();
             allMembers.addAll(members);
@@ -464,10 +503,10 @@ public class DownsyncService {
                     .projectId(Collections.singletonList(downsyncRequest.getDownsyncCriteria().getProjectId()))
                     .build();
 
-            TaskSearchRequest searchRequest = TaskSearchRequest.builder()
-                    .task(search)
-                    .requestInfo(requestInfo)
-                    .build();
+        TaskSearchRequest searchRequest = TaskSearchRequest.builder()
+                .task(search)
+                .requestInfo(requestInfo)
+                .build();
 
             List<Task> tasks = restClient.fetchResult(url, searchRequest, TaskBulkResponse.class).getTasks();
             allTasks.addAll(tasks);
@@ -657,4 +696,26 @@ public class DownsyncService {
 
         return url;
     }
+
+    private void cacheByKey(Downsync downsync, String key) {
+        try {
+            redisTemplate.opsForValue().set(key, downsync);
+            redisTemplate.expire(key, 600l, TimeUnit.SECONDS);
+        } catch (Exception exception) {
+            log.warn("Error while saving to cache: {}", ExceptionUtils.getStackTrace(exception));
+        }
+    }
+
+    private Object getFromCache(String key) {
+
+        Object res = null;
+
+        try {
+            res = redisTemplate.opsForValue().get(key);
+        } catch (Exception exception) {
+            log.warn("Error while retrieving from cache: {}", ExceptionUtils.getStackTrace(exception));
+        }
+        return res;
+    }
+
 }

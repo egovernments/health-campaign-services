@@ -56,56 +56,21 @@ public class MasterDataService {
 
 	@SuppressWarnings("unchecked")
 	public LinkedHashMap<String, Object> getProjectType(DownsyncRequest downsyncRequest) {
-
 		DownsyncCriteria downsyncCriteria = downsyncRequest.getDownsyncCriteria();
 		RequestInfo info = downsyncRequest.getRequestInfo();
 		String projectId = downsyncCriteria.getProjectId();
 
-
 		Project project = getProject(downsyncCriteria, info, projectId);
 
-		String projectCode = project.getProjectType(); // FIXME
+		Object additionalDetails = project.getAdditionalDetails();
 
-		/*
-		 * TODO FIXME code should get upgraded when next version of project is created with execution plan (project type master) in the additional details
-		 */
-		StringBuilder mdmsUrl = new StringBuilder(configs.getMdmsHost())
-				.append(configs.getMdmsSearchUrl());
-
-		/*
-		 * Assumption is that the project code is always unique
-		 */
-		MasterDetail masterDetail = MasterDetail.builder()
-				.name(HCM_MASTER_PROJECTTYPE)
-				.filter(String.format(HCM_PROJECT_TYPE_FILTER_CODE, projectCode)) // projectCode FIXME
-				.build();
-
-		ModuleDetail moduleDetail = ModuleDetail.builder()
-				.masterDetails(Arrays.asList(masterDetail))
-				.moduleName(HCM_MDMS_PROJECT_MODULE_NAME)
-				.build();
-
-		MdmsCriteria mdmsCriteria = MdmsCriteria.builder()
-				.moduleDetails(Arrays.asList(moduleDetail))
-				.tenantId(downsyncCriteria.getTenantId().split("//.")[0])
-				.build();
-
-		MdmsCriteriaReq mdmsCriteriaReq = MdmsCriteriaReq.builder()
-				.mdmsCriteria(mdmsCriteria)
-				.requestInfo(info)
-				.build();
-
-		Map<String, Object> mdmsRes = restClient.fetchResult(mdmsUrl, mdmsCriteriaReq, HashMap.class);
-		List<Object> projectTypeRes = null;
-		try {
-			projectTypeRes = JsonPath.read(mdmsRes, HCM_MDMS_PROJECTTYPE_RES_PATH);
-		} catch (Exception e) {
-			log.error(e.getMessage());
-			throw new CustomException("JSONPATH_ERROR", "Failed to parse mdms response");
+		if (additionalDetails instanceof Map) {
+			Map<String, Object> additionalDetailsMap = (Map<String, Object>) additionalDetails;
+			Object projectType = additionalDetailsMap.get("projectType");
+			return (LinkedHashMap<String, Object>) projectType;
+		} else {
+			throw new CustomException("JSONPATH_ERROR", "Invalid project type");
 		}
-
-		return (LinkedHashMap<String, Object>) projectTypeRes.get(0);
-
 	}
 
 
