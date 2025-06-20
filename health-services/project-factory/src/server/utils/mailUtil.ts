@@ -41,9 +41,24 @@ export async function sendNotificationEmail(
         logger.info("Step 5: Fetched email template from MDMS");
 
 
+        // Step 4.1: Fetch appLink from MDMS
+        const AppLinkCriteria: MDMSModels.MDMSv2RequestCriteria = {
+            MdmsCriteria: {
+                tenantId: tenantId,
+                schemaCode: "HCM-ADMIN-CONSOLE.AppLink"
+            }
+        };
+
+        logger.info("Step 4.1: Calling MDMS API for appLink with criteria: " + JSON.stringify(AppLinkCriteria));
+        const appLinkResponse = await searchMDMSDataViaV2Api(AppLinkCriteria);
+        const appLink = appLinkResponse?.mdms?.[0]?.data?.appLink || "https://default-app-link.com";
+        logger.info("Step 4.2: Fetched appLink from MDMS: " + appLink);
+
+
+
         // Step 3: Prepare replacements
         const campaignName = mappingObject?.CampaignDetails?.campaignName || "";
-        const campaignManagerName = requestInfo?.userInfo?.usernmae || "Campaign Manager";
+        const campaignManagerName = requestInfo?.userInfo?.userName || "Campaign Manager";
 
         // Extracting download link (use only the first file ID)
         const [firstFileId] = Object.keys(fileStoreIdMap || {});
@@ -53,6 +68,7 @@ export async function sendNotificationEmail(
             campaignName,
             campaignManagerName,
             accessLink: downloadLink,
+            appLink
         };
 
         const subjectCode = emailTemplate?.data?.subjectCode;
