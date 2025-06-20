@@ -11,6 +11,7 @@ import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.RequestInfo;
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.common.models.core.Pagination;
 import org.egov.common.models.household.Household;
@@ -92,7 +93,7 @@ public class DownsyncService {
      * @param downsyncRequest
      * @return Downsync
      */
-    public Downsync prepareDownsyncData(DownsyncRequest downsyncRequest) {
+    public Downsync prepareDownsyncData(DownsyncRequest downsyncRequest) throws InvalidTenantIdException {
 
         Downsync downsync = new Downsync();
         DownsyncCriteria downsyncCriteria = downsyncRequest.getDownsyncCriteria();
@@ -426,7 +427,7 @@ public class DownsyncService {
      * @param taskClientRefIds
      */
     private void searchSideEffect(DownsyncRequest downsyncRequest, Downsync downsync,
-                                  List<String> taskClientRefIds) {
+                                  List<String> taskClientRefIds) throws InvalidTenantIdException {
 
         DownsyncCriteria criteria = downsyncRequest.getDownsyncCriteria();
         RequestInfo requestInfo = downsyncRequest.getRequestInfo();
@@ -459,7 +460,7 @@ public class DownsyncService {
     }
 
     private void referralSearch(DownsyncRequest downsyncRequest, Downsync downsync,
-                                List<String> beneficiaryClientRefIds) {
+                                List<String> beneficiaryClientRefIds) throws InvalidTenantIdException {
 
         DownsyncCriteria criteria = downsyncRequest.getDownsyncCriteria();
         RequestInfo requestInfo = downsyncRequest.getRequestInfo();

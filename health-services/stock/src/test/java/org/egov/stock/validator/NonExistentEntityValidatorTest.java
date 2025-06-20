@@ -6,6 +6,7 @@ import java.util.Map;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.data.query.exception.QueryBuilderException;
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.Error;
 import org.egov.common.models.stock.Stock;
 import org.egov.common.models.stock.StockBulkRequest;
@@ -54,7 +55,7 @@ class NonExistentEntityValidatorTest {
         try {
             when(stockRepository.find(any(), any(), any(), any(), any(), any(Boolean.class)))
                     .thenReturn(Collections.emptyList());
-        } catch (QueryBuilderException e) {
+        } catch (QueryBuilderException | InvalidTenantIdException e) {
             log.error("Search failed for Stock with error: {}", e.getMessage(), e);
             throw new CustomException("STOCK_SEARCH_FAILED", "Search Failed for Stock, " + e.getMessage());
         }
@@ -71,7 +72,7 @@ class NonExistentEntityValidatorTest {
         try {
             when(stockRepository.find(any(), any(), any(), any(), any(), any(Boolean.class)))
                     .thenReturn(Collections.singletonList(StockTestBuilder.builder().withStock().withId("some-id").build()));
-        } catch (QueryBuilderException e) {
+        } catch (QueryBuilderException | InvalidTenantIdException e) {
             log.error("Search failed for Stock with error: {}", e.getMessage(), e);
             throw new CustomException("STOCK_SEARCH_FAILED", "Search Failed for Stock, " + e.getMessage()); 
         }
@@ -90,7 +91,7 @@ class NonExistentEntityValidatorTest {
         try {
             when(stockReconciliationRepository.find(any(), any(), any(), any(), any(), any(Boolean.class)))
                 .thenReturn(Collections.emptyList());
-        } catch (QueryBuilderException e) {
+        } catch (QueryBuilderException | InvalidTenantIdException e) {
             log.error("Search failed for StockReconciliation with error: {}", e.getMessage(), e);
             throw new CustomException("STOCK_RECONCILIANTION_SEARCH_FAILED", "Search Failed for StockReconciliation, " + e.getMessage()); 
         }
@@ -109,7 +110,7 @@ class NonExistentEntityValidatorTest {
             when(stockReconciliationRepository.find(any(), any(), any(), any(), any(), any(Boolean.class)))
                     .thenReturn(Collections.singletonList(StockReconciliationTestBuilder.builder().withStock()
                             .withId("some-id").build()));
-        } catch (QueryBuilderException e) {
+        } catch (QueryBuilderException | InvalidTenantIdException e) {
             log.error("Search failed for StockReconciliation with error: {}", e.getMessage(), e);
             throw new CustomException("STOCK_RECONCILIANTION_SEARCH_FAILED", "Search Failed for StockReconciliation, " + e.getMessage()); 
         }

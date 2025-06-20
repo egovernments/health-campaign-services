@@ -41,11 +41,9 @@
 package org.egov.hrms.model;
 
 import lombok.*;
-
-import javax.validation.constraints.NotNull;
-
-import org.hibernate.validator.constraints.SafeHtml;
+import org.egov.tracer.annotations.CustomSafeHtml;
 import org.springframework.validation.annotation.Validated;
+
 
 @Validated
 @EqualsAndHashCode(exclude = {"auditDetails"})
@@ -57,29 +55,27 @@ import org.springframework.validation.annotation.Validated;
 @ToString
 public class ServiceHistory {
 
-	@SafeHtml
+	@CustomSafeHtml
 	private String id;
 
-	@SafeHtml
+	@CustomSafeHtml
 	private String serviceStatus;
 
 	private Long serviceFrom;
 
 	private Long serviceTo;
 
-	@SafeHtml
+	@CustomSafeHtml
 	private String orderNo;
 
-	@SafeHtml
+	@CustomSafeHtml
 	private String location;
 
-	@SafeHtml
-	private String tenantId;	
+	@CustomSafeHtml
+	private String tenantId;
 
-	private  Boolean isCurrentPosition;
+	private Boolean isCurrentPosition;
 
 	private AuditDetails auditDetails;
-
-
 
 }

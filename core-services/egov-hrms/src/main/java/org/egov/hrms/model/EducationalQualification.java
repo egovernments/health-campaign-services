@@ -41,11 +41,10 @@
 package org.egov.hrms.model;
 
 import lombok.*;
-
-import javax.validation.constraints.NotNull;
-
-import org.hibernate.validator.constraints.SafeHtml;
+import org.egov.tracer.annotations.CustomSafeHtml;
 import org.springframework.validation.annotation.Validated;
+
+import jakarta.validation.constraints.NotNull;
 
 @Validated
 @EqualsAndHashCode(exclude = {"auditDetails"})
@@ -57,32 +56,30 @@ import org.springframework.validation.annotation.Validated;
 @ToString
 public class EducationalQualification {
 
-	@SafeHtml
+	@CustomSafeHtml
 	private String id;
 
-	@SafeHtml
+	@CustomSafeHtml
 	@NotNull
 	private String qualification;
 
-	@SafeHtml
+	@CustomSafeHtml
 	@NotNull
 	private String stream;
 
 	@NotNull
 	private Long yearOfPassing;
 
-	@SafeHtml
+	@CustomSafeHtml
 	private String university;
 
-	@SafeHtml
-	private  String remarks;
+	@CustomSafeHtml
+	private String remarks;
 
-	@SafeHtml
-	private  String tenantId;
+	@CustomSafeHtml
+	private String tenantId;
 
 	private AuditDetails auditDetails;
 
 	private Boolean isActive;
-
-
 }

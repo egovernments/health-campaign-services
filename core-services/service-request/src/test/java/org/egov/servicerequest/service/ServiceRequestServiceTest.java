@@ -1,5 +1,6 @@
 package org.egov.servicerequest.service;
 
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.servicerequest.config.Configuration;
 import org.egov.servicerequest.helper.ServiceRequestTestBuilder;
 import org.egov.servicerequest.kafka.Producer;
@@ -48,13 +49,13 @@ public class ServiceRequestServiceTest {
     }
     @Test
     @DisplayName("should call kafka topic if valid service request found for create")
-    void shouldCallKafkaTopicCreate() {
+    void shouldCallKafkaTopicCreate() throws InvalidTenantIdException {
         ServiceRequest serviceRequest = ServiceRequestTestBuilder.builder().withServices().withRequestInfo().build();
 
         Service service = serviceRequestService.createService(serviceRequest);
 
         assertEquals(service,serviceRequest.getService());
-        verify(producer,times(1)).push(eq("save-service"),any(ServiceRequest.class));
+        verify(producer,times(1)).push(anyString(), eq("save-service"),any(ServiceRequest.class));
 
     }
 

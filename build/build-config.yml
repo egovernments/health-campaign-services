@@ -22,6 +22,13 @@ config:
     build:
       - work-dir: "health-services/libraries/health-services-common"
         image-name: "health-services-common"
+  - name: "builds/health-campaign-services/health-services/product-17"
+    build:
+      - work-dir: "health-services/product"
+        image-name: "product"
+        dockerfile: "build/17/maven/Dockerfile"
+      - work-dir: "health-services/product/src/main/resources/db"
+        image-name: "product-db"
   - name: "builds/health-campaign-services/health-services/product"
     build:
       - work-dir: "health-services/product"
@@ -207,18 +214,18 @@ config:
     build:
       - work-dir: "health-services/libraries/health-services-models"
         image-name: "health-services-models"
-  - name: "builds/health-campaign-services/core-services/pgr-services"
+  - name: "builds/health-campaign-services/core-services/pgr-services-17"
     build:
       - work-dir: "core-services/pgr-services"
         image-name: "pgr-services"
-        dockerfile: "build/maven/Dockerfile"
+        dockerfile: "build/17/maven/Dockerfile"
       - work-dir: "core-services/pgr-services/src/main/resources/db"
         image-name: "pgr-services-db"
-  - name: "builds/health-campaign-services/core-services/health-pgr-services"
+  - name: "builds/health-campaign-services/core-services/health-pgr-services-17"
     build:
       - work-dir: "core-services/pgr-services"
         image-name: "health-pgr-services"
-        dockerfile: "build/maven/Dockerfile"
+        dockerfile: "build/17/maven/Dockerfile"
       - work-dir: "core-services/pgr-services/src/main/resources/db"
         image-name: "health-pgr-services-db"
   - name: "builds/health-campaign-services/core-services/pgr-services-17"

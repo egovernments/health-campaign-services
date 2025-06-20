@@ -37,15 +37,13 @@
  *
  *  In case of any queries, you can reach eGovernments Foundation at contact@egovernments.org.
  */
-
 package org.egov.hrms.model;
 
 import lombok.*;
-
-import javax.validation.constraints.NotNull;
-
-import org.hibernate.validator.constraints.SafeHtml;
+import org.egov.tracer.annotations.CustomSafeHtml;
 import org.springframework.validation.annotation.Validated;
+
+import jakarta.validation.constraints.NotNull;
 
 @Validated
 @EqualsAndHashCode(exclude = {"auditDetails"})
@@ -57,22 +55,22 @@ import org.springframework.validation.annotation.Validated;
 @ToString
 public class DepartmentalTest {
 
-	@SafeHtml
+	@CustomSafeHtml
 	private String id;
 
-	@SafeHtml
+	@CustomSafeHtml
 	@NotNull
 	private String test;
 
 	@NotNull
 	private Long yearOfPassing;
 
-	@SafeHtml
+	@CustomSafeHtml
 	private String remarks;
 
-	@SafeHtml
+	@CustomSafeHtml
 	private String tenantId;
-	
+
 	private AuditDetails auditDetails;
 
 	private Boolean isActive;

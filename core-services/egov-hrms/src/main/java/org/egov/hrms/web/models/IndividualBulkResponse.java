@@ -13,8 +13,8 @@ import org.egov.common.contract.response.ResponseInfo;
 import org.egov.common.models.individual.Individual;
 import org.springframework.validation.annotation.Validated;
 
-import javax.validation.Valid;
-import javax.validation.constraints.NotNull;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 
 /**
  * IndividualBulkResponse

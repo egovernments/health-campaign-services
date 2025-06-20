@@ -87,10 +87,10 @@ class ProjectBeneficiaryServiceSearchTest {
         BeneficiarySearchRequest projectStaffSearchRequest = BeneficiarySearchRequest.builder()
                 .projectBeneficiary(projectBeneficiarySearch).requestInfo(RequestInfoTestBuilder.builder()
                         .withCompleteRequestInfo().build()).build();
-        when(projectBeneficiaryRepository.findById(anyList(), anyString(),  anyBoolean())).thenReturn(SearchResponse.<ProjectBeneficiary>builder().response(projectBeneficiary).build());
+        when(projectBeneficiaryRepository.findById(eq("some-tenant-id"), anyList(), anyString(),  anyBoolean())).thenReturn(SearchResponse.<ProjectBeneficiary>builder().response(projectBeneficiary).build());
 
         List<ProjectBeneficiary> projectBeneficiaries = projectBeneficiaryService.search(projectStaffSearchRequest,
-                10, 0, null, null, true).getResponse();
+                10, 0, "some-tenant-id", null, true).getResponse();
 
         assertEquals(1, projectBeneficiaries.size());
     }

@@ -8,9 +8,11 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.Error;
 import org.egov.common.models.referralmanagement.Referral;
 import org.egov.common.models.referralmanagement.ReferralBulkRequest;
+import org.egov.common.utils.CommonUtils;
 import org.egov.common.validator.Validator;
 import org.egov.referralmanagement.repository.ReferralRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,6 +25,7 @@ import static org.egov.common.utils.CommonUtils.getIdMethod;
 import static org.egov.common.utils.CommonUtils.getIdToObjMap;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
+import static org.egov.common.utils.ValidatorUtils.getErrorForInvalidTenantId;
 import static org.egov.common.utils.ValidatorUtils.getErrorForRowVersionMismatch;
 
 /*
@@ -67,16 +70,26 @@ public class RmRowVersionValidator implements Validator<ReferralBulkRequest, Ref
                 .collect(Collectors.toList()),idMethod);
         // Check if the map of IDs to Referral entities is not empty
         if(!iMap.isEmpty()){
+            String tenantId = CommonUtils.getTenantId(referralBulkRequest.getReferrals());
             List<String> referralIds = new ArrayList<>(iMap.keySet());
             // Retrieve existing Referral entities from the repository
-            List<Referral> existingReferrals = referralRepository.findById(referralIds,false,getIdFieldName(idMethod));
-            // Identify entities with mismatched row versions
-            List<Referral> entitiesWithMismatchedVersion = getEntitiesWithMismatchedRowVersion(iMap,existingReferrals,idMethod);
-            // Populate error details for entities with mismatched row versions
-            entitiesWithMismatchedVersion.forEach(referral -> {
-                Error error = getErrorForRowVersionMismatch();
-                populateErrorDetails(referral, error, errorDetailsMap);
-            });
+            List<Referral> existingReferrals = null;
+            try {
+                existingReferrals = referralRepository.findById(tenantId, referralIds,false,getIdFieldName(idMethod));
+                // Identify entities with mismatched row versions
+                List<Referral> entitiesWithMismatchedVersion = getEntitiesWithMismatchedRowVersion(iMap,existingReferrals,idMethod);
+                // Populate error details for entities with mismatched row versions
+                entitiesWithMismatchedVersion.forEach(referral -> {
+                    Error error = getErrorForRowVersionMismatch();
+                    populateErrorDetails(referral, error, errorDetailsMap);
+                });
+            } catch (InvalidTenantIdException exception) {
+                // Populating InvalidTenantIdException for all entities
+                iMap.values().forEach(referral -> {
+                    Error error = getErrorForInvalidTenantId(tenantId, exception);
+                    populateErrorDetails(referral, error, errorDetailsMap);
+                });
+            }
         }
         return errorDetailsMap;
     }

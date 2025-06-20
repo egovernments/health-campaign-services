@@ -20,12 +20,13 @@ public class ValidatorUtil {
      * @param staffIds
      * @param invalidStaffIds
      */
-    public static void validateAndEnrichStaffIds(RequestInfo requestInfo, UserService userService,
+    public static void validateAndEnrichStaffIds(String tenantId, RequestInfo requestInfo, UserService userService,
                                                   List<String> staffIds, List<String> invalidStaffIds) {
         if (!CollectionUtils.isEmpty(staffIds)) {
             UserSearchRequest userSearchRequest = new UserSearchRequest();
             userSearchRequest.setRequestInfo(requestInfo);
             userSearchRequest.setUuid(staffIds);
+            userSearchRequest.setTenantId(tenantId);
             List<String> validStaffIds = userService.search(userSearchRequest).stream().map(user -> user.getUuid())
                     .collect(Collectors.toList());
             invalidStaffIds.removeAll(validStaffIds);

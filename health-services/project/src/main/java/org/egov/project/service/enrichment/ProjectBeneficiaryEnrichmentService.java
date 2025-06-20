@@ -1,6 +1,7 @@
 package org.egov.project.service.enrichment;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.project.BeneficiaryBulkRequest;
 import org.egov.common.models.project.ProjectBeneficiary;
 import org.egov.common.service.IdGenService;
@@ -61,12 +62,14 @@ public class ProjectBeneficiaryEnrichmentService {
     }
 
     public void update(List<ProjectBeneficiary> validProjectBeneficiaries,
-                       BeneficiaryBulkRequest beneficiaryRequest) {
+                       BeneficiaryBulkRequest beneficiaryRequest) throws InvalidTenantIdException {
         log.info("starting the enrichment for update project beneficiaries");
         Method idMethod = getIdMethod(validProjectBeneficiaries);
+        String tenantId = getTenantId(validProjectBeneficiaries);
         Map<String, ProjectBeneficiary> projectBeneficiaryMap  = getIdToObjMap(validProjectBeneficiaries, idMethod);
         List<String> projectBeneficiaryIds = new ArrayList<>(projectBeneficiaryMap.keySet());
         List<ProjectBeneficiary> existingProjectBeneficiaryIds = projectBeneficiaryRepository.findById(
+                tenantId,
                 projectBeneficiaryIds,
                 getIdFieldName(idMethod),
                 false

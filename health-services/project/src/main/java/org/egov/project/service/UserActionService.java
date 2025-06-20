@@ -185,7 +185,7 @@ public class UserActionService {
                             .singletonList(userActionSearch)),
                     userActionSearch);
             log.info("Fetching closed household userActions with ids: {}", ids);
-            SearchResponse<UserAction> searchResponse = userActionTaskRepository.findById(ids, idFieldName);
+            SearchResponse<UserAction> searchResponse = userActionTaskRepository.findById(urlParams.getTenantId(), ids, idFieldName);
             return SearchResponse.<UserAction>builder().response(searchResponse.getResponse().stream()
                     .filter(lastChangedSince(urlParams.getLastChangedSince()))
                     .filter(havingTenantId(urlParams.getTenantId()))

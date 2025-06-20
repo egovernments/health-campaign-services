@@ -2,7 +2,6 @@ package org.egov.hrms.consumer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.kafka.clients.admin.NewTopic;
 import org.egov.hrms.config.PropertiesManager;
 import org.egov.hrms.producer.HRMSProducer;
 import org.egov.hrms.service.NotificationService;

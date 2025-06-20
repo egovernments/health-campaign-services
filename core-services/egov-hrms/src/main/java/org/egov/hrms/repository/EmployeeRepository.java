@@ -7,8 +7,12 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.egov.common.contract.request.RequestInfo;
+import org.egov.common.exception.InvalidTenantIdException;
+import org.egov.common.utils.MultiStateInstanceUtil;
+import org.egov.hrms.utils.ErrorConstants;
 import org.egov.hrms.utils.HRMSUtils;
 import org.egov.hrms.web.contract.EmployeeSearchCriteria;
+import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -21,7 +25,6 @@ import org.springframework.util.CollectionUtils;
 @Repository
 @Slf4j
 public class EmployeeRepository {
-
 	@Autowired
 	private EmployeeQueryBuilder queryBuilder;
 	
@@ -36,7 +39,10 @@ public class EmployeeRepository {
 
 	@Autowired
 	private HRMSUtils hrmsUtils;
-	
+
+	@Autowired
+	private MultiStateInstanceUtil multiStateInstanceUtil;
+
 	/**
 	 * DB Repository that makes jdbc calls to the db and fetches employees.
 	 * 
@@ -46,6 +52,8 @@ public class EmployeeRepository {
 	 */
 	public Map<String, Object> fetchEmployees(EmployeeSearchCriteria criteria, RequestInfo requestInfo){
 		Long totalCount = 0L;
+		// Get the tenantId from the criteria
+		String tenantId = criteria.getTenantId();
 		List<Employee> employees = new ArrayList<>();
 		List<Object> preparedStmtList = new ArrayList<>();
 		List<Object> preparedStmtListWithOutLimitAndOffset = new ArrayList<>();
@@ -69,7 +77,14 @@ public class EmployeeRepository {
 			criteria.setUuids(empUuids);
 		}
 		String query = queryBuilder.getEmployeeSearchQuery(criteria, preparedStmtList);
-		String employeeCountQuery = queryBuilder.getEmployeeSearchCountQuery(criteria, preparedStmtListWithOutLimitAndOffset);
+        String employeeCountQuery = queryBuilder.getEmployeeSearchCountQuery(criteria, preparedStmtListWithOutLimitAndOffset);
+		// Wrap query construction in try-catch to handle invalid tenant scenarios gracefully
+		try {
+			query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
+            employeeCountQuery = multiStateInstanceUtil.replaceSchemaPlaceholder(employeeCountQuery, tenantId);
+		} catch (InvalidTenantIdException e) {
+			throw new CustomException(ErrorConstants.TENANT_ID_EXCEPTION, e.getMessage());
+		}
 		try {
 			employees = jdbcTemplate.query(query, preparedStmtList.toArray(), rowMapper);
 			Map<String, String> countResults = jdbcTemplate.query(employeeCountQuery, preparedStmtListWithOutLimitAndOffset.toArray(), countRowMapper);
@@ -88,7 +103,15 @@ public class EmployeeRepository {
 	private List<String> fetchUnassignedEmployees(EmployeeSearchCriteria criteria, RequestInfo requestInfo) {
 		List<String> employeesIds = new ArrayList<>();
 		List <Object> preparedStmtList = new ArrayList<>();
+		// Get the tenantId from the criteria
+		String tenantId = criteria.getTenantId();
 		String query = queryBuilder.getUnassignedEmployeesSearchQuery(criteria, preparedStmtList);
+		// Wrap query construction in try-catch to handle invalid tenant scenarios gracefully
+		try {
+			query = multiStateInstanceUtil.replaceSchemaPlaceholder(query,tenantId);
+		} catch (InvalidTenantIdException e) {
+			throw new CustomException(ErrorConstants.TENANT_ID_EXCEPTION, e.getMessage());
+		}
 		try {
 			employeesIds = jdbcTemplate.queryForList(query, preparedStmtList.toArray(),String.class);
 		}catch(Exception e) {
@@ -101,7 +124,16 @@ public class EmployeeRepository {
 	private List<String> fetchEmployeesforAssignment(EmployeeSearchCriteria criteria, RequestInfo requestInfo) {
 		List<String> employeesIds = new ArrayList<>();
 		List <Object> preparedStmtList = new ArrayList<>();
+		// Get the tenantId from the criteria
+		String tenantId = criteria.getTenantId();
 		String query = queryBuilder.getAssignmentSearchQuery(criteria, preparedStmtList);
+		// Wrap query construction in try-catch to handle invalid tenant scenarios gracefully
+		try {
+			query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
+		} catch (InvalidTenantIdException e) {
+			throw new CustomException(ErrorConstants.TENANT_ID_EXCEPTION, e.getMessage());
+		}
+
 		try {
 
 			employeesIds = jdbcTemplate.queryForList(query, preparedStmtList.toArray(),String.class);
@@ -114,13 +146,20 @@ public class EmployeeRepository {
 	}
 
 	/**
-	 * Fetches next value in the position seq table
-	 * 
+	 * DB Repository that makes jdbc calls to the db and fetches employee count.
+	 *
+	 * @param tenantId
 	 * @return
 	 */
-	public Long fetchPosition(){
+	public Long fetchPosition(String tenantId){
 		String query = queryBuilder.getPositionSeqQuery();
 		Long id = null;
+		// Wrap query construction in try-catch to handle invalid tenant scenarios gracefully
+		try {
+			query = multiStateInstanceUtil.replaceSchemaPlaceholder( query, tenantId);
+		} catch (InvalidTenantIdException e) {
+			throw new CustomException(ErrorConstants.TENANT_ID_EXCEPTION, e.getMessage());
+		}
 		try {
 			id = jdbcTemplate.queryForObject(query, Long.class);
 		}catch(Exception e) {
@@ -142,7 +181,13 @@ public class EmployeeRepository {
 
 		String query = queryBuilder.getEmployeeCountQuery(tenantId, preparedStmtList);
 		log.info("query; "+query);
-		try {
+		// Wrap query construction in try-catch to handle invalid tenant scenarios gracefully
+        try {
+			query = multiStateInstanceUtil.replaceSchemaPlaceholder( query, tenantId);
+        } catch (InvalidTenantIdException e) {
+            throw new CustomException(ErrorConstants.TENANT_ID_EXCEPTION, e.getMessage());
+        }
+        try {
 			response=jdbcTemplate.query(query, preparedStmtList.toArray(),countRowMapper);
 		}catch(Exception e) {
 			log.error("Exception while making the db call: ",e);

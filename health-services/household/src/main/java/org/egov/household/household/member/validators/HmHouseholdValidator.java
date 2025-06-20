@@ -1,6 +1,7 @@
 package org.egov.household.household.member.validators;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.Error;
 import org.egov.common.models.household.HouseHoldType;
 import org.egov.common.models.household.Household;
@@ -30,6 +31,7 @@ import static org.egov.common.utils.CommonUtils.getIdList;
 import static org.egov.common.utils.CommonUtils.getIdMethod;
 import static org.egov.common.utils.CommonUtils.getSet;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
+import static org.egov.common.utils.ValidatorUtils.getErrorForInvalidTenantId;
 import static org.egov.household.Constants.CLIENT_REFERENCE_ID_FIELD;
 import static org.egov.household.Constants.GET_CLIENT_REFERENCE_ID;
 import static org.egov.household.Constants.GET_HOUSEHOLD_CLIENT_REFERENCE_ID;
@@ -69,6 +71,8 @@ public class HmHouseholdValidator implements Validator<HouseholdMemberBulkReques
     @Override
     public Map<HouseholdMember, List<Error>> validate(HouseholdMemberBulkRequest householdMemberBulkRequest) {
         HashMap<HouseholdMember, List<Error>> errorDetailsMap = new HashMap<>();
+        // Extract tenant ID from the requests
+        String tenantId = CommonUtils.getTenantId(householdMemberBulkRequest.getHouseholdMembers());
         List<HouseholdMember> householdMembers = householdMemberBulkRequest.getHouseholdMembers();
 
         log.debug("getting id method for household members");
@@ -82,59 +86,68 @@ public class HmHouseholdValidator implements Validator<HouseholdMemberBulkReques
         List<String> houseHoldIds = getIdList(householdMembers, idMethod);
 
         log.debug("finding valid household ids from household service");
-        List<Household> validHouseHoldIds = householdService.findById(houseHoldIds, columnName, false).getResponse();
+        // Fetching valid household ids from the household service
+        // catches the InvalidTenantIdException
+        try {
+            List<Household> validHouseHoldIds = householdService.findById(tenantId, houseHoldIds, columnName, false).getResponse();
 
-        Map<String, Household> householdMap = validHouseHoldIds.stream()
-                .collect(Collectors.toMap(
-                        d -> Objects.equals(columnName, ID_FIELD) ? d.getId() : d.getClientReferenceId(),
-                        household -> household,
-                        (existingHousehold, replacementHousehold) -> existingHousehold
-                ));
+            Map<String, Household> householdMap = validHouseHoldIds.stream()
+                    .collect(Collectors.toMap(
+                            d -> Objects.equals(columnName, ID_FIELD) ? d.getId() : d.getClientReferenceId(),
+                            household -> household,
+                            (existingHousehold, replacementHousehold) -> existingHousehold
+                    ));
 
+            log.debug("getting unique household ids from valid household ids");
+            Set<String> uniqueHoldIds = getSet(validHouseHoldIds, Objects.equals(columnName, ID_FIELD) ? GET_ID: GET_CLIENT_REFERENCE_ID);
 
-        log.debug("getting unique household ids from valid household ids");
-        Set<String> uniqueHoldIds = getSet(validHouseHoldIds, Objects.equals(columnName, ID_FIELD) ? GET_ID: GET_CLIENT_REFERENCE_ID);
+            log.debug("getting invalid household ids");
+            List<String> invalidHouseholds = CommonUtils.getDifference(
+                    houseHoldIds,
+                    new ArrayList<>(uniqueHoldIds)
+            );
 
-        log.debug("getting invalid household ids");
-        List<String> invalidHouseholds = CommonUtils.getDifference(
-                houseHoldIds,
-                new ArrayList<>(uniqueHoldIds)
-        );
-
-        householdMembers.stream()
-                .filter(householdMember -> invalidHouseholds.contains(getHouseholdId(householdMember, idMethod)))
-                .forEach(householdMember -> {
-                    Error error = Error.builder().errorMessage(INVALID_HOUSEHOLD_MESSAGE)
-                            .errorCode(INVALID_HOUSEHOLD)
-                            .type(Error.ErrorType.NON_RECOVERABLE)
-                            .exception(new CustomException(INVALID_HOUSEHOLD, INVALID_HOUSEHOLD_MESSAGE))
-                            .build();
-                    log.error("validation failed for household member: {} with error: {}", householdMember, error);
-                    populateErrorDetails(householdMember, error, errorDetailsMap);
-                });
-
-        // Validates if household type is not FAMILY and still adding relationships for household member
-        householdMembers.stream()
-                .filter(householdMember -> !invalidHouseholds.contains(getHouseholdId(householdMember, idMethod)))
-                .filter(householdMember -> !CollectionUtils.isEmpty(householdMember.getMemberRelationships()))
-                .forEach(householdMember -> {
-                    HouseHoldType householdType = null;
-                    String householdId = getHouseholdId(householdMember, idMethod);
-                    if (!ObjectUtils.isEmpty(householdId) && householdMap.containsKey(householdId)) {
-                        householdType = householdMap.get(householdId).getHouseholdType();
-                    }
-                    if (!ObjectUtils.isEmpty(householdType) && !HouseHoldType.FAMILY.equals(householdType)) {
-                        Error error = Error.builder().errorMessage(HOUSEHOLD_MEMBER_RELATIONSHIP_NOT_ALLOWED_MESSAGE)
-                                .errorCode(INVALID_HOUSEHOLD_MEMBER_RELATIONSHIP)
+            householdMembers.stream()
+                    .filter(householdMember -> invalidHouseholds.contains(getHouseholdId(householdMember, idMethod)))
+                    .forEach(householdMember -> {
+                        Error error = Error.builder().errorMessage(INVALID_HOUSEHOLD_MESSAGE)
+                                .errorCode(INVALID_HOUSEHOLD)
                                 .type(Error.ErrorType.NON_RECOVERABLE)
-                                .exception(new CustomException(INVALID_HOUSEHOLD, INVALID_HOUSEHOLD_TYPE_MESSAGE))
+                                .exception(new CustomException(INVALID_HOUSEHOLD, INVALID_HOUSEHOLD_MESSAGE))
                                 .build();
-                        log.error("validation failed for household member household: {} with error: {}", householdMember, error);
+                        log.error("validation failed for household member: {} with error: {}", householdMember, error);
                         populateErrorDetails(householdMember, error, errorDetailsMap);
-                    }
-                });
+                    });
 
-        log.debug("Household member household validation completed successfully, total errors: {}", errorDetailsMap.size());
+            // Validates if household type is not FAMILY and still adding relationships for household member
+            householdMembers.stream()
+                    .filter(householdMember -> !invalidHouseholds.contains(getHouseholdId(householdMember, idMethod)))
+                    .filter(householdMember -> !CollectionUtils.isEmpty(householdMember.getMemberRelationships()))
+                    .forEach(householdMember -> {
+                        HouseHoldType householdType = null;
+                        String householdId = getHouseholdId(householdMember, idMethod);
+                        if (!ObjectUtils.isEmpty(householdId) && householdMap.containsKey(householdId)) {
+                            householdType = householdMap.get(householdId).getHouseholdType();
+                        }
+                        if (!ObjectUtils.isEmpty(householdType) && !HouseHoldType.FAMILY.equals(householdType)) {
+                            Error error = Error.builder().errorMessage(HOUSEHOLD_MEMBER_RELATIONSHIP_NOT_ALLOWED_MESSAGE)
+                                    .errorCode(INVALID_HOUSEHOLD_MEMBER_RELATIONSHIP)
+                                    .type(Error.ErrorType.NON_RECOVERABLE)
+                                    .exception(new CustomException(INVALID_HOUSEHOLD, INVALID_HOUSEHOLD_TYPE_MESSAGE))
+                                    .build();
+                            log.error("validation failed for household member household: {} with error: {}", householdMember, error);
+                            populateErrorDetails(householdMember, error, errorDetailsMap);
+                        }
+                    });
+
+            log.debug("Household member household validation completed successfully, total errors: {}", errorDetailsMap.size());
+        } catch (InvalidTenantIdException exception) {
+            householdMembers.stream().forEach(householdMember -> {
+                Error error = getErrorForInvalidTenantId(tenantId, exception);
+                populateErrorDetails(householdMember, error, errorDetailsMap);
+            });
+        }
+
         return errorDetailsMap;
     }
 
