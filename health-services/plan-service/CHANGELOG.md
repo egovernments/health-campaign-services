@@ -1,15 +1,21 @@
 # Changelog
 All notable changes to this module will be documented in this file.
 
+## 1.0.2 - 2025-05-07
+
+1. Added indexes to the Plan, Plan Facility, and Plan Employee Assignment tables to improve lookup performance on large datasets.
+2. Addressed technical debt: added defaultMaxLimit, improved query builders, repository layer, and validation logic to improve code maintainability, structure, and performance.
 
 ## 1.0.1 - 2025-01-30
+
 1. Enabled support for Mixed Distribution Strategy for Registration and Service Delivery
 2. Adding additional search filters for Estimation Dashboard
 
 ## 1.0.0 - 2024-12-03
+
 ### Plan Service
 
-##### Plan Configuration
+#### Plan Configuration
 
 1. Validation of Plan Configuration: Validates all plan configuration requests against MDMS and Project Factory before processing the requests.
 2. Plan Configuration Create: Validates and enriches new plan configurations before publishing them to the Kafka topic for asynchronous processing.

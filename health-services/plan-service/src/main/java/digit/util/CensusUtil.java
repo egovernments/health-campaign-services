@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 import org.springframework.web.client.RestTemplate;
 
+import static digit.config.ErrorConstants.*;
 import static digit.config.ServiceConstants.*;
 
 @Slf4j

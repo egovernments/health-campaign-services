@@ -12,6 +12,8 @@ import org.springframework.web.client.RestTemplate;
 
 import java.util.Map;
 
+import static digit.config.ErrorConstants.EXTERNAL_SERVICE_EXCEPTION;
+import static digit.config.ErrorConstants.SEARCHER_SERVICE_EXCEPTION;
 import static digit.config.ServiceConstants.*;
 
 @Repository
