@@ -1,7 +1,7 @@
 # Changelog
 All notable changes to this module will be documented in this file.
 
-## 1.4.1 - 2025-03-15
+## 1.4.0 - 2025-03-15
 
 - Upgraded Java version from 8 to 17 and updated pom.xml accordingly.
 - Integrated MultiStateInstanceUtil for schema-based multi-tenancy across repository, producer, and query builder layers.
