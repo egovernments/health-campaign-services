@@ -31,6 +31,7 @@ import java.util.stream.Collectors;
 import static org.egov.common.utils.CommonUtils.constructTotalCountCTEAndReturnResult;
 import static org.egov.common.utils.CommonUtils.getIdList;
 import static org.egov.common.utils.CommonUtils.getIdMethod;
+import static org.egov.common.utils.CommonUtils.getTenantId;
 import static org.egov.common.utils.MultiStateInstanceUtil.SCHEMA_REPLACE_STRING;
 
 @Repository
@@ -109,7 +110,7 @@ public class HouseholdMemberRepository extends GenericRepository<HouseholdMember
         paramsMap.put("offset", offset);
 
         List<HouseholdMember> householdMembers = this.namedParameterJdbcTemplate.query(queryBuilder.toString(), paramsMap, this.rowMapper);
-        fetchAndSetHouseholdMemberRelationship(householdMembers, includeDeleted);
+        fetchAndSetHouseholdMemberRelationship(tenantId, householdMembers, includeDeleted);
 
         return SearchResponse.<HouseholdMember>builder().totalCount(totalCount).response(householdMembers).build();
     }
@@ -158,7 +159,7 @@ public class HouseholdMemberRepository extends GenericRepository<HouseholdMember
         // replace the schema placeholder with the actual tenant ID
         query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
         objFound.addAll(this.namedParameterJdbcTemplate.query(query, paramMap, this.rowMapper));
-        fetchAndSetHouseholdMemberRelationship(objFound, includeDeleted);
+        fetchAndSetHouseholdMemberRelationship(tenantId, objFound, includeDeleted);
         putInCache(objFound);
         log.info("returning objects from the database");
         return SearchResponse.<HouseholdMember>builder().response(objFound).build();
@@ -180,7 +181,7 @@ public class HouseholdMemberRepository extends GenericRepository<HouseholdMember
         // replace the schema placeholder with the actual tenant ID
         query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
         List<HouseholdMember> householdMembers = this.namedParameterJdbcTemplate.query(query, paramMap, this.rowMapper);
-        fetchAndSetHouseholdMemberRelationship(householdMembers, false);
+        fetchAndSetHouseholdMemberRelationship(tenantId, householdMembers, false);
         return SearchResponse.<HouseholdMember>builder().totalCount((long) householdMembers.size()).response(householdMembers).build();
     }
 
@@ -208,24 +209,26 @@ public class HouseholdMemberRepository extends GenericRepository<HouseholdMember
         return SearchResponse.<HouseholdMember>builder().totalCount(totalCount).response(householdMembers).build();
     }
 
-    private void fetchAndSetHouseholdMemberRelationship(List<HouseholdMember> householdMembers, Boolean includeDeleted) {
+    private void fetchAndSetHouseholdMemberRelationship(String tenantId, List<HouseholdMember> householdMembers, Boolean includeDeleted) throws InvalidTenantIdException {
         if (householdMembers.isEmpty()) {
             return;
         }
         List<String> householdMemberIds = getIdList(householdMembers);
-        Map<String, List<Relationship>> idToObjMap = fetchRelationships(householdMemberIds, includeDeleted);
+        Map<String, List<Relationship>> idToObjMap = fetchRelationships(tenantId, householdMemberIds, includeDeleted);
         householdMembers.forEach(member -> member.setMemberRelationships(idToObjMap.get(member.getId())));
     }
 
-    private Map<String, List<Relationship>> fetchRelationships(List<String> selfIds, Boolean includeDeleted) {
+    private Map<String, List<Relationship>> fetchRelationships(String tenantId, List<String> selfIds, Boolean includeDeleted) throws InvalidTenantIdException {
         Map<String, Object> resourceParamsMap = new HashMap<>();
-        StringBuilder resourceQuery = new StringBuilder("SELECT * FROM household_member_relationship WHERE selfId IN (:selfIds) ");
+        StringBuilder resourceQuery = new StringBuilder(String.format("SELECT * FROM %s.household_member_relationship WHERE tenantId=:tenantId AND selfId IN (:selfIds) ", SCHEMA_REPLACE_STRING));
         resourceParamsMap.put("selfIds", selfIds);
+        resourceParamsMap.put("tenantId", tenantId);
         if (Boolean.FALSE.equals(includeDeleted)) {
             resourceQuery.append("AND isDeleted=:isDeleted");
             resourceParamsMap.put("isDeleted", false);
         }
-        List<Relationship> relationships = this.namedParameterJdbcTemplate.query(resourceQuery.toString(), resourceParamsMap,
+        String resourceQueryStr = multiStateInstanceUtil.replaceSchemaPlaceholder(resourceQuery.toString(), tenantId);
+        List<Relationship> relationships = this.namedParameterJdbcTemplate.query(resourceQueryStr, resourceParamsMap,
                 this.relationshipRowMapper);
         Map<String, List<Relationship>> idToObjMap = new HashMap<>();
 

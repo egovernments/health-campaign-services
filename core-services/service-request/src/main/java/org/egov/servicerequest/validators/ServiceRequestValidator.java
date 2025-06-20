@@ -171,7 +171,7 @@ public class ServiceRequestValidator {
         return serviceDefinitions;
     }
 
-    private void validateServiceRequestAlreadyExists(ServiceRequest serviceRequest) {
+    private void validateServiceRequestAlreadyExists(ServiceRequest serviceRequest) throws InvalidTenantIdException {
         Service service = serviceRequest.getService();
         List<Service> services = serviceRequestRepository.getService(ServiceSearchRequest.builder()
                 .serviceCriteria(ServiceCriteria.builder()
@@ -184,7 +184,7 @@ public class ServiceRequestValidator {
         }
     }
 
-    private List<Service> validateExistingServiceRequest(ServiceRequest serviceRequest) {
+    private List<Service> validateExistingServiceRequest(ServiceRequest serviceRequest) throws InvalidTenantIdException {
         Service service = serviceRequest.getService();
         List<Service> services = serviceRequestRepository.getService(ServiceSearchRequest.builder()
                         .serviceCriteria(ServiceCriteria.builder()
@@ -240,7 +240,7 @@ public class ServiceRequestValidator {
         return attributeValuesToUpdate;
     }
 
-    public Service validateServiceUpdateRequest(ServiceRequest serviceRequest) {
+    public Service validateServiceUpdateRequest(ServiceRequest serviceRequest) throws InvalidTenantIdException {
         List<Service> existingService = validateExistingServiceRequest(serviceRequest);
         List<ServiceDefinition> serviceDefinitions = validateServiceDefID(serviceRequest.getService().getTenantId(), serviceRequest.getService().getServiceDefId());
         List<AttributeValue> attributeValues = validateIdForAttributeValues(serviceRequest.getService(), existingService.get(0));

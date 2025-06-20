@@ -68,7 +68,13 @@ public class ServiceController {
 
     @RequestMapping(value="/v1/_update", method = RequestMethod.POST)
     public ResponseEntity<ServiceResponse> update(@RequestBody @Valid ServiceRequest serviceRequest){
-        Service service = serviceRequestService.updateService(serviceRequest);
+        Service service = null;
+        try {
+            service = serviceRequestService.updateService(serviceRequest);
+        } catch (InvalidTenantIdException e) {
+            // building and throwing CustomException for InvalidTenantIdException
+            throw new CustomException(INVALID_TENANT_ID_ERR_CODE, e.getMessage());
+        }
         ResponseInfo responseInfo = responseInfoFactory.createResponseInfoFromRequestInfo(serviceRequest.getRequestInfo(), true);
         ServiceResponse response = ServiceResponse.builder().service(Collections.singletonList(service)).responseInfo(responseInfo).build();
         return new ResponseEntity<>(response, HttpStatus.OK);

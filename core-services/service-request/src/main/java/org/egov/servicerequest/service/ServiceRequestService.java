@@ -62,9 +62,11 @@ public class ServiceRequestService {
         return listOfServices;
     }
 
-    public org.egov.servicerequest.web.models.Service updateService(ServiceRequest serviceRequest) {
+    public org.egov.servicerequest.web.models.Service updateService(ServiceRequest serviceRequest) throws InvalidTenantIdException {
 
         org.egov.servicerequest.web.models.Service service = serviceRequest.getService();
+
+        String tenantId = service.getTenantId();
 
         // Validate incoming service definition request
         org.egov.servicerequest.web.models.Service existingService = serviceRequestValidator.validateServiceUpdateRequest(serviceRequest);
@@ -73,7 +75,7 @@ public class ServiceRequestService {
         Map<String, Object> attributeCodeVsValueMap = enrichmentService.enrichServiceRequestUpdate(serviceRequest, existingService);
 
         // Producer statement to emit service definition to kafka for persisting
-        producer.push(config.getServiceUpdateTopic(), serviceRequest);
+        producer.push(tenantId, config.getServiceUpdateTopic(), serviceRequest);
 
         // Restore attribute values to the type in which it was sent in service request
         enrichmentService.setAttributeValuesBackToNativeState(serviceRequest, attributeCodeVsValueMap);

@@ -210,11 +210,16 @@ public class IndividualRepository extends GenericRepository<Individual> {
                 paramsMap.put("individualId", identifiers.stream().findAny().get().getIndividualId());
                 query = cteQuery + ", cte_individual AS (" + query + ")";
                 query = query + "SELECT * FROM (SELECT cte_i.*, " + calculateDistanceFromTwoWaypointsFormulaQuery
-                        +" FROM cte_individual cte_i LEFT JOIN public.individual_address ia ON ia.individualid = cte_i.id LEFT JOIN public.address a ON ia.addressid = a.id , cte_search_criteria_waypoint cte_scw) rt ";
+                        + String.format(" FROM cte_individual cte_i LEFT JOIN %s.individual_address ia ON ia.individualid = cte_i.id LEFT JOIN %s.address a ON ia.addressid = a.id , cte_search_criteria_waypoint cte_scw) rt ", SCHEMA_REPLACE_STRING, SCHEMA_REPLACE_STRING);
                 if(searchObject.getSearchRadius() != null) {
                     query = query + " WHERE rt.distance < :distance ";
                 }
                 query = query + " ORDER BY distance ASC ";
+                try {
+                    query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
+                } catch (InvalidTenantIdException e) {
+                    throw new CustomException(INVALID_TENANT_ID, INVALID_TENANT_ID_MSG);
+                }
                 paramsMap.put("distance", searchObject.getSearchRadius());
                 Long totalCount = constructTotalCountCTEAndReturnResult(query, paramsMap, this.namedParameterJdbcTemplate);
                 query = query + "LIMIT :limit OFFSET :offset";
@@ -252,7 +257,7 @@ public class IndividualRepository extends GenericRepository<Individual> {
             }
             query = query + " ORDER BY distance ASC ";
             paramsMap.put("distance", searchObject.getSearchRadius());
-            multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
+            query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
             Long totalCount = constructTotalCountCTEAndReturnResult(query, paramsMap, this.namedParameterJdbcTemplate);
 
             query = query + "LIMIT :limit OFFSET :offset";
