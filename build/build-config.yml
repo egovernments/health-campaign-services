@@ -22,11 +22,18 @@ config:
     build:
       - work-dir: "health-services/libraries/health-services-common"
         image-name: "health-services-common"
-  - name: "builds/health-campaign-services/health-services/product"
+  - name: "builds/health-campaign-services/health-services/product-17"
     build:
       - work-dir: "health-services/product"
         image-name: "product"
         dockerfile: "build/17/maven/Dockerfile"
+      - work-dir: "health-services/product/src/main/resources/db"
+        image-name: "product-db"
+  - name: "builds/health-campaign-services/health-services/product"
+    build:
+      - work-dir: "health-services/product"
+        image-name: "product"
+        dockerfile: "build/maven/Dockerfile"
       - work-dir: "health-services/product/src/main/resources/db"
         image-name: "product-db"
   - name: "builds/health-campaign-services/health-services/project"
