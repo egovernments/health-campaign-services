@@ -326,6 +326,7 @@ public class IndividualService {
                     .filter(havingTenantId(tenantId))
                     .filter(includeDeleted(includeDeleted))
                     .collect(Collectors.toList());
+                    searchResponse.setTotalCount((long) encryptedIndividualList.size());
             //decrypt
             List<Individual> decryptedIndividualList = (!encryptedIndividualList.isEmpty())
                     ? individualEncryptionService.decrypt(encryptedIndividualList,
@@ -355,6 +356,7 @@ public class IndividualService {
             encryptedIndividualList = searchResponse.getResponse().stream()
                     .filter(havingBoundaryCode(individualSearch.getBoundaryCode(), individualSearch.getWardCode()))
                     .collect(Collectors.toList());
+                    searchResponse.setTotalCount((long) encryptedIndividualList.size());
         } catch (Exception exception) {
             log.error("database error occurred", ExceptionUtils.getStackTrace(exception));
             throw new CustomException("DATABASE_ERROR", exception.getMessage());
