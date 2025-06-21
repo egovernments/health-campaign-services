@@ -1,18 +1,9 @@
 package digit.service.enrichment;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import digit.repository.PlanEmployeeAssignmentRepository;
 import digit.util.CommonUtil;
 import digit.web.models.*;
 import org.egov.common.utils.UUIDEnrichmentUtil;
-import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
-
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
 
 import static digit.config.ServiceConstants.*;
 import static org.egov.common.utils.AuditDetailsEnrichmentUtil.prepareAuditDetails;
@@ -20,16 +11,10 @@ import static org.egov.common.utils.AuditDetailsEnrichmentUtil.prepareAuditDetai
 @Component
 public class PlanEmployeeAssignmentEnricher {
 
-    private ObjectMapper objectMapper;
-
-    private PlanEmployeeAssignmentRepository repository;
-
     private CommonUtil commonUtil;
 
-    public PlanEmployeeAssignmentEnricher(ObjectMapper objectMapper, CommonUtil commonUtil, PlanEmployeeAssignmentRepository repository) {
-        this.objectMapper = objectMapper;
+    public PlanEmployeeAssignmentEnricher(CommonUtil commonUtil) {
         this.commonUtil = commonUtil;
-        this.repository = repository;
     }
 
     /**
@@ -41,7 +26,7 @@ public class PlanEmployeeAssignmentEnricher {
         PlanEmployeeAssignment planEmployeeAssignment = request.getPlanEmployeeAssignment();
 
         // Generate id for Plan employee assignment body
-        UUIDEnrichmentUtil.enrichRandomUuid(planEmployeeAssignment, "id");
+        UUIDEnrichmentUtil.enrichRandomUuid(planEmployeeAssignment, ID);
 
         // Set active true
         planEmployeeAssignment.setActive(Boolean.TRUE);
