@@ -309,8 +309,10 @@ public class IndividualRepository extends GenericRepository<Individual> {
         paramsMap.put("limit", limit);
         paramsMap.put("offset", offset);
 
-        log.info("query-------------------------->");
-        log.info(query);
+        // Do not log the entire query as it may contain sensitive data (e.g., personal information or credentials). 
+        // Logging sensitive information can lead to security vulnerabilities. Ensure sensitive fields are excluded from the logs.
+        //log.info("query-------------------------->");
+        //log.info(query);
         return query;
     }
 
