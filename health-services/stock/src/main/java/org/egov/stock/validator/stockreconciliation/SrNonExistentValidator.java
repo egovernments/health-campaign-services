@@ -29,7 +29,7 @@ import static org.egov.stock.Constants.GET_ID;
 
 @Component
 @Slf4j
-@Order(2)
+@Order(3)
 public class SrNonExistentValidator implements Validator<StockReconciliationBulkRequest, StockReconciliation> {
 
     private final StockReconciliationRepository stockReconciliationRepository;
