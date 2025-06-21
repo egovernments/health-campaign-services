@@ -26,4 +26,10 @@ public class ProductConfiguration {
 
     @Value("${product.variant.kafka.update.topic}")
     private String updateProductVariantTopic;
+
+    @Value("${egov.mdms.host}")
+    private String mdmsHost;
+
+    @Value("${egov.mdms.search.endpoint}")
+    private String mdmsEndPoint;
 }
