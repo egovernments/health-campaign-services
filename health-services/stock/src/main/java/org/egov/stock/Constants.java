@@ -35,4 +35,14 @@ public class Constants {
     public static String GET_REQUEST_INFO = "getRequestInfo";
 
     public static String NO_PROJECT_FACILITY_MAPPING_EXISTS = "NO_PROJECT_FACILITY_MAPPING_EXISTS";
+
+    public static final String ERROR_WHILE_FETCHING_FROM_MDMS = "Exception occurred while fetching category lists from mdms: ";
+
+    public static final String NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT_CODE = "NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT";
+
+    public static final String NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT_MESSAGE = "Invalid or incorrect TenantId. No mdms data found for provided Tenant.";
+
+    public static final String MDMS_PRODUCT_VARIANT_MODULE_NAME = "HCM-Product";
+
+    public static final String MDMS_PRODUCT_VARIANT_MASTER_NAME = "ProductVariants";
 }

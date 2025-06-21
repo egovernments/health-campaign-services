@@ -1,5 +1,8 @@
 package org.egov.project.validator;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import digit.models.coremodels.mdms.MdmsCriteriaReq;
+import digit.models.coremodels.mdms.MdmsResponse;
 import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.common.models.Error;
 import org.egov.common.models.product.ProductVariant;
@@ -40,6 +43,8 @@ class ProductVariantIdValidatorTest {
     @Mock
     private ServiceRequestClient client;
 
+    private ObjectMapper map = new ObjectMapper();
+
     @BeforeEach
     void setUp() {
         lenient().when(projectConfiguration.getProductHost()).thenReturn("http://localhost:8080/");
@@ -52,8 +57,8 @@ class ProductVariantIdValidatorTest {
         ProjectResourceBulkRequest request = ProjectResourceBulkRequestTestBuilder.builder()
                 .withProjectResource().build();
         when(client.fetchResult(any(StringBuilder.class),
-                any(ProductVariantSearchRequest.class),
-                eq(ProductVariantResponse.class))).thenReturn(emptyResponse());
+                any(MdmsCriteriaReq.class),
+                eq(MdmsResponse.class))).thenReturn(emptyResponse());
 
         Map<ProjectResource, List<Error>> errorDetailsMap = productVariantIdValidator.validate(request);
 
@@ -67,20 +72,76 @@ class ProductVariantIdValidatorTest {
                 .withProjectResource().withRequestInfo().build();
         request.getProjectResource().get(0).getResource().setProductVariantId("some-id");
         when(client.fetchResult(any(StringBuilder.class),
-                any(ProductVariantSearchRequest.class),
-                eq(ProductVariantResponse.class))).thenReturn(someResponse());
+                any(MdmsCriteriaReq.class),
+                eq(MdmsResponse.class))).thenReturn(someResponse());
 
         Map<ProjectResource, List<Error>> errorDetailsMap = productVariantIdValidator.validate(request);
 
         assertEquals(0, errorDetailsMap.size());
     }
 
-    private ProductVariantResponse someResponse() {
-        return ProductVariantResponse.builder().productVariant(Collections
-                .singletonList(ProductVariant.builder().id("some-id").build())).build();
+    private MdmsResponse someResponse() {
+        String jsonString = "{\n" +
+                "    \"ResponseInfo\": null,\n" +
+                "    \"MdmsRes\": {\n" +
+                "        \"HCM-Product\": {\n" +
+                "            \"ProductVariants\": [\n" +
+                "                {\n" +
+                "                    \"id\": \"PVAR-2024-09-13-000001\",\n" +
+                "                    \"sku\": \"SP 250mg\",\n" +
+                "                    \"tenantId\": \"mz\",\n" +
+                "                    \"isDeleted\": false,\n" +
+                "                    \"productId\": \"P-2024-09-12-000001\",\n" +
+                "                    \"variation\": \"250mg\",\n" +
+                "                    \"minQuantity\": 0.5,\n" +
+                "                    \"auditDetails\": {\n" +
+                "                        \"createdBy\": \"275083d1-7321-45b8-ac91-8e0d5dc0a584\",\n" +
+                "                        \"createdTime\": 1726204995000,\n" +
+                "                        \"lastModifiedBy\": \"275083d1-7321-45b8-ac91-8e0d5dc0a584\",\n" +
+                "                        \"lastModifiedTime\": 1726204995000\n" +
+                "                    },\n" +
+                "                    \"additionalFields\": {\n" +
+                "                        \"fields\": [\n" +
+                "                            {\n" +
+                "                                \"key\": \"weight\",\n" +
+                "                                \"value\": \"5g\"\n" +
+                "                            }\n" +
+                "                        ],\n" +
+                "                        \"schema\": \"test\",\n" +
+                "                        \"version\": 1\n" +
+                "                    },\n" +
+                "                    \"quantityMultiplicationFactor\": 0.5\n" +
+                "                }\n" +
+                "            ]\n" +
+                "        }\n" +
+                "    }\n" +
+                "}";
+
+        MdmsResponse mdmsResponse = MdmsResponse.builder().build();
+        try {
+            return map.readValue(jsonString, MdmsResponse.class);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return mdmsResponse;
     }
 
-    private ProductVariantResponse emptyResponse() {
-        return ProductVariantResponse.builder().productVariant(Collections.emptyList()).build();
+    private MdmsResponse emptyResponse() {
+        String jsonString = "{\n" +
+                "    \"ResponseInfo\": null,\n" +
+                "    \"MdmsRes\": {\n" +
+                "        \"HCM-Product\": {\n" +
+                "            \"ProductVariants\": []\n" +
+                "        }\n" +
+                "    }\n" +
+                "}";
+
+        MdmsResponse mdmsResponse = MdmsResponse.builder().build();
+        try {
+            return map.readValue(jsonString, MdmsResponse.class);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return mdmsResponse;
     }
 }
