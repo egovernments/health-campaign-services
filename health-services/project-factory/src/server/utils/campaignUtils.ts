@@ -2370,6 +2370,7 @@ async function createProject(
   try {
     logger.info("Create Projects started for the given Campaign");
     var { tenantId, projectType, projectId } = request?.body?.CampaignDetails;
+    const uuid = request?.body?.CampaignDetails?.auditDetails?.createdBy || request?.body?.RequestInfo?.userInfo?.uuid;
     var boundaries = request?.body?.boundariesCombined;
     if (boundaries && projectType && !projectId) {
       const MdmsCriteria = {
@@ -2472,7 +2473,7 @@ async function createProject(
             request?.body?.boundaryProjectMapping?.[parent]?.projectId;
 
           if (parent && parentProjectId) {
-            await confirmProjectParentCreation(request, parentProjectId);
+            await confirmProjectParentCreation(tenantId, uuid, parentProjectId);
             Projects[0].parent = parentProjectId;
           } else {
             Projects[0].parent = null;
@@ -4076,6 +4077,21 @@ export function validateUsernamesFormat(data: any[], localizationMap: any) {
   });
 
   return errors;
+}
+
+export function getAllColumnsFromSchema(schema: any) {
+  const properties = schema?.properties;
+  const columns = Object.keys(properties);
+  for (const header of Object.keys(properties)) {
+    if (properties?.[header]?.multiSelectDetails) {
+      const maxColumns = properties?.[header]?.multiSelectDetails?.maxSelections;
+      for (let i = 1; i <= maxColumns; i++) {
+        columns.push(`${header}_MULTISELECT_${i}`);
+      }
+    }
+  }
+
+  return columns;
 }
 
 
