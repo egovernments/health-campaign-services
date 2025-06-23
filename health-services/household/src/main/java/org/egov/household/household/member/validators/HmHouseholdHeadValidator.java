@@ -66,30 +66,30 @@ public class HmHouseholdHeadValidator implements Validator<HouseholdMemberBulkRe
         return errorDetailsMap;
     }
 
-    private void validateHeadOfHousehold(HouseholdMember householdMember, Method memberidMethod, String columnName,
+    private void validateHeadOfHousehold(HouseholdMember householdMember, Method IdMethod, String columnName,
                                          HashMap<HouseholdMember, List<Error>> errorDetailsMap, List<HouseholdMember> requestMembers) {
 
         if(householdMember.getIsHeadOfHousehold()){
             log.info("validating if household already has a head");
-            Method memberIdMethod = getIdMethod(requestMembers, ID_FIELD, CLIENT_REFERENCE_ID_FIELD);
+            Method householdMemberidMethod = getIdMethod(requestMembers, ID_FIELD, CLIENT_REFERENCE_ID_FIELD);
             List<HouseholdMember> householdMembersHeadCheck = householdMemberRepository
-                    .findIndividualByHousehold((String) ReflectionUtils.invokeMethod(memberidMethod, householdMember),
+                    .findIndividualByHousehold((String) ReflectionUtils.invokeMethod(IdMethod, householdMember),
                             columnName).getResponse().stream().filter(HouseholdMember::getIsHeadOfHousehold)
                     .collect(Collectors.toList());
 
             boolean isSameAsExistingHead = householdMembersHeadCheck.stream()
                     .allMatch(existing -> {
-                        String existingMemberId = (String) ReflectionUtils.invokeMethod(memberIdMethod, existing);
-                        String currentMemberId = (String) ReflectionUtils.invokeMethod(memberIdMethod, householdMember);
-                        return existingMemberId != null && existingMemberId.equals(currentMemberId);
+                        String existingHeadMemberId = (String) ReflectionUtils.invokeMethod(householdMemberidMethod, existing);
+                        String currentHeadMemberId = (String) ReflectionUtils.invokeMethod(householdMemberidMethod, householdMember);
+                        return existingHeadMemberId != null && existingHeadMemberId.equals(currentHeadMemberId);
                     });
 
             if(!householdMembersHeadCheck.isEmpty() && !isSameAsExistingHead) {
                 HouseholdMember existinghead = householdMembersHeadCheck.get(0);
-                String existingMemberId = (String) ReflectionUtils.invokeMethod(memberIdMethod, existinghead);
-                String currentMemberId = (String) ReflectionUtils.invokeMethod(memberIdMethod, householdMember);
-                boolean isReassigning = existingMemberId != null && currentMemberId != null
-                        && !existingMemberId.equals(currentMemberId);
+                String existingHeadMemberId = (String) ReflectionUtils.invokeMethod(householdMemberidMethod, existinghead);
+                String currentHeadMemberId = (String) ReflectionUtils.invokeMethod(householdMemberidMethod, householdMember);
+                boolean isReassigning = existingHeadMemberId != null && currentHeadMemberId != null
+                        && !existingHeadMemberId.equals(currentHeadMemberId);
 
                 if(!isReassigning) {
                     Error error = Error.builder().errorMessage(HOUSEHOLD_ALREADY_HAS_HEAD_MESSAGE)
