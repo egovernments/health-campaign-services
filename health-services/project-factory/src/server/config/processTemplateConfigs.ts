@@ -65,7 +65,8 @@ export const processTemplateConfigs: any = {
                 // schemaName: "boundary-data",
                 lockWholeSheet: true
             }
-        ]
+        ],
+        passFromController : true
     },
     facilityValidation: {
         sheets: [
@@ -85,7 +86,8 @@ export const processTemplateConfigs: any = {
                 // schemaName: "boundary-data",
                 lockWholeSheet: true
             }
-        ]
+        ],
+        passFromController : true
     },
     boundaryValidation : {
         sheets: [
@@ -95,6 +97,7 @@ export const processTemplateConfigs: any = {
                 lockWholeSheet: true
             }
         ],
-        enrichmentFunction: "enrichTargetProcessConfig"
+        enrichmentFunction: "enrichTargetProcessConfig",
+        passFromController : true
     }
 }

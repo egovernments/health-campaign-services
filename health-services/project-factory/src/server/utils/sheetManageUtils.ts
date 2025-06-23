@@ -696,6 +696,13 @@ export async function validateResourceDetailsBeforeProcess(validationProcessType
     logger.info("Validated resource details before process main function...");
 }
 
+export function filterResourceDetailType(type : string){
+    const templateConfig = JSON.parse(JSON.stringify(processTemplateConfigs?.[String(type)]));
+    if(!templateConfig?.passFromController){
+        throwError("COMMON", 400, "VALIDATION_ERROR", `Type ${type} not found or invalid`);
+    }
+}
+
 
 
 
