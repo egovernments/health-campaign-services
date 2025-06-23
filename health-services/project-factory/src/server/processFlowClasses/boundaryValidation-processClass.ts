@@ -1,11 +1,11 @@
 import { searchProjectTypeCampaignService } from "../service/campaignManageService";
 import { SheetMap } from "../models/SheetMap";
-import { getBoundaryOnWhichWeSplit, getLocalizedName } from "../utils/campaignUtils";
+import { getBoundaryOnWhichWeSplit, getLocalizedName, populateBoundariesRecursively } from "../utils/campaignUtils";
 import { validateTargetFromTargetConfigs } from "../validators/campaignValidators";
 import { callMdmsSchema } from "../api/genericApis";
-import { ResourceDetails } from "../config/models/resourceDetailsSchema";
 import { sheetDataRowStatuses } from "../config/constants";
 import { getHierarchy } from "../api/campaignApis";
+import { searchBoundaryRelationshipData } from "../api/coreApis";
 
 export class TemplateClass {
     static async process(
@@ -28,13 +28,29 @@ export class TemplateClass {
                 optionalTargetColumns.push(key);
             }
         }
+        let requiredLowestBoundaries = await this.getRequiredLowestBoundaries(campaignDetails);
+        let allLowestBoundariesInFromSheets : any[] = []
+        const finalErrors : any[] = [];
         for (const sheetName in wholeSheetData) {
             if (sheetName !== readMeSheetName) {
                 const sheetData = wholeSheetData[sheetName];
                 const errors: any[] = [];
                 validateTargetFromTargetConfigs(sheetData, errors, requiredTargetColumns, optionalTargetColumns, localizationMap);
-                this.processErrors(sheetData, errors, resourceDetails);
+                sheetData.forEach((row: any) => {
+                    if(row["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"]){
+                        allLowestBoundariesInFromSheets.push(row["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"])
+                    }
+                })
+                finalErrors.push(...errors);
+                this.processErrors(sheetData, errors);
             }
+        }
+        this.erichErrorIfBoundariesMismatch(requiredLowestBoundaries, allLowestBoundariesInFromSheets, wholeSheetData, readMeSheetName, finalErrors);
+        if (finalErrors.length > 0) {
+            resourceDetails.additionalDetails = {
+                ...resourceDetails.additionalDetails,
+                sheetErrors: finalErrors
+            };
         }
         const splitOn = await getBoundaryOnWhichWeSplit(resourceDetails.campaignId, resourceDetails.tenantId);
         const hierarchyDef = await getHierarchy(resourceDetails.tenantId, campaignDetails?.hierarchyType);
@@ -88,7 +104,61 @@ export class TemplateClass {
         }
     }
 
-    private static processErrors(sheetData : any, errors : any[], resourceDetails : ResourceDetails) {
+    private static erichErrorIfBoundariesMismatch(
+        requiredLowestBoundaries: any[],
+        allLowestBoundariesInFromSheets: any[],
+        wholeSheetData: any,
+        readMeSheetName: string,
+        finalErrors: any
+    ) {
+        const requiredSet = new Set(requiredLowestBoundaries);
+        const sheetSet = new Set(allLowestBoundariesInFromSheets);
+
+        const missingInSheets = requiredLowestBoundaries.filter(b => !sheetSet.has(b));
+        const extraInSheets = allLowestBoundariesInFromSheets.filter(b => !requiredSet.has(b));
+        const errors: any[] = [];
+        if (missingInSheets.length > 0 || extraInSheets.length > 0) {
+            const message = `Some boundaries are missing or extra in the sheet. Please use the generated template only.`;
+            errors.push({ row: 3, message });
+        }
+
+        for (const sheetName in wholeSheetData) {
+            if (sheetName !== readMeSheetName) {
+                const sheetData = wholeSheetData[sheetName];
+                this.processErrors(sheetData, errors);
+                finalErrors.push(...errors);
+            }
+        }
+    }
+    
+
+    private static async getRequiredLowestBoundaries(campaignDetails: any) {
+        if(campaignDetails?.boundaries && campaignDetails?.boundaries?.length > 0 ){
+            const relationship = await searchBoundaryRelationshipData(campaignDetails.tenantId, campaignDetails?.hierarchyType, true, true, false);
+            const rootBoundary = relationship?.TenantBoundary?.[0]?.boundary?.[0];
+
+            const boundaries = campaignDetails?.boundaries || [];
+            const boundaryChildren = Object.fromEntries(boundaries.map(({ code, includeAllChildren }: any) => [code, includeAllChildren]));
+            const boundaryCodes = new Set(boundaries.map(({ code }: any) => code));
+            const hierarchyDef = await getHierarchy(campaignDetails.tenantId, campaignDetails?.hierarchyType);
+            const lowestLevel = hierarchyDef[hierarchyDef.length - 1];
+
+            await populateBoundariesRecursively(
+                rootBoundary,
+                boundaries,
+                boundaryChildren[rootBoundary?.code],
+                boundaryCodes,
+                boundaryChildren
+            );
+            const lowestBoundaries = boundaries.filter((boundary: any) => boundary.type == lowestLevel);
+            return lowestBoundaries.map((boundary: any) => boundary.code);
+        }
+        else{
+            throw new Error("No boundaries found");
+        }
+    }
+
+    private static processErrors(sheetData : any, errors : any[]) {
             for (const error of errors) {
                 const row = error.row - 3;
                 const existingError = sheetData?.[row]?.["#errorDetails#"];
@@ -101,12 +171,6 @@ export class TemplateClass {
                     sheetData[row]["#errorDetails#"] = error.message;
                 }
                 sheetData[row]["#status#"] = sheetDataRowStatuses.INVALID;
-            }
-            if (errors.length > 0) {
-                resourceDetails.additionalDetails = {
-                    ...resourceDetails.additionalDetails,
-                    sheetErrors: errors
-                };
             }
         }
 
