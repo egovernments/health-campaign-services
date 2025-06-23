@@ -12,6 +12,7 @@ import { createProxyMiddleware } from "http-proxy-middleware";
 import * as v8 from "v8";
 import { logger } from "./utils/logger";
 import { monitorEventLoopDelay } from "perf_hooks";
+import { Server } from "http";
 
 const histogram = monitorEventLoopDelay({ resolution: 20 });
 histogram.enable();
@@ -22,6 +23,7 @@ class App {
   private inflight = 0;
   private readonly MAX_INFLIGHT = parseInt(config.app.maxInFlight || "5");
   private readonly MAX_EVENT_LOOP_DELAY_MS = parseInt(config.app.maxEventLoopLagMs || "100");
+  private readonly MEMORY_LOG_INTERVAL_MS = 60000; // Log memory every 60 seconds
 
   constructor(controllers: any, port: any) {
     this.app = express();
@@ -30,15 +32,37 @@ class App {
     this.initializeMiddlewares();
     this.initializeControllers(controllers);
     this.app.use(invalidPathHandler);
+
+    // Start periodic memory usage logging
+    this.startMemoryLogging();
   }
 
   private isMemoryCritical(): boolean {
     const stats = v8.getHeapStatistics();
-    return stats.used_heap_size / stats.heap_size_limit > 0.6;
+    return stats.used_heap_size / stats.heap_size_limit > 0.5;
+  }
+
+  private logMemoryUsage(): void {
+    const stats = v8.getHeapStatistics();
+    const usedHeapMB = (stats.used_heap_size / 1024 / 1024).toFixed(2);
+    const totalHeapMB = (stats.heap_size_limit / 1024 / 1024).toFixed(2);
+    const heapUsageRatio = (stats.used_heap_size / stats.heap_size_limit).toFixed(2);
+    const isCritical = this.isMemoryCritical();
+
+    logger.info(
+      `Memory Usage: ${usedHeapMB}MB / ${totalHeapMB}MB ` +
+      `(Ratio: ${heapUsageRatio}, Critical: ${isCritical})`
+    );
+  }
+
+  private startMemoryLogging(): void {
+    setInterval(() => {
+      this.logMemoryUsage();
+    }, this.MEMORY_LOG_INTERVAL_MS);
   }
 
   private initializeMiddlewares() {
-    // ✅ Define /health first (before body parsers)
+    // Health endpoint
     this.app.get("/health", (_req, res) => {
       const memCrit = this.isMemoryCritical();
       const eventLoopLagMs = Number(histogram.mean) / 1e6;
@@ -57,7 +81,7 @@ class App {
       }
     });
 
-    // ✅ THEN apply middlewares
+    // In-flight tracking
     this.app.use((req, res, next) => {
       this.inflight++;
       res.on("finish", () => this.inflight--);
@@ -94,9 +118,14 @@ class App {
   }
 
   public listen() {
-    this.app.listen(this.port, () => {
+    const server: Server = this.app.listen(this.port, () => {
       logger.info(`App listening on port ${this.port}`);
     });
+
+    // Configure server timeouts
+    server.setTimeout(60000); // 60 seconds for entire request
+    server.keepAliveTimeout = 30000; // 30 seconds for keep-alive connections
+    server.headersTimeout = 35000; // 35 seconds for headers
   }
 }
 
