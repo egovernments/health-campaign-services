@@ -1,6 +1,7 @@
 package org.egov.household.service;
 
 import org.egov.common.ds.Tuple;
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.household.Household;
 import org.egov.common.models.household.HouseholdMember;
@@ -40,8 +41,9 @@ class HouseholdMemberUpdateEnrichmentTest {
 
     }
 
-    private void mockHouseholdFindIds() {
+    private void mockHouseholdFindIds() throws InvalidTenantIdException {
         when(householdService.findById(
+                any(String.class),
                 any(List.class),
                 any(String.class),
                 any(Boolean.class)
@@ -52,8 +54,9 @@ class HouseholdMemberUpdateEnrichmentTest {
         );
     }
 
-    private void mockFindById() {
+    private void mockFindById() throws InvalidTenantIdException {
         when(householdMemberRepository.findById(
+                any(String.class),
                 any(List.class),
                 any(String.class),
                 any(Boolean.class)

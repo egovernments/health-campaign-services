@@ -1,6 +1,5 @@
 package org.egov.facility.service;
 
-import io.micrometer.core.instrument.search.Search;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.ds.Tuple;
@@ -10,7 +9,6 @@ import org.egov.common.models.facility.Facility;
 import org.egov.common.models.facility.FacilityBulkRequest;
 import org.egov.common.models.facility.FacilityRequest;
 import org.egov.common.models.facility.FacilitySearchRequest;
-import org.egov.common.models.project.ProjectBeneficiary;
 import org.egov.common.validator.Validator;
 import org.egov.facility.config.FacilityConfiguration;
 import org.egov.facility.repository.FacilityRepository;
@@ -25,7 +23,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.ReflectionUtils;
 
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
@@ -188,7 +185,7 @@ public class FacilityService {
             List<String> ids = (List<String>) ReflectionUtils.invokeMethod(getIdMethod(Collections
                             .singletonList(facilitySearchRequest.getFacility())),
                     facilitySearchRequest.getFacility());
-            SearchResponse<Facility> searchResponse = facilityRepository.findById(ids, idFieldName, includeDeleted);
+            SearchResponse<Facility> searchResponse = facilityRepository.findById(tenantId, ids, idFieldName, includeDeleted);
             List<Facility> facilities = searchResponse.getResponse().stream()
                     .filter(lastChangedSince(lastChangedSince))
                     .filter(havingTenantId(tenantId))

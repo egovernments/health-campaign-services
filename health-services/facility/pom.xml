@@ -5,7 +5,7 @@
     <artifactId>facility</artifactId>
     <packaging>jar</packaging>
     <name>facility</name>
-    <version>1.1.2</version>
+    <version>1.2.0</version>
     <properties>
         <java.version>17</java.version>
         <maven.compiler.source>${java.version}</maven.compiler.source>
@@ -45,18 +45,13 @@
         <dependency>
             <groupId>org.egov.common</groupId>
             <artifactId>health-services-common</artifactId>
-            <version>1.0.20-SNAPSHOT</version>
+            <version>1.1.0-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>org.egov.common</groupId>
             <artifactId>health-services-models</artifactId>
-            <version>1.0.23-SNAPSHOT</version>
+            <version>1.1.0-SNAPSHOT</version>
             <scope>compile</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.egov.services</groupId>
-            <artifactId>tracer</artifactId>
-            <version>2.9.0-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>org.flywaydb</groupId>

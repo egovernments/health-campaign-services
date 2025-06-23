@@ -9,6 +9,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.ds.Tuple;
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.Error;
 import org.egov.common.models.ErrorDetails;
 import org.egov.common.models.core.Role;
@@ -217,6 +218,7 @@ public class IndividualService {
     }
 
     public List<Individual> update(IndividualBulkRequest request, boolean isBulk) {
+        String tenantId =  request.getRequestInfo().getUserInfo().getTenantId();
         Tuple<List<Individual>, Map<Individual, ErrorDetails>> tuple = validate(validators,
                 isApplicableForUpdate, request,
                 isBulk);
@@ -258,7 +260,7 @@ public class IndividualService {
 
                 Map<String, Individual> idToObjMap = getIdToObjMap(encryptedIndividualList);
                 // find existing individuals from db
-                List<Individual> existingIndividuals = individualRepository.findById(new ArrayList<>(idToObjMap.keySet()),
+                List<Individual> existingIndividuals = individualRepository.findById(tenantId, new ArrayList<>(idToObjMap.keySet()),
                         "id", false).getResponse();
 
                 if (identifiersPresent) {
@@ -319,7 +321,11 @@ public class IndividualService {
                             .singletonList(individualSearch)),
                     individualSearch);
 
-            searchResponse = individualRepository.findById(ids, idFieldName, includeDeleted);
+            try {
+                searchResponse = individualRepository.findById(tenantId ,ids, idFieldName, includeDeleted);
+            } catch (InvalidTenantIdException e) {
+                throw new CustomException(INVALID_TENANT_ID, INVALID_TENANT_ID_MSG);
+            }
 
             encryptedIndividualList = searchResponse.getResponse().stream()
                     .filter(lastChangedSince(lastChangedSince))

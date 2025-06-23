@@ -1,5 +1,6 @@
 package org.egov.project.validator.facility;
 
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.Error;
 import org.egov.common.models.project.ProjectFacility;
 import org.egov.common.models.project.ProjectFacilityBulkRequest;
@@ -34,10 +35,10 @@ class PfNonExistentEntityValidatorTest {
     
     @Test
     @DisplayName("should add to error details map if entity not found")
-    void shouldAddToErrorDetailsMapIfEntityNotFound() {
+    void shouldAddToErrorDetailsMapIfEntityNotFound() throws InvalidTenantIdException {
         ProjectFacilityBulkRequest request = ProjectFacilityBulkRequestTestBuilder.builder()
-                .withOneProjectFacilityHavingId("some-id").withRequestInfo().build();
-        when(facilityRepository.findById(anyList(), anyBoolean(), anyString()))
+                .withOneProjectFacilityHavingIdAndTenantId("some-id", "some-tenant-id").withRequestInfo().build();
+        when(facilityRepository.findById(anyString(), anyList(), anyBoolean(), anyString()))
                 .thenReturn(Collections.emptyList());
 
         Map<ProjectFacility, List<Error>> errorDetailsMap = pfNonExistentEntityValidator.validate(request);
@@ -47,11 +48,11 @@ class PfNonExistentEntityValidatorTest {
 
     @Test
     @DisplayName("should not add to error details map if entity found")
-    void shouldNotAddToErrorDetailsMapIfEntityFound() {
+    void shouldNotAddToErrorDetailsMapIfEntityFound() throws InvalidTenantIdException {
         ProjectFacilityBulkRequest request = ProjectFacilityBulkRequestTestBuilder.builder()
-                .withOneProjectFacilityHavingId("some-id").withRequestInfo().build();
-        when(facilityRepository.findById(anyList(), anyBoolean(), anyString()))
-                .thenReturn(Collections.singletonList(ProjectFacilityTestBuilder.builder().withId("some-id").build()));
+                .withOneProjectFacilityHavingIdAndTenantId("some-id", "some-tenant-id").withRequestInfo().build();
+        when(facilityRepository.findById(anyString(), anyList(), anyBoolean(), anyString()))
+                .thenReturn(Collections.singletonList(ProjectFacilityTestBuilder.builder().withId("some-id").withTenantId("some-tenant-id").build()));
 
         Map<ProjectFacility, List<Error>> errorDetailsMap = pfNonExistentEntityValidator.validate(request);
 

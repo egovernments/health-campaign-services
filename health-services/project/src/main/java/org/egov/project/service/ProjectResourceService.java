@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.ds.Tuple;
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.ErrorDetails;
 import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.project.ProjectResource;
@@ -188,14 +189,14 @@ public class ProjectResourceService {
                                                   Integer offset,
                                                   String tenantId,
                                                   Long lastChangedSince,
-                                                  Boolean includeDeleted) throws QueryBuilderException {
+                                                  Boolean includeDeleted) throws QueryBuilderException, InvalidTenantIdException {
         String idFieldName = getIdFieldName(request.getProjectResource());
 
         if (isSearchByIdOnly(request.getProjectResource(), idFieldName)) {
             List<String> ids = (List<String>) ReflectionUtils.invokeMethod(getIdMethod((Collections
                     .singletonList(request.getProjectResource()))),
                     request.getProjectResource());
-            List<ProjectResource> projectResources = projectResourceRepository.findById(ids, includeDeleted, idFieldName).stream()
+            List<ProjectResource> projectResources = projectResourceRepository.findById(tenantId, ids, includeDeleted, idFieldName).stream()
                     .filter(lastChangedSince(lastChangedSince))
                     .filter(havingTenantId(tenantId))
                     .filter(includeDeleted(includeDeleted))

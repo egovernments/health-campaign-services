@@ -6,10 +6,11 @@ serviceMaps:
       fromTopic: save-facility-topic
       isTransaction: true
       queryMaps:
-        - query: INSERT INTO FACILITY(id, tenantId, isPermanent, name, usage, storageCapacity, addressId, additionalDetails, createdBy, createdTime, lastModifiedBy, lastModifiedTime, rowVersion, isDeleted) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?);
+        - query: INSERT INTO public.FACILITY(id, clientReferenceId, tenantId, isPermanent, name, usage, storageCapacity, addressId, additionalDetails, createdBy, createdTime, lastModifiedBy, lastModifiedTime, rowVersion, isDeleted) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);
           basePath: $.*
           jsonMaps:
             - jsonPath: $.*.id
+            - jsonPath: $.*.clientReferenceId
             - jsonPath: $.*.tenantId
             - jsonPath: $.*.isPermanent
             - jsonPath: $.*.name
@@ -26,10 +27,11 @@ serviceMaps:
             - jsonPath: $.*.rowVersion
             - jsonPath: $.*.isDeleted
 
-        - query: INSERT INTO ADDRESS(id, tenantid, doorno, latitude, longitude, locationAccuracy, type, addressline1, addressline2, landmark, city, pincode, buildingName, street, localityCode) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+        - query: INSERT INTO public.ADDRESS(id, clientReferenceId, tenantid, doorno, latitude, longitude, locationAccuracy, type, addressline1, addressline2, landmark, city, pincode, buildingName, street, localityCode) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
           basePath: $.*.address
           jsonMaps:
             - jsonPath: $.*.address.id
+            - jsonPath: $.*.address.clientReferenceId
             - jsonPath: $.*.address.tenantId
             - jsonPath: $.*.address.doorNo
             - jsonPath: $.*.address.latitude
@@ -50,7 +52,7 @@ serviceMaps:
       fromTopic: update-facility-topic
       isTransaction: true
       queryMaps:
-        - query: UPDATE FACILITY SET tenantId=?, isPermanent=?, name=?, usage=?, storageCapacity=?, addressId=?, additionalDetails=?, lastModifiedBy=?, lastModifiedTime=?, rowVersion=? WHERE id=? AND isDeleted=false;
+        - query: UPDATE public.FACILITY SET tenantId=?, isPermanent=?, name=?, usage=?, storageCapacity=?, addressId=?, additionalDetails=?, lastModifiedBy=?, lastModifiedTime=?, rowVersion=? WHERE id=? AND isDeleted=false;
           basePath: $.*
           jsonMaps:
             - jsonPath: $.*.tenantId
@@ -67,10 +69,11 @@ serviceMaps:
             - jsonPath: $.*.rowVersion
             - jsonPath: $.*.id
 
-        - query: INSERT INTO ADDRESS(id, tenantid, doorno, latitude, longitude, locationAccuracy, type, addressline1, addressline2, landmark, city, pincode, buildingName, street, localityCode) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET tenantId = ?, doorno = ?, latitude = ?, longitude = ?, locationAccuracy = ?, type = ?, addressline1 = ?, addressline2 = ?, landmark = ?, city = ?, pincode = ?, buildingName = ?, street = ?, localityCode = ?;
+        - query: INSERT INTO public.ADDRESS(id, clientReferenceId, tenantid, doorno, latitude, longitude, locationAccuracy, type, addressline1, addressline2, landmark, city, pincode, buildingName, street, localityCode) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET tenantId = ?, doorno = ?, latitude = ?, longitude = ?, locationAccuracy = ?, type = ?, addressline1 = ?, addressline2 = ?, landmark = ?, city = ?, pincode = ?, buildingName = ?, street = ?, localityCode = ?;
           basePath: $.*.address
           jsonMaps:
             - jsonPath: $.*.address.id
+            - jsonPath: $.*.address.clientReferenceId
             - jsonPath: $.*.address.tenantId
             - jsonPath: $.*.address.doorNo
             - jsonPath: $.*.address.latitude
@@ -105,7 +108,123 @@ serviceMaps:
       fromTopic: delete-facility-topic
       isTransaction: true
       queryMaps:
-        - query: UPDATE FACILITY SET lastModifiedBy=?, lastModifiedTime=?, rowVersion=?, isDeleted=? WHERE id=?;
+        - query: UPDATE public.FACILITY SET lastModifiedBy=?, lastModifiedTime=?, rowVersion=?, isDeleted=? WHERE id=?;
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.rowVersion
+            - jsonPath: $.*.isDeleted
+            - jsonPath: $.*.id
+
+    - version: 1.0
+      description: Saves a facility
+      fromTopic: statea-save-facility-topic
+      isTransaction: true
+      queryMaps:
+        - query: INSERT INTO statea.FACILITY(id, clientReferenceId, tenantId, isPermanent, name, usage, storageCapacity, addressId, additionalDetails, createdBy, createdTime, lastModifiedBy, lastModifiedTime, rowVersion, isDeleted) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.id
+            - jsonPath: $.*.clientReferenceId
+            - jsonPath: $.*.tenantId
+            - jsonPath: $.*.isPermanent
+            - jsonPath: $.*.name
+            - jsonPath: $.*.usage
+            - jsonPath: $.*.storageCapacity
+            - jsonPath: $.*.address.id
+            - jsonPath: $.*.additionalFields
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.*.auditDetails.createdBy
+            - jsonPath: $.*.auditDetails.createdTime
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.rowVersion
+            - jsonPath: $.*.isDeleted
+
+        - query: INSERT INTO statea.ADDRESS(id, clientReferenceId, tenantid, doorno, latitude, longitude, locationAccuracy, type, addressline1, addressline2, landmark, city, pincode, buildingName, street, localityCode) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+          basePath: $.*.address
+          jsonMaps:
+            - jsonPath: $.*.address.id
+            - jsonPath: $.*.address.clientReferenceId
+            - jsonPath: $.*.address.tenantId
+            - jsonPath: $.*.address.doorNo
+            - jsonPath: $.*.address.latitude
+            - jsonPath: $.*.address.longitude
+            - jsonPath: $.*.address.locationAccuracy
+            - jsonPath: $.*.address.type
+            - jsonPath: $.*.address.addressLine1
+            - jsonPath: $.*.address.addressLine2
+            - jsonPath: $.*.address.landmark
+            - jsonPath: $.*.address.city
+            - jsonPath: $.*.address.pincode
+            - jsonPath: $.*.address.buildingName
+            - jsonPath: $.*.address.street
+            - jsonPath: $.*.address.locality.code
+
+    - version: 1.0
+      description: Updates a facility
+      fromTopic: statea-update-facility-topic
+      isTransaction: true
+      queryMaps:
+        - query: UPDATE statea.FACILITY SET tenantId=?, isPermanent=?, name=?, usage=?, storageCapacity=?, addressId=?, additionalDetails=?, lastModifiedBy=?, lastModifiedTime=?, rowVersion=? WHERE id=? AND isDeleted=false;
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.tenantId
+            - jsonPath: $.*.isPermanent
+            - jsonPath: $.*.name
+            - jsonPath: $.*.usage
+            - jsonPath: $.*.storageCapacity
+            - jsonPath: $.*.address.id
+            - jsonPath: $.*.additionalFields
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.rowVersion
+            - jsonPath: $.*.id
+
+        - query: INSERT INTO statea.ADDRESS(id, clientReferenceId, tenantid, doorno, latitude, longitude, locationAccuracy, type, addressline1, addressline2, landmark, city, pincode, buildingName, street, localityCode) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET tenantId = ?, doorno = ?, latitude = ?, longitude = ?, locationAccuracy = ?, type = ?, addressline1 = ?, addressline2 = ?, landmark = ?, city = ?, pincode = ?, buildingName = ?, street = ?, localityCode = ?;
+          basePath: $.*.address
+          jsonMaps:
+            - jsonPath: $.*.address.id
+            - jsonPath: $.*.address.clientReferenceId
+            - jsonPath: $.*.address.tenantId
+            - jsonPath: $.*.address.doorNo
+            - jsonPath: $.*.address.latitude
+            - jsonPath: $.*.address.longitude
+            - jsonPath: $.*.address.locationAccuracy
+            - jsonPath: $.*.address.type
+            - jsonPath: $.*.address.addressLine1
+            - jsonPath: $.*.address.addressLine2
+            - jsonPath: $.*.address.landmark
+            - jsonPath: $.*.address.city
+            - jsonPath: $.*.address.pincode
+            - jsonPath: $.*.address.buildingName
+            - jsonPath: $.*.address.street
+            - jsonPath: $.*.address.locality.code
+            - jsonPath: $.*.address.tenantId
+            - jsonPath: $.*.address.doorNo
+            - jsonPath: $.*.address.latitude
+            - jsonPath: $.*.address.longitude
+            - jsonPath: $.*.address.locationAccuracy
+            - jsonPath: $.*.address.type
+            - jsonPath: $.*.address.addressLine1
+            - jsonPath: $.*.address.addressLine2
+            - jsonPath: $.*.address.landmark
+            - jsonPath: $.*.address.city
+            - jsonPath: $.*.address.pincode
+            - jsonPath: $.*.address.buildingName
+            - jsonPath: $.*.address.street
+            - jsonPath: $.*.address.locality.code
+
+    - version: 1.0
+      description: Deletes a facility
+      fromTopic: statea-delete-facility-topic
+      isTransaction: true
+      queryMaps:
+        - query: UPDATE statea.FACILITY SET lastModifiedBy=?, lastModifiedTime=?, rowVersion=?, isDeleted=? WHERE id=?;
           basePath: $.*
           jsonMaps:
             - jsonPath: $.*.auditDetails.lastModifiedBy
