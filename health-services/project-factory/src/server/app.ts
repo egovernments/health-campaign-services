@@ -38,37 +38,10 @@ class App {
   }
 
   private initializeMiddlewares() {
-    this.app.use((req, res, next) => {
-      this.inflight++;
-      res.on("finish", () => this.inflight--);
-      next();
-    });
-
-    this.app.use(bodyParser.json({ limit: config.app.incomingRequestPayloadLimit }));
-    this.app.use(
-      bodyParser.urlencoded({
-        limit: config.app.incomingRequestPayloadLimit,
-        extended: true,
-      })
-    );
-    this.app.use(tracingMiddleware);
-    this.app.use(requestMiddleware);
-    this.app.use(errorLogger);
-    this.app.use(errorResponder);
-
-    this.app.use(
-      "/tracing",
-      createProxyMiddleware({
-        target: "http://localhost:16686",
-        changeOrigin: true,
-        pathRewrite: { "^/tracing": "/" },
-      })
-    );
-
-    // Enhanced /health endpoint
+    // ✅ Define /health first (before body parsers)
     this.app.get("/health", (_req, res) => {
       const memCrit = this.isMemoryCritical();
-      const eventLoopLagMs = Number(histogram.mean) / 1e6; // convert ns to ms
+      const eventLoopLagMs = Number(histogram.mean) / 1e6;
       const lagCrit = eventLoopLagMs > this.MAX_EVENT_LOOP_DELAY_MS;
 
       if (this.inflight >= this.MAX_INFLIGHT || memCrit || lagCrit) {
@@ -83,6 +56,35 @@ class App {
         res.status(200).send("ALIVE");
       }
     });
+
+    // ✅ THEN apply middlewares
+    this.app.use((req, res, next) => {
+      this.inflight++;
+      res.on("finish", () => this.inflight--);
+      next();
+    });
+
+    this.app.use(bodyParser.json({ limit: config.app.incomingRequestPayloadLimit }));
+    this.app.use(
+      bodyParser.urlencoded({
+        limit: config.app.incomingRequestPayloadLimit,
+        extended: true,
+      })
+    );
+
+    this.app.use(tracingMiddleware);
+    this.app.use(requestMiddleware);
+    this.app.use(errorLogger);
+    this.app.use(errorResponder);
+
+    this.app.use(
+      "/tracing",
+      createProxyMiddleware({
+        target: "http://localhost:16686",
+        changeOrigin: true,
+        pathRewrite: { "^/tracing": "/" },
+      })
+    );
   }
 
   private initializeControllers(controllers: any) {
