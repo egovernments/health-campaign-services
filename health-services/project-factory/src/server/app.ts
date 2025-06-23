@@ -11,19 +11,12 @@ import { tracingMiddleware } from "./tracing";
 import { createProxyMiddleware } from "http-proxy-middleware";
 import * as v8 from "v8";
 import { logger } from "./utils/logger";
-import { monitorEventLoopDelay } from "perf_hooks";
 import { Server } from "http";
-
-const histogram = monitorEventLoopDelay({ resolution: 20 });
-histogram.enable();
 
 class App {
   public app: express.Application;
   public port: number;
-  private inflight = 0;
-  private readonly MAX_INFLIGHT = parseInt(config.app.maxInFlight || "15");
-  private readonly MAX_EVENT_LOOP_DELAY_MS = parseInt(config.app.maxEventLoopLagMs || "100");
-  private readonly MEMORY_LOG_INTERVAL_MS = 60000; // Log memory every 60 seconds
+  private readonly MEMORY_LOG_INTERVAL_MS = 30000; // Log memory every 60 seconds
 
   constructor(controllers: any, port: any) {
     this.app = express();
@@ -62,32 +55,6 @@ class App {
   }
 
   private initializeMiddlewares() {
-    // Health endpoint
-    this.app.get("/health", (_req, res) => {
-      const memCrit = this.isMemoryCritical();
-      const eventLoopLagMs = Number(histogram.mean) / 1e6;
-      const lagCrit = eventLoopLagMs > this.MAX_EVENT_LOOP_DELAY_MS;
-
-      if (this.inflight >= this.MAX_INFLIGHT || memCrit || lagCrit) {
-        const reason = memCrit
-          ? "memory critical"
-          : lagCrit
-            ? `event-loop lag high (${eventLoopLagMs.toFixed(1)}ms)`
-            : "too many in-flight requests";
-        logger.warn(`/health failed: ${reason} (inflight=${this.inflight})`);
-        res.status(500).send("NOT ALIVE");
-      } else {
-        res.status(200).send("ALIVE");
-      }
-    });
-
-    // In-flight tracking
-    this.app.use((req, res, next) => {
-      this.inflight++;
-      res.on("finish", () => this.inflight--);
-      next();
-    });
-
     this.app.use(bodyParser.json({ limit: config.app.incomingRequestPayloadLimit }));
     this.app.use(
       bodyParser.urlencoded({
@@ -122,8 +89,7 @@ class App {
       logger.info(`App listening on port ${this.port}`);
     });
 
-    // Configure server timeouts
-    server.setTimeout(300000); // 300000 seconds for entire request
+    server.setTimeout(300000); // 300 seconds for entire request
     server.keepAliveTimeout = 45000; // 45 seconds for keep-alive connections
     server.headersTimeout = 50000; // 50 seconds for headers
   }
