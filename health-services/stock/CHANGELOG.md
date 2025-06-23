@@ -1,5 +1,14 @@
 All notable changes to this module will be documented in this file.
 
+## 1.2.0 - 2025-04-15
+
+- Enabled multi-schema support using dynamic schema replacement in SQL queries.
+- Refactored repositories to validate and apply tenant-specific logic.
+- Enhanced error handling and validators for tenant awareness.
+- Modified migration scripts for central instance compatibility.
+- Updated migration script logic for schema support.
+- Updated the persister file to handle multiple schemas.
+
 ## 1.1.3 - 2024-05-29
 - Upgraded to Core 2.9LTS
 - Upgraded to health models 1.0.20 and health common 1.0.16

@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.Error;
 import org.egov.common.models.project.Task;
 import org.egov.common.models.project.TaskBulkRequest;
@@ -17,8 +18,10 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
+import static org.egov.common.utils.CommonUtils.getTenantId;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
+import static org.egov.common.utils.ValidatorUtils.getErrorForInvalidTenantId;
 import static org.egov.common.utils.ValidatorUtils.getErrorForUniqueEntity;
 
 /**
@@ -83,16 +86,24 @@ public class PtExistentEntityValidator implements Validator<TaskBulkRequest, Tas
 
         // Check if the client reference ID list is not empty before querying the database.
         if (!CollectionUtils.isEmpty(clientReferenceIdList)) {
-            // Query the repository to find existing entities with the given client reference IDs.
-            List<String> existingClientReferenceIds = projectTaskRepository.validateClientReferenceIdsFromDB(clientReferenceIdList, Boolean.TRUE);
-
-            // For each existing client reference ID, add an error to the map for the corresponding Task entity.
-            existingClientReferenceIds.forEach(clientReferenceId -> {
-                // Get a predefined error object for unique entity validation.
-                Error error = getErrorForUniqueEntity();
-                // Populate error details for the individual Task entity associated with the client reference ID.
-                populateErrorDetails(map.get(clientReferenceId), error, errorDetailsMap);
-            });
+            String tenantId = getTenantId(entities);
+            try {
+                // Query the repository to find existing entities with the given client reference IDs.
+                List<String> existingClientReferenceIds = projectTaskRepository.validateClientReferenceIdsFromDB(tenantId, clientReferenceIdList, Boolean.TRUE);
+                // For each existing client reference ID, add an error to the map for the corresponding Task entity.
+                existingClientReferenceIds.forEach(clientReferenceId -> {
+                    // Get a predefined error object for unique entity validation.
+                    Error error = getErrorForUniqueEntity();
+                    // Populate error details for the individual Task entity associated with the client reference ID.
+                    populateErrorDetails(map.get(clientReferenceId), error, errorDetailsMap);
+                });
+            } catch (InvalidTenantIdException exception) {
+                // Populating InvalidTenantIdException for all entities
+                entities.forEach(task -> {
+                    Error error = getErrorForInvalidTenantId(tenantId, exception);
+                    populateErrorDetails(task, error, errorDetailsMap);
+                });
+            }
         }
 
         // Return the map containing Task entities and their associated error details.

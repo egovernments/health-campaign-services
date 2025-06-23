@@ -42,10 +42,10 @@ package org.egov.hrms.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.*;
-import javax.validation.constraints.NotNull;
-
-import org.hibernate.validator.constraints.SafeHtml;
+import org.egov.tracer.annotations.CustomSafeHtml;
 import org.springframework.validation.annotation.Validated;
+
+import jakarta.validation.constraints.NotNull;
 
 @Validated
 @EqualsAndHashCode(exclude = {"auditDetails"})
@@ -57,16 +57,16 @@ import org.springframework.validation.annotation.Validated;
 @ToString
 public class Assignment {
 
-	@SafeHtml
+	@CustomSafeHtml
 	private String id;
 
 	private Long position;
 
-	@SafeHtml
+	@CustomSafeHtml
 	@NotNull
 	private String designation;
 
-	@SafeHtml
+	@CustomSafeHtml
 	@NotNull
 	private String department;
 
@@ -75,18 +75,18 @@ public class Assignment {
 
 	private Long toDate;
 
-	@SafeHtml
+	@CustomSafeHtml
 	private String govtOrderNumber;
 
-	@SafeHtml
+	@CustomSafeHtml
 	private String tenantid;
 
-	@SafeHtml
-	private  String reportingTo;
+	@CustomSafeHtml
+	private String reportingTo;
 
 	@JsonProperty("isHOD")
-	private Boolean isHOD=false;
-	
+	private Boolean isHOD = false;
+
 	@NotNull
 	@JsonProperty("isCurrentAssignment")
 	private Boolean isCurrentAssignment;

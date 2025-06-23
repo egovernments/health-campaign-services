@@ -1,5 +1,6 @@
 package org.egov.project.service;
 
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.helper.RequestInfoTestBuilder;
 import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.project.ProjectFacility;
@@ -24,6 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
@@ -63,8 +65,8 @@ class ProjectFacilityServiceSearchTest {
 
     @Test
     @DisplayName("should not raise exception if no search results are found for search by id")
-    void shouldNotRaiseExceptionIfNoProjectFacilityFoundForSearchById() {
-        when(projectFacilityRepository.findById(anyList(),anyBoolean())).thenReturn(Collections.emptyList());
+    void shouldNotRaiseExceptionIfNoProjectFacilityFoundForSearchById() throws InvalidTenantIdException {
+        when(projectFacilityRepository.findById(anyString(), anyList(),anyBoolean())).thenReturn(Collections.emptyList());
         ProjectFacilitySearch projectFacilitySearch = ProjectFacilitySearch.builder()
                 .id(Collections.singletonList("ID101")).build();
         ProjectFacilitySearchRequest projectFacilitySearchRequest = ProjectFacilitySearchRequest.builder()
@@ -103,10 +105,10 @@ class ProjectFacilityServiceSearchTest {
         ProjectFacilitySearchRequest projectFacilitySearchRequest = ProjectFacilitySearchRequest.builder()
                 .projectFacility(projectFacilitySearch).requestInfo(RequestInfoTestBuilder.builder()
                         .withCompleteRequestInfo().build()).build();
-        when(projectFacilityRepository.findById(anyList(), anyBoolean())).thenReturn(projectFacilities);
+        when(projectFacilityRepository.findById(eq("some-tenant-id"), anyList(), anyBoolean())).thenReturn(projectFacilities);
 
         List<ProjectFacility> projectFacilities = projectFacilityService.search(projectFacilitySearchRequest,
-                10, 0, null, null, true).getResponse();
+                10, 0, "some-tenant-id", null, true).getResponse();
 
         assertEquals(1, projectFacilities.size());
     }

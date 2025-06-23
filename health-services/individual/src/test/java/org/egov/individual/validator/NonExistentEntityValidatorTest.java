@@ -1,6 +1,7 @@
 package org.egov.individual.validator;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.Error;
 import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.individual.Address;
@@ -48,7 +49,7 @@ public class NonExistentEntityValidatorTest {
     private IndividualRepository individualRepository;
 
     @Test
-    void shouldNotGiveErrorWhenEntityExists() {
+    void shouldNotGiveErrorWhenEntityExists() throws InvalidTenantIdException {
         Address address = Address.builder()
                 .id("some-Id")
                 .city("some-city")
@@ -79,7 +80,7 @@ public class NonExistentEntityValidatorTest {
     }
 
     @Test
-    void shouldGiveErrorWhenEntityDoesNotExist() {
+    void shouldGiveErrorWhenEntityDoesNotExist() throws InvalidTenantIdException {
         IndividualBulkRequest individualBulkRequest = IndividualBulkRequestTestBuilder.builder()
                 .withIndividuals(IndividualTestBuilder.builder()
                         .withId("some-id")

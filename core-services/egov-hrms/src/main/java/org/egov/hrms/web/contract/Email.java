@@ -3,9 +3,8 @@ package org.egov.hrms.web.contract;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.*;
 
-import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.NotNull;
-import javax.validation.constraints.Size;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import java.util.Set;
 
 @Setter
@@ -20,10 +19,10 @@ public class Email {
     @Size(min = 1, message = "At least one recipient is required")
     private Set<String> emailTo;
 
-    @NotBlank(message = "Subject is required")
+    @NotNull(message = "Subject is required")
     private String subject;
 
-    @NotBlank(message = "Body is required")
+    @NotNull(message = "Body is required")
     private String body;
     @JsonProperty("isHTML")
     private boolean isHTML;

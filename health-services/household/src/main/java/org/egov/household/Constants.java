@@ -61,4 +61,7 @@ public interface Constants {
 
     String HOUSEHOLD_MEMBER_RELATIONSHIP_NOT_ALLOWED_MESSAGE = "household member relationship is not allowed";
 
+    String TENANT_ID_EXCEPTION = "TENANT_ID_EXCEPTION";
+
+    String TENANT_ID_EXCEPTION_MESSAGE = "tenant id cannot be null or empty";
 }

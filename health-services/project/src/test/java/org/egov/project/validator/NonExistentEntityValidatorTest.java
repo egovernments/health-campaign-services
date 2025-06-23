@@ -1,5 +1,6 @@
 package org.egov.project.validator;
 
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.Error;
 import org.egov.common.models.project.ProjectResource;
 import org.egov.common.models.project.ProjectResourceBulkRequest;
@@ -35,10 +36,10 @@ public class NonExistentEntityValidatorTest {
 
     @Test
     @DisplayName("should add to error details map if entity not found")
-    void shouldAddToErrorDetailsMapIfEntityNotFound() {
+    void shouldAddToErrorDetailsMapIfEntityNotFound() throws InvalidTenantIdException {
         ProjectResourceBulkRequest request = ProjectResourceBulkRequestTestBuilder.builder()
                 .withProjectResourceId("some-id").withRequestInfo().build();
-        when(projectResourceRepository.findById(anyList(), anyBoolean(), anyString())).
+        when(projectResourceRepository.findById(anyString(), anyList(), anyBoolean(), anyString())).
                 thenReturn(Collections.emptyList());
 
         Map<ProjectResource, List<Error>> errorDetailsMap = prNonExistentEntityValidator.validate(request);
@@ -48,10 +49,10 @@ public class NonExistentEntityValidatorTest {
 
     @Test
     @DisplayName("should not add to error details map if entity found")
-    void shouldNotAddToErrorDetailsMapIfEntityFound() {
+    void shouldNotAddToErrorDetailsMapIfEntityFound() throws InvalidTenantIdException {
         ProjectResourceBulkRequest request = ProjectResourceBulkRequestTestBuilder.builder()
                 .withProjectResourceId("some-id").withRequestInfo().build();
-        when(projectResourceRepository.findById(anyList(), anyBoolean(), anyString())).
+        when(projectResourceRepository.findById(anyString(), anyList(), anyBoolean(), anyString())).
                 thenReturn(Collections.singletonList(ProjectResourceTestBuilder.builder()
                         .withProjectResource().withId("some-id").build()));
 

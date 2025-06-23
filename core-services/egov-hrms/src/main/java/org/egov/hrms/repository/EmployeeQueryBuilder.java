@@ -8,10 +8,10 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 import java.util.stream.Collectors;
+
+import static org.egov.common.utils.MultiStateInstanceUtil.SCHEMA_REPLACE_STRING;
 
 @Service
 public class EmployeeQueryBuilder {
@@ -30,6 +30,9 @@ public class EmployeeQueryBuilder {
 	 */
 	public String getEmployeeSearchQuery(EmployeeSearchCriteria criteria,List <Object> preparedStmtList) {
 		StringBuilder builder = new StringBuilder(EmployeeQueries.HRMS_GET_EMPLOYEES);
+		// Replace the schema name in the query
+		builder = new StringBuilder(String.format(String.valueOf(builder), SCHEMA_REPLACE_STRING, SCHEMA_REPLACE_STRING ,SCHEMA_REPLACE_STRING, SCHEMA_REPLACE_STRING, SCHEMA_REPLACE_STRING,
+				SCHEMA_REPLACE_STRING, SCHEMA_REPLACE_STRING, SCHEMA_REPLACE_STRING, SCHEMA_REPLACE_STRING));
 		addWhereClause(criteria, builder, preparedStmtList);
 		return paginationClause(criteria, builder);
 	}
@@ -43,6 +46,8 @@ public class EmployeeQueryBuilder {
 
 	public String getEmployeeCountQuery(String tenantId, List <Object> preparedStmtList ) {
 		StringBuilder builder = new StringBuilder(EmployeeQueries.HRMS_COUNT_EMP_QUERY);
+		// Replace the schema name in the query
+		builder = new StringBuilder(String.format(String.valueOf(builder), SCHEMA_REPLACE_STRING));
 		if(tenantId.equalsIgnoreCase(properties.stateLevelTenantId)){
 			builder.append("LIKE ? ");
 			preparedStmtList.add(tenantId+"%");
@@ -56,7 +61,8 @@ public class EmployeeQueryBuilder {
 	}
 	
 	public String getPositionSeqQuery() {
-		return EmployeeQueries.HRMS_POSITION_SEQ;
+		// Replace the schema name in the query
+		return  String.format(EmployeeQueries.HRMS_POSITION_SEQ, SCHEMA_REPLACE_STRING) ;
 	}
 	
 	/**
@@ -114,6 +120,8 @@ public class EmployeeQueryBuilder {
 
 	public String getAssignmentSearchQuery(EmployeeSearchCriteria criteria, List<Object> preparedStmtList) {
 		StringBuilder builder = new StringBuilder(EmployeeQueries.HRMS_GET_ASSIGNMENT);
+		// Replace the schema name in the query
+		builder = new StringBuilder(String.format(String.valueOf(builder), SCHEMA_REPLACE_STRING));
 		addWhereClauseAssignment(criteria, builder, preparedStmtList);
 		return builder.toString();
 	}
@@ -161,6 +169,8 @@ public class EmployeeQueryBuilder {
 
 	public String getUnassignedEmployeesSearchQuery(EmployeeSearchCriteria criteria, List<Object> preparedStmtList) {
 		StringBuilder builder = new StringBuilder(EmployeeQueries.HRMS_GET_UNASSIGNED_EMPLOYEES);
+		// Replace the schema name in the query
+		builder = new StringBuilder(String.format(String.valueOf(builder), SCHEMA_REPLACE_STRING, SCHEMA_REPLACE_STRING));
 		addWhereClauseAssignment(criteria, builder, preparedStmtList);
 		return builder.toString();
 	}
