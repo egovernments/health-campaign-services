@@ -16,7 +16,7 @@ import { Server } from "http";
 class App {
   public app: express.Application;
   public port: number;
-  private readonly MEMORY_LOG_INTERVAL_MS = 30000; // Log memory every 60 seconds
+  private readonly MEMORY_LOG_INTERVAL_MS = 30000; // Log memory every 30 seconds
 
   constructor(controllers: any, port: any) {
     this.app = express();
