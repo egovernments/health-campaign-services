@@ -123,9 +123,9 @@ class App {
     });
 
     // Configure server timeouts
-    server.setTimeout(60000); // 60 seconds for entire request
-    server.keepAliveTimeout = 30000; // 30 seconds for keep-alive connections
-    server.headersTimeout = 35000; // 35 seconds for headers
+    server.setTimeout(300000); // 300000 seconds for entire request
+    server.keepAliveTimeout = 45000; // 45 seconds for keep-alive connections
+    server.headersTimeout = 50000; // 50 seconds for headers
   }
 }
 
