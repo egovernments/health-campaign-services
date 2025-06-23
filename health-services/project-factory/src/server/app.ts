@@ -21,7 +21,7 @@ class App {
   public app: express.Application;
   public port: number;
   private inflight = 0;
-  private readonly MAX_INFLIGHT = parseInt(config.app.maxInFlight || "5");
+  private readonly MAX_INFLIGHT = parseInt(config.app.maxInFlight || "15");
   private readonly MAX_EVENT_LOOP_DELAY_MS = parseInt(config.app.maxEventLoopLagMs || "100");
   private readonly MEMORY_LOG_INTERVAL_MS = 60000; // Log memory every 60 seconds
 

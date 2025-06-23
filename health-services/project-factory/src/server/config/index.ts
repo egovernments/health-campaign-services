@@ -106,7 +106,7 @@ const config = {
     debugLogCharLimit: process.env.APP_MAX_DEBUG_CHAR ? Number(process.env.APP_MAX_DEBUG_CHAR) : 1000,
     defaultTenantId: process.env.DEFAULT_TENANT_ID || "mz",
     incomingRequestPayloadLimit : process.env.INCOMING_REQUEST_PAYLOAD_LIMIT || "2mb",
-    maxInFlight : process.env.MAX_INFLIGHT || "5",
+    maxInFlight : process.env.MAX_INFLIGHT || "15",
     maxEventLoopLagMs : process.env.MAX_EVENT_LOOP_LAG_MS || "100",
   },
   localisation: {
