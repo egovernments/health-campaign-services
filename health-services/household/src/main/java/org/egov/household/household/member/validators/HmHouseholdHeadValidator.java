@@ -69,7 +69,7 @@ public class HmHouseholdHeadValidator implements Validator<HouseholdMemberBulkRe
     private void validateHeadOfHousehold(HouseholdMember householdMember, Method memberidMethod, String columnName,
                                          HashMap<HouseholdMember, List<Error>> errorDetailsMap, List<HouseholdMember> requestMembers) {
 
-        if(householdMember.getIsHeadOfHousehold()) {
+        if(householdMember.getIsHeadOfHousehold()){
             log.info("validating if household already has a head");
             Method memberIdMethod = getIdMethod(requestMembers, ID_FIELD, CLIENT_REFERENCE_ID_FIELD);
             List<HouseholdMember> householdMembersHeadCheck = householdMemberRepository
@@ -79,17 +79,17 @@ public class HmHouseholdHeadValidator implements Validator<HouseholdMemberBulkRe
 
             boolean isSameAsExistingHead = householdMembersHeadCheck.stream()
                     .allMatch(existing -> {
-                        Object existingValue = ReflectionUtils.invokeMethod(memberIdMethod, existing);
-                        Object currentValue = ReflectionUtils.invokeMethod(memberIdMethod, householdMember);
-                        return existingValue != null && existingValue.equals(currentValue);
+                        String existingMemberId = (String) ReflectionUtils.invokeMethod(memberIdMethod, existing);
+                        String currentMemberId = (String) ReflectionUtils.invokeMethod(memberIdMethod, householdMember);
+                        return existingMemberId != null && existingMemberId.equals(currentMemberId);
                     });
 
             if(!householdMembersHeadCheck.isEmpty() && !isSameAsExistingHead) {
                 HouseholdMember existinghead = householdMembersHeadCheck.get(0);
-                Object existingValue = ReflectionUtils.invokeMethod(memberIdMethod, existinghead);
-                Object currentValue = ReflectionUtils.invokeMethod(memberIdMethod, householdMember);
-                boolean isReassigning = existingValue != null && currentValue != null
-                        && !existingValue.equals(currentValue);
+                String existingMemberId = (String) ReflectionUtils.invokeMethod(memberIdMethod, existinghead);
+                String currentMemberId = (String) ReflectionUtils.invokeMethod(memberIdMethod, householdMember);
+                boolean isReassigning = existingMemberId != null && currentMemberId != null
+                        && !existingMemberId.equals(currentMemberId);
 
                 if(!isReassigning) {
                     Error error = Error.builder().errorMessage(HOUSEHOLD_ALREADY_HAS_HEAD_MESSAGE)
