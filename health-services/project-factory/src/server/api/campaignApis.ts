@@ -117,19 +117,26 @@ async function getAllFacilities(tenantId: string) {
     tenantId: tenantId?.split(".")?.[0],
   };
 
-  const searchedFacilities: any[] = [];
+  const facilityMap: Map<string, any> = new Map();
   let searchAgain = true;
 
   while (searchAgain) {
+    const batch: any[] = [];
     searchAgain = await getAllFacilitiesInLoop(
-      searchedFacilities,
+      batch,
       facilitySearchParams,
       facilitySearchBody
     );
+    for (const facility of batch) {
+      const name = facility?.name?.trim();
+      if (!name) continue;
+      // Overwrite previous if same name found
+      facilityMap.set(name, facility);
+    }
     facilitySearchParams.offset += 50;
   }
 
-  return searchedFacilities;
+  return Array.from(facilityMap.values());
 }
 
 /**
