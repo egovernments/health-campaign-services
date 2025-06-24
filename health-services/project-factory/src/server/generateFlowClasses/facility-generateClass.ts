@@ -1,10 +1,13 @@
-import { getReadMeConfig } from "../utils/genericUtils";
+import { getReadMeConfig, getRelatedDataWithCampaign } from "../utils/genericUtils";
 import { SheetMap } from "../models/SheetMap";
 import { getLocalizedName, populateBoundariesRecursively } from "../utils/campaignUtils";
 import { searchProjectTypeCampaignService } from "../service/campaignManageService";
 import { searchBoundaryRelationshipData, searchBoundaryRelationshipDefinition } from "../api/coreApis";
 import { logger } from "../utils/logger";
 import { getAllFacilities } from "../api/campaignApis";
+import { dataRowStatuses } from "../config/constants";
+import { DataTransformer } from "../utils/transFormUtil";
+import { transformConfigs } from "../config/transformConfigs";
 export class TemplateClass {
 
     static async generate(templateConfig: any, responseToSend: any, localizationMap: any): Promise<SheetMap> {
@@ -14,15 +17,26 @@ export class TemplateClass {
         if (!campaignDetailsResponse?.CampaignDetails?.[0]) throw new Error("Campaign not found");
         const campaignDetails: any = campaignDetailsResponse?.CampaignDetails?.[0];
         const readMeConfig = await getReadMeConfig(responseToSend.tenantId, responseToSend.type);
-        const readMeColumnHeader = getLocalizedName(Object.keys(templateConfig?.sheets?.[0]?.schema?.properties)?.[0], localizationMap);
+        const readMeColumnHeader = Object.keys(templateConfig?.sheets?.[0]?.schema?.properties || {})?.[0];
         const readMeData: any = this.getReadMeData(readMeConfig, readMeColumnHeader, localizationMap);
-        const allFacilities = await getAllFacilities(responseToSend?.tenantId);
-        const facilityData = this.getFacilityData(allFacilities,localizationMap);
+        const allPermanentFacilities = await getAllFacilities(responseToSend?.tenantId);
+        const completedFacilitiesRow = await getRelatedDataWithCampaign(responseToSend.type, campaignDetails.campaignNumber, dataRowStatuses.completed);
+        const permanentCodes = new Set(
+            allPermanentFacilities.map(f => f?.id)
+        );
 
-        const boundaryData: any = await this.getBoundaryData(campaignDetails, localizationMap);
-        const boundaryDynamicColumns: any = await this.getBoundaryDynamicColumns(campaignDetails?.tenantId, campaignDetails?.hierarchyType, localizationMap);
+        // Filter current facilities that are NOT already in permanent
+        const newFacilities = completedFacilitiesRow?.filter((f: any) =>
+            !permanentCodes.has(f.data?.HCM_ADMIN_CONSOLE_FACILITY_CODE)
+        );
+
+        // Generate final data
+        const {structuredBoundaries : boundaryData, codesOfBoundaries}: any = await this.getBoundaryData(campaignDetails, localizationMap);
+        const allPermanentFacilitiesTransformed: any = await this.getFacilityData(allPermanentFacilities, codesOfBoundaries);
+        const facilityData = [...allPermanentFacilitiesTransformed, ...newFacilities?.map((f: any) => f.data)]
+        const boundaryDynamicColumns: any = await this.getBoundaryDynamicColumns(campaignDetails?.tenantId, campaignDetails?.hierarchyType);
         const sheetMap: SheetMap = {
-            [getLocalizedName(templateConfig?.sheets?.[0]?.sheetName, localizationMap)]: {
+            [templateConfig?.sheets?.[0]?.sheetName]: {
                 data: readMeData,
                 dynamicColumns: {
                     [readMeColumnHeader]: {
@@ -31,11 +45,11 @@ export class TemplateClass {
                     }
                 }
             },
-            [getLocalizedName(templateConfig?.sheets?.[1]?.sheetName, localizationMap)]: {
+            ["HCM_ADMIN_CONSOLE_FACILITIES"]: {
                 data: facilityData,
                 dynamicColumns: null
             },
-            [getLocalizedName(templateConfig?.sheets?.[2]?.sheetName, localizationMap)]: {
+            ["HCM_ADMIN_CONSOLE_BOUNDARY_DATA"]: {
                 data: boundaryData,
                 dynamicColumns: boundaryDynamicColumns
             }
@@ -89,8 +103,9 @@ export class TemplateClass {
             boundaryChildren
         );
         const structuredBoundaries = this.structureBoundaries(boundaries, campaignDetails?.hierarchyType, localizationMap);
+        const codesOfBoundaries = new Set(boundaries.map((b: any) => b.code));
         logger.info(`Structured boundaries prepared.`);
-        return structuredBoundaries;
+        return {structuredBoundaries,codesOfBoundaries};
     }
 
     static structureBoundaries(boundaries: any[], hierarchyType: any, localizationMap: any) {
@@ -117,14 +132,13 @@ export class TemplateClass {
             const entry: Record<string, string> = {};
 
             // Add main boundary code
-            entry[getLocalizedName("HCM_ADMIN_CONSOLE_BOUNDARY_CODE", localizationMap)] = node.code;
+            entry["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"] = node.code;
 
             // Traverse current path
             const fullPath = [...path, node];
             for (const b of fullPath) {
-                const localizedKey = getLocalizedName(`${hierarchyType}_${b.type}`.toUpperCase(), localizationMap);
                 const localizedValue = getLocalizedName(b.code, localizationMap);
-                entry[localizedKey] = localizedValue;
+                entry[`${hierarchyType}_${b.type}`.toUpperCase()] = localizedValue;
             }
 
             result.push(entry);
@@ -142,7 +156,7 @@ export class TemplateClass {
         return result;
     }
 
-    static async getBoundaryDynamicColumns(tenantId: any, hierarchyType: any, localizationMap: any) {
+    static async getBoundaryDynamicColumns(tenantId: any, hierarchyType: any) {
         const response = await searchBoundaryRelationshipDefinition({
             BoundaryTypeHierarchySearchCriteria: {
                 tenantId: tenantId,
@@ -159,10 +173,10 @@ export class TemplateClass {
             const result: Record<string, any> = {};
 
             boundaryTypes.forEach((type: string, index: number) => {
-                const localizedKey = getLocalizedName(`${hierarchyType}_${type}`.toUpperCase(), localizationMap);
-                result[localizedKey] = { orderNumber: -1 * (total - index), adjustHeight: true, color: '#f3842d', freezeColumn: true };
+                const key = `${hierarchyType}_${type}`.toUpperCase();
+                result[key] = { orderNumber: -1 * (total - index), adjustHeight: true, color: '#f3842d', freezeColumn: true };
             });
-            result[getLocalizedName("HCM_ADMIN_CONSOLE_BOUNDARY_CODE", localizationMap)] = { adjustHeight: true, width: 80, freezeColumn: true };
+            result["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"] = { adjustHeight: true, width: 80, freezeColumn: true };
             logger.info(`Dynamic columns prepared for boundary data.`);
             return result;
         } else {
@@ -170,18 +184,25 @@ export class TemplateClass {
         }
     }
 
-    static getFacilityData(allFacilities: any,localizationMap:any) {
-        const facilityData = allFacilities.map((facility: any) => {
+    static async getFacilityData(allFacilities: any, codesOfBoundaries: any) {
+        const transformer = new DataTransformer(transformConfigs.Facility);
+        let allFacilitiesRecursed = allFacilities.map((facility: any) => {
             return {
-                [getLocalizedName("HCM_ADMIN_CONSOLE_FACILITY_CODE", localizationMap)]: facility?.id,
-                [getLocalizedName("HCM_ADMIN_CONSOLE_FACILITY_NAME", localizationMap)]: facility?.name,
-                [getLocalizedName("HCM_ADMIN_CONSOLE_FACILITY_STATUS", localizationMap)]: facility?.isPermanent ? "Permanent" : "Temporary",
-                [getLocalizedName("HCM_ADMIN_CONSOLE_FACILITY_USAGE", localizationMap)]: 'Inactive',
-                [getLocalizedName("HCM_ADMIN_CONSOLE_FACILITY_TYPE", localizationMap)]: facility?.usage,
-                [getLocalizedName("HCM_ADMIN_CONSOLE_FACILITY_CAPACITY", localizationMap)]: facility?.storageCapacity,
-                [getLocalizedName("HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY", localizationMap)]: ""
-            };
-        });
-        return facilityData;
+                Facility : facility
+            }
+        })
+        const data = await transformer.reverseTransform(allFacilitiesRecursed);
+        const result = data
+            .filter((d: any) => {
+                const boundaryCode = d?.["HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY"];
+                return codesOfBoundaries.has(boundaryCode); // Keep if code is valid
+            })
+            .map((d: any) => {
+                // Default to 'Inactive' if usage value is missing
+                d["HCM_ADMIN_CONSOLE_FACILITY_USAGE"] = d?.["HCM_ADMIN_CONSOLE_FACILITY_USAGE"] ?? 'Inactive';
+                return d;
+            });
+        
+        return result;
     }
 }
