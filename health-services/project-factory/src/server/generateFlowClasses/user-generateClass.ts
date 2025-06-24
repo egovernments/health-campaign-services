@@ -27,9 +27,6 @@ export class TemplateClass {
         const templateSheetForReadMe = templateConfig?.sheets?.[0];
         const readMeHeaderKey = Object.keys(templateSheetForReadMe?.schema?.properties || {})[0];
         const localizedReadMeHeader = getLocalizedName(readMeHeaderKey, localizationMap);
-        const readMeSheetName = getLocalizedName(templateSheetForReadMe?.sheetName, localizationMap);
-        const boundarySheetName = getLocalizedName("HCM_ADMIN_CONSOLE_BOUNDARY_DATA", localizationMap);
-        const userListSheetName = getLocalizedName("HCM_ADMIN_CONSOLE_USER_LIST", localizationMap);
 
         // Prepare ReadMe sheet
         const readMeConfig = await getReadMeConfig(tenantId, type);
@@ -37,7 +34,7 @@ export class TemplateClass {
 
         // Prepare Boundary sheet
         const boundaryData = await this.getBoundaryData(campaignDetails, localizationMap);
-        const boundaryDynamicColumns = await this.getBoundaryDynamicColumns(tenantId, hierarchyType, localizationMap);
+        const boundaryDynamicColumns = await this.getBoundaryDynamicColumns(tenantId, hierarchyType);
 
         // Prepare User List sheet
         const users = await getRelatedDataWithCampaign(type, campaignNumber, dataRowStatuses.completed);
@@ -58,17 +55,17 @@ export class TemplateClass {
 
         // Construct the final SheetMap
         const sheetMap: SheetMap = {
-            [readMeSheetName]: {
+            [templateSheetForReadMe?.sheetName]: {
                 data: readMeData,
                 dynamicColumns: {
-                    [localizedReadMeHeader]: { adjustHeight: true, width: 120 }
+                    [readMeHeaderKey]: { adjustHeight: true, width: 120 }
                 }
             },
-            [boundarySheetName]: {
+            ["HCM_ADMIN_CONSOLE_BOUNDARY_DATA"]: {
                 data: boundaryData,
                 dynamicColumns: boundaryDynamicColumns
             },
-            [userListSheetName]: {
+            ["HCM_ADMIN_CONSOLE_USER_LIST"]: {
                 data: userData,
                 dynamicColumns: null
             }
@@ -175,7 +172,7 @@ export class TemplateClass {
         return result;
     }
 
-    static async getBoundaryDynamicColumns(tenantId: any, hierarchyType: any, localizationMap: any) {
+    static async getBoundaryDynamicColumns(tenantId: any, hierarchyType: any) {
         const response = await searchBoundaryRelationshipDefinition({
             BoundaryTypeHierarchySearchCriteria: {
                 tenantId: tenantId,
@@ -192,10 +189,10 @@ export class TemplateClass {
             const result: Record<string, any> = {};
 
             boundaryTypes.forEach((type: string, index: number) => {
-                const localizedKey = getLocalizedName(`${hierarchyType}_${type}`.toUpperCase(), localizationMap);
-                result[localizedKey] = { orderNumber: -1 * (total - index), adjustHeight: true, color: '#f3842d', freezeColumn: true };
+                const key = `${hierarchyType}_${type}`.toUpperCase();
+                result[key] = { orderNumber: -1 * (total - index), adjustHeight: true, color: '#f3842d', freezeColumn: true };
             });
-            result[getLocalizedName("HCM_ADMIN_CONSOLE_BOUNDARY_CODE", localizationMap)] = { adjustHeight: true, width : 80, freezeColumn: true };
+            result["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"] = { adjustHeight: true, width : 80, freezeColumn: true };
             logger.info(`Dynamic columns prepared for boundary data.`);
             return result;
         } else {
