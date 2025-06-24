@@ -1004,6 +1004,7 @@ async function enrichAndPersistCampaignWithError(requestBody: any, error: any) {
     requestBody?.CampaignDetails?.projectType || null;
   requestBody.CampaignDetails.hierarchyType =
     requestBody?.CampaignDetails?.hierarchyType || null;
+  requestBody.CampaignDetails.parentId = requestBody?.CampaignDetails?.parentId || null;
   requestBody.CampaignDetails.additionalDetails =
     requestBody?.CampaignDetails?.additionalDetails || {};
   requestBody.CampaignDetails.startDate =
@@ -1047,6 +1048,7 @@ async function enrichAndPersistCampaignWithError(requestBody: any, error: any) {
 export async function enrichAndPersistCampaignWithErrorProcessingTask(campaignDetails: any, parentCampaign: any, useruuid: string, error: any) {
   if (parentCampaign) {
     parentCampaign.isActive = true;
+    parentCampaign.parentId = parentCampaign?.parentId || null;
     parentCampaign.campaignDetails = {
       deliveryRules: parentCampaign?.deliveryRules || [],
       resources: parentCampaign?.resources || [],
@@ -1062,6 +1064,7 @@ export async function enrichAndPersistCampaignWithErrorProcessingTask(campaignDe
       config?.kafka?.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC
     );
   }
+  campaignDetails.parentId = campaignDetails?.parentId || null;
   campaignDetails.status = campaignStatuses?.failed;
   campaignDetails.campaignDetails = {
     deliveryRules: campaignDetails?.deliveryRules || [],
@@ -1133,6 +1136,8 @@ async function enrichAndPersistCampaignForCreate(
     request?.body?.CampaignDetails?.projectType || null;
   request.body.CampaignDetails.hierarchyType =
     request?.body?.CampaignDetails?.hierarchyType || null;
+  request.body.CampaignDetails.parentId =
+    request?.body?.CampaignDetails?.parentId || null;
   request.body.CampaignDetails.additionalDetails =
     request?.body?.CampaignDetails?.additionalDetails || {};
   request.body.CampaignDetails.startDate =
@@ -1165,6 +1170,7 @@ export async function enrichAndPersistCampaignForCreateViaFlow2(
     resources: campaignDetails?.resources || [],
     boundaries: campaignDetails?.boundaries || [],
   };
+  campaignDetails.parentId = campaignDetails?.parentId || null;
   campaignDetails.boundaryCode = campaignDetails?.boundaryCode || getRootBoundaryCode(campaignDetails?.boundaries) || null;
   campaignDetails.projectId = campaignDetails?.projectId || await getRootProjectIdViaCampaignNumber(campaignDetails?.campaignNumber, campaignDetails?.boundaryCode);
 
@@ -1216,6 +1222,7 @@ async function enrichAndPersistCampaignForUpdate(
   request.body.CampaignDetails.campaignNumber =
     ExistingCampaignDetails?.campaignNumber;
   request.body.CampaignDetails.campaignDetails = updatedInnerCampaignDetails;
+  request.body.CampaignDetails.parentId = request?.body?.CampaignDetails?.parentId || null;
   request.body.CampaignDetails.status =
     action == "changeDates"
       ? request.body.CampaignDetails.status
@@ -1264,6 +1271,7 @@ async function enrichAndPersistCampaignForUpdate(
 async function makeParentInactiveOrActive(requestBody: any, active: boolean) {
   let parentCampaign = requestBody?.parentCampaign;
   parentCampaign.isActive = active;
+  parentCampaign.parentId = parentCampaign?.parentId || null;
   parentCampaign.campaignDetails = {
     deliveryRules: parentCampaign?.deliveryRules || [],
     resources: parentCampaign?.resources || [],

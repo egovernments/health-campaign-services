@@ -1243,6 +1243,7 @@ async function validateForRetry(request: any) {
                 throwError("COMMON", 400, "VALIDATION_ERROR", `Campaign can only be retried in failed state.`);
             }
             request.body.CampaignDetails.status = campaignStatuses?.drafted;
+            request.body.CampaignDetails.parentId = request?.body?.CampaignDetails?.parentId || null;
             var updatedInnerCampaignDetails = {}
             enrichInnerCampaignDetails(request, updatedInnerCampaignDetails)
             request.body.CampaignDetails.campaignDetails = updatedInnerCampaignDetails;
