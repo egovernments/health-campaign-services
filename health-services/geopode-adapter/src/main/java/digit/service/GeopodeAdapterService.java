@@ -52,17 +52,6 @@ public class GeopodeAdapterService {
     }
 
     /**
-     * This method processes the request to search boundaryHierarchy definition's
-     *
-     * @param request
-     * @return
-     */
-    public BoundaryHierarchyDefinitionResponse searchBoundaryHierarchyDefinition(BoundaryHierarchyDefinitionSearchRequest request) {
-        BoundaryHierarchyDefinitionResponse boundaryHierarchyDefinitionResponse = boundaryUtil.fetchBoundaryHierarchyDefinition(request);
-        return boundaryHierarchyDefinitionResponse;
-    }
-
-    /**
      * This method processes the request to search using arcgis queries
      *
      * @param request
