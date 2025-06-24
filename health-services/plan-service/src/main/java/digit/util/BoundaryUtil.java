@@ -13,8 +13,7 @@ import org.springframework.web.client.RestTemplate;
 
 import java.util.HashMap;
 import java.util.Map;
-import static digit.config.ServiceConstants.ERROR_WHILE_FETCHING_BOUNDARY_DETAILS;
-import static digit.config.ServiceConstants.ERROR_WHILE_FETCHING_BOUNDARY_HIERARCHY_DETAILS;
+import static digit.config.ErrorConstants.*;
 
 
 @Slf4j

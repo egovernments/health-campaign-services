@@ -30,7 +30,8 @@ public class ResourceEstimationConsumer {
     public void listen(Map<String, Object> consumerRecord, @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
         	PlanRequest planRequest = objectMapper.convertValue(consumerRecord, PlanRequest.class);
-        	planService.createPlan(planRequest);
+            planRequest.getPlan().setRequestFromResourceEstimationConsumer(Boolean.TRUE);
+            planService.createPlan(planRequest);
         } catch (Exception exception) {
             log.error("Error in plan consumer", exception);
         }

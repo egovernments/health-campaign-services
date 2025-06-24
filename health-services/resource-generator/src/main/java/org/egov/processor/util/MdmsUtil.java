@@ -24,6 +24,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import lombok.extern.slf4j.Slf4j;
 
+import static org.egov.processor.config.ErrorConstants.*;
 import static org.egov.processor.config.ServiceConstants.*;
 
 @Slf4j
@@ -161,7 +162,7 @@ public class MdmsUtil {
 					schemaProperties.forEach((propertyType, propertyList) ->
 							// For each property in the property list, extract its name and add it to the map with the property.
 							propertyList.forEach(property -> {
-								String propertyName = (String) parsingUtil.extractFieldsFromJsonObject(property, "name");
+								String propertyName = parsingUtil.extractFieldsFromJsonObject(property, "name", String.class);
 								properties.put(propertyName, property);
 							})
 					);
@@ -187,7 +188,6 @@ public class MdmsUtil {
 		Map<String, Object> planModule = (Map<String, Object>) masterData.get(ServiceConstants.MDMS_PLAN_MODULE_NAME);
 		List<Map<String, Object>> commonConstantsMap = (List<Map<String, Object>>) planModule
 				.get(ServiceConstants.MDMS_MASTER_COMMON_CONSTANTS);
-		log.info("masterDataJson ==>" + commonConstantsMap);
 		for (Map<String, Object> commonConstantMap : commonConstantsMap) {
 			properties.put((String) commonConstantMap.get("name"), (String) commonConstantMap.get("value"));
 	

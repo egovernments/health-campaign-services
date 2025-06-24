@@ -7,6 +7,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 
 import java.util.List;
+import java.util.Set;
 
 import digit.web.models.AdditionalField;
 import jakarta.validation.constraints.NotNull;
@@ -49,7 +50,7 @@ public class Census {
     private String boundaryCode = null;
 
     @JsonProperty("assignee")
-    private List<String> assignee = null;
+    private Set<String> assignee = null;
 
     @JsonProperty("status")
     @Size(max = 64)

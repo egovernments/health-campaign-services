@@ -31,17 +31,11 @@ public class CensusTimeframeEnrichment {
         if (!CollectionUtils.isEmpty(censusList)) {
             censusList.forEach(censusData -> {
                 censusData.setEffectiveTo(census.getAuditDetails().getCreatedTime());
-                updatePreviousCensus(CensusRequest.builder().requestInfo(request.getRequestInfo()).census(censusData).build());
+                repository.update(CensusRequest.builder()
+                        .requestInfo(request.getRequestInfo())
+                        .census(censusData)
+                        .build());
             });
         }
-    }
-
-    /**
-     * Updates the timeframe of the previous census records.
-     *
-     * @param request the census to be updated.
-     */
-    private void updatePreviousCensus(CensusRequest request) {
-        repository.update(request);
     }
 }
