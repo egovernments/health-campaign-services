@@ -7,7 +7,7 @@ import { dataRowStatuses, sheetDataRowStatuses } from "../config/constants";
 import { defaultRequestInfo, searchBoundaryRelationshipData } from "../api/coreApis";
 import { httpRequest } from "../utils/request";
 import { searchProjectTypeCampaignService } from "../service/campaignManageService";
-import { validateActiveFieldMinima, validateDatasWithSchema } from "../validators/campaignValidators";
+import { validateActiveFieldMinima, validateDatasWithSchema, validateMultiSelectUniqueness } from "../validators/campaignValidators";
 import { ResourceDetails } from "../config/models/resourceDetailsSchema";
 
 
@@ -33,6 +33,7 @@ export class TemplateClass {
         await this.validatePhoneNumber(userSheetData, resourceDetails.tenantId, errors);
         await this.validateUserNames(userSheetData, resourceDetails, errors);
         await this.validateBoundaries(userSheetData, resourceDetails, errors);
+        validateMultiSelectUniqueness(userSheetData, userSchema, localizationMap, errors);
 
         this.processErrors(userSheetData, errors, resourceDetails);       
         const sheetMap: SheetMap = {

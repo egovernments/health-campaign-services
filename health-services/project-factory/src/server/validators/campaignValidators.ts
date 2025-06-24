@@ -1760,6 +1760,47 @@ export function validateActiveFieldMinima(datas:any[], activeKey : string, error
     }
 }
 
+export function validateMultiSelectUniqueness(datas : any[], schema : any, localizationMap : any, errors : any[]){
+    datas.forEach((item) => {
+        Object.entries(schema?.properties).forEach(([propertyKey, property] : any) => {
+            const minSelections = property?.multiSelectDetails?.minSelections || 0;
+            const maxSelections = property?.multiSelectDetails?.maxSelections || 0;
+            if (!minSelections || !maxSelections) return;
+            const rowNumber = item?.["!row#number!"];
+
+            const mainPreFix = property?.name;
+            const valuesSet = new Set();
+            const duplicatesSet: any = new Set();
+
+            for (let i = 1; i <= maxSelections; i++) {
+                const key = `${mainPreFix}_MULTISELECT_${i}`
+                const value = item[key];
+                if (value) {
+                    if (!valuesSet.has(value)) {
+                        valuesSet.add(value);
+                    } else {
+                        duplicatesSet.add(value);
+                    }
+                }
+            }
+            if (duplicatesSet.size > 0) {
+                errors.push({
+                    row: rowNumber,
+                    message: `Duplicate values selected in multi-select for '${getLocalizedName(property?.name, localizationMap)}'`,
+                });
+            }
+            const mainKey = property?.name;
+            const mainKeyValueArrayLength = item?.[mainKey]?.split(",")?.length || 0;
+            if (valuesSet.size < minSelections && mainKeyValueArrayLength < minSelections) {
+                errors.push({
+                    row: rowNumber,
+                    message: `Select at least ${minSelections} values in column '${getLocalizedName(property?.name, localizationMap)}'`,
+                });
+            }
+        });
+    });
+}
+
 
 export {
     validateSheetData,
