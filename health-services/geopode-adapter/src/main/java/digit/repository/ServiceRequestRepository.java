@@ -30,10 +30,10 @@ public class ServiceRequestRepository {
 
     private Configuration config;
 
-    public ServiceRequestRepository(ObjectMapper mapper, RestTemplate restTemplate,Configuration config) {
+    public ServiceRequestRepository(ObjectMapper mapper, RestTemplate restTemplate, Configuration config) {
         this.mapper = mapper;
         this.restTemplate = restTemplate;
-        this.config=config;
+        this.config = config;
     }
 
     public Object fetchResult(StringBuilder uri, Object request) {
@@ -57,22 +57,23 @@ public class ServiceRequestRepository {
      * @param countryName
      */
     public void fetchArcGisData(String countryName) {
-        URI uri = UriComponentsBuilder.fromHttpUrl(config.getArcgisHost()+config.getArcgisEnpoint())
-                .queryParam("where", "ADM0_NAME='" + countryName + "'")
-                .queryParam("outFields", COUNTRY_OUTFIELDS)
-                .queryParam("f", FORMAT_VALUE)
-                .queryParam("resultRecordCount", 1)
+        String whereString = COUNTRY_OUTFIELDS + '=' + countryName + "'";
+        URI uri = UriComponentsBuilder.fromHttpUrl(config.getArcgisHost() + config.getArcgisEnpoint())
+                .queryParam(QUERY_PARAM_WHERE, whereString)
+                .queryParam(QUERY_PARAM_OUT_FIELDS, COUNTRY_OUTFIELDS)
+                .queryParam(QUERY_PARAM_FORMAT, FORMAT_VALUE)
+                .queryParam(QUERY_PARAM_RESULT_COUNT, 1)
                 .build().encode().toUri();
 
         try {
             ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
-                    uri, HttpMethod.GET, null, new ParameterizedTypeReference<>() {}
+                    uri, HttpMethod.GET, null, new ParameterizedTypeReference<>() {
+                    }
             );
+            //TODO: Extract geometry here
             ArcgisResponse arcgisResponse = mapper.convertValue(response.getBody(), ArcgisResponse.class);
-
-            // Currently not used, but could extract geometry here
         } catch (Exception e) {
-            throw new CustomException(ERROR_IN_ARC_SEARCH,"Error during arcGis search");
+            throw new CustomException(ERROR_IN_ARC_SEARCH, "Error during arcGis search");
         }
     }
 }

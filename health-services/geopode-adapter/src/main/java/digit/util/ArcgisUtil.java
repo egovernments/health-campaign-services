@@ -47,13 +47,13 @@ public class ArcgisUtil {
 
     private ObjectMapper mapper;
 
-    public ArcgisUtil(Configuration config, RestTemplate restTemplate, MdmsV2Util mdmsV2Util,BoundaryUtil boundaryUtil,ServiceRequestRepository serviceRequestRepository,ChildBoundaryCreationUtil childBoundaryCreationUtil) {
+    public ArcgisUtil(Configuration config, RestTemplate restTemplate, MdmsV2Util mdmsV2Util, BoundaryUtil boundaryUtil, ServiceRequestRepository serviceRequestRepository, ChildBoundaryCreationUtil childBoundaryCreationUtil) {
         this.config = config;
         this.restTemplate = restTemplate;
-        this.mdmsV2Util=mdmsV2Util;
-        this.boundaryUtil=boundaryUtil;
-        this.serviceRequestRepository=serviceRequestRepository;
-        this.childBoundaryCreationUtil=childBoundaryCreationUtil;
+        this.mdmsV2Util = mdmsV2Util;
+        this.boundaryUtil = boundaryUtil;
+        this.serviceRequestRepository = serviceRequestRepository;
+        this.childBoundaryCreationUtil = childBoundaryCreationUtil;
     }
 
     /**
@@ -71,7 +71,7 @@ public class ArcgisUtil {
         }
 
         serviceRequestRepository.fetchArcGisData(countryName); //TODO: Add geometry in from response (e.g., geometry/rings)
-        BoundaryRequest boundaryRequest=boundaryUtil.buildBoundaryRequest(countryName,config.getTenantId(),request.getRequestInfo());
+        BoundaryRequest boundaryRequest = boundaryUtil.buildBoundaryRequest(countryName, config.getTenantId(), request.getRequestInfo());
         childBoundaryCreationUtil.createChildrenAsync(request, countryName);
 
         // return response with status 200 and message
@@ -145,9 +145,6 @@ public class ArcgisUtil {
             );
         }
     }
-
-
-
 
 
 }

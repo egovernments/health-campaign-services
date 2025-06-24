@@ -35,20 +35,22 @@ public class GeopodeApiController {
 
     /**
      * Request handler for  create the root and its children's data
+     *
      * @param body
      * @return
      */
     @PostMapping("/boundary/setup")
     public ResponseEntity<String> geopodeBoundaryCreate(@Valid @RequestBody GeopodeBoundaryRequest body) {
-        ResponseEntity<String> boundaryResponse=geopodeAdapterService.createRootBoundaryData(body);
+        ResponseEntity<String> boundaryResponse = geopodeAdapterService.createRootBoundaryData(body);
         if (boundaryResponse == null) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT,ROOT_BOUNDARY_ALREADY_EXISTS);
+            throw new ResponseStatusException(HttpStatus.CONFLICT, ROOT_BOUNDARY_ALREADY_EXISTS);
         }
         return boundaryResponse;
     }
 
     /**
      * Request handler for  search for boundary-definition
+     *
      * @param request
      * @return
      */
@@ -60,7 +62,7 @@ public class GeopodeApiController {
         try {
             response = geopodeAdapterService.searchBoundaryHierarchyDefinition(request);
         } catch (CustomException e) {
-            log.error(ERROR_IN_SEARCH ,e);
+            log.error(ERROR_IN_SEARCH, e);
         }
 
         return ResponseEntity.ok(response);
@@ -68,6 +70,7 @@ public class GeopodeApiController {
 
     /**
      * Request handler for  search for arcgis-search
+     *
      * @param where
      * @param outFields
      * @param format
@@ -96,7 +99,6 @@ public class GeopodeApiController {
 
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
     }
-
 
 
 }

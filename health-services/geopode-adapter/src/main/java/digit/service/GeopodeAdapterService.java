@@ -35,33 +35,36 @@ public class GeopodeAdapterService {
     public GeopodeAdapterService(ObjectMapper objectMapper, BoundaryUtil boundaryUtil, Configuration config, RestTemplate restTemplate, ArcgisUtil arcgisUtil) {
         this.objectMapper = objectMapper;
         this.boundaryUtil = boundaryUtil;
-        this.config=config;
-        this.restTemplate=restTemplate;
-        this.arcgisUtil=arcgisUtil;
+        this.config = config;
+        this.restTemplate = restTemplate;
+        this.arcgisUtil = arcgisUtil;
     }
 
     /**
      * This method processes the request to create the root and its children's data
+     *
      * @param request
      * @return
      */
-    public ResponseEntity<String> createRootBoundaryData(GeopodeBoundaryRequest request)  {
-        ResponseEntity<String> boundaryResponse=arcgisUtil.createRoot(request);
+    public ResponseEntity<String> createRootBoundaryData(GeopodeBoundaryRequest request) {
+        ResponseEntity<String> boundaryResponse = arcgisUtil.createRoot(request);
         return boundaryResponse;
     }
 
     /**
      * This method processes the request to search boundaryHierarchy definition's
+     *
      * @param request
      * @return
      */
-    public BoundaryHierarchyDefinitionResponse searchBoundaryHierarchyDefinition(BoundaryHierarchyDefinitionSearchRequest request){
-        BoundaryHierarchyDefinitionResponse boundaryHierarchyDefinitionResponse=boundaryUtil.fetchBoundaryHierarchyDefinition(request);
+    public BoundaryHierarchyDefinitionResponse searchBoundaryHierarchyDefinition(BoundaryHierarchyDefinitionSearchRequest request) {
+        BoundaryHierarchyDefinitionResponse boundaryHierarchyDefinitionResponse = boundaryUtil.fetchBoundaryHierarchyDefinition(request);
         return boundaryHierarchyDefinitionResponse;
     }
 
     /**
      * This method processes the request to search using arcgis queries
+     *
      * @param request
      * @return
      */
@@ -75,7 +78,8 @@ public class GeopodeAdapterService {
                     uri,
                     HttpMethod.GET,
                     null,
-                    new ParameterizedTypeReference<Map<String, Object>>() {}
+                    new ParameterizedTypeReference<Map<String, Object>>() {
+                    }
             );
 
             return argresponse = objectMapper.convertValue(response.getBody(), ArcgisResponse.class);
@@ -86,8 +90,8 @@ public class GeopodeAdapterService {
         return argresponse;
     }
 
-    public URI searchArcgisRequestBuilder(ArcgisRequest request){
-        return UriComponentsBuilder.fromHttpUrl(config.getArcgisHost()+config.getArcgisEnpoint())
+    public URI searchArcgisRequestBuilder(ArcgisRequest request) {
+        return UriComponentsBuilder.fromHttpUrl(config.getArcgisHost() + config.getArcgisEnpoint())
                 .queryParam("where", request.getWhere())          // e.g., ADM0_NAME='NIGERIA'
                 .queryParam("outFields", request.getOutFields())  // e.g., ADM1_NAME
                 .queryParam("f", request.getF())                  // e.g., json

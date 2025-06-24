@@ -25,7 +25,6 @@ public class ServiceConstants {
     public static final String HIERARCHY_TYPE = "MICROPLAN_NEW1";
     public static final String ERROR_FETCHING_FROM_MDMS="Error Fetching Data from mdms";
     public static final String NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT_ISO_CODE="For given tenantId and ISO code no country exists";
-    public static final String COUNTRY_OUTFIELDS="ADM1_NAME";
     public static final String FORMAT_VALUE="json";
     public static final String ERROR_FETCHING_FROM_BOUNDARY="Error Fetching Data from boundary";
     public static final String ROOT_BOUNDARY_ALREADY_EXISTS="Root Boundary already created";
@@ -36,6 +35,17 @@ public class ServiceConstants {
     public static final String BOUNDARY_CREATION_INITIATED="The process of creating boundaries has been initiated for ";
     public static final String ROOT_HIERARCHY_LEVEL="ADM0";
     public static final String ALREADY_EXISTS="Duplicate Record";
+    // ArcGIS query parameter keys
+    public static final String QUERY_PARAM_WHERE = "where";
+    public static final String QUERY_PARAM_OUT_FIELDS = "outFields";
+    public static final String QUERY_PARAM_FORMAT = "f";
+    public static final String QUERY_PARAM_RESULT_COUNT = "resultRecordCount";
+
+    // ArcGIS fixed values
+    public static final int RECORD_COUNT_ONE = 1;
+
+    // Field name constants
+    public static final String COUNTRY_OUTFIELDS="ADM0_NAME";
     public static final String RESPONSE_FROM_GEOPODE_API = "[\n" +
             "  {\n" +
             "    \"feature\": \"admin_0\",\n" +
