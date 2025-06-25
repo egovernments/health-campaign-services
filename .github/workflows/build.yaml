@@ -27,6 +27,7 @@ on:
           - "egov-data-uploader"
           - "egov-document-uploader"
           - "egov-enc-service"
+          - "egov-facility"
           - "egov-filestore"
           - "egov-idgen"
           - "egov-indexer"
