@@ -89,15 +89,14 @@ import {
   areBoundariesSame,
   callGenerate,
   callGenerateIfBoundariesOrCampaignTypeDiffer,
+  isGenerationTriggerNeeded,
 } from "./generateUtils";
 import { createProcessTracks, persistTrack } from "./processTrackUtils";
 import {
   generateDynamicTargetHeaders,
   isDynamicTargetTemplateForProjectType,
-  updateTargetColumnsIfDeliveryConditionsDifferForSMC,
 } from "./targetUtils";
 import {
-  callGenerateWhenChildCampaigngetsCreated,
   fetchProjectsWithBoundaryCodeAndReferenceId,
   fetchProjectsWithProjectId,
   getBoundariesFromCampaignSearchResponse,
@@ -1208,14 +1207,14 @@ async function enrichAndPersistCampaignForUpdate(
   firstPersist: boolean = false
 ) {
   const action = request?.body?.CampaignDetails?.action;
-  const boundaries = request?.body?.boundariesCombined;
-  const existingCampaignDetails = request?.body?.ExistingCampaignDetails;
-  callGenerateIfBoundariesOrCampaignTypeDiffer(request);
-  if (existingCampaignDetails) {
-    if (areBoundariesSame(existingCampaignDetails?.boundaries, boundaries)) {
-      updateTargetColumnsIfDeliveryConditionsDifferForSMC(request);
-    }
-  }
+  // const boundaries = request?.body?.boundariesCombined;
+  // const existingCampaignDetails = request?.body?.ExistingCampaignDetails;
+  // callGenerateIfBoundariesOrCampaignTypeDiffer(request);
+  // if (existingCampaignDetails) {
+  //   if (areBoundariesSame(existingCampaignDetails?.boundaries, boundaries)) {
+  //     updateTargetColumnsIfDeliveryConditionsDifferForSMC(request);
+  //   }
+  // }
   const ExistingCampaignDetails = request?.body?.ExistingCampaignDetails;
   var updatedInnerCampaignDetails = {};
   enrichInnerCampaignDetails(request, updatedInnerCampaignDetails);
@@ -2856,18 +2855,55 @@ async function createAllMappings(campaignDetails: any, parentCampaign : any, use
 }
 
 async function processBasedOnAction(request: any, actionInUrl: any) {
-  if (actionInUrl == "create") {
+  if (actionInUrl === "create") {
     request.body.CampaignDetails.id = uuidv4();
   }
+
+  const generationCheck = isGenerationTriggerNeeded(request);
   await enrichAndPersistProjectCampaignForFirst(request, actionInUrl, true);
-  if (
-    actionInUrl == "create" &&
-    request.body?.parentCampaign &&
-    request?.body?.CampaignDetails?.action === "draft"
-  ) {
-    callGenerateWhenChildCampaigngetsCreated(request);
+
+  const shouldTriggerGeneration =
+    request?.body?.CampaignDetails?.action === "draft" &&
+    generationCheck?.trigger &&
+    request?.body?.CampaignDetails?.boundaries?.length;
+
+  if (shouldTriggerGeneration) {
+    await tryTriggerGenerateIfBoundariesSynced(request, generationCheck.newBoundaries);
   }
+
   processAfterPersistNew(request, actionInUrl);
+}
+
+async function tryTriggerGenerateIfBoundariesSynced(request: any, expectedBoundaries: any[]) {
+  const maxRetries = 4;
+  const retryDelayMs = 1000;
+  const campaignId = request?.body?.CampaignDetails?.id;
+  const tenantId = request?.body?.CampaignDetails?.tenantId;
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      logger.info(`Checking persisted campaign boundaries. Attempt ${attempt}`);
+      const searchResponse = await searchProjectTypeCampaignService({ tenantId, ids: [campaignId] });
+      const persistedBoundaries = searchResponse?.CampaignDetails?.[0]?.boundaries ?? [];
+
+      if (areBoundariesSame(persistedBoundaries, expectedBoundaries)) {
+        logger.info("Persisted boundaries match request. Triggering generation.");
+        callGenerateIfBoundariesOrCampaignTypeDiffer(request);
+        return;
+      }
+
+      logger.warn(`Persisted boundaries differ on attempt ${attempt}. Retrying...`);
+    } catch (error: any) {
+      logger.error(`Error checking persisted campaign boundaries on attempt ${attempt}: ${error.message}`);
+    }
+
+    if (attempt < maxRetries) {
+      await new Promise(resolve => setTimeout(resolve, retryDelayMs));
+    }
+  }
+
+  logger.error("Persisted boundaries did not match after 4 retries. Possible DB sync issue.");
+  throwError("PERSISTENCE", 500, "BOUNDARY_SYNC_ERROR", "Boundaries could not be synced from DB after multiple retries.");
 }
 
 async function getLocalizedHierarchy(request: any, localizationMap: any) {
