@@ -58,6 +58,9 @@ on:
           - "user-otp"
           - "xstate-chatbot"
           - "zuul"
+          - "census-service"
+          - "plan-service"
+          - "resource-generator"
         default: "audit-service"
 
 env:
