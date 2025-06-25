@@ -53,7 +53,7 @@ class IndividualServiceSearchTest {
                 .build();
         RequestInfo requestInfo = RequestInfoTestBuilder.builder().withCompleteRequestInfo().build();
 
-        when(individualRepository.findById(anyList(), anyString(), anyBoolean()))
+        when(individualRepository.findById(anyList(), anyString(), anyString(), anyBoolean()))
                 .thenReturn(SearchResponse.<Individual>builder().totalCount(1L).response(Collections.singletonList(IndividualTestBuilder.builder()
                         .withId("some-id")
                         .build())).build());
@@ -62,7 +62,7 @@ class IndividualServiceSearchTest {
                 "default", null, false,requestInfo);
 
         verify(individualRepository, times(1)).findById(anyList(),
-                eq("id"), anyBoolean());
+                eq("id"), anyString(), anyBoolean());
     }
 
     @Test
@@ -86,7 +86,7 @@ class IndividualServiceSearchTest {
                 "default", null, false, requestInfo);
 
         verify(individualRepository, times(0)).findById(anyList(),
-                eq("id"), anyBoolean());
+                eq("id"), eq(null), anyBoolean());
     }
 
     @Test
@@ -97,7 +97,7 @@ class IndividualServiceSearchTest {
                 .build();
         RequestInfo requestInfo = RequestInfoTestBuilder.builder().withCompleteRequestInfo().build();
 
-        when(individualRepository.findById(anyList(), anyString(), anyBoolean()))
+        when(individualRepository.findById(anyList(), anyString(), anyString(), anyBoolean()))
                 .thenReturn(SearchResponse.<Individual>builder().response(Collections.singletonList(IndividualTestBuilder.builder()
                         .withId("some-id")
                         .build())).build());
@@ -106,7 +106,7 @@ class IndividualServiceSearchTest {
                 "default", null, false,requestInfo);
 
         verify(individualRepository, times(1)).findById(anyList(),
-                eq("clientReferenceId"), anyBoolean());
+                eq("clientReferenceId"), anyString(), anyBoolean());
     }
 
     @Test
@@ -128,7 +128,7 @@ class IndividualServiceSearchTest {
                 "default", null, false,requestInfo);
 
         verify(individualRepository, times(0)).findById(anyList(),
-                eq("clientReferenceId"), anyBoolean());
+                eq("clientReferenceId"), anyString(), anyBoolean());
     }
 
     @Test

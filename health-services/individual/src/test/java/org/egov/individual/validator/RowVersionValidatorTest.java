@@ -65,7 +65,7 @@ public class RowVersionValidatorTest {
         IndividualBulkRequest individualBulkRequest = IndividualBulkRequestTestBuilder.builder().withIndividuals(individual).build();
         List<Individual> existingIndividuals = new ArrayList<>();
         existingIndividuals.add(individual);
-        lenient().when(individualRepository.findById(anyList(), anyString(), eq(false))).thenReturn(SearchResponse.<Individual>builder()
+        lenient().when(individualRepository.findById(anyList(), anyString(), eq(null), eq(false))).thenReturn(SearchResponse.<Individual>builder()
                 .totalCount(Long.valueOf(existingIndividuals.size()))
                 .response(existingIndividuals)
                 .build());
@@ -81,7 +81,7 @@ public class RowVersionValidatorTest {
                         .build())
                 .build();
         individualBulkRequest.getIndividuals().get(0).setRowVersion(2);
-        when(individualRepository.findById(anyList(), anyString(), anyBoolean()))
+        when(individualRepository.findById(anyList(), anyString(), eq(null), anyBoolean()))
                 .thenReturn(SearchResponse.<Individual>builder().totalCount(1L).response(Collections.singletonList(IndividualTestBuilder.builder()
                         .withId("some-id")
                         .build())).build());

@@ -76,7 +76,7 @@ class IndividualRepositoryTest {
 
         when(namedParameterJdbcTemplate.query(anyString(), anyMap(), any(ResultSetExtractor.class))).thenReturn(0L);
 
-        individualRepository.findById(Arrays.asList("some-id"), "id", false);
+        individualRepository.findById(Arrays.asList("some-id"), "id", null, false);
 
         verify(namedParameterJdbcTemplate, times(1))
                 .query(anyString(), anyMap(), any(IndividualRowMapper.class));

@@ -176,7 +176,7 @@ class IndividualServiceUpdateTest {
                 .build());
 
 
-        when(individualRepository.findById(anyList(),eq("id"),eq(false))).thenReturn(SearchResponse.<Individual>builder()
+        when(individualRepository.findById(anyList(),eq("id"),eq(null), eq(false))).thenReturn(SearchResponse.<Individual>builder()
                 .totalCount(Long.valueOf(individualsInDb.size()))
                 .response(individualsInDb)
                 .build());
@@ -250,7 +250,7 @@ class IndividualServiceUpdateTest {
                 .withAuditDetails()
                 .build());
 
-        when(individualRepository.findById(anyList(),eq("id"),eq(false))).thenReturn(SearchResponse.<Individual>builder()
+        when(individualRepository.findById(anyList(),eq("id"),eq(null), eq(false))).thenReturn(SearchResponse.<Individual>builder()
                 .totalCount(Long.valueOf(individualsInDb.size()))
                 .response(individualsInDb)
                 .build());

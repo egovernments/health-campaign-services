@@ -259,7 +259,7 @@ public class IndividualService {
                 Map<String, Individual> idToObjMap = getIdToObjMap(encryptedIndividualList);
                 // find existing individuals from db
                 List<Individual> existingIndividuals = individualRepository.findById(new ArrayList<>(idToObjMap.keySet()),
-                        "id", false).getResponse();
+                        "id",null, false).getResponse();
 
                 if (identifiersPresent) {
                     // extract existing identifiers (encrypted) from existing individuals
@@ -319,14 +319,13 @@ public class IndividualService {
                             .singletonList(individualSearch)),
                     individualSearch);
 
-            searchResponse = individualRepository.findById(ids, idFieldName, includeDeleted);
+            searchResponse = individualRepository.findById(ids, idFieldName, tenantId, includeDeleted);
 
             encryptedIndividualList = searchResponse.getResponse().stream()
                     .filter(lastChangedSince(lastChangedSince))
                     .filter(havingTenantId(tenantId))
                     .filter(includeDeleted(includeDeleted))
                     .collect(Collectors.toList());
-                    searchResponse.setTotalCount((long) encryptedIndividualList.size());
             //decrypt
             List<Individual> decryptedIndividualList = (!encryptedIndividualList.isEmpty())
                     ? individualEncryptionService.decrypt(encryptedIndividualList,
@@ -356,7 +355,6 @@ public class IndividualService {
             encryptedIndividualList = searchResponse.getResponse().stream()
                     .filter(havingBoundaryCode(individualSearch.getBoundaryCode(), individualSearch.getWardCode()))
                     .collect(Collectors.toList());
-                    searchResponse.setTotalCount((long) encryptedIndividualList.size());
         } catch (Exception exception) {
             log.error("database error occurred", ExceptionUtils.getStackTrace(exception));
             throw new CustomException("DATABASE_ERROR", exception.getMessage());

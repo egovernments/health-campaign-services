@@ -55,7 +55,7 @@ public class IndividualRepository extends GenericRepository<Individual> {
                 selectQueryBuilder, individualRowMapper, Optional.of("individual"));
     }
 
-    public SearchResponse<Individual> findById(List<String> ids, String idColumn, Boolean includeDeleted) {
+    public SearchResponse<Individual> findById(List<String> ids, String idColumn, String tenantId, Boolean includeDeleted) {
         List<Individual> objFound = new ArrayList<>();
         try {
             objFound = findInCache(ids);
@@ -77,10 +77,11 @@ public class IndividualRepository extends GenericRepository<Individual> {
             log.info("Error occurred while reading from cache", ExceptionUtils.getStackTrace(e));
         }
 
-        String individualQuery = String.format(getQuery("SELECT * FROM individual WHERE %s IN (:ids)",
+        String individualQuery = String.format(getQuery("SELECT * FROM individual WHERE %s IN (:ids) AND tenantId = :tenantId",
                 includeDeleted), idColumn);
         Map<String, Object> paramMap = new HashMap<>();
         paramMap.put("ids", ids);
+        paramMap.put("tenantId", tenantId);
         Long totalCount = constructTotalCountCTEAndReturnResult(individualQuery, paramMap, this.namedParameterJdbcTemplate);
         List<Individual> individuals = this.namedParameterJdbcTemplate
                 .query(individualQuery, paramMap, this.rowMapper);

@@ -49,7 +49,7 @@ public class RowVersionValidator implements Validator<IndividualBulkRequest, Ind
         if (!iMap.isEmpty()) {
             List<String> individualIds = new ArrayList<>(iMap.keySet());
             List<Individual> existingIndividuals = individualRepository.findById(individualIds,
-                    getIdFieldName(idMethod), false).getResponse();
+                    getIdFieldName(idMethod), null, false).getResponse();
             List<Individual> individualsWithMismatchedRowVersion =
                     getEntitiesWithMismatchedRowVersion(iMap, existingIndividuals, idMethod);
             individualsWithMismatchedRowVersion.forEach(individual -> {
