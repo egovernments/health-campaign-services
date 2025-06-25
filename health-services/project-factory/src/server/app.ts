@@ -89,9 +89,9 @@ class App {
       logger.info(`App listening on port ${this.port}`);
     });
 
-    server.setTimeout(300000); // 300 seconds for entire request
-    server.keepAliveTimeout = 45000; // 45 seconds for keep-alive connections
-    server.headersTimeout = 50000; // 50 seconds for headers
+    server.setTimeout(480000); // 480 seconds for entire request
+    server.keepAliveTimeout = 90000; // 90 seconds for keep-alive connections
+    server.headersTimeout = 120000; // 120 seconds for headers
   }
 }
 
