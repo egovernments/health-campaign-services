@@ -59,7 +59,7 @@ function isSourceDifferent(request: any){
     const ExistingCampaignDetails = request?.body?.ExistingCampaignDetails;
     const CampaignDetails = request?.body?.CampaignDetails;
 
-    if(CampaignDetails.additionalDetails.source !== ExistingCampaignDetails.additionalDetails.source){
+    if(CampaignDetails?.additionalDetails?.source !== ExistingCampaignDetails?.additionalDetails?.source){
         return true;
     }
     return false;
