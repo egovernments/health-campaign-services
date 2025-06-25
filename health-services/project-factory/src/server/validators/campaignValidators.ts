@@ -1228,13 +1228,13 @@ async function validateForRetry(request: any) {
             }
             await produceModifiedMessages(producerMessage, config?.kafka?.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC);
 
-            if (!request.body.CampaignDetails.additionalDetails.retryCycle) {
+            if (!request.body.CampaignDetails?.additionalDetails?.retryCycle) {
                 // If not present, initialize it as an empty array
                 request.body.CampaignDetails.additionalDetails.retryCycle = [];
             }
 
             // Step 2: Push new data to the `retryCycle` array
-            request.body.CampaignDetails.additionalDetails.retryCycle.push({
+            request.body.CampaignDetails?.additionalDetails?.retryCycle.push({
                 error: request.body.CampaignDetails.additionalDetails.error,
                 retriedAt: Date.now(),
                 failedAt: request.body.CampaignDetails.auditDetails.lastModifiedTime
