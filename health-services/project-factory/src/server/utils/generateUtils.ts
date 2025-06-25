@@ -67,7 +67,7 @@ async function callGenerateIfBoundariesOrCampaignTypeDiffer(request: any) {
         }
     } catch (error: any) {
         logger.error(error);
-        throwError("COMMON", 400, "GENERATE_ERROR", `Error while generating user/facility/boundary: ${error.message}`);
+        // throwError("COMMON", 400, "GENERATE_ERROR", `Error while generating user/facility/boundary: ${error.message}`);
     }
 }
 
