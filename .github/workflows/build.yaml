@@ -29,7 +29,6 @@ on:
           - "build"
           - "chatbot"
           - "docs"
-          - "facility"
           - "egov-accesscontrol"
           - "egov-common-masters"
           - "egov-data-uploader"
@@ -66,6 +65,7 @@ on:
           - "user-otp"
           - "xstate-chatbot"
           - "zuul"
+          - "facility"
         default: "audit-service"
 
 env:
