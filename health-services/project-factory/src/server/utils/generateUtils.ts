@@ -1,4 +1,4 @@
-import { getLocalizedMessagesHandler, processGenerate, replicateRequest, throwError } from "./genericUtils";
+import { getLocalizedMessagesHandler, processGenerate, replicateRequest } from "./genericUtils";
 import _ from 'lodash';
 import { getFormattedStringForDebug, logger } from "./logger";
 import { getBoundarySheetData } from "../api/genericApis";
