@@ -1,4 +1,4 @@
-import { getLocalizedMessagesHandler, processGenerate, replicateRequest, throwError } from "./genericUtils";
+import { getLocalizedMessagesHandler, processGenerate, replicateRequest } from "./genericUtils";
 import _ from 'lodash';
 import { getFormattedStringForDebug, logger } from "./logger";
 import { getBoundarySheetData } from "../api/genericApis";
@@ -67,7 +67,7 @@ async function callGenerateIfBoundariesOrCampaignTypeDiffer(request: any) {
         }
     } catch (error: any) {
         logger.error(error);
-        throwError("COMMON", 400, "GENERATE_ERROR", `Error while generating user/facility/boundary: ${error.message}`);
+        // throwError("COMMON", 400, "GENERATE_ERROR", `Error while generating user/facility/boundary: ${error.message}`);
     }
 }
 
@@ -75,7 +75,7 @@ function isSourceDifferent(request: any){
     const ExistingCampaignDetails = request?.body?.ExistingCampaignDetails;
     const CampaignDetails = request?.body?.CampaignDetails;
 
-    if(CampaignDetails.additionalDetails.source !== ExistingCampaignDetails.additionalDetails.source){
+    if(CampaignDetails?.additionalDetails?.source !== ExistingCampaignDetails?.additionalDetails?.source){
         return true;
     }
     return false;
