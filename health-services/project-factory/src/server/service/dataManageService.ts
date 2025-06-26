@@ -11,7 +11,7 @@ import { getBoundaryTabName } from "../utils/boundaryUtils";
 import { getNewExcelWorkbook } from "../utils/excelUtils";
 import { redis, checkRedisConnection } from "../utils/redisUtils"; // Importing checkRedisConnection function
 import config from '../config/index'
-import { buildGenerateRequest, callGenerate } from "../utils/generateUtils";
+import { buildGenerateRequest, callGenerate, triggerGenerate } from "../utils/generateUtils";
 import { generatedResourceStatuses } from "../config/constants";
 
 
@@ -30,7 +30,7 @@ const downloadDataService = async (request: express.Request) => {
     await validateDownloadRequest(request);
     logger.info("VALIDATED THE DATA DOWNLOAD REQUEST");
 
-    const type = request.query.type;
+    var type = String(request.query.type);
     // Get response data from the database
     const responseData = await searchGeneratedResources(request?.query, getLocaleFromRequestInfo(request?.body?.RequestInfo));
     const resourceDetails = await getResourceDetails(request);
@@ -43,12 +43,16 @@ const downloadDataService = async (request: express.Request) => {
     ) {
         logger.error(`No data of type '${type}' with status 'Completed' or the provided ID is present in the database.`)
         // Throw error if data is not found
-        const newRequestToGenerate = buildGenerateRequest(request);
+        // const newRequestToGenerate = buildGenerateRequest(request);
 
         // Added auto generate since no previous generate request found
-        logger.info(`Triggering auto generate since no resources got generated for the given Campaign Id ${request?.query?.campaignId} & type ${request?.query?.type}  `)
-        callGenerate(newRequestToGenerate, request?.query?.type);
-
+        const locale = getLocaleFromRequestInfo(request?.body?.RequestInfo);
+        logger.info(`Triggering auto generate since no resources got generated for the given Campaign Id ${request?.query?.campaignId} & type ${request?.query?.type}`)
+        // callGenerate(newRequestToGenerate, request?.query?.type);
+        const tenantId = String(request?.query?.tenantId);
+        const hierarchyType = String(request?.query?.hierarchyType);
+        const campaignId = String(request?.query?.campaignId);
+        triggerGenerate(type, tenantId, hierarchyType, campaignId, request?.body?.RequestInfo?.userInfo?.uuid || "null" ,locale);
         // throwError("CAMPAIGN", 500, "GENERATION_REQUIRE");
     }
 

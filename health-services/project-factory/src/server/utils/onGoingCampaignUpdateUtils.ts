@@ -4,7 +4,6 @@ import { httpRequest } from "./request";
 import config from "../config/index";
 import { getLocalizedName, populateBoundariesRecursively } from "./campaignUtils";
 import { logger } from "./logger";
-import { callGenerate } from "./generateUtils";
 // import { getCampaignSearchResponse } from "server/api/campaignApis";
 import { getExcelWorkbookFromFileURL } from "./excelUtils";
 import { createAndUploadFile, getSheetData, getTargetSheetData } from "../api/genericApis";
@@ -320,40 +319,40 @@ const getAllBoundariesFromCampaign = async (campaignDetails: any) => {
 // }
 
 
-async function callGenerateWhenChildCampaigngetsCreated(request: any) {
-  try {
-    const newRequestBody = {
-      RequestInfo: request?.body?.RequestInfo,
-      Filters: {
-        boundaries: request?.body?.boundariesCombined
-      }
-    };
+// async function callGenerateWhenChildCampaigngetsCreated(request: any) {
+//   try {
+//     const newRequestBody = {
+//       RequestInfo: request?.body?.RequestInfo,
+//       Filters: {
+//         boundaries: request?.body?.boundariesCombined
+//       }
+//     };
 
-    const { query } = request;
-    const params = {
-      tenantId: request?.body?.CampaignDetails?.tenantId,
-      forceUpdate: 'true',
-      hierarchyType: request?.body?.CampaignDetails?.hierarchyType,
-      campaignId: request?.body?.CampaignDetails?.id
-    };
+//     const { query } = request;
+//     const params = {
+//       tenantId: request?.body?.CampaignDetails?.tenantId,
+//       forceUpdate: 'true',
+//       hierarchyType: request?.body?.CampaignDetails?.hierarchyType,
+//       campaignId: request?.body?.CampaignDetails?.id
+//     };
 
-    const newParamsBoundary = { ...query, ...params, type: "boundary" };
-    const newRequestBoundary = replicateRequest(request, newRequestBody, newParamsBoundary);
-    await callGenerate(newRequestBoundary, "boundary");
+//     const newParamsBoundary = { ...query, ...params, type: "boundary" };
+//     const newRequestBoundary = replicateRequest(request, newRequestBody, newParamsBoundary);
+//     await callGenerate(newRequestBoundary, "boundary");
 
-    const newParamsFacilityWithBoundary = { ...query, ...params, type: "facilityWithBoundary" };
-    const newRequestFacilityWithBoundary = replicateRequest(request, newRequestBody, newParamsFacilityWithBoundary);
-    await callGenerate(newRequestFacilityWithBoundary, "facilityWithBoundary");
+//     const newParamsFacilityWithBoundary = { ...query, ...params, type: "facilityWithBoundary" };
+//     const newRequestFacilityWithBoundary = replicateRequest(request, newRequestBody, newParamsFacilityWithBoundary);
+//     await callGenerate(newRequestFacilityWithBoundary, "facilityWithBoundary");
 
-    const newParamsUserWithBoundary = { ...query, ...params, type: "userWithBoundary" };
-    const newRequestUserWithBoundary = replicateRequest(request, newRequestBody, newParamsUserWithBoundary);
-    await callGenerate(newRequestUserWithBoundary, "userWithBoundary");
-  }
-  catch (error: any) {
-    logger.error(error);
-    // throwError("COMMON", 400, "GENERATE_ERROR", `Error while generating user/facility/boundary: ${error.message}`);
-  }
-}
+//     const newParamsUserWithBoundary = { ...query, ...params, type: "userWithBoundary" };
+//     const newRequestUserWithBoundary = replicateRequest(request, newRequestBody, newParamsUserWithBoundary);
+//     await callGenerate(newRequestUserWithBoundary, "userWithBoundary");
+//   }
+//   catch (error: any) {
+//     logger.error(error);
+//     throwError("COMMON", 400, "GENERATE_ERROR", `Error while generating user/facility/boundary: ${error.message}`);
+//   }
+// }
 
 
 function getBoundariesArray(parentCampaignBoundaries: any, campaignBoundaries: any) {
@@ -801,7 +800,6 @@ export {
   hideColumnsOfProcessedFile,
   unhideColumnsOfProcessedFile,
   modifyNewSheetData,
-  callGenerateWhenChildCampaigngetsCreated,
   getBoundariesFromCampaignSearchResponse,
   fetchProjectsWithProjectId,
   getBoundaryProjectMappingFromParentCampaign,
