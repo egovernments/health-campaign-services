@@ -71,6 +71,9 @@ on:
           - "project"
           - "referralmanagement"
           - "stock"
+          - "product"
+          - "project-factory"
+          - "transformer"
         default: "audit-service"
 
 env:
