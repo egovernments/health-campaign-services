@@ -60,12 +60,12 @@ public class ArcgisUtil {
      * @param request
      * @return
      */
-    public ResponseEntity<String> createRoot(GeopodeBoundaryRequest request) {
-        MdmsResponseV2 mdmsResponse = fetchMdmsData(request);
+    public String createRoot(GeopodeBoundaryRequest request) {
+        MdmsResponseV2 mdmsResponse = mdmsV2Util.fetchMdmsDataForIsoCode(request);
         String countryName = extractCountryNameFromMdms(mdmsResponse, request.getGeopodeBoundary().getISOCode());
 
         if (countryName.isEmpty()) {
-            throw new CustomException("COUNTRY_NAME_NOT_FOUND", "No country found for ISO code: " + request.getGeopodeBoundary().getISOCode());
+            throw new CustomException(COUNTRY_NAME_NOT_FOUND, "No country found for ISO code: " + request.getGeopodeBoundary().getISOCode());
         }
 
         serviceRequestRepository.fetchArcGisData(countryName); //TODO: Add geometry in from response (e.g., geometry/rings)
@@ -73,8 +73,8 @@ public class ArcgisUtil {
         childBoundaryCreationUtil.createChildrenAsync(request, countryName);
 
         // return response with status 200 and message
-        String message = BOUNDARY_CREATION_INITIATED + countryName + ".";
-        return ResponseEntity.status(HttpStatus.OK).body(message);
+
+        return countryName;
     }
 
     /**
@@ -112,42 +112,6 @@ public class ArcgisUtil {
                 .build()
                 .encode()
                 .toUri();
-    }
-
-    /**
-     * This method creates request for mdms request for country-name
-     *
-     * @param request
-     * @return
-     */
-    private MdmsCriteriaReqV2 buildMdmsV2RequestForRoot(GeopodeBoundaryRequest request) {
-        return MdmsCriteriaReqV2.builder()
-                .requestInfo(request.getRequestInfo())
-                .mdmsCriteriaV2(MdmsCriteriaV2.builder()
-                        .tenantId(config.getTenantId())
-                        .schemaCode(config.getSchemaCode())
-                        .offset(Integer.parseInt(config.getDefaultOffset()))
-                        .limit(Integer.parseInt(config.getDefaultLimit()))
-                        .build())
-                .build();
-    }
-
-    /**
-     * This method makes request to mdms
-     *
-     * @param request
-     * @return mapping of isocode-countryName
-     */
-    private MdmsResponseV2 fetchMdmsData(GeopodeBoundaryRequest request) {
-        MdmsCriteriaReqV2 mdmsCriteriaReqV2 = buildMdmsV2RequestForRoot(request);
-        String url = config.getMdmsHost() + config.getMdmsV2EndPoint();
-
-        try {
-            return restTemplate.postForObject(url, mdmsCriteriaReqV2, MdmsResponseV2.class);
-        } catch (Exception e) {
-            log.error(NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT_ISO_CODE, e);
-            throw new CustomException("MDMS_FETCH_FAILED", "Failed to fetch MDMS data");
-        }
     }
 
     /**

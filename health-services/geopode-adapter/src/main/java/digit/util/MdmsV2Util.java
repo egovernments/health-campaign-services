@@ -2,6 +2,7 @@ package digit.util;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import digit.config.Configuration;
+import digit.web.models.GeopodeBoundaryRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.tracer.model.CustomException;
@@ -75,6 +76,42 @@ public class MdmsV2Util {
         return MdmsCriteriaReqV2.builder()
                 .requestInfo(requestInfo)
                 .mdmsCriteriaV2(mdmsCriteriaV2).build();
+    }
+
+    /**
+     * This method makes request to mdms
+     *
+     * @param request
+     * @return mapping of isocode-countryName
+     */
+    public MdmsResponseV2 fetchMdmsDataForIsoCode(GeopodeBoundaryRequest request) {
+        MdmsCriteriaReqV2 mdmsCriteriaReqV2 = buildMdmsV2RequestForRoot(request);
+        String url = configs.getMdmsHost() + configs.getMdmsV2EndPoint();
+
+        try {
+            return restTemplate.postForObject(url, mdmsCriteriaReqV2, MdmsResponseV2.class);
+        } catch (Exception e) {
+            log.error(NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT_ISO_CODE, e);
+            throw new CustomException("MDMS_FETCH_FAILED", "Failed to fetch MDMS data");
+        }
+    }
+
+    /**
+     * This method creates request for mdms request for country-name
+     *
+     * @param request
+     * @return
+     */
+    private MdmsCriteriaReqV2 buildMdmsV2RequestForRoot(GeopodeBoundaryRequest request) {
+        return MdmsCriteriaReqV2.builder()
+                .requestInfo(request.getRequestInfo())
+                .mdmsCriteriaV2(MdmsCriteriaV2.builder()
+                        .tenantId(configs.getTenantId())
+                        .schemaCode(configs.getSchemaCode())
+                        .offset(Integer.parseInt(configs.getDefaultOffset()))
+                        .limit(Integer.parseInt(configs.getDefaultLimit()))
+                        .build())
+                .build();
     }
 
 }

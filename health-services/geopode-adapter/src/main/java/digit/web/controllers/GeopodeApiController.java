@@ -45,11 +45,12 @@ public class GeopodeApiController {
      */
     @PostMapping("/boundary/setup")
     public ResponseEntity<String> geopodeBoundaryCreate(@Valid @RequestBody GeopodeBoundaryRequest body) {
-        ResponseEntity<String> boundaryResponse = geopodeAdapterService.createRootBoundaryData(body);
-        if (boundaryResponse == null) {
+        String countryName= geopodeAdapterService.createRootBoundaryData(body);
+        if (countryName == null) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, ROOT_BOUNDARY_ALREADY_EXISTS);
         }
-        return boundaryResponse;
+        String message = BOUNDARY_CREATION_INITIATED + countryName + ".";
+        return ResponseEntity.status(HttpStatus.OK).body(message);
     }
 
     /**

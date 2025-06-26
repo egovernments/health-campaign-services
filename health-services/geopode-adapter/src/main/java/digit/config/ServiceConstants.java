@@ -35,6 +35,7 @@ public class ServiceConstants {
     public static final String BOUNDARY_CREATION_INITIATED="The process of creating boundaries has been initiated for ";
     public static final String ROOT_HIERARCHY_LEVEL="ADM0";
     public static final String ALREADY_EXISTS="Duplicate Record";
+    public static final String COUNTRY_NAME_NOT_FOUND="Country Not Found";
     // ArcGIS query parameter keys
     public static final String QUERY_PARAM_WHERE = "where";
     public static final String QUERY_PARAM_OUT_FIELDS = "outFields";
