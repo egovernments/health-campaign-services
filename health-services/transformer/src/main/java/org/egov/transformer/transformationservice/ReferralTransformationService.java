@@ -3,6 +3,7 @@ package org.egov.transformer.transformationservice;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.egov.common.models.facility.Facility;
 import org.egov.common.models.project.Project;
 import org.egov.common.models.project.ProjectBeneficiary;
@@ -37,13 +38,14 @@ public class ReferralTransformationService {
     private final IndividualService individualService;
     private final FacilityService facilityService;
     private final BoundaryService boundaryService;
+    private final ProjectFactoryService projectFactoryService;
 
     private final CommonUtils commonUtils;
 
     private final ObjectMapper objectMapper;
 
     public ReferralTransformationService(TransformerProperties transformerProperties,
-                                         Producer producer, UserService userService, ProjectService projectService, IndividualService individualService, FacilityService facilityService, BoundaryService boundaryService, CommonUtils commonUtils, ObjectMapper objectMapper) {
+                                         Producer producer, UserService userService, ProjectService projectService, IndividualService individualService, FacilityService facilityService, BoundaryService boundaryService, ProjectFactoryService projectFactoryService, CommonUtils commonUtils, ObjectMapper objectMapper) {
         this.transformerProperties = transformerProperties;
         this.producer = producer;
         this.userService = userService;
@@ -51,6 +53,7 @@ public class ReferralTransformationService {
         this.individualService = individualService;
         this.facilityService = facilityService;
         this.boundaryService = boundaryService;
+        this.projectFactoryService = projectFactoryService;
         this.commonUtils = commonUtils;
         this.objectMapper = objectMapper;
     }
@@ -80,6 +83,7 @@ public class ReferralTransformationService {
         String projectType = null;
         String projectTypeId = null;
         String projectName = null;
+        String referenceId = null;
         if (!CollectionUtils.isEmpty(projectBeneficiaryList)) {
             ProjectBeneficiary projectBeneficiary = projectBeneficiaryList.get(0);
             individualDetails = individualService.getIndividualInfo(projectBeneficiary.getBeneficiaryClientReferenceId(), tenantId);
@@ -88,6 +92,7 @@ public class ReferralTransformationService {
             projectTypeId = project.getProjectTypeId();
             projectType = project.getProjectType();
             projectName = project.getName();
+            referenceId = project.getReferenceID();
             if (individualDetails.containsKey(ADDRESS_CODE)) {
                 BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode((String) individualDetails.get(ADDRESS_CODE), tenantId);
                 boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
@@ -132,6 +137,8 @@ public class ReferralTransformationService {
                 .additionalDetails(additionalDetails)
                 .build();
         referralIndexV1.setProjectInfo(projectId, projectType, projectTypeId, projectName);
+        referralIndexV1.setCampaignNumber(referenceId);
+        referralIndexV1.setCampaignId(StringUtils.isNotBlank(referenceId) ? projectFactoryService.getCampaignIdFromCampaignNumber(referral.getTenantId(), true, referenceId) : null);
         return referralIndexV1;
     }
 }

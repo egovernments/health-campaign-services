@@ -14,6 +14,7 @@ import org.egov.common.models.project.Project;
 import org.egov.common.models.project.ProjectStaff;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.models.downstream.ProjectInfo;
+import org.egov.transformer.service.ProjectFactoryService;
 import org.egov.transformer.service.ProjectService;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
@@ -37,13 +38,15 @@ public class CommonUtils {
     private final TransformerProperties properties;
     private final ProjectService projectService;
     private final ObjectMapper objectMapper;
+    private final ProjectFactoryService projectFactoryService;
     private static Map<String, List<JsonNode>> boundaryLevelVsLabelCache = new ConcurrentHashMap<>();
     private static Map<String, ProjectInfo> userIdVsProjectInfoCache = new ConcurrentHashMap<>();
 
-    public CommonUtils(TransformerProperties properties, ObjectMapper objectMapper, ProjectService projectService) {
+    public CommonUtils(TransformerProperties properties, ObjectMapper objectMapper, ProjectService projectService, ProjectFactoryService projectFactoryService) {
         this.properties = properties;
         this.projectService = projectService;
         this.objectMapper = objectMapper;
+        this.projectFactoryService = projectFactoryService;
     }
 
     public List<String> getProjectDatesList(Long startDateEpoch, Long endDateEpoch) {
@@ -274,6 +277,8 @@ public class CommonUtils {
                 projectInfo.setProjectId(projectStaff.getProjectId());
                 projectInfo.setProjectType(project.getProjectType());
                 projectInfo.setProjectName(project.getName());
+                projectInfo.setCampaignNumber(project.getReferenceID());
+                projectInfo.setCampaignId(projectFactoryService.getCampaignIdFromCampaignNumber(project.getTenantId(), true, project.getReferenceID()));
                 userIdVsProjectInfoCache.put(userId, projectInfo);
             }
         }
@@ -288,6 +293,8 @@ public class CommonUtils {
             projectInfo.setProjectTypeId(projectDetails.getProjectTypeId());
             projectInfo.setProjectType(projectDetails.getProjectType());
             projectInfo.setProjectName(projectDetails.getProjectName());
+            projectInfo.setCampaignNumber(projectDetails.getCampaignNumber());
+            projectInfo.setCampaignId(projectDetails.getCampaignId());
         }
     }
 
