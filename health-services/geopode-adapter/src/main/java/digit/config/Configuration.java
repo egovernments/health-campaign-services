@@ -60,10 +60,4 @@ public class Configuration {
 
     @Value("${egov.mdms.schemaCode}")
     private String schemaCode;
-
-    @Value("${geopode.localHost}")
-    private Integer geopodeLocalHost;
-
-    @Value("${geopode.arcgis.search}")
-    private Integer geopodeSearchEndpoint;
 }

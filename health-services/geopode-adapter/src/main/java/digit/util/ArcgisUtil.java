@@ -95,11 +95,11 @@ public class ArcgisUtil {
                     new ParameterizedTypeReference<Map<String, Object>>() {
                     }
             );
-
-            return argresponse = objectMapper.convertValue(response.getBody(), ArcgisResponse.class);
+            argresponse = objectMapper.convertValue(response.getBody(), ArcgisResponse.class);
 
         } catch (Exception e) {
             log.error("ERROR_IN_ARC_SEARCH", e);
+            throw new CustomException(ERROR_IN_ARC_SEARCH,"Error when fetching from arcgis api");
         }
         return argresponse;
     }
