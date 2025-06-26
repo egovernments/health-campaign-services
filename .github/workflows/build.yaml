@@ -9,6 +9,7 @@ on:
         type: choice
         options:
           - core-services
+          - health-services
         default: core-services
       service:
         description: 'Name of the service to build and deploy'
