@@ -65,6 +65,12 @@ on:
           - "user-otp"
           - "xstate-chatbot"
           - "zuul"
+          - "facility"
+          - "household"
+          - "individual"
+          - "project"
+          - "referralmanagement"
+          - "stock"
         default: "audit-service"
 
 env:
