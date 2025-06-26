@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.egov.common.models.facility.Facility;
 import org.egov.common.models.project.Project;
 import org.egov.common.models.stock.Field;
@@ -35,12 +36,13 @@ public class StockReconciliationTransformationService {
     private final ProductService productService;
     private final ProjectService projectService;
     private final BoundaryService boundaryService;
+    private final ProjectFactoryService projectFactoryService;
 
     private static final Set<String> ADDITIONAL_DETAILS_DOUBLE_FIELDS = new HashSet<>(Arrays.asList(
             RECEIVED, ISSUED, RETURNED, LOST, GAINED, DAMAGED, INHAND
     ));
 
-    public StockReconciliationTransformationService(TransformerProperties transformerProperties, Producer producer, FacilityService facilityService, CommonUtils commonUtils, ObjectMapper objectMapper, UserService userService, ProductService productService, ProjectService projectService, BoundaryService boundaryService) {
+    public StockReconciliationTransformationService(TransformerProperties transformerProperties, Producer producer, FacilityService facilityService, CommonUtils commonUtils, ObjectMapper objectMapper, UserService userService, ProductService productService, ProjectService projectService, BoundaryService boundaryService, ProjectFactoryService projectFactoryService) {
         this.transformerProperties = transformerProperties;
         this.producer = producer;
         this.facilityService = facilityService;
@@ -50,6 +52,7 @@ public class StockReconciliationTransformationService {
         this.productService = productService;
         this.projectService = projectService;
         this.boundaryService = boundaryService;
+        this.projectFactoryService = projectFactoryService;
     }
 
     public void transform(List<StockReconciliation> stockReconciliationList) {
@@ -119,6 +122,8 @@ public class StockReconciliationTransformationService {
                 .syncedDate(commonUtils.getDateFromEpoch(stockReconciliation.getAuditDetails().getLastModifiedTime()))
                 .build();
         stockReconciliationIndexV1.setProjectInfo(projectId, project.getProjectType(), project.getProjectTypeId(), project.getName());
+        stockReconciliationIndexV1.setCampaignNumber(project.getReferenceID());
+        stockReconciliationIndexV1.setCampaignId(StringUtils.isNotBlank(project.getReferenceID()) ? projectFactoryService.getCampaignIdFromCampaignNumber(project.getTenantId(), true, project.getReferenceID()) : null);
         return stockReconciliationIndexV1;
     }
 

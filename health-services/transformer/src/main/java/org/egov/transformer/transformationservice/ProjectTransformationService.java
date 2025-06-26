@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.models.project.Project;
 import org.egov.common.models.project.Target;
@@ -13,6 +14,7 @@ import org.egov.transformer.models.downstream.ProjectIndexV1;
 import org.egov.transformer.producer.Producer;
 import org.egov.transformer.service.BoundaryService;
 import org.egov.transformer.service.ProductService;
+import org.egov.transformer.service.ProjectFactoryService;
 import org.egov.transformer.service.ProjectService;
 import org.egov.transformer.utils.CommonUtils;
 import org.springframework.stereotype.Component;
@@ -33,8 +35,9 @@ public class ProjectTransformationService {
     private final ProjectService projectService;
     private final ProductService productService;
     private final BoundaryService boundaryService;
+    private final ProjectFactoryService projectFactoryService;
 
-    public ProjectTransformationService(TransformerProperties transformerProperties, Producer producer, ObjectMapper objectMapper, CommonUtils commonUtils, ProjectService projectService, ProductService productService, BoundaryService boundaryService) {
+    public ProjectTransformationService(TransformerProperties transformerProperties, Producer producer, ObjectMapper objectMapper, CommonUtils commonUtils, ProjectService projectService, ProductService productService, BoundaryService boundaryService, ProjectFactoryService projectFactoryService) {
         this.transformerProperties = transformerProperties;
         this.producer = producer;
         this.objectMapper = objectMapper;
@@ -42,6 +45,7 @@ public class ProjectTransformationService {
         this.projectService = projectService;
         this.productService = productService;
         this.boundaryService = boundaryService;
+        this.projectFactoryService = projectFactoryService;
     }
 
 
@@ -144,6 +148,8 @@ public class ProjectTransformationService {
                             .projectNumber(project.getProjectNumber())
                             .build();
                     projectIndexV1.setProjectInfo(project.getId(), project.getProjectType(), projectTypeId, project.getName());
+                    projectIndexV1.setCampaignNumber(project.getReferenceID());
+                    projectIndexV1.setCampaignId(StringUtils.isNotBlank(project.getReferenceID()) ? projectFactoryService.getCampaignIdFromCampaignNumber(project.getTenantId(), true, project.getReferenceID()) : null);
                     return projectIndexV1;
                 }
         ).collect(Collectors.toList());

@@ -3,6 +3,7 @@ package org.egov.transformer.transformationservice;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.egov.common.models.project.Project;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.models.boundary.BoundaryHierarchyResult;
@@ -11,10 +12,7 @@ import org.egov.transformer.models.upstream.AttributeValue;
 import org.egov.transformer.models.upstream.Service;
 import org.egov.transformer.models.upstream.ServiceDefinition;
 import org.egov.transformer.producer.Producer;
-import org.egov.transformer.service.BoundaryService;
-import org.egov.transformer.service.ProjectService;
-import org.egov.transformer.service.ServiceDefinitionService;
-import org.egov.transformer.service.UserService;
+import org.egov.transformer.service.*;
 import org.egov.transformer.utils.CommonUtils;
 import org.springframework.stereotype.Component;
 
@@ -36,9 +34,10 @@ public class HfServiceTransformationService {
     private final CommonUtils commonUtils;
     private final ObjectMapper objectMapper;
     private final BoundaryService boundaryService;
+    private final ProjectFactoryService projectFactoryService;
 
 
-    public HfServiceTransformationService(ServiceDefinitionService serviceDefinitionService, TransformerProperties transformerProperties, Producer producer, ProjectService projectService, UserService userService, CommonUtils commonUtils, ObjectMapper objectMapper, BoundaryService boundaryService) {
+    public HfServiceTransformationService(ServiceDefinitionService serviceDefinitionService, TransformerProperties transformerProperties, Producer producer, ProjectService projectService, UserService userService, CommonUtils commonUtils, ObjectMapper objectMapper, BoundaryService boundaryService, ProjectFactoryService projectFactoryService) {
 
         this.serviceDefinitionService = serviceDefinitionService;
         this.transformerProperties = transformerProperties;
@@ -48,6 +47,7 @@ public class HfServiceTransformationService {
         this.commonUtils = commonUtils;
         this.objectMapper = objectMapper;
         this.boundaryService = boundaryService;
+        this.projectFactoryService = projectFactoryService;
     }
 
     public void transform(List<Service> serviceList) {
@@ -118,6 +118,8 @@ public class HfServiceTransformationService {
                     .additionalDetails(additionalDetails)
                     .build();
             hfReferralServiceIndexV1.setProjectInfo(projectId, projectType, projectTypeId, project.getName());
+            hfReferralServiceIndexV1.setCampaignNumber(project.getReferenceID());
+            hfReferralServiceIndexV1.setCampaignId(StringUtils.isNotBlank(project.getReferenceID()) ? projectFactoryService.getCampaignIdFromCampaignNumber(project.getTenantId(), true, project.getReferenceID()) : null);
             searchAndSetAttribute(attributeValueList, codeToQuestionMapping, hfReferralServiceIndexV1);
             hfReferralServiceIndexV1List.add(hfReferralServiceIndexV1);
         }
