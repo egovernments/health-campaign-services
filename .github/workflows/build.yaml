@@ -74,6 +74,7 @@ on:
           - "product"
           - "project-factory"
           - "transformer"
+          - "beneficiary-idgen"
         default: "audit-service"
 
 env:
