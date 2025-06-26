@@ -2,6 +2,7 @@ package digit.web.controllers;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import digit.service.GeopodeAdapterService;
+import digit.util.ArcgisUtil;
 import digit.util.BoundaryUtil;
 import digit.web.models.Arcgis.ArcgisRequest;
 import digit.web.models.Arcgis.ArcgisResponse;
@@ -30,6 +31,7 @@ public class GeopodeApiController {
 
     private GeopodeAdapterService geopodeAdapterService;
     private BoundaryUtil boundaryUtil;
+    private ArcgisUtil arcgisUtil;
 
     public GeopodeApiController(GeopodeAdapterService geopodeAdapterService) {
         this.geopodeAdapterService = geopodeAdapterService;
@@ -94,7 +96,7 @@ public class GeopodeApiController {
 
         ArcgisResponse response = null;
         try {
-            response = geopodeAdapterService.searchBoundary(request);
+            response = arcgisUtil.searchBoundary(request);
         } catch (CustomException e) {
             log.error(ERROR_IN_SEARCH, e);
         }

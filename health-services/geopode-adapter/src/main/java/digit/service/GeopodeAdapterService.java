@@ -18,6 +18,8 @@ import org.springframework.web.util.UriComponentsBuilder;
 import java.net.URI;
 import java.util.*;
 
+import static digit.config.ServiceConstants.*;
+
 @Service
 @Slf4j
 public class GeopodeAdapterService {
@@ -51,41 +53,7 @@ public class GeopodeAdapterService {
         return boundaryResponse;
     }
 
-    /**
-     * This method processes the request to search using arcgis queries
-     *
-     * @param request
-     * @return
-     */
-    public ArcgisResponse searchBoundary(ArcgisRequest request) {
-        URI uri = searchArcgisRequestBuilder(request);
 
-        ArcgisResponse argresponse = new ArcgisResponse();
-        try {
 
-            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
-                    uri,
-                    HttpMethod.GET,
-                    null,
-                    new ParameterizedTypeReference<Map<String, Object>>() {
-                    }
-            );
 
-            return argresponse = objectMapper.convertValue(response.getBody(), ArcgisResponse.class);
-
-        } catch (Exception e) {
-            log.error("ERROR_IN_ARC_SEARCH", e);
-        }
-        return argresponse;
-    }
-
-    public URI searchArcgisRequestBuilder(ArcgisRequest request) {
-        return UriComponentsBuilder.fromHttpUrl(config.getArcgisHost() + config.getArcgisEnpoint())
-                .queryParam("where", request.getWhere())          // e.g., ADM0_NAME='NIGERIA'
-                .queryParam("outFields", request.getOutFields())  // e.g., ADM1_NAME
-                .queryParam("f", request.getF())                  // e.g., json
-                .build()
-                .encode()
-                .toUri();
-    }
 }

@@ -1,9 +1,9 @@
 package digit.util;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import digit.config.Configuration;
 import digit.repository.ServiceRequestRepository;
+import digit.web.models.Arcgis.ArcgisRequest;
 import digit.web.models.Arcgis.ArcgisResponse;
 import digit.web.models.GeopodeBoundaryRequest;
 import digit.web.models.boundaryService.*;
@@ -12,7 +12,6 @@ import digit.web.models.mdmsV2.MdmsCriteriaV2;
 import digit.web.models.mdmsV2.MdmsResponseV2;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.tracer.model.CustomException;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
@@ -22,10 +21,8 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.net.URI;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 
 import static digit.config.ServiceConstants.*;
 
@@ -45,15 +42,16 @@ public class ArcgisUtil {
 
     private ChildBoundaryCreationUtil childBoundaryCreationUtil;
 
-    private ObjectMapper mapper;
+    private ObjectMapper objectMapper;
 
-    public ArcgisUtil(Configuration config, RestTemplate restTemplate, MdmsV2Util mdmsV2Util, BoundaryUtil boundaryUtil, ServiceRequestRepository serviceRequestRepository, ChildBoundaryCreationUtil childBoundaryCreationUtil) {
+    public ArcgisUtil(Configuration config, RestTemplate restTemplate, MdmsV2Util mdmsV2Util, BoundaryUtil boundaryUtil, ServiceRequestRepository serviceRequestRepository, ChildBoundaryCreationUtil childBoundaryCreationUtil,ObjectMapper objectMapper) {
         this.config = config;
         this.restTemplate = restTemplate;
         this.mdmsV2Util = mdmsV2Util;
         this.boundaryUtil = boundaryUtil;
         this.serviceRequestRepository = serviceRequestRepository;
         this.childBoundaryCreationUtil = childBoundaryCreationUtil;
+        this.objectMapper=objectMapper;
     }
 
     /**
@@ -77,6 +75,43 @@ public class ArcgisUtil {
         // return response with status 200 and message
         String message = BOUNDARY_CREATION_INITIATED + countryName + ".";
         return ResponseEntity.status(HttpStatus.OK).body(message);
+    }
+
+    /**
+     * This method processes the request to search using arcgis queries
+     *
+     * @param request
+     * @return
+     */
+    public ArcgisResponse searchBoundary(ArcgisRequest request) {
+        URI uri = searchArcgisRequestBuilder(request);
+        ArcgisResponse argresponse = new ArcgisResponse();
+        try {
+
+            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
+                    uri,
+                    HttpMethod.GET,
+                    null,
+                    new ParameterizedTypeReference<Map<String, Object>>() {
+                    }
+            );
+
+            return argresponse = objectMapper.convertValue(response.getBody(), ArcgisResponse.class);
+
+        } catch (Exception e) {
+            log.error("ERROR_IN_ARC_SEARCH", e);
+        }
+        return argresponse;
+    }
+
+    public URI searchArcgisRequestBuilder(ArcgisRequest request) {
+        return UriComponentsBuilder.fromHttpUrl(config.getArcgisHost() + config.getArcgisEnpoint())
+                .queryParam(QUERY_PARAM_WHERE, request.getWhere())          // e.g., ADM0_NAME='NIGERIA'
+                .queryParam(QUERY_PARAM_OUT_FIELDS, request.getOutFields())  // e.g., ADM1_NAME
+                .queryParam(QUERY_PARAM_FORMAT, request.getF())                  // e.g., json
+                .build()
+                .encode()
+                .toUri();
     }
 
     /**
