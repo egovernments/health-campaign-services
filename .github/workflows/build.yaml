@@ -65,6 +65,18 @@ on:
           - "user-otp"
           - "xstate-chatbot"
           - "zuul"
+          - "facility"
+          - "household"
+          - "individual"
+          - "project"
+          - "referralmanagement"
+          - "stock"
+          - "product"
+          - "project-factory"
+          - "transformer"
+          - "beneficiary-idgen"
+          - "console"
+          - "egov-hrms"
         default: "audit-service"
 
 env:
