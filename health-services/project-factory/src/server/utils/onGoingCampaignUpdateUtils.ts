@@ -11,6 +11,7 @@ import { createAndUploadFile, getSheetData, getTargetSheetData } from "../api/ge
 import { searchDataService } from "../service/dataManageService";
 import { produceModifiedMessages } from "../kafka/Producer";
 import { searchBoundaryRelationshipData } from "../api/coreApis";
+import { cloneDeep } from "lodash";
 
 async function getParentCampaignObject(request: any, parentId: any) {
   try {
@@ -264,21 +265,22 @@ const getAllBoundariesFromCampaign = async (campaignDetails: any) => {
   );
 
   const rootBoundary = relationship?.TenantBoundary?.[0]?.boundary?.[0];
-  const boundaries = campaignDetails?.boundaries || [];
+  const allBoundaries = cloneDeep(campaignDetails?.boundaries || []);
+
   const boundaryChildren = Object.fromEntries(
-    boundaries.map(({ code, includeAllChildren }: any) => [code, includeAllChildren])
+    allBoundaries.map(({ code, includeAllChildren }: any) => [code, includeAllChildren])
   );
-  const boundaryCodes = new Set(boundaries.map(({ code }: any) => code));
+  const boundaryCodes = new Set(allBoundaries.map(({ code }: any) => code));
 
   await populateBoundariesRecursively(
     rootBoundary,
-    boundaries,
+    allBoundaries,
     boundaryChildren[rootBoundary?.code],
     boundaryCodes,
     boundaryChildren
   );
 
-  return boundaries;
+  return allBoundaries;
 };
 
 
