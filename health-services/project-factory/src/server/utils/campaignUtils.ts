@@ -111,6 +111,7 @@ import {
 import { GenerateTemplateQuery } from "../models/GenerateTemplateQuery";
 import { getLocaleFromRequest } from "./localisationUtils";
 import { generateDataService } from "../service/sheetManageService";
+import { getUserCredentialFileMap, sendNotificationEmail } from "./mailUtils";
 
 function updateRange(range: any, worksheet: any) {
   let maxColumnIndex = 0;
@@ -2659,6 +2660,13 @@ export async function processAfterPersistNew(request: any, actionInUrl: any) {
       await createAllMappings(campaignDetails, request?.body?.parentCampaign || null , useruuid);
       await userCredGeneration(campaignDetails, useruuid, locale);
       await enrichAndPersistCampaignForCreateViaFlow2(campaignDetails);
+      logger.info(`Email flow started...`);
+      try {
+        const userCredentialFileMap = await getUserCredentialFileMap(request);
+        await sendNotificationEmail(userCredentialFileMap, request);
+      } catch (emailError) {
+        logger.error("Email flow failed — continuing main flow", emailError);
+      }
     } else {
       await updateProjectDates(request, actionInUrl);
       await enrichAndPersistProjectCampaignRequest(
@@ -2741,8 +2749,8 @@ async function createAllResources(campaignDetails: any,parentCampaign : any, use
   let allTaskCompleted = false;
   let anyTaskFailed = false;
   let attempts = 0;
-  let facilityTask : any, userTask : any, projectTask : any;
-  while(allTaskCompleted == false && anyTaskFailed == false && attempts < 100) {
+  let facilityTask: any, userTask: any, projectTask: any;
+  while (allTaskCompleted == false && anyTaskFailed == false && attempts < 100) {
     logger.info(`Checking attempts for resources : ${attempts + 1}`);
     logger.info("Waiting for 20 seconds for resources to get created...");
     await new Promise(resolve => setTimeout(resolve, 20000));
@@ -2752,7 +2760,7 @@ async function createAllResources(campaignDetails: any,parentCampaign : any, use
     userTask = userTaskArray[0];
     let projectTaskArray = await getCurrentProcesses(campaignDetails?.campaignNumber, allProcesses.projectCreation);
     projectTask = projectTaskArray[0];
-    if(facilityTask?.status == processStatuses.completed && userTask?.status == processStatuses.completed && projectTask?.status == processStatuses.completed) {
+    if (facilityTask?.status == processStatuses.completed && userTask?.status == processStatuses.completed && projectTask?.status == processStatuses.completed) {
       allTaskCompleted = true;
     }
     if(facilityTask?.status == processStatuses.failed || userTask?.status == processStatuses.failed || projectTask?.status == processStatuses.failed) {
@@ -3756,8 +3764,8 @@ const autoGenerateBoundaryCodes = async (
   logger.info(
     "Initiated the localisation message creation for the uploaded boundary"
   );
-  const frenchLocalizationMap = extractFrenchOrPortugeseLocalizationMap(boundaryDataForSheet, true, false,localizationMap);
-  const portugeseLocalizationMap = extractFrenchOrPortugeseLocalizationMap(boundaryDataForSheet, false, true,localizationMap);
+  const frenchLocalizationMap = extractFrenchOrPortugeseLocalizationMap(boundaryDataForSheet, true, false, localizationMap);
+  const portugeseLocalizationMap = extractFrenchOrPortugeseLocalizationMap(boundaryDataForSheet, false, true, localizationMap);
   await transformAndCreateLocalisation(frenchLocalizationMap, request, true, false);
   await transformAndCreateLocalisation(portugeseLocalizationMap, request, false, true);
   await transformAndCreateLocalisation(boundaryMap, request, false, false);
