@@ -28,6 +28,16 @@ class App {
 
     // Start periodic memory usage logging
     this.startMemoryLogging();
+
+    // Global error handling for uncaught exceptions
+    process.on("uncaughtException", (err) => {
+      console.error("Unhandled Exception:", err);
+    });
+
+    // Global error handling for unhandled promise rejections
+    process.on("unhandledRejection", (reason, promise) => {
+      console.error("Unhandled Rejection at:", promise, "reason:", reason);
+    });
   }
 
   private isMemoryCritical(): boolean {
@@ -55,7 +65,9 @@ class App {
   }
 
   private initializeMiddlewares() {
-    this.app.use(bodyParser.json({ limit: config.app.incomingRequestPayloadLimit }));
+    this.app.use(
+      bodyParser.json({ limit: config.app.incomingRequestPayloadLimit })
+    );
     this.app.use(
       bodyParser.urlencoded({
         limit: config.app.incomingRequestPayloadLimit,
@@ -84,15 +96,20 @@ class App {
     });
   }
 
-  public listen() {
-    const server: Server = this.app.listen(this.port, () => {
-      logger.info(`App listening on port ${this.port}`);
+  public async listen() {
+    const server: Server = await new Promise((resolve) => {
+      const serverInstance = this.app.listen(this.port, () => {
+        logger.info(`App listening on port ${this.port}`);
+        resolve(serverInstance);
+      });
     });
 
-    server.setTimeout(300000); // 300 seconds for entire request
-    server.keepAliveTimeout = 45000; // 45 seconds for keep-alive connections
-    server.headersTimeout = 50000; // 50 seconds for headers
+    // Configure server timeouts
+    server.setTimeout(480000); // 480 seconds
+    server.keepAliveTimeout = 90000; // 90 seconds
+    server.headersTimeout = 120000; // 120 seconds
   }
+  
 }
 
 export default App;
