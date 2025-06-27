@@ -3523,7 +3523,7 @@ function updateBoundaryData(boundaryData: any[], hierarchy: any[]): any[] {
           const uniqueCount = count.get(elementKey)!;
           const uniqueElement =
             uniqueCount > 1
-              ? `${element}-${(uniqueCount - 1).toString().padStart(2, "0")}`
+              ? `${element}_${key.length > 3 ? key.slice(0, 3).toLowerCase() : key.toLowerCase()}_${(uniqueCount - 1).toString().padStart(2, "0")}`
               : `${element}`;
           row[key] = uniqueElement;
         }
