@@ -152,4 +152,16 @@ export async function getUserCredentialFileMap(request: any): Promise<Record<str
   }
 }
 
+export async function triggerUserCredentialEmailFlow(request: any): Promise<void> {
+  logger.info("triggerUserCredentialEmailFlow: Email flow started...");
+  
+  try {
+    const userCredentialFileMap = await getUserCredentialFileMap(request);
+    await sendNotificationEmail(userCredentialFileMap, request);
+    logger.info("triggerUserCredentialEmailFlow: Email flow completed successfully.");
+  } catch (emailError) {
+    logger.error("triggerUserCredentialEmailFlow: Email flow failed — continuing main flow", emailError);
+  }
+}
+
 

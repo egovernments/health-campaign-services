@@ -111,7 +111,7 @@ import {
 import { GenerateTemplateQuery } from "../models/GenerateTemplateQuery";
 import { getLocaleFromRequest } from "./localisationUtils";
 import { generateDataService } from "../service/sheetManageService";
-import { getUserCredentialFileMap, sendNotificationEmail } from "./mailUtils";
+import {  triggerUserCredentialEmailFlow } from "./mailUtils";
 
 function updateRange(range: any, worksheet: any) {
   let maxColumnIndex = 0;
@@ -2660,13 +2660,7 @@ export async function processAfterPersistNew(request: any, actionInUrl: any) {
       await createAllMappings(campaignDetails, request?.body?.parentCampaign || null , useruuid);
       await userCredGeneration(campaignDetails, useruuid, locale);
       await enrichAndPersistCampaignForCreateViaFlow2(campaignDetails);
-      logger.info(`Email flow started...`);
-      try {
-        const userCredentialFileMap = await getUserCredentialFileMap(request);
-        await sendNotificationEmail(userCredentialFileMap, request);
-      } catch (emailError) {
-        logger.error("Email flow failed — continuing main flow", emailError);
-      }
+      triggerUserCredentialEmailFlow(request); // can use with or without await depending on background vs blocking
     } else {
       await updateProjectDates(request, actionInUrl);
       await enrichAndPersistProjectCampaignRequest(
