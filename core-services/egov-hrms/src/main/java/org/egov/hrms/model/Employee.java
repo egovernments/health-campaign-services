@@ -62,7 +62,6 @@ import java.util.List;
 @Builder
 public class Employee {
 
-    @CustomSafeHtml
     private Long id;
 
     @CustomSafeHtml
