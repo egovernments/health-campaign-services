@@ -39,6 +39,9 @@ public class EmployeeQueryBuilder {
 
 	public String getEmployeeSearchCountQuery(EmployeeSearchCriteria criteria,List <Object> preparedStmtList) {
 		StringBuilder builder = new StringBuilder(EmployeeQueries.HRMS_GET_EMPLOYEES_COUNT);
+		// Replace the schema name in the query
+		builder = new StringBuilder(String.format(String.valueOf(builder), SCHEMA_REPLACE_STRING, SCHEMA_REPLACE_STRING ,SCHEMA_REPLACE_STRING, SCHEMA_REPLACE_STRING, SCHEMA_REPLACE_STRING,
+				SCHEMA_REPLACE_STRING, SCHEMA_REPLACE_STRING, SCHEMA_REPLACE_STRING, SCHEMA_REPLACE_STRING));
 		addWhereClause(criteria, builder, preparedStmtList);
 		builder.append(" GROUP BY employee.active");
 		return builder.toString();
