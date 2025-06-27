@@ -133,7 +133,7 @@ export async function getUserCredentialFileMap(request: any): Promise<Record<str
 
     const downloadResponse = await downloadTemplate(campaignId, tenantId, type, hierarchy);
 
-    const fileStoreId = downloadResponse?.GeneratedResource?.[0]?.fileStoreid;
+    const fileStoreId = downloadResponse?.[0]?.fileStoreid;
     if (!fileStoreId) {
       logger.error("getUserCredentialFileMap: fileStoreId missing in downloadTemplate response.");
       throw new Error("File store ID not found in download template response");

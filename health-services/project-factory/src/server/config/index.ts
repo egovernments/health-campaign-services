@@ -11,10 +11,10 @@ if (!HOST) {
 }
 
 
-const getDBSchemaName = (dbSchema = "") => {
-  // return "health";
-  return dbSchema ? (dbSchema == "egov" ? "public" : dbSchema) : "public";
-}
+// const getDBSchemaName = (dbSchema = "") => {
+//   // return "health";
+//   return dbSchema ? (dbSchema == "egov" ? "public" : dbSchema) : "public";
+// }
 // Configuration object containing various environment variables
 const config = {
   batchSize: 100,
@@ -87,16 +87,16 @@ const config = {
   DB_CONFIG: {
     DB_USER: process.env.DB_USER || "postgres",
     DB_HOST: process.env.DB_HOST?.split(':')[0] || "localhost",
-    DB_NAME: process.env.DB_NAME || "postgres",
-    DB_PASSWORD: process.env.DB_PASSWORD || "postgres",
+    DB_NAME: process.env.DB_NAME || "1234",
+    DB_PASSWORD: process.env.DB_PASSWORD || "postgres2",
     DB_PORT: process.env.DB_PORT || "5432",
-    DB_CAMPAIGN_DETAILS_TABLE_NAME: `${getDBSchemaName(process.env.DB_SCHEMA)}.eg_cm_campaign_details`,
-    DB_CAMPAIGN_PROCESS_TABLE_NAME: `${getDBSchemaName(process.env.DB_SCHEMA)}.eg_cm_campaign_process`,
-    DB_GENERATED_RESOURCE_DETAILS_TABLE_NAME: `${getDBSchemaName(process.env.DB_SCHEMA)}.eg_cm_generated_resource_details`,
-    DB_RESOURCE_DETAILS_TABLE_NAME: `${getDBSchemaName(process.env.DB_SCHEMA)}.eg_cm_resource_details`,
-    DB_CAMPAIGN_DATA_TABLE_NAME: `${getDBSchemaName(process.env.DB_SCHEMA)}.eg_cm_campaign_data`,
-    DB_CAMPAIGN_MAPPING_DATA_TABLE_NAME: `${getDBSchemaName(process.env.DB_SCHEMA)}.eg_cm_campaign_mapping_data`,
-    DB_CAMPAIGN_PROCESS_DATA_TABLE_NAME: `${getDBSchemaName(process.env.DB_SCHEMA)}.eg_cm_campaign_process_data`,
+    DB_CAMPAIGN_DETAILS_TABLE_NAME: `health.eg_cm_campaign_details`,
+    DB_CAMPAIGN_PROCESS_TABLE_NAME: `health.eg_cm_campaign_process`,
+    DB_GENERATED_RESOURCE_DETAILS_TABLE_NAME: `health.eg_cm_generated_resource_details`,
+    DB_RESOURCE_DETAILS_TABLE_NAME: `health.eg_cm_resource_details`,
+    DB_CAMPAIGN_DATA_TABLE_NAME: `health.eg_cm_campaign_data`,
+    DB_CAMPAIGN_MAPPING_DATA_TABLE_NAME: `health.eg_cm_campaign_mapping_data`,
+    DB_CAMPAIGN_PROCESS_DATA_TABLE_NAME: `health.eg_cm_campaign_process_data`,
   },
   // Application configuration
   app: {
@@ -125,7 +125,7 @@ const config = {
   host: {
     serverHost: HOST,
     // Kafka broker host
-    KAFKA_BROKER_HOST: process.env.KAFKA_BROKER_HOST || "kafka-v2.kafka-cluster:9092",
+    KAFKA_BROKER_HOST: process.env.KAFKA_BROKER_HOST || "localhost:9092",
     redisHost: process.env.REDIS_HOST || "localhost",
     mdms: process.env.EGOV_MDMS_HOST || "https://unified-dev.digit.org/",
     mdmsV2: process.env.EGOV_MDMS_V2_HOST || "https://unified-dev.digit.org/",
@@ -147,8 +147,8 @@ const config = {
   paths: {
     filestore: process.env.FILE_STORE_SERVICE_END_POINT || "filestore/v1/files",
     filestorefetch: "filestore/v1/files/url",
-    mdms_v2_search: process.env.EGOV_MDMS_V2_SEARCH_ENDPOINT || "mdms-v2/v2/_search",
-    mdms_v1_search: process.env.EGOV_MDMS_V1_SEARCH_ENDPOINT || "mdms-v2/v1/_search",
+    mdms_v2_search: process.env.EGOV_MDMS_V2_SEARCH_ENDPOINT || "egov-mdms-service/v2/_search",
+    mdms_v1_search: process.env.EGOV_MDMS_V1_SEARCH_ENDPOINT || "egov-mdms-service/v1/_search",
     idGen: process.env.EGOV_IDGEN_PATH || "egov-idgen/id/_generate",
     mdmsSchema: process.env.EGOV_MDMS_SCHEMA_PATH || "egov-mdms-service/schema/v1/_search",
     boundaryRelationship: process.env.EGOV_BOUNDARY_RELATIONSHIP_SEARCHPATH || "boundary-service/boundary-relationships/_search",
