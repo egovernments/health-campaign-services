@@ -75,8 +75,8 @@ on:
           - "project-factory"
           - "transformer"
           - "beneficiary-idgen"
-          - "console"
           - "egov-hrms"
+          - "console"
         default: "audit-service"
 
 env:
