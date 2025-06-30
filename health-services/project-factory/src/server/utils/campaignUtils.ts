@@ -2639,7 +2639,7 @@ const createAppConfig = async (tenantId: string, campaignNumber: string, campaig
     const templateModules = (templateResponse?.mdms || [])
       .map((item: any) => item.data || [])
       .flat()
-      .filter((module: any) => module?.disabled === true);
+      .filter((module: any) => !module?.disabled);
 
     logger.info(`Fetched ${templateModules.length} template modules for ${campaignType}`);
 
