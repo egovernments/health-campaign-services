@@ -235,7 +235,7 @@ config:
         dockerfile: "build/maven-java17/Dockerfile"
       - work-dir: "core-services/pgr-services/src/main/resources/db"
         image-name: "pgr-services-db"
-  #- name: "builds/health-campaign-services/core-services/health-pgr-services-17"
+  - name: "builds/health-campaign-services/core-services/health-pgr-services-17"
     build:
       - work-dir: "core-services/pgr-services"
         image-name: "health-pgr-services"
