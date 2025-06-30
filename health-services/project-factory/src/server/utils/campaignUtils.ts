@@ -1069,6 +1069,7 @@ async function enrichAndPersistCampaignForCreate(
       request.body.CampaignDetails.campaignName =
         request.body.parentCampaign?.campaignName;
     }
+    await createAppConfig(request?.body?.CampaignDetails?.tenantId, request?.body?.CampaignDetails?.campaignNumber, request?.body?.CampaignDetails?.projectType, request?.body?.RequestInfo);
   }
   request.body.CampaignDetails.campaignDetails = {
     deliveryRules: request?.body?.CampaignDetails?.deliveryRules || [],
@@ -2585,12 +2586,8 @@ async function processBasedOnAction(request: any, actionInUrl: any) {
   }
   await enrichAndPersistProjectCampaignForFirst(request, actionInUrl, true);
   const shouldCallGenerateWhenChildCampaigngetsCreated = actionInUrl == "create" && request.body?.parentCampaign && request?.body?.CampaignDetails?.action === "draft";
-  const shouldCreateAppConfig = actionInUrl == "create" && request?.body?.CampaignDetails?.action === "draft";
   if (shouldCallGenerateWhenChildCampaigngetsCreated) {
     callGenerateWhenChildCampaigngetsCreated(request);
-  }
-  if (shouldCreateAppConfig) {
-    await createAppConfig(request?.body?.CampaignDetails?.tenantId, request?.body?.CampaignDetails?.campaignNumber, request?.body?.CampaignDetails?.projectType);
   }
   processAfterPersist(request, actionInUrl);
 }
@@ -2660,8 +2657,11 @@ async function getExistingModulesMap(
 async function createModuleInMDMS(
   tenantId: string,
   schemaCode: string,
-  moduleData: any
+  moduleData: any,
+  useruuid : string
 ): Promise<void> {
+  const RequestInfo = defaultRequestInfo?.RequestInfo;
+  RequestInfo.userInfo.uuid = useruuid;
   const requestBody = {
     RequestInfo: defaultRequestInfo?.RequestInfo,
     Mdms: {
@@ -2683,7 +2683,8 @@ async function upsertLocalisations(
   baseModuleKey: string,
   updatedModuleKey: string,
   locales: string[],
-  localisation: any
+  localisation: any,
+  RequestInfo: any
 ): Promise<void> {
   const chunkSize = 100;
 
@@ -2711,7 +2712,7 @@ async function upsertLocalisations(
 
     for (let i = 0; i < updatedMessages.length; i += chunkSize) {
       const chunk = updatedMessages.slice(i, i + chunkSize);
-      await localisation.createLocalisation(chunk, tenantId);
+      await localisation.createLocalisation(chunk, tenantId, RequestInfo);
       logger.info(
         `Localisation added for ${updatedModuleKey} (${locale}) — chunk ${i / chunkSize + 1}`
       );
@@ -2727,9 +2728,14 @@ async function processAndInsertModules(
   existingMap: Map<string, any>,
   locales: string[],
   localisation: any,
-  schemaCode: string
+  schemaCode: string,
+  RequestInfo: any
 ): Promise<void> {
   const baseType = campaignType.toLowerCase();
+  const useruuid = RequestInfo?.userInfo?.uuid;
+  if (!useruuid) {
+    throw new Error("User uuid not found in request");
+  }
 
   for (const template of templateModules) {
     const moduleName = template?.name;
@@ -2748,7 +2754,8 @@ async function processAndInsertModules(
       baseKey,
       updatedKey,
       locales,
-      localisation
+      localisation,
+      RequestInfo
     );
 
     const moduleData = {
@@ -2757,14 +2764,15 @@ async function processAndInsertModules(
       isSelected: true,
     };
 
-    await createModuleInMDMS(tenantId, schemaCode, moduleData);
+    await createModuleInMDMS(tenantId, schemaCode, moduleData, useruuid);
   }
 }
 
 export async function createAppConfig(
   tenantId: string,
   campaignNumber: string,
-  campaignType: string
+  campaignType: string,
+  RequestInfo: any
 ): Promise<void> {
   try {
     const FormConfigTemplate = "FormConfigTemplate";
@@ -2790,7 +2798,8 @@ export async function createAppConfig(
       existingMap,
       locales,
       localisation,
-      configSchema
+      configSchema,
+      RequestInfo
     );
 
     logger.info("App configuration created successfully.");

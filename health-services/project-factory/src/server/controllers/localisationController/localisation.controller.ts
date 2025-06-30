@@ -148,11 +148,10 @@ class Localisation {
    */
   public createLocalisation = async (
     messages: any[] = [],
-    tenantId: string
+    tenantId: string,
+    RequestInfo: any
   ) => {
     try {
-      // Extract RequestInfo from request body
-      const RequestInfo = defaultRequestInfo.RequestInfo;
       // Construct request body with RequestInfo and localisation messages
       const requestBody = { RequestInfo, messages, tenantId };
       // Construct URL for localization create endpoint

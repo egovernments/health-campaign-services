@@ -95,7 +95,7 @@ const uploadInChunks = async (messages: any, chunkSize: any, tenantId: any, requ
         const localisation = Localisation.getInstance();
 
         // Upload the current chunk
-        await localisation.createLocalisation(chunk, tenantId);
+        await localisation.createLocalisation(chunk, tenantId, request?.body?.RequestInfo);
 
         // wait for 3 second
         const waitTime = config.localisation.localizationWaitTimeInBoundaryCreation
