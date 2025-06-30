@@ -106,15 +106,22 @@ jobs:
 
           # Debug: list all image-name / dockerfile pairs
           echo "All build entries from build-config.yml:"
-          yq eval '.config[].build[] | "✱ image-name: \(.["image-name"]) → dockerfile: \(.dockerfile // "N/A")"' build/build-config.yml || true
+          yq eval '.config[].build[] | "image-name: " + (.["image-name"] // "N/A") + " dockerfile: " + (.dockerfile // "N/A")' build/build-config.yml || true
 
-          # Try matching with the SERVICE variable directly (no strenv)
-          DF=$(yq eval ".config[].build[] | select(.\"image-name\" == \"${SERVICE}\") | .dockerfile // \"\"" build/build-config.yml)
-
-          if [ -z "$DF" ] || [ "$DF" = "null" ]; then
+          # Try matching with the SERVICE variable directly
+          # Get all matching dockerfiles and prefer non-java17 version if multiple exist
+          DOCKERFILES=$(yq eval ".config[].build[] | select(.\"image-name\" == \"${SERVICE}\") | .dockerfile // \"\"" build/build-config.yml)
+          
+          if [ -z "$DOCKERFILES" ]; then
             echo "No dockerfile entry found for \"$SERVICE\" in build-config.yml; using default"
             DF="$DEFAULT_DOCKERFILE"
           else
+            # If multiple dockerfiles found, prefer the non-java17 version first
+            DF=$(echo "$DOCKERFILES" | grep -v "java17" | head -n 1)
+            if [ -z "$DF" ]; then
+              # If no non-java17 version, take the first one
+              DF=$(echo "$DOCKERFILES" | head -n 1)
+            fi
             echo "Found dockerfile \"$DF\" for service \"$SERVICE\"."
           fi
 
