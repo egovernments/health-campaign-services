@@ -69,6 +69,7 @@ on:
           - "transformer"
           - "beneficiary-idgen"
           - "egov-hrms"
+          - "pgr-services"
         default: "audit-service"
 
 env:
