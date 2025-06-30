@@ -109,6 +109,7 @@ import {
   fetchTargetData,
   fetchUserData,
 } from "./microplanIntergration";
+import Localisation from "../controllers/localisationController/localisation.controller";
 
 function updateRange(range: any, worksheet: any) {
   let maxColumnIndex = 0;
@@ -2583,15 +2584,155 @@ async function processBasedOnAction(request: any, actionInUrl: any) {
     request.body.CampaignDetails.id = uuidv4();
   }
   await enrichAndPersistProjectCampaignForFirst(request, actionInUrl, true);
-  if (
-    actionInUrl == "create" &&
-    request.body?.parentCampaign &&
-    request?.body?.CampaignDetails?.action === "draft"
-  ) {
+  const shouldCallGenerateWhenChildCampaigngetsCreated = actionInUrl == "create" && request.body?.parentCampaign && request?.body?.CampaignDetails?.action === "draft";
+  const shouldCreateAppConfig = actionInUrl == "create" && request?.body?.CampaignDetails?.action === "draft";
+  if (shouldCallGenerateWhenChildCampaigngetsCreated) {
     callGenerateWhenChildCampaigngetsCreated(request);
+  }
+  if (shouldCreateAppConfig) {
+    await createAppConfig(request?.body?.CampaignDetails?.tenantId, request?.body?.CampaignDetails?.campaignNumber, request?.body?.CampaignDetails?.projectType);
   }
   processAfterPersist(request, actionInUrl);
 }
+
+async function getLocalesFromStateInfo(tenantId: string) {
+  const stateInfoCriteria: any = {
+    tenantId,
+    schemaCode: "common-masters.StateInfo",
+    isActive: true,
+  };
+
+  const response = await searchMDMSDataViaV2Api({ MdmsCriteria: stateInfoCriteria });
+
+  if (response?.mdms?.length > 0) {
+    // Return an array of default languages
+    return response.mdms
+      .map((item: any) => item?.data?.defaultLanguage)
+      .filter(Boolean); // Optional: remove undefined/null
+  } else {
+    throw new Error("StateInfo data not found in mdms");
+  }
+}
+
+
+const createAppConfig = async (tenantId: string, campaignNumber: string, campaignType: string) => {
+  try {
+    const FormConfigTemplate = "FormConfigTemplate";
+    const FormConfig = "FormConfig";
+    const fullSchemaCodeForTemplate = `HCM-ADMIN-CONSOLE.${FormConfigTemplate}`;
+    const fullSchemaCodeForConfig = `HCM-ADMIN-CONSOLE.${FormConfig}`;
+    const baseProjectType = campaignType.toLowerCase();
+    const locales : any= await getLocalesFromStateInfo(tenantId);
+
+    const localisation = Localisation.getInstance();
+
+    // Step 1: Fetch modules from template
+    const templateCriteria: any = {
+      tenantId,
+      schemaCode: fullSchemaCodeForTemplate,
+      filters: {
+        project: campaignType,
+      },
+      isActive : true
+    };
+    const templateResponse: any = await searchMDMSDataViaV2Api({ MdmsCriteria: templateCriteria });
+    const templateModules = (templateResponse?.mdms || [])
+      .map((item: any) => item.data || [])
+      .flat()
+      .filter((module: any) => module?.disabled === true);
+
+    logger.info(`Fetched ${templateModules.length} template modules for ${campaignType}`);
+
+    // Step 2: Fetch already created modules (app config)
+    const existingCriteria: any = {
+      tenantId,
+      schemaCode: fullSchemaCodeForConfig,
+      filters: {
+        project: campaignNumber,
+      }
+    };
+    const existingResponse: any = await searchMDMSDataViaV2Api({ MdmsCriteria: existingCriteria });
+    const existingModules = existingResponse?.mdms || [];
+
+    // Prepare quick lookup
+    const existingMap = new Map<string, any>();
+    for (const item of existingModules) {
+      const name = item?.data?.name;
+      if (name) existingMap.set(name, item);
+    }
+
+    // Step 3: Process all template modules
+    for (const template of templateModules) {
+      const moduleName = template?.name;
+      if (!moduleName) continue;
+
+      const lowerModuleName = moduleName.toLowerCase();
+      const baseModuleKey = `hcm-base-${lowerModuleName}-${baseProjectType}`;
+      const updatedModuleKey = `hcm-${lowerModuleName}-${campaignNumber}`;
+      const existing = existingMap.get(moduleName);
+
+      // Check if already created and selected
+      if (existing?.data?.isSelected === true) {
+        logger.info(`Skipping module '${moduleName}' — already created and selected`);
+        continue;
+      }
+
+      // Step 4: Copy localisation for each locale
+      for (const loc of locales) {
+        let localisationMessages: any[] = [];
+        try {
+          localisationMessages = await localisation.getLocalizationResponseWithoutCache(baseModuleKey, loc, tenantId);
+        } catch (e : any) {
+          logger.error(`Failed to fetch localisation for ${baseModuleKey} (${loc}): ${e?.message}`);
+        }
+        const updatedLocalizations = localisationMessages?.map((entry: any) => ({
+          ...entry,
+          locale: loc,
+          module: updatedModuleKey,
+        })) || [];
+
+        if (updatedLocalizations.length > 0) {
+          const chunkSize = 100;
+
+          for (let i = 0; i < updatedLocalizations.length; i += chunkSize) {
+            const chunk = updatedLocalizations.slice(i, i + chunkSize);
+            await localisation.createLocalisation(chunk, tenantId);
+            logger.info(`Localization upserted for ${updatedModuleKey} (${loc}) - chunk ${i / chunkSize + 1}`);
+          }
+        }        
+      }
+
+      const moduleWithProject = {
+        ...template,
+        project: campaignNumber,
+        isSelected: true,
+      };
+
+      const requestBody = {
+        RequestInfo: defaultRequestInfo?.RequestInfo,
+        Mdms: {
+          tenantId,
+          schemaCode: fullSchemaCodeForConfig,
+          data: moduleWithProject,
+        },
+      };
+
+      if (existing) {
+        // Update existing
+        await httpRequest(`${config?.host?.mdmsV2}${config?.paths?.mdms_v2_update}/${fullSchemaCodeForConfig}`, requestBody);
+        logger.info(`Updated module in MDMS: ${updatedModuleKey}`);
+      } else {
+        // Create new
+        await httpRequest(`${config?.host?.mdmsV2}${config?.paths?.mdms_v2_create}/${fullSchemaCodeForConfig}`, requestBody);
+        logger.info(`Created module in MDMS: ${updatedModuleKey}`);
+      }
+    }
+    logger.info("App Config created successfully");
+  } catch (error: any) {
+    logger.error(`Error in createAppConfig: ${error?.message}`);
+    throw error;
+  }
+};
 
 async function getLocalizedHierarchy(request: any, localizationMap: any) {
   var hierarchy = await getHierarchy(
