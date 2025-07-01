@@ -23,7 +23,9 @@ public class HRMSUtils {
 
 	@Value("${egov.hrms.max.mobile.number}")
 	private String maxMobileNumber;
-	
+
+	private Random random = new Random();
+
 	/**
 	 * Generates random password for the user to login. Process:
 	 * 1. Takes a list of parameters for password
@@ -69,7 +71,6 @@ public class HRMSUtils {
 	}
 
 	public String generateMobileNumber() {
-		Random random = new Random();
 		long min = Long.parseLong(minMobileNumber);
 		long max = Long.parseLong(maxMobileNumber);
 		long mobileNumber = random.nextLong(max - min + 1) + min;
