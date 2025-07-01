@@ -2786,6 +2786,7 @@ export async function createAppConfig(
   RequestInfo: any
 ): Promise<void> {
   try {
+    logger.info("Creating app configuration...");
     const FormConfigTemplate = "FormConfigTemplate";
     const FormConfig = "FormConfig";
     const templateSchema = `HCM-ADMIN-CONSOLE.${FormConfigTemplate}`;
@@ -2827,6 +2828,7 @@ export async function createAppConfigFromClone(
   RequestInfo: any
 ): Promise<void> {
   try {
+    logger.info("Started creating app config from clone...");
     const FormConfig = "FormConfig";
     const configSchema = `HCM-ADMIN-CONSOLE.${FormConfig}`;
     const useruuid = RequestInfo?.userInfo?.uuid;
@@ -2839,23 +2841,12 @@ export async function createAppConfigFromClone(
       Localisation.getInstance(),
     ]);
 
-    const cloneCriteria = {
+    const [cloneResponse, existingResponse] = await fetchCloneAndExistingModules(
       tenantId,
-      schemaCode: configSchema,
-      filters: { project: cloneFromCampaignNumber },
-      isActive: true,
-    };
-
-    const existingCriteria = {
-      tenantId,
-      schemaCode: configSchema,
-      filters: { project: newCampaignNumber }
-    };
-
-    const [cloneResponse, existingResponse] = await Promise.all([
-      searchMDMSDataViaV2Api({ MdmsCriteria: cloneCriteria }),
-      searchMDMSDataViaV2Api({ MdmsCriteria: existingCriteria }),
-    ]);
+      configSchema,
+      cloneFromCampaignNumber,
+      newCampaignNumber
+    );
 
     const modulesToClone = (cloneResponse?.mdms || [])
       .map((item: any) => item?.data)
@@ -2901,6 +2892,32 @@ export async function createAppConfigFromClone(
     throw err;
   }
 }
+
+async function fetchCloneAndExistingModules(
+  tenantId: string,
+  configSchema: string,
+  cloneFromCampaignNumber: string,
+  newCampaignNumber: string
+): Promise<[any, any]> {
+  const cloneCriteria = {
+    tenantId,
+    schemaCode: configSchema,
+    filters: { project: cloneFromCampaignNumber },
+    isActive: true,
+  };
+
+  const existingCriteria = {
+    tenantId,
+    schemaCode: configSchema,
+    filters: { project: newCampaignNumber },
+  };
+
+  return await Promise.all([
+    searchMDMSDataViaV2Api({ MdmsCriteria: cloneCriteria }),
+    searchMDMSDataViaV2Api({ MdmsCriteria: existingCriteria }),
+  ]);
+}
+
 
 
 async function getLocalizedHierarchy(request: any, localizationMap: any) {
