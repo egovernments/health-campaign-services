@@ -11,14 +11,10 @@ import org.egov.transformer.models.projectFactory.CampaignDetails;
 import org.egov.transformer.models.projectFactory.CampaignSearchCriteria;
 import org.egov.transformer.models.projectFactory.CampaignSearchRequest;
 import org.egov.transformer.models.projectFactory.CampaignSearchResponse;
-import org.springframework.cache.Cache;
-import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 @Component
 @Slf4j
@@ -29,25 +25,23 @@ public class ProjectFactoryService {
 
     private final ObjectMapper objectMapper;
 
-    private final CacheManager cacheManager;
 
-    public ProjectFactoryService(TransformerProperties transformerProperties, ServiceRequestClient serviceRequestClient, ObjectMapper objectMapper, CacheManager cacheManager) {
+    private final TransformerCacheService cacheService;
+
+    public ProjectFactoryService(TransformerProperties transformerProperties, ServiceRequestClient serviceRequestClient, ObjectMapper objectMapper, TransformerCacheService cacheService) {
         this.transformerProperties = transformerProperties;
         this.serviceRequestClient = serviceRequestClient;
         this.objectMapper = objectMapper;
-        this.cacheManager = cacheManager;
+        this.cacheService = cacheService;
     }
 
     public String getCampaignIdFromCampaignNumber(String tenantId, Boolean isActive, String campaignNumber) {
         String campaignId = null;
-        Cache cache = cacheManager.getCache("campaignCache");
 
-        if (cache != null) {
-            campaignId = cache.get(campaignNumber, String.class);
-            if (campaignId != null) {
-                log.debug("Picking campaign id {} from cache for campaign number {}", campaignId, campaignNumber);
-                return campaignId;
-            }
+        campaignId = cacheService.get(campaignNumber, String.class);
+        if (campaignId != null) {
+            log.debug("Picking campaign id {} from cache for campaign number {}", campaignId, campaignNumber);
+            return campaignId;
         }
 
         log.debug("Cache missed for campaign number {}", campaignNumber);
@@ -55,9 +49,7 @@ public class ProjectFactoryService {
         if (!CollectionUtils.isEmpty(campaignDetailsList)) {
             //The API is expected to return only one campaign for the params used
             campaignId = campaignDetailsList.get(0).getId();
-            if (cache != null) {
-                cache.put(campaignNumber, campaignId);
-            }
+            cacheService.put(campaignNumber, campaignId);
         }
         return campaignId;
     }
