@@ -1069,7 +1069,14 @@ async function enrichAndPersistCampaignForCreate(
       request.body.CampaignDetails.campaignName =
         request.body.parentCampaign?.campaignName;
     }
-    await createAppConfig(request?.body?.CampaignDetails?.tenantId, request?.body?.CampaignDetails?.campaignNumber, request?.body?.CampaignDetails?.projectType, request?.body?.RequestInfo);
+    if(!request?.body?.CampaignDetails?.parentId){
+      if (request?.body?.CampaignDetails?.additionalDetails?.cloneFrom) {
+        await createAppConfigFromClone(request?.body?.CampaignDetails?.tenantId, request?.body?.CampaignDetails?.campaignNumber, request?.body?.CampaignDetails?.additionalDetails?.cloneFrom, request?.body?.RequestInfo);
+      }
+      else {
+        await createAppConfig(request?.body?.CampaignDetails?.tenantId, request?.body?.CampaignDetails?.campaignNumber, request?.body?.CampaignDetails?.projectType, request?.body?.RequestInfo);
+      }
+    }
   }
   request.body.CampaignDetails.campaignDetails = {
     deliveryRules: request?.body?.CampaignDetails?.deliveryRules || [],
@@ -2808,6 +2815,68 @@ export async function createAppConfig(
     throw err;
   }
 }
+
+export async function createAppConfigFromClone(
+  tenantId: string,
+  newCampaignNumber: string,
+  cloneFromCampaignNumber: string,
+  RequestInfo: any
+): Promise<void> {
+  try {
+    const FormConfig = "FormConfig";
+    const configSchema = `HCM-ADMIN-CONSOLE.${FormConfig}`;
+    const useruuid = RequestInfo?.userInfo?.uuid;
+    if (!useruuid) {
+      throw new Error("User uuid not found in request");
+    }
+
+    const [locales, localisation] = await Promise.all([
+      getLocalesFromStateInfo(tenantId),
+      Localisation.getInstance(),
+    ]);
+
+    const criteria = {
+      tenantId,
+      schemaCode: configSchema,
+      filters: { project: cloneFromCampaignNumber },
+      isActive: true,
+    };
+
+    const response = await searchMDMSDataViaV2Api({ MdmsCriteria: criteria });
+
+    const modulesToClone = (response?.mdms || [])
+      .map((item: any) => item?.data)
+      .filter(Boolean);
+
+    if (!modulesToClone.length) {
+      throw new Error(`No modules found to clone from campaign: ${cloneFromCampaignNumber}`);
+    }
+
+    for (const module of modulesToClone) {
+      const moduleName = module?.name;
+      if (!moduleName) continue;
+
+      const baseKey = `hcm-${moduleName.toLowerCase()}-${cloneFromCampaignNumber}`;
+      const newKey = `hcm-${moduleName.toLowerCase()}-${newCampaignNumber}`;
+
+      await upsertLocalisations(tenantId, baseKey, newKey, locales, localisation, RequestInfo);
+
+      const newModule = {
+        ...module,
+        project: newCampaignNumber,
+        isSelected: true,
+      };
+
+      await createModuleInMDMS(tenantId, configSchema, newModule, useruuid);
+    }
+
+    logger.info("App configuration cloned successfully.");
+  } catch (err: any) {
+    logger.error(`Failed to clone app config: ${err?.message}`);
+    throw err;
+  }
+}
+
 
 
 async function getLocalizedHierarchy(request: any, localizationMap: any) {
