@@ -55,6 +55,8 @@ public class ProjectTaskTransformationService {
     public void transform(List<Task> taskList) {
         log.info("transforming for TASK id's {}", taskList.stream()
                 .map(Task::getId).collect(Collectors.toList()));
+        long indStartTime = System.currentTimeMillis();
+
         String topic = transformerProperties.getTransformerProducerBulkProjectTaskIndexV1Topic();
         List<ProjectTaskIndexV1> projectTaskIndexV1List = taskList.stream()
                 .map(this::transform)
@@ -64,6 +66,12 @@ public class ProjectTaskTransformationService {
                 .map(ProjectTaskIndexV1::getId)
                 .collect(Collectors.toList()));
         producer.push(topic, projectTaskIndexV1List);
+
+        long indEndTime = System.currentTimeMillis();
+        long duration = indEndTime - indStartTime;
+        log.info("Time taken to ENRICH AND PUSH THE TASK INFO  for clientReferenceId {}: {} ms", taskList.stream()
+                .map(Task::getId).collect(Collectors.toList()), duration);
+
     }
 
     public List<ProjectTaskIndexV1> transform(Task task) {
@@ -166,10 +174,12 @@ public class ProjectTaskTransformationService {
 //            addAdditionalDetails(taskResource.getAdditionalFields(), additionalDetails);
 //            addCycleIndex(additionalDetails, taskResource.getAuditDetails(), tenantId, projectTypeId);
 //        }
-        if (beneficiaryInfo.containsKey(HEIGHT) && beneficiaryInfo.containsKey(DISABILITY_TYPE)) {
-            additionalDetails.put(HEIGHT, (Integer) beneficiaryInfo.get(HEIGHT));
-            additionalDetails.put(DISABILITY_TYPE,(String) beneficiaryInfo.get(DISABILITY_TYPE));
-        }
+
+//        >>> commenting below code to for smc performance testing
+//        if (beneficiaryInfo.containsKey(HEIGHT) && beneficiaryInfo.containsKey(DISABILITY_TYPE)) {
+//            additionalDetails.put(HEIGHT, (Integer) beneficiaryInfo.get(HEIGHT));
+//            additionalDetails.put(DISABILITY_TYPE,(String) beneficiaryInfo.get(DISABILITY_TYPE));
+//        }
 
         if (beneficiaryInfo.containsKey("additionalFields")) {
             try {
@@ -178,15 +188,15 @@ public class ProjectTaskTransformationService {
                 log.error("Error in projectTask transformation while addition of additionalFields to additionDetails {}" , e.getMessage());
             }
         }
-
-        int pregnantWomenCount = additionalDetails.has(PREGNANTWOMEN) ? additionalDetails.get(PREGNANTWOMEN).asInt(0) : 0;
-        int childrenCount = additionalDetails.has(CHILDREN) ? additionalDetails.get(CHILDREN).asInt(0) : 0;
-        if (pregnantWomenCount > 0 || childrenCount > 0) {
-            additionalDetails.put(ISVULNERABLE, true);
-        }
-        if (task.getStatus().equalsIgnoreCase(CLOSED_HOUSEHOLD) && !additionalDetails.has(REASON_OF_REFUSAL)) {
-            additionalDetails.put(REASON_OF_REFUSAL, task.getStatus());
-        }
+//       >>> commenting below code to for smc performance testing
+//        int pregnantWomenCount = additionalDetails.has(PREGNANTWOMEN) ? additionalDetails.get(PREGNANTWOMEN).asInt(0) : 0;
+//        int childrenCount = additionalDetails.has(CHILDREN) ? additionalDetails.get(CHILDREN).asInt(0) : 0;
+//        if (pregnantWomenCount > 0 || childrenCount > 0) {
+//            additionalDetails.put(ISVULNERABLE, true);
+//        }
+//        if (task.getStatus().equalsIgnoreCase(CLOSED_HOUSEHOLD) && !additionalDetails.has(REASON_OF_REFUSAL)) {
+//            additionalDetails.put(REASON_OF_REFUSAL, task.getStatus());
+//        }
         projectTaskIndexV1.setAdditionalDetails(additionalDetails);
 
         return projectTaskIndexV1;
@@ -297,7 +307,13 @@ public class ProjectTaskTransformationService {
             }
         } else if (INDIVIDUAL.equalsIgnoreCase(projectBeneficiaryType)) {
             log.info("fetching individual details for INDIVIDUAL projectBeneficiaryType");
+            long indStartTime = System.currentTimeMillis();
             projectBenfInfoMap = individualService.getIndividualInfo(beneficiaryClientRefId, tenantId);
+            long indEndTime = System.currentTimeMillis();
+            long duration = indEndTime - indStartTime;
+
+            log.info("Time taken to PROCESS THE INDIVIDUAL INFO  for clientReferenceId {}: {} ms", beneficiaryClientRefId, duration);
+
         }
         return projectBenfInfoMap;
     }

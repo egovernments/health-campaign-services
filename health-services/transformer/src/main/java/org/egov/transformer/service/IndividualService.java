@@ -74,7 +74,15 @@ public class IndividualService {
     }
 
     public Map<String, Object> getIndividualInfo(String clientReferenceId, String tenantId) {
+
+        long indStartTime = System.currentTimeMillis();
+
         Individual individual = getIndividualByClientReferenceId(clientReferenceId, tenantId);
+
+        long indEndTime = System.currentTimeMillis();
+        long duration = indEndTime - indStartTime;
+
+        log.info("Time taken to FETCH INDIVIDUAL for clientReferenceId {}: {} ms", clientReferenceId, duration);
         Map<String, Object> individualDetails = new HashMap<>();
 
         if (individual != null) {
