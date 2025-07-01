@@ -232,7 +232,7 @@ public class DownsyncService {
 
         appendUrlParams(url, criteria, 0, batchSize, true);
 
-        /* fetches the services in the batches of batch size */
+        /* fetches the data in the batches of batch size */
         for (int i = 0; i < individualIds.size(); i += batchSize) {
             List<String> batch = getIdsForBatch(batchSize, i, individualIds);
 
@@ -283,7 +283,7 @@ public class DownsyncService {
         /* get batch size to fetch services from environment */
         int batchSize = configs.getServiceRequestSearchBatchSize();
 
-        /* fetches the services in the batches of batch size */
+        /* fetches the data in the batches of batch size */
         for (int i = 0; i < referenceIds.size(); i += batchSize) {
             List<String> batch = getIdsForBatch(batchSize, i, referenceIds);
 
@@ -343,7 +343,7 @@ public class DownsyncService {
 
         appendUrlParams(memberUrl, downsyncRequest.getDownsyncCriteria(), 0, batchSize, false);
 
-        /* fetches the services in the batches of batch size */
+        /* fetches the data in the batches of batch size */
         for (int i = 0; i < memberIds.size(); i += batchSize) {
             List<String> batch = getIdsForBatch(batchSize, i, memberIds);
 
@@ -400,7 +400,7 @@ public class DownsyncService {
 
         appendUrlParams(url, criteria, 0, batchSize, false);
 
-        /* fetches the services in the batches of batch size */
+        /* fetches the data in the batches of batch size */
         for (int i = 0; i < beneficiaryIds.size(); i += batchSize) {
             List<String> batch = getIdsForBatch(batchSize, i, beneficiaryIds);
 
@@ -455,7 +455,7 @@ public class DownsyncService {
 
         appendUrlParams(url, criteria, 0, batchSize, false);
 
-        /* fetches the services in the batches of batch size */
+        /* fetches the data in the batches of batch size */
         for (int i = 0; i < taskIds.size(); i += batchSize) {
             List<String> batch = getIdsForBatch(batchSize, i, taskIds);
 
@@ -501,7 +501,7 @@ public class DownsyncService {
         /* get batch size to fetch side effects from environment */
         int batchSize = configs.getSideEffectSearchBatchSize();
 
-        /* fetches the services in the batches of batch size */
+        /* fetches the data in the batches of batch size */
         for (int i = 0; i < SEIds.size(); i += batchSize) {
             List<String> batch = getIdsForBatch(batchSize, i, SEIds);
 
