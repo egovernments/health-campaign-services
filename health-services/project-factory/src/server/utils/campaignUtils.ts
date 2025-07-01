@@ -2743,6 +2743,10 @@ async function processAndInsertModules(
   if (!useruuid) {
     throw new Error("User uuid not found in request");
   }
+  if(!templateModules?.length) {
+    logger.warn("No template modules found");
+    return;
+  }
 
   for (const template of templateModules) {
     const moduleName = template?.name;
@@ -2835,26 +2839,48 @@ export async function createAppConfigFromClone(
       Localisation.getInstance(),
     ]);
 
-    const criteria = {
+    const cloneCriteria = {
       tenantId,
       schemaCode: configSchema,
       filters: { project: cloneFromCampaignNumber },
       isActive: true,
     };
 
-    const response = await searchMDMSDataViaV2Api({ MdmsCriteria: criteria });
+    const existingCriteria = {
+      tenantId,
+      schemaCode: configSchema,
+      filters: { project: newCampaignNumber },
+      isActive: true,
+    };
 
-    const modulesToClone = (response?.mdms || [])
+    const [cloneResponse, existingResponse] = await Promise.all([
+      searchMDMSDataViaV2Api({ MdmsCriteria: cloneCriteria }),
+      searchMDMSDataViaV2Api({ MdmsCriteria: existingCriteria }),
+    ]);
+
+    const modulesToClone = (cloneResponse?.mdms || [])
       .map((item: any) => item?.data)
       .filter(Boolean);
 
+    const existingModules = new Set(
+      (existingResponse?.mdms || [])
+        .map((item: any) => item?.data?.name)
+        .filter(Boolean)
+    );
+
     if (!modulesToClone.length) {
-      throw new Error(`No modules found to clone from campaign: ${cloneFromCampaignNumber}`);
+      logger.warn("No modules found to clone.");
+      return;
     }
 
     for (const module of modulesToClone) {
       const moduleName = module?.name;
       if (!moduleName) continue;
+
+      if (existingModules.has(moduleName)) {
+        logger.info(`Skipping existing module: ${moduleName}`);
+        continue;
+      }
 
       const baseKey = `hcm-${moduleName.toLowerCase()}-${cloneFromCampaignNumber}`;
       const newKey = `hcm-${moduleName.toLowerCase()}-${newCampaignNumber}`;
@@ -2876,7 +2902,6 @@ export async function createAppConfigFromClone(
     throw err;
   }
 }
-
 
 
 async function getLocalizedHierarchy(request: any, localizationMap: any) {
