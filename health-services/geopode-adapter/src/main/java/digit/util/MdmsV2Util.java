@@ -122,6 +122,8 @@ public class MdmsV2Util {
      * @return
      */
     public String extractCountryNameFromMdms(MdmsResponseV2 mdmsResponse, String targetIsoCode) {
+        // targetIsoCode provided in BoundarySetup.isoCode initially by user
+        // MdmsResponseV2 is for module.master hcm-microplanning.CountryConfig
         try {
             return mdmsResponse.getMdms().stream()
                     .map(mdms -> mdms.getData()) // Get data node from each MDMS entry

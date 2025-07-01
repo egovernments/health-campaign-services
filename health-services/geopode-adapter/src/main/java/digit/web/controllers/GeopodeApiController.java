@@ -66,7 +66,7 @@ public class GeopodeApiController {
         BoundaryHierarchyDefinitionResponse response = null;
         try {
             response = boundaryUtil.fetchBoundaryHierarchyDefinition(request);
-        } catch (CustomException e) {
+        } catch (Exception e) {
             log.error(ERROR_IN_SEARCH, e);
         }
 
@@ -98,7 +98,7 @@ public class GeopodeApiController {
         ArcgisResponse response = null;
         try {
             response = arcgisUtil.searchBoundary(request);
-        } catch (CustomException e) {
+        } catch (Exception e) {
             log.error(ERROR_IN_SEARCH, e);
         }
 

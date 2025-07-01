@@ -55,10 +55,11 @@ public class ArcgisUtil {
     }
 
     /**
-     * This method creates root and initializes the children
+     * This method creates root and calls the childBoundaryCreationUtil which initializes
+     * the children boundaries under root
      *
      * @param request
-     * @return
+     * @return rootName
      */
     public String createRoot(GeopodeBoundaryRequest request) {
         MdmsResponseV2 mdmsResponse = mdmsV2Util.fetchMdmsDataForIsoCode(request);
@@ -69,7 +70,7 @@ public class ArcgisUtil {
         }
 
         serviceRequestRepository.fetchArcGisData(countryName); //TODO: Add geometry in from response (e.g., geometry/rings)
-        BoundaryRequest boundaryRequest = boundaryUtil.buildBoundaryRequest(countryName, config.getTenantId(), request.getRequestInfo());
+        BoundaryRequest boundaryRequest = boundaryUtil.buildBoundaryRequest(countryName, request.getGeopodeBoundary().getTenantId(), request.getRequestInfo());
         childBoundaryCreationUtil.createChildrenAsync(request, countryName);
 
         // return response with status 200 and message
@@ -79,9 +80,11 @@ public class ArcgisUtil {
 
     /**
      * This method processes the request to search using arcgis queries
+     * and request params
+     *
      *
      * @param request
-     * @return
+     * @return List of countries from arcgisEndpoint
      */
     public ArcgisResponse searchBoundary(ArcgisRequest request) {
         URI uri = searchArcgisRequestBuilder(request);
