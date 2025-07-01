@@ -7,6 +7,7 @@ import digit.web.models.Arcgis.ArcgisResponse;
 import digit.web.models.Arcgis.Feature;
 import digit.web.models.GeopodeBoundaryRequest;
 import digit.web.models.boundaryService.*;
+
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.common.protocol.types.Field;
 import org.egov.common.contract.request.RequestInfo;
@@ -22,6 +23,8 @@ import org.springframework.web.util.UriComponentsBuilder;
 import java.net.URI;
 import java.util.*;
 import java.util.stream.Collectors;
+
+import org.springframework.util.ObjectUtils;
 
 import static digit.config.ServiceConstants.*;
 
@@ -44,6 +47,10 @@ public class ChildBoundaryCreationUtil {
     @Async
     /**
      * This method is used for triggering a recurring function(fetchLevelRecursively) to create children boundaries
+     * This approach is a bfs approach
+     * The order of functions is called as per order of Hierarchy-wise:
+     * createChildrenAsync->fetchLevelRecursively->fetchAllBatchesForLevels->
+     * callArcgisApi->initializeBoundaryAndRelationship->initializeBoundary->initializeParentChildRelationShip
      *
      * @param request
      * @param parentCode
@@ -99,7 +106,7 @@ public class ChildBoundaryCreationUtil {
 
         if (parentList == null) {
             List<Feature> childResults = fetchAllBatchesForLevel(currentLevel, parentLevel, (String) null, rootCode); // No parent filter
-            currentChildNames = initializeBoundaryAndRelationship(childResults, null, currentLevel, request.getRequestInfo());
+            currentChildNames = initializeBoundaryAndRelationship(childResults, null, currentLevel, request.getRequestInfo(), request.getGeopodeBoundary().getTenantId());
             totalChildrenCount += childResults.size();
         } else {
             // For each parent element, make a batch fetch based on parent
@@ -113,7 +120,8 @@ public class ChildBoundaryCreationUtil {
                 log.info("No of children for parent " + parentName + " " + childResults.toArray().length);
                 // Accumulating all parents results
                 currentChildNames.addAll(
-                        initializeBoundaryAndRelationship(childResults, parentUniqueName, currentLevel, request.getRequestInfo())
+                        initializeBoundaryAndRelationship(childResults, parentUniqueName, currentLevel, request.getRequestInfo(), request
+                                .getGeopodeBoundary().getTenantId())
                 );
             }
         }
@@ -139,32 +147,34 @@ public class ChildBoundaryCreationUtil {
     private List<Feature> fetchAllBatchesForLevel(String currentLevel, String parentLevel, String parentName, String rootCode) {
         // Skip if it's a root level (e.g., ADM0)
         if (parentName == null) {
-            String filter = "ADM0_NAME='" + rootCode + "'";
+            String filter = ADM0 + NAME_SUFFIX + EQ_WITH_QUOTES + rootCode + CLOSING_QUOTE;
+            ;
             return callArcgisAPI(currentLevel, filter);
         }
 
         // Build the 'where' clause: e.g., ADM0_NAME='Mozambique'
-        String whereClause = parentLevel + "_NAME='" + parentName + "'";
+        String whereClause = parentLevel + NAME_SUFFIX + EQ_WITH_QUOTES + parentName + CLOSING_QUOTE;
 
         // Call ArcGIS API
         return callArcgisAPI(currentLevel, whereClause);
+        //TODO include limit, offset in search call
+        /*
+                int offset = 0;
+                int limit = 100;
 
-        //        int offset = 0;
-        //        int limit = 100;
+                while (true) {
+                    // Replace with actual API call logic
+                    List<Object> batch = callSearchAPI(level, parentName, offset, limit);
 
-        //        while (true) {
-        //            // Replace with actual API call logic
-        //            List<Object> batch = callSearchAPI(level, parentName, offset, limit);
-        //
-        //            if (batch == null || batch.isEmpty()) break;
-        //
-        //            result.addAll(batch);
-        //
-        //            if (batch.size() < limit) break; // Last batch
-        //
-        //            offset += limit;
-        //        }
+                    if (batch == null || batch.isEmpty()) break;
 
+                    result.addAll(batch);
+
+                    if (batch.size() < limit) break; // Last batch
+
+                    offset += limit;
+                }
+         */
     }
 
     /**
@@ -174,9 +184,9 @@ public class ChildBoundaryCreationUtil {
         List<Feature> resultList = new ArrayList<>();  // to store features from the response
 
         URI url = UriComponentsBuilder.fromHttpUrl(config.getArcgisHost() + config.getArcgisEnpoint())
-                .queryParam("where", whereClause)                      // e.g., ADM0_NAME='NIGERIA'
-                .queryParam("outFields", currentLevel + "_NAME")       // e.g., ADM1_NAME
-                .queryParam("f", "json")                               // response format
+                .queryParam(QUERY_PARAM_WHERE, whereClause)                      // e.g., ADM0_NAME='NIGERIA'
+                .queryParam(QUERY_PARAM_OUT_FIELDS, currentLevel + NAME_SUFFIX)       // e.g., ADM1_NAME
+                .queryParam(QUERY_PARAM_FORMAT, FORMAT_VALUE)                               // response format
                 .build()
                 .encode()
                 .toUri();
@@ -198,9 +208,8 @@ public class ChildBoundaryCreationUtil {
                 resultList = arcgisResponse.getFeatures();  // extract the list of features
             }
         } catch (Exception e) {
-            System.err.println("ArcGIS API error for level: " + currentLevel + " with where=" + whereClause);
-            log.error(ERROR_IN_ARC_SEARCH, e);
-            throw new CustomException(ERROR_IN_ARC_SEARCH, "Error when fetching from arcgis");
+            log.error(ERROR_IN_ARC_SEARCH, "ArcGIS API error for level: " + currentLevel + " with where=" + whereClause);
+            throw new CustomException(ERROR_IN_ARC_SEARCH_CODE, ERROR_IN_ARC_SEARCH);
         }
 
         return resultList;
@@ -216,17 +225,14 @@ public class ChildBoundaryCreationUtil {
     private String extractNameFromFeature(Feature node, String level) {
         // Use switch to return the correct name based on the level
         return switch (level) {
-            case "ADM0" -> node.getAttributes().getADM0_NAME();
-            case "ADM1" -> node.getAttributes().getADM1_NAME();
-            case "ADM2" -> node.getAttributes().getADM2_NAME();
-            case "ADM3" -> node.getAttributes().getADM3_NAME();
-            case "ADM4" -> node.getAttributes().getADM4_NAME();
+            case ADM0 -> node.getAttributes().getADM0_NAME();
+            case ADM1 -> node.getAttributes().getADM1_NAME();
+            case ADM2 -> node.getAttributes().getADM2_NAME();
+            case ADM3 -> node.getAttributes().getADM3_NAME();
+            case ADM4 -> node.getAttributes().getADM4_NAME();
             default -> null; // Handles unexpected levels
         };
     }
-
-
-    //Note parent code is already unique
 
     /**
      * Method initializes boundary-Entity and boundary-relation
@@ -239,7 +245,7 @@ public class ChildBoundaryCreationUtil {
      * @param requestInfo
      * @return
      */
-    private List<List<String>> initializeBoundaryAndRelationship(List<Feature> childResults, String parentUniqueCode, String currentLevel, RequestInfo requestInfo) {
+    private List<List<String>> initializeBoundaryAndRelationship(List<Feature> childResults, String parentUniqueCode, String currentLevel, RequestInfo requestInfo, String tenantId) {
         List<List<String>> uniqueChildNames = new ArrayList<>(); // Will hold in format [childName,UniqueChildName]
         Set<String> seenBoundaryNames = new HashSet<>();  // Will track boundary names we've already added
         // Stores child->parent unique code mappings in insertion order
@@ -264,7 +270,7 @@ public class ChildBoundaryCreationUtil {
             String childCode = pair.get(0);
             String childUniqueCode = pair.get(1);
 
-            initializeParentChildRelationShip(childUniqueCode, parentUniqueCode, currentLevel, requestInfo);
+            initializeParentChildRelationShip(childUniqueCode, parentUniqueCode, currentLevel, requestInfo, tenantId);
         }
 
         //
@@ -280,8 +286,17 @@ public class ChildBoundaryCreationUtil {
      */
     private void initializeBoundary(String childUniqueCode, String currentLevel, RequestInfo requestInfo) {
         BoundaryRequest boundaryRequest = boundaryUtil.buildBoundaryRequest(childUniqueCode, config.getTenantId(), requestInfo);
-        boundaryUtil.sendBoundaryRequest(boundaryRequest);
+        try {
+            boundaryUtil.sendBoundaryRequest(boundaryRequest);
+        } catch (Exception e) {
+            log.error(ERROR_IN_BOUNDARY_CREATE, e);
+            throw new CustomException(
+                    BOUNDARY_CREATE_FAILED,
+                    String.format(BOUNDARY_CREATE_FAILED_MSG, childUniqueCode, currentLevel)
+            );
+        }
     }
+
 
     /**
      * Method initializes boundary-relation
@@ -291,18 +306,26 @@ public class ChildBoundaryCreationUtil {
      * @param currentLevel
      * @param requestInfo
      */
-    private void initializeParentChildRelationShip(String childUniqueCode, String parentUniqueCode, String currentLevel, RequestInfo requestInfo) {
+    private void initializeParentChildRelationShip(String childUniqueCode, String parentUniqueCode, String currentLevel, RequestInfo requestInfo, String tenantId) {
         BoundaryRelationshipRequest boundaryRelationshipRequest =
                 BoundaryRelationshipRequest.builder()
                         .requestInfo(requestInfo).boundaryRelationship(BoundaryRelation.builder()
                                 .code(childUniqueCode)
                                 .parent(parentUniqueCode)
                                 .boundaryType(currentLevel)
-                                .tenantId(config.getTenantId())
+                                .tenantId(tenantId)
                                 .hierarchyType(HIERARCHY_TYPE)
                                 .build()).build();
         String url = config.getBoundaryServiceHost() + config.getBoundaryRelationshipCreateEndpoint();
-        restTemplate.postForObject(url, boundaryRelationshipRequest, BoundaryRelationshipResponse.class);
+        try {
+            restTemplate.postForObject(url, boundaryRelationshipRequest, BoundaryRelationshipResponse.class);
+        } catch (Exception e) {
+            log.error(ERROR_IN_BOUNDARY_RELATIONSHIP_CREATE, e);
+            throw new CustomException(
+                    BOUNDARY_RELATIONSHIP_CREATE_FAILED, String.format(BOUNDARY_RELATIONSHIP_CREATE_FAILED_MSG, childUniqueCode, parentUniqueCode)
+            );
+        }
+
 
     }
 
@@ -315,15 +338,16 @@ public class ChildBoundaryCreationUtil {
 
     public static List<String> extractOrderedHierarchy(BoundaryHierarchyDefinitionResponse response) {
         // Safety check
-        if (response == null || response.getBoundaryHierarchy() == null || response.getBoundaryHierarchy().isEmpty()) {
-            return Collections.emptyList(); // nothing to process
+        if (ObjectUtils.isEmpty(response) || ObjectUtils.isEmpty(response.getBoundaryHierarchy())) {
+            return Collections.emptyList();
         }
+
 
         // Step 1: Get the first BoundaryHierarchy (you can loop over all if needed)
         BoundaryHierarchy hierarchy = response.getBoundaryHierarchy().get(0);
         List<BoundaryHierarchy.SimpleBoundary> boundaries = hierarchy.getBoundaryHierarchy();
 
-        if (boundaries == null || boundaries.isEmpty()) {
+        if (ObjectUtils.isEmpty(boundaries)) {
             return Collections.emptyList();
         }
 
@@ -342,28 +366,30 @@ public class ChildBoundaryCreationUtil {
                 .findFirst();
 
         if (rootOpt.isEmpty()) {
-            throw new IllegalStateException("No root boundary (with null parent) found in hierarchy");
+            throw new CustomException(ROOT_BOUNDARY_NOT_FOUND,ROOT_BOUNDARY_NOT_FOUND_MSG);
         }
 
-        String current = rootOpt.get().getBoundaryType();
+
+        String currentLevel = rootOpt.get().getBoundaryType();
 
         // Step 5: Walk through the hierarchy linearly and build the ordered list
-        List<String> orderedList = new ArrayList<>();
-        while (current != null) {
-            orderedList.add(current);
+        List<String> orderedListHierarchy = new ArrayList<>();
+        while (currentLevel != null) {
+            orderedListHierarchy.add(currentLevel);
 
-            // Find the next child that has current as its parent
-            String finalCurrent = current;
-            String next = childToParent.entrySet().stream()
-                    .filter(e -> e.getValue().equals(finalCurrent))
+            // Find the next child that has currentLevel as its parent
+            String finalCurrentLevel = currentLevel;
+            String nextLevel = childToParent.entrySet().stream()
+                    .filter(e -> e.getValue().equals(finalCurrentLevel))
                     .map(Map.Entry::getKey)
                     .findFirst()
                     .orElse(null); // end of hierarchy
 
-            current = next;
+            currentLevel = nextLevel;
         }
 
-        return orderedList;
+        return orderedListHierarchy;
+
     }
 
 

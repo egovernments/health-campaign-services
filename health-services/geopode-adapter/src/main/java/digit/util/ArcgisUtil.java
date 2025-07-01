@@ -1,30 +1,24 @@
 package digit.util;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import digit.config.Configuration;
 import digit.repository.ServiceRequestRepository;
 import digit.web.models.Arcgis.ArcgisRequest;
 import digit.web.models.Arcgis.ArcgisResponse;
 import digit.web.models.GeopodeBoundaryRequest;
 import digit.web.models.boundaryService.*;
-import digit.web.models.mdmsV2.MdmsCriteriaReqV2;
-import digit.web.models.mdmsV2.MdmsCriteriaV2;
 import digit.web.models.mdmsV2.MdmsResponseV2;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.tracer.model.CustomException;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpMethod;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
-
 import java.net.URI;
 import java.util.Map;
-import java.util.Objects;
-
 import static digit.config.ServiceConstants.*;
+import digit.config.Configuration;
 
 @Component
 @Slf4j

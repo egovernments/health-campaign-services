@@ -47,9 +47,7 @@ public class MdmsV2Util {
         if(ObjectUtils.isEmpty(mdmsResponseV2.getMdms()))
         {
             log.error(ERROR_FETCHING_FROM_MDMS+ " - " + tenantId);
-            throw new CustomException(
-                    Collections.singletonMap("MDMS", NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT_ISO_CODE)
-            );
+            throw new CustomException(MDMS_NOT_FOUND, NO_MDMS_DATA_FOUND_FOR_GIVEN_TENANT_ISO_CODE);
 
         }
 

@@ -36,17 +36,48 @@ public class ServiceConstants {
     public static final String ROOT_HIERARCHY_LEVEL="ADM0";
     public static final String ALREADY_EXISTS="Duplicate Record";
     public static final String COUNTRY_NAME_NOT_FOUND="Country Not Found";
+    public static final String ERROR_IN_ARC_SEARCH_CODE="Fetching error";
     // ArcGIS query parameter keys
     public static final String QUERY_PARAM_WHERE = "where";
     public static final String QUERY_PARAM_OUT_FIELDS = "outFields";
     public static final String QUERY_PARAM_FORMAT = "f";
     public static final String QUERY_PARAM_RESULT_COUNT = "resultRecordCount";
 
+    public static final String QUERY_PARAM_TENANT_ID="tenantId";
+    public static final String QUERY_PARAM_CODES="codes";
+    public static final String UNDERSCORE = "_";
+    public static final String NON_ALPHANUMERIC_REGEX = "[^a-zA-Z0-9]";
+    public static final String ERROR_COUNTRY_ALREADY_EXISTS = "Country already exists for given HierarchyType";
     // ArcGIS fixed values
     public static final int RECORD_COUNT_ONE = 1;
+    public static final String INVALID_NUMBER_OF_OPERANDS_CODE = "INVALID_NUMBER_OF_OPERANDS";
+    public static final String DIVISION_ONLY_TWO_OPERANDS_MSG = "Division operation can be performed only with 2 operands.";
+    public static final String ADM0 = "ADM0";
+    public static final String NAME_SUFFIX = "_NAME";
+    public static final String EQ_WITH_QUOTES = "='";
+    public static final String CLOSING_QUOTE = "'";
 
     // Field name constants
     public static final String COUNTRY_OUTFIELDS="ADM0_NAME";
+
+    public static final String ADM1 = "ADM1";
+    public static final String ADM2 = "ADM2";
+    public static final String ADM3 = "ADM3";
+    public static final String ADM4 = "ADM4";
+
+    public static final String ERROR_IN_BOUNDARY_RELATIONSHIP_CREATE = "Error creating boundary relationship";
+    public static final String BOUNDARY_RELATIONSHIP_CREATE_FAILED = "Boundary relationship creation failed";
+    public static final String BOUNDARY_RELATIONSHIP_CREATE_FAILED_MSG = "Failed to create boundary relationship for child: %s with parent: %s";
+    public static final String ERROR_IN_BOUNDARY_CREATE = "Error creating boundary entity";
+    public static final String BOUNDARY_CREATE_FAILED = "BOUNDARY_CREATE_FAILED";
+    public static final String BOUNDARY_CREATE_FAILED_MSG = "Failed to create boundary entity for child: %s at level: %s";
+    public static final String ROOT_BOUNDARY_NOT_FOUND = "ROOT_BOUNDARY_NOT_FOUND";
+    public static final String ROOT_BOUNDARY_NOT_FOUND_MSG = "No root boundary (with null parent) found in hierarchy";
+    public static final String  MDMS_NOT_FOUND = "Data not found";
+
+
+
+
     public static final String RESPONSE_FROM_GEOPODE_API = "[\n" +
             "  {\n" +
             "    \"feature\": \"admin_0\",\n" +

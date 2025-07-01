@@ -6,6 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import net.minidev.json.JSONArray;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.mdms.model.*;
+import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
@@ -36,13 +37,14 @@ public class MdmsUtil {
         uri.append(configs.getMdmsHost()).append(configs.getMdmsEndPoint());
         MdmsCriteriaReq mdmsCriteriaReq = getMdmsRequest(requestInfo, tenantId, moduleName, masterNameList);
         Object response = new HashMap<>();
-        Integer rate = 0;
         MdmsResponse mdmsResponse = new MdmsResponse();
         try {
             response = restTemplate.postForObject(uri.toString(), mdmsCriteriaReq, Map.class);
             mdmsResponse = mapper.convertValue(response, MdmsResponse.class);
         } catch (Exception e) {
             log.error(ERROR_WHILE_FETCHING_FROM_MDMS, e);
+            throw new CustomException(ERROR_FETCHING_FROM_MDMS, ERROR_WHILE_FETCHING_FROM_MDMS
+            );
         }
 
         return mdmsResponse.getMdmsRes();
