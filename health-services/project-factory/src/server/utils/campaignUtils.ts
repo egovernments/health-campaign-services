@@ -111,6 +111,7 @@ import {
 import { GenerateTemplateQuery } from "../models/GenerateTemplateQuery";
 import { getLocaleFromRequest } from "./localisationUtils";
 import { generateDataService } from "../service/sheetManageService";
+import Localisation from "../controllers/localisationController/localisation.controller";
 
 function updateRange(range: any, worksheet: any) {
   let maxColumnIndex = 0;
@@ -1115,6 +1116,7 @@ async function enrichAndPersistCampaignForCreate(
       request.body.CampaignDetails.campaignName =
         request.body.parentCampaign?.campaignName;
     }
+    await processAppConfig(request?.body?.CampaignDetails, request?.body?.RequestInfo);
   }
   request.body.CampaignDetails.campaignDetails = {
     deliveryRules: request?.body?.CampaignDetails?.deliveryRules || [],
@@ -1151,6 +1153,17 @@ async function enrichAndPersistCampaignForCreate(
   };
   await produceModifiedMessages(produceMessage, topic);
   delete request.body.CampaignDetails.campaignDetails;
+}
+
+async function processAppConfig(campaignDetails: any, RequestInfo: any) {
+  if (!campaignDetails?.parentId) {
+    if (campaignDetails?.additionalDetails?.cloneFrom) {
+      await createAppConfigFromClone(campaignDetails?.tenantId, campaignDetails?.campaignNumber, campaignDetails?.additionalDetails?.cloneFrom, RequestInfo);
+    }
+    else {
+      await createAppConfig(campaignDetails?.tenantId, campaignDetails?.campaignNumber, campaignDetails?.projectType, RequestInfo);
+    }
+  }
 }
 
 export async function enrichAndPersistCampaignForCreateViaFlow2(
@@ -1407,30 +1420,23 @@ async function enrichAndPersistProjectCampaignRequest(
 }
 
 function getChildParentMap(modifiedBoundaryData: any) {
-  const childParentMap: Map<
+  const childParentMap = new Map<
     { key: string; value: string },
     { key: string; value: string } | null
-  > = new Map();
-
-  modifiedBoundaryData.forEach((row: any) => {
+  >();
+  const stringifiedMap = new Set<string>(); // To avoid deep _.isEqual() lookup
+  modifiedBoundaryData.forEach((row: any[]) => {
     for (let j = row.length - 1; j >= 0; j--) {
       const child = row[j];
       const parent = j - 1 >= 0 ? row[j - 1] : null;
-      const childIdentifier = { key: child.key, value: child.value }; // Unique identifier for the child
-      const parentIdentifier = parent
-        ? { key: parent.key, value: parent.value }
-        : null; // Unique identifier for the parent, set to null if parent doesn't exist
-
-      // Check if the mapping already exists in the childParentMap
-      const existingMapping = Array.from(childParentMap.entries()).find(
-        ([existingChild, existingParent]) =>
-          _.isEqual(existingChild, childIdentifier) &&
-          _.isEqual(existingParent, parentIdentifier)
-      );
-
-      // If the mapping doesn't exist, add it to the childParentMap
-      if (!existingMapping) {
+      const childIdentifier = { key: child.key, value: child.value };
+      const parentIdentifier = parent ? { key: parent.key, value: parent.value } : null;
+      const lookupKey = parentIdentifier
+        ? `${child.key}|${child.value}__${parent.key}|${parent.value}`
+        : `${child.key}|${child.value}__null`;
+      if (!stringifiedMap.has(lookupKey)) {
         childParentMap.set(childIdentifier, parentIdentifier);
+        stringifiedMap.add(lookupKey);
       }
     }
   });
@@ -2898,6 +2904,327 @@ async function tryTriggerGenerateIfBoundariesSynced(request: any, expectedBounda
   throwError("PERSISTENCE", 500, "BOUNDARY_SYNC_ERROR", "Boundaries could not be synced from DB after multiple retries.");
 }
 
+async function getLocalesFromStateInfo(tenantId: string): Promise<string[]> {
+  const criteria = {
+    tenantId,
+    schemaCode: "common-masters.StateInfo",
+    isActive: true,
+  };
+
+  const response = await searchMDMSDataViaV2Api({ MdmsCriteria: criteria });
+
+  if (!response?.mdms?.length) {
+    throw new Error("StateInfo data not found in MDMS");
+  }
+
+  return response.mdms
+    .map((item: any) => item?.data?.defaultLanguage)
+    .filter(Boolean);
+}
+
+async function getTemplateModules(
+  tenantId: string,
+  campaignType: string,
+  schemaCode: string
+): Promise<any[]> {
+  const criteria = {
+    tenantId,
+    schemaCode,
+    filters: { project: campaignType },
+    isActive: true,
+  };
+
+  const response = await searchMDMSDataViaV2Api({ MdmsCriteria: criteria });
+
+  return (response?.mdms || [])
+    .map((item: any) => item?.data || [])
+    .flat()
+    .filter((module: any) => !module?.disabled);
+}
+
+async function getExistingModulesMap(
+  tenantId: string,
+  campaignNumber: string,
+  schemaCode: string
+): Promise<Map<string, any>> {
+  const criteria = {
+    tenantId,
+    schemaCode,
+    filters: { project: campaignNumber },
+  };
+
+  const response = await searchMDMSDataViaV2Api({ MdmsCriteria: criteria });
+
+  const existingMap = new Map<string, any>();
+  for (const item of response?.mdms || []) {
+    const name = item?.data?.name;
+    if (name) {
+      existingMap.set(name, item);
+    }
+  }
+
+  return existingMap;
+}
+
+async function createModuleInMDMS(
+  tenantId: string,
+  schemaCode: string,
+  moduleData: any,
+  useruuid : string
+): Promise<void> {
+  const RequestInfo = defaultRequestInfo?.RequestInfo;
+  RequestInfo.userInfo.uuid = useruuid;
+  const requestBody = {
+    RequestInfo: defaultRequestInfo?.RequestInfo,
+    Mdms: {
+      tenantId,
+      schemaCode,
+      data: moduleData,
+      isActive: true,
+    },
+  };
+
+  const url = `${config?.host?.mdmsV2}${config?.paths?.mdms_v2_create}/${schemaCode}`;
+  await httpRequest(url, requestBody);
+
+  logger.info(`Created module in MDMS: ${moduleData?.name}`);
+}
+
+async function upsertLocalisations(
+  tenantId: string,
+  baseModuleKey: string,
+  updatedModuleKey: string,
+  locales: string[],
+  localisation: any,
+  RequestInfo: any
+): Promise<void> {
+  const chunkSize = 100;
+
+  for (const locale of locales) {
+    let messages: any[] = [];
+
+    try {
+      messages = await localisation.getLocalizationResponseWithoutCache(
+        baseModuleKey,
+        locale,
+        tenantId
+      );
+    } catch (e: any) {
+      logger.error(
+        `Failed to fetch localisation for ${baseModuleKey} (${locale}): ${e?.message}`
+      );
+      continue;
+    }
+
+    const updatedMessages = messages.map((entry: any) => ({
+      ...entry,
+      locale,
+      module: updatedModuleKey,
+    }));
+
+    for (let i = 0; i < updatedMessages.length; i += chunkSize) {
+      const chunk = updatedMessages.slice(i, i + chunkSize);
+      await localisation.createLocalisation(chunk, tenantId, RequestInfo);
+      logger.info(
+        `Localisation added for ${updatedModuleKey} (${locale}) — chunk ${i / chunkSize + 1}`
+      );
+    }
+  }
+}
+
+async function processAndInsertModules(
+  tenantId: string,
+  campaignType: string,
+  campaignNumber: string,
+  templateModules: any[],
+  existingMap: Map<string, any>,
+  locales: string[],
+  localisation: any,
+  schemaCode: string,
+  RequestInfo: any
+): Promise<void> {
+  const baseType = campaignType.toLowerCase();
+  const useruuid = RequestInfo?.userInfo?.uuid;
+  if (!useruuid) {
+    throw new Error("User uuid not found in request");
+  }
+  if(!templateModules?.length) {
+    logger.warn("No template modules found");
+    return;
+  }
+
+  for (const template of templateModules) {
+    const moduleName = template?.name;
+    if (!moduleName) continue;
+
+    if (existingMap.has(moduleName)) {
+      logger.info(`Skipping already existing module: ${moduleName}`);
+      continue;
+    }
+
+    const baseKey = `hcm-base-${moduleName.toLowerCase()}-${baseType}`;
+    const updatedKey = `hcm-${moduleName.toLowerCase()}-${campaignNumber}`;
+
+    await upsertLocalisations(
+      tenantId,
+      baseKey,
+      updatedKey,
+      locales,
+      localisation,
+      RequestInfo
+    );
+
+    const moduleData = {
+      ...template,
+      project: campaignNumber,
+      isSelected: true,
+    };
+
+    await createModuleInMDMS(tenantId, schemaCode, moduleData, useruuid);
+  }
+}
+
+export async function createAppConfig(
+  tenantId: string,
+  campaignNumber: string,
+  campaignType: string,
+  RequestInfo: any
+): Promise<void> {
+  try {
+    logger.info("Creating app configuration...");
+    const FormConfigTemplate = "FormConfigTemplate";
+    const FormConfig = "FormConfig";
+    const templateSchema = `HCM-ADMIN-CONSOLE.${FormConfigTemplate}`;
+    const configSchema = `HCM-ADMIN-CONSOLE.${FormConfig}`;
+
+    const [locales, localisation] = await Promise.all([
+      getLocalesFromStateInfo(tenantId),
+      Localisation.getInstance(),
+    ]);
+
+    const [templateModules, existingMap] = await Promise.all([
+      getTemplateModules(tenantId, campaignType, templateSchema),
+      getExistingModulesMap(tenantId, campaignNumber, configSchema),
+    ]);
+
+    await processAndInsertModules(
+      tenantId,
+      campaignType,
+      campaignNumber,
+      templateModules,
+      existingMap,
+      locales,
+      localisation,
+      configSchema,
+      RequestInfo
+    );
+
+    logger.info("App configuration created successfully.");
+  } catch (err: any) {
+    logger.error(`Failed to create app config: ${err?.message}`);
+    throw err;
+  }
+}
+
+export async function createAppConfigFromClone(
+  tenantId: string,
+  newCampaignNumber: string,
+  cloneFromCampaignNumber: string,
+  RequestInfo: any
+): Promise<void> {
+  try {
+    logger.info("Started creating app config from clone...");
+    const FormConfig = "FormConfig";
+    const configSchema = `HCM-ADMIN-CONSOLE.${FormConfig}`;
+    const useruuid = RequestInfo?.userInfo?.uuid;
+    if (!useruuid) {
+      throw new Error("User uuid not found in request");
+    }
+
+    const [locales, localisation] = await Promise.all([
+      getLocalesFromStateInfo(tenantId),
+      Localisation.getInstance(),
+    ]);
+
+    const [cloneResponse, existingResponse] = await fetchCloneAndExistingModules(
+      tenantId,
+      configSchema,
+      cloneFromCampaignNumber,
+      newCampaignNumber
+    );
+
+    const modulesToClone = (cloneResponse?.mdms || [])
+      .map((item: any) => item?.data)
+      .filter(Boolean);
+
+    const existingModules = new Set(
+      (existingResponse?.mdms || [])
+        .map((item: any) => item?.data?.name)
+        .filter(Boolean)
+    );
+
+    if (!modulesToClone.length) {
+      logger.warn("No modules found to clone.");
+      return;
+    }
+
+    for (const module of modulesToClone) {
+      const moduleName = module?.name;
+      if (!moduleName) continue;
+
+      if (existingModules.has(moduleName)) {
+        logger.info(`Skipping existing module: ${moduleName}`);
+        continue;
+      }
+
+      const baseKey = `hcm-${moduleName.toLowerCase()}-${cloneFromCampaignNumber}`;
+      const newKey = `hcm-${moduleName.toLowerCase()}-${newCampaignNumber}`;
+
+      await upsertLocalisations(tenantId, baseKey, newKey, locales, localisation, RequestInfo);
+
+      const newModule = {
+        ...module,
+        project: newCampaignNumber,
+        isSelected: true,
+      };
+
+      await createModuleInMDMS(tenantId, configSchema, newModule, useruuid);
+    }
+
+    logger.info("App configuration cloned successfully.");
+  } catch (err: any) {
+    logger.error(`Failed to clone app config: ${err?.message}`);
+    throw err;
+  }
+}
+
+async function fetchCloneAndExistingModules(
+  tenantId: string,
+  configSchema: string,
+  cloneFromCampaignNumber: string,
+  newCampaignNumber: string
+): Promise<[any, any]> {
+  const cloneCriteria = {
+    tenantId,
+    schemaCode: configSchema,
+    filters: { project: cloneFromCampaignNumber },
+    isActive: true,
+  };
+
+  const existingCriteria = {
+    tenantId,
+    schemaCode: configSchema,
+    filters: { project: newCampaignNumber },
+  };
+
+  return await Promise.all([
+    searchMDMSDataViaV2Api({ MdmsCriteria: cloneCriteria }),
+    searchMDMSDataViaV2Api({ MdmsCriteria: existingCriteria }),
+  ]);
+}
+
+
+
 async function getLocalizedHierarchy(request: any, localizationMap: any) {
   var hierarchy = await getHierarchy(
     request?.query?.tenantId,
@@ -3828,7 +4155,7 @@ function updateBoundaryData(boundaryData: any[], hierarchy: any[]): any[] {
           const uniqueCount = count.get(elementKey)!;
           const uniqueElement =
             uniqueCount > 1
-              ? `${element}-${(uniqueCount - 1).toString().padStart(2, "0")}`
+              ? `${element}_${key.length > 3 ? key.slice(0, 3).toLowerCase() : key.toLowerCase()}_${(uniqueCount - 1).toString().padStart(2, "0")}`
               : `${element}`;
           row[key] = uniqueElement;
         }

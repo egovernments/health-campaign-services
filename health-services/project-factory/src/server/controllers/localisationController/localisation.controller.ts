@@ -83,6 +83,35 @@ class Localisation {
     );
     cachedResponse = { ...this.cachedResponse };
   };
+
+
+  public getLocalizationResponseWithoutCache = async (
+    module: string,
+    locale: string,
+    tenantId: string
+  ) => {
+    logger.info(
+      `Received Localisation fetch for module ${module}, locale ${locale}, tenantId ${tenantId}`
+    );
+
+    const params = {
+      tenantId,
+      locale,
+      module,
+    };
+
+    const url = config.host.localizationHost + config.paths.localizationSearch;
+
+    const localisationResponse = await httpRequest(url, {}, params);
+
+    logger.info(
+      `Fetched Localisation Message for module ${module}, locale ${locale}, tenantId ${tenantId} with count ${localisationResponse?.messages?.length}`
+    );
+
+    // Optional: Return parsed map if still needed
+    return localisationResponse?.messages;
+  };
+  
   
   // Calls the cache burst API of localization
   public cacheBurst = async (
@@ -120,11 +149,9 @@ class Localisation {
   public createLocalisation = async (
     messages: any[] = [],
     tenantId: string,
-    request: any = {}
+    RequestInfo: any
   ) => {
     try {
-      // Extract RequestInfo from request body
-      const { RequestInfo } = request.body;
       // Construct request body with RequestInfo and localisation messages
       const requestBody = { RequestInfo, messages, tenantId };
       // Construct URL for localization create endpoint

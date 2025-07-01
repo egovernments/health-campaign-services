@@ -80,6 +80,7 @@ const config = {
     KAFKA_START_ADMIN_CONSOLE_TASK_TOPIC: process.env.KAFKA_START_TASK_TOPIC || "start-admin-console-task",
     KAFKA_START_ADMIN_CONSOLE_MAPPING_TASK_TOPIC: process.env.KAFKA_START_MAPPING_TASK_TOPIC || "start-admin-console-mapping-task",
     KAFKA_TEST_TOPIC: "test-topic-project-factory",
+    KAFKA_NOTIFICATION_EMAIL_TOPIC: process.env.KAFKA_NOTIFICATION_EMAIL_TOPIC || "egov.core.notification.email",
   },
 
   // Database configuration
@@ -146,8 +147,10 @@ const config = {
   paths: {
     filestore: process.env.FILE_STORE_SERVICE_END_POINT || "filestore/v1/files",
     filestorefetch: "filestore/v1/files/url",
-    mdms_v2_search: process.env.EGOV_MDMS_V2_SEARCH_ENDPOINT || "mdms-v2/v2/_search",
-    mdms_v1_search: process.env.EGOV_MDMS_V1_SEARCH_ENDPOINT || "mdms-v2/v1/_search",
+    mdms_v2_search: process.env.EGOV_MDMS_V2_SEARCH_ENDPOINT || "egov-mdms-service/v2/_search",
+    mdms_v2_create: process.env.EGOV_MDMS_V2_CREATE_ENDPOINT || "egov-mdms-service/v2/_create",
+    mdms_v2_update: process.env.EGOV_MDMS_V2_UPDATE_ENDPOINT || "egov-mdms-service/v2/_update",
+    mdms_v1_search: process.env.EGOV_MDMS_V1_SEARCH_ENDPOINT || "egov-mdms-service/v1/_search",
     idGen: process.env.EGOV_IDGEN_PATH || "egov-idgen/id/_generate",
     mdmsSchema: process.env.EGOV_MDMS_SCHEMA_PATH || "egov-mdms-service/schema/v1/_search",
     boundaryRelationship: process.env.EGOV_BOUNDARY_RELATIONSHIP_SEARCHPATH || "boundary-service/boundary-relationships/_search",

@@ -282,79 +282,6 @@ const getAllBoundariesFromCampaign = async (campaignDetails: any) => {
   return allBoundaries;
 };
 
-
-// function validateBoundariesIfParentPresent(request: any) {
-//   const { parentCampaign, CampaignDetails } = request?.body || {};
-
-//   if (parentCampaign) {
-//     const errors: string[] = [];
-//     const newBoundaries: any[] = [];
-//     const parentCampaignBoundaryCodes = parentCampaign.boundaries.map((boundary: any) => boundary.code);
-
-//     CampaignDetails?.boundaries?.forEach((boundary: any) => {
-//       if (parentCampaignBoundaryCodes.includes(boundary.code)) {
-//         errors.push(boundary.code);
-//       } else {
-//         if (!boundary?.isRoot) {
-//           newBoundaries.push(boundary);
-//         } else {
-//           throwError(
-//             "COMMON",
-//             400,
-//             "VALIDATION_ERROR",
-//             `Boundary with code ${boundary.code} cannot be added as it is marked as root. Root boundary should come from the parent campaign.`
-//           );
-//         }
-//       }
-//     });
-
-//     if (errors.length > 0) {
-//       throwError("COMMON", 400, "VALIDATION_ERROR", `Boundary Codes found already in Parent Campaign: ${errors.join(', ')}`);
-//     }
-//     request.body.boundariesCombined = [...parentCampaign.boundaries, ...newBoundaries];
-//   }
-//   else {
-//     request.body.boundariesCombined = request?.body?.CampaignDetails?.boundaries
-//   }
-// }
-
-
-// async function callGenerateWhenChildCampaigngetsCreated(request: any) {
-//   try {
-//     const newRequestBody = {
-//       RequestInfo: request?.body?.RequestInfo,
-//       Filters: {
-//         boundaries: request?.body?.boundariesCombined
-//       }
-//     };
-
-//     const { query } = request;
-//     const params = {
-//       tenantId: request?.body?.CampaignDetails?.tenantId,
-//       forceUpdate: 'true',
-//       hierarchyType: request?.body?.CampaignDetails?.hierarchyType,
-//       campaignId: request?.body?.CampaignDetails?.id
-//     };
-
-//     const newParamsBoundary = { ...query, ...params, type: "boundary" };
-//     const newRequestBoundary = replicateRequest(request, newRequestBody, newParamsBoundary);
-//     await callGenerate(newRequestBoundary, "boundary");
-
-//     const newParamsFacilityWithBoundary = { ...query, ...params, type: "facilityWithBoundary" };
-//     const newRequestFacilityWithBoundary = replicateRequest(request, newRequestBody, newParamsFacilityWithBoundary);
-//     await callGenerate(newRequestFacilityWithBoundary, "facilityWithBoundary");
-
-//     const newParamsUserWithBoundary = { ...query, ...params, type: "userWithBoundary" };
-//     const newRequestUserWithBoundary = replicateRequest(request, newRequestBody, newParamsUserWithBoundary);
-//     await callGenerate(newRequestUserWithBoundary, "userWithBoundary");
-//   }
-//   catch (error: any) {
-//     logger.error(error);
-//     throwError("COMMON", 400, "GENERATE_ERROR", `Error while generating user/facility/boundary: ${error.message}`);
-//   }
-// }
-
-
 function getBoundariesArray(parentCampaignBoundaries: any, campaignBoundaries: any) {
   // Ensure both inputs are arrays or default to empty arrays
   const validParentBoundaries = Array.isArray(parentCampaignBoundaries) ? parentCampaignBoundaries : [];
@@ -739,7 +666,7 @@ async function processResources(mappingObject: any) {
   mergeParentResources(mappingObject, resources, resourcesArrayFromParentCampaign);
 }
 
-async function getResourceFromResourceId(mappingObject: any, createResourceId: any, resource: any) {
+export async function getResourceFromResourceId(mappingObject: any, createResourceId: any, resource: any) {
   const searchCriteria = buildSearchCriteria(mappingObject, createResourceId, resource?.type);
   const requestBody = replicateRequest(mappingObject, searchCriteria);
   const responseFromDataSearch = await searchDataService(requestBody);
@@ -770,7 +697,7 @@ async function addConsolidatedDataToSheet(parentWorkbook: any, sheetName: string
 }
 
 
-async function getFileUrl(fileStoreId: any, tenantId: any) {
+export async function getFileUrl(fileStoreId: any, tenantId: any) {
   const fileResponse = await httpRequest(
     `${config.host.filestore}${config.paths.filestore}/url`,
     {},
