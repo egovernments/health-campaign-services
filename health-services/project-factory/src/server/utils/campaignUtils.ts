@@ -1069,14 +1069,7 @@ async function enrichAndPersistCampaignForCreate(
       request.body.CampaignDetails.campaignName =
         request.body.parentCampaign?.campaignName;
     }
-    if(!request?.body?.CampaignDetails?.parentId){
-      if (request?.body?.CampaignDetails?.additionalDetails?.cloneFrom) {
-        await createAppConfigFromClone(request?.body?.CampaignDetails?.tenantId, request?.body?.CampaignDetails?.campaignNumber, request?.body?.CampaignDetails?.additionalDetails?.cloneFrom, request?.body?.RequestInfo);
-      }
-      else {
-        await createAppConfig(request?.body?.CampaignDetails?.tenantId, request?.body?.CampaignDetails?.campaignNumber, request?.body?.CampaignDetails?.projectType, request?.body?.RequestInfo);
-      }
-    }
+    await processAppConfig(request?.body?.CampaignDetails, request?.body?.RequestInfo);
   }
   request.body.CampaignDetails.campaignDetails = {
     deliveryRules: request?.body?.CampaignDetails?.deliveryRules || [],
@@ -1122,6 +1115,17 @@ async function enrichAndPersistCampaignForCreate(
   };
   await produceModifiedMessages(produceMessage, topic);
   delete request.body.CampaignDetails.campaignDetails;
+}
+
+async function processAppConfig(campaignDetails: any, RequestInfo: any) {
+  if (!campaignDetails?.parentId) {
+    if (campaignDetails?.additionalDetails?.cloneFrom) {
+      await createAppConfigFromClone(campaignDetails?.tenantId, campaignDetails?.campaignNumber, campaignDetails?.additionalDetails?.cloneFrom, RequestInfo);
+    }
+    else {
+      await createAppConfig(campaignDetails?.tenantId, campaignDetails?.campaignNumber, campaignDetails?.projectType, RequestInfo);
+    }
+  }
 }
 
 function enrichInnerCampaignDetails(
