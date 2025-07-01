@@ -73,7 +73,7 @@ public class ChildBoundaryCreationUtil {
         }
 
         // This will store the final results for each level
-        fetchLevelRecursively(boundaryHierarchyDefinitionArray, 0, null, parentCode, request);
+        fetchLevelRecursively(boundaryHierarchyDefinitionArray, 0, new ArrayList<>(), parentCode, request);
 
 
     }
@@ -104,7 +104,7 @@ public class ChildBoundaryCreationUtil {
         List<List<String>> currentChildNames = new ArrayList<>(); // Will hold unique features in format
         int totalChildrenCount = 0;
 
-        if (parentList == null) {
+        if (parentList == null || ObjectUtils.isEmpty(parentList)) {
             List<Feature> childResults = fetchAllBatchesForLevel(currentLevel, parentLevel, (String) null, rootCode); // No parent filter
             currentChildNames = initializeBoundaryAndRelationship(childResults, null, currentLevel, request.getRequestInfo(), request.getGeopodeBoundary().getTenantId());
             totalChildrenCount += childResults.size();
@@ -254,12 +254,12 @@ public class ChildBoundaryCreationUtil {
             String childBoundaryName = extractNameFromFeature(child, currentLevel);
 
             if (!seenBoundaryNames.contains(childBoundaryName)) {
-                List<String> result = boundaryUtil.createUniqueBoundaryName(childBoundaryName, currentLevel, requestInfo);
+                List<String> result = boundaryUtil.createUniqueBoundaryName(childBoundaryName, currentLevel, requestInfo, tenantId);
                 String childCode = result.get(0);
                 String childUniqueCode = result.get(1);
                 seenBoundaryNames.add(childBoundaryName);      // Mark name as seen
                 uniqueChildNames.add(Arrays.asList(childCode, childUniqueCode));// Adding in form [childName,UniqueChildName]
-                initializeBoundary(childUniqueCode, currentLevel, requestInfo);
+                initializeBoundary(childUniqueCode, currentLevel, requestInfo, tenantId);
 
             }
             seenBoundaryNames.add(childBoundaryName);
@@ -284,8 +284,8 @@ public class ChildBoundaryCreationUtil {
      * @param currentLevel
      * @param requestInfo
      */
-    private void initializeBoundary(String childUniqueCode, String currentLevel, RequestInfo requestInfo) {
-        BoundaryRequest boundaryRequest = boundaryUtil.buildBoundaryRequest(childUniqueCode, config.getTenantId(), requestInfo);
+    private void initializeBoundary(String childUniqueCode, String currentLevel, RequestInfo requestInfo, String tenantId) {
+        BoundaryRequest boundaryRequest = boundaryUtil.buildBoundaryRequest(childUniqueCode, tenantId, requestInfo);
         try {
             boundaryUtil.sendBoundaryRequest(boundaryRequest);
         } catch (Exception e) {
@@ -314,7 +314,7 @@ public class ChildBoundaryCreationUtil {
                                 .parent(parentUniqueCode)
                                 .boundaryType(currentLevel)
                                 .tenantId(tenantId)
-                                .hierarchyType(HIERARCHY_TYPE)
+                                .hierarchyType(config.getHierarchyType())
                                 .build()).build();
         String url = config.getBoundaryServiceHost() + config.getBoundaryRelationshipCreateEndpoint();
         try {
@@ -366,7 +366,7 @@ public class ChildBoundaryCreationUtil {
                 .findFirst();
 
         if (rootOpt.isEmpty()) {
-            throw new CustomException(ROOT_BOUNDARY_NOT_FOUND,ROOT_BOUNDARY_NOT_FOUND_MSG);
+            throw new CustomException(ROOT_BOUNDARY_NOT_FOUND, ROOT_BOUNDARY_NOT_FOUND_MSG);
         }
 
 

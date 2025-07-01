@@ -60,4 +60,7 @@ public class Configuration {
 
     @Value("${egov.mdms.schemaCode}")
     private String schemaCode;
+
+    @Value("${egov.boundary.hierarchy.type}")
+    private String hierarchyType;
 }

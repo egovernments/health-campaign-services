@@ -43,7 +43,7 @@ public class BoundaryUtil {
                 .requestInfo(request.getRequestInfo())
                 .boundaryHierarchy(BoundaryTypeHierarchyDefinition.builder()
                         .tenantId(request.getGeopodeBoundary().getTenantId())
-                        .hierarchyType(HIERARCHY_TYPE)
+                        .hierarchyType(config.getHierarchyType())
                         .boundaryHierarchy(boundaryHierarchyList)
                         .build()).build();
     }
@@ -108,7 +108,7 @@ public class BoundaryUtil {
                 .boundary(List.of(
                         Boundary.builder()
                                 .code(countryName)
-                                .tenantId(config.getTenantId())
+                                .tenantId(tenantId)
                                 .build()
                 ))
                 .build();
@@ -123,10 +123,10 @@ public class BoundaryUtil {
      * @param requestInfo
      * @return
      */
-    public List<String> createUniqueBoundaryName(String code, String currentLevel, RequestInfo requestInfo) {
-        String baseCode = HIERARCHY_TYPE + UNDERSCORE + currentLevel + UNDERSCORE+ code.trim().replaceAll(NON_ALPHANUMERIC_REGEX, UNDERSCORE); // base unique code
+    public List<String> createUniqueBoundaryName(String code, String currentLevel, RequestInfo requestInfo, String tenantId) {
+        String baseCode = config.getHierarchyType() + UNDERSCORE + currentLevel + UNDERSCORE+ code.trim().replaceAll(NON_ALPHANUMERIC_REGEX, UNDERSCORE); // base unique code
         String uniqueCode = baseCode;
-        Boolean isAlreadyThere = checkBoundaryEntitySearchResponse(uniqueCode, requestInfo);
+        Boolean isAlreadyThere = checkBoundaryEntitySearchResponse(uniqueCode, requestInfo, tenantId);
 
         //If country already initialized in boundary-hierarchy return error
         if (Objects.equals(currentLevel, ROOT_HIERARCHY_LEVEL) && isAlreadyThere) {
@@ -143,7 +143,7 @@ public class BoundaryUtil {
 
 
                 String suffix = String.format("%02d", attempt); // creates "01", "02", etc.
-                uniqueCode = HIERARCHY_TYPE + '_' + currentLevel + '_' + trimmedCode + "_" + suffix;
+                uniqueCode = config.getHierarchyType() + '_' + currentLevel + '_' + trimmedCode + "_" + suffix;
 
                 // Ensure uniqueCode length < 64
                 if (uniqueCode.length() >= 64) {
@@ -151,12 +151,12 @@ public class BoundaryUtil {
                     int excessLength = uniqueCode.length() - 63;
                     if (trimmedCode.length() > excessLength) {
                         trimmedCode = trimmedCode.substring(0, trimmedCode.length() - excessLength);
-                        uniqueCode = HIERARCHY_TYPE + '_' + currentLevel + '_' + trimmedCode + '_' + suffix;
+                        uniqueCode = config.getHierarchyType() + '_' + currentLevel + '_' + trimmedCode + '_' + suffix;
                     } else {
                         throw new CustomException(INVALID_NUMBER_OF_OPERANDS_CODE, DIVISION_ONLY_TWO_OPERANDS_MSG);                    }
                 }
                 // Check if this version is unique
-                if (!checkBoundaryEntitySearchResponse(uniqueCode, requestInfo)) {
+                if (!checkBoundaryEntitySearchResponse(uniqueCode, requestInfo, tenantId)) {
                     break; // unique version found
                 }
                 attempt++;
@@ -176,10 +176,10 @@ public class BoundaryUtil {
      * @param requestInfo
      * @return
      */
-    public Boolean checkBoundaryEntitySearchResponse(String code, RequestInfo requestInfo) {
+    public Boolean checkBoundaryEntitySearchResponse(String code, RequestInfo requestInfo, String tenantId) {
         BoundaryRequest boundaryRequest = BoundaryRequest.builder().requestInfo(requestInfo).build();
         URI uri = UriComponentsBuilder.fromHttpUrl(config.getBoundaryServiceHost() + config.getBoundaryEntitySearchEndpoint())
-                .queryParam(QUERY_PARAM_TENANT_ID, config.getTenantId())
+                .queryParam(QUERY_PARAM_TENANT_ID, tenantId)
                 .queryParam(QUERY_PARAM_CODES, code)
                 .build().encode().toUri();
         BoundaryResponse boundaryResponse = restTemplate.postForObject(uri, boundaryRequest, BoundaryResponse.class);
@@ -199,7 +199,7 @@ public class BoundaryUtil {
                 .requestInfo(request.getRequestInfo()) // Extract request info from original request
                 .boundaryTypeHierarchySearchCriteria( // Set the search criteria
                         BoundaryHierarchyDefinitionSearchCriteria.builder()
-                                .hierarchyType(HIERARCHY_TYPE) // Use the defined hierarchy type
+                                .hierarchyType(config.getHierarchyType()) // Use the defined hierarchy type
                                 .build()
                 )
                 .build();
