@@ -3,6 +3,7 @@ export const processTemplateConfigs: any = {
         sheets: [
             {
                 sheetName: "HCM_README_SHEETNAME",
+                // schemaName: "user-readme",
                 lockWholeSheetInProcessedFile : true
             },
             {
@@ -11,6 +12,25 @@ export const processTemplateConfigs: any = {
             },
             {
                 sheetName: "HCM_ADMIN_CONSOLE_BOUNDARY_DATA",
+                // schemaName: "boundary-data",
+                lockWholeSheetInProcessedFile : true
+            }
+        ]
+    },
+    facility: {
+        sheets: [
+            {
+                sheetName: "HCM_README_SHEETNAME",
+                // schemaName: "user-readme",
+                lockWholeSheetInProcessedFile : true
+            },
+            {
+                sheetName: "HCM_ADMIN_CONSOLE_FACILITIES",
+                schemaName: "facility"
+            },
+            {
+                sheetName: "HCM_ADMIN_CONSOLE_BOUNDARY_DATA",
+                // schemaName: "boundary-data",
                 lockWholeSheetInProcessedFile : true
             }
         ]
