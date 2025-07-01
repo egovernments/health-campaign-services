@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.annotations.ApiParam;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.referralmanagement.beneficiarydownsync.Downsync;
 import org.egov.common.models.referralmanagement.beneficiarydownsync.DownsyncRequest;
@@ -38,16 +39,14 @@ public class BeneficiaryDownsyncController {
 	}
 	
     @PostMapping(value = "/v1/_get")
-    public ResponseEntity<DownsyncResponse> getBeneficaryData (@ApiParam(value = "Capture details of Side Effect", required = true) @Valid @RequestBody DownsyncRequest request) {
+    public ResponseEntity<DownsyncResponse> getBeneficiaryData(@ApiParam(value = "Capture details of Side Effect", required = true) @Valid @RequestBody DownsyncRequest request) {
 		log.info("UserUUID: {}", request.getRequestInfo().getUserInfo().getUuid());
 		log.info("Downsync RequestBody: {}", mapper.valueToTree(request).toString());
-    	Downsync.builder().
-    	downsyncCriteria(request.getDownsyncCriteria())
-    	.build();
         Downsync downsync = null;
         try {
             downsync = downsyncService.prepareDownsyncData(request);
         } catch (InvalidTenantIdException e) {
+            log.error("Invalid tenantId: {}", ExceptionUtils.getStackTrace(e));
             throw new CustomException("INVALID_TENANT_ID", e.getMessage());
         }
         DownsyncResponse response = DownsyncResponse.builder()
