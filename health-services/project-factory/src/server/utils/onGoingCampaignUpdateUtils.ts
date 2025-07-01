@@ -733,5 +733,5 @@ export {
     fetchProjectFacilityWithProjectId,
     fetchProjectsWithBoundaryCodeAndReferenceId,
     delinkAndLinkResourcesWithProjectCorrespondingToGivenBoundary,
-    processResources, getFileUrl
+    processResources,
 };
