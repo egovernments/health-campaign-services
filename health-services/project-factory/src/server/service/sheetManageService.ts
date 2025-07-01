@@ -1,6 +1,6 @@
 import { generationtTemplateConfigs } from "../config/generationtTemplateConfigs";
 import { processTemplateConfigs } from "../config/processTemplateConfigs";
-import { generateResource, initializeGenerateAndGetResponse, initializeProcessAndGetResponse, processResource } from "../utils/sheetManageUtils";
+import { enrichProcessTemplateConfig, generateResource, initializeGenerateAndGetResponse, initializeProcessAndGetResponse, processResource } from "../utils/sheetManageUtils";
 import config from "../config";
 import {GenerateTemplateQuery} from "../models/GenerateTemplateQuery";
 import { ResourceDetails } from "../config/models/resourceDetailsSchema";
@@ -23,6 +23,7 @@ export async function generateDataService(generateRequestQuery: GenerateTemplate
 export async function processDataService(ResourceDetails : ResourceDetails, userUuid: string, locale : string = config.localisation.defaultLocale) {
     await validateResourceDetails(ResourceDetails);
     const processTemplateConfig = JSON.parse(JSON.stringify(processTemplateConfigs?.[String(ResourceDetails.type)]));
+    await enrichProcessTemplateConfig(ResourceDetails, processTemplateConfig);
     const responseToSend = await initializeProcessAndGetResponse(ResourceDetails, userUuid, processTemplateConfig, locale);
     processResource(responseToSend, processTemplateConfig, locale);
     return responseToSend;
