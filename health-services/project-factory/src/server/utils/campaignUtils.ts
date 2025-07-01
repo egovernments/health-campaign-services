@@ -2849,8 +2849,7 @@ export async function createAppConfigFromClone(
     const existingCriteria = {
       tenantId,
       schemaCode: configSchema,
-      filters: { project: newCampaignNumber },
-      isActive: true,
+      filters: { project: newCampaignNumber }
     };
 
     const [cloneResponse, existingResponse] = await Promise.all([
