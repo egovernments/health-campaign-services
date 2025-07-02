@@ -1,11 +1,11 @@
 package org.egov.transformer.transformationservice;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import digit.models.coremodels.AuditDetails;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ObjectUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.egov.common.models.household.Household;
 import org.egov.common.models.project.*;
 import org.egov.transformer.config.TransformerProperties;
@@ -37,7 +37,12 @@ public class ProjectTaskTransformationService {
     private final BoundaryService boundaryService;
     private static final Set<String> ADDITIONAL_DETAILS_DOUBLE_FIELDS = new HashSet<>(Arrays.asList(QUANTITY_WASTED));
     private static final Set<String> ADDITIONAL_DETAILS_INTEGER_FIELDS = new HashSet<>(Arrays.asList(NO_OF_ROOMS_SPRAYED_KEY, RE_DOSE_QUANTITY_KEY));
-
+    private static final Set<String> BENEFICIARY_INFO_STRING_KEYS = new HashSet<>(Arrays.asList(
+            INDIVIDUAL_CLIENT_REFERENCE_ID, GENDER, HOUSEHOLD_CLIENT_REFERENCE_ID, UNIQUE_BENEFICIARY_ID
+    ));
+    private static final Set<String> BENEFICIARY_INFO_INTEGER_KEYS = new HashSet<>(Arrays.asList(
+            AGE, MEMBER_COUNT
+    ));
 
     public ProjectTaskTransformationService(TransformerProperties transformerProperties, Producer producer, ObjectMapper objectMapper, CommonUtils commonUtils, ProjectService projectService, ProductService productService, IndividualService individualService, HouseholdService householdService, UserService userService, BoundaryService boundaryService) {
         this.transformerProperties = transformerProperties;
@@ -83,13 +88,54 @@ public class ProjectTaskTransformationService {
             boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
             boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
         }
-        Project project = projectService.getProject(task.getProjectId(), tenantId);
-        String projectTypeId = project.getProjectTypeId();
-        String projectType = project.getProjectType();
+        String projectTypeIdAndType = projectService.getProjectTypeInfoByProjectId(task.getProjectId(), tenantId);
 
-        String projectBeneficiaryClientReferenceId = task.getProjectBeneficiaryClientReferenceId();
+        String projectTypeId;
+        String projectType;
+        if (!StringUtils.isEmpty(projectTypeIdAndType)) {
+            String[] parts = projectTypeIdAndType.split(COLON);
+            projectTypeId = parts[0];
+            projectType = (parts.length > 1) ? parts[1] : "";
+        } else {
+            projectTypeId = "";
+            projectType = "";
+        }
+
+        AdditionalFields taskAdditionalFields = task.getAdditionalFields();
+
+        boolean hasIndividualOrHousehold = false;
+
+        if (taskAdditionalFields != null && taskAdditionalFields.getFields() != null
+                && !taskAdditionalFields.getFields().isEmpty()) {
+            hasIndividualOrHousehold = taskAdditionalFields.getFields().stream()
+                    .anyMatch(field -> INDIVIDUAL_CLIENT_REFERENCE_ID.equals(field.getKey()) || HOUSEHOLD_CLIENT_REFERENCE_ID.equals(field.getKey()));
+        }
+        Map<String, Object> beneficiaryInfo = new HashMap<>();
+
         String projectBeneficiaryType = projectService.getProjectBeneficiaryType(task.getTenantId(), projectTypeId);
-        Map<String, Object> beneficiaryInfo = getProjectBeneficiaryDetails(projectBeneficiaryClientReferenceId, projectBeneficiaryType, tenantId);
+        if (hasIndividualOrHousehold) {
+            log.info("Fetching BeneficiaryInfo from task addFields");
+            List<Field> fields = taskAdditionalFields.getFields();
+            if (fields != null) {
+                fields.forEach(field -> {
+                    String key = field.getKey();
+                    String value = field.getValue();
+                    if (BENEFICIARY_INFO_STRING_KEYS.contains(key)) {
+                        beneficiaryInfo.put(key, value);
+                    } else if (BENEFICIARY_INFO_INTEGER_KEYS.contains(key)) {
+                        try {
+                            beneficiaryInfo.put(key, Integer.parseInt(value));
+                        } catch (NumberFormatException e) {
+                            log.warn("Invalid integer for key '{}': '{}', defaulting to null", key, value);
+                            beneficiaryInfo.put(key, null);
+                        }
+                    }
+                });
+            }
+        } else {
+            String projectBeneficiaryClientReferenceId = task.getProjectBeneficiaryClientReferenceId();
+            beneficiaryInfo.putAll(getProjectBeneficiaryDetails(projectBeneficiaryClientReferenceId, projectBeneficiaryType, tenantId));
+        }
 
         Task constructedTask = constructTaskResourceIfNull(task);
         Map<String, String> userInfoMap = userService.getUserInfo(task.getTenantId(), task.getClientAuditDetails().getCreatedBy());
@@ -147,12 +193,12 @@ public class ProjectTaskTransformationService {
                 .boundaryHierarchyCode(boundaryHierarchyCode)
                 .projectType(projectType)
                 .projectTypeId(projectTypeId)
-                .householdId(beneficiaryInfo.containsKey(HOUSEHOLD_ID) ? (String) beneficiaryInfo.get(HOUSEHOLD_ID) : null)
+                .householdId(beneficiaryInfo.containsKey(HOUSEHOLD_CLIENT_REFERENCE_ID) ? (String) beneficiaryInfo.get(HOUSEHOLD_CLIENT_REFERENCE_ID) : null)
                 .memberCount(beneficiaryInfo.containsKey(MEMBER_COUNT) ? (Integer) beneficiaryInfo.get(MEMBER_COUNT) : null)
                 .dateOfBirth(beneficiaryInfo.containsKey(DATE_OF_BIRTH) ? (Long) beneficiaryInfo.get(DATE_OF_BIRTH) : null)
                 .age(beneficiaryInfo.containsKey(AGE) ? (Integer) beneficiaryInfo.get(AGE) : null)
                 .gender(beneficiaryInfo.containsKey(GENDER) ? (String) beneficiaryInfo.get(GENDER) : null)
-                .individualId(beneficiaryInfo.containsKey(INDIVIDUAL_ID) ? (String) beneficiaryInfo.get(INDIVIDUAL_ID) : null)
+                .individualId(beneficiaryInfo.containsKey(INDIVIDUAL_CLIENT_REFERENCE_ID) ? (String) beneficiaryInfo.get(INDIVIDUAL_CLIENT_REFERENCE_ID) : null)
                 .build();
 
         //adding to additional details  from additionalFields in task and task resource
@@ -168,14 +214,14 @@ public class ProjectTaskTransformationService {
 //        }
         if (beneficiaryInfo.containsKey(HEIGHT) && beneficiaryInfo.containsKey(DISABILITY_TYPE)) {
             additionalDetails.put(HEIGHT, (Integer) beneficiaryInfo.get(HEIGHT));
-            additionalDetails.put(DISABILITY_TYPE,(String) beneficiaryInfo.get(DISABILITY_TYPE));
+            additionalDetails.put(DISABILITY_TYPE, (String) beneficiaryInfo.get(DISABILITY_TYPE));
         }
 
         if (beneficiaryInfo.containsKey("additionalFields")) {
             try {
                 householdService.additionalFieldsToDetails(additionalDetails, beneficiaryInfo.get("additionalFields"));
             } catch (IllegalArgumentException e) {
-                log.error("Error in projectTask transformation while addition of additionalFields to additionDetails {}" , e.getMessage());
+                log.error("Error in projectTask transformation while addition of additionalFields to additionDetails {}", e.getMessage());
             }
         }
 
@@ -200,16 +246,16 @@ public class ProjectTaskTransformationService {
                 try {
                     additionalDetails.put(key, Double.valueOf(value));
                 } catch (NumberFormatException e) {
-                    log.warn("Invalid number format for key '{}': value '{}'. Storing as null.", key, value);
-                    additionalDetails.put(key, (JsonNode) null);
+                    log.warn("Invalid double format for key '{}': value '{}'. Storing as null.", key, value);
+                    additionalDetails.set(key, null);
                 }
 
             } else if (ADDITIONAL_DETAILS_INTEGER_FIELDS.contains(key)) {
                 try {
                     additionalDetails.put(key, Integer.valueOf(value));
                 } catch (NumberFormatException e) {
-                    log.warn("Invalid number format for key '{}': value '{}'. Storing as null.", key, value);
-                    additionalDetails.put(key, (JsonNode) null);
+                    log.warn("Invalid integer format for key '{}': value '{}'. Storing as null.", key, value);
+                    additionalDetails.set(key, null);
                 }
             } else {
                 additionalDetails.put(key, value);
@@ -235,7 +281,8 @@ public class ProjectTaskTransformationService {
 
             AdditionalFields taskAdditionalFields = task.getAdditionalFields();
 
-            if (taskAdditionalFields != null && !taskAdditionalFields.getFields().isEmpty()) {
+            if (taskAdditionalFields != null && taskAdditionalFields.getFields() != null
+                    && !taskAdditionalFields.getFields().isEmpty()) {
                 List<Field> fields = taskAdditionalFields.getFields();
 
                 String productVariantId = getFieldStringValue(fields, PRODUCT_VARIANT_ID);
@@ -288,7 +335,7 @@ public class ProjectTaskTransformationService {
             if (!CollectionUtils.isEmpty(households)) {
                 Integer memberCount = households.get(0).getMemberCount();
                 projectBenfInfoMap.put(MEMBER_COUNT, memberCount);
-                projectBenfInfoMap.put(HOUSEHOLD_ID, households.get(0).getClientReferenceId());
+                projectBenfInfoMap.put(HOUSEHOLD_CLIENT_REFERENCE_ID, households.get(0).getClientReferenceId());
                 if (ObjectUtils.isNotEmpty(households.get(0).getAdditionalFields()) && !CollectionUtils.isEmpty(households.get(0).getAdditionalFields().getFields())) {
                     projectBenfInfoMap.put("additionalFields", households.get(0).getAdditionalFields().getFields());
                 }

@@ -45,6 +45,7 @@ public interface Constants {
     String TOTAL_NO_CHECK = "totalNo";
     String TARGET_NO_CHECK = "targetNo";
     String HYPHEN = "-";
+    String COLON = ":";
     String LEVEL = "level";
     String LABEL = "label";
     String INDEX_LABEL = "indexLabel";
@@ -106,5 +107,9 @@ public interface Constants {
     String DOUBLE = "Double";
     String LONG = "Long";
     String BOOLEAN = "Boolean";
+
+    String INDIVIDUAL_CLIENT_REFERENCE_ID = "individualClientReferenceId";
+    String HOUSEHOLD_CLIENT_REFERENCE_ID = "householdClientReferenceId";
+    String UNIQUE_BENEFICIARY_ID = "uniqueBeneficiaryId";
 
 }

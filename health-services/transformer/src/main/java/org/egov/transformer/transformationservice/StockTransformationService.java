@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ObjectUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.egov.common.models.facility.Facility;
 import org.egov.common.models.project.ProjectStaff;
 import org.egov.common.models.stock.AdditionalFields;
@@ -76,8 +77,12 @@ public class StockTransformationService {
         String facilityName, transactingFacilityName;
         String tenantId = stock.getTenantId();
         String projectId = stock.getReferenceId();
-        Project project = projectService.getProject(projectId, tenantId);
-        String projectTypeId = project.getProjectTypeId();
+        String projectTypeId = "";
+        String projectTypeIdAndType = projectService.getProjectTypeInfoByProjectId(projectId, tenantId);
+        if (!StringUtils.isEmpty(projectTypeIdAndType)) {
+            String[] parts = projectTypeIdAndType.split(COLON);
+            projectTypeId = parts[0];
+        }
 
         if (!STAFF.equalsIgnoreCase(facilityType)) {
             Facility facility = facilityService.findFacilityById(facilityId, stock.getTenantId());

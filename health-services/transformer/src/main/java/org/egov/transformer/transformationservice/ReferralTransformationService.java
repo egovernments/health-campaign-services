@@ -3,6 +3,7 @@ package org.egov.transformer.transformationservice;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.egov.common.models.facility.Facility;
 import org.egov.common.models.project.AdditionalFields;
 import org.egov.common.models.project.Project;
@@ -77,13 +78,16 @@ public class ReferralTransformationService {
         Map<String, String> boundaryHierarchy = new HashMap<>();
         Map<String, String> boundaryHierarchyCode = new HashMap<>();
 
-        String projectTypeId = null;
+        String projectTypeId = "";
         if (!CollectionUtils.isEmpty(projectBeneficiaryList)) {
             ProjectBeneficiary projectBeneficiary = projectBeneficiaryList.get(0);
             individualDetails = individualService.getIndividualInfo(projectBeneficiary.getBeneficiaryClientReferenceId(), tenantId);
             String projectId = projectBeneficiary.getProjectId();
-            Project project = projectService.getProject(projectId, tenantId);
-            projectTypeId = project.getProjectTypeId();
+            String projectTypeIdAndType = projectService.getProjectTypeInfoByProjectId(projectId, tenantId);
+            if (!StringUtils.isEmpty(projectTypeIdAndType)) {
+                String[] parts = projectTypeIdAndType.split(COLON);
+                projectTypeId = parts[0];
+            }
             if (individualDetails.containsKey(ADDRESS_CODE)) {
                 BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode((String) individualDetails.get(ADDRESS_CODE), tenantId);
                 boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
@@ -121,7 +125,8 @@ public class ReferralTransformationService {
                 .facilityName(facilityName)
                 .age(individualDetails.containsKey(AGE) ? (Integer) individualDetails.get(AGE) : null)
                 .dateOfBirth(individualDetails.containsKey(DATE_OF_BIRTH) ? (Long) individualDetails.get(DATE_OF_BIRTH) : null)
-                .individualId(individualDetails.containsKey(INDIVIDUAL_ID) ? (String) individualDetails.get(INDIVIDUAL_ID) : null)
+                .individualId(individualDetails.containsKey(INDIVIDUAL_CLIENT_REFERENCE_ID) ?
+                        (String) individualDetails.get(INDIVIDUAL_CLIENT_REFERENCE_ID) : null)
                 .gender(individualDetails.containsKey(GENDER) ? (String) individualDetails.get(GENDER) : null)
                 .boundaryHierarchy(boundaryHierarchy)
                 .boundaryHierarchyCode(boundaryHierarchyCode)

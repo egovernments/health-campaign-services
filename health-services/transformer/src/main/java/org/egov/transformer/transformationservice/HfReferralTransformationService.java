@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.node.NullNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
 import lombok.var;
+import org.apache.commons.lang3.StringUtils;
 import org.egov.common.models.project.Field;
 import org.egov.common.models.project.Project;
 import org.egov.common.models.referralmanagement.hfreferral.HFReferral;
@@ -64,8 +65,12 @@ public class HfReferralTransformationService {
     public HfReferralIndexV1 transform(HFReferral hfReferral) {
         String tenantId = hfReferral.getTenantId();
         String projectId = hfReferral.getProjectId();
-        Project project = projectService.getProject(projectId, tenantId);
-        String projectTypeId = project.getProjectTypeId();
+        String projectTypeId = "";
+        String projectTypeIdAndType = projectService.getProjectTypeInfoByProjectId(projectId, tenantId);
+        if (!StringUtils.isEmpty(projectTypeIdAndType)) {
+            String[] parts = projectTypeIdAndType.split(COLON);
+            projectTypeId = parts[0];
+        }
 
         List<Field> fields = hfReferral.getAdditionalFields().getFields();
 

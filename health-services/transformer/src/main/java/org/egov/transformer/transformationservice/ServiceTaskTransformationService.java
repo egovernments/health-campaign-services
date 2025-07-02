@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.NullNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.egov.common.models.household.Field;
 import org.egov.common.models.project.Project;
 import org.egov.transformer.config.TransformerProperties;
@@ -86,8 +87,14 @@ public class ServiceTaskTransformationService {
         }
         Map<String, String> boundaryHierarchy;
         Map<String, String> boundaryHierarchyCode;
-        Project project = projectService.getProject(projectId, tenantId);
-        String projectTypeId = project.getProjectTypeId();
+        String projectTypeIdAndType = projectService.getProjectTypeInfoByProjectId(projectId, tenantId);
+
+        String projectTypeId = "";
+        if (!StringUtils.isEmpty(projectTypeIdAndType)) {
+            String[] projectParts = projectTypeIdAndType.split(COLON);
+            projectTypeId = projectParts[0];
+        }
+
         JsonNode serviceAdditionalDetails = service.getAdditionalDetails();
 
         ObjectNode additionalDetails = objectMapper.createObjectNode();

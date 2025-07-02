@@ -109,7 +109,8 @@ public class SideEffectTransformationService {
                 .dateOfBirth(individualDetails.containsKey(DATE_OF_BIRTH) ? (Long) individualDetails.get(DATE_OF_BIRTH) : null)
                 .age(individualDetails.containsKey(AGE) ? (Integer) individualDetails.get(AGE) : null)
                 .gender(individualDetails.containsKey(GENDER) ? (String) individualDetails.get(GENDER) : null)
-                .individualId(individualDetails.containsKey(INDIVIDUAL_ID) ? (String) individualDetails.get(INDIVIDUAL_ID) : null)
+                .individualId(individualDetails.containsKey(INDIVIDUAL_CLIENT_REFERENCE_ID) ?
+                        (String) individualDetails.get(INDIVIDUAL_CLIENT_REFERENCE_ID) : null)
                 .symptoms(String.join(COMMA, sideEffect.getSymptoms()))
                 .userName(userInfoMap.get(USERNAME))
                 .nameOfUser(userInfoMap.get(NAME))

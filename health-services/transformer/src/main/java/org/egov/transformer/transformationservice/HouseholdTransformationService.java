@@ -5,7 +5,6 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.egov.common.models.household.AdditionalFields;
-import org.egov.common.models.household.Field;
 import org.egov.common.models.household.Household;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.models.boundary.BoundaryHierarchyResult;
@@ -13,7 +12,6 @@ import org.egov.transformer.models.downstream.HouseholdIndexV1;
 import org.egov.transformer.producer.Producer;
 import org.egov.transformer.service.BoundaryService;
 import org.egov.transformer.service.HouseholdService;
-import org.egov.transformer.service.ProjectService;
 import org.egov.transformer.service.UserService;
 import org.egov.transformer.utils.CommonUtils;
 import org.springframework.stereotype.Component;
@@ -33,17 +31,15 @@ public class HouseholdTransformationService {
     private final ObjectMapper objectMapper;
     private final UserService userService;
     private final CommonUtils commonUtils;
-    private final ProjectService projectService;
     private final HouseholdService householdService;
     private final BoundaryService boundaryService;
 
-    public HouseholdTransformationService(TransformerProperties transformerProperties, Producer producer, ObjectMapper objectMapper, UserService userService, CommonUtils commonUtils, ProjectService projectService, HouseholdService householdService, BoundaryService boundaryService) {
+    public HouseholdTransformationService(TransformerProperties transformerProperties, Producer producer, ObjectMapper objectMapper, UserService userService, CommonUtils commonUtils, HouseholdService householdService, BoundaryService boundaryService) {
         this.transformerProperties = transformerProperties;
         this.producer = producer;
         this.objectMapper = objectMapper;
         this.userService = userService;
         this.commonUtils = commonUtils;
-        this.projectService = projectService;
         this.householdService = householdService;
         this.boundaryService = boundaryService;
     }

@@ -17,8 +17,7 @@ import org.egov.transformer.utils.CommonUtils;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static org.egov.transformer.Constants.*;
@@ -34,10 +33,14 @@ public class HouseholdMemberTransformationService {
     private final UserService userService;
     private final HouseholdService householdService;
     private final ObjectMapper objectMapper;
-    private final ProjectService projectService;
     private final BoundaryService boundaryService;
-
-    public HouseholdMemberTransformationService(TransformerProperties transformerProperties, Producer producer, CommonUtils commonUtils, IndividualService individualService, UserService userService, HouseholdService householdService, ObjectMapper objectMapper, ProjectService projectService, BoundaryService boundaryService) {
+    private static final Set<String> BENEFICIARY_INFO_STRING_KEYS = new HashSet<>(Arrays.asList(
+            INDIVIDUAL_CLIENT_REFERENCE_ID, GENDER, HOUSEHOLD_CLIENT_REFERENCE_ID, UNIQUE_BENEFICIARY_ID
+    ));
+    private static final Set<String> BENEFICIARY_INFO_INTEGER_KEYS = new HashSet<>(Arrays.asList(
+            AGE, MEMBER_COUNT
+    ));
+    public HouseholdMemberTransformationService(TransformerProperties transformerProperties, Producer producer, CommonUtils commonUtils, IndividualService individualService, UserService userService, HouseholdService householdService, ObjectMapper objectMapper, BoundaryService boundaryService) {
         this.transformerProperties = transformerProperties;
         this.producer = producer;
         this.commonUtils = commonUtils;
@@ -45,7 +48,6 @@ public class HouseholdMemberTransformationService {
         this.userService = userService;
         this.householdService = householdService;
         this.objectMapper = objectMapper;
-        this.projectService = projectService;
         this.boundaryService = boundaryService;
     }
 
@@ -69,7 +71,39 @@ public class HouseholdMemberTransformationService {
         ObjectNode additionalDetails = objectMapper.createObjectNode();
         List<Double> geoPoint = null;
         String individualClientReferenceId = householdMember.getIndividualClientReferenceId();
-        Map<String, Object> individualDetails = individualService.getIndividualInfo(individualClientReferenceId, householdMember.getTenantId());
+        AdditionalFields hhmAdditionalFields = householdMember.getAdditionalFields();
+
+        boolean hasIndividualInfo = false;
+
+        if (hhmAdditionalFields != null && hhmAdditionalFields.getFields() != null
+                && !hhmAdditionalFields.getFields().isEmpty()) {
+            hasIndividualInfo = hhmAdditionalFields.getFields().stream()
+                    .anyMatch(field -> INDIVIDUAL_CLIENT_REFERENCE_ID.equals(field.getKey()));
+        }
+        Map<String, Object> individualDetails = new HashMap<>();
+
+        if (hasIndividualInfo) {
+            log.info("Fetching BeneficiaryInfo from task addFields");
+            List<Field> fields = hhmAdditionalFields.getFields();
+            if (fields != null) {
+                fields.forEach(field -> {
+                    String key = field.getKey();
+                    String value = field.getValue();
+                    if (BENEFICIARY_INFO_STRING_KEYS.contains(key)) {
+                        individualDetails.put(key, value);
+                    } else if (BENEFICIARY_INFO_INTEGER_KEYS.contains(key)) {
+                        try {
+                            individualDetails.put(key, Integer.parseInt(value));
+                        } catch (NumberFormatException e) {
+                            log.warn("Invalid integer for key '{}': '{}', defaulting to null", key, value);
+                            individualDetails.put(key, null);
+                        }
+                    }
+                });
+            }
+        } else {
+            individualDetails.putAll(individualService.getIndividualInfo(individualClientReferenceId, householdMember.getTenantId()));
+        }
 
         List<Household> households = householdService.searchHousehold(householdMember.getHouseholdClientReferenceId(), householdMember.getTenantId());
         String localityCode = null;

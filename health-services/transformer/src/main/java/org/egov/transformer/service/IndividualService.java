@@ -80,7 +80,7 @@ public class IndividualService {
         if (individual != null) {
             individualDetails.put(AGE, individual.getDateOfBirth() != null ? commonUtils.calculateAgeInMonthsFromDOB(individual.getDateOfBirth()) : null);
             individualDetails.put(GENDER, individual.getGender() != null ? individual.getGender().toString() : null);
-            individualDetails.put(INDIVIDUAL_ID, clientReferenceId);
+            individualDetails.put(INDIVIDUAL_CLIENT_REFERENCE_ID, clientReferenceId);
             individualDetails.put(DATE_OF_BIRTH, individual.getDateOfBirth() != null ? individual.getDateOfBirth().getTime() : null);
 
             if (individual.getAddress() != null && !individual.getAddress().isEmpty()
@@ -97,7 +97,7 @@ public class IndividualService {
             individualDetails.put(AGE, null);
             individualDetails.put(GENDER, null);
             individualDetails.put(DATE_OF_BIRTH, null);
-            individualDetails.put(INDIVIDUAL_ID, null);
+            individualDetails.put(INDIVIDUAL_CLIENT_REFERENCE_ID, null);
         }
 
         return individualDetails;
