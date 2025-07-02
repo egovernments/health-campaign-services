@@ -69,7 +69,7 @@ on:
           - "transformer"
           - "beneficiary-idgen"
           - "egov-hrms"
-          - "health-pgr-services"
+          - "pgr-services"
         default: "audit-service"
 
 env:
