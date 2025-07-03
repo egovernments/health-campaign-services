@@ -85,32 +85,45 @@ class Localisation {
   };
 
 
-  public getLocalizationResponseWithoutCache = async (
+  public getLocalizationResponseMessages = async (
     module: string,
     locale: string,
-    tenantId: string
+    tenantId: string,
+    overrideCache: boolean = false
   ) => {
+    const cacheKey = `${module}-${locale}-message-cache`;
     logger.info(
-      `Received Localisation fetch for module ${module}, locale ${locale}, tenantId ${tenantId}`
+      `Fetching message list for module ${module}, locale ${locale}, tenantId ${tenantId}`
     );
 
-    const params = {
-      tenantId,
-      locale,
-      module,
-    };
+    if (!this.cachedResponse?.[cacheKey] || overrideCache) {
+      logger.info(`Message list not found in cache. Fetching from server...`);
 
-    const url = config.host.localizationHost + config.paths.localizationSearch;
+      const params = {
+        tenantId,
+        locale,
+        module,
+      };
 
-    const localisationResponse = await httpRequest(url, {}, params);
+      const url = config.host.localizationHost + config.paths.localizationSearch;
 
-    logger.info(
-      `Fetched Localisation Message for module ${module}, locale ${locale}, tenantId ${tenantId} with count ${localisationResponse?.messages?.length}`
-    );
+      const localisationResponse = await httpRequest(url, {}, params);
 
-    // Optional: Return parsed map if still needed
-    return localisationResponse?.messages;
-  };
+      const messages = localisationResponse?.messages || [];
+
+      logger.info(
+        `Fetched ${messages.length} messages from server for module ${module}, locale ${locale}`
+      );
+
+      // Cache the raw message array using the new key
+      this.cachedResponse[cacheKey] = messages;
+      cachedResponse = { ...this.cachedResponse };
+    } else {
+      logger.info(`Message list found in cache for ${cacheKey}`);
+    }
+
+    return this.cachedResponse[cacheKey];
+  };  
   
   
   // Calls the cache burst API of localization
