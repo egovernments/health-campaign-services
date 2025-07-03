@@ -111,4 +111,6 @@ public interface Constants {
     String ADDITIONAL_FIELDS_FIELDS_KEY = "fields";
     String ADDITIONAL_FIELDS_FIELDS_KEY_KEY = "key";
     String ADDITIONAL_FIELDS_FIELDS_VALUE_KEY = "value";
+
+    String REDIS_CACHE_PREFIX = "transformer:";
 }

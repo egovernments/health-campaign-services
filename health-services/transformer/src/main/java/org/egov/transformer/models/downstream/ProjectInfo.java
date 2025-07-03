@@ -19,6 +19,10 @@ public class ProjectInfo {
     protected String projectTypeId;
     @JsonProperty("projectName")
     protected String projectName;
+    @JsonProperty("campaignNumber")
+    protected String campaignNumber;
+    @JsonProperty("campaignId")
+    protected String campaignId;
 
     public void setProjectInfo(String projectId, String projectType, String projectTypeId, String projectName) {
         this.projectId = projectId;
