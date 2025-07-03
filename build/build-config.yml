@@ -137,7 +137,7 @@ config:
       - work-dir: "core-services/dashboard-analytics"
         image-name: "dashboard-analytics"
         dockerfile: "build/maven/Dockerfile"
-  - name: "builds/health-campaign-services/health-services/stock"
+  # - name: "builds/health-campaign-services/health-services/stock"
   #  build:
   #    - work-dir: "health-services/stock"
   #      image-name: "stock"
@@ -189,13 +189,13 @@ config:
         dockerfile: "build/maven/Dockerfile"
       - work-dir: "core-services/service-request/src/main/resources/db"
         image-name: "health-service-request-db"
-  - name: "builds/health-campaign-services/core-services/service-request"
-    build:
-      - work-dir: "core-services/service-request"
-        image-name: "service-request"
-        dockerfile: "build/maven/Dockerfile"
-      - work-dir: "core-services/service-request/src/main/resources/db"
-        image-name: "service-request-db"
+  #- name: "builds/health-campaign-services/core-services/service-request"
+  #  build:
+  #    - work-dir: "core-services/service-request"
+  #      image-name: "service-request"
+  #      dockerfile: "build/maven/Dockerfile"
+  #    - work-dir: "core-services/service-request/src/main/resources/db"
+  #      image-name: "service-request-db"
   - name: "builds/health-campaign-services/core-services/health-service-request-17"
     build:
       - work-dir: "core-services/service-request"
