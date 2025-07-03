@@ -83,6 +83,48 @@ class Localisation {
     );
     cachedResponse = { ...this.cachedResponse };
   };
+
+
+  public getLocalizationResponseMessages = async (
+    module: string,
+    locale: string,
+    tenantId: string,
+    overrideCache: boolean = false
+  ) => {
+    const cacheKey = `${module}-${locale}-message-cache`;
+    logger.info(
+      `Fetching message list for module ${module}, locale ${locale}, tenantId ${tenantId}`
+    );
+
+    if (!this.cachedResponse?.[cacheKey] || overrideCache) {
+      logger.info(`Message list not found in cache. Fetching from server...`);
+
+      const params = {
+        tenantId,
+        locale,
+        module,
+      };
+
+      const url = config.host.localizationHost + config.paths.localizationSearch;
+
+      const localisationResponse = await httpRequest(url, {}, params);
+
+      const messages = localisationResponse?.messages || [];
+
+      logger.info(
+        `Fetched ${messages.length} messages from server for module ${module}, locale ${locale}`
+      );
+
+      // Cache the raw message array using the new key
+      this.cachedResponse[cacheKey] = messages;
+      cachedResponse = { ...this.cachedResponse };
+    } else {
+      logger.info(`Message list found in cache for ${cacheKey}`);
+    }
+
+    return this.cachedResponse[cacheKey];
+  };  
+  
   
   // Calls the cache burst API of localization
   public cacheBurst = async (
@@ -120,11 +162,9 @@ class Localisation {
   public createLocalisation = async (
     messages: any[] = [],
     tenantId: string,
-    request: any = {}
+    RequestInfo: any
   ) => {
     try {
-      // Extract RequestInfo from request body
-      const { RequestInfo } = request.body;
       // Construct request body with RequestInfo and localisation messages
       const requestBody = { RequestInfo, messages, tenantId };
       // Construct URL for localization create endpoint
