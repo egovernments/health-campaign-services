@@ -212,6 +212,15 @@ public class ServiceTaskTransformationService {
                 if (!additionalDetails.has(key)) {
                     additionalDetails.put(key, value);
                 }
+            } else if (serviceAdditionalFields.isObject()) {
+                log.info("Processing flat object: {}", serviceAdditionalFields);
+                serviceAdditionalFields.fields().forEachRemaining(entry -> {
+                    String key = entry.getKey();
+                    JsonNode valueNode = entry.getValue();
+                    if (!additionalDetails.has(key)) {
+                        additionalDetails.set(key, valueNode);
+                    }
+                });
             } else {
                 log.info("Invalid field structure in serviceAdditionalFields: {}", item);
             }
