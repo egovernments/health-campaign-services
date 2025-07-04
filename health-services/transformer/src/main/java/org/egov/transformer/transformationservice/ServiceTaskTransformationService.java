@@ -195,35 +195,37 @@ public class ServiceTaskTransformationService {
     }
 
     private void additionalFieldsToDetails(ObjectNode additionalDetails, JsonNode serviceAdditionalFields) {
-        JsonNode additionalFields = (serviceAdditionalFields != null && serviceAdditionalFields.has("fields"))
-                ? serviceAdditionalFields.get("fields")
-                : NullNode.getInstance();
-        log.info("ADDITIONAL FIELDS : {}", additionalFields);
-        if (!additionalFields.isArray()) {
-            log.info("additionalFields is not of the expected type Array. Skipping addition of fields.");
+        if (serviceAdditionalFields == null || serviceAdditionalFields.isNull()) {
+            log.info("serviceAdditionalFields is null.");
             return;
         }
 
-        for (JsonNode item : additionalFields) {
-            if (item.has("key") && item.has("value")) {
-                String key = item.get("key").asText();
-                String value = item.get("value").asText();
-
-                if (!additionalDetails.has(key)) {
-                    additionalDetails.put(key, value);
-                }
-            } else if (serviceAdditionalFields.isObject()) {
-                log.info("Processing flat object: {}", serviceAdditionalFields);
-                serviceAdditionalFields.fields().forEachRemaining(entry -> {
-                    String key = entry.getKey();
-                    JsonNode valueNode = entry.getValue();
+        if (serviceAdditionalFields.has("fields") && serviceAdditionalFields.get("fields").isArray()) {
+            JsonNode fieldsArray = serviceAdditionalFields.get("fields");
+            log.info("Processing fields array: {}", fieldsArray);
+            for (JsonNode item : fieldsArray) {
+                if (item.has("key") && item.has("value")) {
+                    String key = item.get("key").asText();
+                    JsonNode valueNode = item.get("value");
                     if (!additionalDetails.has(key)) {
                         additionalDetails.set(key, valueNode);
                     }
-                });
-            } else {
-                log.info("Invalid field structure in serviceAdditionalFields: {}", item);
+                } else {
+                    log.info("Invalid field structure in fields array: {}", item);
+                }
             }
+        } else if (serviceAdditionalFields.isObject()) {
+            log.info("Processing flat object: {}", serviceAdditionalFields);
+            serviceAdditionalFields.fields().forEachRemaining(entry -> {
+                String key = entry.getKey();
+                JsonNode valueNode = entry.getValue();
+                if (!additionalDetails.has(key)) {
+                    additionalDetails.set(key, valueNode);
+                }
+            });
+        } else {
+            log.info("serviceAdditionalFields is not an expected structure. Skipping.");
         }
     }
+
 }
