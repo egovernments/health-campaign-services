@@ -40,7 +40,7 @@ public class Service {
     @JsonProperty("auditDetails")
     private AuditDetails auditDetails = null;
 
-    @JsonProperty("additionalFields")
+    @JsonProperty("additionalDetails")
     private JsonNode additionalDetails = null;
 
     @JsonProperty("accountId")
