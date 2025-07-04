@@ -41,6 +41,9 @@ public class Service {
     private AuditDetails auditDetails = null;
 
     @JsonProperty("additionalFields")
+    private JsonNode additionalFields = null;
+
+    @JsonProperty("additionalDetails")
     private JsonNode additionalDetails = null;
 
     @JsonProperty("accountId")

@@ -2,6 +2,7 @@ package org.egov.transformer.transformationservice;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.JsonNodeType;
 import com.fasterxml.jackson.databind.node.NullNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
@@ -96,9 +97,16 @@ public class ServiceTaskTransformationService {
         }
 
         JsonNode serviceAdditionalDetails = service.getAdditionalDetails();
+        JsonNode serviceAdditionalFields = service.getAdditionalFields();
 
         ObjectNode additionalDetails = objectMapper.createObjectNode();
-        additionalFieldsToDetails(additionalDetails, serviceAdditionalDetails);
+
+        if (serviceAdditionalFields != null && !serviceAdditionalFields.isNull()) {
+            additionalFieldsToDetails(additionalDetails, serviceAdditionalFields);
+        }
+        if (serviceAdditionalDetails != null && JsonNodeType.OBJECT.equals(serviceAdditionalDetails.getNodeType())) {
+            additionalDetails.putAll((ObjectNode) serviceAdditionalDetails);
+        }
 
         String localityCode = commonUtils.getLocalityCodeFromAdditionalDetails(additionalDetails);
         List<Double> geoPoint = commonUtils.getGeoPointFromAdditionalDetails(additionalDetails);
