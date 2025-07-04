@@ -746,7 +746,7 @@ export function addHeadersFromSchema(
 }
 
 
-export function freezeUnfreezeColumns(
+export async function freezeUnfreezeColumns(
   worksheet: ExcelJS.Worksheet,
   columnsToFreeze: string[],
   columnsToUnFreezeTillData: string[],
@@ -824,11 +824,12 @@ export function freezeUnfreezeColumns(
     }
   }
 
-  // Step 5: Apply or remove protection
-    worksheet.protect('passwordhere', {
-      selectLockedCells: true,
-      selectUnlockedCells: true
-    });
+  // Step 5: Apply protection (await required)
+  await worksheet.protect('passwordhere', {
+    selectLockedCells: true,
+    selectUnlockedCells: true,
+  });
 }
+
 
 export { getNewExcelWorkbook, getExcelWorkbookFromFileURL, formatWorksheet, addDataToSheet, lockTargetFields, updateFontNameToRoboto, formatFirstRow, formatOtherRows, finalizeSheet, protectSheet };

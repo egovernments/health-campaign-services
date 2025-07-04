@@ -217,7 +217,7 @@ export async function processRequest(ResourceDetails: any, workBook: any, templa
                 .filter((columnName) => sheetData.dynamicColumns[columnName]?.[1]?.freezeTillData)
                 .map((columnName) => sheetData.dynamicColumns[columnName]?.[0]);
 
-            freezeUnfreezeColumns(worksheet, columnsToFreeze, columnsToUnFreezeTillData, columnsToFreezeTillData, columnsToFreezeColumnIfFilled);
+            await freezeUnfreezeColumns(worksheet, columnsToFreeze, columnsToUnFreezeTillData, columnsToFreezeTillData, columnsToFreezeColumnIfFilled);
             manageMultiSelectUnlocalised(worksheet, schema);
             await handledropdownthingsUnLocalised(worksheet, schema);
             updateFontNameToRoboto(worksheet);
@@ -337,7 +337,7 @@ async function createBasicTemplateViaConfig(responseToSend: any, templateConfig:
                 .filter((columnName) => sheetData.dynamicColumns[columnName]?.[1]?.freezeTillData)
                 .map((columnName) => sheetData.dynamicColumns[columnName]?.[0]);
 
-            freezeUnfreezeColumns(worksheet, columnsToFreeze, columnsToUnFreezeTillData, columnsToFreezeTillData, columnsToFreezeColumnIfFilled);
+            await freezeUnfreezeColumns(worksheet, columnsToFreeze, columnsToUnFreezeTillData, columnsToFreezeTillData, columnsToFreezeColumnIfFilled);
             manageMultiSelectUnlocalised(worksheet, schema);
             await handledropdownthingsUnLocalised(worksheet, schema);
             updateFontNameToRoboto(worksheet);
