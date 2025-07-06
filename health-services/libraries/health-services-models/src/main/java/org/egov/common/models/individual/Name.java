@@ -25,14 +25,14 @@ public class Name   {
         @JsonProperty("givenName")
     
 
-    @Size(min=2,max=200) 
+    @Size(min=1,max=200)
 
     private String givenName = null;
 
         @JsonProperty("familyName")
     
 
-    @Size(min=2,max=200) 
+    @Size(min=1,max=200)
 
     private String familyName = null;
 
