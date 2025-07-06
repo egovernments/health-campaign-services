@@ -29,6 +29,11 @@
             <artifactId>digit-models</artifactId>
             <version>1.0.0-SNAPSHOT</version>
         </dependency>
+        <dependency>
+            <groupId>io.swagger</groupId>
+            <artifactId>swagger-annotations</artifactId>
+            <version>1.6.14</version>
+        </dependency>
     </dependencies>
 
     <distributionManagement>
