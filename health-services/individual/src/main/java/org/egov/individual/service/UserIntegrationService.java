@@ -11,7 +11,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -29,30 +28,22 @@ public class UserIntegrationService {
         this.individualProperties = individualProperties;
     }
 
-    public Optional<UserRequest> createUser(List<Individual> validIndividuals,
+    public List<UserRequest> createUser(Individual validIndividual,
                                             RequestInfo requestInfo) {
         log.info("integrating with user service");
-        List<UserRequest> userRequests = validIndividuals.stream()
-                .filter(Individual::getIsSystemUser).map(toUserRequest())
-                .collect(Collectors.toList());
-        return userRequests.stream().flatMap(userRequest -> userService.create(
-                new CreateUserRequest(requestInfo,
-                        userRequest)).stream()).collect(Collectors.toList()).stream().findFirst();
+        UserRequest userRequest = IndividualMapper.toUserRequest(validIndividual, individualProperties);
+        return userService.create(new CreateUserRequest(requestInfo, userRequest));
     }
 
 
-    public Optional<UserRequest> updateUser(List<Individual> validIndividuals,
+    public List<UserRequest> updateUser(Individual validIndividual,
                                             RequestInfo requestInfo) {
         log.info("updating the user in user service");
-        List<UserRequest> userRequests = validIndividuals.stream()
-                .filter(Individual::getIsSystemUser).map(toUserRequest())
-                .collect(Collectors.toList());
-        return userRequests.stream().flatMap(userRequest -> userService.update(
-                new CreateUserRequest(requestInfo,
-                        userRequest)).stream()).collect(Collectors.toList()).stream().findFirst();
+        UserRequest userRequest = IndividualMapper.toUserRequest(validIndividual, individualProperties);
+        return userService.update(new CreateUserRequest(requestInfo, userRequest));
     }
 
-    public Optional<UserRequest> deleteUser(List<Individual> validIndividuals,
+    public List<UserRequest> deleteUser(List<Individual> validIndividuals,
                                             RequestInfo requestInfo) {
         log.info("deleting the user in user service");
         List<UserRequest> userRequests = validIndividuals.stream()
@@ -61,7 +52,7 @@ public class UserIntegrationService {
                 .collect(Collectors.toList());
         return userRequests.stream().flatMap(userRequest -> userService.update(
                 new CreateUserRequest(requestInfo,
-                        userRequest)).stream()).collect(Collectors.toList()).stream().findFirst();
+                        userRequest)).stream()).collect(Collectors.toList());
     }
 
     private Function<Individual, UserRequest> toUserRequest() {

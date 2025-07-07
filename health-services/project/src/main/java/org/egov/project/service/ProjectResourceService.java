@@ -1,9 +1,12 @@
 package org.egov.project.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.ds.Tuple;
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.ErrorDetails;
+import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.project.ProjectResource;
 import org.egov.common.models.project.ProjectResourceBulkRequest;
 import org.egov.common.models.project.ProjectResourceRequest;
@@ -19,7 +22,7 @@ import org.egov.project.validator.resource.PrProjectIdValidator;
 import org.egov.project.validator.resource.PrRowVersionValidator;
 import org.egov.project.validator.resource.PrUniqueCombinationValidator;
 import org.egov.project.validator.resource.PrUniqueEntityValidator;
-import org.egov.project.web.models.ProjectResourceSearchRequest;
+import org.egov.common.models.project.ProjectResourceSearchRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ReflectionUtils;
 
@@ -105,7 +108,7 @@ public class ProjectResourceService {
                 log.info("successfully created project resource");
             }
         } catch (Exception exception) {
-            log.error("error occurred while creating project resource: {}", exception.getMessage());
+            log.error("error occurred while creating project resource: {}", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_PROJECT_RESOURCE);
         }
 
@@ -138,7 +141,7 @@ public class ProjectResourceService {
                 log.info("successfully created project resource");
             }
         } catch (Exception exception) {
-            log.error("error occurred while creating project resource: {}", exception.getMessage());
+            log.error("error occurred while creating project resource: {}", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_PROJECT_RESOURCE);
         }
 
@@ -171,7 +174,7 @@ public class ProjectResourceService {
                 log.info("successfully deleted project resource");
             }
         } catch (Exception exception) {
-            log.error("error occurred while deleting project resource: {}", exception.getMessage());
+            log.error("error occurred while deleting project resource: {}", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_PROJECT_RESOURCE);
         }
 
@@ -181,27 +184,28 @@ public class ProjectResourceService {
     }
 
 
-    public List<ProjectResource> search(ProjectResourceSearchRequest request,
-                                        Integer limit,
-                                        Integer offset,
-                                        String tenantId,
-                                        Long lastChangedSince,
-                                        Boolean includeDeleted) throws QueryBuilderException {
+    public SearchResponse<ProjectResource> search(ProjectResourceSearchRequest request,
+                                                  Integer limit,
+                                                  Integer offset,
+                                                  String tenantId,
+                                                  Long lastChangedSince,
+                                                  Boolean includeDeleted) throws QueryBuilderException, InvalidTenantIdException {
         String idFieldName = getIdFieldName(request.getProjectResource());
 
         if (isSearchByIdOnly(request.getProjectResource(), idFieldName)) {
             List<String> ids = (List<String>) ReflectionUtils.invokeMethod(getIdMethod((Collections
                     .singletonList(request.getProjectResource()))),
                     request.getProjectResource());
-            return projectResourceRepository.findById(ids, includeDeleted, idFieldName).stream()
+            List<ProjectResource> projectResources = projectResourceRepository.findById(tenantId, ids, includeDeleted, idFieldName).stream()
                     .filter(lastChangedSince(lastChangedSince))
                     .filter(havingTenantId(tenantId))
                     .filter(includeDeleted(includeDeleted))
                     .collect(Collectors.toList());
+            return SearchResponse.<ProjectResource>builder().response(projectResources).build();
         }
 
         log.info("completed search method for project resource");
-        return projectResourceRepository.find(request.getProjectResource(),
+        return projectResourceRepository.findWithCount(request.getProjectResource(),
                 limit, offset, tenantId, lastChangedSince, includeDeleted);
     }
 }
