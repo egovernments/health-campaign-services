@@ -90,7 +90,7 @@ jobs:
           DB_IMAGE_NAME=$(echo "DB_BUILD_CONFIG" | yq eval -r '.["image-name"]' -)
           DB_WORK_DIR=$(echo "DB_BUILD_CONFIG" | yq eval -r '.["work-dir"]' -)
           
-          // Step 8: Export to github environment
+          # Step 8: Export to github environment
           echo "SERVICE_WORK_DIR=$SERVICE_WORK_DIR" >> "$GITHUB_ENV"
           echo "SERVICE_IMAGE_NAME=$SERVICE_IMAGE_NAME" >> "$GITHUB_ENV"
           echo "SERVICE_DOCKERFILE=$SERVICE_DOCKERFILE" >> "$GITHUB_ENV"
