@@ -33,16 +33,13 @@ jobs:
         run: |
           SERVICE="project-factory"
           DEFAULT_DOCKERFILE="build/maven/Dockerfile"
-
           DF=$(yq eval ".config[].build[] | select(.\"image-name\" == \"${SERVICE}\") | .dockerfile // \"\"" build/build-config.yml)
-
           if [ -z "$DF" ] || [ "$DF" = "null" ]; then
             echo "No dockerfile entry found for \"$SERVICE\" in build-config.yml; using default"
             DF="$DEFAULT_DOCKERFILE"
           else
             echo "Found dockerfile \"$DF\" for service \"$SERVICE\"."
           fi
-
           echo "dockerfile_path=$DF" >> "$GITHUB_OUTPUT"
           echo "DOCKERFILE_PATH=$DF" >> "$GITHUB_ENV"
 
@@ -67,25 +64,20 @@ jobs:
         id: tag
         run: |
           set -euxo pipefail
-
           BRANCH="${GITHUB_REF##*/}"
           COMMIT_HASH=$(git rev-parse --short HEAD)
           SERVICE_NAME="project-factory"
-
           TOKEN=$(curl -s -X POST "https://hub.docker.com/v2/users/login/" \
             -H "Content-Type: application/json" \
             -d "{\"username\": \"$DOCKER_USERNAME\", \"password\": \"$DOCKER_PASSWORD\"}" \
             | jq -r .token)
-
           if [ -z "$TOKEN" ]; then
             echo "Failed to authenticate with Docker Hub." >&2
             exit 1
           fi
-
           REPO_CHECK=$(curl -s -o /dev/null -w '%{http_code}' \
             -H "Authorization: JWT $TOKEN" \
             "https://hub.docker.com/v2/repositories/$DOCKER_USERNAME/$SERVICE_NAME/")
-
           if [ "$REPO_CHECK" -ne 200 ]; then
             NEXT_TAG="${BRANCH}-${COMMIT_HASH}"
           else
@@ -95,7 +87,6 @@ jobs:
             LATEST_TAG=$(echo "$EXISTING_TAGS" | grep "^${BRANCH}-${COMMIT_HASH}" || true | sort -V | tail -n 1)
             NEXT_TAG="${LATEST_TAG:-${BRANCH}-${COMMIT_HASH}}"
           fi
-
           echo "tag=$NEXT_TAG" >> "$GITHUB_OUTPUT"
           echo "NEXT_TAG=$NEXT_TAG" >> "$GITHUB_ENV"
 
@@ -115,7 +106,7 @@ jobs:
       - name: Check if DB folder exists
         id: check-db-folder
         run: |
-          FOLDER_PATH="health-services/project-factory/src/main/resources/db"
+          FOLDER_PATH="health-services/project-factory/migration"
           if [ -d "$FOLDER_PATH" ]; then
             echo "folder_exists=true" >> "$GITHUB_OUTPUT"
           else
@@ -128,8 +119,8 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           platforms: linux/amd64,linux/arm64
-          context: health-services/project-factory/src/main/resources/db
-          file: health-services/project-factory/src/main/resources/db/Dockerfile
+          context: health-services/project-factory/migration
+          file: health-services/project-factory/migration/Dockerfile
           push: true
           tags: |
             egovio/project-factory-db:${{ steps.tag.outputs.tag }}
