@@ -8,11 +8,56 @@ on:
         required: true
         type: choice
         options:
-          - health-service-request-17
+          - health-services-common
+          - health-services-models
+          - product-17
+          - product
+          - project
+          - health-project
+          - referralmanagement
+          - household
+          - household-java-17
+          - health-project-java-17
+          - project-java-17
+          - referralmanagement-java-17
+          - individual
+          - individual-java-17
+          - health-individual
+          - health-individual-java-17
+          - health-attendance
+          - error-handler
+          - dashboard-analytics
+          - stock
+          - stock-java-17
+          - egov-survey-services
+          - facility
+          - facility-java-17
+          - transformer
+          - transformer-java-17
           - health-service-request
-          - service-request-17
           - service-request
-        default: "health-service-request-17"
+          - health-service-request-17
+          - service-request-17
+          - pgr-services
+          - health-pgr-services
+          - pgr-services-17
+          - health-pgr-services-17
+          - user-otp
+          - egov-notification-mail
+          - attendance
+          - health-hrms
+          - health-hrms-java-17
+          - egov-hrms
+          - egov-hrms-java-17
+          - plan-service
+          - resource-generator
+          - auth-proxy
+          - census-service
+          - geopode-adapter
+          - beneficiary-idgen-17
+          - workbench-ui
+          - microplan-ui
+          - project-factory
 
 env:
   DOCKER_USERNAME: ${{ vars.DOCKER_USERNAME }}
