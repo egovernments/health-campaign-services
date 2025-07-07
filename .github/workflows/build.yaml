@@ -91,6 +91,7 @@ jobs:
         id: resolve_config
         run: |
           PIPELINE_NAME="${{ matrix.pipeline }}"
+          DEFAULT_DOCKERFILE="Dockerfile"
           
           # Step 1: List matching config blocks
           MATCHING_CONFIGS=$(yq eval -o=json '.config[] | select(.name | test("/'"$PIPELINE_NAME"'$"))' build/build-config.yml)
@@ -135,7 +136,13 @@ jobs:
           DB_IMAGE_NAME=$(echo "$DB_BUILD_CONFIG" | yq eval -r '.["image-name"]' -)
           DB_WORK_DIR=$(echo "$DB_BUILD_CONFIG" | yq eval -r '.["work-dir"]' -)
           
-          # Step 8: Export to github environment
+          # Step 8: Set Default Dockerfile if service dockerfile config is missing
+          if [ -z "$SERVICE_DOCKERFILE" ]; then
+            echo "No dockerfile entry found for \"$SERVICE\" in build-config.yml; using default"
+            SERVICE_DOCKERFILE="$SERVICE_WORK_DIR/$DEFAULT_DOCKERFILE"
+          fi
+          
+          # Step 9: Export to github environment
           echo "SERVICE_WORK_DIR=$SERVICE_WORK_DIR" >> "$GITHUB_ENV"
           echo "SERVICE_IMAGE_NAME=$SERVICE_IMAGE_NAME" >> "$GITHUB_ENV"
           echo "SERVICE_DOCKERFILE=$SERVICE_DOCKERFILE" >> "$GITHUB_ENV"
