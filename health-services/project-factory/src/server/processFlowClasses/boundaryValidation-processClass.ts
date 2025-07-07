@@ -189,7 +189,7 @@ export class TemplateClass {
     }
 
     private static async getSchema(tenantId: string, projectType: string) {
-        const schemaName = `target-${projectType}`;
+        const schemaName = `target-${projectType}`.toLowerCase();
         return await callMdmsSchema(tenantId, schemaName);
     }
 }
