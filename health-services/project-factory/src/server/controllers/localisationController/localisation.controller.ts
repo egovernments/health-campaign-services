@@ -52,38 +52,67 @@ class Localisation {
   };
   // fetch localization messages
   private fetchLocalisationMessage = async (
-    module: string,
-    locale: string,
-    tenantId: string
-  ) => {
-    logger.info(
-      `Received Localisation fetch for module ${module}, locale ${locale}, tenantId ${tenantId}`
-    );
-    const params = {
-      tenantId,
-      locale,
-      module,
-    };
-    const url = this.localizationHost + config.paths.localizationSearch;
-    const localisationResponse = await httpRequest(url, {}, params);
-    logger.info(
-      `Fetched Localisation Message for module ${module}, locale ${locale}, tenantId ${tenantId} with count ${localisationResponse?.messages?.length}`
-    );
-    this.cachedResponse = {
-      ...cachedResponse,
-      ...this.cachedResponse,
-      [`${module}-${locale}`]: {
-        ...convertLocalisationResponseToMap(localisationResponse?.messages),
-      },
-    };
-    logger.info(
-      `Cached Localisation Message, now available modules in cache are :  ${JSON.stringify(
-        Object.keys(this.cachedResponse)
-      )}`
-    );
-    cachedResponse = { ...this.cachedResponse };
+  module: string,
+  locale: string,
+  tenantId: string
+) => {
+  logger.info(
+    `Received Localisation fetch for module ${module}, locale ${locale}, tenantId ${tenantId}`
+  );
+
+  const params = {
+    tenantId,
+    locale,
+    module,
   };
 
+  const url = this.localizationHost + config.paths.localizationSearch;
+  const maxRetries = 3;
+  const delayMs = 10000; // 10 seconds
+
+  let attempt = 0;
+  let localisationResponse: any = null;
+
+  while (attempt < maxRetries) {
+    try {
+      localisationResponse = await httpRequest(url, {}, params);
+      logger.info(
+        `Fetched Localisation Message for module ${module}, locale ${locale}, tenantId ${tenantId} with count ${localisationResponse?.messages?.length}`
+      );
+      break; // Exit loop if successful
+    } catch (error) {
+      attempt++;
+      logger.error(
+        `Attempt ${attempt} failed to fetch localisation for module ${module}, locale ${locale}, tenantId ${tenantId}. Error: ${error}`
+      );
+      if (attempt < maxRetries) {
+        logger.info(`Retrying in ${delayMs / 1000} seconds...`);
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      } else {
+        logger.error(
+          `All ${maxRetries} attempts failed for module ${module}, locale ${locale}, tenantId ${tenantId}`
+        );
+        throw error; // Re-throw after final attempt
+      }
+    }
+  }
+
+  // Proceed only if we have a successful response
+  this.cachedResponse = {
+    ...cachedResponse,
+    ...this.cachedResponse,
+    [`${module}-${locale}`]: {
+      ...convertLocalisationResponseToMap(localisationResponse?.messages),
+    },
+  };
+
+  logger.info(
+    `Cached Localisation Message, now available modules in cache are :  ${JSON.stringify(
+      Object.keys(this.cachedResponse)
+    )}`
+  );
+  cachedResponse = { ...this.cachedResponse };
+};
 
   public getLocalizationResponseMessages = async (
     module: string,
@@ -106,24 +135,49 @@ class Localisation {
       };
 
       const url = config.host.localizationHost + config.paths.localizationSearch;
+      const maxRetries = 3;
+      const delayMs = 10000; // 10 seconds
 
-      const localisationResponse = await httpRequest(url, {}, params);
+      let attempt = 0;
+      let localisationResponse: any = null;
 
-      const messages = localisationResponse?.messages || [];
+      while (attempt < maxRetries) {
+        try {
+          localisationResponse = await httpRequest(url, {}, params);
+          const messages = localisationResponse?.messages || [];
 
-      logger.info(
-        `Fetched ${messages.length} messages from server for module ${module}, locale ${locale}`
-      );
+          logger.info(
+            `Fetched ${messages.length} messages from server for module ${module}, locale ${locale}`
+          );
 
-      // Cache the raw message array using the new key
-      this.cachedResponse[cacheKey] = messages;
-      cachedResponse = { ...this.cachedResponse };
+          // Cache the raw message array using the new key
+          this.cachedResponse[cacheKey] = messages;
+          cachedResponse = { ...this.cachedResponse };
+
+          break; // success, exit loop
+        } catch (error) {
+          attempt++;
+          logger.error(
+            `Attempt ${attempt} failed for fetching messages for ${cacheKey}. Error: ${error}`
+          );
+          if (attempt < maxRetries) {
+            logger.info(`Retrying in ${delayMs / 1000} seconds...`);
+            await new Promise((resolve) => setTimeout(resolve, delayMs));
+          } else {
+            logger.error(
+              `All ${maxRetries} attempts failed to fetch messages for ${cacheKey}`
+            );
+            throw error; // Re-throw after final failure
+          }
+        }
+      }
     } else {
       logger.info(`Message list found in cache for ${cacheKey}`);
     }
 
     return this.cachedResponse[cacheKey];
-  };  
+  };
+
   
   
   // Calls the cache burst API of localization
