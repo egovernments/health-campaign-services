@@ -220,6 +220,8 @@ jobs:
             egovio/${{ env.SERVICE_IMAGE_NAME }}:${{ steps.tag.outputs.tag }}
           build-args: |
             WORK_DIR=${{ env.SERVICE_WORK_DIR }}
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache
 
       - name: Check if DB folder exists
         id: check-db-folder
