@@ -1,4 +1,4 @@
-package digit.web.models.boundary;
+package digit.web.models.boundaryService;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.Valid;
@@ -12,24 +12,22 @@ import org.springframework.validation.annotation.Validated;
 import java.util.List;
 
 /**
- * BoundaryTypeHierarchyResponse
+ * BoundarySearchResponse
  */
 @Validated
+@jakarta.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2023-10-16T17:02:11.361704+05:30[Asia/Kolkata]")
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class BoundaryTypeHierarchyResponse {
+public class BoundarySearchResponse {
 
     @JsonProperty("ResponseInfo")
     @Valid
     private ResponseInfo responseInfo = null;
 
-    @JsonProperty("totalCount")
-    private Integer totalCount = null;
-
-    @JsonProperty("BoundaryHierarchy")
+    @JsonProperty("TenantBoundary")
     @Valid
-    private List<BoundaryTypeHierarchyDefinition> boundaryHierarchy = null;
+    private List<HierarchyRelation> tenantBoundary = null;
 
 }

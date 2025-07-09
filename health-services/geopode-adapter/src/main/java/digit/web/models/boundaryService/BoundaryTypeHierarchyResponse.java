@@ -1,4 +1,4 @@
-package digit.web.models.boundary;
+package digit.web.models.boundaryService;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.Valid;
@@ -15,6 +15,7 @@ import java.util.List;
  * BoundaryTypeHierarchyResponse
  */
 @Validated
+@jakarta.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2023-10-16T17:02:11.361704+05:30[Asia/Kolkata]")
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
