@@ -38,9 +38,6 @@ public class GeopodeApiController {
     @PostMapping("/boundary/setup")
     public ResponseEntity<String> geopodeBoundaryCreate(@Valid @RequestBody GeopodeBoundaryRequest body) {
         String countryName= geopodeAdapterService.createRootBoundaryData(body);
-        if (countryName == null) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, ROOT_BOUNDARY_ALREADY_EXISTS);
-        }
         String message = BOUNDARY_CREATION_INITIATED + countryName + ".";
         return ResponseEntity.status(HttpStatus.OK).body(message);
     }

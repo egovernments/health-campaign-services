@@ -5,6 +5,7 @@ import digit.config.Configuration;
 import digit.web.models.Arcgis.ArcgisRequest;
 import digit.web.models.Arcgis.ArcgisResponse;
 import digit.web.models.Arcgis.Feature;
+import digit.web.models.BoundaryNameMapping;
 import digit.web.models.GeopodeBoundaryRequest;
 import digit.web.models.boundaryService.*;
 
@@ -88,7 +89,7 @@ public class ChildBoundaryCreationUtil {
      * @param rootCode
      * @param request
      */
-    private void fetchLevelRecursively(List<String> hierarchyLevels, int currentIndex, List<List<String>> parentList, String rootCode, GeopodeBoundaryRequest request) {
+    private void fetchLevelRecursively(List<String> hierarchyLevels, int currentIndex, List<BoundaryNameMapping> parentList, String rootCode, GeopodeBoundaryRequest request) {
 
         if (currentIndex >= hierarchyLevels.size()) {
             log.info("Finished creating boundaries for " + rootCode);
@@ -101,7 +102,7 @@ public class ChildBoundaryCreationUtil {
 
         // If root level (e.g., ADM0), make single batch-wise fetch
         // Will store current search data as [childName,UniqueChildName]
-        List<List<String>> currentChildNames = new ArrayList<>(); // Will hold unique features in format
+        List<BoundaryNameMapping> currentChildNames = new ArrayList<>(); // Will hold unique features in format
         int totalChildrenCount = 0;
 
         if (parentList == null || ObjectUtils.isEmpty(parentList)) {
@@ -110,9 +111,9 @@ public class ChildBoundaryCreationUtil {
             totalChildrenCount += childResults.size();
         } else {
             // For each parent element, make a batch fetch based on parent
-            for (List<String> pair : parentList) {
-                String parentName = pair.get(0);
-                String parentUniqueName = pair.get(1);
+            for (BoundaryNameMapping pair : parentList) {
+                String parentName = pair.getName();
+                String parentUniqueName = pair.getUniqueName();
 
                 // Fetch all batches where query is like ?adm0=Mozambique or ?adm1=ProvinceName
                 List<Feature> childResults = fetchAllBatchesForLevel(currentLevel, parentLevel, parentName, rootCode);
@@ -245,8 +246,8 @@ public class ChildBoundaryCreationUtil {
      * @param requestInfo
      * @return
      */
-    private List<List<String>> initializeBoundaryAndRelationship(List<Feature> childResults, String parentUniqueCode, String currentLevel, RequestInfo requestInfo, String tenantId) {
-        List<List<String>> uniqueChildNames = new ArrayList<>(); // Will hold in format [childName,UniqueChildName]
+    private List<BoundaryNameMapping> initializeBoundaryAndRelationship(List<Feature> childResults, String parentUniqueCode, String currentLevel, RequestInfo requestInfo, String tenantId) {
+        List<BoundaryNameMapping> uniqueChildNames = new ArrayList<>(); // Will hold in format [childName,UniqueChildName]
         Set<String> seenBoundaryNames = new HashSet<>();  // Will track boundary names we've already added
         // Stores child->parent unique code mappings in insertion order
 
@@ -258,7 +259,12 @@ public class ChildBoundaryCreationUtil {
                 String childCode = result.get(0);
                 String childUniqueCode = result.get(1);
                 seenBoundaryNames.add(childBoundaryName);      // Mark name as seen
-                uniqueChildNames.add(Arrays.asList(childCode, childUniqueCode));// Adding in form [childName,UniqueChildName]
+                uniqueChildNames.add(
+                        BoundaryNameMapping.builder()
+                                .name(childCode)
+                                .uniqueName(childUniqueCode)
+                                .build()
+                );// Adding in form [childName,UniqueChildName]
                 initializeBoundary(childUniqueCode, currentLevel, requestInfo, tenantId);
 
             }
@@ -266,9 +272,9 @@ public class ChildBoundaryCreationUtil {
 
         }
         // [childName,UniqueChildName]
-        for (List<String> pair : uniqueChildNames) {
-            String childCode = pair.get(0);
-            String childUniqueCode = pair.get(1);
+        for (BoundaryNameMapping pair : uniqueChildNames) {
+            String childCode = pair.getName();
+            String childUniqueCode = pair.getUniqueName();
 
             initializeParentChildRelationShip(childUniqueCode, parentUniqueCode, currentLevel, requestInfo, tenantId);
         }
