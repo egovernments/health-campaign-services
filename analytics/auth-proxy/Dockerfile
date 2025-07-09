@@ -1,6 +1,8 @@
 # Use an official Node runtime as a parent image
 FROM node:14
 
+ARG WORK_DIR
+
 # Set the working directory in the container
 WORKDIR /usr/src/app
 
@@ -11,7 +13,7 @@ COPY package*.json ./
 RUN npm install
 
 # Bundle your app's source code inside the Docker image
-COPY . .
+COPY ${WORK_DIR}/. .
 
 # Set server port
 ENV SERVER_PORT 8080
