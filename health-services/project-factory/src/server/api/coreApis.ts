@@ -2,6 +2,7 @@
 import { BoundaryModels, MDMSModels } from "../models";
 import config from "../config";
 import { defaultheader, httpRequest } from "../utils/request";
+import { logger } from "../utils/logger";
 
 // Default request information for MDMS API requests
 export const defaultRequestInfo: any = {
@@ -301,5 +302,39 @@ const fetchFileFromFilestore = async (filestoreId: string, tenantId: string) => 
   }
 }
 
+/**
+ * Creates or updates MDMS data for a specific schema code in the given tenant.
+ * 
+ * 
+ * @param tenantId - The unique identifier for the tenant.
+ * @param schemaCode - The schema code for which data is being created or updated.
+ * @param data - The data to be stored in MDMS.
+ * @param useruuid - The UUID of the user performing the operation.
+ * @returns Promise resolving when the MDMS data creation is complete.
+ */
+async function createMdmsData(
+  tenantId: string,
+  schemaCode: string,
+  data: any,
+  useruuid: string
+): Promise<void> {
+  const RequestInfo = { ...defaultRequestInfo?.RequestInfo };
+  RequestInfo.userInfo.uuid = useruuid;
+
+  const requestBody = {
+    RequestInfo,
+    Mdms: {
+      tenantId,
+      schemaCode,
+      data
+    },
+  };
+
+  const url = `${config?.host?.mdmsV2}${config?.paths?.mdms_v2_create}/${schemaCode}`;
+  await httpRequest(url, requestBody);
+
+  logger.info(`Created data for ${schemaCode} in MDMS for tenant ${tenantId}`);
+}
+
 // Exporting all API functions for MDMS operations
-export { searchMDMSDataViaV2Api, searchMDMSSchema, searchMDMSDataViaV1Api, searchBoundaryEntity, searchBoundaryRelationshipData, searchBoundaryRelationshipDefinition, fetchFileFromFilestore };
+export { searchMDMSDataViaV2Api, searchMDMSSchema, searchMDMSDataViaV1Api, searchBoundaryEntity, searchBoundaryRelationshipData, searchBoundaryRelationshipDefinition, fetchFileFromFilestore, createMdmsData };

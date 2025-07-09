@@ -285,5 +285,7 @@ config:
     build:
       - work-dir: "health-services/project-factory"
         image-name: "project-factory"
+        dockerfile: "health-services/project-factory/Dockerfile"
       - work-dir: "health-services/project-factory/migration"
         image-name: "project-factory-db"
+        dockerfile: "health-services/project-factory/migration/Dockerfile"

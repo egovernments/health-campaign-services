@@ -102,13 +102,14 @@ import {
 import { changeCreateDataForMicroplan, lockSheet } from "./microplanUtils";
 const _ = require("lodash");
 import { searchDataService } from "../service/dataManageService";
-import { defaultRequestInfo, searchBoundaryRelationshipData, searchMDMSDataViaV1Api, searchMDMSDataViaV2Api } from "../api/coreApis";
+import { createMdmsData, defaultRequestInfo, searchBoundaryRelationshipData, searchMDMSDataViaV1Api, searchMDMSDataViaV2Api } from "../api/coreApis";
 import { deleteRedisCacheKeysWithPrefix } from "./redisUtils";
 import {
   fetchFacilityData,
   fetchTargetData,
   fetchUserData,
 } from "./microplanIntergration";
+import Localisation from "../controllers/localisationController/localisation.controller";
 
 function updateRange(range: any, worksheet: any) {
   let maxColumnIndex = 0;
@@ -1068,6 +1069,7 @@ async function enrichAndPersistCampaignForCreate(
       request.body.CampaignDetails.campaignName =
         request.body.parentCampaign?.campaignName;
     }
+    processAppConfig(request?.body?.CampaignDetails, request?.body?.RequestInfo);
   }
   request.body.CampaignDetails.campaignDetails = {
     deliveryRules: request?.body?.CampaignDetails?.deliveryRules || [],
@@ -1113,6 +1115,21 @@ async function enrichAndPersistCampaignForCreate(
   };
   await produceModifiedMessages(produceMessage, topic);
   delete request.body.CampaignDetails.campaignDetails;
+}
+
+async function processAppConfig(campaignDetails: any, RequestInfo: any) {
+  try {
+    if (!campaignDetails?.parentId) {
+      if (campaignDetails?.additionalDetails?.cloneFrom) {
+        await createAppConfigFromClone(campaignDetails?.tenantId, campaignDetails?.campaignNumber, campaignDetails?.additionalDetails?.cloneFrom, RequestInfo);
+      }
+      else {
+        await createAppConfig(campaignDetails?.tenantId, campaignDetails?.campaignNumber, campaignDetails?.projectType, RequestInfo);
+      }
+    }
+  } catch (error) {
+    logger.warn("Error while processing app config", error);
+  }
 }
 
 function enrichInnerCampaignDetails(
@@ -2583,14 +2600,249 @@ async function processBasedOnAction(request: any, actionInUrl: any) {
     request.body.CampaignDetails.id = uuidv4();
   }
   await enrichAndPersistProjectCampaignForFirst(request, actionInUrl, true);
-  if (
-    actionInUrl == "create" &&
-    request.body?.parentCampaign &&
-    request?.body?.CampaignDetails?.action === "draft"
-  ) {
+  const shouldCallGenerateWhenChildCampaigngetsCreated = actionInUrl == "create" && request.body?.parentCampaign && request?.body?.CampaignDetails?.action === "draft";
+  if (shouldCallGenerateWhenChildCampaigngetsCreated) {
     callGenerateWhenChildCampaigngetsCreated(request);
   }
   processAfterPersist(request, actionInUrl);
+}
+
+async function getLocalesFromStateInfo(tenantId: string): Promise<string[]> {
+  const criteria = {
+    tenantId,
+    schemaCode: "common-masters.StateInfo",
+    isActive: true,
+  };
+
+  const response = await searchMDMSDataViaV2Api({ MdmsCriteria: criteria });
+
+  if (!response?.mdms?.length) {
+    throw new Error("StateInfo data not found in MDMS");
+  }
+
+  return response.mdms
+    .map((item: any) => item?.data?.defaultLanguage)
+    .filter(Boolean);
+}
+
+async function getTemplateModules(
+  tenantId: string,
+  campaignType: string,
+  schemaCode: string
+): Promise<any[]> {
+  const criteria = {
+    tenantId,
+    schemaCode,
+    filters: { project: campaignType },
+    isActive: true,
+  };
+
+  const response = await searchMDMSDataViaV2Api({ MdmsCriteria: criteria });
+
+  return (response?.mdms || [])
+    .map((item: any) => item?.data || [])
+    .flat()
+    .filter((module: any) => !module?.disabled);
+}
+
+async function upsertLocalisations(
+  tenantId: string,
+  baseModuleKey: string,
+  updatedModuleKey: string,
+  locales: string[],
+  localisation: any,
+  RequestInfo: any
+): Promise<void> {
+  const chunkSize = 100;
+
+  for (const locale of locales) {
+    let messages: any[] = [];
+
+    try {
+      messages = await localisation.getLocalizationResponseMessages(
+        baseModuleKey,
+        locale,
+        tenantId
+      );
+    } catch (e: any) {
+      logger.error(`Failed to fetch localisation for ${baseModuleKey} (${locale}): ${e?.message}`);
+      continue;
+    }
+
+    const updatedMessages = messages.map((entry: any) => ({
+      ...entry,
+      locale,
+      module: updatedModuleKey,
+    }));
+
+    for (let i = 0; i < updatedMessages.length; i += chunkSize) {
+      const chunk = updatedMessages.slice(i, i + chunkSize);
+      await localisation.createLocalisation(chunk, tenantId, RequestInfo);
+      logger.info(`Localisation added for ${updatedModuleKey} (${locale}) — chunk ${i / chunkSize + 1}`);
+    }
+  }
+}
+
+async function processAndInsertModules(
+  tenantId: string,
+  campaignType: string,
+  campaignNumber: string,
+  templateModules: any[],
+  locales: string[],
+  localisation: any,
+  schemaCode: string,
+  RequestInfo: any
+): Promise<void> {
+  const baseType = campaignType.toLowerCase();
+  const useruuid = RequestInfo?.userInfo?.uuid;
+  if (!useruuid) {
+    throw new Error("User uuid not found in request");
+  }
+  if (!templateModules?.length) {
+    logger.warn("No template modules found");
+    return;
+  }
+
+  for (const template of templateModules) {
+    const moduleName = template?.name;
+    if (!moduleName) continue;
+
+    const baseKey = `hcm-base-${moduleName.toLowerCase()}-${baseType}`;
+    const updatedKey = `hcm-${moduleName.toLowerCase()}-${campaignNumber}`;
+
+    await upsertLocalisations(
+      tenantId,
+      baseKey,
+      updatedKey,
+      locales,
+      localisation,
+      RequestInfo
+    );
+
+    const moduleData = {
+      ...template,
+      project: campaignNumber,
+      isSelected: true,
+    };
+
+    await createMdmsData(tenantId, schemaCode, moduleData, useruuid);
+  }
+}
+
+export async function createAppConfig(
+  tenantId: string,
+  campaignNumber: string,
+  campaignType: string,
+  RequestInfo: any
+): Promise<void> {
+  try {
+    logger.info("Creating app configuration...");
+
+    const FormConfigTemplate = "FormConfigTemplate";
+    const FormConfig = "FormConfig";
+    const templateSchema = `HCM-ADMIN-CONSOLE.${FormConfigTemplate}`;
+    const configSchema = `HCM-ADMIN-CONSOLE.${FormConfig}`;
+
+    const [locales, localisation] = await Promise.all([
+      getLocalesFromStateInfo(tenantId),
+      Localisation.getInstance(),
+    ]);
+
+    const templateModules = await getTemplateModules(tenantId, campaignType, templateSchema);
+
+    await processAndInsertModules(
+      tenantId,
+      campaignType,
+      campaignNumber,
+      templateModules,
+      locales,
+      localisation,
+      configSchema,
+      RequestInfo
+    );
+
+    logger.info("App configuration created successfully.");
+  } catch (err: any) {
+    logger.error(`Failed to create app config: ${err?.message}`);
+    throw err;
+  }
+}
+
+export async function createAppConfigFromClone(
+  tenantId: string,
+  newCampaignNumber: string,
+  cloneFromCampaignNumber: string,
+  RequestInfo: any
+): Promise<void> {
+  try {
+    logger.info("Started creating app config from clone...");
+
+    const FormConfig = "FormConfig";
+    const configSchema = `HCM-ADMIN-CONSOLE.${FormConfig}`;
+    const useruuid = RequestInfo?.userInfo?.uuid;
+    if (!useruuid) {
+      throw new Error("User uuid not found in request");
+    }
+
+    const [locales, localisation] = await Promise.all([
+      getLocalesFromStateInfo(tenantId),
+      Localisation.getInstance(),
+    ]);
+
+    const cloneResponse = await fetchCloneModules(
+      tenantId,
+      configSchema,
+      cloneFromCampaignNumber
+    );
+
+    const modulesToClone = (cloneResponse?.mdms || [])
+      .map((item: any) => item?.data)
+      .flat()
+      .filter(Boolean);
+
+    if (!modulesToClone.length) {
+      logger.warn("No modules found to clone.");
+      return;
+    }
+
+    for (const module of modulesToClone) {
+      const moduleName = module?.name;
+      if (!moduleName) continue;
+
+      const baseKey = `hcm-${moduleName.toLowerCase()}-${cloneFromCampaignNumber}`;
+      const newKey = `hcm-${moduleName.toLowerCase()}-${newCampaignNumber}`;
+
+      await upsertLocalisations(tenantId, baseKey, newKey, locales, localisation, RequestInfo);
+
+      const newModule = {
+        ...module,
+        project: newCampaignNumber,
+        isSelected: true,
+      };
+
+      await createMdmsData(tenantId, configSchema, newModule, useruuid);
+    }
+
+    logger.info("App configuration cloned successfully.");
+  } catch (err: any) {
+    logger.error(`Failed to clone app config: ${err?.message}`);
+    throw err;
+  }
+}
+
+async function fetchCloneModules(
+  tenantId: string,
+  configSchema: string,
+  cloneFromCampaignNumber: string
+): Promise<any> {
+  const cloneCriteria = {
+    tenantId,
+    schemaCode: configSchema,
+    filters: { project: cloneFromCampaignNumber },
+    isActive: true,
+  };
+
+  return await searchMDMSDataViaV2Api({ MdmsCriteria: cloneCriteria });
 }
 
 async function getLocalizedHierarchy(request: any, localizationMap: any) {
