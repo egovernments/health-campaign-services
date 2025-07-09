@@ -220,10 +220,10 @@ public class CommonUtils {
     }
 
     //TODO move below cycle fetching logic to mdmsService
-    public String fetchCycleIndex(String tenantId, String projectTypeId, AuditDetails auditDetails) {
+    public String fetchCycleIndex(String tenantId, String projectId, AuditDetails auditDetails) {
         Long createdTime = auditDetails.getCreatedTime();
-        JsonNode projectType = projectService.fetchProjectTypes(tenantId, null, projectTypeId);
-        if (projectType.has(CYCLES)) {
+        JsonNode projectType = projectService.fetchProjectTypeFromProject(tenantId, projectId);
+        if (projectType != null && projectType.has(CYCLES)) {
             ArrayNode cycles = (ArrayNode) projectType.get(CYCLES);
 
             for (int i = 0; i < cycles.size(); i++) {

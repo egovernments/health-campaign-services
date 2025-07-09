@@ -161,7 +161,7 @@ public class ProjectTaskTransformationService {
         ObjectNode additionalDetails = objectMapper.createObjectNode();
         if (task.getAdditionalFields() != null) {
             addAdditionalDetails(task.getAdditionalFields(), additionalDetails);
-            addCycleIndex(additionalDetails, task.getAuditDetails(), tenantId, projectTypeId);
+            addCycleIndex(additionalDetails, task.getAuditDetails(), tenantId, project.getId());
         }
         enrichWithCampaignSpecificFields(additionalDetails, beneficiaryInfo);
         // TODO below code is commented because the additionalFields is removed from taskResource but his has to be added back
@@ -221,9 +221,9 @@ public class ProjectTaskTransformationService {
     }
 
     //This cycleIndex logic has to be changed if we send all required additionalDetails from app
-    private void addCycleIndex(ObjectNode additionalDetails, AuditDetails auditDetails, String tenantId, String projectTypeId) {
+    private void addCycleIndex(ObjectNode additionalDetails, AuditDetails auditDetails, String tenantId, String projectId) {
         if (!additionalDetails.has(CYCLE_INDEX)) {
-            String cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectTypeId, auditDetails);
+            String cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectId, auditDetails);
             additionalDetails.put(CYCLE_INDEX, cycleIndex);
         }
     }

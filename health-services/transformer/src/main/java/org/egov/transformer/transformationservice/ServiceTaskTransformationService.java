@@ -92,7 +92,7 @@ public class ServiceTaskTransformationService {
         }
         String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(service.getAuditDetails().getCreatedTime());
         Map<String, String> userInfoMap = userService.getUserInfo(service.getTenantId(), service.getAuditDetails().getCreatedBy());
-        String cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectTypeId, service.getAuditDetails());
+        String cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectId, service.getAuditDetails());
         ObjectNode additionalDetails = objectMapper.createObjectNode();
         if(serviceAdditionalDetails != null && serviceAdditionalDetails.isObject()) {
             additionalDetails = (ObjectNode) serviceAdditionalDetails;
