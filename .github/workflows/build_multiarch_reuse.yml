@@ -123,7 +123,7 @@ jobs:
           docker manifest create egovio/${{ inputs.image_name }}:${{ inputs.tag }} \
             --amend egovio/${{ inputs.image_name }}@${{ needs.build-matrix.outputs.amd64_digest }} \
             --amend egovio/${{ inputs.image_name }}@${{ needs.build-matrix.outputs.arm64_digest }}
-          docker manifest push egovio/${{ inputs.image_name }}@${{ needs.build-matrix.outputs.amd64_digest }}
+          docker manifest push egovio/${{ inputs.image_name }}:${{ inputs.tag }}
 
       - name: Cleanup local manifest refs
         run: |
