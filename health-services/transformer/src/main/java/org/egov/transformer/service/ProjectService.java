@@ -374,7 +374,7 @@ public class ProjectService {
         }
         Project project = getProject(projectId, tenantId);
         if (ObjectUtils.isNotEmpty(project)) {
-            JsonNode additionalDetails = (JsonNode) project.getAdditionalDetails();
+            JsonNode additionalDetails = objectMapper.valueToTree(project.getAdditionalDetails());
             if (additionalDetails != null && !additionalDetails.isEmpty() && additionalDetails.has(PROJECT_TYPE)) {
                 requiredProjectType = additionalDetails.get(PROJECT_TYPE);
             }
