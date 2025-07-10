@@ -103,8 +103,8 @@ public class HouseholdMemberTransformationService {
             additionalDetails.put(DISABILITY_TYPE,(String) individualDetails.get(DISABILITY_TYPE));
         }
 
-        String cycleIndex = commonUtils.fetchCycleIndex(householdMember.getTenantId(), String.valueOf(additionalDetails.get(PROJECT_TYPE_ID)), householdMember.getClientAuditDetails());
-        additionalDetails.put(CYCLE_INDEX, cycleIndex);
+//        String cycleIndex = commonUtils.fetchCycleIndex(householdMember.getTenantId(), String.valueOf(additionalDetails.get(PROJECT_TYPE_ID)), householdMember.getClientAuditDetails());
+//        additionalDetails.put(CYCLE_INDEX, cycleIndex);
 
         HouseholdMemberIndexV1 householdMemberIndexV1 = HouseholdMemberIndexV1.builder()
                 .householdMember(householdMember)
@@ -122,11 +122,13 @@ public class HouseholdMemberTransformationService {
                 .taskDates(commonUtils.getDateFromEpoch(householdMember.getClientAuditDetails().getLastModifiedTime()))
                 .syncedDate(commonUtils.getDateFromEpoch(householdMember.getAuditDetails().getLastModifiedTime()))
                 .syncedTimeStamp(commonUtils.getTimeStampFromEpoch(householdMember.getAuditDetails().getLastModifiedTime()))
-                .additionalDetails(additionalDetails)
                 .build();
         commonUtils.addProjectDetailsForUserIdAndTenantId(householdMemberIndexV1,
                 householdMember.getClientAuditDetails().getLastModifiedBy(),
                 householdMember.getTenantId());
+        String cycleIndex = commonUtils.fetchCycleIndex(householdMember.getTenantId(), householdMemberIndexV1.getProjectId(), householdMember.getClientAuditDetails());
+        additionalDetails.put(CYCLE_INDEX, cycleIndex);
+        householdMemberIndexV1.setAdditionalDetails(additionalDetails);
         return householdMemberIndexV1;
     }
 
