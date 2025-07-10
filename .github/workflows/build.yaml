@@ -257,24 +257,3 @@ jobs:
     secrets:
       DOCKER_USERNAME: ${{ vars.DOCKER_USERNAME }}
       DOCKER_PASSWORD: ${{ secrets.DOCKER_ACCESS_TOKEN }}
-
-  build-application-summary:
-    name: Application Build Summary
-    needs: build-application
-    runs-on: ubuntu-latest
-    steps:
-      - name: Publish build summary
-        run: |
-          echo "### Application Docker Image:" >> $GITHUB_OUTPUT
-          echo "${{ needs.build-application.outputs.final_image }}" >> $GITHUB_OUTPUT
-
-  build-application-summary-db:
-    name: DB Build Summary
-    if: ${{ needs.resolve-config.outputs.db_folder_exists == 'true' }}
-    needs: build-application-db
-    runs-on: ubuntu-latest
-    steps:
-      - name: Publish build summary
-        run: |
-          echo "### DB Docker Image:" >> $GITHUB_OUTPUT
-          echo "${{ needs.build-application-db.outputs.final_image }}" >> $GITHUB_OUTPUT
