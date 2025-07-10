@@ -165,8 +165,7 @@ public class IndividualService {
                         .map(identifier -> String.valueOf(identifier.getIdentifierId()))
                         .toList();
                 if (!validIndividuals.isEmpty()) {
-                    encryptedIndividualList = individualEncryptionService
-                            .encrypt(request, validIndividuals, "IndividualEncrypt", isBulk);
+                    encryptedIndividualList = validIndividuals;
                     individualRepository.save(encryptedIndividualList,
                             properties.getSaveIndividualTopic());
                     // update beneficiary ids in idgen
@@ -180,8 +179,7 @@ public class IndividualService {
 
         handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
         //decrypt
-        List<Individual> decryptedIndividualList = individualEncryptionService.decrypt(encryptedIndividualList,
-                "IndividualDecrypt", request.getRequestInfo());
+        List<Individual> decryptedIndividualList = validIndividuals;
         return decryptedIndividualList;
     }
 
@@ -253,8 +251,7 @@ public class IndividualService {
                 individualsToEncrypt = integrateWithUserService(request, individualsToEncrypt, ApiOperation.UPDATE, errorDetailsMap);
 
                 // encrypt new data
-                encryptedIndividualList = individualEncryptionService
-                        .encrypt(request, individualsToEncrypt, "IndividualEncrypt", isBulk);
+                encryptedIndividualList = individualsToEncrypt;
 
 
                 Map<String, Individual> idToObjMap = getIdToObjMap(encryptedIndividualList);
@@ -293,8 +290,7 @@ public class IndividualService {
 
         handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
         //decrypt
-        List<Individual> decryptedIndividualList = individualEncryptionService.decrypt(encryptedIndividualList,
-                "IndividualDecrypt", request.getRequestInfo());
+        List<Individual> decryptedIndividualList = encryptedIndividualList;
         return decryptedIndividualList;
     }
 
@@ -332,10 +328,7 @@ public class IndividualService {
                     .filter(includeDeleted(includeDeleted))
                     .collect(Collectors.toList());
             //decrypt
-            List<Individual> decryptedIndividualList = (!encryptedIndividualList.isEmpty())
-                    ? individualEncryptionService.decrypt(encryptedIndividualList,
-                    "IndividualDecrypt", requestInfo)
-                    : encryptedIndividualList;
+            List<Individual> decryptedIndividualList = encryptedIndividualList;
 
             searchResponse.setResponse(decryptedIndividualList);
 
@@ -365,10 +358,7 @@ public class IndividualService {
             throw new CustomException("DATABASE_ERROR", exception.getMessage());
         }
         //decrypt
-        List<Individual> decryptedIndividualList =  (!encryptedIndividualList.isEmpty())
-                ? individualEncryptionService.decrypt(encryptedIndividualList,
-                "IndividualDecrypt", requestInfo)
-                : encryptedIndividualList;
+        List<Individual> decryptedIndividualList =  encryptedIndividualList;
 
         searchResponse.setResponse(decryptedIndividualList);
 
