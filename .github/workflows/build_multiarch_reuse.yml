@@ -85,6 +85,10 @@ jobs:
             --iidfile digest.txt \
             ${{ inputs.context }}
 
+      - name: Inspect Manifest List
+        run: |
+          docker buildx imagetools inspect egovio/${{ inputs.image_name }}:${{ inputs.tag }}-${{ matrix.arch }}
+
       - name: Export Digest (amd64)
         if: matrix.arch == 'amd64'
         id: digest_amd64
