@@ -237,6 +237,7 @@ jobs:
       dockerfile: ${{ needs.resolve-config.outputs.service_dockerfile }}
       work_dir: ${{ needs.resolve-config.outputs.service_work_dir }}
       tag: ${{ needs.resolve-config.outputs.tag }}
+      context: .
     secrets:
       DOCKER_USERNAME: ${{ vars.DOCKER_USERNAME }}
       DOCKER_PASSWORD: ${{ secrets.DOCKER_ACCESS_TOKEN }}
@@ -252,6 +253,7 @@ jobs:
       dockerfile: ${{ needs.resolve-config.outputs.db_dockerfile }}
       work_dir: ${{ needs.resolve-config.outputs.db_work_dir }}
       tag: ${{ needs.resolve-config.outputs.tag }}
+      context: ${{ needs.resolve-config.outputs.db_work_dir }}
     secrets:
       DOCKER_USERNAME: ${{ vars.DOCKER_USERNAME }}
       DOCKER_PASSWORD: ${{ secrets.DOCKER_ACCESS_TOKEN }}
