@@ -227,33 +227,157 @@ jobs:
           echo "NEXT_TAG=$NEXT_TAG" >> "$GITHUB_ENV"
           echo "tag - $NEXT_TAG" >> $GITHUB_STEP_SUMMARY
 
-  build-application:
-    name: Build Application Multi Arch
+  build-matrix:
+    name: Build image for ${{ matrix.arch }}
     needs: resolve-config
-    uses: ./.github/workflows/build_multiarch_reuse.yml
-    with:
-      key_name: ${{ github.event.inputs.pipeline_name }}
-      image_name: ${{ needs.resolve-config.outputs.service_image_name }}
-      dockerfile: ${{ needs.resolve-config.outputs.service_dockerfile }}
-      work_dir: ${{ needs.resolve-config.outputs.service_work_dir }}
-      tag: ${{ needs.resolve-config.outputs.tag }}
-      context: .
-    secrets:
-      DOCKER_USERNAME: ${{ vars.DOCKER_USERNAME }}
-      DOCKER_PASSWORD: ${{ secrets.DOCKER_ACCESS_TOKEN }}
+    strategy:
+      matrix:
+        include:
+          - arch: amd64
+            platform: linux/amd64
+            runner: ubuntu-latest
+          - arch: arm64
+            platform: linux/arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    outputs:
+      amd64_digest: ${{ steps.digest_amd64.outputs.digest }}
+      amd64_digest_db: ${{ steps.digest_db_amd64.outputs.digest }}
+      arm64_digest: ${{ steps.digest_arm64.outputs.digest }}
+      arm64_digest_db: ${{ steps.digest_db_arm64.outputs.digest }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
 
-  build-application-db:
-    name: Build Application DB Multi Arch
-    needs: resolve-config
-    if: ${{ needs.resolve-config.outputs.db_folder_exists == 'true' }}
-    uses: ./.github/workflows/build_multiarch_reuse.yml
-    with:
-      key_name: ${{ github.event.inputs.pipeline_name }}-db
-      image_name: ${{ needs.resolve-config.outputs.db_image_name }}
-      dockerfile: ${{ needs.resolve-config.outputs.db_dockerfile }}
-      work_dir: ${{ needs.resolve-config.outputs.db_work_dir }}
-      tag: ${{ needs.resolve-config.outputs.tag }}
-      context: ${{ needs.resolve-config.outputs.db_work_dir }}
-    secrets:
-      DOCKER_USERNAME: ${{ vars.DOCKER_USERNAME }}
-      DOCKER_PASSWORD: ${{ secrets.DOCKER_ACCESS_TOKEN }}
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Cache Docker Layers
+        uses: actions/cache@v3
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-${{ matrix.arch }}-buildx-${{ github.event.inputs.pipeline_name }}-${{ github.ref_name }}
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.arch }}-buildx-${{ github.event.inputs.pipeline_name }}-
+
+      - name: Docker Login
+        uses: docker/login-action@v2
+        with:
+          username: ${{ env.DOCKER_USERNAME }}
+          password: ${{ env.DOCKER_PASSWORD }}
+
+      - name: Build and Push Application Image
+        run: |
+          docker buildx build \
+            --platform ${{ matrix.platform }} \
+            --build-arg WORK_DIR=${{ needs.resolve-config.outputs.service_work_dir }} \
+            --file ${{ needs.resolve-config.outputs.service_dockerfile }} \
+            --tag egovio/${{ needs.resolve-config.outputs.service_image_name }}:${{ needs.resolve-config.outputs.tag }}-${{ matrix.arch }} \
+            --cache-from=type=local,src=/tmp/.buildx-cache \
+            --cache-to=type=local,dest=/tmp/.buildx-cache,mode=max \
+            --push \
+            --iidfile digest.txt \
+            .
+
+      - name: Build and Push DB Image
+        if: ${{ needs.resolve-config.outputs.db_folder_exists == 'true' }}
+        run: |
+          docker buildx build \
+            --platform ${{ matrix.platform }} \
+            --build-arg WORK_DIR=${{ needs.resolve-config.outputs.db_work_dir }} \
+            --file ${{ needs.resolve-config.outputs.db_dockerfile }} \
+            --tag egovio/${{ needs.resolve-config.outputs.db_image_name }}:${{ needs.resolve-config.outputs.tag }}-${{ matrix.arch }} \
+            --cache-from=type=local,src=/tmp/.buildx-cache \
+            --cache-to=type=local,dest=/tmp/.buildx-cache,mode=max \
+            --push \
+            --iidfile db-digest.txt \
+            ${{ needs.resolve-config.outputs.db_work_dir }}
+
+      - name: Inspect Service Image Manifest List
+        run: |
+          docker buildx imagetools inspect egovio/${{ needs.resolve-config.outputs.service_image_name }}:${{ needs.resolve-config.outputs.tag }}-${{ matrix.arch }}
+      - name: Inspect DB Image Manifest List
+        if: ${{ needs.resolve-config.outputs.db_folder_exists == 'true' }}
+        run: |
+          docker buildx imagetools inspect egovio/${{ needs.resolve-config.outputs.db_image_name }}:${{ needs.resolve-config.outputs.tag }}-${{ matrix.arch }}
+
+      - name: Export Digest Service (amd64)
+        if: matrix.arch == 'amd64'
+        id: digest_amd64
+        run: |
+          digest=$(docker buildx imagetools inspect egovio/${{ needs.resolve-config.outputs.service_image_name }}:${{ needs.resolve-config.outputs.tag }}-${{ matrix.arch }} \
+            --format '{{json .}}' | jq -r '.manifest.manifests[] | select(.platform.architecture=="${{ matrix.arch }}") | .digest')
+          echo "digest=$digest" >> $GITHUB_OUTPUT
+
+      - name: Export Digest Service (arm64)
+        if: matrix.arch == 'arm64'
+        id: digest_arm64
+        run: |
+          digest=$(docker buildx imagetools inspect egovio/${{ needs.resolve-config.outputs.service_image_name }}:${{ needs.resolve-config.outputs.tag }}-${{ matrix.arch }} \
+            --format '{{json .}}' | jq -r '.manifest.manifests[] | select(.platform.architecture=="${{ matrix.arch }}") | .digest')
+          echo "digest=$digest" >> $GITHUB_OUTPUT
+
+      - name: Export Digest DB (amd64)
+        if: matrix.arch == 'amd64' && needs.resolve-config.outputs.db_folder_exists == 'true'
+        id: digest_db_amd64
+        run: |
+          digest=$(docker buildx imagetools inspect egovio/${{ needs.resolve-config.outputs.db_image_name }}:${{ needs.resolve-config.outputs.tag }}-${{ matrix.arch }} \
+            --format '{{json .}}' | jq -r '.manifest.manifests[] | select(.platform.architecture=="${{ matrix.arch }}") | .digest')
+          echo "digest=$digest" >> $GITHUB_OUTPUT
+
+      - name: Export Digest DB (arm64)
+        if: matrix.arch == 'arm64' && needs.resolve-config.outputs.db_folder_exists == 'true'
+        id: digest_db_arm64
+        run: |
+          digest=$(docker buildx imagetools inspect egovio/${{ needs.resolve-config.outputs.db_image_name }}:${{ needs.resolve-config.outputs.tag }}-${{ matrix.arch }} \
+            --format '{{json .}}' | jq -r '.manifest.manifests[] | select(.platform.architecture=="${{ matrix.arch }}") | .digest')
+          echo "digest=$digest" >> $GITHUB_OUTPUT
+
+  create-manifest:
+    name: Create and Push Manifest
+    needs: [resolve-config, build-matrix]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Docker Login
+        uses: docker/login-action@v2
+        with:
+          username: ${{ env.DOCKER_USERNAME }}
+          password: ${{ env.DOCKER_PASSWORD }}
+
+      - name: Create and Push Docker Manifest (Application)
+        run: |
+          docker manifest create egovio/${{ needs.resolve-config.outputs.service_image_name }}:${{ needs.resolve-config.outputs.tag }} \
+            --amend egovio/${{ needs.resolve-config.outputs.service_image_name }}@${{ needs.build-matrix.outputs.amd64_digest }} \
+            --amend egovio/${{ needs.resolve-config.outputs.service_image_name }}@${{ needs.build-matrix.outputs.arm64_digest }}
+          docker manifest push egovio/${{ needs.resolve-config.outputs.service_image_name }}:${{ needs.resolve-config.outputs.tag }}
+
+      - name: Create and Push Docker Manifest (DB)
+        if: needs.resolve-config.outputs.db_folder_exists == 'true'
+        run: |
+          docker manifest create egovio/${{ needs.resolve-config.outputs.db_image_name }}:${{ needs.resolve-config.outputs.tag }} \
+            --amend egovio/${{ needs.resolve-config.outputs.db_image_name }}@${{ needs.build-matrix.outputs.amd64_digest_db }} \
+            --amend egovio/${{ needs.resolve-config.outputs.db_image_name }}@${{ needs.build-matrix.outputs.arm64_digest_db }}
+          docker manifest push egovio/${{ needs.resolve-config.outputs.db_image_name }}:${{ needs.resolve-config.outputs.tag }}
+
+      - name: Cleanup local manifest refs (Application)
+        run: |
+          docker manifest rm egovio/${{ needs.resolve-config.outputs.service_image_name }}:${{ needs.resolve-config.outputs.tag }}-amd64 || true
+          docker manifest rm egovio/${{ needs.resolve-config.outputs.service_image_name }}:${{ needs.resolve-config.outputs.tag }}-arm64 || true
+
+      - name: Cleanup local manifest refs (DB)
+        if: needs.resolve-config.outputs.db_folder_exists == 'true'
+        run: |
+          docker manifest rm egovio/${{ needs.resolve-config.outputs.db_image_name }}:${{ needs.resolve-config.outputs.tag }}-amd64 || true
+          docker manifest rm egovio/${{ needs.resolve-config.outputs.db_image_name }}:${{ needs.resolve-config.outputs.tag }}-arm64 || true
+
+      - name: Add Summary (Application)
+        run: |
+          echo "### Application Docker Manifest Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- Image: egovio/${{ needs.resolve-config.outputs.service_image_name }}:${{ needs.resolve-config.outputs.tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Platforms: amd64, arm64" >> $GITHUB_STEP_SUMMARY
+
+      - name: Add Summary (Application)
+        run: |
+          echo "### DB Docker Manifest Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- Image: egovio/${{ needs.resolve-config.outputs.db_image_name }}:${{ needs.resolve-config.outputs.tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Platforms: amd64, arm64" >> $GITHUB_STEP_SUMMARY
