@@ -239,7 +239,7 @@ jobs:
       tag: ${{ needs.resolve-config.outputs.tag }}
     secrets:
       DOCKER_USERNAME: ${{ vars.DOCKER_USERNAME }}
-      DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+      DOCKER_PASSWORD: ${{ secrets.DOCKER_ACCESS_TOKEN }}
 
   build-application-db:
     name: Build Application DB Multi Arch
@@ -254,7 +254,7 @@ jobs:
       tag: ${{ needs.resolve-config.outputs.tag }}
     secrets:
       DOCKER_USERNAME: ${{ vars.DOCKER_USERNAME }}
-      DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+      DOCKER_PASSWORD: ${{ secrets.DOCKER_ACCESS_TOKEN }}
 
   build-application-summary:
     name: Application Build Summary
