@@ -369,7 +369,7 @@ public class ProjectService {
 
     public JsonNode fetchProjectTypeFromProject(String tenantId, String projectId) {
         JsonNode requiredProjectType = null;
-        if (StringUtils.isNotBlank(projectId)) {
+        if (StringUtils.isBlank(projectId)) {
             return requiredProjectType;
         }
         Project project = getProject(projectId, tenantId);
