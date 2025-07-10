@@ -1,4 +1,5 @@
 name: Build Pipeline
+run-name: Build ${{ github.event.inputs.pipeline_name }}
 
 on:
   workflow_dispatch:
@@ -64,18 +65,18 @@ env:
   DOCKER_PASSWORD: ${{ secrets.DOCKER_ACCESS_TOKEN }}
 
 jobs:
-  build:
+  resolve-config:
+    name: Resolve ${{ github.event.inputs.pipeline_name }} config
     runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        pipeline: [ "${{ github.event.inputs.pipeline_name }}" ]
-        service: [ "${{ github.event.inputs.service }}" ]
-
     outputs:
-      docker_image: ${{ steps.save_docker_image.outputs.docker_image }}
-      db_image:     ${{ steps.save_db_image.outputs.db_image }}
-
+      service_work_dir:   ${{ steps.setenv.outputs.SERVICE_WORK_DIR }}
+      service_image_name: ${{ steps.setenv.outputs.SERVICE_IMAGE_NAME }}
+      service_dockerfile: ${{ steps.setenv.outputs.SERVICE_DOCKERFILE }}
+      db_folder_exists:   ${{ steps.check-db-folder.outputs.folder_exists }}
+      db_work_dir:        ${{ steps.setenv.outputs.DB_WORK_DIR }}
+      db_image_name:      ${{ steps.setenv.outputs.DB_IMAGE_NAME }}
+      db_dockerfile:      ${{ steps.setenv.outputs.DB_DOCKERFILE }}
+      tag:                ${{ steps.tag.outputs.tag }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -88,14 +89,15 @@ jobs:
           sudo chmod +x /usr/local/bin/yq
 
       - name: Resolve env from build-config.yml
-        id: resolve_config
+        id: setenv
         run: |
-          PIPELINE_NAME="${{ matrix.pipeline }}"
+          PIPELINE_NAME="${{ github.event.inputs.pipeline_name }}"
           DEFAULT_DOCKERFILE="Dockerfile"
+          echo "### Pipeline Name - $PIPELINE_NAME" >> $GITHUB_STEP_SUMMARY
           
           # Step 1: List matching config blocks
           MATCHING_CONFIGS=$(yq eval -o=json '.config[] | select(.name | test("/'"$PIPELINE_NAME"'$"))' build/build-config.yml)
-        
+          
           # Step 2: Show matched config(s)
           echo "Matching config(s) for pipeline '$PIPELINE_NAME':"
           echo "$MATCHING_CONFIGS" | yq eval -P -  # pretty-print for readability
@@ -107,7 +109,7 @@ jobs:
             echo "ERROR: Expected exactly 1 matching pipeline config, but found $MATCH_COUNT"
             exit 1
           fi
-  
+          
           # Step 4: Extract service build config (image-name not ending with -db)
           SERVICE_BUILD_CONFIG=$(yq eval -o=json '
             .config[]
@@ -135,6 +137,7 @@ jobs:
           
           DB_IMAGE_NAME=$(echo "$DB_BUILD_CONFIG" | yq eval -r '.["image-name"] // ""' -)
           DB_WORK_DIR=$(echo "$DB_BUILD_CONFIG" | yq eval -r '.["work-dir"] // ""' -)
+          DB_DOCKERFILE=$(echo "$DB_BUILD_CONFIG" | yq eval -r '.["work-dir"] // ""' -)/Dockerfile
           
           # Step 8: Set Default Dockerfile if service dockerfile config is missing
           if [ -z "$SERVICE_DOCKERFILE" ]; then
@@ -143,50 +146,54 @@ jobs:
           fi
           
           # Step 9: Export to github environment
-          echo "SERVICE_WORK_DIR=$SERVICE_WORK_DIR" >> "$GITHUB_ENV"
-          echo "SERVICE_IMAGE_NAME=$SERVICE_IMAGE_NAME" >> "$GITHUB_ENV"
-          echo "SERVICE_DOCKERFILE=$SERVICE_DOCKERFILE" >> "$GITHUB_ENV"
-          echo "DB_WORK_DIR=$DB_WORK_DIR" >> "$GITHUB_ENV"
-          echo "DB_IMAGE_NAME=$DB_IMAGE_NAME"  >> "$GITHUB_ENV"
+          echo "SERVICE_WORK_DIR=$SERVICE_WORK_DIR" >> "$GITHUB_OUTPUT"
+          echo "SERVICE_IMAGE_NAME=$SERVICE_IMAGE_NAME" >> "$GITHUB_OUTPUT"
+          echo "SERVICE_DOCKERFILE=$SERVICE_DOCKERFILE" >> "$GITHUB_OUTPUT"
+          echo "DB_WORK_DIR=$DB_WORK_DIR" >> "$GITHUB_OUTPUT"
+          echo "DB_IMAGE_NAME=$DB_IMAGE_NAME"  >> "$GITHUB_OUTPUT"
+          echo "DB_DOCKERFILE=$DB_DOCKERFILE"  >> "$GITHUB_OUTPUT"
           missing_vars=()
-      
+          
+          # Step 10: Check if required env variables exists
           for var in SERVICE_WORK_DIR SERVICE_IMAGE_NAME SERVICE_DOCKERFILE; do
             if [ -z "${!var}" ]; then
               echo "ERROR: $var is not set or is empty"
               missing_vars+=("$var")
             fi
           done
-      
+          
           if [ ${#missing_vars[@]} -gt 0 ]; then
             echo "Required environment variables are missing: ${missing_vars[*]}"
             exit 1  # Fail the step
           fi
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+          # Step 11. Put summary for the step
+          echo "#### Application Config Summary" >> $GITHUB_STEP_SUMMARY
+          echo "Application Work Directory - $SERVICE_WORK_DIR" >> $GITHUB_STEP_SUMMARY
+          echo "Image Name - $SERVICE_IMAGE_NAME" >> $GITHUB_STEP_SUMMARY
+          echo "Dockerfile Path - $SERVICE_DOCKERFILE" >> $GITHUB_STEP_SUMMARY
+          
+          echo "#### DB Config Summary" >> $GITHUB_STEP_SUMMARY
+          echo "Application Work Directory - $DB_WORK_DIR" >> $GITHUB_STEP_SUMMARY
+          echo "Image Name - $DB_IMAGE_NAME" >> $GITHUB_STEP_SUMMARY
+          echo "Dockerfile Path - $SERVICE_DOCKERFILE" >> $GITHUB_STEP_SUMMARY
 
-      - name: Cache Docker Layers
-        uses: actions/cache@v3
-        with:
-          path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-${{ matrix.pipeline }}-${{ github.ref_name }}
-          restore-keys: |
-            ${{ runner.os }}-buildx-
-
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v2
-        with:
-          username: ${{ env.DOCKER_USERNAME }}
-          password: ${{ env.DOCKER_PASSWORD }}
-
+      - name: Check if DB folder exists
+        id: check-db-folder
+        run: |
+          FOLDER_PATH="${{ steps.setenv.outputs.DB_WORK_DIR }}"
+          if [ -d "$FOLDER_PATH" ]; then
+            echo "folder_exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "folder_exists=false" >> "$GITHUB_OUTPUT"
+          fi
       - name: Generate the Next Tag
         id: tag
         run: |
           set -euxo pipefail
-
           BRANCH="${GITHUB_REF##*/}"
           COMMIT_HASH=$(git rev-parse --short HEAD)
-          SERVICE_NAME="${{ env.SERVICE_IMAGE_NAME }}"
+          SERVICE_NAME="${{ steps.setenv.outputs.SERVICE_IMAGE_NAME }}"
 
           TOKEN=$(curl -s -X POST "https://hub.docker.com/v2/users/login/" \
             -H "Content-Type: application/json" \
@@ -198,79 +205,74 @@ jobs:
             exit 1
           fi
 
-          REPO_CHECK=$(curl -s -o /dev/null -w '%{http_code}' \
+          # Check if repo exists
+          HTTP_CODE=$(curl -s -o /dev/null -w '%{http_code}' \
             -H "Authorization: JWT $TOKEN" \
             "https://hub.docker.com/v2/repositories/$DOCKER_USERNAME/$SERVICE_NAME/")
 
-          if [ "$REPO_CHECK" -ne 200 ]; then
+          if [ "$HTTP_CODE" -ne 200 ]; then
             NEXT_TAG="${BRANCH}-${COMMIT_HASH}"
           else
             EXISTING_TAGS=$(curl -s -H "Authorization: JWT $TOKEN" \
               "https://hub.docker.com/v2/repositories/$DOCKER_USERNAME/$SERVICE_NAME/tags?page_size=100" \
               | jq -r '.results[].name')
-            LATEST_TAG=$(echo "$EXISTING_TAGS" | grep "^${BRANCH}-${COMMIT_HASH}" || true | sort -V | tail -n 1)
+            LATEST_TAG=$(echo "$EXISTING_TAGS" \
+              | grep "^${BRANCH}-${COMMIT_HASH}" || true \
+              | sort -V \
+              | tail -n 1)
             NEXT_TAG="${LATEST_TAG:-${BRANCH}-${COMMIT_HASH}}"
           fi
 
           echo "tag=$NEXT_TAG" >> "$GITHUB_OUTPUT"
           echo "NEXT_TAG=$NEXT_TAG" >> "$GITHUB_ENV"
+          echo "tag - $NEXT_TAG" >> $GITHUB_STEP_SUMMARY
 
-      - name: Build and Push Application Docker Image
-        id: build_push_docker
-        uses: docker/build-push-action@v5
-        with:
-          platforms: linux/amd64,linux/arm64
-          context: .
-          file: ${{ env.SERVICE_DOCKERFILE }}
-          push: true
-          tags: |
-            egovio/${{ env.SERVICE_IMAGE_NAME }}:${{ steps.tag.outputs.tag }}
-          build-args: |
-            WORK_DIR=${{ env.SERVICE_WORK_DIR }}
-          cache-from: type=local,src=/tmp/.buildx-cache
-          cache-to: type=local,dest=/tmp/.buildx-cache
+  build-application:
+    name: Build Application Multi Arch
+    needs: resolve-config
+    uses: ./.github/workflows/build_multiarch_reuse.yml
+    with:
+      key_name: ${{ github.event.inputs.pipeline_name }}
+      image_name: ${{ needs.resolve-config.outputs.service_image_name }}
+      dockerfile: ${{ needs.resolve-config.outputs.service_dockerfile }}
+      work_dir: ${{ needs.resolve-config.outputs.service_work_dir }}
+      tag: ${{ needs.resolve-config.outputs.tag }}
+    secrets:
+      DOCKER_USERNAME: ${{ env.DOCKER_USERNAME }}
+      DOCKER_PASSWORD: ${{ env.DOCKER_PASSWORD }}
 
-      - name: Check if DB folder exists
-        id: check-db-folder
+  build-application-db:
+    name: Build Application DB Multi Arch
+    needs: resolve-config
+    if: ${{ needs.resolve-config.outputs.db_folder_exists == 'true' }}
+    uses: ./.github/workflows/build_multiarch_reuse.yml
+    with:
+      key_name: ${{ github.event.inputs.pipeline_name }}-db
+      image_name: ${{ needs.resolve-config.outputs.db_image_name }}
+      dockerfile: ${{ needs.resolve-config.outputs.db_dockerfile }}
+      work_dir: ${{ needs.resolve-config.outputs.db_work_dir }}
+      tag: ${{ needs.resolve-config.outputs.tag }}
+    secrets:
+      DOCKER_USERNAME: ${{ env.DOCKER_USERNAME }}
+      DOCKER_PASSWORD: ${{ env.DOCKER_PASSWORD }}
+
+  build-application-summary:
+    name: Application Build Summary
+    needs: build-application
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish build summary
         run: |
-          FOLDER_PATH="${{ env.DB_WORK_DIR }}"
-          if [ -d "$FOLDER_PATH" ]; then
-            echo "folder_exists=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "folder_exists=false" >> "$GITHUB_OUTPUT"
-          fi
+          echo "### Application Docker Image:" >> $GITHUB_OUTPUT
+          echo "${{ needs.build-application.outputs.final_image }}" >> $GITHUB_OUTPUT
 
-      - name: Build and Push Database Docker Image
-        if: ${{ steps.check-db-folder.outputs.folder_exists == 'true' }}
-        id: build_push_db_docker
-        uses: docker/build-push-action@v5
-        with:
-          platforms: linux/amd64,linux/arm64
-          context: ${{ env.DB_WORK_DIR }}
-          file: ${{ env.DB_WORK_DIR }}/Dockerfile
-          push: true
-          tags: |
-            egovio/${{ env.DB_IMAGE_NAME }}:${{ steps.tag.outputs.tag }}
-
-      - name: Save Application Docker Image
-        id: save_docker_image
+  build-application-summary-db:
+    name: DB Build Summary
+    if: ${{ needs.resolve-config.outputs.db_folder_exists == 'true' }}
+    needs: build-application-db
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish build summary
         run: |
-          IMG="egovio/${{ env.SERVICE_IMAGE_NAME }}:${{ steps.tag.outputs.tag }}"
-          echo "$IMG"
-          echo "docker_image=$IMG" >> "$GITHUB_OUTPUT"
-
-          # Append to GitHub Actions summary
-          echo "### Application Docker Image" >> "$GITHUB_STEP_SUMMARY"
-          echo "$IMG" >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Save Database Docker Image
-        id: save_db_image
-        if: ${{ steps.check-db-folder.outputs.folder_exists == 'true' }}
-        run: |
-          IMG="egovio/${{ env.DB_IMAGE_NAME }}:${{ steps.tag.outputs.tag }}"
-          echo "$IMG"
-          echo "db_image=$IMG" >> "$GITHUB_OUTPUT"
-
-          # Append to GitHub Actions summary
-          echo "### Database Docker Image" >> "$GITHUB_STEP_SUMMARY"
-          echo "$IMG" >> "$GITHUB_STEP_SUMMARY"
+          echo "### DB Docker Image:" >> $GITHUB_OUTPUT
+          echo "${{ needs.build-application-db.outputs.final_image }}" >> $GITHUB_OUTPUT

@@ -1,0 +1,132 @@
+# File: .github/workflows/build_multiarch_reuse.yml
+
+name: Docker Multiarch Reusable
+run-name: Build Docker - ${{ inputs.key_name }}
+
+on:
+  workflow_call:
+    inputs:
+      key_name:
+        required: true
+        type: string
+      image_name:
+        required: true
+        type: string
+      dockerfile:
+        required: true
+        type: string
+      work_dir:
+        required: true
+        type: string
+      tag:
+        required: true
+        type: string
+    outputs:
+      final_image:
+        description: "Generated Image Tag"
+        value: ${{ jobs.create-manifest.outputs.final_image }}
+    secrets:
+      DOCKER_USERNAME:
+        required: true
+      DOCKER_PASSWORD:
+        required: true
+
+jobs:
+  build-matrix:
+    name: Build image for ${{ matrix.arch }}
+    strategy:
+      matrix:
+        include:
+          - arch: amd64
+            platform: linux/amd64
+            runner: ubuntu-latest
+          - arch: arm64
+            platform: linux/arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    outputs:
+      amd64_digest: ${{ steps.digest_amd64.outputs.digest }}
+      arm64_digest: ${{ steps.digest_arm64.outputs.digest }}
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Cache Docker Layers
+        uses: actions/cache@v3
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-${{ matrix.arch }}-buildx-${{ inputs.key_name }}-${{ github.ref_name }}
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.arch }}-buildx-${{ inputs.key_name }}-
+
+      - name: Docker Login
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build and Push Image
+        run: |
+          docker buildx build \
+            --platform ${{ matrix.platform }} \
+            --build-arg WORK_DIR=${{ inputs.work_dir }} \
+            --file ${{ inputs.dockerfile }} \
+            --tag egovio/${{ inputs.image_name }}:${{ inputs.tag }}-${{ matrix.arch }} \
+            --cache-from=type=local,src=/tmp/.buildx-cache \
+            --cache-to=type=local,dest=/tmp/.buildx-cache,mode=max \
+            --push \
+            --iidfile digest.txt \
+            .
+
+      - name: Export Digest (amd64)
+        if: matrix.arch == 'amd64'
+        id: digest_amd64
+        run: |
+          digest=$(docker buildx imagetools inspect egovio/${{ inputs.image_name }}:${{ inputs.tag }}-${{ matrix.arch }} \
+            --format '{{json .}}' | jq -r '.manifest.manifests[] | select(.platform.architecture=="amd64") | .digest')
+          echo "digest=$digest" >> $GITHUB_OUTPUT
+
+      - name: Export Digest (arm64)
+        if: matrix.arch == 'arm64'
+        id: digest_arm64
+        run: |
+          digest=$(docker buildx imagetools inspect egovio/${{ inputs.image_name }}:${{ inputs.tag }}-${{ matrix.arch }} \
+            --format '{{json .}}' | jq -r '.manifest.manifests[] | select(.platform.architecture=="arm64") | .digest')
+          echo "digest=$digest" >> $GITHUB_OUTPUT
+
+  create-manifest:
+    name: Create and Push Manifest
+    needs: build-matrix
+    runs-on: ubuntu-latest
+    outputs:
+      final_image: ${{ steps.summary.outputs.image }}
+    steps:
+      - name: Docker Login
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Create and Push Docker Manifest
+        run: |
+          docker manifest create egovio/${{ inputs.image_name }}:${{ inputs.tag }} \
+            --amend egovio/${{ inputs.image_name }}@${{ needs.build-matrix.outputs.amd64_digest }} \
+            --amend egovio/${{ inputs.image_name }}@${{ needs.build-matrix.outputs.arm64_digest }}
+          docker manifest push egovio/${{ inputs.image_name }}@${{ needs.build-matrix.outputs.amd64_digest }}
+
+      - name: Cleanup local manifest refs
+        run: |
+          docker manifest rm egovio/${{ inputs.image_name }}:${{ inputs.tag }}-amd64 || true
+          docker manifest rm egovio/${{ inputs.image_name }}:${{ inputs.tag }}-arm64 || true
+
+      - name: Add Summary
+        id: summary
+        run: |
+          echo "### Docker Manifest Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- Image: egovio/${{ inputs.image_name }}:${{ inputs.tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "image=egovio/${{ inputs.image_name }}:${{ inputs.tag }}" >> $GITHUB_OUTPUT
+          echo "- Platforms: amd64, arm64" >> $GITHUB_STEP_SUMMARY
