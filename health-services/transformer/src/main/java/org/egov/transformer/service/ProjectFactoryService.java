@@ -55,9 +55,11 @@ public class ProjectFactoryService {
     }
 
     private List<CampaignDetails> getCampaign(String tenantId, Boolean isActive, String campaignNumber) {
+        String msgId = System.currentTimeMillis() + "|" + transformerProperties.getLocalizationLocaleCode();
         CampaignSearchRequest request = CampaignSearchRequest.builder()
-                .requestInfo(RequestInfo.builder().
-                        userInfo(User.builder()
+                .requestInfo(RequestInfo.builder()
+                        .msgId(msgId)
+                        .userInfo(User.builder()
                                 .tenantId(tenantId)
                                 .build())
                         .build())
