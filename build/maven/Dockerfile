@@ -1,26 +1,29 @@
-# ──────────────── BUILD STAGE ────────────────
-FROM maven:3.9.6-amazoncorretto-8-debian AS build
+
+FROM egovio/alpine-maven-builder-jdk-8:1-master-NA-6036091e AS build
+#FROM ghcr.io/egovernments/alpine-maven-builder-jdk-8:1-master-na-6036091e AS build
 ARG WORK_DIR
 WORKDIR /app
 
-# Copy POM, entrypoint script, and source
-COPY ${WORK_DIR}/pom.xml       ./pom.xml
+# copy the project files
+COPY ${WORK_DIR}/pom.xml ./pom.xml
 COPY build/maven/start.sh ./start.sh
-COPY ${WORK_DIR}/src           ./src
 
-# Build the app (skip tests for speed)
-RUN mvn -B -f pom.xml package -DskipTests
+# not useful for stateless builds
+# RUN mvn -B dependency:go-offline
+
+COPY ${WORK_DIR}/src ./src
+RUN mvn -B -f /app/pom.xml package
 
 
-# ─────────────── RUNTIME STAGE ───────────────
-FROM openjdk:8-jdk-alpine AS runtime
+# Create runtime image
+FROM egovio/8-openjdk-alpine
+#FROM ghcr.io/egovernments/8-openjdk-alpine:latest
+
+
 WORKDIR /opt/egov
 
-# Pull in the fat JAR and our startup script
-COPY --from=build /app/target/*.jar ./application.jar
-COPY --from=build /app/start.sh    ./start.sh
+COPY --from=build /app/target/*.jar /app/start.sh /opt/egov/
 
-RUN chmod +x ./start.sh
+RUN chmod +x /opt/egov/start.sh
 
-# Override any Alpine tini entrypoint and launch via shell
-ENTRYPOINT ["sh", "./start.sh"]
+CMD ["/opt/egov/start.sh"]
