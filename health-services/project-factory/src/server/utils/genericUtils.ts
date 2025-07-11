@@ -4,11 +4,11 @@ import config, { getErrorCodes } from "../config/index";
 import { v4 as uuidv4 } from 'uuid';
 import { produceModifiedMessages } from "../kafka/Producer";
 import { generateHierarchyList, getAllFacilities, getCampaignSearchResponse, getHierarchy } from "../api/campaignApis";
-import { getBoundarySheetData, getSheetData, createAndUploadFile, createExcelSheet, getTargetSheetData, callMdmsData, callMdmsTypeSchema, getConfigurableColumnHeadersBasedOnCampaignTypeForBoundaryManagement } from "../api/genericApis";
+import { getBoundarySheetData, getSheetData, createAndUploadFile, createExcelSheet, getTargetSheetData, callMdmsTypeSchema, getConfigurableColumnHeadersBasedOnCampaignTypeForBoundaryManagement } from "../api/genericApis";
 import { logger } from "./logger";
-import { checkIfSourceIsMicroplan, getConfigurableColumnHeadersBasedOnCampaignType, getDifferentTabGeneratedBasedOnConfig, getLocalizedName } from "./campaignUtils";
+import { checkIfSourceIsMicroplan, getConfigurableColumnHeadersBasedOnCampaignType, getDifferentTabGeneratedBasedOnConfig, getLocalizedName, getLocalizedNameOnlyIfMessagePresent } from "./campaignUtils";
 import Localisation from "../controllers/localisationController/localisation.controller";
-import { executeQuery } from "./db";
+import { executeQuery, getTableName } from "./db";
 import { generatedResourceTransformer } from "./transforms/searchResponseConstructor";
 import { generatedResourceStatuses, headingMapping, resourceDataStatuses } from "../config/constants";
 import { getLocaleFromRequest, getLocaleFromRequestInfo, getLocalisationModuleName } from "./localisationUtils";
@@ -17,9 +17,10 @@ import { getBoundaryDataService, searchDataService } from "../service/dataManage
 import { addDataToSheet, enrichUsageColumnForFacility, formatWorksheet, getNewExcelWorkbook, protectSheet, updateFontNameToRoboto } from "./excelUtils";
 import createAndSearch from "../config/createAndSearch";
 import { generateDynamicTargetHeaders } from "./targetUtils";
-import { buildSearchCriteria, checkAndGiveIfParentCampaignAvailable, fetchFileUrls, getCreatedResourceIds, modifyProcessedSheetData } from "./onGoingCampaignUpdateUtils";
+import { buildSearchCriteria, checkAndGiveIfParentCampaignAvailable, getCreatedResourceIds, modifyProcessedSheetData } from "./onGoingCampaignUpdateUtils";
 import { getReadMeConfigForMicroplan, getRolesForMicroplan, getUserDataFromMicroplanSheet, isMicroplanRequest } from "./microplanUtils";
 import _ from "lodash";
+import { fetchFileFromFilestore, searchMDMSDataViaV1Api } from "../api/coreApis";
 const NodeCache = require("node-cache");
 
 const updateGeneratedResourceTopic = config?.kafka?.KAFKA_UPDATE_GENERATED_RESOURCE_DETAILS_TOPIC;
@@ -224,12 +225,11 @@ const trimError = (e: any) => {
 }
 
 /* Fetches data from the database */
-async function searchGeneratedResources(request: any) {
+async function searchGeneratedResources(searchQuery : any, locale : any) {
   try {
-    const { type, tenantId, hierarchyType, id, status, campaignId } = request.query;
-    const msgIdRaw = request.body.RequestInfo?.msgId;
-    const locale = msgIdRaw?.split('|')[1] || null;
-    let queryString = `SELECT * FROM ${config?.DB_CONFIG.DB_GENERATED_RESOURCE_DETAILS_TABLE_NAME} WHERE `;
+    const { type, tenantId, hierarchyType, id, status, campaignId } = searchQuery;
+    const tableName = getTableName(config?.DB_CONFIG.DB_GENERATED_RESOURCE_DETAILS_TABLE_NAME, tenantId);
+    let queryString = `SELECT * FROM ${tableName} WHERE `;
     let queryConditions: string[] = [];
     let queryValues: any[] = [];
     if (id) {
@@ -268,6 +268,55 @@ async function searchGeneratedResources(request: any) {
 
     // Add sorting and limiting
     queryString += " ORDER BY createdTime DESC OFFSET 0 LIMIT 1";
+
+    const queryResult = await executeQuery(queryString, queryValues);
+    return generatedResourceTransformer(queryResult?.rows);
+  } catch (error: any) {
+    console.log(error)
+    logger.error(`Error fetching data from the database: ${error.message}`);
+    throwError("COMMON", 500, "INTERNAL_SERVER_ERROR", error?.message);
+    return null; // Return null in case of an error
+  }
+}
+
+async function searchAllGeneratedResources(searchQuery: any, locale: any) {
+  try {
+    const { type, tenantId, hierarchyType, id, status, campaignId } = searchQuery;
+    let queryString = `SELECT * FROM ${config?.DB_CONFIG.DB_GENERATED_RESOURCE_DETAILS_TABLE_NAME} WHERE `;
+    let queryConditions: string[] = [];
+    let queryValues: any[] = [];
+    if (id) {
+      queryConditions.push(`id = $${queryValues.length + 1}`);
+      queryValues.push(id);
+    }
+    if (type) {
+      queryConditions.push(`type = $${queryValues.length + 1}`);
+      queryValues.push(type);
+    }
+
+    if (hierarchyType) {
+      queryConditions.push(`hierarchyType = $${queryValues.length + 1}`);
+      queryValues.push(hierarchyType);
+    }
+    if (tenantId) {
+      queryConditions.push(`tenantId = $${queryValues.length + 1}`);
+      queryValues.push(tenantId);
+    }
+    if (campaignId) {
+      queryConditions.push(`campaignId = $${queryValues.length + 1}`);
+      queryValues.push(campaignId);
+    }
+    if (status) {
+      const statusArray = status.split(',').map((s: any) => s.trim());
+      const statusConditions = statusArray.map((_: any, index: any) => `status = $${queryValues.length + index + 1}`);
+      queryConditions.push(`(${statusConditions.join(' OR ')})`);
+      queryValues.push(...statusArray);
+    }
+    if (locale) {
+      queryConditions.push(`locale = $${queryValues.length + 1}`);
+      queryValues.push(locale);
+    }
+    queryString += queryConditions.join(" AND ");
 
     const queryResult = await executeQuery(queryString, queryValues);
     return generatedResourceTransformer(queryResult?.rows);
@@ -348,12 +397,13 @@ async function getFinalUpdatedResponse(result: any, responseData: any, request: 
 
 
 async function fullProcessFlowForNewEntry(newEntryResponse: any, generatedResource: any, request: any, enableCaching = false, filteredBoundary?: any) {
+  const tenantId = request?.query?.tenantId;
   try {
     const { type, hierarchyType } = request?.query;
     generatedResource = { generatedResource: newEntryResponse }
     // send message to create toppic
     logger.info(`processing the generate request for type ${type}`)
-    await produceModifiedMessages(generatedResource, createGeneratedResourceTopic);
+    await produceModifiedMessages(generatedResource, createGeneratedResourceTopic, request?.query?.tenantId);
     const localizationMapHierarchy = hierarchyType && await getLocalizedMessagesHandler(request, request?.query?.tenantId, getLocalisationModuleName(hierarchyType));
     const localizationMapModule = await getLocalizedMessagesHandler(request, request?.query?.tenantId);
     const localizationMap = { ...localizationMapHierarchy, ...localizationMapModule };
@@ -372,7 +422,7 @@ async function fullProcessFlowForNewEntry(newEntryResponse: any, generatedResour
       const responseFromDataSearch = await searchDataService(replicateRequest(request, searchCriteria));
 
       const processedFileStoreIdForUSerOrFacility = responseFromDataSearch?.[0]?.processedFilestoreId;
-      fileUrlResponse = await fetchFileUrls(request, processedFileStoreIdForUSerOrFacility);
+      fileUrlResponse = await fetchFileFromFilestore(processedFileStoreIdForUSerOrFacility, request?.query?.tenantId);
 
     }
     if (type === 'boundary') {
@@ -383,12 +433,12 @@ async function fullProcessFlowForNewEntry(newEntryResponse: any, generatedResour
       // get boundary sheet data after being generated
       var boundaryDataSheetGeneratedAfterDifferentTabSeparation = boundaryDataSheetGeneratedBeforeDifferentTabSeparation;
       logger.info("generating different tabs logic ")
-      boundaryDataSheetGeneratedAfterDifferentTabSeparation = await getDifferentTabGeneratedBasedOnConfig(request, boundaryDataSheetGeneratedBeforeDifferentTabSeparation, localizationMap, fileUrlResponse?.fileStoreIds?.[0]?.url)
+      boundaryDataSheetGeneratedAfterDifferentTabSeparation = await getDifferentTabGeneratedBasedOnConfig(request, boundaryDataSheetGeneratedBeforeDifferentTabSeparation, localizationMap, fileUrlResponse)
       logger.info(`Different tabs based on level configured generated, ${JSON.stringify(boundaryDataSheetGeneratedAfterDifferentTabSeparation)}`)
       const finalResponse = await getFinalUpdatedResponse(boundaryDataSheetGeneratedAfterDifferentTabSeparation, newEntryResponse, request);
       const generatedResourceNew: any = { generatedResource: finalResponse }
       // send to update topic
-      await produceModifiedMessages(generatedResourceNew, updateGeneratedResourceTopic);
+      await produceModifiedMessages(generatedResourceNew, updateGeneratedResourceTopic, request?.query?.tenantId);
       request.body.generatedResource = finalResponse;
     }
     else if (type == 'boundaryManagement' || type === 'boundaryGeometryManagement') {
@@ -400,21 +450,21 @@ async function fullProcessFlowForNewEntry(newEntryResponse: any, generatedResour
       const finalResponse = await getFinalUpdatedResponse(boundaryDataSheetGeneratedBeforeDifferentTabSeparation, newEntryResponse, request);
       const generatedResourceNew: any = { generatedResource: finalResponse }
       // send to update topic
-      await produceModifiedMessages(generatedResourceNew, updateGeneratedResourceTopic);
+      await produceModifiedMessages(generatedResourceNew, updateGeneratedResourceTopic, request?.query?.tenantId);
       request.body.generatedResource = finalResponse;
       logger.info("generation completed for boundary management create flow")
     }
     else if (type == "facilityWithBoundary" || type == 'userWithBoundary') {
-      await processGenerateRequest(request, localizationMap, filteredBoundary, fileUrlResponse?.fileStoreIds?.[0]?.url);
+      await processGenerateRequest(request, localizationMap, filteredBoundary, fileUrlResponse);
       const finalResponse = await getFinalUpdatedResponse(request?.body?.fileDetails, newEntryResponse, request);
       const generatedResourceNew: any = { generatedResource: finalResponse }
-      await produceModifiedMessages(generatedResourceNew, updateGeneratedResourceTopic);
+      await produceModifiedMessages(generatedResourceNew, updateGeneratedResourceTopic, request?.query?.tenantId);
       request.body.generatedResource = finalResponse;
     }
   }
   catch (error: any) {
     console.log(error)
-    await handleGenerateError(newEntryResponse, generatedResource, error);
+    await handleGenerateError(newEntryResponse, generatedResource, error, tenantId);
   }
 }
 
@@ -515,13 +565,13 @@ async function getSchemaBasedOnSource(request: any, isSourceMicroplan: boolean, 
   if (isSourceMicroplan) {
     const resourceDistributionStrategyTypes = await getResourceDistributionStrategyTypes(request);
     if (resourceDistributionStrategyTypes.includes(resourceDistributionStrategy)) {
-      schema = await callMdmsTypeSchema(request, tenantId, false, "facility", `MP-FACILITY-${resourceDistributionStrategy}`);
+      schema = await callMdmsTypeSchema(tenantId, false, "facility", `MP-FACILITY-${resourceDistributionStrategy}`);
     }
     else {
       throwError("CAMPAIGN", 500, "INVALID_RESOURCE_DISTRIBUTION_STRATEGY", `Invalid resource distribution strategy: ${resourceDistributionStrategy} ; Allowed resource distribution strategies: ${resourceDistributionStrategyTypes}`);
     }
   } else {
-    schema = await callMdmsTypeSchema(request, tenantId, false, "facility", "all");
+    schema = await callMdmsTypeSchema(tenantId, false, "facility", "all");
   }
   return schema;
 }
@@ -589,7 +639,7 @@ async function createReadMeSheet(request: any, workbook: any, mainHeader: any, l
     readMeConfig = await getReadMeConfigForMicroplan(request);
   }
   else {
-    readMeConfig = await getReadMeConfig(request);
+    readMeConfig = await getReadMeConfig(request?.query?.tenantId, request?.query?.type);
   }
   const headerSet = new Set();
   const datas = readMeConfig.texts
@@ -678,16 +728,28 @@ function modifyRequestForLocalisation(request: any, tenantId: string) {
   return updatedRequest;
 }
 
-async function getReadMeConfig(request: any) {
-  const mdmsResponse = await callMdmsData(request, "HCM-ADMIN-CONSOLE", "ReadMeConfig", request?.query?.tenantId);
+export async function getReadMeConfig(tenantId: string , type : string) {
+  const MdmsCriteria = {
+    MdmsCriteria: { // ✅ Now it matches `MDMSv1RequestCriteria`
+      tenantId,
+      moduleDetails: [
+        {
+          moduleName: "HCM-ADMIN-CONSOLE",
+          masterDetails: [{ name: "ReadMeConfig" }],
+        },
+      ],
+    },
+  };
+  // const mdmsResponse = await callMdmsData(request, "HCM-ADMIN-CONSOLE", "ReadMeConfig", request?.query?.tenantId);
+  const mdmsResponse = await searchMDMSDataViaV1Api(MdmsCriteria);
   if (mdmsResponse?.MdmsRes?.["HCM-ADMIN-CONSOLE"]?.ReadMeConfig) {
     const readMeConfigsArray = mdmsResponse?.MdmsRes?.["HCM-ADMIN-CONSOLE"]?.ReadMeConfig
     for (const readMeConfig of readMeConfigsArray) {
-      if (readMeConfig?.type == request?.query?.type) {
+      if (readMeConfig?.type == type) {
         return readMeConfig
       }
     }
-    throwError("MDMS", 500, "INVALID_README_CONFIG", `Readme config for type ${request?.query?.type} not found.`);
+    throwError("MDMS", 500, "INVALID_README_CONFIG", `Readme config for type ${type} not found.`);
     return {}
   }
   else {
@@ -734,13 +796,6 @@ async function createFacilityAndBoundaryFile(facilitySheetData: any, boundaryShe
   hideUniqueIdentifierColumn(facilitySheet, createAndSearch?.["facility"]?.uniqueIdentifierColumn);
   changeFirstRowColumnColour(facilitySheet, 'E06666');
 
-  // let receivedDropdowns = request.body?.dropdowns;
-
-  // if (!receivedDropdowns || Object.keys(receivedDropdowns)?.length == 0) {
-  //   logger.info("No dropdowns found");
-  //   receivedDropdowns = setDropdownFromSchema(request, schema, localizationMap);
-  //   logger.info("refetched drodowns", JSON.stringify(receivedDropdowns))
-  // }
   await handledropdownthings(facilitySheet, schema, localizationMap);
   protectSheet(facilitySheet);
   await handleHiddenColumns(facilitySheet, request.body?.hiddenColumns);
@@ -755,9 +810,9 @@ async function createFacilityAndBoundaryFile(facilitySheetData: any, boundaryShe
   request.body.fileDetails = fileDetails;
 }
 
-async function handledropdownthings(sheet: any, schema: any, localizationMap: any) {
+export async function handledropdownthings(sheet: any, schema: any, localizationMap: any) {
   logger.info(sheet.rowCount)
-  const dropdowns = Object.entries(schema.properties)
+  const dropdowns = Object.entries(schema?.properties || {})
     .filter(([key, value]: any) => Array.isArray(value.enum) && value.enum.length > 0)
     .reduce((result: any, [key, value]: any) => {
       // Transform the key using localisedValue function
@@ -765,8 +820,8 @@ async function handledropdownthings(sheet: any, schema: any, localizationMap: an
       result[newKey] = value.enum;
       return result;
     }, {});
-  if (dropdowns) {
-    logger.info("Dropdowns provided:", dropdowns);
+  if (dropdowns && Object.keys(dropdowns)?.length > 0) {
+    logger.info(`Managing dropdowns: ${JSON.stringify(dropdowns)}`);
     for (const key of Object.keys(dropdowns)) {
       let dropdownColumnIndex = -1;
       if (dropdowns[key]) {
@@ -884,7 +939,7 @@ async function generateFacilityAndBoundarySheet(tenantId: string, request: any, 
   const typeWithoutWith = type.includes('With') ? type.split('With')[0] : type;
   // Get facility and boundary data
   logger.info("Generating facilities started");
-  const allFacilities = await getAllFacilities(tenantId, request.body);
+  const allFacilities = await getAllFacilities(tenantId);
   request.body.generatedResourceCount = allFacilities?.length;
   logger.info(`Facilities generation completed and found ${allFacilities?.length} facilities`);
   let facilitySheetDataFinal: any;
@@ -893,7 +948,7 @@ async function generateFacilityAndBoundarySheet(tenantId: string, request: any, 
   if (fileUrl) {
     /* fetch facility from processed file 
     and generate facility sheet data */
-    schemaFinal = await callMdmsTypeSchema(request, tenantId, true, typeWithoutWith, "all");
+    schemaFinal = await callMdmsTypeSchema(tenantId, true, typeWithoutWith, "all");
     const processedFacilitySheetData = await getSheetData(fileUrl, localizedFacilityTab, false, undefined, localizationMap);
     const modifiedProcessedFacilitySheetData = modifyProcessedSheetData(typeWithoutWith, processedFacilitySheetData, schemaFinal, localizationMap);
     facilitySheetDataFinal = modifiedProcessedFacilitySheetData;
@@ -910,9 +965,28 @@ async function generateFacilityAndBoundarySheet(tenantId: string, request: any, 
     await createFacilityAndBoundaryFile(facilitySheetDataFinal, filteredBoundary, request, localizationMap, fileUrl, schemaFinal);
   }
   else {
-    const boundarySheetData: any = await getBoundarySheetData(request, localizationMap);
+    const boundarySheetData: any = await getBoundarySheetData(request, localizationMap,true);
     await createFacilityAndBoundaryFile(facilitySheetDataFinal, boundarySheetData, request, localizationMap, fileUrl, schemaFinal);
   }
+}
+
+function addMultiSelectColumn(properties: any, headers: string[]) {
+  const newHeaders: string[] = [];
+  for (const header of headers) {
+    if (properties?.[header]?.multiSelectDetails) {
+      const maxColumns = properties?.[header]?.multiSelectDetails?.maxSelections;
+      for (let i = 1; i <= maxColumns; i++) {
+        newHeaders.push(`${header}_MULTISELECT_${i}`);
+      }
+      newHeaders.push(header);
+    } else {
+      newHeaders.push(header);
+    }
+  }
+
+  // Clear and replace original array
+  headers.length = 0;
+  headers.push(...newHeaders);
 }
 
 async function generateUserSheet(request: any, localizationMap?: { [key: string]: string }, filteredBoundary?: any, userData?: any, fileUrl?: any) {
@@ -921,9 +995,11 @@ async function generateUserSheet(request: any, localizationMap?: { [key: string]
   const typeWithoutWith = type.includes('With') ? type.split('With')[0] : type;
   let schema: any;
   const isUpdate = fileUrl ? true : false;
-  schema = await callMdmsTypeSchema(request, tenantId, isUpdate, typeWithoutWith);
+  schema = await callMdmsTypeSchema(tenantId, isUpdate, typeWithoutWith);
   // setDropdownFromSchema(request, schema, localizationMap);
   const headers = schema?.columns;
+  setHiddenColumns(request, schema, localizationMap);
+  addMultiSelectColumn(schema?.properties, headers);
   const localizedHeaders = getLocalizedHeaders(headers, localizationMap);
   const localizedUserTab = getLocalizedName(config?.user?.userTab, localizationMap);
   let userSheetData: any;
@@ -944,7 +1020,7 @@ async function generateUserSheet(request: any, localizationMap?: { [key: string]
     await createUserAndBoundaryFile(userSheetData, filteredBoundary, request, schema, localizationMap, fileUrl);
   }
   else {
-    const boundarySheetData: any = await getBoundarySheetData(request, localizationMap);
+    const boundarySheetData: any = await getBoundarySheetData(request, localizationMap,true);
     await createUserAndBoundaryFile(userSheetData, boundarySheetData, request, schema, localizationMap, fileUrl);
   }
 }
@@ -1017,7 +1093,7 @@ async function generateUserSheetForMicroPlan(
   fileUrl?: any
 ) {
   const { tenantId, type } = request?.query;
-  const schema = await callMdmsTypeSchema(request, tenantId, false, "user", "microplan");
+  const schema = await callMdmsTypeSchema(tenantId, false, "user", "microplan");
   // setDropdownFromSchema(request, schema, localizationMap);
   const headers = schema?.columns;
   const localizedHeaders = getLocalizedHeaders(headers, localizationMap);
@@ -1083,7 +1159,7 @@ async function processGenerateForNew(request: any, generatedResource: any, newEn
   return request.body.generatedResource;
 }
 
-async function handleGenerateError(newEntryResponse: any, generatedResource: any, error: any) {
+async function handleGenerateError(newEntryResponse: any, generatedResource: any, error: any, tenantId: string) {
   newEntryResponse.map((item: any) => {
     item.status = generatedResourceStatuses.failed, item.additionalDetails = {
       ...item.additionalDetails,
@@ -1097,7 +1173,7 @@ async function handleGenerateError(newEntryResponse: any, generatedResource: any
   })
   generatedResource = { generatedResource: newEntryResponse };
   logger.error(String(error));
-  await produceModifiedMessages(generatedResource, updateGeneratedResourceTopic);
+  await produceModifiedMessages(generatedResource, updateGeneratedResourceTopic, tenantId);
 }
 
 async function updateAndPersistGenerateRequest(newEntryResponse: any, oldEntryResponse: any, responseData: any, request: any, enableCaching = false, filteredBoundary?: any) {
@@ -1107,7 +1183,7 @@ async function updateAndPersistGenerateRequest(newEntryResponse: any, oldEntryRe
   if (forceUpdateBool && responseData.length > 0) {
     generatedResource = { generatedResource: oldEntryResponse };
     // send message to update topic 
-    await produceModifiedMessages(generatedResource, updateGeneratedResourceTopic);
+    await produceModifiedMessages(generatedResource, updateGeneratedResourceTopic, request?.query?.tenantId);
     request.body.generatedResource = oldEntryResponse;
   }
   if (responseData.length === 0 || forceUpdateBool) {
@@ -1122,7 +1198,7 @@ async function updateAndPersistGenerateRequest(newEntryResponse: any, oldEntryRe
 */
 async function processGenerate(request: any, enableCaching = false, filteredBoundary?: any) {
   // fetch the data from db  to check any request already exists
-  const responseData = await searchGeneratedResources(request);
+  const responseData = await searchGeneratedResources(request?.query, getLocaleFromRequestInfo(request?.body?.RequestInfo));
   // modify response from db 
   const modifiedResponse = await enrichAuditDetails(responseData);
   // generate new random id and make filestore id null
@@ -1156,7 +1232,7 @@ async function enrichResourceDetails(request: any) {
     request.body.ResourceDetails.campaignId = null;
   }
   const persistMessage: any = { ResourceDetails: request.body.ResourceDetails };
-  await produceModifiedMessages(persistMessage, config?.kafka?.KAFKA_CREATE_RESOURCE_DETAILS_TOPIC);
+  await produceModifiedMessages(persistMessage, config?.kafka?.KAFKA_CREATE_RESOURCE_DETAILS_TOPIC, request?.body?.ResourceDetails?.tenantId);
 }
 
 function getFacilityIds(data: any) {
@@ -1247,6 +1323,22 @@ async function getDataFromSheetFromNormalCampaign(type: any, fileStoreId: any, t
 
 }
 
+function createHeaderToHierarchyMap(
+  sheetHeaders: string[],
+  hierarchy: string[]
+): { [key: string]: string } {
+  const map: { [key: string]: string } = {};
+  let hierarchyIndex = 0;
+
+  for (const header of sheetHeaders) {
+    if (hierarchyIndex < hierarchy.length) {
+      map[header] = hierarchy[hierarchyIndex++];
+    }
+  }
+
+  return map;
+}
+
 
 async function getDataFromSheet(request: any, fileStoreId: any, tenantId: any, createAndSearchConfig: any, optionalSheetName?: any, localizationMap?: { [key: string]: string }) {
   const isSourceMicroplan = request?.body?.ResourceDetails?.additionalDetails?.source == "microplan";
@@ -1264,27 +1356,31 @@ async function getDataFromSheet(request: any, fileStoreId: any, tenantId: any, c
   }
 }
 
-async function getBoundaryRelationshipData(request: any, params: any) {
-  logger.info("Boundary relationship search initiated");
-  const url = `${config.host.boundaryHost}${config.paths.boundaryRelationship}`;
-  const header = {
-    ...defaultheader,
-    // cachekey: `boundaryRelationShipSearch${params?.hierarchyType}${params?.tenantId}${params.codes || ''}${params?.includeChildren || ''}`,
-  }
-  const boundaryRelationshipResponse = await httpRequest(url, request.body, params, undefined, undefined, header);
-  logger.info("Boundary relationship search response received");
-  return boundaryRelationshipResponse?.TenantBoundary?.[0]?.boundary;
-}
+// async function getBoundaryRelationshipData(request: any, params: any) {
+//   logger.info("Boundary relationship search initiated");
+//   const url = `${config.host.boundaryHost}${config.paths.boundaryRelationship}`;
+//   const header = {
+//     ...defaultheader,
+//     // cachekey: `boundaryRelationShipSearch${params?.hierarchyType}${params?.tenantId}${params.codes || ''}${params?.includeChildren || ''}`,
+//   }
+//   const boundaryRelationshipResponse = await httpRequest(url, request.body, params, undefined, undefined, header);
+//   logger.info("Boundary relationship search response received");
+//   return boundaryRelationshipResponse?.TenantBoundary?.[0]?.boundary;
+// }
 
 async function getDataSheetReady(boundaryData: any, request: any, localizationMap?: { [key: string]: string }) {
   const type = request?.query?.type;
   const boundaryType = boundaryData?.[0].boundaryType;
   const boundaryList = generateHierarchyList(boundaryData)
+  const locale = getLocaleFromRequest(request);
+  const region = locale.split('_')[1];
+  const frenchMessagesMap: any = await getLocalizedMessagesHandler(request, request?.query?.tenantId, getLocalisationModuleName(request?.query?.hierarchyType), true, `fr_${region}`);
+  const portugeseMessagesMap: any = await getLocalizedMessagesHandler(request, request?.query?.tenantId, getLocalisationModuleName(request?.query?.hierarchyType), true, `pt_${region}`);
   if (!Array.isArray(boundaryList) || boundaryList.length === 0) {
     throwError("COMMON", 400, "VALIDATION_ERROR", "Boundary list is empty or not an array.");
   }
 
-  const hierarchy = await getHierarchy(request, request?.query?.tenantId, request?.query?.hierarchyType);
+  const hierarchy = await getHierarchy(request?.query?.tenantId, request?.query?.hierarchyType);
   const startIndex = boundaryType ? hierarchy.indexOf(boundaryType) : -1;
   const reducedHierarchy = startIndex !== -1 ? hierarchy.slice(startIndex) : hierarchy;
   const modifiedReducedHierarchy = getLocalizedHeaders(reducedHierarchy.map(ele => `${request?.query?.hierarchyType}_${ele}`.toUpperCase()), localizationMap);
@@ -1318,6 +1414,12 @@ async function getDataSheetReady(boundaryData: any, request: any, localizationMa
     );
     const boundaryCodeIndex = reducedHierarchy.length;
     mappedRowData[boundaryCodeIndex] = boundaryCode;
+    if (type === "boundaryManagement") {
+      const frenchTranslation = getLocalizedNameOnlyIfMessagePresent(boundaryCode, frenchMessagesMap) || '';
+      const portugeseTranslation = getLocalizedNameOnlyIfMessagePresent(boundaryCode, portugeseMessagesMap) || '';
+      mappedRowData.push(frenchTranslation);
+      mappedRowData.push(portugeseTranslation);
+    }
     return mappedRowData;
   });
   if (type == "boundaryManagement") {
@@ -1373,9 +1475,11 @@ function modifyDataBasedOnDifferentTab(boundaryData: any, differentTabsBasedOnLe
 }
 
 
-async function getLocalizedMessagesHandler(request: any, tenantId: any, module = config.localisation.localizationModule, overrideCache = false) {
+async function getLocalizedMessagesHandler(request: any, tenantId: any, module = config.localisation.localizationModule, overrideCache = false, locale?: string) {
   const localisationcontroller = Localisation.getInstance();
-  const locale = getLocaleFromRequest(request);
+  if (!locale) {
+    locale = getLocaleFromRequest(request);
+  }
   const localizationResponse = await localisationcontroller.getLocalisedData(module, locale, tenantId, overrideCache);
   return localizationResponse;
 }
@@ -1384,6 +1488,12 @@ async function getLocalizedMessagesHandlerViaRequestInfo(RequestInfo: any, tenan
   const localisationcontroller = Localisation.getInstance();
   const locale = getLocaleFromRequestInfo(RequestInfo);
   const localizationResponse = await localisationcontroller.getLocalisedData(module, locale, tenantId);
+  return localizationResponse;
+}
+
+async function getLocalizedMessagesHandlerViaLocale(locale: string, tenantId: any, module = config.localisation.localizationModule, overrideCache = false) {
+  const localisationcontroller = Localisation.getInstance();
+  const localizationResponse = await localisationcontroller.getLocalisedData(module, locale, tenantId, overrideCache);
   return localizationResponse;
 }
 
@@ -1420,6 +1530,39 @@ function findMapValue(map: Map<any, any>, key: any): any | null {
   });
   return foundValue;
 }
+
+function extractFrenchOrPortugeseLocalizationMap(
+  boundaryData: any[][],
+  isFrench: boolean,
+  isPortugese: boolean,
+  localizationMap: any
+): Map<{ key: string; value: string }, string> {
+  const resultMap = new Map<{ key: string; value: string }, string>();
+
+  boundaryData.forEach(row => {
+    const boundaryCodeObj = row.find(obj => obj.key === getLocalizedName(config?.boundary?.boundaryCode, localizationMap));
+    const boundaryCode = boundaryCodeObj?.value;
+
+    if (!boundaryCode) return;
+
+    if (isFrench) {
+      const frenchMessageObj = row.find(obj => obj.key === getLocalizedName("HCM_ADMIN_CONSOLE_FRENCH_LOCALIZATION_MESSAGE", localizationMap));
+      resultMap.set({
+        key: "french",
+        value: frenchMessageObj?.value || ""
+      }, boundaryCode);
+    } else if (isPortugese) {
+      const portugeseMessageObj = row.find(obj => obj.key === getLocalizedName("HCM_ADMIN_CONSOLE_PORTUGESE_LOCALIZATION_MESSAGE", localizationMap));
+      resultMap.set({
+        key: "portugese",
+        value: portugeseMessageObj?.value || ""
+      }, boundaryCode);
+    }
+  });
+
+  return resultMap;
+}
+
 
 function getDifferentDistrictTabs(boundaryData: any, differentTabsBasedOnLevel: any) {
   const uniqueDistrictsForMainSheet: string[] = [];
@@ -1469,7 +1612,7 @@ async function getMdmsDataBasedOnCampaignType(request: any, localizationMap?: an
   let campaignType = campaignObject.projectType;
   const isSourceMicroplan = checkIfSourceIsMicroplan(campaignObject);
   campaignType = (isSourceMicroplan) ? `${config?.prefixForMicroplanCampaigns}-${campaignType}` : campaignType;
-  const mdmsResponse = await callMdmsTypeSchema(request, request?.query?.tenantId || request?.body?.ResourceDetails?.tenantId, false, request?.query?.type || request?.body?.ResourceDetails?.type, campaignType)
+  const mdmsResponse = await callMdmsTypeSchema(request?.query?.tenantId || request?.body?.ResourceDetails?.tenantId, false, request?.query?.type || request?.body?.ResourceDetails?.type, campaignType)
   return mdmsResponse;
 }
 
@@ -1518,6 +1661,46 @@ function appendProjectTypeToCapacity(schema: any, projectType: string): any {
   return updatedSchema;
 }
 
+function modifyBoundaryDataHeadersWithMap(
+  boundaryData: any[],
+  headerToHierarchyMap: { [originalHeader: string]: string }
+) {
+  return boundaryData.map((row) => {
+    const updatedRow: { [key: string]: any } = {};
+
+    for (const key in row) {
+      if (Object.prototype.hasOwnProperty.call(row, key)) {
+        const newKey = headerToHierarchyMap[key];
+        updatedRow[newKey || key] = row[key];
+      }
+    }
+
+    return updatedRow;
+  });
+}
+
+export async function getRelatedDataWithCampaign(type: string, campaignNumber: string, tenantId: string, status ?: string) {
+  const tableName = getTableName(config?.DB_CONFIG?.DB_CAMPAIGN_DATA_TABLE_NAME, tenantId);
+  let queryString = `SELECT * FROM ${tableName} WHERE type = $1 AND campaignNumber = $2`;
+  if(status) queryString += ` AND status = $3`;
+  const arrayStatements = [type, campaignNumber];
+  if(status) arrayStatements.push(status);
+  let relatedData = await executeQuery(queryString, arrayStatements);
+  if(!relatedData?.rows) return [];
+  let rows = [];
+  for(let i = 0; i < relatedData?.rows?.length; i++) {
+    rows.push({
+      campaignNumber : relatedData?.rows[i]?.campaignnumber,
+      type : relatedData?.rows[i]?.type,
+      data : relatedData?.rows[i]?.data,
+      uniqueIdentifier : relatedData?.rows[i]?.uniqueidentifier,
+      status : relatedData?.rows[i]?.status,
+      uniqueIdAfterProcess : relatedData?.rows[i]?.uniqueidafterprocess
+    })
+  }
+  return rows;
+}
+
 
 export {
   errorResponder,
@@ -1545,7 +1728,7 @@ export {
   matchData,
   enrichResourceDetails,
   modifyBoundaryData,
-  getBoundaryRelationshipData,
+  searchAllGeneratedResources,
   getDataSheetReady,
   modifyTargetData,
   calculateKeyIndex,
@@ -1567,5 +1750,9 @@ export {
   appendProjectTypeToCapacity,
   getLocalizedMessagesHandlerViaRequestInfo,
   createFacilityAndBoundaryFile,
-  hideUniqueIdentifierColumn
+  hideUniqueIdentifierColumn,
+  createHeaderToHierarchyMap,
+  modifyBoundaryDataHeadersWithMap,
+  extractFrenchOrPortugeseLocalizationMap,
+  getLocalizedMessagesHandlerViaLocale
 };

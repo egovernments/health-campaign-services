@@ -333,10 +333,13 @@ config:
         dockerfile: frontend/micro-ui/web/microplan/Dockerfile
         image-name: microplan-ui
 
+
 #Utilities
   - name: "builds/health-campaign-services/health-services/project-factory"
     build:
       - work-dir: "health-services/project-factory"
         image-name: "project-factory"
+        dockerfile: "health-services/project-factory/Dockerfile"
       - work-dir: "health-services/project-factory/migration"
         image-name: "project-factory-db"
+        dockerfile: "health-services/project-factory/migration/Dockerfile"

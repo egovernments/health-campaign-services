@@ -56,23 +56,23 @@ function buildSearchCriteria(request: any, createdResourceId: any, type: any) {
   };
 }
 
-async function fetchFileUrls(request: any, processedFileStoreIdForUSerOrFacility: any) {
-  try {
-    const reqParamsForFetchingFile = {
-      tenantId: request?.query?.tenantId,
-      fileStoreIds: processedFileStoreIdForUSerOrFacility
-    };
-    return await httpRequest(
-      `${config?.host?.filestore}${config?.paths?.filestorefetch}`,
-      request?.body,
-      reqParamsForFetchingFile,
-      "get"
-    );
-  } catch (error) {
-    logger.error("Error fetching file URLs:", error);
-    throw error;
-  }
-}
+// async function fetchFileUrls(request: any, processedFileStoreIdForUSerOrFacility: any) {
+//   try {
+//     const reqParamsForFetchingFile = {
+//       tenantId: request?.query?.tenantId,
+//       fileStoreIds: processedFileStoreIdForUSerOrFacility
+//     };
+//     return await httpRequest(
+//       `${config?.host?.filestore}${config?.paths?.filestorefetch}`,
+//       request?.body,
+//       reqParamsForFetchingFile,
+//       "get"
+//     );
+//   } catch (error) {
+//     logger.error("Error fetching file URLs:", error);
+//     throw error;
+//   }
+// }
 
 
 
@@ -306,7 +306,7 @@ async function callGenerateWhenChildCampaigngetsCreated(request: any) {
   }
   catch (error: any) {
     logger.error(error);
-    throwError("COMMON", 400, "GENERATE_ERROR", `Error while generating user/facility/boundary: ${error.message}`);
+    // throwError("COMMON", 400, "GENERATE_ERROR", `Error while generating user/facility/boundary: ${error.message}`);
   }
 }
 
@@ -649,7 +649,7 @@ async function finalizeAndUpload(newWorkbook: any, mappingObject: any, resource:
   resourceDetails.processedFilestoreId = undefined;
 
   const persistMessage: any = { ResourceDetails: resourceDetails };
-  await produceModifiedMessages(persistMessage, config?.kafka?.KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC);
+  await produceModifiedMessages(persistMessage, config?.kafka?.KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC, mappingObject?.CampaignDetails?.tenantId);
 }
 
 
@@ -695,7 +695,7 @@ async function processResources(mappingObject: any) {
   mergeParentResources(mappingObject, resources, resourcesArrayFromParentCampaign);
 }
 
-async function getResourceFromResourceId(mappingObject: any, createResourceId: any, resource: any) {
+export async function getResourceFromResourceId(mappingObject: any, createResourceId: any, resource: any) {
   const searchCriteria = buildSearchCriteria(mappingObject, createResourceId, resource?.type);
   const requestBody = replicateRequest(mappingObject, searchCriteria);
   const responseFromDataSearch = await searchDataService(requestBody);
@@ -726,7 +726,7 @@ async function addConsolidatedDataToSheet(parentWorkbook: any, sheetName: string
 }
 
 
-async function getFileUrl(fileStoreId: any, tenantId: any) {
+export async function getFileUrl(fileStoreId: any, tenantId: any) {
   const fileResponse = await httpRequest(
     `${config.host.filestore}${config.paths.filestore}/url`,
     {},
@@ -748,7 +748,7 @@ export {
   getParentCampaignObject,
   getCreatedResourceIds,
   buildSearchCriteria,
-  fetchFileUrls,
+  // fetchFileUrls,
   modifyProcessedSheetData,
   freezeUnfreezeColumnsForProcessedFile,
   getColumnIndexByHeader,
