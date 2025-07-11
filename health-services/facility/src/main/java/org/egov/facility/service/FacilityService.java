@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.ds.Tuple;
 import org.egov.common.models.ErrorDetails;
+import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.facility.Facility;
 import org.egov.common.models.facility.FacilityBulkRequest;
 import org.egov.common.models.facility.FacilityRequest;
@@ -22,7 +23,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.ReflectionUtils;
 
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
@@ -173,23 +173,27 @@ public class FacilityService {
         return validEntities;
     }
 
-    public List<Facility> search(FacilitySearchRequest facilitySearchRequest,
-                                 Integer limit,
-                                 Integer offset,
-                                 String tenantId,
-                                 Long lastChangedSince,
-                                 Boolean includeDeleted) throws Exception  {
+    public SearchResponse<Facility> search(FacilitySearchRequest facilitySearchRequest,
+                                           Integer limit,
+                                           Integer offset,
+                                           String tenantId,
+                                           Long lastChangedSince,
+                                           Boolean includeDeleted) throws Exception  {
         log.info("starting search method for facility");
         String idFieldName = getIdFieldName(facilitySearchRequest.getFacility());
         if (isSearchByIdOnly(facilitySearchRequest.getFacility(), idFieldName)) {
             List<String> ids = (List<String>) ReflectionUtils.invokeMethod(getIdMethod(Collections
                             .singletonList(facilitySearchRequest.getFacility())),
                     facilitySearchRequest.getFacility());
-            return facilityRepository.findById(ids, idFieldName, includeDeleted).stream()
+            SearchResponse<Facility> searchResponse = facilityRepository.findById(tenantId, ids, idFieldName, includeDeleted);
+            List<Facility> facilities = searchResponse.getResponse().stream()
                     .filter(lastChangedSince(lastChangedSince))
                     .filter(havingTenantId(tenantId))
                     .filter(includeDeleted(includeDeleted))
                     .collect(Collectors.toList());
+            searchResponse.setResponse(facilities);
+
+            return searchResponse;
         }
 
         log.info("completed search method for facility");

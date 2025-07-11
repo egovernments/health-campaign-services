@@ -11,6 +11,7 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import org.egov.common.contract.response.ResponseInfo;
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.core.ProjectSearchURLParams;
 import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.core.URLParams;
@@ -50,6 +51,7 @@ import org.egov.project.service.ProjectFacilityService;
 import org.egov.project.service.ProjectService;
 import org.egov.project.service.ProjectStaffService;
 import org.egov.project.service.ProjectTaskService;
+import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -60,6 +62,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
+
+import static org.egov.project.util.ProjectConstants.INVALID_TENANT_ID_ERR_CODE;
 
 
 @Controller
@@ -220,7 +224,7 @@ public class ProjectApiController {
             @Valid @ModelAttribute URLParams urlParams,
             @ApiParam(value = "Capture details of Project facility.", required = true) @Valid @RequestBody ProjectFacilitySearchRequest projectFacilitySearchRequest
     ) throws Exception {
-        List<ProjectFacility> projectFacilities = projectFacilityService.search(
+        SearchResponse<ProjectFacility> searchResponse = projectFacilityService.search(
                 projectFacilitySearchRequest,
                 urlParams.getLimit(),
                 urlParams.getOffset(),
@@ -229,7 +233,8 @@ public class ProjectApiController {
                 urlParams.getIncludeDeleted()
         );
         ProjectFacilityBulkResponse response = ProjectFacilityBulkResponse.builder()
-                .projectFacilities(projectFacilities)
+                .projectFacilities(searchResponse.getResponse())
+                .totalCount(searchResponse.getTotalCount())
                 .responseInfo(ResponseInfoFactory
                         .createResponseInfo(projectFacilitySearchRequest.getRequestInfo(), true))
                 .build();
@@ -310,7 +315,7 @@ public class ProjectApiController {
         @Valid @ModelAttribute URLParams urlParams,
         @ApiParam(value = "Capture details of Project staff.", required = true) @Valid @RequestBody ProjectStaffSearchRequest projectStaffSearchRequest
     ) throws Exception {
-        List<ProjectStaff> projectStaffList = projectStaffService.search(
+        SearchResponse<ProjectStaff> searchResponse = projectStaffService.search(
                 projectStaffSearchRequest,
                 urlParams.getLimit(),
                 urlParams.getOffset(),
@@ -319,7 +324,8 @@ public class ProjectApiController {
                 urlParams.getIncludeDeleted()
         );
         ProjectStaffBulkResponse response = ProjectStaffBulkResponse.builder()
-                .projectStaff(projectStaffList)
+                .projectStaff(searchResponse.getResponse())
+                .totalCount(searchResponse.getTotalCount())
                 .responseInfo(ResponseInfoFactory
                         .createResponseInfo(projectStaffSearchRequest.getRequestInfo(), true))
                 .build();
@@ -404,14 +410,19 @@ public class ProjectApiController {
         @Valid @ModelAttribute URLParams urlParams,
         @ApiParam(value = "Project Task Search.", required = true) @Valid @RequestBody TaskSearchRequest taskSearchRequest
     ) {
-        SearchResponse<Task> taskSearchResponse = projectTaskService.search(
-                taskSearchRequest.getTask(),
-                urlParams.getLimit(),
-                urlParams.getOffset(),
-                urlParams.getTenantId(),
-                urlParams.getLastChangedSince(),
-                urlParams.getIncludeDeleted()
-        );
+        SearchResponse<Task> taskSearchResponse = null;
+        try {
+            taskSearchResponse = projectTaskService.search(
+                    taskSearchRequest.getTask(),
+                    urlParams.getLimit(),
+                    urlParams.getOffset(),
+                    urlParams.getTenantId(),
+                    urlParams.getLastChangedSince(),
+                    urlParams.getIncludeDeleted()
+            );
+        } catch (InvalidTenantIdException e) {
+            throw new CustomException(INVALID_TENANT_ID_ERR_CODE, e.getMessage());
+        }
 
         TaskBulkResponse response = TaskBulkResponse.builder().responseInfo(ResponseInfoFactory
                 .createResponseInfo(taskSearchRequest.getRequestInfo(), true)).tasks(taskSearchResponse.getResponse()).totalCount(taskSearchResponse.getTotalCount()).build();
@@ -467,7 +478,12 @@ public class ProjectApiController {
 
     @RequestMapping(value = "/v1/_create", method = RequestMethod.POST)
     public ResponseEntity<ProjectResponse> createProject(@ApiParam(value = "Details for the new Project.", required = true) @Valid @RequestBody ProjectRequest project) {
-        ProjectRequest enrichedProjectRequest = projectService.createProject(project);
+        ProjectRequest enrichedProjectRequest = null;
+        try {
+            enrichedProjectRequest = projectService.createProject(project);
+        } catch (InvalidTenantIdException e) {
+            throw new CustomException("INVALID_TENANT_ID", e.getMessage());
+        }
         ResponseInfo responseInfo = ResponseInfoFactory.createResponseInfo(project.getRequestInfo(), true);
         ProjectResponse projectResponse = ProjectResponse.builder().responseInfo(responseInfo).project(enrichedProjectRequest.getProjects()).build();
         return new ResponseEntity<ProjectResponse>(projectResponse,HttpStatus.OK);
@@ -484,22 +500,30 @@ public class ProjectApiController {
             @ApiParam(value = "Used in project search API to specify if response should include project elements that are in the preceding hierarchy of matched projects.", defaultValue = "false") @Valid @RequestParam(value = "includeAncestors", required = false, defaultValue = "false") Boolean includeAncestors,
             @ApiParam(value = "Used in project search API to specify if response should include project elements that are in the following hierarchy of matched projects.", defaultValue = "false") @Valid @RequestParam(value = "includeDescendants", required = false, defaultValue = "false") Boolean includeDescendants,
             @ApiParam(value = "Used in project search API to limit the search results to only those projects whose creation date is after the specified 'createdFrom' date", defaultValue = "false") @Valid @RequestParam(value = "createdFrom", required = false) Long createdFrom,
-            @ApiParam(value = "Used in project search API to limit the search results to only those projects whose creation date is before the specified 'createdTo' date", defaultValue = "false") @Valid @RequestParam(value = "createdTo", required = false) Long createdTo
+            @ApiParam(value = "Used in project search API to limit the search results to only those projects whose creation date is before the specified 'createdTo' date", defaultValue = "false") @Valid @RequestParam(value = "createdTo", required = false) Long createdTo,
+            @ApiParam(value = "Used in project search API to specify if response should be one which is in the preceding hierarchy of matched projects.") @Valid @RequestParam(value = "isAncestorProjectId", required = false, defaultValue = "false") boolean isAncestorProjectId
     ) {
-        List<Project> projects = projectService.searchProject(
-                project,
-                limit,
-                offset,
-                tenantId,
-                lastChangedSince,
-                includeDeleted,
-                includeAncestors,
-                includeDescendants,
-                createdFrom,
-                createdTo
-        );
+        List<Project> projects = null;
+        Integer count = null;
+        try {
+            projects = projectService.searchProject(
+                    project,
+                    limit,
+                    offset,
+                    tenantId,
+                    lastChangedSince,
+                    includeDeleted,
+                    includeAncestors,
+                    includeDescendants,
+                    createdFrom,
+                    createdTo,
+                    isAncestorProjectId
+            );
+            count = projectService.countAllProjects(project, tenantId, lastChangedSince, includeDeleted, createdFrom, createdTo, isAncestorProjectId);
+        } catch (InvalidTenantIdException e) {
+            throw new CustomException(INVALID_TENANT_ID_ERR_CODE, e.getMessage());
+        }
         ResponseInfo responseInfo = ResponseInfoFactory.createResponseInfo(project.getRequestInfo(), true);
-        Integer count = projectService.countAllProjects(project, tenantId, lastChangedSince, includeDeleted, createdFrom, createdTo);
         ProjectResponse projectResponse = ProjectResponse.builder().responseInfo(responseInfo).project(projects).totalCount(count).build();
         return new ResponseEntity<ProjectResponse>(projectResponse, HttpStatus.OK);
     }
@@ -509,9 +533,15 @@ public class ProjectApiController {
             @Valid @ModelAttribute ProjectSearchURLParams urlParams,
             @ApiParam(value = "Details for the project.", required = true) @Valid @RequestBody ProjectSearchRequest projectSearchRequest
     ) {
-        List<Project> projects = projectService.searchProject(projectSearchRequest, urlParams);
+        List<Project> projects = null;
+        Integer count = null;
+        try {
+            projects = projectService.searchProject(projectSearchRequest, urlParams);
+            count = projectService.countAllProjects(projectSearchRequest, urlParams);
+        } catch (InvalidTenantIdException e) {
+            throw new CustomException(INVALID_TENANT_ID_ERR_CODE, e.getMessage());
+        }
         ResponseInfo responseInfo = ResponseInfoFactory.createResponseInfo(projectSearchRequest.getRequestInfo(), true);
-        Integer count = projectService.countAllProjects(projectSearchRequest, urlParams);
         ProjectResponse projectResponse = ProjectResponse.builder()
                 .responseInfo(responseInfo)
                 .project(projects)
@@ -522,7 +552,12 @@ public class ProjectApiController {
 
     @RequestMapping(value = "/v1/_update", method = RequestMethod.POST)
     public ResponseEntity<ProjectResponse> updateProject(@ApiParam(value = "Details for the updated Project.", required = true) @Valid @RequestBody ProjectRequest project) {
-        ProjectRequest enrichedProjectRequest = projectService.updateProject(project);
+        ProjectRequest enrichedProjectRequest = null;
+        try {
+            enrichedProjectRequest = projectService.updateProject(project);
+        } catch (InvalidTenantIdException e) {
+            throw new CustomException(INVALID_TENANT_ID_ERR_CODE, e.getMessage());
+        }
 
         ResponseInfo responseInfo = ResponseInfoFactory.createResponseInfo(project.getRequestInfo(), true);
         ProjectResponse projectResponse = ProjectResponse.builder().responseInfo(responseInfo).project(enrichedProjectRequest.getProjects()).build();

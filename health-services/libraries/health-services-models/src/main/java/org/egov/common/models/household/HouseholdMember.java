@@ -1,21 +1,18 @@
 package org.egov.common.models.household;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
+import java.util.ArrayList;
+import java.util.List;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import digit.models.coremodels.AuditDetails;
 import io.swagger.annotations.ApiModel;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 import org.egov.common.models.core.EgovOfflineModel;
 import org.springframework.validation.annotation.Validated;
-
-import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
 
 /**
 * A representation of a household member (already registered as an individual)
@@ -50,9 +47,20 @@ public class HouseholdMember extends EgovOfflineModel {
     @JsonProperty("isHeadOfHousehold")
     private Boolean isHeadOfHousehold = false;
 
+    @JsonProperty("memberRelationships")
+    @Valid
+    private List<Relationship> memberRelationships;
+
     //TODO remove
     @JsonProperty("isDeleted")
     private Boolean isDeleted = Boolean.FALSE;
 
+    public HouseholdMember addHouseholdMemberRelationship(Relationship relationship) {
+        if (this.memberRelationships == null) this.memberRelationships = new ArrayList<>();
+        relationship.setSelfId(this.getId());
+        relationship.setSelfClientReferenceId(this.getClientReferenceId());
+        this.memberRelationships.add(relationship);
+        return this;
+    }
 }
 

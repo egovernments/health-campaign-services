@@ -10,6 +10,8 @@ import org.egov.common.models.individual.Skill;
 import org.egov.common.validator.Validator;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
+import org.springframework.util.CollectionUtils;
+import org.springframework.util.ObjectUtils;
 
 import java.lang.reflect.Method;
 import java.util.HashMap;
@@ -21,6 +23,8 @@ import static org.egov.common.utils.CommonUtils.getIdToObjMap;
 import static org.egov.common.utils.CommonUtils.getMethod;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
+import static org.egov.common.utils.ValidatorUtils.getErrorForInvalidEntity;
+import static org.egov.common.utils.ValidatorUtils.getErrorForInvalidRelatedEntityID;
 import static org.egov.common.utils.ValidatorUtils.getErrorForUniqueSubEntity;
 import static org.egov.individual.Constants.GET_IDENTIFIER_TYPE;
 import static org.egov.individual.Constants.GET_TYPE;
@@ -58,24 +62,8 @@ public class UniqueSubEntityValidator implements Validator<IndividualBulkRequest
                     }
                 }
 
-                if (individual.getIdentifiers() != null) {
-                    List<Identifier> identifiers = individual.getIdentifiers();
-                    if (!identifiers.isEmpty()) {
-                        log.info("validating for unique sub entity for identifiers");
-                        Method idMethod = getMethod(GET_IDENTIFIER_TYPE, Identifier.class);
-                        Map<String, Identifier> identifierMap = getIdToObjMap(identifiers, idMethod);
-                        if (identifierMap.keySet().size() != identifiers.size()) {
-                            List<String> duplicates = identifierMap.keySet().stream().filter(id ->
-                                    identifiers.stream()
-                                            .filter(idt -> idt.getIdentifierType().equals(id)).count() > 1
-                            ).collect(Collectors.toList());
-                            duplicates.forEach( duplicate -> {
-                                Error error = getErrorForUniqueSubEntity();
-                                populateErrorDetails(individual, error, errorDetailsMap);
-                            });
-                        }
-                    }
-                }
+                // validate individual identifiers
+                validateInvalidIdentifiers(individual, errorDetailsMap);
 
                 List<Skill> skills = individual.getSkills();
                 if (skills != null && !skills.isEmpty()) {
@@ -96,5 +84,44 @@ public class UniqueSubEntityValidator implements Validator<IndividualBulkRequest
             }
         }
         return errorDetailsMap;
+    }
+
+    /**
+     * Validates the identifiers of an {@code Individual} for invalid entries and duplicates.
+     * If any invalid or duplicate identifiers are found, error details are populated into the {@code errorDetailsMap}.
+     *
+     * @param individual the {@code Individual} entity whose identifiers need to be validated
+     * @param errorDetailsMap a map to store error details, where the key is the {@code Individual} and the value is a list of {@code Error} objects
+     */
+    private void validateInvalidIdentifiers(Individual individual, Map<Individual, List<Error>> errorDetailsMap) {
+        if (individual.getIdentifiers() != null) {
+            List<Identifier> identifiers = individual.getIdentifiers();
+            if (!identifiers.isEmpty()) {
+                log.debug("validating for empty individual details for identifiers");
+                List<String> invalidIdentifiers = identifiers.stream()
+                        .filter(identifier -> ObjectUtils.isEmpty(identifier.getIdentifierId())
+                                && ObjectUtils.isEmpty(identifier.getIndividualClientReferenceId()))
+                        .map(Identifier::getIdentifierType)
+                        .toList();
+                if (!CollectionUtils.isEmpty(invalidIdentifiers)) {
+                    Error error = getErrorForInvalidEntity("Identifier", invalidIdentifiers);
+                    populateErrorDetails(individual, error, errorDetailsMap);
+                    return;
+                }
+                log.info("validating for unique sub entity for identifiers");
+                Method idMethod = getMethod(GET_IDENTIFIER_TYPE, Identifier.class);
+                Map<String, Identifier> identifierMap = getIdToObjMap(identifiers, idMethod);
+                if (identifierMap.keySet().size() != identifiers.size()) {
+                    List<String> duplicates = identifierMap.keySet().stream().filter(id ->
+                            identifiers.stream()
+                                    .filter(idt -> id != null && id.equals(idt.getIdentifierType())).count() > 1
+                    ).collect(Collectors.toList());
+                    duplicates.forEach( duplicate -> {
+                        Error error = getErrorForUniqueSubEntity();
+                        populateErrorDetails(individual, error, errorDetailsMap);
+                    });
+                }
+            }
+        }
     }
 }

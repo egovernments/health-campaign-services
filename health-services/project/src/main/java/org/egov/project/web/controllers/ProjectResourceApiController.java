@@ -7,6 +7,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.egov.common.contract.response.ResponseInfo;
 import org.egov.common.data.query.exception.QueryBuilderException;
+import org.egov.common.exception.InvalidTenantIdException;
+import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.core.URLParams;
 import org.egov.common.models.project.ProjectResource;
 import org.egov.common.models.project.ProjectResourceBulkRequest;
@@ -18,6 +20,7 @@ import org.egov.common.producer.Producer;
 import org.egov.common.utils.ResponseInfoFactory;
 import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.service.ProjectResourceService;
+import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -27,6 +30,8 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
+
+import static org.egov.project.util.ProjectConstants.INVALID_TENANT_ID_ERR_CODE;
 
 
 @Controller
@@ -75,16 +80,24 @@ public class ProjectResourceApiController {
             @ApiParam(value = "Search linkage of Project and resource.", required = true) @Valid @RequestBody ProjectResourceSearchRequest projectResourceSearchRequest
     ) throws QueryBuilderException {
 
-        List<ProjectResource> projectResource = projectResourceService.search(
-                projectResourceSearchRequest,
-                urlParams.getLimit(),
-                urlParams.getOffset(),
-                urlParams.getTenantId(),
-                urlParams.getLastChangedSince(),
-                urlParams.getIncludeDeleted()
-        );
+        SearchResponse<ProjectResource> searchResponse = null;
+        try {
+            searchResponse = projectResourceService.search(
+                    projectResourceSearchRequest,
+                    urlParams.getLimit(),
+                    urlParams.getOffset(),
+                    urlParams.getTenantId(),
+                    urlParams.getLastChangedSince(),
+                    urlParams.getIncludeDeleted()
+            );
+        } catch (InvalidTenantIdException e) {
+            throw new CustomException(INVALID_TENANT_ID_ERR_CODE, e.getMessage());
+        }
         ProjectResourceBulkResponse response = ProjectResourceBulkResponse.builder().responseInfo(ResponseInfoFactory
-                .createResponseInfo(projectResourceSearchRequest.getRequestInfo(), true)).projectResource(projectResource).build();
+                .createResponseInfo(projectResourceSearchRequest.getRequestInfo(), true))
+                .projectResource(searchResponse.getResponse())
+                .totalCount(searchResponse.getTotalCount())
+                .build();
 
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }

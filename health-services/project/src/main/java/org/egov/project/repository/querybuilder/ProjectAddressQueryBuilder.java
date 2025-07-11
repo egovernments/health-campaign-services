@@ -15,6 +15,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 
+import static org.egov.common.utils.MultiStateInstanceUtil.SCHEMA_REPLACE_STRING;
 import static org.egov.project.util.ProjectConstants.DOT;
 
 @Component
@@ -32,8 +33,8 @@ public class ProjectAddressQueryBuilder {
             " addr.type as address_type, addr.addressLine1 as address_addressLine1, addr.addressLine2 as address_addressLine2, addr.landmark as address_landmark, addr.city as address_city, addr.pinCode as address_pinCode, " +
             " addr.buildingName as address_buildingName, addr.street as address_street, addr.boundaryType as address_boundaryType, addr.boundary as address_boundary " +
             " " +
-            "from project prj " +
-            "left join project_address addr " +
+            "from " + SCHEMA_REPLACE_STRING + ".project prj " +
+            "left join " + SCHEMA_REPLACE_STRING + ".project_address addr " +
             "on prj.id = addr.projectId ";
 
     private final String paginationWrapper = "SELECT * FROM " +
@@ -42,12 +43,15 @@ public class ProjectAddressQueryBuilder {
             " result) result_offset " +
             "WHERE offset_ > ? AND offset_ <= ?";
 
-    private static final String PROJECTS_COUNT_QUERY = "SELECT COUNT(*) FROM project prj " +
-            "left join project_address addr " +
+    private static final String PROJECTS_COUNT_QUERY = "SELECT COUNT(*) FROM " + SCHEMA_REPLACE_STRING + ".project prj " +
+            "left join " + SCHEMA_REPLACE_STRING + ".project_address addr " +
             "on prj.id = addr.projectId ";;
 
-    /* Constructs project search query based on conditions */
-    public String getProjectSearchQuery(List<Project> projects, Integer limit, Integer offset, String tenantId, Long lastChangedSince, Boolean includeDeleted, Long createdFrom, Long createdTo, List<Object> preparedStmtList, boolean isCountQuery) {
+    /**
+     * Constructs project search query based on conditions
+     * @param isAncestorProjectId if set to true, project id in the projects would be considered as ancestor project id.
+     */
+    public String getProjectSearchQuery(List<Project> projects, Integer limit, Integer offset, String tenantId, Long lastChangedSince, Boolean includeDeleted, Long createdFrom, Long createdTo, boolean isAncestorProjectId, List<Object> preparedStmtList, boolean isCountQuery) {
         //This uses a ternary operator to choose between PROJECTS_COUNT_QUERY or FETCH_PROJECT_ADDRESS_QUERY based on the value of isCountQuery.
         String query = isCountQuery ? PROJECTS_COUNT_QUERY : FETCH_PROJECT_ADDRESS_QUERY;
         StringBuilder queryBuilder = new StringBuilder(query);
@@ -69,7 +73,16 @@ public class ProjectAddressQueryBuilder {
                 }
             }
 
-            if (StringUtils.isNotBlank(project.getId())) {
+            /*
+            * If isAncestorProjectId is set to true, Then either id equals to project id or projectHierarchy
+            *  should have id of the project
+             */
+            if (isAncestorProjectId && StringUtils.isNotBlank(project.getId())) {
+                addClauseIfRequired(preparedStmtList, queryBuilder);
+                queryBuilder.append(" ( prj.projectHierarchy LIKE ? OR prj.id =? ) ");
+                preparedStmtList.add('%' + project.getId() + '%');
+                preparedStmtList.add(project.getId());
+            } else if (StringUtils.isNotBlank(project.getId())) {
                 addClauseIfRequired(preparedStmtList, queryBuilder);
                 queryBuilder.append(" prj.id =? ");
                 preparedStmtList.add(project.getId());
@@ -91,6 +104,18 @@ public class ProjectAddressQueryBuilder {
                 addClauseIfRequired(preparedStmtList, queryBuilder);
                 queryBuilder.append(" prj.projectType=? ");
                 preparedStmtList.add(project.getProjectType());
+            }
+
+            if (StringUtils.isNotBlank(project.getReferenceID())) {
+                addClauseIfRequired(preparedStmtList, queryBuilder);
+                queryBuilder.append(" prj.referenceId =? ");
+                preparedStmtList.add(project.getReferenceID());
+            }
+
+            if (StringUtils.isNotBlank(project.getParent())) {
+                addClauseIfRequired(preparedStmtList, queryBuilder);
+                queryBuilder.append(" prj.parent =? ");
+                preparedStmtList.add(project.getParent());
             }
 
             if (project.getAddress() != null && StringUtils.isNotBlank(project.getAddress().getBoundary())) {
@@ -367,8 +392,8 @@ public class ProjectAddressQueryBuilder {
     }
     
     /* Returns query to get total projects count based on project search params */
-    public String getSearchCountQueryString(List<Project> projects, String tenantId, Long lastChangedSince, Boolean includeDeleted, Long createdFrom, Long createdTo, List<Object> preparedStatement) {
-        String query = getProjectSearchQuery(projects, config.getMaxLimit(), config.getDefaultOffset(), tenantId, lastChangedSince, includeDeleted, createdFrom, createdTo, preparedStatement, true);
+    public String getSearchCountQueryString(List<Project> projects, String tenantId, Long lastChangedSince, Boolean includeDeleted, Long createdFrom, Long createdTo, boolean isAncestorProjectId, List<Object> preparedStatement) {
+        String query = getProjectSearchQuery(projects, config.getMaxLimit(), config.getDefaultOffset(), tenantId, lastChangedSince, includeDeleted, createdFrom, createdTo, isAncestorProjectId, preparedStatement, true);
         return query;
     }
 

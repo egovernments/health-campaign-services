@@ -185,7 +185,7 @@ public class ProjectBeneficiaryService {
                     beneficiarySearchRequest.getProjectBeneficiary());
             log.info("fetching project beneficiaries with ids: {}", ids);
 
-            SearchResponse<ProjectBeneficiary> searchResponse = projectBeneficiaryRepository.findById(ids, idFieldName, includeDeleted);
+            SearchResponse<ProjectBeneficiary> searchResponse = projectBeneficiaryRepository.findById(tenantId, ids, idFieldName, includeDeleted);
 
             List<ProjectBeneficiary> projectBeneficiaries = searchResponse.getResponse().stream()
                     .filter(lastChangedSince(lastChangedSince))

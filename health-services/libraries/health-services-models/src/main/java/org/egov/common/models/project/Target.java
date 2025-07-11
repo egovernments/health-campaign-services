@@ -3,12 +3,12 @@ package org.egov.common.models.project;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import digit.models.coremodels.AuditDetails;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.egov.common.contract.models.AuditDetails;
 import org.springframework.validation.annotation.Validated;
 
 /**
@@ -31,7 +31,7 @@ public class Target {
     private String projectid = null;
 
     @JsonProperty("beneficiaryType")
-    private String beneficiaryType = null;
+    private BeneficiaryType beneficiaryType = null;
 
     @JsonProperty("totalNo")
     private Integer totalNo = null;

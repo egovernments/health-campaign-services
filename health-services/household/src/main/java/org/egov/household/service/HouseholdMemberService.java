@@ -8,8 +8,8 @@ import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
-import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.ds.Tuple;
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.common.models.ErrorDetails;
 import org.egov.common.models.core.SearchResponse;
@@ -27,6 +27,8 @@ import org.egov.household.household.member.validators.HmIndividualValidator;
 import org.egov.household.household.member.validators.HmIsDeletedValidator;
 import org.egov.household.household.member.validators.HmNonExistentEntityValidator;
 import org.egov.household.household.member.validators.HmNullIdValidator;
+import org.egov.household.household.member.validators.HmRelationshipTypeValidator;
+import org.egov.household.household.member.validators.HmRelativeExistentValidator;
 import org.egov.household.household.member.validators.HmRowVersionValidator;
 import org.egov.household.household.member.validators.HmUniqueEntityValidator;
 import org.egov.household.household.member.validators.HmUniqueIndividualValidator;
@@ -45,8 +47,7 @@ import static org.egov.common.utils.CommonUtils.isSearchByIdOnly;
 import static org.egov.common.utils.CommonUtils.lastChangedSince;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
-import static org.egov.household.Constants.SET_HOUSEHOLD_MEMBERS;
-import static org.egov.household.Constants.VALIDATION_ERROR;
+import static org.egov.household.Constants.*;
 
 @Service
 @Slf4j
@@ -72,13 +73,17 @@ public class HouseholdMemberService {
                     || validator.getClass().equals(HmUniqueEntityValidator.class)
                     || validator.getClass().equals(HmHouseholdValidator.class)
                     || validator.getClass().equals(HmIndividualValidator.class)
-                    || validator.getClass().equals(HmHouseholdHeadValidator.class);
+                    || validator.getClass().equals(HmHouseholdHeadValidator.class)
+                    || validator.getClass().equals(HmRelationshipTypeValidator.class)
+                    || validator.getClass().equals(HmRelativeExistentValidator.class);
 
     private final Predicate<Validator<HouseholdMemberBulkRequest, HouseholdMember>> isApplicableForCreate = validator ->
             validator.getClass().equals(HmHouseholdValidator.class)
                     || validator.getClass().equals(HmExistentEntityValidator.class)
                     || validator.getClass().equals(HmUniqueIndividualValidator.class)
-                    || validator.getClass().equals(HmHouseholdHeadValidator.class);
+                    || validator.getClass().equals(HmHouseholdHeadValidator.class)
+                    || validator.getClass().equals(HmRelationshipTypeValidator.class)
+                    || validator.getClass().equals(HmRelativeExistentValidator.class);
 
     private final Predicate<Validator<HouseholdMemberBulkRequest, HouseholdMember>> isApplicableForDelete = validator ->
             validator.getClass().equals(HmNullIdValidator.class)
@@ -146,8 +151,13 @@ public class HouseholdMemberService {
             List<String> ids = (List<String>) ReflectionUtils.invokeMethod(getIdMethod(Collections
                             .singletonList(householdMemberSearch)),
                     householdMemberSearch);
-            SearchResponse<HouseholdMember> searchResponse = householdMemberRepository.findById(ids,
-                    idFieldName, includeDeleted);
+            SearchResponse<HouseholdMember> searchResponse = null;
+            try {
+                searchResponse = householdMemberRepository.findById(tenantId, ids,
+                        idFieldName, includeDeleted);
+            } catch (InvalidTenantIdException e) {
+                throw new CustomException(TENANT_ID_EXCEPTION, e.getMessage());
+            }
             List<HouseholdMember> householdMembers = searchResponse.getResponse().stream()
                                 .filter(lastChangedSince(lastChangedSince))
                                 .filter(havingTenantId(tenantId))

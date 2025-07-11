@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.ds.Tuple;
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.ErrorDetails;
 import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.household.Household;
@@ -14,13 +15,7 @@ import org.egov.common.utils.CommonUtils;
 import org.egov.common.validator.Validator;
 import org.egov.household.config.HouseholdConfiguration;
 import org.egov.household.repository.HouseholdRepository;
-import org.egov.household.validators.household.HExistentEntityValidator;
-import org.egov.household.validators.household.HBoundaryValidator;
-import org.egov.household.validators.household.HIsDeletedValidator;
-import org.egov.household.validators.household.HNonExistentEntityValidator;
-import org.egov.household.validators.household.HNullIdValidator;
-import org.egov.household.validators.household.HRowVersionValidator;
-import org.egov.household.validators.household.HUniqueEntityValidator;
+import org.egov.household.validators.household.*;
 import org.egov.common.models.household.HouseholdSearch;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,7 +23,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.ReflectionUtils;
 
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
@@ -43,8 +37,7 @@ import static org.egov.common.utils.CommonUtils.isSearchByIdOnly;
 import static org.egov.common.utils.CommonUtils.lastChangedSince;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
-import static org.egov.household.Constants.SET_HOUSEHOLDS;
-import static org.egov.household.Constants.VALIDATION_ERROR;
+import static org.egov.household.Constants.*;
 
 @Service
 @Slf4j
@@ -62,7 +55,9 @@ public class HouseholdService {
 
     private final Predicate<Validator<HouseholdBulkRequest, Household>> isApplicableForCreate = validator ->
             validator.getClass().equals(HBoundaryValidator.class)
-                || validator.getClass().equals(HExistentEntityValidator.class);
+                    || validator.getClass().equals(HExistentEntityValidator.class)
+                    || validator.getClass().equals(HCommunityValidator.class)
+                    || validator.getClass().equals(HCommunityTypeValidator.class);
 
     private final Predicate<Validator<HouseholdBulkRequest, Household>> isApplicableForUpdate = validator ->
             validator.getClass().equals(HNullIdValidator.class)
@@ -70,7 +65,10 @@ public class HouseholdService {
                     || validator.getClass().equals(HIsDeletedValidator.class)
                     || validator.getClass().equals(HUniqueEntityValidator.class)
                     || validator.getClass().equals(HNonExistentEntityValidator.class)
-                    || validator.getClass().equals(HRowVersionValidator.class);
+                    || validator.getClass().equals(HRowVersionValidator.class)
+                    || validator.getClass().equals(HCommunityValidator.class)
+                    || validator.getClass().equals(HCommunityTypeValidator.class)
+                    || validator.getClass().equals(HHouseholdTypeChangeValidator.class);
 
     private final Predicate<Validator<HouseholdBulkRequest, Household>> isApplicableForDelete = validator ->
             validator.getClass().equals(HNullIdValidator.class)
@@ -128,8 +126,14 @@ public class HouseholdService {
             List<String> ids = (List<String>) ReflectionUtils.invokeMethod(getIdMethod(Collections
                             .singletonList(householdSearch)),
                     householdSearch);
-            SearchResponse<Household> householdsTuple = householdRepository.findById(ids,
-                    idFieldName, includeDeleted);
+            SearchResponse<Household> householdsTuple = null;
+            try {
+                householdsTuple = householdRepository.findById( tenantId,ids,
+                        idFieldName, includeDeleted);
+            } catch (InvalidTenantIdException e) {
+                log.error("error occurred while searching households: {}", ExceptionUtils.getStackTrace(e));
+                throw new CustomException(TENANT_ID_EXCEPTION, e.getMessage());
+            }
             List<Household> households = householdsTuple.getResponse().stream()
                     .filter(lastChangedSince(lastChangedSince))
                     .filter(havingTenantId(tenantId))
@@ -150,6 +154,9 @@ public class HouseholdService {
         } catch (QueryBuilderException e) {
             log.error("error occurred while searching households: {}", ExceptionUtils.getStackTrace(e));
             throw new CustomException("ERROR_IN_QUERY", e.getMessage());
+        } catch (InvalidTenantIdException e ) {
+            log.error("error occurred while searching households: {}", ExceptionUtils.getStackTrace(e));
+            throw new CustomException(TENANT_ID_EXCEPTION, e.getMessage());
         }
     }
 
@@ -216,11 +223,11 @@ public class HouseholdService {
         return request.getHouseholds();
     }
 
-    public SearchResponse<Household> findById(List<String> houseHoldIds, String columnName, boolean includeDeleted){
+    public SearchResponse<Household> findById(String tenantId, List<String> houseHoldIds, String columnName, boolean includeDeleted) throws InvalidTenantIdException {
         log.info("finding Households by Ids: {} with columnName: {} and includeDeleted: {}",
                 houseHoldIds, columnName, includeDeleted);
         log.info("started finding Households by Ids");
-        SearchResponse<Household> searchResponse = householdRepository.findById(houseHoldIds, columnName, includeDeleted);
+        SearchResponse<Household> searchResponse = householdRepository.findById(tenantId, houseHoldIds, columnName, includeDeleted);
         log.info("finished finding Households by Ids. Found {} Households", searchResponse.getResponse().size());
         return searchResponse;
     }

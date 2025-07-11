@@ -1,19 +1,19 @@
 package org.egov.common.models.project;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import digit.models.coremodels.AuditDetails;
 import io.swagger.annotations.ApiModel;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.egov.common.contract.models.AuditDetails;
 import org.springframework.validation.annotation.Validated;
-
-import jakarta.validation.Valid;
-import jakarta.validation.constraints.Size;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
 * This is the master data to capture the metadata of Project
@@ -48,7 +48,7 @@ public class ProjectType   {
     private String group = null;
 
     @JsonProperty("beneficiaryType")
-    private String beneficiaryType = null;
+    private BeneficiaryType beneficiaryType = null;
 
     @JsonProperty("eligibilityCriteria")
     @Size(max=10)

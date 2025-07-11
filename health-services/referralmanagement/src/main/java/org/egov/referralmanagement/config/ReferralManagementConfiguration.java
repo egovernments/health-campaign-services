@@ -115,4 +115,34 @@ public class ReferralManagementConfiguration {
     @Value("${egov.mdms.search.endpoint}")
     private String mdmsSearchUrl;
 
+    @Value("${egov.service.request.downsync.enabled:false}")
+    private Boolean serviceRequestDownsyncEnabled;
+
+    @Value("${egov.service.request.search.batch.size:100}")
+    private Integer serviceRequestSearchBatchSize;
+
+    @Value("${egov.household.member.search.batch.size:200}")
+    private Integer householdMemberSearchBatchSize;
+
+    @Value("${egov.individual.search.batch.size:200}")
+    private Integer individualSearchBatchSize;
+
+    @Value("${egov.project.beneficiary.search.batch.size:200}")
+    private Integer projectBeneficiarySearchBatchSize;
+
+    @Value("${egov.project.task.search.batch.size:200}")
+    private Integer projectTaskSearchBatchSize;
+
+    @Value("${egov.side.effect.search.batch.size:200}")
+    private Integer sideEffectSearchBatchSize;
+
+    @Value("${egov.referral.search.batch.size:200}")
+    private Integer referralSearchBatchSize;
+
+    @Value("${egov.service.request.host}")
+    private String serviceRequestHost;
+
+    @Value("${egov.service.request.service.search.url}")
+    private String serviceRequestServiceSearchUrl;
+
 }
