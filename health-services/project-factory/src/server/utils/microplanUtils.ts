@@ -363,7 +363,7 @@ export async function createPlanFacilityForMicroplan(request: any, localizationM
     const planConfigurationName = planConfigSearchResponse?.PlanConfiguration?.[0]?.name;
     for (const element of allFacilityDatas) {
       const produceObject: any = getPlanFacilityObject(request, element, planConfigurationName, planConfigurationId, localizationMap);
-      await produceModifiedMessages(produceObject, config?.kafka?.KAFKA_SAVE_PLAN_FACILITY_TOPIC);
+      await produceModifiedMessages(produceObject, config?.kafka?.KAFKA_SAVE_PLAN_FACILITY_TOPIC, request?.body?.ResourceDetails?.tenantId);
     }
   }
 }

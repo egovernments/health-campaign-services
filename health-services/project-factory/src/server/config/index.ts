@@ -10,11 +10,6 @@ if (!HOST) {
   process.exit(1);
 }
 
-
-const getDBSchemaName = (dbSchema = "") => {
-  // return "health";
-  return dbSchema ? (dbSchema == "egov" ? "public" : dbSchema) : "public";
-}
 // Configuration object containing various environment variables
 const config = {
   batchSize: 100,
@@ -27,6 +22,7 @@ const config = {
   prefixForMicroplanCampaigns: "MP",
   excludeHierarchyTypeFromBoundaryCodes: (process.env.EXCLUDE_HIERARCHY_TYPE_FROM_BOUNDARY_CODES === "true") || false,
   excludeBoundaryNameAtLastFromBoundaryCodes: (process.env.EXCLUDE_BOUNDARY_NAME_AT_LAST_FROM_BOUNDARY_CODES === "true") || false,
+  isEnvironmentCentralInstance: process.env.IS_ENVIRONMENT_CENTRAL_INSTANCE === "true",
   masterNameForSchemaOfColumnHeaders: "adminSchema",
   masterNameForSplitBoundariesOn: "HierarchySchema",
   boundary: {
@@ -78,16 +74,16 @@ const config = {
 
   // Database configuration
   DB_CONFIG: {
+    DB_SCHEMA: process.env.DB_SCHEMA || "egov",
     DB_USER: process.env.DB_USER || "postgres",
     DB_HOST: process.env.DB_HOST?.split(':')[0] || "localhost",
     DB_NAME: process.env.DB_NAME || "postgres",
     DB_PASSWORD: process.env.DB_PASSWORD || "postgres",
     DB_PORT: process.env.DB_PORT || "5432",
-    DB_CAMPAIGN_DETAILS_TABLE_NAME: `${getDBSchemaName(process.env.DB_SCHEMA)}.eg_cm_campaign_details`,
-    DB_CAMPAIGN_PROCESS_TABLE_NAME: `${getDBSchemaName(process.env.DB_SCHEMA)}.eg_cm_campaign_process`,
-    DB_GENERATED_RESOURCE_DETAILS_TABLE_NAME: `${getDBSchemaName(process.env.DB_SCHEMA)}.eg_cm_generated_resource_details`,
-    DB_RESOURCE_DETAILS_TABLE_NAME: `${getDBSchemaName(process.env.DB_SCHEMA)}.eg_cm_resource_details`,
-    DB_CAMPAIGN_DATA_TABLE_NAME: `${getDBSchemaName(process.env.DB_SCHEMA)}.eg_cm_campaign_data`,
+    DB_CAMPAIGN_DETAILS_TABLE_NAME: "eg_cm_campaign_details",
+    DB_CAMPAIGN_PROCESS_TABLE_NAME: "eg_cm_campaign_process",
+    DB_GENERATED_RESOURCE_DETAILS_TABLE_NAME: "eg_cm_generated_resource_details",
+    DB_RESOURCE_DETAILS_TABLE_NAME: "eg_cm_resource_details"
   },
   // Application configuration
   app: {

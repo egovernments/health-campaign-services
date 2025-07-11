@@ -649,7 +649,7 @@ async function finalizeAndUpload(newWorkbook: any, mappingObject: any, resource:
   resourceDetails.processedFilestoreId = undefined;
 
   const persistMessage: any = { ResourceDetails: resourceDetails };
-  await produceModifiedMessages(persistMessage, config?.kafka?.KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC);
+  await produceModifiedMessages(persistMessage, config?.kafka?.KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC, mappingObject?.CampaignDetails?.tenantId);
 }
 
 
