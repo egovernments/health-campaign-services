@@ -35,6 +35,8 @@ const downloadDataService = async (request: express.Request) => {
     const responseData = await searchGeneratedResources(request?.query, getLocaleFromRequestInfo(request?.body?.RequestInfo));
     const resourceDetails = await getResourceDetails(request);
 
+
+
     // Check if response data is available
     if (
         !responseData ||
@@ -52,8 +54,13 @@ const downloadDataService = async (request: express.Request) => {
         const tenantId = String(request?.query?.tenantId);
         const hierarchyType = String(request?.query?.hierarchyType);
         const campaignId = String(request?.query?.campaignId);
-        triggerGenerate(type, tenantId, hierarchyType, campaignId, request?.body?.RequestInfo?.userInfo?.uuid || "null" ,locale);
-        // throwError("CAMPAIGN", 500, "GENERATION_REQUIRE");
+        if(type != 'boundaryManagement'){
+            triggerGenerate(type, tenantId, hierarchyType, campaignId, request?.body?.RequestInfo?.userInfo?.uuid || "null", locale);
+        }
+        else{
+            const newRequestToGenerate = buildGenerateRequest(request);
+            callGenerate(newRequestToGenerate, request?.query?.type);
+        }
     }
 
     else if (type === 'boundaryManagement' && responseData?.length > 0) {
