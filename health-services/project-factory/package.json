@@ -1,6 +1,6 @@
 {
   "name": "project-factory",
-  "version": "0.3.1",
+  "version": "0.3.0",
   "main": "src/server/index.ts",
   "author": "Jagankumar <jagan.kumar@egov.org.in>",
   "description": "Backend For Frontend service",
@@ -10,7 +10,7 @@
     "build": "yarn run build-ts",
     "build-ts": "tsc",
     "clean": "rm -rf ./dist",
-    "serve": "if [ \"$DEBUG\" = \"true\" ]; then node --inspect=0.0.0.0:9229 dist/index.js; else node dist/index.js; fi",
+    "serve": "if [ \"$DEBUG\" = \"true\" ]; then NODE_OPTIONS=--max-old-space-size=3072 node --inspect=0.0.0.0:9229 dist/index.js; else NODE_OPTIONS=--max-old-space-size=3072 node dist/index.js; fi",
     "start": "yarn run dev",
     "test": "jest",
     "dev": "ts-node-dev --respawn src/server/index.ts",
@@ -19,7 +19,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/egovernments/health-campaign-services.git"
+    "url": "git+https://github.com/egovernments/DIGIT-Frontend.git"
   },
   "dependencies": {
     "ajv-errors": "^3.0.0",
@@ -44,7 +44,8 @@
     "winston": "3.12.0",
     "xlsx": "0.18.5",
     "xlsx-populate": "1.21.0",
-    "yup": "1.4.0"
+    "yup": "1.4.0",
+    "zod": "^3.24.4"
   },
   "devDependencies": {
     "@types/compression": "1.7.5",
