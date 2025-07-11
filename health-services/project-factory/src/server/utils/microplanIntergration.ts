@@ -166,10 +166,6 @@ function consolidateUserRoles(
   return result;
 }
 
-//   // Example Usage
-//   const consolidatedData = consolidateUserRoles(userBoundaryMap, boundaryiwthchildrednMap);
-//   console.log(JSON.stringify(consolidatedData, null, 2));
-
 const getPlanCensusMapByBoundaryCode = (censusArray: any = []) => {
   return censusArray?.reduce((acc: any, curr: any) => {
     acc[curr?.boundaryCode] = curr;
@@ -184,7 +180,6 @@ export const fetchFacilityData = async (request: any, localizationMap: any) => {
     `doing the facility data fetch for planConfigurationId: ${planConfigurationId} and campaignId: ${campaignId} `
   );
   const facilityAdminSchema = await callMdmsTypeSchema(
-    request,
     tenantId,
     true,
     "facility"

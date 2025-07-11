@@ -3,11 +3,11 @@ import { v4 as uuidv4 } from 'uuid';
 import config from "./../config";
 import { throwError } from "./genericUtils";
 import { httpRequest } from "./request";
-import { callMdmsData, getSheetData } from "./../api/genericApis";
+import { getSheetData } from "./../api/genericApis";
 import { checkIfSourceIsMicroplan, getLocalizedName } from "./campaignUtils";
 import createAndSearch from "../config/createAndSearch";
 import { produceModifiedMessages } from "../kafka/Producer";
-import { searchMDMSDataViaV2Api } from "../api/coreApis";
+import { searchMDMSDataViaV1Api, searchMDMSDataViaV2Api } from "../api/coreApis";
 import { getCampaignSearchResponse } from "../api/campaignApis";
 
 
@@ -283,7 +283,7 @@ function findStatusColumn(sheet: any) {
   return statusCell;
 }
 
-export function changeCreateDataForMicroplan(request: any, element: any, rowData: any, localizationMap?: any) {
+export function changeCreateDataForMicroplan(request: any, element: any, rowData: any, latLongColumnsList: string[], localizationMap?: any) {
   const type = request?.body?.ResourceDetails?.type;
   const activeColumnName = createAndSearch?.[request?.body?.ResourceDetails?.type]?.activeColumnName ? getLocalizedName(createAndSearch?.[request?.body?.ResourceDetails?.type]?.activeColumnName, localizationMap) : null;
   if (type == 'facility') {
@@ -296,6 +296,14 @@ export function changeCreateDataForMicroplan(request: any, element: any, rowData
     else if (rowData[facilityCapacityColumn] >= 0) {
       element.storageCapacity = rowData[facilityCapacityColumn]
     }
+    const latitude = getLatitudeFromData(rowData, latLongColumnsList,localizationMap);
+    const longitude = getLongitudeFromData(rowData, latLongColumnsList, localizationMap);
+    if(latitude != null){
+      element.latitude = latitude;
+    }
+    if(longitude != null){
+      element.longitude = longitude;
+    }
     if (activeColumnName && rowData[activeColumnName] == usageColumnStatus.active) {
       if (Array(request?.body?.facilityDataForMicroplan) && request?.body?.facilityDataForMicroplan?.length > 0) {
         request.body.facilityDataForMicroplan.push({ ...rowData, facilityDetails: element })
@@ -306,6 +314,41 @@ export function changeCreateDataForMicroplan(request: any, element: any, rowData
     }
   }
 }
+
+function getLatitudeFromData(rowData: any, latLongColumnsList: string[], localizationMap?: any){
+  let unlocalisedLatitudeColumn = null;
+  for(const element of latLongColumnsList){
+    if(element.includes("LAT") && element.includes("OPT")){
+      unlocalisedLatitudeColumn = element;
+      break;
+    }
+  }
+  if(unlocalisedLatitudeColumn){
+    const latitudeColumn = getLocalizedName(unlocalisedLatitudeColumn, localizationMap);
+    if(rowData[latitudeColumn] == 0 || rowData[latitudeColumn]){
+      return rowData[latitudeColumn];
+    }
+  }
+  return null;
+}
+
+function getLongitudeFromData(rowData: any, latLongColumnsList: string[], localizationMap?: any) {
+  let unlocalizedLongitudeColumn = null;
+  for (const element of latLongColumnsList) {
+    if (element.includes("LONG") && element.includes("OPT")) {
+      unlocalizedLongitudeColumn = element;
+      break;
+    }
+  }
+  if (unlocalizedLongitudeColumn) {
+    const longitudeColumn = getLocalizedName(unlocalizedLongitudeColumn, localizationMap);
+    if (rowData[longitudeColumn] == 0 || rowData[longitudeColumn]) {
+      return rowData[longitudeColumn];
+    }
+  }
+  return null;
+}
+
 
 
 export async function createPlanFacilityForMicroplan(request: any, localizationMap?: any) {
@@ -351,6 +394,8 @@ function getPlanFacilityObject(request: any, element: any, planConfigurationName
         facilityStatus: facilityStatus,
         assignedVillages: [],
         servingPopulation: 0,
+        latitude: element?.facilityDetails?.latitude ?? null,
+        longitude: element?.facilityDetails?.longitude ?? null,
         hierarchyType: hierarchyType
       },
       active: true,
@@ -433,7 +478,19 @@ export async function isMicroplanRequest(request: any): Promise<boolean> {
 }
 
 export async function getReadMeConfigForMicroplan(request: any) {
-  const mdmsResponse = await callMdmsData(request, "HCM-ADMIN-CONSOLE", "ReadMeConfig", request?.query?.tenantId);
+  const MdmsCriteria = {
+    MdmsCriteria: { // ✅ Now it matches `MDMSv1RequestCriteria`
+      tenantId: request?.query?.tenantId,
+      moduleDetails: [
+        {
+          moduleName: "HCM-ADMIN-CONSOLE",
+          masterDetails: [{ name: "ReadMeConfig" }],
+        },
+      ],
+    },
+  };
+  // const mdmsResponse = await callMdmsData(request, "HCM-ADMIN-CONSOLE", "ReadMeConfig", request?.query?.tenantId);
+  const mdmsResponse = await searchMDMSDataViaV1Api(MdmsCriteria);
   if (mdmsResponse?.MdmsRes?.["HCM-ADMIN-CONSOLE"]?.ReadMeConfig) {
     const readMeConfigsArray = mdmsResponse?.MdmsRes?.["HCM-ADMIN-CONSOLE"]?.ReadMeConfig
     for (const readMeConfig of readMeConfigsArray) {

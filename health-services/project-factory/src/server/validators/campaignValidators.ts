@@ -29,6 +29,11 @@ import { getPvarIds } from "../utils/campaignMappingUtils";
 import { fetchProductVariants } from "../api/healthApis";
 import { validateFileMetaDataViaFileUrl } from "../utils/excelUtils";
 import { getLocaleFromRequest } from "../utils/localisationUtils";
+import { ResourceDetails } from "../config/models/resourceDetailsSchema";
+import { fetchFileFromFilestore, searchBoundaryRelationshipDefinition } from "../api/coreApis";
+import { processTemplateConfigs } from "../config/processTemplateConfigs";
+import { GenerateTemplateQuery } from "../models/GenerateTemplateQuery";
+import { generationtTemplateConfigs } from "../config/generationtTemplateConfigs";
 
 
 
@@ -210,7 +215,7 @@ function validatePhoneNumber(datas: any[], localizationMap: any) {
         if (data[phoneColumn]) {
             var phoneNumber = data[phoneColumn];
             phoneNumber = phoneNumber.toString().replace(/^0+/, '');
-            if (phoneNumber.length != 10) {
+            if (phoneNumber.length != config?.user?.phoneNumberLength) {
                 digitErrorRows.push(data["!row#number!"]);
             }
         }
@@ -222,7 +227,7 @@ function validatePhoneNumber(datas: any[], localizationMap: any) {
     var errorMessage = "";
     if (digitErrorRows.length > 0) {
         isError = true;
-        errorMessage = "PhoneNumber should be of 10 digit on rows " + digitErrorRows.join(" , ");
+        errorMessage = `PhoneNumber should be of ${config?.user?.phoneNumberLength} digits on rows ${digitErrorRows.join(" , ")}`;
     }
     if (missingNumberRows.length > 0) {
         isError = true;
@@ -321,6 +326,63 @@ export async function validateViaSchema(data: any, schema: any, request: any, lo
     } else {
         logger.info("Skipping schema validation");
     }
+}
+
+export function validateMultiSelect(
+    data: any[],
+    schemaProperties: Record<string, any>,
+    localizationMap: any
+) {
+    if (!data?.length || !schemaProperties || !Object.keys(schemaProperties).length) return [];
+
+    const userSheet = getLocalizedName(createAndSearch?.user?.parseArrayConfig?.sheetName, localizationMap);
+    const errors: any[] = [];
+
+    data.forEach((item) => {
+        Object.entries(schemaProperties).forEach(([propertyKey, property]) => {
+            const minSelections = property?.multiSelectDetails?.minSelections || 0;
+            const maxSelections = property?.multiSelectDetails?.maxSelections || 0;
+            if (!minSelections || !maxSelections) return;
+
+            const mainPreFix = property?.name;
+            const valuesSet = new Set();
+            const duplicatesSet : any = new Set();
+
+            for (let i = 1; i <= maxSelections; i++) {
+                const key = getLocalizedName(`${mainPreFix}_MULTISELECT_${i}`, localizationMap);
+                const value = item[key];
+                if (value) {
+                    if (!valuesSet.has(value)) {
+                        valuesSet.add(value);
+                    } else {
+                        duplicatesSet.add(value);
+                    }
+                }
+            }
+
+            // Collect all errors at once
+            const errorDetails = [];
+            if (duplicatesSet.size > 0) {
+                errorDetails.push(`Duplicate roles`);   
+            }
+            const mainKey = getLocalizedName(property?.name, localizationMap);
+            const mainKeyValueArrayLength = item?.[mainKey]?.split(",")?.length || 0;
+            if (valuesSet.size < minSelections && mainKeyValueArrayLength < minSelections) {
+                errorDetails.push(`At least ${minSelections} ${getLocalizedName(property?.name, localizationMap)} should be selected.`);
+            }
+
+            if (errorDetails.length > 0) {
+                errors.push({
+                    status: "INVALID",
+                    rowNumber: item?.["!row#number!"],
+                    sheetName: userSheet,
+                    errorDetails: errorDetails.join(" "),
+                });
+            }
+        });
+    });
+
+    return errors;
 }
 
 function validateDataSheetWise(data: any, validate: any, validationErrors: any[], uniqueIdentifierColumnName: any, activeColumnName: any) {
@@ -447,7 +509,7 @@ async function validateTargetSheetData(data: any, request: any, boundaryValidati
 async function validateHeadersOfTargetSheet(request: any, differentTabsBasedOnLevel: any, localizationMap?: any) {
     const fileUrl = await validateFile(request);
     const targetWorkbook: any = await getTargetWorkbook(fileUrl);
-    const hierarchy = await getHierarchy(request, request?.body?.ResourceDetails?.tenantId, request?.body?.ResourceDetails?.hierarchyType);
+    const hierarchy = await getHierarchy(request?.body?.ResourceDetails?.tenantId, request?.body?.ResourceDetails?.hierarchyType);
     const finalValidHeadersForTargetSheetAsPerCampaignType = await getFinalValidHeadersForTargetSheetAsPerCampaignType(request, hierarchy, differentTabsBasedOnLevel, localizationMap);
     logger.info("finalValidHeadersForTargetSheetAsPerCampaignType :" + JSON.stringify(finalValidHeadersForTargetSheetAsPerCampaignType));
     logger.info("validating headers of target sheet started")
@@ -571,7 +633,7 @@ function validateHeadersOfTabsWithTargetInTargetSheet(targetWorkbook: any, expec
 async function validateBoundarySheetData(request: any, fileUrl: any, localizationMap?: any) {
     const localizedBoundaryTab = getLocalizedName(getBoundaryTabName(), localizationMap);
     const headersOfBoundarySheet = await getHeadersOfBoundarySheet(fileUrl, localizedBoundaryTab, false, localizationMap);
-    const hierarchy = await getHierarchy(request, request?.body?.ResourceDetails?.tenantId, request?.body?.ResourceDetails?.hierarchyType);
+    const hierarchy = await getHierarchy(request?.body?.ResourceDetails?.tenantId, request?.body?.ResourceDetails?.hierarchyType);
     const modifiedHierarchy = hierarchy.map(ele => `${request?.body?.ResourceDetails?.hierarchyType}_${ele}`.toUpperCase())
     const localizedHierarchy = getLocalizedHeaders(modifiedHierarchy, localizationMap);
     await validateHeaders(localizedHierarchy, headersOfBoundarySheet, request, localizationMap)
@@ -579,7 +641,7 @@ async function validateBoundarySheetData(request: any, fileUrl: any, localizatio
     //validate for whether root boundary level column should not be empty
     validateForRootElementExists(boundaryData, localizedHierarchy, localizedBoundaryTab);
     // validate for duplicate rows(array of objects)
-    validateForDupicateRows(boundaryData);
+    validateForDuplicateRows(boundaryData);
 }
 
 function validateForRootElementExists(boundaryData: any[], hierachy: any[], sheetName: string) {
@@ -588,27 +650,41 @@ function validateForRootElementExists(boundaryData: any[], hierachy: any[], shee
         throwError("COMMON", 400, "VALIDATION_ERROR", `Invalid Boundary Sheet. Root level Boundary not present in every row  of Sheet ${sheetName}`)
     }
 }
-function validateForDupicateRows(boundaryData: any[]) {
+function validateForDuplicateRows(boundaryData: any[]) {
+    // Step 1: Trim strings in all rows
     boundaryData = boundaryData.map(row =>
         Object.fromEntries(
-          Object.entries(row).map(([key, value]) =>
-            [key, typeof value === "string" ? value.trim() : value]
-          )
+            Object.entries(row).map(([key, value]) =>
+                [key, typeof value === "string" ? value.trim() : value]
+            )
         )
-      );
-    const uniqueRows = _.uniqWith(boundaryData, (obj1: any, obj2: any) => {
-        // Exclude '!row#number!' property when comparing objects
-        const filteredObj1 = _.omit(obj1, ['!row#number!']);
-        const filteredObj2 = _.omit(obj2, ['!row#number!']);
-        return _.isEqual(filteredObj1, filteredObj2);
-    });
-    const duplicateBoundaryRows = boundaryData.filter(e => !uniqueRows.includes(e));
-    const duplicateRowNumbers = duplicateBoundaryRows.map(obj => obj['!row#number!']);
-    const rowNumbersSeparatedWithCommas = duplicateRowNumbers.join(', ');
+    );
+    const seen = new Set<string>();
+    const duplicateRowNumbers: string[] = [];
+    for (const row of boundaryData) {
+        const rowNumber = row["!row#number!"];
+        const rowCopy = { ...row };
+        delete rowCopy["!row#number!"];
+        // Serialize row as a string (key), which is much faster than deep object comparison
+        const rowKey = JSON.stringify(rowCopy);
+        if (seen.has(rowKey)) {
+            duplicateRowNumbers.push(rowNumber);
+        } else {
+            seen.add(rowKey);
+        }
+    }
     if (duplicateRowNumbers.length > 0) {
+        const rowNumbersSeparatedWithCommas = duplicateRowNumbers.join(', ');
         throwError("COMMON", 400, "VALIDATION_ERROR", `Boundary Sheet has duplicate rows at rowNumber ${rowNumbersSeparatedWithCommas}`);
     }
 }
+
+
+
+
+
+
+
 
 async function validateFile(request: any) {
     const fileResponse = await httpRequest(config.host.filestore + config.paths.filestore + "/url", {}, { tenantId: request?.body?.ResourceDetails?.tenantId, fileStoreIds: request?.body?.ResourceDetails?.fileStoreId }, "get");
@@ -731,7 +807,7 @@ async function validateBoundariesForTabs(CampaignDetails: any, resource: any, re
         activeColumnName = getLocalizedName(createAndSearch?.[resource.type]?.activeColumnName, localizationMap);
     }
     datas.forEach((data: any) => {
-        const codes = data?.[boundaryColumn]?.split(',').map((code: string) => code.trim()) || [];
+        const codes = String(data?.[boundaryColumn])?.split(',').map((code: string) => code.trim()) || [];
         var active = activeColumnName ? data?.[activeColumnName] : usageColumnStatus.active;
         if (active == usageColumnStatus.active) {
             resourceBoundaryCodesArray.push({ boundaryCodes: codes, rowNumber: data?.['!row#number!'] })
@@ -1152,13 +1228,13 @@ async function validateForRetry(request: any) {
             }
             await produceModifiedMessages(producerMessage, config?.kafka?.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC);
 
-            if (!request.body.CampaignDetails.additionalDetails.retryCycle) {
+            if (!request.body.CampaignDetails?.additionalDetails?.retryCycle) {
                 // If not present, initialize it as an empty array
                 request.body.CampaignDetails.additionalDetails.retryCycle = [];
             }
 
             // Step 2: Push new data to the `retryCycle` array
-            request.body.CampaignDetails.additionalDetails.retryCycle.push({
+            request.body.CampaignDetails?.additionalDetails?.retryCycle.push({
                 error: request.body.CampaignDetails.additionalDetails.error,
                 retriedAt: Date.now(),
                 failedAt: request.body.CampaignDetails.auditDetails.lastModifiedTime
@@ -1262,7 +1338,7 @@ async function validateFilters(request: any, boundaryData: any[]) {
     const boundaryMap = new Map<string, string>();
     // map boundary code and type 
     createBoundaryMap(boundaryData, boundaryMap);
-    const hierarchy = await getHierarchy(request, request?.query?.tenantId, request?.query?.hierarchyType);
+    const hierarchy = await getHierarchy(request?.query?.tenantId, request?.query?.hierarchyType);
     // validation of filters object
     validateBoundariesOfFilters(boundaries, boundaryMap, hierarchy);
 
@@ -1383,7 +1459,7 @@ function validateAllDistrictTabsPresentOrNot(request: any, dataFromSheet: any, d
         for (let index = tabsIndex; index < tabsFromTargetSheet.length; index++) {
             const tab = tabsFromTargetSheet[index]; // Get the current tab
             if (!tabsOfDistrict.includes(tab)) {
-                throwError("COMMON", 400, "VALIDATION_ERROR", `${differentTabsBasedOnLevel} tab ${tab} not present in the Target Sheet Uploaded`);
+                throwError("COMMON", 400, "VALIDATION_ERROR", `${differentTabsBasedOnLevel} ${tab} not present in selected boundaries.`);
             }
         }
         const MissingDistricts: any = [];
@@ -1512,8 +1588,77 @@ export function validateEmptyActive(data: any, type: string, localizationMap?: {
         isActiveRowsZero = false;
     }
     if(isActiveRowsZero){
-        throwError("COMMON", 400, "VALIDATION_ERROR", "At least one active row is required");
+        throwError("COMMON", 400, "VALIDATION_ERROR_ACTIVE_ROW");
     }
+}
+
+export async function validateResourceDetails(ResourceDetails : ResourceDetails) {
+    logger.info("validating resource details");
+    const type = ResourceDetails?.type;
+    const hierarchyType = ResourceDetails?.hierarchyType;
+    const campaignId = ResourceDetails?.campaignId;
+    const tenantId = ResourceDetails?.tenantId;
+    const fileStoreId = ResourceDetails?.fileStoreId;
+    validateTypeForProcess(type);
+    await validateHierarchyDefination(hierarchyType,tenantId);
+    await validateCampaignViaId(campaignId,tenantId);
+    try {
+        const fileResponse = await fetchFileFromFilestore(fileStoreId, tenantId);
+        if(!fileResponse){
+            throwError("CAMPAIGN", 400, "VALIDATION_ERROR", `file not found, check fileStoreId`);
+        }
+    } catch (error) {
+        throwError("CAMPAIGN", 400, "VALIDATION_ERROR", `file not found, check fileStoreId`);
+    }
+    logger.info("resource details validated");
+};
+
+async function validateHierarchyDefination(hierarchyType : string,tenantId : string) {
+    const response = await searchBoundaryRelationshipDefinition({
+        BoundaryTypeHierarchySearchCriteria: {
+            tenantId: tenantId,
+            hierarchyType: hierarchyType
+        }
+    });
+
+    if (response?.BoundaryHierarchy?.[0]?.boundaryHierarchy?.length > 0) {
+        logger.info(`hierarchyType : ${hierarchyType} :: got validated`);
+    }
+    else {
+        throwError(`CAMPAIGN`, 400, "VALIDATION_ERROR", `hierarchyType ${hierarchyType} not found or invalid`);
+    }
+}
+
+async function validateCampaignViaId(campaignId : string,tenantId : string) {
+    const response = await searchProjectTypeCampaignService({
+        tenantId: tenantId,
+        ids: [campaignId]
+    });
+    if (response?.CampaignDetails?.length > 0) {
+        logger.info(`campaignId got validated`);
+    }
+    else {
+        throwError(`CAMPAIGN`, 400, "VALIDATION_ERROR", `campaignId not found or invalid`);
+    }
+}
+
+function validateTypeForProcess(type : string){
+    const config = JSON.parse(JSON.stringify(processTemplateConfigs));
+    const types = Object.keys(config);
+    if(!types.includes(type)){
+        throwError("CAMPAIGN", 400, "VALIDATION_ERROR", `type ${type} not found or invalid`);
+    }
+}
+
+export async function validateGenerateQuery(generateTemplateQuery : GenerateTemplateQuery){
+    const config = JSON.parse(JSON.stringify(generationtTemplateConfigs));
+    const types = Object.keys(config);
+    if(!types.includes(generateTemplateQuery.type)){
+        throwError("CAMPAIGN", 400, "VALIDATION_ERROR", `type ${generateTemplateQuery.type} not found or invalid`);
+    }
+    const tenantId = generateTemplateQuery.tenantId;
+    await validateHierarchyDefination(generateTemplateQuery.hierarchyType, tenantId);
+    await validateCampaignViaId(generateTemplateQuery.campaignId, tenantId);
 }
 
 
