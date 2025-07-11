@@ -1,4 +1,4 @@
-name: Auto Build project-factory on allValidations
+name: Auto Multi-arch Build for project-factory
 
 on:
   push:
