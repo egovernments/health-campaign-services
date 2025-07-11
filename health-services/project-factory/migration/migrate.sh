@@ -5,7 +5,9 @@ baseurl="$DB_URL"
 echo "Base URL: $baseurl"
 
 # Append schema param to URL
-schemasetter="?currentSchema="
+# CHANGE: use '&currentSchema=' instead of '?currentSchema='
+# because baseurl already ends with ?currentSchema=health
+schemasetter="&currentSchema="
 
 # Get schema list
 schemas="$SCHEMA_NAME"
