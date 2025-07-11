@@ -37,7 +37,7 @@ export class TemplateClass {
 
         await this.createUserFromTableData(resourceDetails, localizationMap);
 
-        const allCurrentUsers = await getRelatedDataWithCampaign(resourceDetails?.type, campaign.campaignNumber, dataRowStatuses.completed);
+        const allCurrentUsers = await getRelatedDataWithCampaign(resourceDetails?.type, campaign.campaignNumber, resourceDetails?.tenantId, dataRowStatuses.completed);
         const allData = allCurrentUsers?.map((u: any) => {
             const data : any = {};
             for(const key of Object.keys(u?.data)) {
@@ -82,7 +82,7 @@ export class TemplateClass {
     ): Promise<any[]> {
         const userMap : any = Object.fromEntries(sheetData.map((row: any) => [row?.[mobileKey], row]).filter(([m]) => m));
 
-        const existing = await getRelatedDataWithCampaign(resourceDetails?.type, campaignNumber);
+        const existing = await getRelatedDataWithCampaign(resourceDetails?.type, campaignNumber, resourceDetails?.tenantId);
         const existingMap : any = {};
         for(const user of existing){
             existingMap[user?.data?.[reverseMap.get(mobileKey) || mobileKey]] = user;
@@ -126,7 +126,7 @@ export class TemplateClass {
         const campaignNumber = campaign?.campaignNumber;
         const userUuid = campaign?.auditDetails?.createdBy;
 
-        const allCurrentUsers = await getRelatedDataWithCampaign("user", campaignNumber);
+        const allCurrentUsers = await getRelatedDataWithCampaign("user", campaignNumber, resourceDetails?.tenantId);
         const usersToCreate = allCurrentUsers?.filter(
             (user: any) => user?.status === dataRowStatuses.pending || user?.status === dataRowStatuses.failed
         );

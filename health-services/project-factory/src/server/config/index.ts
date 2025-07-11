@@ -83,7 +83,8 @@ const config = {
     DB_CAMPAIGN_DETAILS_TABLE_NAME: "eg_cm_campaign_details",
     DB_CAMPAIGN_PROCESS_TABLE_NAME: "eg_cm_campaign_process",
     DB_GENERATED_RESOURCE_DETAILS_TABLE_NAME: "eg_cm_generated_resource_details",
-    DB_RESOURCE_DETAILS_TABLE_NAME: "eg_cm_resource_details"
+    DB_RESOURCE_DETAILS_TABLE_NAME: "eg_cm_resource_details",
+    DB_CAMPAIGN_DATA_TABLE_NAME: "eg_cm_campaign_data",
   },
   // Application configuration
   app: {
