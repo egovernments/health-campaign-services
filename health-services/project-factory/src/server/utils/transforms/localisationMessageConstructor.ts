@@ -15,7 +15,9 @@ import config from "../../config";
 
 export const transformAndCreateLocalisation = async (
   boundaryMap: any,
-  request: any
+  request: any,
+  isFrench:boolean,
+  isPortugese : boolean
 ) => {
   const CHUNK_SIZE = config.localisation.localizationChunkSizeForBoundaryCreation
 
@@ -26,7 +28,14 @@ export const transformAndCreateLocalisation = async (
     const module = getLocalisationModuleName(hierarchyType);
 
     // Get locale from request object
-    const locale = getLocaleFromRequest(request);
+    let locale = getLocaleFromRequest(request);
+    const [_, suffix] = locale.split("_");
+    
+    if (isFrench) {
+      locale = `fr_${suffix}`;
+    } else if (isPortugese) {
+      locale = `pt_${suffix}`;
+    }
 
     // Array to store localisation messages
     const localisationMessages: any[] = [];
@@ -86,7 +95,7 @@ const uploadInChunks = async (messages: any, chunkSize: any, tenantId: any, requ
         const localisation = Localisation.getInstance();
 
         // Upload the current chunk
-        await localisation.createLocalisation(chunk, tenantId, request);
+        await localisation.createLocalisation(chunk, tenantId);
 
         // wait for 3 second
         const waitTime = config.localisation.localizationWaitTimeInBoundaryCreation

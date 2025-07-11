@@ -91,7 +91,7 @@ const sendWithReconnect = (payloads: any[]): Promise<void> => {
 };
 
 
-async function produceModifiedMessages(modifiedMessages: any[], topic: any) {
+async function produceModifiedMessages(modifiedMessages: any, topic: any) {
     try {
         logger.info(`KAFKA :: PRODUCER :: A message sent to topic ${topic}`);
         logger.debug(`KAFKA :: PRODUCER :: Message ${JSON.stringify(modifiedMessages)}`);

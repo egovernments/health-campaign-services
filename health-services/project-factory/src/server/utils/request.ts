@@ -2,7 +2,7 @@ import { Response } from "express"; // Importing necessary module Response from 
 import { getFormattedStringForDebug, logger } from "./logger"; // Importing logger from logger module
 import { throwErrorViaRequest } from "./genericUtils"; // Importing necessary functions from genericUtils module
 import config from "../config";
-import { redis, checkRedisConnection } from "./redisUtils"; // Importing checkRedisConnection function
+import { redis, checkRedisConnection, reconnectRedis } from "./redisUtils"; // Importing checkRedisConnection function
 
 var Axios = require("axios").default; // Importing axios library
 var get = require("lodash/get"); // Importing get function from lodash library
@@ -76,7 +76,11 @@ const httpRequest = async (
 
   while (attempt < maxAttempts) {
     try {
-      const isRedisConnected = await checkRedisConnection();
+      let isRedisConnected = await checkRedisConnection();
+      if (!isRedisConnected) {
+        await reconnectRedis(); // Re-establish connection if not connected
+        isRedisConnected = await checkRedisConnection();
+      }
       if (cacheKey && cacheEnabled && isRedisConnected) {
         const cachedData = await redis.get(cacheKey); // Get cached data
         if (cachedData) {
