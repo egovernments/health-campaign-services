@@ -1542,7 +1542,8 @@ async function handleResouceDetailsError(request: any, error: any) {
     }
     await produceModifiedMessages(
       persistMessage,
-      config?.kafka?.KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC
+      config?.kafka?.KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC,
+      request?.body?.ResourceDetails?.tenantId
     );
   }
   if (
@@ -1559,9 +1560,10 @@ async function handleResouceDetailsError(request: any, error: any) {
       const chunk = activities.slice(i, Math.min(i + 10, activities.length));
       const activityObject: any = { Activities: chunk };
       chunkPromises.push(
-        produceModifiedMessages(
+        await produceModifiedMessages(
           activityObject,
-          config?.kafka?.KAFKA_CREATE_RESOURCE_ACTIVITY_TOPIC
+          config?.kafka?.KAFKA_CREATE_RESOURCE_ACTIVITY_TOPIC,
+          activities?.tenantId || config.app.defaultTenantId
         )
       );
     }

@@ -1264,7 +1264,7 @@ async function validateForRetry(request: any) {
             const producerMessage: any = {
                 CampaignDetails: request?.body?.CampaignDetails
             }
-            await produceModifiedMessages(producerMessage, config?.kafka?.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC);
+            await produceModifiedMessages(producerMessage, config?.kafka?.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC, request?.body?.CampaignDetails?.tenantId);
 
             if (!request.body.CampaignDetails?.additionalDetails?.retryCycle) {
                 // If not present, initialize it as an empty array

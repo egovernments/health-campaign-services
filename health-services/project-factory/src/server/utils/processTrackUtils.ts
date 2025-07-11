@@ -1,7 +1,7 @@
 import config from './../config';
 import { produceModifiedMessages } from "../kafka/Producer";;
 import { v4 as uuidv4 } from 'uuid';
-import { executeQuery } from './db';
+import { executeQuery, getTableName } from './db';
 import { processTrackForUi, processTrackStatuses, processTrackTypes } from '../config/constants';
 import { logger } from './logger';
 
@@ -10,17 +10,17 @@ async function getProcessDetails(id: string, type?: string): Promise<any[]> {
     const values: any[] = [id];
 
     logger.info(`Fetching process details for campaignId: ${id}${type ? `, type: ${type}` : ''}`);
-
+    const tableName = getTableName(config?.DB_CONFIG.DB_CAMPAIGN_PROCESS_TABLE_NAME, config.app.defaultTenantId);
     if (type) {
         query = `
-            SELECT * FROM ${config?.DB_CONFIG.DB_CAMPAIGN_PROCESS_TABLE_NAME}
+            SELECT * FROM ${tableName}
             WHERE campaignid = $1 AND type = $2
             ORDER BY lastmodifiedtime ASC;
         `;
         values.push(type);
     } else {
         query = `
-            SELECT * FROM ${config?.DB_CONFIG.DB_CAMPAIGN_PROCESS_TABLE_NAME}
+            SELECT * FROM ${tableName}
             WHERE campaignid = $1
             ORDER BY lastmodifiedtime ASC;
         `;

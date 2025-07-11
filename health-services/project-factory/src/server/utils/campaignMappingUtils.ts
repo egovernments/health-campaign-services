@@ -694,7 +694,7 @@ export async function processMapping(mappingObject: any) {
         const produceMessage: any = {
             CampaignDetails: mappingObject?.CampaignDetails
         }
-        await produceModifiedMessages(produceMessage, config?.kafka?.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC)
+        await produceModifiedMessages(produceMessage, config?.kafka?.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC, mappingObject?.CampaignDetails?.tenantId)
         await persistTrack(mappingObject?.CampaignDetails?.id, processTrackTypes.campaignCreation, processTrackStatuses.completed);
 
             logger.info("Step 1: Starting user credential email process for campaign ID: " + mappingObject?.CampaignDetails?.id);

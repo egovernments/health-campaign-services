@@ -46,7 +46,7 @@ import {
   searchAllGeneratedResources,
   throwError,
 } from "./genericUtils";
-import { executeQuery } from "./db";
+import { executeQuery, getTableName } from "./db";
 import {
   campaignDetailsTransformer,
   genericResourceTransformer,
@@ -936,7 +936,8 @@ async function generateProcessedFileAndPersist(
   }
   await produceModifiedMessages(
     persistMessage,
-    config?.kafka?.KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC
+    config?.kafka?.KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC,
+    request?.body?.ResourceDetails?.tenantId
   );
   logger.info(
     `ResourceDetails to persist : ${request.body.ResourceDetails.type}`
@@ -956,7 +957,8 @@ async function generateProcessedFileAndPersist(
       const activityObject: any = { Activities: chunk };
       await produceModifiedMessages(
         activityObject,
-        config.kafka.KAFKA_CREATE_RESOURCE_ACTIVITY_TOPIC
+        config.kafka.KAFKA_CREATE_RESOURCE_ACTIVITY_TOPIC,
+        activityObject?.Activities?.[0]?.tenantId
       );
     }
   }
@@ -1023,7 +1025,7 @@ async function enrichAndPersistCampaignWithError(requestBody: any, error: any) {
   logger.info(`Waiting for 2 seconds to persist errors`);
   await new Promise((resolve) => setTimeout(resolve, 2000));
   const produceMessage: any = { CampaignDetails: requestBody.CampaignDetails };
-  await produceModifiedMessages(produceMessage, topic);
+  await produceModifiedMessages(produceMessage, topic, requestBody?.CampaignDetails?.tenantId);
   await persistTrack(
     requestBody?.CampaignDetails?.id,
     processTrackTypes.error,
@@ -1152,7 +1154,7 @@ async function enrichAndPersistCampaignForCreate(
   const produceMessage: any = {
     CampaignDetails: request?.body?.CampaignDetails,
   };
-  await produceModifiedMessages(produceMessage, topic);
+  await produceModifiedMessages(produceMessage, topic, request?.body?.CampaignDetails?.tenantId);
   delete request.body.CampaignDetails.campaignDetails;
 }
 
@@ -1271,7 +1273,8 @@ async function enrichAndPersistCampaignForUpdate(
   };
   await produceModifiedMessages(
     producerMessage,
-    config?.kafka?.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC
+    config?.kafka?.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC,
+    request?.body?.CampaignDetails?.tenantId
   );
   // delete request.body.ExistingCampaignDetails;
   delete request.body.CampaignDetails.campaignDetails;
@@ -1294,7 +1297,8 @@ async function makeParentInactiveOrActive(requestBody: any, active: boolean) {
   };
   await produceModifiedMessages(
     produceMessage,
-    config?.kafka?.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC
+    config?.kafka?.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC,
+    parentCampaign?.tenantId
   );
 }
 
@@ -1358,7 +1362,8 @@ async function persistForCampaignProjectMapping(
     );
     await produceModifiedMessages(
       requestBody,
-      config?.kafka?.KAFKA_START_CAMPAIGN_MAPPING_TOPIC
+      config?.kafka?.KAFKA_START_CAMPAIGN_MAPPING_TOPIC,
+      request?.body?.CampaignDetails?.tenantId
     );
   }
 }
@@ -1605,10 +1610,10 @@ async function getTotalCount(campaignDetails: any) {
       }
     }
   }
-
+  const tableName = getTableName(config?.DB_CONFIG.DB_CAMPAIGN_DETAILS_TABLE_NAME, tenantId);
   let query = `
         SELECT count(*)
-        FROM ${config?.DB_CONFIG.DB_CAMPAIGN_DETAILS_TABLE_NAME}
+        FROM ${tableName}
         WHERE tenantId = $1
     `;
 
@@ -1702,10 +1707,11 @@ function buildSearchQuery(
       }
     }
   }
-
+  const tableName = getTableName(config?.DB_CONFIG.DB_CAMPAIGN_DETAILS_TABLE_NAME, tenantId);
+  // Build the base
   let query = `
         SELECT *
-        FROM ${config?.DB_CONFIG.DB_CAMPAIGN_DETAILS_TABLE_NAME}
+        FROM ${tableName}
         WHERE tenantId = $1
     `;
 
@@ -1811,10 +1817,11 @@ function buildWhereClauseForDataSearch(SearchCriteria: any): {
     conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
   // Return the query and values array
+  const tableName = getTableName(config?.DB_CONFIG.DB_RESOURCE_DETAILS_TABLE_NAME, tenantId);
   return {
     query: `
             SELECT *
-            FROM ${config?.DB_CONFIG.DB_RESOURCE_DETAILS_TABLE_NAME}
+            FROM ${tableName}
             ${whereClause};`,
     values,
   };
@@ -3735,7 +3742,8 @@ async function updateAndPersistResourceDetails(
   const persistMessage: any = { ResourceDetails: request.body.ResourceDetails };
   await produceModifiedMessages(
     persistMessage,
-    config?.kafka?.KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC
+    config?.kafka?.KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC,
+    request?.body?.ResourceDetails?.tenantId
   );
   logger.info(
     `ResourceDetails to persist : ${request.body.ResourceDetails.type}`
