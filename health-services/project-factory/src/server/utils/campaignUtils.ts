@@ -2923,9 +2923,9 @@ async function getLocalesFromStateInfo(tenantId: string): Promise<string[]> {
     throw new Error("StateInfo data not found in MDMS");
   }
 
-  return response.mdms
-    .map((item: any) => item?.data?.defaultLanguage)
-    .filter(Boolean);
+  const languageValues =
+    response.mdms?.[0]?.data?.languages?.map((lang: any) => lang.value) || [];
+  return languageValues;
 }
 
 async function getTemplateModules(
