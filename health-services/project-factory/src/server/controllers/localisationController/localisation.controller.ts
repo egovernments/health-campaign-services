@@ -177,19 +177,6 @@ class Localisation {
 
     return this.cachedResponse[cacheKey];
   };
-  
-  // Calls the cache burst API of localization
-  public cacheBurst = async (
-  ) => {
-    logger.info(`Calling localization cache burst api`);
-    const RequestInfo = defaultRequestInfo;
-    const requestBody = {
-      RequestInfo
-    }
-    await httpRequest(
-      this.localizationHost + config.paths.cacheBurst,
-      requestBody)
-  };
 
 
   
