@@ -1197,8 +1197,7 @@ async function enrichEmployees(employees: any[], request: any) {
     var generatedPassword = user?.password;
     if(!user.password || user.password === "undefined" || user.password.trim() === "")
     {
-       generatedPassword =
-      config?.user?.userPasswordAutoGenerate == "true"
+       generatedPassword = config?.user?.userPasswordAutoGenerate
         ? generateUserPassword()
         : config?.user?.userDefaultPassword;
     }
