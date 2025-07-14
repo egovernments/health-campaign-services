@@ -98,7 +98,6 @@ public class IndividualService {
     private final Predicate<Validator<IndividualBulkRequest, Individual>> isApplicableForCreate = validator ->
             validator.getClass().equals(AddressTypeValidator.class)
                     || validator.getClass().equals(IExistentEntityValidator.class)
-                    || validator.getClass().equals(IBoundaryValidator.class)
                     || validator.getClass().equals(UniqueSubEntityValidator.class)
                     || validator.getClass().equals(MobileNumberValidator.class)
                     || validator.getClass().equals(AadharNumberValidatorForCreate.class)
