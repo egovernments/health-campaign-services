@@ -2,14 +2,15 @@ import { searchProjectTypeCampaignService } from "../service/campaignManageServi
 import { getLocalizedHeaders, replicateRequest, throwError } from "./genericUtils";
 import { httpRequest } from "./request";
 import config from "../config/index";
-import { getLocalizedName } from "./campaignUtils";
+import { getLocalizedName, populateBoundariesRecursively } from "./campaignUtils";
 import { logger } from "./logger";
-import { callGenerate } from "./generateUtils";
 // import { getCampaignSearchResponse } from "server/api/campaignApis";
 import { getExcelWorkbookFromFileURL } from "./excelUtils";
 import { createAndUploadFile, getSheetData, getTargetSheetData } from "../api/genericApis";
 import { searchDataService } from "../service/dataManageService";
 import { produceModifiedMessages } from "../kafka/Producer";
+import { searchBoundaryRelationshipData } from "../api/coreApis";
+import { cloneDeep } from "lodash";
 
 async function getParentCampaignObject(request: any, parentId: any) {
   try {
@@ -34,7 +35,7 @@ function getCreatedResourceIds(resources: any, type: any) {
     ? 'boundaryWithTarget'
     : (type.includes('With') ? type.split('With')[0] : type);
   return resources
-    .filter((item: any) => item.type === processedType)
+    .filter((item: any) => item.type === processedType && item.createResourceId)
     .map((item: any) => item.createResourceId);
 }
 
@@ -56,23 +57,23 @@ function buildSearchCriteria(request: any, createdResourceId: any, type: any) {
   };
 }
 
-async function fetchFileUrls(request: any, processedFileStoreIdForUSerOrFacility: any) {
-  try {
-    const reqParamsForFetchingFile = {
-      tenantId: request?.query?.tenantId,
-      fileStoreIds: processedFileStoreIdForUSerOrFacility
-    };
-    return await httpRequest(
-      `${config?.host?.filestore}${config?.paths?.filestorefetch}`,
-      request?.body,
-      reqParamsForFetchingFile,
-      "get"
-    );
-  } catch (error) {
-    logger.error("Error fetching file URLs:", error);
-    throw error;
-  }
-}
+// async function fetchFileUrls(request: any, processedFileStoreIdForUSerOrFacility: any) {
+//   try {
+//     const reqParamsForFetchingFile = {
+//       tenantId: request?.query?.tenantId,
+//       fileStoreIds: processedFileStoreIdForUSerOrFacility
+//     };
+//     return await httpRequest(
+//       `${config?.host?.filestore}${config?.paths?.filestorefetch}`,
+//       request?.body,
+//       reqParamsForFetchingFile,
+//       "get"
+//     );
+//   } catch (error) {
+//     logger.error("Error fetching file URLs:", error);
+//     throw error;
+//   }
+// }
 
 
 
@@ -239,77 +240,47 @@ function updateTargetValues(originalData: any, newData: any, localizedHeaders: a
   return newData;
 }
 
-function validateBoundariesIfParentPresent(request: any) {
-  const { parentCampaign, CampaignDetails } = request?.body || {};
-
-  if (parentCampaign) {
-    const errors: string[] = [];
-    const newBoundaries: any[] = [];
-    const parentCampaignBoundaryCodes = parentCampaign.boundaries.map((boundary: any) => boundary.code);
-
-    CampaignDetails?.boundaries?.forEach((boundary: any) => {
-      if (parentCampaignBoundaryCodes.includes(boundary.code)) {
-        errors.push(boundary.code);
-      } else {
-        if (!boundary?.isRoot) {
-          newBoundaries.push(boundary);
-        } else {
-          throwError(
-            "COMMON",
-            400,
-            "VALIDATION_ERROR",
-            `Boundary with code ${boundary.code} cannot be added as it is marked as root. Root boundary should come from the parent campaign.`
-          );
-        }
-      }
-    });
-
-    if (errors.length > 0) {
-      throwError("COMMON", 400, "VALIDATION_ERROR", `Boundary Codes found already in Parent Campaign: ${errors.join(', ')}`);
+export async function validateMissingBoundaryFromParent(requestBody : any) {
+  const { CampaignDetails, parentCampaign } = requestBody;
+  const allCurrentCampaignBoundaries : any = await getAllBoundariesFromCampaign(CampaignDetails);
+  if(parentCampaign){
+    const allParentBoundaries: any = await getAllBoundariesFromCampaign(parentCampaign);
+    const setOfBoundaryCodesFromCurrentCampaign : any = new Set(allCurrentCampaignBoundaries.map((boundary: any) => boundary.code));
+    const missingBoundaries = allParentBoundaries.filter((boundary: any) => !setOfBoundaryCodesFromCurrentCampaign.has(boundary.code));
+    if (missingBoundaries.length > 0) {
+      throw new Error(`Missing boundaries from parent campaign: ${missingBoundaries.map((boundary: any) => boundary.code).join(', ')}`);
     }
-    request.body.boundariesCombined = [...parentCampaign.boundaries, ...newBoundaries];
   }
-  else {
-    request.body.boundariesCombined = request?.body?.CampaignDetails?.boundaries
-  }
+  requestBody.boundariesCombined = allCurrentCampaignBoundaries;
 }
 
+const getAllBoundariesFromCampaign = async (campaignDetails: any) => {
+  const relationship = await searchBoundaryRelationshipData(
+    campaignDetails?.tenantId,
+    campaignDetails?.hierarchyType,
+    true,
+    true,
+    false
+  );
 
-async function callGenerateWhenChildCampaigngetsCreated(request: any) {
-  try {
-    const newRequestBody = {
-      RequestInfo: request?.body?.RequestInfo,
-      Filters: {
-        boundaries: request?.body?.boundariesCombined
-      }
-    };
+  const rootBoundary = relationship?.TenantBoundary?.[0]?.boundary?.[0];
+  const allBoundaries = cloneDeep(campaignDetails?.boundaries || []);
 
-    const { query } = request;
-    const params = {
-      tenantId: request?.body?.CampaignDetails?.tenantId,
-      forceUpdate: 'true',
-      hierarchyType: request?.body?.CampaignDetails?.hierarchyType,
-      campaignId: request?.body?.CampaignDetails?.id
-    };
+  const boundaryChildren = Object.fromEntries(
+    allBoundaries.map(({ code, includeAllChildren }: any) => [code, includeAllChildren])
+  );
+  const boundaryCodes = new Set(allBoundaries.map(({ code }: any) => code));
 
-    const newParamsBoundary = { ...query, ...params, type: "boundary" };
-    const newRequestBoundary = replicateRequest(request, newRequestBody, newParamsBoundary);
-    await callGenerate(newRequestBoundary, "boundary");
+  await populateBoundariesRecursively(
+    rootBoundary,
+    allBoundaries,
+    boundaryChildren[rootBoundary?.code],
+    boundaryCodes,
+    boundaryChildren
+  );
 
-    const newParamsFacilityWithBoundary = { ...query, ...params, type: "facilityWithBoundary" };
-    const newRequestFacilityWithBoundary = replicateRequest(request, newRequestBody, newParamsFacilityWithBoundary);
-    await callGenerate(newRequestFacilityWithBoundary, "facilityWithBoundary");
-
-    const newParamsUserWithBoundary = { ...query, ...params, type: "userWithBoundary" };
-    const newRequestUserWithBoundary = replicateRequest(request, newRequestBody, newParamsUserWithBoundary);
-    await callGenerate(newRequestUserWithBoundary, "userWithBoundary");
-  }
-  catch (error: any) {
-    logger.error(error);
-    throwError("COMMON", 400, "GENERATE_ERROR", `Error while generating user/facility/boundary: ${error.message}`);
-  }
-}
-
+  return allBoundaries;
+};
 
 function getBoundariesArray(parentCampaignBoundaries: any, campaignBoundaries: any) {
   // Ensure both inputs are arrays or default to empty arrays
@@ -649,7 +620,7 @@ async function finalizeAndUpload(newWorkbook: any, mappingObject: any, resource:
   resourceDetails.processedFilestoreId = undefined;
 
   const persistMessage: any = { ResourceDetails: resourceDetails };
-  await produceModifiedMessages(persistMessage, config?.kafka?.KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC);
+  await produceModifiedMessages(persistMessage, config?.kafka?.KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC, mappingObject?.CampaignDetails?.tenantId);
 }
 
 
@@ -695,7 +666,7 @@ async function processResources(mappingObject: any) {
   mergeParentResources(mappingObject, resources, resourcesArrayFromParentCampaign);
 }
 
-async function getResourceFromResourceId(mappingObject: any, createResourceId: any, resource: any) {
+export async function getResourceFromResourceId(mappingObject: any, createResourceId: any, resource: any) {
   const searchCriteria = buildSearchCriteria(mappingObject, createResourceId, resource?.type);
   const requestBody = replicateRequest(mappingObject, searchCriteria);
   const responseFromDataSearch = await searchDataService(requestBody);
@@ -726,7 +697,7 @@ async function addConsolidatedDataToSheet(parentWorkbook: any, sheetName: string
 }
 
 
-async function getFileUrl(fileStoreId: any, tenantId: any) {
+export async function getFileUrl(fileStoreId: any, tenantId: any) {
   const fileResponse = await httpRequest(
     `${config.host.filestore}${config.paths.filestore}/url`,
     {},
@@ -745,24 +716,22 @@ async function getFileUrl(fileStoreId: any, tenantId: any) {
 
 
 export {
-  getParentCampaignObject,
-  getCreatedResourceIds,
-  buildSearchCriteria,
-  fetchFileUrls,
-  modifyProcessedSheetData,
-  freezeUnfreezeColumnsForProcessedFile,
-  getColumnIndexByHeader,
-  checkAndGiveIfParentCampaignAvailable,
-  hideColumnsOfProcessedFile,
-  unhideColumnsOfProcessedFile,
-  modifyNewSheetData,
-  validateBoundariesIfParentPresent,
-  callGenerateWhenChildCampaigngetsCreated,
-  getBoundariesFromCampaignSearchResponse,
-  fetchProjectsWithProjectId,
-  getBoundaryProjectMappingFromParentCampaign,
-  fetchProjectFacilityWithProjectId,
-  fetchProjectsWithBoundaryCodeAndReferenceId,
-  delinkAndLinkResourcesWithProjectCorrespondingToGivenBoundary,
-  processResources
-}
+    getParentCampaignObject,
+    getCreatedResourceIds,
+    buildSearchCriteria,
+    // fetchFileUrls,
+    modifyProcessedSheetData,
+    freezeUnfreezeColumnsForProcessedFile,
+    getColumnIndexByHeader,
+    checkAndGiveIfParentCampaignAvailable,
+    hideColumnsOfProcessedFile,
+    unhideColumnsOfProcessedFile,
+    modifyNewSheetData,
+    getBoundariesFromCampaignSearchResponse,
+    fetchProjectsWithProjectId,
+    getBoundaryProjectMappingFromParentCampaign,
+    fetchProjectFacilityWithProjectId,
+    fetchProjectsWithBoundaryCodeAndReferenceId,
+    delinkAndLinkResourcesWithProjectCorrespondingToGivenBoundary,
+    processResources,
+};

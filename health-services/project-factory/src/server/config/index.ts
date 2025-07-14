@@ -10,16 +10,11 @@ if (!HOST) {
   process.exit(1);
 }
 
-
-const getDBSchemaName = (dbSchema = "") => {
-  // return "health";
-  return dbSchema ? (dbSchema == "egov" ? "public" : dbSchema) : "public";
-}
 // Configuration object containing various environment variables
 const config = {
-  batchSize:100,
+  batchSize: 100,
   cacheTime: 300,
-  retryUntilResourceCreationComplete:process.env.RETRY_TILL_RESOURCE_CREATION_COMPLETES || 100,
+  retryUntilResourceCreationComplete: process.env.RETRY_TILL_RESOURCE_CREATION_COMPLETES || 100,
   isProduction: process.env ? true : false,
   token: "", // add default token if core services are not port forwarded
   enableDynamicTemplateFor: process.env.ENABLE_DYNAMIC_TEMPLATE_FOR || "",
@@ -27,6 +22,7 @@ const config = {
   prefixForMicroplanCampaigns: "MP",
   excludeHierarchyTypeFromBoundaryCodes: (process.env.EXCLUDE_HIERARCHY_TYPE_FROM_BOUNDARY_CODES === "true") || false,
   excludeBoundaryNameAtLastFromBoundaryCodes: (process.env.EXCLUDE_BOUNDARY_NAME_AT_LAST_FROM_BOUNDARY_CODES === "true") || false,
+  isEnvironmentCentralInstance: process.env.IS_ENVIRONMENT_CENTRAL_INSTANCE === "true",
   masterNameForSchemaOfColumnHeaders: "adminSchema",
   masterNameForSplitBoundariesOn: "HierarchySchema",
   boundary: {
@@ -41,14 +37,15 @@ const config = {
   },
   facility: {
     facilityTab: process.env.FACILITY_TAB_NAME || "HCM_ADMIN_CONSOLE_FACILITIES",
-    facilityCodeColumn : "HCM_ADMIN_CONSOLE_FACILITY_CODE",
-    facilityType : "facility"
+    facilityCodeColumn: "HCM_ADMIN_CONSOLE_FACILITY_CODE",
+    facilityType: "facility"
   },
   user: {
     userTab: process.env.USER_TAB_NAME || "HCM_ADMIN_CONSOLE_USER_LIST",
     userDefaultPassword: process.env.USER_DEFAULT_PASSWORD || "eGov@123",
-    userPasswordAutoGenerate: process.env.USER_PASSWORD_AUTO_GENERATE || "true",
+    userPasswordAutoGenerate: process.env.USER_PASSWORD_AUTO_GENERATE === "true",
     mapUserViaCommonParent: process.env.MAP_USER_VIA_COMMON_PARENT || false,
+    phoneNumberLength: 10
   },
   cacheValues: {
     cacheEnabled: process.env.CACHE_ENABLED,
@@ -69,20 +66,34 @@ const config = {
     KAFKA_SAVE_PROCESS_TRACK_TOPIC: process.env.KAFKA_SAVE_PROCESS_TRACK_TOPIC || "save-process-track",
     KAFKA_UPDATE_PROCESS_TRACK_TOPIC: process.env.KAFKA_UPDATE_PROCESS_TRACK_TOPIC || "update-process-track",
     KAFKA_SAVE_PLAN_FACILITY_TOPIC: process.env.KAFKA_SAVE_PLAN_FACILITY_TOPIC || "project-factory-save-plan-facility",
+    KAFKA_SAVE_SHEET_DATA_TOPIC: process.env.KAFKA_SAVE_SHEET_DATA_TOPIC || "save-sheet-data",
+    KAFKA_UPDATE_SHEET_DATA_TOPIC: process.env.KAFKA_UPDATE_SHEET_DATA_TOPIC || "update-sheet-data",
+    KAFKA_SAVE_MAPPING_DATA_TOPIC: process.env.KAFKA_SAVE_MAPPING_TOPIC || "save-mapping-data",
+    KAFKA_UPDATE_MAPPING_DATA_TOPIC: process.env.KAFKA_UPDATE_MAPPING_TOPIC || "update-mapping-data",
+    KAFKA_DELETE_MAPPING_DATA_TOPIC: process.env.KAFKA_DELETE_MAPPING_TOPIC || "delete-mapping-data",
+    KAFKA_SAVE_PROCESS_DATA_TOPIC: process.env.KAFKA_SAVE_PROCESS_TOPIC || "save-process-data",
+    KAFKA_UPDATE_PROCESS_DATA_TOPIC: process.env.KAFKA_UPDATE_PROCESS_TOPIC || "update-process-data",
+    KAFKA_START_ADMIN_CONSOLE_TASK_TOPIC: process.env.KAFKA_START_TASK_TOPIC || "start-admin-console-task",
+    KAFKA_START_ADMIN_CONSOLE_MAPPING_TASK_TOPIC: process.env.KAFKA_START_MAPPING_TASK_TOPIC || "start-admin-console-mapping-task",
     KAFKA_TEST_TOPIC: "test-topic-project-factory",
+    KAFKA_NOTIFICATION_EMAIL_TOPIC: process.env.KAFKA_NOTIFICATION_EMAIL_TOPIC || "egov.core.notification.email",
   },
 
   // Database configuration
   DB_CONFIG: {
+    DB_SCHEMA: process.env.DB_SCHEMA || "egov",
     DB_USER: process.env.DB_USER || "postgres",
     DB_HOST: process.env.DB_HOST?.split(':')[0] || "localhost",
     DB_NAME: process.env.DB_NAME || "postgres",
     DB_PASSWORD: process.env.DB_PASSWORD || "postgres",
     DB_PORT: process.env.DB_PORT || "5432",
-    DB_CAMPAIGN_DETAILS_TABLE_NAME: `${getDBSchemaName(process.env.DB_SCHEMA)}.eg_cm_campaign_details`,
-    DB_CAMPAIGN_PROCESS_TABLE_NAME: `${getDBSchemaName(process.env.DB_SCHEMA)}.eg_cm_campaign_process`,
-    DB_GENERATED_RESOURCE_DETAILS_TABLE_NAME: `${getDBSchemaName(process.env.DB_SCHEMA)}.eg_cm_generated_resource_details`,
-    DB_RESOURCE_DETAILS_TABLE_NAME: `${getDBSchemaName(process.env.DB_SCHEMA)}.eg_cm_resource_details`
+    DB_CAMPAIGN_DATA_TABLE_NAME: "eg_cm_campaign_data",
+    DB_CAMPAIGN_MAPPING_DATA_TABLE_NAME: "eg_cm_campaign_mapping_data",
+    DB_CAMPAIGN_PROCESS_DATA_TABLE_NAME: "eg_cm_campaign_process_data",
+    DB_CAMPAIGN_DETAILS_TABLE_NAME: "eg_cm_campaign_details",
+    DB_CAMPAIGN_PROCESS_TABLE_NAME: "eg_cm_campaign_process",
+    DB_GENERATED_RESOURCE_DETAILS_TABLE_NAME: "eg_cm_generated_resource_details",
+    DB_RESOURCE_DETAILS_TABLE_NAME: "eg_cm_resource_details"
   },
   // Application configuration
   app: {
@@ -92,7 +103,9 @@ const config = {
     logLevel: process.env.APP_LOG_LEVEL || "debug",
     debugLogCharLimit: process.env.APP_MAX_DEBUG_CHAR ? Number(process.env.APP_MAX_DEBUG_CHAR) : 1000,
     defaultTenantId: process.env.DEFAULT_TENANT_ID || "mz",
-    incomingRequestPayloadLimit : process.env.INCOMING_REQUEST_PAYLOAD_LIMIT || "2mb"
+    incomingRequestPayloadLimit: process.env.INCOMING_REQUEST_PAYLOAD_LIMIT || "2mb",
+    maxInFlight: process.env.MAX_INFLIGHT || "15",
+    maxEventLoopLagMs: process.env.MAX_EVENT_LOOP_LAG_MS || "100",
   },
   localisation: {
     defaultLocale: process.env.LOCALE || "en_MZ",
@@ -125,13 +138,16 @@ const config = {
     localizationHost: process.env.EGOV_LOCALIZATION_HOST || "https://unified-dev.digit.org/",
     healthIndividualHost: process.env.EGOV_HEALTH_INDIVIDUAL_HOST || "https://unified-dev.digit.org/",
     planServiceHost: process.env.EGOV_PLAN_SERVICE_HOST || "https://unified-dev.digit.org/",
-    censusServiceHost: process.env.EGOV_CENSUS_HOST ||"https://unified-dev.digit.org/",  },
+    censusServiceHost: process.env.EGOV_CENSUS_HOST || "https://unified-dev.digit.org/",
+  },
   // Paths for different services
   paths: {
     filestore: process.env.FILE_STORE_SERVICE_END_POINT || "filestore/v1/files",
     filestorefetch: "filestore/v1/files/url",
-    mdms_v2_search: process.env.EGOV_MDMS_V2_SEARCH_ENDPOINT || "mdms-v2/v2/_search",
-    mdms_v1_search: process.env.EGOV_MDMS_V1_SEARCH_ENDPOINT || "mdms-v2/v1/_search",
+    mdms_v2_search: process.env.EGOV_MDMS_V2_SEARCH_ENDPOINT || "egov-mdms-service/v2/_search",
+    mdms_v2_create: process.env.EGOV_MDMS_V2_CREATE_ENDPOINT || "egov-mdms-service/v2/_create",
+    mdms_v2_update: process.env.EGOV_MDMS_V2_UPDATE_ENDPOINT || "egov-mdms-service/v2/_update",
+    mdms_v1_search: process.env.EGOV_MDMS_V1_SEARCH_ENDPOINT || "egov-mdms-service/v1/_search",
     idGen: process.env.EGOV_IDGEN_PATH || "egov-idgen/id/_generate",
     mdmsSchema: process.env.EGOV_MDMS_SCHEMA_PATH || "egov-mdms-service/schema/v1/_search",
     boundaryRelationship: process.env.EGOV_BOUNDARY_RELATIONSHIP_SEARCHPATH || "boundary-service/boundary-relationships/_search",
@@ -162,12 +178,14 @@ const config = {
     planFacilitySearch: process.env.EGOV_PLAN_FACILITY_SEARCH || "plan-service/plan/facility/_search",
     planConfigSearch: process.env.EGOV_PLAN_FACILITY_CONFIG_SEARCH || "plan-service/config/_search",
     planSearch: process.env.EGOV_PLAN_SEARCH || "plan-service/plan/_search",
-    censusSearch: process.env.EGOV_CENSUS_SEARCH || "census-service/_search"  },
+    censusSearch: process.env.EGOV_CENSUS_SEARCH || "census-service/_search"
+  },
   // Values configuration
   values: {
     //module name
-    unfrozeTillRow: process.env.UNFROZE_TILL_ROW || "10000",
-    unfrozeTillColumn: process.env.UNFROZE_TILL_COLUMN || "50",
+    skipParentProjectConfirmation: process.env.SKIP_PARENT_PROJECT_CONFIRMATION === "true",
+    unfrozeTillRow: process.env.UNFROZE_TILL_ROW || "5010",
+    unfrozeTillColumn: process.env.UNFROZE_TILL_COLUMN || "26",
     moduleName: process.env.MODULE_NAME || "HCM-ADMIN-CONSOLE",
     readMeTab: process.env.READ_ME_TAB || "HCM_README_SHEETNAME",
     userMainBoundary: process.env.USER_MAIN_BOUNDARY || "mz",
@@ -181,7 +199,7 @@ const config = {
     retryCount: process.env.CREATE_RESOURCE_RETRY_COUNT || "3",
     notCreateUserIfAlreadyThere: process.env.NOT_CREATE_USER_IF_ALREADY_THERE === "true",
     maxHttpRetries: process.env.MAX_HTTP_RETRIES || "4",
-    skipResourceCheckValidationBeforeCreateForLocalTesting:false, // can be set to true for local development 
+    skipResourceCheckValidationBeforeCreateForLocalTesting: false, // can be set to true for local development 
     autoRetryIfHttpError: process.env.AUTO_RETRY_IF_HTTP_ERROR || "socket hang up" /* can be retry if there is any error for which default retry can be set */,
     latLongColumns: process.env.LAT_LONG_SUBSTRINGS || "HCM_ADMIN_CONSOLE_FACILITY_LATITUDE_OPTIONAL_MICROPLAN,HCM_ADMIN_CONSOLE_FACILITY_LONGITUDE_OPTIONAL_MICROPLAN,HCM_ADMIN_CONSOLE_TARGET_LAT_OPT,HCM_ADMIN_CONSOLE_TARGET_LONG_OPT",
     validateCampaignIdInMetadata: process.env.VALIDATE_CAMPAIGN_ID_IN_METADATA === "true"

@@ -75,14 +75,9 @@ export const campaignDetailsSchema = {
                         "maxLength": 128,
                         "minLength": 1,
                         "pattern": "^.+\\.(xlsx|xls)$"
-                    },
-                    "resourceId": {
-                        "type": "string",
-                        "maxLength": 128,
-                        "minLength": 1
                     }
                 },
-                "required": ["filestoreId", "type", "filename", "resourceId"]
+                "required": ["filestoreId", "type", "filename"]
             }
         },
         "projectType": {

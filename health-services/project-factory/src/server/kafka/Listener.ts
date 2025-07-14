@@ -2,7 +2,8 @@ import { ConsumerGroup, ConsumerGroupOptions, Message } from 'kafka-node';
 import config from '../config';
 import { getFormattedStringForDebug, logger } from '../utils/logger';
 import { shutdownGracefully } from '../utils/genericUtils';
-import { handleCampaignMapping } from '../utils/campaignMappingUtils';
+import { handleCampaignMapping, handleMappingTaskForCampaign } from '../utils/campaignMappingUtils';
+import { handleTaskForCampaign } from '../utils/taskUtils';
 
 // Kafka Configuration
 const kafkaConfig: ConsumerGroupOptions = {
@@ -16,6 +17,8 @@ const kafkaConfig: ConsumerGroupOptions = {
 // Topic Names
 const topicNames = [
     config.kafka.KAFKA_START_CAMPAIGN_MAPPING_TOPIC,
+    config.kafka.KAFKA_START_ADMIN_CONSOLE_TASK_TOPIC,
+    config.kafka.KAFKA_START_ADMIN_CONSOLE_MAPPING_TASK_TOPIC,
     config.kafka.KAFKA_TEST_TOPIC
 ];
 
@@ -31,6 +34,12 @@ export function listener() {
             switch (message.topic) {
                 case config.kafka.KAFKA_START_CAMPAIGN_MAPPING_TOPIC:
                     await handleCampaignMapping(messageObject);
+                    break;
+                case config.kafka.KAFKA_START_ADMIN_CONSOLE_TASK_TOPIC:
+                    await handleTaskForCampaign(messageObject);
+                    break;
+                case config.kafka.KAFKA_START_ADMIN_CONSOLE_MAPPING_TASK_TOPIC:
+                    await handleMappingTaskForCampaign(messageObject);
                     break;
                 default:
                     logger.warn(`Unhandled topic: ${message.topic}`);

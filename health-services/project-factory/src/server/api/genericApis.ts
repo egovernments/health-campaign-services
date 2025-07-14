@@ -3,12 +3,15 @@ import config from "../config"; // Import configuration settings
 import FormData from "form-data"; // Import FormData for handling multipart/form-data requests
 import { defaultheader, httpRequest } from "../utils/request"; // Import httpRequest function for making HTTP requests
 import { getFormattedStringForDebug, logger } from "../utils/logger"; // Import logger for logging
-import { correctParentValues, findMapValue, getBoundaryRelationshipData, getDataSheetReady, getLocalizedHeaders, sortCampaignDetails, throwError } from "../utils/genericUtils"; // Import utility functions
+import { correctParentValues, findMapValue, getDataSheetReady, getLocalizedHeaders, sortCampaignDetails, throwError } from "../utils/genericUtils"; // Import utility functions
 import { extractCodesFromBoundaryRelationshipResponse, generateFilteredBoundaryData, getConfigurableColumnHeadersBasedOnCampaignType, getFiltersFromCampaignSearchResponse, getLocalizedName, processDataForTargetCalculation } from '../utils/campaignUtils'; // Import utility functions
 import { getCampaignSearchResponse, getHierarchy } from './campaignApis';
 const _ = require('lodash'); // Import lodash library
 import { enrichTemplateMetaData, getExcelWorkbookFromFileURL } from "../utils/excelUtils";
 import { processMapping } from "../utils/campaignMappingUtils";
+import { defaultRequestInfo, searchBoundaryRelationshipData, searchMDMSDataViaV2Api } from "./coreApis";
+import { getLocaleFromRequestInfo } from "../utils/localisationUtils";
+import { MDMSModels } from "../models";
 
 //Function to get Workbook with different tabs (for type target)
 const getTargetWorkbook = async (fileUrl: string, localizationMap?: any) => {
@@ -34,7 +37,7 @@ const getTargetWorkbook = async (fileUrl: string, localizationMap?: any) => {
   return workbook;
 };
 
-function getJsonData(sheetData: any, getRow = false, getSheetName = false, sheetName = "sheet1") {
+export function getJsonData(sheetData: any, getRow = false, getSheetName = false, sheetName = "sheet1") {
   const jsonData: any[] = [];
   const headers = sheetData[0]; // Extract the headers from the first row
 
@@ -59,31 +62,30 @@ function getJsonData(sheetData: any, getRow = false, getSheetName = false, sheet
   return jsonData;
 }
 
-// function validateFirstRowColumn(createAndSearchConfig: any, worksheet: any, localizationMap: any) {
-//   if (createAndSearchConfig?.parseArrayConfig?.parseLogic) {
-//     const parseLogic = createAndSearchConfig.parseArrayConfig.parseLogic;
-//     // Iterate over each column configuration
-//     for (const columnConfig of parseLogic) {
-//       const { sheetColumn, sheetColumnName } = columnConfig;
-//       const localizedColumnName = getLocalizedName(sheetColumnName, localizationMap);
+export function getJsonDataWithUnlocalisedKey(sheetData: any, getRow = false, getSheetName = false, sheetName = "sheet1") {
+  const jsonData: any[] = [];
+  const headers = sheetData[0]; // Extract the headers from the first row
 
-//       // Get the value of the first row in the current column
-//       if (sheetColumn && localizedColumnName) {
-//         const firstRowValue = worksheet.getCell(sheetColumn + '1').value;
-
-//         // Validate the first row of the current column
-//         if (firstRowValue !== localizedColumnName) {
-//           throwError(
-//             "FILE",
-//             400,
-//             "INVALID_COLUMNS",
-//             `Invalid format: Expected '${localizedColumnName}' in the first row of column ${sheetColumn}.`
-//           );
-//         }
-//       }
-//     }
-//   }
-// }
+  for (let i = 2; i < sheetData.length; i++) {
+    const rowData: any = {};
+    const row = sheetData[i];
+    if (row) {
+      for (let j = 0; j < headers.length; j++) {
+        const key = headers[j];
+        const value = row[j] === undefined || row[j] === "" ? "" : row[j];
+        if (value || value === 0) {
+          rowData[key] = value;
+        }
+      }
+      if (Object.keys(rowData).length > 0) {
+        if (getRow) rowData["!row#number!"] = i + 1;
+        if (getSheetName) rowData["!sheet#name!"] = sheetName;
+        jsonData.push(rowData);
+      }
+    }
+  };
+  return jsonData;
+}
 
 function getSheetDataFromWorksheet(worksheet: any) {
   var sheetData: any[][] = [];
@@ -208,7 +210,7 @@ const getTargetSheetDataAfterCode = async (
   for (const sheetName of localizedSheetNames) {
     const worksheet = workbook.getWorksheet(sheetName);
     const sheetData = getSheetDataFromWorksheet(worksheet);
-    const jsonData = getJsonData(sheetData,true,true, sheetName);
+    const jsonData = getJsonData(sheetData, true, true, sheetName);
 
     // Find the target column index where the first row value matches codeColumnName
     const firstRow = sheetData[0];
@@ -433,11 +435,8 @@ async function createAndUploadFile(
 ) {
   let retries: any = 3;
   // Enrich metadatas
-  try {
-    enrichTemplateMetaData(updatedWorkbook, request);
-  } catch (error) {
-    logger.error('Failed to enrich template metadata:', error);
-    throw new Error('Error while enriching template metadata');
+  if (request?.body?.RequestInfo && request?.query?.campaignId) {
+    enrichTemplateMetaData(updatedWorkbook, getLocaleFromRequestInfo(request?.body?.RequestInfo), request?.query?.campaignId);
   }
   while (retries--) {
     try {
@@ -463,6 +462,55 @@ async function createAndUploadFile(
         {
           "Content-Type": "multipart/form-data",
           "auth-token": request?.body?.RequestInfo?.authToken || request?.RequestInfo?.authToken,
+        }
+      );
+
+      // Extract response data
+      const responseData = fileCreationResult?.files;
+      if (responseData) {
+        return responseData;
+      }
+    }
+    catch (error: any) {
+      console.error(`Attempt failed:`, error.message);
+
+      // Add a delay before the next retry (2 seconds)
+      await new Promise((resolve) => setTimeout(resolve, 5000));
+    }
+  }
+  throw new Error("Error while uploading excel file: INTERNAL_SERVER_ERROR");
+}
+
+export async function createAndUploadFileWithOutRequest(
+  updatedWorkbook: any,
+  tenantId: any
+) {
+  let retries: any = 3;
+  while (retries--) {
+    try {
+      // Write the updated workbook to a buffer
+      logger.info("Creating form data for file upload...");
+      const buffer = await updatedWorkbook.xlsx.writeBuffer();
+
+      // Create form data for file upload
+      const formData = new FormData();
+      formData.append("file", buffer, "filename.xlsx");
+      formData.append(
+        "tenantId",
+        tenantId
+      );
+      formData.append("module", "HCM-ADMIN-CONSOLE-SERVER");
+      logger.info("Form data created.");
+
+      // Make HTTP request to upload file
+      var fileCreationResult = await httpRequest(
+        config.host.filestore + config.paths.filestore,
+        formData,
+        undefined,
+        undefined,
+        undefined,
+        {
+          "Content-Type": "multipart/form-data"
         }
       );
 
@@ -593,11 +641,11 @@ async function createExcelSheet(data: any, headers: any) {
 }
 
 // Function to handle getting boundary codes
-async function getAutoGeneratedBoundaryCodesHandler(boundaryList: any, childParentMap: Map<{ key: string; value: string; }, { key: string; value: string; } | null>, elementCodesMap: any, countMap: any, request: any) {
+async function getAutoGeneratedBoundaryCodesHandler(boundaryList: any, childParentMap: Map<{ key: string; value: string; }, { key: string; value: string; } | null>, elementCodesMap: any, countMap: any, request: any,hierarchy?:any) {
   try {
     // Get updated element codes map
     logger.info("Auto Generation of Boundary code begins for the user uploaded sheet")
-    const updatedelementCodesMap = await getAutoGeneratedBoundaryCodes(boundaryList, childParentMap, elementCodesMap, countMap, request);
+    const updatedelementCodesMap = await getAutoGeneratedBoundaryCodes(boundaryList, childParentMap, elementCodesMap, countMap, request,hierarchy);
     return updatedelementCodesMap; // Return the updated element codes map
   } catch (error) {
     // Log and propagate the error
@@ -616,25 +664,39 @@ async function getAutoGeneratedBoundaryCodesHandler(boundaryList: any, childPare
  * @param request HTTP request object
  * @returns Updated element codes map
  */
-async function getAutoGeneratedBoundaryCodes(boundaryList: any, childParentMap: any, elementCodesMap: any, countMap: any, request: any) {
+async function getAutoGeneratedBoundaryCodes(boundaryList: any, childParentMap: any, elementCodesMap: any, countMap: any, request: any,hierarchy?:any) {
   // Initialize an array to store column data
   const columnsData: { key: string, value: string }[][] = [];
   // Extract unique elements from each column
   for (const row of boundaryList) {
-    row.forEach((element: any, index: any) => {
-      if (!columnsData[index]) {
-        columnsData[index] = [];
-      }
-      const existingElement = columnsData[index].find((existing: any) => _.isEqual(existing, element));
-      if (!existingElement) {
-        columnsData[index].push(element);
-      }
-    });
+    const rowMap = new Map<string, any>();
+  row.forEach((obj:any) => rowMap.set(obj.key, obj.value));
+
+  // Step 2: Find last present hierarchy index
+  let lastPresentHierarchyIndex = -1;
+  for (let i = 0; i < hierarchy.length; i++) {
+    const level = hierarchy[i];
+    if (rowMap.get(level)) {
+      lastPresentHierarchyIndex = i;
+    }
+  }
+  for (let i = 0; i <= lastPresentHierarchyIndex; i++) {
+    const level = hierarchy[i];
+    const element = row.find((obj:any) => obj.key === level);
+
+    if (!columnsData[i]) {
+      columnsData[i] = [];
+    }
+    const existingElement = columnsData[i].find((existing: any) => _.isEqual(existing, element));
+    if (!existingElement) {
+      columnsData[i].push(element);
+    }
+    };
   }
 
   // Iterate over columns to generate boundary codes
   for (let i = 0; i < columnsData.length; i++) {
-    const column = columnsData[i];
+    const column = columnsData[i] || [];
     for (const element of column) {
       if (!findMapValue(elementCodesMap, element) && element.value !== '') {
         const parentElement = findMapValue(childParentMap, element);
@@ -735,22 +797,25 @@ function generateElementCode(sequence: any, parentElement: any, parentBoundaryCo
  */
 async function getBoundarySheetData(
   request: any,
-  localizationMap?: { [key: string]: string }
+  localizationMap?: { [key: string]: string },
+  useCache?:boolean
 ) {
   // Retrieve boundary data based on the request parameters
-  const params = {
-    ...request?.query,
-    includeChildren: true,
-  };
+  // const params = {
+  //   ...request?.query,
+  //   includeChildren: true,
+  // };
   const hierarchyType = request?.query?.hierarchyType;
+  const tenantId = request?.query?.tenantId;
   logger.info(
     `processing boundary data generation for hierarchyType : ${hierarchyType}`
   );
-  const boundaryData = await getBoundaryRelationshipData(request, params);
+  // const boundaryData = await getBoundaryRelationshipData(request, params);
+  const boundaryRelationshipResponse: any = await searchBoundaryRelationshipData(tenantId, hierarchyType, true, true,useCache);
+  const boundaryData = boundaryRelationshipResponse?.TenantBoundary?.[0]?.boundary;
   if (!boundaryData || boundaryData.length === 0) {
     logger.info(`boundary data not found for hierarchyType : ${hierarchyType}`);
     const hierarchy = await getHierarchy(
-      request,
       request?.query?.tenantId,
       hierarchyType
     );
@@ -818,7 +883,6 @@ async function getBoundarySheetData(
 async function getConfigurableColumnHeadersBasedOnCampaignTypeForBoundaryManagement(request: any, localizationMap?: { [key: string]: string }) {
   try {
     const mdmsResponse = await callMdmsTypeSchema(
-      request,
       request?.query?.tenantId || request?.body?.ResourceDetails?.tenantId,
       false,
       request?.query?.type || request?.body?.ResourceDetails?.type,
@@ -875,7 +939,7 @@ async function getConfigurableColumnHeadersBasedOnCampaignTypeForBoundaryManagem
     );
   }
 }
-async function createStaff(resouceBody: any) {
+export async function createStaff(resouceBody: any) {
   // Create staff
   const staffCreateUrl =
     `${config.host.projectHost}` + `${config.paths.staffCreate}`;
@@ -897,13 +961,14 @@ async function createStaff(resouceBody: any) {
     getFormattedStringForDebug(staffResponse)
   );
   // validateStaffResponse(staffResponse);
+  return staffResponse;
 }
 
 /**
  * Asynchronously creates project resources based on the provided resource body.
  * @param resouceBody The resource body.
  */
-async function createProjectResource(resouceBody: any) {
+export async function createProjectResource(resouceBody: any) {
   // Create project resources
   const projectResourceCreateUrl =
     `${config.host.projectHost}` + `${config.paths.projectResourceCreate}`;
@@ -924,6 +989,7 @@ async function createProjectResource(resouceBody: any) {
     "Project Resource Creation response :: " +
     getFormattedStringForDebug(projectResourceResponse)
   );
+  return projectResourceResponse;
   // validateProjectResourceResponse(projectResourceResponse);
 }
 
@@ -931,7 +997,7 @@ async function createProjectResource(resouceBody: any) {
  * Asynchronously creates project facilities based on the provided resource body.
  * @param resouceBody The resource body.
  */
-async function createProjectFacility(resouceBody: any) {
+export async function createProjectFacility(resouceBody: any) {
   // Create project facilities
   const projectFacilityCreateUrl =
     `${config.host.projectHost}` + `${config.paths.projectFacilityCreate}`;
@@ -952,6 +1018,7 @@ async function createProjectFacility(resouceBody: any) {
     "Project Facility Creation response" +
     getFormattedStringForDebug(projectFacilityResponse)
   );
+  return projectFacilityResponse;
   // validateProjectFacilityResponse(projectFacilityResponse);
 }
 
@@ -1265,33 +1332,33 @@ async function createBoundaryRelationship(request: any, boundaryMap: Map<{ key: 
 
 
 
-async function callMdmsData(
-  request: any,
-  moduleName: string,
-  masterName: string,
-  tenantId: string
-) {
-  const { RequestInfo = {} } = request?.body || {};
-  const requestBody = {
-    RequestInfo,
-    MdmsCriteria: {
-      tenantId: tenantId,
-      moduleDetails: [
-        {
-          moduleName: moduleName,
-          masterDetails: [
-            {
-              name: masterName,
-            },
-          ],
-        },
-      ],
-    },
-  };
-  const url = config.host.mdmsV2 + config.paths.mdms_v1_search;
-  const response = await httpRequest(url, requestBody, { tenantId: tenantId });
-  return response;
-}
+// async function callMdmsData(
+//   request: any,
+//   moduleName: string,
+//   masterName: string,
+//   tenantId: string
+// ) {
+//   const { RequestInfo = {} } = request?.body || {};
+//   const requestBody = {
+//     RequestInfo,
+//     MdmsCriteria: {
+//       tenantId: tenantId,
+//       moduleDetails: [
+//         {
+//           moduleName: moduleName,
+//           masterDetails: [
+//             {
+//               name: masterName,
+//             },
+//           ],
+//         },
+//       ],
+//     },
+//   };
+//   const url = config.host.mdmsV2 + config.paths.mdms_v1_search;
+//   const response = await httpRequest(url, requestBody, { tenantId: tenantId });
+//   return response;
+// }
 
 function enrichSchema(data: any, properties: any, required: any, columns: any, unique: any, columnsNotToBeFreezed: any, columnsToBeFreezed: any, columnsToHide: any, errorMessage: any) {
 
@@ -1392,16 +1459,71 @@ function convertIntoSchema(data: any, isUpdate: boolean) {
   return data;
 }
 
+function convertIntoNewSchema(data: any) {
+  const properties: any = {};
+  const errorMessage: any = {};
+  const required: any[] = [];
+  let columns: any[] = [];
+  const unique: any[] = [];
+  const columnsNotToBeFreezed: any[] = [];
+  const columnsToBeFreezed: any[] = [];
+  const columnsToHide: any[] = [];
+
+  for (const propType of ['enumProperties', 'numberProperties', 'stringProperties']) {
+    if (data.properties[propType] && Array.isArray(data.properties[propType]) && data.properties[propType]?.length > 0) {
+      for (const property of data.properties[propType]) {
+        properties[property?.name] = {
+          ...property,
+          type: propType === 'stringProperties' ? 'string' : propType === 'numberProperties' ? 'number' : undefined
+        };
+        if (property?.errorMessage)
+          errorMessage[property?.name] = property?.errorMessage;
+
+        if (property?.isRequired && required.indexOf(property?.name) === -1) {
+          required.push({ name: property?.name, orderNumber: property?.orderNumber });
+        }
+        if (property?.isUnique && unique.indexOf(property?.name) === -1) {
+          unique.push(property?.name);
+        }
+        if (!property?.freezeColumn || property?.freezeColumn == false) {
+          columnsNotToBeFreezed.push(property?.name);
+        }
+        if (property?.freezeColumn) {
+          columnsToBeFreezed.push(property?.name);
+        }
+        if (property?.hideColumn) {
+          columnsToHide.push(property?.name);
+        }
+      }
+    }
+  }
+
+  const descriptionToFieldMap: Record<string, string> = {};
+
+  for (const [key, field] of Object.entries(properties)) {
+    // Cast field to `any` since it is of type `unknown`
+    const typedField = field as any;
+
+    if (typedField.isRequired) {
+      descriptionToFieldMap[typedField.description] = key;
+    }
+  }
+  data.descriptionToFieldMap = descriptionToFieldMap;
+
+
+  enrichSchema(data, properties, required, columns, unique, columnsNotToBeFreezed, columnsToBeFreezed, columnsToHide, errorMessage);
+  return data;
+}
+
 
 
 async function callMdmsTypeSchema(
-  request: any,
   tenantId: string,
   isUpdate: boolean,
   type: any,
   campaignType = "all"
 ) {
-  const { RequestInfo = {} } = request?.body || {};
+  const RequestInfo = defaultRequestInfo?.RequestInfo;
   const requestBody = {
     RequestInfo,
     MdmsCriteria: {
@@ -1424,10 +1546,30 @@ async function callMdmsTypeSchema(
   return convertIntoSchema(response?.mdms?.[0]?.data, isUpdate);
 }
 
-async function getMDMSV1Data(request: any, moduleName: string, masterName: string, tenantId: string) {
-  const resp: any = await callMdmsData(request, moduleName, masterName, tenantId);
-  return resp?.["MdmsRes"]?.[moduleName]?.[masterName];
+export async function callMdmsSchema(
+  tenantId: string,
+  type: any
+) {
+  const MdmsCriteria : MDMSModels.MDMSv2RequestCriteria= {
+    MdmsCriteria: {
+      tenantId: tenantId,
+      schemaCode: "HCM-ADMIN-CONSOLE.schemas",
+      uniqueIdentifiers: [
+        `${type}`
+      ]
+    }
+  };
+  const response = await searchMDMSDataViaV2Api(MdmsCriteria, true);
+  if (!response?.mdms?.[0]?.data) {
+    throwError("COMMON", 500, "INTERNAL_SERVER_ERROR", "Error occured during schema search for " + type);
+  }
+  return convertIntoNewSchema(response?.mdms?.[0]?.data);
 }
+
+// async function getMDMSV1Data(request: any, moduleName: string, masterName: string, tenantId: string) {
+//   const resp: any = await callMdmsData(request, moduleName, masterName, tenantId);
+//   return resp?.["MdmsRes"]?.[moduleName]?.[masterName];
+// }
 
 export {
   getAutoGeneratedBoundaryCodes,
@@ -1449,8 +1591,8 @@ export {
   getTargetWorkbook,
   getTargetSheetData,
   getTargetSheetDataAfterCode,
-  callMdmsData,
-  getMDMSV1Data,
+  // callMdmsData,
+  // getMDMSV1Data,
   callMdmsTypeSchema,
   getSheetDataFromWorksheet,
   createProjectStaffHelper,

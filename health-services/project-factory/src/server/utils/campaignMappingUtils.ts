@@ -4,16 +4,20 @@ import { getDataFromSheet, getLocalizedMessagesHandlerViaRequestInfo, replicateR
 import { getFormattedStringForDebug, logger } from "./logger";
 import { defaultheader, httpRequest } from "./request";
 import { produceModifiedMessages } from "../kafka/Producer";
-import { enrichAndPersistCampaignWithError, getLocalizedName } from "./campaignUtils";
-import { campaignStatuses, resourceDataStatuses, usageColumnStatus } from "../config/constants";
+import { enrichAndPersistCampaignWithError, enrichAndPersistCampaignWithErrorProcessingTask, getLocalizedName } from "./campaignUtils";
+import { allProcesses, campaignStatuses, processStatuses, resourceDataStatuses, usageColumnStatus } from "../config/constants";
 import { createCampaignService, searchProjectTypeCampaignService } from "../service/campaignManageService";
 import { persistTrack } from "./processTrackUtils";
 import { processTrackTypes, processTrackStatuses } from "../config/constants";
 import { createProjectFacilityHelper, createProjectResourceHelper, createProjectStaffHelper } from "../api/genericApis";
-import { buildSearchCriteria, delinkAndLinkResourcesWithProjectCorrespondingToGivenBoundary, processResources } from "./onGoingCampaignUpdateUtils";
+import { buildSearchCriteria, delinkAndLinkResourcesWithProjectCorrespondingToGivenBoundary, getResourceFromResourceId, processResources } from "./onGoingCampaignUpdateUtils";
 import { searchDataService } from "../service/dataManageService";
 import { getHierarchy } from "../api/campaignApis";
 import { consolidateBoundaries } from "./boundariesConsolidationUtils";
+import { startResourceMapping } from "./resourceMappingUtils";
+import { startUserMappingAndDemapping } from "./userMappingUtils";
+import { startFacilityMappingAndDemapping } from "./facilityMappingUtils";
+import { sendNotificationEmail } from "./mailUtil";
 
 
 async function createBoundaryWithProjectMapping(projects: any, boundaryWithProject: any) {
@@ -368,7 +372,7 @@ async function getProjectMappingBody(messageObject: any, boundaryWithProject: an
         }
         const campaignSearchResponse = await searchProjectTypeCampaignService(CampaignDetails);
         const boundaries = campaignSearchResponse?.CampaignDetails?.[0]?.boundaries;
-        const hierarchy = await getHierarchy(messageObject, messageObject?.CampaignDetails?.tenantId, messageObject?.CampaignDetails?.hierarchyType);
+        const hierarchy = await getHierarchy(messageObject?.CampaignDetails?.tenantId, messageObject?.CampaignDetails?.hierarchyType);
         const boundariesWhichAreRootInThisFlow = filterBoundariesByHierarchy(hierarchy, boundaries);
         for (const boundary of boundariesWhichAreRootInThisFlow) {
             const boundaryCodesFetchedFromGivenRoot = await consolidateBoundaries(
@@ -690,11 +694,72 @@ export async function processMapping(mappingObject: any) {
         const produceMessage: any = {
             CampaignDetails: mappingObject?.CampaignDetails
         }
-        await produceModifiedMessages(produceMessage, config?.kafka?.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC)
-        await persistTrack(mappingObject?.CampaignDetails?.id, processTrackTypes.campaignCreation, processTrackStatuses.completed)
+        await produceModifiedMessages(produceMessage, config?.kafka?.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC, mappingObject?.CampaignDetails?.tenantId)
+        await persistTrack(mappingObject?.CampaignDetails?.id, processTrackTypes.campaignCreation, processTrackStatuses.completed);
+
+            logger.info("Step 1: Starting user credential email process for campaign ID: " + mappingObject?.CampaignDetails?.id);
+
+            const resources = mappingObject?.CampaignDetails?.resources || [];
+            logger.info("Step 2: Extracted resources. Count: " + resources.length);
+
+            const userResource = resources.find((res: any) => res.type === "user");
+            if (!userResource) {
+                logger.error("Step 3: No 'user' type resource found in resources.");
+                throw new Error("User resource not found");
+            }
+            logger.info("Step 3: Found user resource: " + JSON.stringify(userResource));
+
+            const userCreateResourceIds = userResource?.createResourceId ? [userResource.createResourceId] : [];
+            if(userCreateResourceIds.length === 0) {
+                logger.error("Step 4: No createResourceId found in user resource.");
+                throw new Error("Create resource ID missing in user resource");
+            }
+            logger.info("Step 4: Found user create resource IDs: " + JSON.stringify(userCreateResourceIds));
+
+            const currentResourceSearchResponse = await getResourceFromResourceId(mappingObject, userCreateResourceIds, userResource);
+            if (!currentResourceSearchResponse || currentResourceSearchResponse.length === 0) {
+                logger.error("Step 5: Resource search response is empty.");
+                throw new Error("No processed resource found");
+            }
+            logger.info("Step 5: Resource search successful: " + JSON.stringify(currentResourceSearchResponse));
+
+            const userProcessedFileStoreId = currentResourceSearchResponse?.[0]?.processedFilestoreId;
+            if (!userProcessedFileStoreId) {
+                logger.error("Step 6: Processed file store ID not found in search response.");
+            }
+            logger.info("Step 6: Found processed file store ID: " + userProcessedFileStoreId);
+
+            const userCredentialFileMap = { [userProcessedFileStoreId]: "userCredentials.xlsx" };
+            logger.info("Step 7: Created userCredentialFileMap: " + JSON.stringify(userCredentialFileMap));
+            sendNotificationEmail(userCredentialFileMap, mappingObject);
     } catch (error) {
         logger.error("Error in campaign mapping: " + error);
         await enrichAndPersistCampaignWithError(mappingObject, error);
+    }
+}
+
+export async function handleMappingTaskForCampaign(messageObject: any) {
+    try {
+        const { CampaignDetails, task, useruuid } = messageObject;
+        const processName = task?.processName
+        logger.info(`Mapping for campaign ${CampaignDetails?.id} : ${processName} started..`);
+        if(processName == allProcesses.resourceMapping) {
+            await startResourceMapping(CampaignDetails, useruuid);
+        }
+        else if(processName == allProcesses.facilityMapping) {
+            await startFacilityMappingAndDemapping(CampaignDetails, useruuid);
+        }
+        else if (processName == allProcesses.userMapping) {
+            await startUserMappingAndDemapping(CampaignDetails, useruuid);
+        }
+        task.status = processStatuses.completed;
+        await produceModifiedMessages({ processes: [task] }, config?.kafka?.KAFKA_UPDATE_PROCESS_DATA_TOPIC, CampaignDetails?.tenantId);
+    } catch (error) {
+        let task = messageObject?.task;
+        task.status = processStatuses.failed;
+        await produceModifiedMessages({ processes: [task] }, config?.kafka?.KAFKA_UPDATE_PROCESS_DATA_TOPIC, messageObject?.CampaignDetails?.tenantId);
+        logger.error(`Error in campaign mapping: ${error}`);
+        await enrichAndPersistCampaignWithErrorProcessingTask(messageObject?.CampaignDetails, messageObject?.parentCampaign, messageObject?.useruuid, error);
     }
 }
 

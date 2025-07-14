@@ -91,8 +91,13 @@ const sendWithReconnect = (payloads: any[]): Promise<void> => {
 };
 
 
-async function produceModifiedMessages(modifiedMessages: any[], topic: any) {
+async function produceModifiedMessages(modifiedMessages: any, topic: any, tenantId: string): Promise<void> {
     try {
+        if(config.isEnvironmentCentralInstance) {
+            // If tenantId has no ".", default to tenantId itself
+            const firstTenantPartAfterSplit = tenantId.includes(".") ? tenantId.split(".")[0] : tenantId;
+            topic = `${firstTenantPartAfterSplit}-${topic}`;
+        }
         logger.info(`KAFKA :: PRODUCER :: A message sent to topic ${topic}`);
         logger.debug(`KAFKA :: PRODUCER :: Message ${JSON.stringify(modifiedMessages)}`);
         const payloads = [
