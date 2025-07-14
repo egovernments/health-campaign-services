@@ -18,7 +18,8 @@ export const downloadRequestSchema = {
                 "facilityWithBoundary",
                 "userWithBoundary",
                 "boundaryManagement",
-                "boundaryGeometryManagement"
+                "boundaryGeometryManagement",
+                "userCredential"
             ]
         },
         "hierarchyType": {

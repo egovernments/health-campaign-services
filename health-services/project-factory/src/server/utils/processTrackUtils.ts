@@ -1,7 +1,7 @@
 import config from './../config';
 import { produceModifiedMessages } from "../kafka/Producer";;
 import { v4 as uuidv4 } from 'uuid';
-import { executeQuery } from './db';
+import { executeQuery, getTableName } from './db';
 import { processTrackForUi, processTrackStatuses, processTrackTypes } from '../config/constants';
 import { logger } from './logger';
 
@@ -10,17 +10,17 @@ async function getProcessDetails(id: string, type?: string): Promise<any[]> {
     const values: any[] = [id];
 
     logger.info(`Fetching process details for campaignId: ${id}${type ? `, type: ${type}` : ''}`);
-
+    const tableName = getTableName(config?.DB_CONFIG.DB_CAMPAIGN_PROCESS_TABLE_NAME, config.app.defaultTenantId);
     if (type) {
         query = `
-            SELECT * FROM ${config?.DB_CONFIG.DB_CAMPAIGN_PROCESS_TABLE_NAME}
+            SELECT * FROM ${tableName}
             WHERE campaignid = $1 AND type = $2
             ORDER BY lastmodifiedtime ASC;
         `;
         values.push(type);
     } else {
         query = `
-            SELECT * FROM ${config?.DB_CONFIG.DB_CAMPAIGN_PROCESS_TABLE_NAME}
+            SELECT * FROM ${tableName}
             WHERE campaignid = $1
             ORDER BY lastmodifiedtime ASC;
         `;
@@ -137,7 +137,8 @@ async function updateAndProduceMessage(
 ) {
     updateProcessDetails(processDetails, processDetails.type, status, details, additionalDetails);
     const produceMessage: any = { processDetails };
-    await produceModifiedMessages(produceMessage, kafkaTopic);
+    const tenantId = processDetails?.tenantId || config.app.defaultTenantId;
+    await produceModifiedMessages(produceMessage, kafkaTopic, tenantId);
 }
 
 // Creates a new process detail and produces the message
@@ -163,7 +164,8 @@ async function createAndProduceNewProcessDetail(
 
     updateProcessDetails(processDetail, type, status, details, additionalDetails);
     const produceMessage: any = { processDetails: [processDetail] };
-    await produceModifiedMessages(produceMessage, kafkaTopic);
+    const tenantId = processDetail?.tenantId || config.app.defaultTenantId;
+    await produceModifiedMessages(produceMessage, kafkaTopic, tenantId);
 }
 
 
@@ -206,7 +208,8 @@ async function createProcessTracks(campaignId: string) {
 
     logger.info(`Created ${processDetailsArray.length} process tracks`);
     const produceMessage: any = { processDetails: processDetailsArray }
-    await produceModifiedMessages(produceMessage, config?.kafka?.KAFKA_SAVE_PROCESS_TRACK_TOPIC);
+    const tenantId = config.app.defaultTenantId;
+    await produceModifiedMessages(produceMessage, config?.kafka?.KAFKA_SAVE_PROCESS_TRACK_TOPIC, tenantId);
 }
 
 function getOrderedDetailsArray(toBeCompletedArray: any[]) {

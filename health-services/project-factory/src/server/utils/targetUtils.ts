@@ -1,8 +1,6 @@
 import config from '../config'
 import { checkIfSourceIsMicroplan, getConfigurableColumnHeadersBasedOnCampaignType, getLocalizedName } from './campaignUtils';
 import _ from 'lodash';
-import { replicateRequest } from './genericUtils';
-import { callGenerate } from './generateUtils';
 
 
 async function generateDynamicTargetHeaders(request: any, campaignObject: any, localizationMap?: any) {
@@ -92,31 +90,31 @@ function createTargetString(uniqueDeliveryConditionsObject: any, localizationMap
     return targetString;
 }
 
-async function updateTargetColumnsIfDeliveryConditionsDifferForSMC(request: any) {
-    const existingCampaignDetails = request?.body?.ExistingCampaignDetails;
-    if (existingCampaignDetails) {
-        if (isDynamicTargetTemplateForProjectType(request?.body?.CampaignDetails?.projectType) && config?.isCallGenerateWhenDeliveryConditionsDiffer && !_.isEqual(existingCampaignDetails?.deliveryRules, request?.body?.CampaignDetails?.deliveryRules)) {
-            const newRequestBody = {
-                RequestInfo: request?.body?.RequestInfo,
-                Filters: {
-                    boundaries: request?.body?.boundariesCombined
-                }
-            };
+// async function updateTargetColumnsIfDeliveryConditionsDifferForSMC(request: any) {
+//     const existingCampaignDetails = request?.body?.ExistingCampaignDetails;
+//     if (existingCampaignDetails) {
+//         if (isDynamicTargetTemplateForProjectType(request?.body?.CampaignDetails?.projectType) && config?.isCallGenerateWhenDeliveryConditionsDiffer && !_.isEqual(existingCampaignDetails?.deliveryRules, request?.body?.CampaignDetails?.deliveryRules)) {
+//             const newRequestBody = {
+//                 RequestInfo: request?.body?.RequestInfo,
+//                 Filters: {
+//                     boundaries: request?.body?.boundariesCombined
+//                 }
+//             };
 
-            const { query } = request;
-            const params = {
-                tenantId: request?.body?.CampaignDetails?.tenantId,
-                forceUpdate: 'true',
-                hierarchyType: request?.body?.CampaignDetails?.hierarchyType,
-                campaignId: request?.body?.CampaignDetails?.id
-            };
+//             const { query } = request;
+//             const params = {
+//                 tenantId: request?.body?.CampaignDetails?.tenantId,
+//                 forceUpdate: 'true',
+//                 hierarchyType: request?.body?.CampaignDetails?.hierarchyType,
+//                 campaignId: request?.body?.CampaignDetails?.id
+//             };
 
-            const newParamsBoundary = { ...query, ...params, type: "boundary" };
-            const newRequestBoundary = replicateRequest(request, newRequestBody, newParamsBoundary);
-            await callGenerate(newRequestBoundary, "boundary", true);
-        }
-    }
-}
+//             const newParamsBoundary = { ...query, ...params, type: "boundary" };
+//             const newRequestBoundary = replicateRequest(request, newRequestBody, newParamsBoundary);
+//             await callGenerate(newRequestBoundary, "boundary", true);
+//         }
+//     }
+// }
 
 function isDynamicTargetTemplateForProjectType(projectType: string) {
     const projectTypesFromConfig = config?.enableDynamicTemplateFor;
@@ -132,6 +130,5 @@ export {
     modifyDeliveryConditions,
     generateTargetColumnsBasedOnDeliveryConditions,
     generateDynamicTargetHeaders,
-    updateTargetColumnsIfDeliveryConditionsDifferForSMC,
     isDynamicTargetTemplateForProjectType
 };
