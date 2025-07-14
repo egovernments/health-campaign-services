@@ -13,6 +13,7 @@ import org.egov.individual.config.IndividualProperties;
 import org.egov.individual.helper.IndividualRequestTestBuilder;
 import org.egov.individual.helper.IndividualTestBuilder;
 import org.egov.individual.repository.IndividualRepository;
+import org.egov.individual.util.BeneficiaryIdGenUtil;
 import org.egov.individual.validators.AddressTypeValidator;
 import org.egov.individual.validators.UniqueSubEntityValidator;
 import org.egov.tracer.model.CustomException;
@@ -70,6 +71,9 @@ class IndividualServiceTest {
     private IndividualEncryptionService encryptionService;
 
     @Mock
+    private BeneficiaryIdGenUtil idGenUtil;
+
+    @Mock
     private NotificationService notificationService;
     private List<Validator<IndividualBulkRequest, Individual>> validators;
 
@@ -101,6 +105,7 @@ class IndividualServiceTest {
         when(encryptionService.encrypt(any(IndividualBulkRequest.class),
                 anyList(), any(String.class), anyBoolean())).thenReturn(Collections.singletonList(IndividualTestBuilder.builder()
                 .withTenantId()
+                .withIdentifiers()
                 .withName()
                 .build()));
         lenient().doNothing().when(notificationService).sendNotification(any(IndividualRequest.class),eq(true));

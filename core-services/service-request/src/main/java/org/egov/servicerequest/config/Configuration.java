@@ -1,5 +1,6 @@
 package org.egov.servicerequest.config;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -12,12 +13,11 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
-import org.springframework.stereotype.Component;
 
-import javax.annotation.PostConstruct;
+import jakarta.annotation.PostConstruct;
 import java.util.TimeZone;
 
-@Component
+@org.springframework.context.annotation.Configuration
 @Data
 @Import({TracerConfiguration.class})
 @NoArgsConstructor
@@ -37,6 +37,8 @@ public class Configuration {
     @Autowired
     public MappingJackson2HttpMessageConverter jacksonConverter(ObjectMapper objectMapper) {
         MappingJackson2HttpMessageConverter converter = new MappingJackson2HttpMessageConverter();
+        objectMapper.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
+        objectMapper.setTimeZone(TimeZone.getTimeZone(timeZone));
         converter.setObjectMapper(objectMapper);
         return converter;
     }
@@ -60,6 +62,9 @@ public class Configuration {
 
     @Value("${egov.service.create.topic}")
     private String serviceCreateTopic;
+
+    @Value("${egov.service.update.topic}")
+    private String serviceUpdateTopic;
 
     @Value("${egov.max.string.input.size}")
     private Integer maxStringInputSize;

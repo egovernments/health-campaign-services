@@ -8,6 +8,7 @@ import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.ds.Tuple;
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.ErrorDetails;
 import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.referralmanagement.hfreferral.HFReferral;
@@ -175,7 +176,7 @@ public class HFReferralService {
                                              Integer offset,
                                              String tenantId,
                                              Long lastChangedSince,
-                                             Boolean includeDeleted) {
+                                             Boolean includeDeleted) throws InvalidTenantIdException {
         log.info("Received request to search referrals");
         String idFieldName = getIdFieldName(referralSearchRequest.getHfReferral());
 
@@ -187,7 +188,7 @@ public class HFReferralService {
                     referralSearchRequest.getHfReferral());
             log.info("Fetching referrals with IDs: {}", ids);
 
-            List<HFReferral> hfReferrals = hfReferralRepository.findById(ids, idFieldName, includeDeleted).getResponse().stream()
+            List<HFReferral> hfReferrals = hfReferralRepository.findById(tenantId, ids, idFieldName, includeDeleted).getResponse().stream()
                     .filter(lastChangedSince(lastChangedSince))
                     .filter(havingTenantId(tenantId))
                     .filter(includeDeleted(includeDeleted))
@@ -219,9 +220,10 @@ public class HFReferralService {
         try {
             if (!validReferrals.isEmpty()) {
                 log.info("Processing {} valid entities", validReferrals.size());
+                String tenantId = CommonUtils.getTenantId(validReferrals);
                 List<String> referralIds = validReferrals.stream().map(entity -> entity.getId()).collect(Collectors.toSet()).stream().collect(Collectors.toList());
                 List<HFReferral> existingReferrals = hfReferralRepository
-                        .findById(referralIds, false);
+                        .findById(tenantId, referralIds, false);
                 hfReferralEnrichmentService.delete(existingReferrals, hfReferralRequest);
                 hfReferralRepository.save(existingReferrals,
                         referralManagementConfiguration.getDeleteHFReferralTopic());

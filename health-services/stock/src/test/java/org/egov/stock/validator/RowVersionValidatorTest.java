@@ -1,5 +1,6 @@
 package org.egov.stock.validator;
 
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.Error;
 import org.egov.common.models.stock.Stock;
 import org.egov.common.models.stock.StockBulkRequest;
@@ -47,10 +48,10 @@ class RowVersionValidatorTest {
 
     @Test
     @DisplayName("should add to error if row version mismatch found")
-    void shouldAddToErrorDetailsIfRowVersionMismatchFound() {
+    void shouldAddToErrorDetailsIfRowVersionMismatchFound() throws InvalidTenantIdException {
         StockBulkRequest request = StockBulkRequestTestBuilder.builder().withStockId("some-id").withRequestInfo().build();
         request.getStock().get(0).setRowVersion(2);
-        when(stockRepository.findById(anyList(), anyBoolean(), anyString()))
+        when(stockRepository.findById(anyString(), anyList(), anyBoolean(), anyString()))
                 .thenReturn(Collections.singletonList(StockTestBuilder.builder().withStock().withId("some-id").build()));
 
         Map<Stock, List<Error>> errorDetailsMap = stockRowVersionValidator.validate(request);
@@ -60,9 +61,9 @@ class RowVersionValidatorTest {
 
     @Test
     @DisplayName("should not add to error if row version is similar")
-    void shouldNotAddToErrorDetailsIfRowVersionSimilar() {
+    void shouldNotAddToErrorDetailsIfRowVersionSimilar() throws InvalidTenantIdException {
         StockBulkRequest request = StockBulkRequestTestBuilder.builder().withStockId("some-id").withRequestInfo().build();
-        when(stockRepository.findById(anyList(), anyBoolean(), anyString()))
+        when(stockRepository.findById(anyString(), anyList(), anyBoolean(), anyString()))
                 .thenReturn(Collections.singletonList(StockTestBuilder.builder().withStock().withId("some-id").build()));
 
         Map<Stock, List<Error>> errorDetailsMap = stockRowVersionValidator.validate(request);
@@ -73,11 +74,11 @@ class RowVersionValidatorTest {
 
     @Test
     @DisplayName("should add to error if row version mismatch found reconciliation")
-    void shouldAddToErrorDetailsIfRowVersionMismatchFoundReconciliation() {
+    void shouldAddToErrorDetailsIfRowVersionMismatchFoundReconciliation() throws InvalidTenantIdException {
         StockReconciliationBulkRequest request = StockReconciliationBulkRequestTestBuilder.builder()
                 .withStockId("some-id").withRequestInfo().build();
         request.getStockReconciliation().get(0).setRowVersion(2);
-        when(stockReconciliationRepository.findById(anyList(), anyBoolean(), anyString()))
+        when(stockReconciliationRepository.findById(anyString(), anyList(), anyBoolean(), anyString()))
                 .thenReturn(Collections.singletonList(StockReconciliationTestBuilder.builder()
                         .withStock().withId("some-id").build()));
 
@@ -88,10 +89,10 @@ class RowVersionValidatorTest {
 
     @Test
     @DisplayName("should not add to error if row version is similar reconciliation")
-    void shouldNotAddToErrorDetailsIfRowVersionSimilarReconciliation() {
+    void shouldNotAddToErrorDetailsIfRowVersionSimilarReconciliation() throws InvalidTenantIdException {
         StockReconciliationBulkRequest request = StockReconciliationBulkRequestTestBuilder.builder()
                 .withStockId("some-id").withRequestInfo().build();
-        when(stockReconciliationRepository.findById(anyList(), anyBoolean(), anyString()))
+        when(stockReconciliationRepository.findById( anyString(), anyList(), anyBoolean(), anyString()))
                 .thenReturn(Collections.singletonList(StockReconciliationTestBuilder.builder()
                         .withStock().withId("some-id").build()));
 

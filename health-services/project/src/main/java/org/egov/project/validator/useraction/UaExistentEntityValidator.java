@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.Error;
 import org.egov.common.models.project.useraction.UserAction;
 import org.egov.common.models.project.useraction.UserActionBulkRequest;
@@ -18,8 +19,10 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
+import static org.egov.common.utils.CommonUtils.getTenantId;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
+import static org.egov.common.utils.ValidatorUtils.getErrorForInvalidTenantId;
 import static org.egov.common.utils.ValidatorUtils.getErrorForUniqueEntity;
 
 /**
@@ -62,6 +65,7 @@ public class UaExistentEntityValidator implements Validator<UserActionBulkReques
 
         // Get the list of UserAction entities from the request.
         List<UserAction> entities = request.getUserActions();
+        String tenantId = getTenantId(entities);
 
         // Extract client reference IDs from UserAction entities that do not have existing errors.
         List<String> clientReferenceIdList = entities.stream()
@@ -81,16 +85,23 @@ public class UaExistentEntityValidator implements Validator<UserActionBulkReques
 
         // Check if the client reference ID list is not empty before querying the database.
         if (!CollectionUtils.isEmpty(clientReferenceIdList)) {
-            // Query the repository to find existing UserAction entities with the given client reference IDs.
-            List<String> existingClientReferenceIds = userActionRepository.validateClientReferenceIdsFromDB(clientReferenceIdList, Boolean.FALSE);
-
-            // For each existing client reference ID, add an error to the map for the corresponding UserAction entity.
-            existingClientReferenceIds.forEach(clientReferenceId -> {
-                // Get a predefined error object for unique entity validation.
-                Error error = getErrorForUniqueEntity();
-                // Populate error details for the individual UserAction entity associated with the client reference ID.
-                populateErrorDetails(map.get(clientReferenceId), error, errorDetailsMap);
-            });
+            try {
+                // Query the repository to find existing UserAction entities with the given client reference IDs.
+                List<String> existingClientReferenceIds = userActionRepository.validateClientReferenceIdsFromDB(tenantId, clientReferenceIdList, Boolean.FALSE);
+                // For each existing client reference ID, add an error to the map for the corresponding UserAction entity.
+                existingClientReferenceIds.forEach(clientReferenceId -> {
+                    // Get a predefined error object for unique entity validation.
+                    Error error = getErrorForUniqueEntity();
+                    // Populate error details for the individual UserAction entity associated with the client reference ID.
+                    populateErrorDetails(map.get(clientReferenceId), error, errorDetailsMap);
+                });
+            } catch (InvalidTenantIdException exception) {
+                // Populating InvalidTenantIdException for all entities
+                entities.forEach(userAction -> {
+                    Error error = getErrorForInvalidTenantId(tenantId, exception);
+                    populateErrorDetails(userAction, error, errorDetailsMap);
+                });
+            }
         }
 
         // Return the map containing UserAction entities and their associated error details.

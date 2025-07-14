@@ -6,6 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.egov.common.data.query.builder.SelectQueryBuilder;
 import org.egov.common.data.repository.GenericRepository;
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.core.ProjectSearchURLParams;
 import org.egov.common.models.project.Document;
 import org.egov.common.models.project.Project;
@@ -72,7 +73,7 @@ public class ProjectRepository extends GenericRepository<Project> {
     /**
     * @param isAncestorProjectId When true, treats the project IDs in the ProjectRequest as ancestor project IDs
     */
-    public List<Project> getProjects(ProjectRequest project, Integer limit, Integer offset, String tenantId, Long lastChangedSince, Boolean includeDeleted, Boolean includeAncestors, Boolean includeDescendants, Long createdFrom, Long createdTo, boolean isAncestorProjectId) {
+    public List<Project> getProjects(ProjectRequest project, Integer limit, Integer offset, String tenantId, Long lastChangedSince, Boolean includeDeleted, Boolean includeAncestors, Boolean includeDescendants, Long createdFrom, Long createdTo, boolean isAncestorProjectId) throws InvalidTenantIdException {
 
         //Fetch Projects based on search criteria
         List<Project> projects = getProjectsBasedOnSearchCriteria(project.getProjects(), limit, offset, tenantId, lastChangedSince, includeDeleted, createdFrom, createdTo, isAncestorProjectId);
@@ -86,7 +87,7 @@ public class ProjectRepository extends GenericRepository<Project> {
         if(!projectIds.isEmpty()) {
             //Get Project ancestors if includeAncestors flag is true
             if (includeAncestors) {
-                ancestors = getProjectAncestors(projects);
+                ancestors = getProjectAncestors(tenantId, projects);
                 if (ancestors != null && !ancestors.isEmpty()) {
                     List<String> ancestorProjectIds = ancestors.stream().map(Project :: getId).collect(Collectors.toList());
                     projectIds.addAll(ancestorProjectIds);
@@ -94,7 +95,7 @@ public class ProjectRepository extends GenericRepository<Project> {
             }
             //Get Project descendants if includeDescendants flag is true
             if (includeDescendants) {
-                descendants = getProjectDescendants(projects);
+                descendants = getProjectDescendants(tenantId, projects);
                 if (descendants != null && !descendants.isEmpty()) {
                     List<String> descendantsProjectIds = descendants.stream().map(Project :: getId).collect(Collectors.toList());
                     projectIds.addAll(descendantsProjectIds);
@@ -102,17 +103,17 @@ public class ProjectRepository extends GenericRepository<Project> {
             }
 
             //Fetch targets based on Project Ids
-            targets = getTargetsBasedOnProjectIds(projectIds);
+            targets = getTargetsBasedOnProjectIds(tenantId, projectIds);
 
             //Fetch documents based on Project Ids
-            documents = getDocumentsBasedOnProjectIds(projectIds);
+            documents = getDocumentsBasedOnProjectIds(tenantId, projectIds);
         }
 
         //Construct Project Objects with fetched projects, targets and documents using Project id
         return buildProjectSearchResult(projects, targets, documents, ancestors, descendants);
     }
 
-    public List<Project> getProjects(@NotNull @Valid ProjectSearch projectSearch, @Valid ProjectSearchURLParams urlParams) {
+    public List<Project> getProjects(@NotNull @Valid ProjectSearch projectSearch, @Valid ProjectSearchURLParams urlParams) throws InvalidTenantIdException {
 
         //Fetch Projects based on search criteria
         List<Project> projects = getProjectsBasedOnV2SearchCriteria(projectSearch, urlParams);
@@ -126,7 +127,7 @@ public class ProjectRepository extends GenericRepository<Project> {
         if(!projectIds.isEmpty()) {
             //Get Project ancestors if includeAncestors flag is true
             if (urlParams.getIncludeAncestors()) {
-                ancestors = getProjectAncestors(projects);
+                ancestors = getProjectAncestors(urlParams.getTenantId(), projects);
                 if (ancestors != null && !ancestors.isEmpty()) {
                     List<String> ancestorProjectIds = ancestors.stream().map(Project :: getId).toList();
                     projectIds.addAll(ancestorProjectIds);
@@ -134,7 +135,7 @@ public class ProjectRepository extends GenericRepository<Project> {
             }
             //Get Project descendants if includeDescendants flag is true
             if (urlParams.getIncludeDescendants()) {
-                descendants = getProjectDescendants(projects);
+                descendants = getProjectDescendants(urlParams.getTenantId(), projects);
                 if (descendants != null && !descendants.isEmpty()) {
                     List<String> descendantsProjectIds = descendants.stream().map(Project :: getId).toList();
                     projectIds.addAll(descendantsProjectIds);
@@ -142,19 +143,21 @@ public class ProjectRepository extends GenericRepository<Project> {
             }
 
             //Fetch targets based on Project Ids
-            targets = getTargetsBasedOnProjectIds(projectIds);
+            targets = getTargetsBasedOnProjectIds(urlParams.getTenantId(), projectIds);
 
             //Fetch documents based on Project Ids
-            documents = getDocumentsBasedOnProjectIds(projectIds);
+            documents = getDocumentsBasedOnProjectIds(urlParams.getTenantId(), projectIds);
         }
 
         //Construct Project Objects with fetched projects, targets and documents using Project id
         return buildProjectSearchResult(projects, targets, documents, ancestors, descendants);
     }
 
-    private List<Project> getProjectsBasedOnV2SearchCriteria(@NotNull @Valid ProjectSearch projectSearch, ProjectSearchURLParams urlParams) {
+    private List<Project> getProjectsBasedOnV2SearchCriteria(@NotNull @Valid ProjectSearch projectSearch, ProjectSearchURLParams urlParams) throws InvalidTenantIdException {
         List<Object> preparedStmtList = new ArrayList<>();
         String query = queryBuilder.getProjectSearchQuery(projectSearch, urlParams, preparedStmtList, Boolean.FALSE);
+        // Replacing schema placeholder with the schema name for the tenant id
+        query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, urlParams.getTenantId());
         List<Project> projects = jdbcTemplate.query(query, addressRowMapper, preparedStmtList.toArray());
 
         log.info("Fetched project list based on given search criteria");
@@ -162,9 +165,11 @@ public class ProjectRepository extends GenericRepository<Project> {
     }
 
     /* Fetch Projects based on search criteria */
-    private List<Project> getProjectsBasedOnSearchCriteria(List<Project> projectsRequest, Integer limit, Integer offset, String tenantId, Long lastChangedSince, Boolean includeDeleted, Long createdFrom, Long createdTo, boolean isAncestorProjectId) {
+    private List<Project> getProjectsBasedOnSearchCriteria(List<Project> projectsRequest, Integer limit, Integer offset, String tenantId, Long lastChangedSince, Boolean includeDeleted, Long createdFrom, Long createdTo, boolean isAncestorProjectId) throws InvalidTenantIdException {
         List<Object> preparedStmtList = new ArrayList<>();
         String query = queryBuilder.getProjectSearchQuery(projectsRequest, limit, offset, tenantId, lastChangedSince, includeDeleted, createdFrom, createdTo, isAncestorProjectId, preparedStmtList, false);
+        // Replacing schema placeholder with the schema name for the tenant id
+        query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
         List<Project> projects = jdbcTemplate.query(query, addressRowMapper, preparedStmtList.toArray());
 
         log.info("Fetched project list based on given search criteria");
@@ -172,41 +177,49 @@ public class ProjectRepository extends GenericRepository<Project> {
     }
 
     /* Fetch Projects based on Project ids */
-    public List<Project> getProjectsBasedOnProjectIds(List<String> projectIds,  List<Object> preparedStmtList) {
+    public List<Project> getProjectsBasedOnProjectIds(String tenantId, List<String> projectIds,  List<Object> preparedStmtList) throws InvalidTenantIdException {
         String query = queryBuilder.getProjectSearchQueryBasedOnIds(projectIds, preparedStmtList);
+        // Replacing schema placeholder with the schema name for the tenant id
+        query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
         List<Project> projects = jdbcTemplate.query(query, addressRowMapper, preparedStmtList.toArray());
         log.info("Fetched project list based on given Project Ids");
         return projects;
     }
 
     /* Fetch Project descendants based on Project ids */
-    private List<Project> getProjectsDescendantsBasedOnProjectIds(List<String> projectIds, List<Object> preparedStmtListDescendants) {
+    private List<Project> getProjectsDescendantsBasedOnProjectIds(String tenantId, List<String> projectIds, List<Object> preparedStmtListDescendants) throws InvalidTenantIdException {
         String query = queryBuilder.getProjectDescendantsSearchQueryBasedOnIds(projectIds, preparedStmtListDescendants);
+        // Replacing schema placeholder with the schema name for the tenant id
+        query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
         List<Project> projects = jdbcTemplate.query(query, addressRowMapper, preparedStmtListDescendants.toArray());
         log.info("Fetched project descendants list based on given Project Ids");
         return projects;
     }
 
     /* Fetch targets based on Project Ids */
-    private List<Target> getTargetsBasedOnProjectIds(Set<String> projectIds) {
+    private List<Target> getTargetsBasedOnProjectIds(String tenantId, Set<String> projectIds) throws InvalidTenantIdException {
         List<Object> preparedStmtListTarget = new ArrayList<>();
         String queryTarget = targetQueryBuilder.getTargetSearchQuery(projectIds, preparedStmtListTarget);
+        // Replacing schema placeholder with the schema name for the tenant id
+        queryTarget = multiStateInstanceUtil.replaceSchemaPlaceholder(queryTarget, tenantId);
         List<Target> targets = jdbcTemplate.query(queryTarget, targetRowMapper, preparedStmtListTarget.toArray());
         log.info("Fetched targets based on project Ids");
         return targets;
     }
 
     /* Fetch documents based on Project Ids */
-    private List<Document> getDocumentsBasedOnProjectIds(Set<String> projectIds) {
+    private List<Document> getDocumentsBasedOnProjectIds(String tenantId, Set<String> projectIds) throws InvalidTenantIdException {
         List<Object> preparedStmtListDocument = new ArrayList<>();
         String queryDocument = documentQueryBuilder.getDocumentSearchQuery(projectIds, preparedStmtListDocument);
+        // Replacing schema placeholder with the schema name for the tenant id
+        queryDocument = multiStateInstanceUtil.replaceSchemaPlaceholder(queryDocument, tenantId);
         List<Document> documents = jdbcTemplate.query(queryDocument, documentRowMapper, preparedStmtListDocument.toArray());
         log.info("Fetched documents based on project Ids");
         return documents;
     }
 
     /* Separates preceding project ids from project hierarchy, adds them in list and fetches data using those project ids */
-    private List<Project> getProjectAncestors(List<Project> projects) {
+    private List<Project> getProjectAncestors(String tenantId, List<Project> projects) throws InvalidTenantIdException {
         List<String> ancestorIds = new ArrayList<>();
         List<Project> ancestors = null;
 
@@ -220,7 +233,7 @@ public class ProjectRepository extends GenericRepository<Project> {
         //Fetch projects based on ancestor project Ids
         if (ancestorIds.size() > 0) {
             List<Object> preparedStmtListAncestors = new ArrayList<>();
-            ancestors = getProjectsBasedOnProjectIds(ancestorIds, preparedStmtListAncestors);
+            ancestors = getProjectsBasedOnProjectIds(tenantId, ancestorIds, preparedStmtListAncestors);
             log.info("Fetched ancestor projects");
         }
 
@@ -228,13 +241,13 @@ public class ProjectRepository extends GenericRepository<Project> {
     }
 
     /* Fetch projects where project hierarchy for projects in db contains project ID of requested project. The descendant project's projectHierarchy will contain parent project id */
-    private List<Project> getProjectDescendants(List<Project> projects) {
+    private List<Project> getProjectDescendants(String tenantId, List<Project> projects) throws InvalidTenantIdException {
         List<String> projectIds = projects.stream().map(Project:: getId).collect(Collectors.toList());
 
         List<Object> preparedStmtListDescendants = new ArrayList<>();
         log.info("Fetching descendant projects");
 
-        return getProjectsDescendantsBasedOnProjectIds(projectIds, preparedStmtListDescendants);
+        return getProjectsDescendantsBasedOnProjectIds(tenantId, projectIds, preparedStmtListDescendants);
     }
 
     /* Constructs Project Objects with fetched projects, targets and documents using Project id and return list of Projects */
@@ -350,13 +363,14 @@ public class ProjectRepository extends GenericRepository<Project> {
      * query build at the run time)
      * @return
      */
-    public Integer getProjectCount(ProjectRequest project, String tenantId, Long lastChangedSince, Boolean includeDeleted, Long createdFrom, Long createdTo, boolean isAncestorProjectId) {
+    public Integer getProjectCount(ProjectRequest project, String tenantId, Long lastChangedSince, Boolean includeDeleted, Long createdFrom, Long createdTo, boolean isAncestorProjectId) throws InvalidTenantIdException {
         List<Object> preparedStatement = new ArrayList<>();
         String query = queryBuilder.getSearchCountQueryString(project.getProjects(), tenantId, lastChangedSince, includeDeleted, createdFrom, createdTo, isAncestorProjectId, preparedStatement);
 
         if (query == null)
             return 0;
-
+        // Replacing schema placeholder with the schema name for the tenant id
+        query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
         Integer count = jdbcTemplate.queryForObject(query, preparedStatement.toArray(), Integer.class);
         log.info("Total project count is : " + count);
         return count;
@@ -367,13 +381,15 @@ public class ProjectRepository extends GenericRepository<Project> {
      * query build at the run time)
      * @return
      */
-    public Integer getProjectCount(ProjectSearch projectSearch, ProjectSearchURLParams urlParams) {
+    public Integer getProjectCount(ProjectSearch projectSearch, ProjectSearchURLParams urlParams) throws InvalidTenantIdException {
         List<Object> preparedStatement = new ArrayList<>();
         String query = queryBuilder.getSearchCountQueryString(projectSearch, urlParams, preparedStatement);
 
         if (query == null)
             return 0;
 
+        // Replacing schema placeholder with the schema name for the tenant id
+        query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, urlParams.getTenantId());
         Integer count = jdbcTemplate.queryForObject(query, preparedStatement.toArray(), Integer.class);
         log.info("Total project count is : " + count);
         return count;
