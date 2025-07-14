@@ -47,7 +47,7 @@ const config = {
   user: {
     userTab: process.env.USER_TAB_NAME || "HCM_ADMIN_CONSOLE_USER_LIST",
     userDefaultPassword: process.env.USER_DEFAULT_PASSWORD || "eGov@123",
-    userPasswordAutoGenerate: process.env.USER_PASSWORD_AUTO_GENERATE || "true",
+    userPasswordAutoGenerate: process.env.USER_PASSWORD_AUTO_GENERATE === "true",
     mapUserViaCommonParent: process.env.MAP_USER_VIA_COMMON_PARENT || false,
     phoneNumberLength: 10
   },
