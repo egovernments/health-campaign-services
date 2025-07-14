@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.processor.config.Configuration;
-import org.egov.processor.config.ServiceConstants;
 import org.egov.processor.repository.ServiceRequestRepository;
 import org.egov.processor.web.models.File;
 import org.egov.processor.web.models.PlanConfiguration;
@@ -13,8 +12,13 @@ import org.egov.processor.web.models.campaignManager.*;
 import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
 
-import java.util.*;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import static org.egov.processor.config.ErrorConstants.*;
 import static org.egov.processor.config.ServiceConstants.*;
 
 @Component
@@ -32,6 +36,26 @@ public class CampaignIntegrationUtil {
 	}
 
 	/**
+	 * Performs a campaign search based on the provided plan configuration request.
+	 * This method builds a campaign search request using the integration utility,
+	 * fetches the search result from the service request repository, and returns it.
+	 *
+	 * @param planConfigurationRequest The request object containing configuration details for the campaign search.
+	 * @return The Campaign response object containing the result of the campaign search.
+	 */
+    public CampaignResponse performCampaignSearch(PlanConfigurationRequest planConfigurationRequest) {
+		try {
+			CampaignSearchRequest campaignRequest = buildCampaignRequestForSearch(planConfigurationRequest);
+            Object response = serviceRequestRepository.fetchResult(new StringBuilder(
+                    config.getProjectFactoryHostEndPoint() + config.getCampaignIntegrationSearchEndPoint()), campaignRequest);
+            return mapper.convertValue(response, CampaignResponse.class);
+		} catch (Exception e) {
+			log.error(ERROR_FETCHING_CAMPAIGN_DETAILS_MESSAGE + planConfigurationRequest.getPlanConfiguration().getCampaignId(), e);
+			throw new CustomException(ERROR_FETCHING_CAMPAIGN_DETAILS_CODE, ERROR_FETCHING_CAMPAIGN_DETAILS_MESSAGE);
+		}
+	}
+
+	/**
 	 * Updates resources in the Project Factory by calling an external API with the given plan configuration
 	 * request and file store ID. Logs the operation status.
 	 *
@@ -44,7 +68,7 @@ public class CampaignIntegrationUtil {
 			serviceRequestRepository.fetchResult(
 					new StringBuilder(config.getProjectFactoryHostEndPoint() + config.getCampaignIntegrationFetchFromMicroplanEndPoint()),
 					buildMicroplanDetailsForUpdate(planConfigurationRequest, fileStoreId));
-			log.info("Updated resources file into project factory - " + fileStoreId);
+			log.debug("Updated resources file into project factory - " + fileStoreId);
 		} catch (Exception e) {
 			log.error(ERROR_WHILE_CALLING_MICROPLAN_API + planConfigurationRequest.getPlanConfiguration().getId(), e);
 			throw new CustomException(ERROR_WHILE_CALLING_MICROPLAN_API, e.toString());
@@ -89,7 +113,7 @@ public class CampaignIntegrationUtil {
 					buildResourceDetailsObjectForFacilityCreate(planConfigurationRequest, campaignResponse));
 			log.info("Campaign Data create successful.");
 		} catch (Exception e) {
-			log.error(ServiceConstants.ERROR_WHILE_DATA_CREATE_CALL
+			log.error(ERROR_WHILE_DATA_CREATE_CALL
 					+ planConfigurationRequest.getPlanConfiguration().getCampaignId(), e);
 			throw new CustomException("Failed to update campaign details in CampaignIntegration class within method updateCampaignDetails.", e.toString());
 		}
@@ -112,7 +136,7 @@ public class CampaignIntegrationUtil {
 				.filter(file -> FILE_TEMPLATE_IDENTIFIER_FACILITY.equals(file.getTemplateIdentifier()))
 				.map(File::getFilestoreId)
 				.findFirst()
-				.orElseThrow(() -> new CustomException(FILE_NOT_FOUND_CODE, FILE_NOT_FOUND_MESSAGE + FILE_TEMPLATE_IDENTIFIER_FACILITY)));
+				.orElseThrow(() -> new CustomException(FILE_NOT_FOUND_CODE, FILE_NOT_FOUND_TEMPLATE_IDENTIFIER_MESSAGE + FILE_TEMPLATE_IDENTIFIER_FACILITY)));
 
 		ResourceDetails resourceDetails = ResourceDetails.builder()
 				.type(TYPE_FACILITY)
@@ -121,7 +145,7 @@ public class CampaignIntegrationUtil {
 				.fileStoreId(facilityFilestoreId)
 				.action(ACTION_CREATE)
 				.campaignId(planConfig.getCampaignId())
-				.additionalDetails(createAdditionalDetailsforFacilityCreate(MICROPLAN_SOURCE_KEY, planConfig.getId()))
+				.additionalDetails(createAdditionalDetailsForFacilityCreate(MICROPLAN_SOURCE_KEY, planConfig.getId()))
 				.build();
 
 		return ResourceDetailsRequest.builder()
@@ -148,18 +172,13 @@ public class CampaignIntegrationUtil {
 	}
 
 	/**
-	 * Parses an object representing campaign response into a CampaignResponse object.
+	 * Creates a JSON node containing additional details for facility creation.
 	 *
-	 * @param campaignResponse The object representing campaign response to be parsed.
-	 * @return CampaignResponse object parsed from the campaignResponse.
+	 * @param source       The source from which the facility creation request originates.
+	 * @param microplanId  The microplan ID associated with the facility.
+	 * @return 		       A JSON node representing the additional details.
 	 */
-    public CampaignResponse parseCampaignResponse(Object campaignResponse) {
-		CampaignResponse campaign = null;
-		campaign = mapper.convertValue(campaignResponse, CampaignResponse.class);
-		return campaign;
-	}
-
-	public JsonNode createAdditionalDetailsforFacilityCreate(String source, String microplanId) {
+	public JsonNode createAdditionalDetailsForFacilityCreate(String source, String microplanId) {
 		try {
 			// Create a map to hold the additional details
 			Map<String, String> additionalDetailsMap = new HashMap<>();

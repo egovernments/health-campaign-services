@@ -18,6 +18,7 @@ import org.springframework.validation.annotation.Validated;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Set;
 
 
 /**
@@ -48,7 +49,7 @@ public class Census {
     private String boundaryCode = null;
 
     @JsonProperty("assignee")
-    private List<String> assignee = null;
+    private Set<String> assignee = null;
 
     @JsonProperty("status")
     @Size(max = 64)

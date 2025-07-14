@@ -2,6 +2,7 @@ package digit.web.models;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import org.egov.common.contract.request.RequestInfo;
 import org.springframework.validation.annotation.Validated;
 import lombok.AllArgsConstructor;
@@ -24,6 +25,7 @@ public class PlanRequest {
 
     @JsonProperty("Plan")
     @Valid
+    @NotNull(message = "Plan details are required")
     private Plan plan = null;
 
 

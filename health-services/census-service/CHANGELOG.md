@@ -1,8 +1,15 @@
 # Changelog
 All notable changes to this module will be documented in this file.
 
+## 1.0.1 - 2025-05-07
+
+1. Added indexes to the Census table to improve lookup performance on large datasets.
+2. Addressed technical debt to improve code maintainability, structure, and performance.
+
 ## 1.0.0 - 2024-11-28
-#### Census Service
+
+### Census Service
+
 The Census Service introduces core functionalities for managing census data:
 
 1. Validation of Census: Ensures data integrity by validating all census requests before processing.
