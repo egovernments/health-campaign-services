@@ -923,7 +923,7 @@ async function validateProjectCampaignResources(resources: any, request: any) {
     if (!request?.body?.parentCampaign) {
         if (missingTypes.length > 0) {
             const missingTypesMessage = `Missing resources of types: ${missingTypes.join(', ')}`;
-            throwError("COMMON", 400, "VALIDATION_ERROR", missingTypesMessage);
+            throwError("COMMON", 400, "VALIDATION_ERROR_MISSING_RESOURCE", missingTypesMessage);
         }
     }
     else if(request?.body?.parentCampaign) {

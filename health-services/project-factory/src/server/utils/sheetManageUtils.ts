@@ -164,7 +164,7 @@ export function checkAllRowsConsistency(jsonData: any) {
     let prevRow = jsonData[0]?.["!row#number!"];
     for (let i = 1; i < jsonData.length; i++) {
         if(jsonData[i]?.["!row#number!"] !== prevRow + 1) {
-            throwError("VALIDATION_ERROR", 400, "INVALID_FILE_ERROR", "There should not be any empty gap in sheet rows.");
+            throwError("VALIDATION_ERROR", 400, "INVALID_FILE_WITH_GAP", "There should not be any empty gap in sheet rows.");
         }
         prevRow = jsonData[i]?.["!row#number!"];
     }

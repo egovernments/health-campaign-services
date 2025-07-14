@@ -11,7 +11,8 @@ export const CONSTANTS: any = {
             KAFKA_ERROR: "Some error occured in kafka",
             SCHEMA_ERROR: " Schema related error",
             RESPONSE_NOT_FOUND_ERROR: "Response not found",
-            GENERATE_ERROR: "Error while generating user/facility/boundary"
+            GENERATE_ERROR: "Error while generating user/facility/boundary",
+            VALIDATION_ERROR_MISSING_RESOURCE : "All resource files should be uploaded"
         },
         FILE: {
             INVALID_FILE: "No download URL returned for the given fileStoreId",
@@ -22,7 +23,8 @@ export const CONSTANTS: any = {
             DOWNLOAD_URL_NOT_FOUND: "Not any download URL returned for the given fileStoreId",
             INVALID_FILE_FORMAT: "The uploaded file is not a valid excel file (xlsx or xls).",
             INVALID_COLUMNS: "Columns are invalid",
-            FETCHING_COLUMN_ERROR: "Error fetching Column Headers From Schema"
+            FETCHING_COLUMN_ERROR: "Error fetching Column Headers From Schema",
+            INVALID_FILE_WITH_GAP: "The uploaded file has gap in rows, please remove the gap and upload again",
         },
         FACILITY: {
             FACILITY_SEARCH_FAILED: "Search failed for facility. Check logs",
