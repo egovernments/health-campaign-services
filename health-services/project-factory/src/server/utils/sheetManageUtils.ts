@@ -161,16 +161,26 @@ export async function processResource(ResourceDetails: any, templateConfig: any)
 }
 
 export function checkAllRowsConsistency(jsonData: any) {
-    if(!Array.isArray(jsonData)) return;
-    if(!jsonData.length) return;
-    let prevRow = jsonData[0]?.["!row#number!"];
+    if (!Array.isArray(jsonData)) return;
+    if (!jsonData.length) return;
+
+    const firstRowNumber = jsonData[0]?.["!row#number!"];
+
+    if (firstRowNumber !== 3) {
+        throwError("VALIDATION_ERROR", 400, "INVALID_FILE_WITH_GAP", "There should not be any empty gap in sheet rows.");
+    }
+
+    let prevRow = firstRowNumber;
+
     for (let i = 1; i < jsonData.length; i++) {
-        if(jsonData[i]?.["!row#number!"] !== prevRow + 1) {
+        const currentRowNumber = jsonData[i]?.["!row#number!"];
+        if (currentRowNumber !== prevRow + 1) {
             throwError("VALIDATION_ERROR", 400, "INVALID_FILE_WITH_GAP", "There should not be any empty gap in sheet rows.");
         }
-        prevRow = jsonData[i]?.["!row#number!"];
+        prevRow = currentRowNumber;
     }
 }
+
 
 export async function processRequest(ResourceDetails: any, workBook: any, templateConfig: any, localizationMap: any) {
     validateFileCmapaignIdInMetaData(workBook, ResourceDetails?.campaignId);
