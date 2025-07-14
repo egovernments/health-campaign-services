@@ -28,12 +28,14 @@ import org.springframework.util.CollectionUtils;
 import org.springframework.util.ReflectionUtils;
 
 import static org.egov.common.utils.CommonUtils.getIdMethod;
+import static org.egov.common.utils.MultiStateInstanceUtil.SCHEMA_REPLACE_STRING;
 
 @Repository
 @Slf4j
 public class LocationCaptureRepository extends GenericRepository<UserAction> {
 
-    private final String selectQuery = "SELECT id, clientreferenceid, tenantid, projectid, latitude, longitude, locationaccuracy, boundarycode, action, createdby, createdtime, lastmodifiedby, lastmodifiedtime, clientcreatedtime, clientlastmodifiedtime, clientcreatedby, clientlastmodifiedby, additionaldetails FROM user_location ul ";
+    private final String selectQuery = "SELECT id, clientreferenceid, tenantid, projectid, latitude, longitude, locationaccuracy, boundarycode, action, createdby, createdtime, lastmodifiedby, lastmodifiedtime, clientcreatedtime, clientlastmodifiedtime, clientcreatedby, clientlastmodifiedby, additionaldetails FROM "
+            + SCHEMA_REPLACE_STRING + ".user_location ul ";
 
     @Autowired
     protected LocationCaptureRepository(Producer producer, NamedParameterJdbcTemplate namedParameterJdbcTemplate, RedisTemplate<String, Object> redisTemplate, SelectQueryBuilder selectQueryBuilder, LocationCaptureRowMapper locationCaptureRowMapper) {
@@ -72,6 +74,8 @@ public class LocationCaptureRepository extends GenericRepository<UserAction> {
         paramsMap.put("lastModifiedTime", urlParams.getLastChangedSince());
 
         try {
+            // Replacing schema placeholder with the schema name for the tenant id
+            query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, urlParams.getTenantId());
             log.debug("Executing query to fetch total count");
             Long totalCount = CommonUtils.constructTotalCountCTEAndReturnResult(query, paramsMap, this.namedParameterJdbcTemplate);
 
@@ -93,14 +97,15 @@ public class LocationCaptureRepository extends GenericRepository<UserAction> {
     /**
      * Finds user locations by their IDs, first checking the cache before querying the database.
      *
+     * @param tenantId    The tenant identifier for multitenancy
      * @param ids         The list of IDs to search for.
      * @param columnName  The name of the column to search by.
      * @return A SearchResponse containing the list of user locations found.
      */
-    public SearchResponse<UserAction> findById(List<String> ids, String columnName) {
+    public SearchResponse<UserAction> findById(String tenantId, List<String> ids, String columnName) {
         log.info("Executing findById with ids: {} and columnName: {}", ids, columnName);
 
-        List<UserAction> objFound = findInCache(ids);
+        List<UserAction> objFound = findInCache(tenantId, ids);
 
         if (!objFound.isEmpty()) {
             Method idMethod = getIdMethod(objFound, columnName);
@@ -119,6 +124,8 @@ public class LocationCaptureRepository extends GenericRepository<UserAction> {
         paramMap.put("ids", ids);
 
         try {
+            // Replacing schema placeholder with the schema name for the tenant id
+            query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
             log.debug("Executing query to fetch user locations by ID: {}", query);
             List<UserAction> locationCaptureList = this.namedParameterJdbcTemplate.query(query, paramMap, this.rowMapper);
 

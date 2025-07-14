@@ -103,6 +103,12 @@ const uploadInChunks = async (messages: any, chunkSize: any, tenantId: any, requ
         await new Promise((resolve) => setTimeout(resolve, waitTime));
         await localisation.cacheBurst();
 
+        // wait for 3 second
+        const waitTime = config.localisation.localizationWaitTimeInBoundaryCreation
+        logger.info(`Waiting for ${waitTime / 1000} seconds after each localisation chunk`);
+        await new Promise((resolve) => setTimeout(resolve, waitTime));
+        await localisation.cacheBurst();
+
         logger.info(`Successfully uploaded chunk ${Math.floor(i / chunkSize) + 1}`);
         success = true; // Mark as successful
         break;

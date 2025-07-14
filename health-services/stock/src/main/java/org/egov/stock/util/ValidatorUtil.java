@@ -6,13 +6,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import digit.models.coremodels.UserSearchRequest;
 import org.egov.common.contract.request.RequestInfo;
+import org.egov.common.contract.user.UserSearchRequest;
 import org.egov.common.ds.Tuple;
 import org.egov.common.models.Error;
 import org.egov.common.models.stock.SenderReceiverType;
 import org.egov.common.models.stock.Stock;
 import org.egov.common.models.stock.StockReconciliation;
+import org.egov.common.models.stock.TransactionType;
 import org.egov.common.service.UserService;
 import org.egov.stock.service.FacilityService;
 import org.egov.tracer.model.CustomException;
@@ -131,6 +132,8 @@ public class ValidatorUtil {
 
 			UserSearchRequest userSearchRequest = new UserSearchRequest();
 			userSearchRequest.setRequestInfo(requestInfo);
+			// set the tenantId to the user search request
+			userSearchRequest.setTenantId(requestInfo.getUserInfo().getTenantId());
 			userSearchRequest.setUuid(staffIds);
 			List<String> validStaffIds = userService.search(userSearchRequest).stream().map(user -> user.getUuid())
 					.collect(Collectors.toList());
@@ -265,20 +268,44 @@ public class ValidatorUtil {
 
 		for (Stock stock : validEntities) {
 
+			// Get the sender and receiver IDs from the stock object
 			String senderId = stock.getSenderId();
 			String receiverId = stock.getReceiverId();
 
+			// Get the list of facility IDs mapped to the reference ID of the stock
 			List<String> facilityIds = ProjectFacilityMappingOfIds.get(stock.getReferenceId());
-			if (!CollectionUtils.isEmpty(facilityIds)) {
 
-				if (SenderReceiverType.WAREHOUSE.equals(stock.getSenderType()) && !facilityIds.contains(senderId)) {
-					populateErrorForStock(stock, senderId, errorDetailsMap);
+			// Check if the stock involves a warehouse and a valid transaction type (DISPATCHED or RECEIVED)
+			if ((SenderReceiverType.WAREHOUSE.equals(stock.getSenderType()) && TransactionType.DISPATCHED.equals(stock.getTransactionType()))
+					|| (SenderReceiverType.WAREHOUSE.equals(stock.getReceiverType()) && TransactionType.RECEIVED.equals(stock.getTransactionType()))) {
+
+				// If facilityIds are not empty, validate the sender and receiver IDs based on TransactionType
+				if (!CollectionUtils.isEmpty(facilityIds)) {
+
+					// Check if the sender is a warehouse and the transaction is DISPATCHED
+					// Validate that the sender ID is in the facility IDs, otherwise log an error
+					if (SenderReceiverType.WAREHOUSE.equals(stock.getSenderType())
+							&& !facilityIds.contains(senderId)
+							&& TransactionType.DISPATCHED.equals(stock.getTransactionType())) {
+
+						// Log an error for the invalid sender
+						populateErrorForStock(stock, senderId, errorDetailsMap);
+					}
+
+					// Check if the receiver is a warehouse and the transaction is RECEIVED
+					// Validate that the receiver ID is in the facility IDs, otherwise log an error
+					if (SenderReceiverType.WAREHOUSE.equals(stock.getReceiverType())
+							&& !facilityIds.contains(receiverId)
+							&& TransactionType.RECEIVED.equals(stock.getTransactionType())) {
+
+						// Log an error for the invalid receiver
+						populateErrorForStock(stock, receiverId, errorDetailsMap);
+					}
+				} else {
+
+					// If facilityIds are empty, log an error for both sender and receiver
+					populateErrorForStock(stock, senderId + " and " + receiverId, errorDetailsMap);
 				}
-
-				if (SenderReceiverType.WAREHOUSE.equals(stock.getReceiverType()) && !facilityIds.contains(receiverId))
-					populateErrorForStock(stock, receiverId, errorDetailsMap);
-			} else {
-				populateErrorForStock(stock, senderId + " and " + receiverId, errorDetailsMap);
 			}
 		}
 	}

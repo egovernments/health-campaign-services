@@ -2,7 +2,8 @@ package org.egov.project.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import digit.models.coremodels.mdms.MdmsCriteriaReq;
+import org.egov.common.exception.InvalidTenantIdException;
+import org.egov.mdms.model.MdmsCriteriaReq;
 import org.apache.commons.io.IOUtils;
 import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.common.models.core.SearchResponse;
@@ -129,8 +130,8 @@ class ProjectBeneficiaryServiceUpdateTest {
     }
 
 
-    private void mockProjectFindIds() {
-        when(projectService.findByIds(any(List.class))).thenReturn(Collections.singletonList(
+    private void mockProjectFindIds() throws InvalidTenantIdException {
+        when(projectService.findByIds(anyString(), any(List.class))).thenReturn(Collections.singletonList(
                 Project.builder().id("some-project-id").projectTypeId("some-project-type-id").build()));
     }
     @BeforeEach
@@ -147,17 +148,18 @@ class ProjectBeneficiaryServiceUpdateTest {
     }
 
 
-    private void mockValidateProjectId() {
-        lenient().when(projectService.validateProjectIds(any(List.class)))
+    private void mockValidateProjectId() throws InvalidTenantIdException {
+        lenient().when(projectService.validateProjectIds(anyString(), any(List.class)))
                 .thenReturn(Collections.singletonList("some-project-id"));
     }
-    private void mockValidateBeneficiarytId() {
-        lenient().when(projectBeneficiaryRepository.validateIds(any(List.class),eq("beneficiaryClientReferenceId")))
+    private void mockValidateBeneficiarytId() throws InvalidTenantIdException {
+        lenient().when(projectBeneficiaryRepository.validateIds(anyString(), any(List.class),eq("beneficiaryClientReferenceId")))
                 .thenReturn(Collections.singletonList("beneficiaryClientReferenceId"));
     }
 
-    private void mockFindById() {
+    private void mockFindById() throws InvalidTenantIdException {
         lenient().when(projectBeneficiaryRepository.findById(
+                anyString(),
                 eq(projectBeneficiaryIds),
                 anyString(),
                 eq(false))
@@ -187,14 +189,14 @@ class ProjectBeneficiaryServiceUpdateTest {
         mockProjectFindIds();
         projectBeneficiaryService.update(request, false);
 
-        verify(projectService, times(1)).validateProjectIds(any(List.class));
+        verify(projectService, times(1)).validateProjectIds(anyString(), any(List.class));
     }
 
     @Test
     @DisplayName("should throw exception for any invalid project id")
     @Disabled
     void shouldThrowExceptionForAnyInvalidProjectId() throws Exception {
-        when(projectService.validateProjectIds(any(List.class))).thenReturn(Collections.emptyList());
+        when(projectService.validateProjectIds(anyString(), any(List.class))).thenReturn(Collections.emptyList());
 
         assertThrows(CustomException.class, () -> projectBeneficiaryService.update(request, false));
     }
@@ -209,7 +211,7 @@ class ProjectBeneficiaryServiceUpdateTest {
         mockServiceRequestClient();
         mockMdms(HOUSEHOLD_RESPONSE_FILE_NAME);
         mockProjectFindIds();
-        when(projectBeneficiaryRepository.findById(anyList(), anyString(), eq(false))).thenReturn(SearchResponse.<ProjectBeneficiary>builder().build());
+        when(projectBeneficiaryRepository.findById(anyString(), anyList(), anyString(), eq(false))).thenReturn(SearchResponse.<ProjectBeneficiary>builder().build());
 
         assertThrows(CustomException.class, () -> projectBeneficiaryService.update(request, false));
     }
@@ -261,7 +263,7 @@ class ProjectBeneficiaryServiceUpdateTest {
 
         projectBeneficiaryService.update(request, false);
 
-        verify(projectService, times(1)).validateProjectIds(any(List.class));
+        verify(projectService, times(1)).validateProjectIds(anyString(), any(List.class));
         verify(mdmsService, times(1)).fetchConfig(any(), any());
         verify(serviceRequestClient, times(1)).fetchResult(
                 any(StringBuilder.class),
@@ -308,7 +310,7 @@ class ProjectBeneficiaryServiceUpdateTest {
 
         projectBeneficiaryService.update(request, false);
 
-        verify(projectService, times(1)).validateProjectIds(any(List.class));
+        verify(projectService, times(1)).validateProjectIds(anyString(), any(List.class));
         verify(mdmsService, times(1)).fetchConfig(any(), any());
         verify(serviceRequestClient, times(1)).fetchResult(
                 any(StringBuilder.class),

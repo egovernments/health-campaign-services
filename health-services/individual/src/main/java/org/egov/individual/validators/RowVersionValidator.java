@@ -1,9 +1,11 @@
 package org.egov.individual.validators;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.Error;
 import org.egov.common.models.individual.Individual;
 import org.egov.common.models.individual.IndividualBulkRequest;
+import org.egov.common.utils.CommonUtils;
 import org.egov.common.validator.Validator;
 import org.egov.individual.repository.IndividualRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,6 +25,7 @@ import static org.egov.common.utils.CommonUtils.getIdMethod;
 import static org.egov.common.utils.CommonUtils.getIdToObjMap;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
+import static org.egov.common.utils.ValidatorUtils.getErrorForInvalidTenantId;
 import static org.egov.common.utils.ValidatorUtils.getErrorForRowVersionMismatch;
 
 @Component
@@ -41,21 +44,35 @@ public class RowVersionValidator implements Validator<IndividualBulkRequest, Ind
     @Override
     public Map<Individual, List<Error>> validate(IndividualBulkRequest request) {
         log.info("validating for row version");
+        // fetch tenant id from request
+        String tenantId = CommonUtils.getTenantId(request.getIndividuals());
         Map<Individual, List<Error>> errorDetailsMap = new HashMap<>();
         Method idMethod = getIdMethod(request.getIndividuals());
-        Map<String, Individual> iMap = getIdToObjMap(request.getIndividuals().stream()
+        // fetch individuals from request
+        List<Individual> individuals = request.getIndividuals();
+        Map<String, Individual> iMap = getIdToObjMap(individuals.stream()
                 .filter(notHavingErrors())
                 .collect(Collectors.toList()), idMethod);
         if (!iMap.isEmpty()) {
             List<String> individualIds = new ArrayList<>(iMap.keySet());
-            List<Individual> existingIndividuals = individualRepository.findById(individualIds,
-                    getIdFieldName(idMethod), false).getResponse();
-            List<Individual> individualsWithMismatchedRowVersion =
-                    getEntitiesWithMismatchedRowVersion(iMap, existingIndividuals, idMethod);
-            individualsWithMismatchedRowVersion.forEach(individual -> {
-                Error error = getErrorForRowVersionMismatch();
-                populateErrorDetails(individual, error, errorDetailsMap);
-            });
+
+            // fetch existing individuals from the repository
+            // catch InvalidTenantIdException
+            try {
+                List<Individual> existingIndividuals = individualRepository.findById( tenantId, individualIds,
+                        getIdFieldName(idMethod), false).getResponse();
+                List<Individual> individualsWithMismatchedRowVersion =
+                        getEntitiesWithMismatchedRowVersion(iMap, existingIndividuals, idMethod);
+                individualsWithMismatchedRowVersion.forEach(individual -> {
+                    Error error = getErrorForRowVersionMismatch();
+                    populateErrorDetails(individual, error, errorDetailsMap);
+                });
+            } catch (InvalidTenantIdException exception) {
+                individuals.stream().forEach(individual -> {
+                    Error error = getErrorForInvalidTenantId(tenantId, exception);
+                    populateErrorDetails(individual, error, errorDetailsMap);
+                });
+            }
         }
         return errorDetailsMap;
     }

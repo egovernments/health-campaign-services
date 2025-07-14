@@ -9,6 +9,7 @@ import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.Error;
 import org.egov.common.models.referralmanagement.hfreferral.HFReferral;
 import org.egov.common.models.referralmanagement.hfreferral.HFReferralBulkRequest;
@@ -26,6 +27,7 @@ import static org.egov.common.utils.CommonUtils.getMethod;
 import static org.egov.common.utils.CommonUtils.getObjClass;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
+import static org.egov.common.utils.ValidatorUtils.getErrorForInvalidTenantId;
 import static org.egov.common.utils.ValidatorUtils.getErrorForNonExistentEntity;
 import static org.egov.referralmanagement.Constants.GET_ID;
 
@@ -82,18 +84,27 @@ public class HfrNonExistentEntityValidator implements Validator<HFReferralBulkRe
             try {
                 // Query the repository to find existing entities
                 existingReferrals = hfReferralRepository.find(hfReferralSearch, hfReferrals.size(), 0,
-                        hfReferrals.get(0).getTenantId(), null, false);
+                        hfReferrals.get(0).getTenantId(), null, false).getResponse()
+                ;
+                List<HFReferral> nonExistentReferrals = checkNonExistentEntities(iMap,
+                        existingReferrals, idMethod);
+                nonExistentReferrals.forEach(hfReferral -> {
+                    log.error("Entity doesn't exist in the db {}", hfReferral);
+                    Error error = getErrorForNonExistentEntity();
+                    populateErrorDetails(hfReferral, error, errorDetailsMap);
+                });
+            } catch (InvalidTenantIdException exception) {
+                // Populating InvalidTenantIdException for all entities
+                hfReferrals.forEach(hfReferral -> {
+                    Error error = getErrorForInvalidTenantId(hfReferrals.get(0).getTenantId(), exception);
+                    populateErrorDetails(hfReferral, error, errorDetailsMap);
+                });
             } catch (Exception e) {
                 // Handle query builder exception
                 log.error("Search failed for HFReferral with error: {}", e.getMessage(), e);
                 throw new CustomException("HFREFERRAL_SEARCH_FAILED", "Search Failed for HFReferral, " + e.getMessage()); 
             }
-            List<HFReferral> nonExistentReferrals = checkNonExistentEntities(iMap,
-                    existingReferrals, idMethod);
-            nonExistentReferrals.forEach(sideEffect -> {
-                Error error = getErrorForNonExistentEntity();
-                populateErrorDetails(sideEffect, error, errorDetailsMap);
-            });
+
         }
 
         return errorDetailsMap;

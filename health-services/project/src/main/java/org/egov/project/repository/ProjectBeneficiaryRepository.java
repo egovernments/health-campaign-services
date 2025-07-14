@@ -6,10 +6,12 @@ import org.egov.common.data.query.builder.QueryFieldChecker;
 import org.egov.common.data.query.builder.SelectQueryBuilder;
 import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.data.repository.GenericRepository;
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.household.HouseholdMember;
 import org.egov.common.models.project.ProjectBeneficiary;
 import org.egov.common.producer.Producer;
+import org.egov.common.utils.MultiStateInstanceUtil;
 import org.egov.project.repository.rowmapper.ProjectBeneficiaryRowMapper;
 import org.egov.common.models.project.ProjectBeneficiarySearch;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,6 +29,7 @@ import java.util.stream.Collectors;
 
 import static org.egov.common.utils.CommonUtils.constructTotalCountCTEAndReturnResult;
 import static org.egov.common.utils.CommonUtils.getIdMethod;
+import static org.egov.common.utils.MultiStateInstanceUtil.SCHEMA_REPLACE_STRING;
 
 @Repository
 @Slf4j
@@ -34,23 +37,37 @@ public class ProjectBeneficiaryRepository extends GenericRepository<ProjectBenef
 
     @Autowired
     public ProjectBeneficiaryRepository(Producer producer, NamedParameterJdbcTemplate namedParameterJdbcTemplate,
-                                        RedisTemplate<String, Object> redisTemplate,
-                                        SelectQueryBuilder selectQueryBuilder, ProjectBeneficiaryRowMapper projectBeneficiaryRowMapper) {
+                                           RedisTemplate<String, Object> redisTemplate,
+                                           SelectQueryBuilder selectQueryBuilder, ProjectBeneficiaryRowMapper projectBeneficiaryRowMapper,
+                                           MultiStateInstanceUtil multiStateInstanceUtil) {
         super(producer, namedParameterJdbcTemplate, redisTemplate, selectQueryBuilder,
                 projectBeneficiaryRowMapper, Optional.of("project_beneficiary"));
     }
 
+    /**
+     * Finds and retrieves a paginated list of ProjectBeneficiaries based on the given search criteria.
+     *
+     * @param householdMemberSearch the search criteria object containing filtering parameters such as project ID,
+     *                              beneficiary ID, date of registration, and tags.
+     * @param limit the maximum number of results to return.
+     * @param offset the starting point in the result set to retrieve data.
+     * @param tenantId the tenant ID for filtering the search within a particular tenant's context.
+     * @param lastChangedSince the timestamp to filter results modified since the specified time.
+     * @param includeDeleted a flag indicating whether to include deleted records in the search results.
+     * @return a SearchResponse containing a list of ProjectBeneficiaries and the total count of matched records.
+     * @throws InvalidTenantIdException if an invalid tenant ID is provided.
+     */
     public SearchResponse<ProjectBeneficiary> find(ProjectBeneficiarySearch householdMemberSearch,
                                                 Integer limit,
                                                 Integer offset,
                                                 String tenantId,
                                                 Long lastChangedSince,
-                                                Boolean includeDeleted) {
+                                                Boolean includeDeleted) throws InvalidTenantIdException {
 
         Map<String, Object> paramsMap = new HashMap<>();
         StringBuilder queryBuilder = new StringBuilder();
 
-        String query = "SELECT * FROM project_beneficiary ";
+        String query = String.format("SELECT * FROM %s.project_beneficiary ", SCHEMA_REPLACE_STRING);
 
         List<String> whereFields = GenericQueryBuilder.getFieldsWithCondition(householdMemberSearch, QueryFieldChecker.isNotNull, paramsMap);
         query = GenericQueryBuilder.generateQuery(query, whereFields).toString().trim();
@@ -76,20 +93,33 @@ public class ProjectBeneficiaryRepository extends GenericRepository<ProjectBenef
         paramsMap.put("lastModifiedTime", lastChangedSince);
 
         queryBuilder.append(" ORDER BY id ASC ");
+        // Replacing schema placeholder with the schema name for the tenant id
+        query = multiStateInstanceUtil.replaceSchemaPlaceholder(queryBuilder.toString(), tenantId);
+        Long totalCount = constructTotalCountCTEAndReturnResult(query, paramsMap, this.namedParameterJdbcTemplate);
 
-        Long totalCount = constructTotalCountCTEAndReturnResult(queryBuilder.toString(), paramsMap, this.namedParameterJdbcTemplate);
-
-        queryBuilder.append(" LIMIT :limit OFFSET :offset");
+        query += " LIMIT :limit OFFSET :offset";
         paramsMap.put("limit", limit);
         paramsMap.put("offset", offset);
 
-        List<ProjectBeneficiary> projectBeneficiaries = this.namedParameterJdbcTemplate.query(queryBuilder.toString(), paramsMap, this.rowMapper);
+        List<ProjectBeneficiary> projectBeneficiaries = this.namedParameterJdbcTemplate.query(query, paramsMap, this.rowMapper);
 
         return SearchResponse.<ProjectBeneficiary>builder().totalCount(totalCount).response(projectBeneficiaries).build();
     }
 
-    public SearchResponse<ProjectBeneficiary> findById(List<String> ids, String columnName, Boolean includeDeleted) {
-        List<ProjectBeneficiary> objFound = findInCache(ids);
+    /**
+     * Finds and retrieves a list of ProjectBeneficiary records based on the provided identifiers.
+     * The method allows filtering of deleted records and also leverages caching for faster retrieval.
+     * If not all records are found in the cache, it queries the database for the missing records.
+     *
+     * @param tenantId The tenant identifier used to retrieve data within a specific tenant's context.
+     * @param ids A list of unique identifiers to search for ProjectBeneficiary records.
+     * @param columnName The name of the column used for matching the provided identifiers.
+     * @param includeDeleted A flag indicating whether deleted ProjectBeneficiary records should be included in the result.
+     * @return A SearchResponse containing the retrieved ProjectBeneficiary records.
+     * @throws InvalidTenantIdException If the provided tenant ID is invalid or does not exist.
+     */
+    public SearchResponse<ProjectBeneficiary> findById(String tenantId, List<String> ids, String columnName, Boolean includeDeleted) throws InvalidTenantIdException {
+        List<ProjectBeneficiary> objFound = findInCache(tenantId, ids);
         if (!includeDeleted) {
             objFound = objFound.stream()
                     .filter(entity -> entity.getIsDeleted().equals(false))
@@ -106,12 +136,14 @@ public class ProjectBeneficiaryRepository extends GenericRepository<ProjectBenef
             }
         }
 
-        String query = String.format("SELECT * FROM project_beneficiary where %s IN (:ids) AND isDeleted = false", columnName);
+        String query = String.format("SELECT * FROM %s.project_beneficiary where %s IN (:ids) AND isDeleted = false", SCHEMA_REPLACE_STRING, columnName);
         if (null != includeDeleted && includeDeleted) {
-            query = String.format("SELECT * FROM project_beneficiary WHERE %s IN (:ids)", columnName);
+            query = String.format("SELECT * FROM %s.project_beneficiary WHERE %s IN (:ids)", SCHEMA_REPLACE_STRING, columnName);
         }
         Map<String, Object> paramMap = new HashMap();
         paramMap.put("ids", ids);
+        // Replacing schema placeholder with the schema name for the tenant id
+        query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
 
         objFound.addAll(this.namedParameterJdbcTemplate.query(query, paramMap, this.rowMapper));
         putInCache(objFound);

@@ -103,6 +103,9 @@ public class EmployeeService {
 	@Autowired
 	private ObjectMapper objectMapper;
 
+	@Autowired
+	private IndividualService individualService;
+
 	/**
 	 * Service method for create employee. Does following:
 	 * 1. Sets ids to all the objects using idgen service.
@@ -115,15 +118,22 @@ public class EmployeeService {
 	 */
 	public EmployeeResponse create(EmployeeRequest employeeRequest) {
 		RequestInfo requestInfo = employeeRequest.getRequestInfo();
+		// Extracting tenantId from the first employee in the request
+		String tenantId = employeeRequest.getEmployees().stream().findAny().get().getTenantId();
 		Map<String, String> pwdMap = new HashMap<>();
 		idGenService.setIds(employeeRequest);
 		employeeRequest.getEmployees().stream().forEach(employee -> {
-			enrichCreateRequest(employee, requestInfo);
+			// Enriching the employee object with required parameters
+			enrichCreateRequest(tenantId, employee, requestInfo);
 			createUser(employee, requestInfo);
 			pwdMap.put(employee.getUuid(), employee.getUser().getPassword());
-			employee.getUser().setPassword(null);
 		});
-		hrmsProducer.push(propertiesManager.getSaveEmployeeTopic(), employeeRequest);
+		hrmsProducer.push(propertiesManager.getHrmsEmailNotifTopic(), employeeRequest);
+
+		// Setting password as null after sending employeeRequest to email notification topic to send email.
+		employeeRequest.getEmployees().forEach(employee -> employee.getUser().setPassword(null));
+		// Pushing the employee request to the HRMS topic for further processing
+		hrmsProducer.push(tenantId, propertiesManager.getSaveEmployeeTopic(), employeeRequest);
 		notificationService.sendNotification(employeeRequest, pwdMap);
 		return generateResponse(employeeRequest);
 	}
@@ -137,6 +147,7 @@ public class EmployeeService {
 	 */
 	public EmployeeResponse search(EmployeeSearchCriteria criteria, RequestInfo requestInfo) {
 		boolean  userChecked = false;
+		Long totalCount = 0L;
 		/*if(null == criteria.getIsActive() || criteria.getIsActive())
 			criteria.setIsActive(true);
 		else
@@ -156,6 +167,7 @@ public class EmployeeService {
 				userSearchCriteria.put(HRMSConstants.HRMS_USER_SEARCH_CRITERA_USERNAME, criteria.getCodes().get(0));
 			}
             UserResponse userResponse = userService.getUser(requestInfo, userSearchCriteria);
+			totalCount = userResponse.getTotalCount();
 			userChecked =true;
             if(!CollectionUtils.isEmpty(userResponse.getUser())) {
                  mapOfUsers.putAll(userResponse.getUser().stream()
@@ -178,6 +190,7 @@ public class EmployeeService {
 					userSearchCriteria.put(HRMSConstants.HRMS_USER_SEARCH_CRITERA_TENANTID,criteria.getTenantId());
 					userSearchCriteria.put(HRMSConstants.HRMS_USER_SEARCH_CRITERA_NAME,name);
 					UserResponse userResponse = userService.getUser(requestInfo, userSearchCriteria);
+					totalCount = userResponse.getTotalCount();
 					userChecked =true;
 					if(!CollectionUtils.isEmpty(userResponse.getUser())) {
 						mapOfUsers.putAll(userResponse.getUser().stream()
@@ -191,13 +204,42 @@ public class EmployeeService {
 				else
 					criteria.setUuids(userUUIDs);
 			}
+
+			if(!CollectionUtils.isEmpty(criteria.getUserServiceUuids())) {
+				List<String> userUUIDs = new ArrayList<>();
+				Map<String, Object> userSearchCriteria = new HashMap<>();
+
+				userSearchCriteria.put(HRMSConstants.HRMS_USER_SERACH_CRITERIA_USERTYPE_CODE, HRMSConstants.HRMS_USER_SERACH_CRITERIA_USERTYPE);
+				userSearchCriteria.put(HRMSConstants.HRMS_USER_SEARCH_CRITERA_TENANTID, criteria.getTenantId());
+				userSearchCriteria.put(HRMSConstants.HRMS_USER_SEARCH_CRITERA_USER_SERVICE_UUIDS, criteria.getUserServiceUuids());
+				if(!CollectionUtils.isEmpty(criteria.getNames()))
+					userSearchCriteria.put(HRMSConstants.HRMS_USER_SEARCH_CRITERA_NAME, criteria.getNames().get(0));
+				UserResponse userResponse = userService.getUser(requestInfo, userSearchCriteria);
+				totalCount = userResponse.getTotalCount();
+				userChecked =true;
+				if(!CollectionUtils.isEmpty(userResponse.getUser())) {
+					mapOfUsers.putAll(userResponse.getUser().stream()
+							.collect(Collectors.toMap(User::getUuid, Function.identity())));
+				}
+
+				List<String> uuids = userResponse.getUser().stream().map(User :: getUuid).collect(Collectors.toList());
+				userUUIDs.addAll(uuids);
+
+				if(!CollectionUtils.isEmpty(criteria.getUuids()))
+					criteria.setUuids(criteria.getUuids().stream().filter(userUUIDs::contains).collect(Collectors.toList()));
+				else
+					criteria.setUuids(userUUIDs);
+			}
 		}
-		if(userChecked)
-			criteria.setTenantId(null);
         List <Employee> employees = new ArrayList<>();
-        if(!((!CollectionUtils.isEmpty(criteria.getRoles()) || !CollectionUtils.isEmpty(criteria.getNames()) || !StringUtils.isEmpty(criteria.getPhone())) && CollectionUtils.isEmpty(criteria.getUuids())))
-            employees = repository.fetchEmployees(criteria, requestInfo);
+        if(!((!CollectionUtils.isEmpty(criteria.getRoles()) || !CollectionUtils.isEmpty(criteria.getNames()) || !StringUtils.isEmpty(criteria.getPhone())) && CollectionUtils.isEmpty(criteria.getUuids()))) {
+			Map<String, Object> response = repository.fetchEmployees(criteria, requestInfo);
+			// Extract the List<Employee> and total count from the map
+			employees = (List<Employee>) response.get("employees");
+			totalCount = (Long) response.get("totalCount");
+		}
         List<String> uuids = employees.stream().map(Employee :: getUuid).collect(Collectors.toList());
+		// If the uuids list is not empty, filter the employees list to include only those with matching UUIDs
 		if(!CollectionUtils.isEmpty(uuids)){
             Map<String, Object> userSearchCriteria = new HashMap<>();
 			userSearchCriteria.put(HRMSConstants.HRMS_USER_SERACH_CRITERIA_USERTYPE_CODE, HRMSConstants.HRMS_USER_SERACH_CRITERIA_USERTYPE);
@@ -207,6 +249,7 @@ public class EmployeeService {
             if(mapOfUsers.isEmpty()){
 				log.info("searching in user service");
             UserResponse userResponse = userService.getUser(requestInfo, userSearchCriteria);
+			totalCount = userResponse.getTotalCount();
 			if(!CollectionUtils.isEmpty(userResponse.getUser())) {
 				mapOfUsers = userResponse.getUser().stream()
 						.collect(Collectors.toMap(User :: getUuid, Function.identity()));
@@ -217,7 +260,8 @@ public class EmployeeService {
             }
 		}
 		return EmployeeResponse.builder().responseInfo(factory.createResponseInfoFromRequestInfo(requestInfo, true))
-				.employees(employees).build();
+				.employees(employees)
+				.totalCount(totalCount).build();
 	}
 	
 	
@@ -231,7 +275,14 @@ public class EmployeeService {
 		enrichUser(employee);
 		UserRequest request = UserRequest.builder().requestInfo(requestInfo).user(employee.getUser()).build();
 		try {
-			UserResponse response = userService.createUser(request);
+			UserResponse response;
+			if(userService instanceof IndividualService) {
+				String localityCode = (employee.getJurisdictions()!=null && !employee.getJurisdictions().isEmpty())? employee.getJurisdictions().get(0).getBoundary() : null;
+				response = individualService.createUserByLocality(request, localityCode);
+			}
+			else{
+				response = userService.createUser(request);
+			}
 			User user = response.getUser().get(0);
 			employee.setId(UUID.fromString(user.getUuid()).getMostSignificantBits());
 			employee.setUuid(user.getUuid());
@@ -271,8 +322,7 @@ public class EmployeeService {
 	 * @param employee
 	 * @param requestInfo
 	 */
-	private void enrichCreateRequest(Employee employee, RequestInfo requestInfo) {
-
+	private void enrichCreateRequest(String tenantId, Employee employee, RequestInfo requestInfo) {
 		AuditDetails auditDetails = AuditDetails.builder()
 				.createdBy(requestInfo.getUserInfo().getUuid())
 				.createdDate(new Date().getTime())
@@ -288,7 +338,8 @@ public class EmployeeService {
 			employee.getAssignments().stream().forEach(assignment -> {
 				assignment.setId(UUID.randomUUID().toString());
 				assignment.setAuditDetails(auditDetails);
-				assignment.setPosition(getPosition());
+				// Set the position ID to the next value from the sequence
+				assignment.setPosition(getPosition(tenantId));
 			});
 		}
 		if(!CollectionUtils.isEmpty(employee.getServiceHistory())) {
@@ -329,8 +380,8 @@ public class EmployeeService {
 	 * Fetches next value from the position sequence table
 	 * @return
 	 */
-	public Long getPosition() {
-		return repository.fetchPosition();
+	public Long getPosition(String tenantId) {
+		return repository.fetchPosition(tenantId);
 	}
 
 	/**
@@ -380,7 +431,7 @@ public class EmployeeService {
 		});
 
 		// Push the updated employee request to the HRMS topic for further processing
-		hrmsProducer.push(propertiesManager.getUpdateTopic(), employeeRequest);
+		hrmsProducer.push(tenantId, propertiesManager.getUpdateTopic(), employeeRequest);
 
 		// (Optional) Send reactivation notifications if needed
 		// notificationService.sendReactivationNotification(employeeRequest);
