@@ -108,7 +108,7 @@ export async function sendNotificationEmail(
 
         logger.info("Step 9: Prepared email message object");
         logger.info("Step 10: Producing message to Kafka topic: " + config?.kafka?.KAFKA_NOTIFICATION_EMAIL_TOPIC);
-        await produceModifiedMessages(message, config?.kafka?.KAFKA_NOTIFICATION_EMAIL_TOPIC);
+        await produceModifiedMessages(message, config?.kafka?.KAFKA_NOTIFICATION_EMAIL_TOPIC, tenantId);
 
         logger.info("Step 11: Email message successfully produced to Kafka");
 

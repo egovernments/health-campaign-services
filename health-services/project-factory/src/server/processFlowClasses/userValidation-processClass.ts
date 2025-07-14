@@ -84,7 +84,7 @@ export class TemplateClass {
             }
         }
         const allPhoneNumbersToSearch = Object.keys(phoneNumbersToRowMap);
-        const allCurrentUsersInCampaignDataWithPhoneNumbersRows = await getCampaignDataRowsWithUniqueIdentifiers("user", allPhoneNumbersToSearch, dataRowStatuses.completed);
+        const allCurrentUsersInCampaignDataWithPhoneNumbersRows = await getCampaignDataRowsWithUniqueIdentifiers("user", allPhoneNumbersToSearch, tenantId, dataRowStatuses.completed);
         const setOfAllCurrentUsersInCampaignDataWithPhoneNumbers = new Set(allCurrentUsersInCampaignDataWithPhoneNumbersRows.map((user: any) => String(user?.uniqueIdentifier))); // uniqueIdentifiers of AllCurrentUsersInCampaignDataWithPhoneNumbers
         const allPhoneNumbersNotInCampaignData = allPhoneNumbersToSearch.filter((phoneNumber: any) => !setOfAllCurrentUsersInCampaignDataWithPhoneNumbers.has(String(phoneNumber)));
         logger.info(`Number of phone numbers not in campaign data: ${allPhoneNumbersNotInCampaignData?.length}`);
@@ -149,7 +149,7 @@ export class TemplateClass {
                 allPhoneNumbersToSearch.push(String(userSheetData[i]["HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER"]));
             }
         }
-        const userDataInDb = await getCampaignDataRowsWithUniqueIdentifiers("user", allPhoneNumbersToSearch, dataRowStatuses.completed);
+        const userDataInDb = await getCampaignDataRowsWithUniqueIdentifiers("user", allPhoneNumbersToSearch, tenantId, dataRowStatuses.completed);
         const alreadyCreatedUsersPhoneNumberSet = new Set(userDataInDb.map((user: any) => String(user?.uniqueIdentifier)));
         for (let i = 0; i < userSheetData.length; i++) {
             if (userSheetData[i]["UserName"] && !alreadyCreatedUsersPhoneNumberSet.has(String(userSheetData[i]["HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER"]))) {

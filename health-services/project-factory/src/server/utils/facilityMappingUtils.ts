@@ -13,16 +13,16 @@ export async function startFacilityMappingAndDemapping(campaignDetails: any, use
 }
 
 export async function startFacilityMapping(campaignDetails: any, useruuid: string) {
-    const facilitiesToMap = await getMappingDataRelatedToCampaign("facility", campaignDetails.campaignNumber, mappingStatuses.toBeMapped);
+    const facilitiesToMap = await getMappingDataRelatedToCampaign("facility", campaignDetails.campaignNumber, campaignDetails?.tenantId, mappingStatuses.toBeMapped);
     if (facilitiesToMap.length === 0) return;
 
-    const boundaryData = await getRelatedDataWithCampaign("boundary", campaignDetails.campaignNumber);
+    const boundaryData = await getRelatedDataWithCampaign("boundary", campaignDetails.campaignNumber, campaignDetails.tenantId);
     const boundaryToProjectId: Record<string, string> = {};
     boundaryData.forEach(row => {
         boundaryToProjectId[row?.uniqueIdentifier] = row?.uniqueIdAfterProcess;
     });
 
-    const facilityData = await getRelatedDataWithCampaign("facility", campaignDetails.campaignNumber);
+    const facilityData = await getRelatedDataWithCampaign("facility", campaignDetails.campaignNumber, campaignDetails.tenantId);
     const facilityMap: Record<string, string> = {};
     facilityData.forEach(row => {
         facilityMap[row?.uniqueIdentifier] = row?.uniqueIdAfterProcess;
@@ -58,7 +58,7 @@ export async function startFacilityMapping(campaignDetails: any, useruuid: strin
                 row.mappingId = response.ProjectFacility.id;
             }
 
-            await produceModifiedMessages({ datas: [row] }, config.kafka.KAFKA_UPDATE_MAPPING_DATA_TOPIC);
+            await produceModifiedMessages({ datas: [row] }, config.kafka.KAFKA_UPDATE_MAPPING_DATA_TOPIC, campaignDetails?.tenantId);
         } catch (err) {
             logger.error(`Facility Mapping Failed for ${row?.uniqueIdentifierForData}: `, err);
             throw err;
@@ -68,16 +68,16 @@ export async function startFacilityMapping(campaignDetails: any, useruuid: strin
 
 
 export async function startFacilityDemapping(campaignDetails: any, useruuid: string) {
-    const facilitiesToDeMap = await getMappingDataRelatedToCampaign("facility", campaignDetails.campaignNumber, mappingStatuses.toBeDeMapped);
+    const facilitiesToDeMap = await getMappingDataRelatedToCampaign("facility", campaignDetails.campaignNumber, campaignDetails?.tenantId, mappingStatuses.toBeDeMapped);
     if (facilitiesToDeMap.length === 0) return;
 
-    const boundaryData = await getRelatedDataWithCampaign("boundary", campaignDetails.campaignNumber);
+    const boundaryData = await getRelatedDataWithCampaign("boundary", campaignDetails.campaignNumber, campaignDetails.tenantId);
     const boundaryToProjectId: Record<string, string> = {};
     boundaryData.forEach(row => {
         boundaryToProjectId[row?.uniqueIdentifier] = row?.uniqueIdAfterProcess;
     });
 
-    const facilityData = await getRelatedDataWithCampaign("facility", campaignDetails.campaignNumber);
+    const facilityData = await getRelatedDataWithCampaign("facility", campaignDetails.campaignNumber, campaignDetails.tenantId);
     const facilityMap: Record<string, string> = {};
     facilityData.forEach(row => {
         facilityMap[row?.uniqueIdentifier] = row?.uniqueIdAfterProcess;
@@ -96,12 +96,12 @@ export async function startFacilityDemapping(campaignDetails: any, useruuid: str
 
             if (!projectId || !facilityId || !mappingId) {
                 // Invalid or missing mapping — just mark as deleted
-                await produceModifiedMessages({ datas: [row] }, config.kafka.KAFKA_DELETE_MAPPING_DATA_TOPIC);
+                await produceModifiedMessages({ datas: [row] }, config.kafka.KAFKA_DELETE_MAPPING_DATA_TOPIC, campaignDetails?.tenantId);
                 continue;
             }
 
             await fetchAndDeleteProjectFacility(RequestInfo, campaignDetails.tenantId, projectId, facilityId);
-            await produceModifiedMessages({ datas: [row] }, config.kafka.KAFKA_DELETE_MAPPING_DATA_TOPIC);
+            await produceModifiedMessages({ datas: [row] }, config.kafka.KAFKA_DELETE_MAPPING_DATA_TOPIC, campaignDetails?.tenantId);
         } catch (err) {
             logger.error(`Facility Demapping Failed for ${row?.uniqueIdentifierForData}: `, err);
             throw err;

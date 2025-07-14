@@ -7,11 +7,11 @@ import { produceModifiedMessages } from "../kafka/Producer";
 import config from "../config";
 
 export async function startResourceMapping(campaignDetails : any, useruuid : string) {
-    const allCurrentMappingsToDo = await getMappingDataRelatedToCampaign("resource", campaignDetails.campaignNumber, mappingStatuses.toBeMapped);
+    const allCurrentMappingsToDo = await getMappingDataRelatedToCampaign("resource", campaignDetails.campaignNumber, campaignDetails.tenantId, mappingStatuses.toBeMapped);
     if(allCurrentMappingsToDo.length <= 0){
         return;
     }
-    const getProjectsDataRelatedToCampaign = await getRelatedDataWithCampaign("boundary", campaignDetails.campaignNumber);
+    const getProjectsDataRelatedToCampaign = await getRelatedDataWithCampaign("boundary", campaignDetails.campaignNumber, campaignDetails.tenantId);
     const boundaryToProjectIdMapping : any = {};
     for(let i = 0; i < getProjectsDataRelatedToCampaign.length; i++){
         boundaryToProjectIdMapping[getProjectsDataRelatedToCampaign[i]?.uniqueIdentifier] = getProjectsDataRelatedToCampaign[i]?.uniqueIdAfterProcess;
@@ -43,7 +43,7 @@ export async function startResourceMapping(campaignDetails : any, useruuid : str
             else{
                 throw new Error("Failed to create project resource for resourceId " + allCurrentMappingsToDo[i]?.uniqueIdentifierForData);
             }
-            await produceModifiedMessages({ datas: [allCurrentMappingsToDo[i]] }, config.kafka.KAFKA_UPDATE_MAPPING_DATA_TOPIC);
+            await produceModifiedMessages({ datas: [allCurrentMappingsToDo[i]] }, config.kafka.KAFKA_UPDATE_MAPPING_DATA_TOPIC, campaignDetails.tenantId);
           }
           catch (error) {
             // Log the error if the API call fails

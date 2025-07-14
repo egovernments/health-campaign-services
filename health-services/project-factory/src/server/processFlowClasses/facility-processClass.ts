@@ -11,7 +11,7 @@ import config from "../config";
 import { httpRequest } from "../utils/request";
 import { defaultRequestInfo } from "../api/coreApis";
 import { validateResourceDetailsBeforeProcess } from "../utils/sheetManageUtils";
-import { executeQuery } from "../utils/db";
+import { executeQuery, getTableName } from "../utils/db";
 
 
 interface CampaignMappingRow {
@@ -45,16 +45,16 @@ export class TemplateClass {
         const updatedSheetData = this.addUniqueFacilityKeyInSheetData(sheetData, facilityNameKey);
 
         const newFacilities = await this.extractNewFacilities(updatedSheetData, campaign.campaignNumber, resourceDetails);
-        await this.persistInBatches(newFacilities, config?.kafka?.KAFKA_SAVE_SHEET_DATA_TOPIC);
+        await this.persistInBatches(newFacilities, config?.kafka?.KAFKA_SAVE_SHEET_DATA_TOPIC, resourceDetails?.tenantId);
 
         const waitTime = Math.max(5000, newFacilities.length * 8);
         logger.info(`Waiting for ${waitTime} ms for persistence...`);
         await new Promise((res) => setTimeout(res, waitTime));
 
         await this.createFacilityFromTableData(resourceDetails, userUuid);
-        await this.syncFacilityBoundaryMapping(campaign.campaignNumber, sheetData, facilityNameKey, "HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY");
+        await this.syncFacilityBoundaryMapping(campaign.campaignNumber, sheetData, facilityNameKey, "HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY", resourceDetails?.tenantId);
 
-        const allCurrentFacilties = await getRelatedDataWithCampaign(resourceDetails?.type, campaign.campaignNumber, dataRowStatuses.completed);
+        const allCurrentFacilties = await getRelatedDataWithCampaign(resourceDetails?.type, campaign.campaignNumber, campaign?.tenantId, dataRowStatuses.completed);
         const allData = allCurrentFacilties?.map((u: any) => {
             let data: any = u?.data;
             data["#status#"] = sheetDataRowStatuses.CREATED;
@@ -105,7 +105,7 @@ export class TemplateClass {
                 .filter(([key]) => !!key)
         );
 
-        const existing = await getRelatedDataWithCampaign("facility", campaignNumber);
+        const existing = await getRelatedDataWithCampaign("facility", campaignNumber, resourceDetails?.tenantId);
         const existingMapEntries: [string, any][] = existing
             .map((f: any): [string, any] | null => {
                 const name = String(f?.data?.["HCM_ADMIN_CONSOLE_FACILITY_NAME"]);
@@ -146,11 +146,11 @@ export class TemplateClass {
         return newEntries;
     }
 
-    private static async persistInBatches(facilities: any[], topic: string): Promise<void> {
+    private static async persistInBatches(facilities: any[], topic: string, tenantId: string): Promise<void> {
         const BATCH_SIZE = 100;
         for (let i = 0; i < facilities.length; i += BATCH_SIZE) {
             const batch = facilities.slice(i, i + BATCH_SIZE);
-            await produceModifiedMessages({ datas: batch }, topic);
+            await produceModifiedMessages({ datas: batch }, topic, tenantId);
         }
     }
 
@@ -166,7 +166,7 @@ export class TemplateClass {
         // const userUuid = campaign?.auditDetails?.createdBy;
 
         // Get all existing facilities for this campaign
-        const allCurrentFacilities = await getRelatedDataWithCampaign("facility", campaignNumber);
+        const allCurrentFacilities = await getRelatedDataWithCampaign("facility", campaignNumber, resourceDetails?.tenantId);
 
         // Map facility unique identifiers (Facility Name + campaign) to existing data
         const uniqueKeyAndFacilityMap: Record<string, any> = {};
@@ -222,7 +222,7 @@ export class TemplateClass {
                 }
             }
 
-            await this.persistInBatches(successfullyCreatedFacilities, config?.kafka?.KAFKA_UPDATE_SHEET_DATA_TOPIC);
+            await this.persistInBatches(successfullyCreatedFacilities, config?.kafka?.KAFKA_UPDATE_SHEET_DATA_TOPIC, resourceDetails?.tenantId);
             const waitTime = Math.max(5000, successfullyCreatedFacilities?.length * 8);
             logger.info(`Waiting for ${waitTime} ms for persistence...`);
             await new Promise((res) => setTimeout(res, waitTime));
@@ -266,28 +266,29 @@ export class TemplateClass {
         campaignNumber: string,
         sheetData: any[],
         facilityNameKey: string,
-        boundaryCodeKey: string
+        boundaryCodeKey: string,
+        tenantId: string
     ) {
         const type = "facility";
 
         const sheetMap = this.buildSheetFacilityBoundaryMap(sheetData, facilityNameKey, boundaryCodeKey, "HCM_ADMIN_CONSOLE_FACILITY_USAGE");
-        const existingDbMappings = await this.getMappingDataWithCampaign(campaignNumber, type);
+        const existingDbMappings = await this.getMappingDataWithCampaign(campaignNumber, type, tenantId);
         const dbMappingKeySet = this.buildDbMappingKeySet(existingDbMappings);
 
         const toBeMapped = this.getToBeMappedRows(sheetMap, dbMappingKeySet, campaignNumber, type);
         const toBeDemapped = this.getDemappedRows(sheetMap, existingDbMappings);
 
-        if (toBeMapped.length > 0) await this.insertCampaignMappingData(toBeMapped);
-        if (toBeDemapped.length > 0) await this.markMappingsAsDemapped(toBeDemapped);
+        if (toBeMapped.length > 0) await this.insertCampaignMappingData(toBeMapped, tenantId);
+        if (toBeDemapped.length > 0) await this.markMappingsAsDemapped(toBeDemapped, tenantId);
 
         logger.info(`Inserted ${toBeMapped.length} TO_BE_MAPPED mappings.`);
         logger.info(`Updated ${toBeDemapped.length} to DEMAPPED.`);
-        this.syncFacilitySheetData(sheetData, campaignNumber);
+        this.syncFacilitySheetData(sheetData, campaignNumber, tenantId);
     }
 
 
-    static async syncFacilitySheetData(sheetData: any[], campaignNumber: string) {
-        const dbRows = await getRelatedDataWithCampaign("facility", campaignNumber); // status optional
+    static async syncFacilitySheetData(sheetData: any[], campaignNumber: string, tenantId: string) {
+        const dbRows = await getRelatedDataWithCampaign("facility", campaignNumber, tenantId); // status optional
 
         // Create map of uniqueIdentifier -> full DB row
         const dbMap = new Map<string, any>();
@@ -334,7 +335,7 @@ export class TemplateClass {
 
         if (modifiedRowsToUpdate.length > 0) {
             const kafkaPayload = { datas: modifiedRowsToUpdate };
-            await produceModifiedMessages(kafkaPayload, config?.kafka.KAFKA_UPDATE_SHEET_DATA_TOPIC);
+            await produceModifiedMessages(kafkaPayload, config?.kafka.KAFKA_UPDATE_SHEET_DATA_TOPIC, tenantId);
         } else {
             logger.info("✅ No modified rows found. DB already in sync.");
         }
@@ -408,9 +409,10 @@ export class TemplateClass {
         return rows;
     }
 
-    static async markMappingsAsDemapped(rows: CampaignMappingRow[]): Promise<void> {
+    static async markMappingsAsDemapped(rows: CampaignMappingRow[], tenantId: string): Promise<void> {
         if (!rows.length) return;
-        const query = `UPDATE ${config?.DB_CONFIG.DB_CAMPAIGN_MAPPING_DATA_TABLE_NAME}
+        const tableName = getTableName(config?.DB_CONFIG.DB_CAMPAIGN_MAPPING_DATA_TABLE_NAME, tenantId);
+        const query = `UPDATE ${tableName}
     SET status = $1 WHERE campaignNumber = $2 AND type = $3 AND uniqueIdentifierForData = $4 AND boundaryCode = $5`;
 
         for (const row of rows) {
@@ -425,9 +427,10 @@ export class TemplateClass {
     }
 
 
-    static async insertCampaignMappingData(rows: CampaignMappingRow[]): Promise<void> {
+    static async insertCampaignMappingData(rows: CampaignMappingRow[], tenantId: string): Promise<void> {
         if (!rows.length) return;
-        const query = `INSERT INTO ${config?.DB_CONFIG.DB_CAMPAIGN_MAPPING_DATA_TABLE_NAME}
+        const tableName = getTableName(config?.DB_CONFIG.DB_CAMPAIGN_MAPPING_DATA_TABLE_NAME, tenantId);
+        const query = `INSERT INTO ${tableName}
     (campaignNumber, type, uniqueIdentifierForData, boundaryCode, mappingId, status)
     VALUES ($1, $2, $3, $4, $5, $6)`;
 
@@ -446,9 +449,11 @@ export class TemplateClass {
     static async getMappingDataWithCampaign(
         campaignNumber: string,
         type: string,
+        tenantId: string,
         status?: string
     ): Promise<CampaignMappingRow[]> {
-        let queryString = `SELECT * FROM ${config?.DB_CONFIG.DB_CAMPAIGN_MAPPING_DATA_TABLE_NAME} WHERE type = $1 AND campaignNumber = $2`;
+        const tableName = getTableName(config?.DB_CONFIG.DB_CAMPAIGN_MAPPING_DATA_TABLE_NAME, tenantId);
+        let queryString = `SELECT * FROM ${tableName} WHERE type = $1 AND campaignNumber = $2`;
         const arrayStatements: any[] = [type, campaignNumber];
         if (status) {
             queryString += ` AND status = $3`;

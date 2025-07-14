@@ -40,7 +40,8 @@ export async function initializeGenerateAndGetResponse(
     if (expiredResources.length > 0) {
         await produceModifiedMessages(
             { generatedResource: expiredResources },
-            config.kafka.KAFKA_UPDATE_GENERATED_RESOURCE_DETAILS_TOPIC
+            config.kafka.KAFKA_UPDATE_GENERATED_RESOURCE_DETAILS_TOPIC,
+            tenantId
         );
     }
 
@@ -63,7 +64,8 @@ export async function initializeGenerateAndGetResponse(
 
     await produceModifiedMessages(
         { generatedResource: [newResource] },
-        config.kafka.KAFKA_CREATE_GENERATED_RESOURCE_DETAILS_TOPIC
+        config.kafka.KAFKA_CREATE_GENERATED_RESOURCE_DETAILS_TOPIC,
+        tenantId
     );
 
     return newResource;
@@ -93,7 +95,7 @@ export async function initializeProcessAndGetResponse(
     };
 
     const persistMessage: any = { ResourceDetails: newResourceDetails };
-    await produceModifiedMessages(persistMessage, config?.kafka?.KAFKA_CREATE_RESOURCE_DETAILS_TOPIC); 
+    await produceModifiedMessages(persistMessage, config?.kafka?.KAFKA_CREATE_RESOURCE_DETAILS_TOPIC, ResourceDetails?.tenantId); 
     return newResourceDetails;
 }
 
@@ -127,7 +129,7 @@ export async function generateResource(responseToSend: any, templateConfig: any)
         responseToSend.fileStoreid = fileResponse?.[0]?.fileStoreId;
         if (!responseToSend.fileStoreid) throw new Error("FileStoreId not created.");
         responseToSend.status = generatedResourceStatuses.completed;
-        await produceModifiedMessages({ generatedResource: [responseToSend] }, config?.kafka?.KAFKA_UPDATE_GENERATED_RESOURCE_DETAILS_TOPIC);
+        await produceModifiedMessages({ generatedResource: [responseToSend] }, config?.kafka?.KAFKA_UPDATE_GENERATED_RESOURCE_DETAILS_TOPIC, responseToSend?.tenantId);
     } catch (error) {
         console.log(error)
         await handleErrorDuringGenerate(responseToSend, error);
@@ -151,7 +153,7 @@ export async function processResource(ResourceDetails: any, templateConfig: any)
         ResourceDetails.processedFileStoreId = fileResponse?.[0]?.fileStoreId;
         if (!ResourceDetails.processedFileStoreId) throw new Error("FileStoreId not created.");
         ResourceDetails.status = generatedResourceStatuses.completed;
-        await produceModifiedMessages({ ResourceDetails : ResourceDetails }, config?.kafka?.KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC);
+        await produceModifiedMessages({ ResourceDetails : ResourceDetails }, config?.kafka?.KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC, ResourceDetails?.tenantId);
     } catch (error) {
         console.log(error)
         await handleErrorDuringProcess(ResourceDetails, error);
@@ -280,7 +282,7 @@ async function handleErrorDuringGenerate(responseToSend: any, error: any) {
             message: error.message
         }
     }
-    await produceModifiedMessages({ generatedResource: [responseToSend] }, config?.kafka?.KAFKA_UPDATE_GENERATED_RESOURCE_DETAILS_TOPIC);
+    await produceModifiedMessages({ generatedResource: [responseToSend] }, config?.kafka?.KAFKA_UPDATE_GENERATED_RESOURCE_DETAILS_TOPIC, responseToSend?.tenantId);
 }
 
 export async function handleErrorDuringProcess(ResourceDetails: any, error: any) {
@@ -293,7 +295,7 @@ export async function handleErrorDuringProcess(ResourceDetails: any, error: any)
             message: error.message
         }
     }
-    await produceModifiedMessages({ ResourceDetails: ResourceDetails }, config?.kafka?.KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC);
+    await produceModifiedMessages({ ResourceDetails: ResourceDetails }, config?.kafka?.KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC, ResourceDetails?.tenantId);
 }
 
 async function createBasicTemplateViaConfig(responseToSend: any, templateConfig: any, localizationMap: any) {

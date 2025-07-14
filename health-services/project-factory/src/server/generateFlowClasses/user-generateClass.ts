@@ -36,7 +36,7 @@ export class TemplateClass {
         const boundaryDynamicColumns = await this.getBoundaryDynamicColumns(tenantId, hierarchyType);
 
         // Prepare User List sheet
-        const users = await getRelatedDataWithCampaign(type, campaignNumber, dataRowStatuses.completed);
+        const users = await getRelatedDataWithCampaign(type, campaignNumber, tenantId, dataRowStatuses.completed);
         const userData = users.map((u: any) => {
             const rawData = u?.data || {};
             const localizedData: Record<string, any> = {};

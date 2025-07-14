@@ -976,7 +976,7 @@ function getRootBoundaryCode(boundaries: any[] = []) {
 
 async function enrichRootProjectIdAndBoundaryCode(campaignDetails: any) {
   campaignDetails.boundaryCode = campaignDetails?.boundaryCode || getRootBoundaryCode(campaignDetails?.boundaries) || null;
-  campaignDetails.projectId = campaignDetails?.projectId || await getRootProjectIdViaCampaignNumber(campaignDetails?.campaignNumber, campaignDetails?.boundaryCode);
+  campaignDetails.projectId = campaignDetails?.projectId || await getRootProjectIdViaCampaignNumber(campaignDetails?.campaignNumber, campaignDetails?.boundaryCode, campaignDetails?.tenantId);
   campaignDetails.projectId = campaignDetails.projectId || null;
 }
 
@@ -1056,7 +1056,8 @@ export async function enrichAndPersistCampaignWithErrorProcessingTask(campaignDe
     };
     await produceModifiedMessages(
       produceMessage,
-      config?.kafka?.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC
+      config?.kafka?.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC,
+      parentCampaign?.tenantId
     );
   }
   campaignDetails.parentId = campaignDetails?.parentId || null;
@@ -1086,7 +1087,7 @@ export async function enrichAndPersistCampaignWithErrorProcessingTask(campaignDe
   logger.info(`Waiting for 2 seconds to persist errors`);
   await new Promise((resolve) => setTimeout(resolve, 2000));
   const produceMessage: any = { CampaignDetails: campaignDetails };
-  await produceModifiedMessages(produceMessage, topic);
+  await produceModifiedMessages(produceMessage, topic, campaignDetails?.tenantId);
   await persistTrack(
     campaignDetails?.id,
     processTrackTypes.error,
@@ -1183,7 +1184,7 @@ export async function enrichAndPersistCampaignForCreateViaFlow2(
   };
   campaignDetails.parentId = campaignDetails?.parentId || null;
   campaignDetails.boundaryCode = campaignDetails?.boundaryCode || getRootBoundaryCode(campaignDetails?.boundaries) || null;
-  campaignDetails.projectId = campaignDetails?.projectId || await getRootProjectIdViaCampaignNumber(campaignDetails?.campaignNumber, campaignDetails?.boundaryCode);
+  campaignDetails.projectId = campaignDetails?.projectId || await getRootProjectIdViaCampaignNumber(campaignDetails?.campaignNumber, campaignDetails?.boundaryCode, campaignDetails?.tenantId);
 
   campaignDetails.status =
     campaignDetails.action == "create" ? campaignStatuses.inprogress : campaignStatuses.started;
@@ -1191,14 +1192,14 @@ export async function enrichAndPersistCampaignForCreateViaFlow2(
   const produceMessage: any = {
     CampaignDetails: campaignDetails,
   };
-  await produceModifiedMessages(produceMessage, topic);
+  await produceModifiedMessages(produceMessage, topic, campaignDetails?.tenantId);
 }
 
-async function getRootProjectIdViaCampaignNumber(campaignNumber: string, boundaryCode: string) {
+async function getRootProjectIdViaCampaignNumber(campaignNumber: string, boundaryCode: string, tenantId: string) {
   if(!campaignNumber || !boundaryCode) {
     return null;
   }
-  const rootProjectData = await getRelatedDataWithCampaign("boundary", campaignNumber, dataRowStatuses.completed, boundaryCode);
+  const rootProjectData = await getRelatedDataWithCampaign("boundary", campaignNumber, tenantId, dataRowStatuses.completed, boundaryCode);
   return rootProjectData?.length ? rootProjectData[0]?.uniqueIdAfterProcess : null;
 }
 
@@ -2671,7 +2672,7 @@ export async function processAfterPersistNew(request: any, actionInUrl: any) {
       const locale = getLocaleFromRequest(request);
       const campaignDetails = request?.body?.CampaignDetails;
       const campaignNumber = campaignDetails?.campaignNumber;
-      await prepareProcessesInDb(campaignNumber);
+      await prepareProcessesInDb(campaignNumber, campaignDetails?.tenantId);
       const useruuid = request?.body?.RequestInfo?.userInfo?.uuid || campaignDetails?.auditDetails?.createdBy;
       await createAllResources(campaignDetails, request?.body?.parentCampaign || null , useruuid);
       await createAllMappings(campaignDetails, request?.body?.parentCampaign || null , useruuid);
@@ -2698,7 +2699,7 @@ export async function processAfterPersistNew(request: any, actionInUrl: any) {
 async function userCredGeneration(campaignDetails: any, useruuid: string, locale: string = config.localisation.defaultLocale) {
   logger.info(`Starting user cred generation...`);
   let userCredGenerationProcess = allProcesses.userCredGeneration;
-  let allCurrentProcesses = await getCurrentProcesses(campaignDetails?.campaignNumber);
+  let allCurrentProcesses = await getCurrentProcesses(campaignDetails?.campaignNumber, campaignDetails?.tenantId);
   let task = allCurrentProcesses.find((process: any) => process?.processName == userCredGenerationProcess);
   if(task && task?.status == processStatuses.pending) {
     const generateTemplateQuery : GenerateTemplateQuery = {
@@ -2744,7 +2745,7 @@ async function userCredGeneration(campaignDetails: any, useruuid: string, locale
 }
 
 async function createAllResources(campaignDetails: any,parentCampaign : any, useruuid: string) {
-  let allCurrentProcesses = await getCurrentProcesses(campaignDetails?.campaignNumber);
+  let allCurrentProcesses = await getCurrentProcesses(campaignDetails?.campaignNumber, campaignDetails?.tenantId);
   const resourcesTask = [allProcesses.facilityCreation,allProcesses.userCreation,allProcesses.projectCreation];
   for (let i = 0; i < resourcesTask?.length; i++) {
     const task = allCurrentProcesses.find((process: any) => process?.processName == resourcesTask[i]);
@@ -2754,7 +2755,7 @@ async function createAllResources(campaignDetails: any,parentCampaign : any, use
         CampaignDetails : campaignDetails,
         parentCampaign,
         useruuid
-      }, config.kafka.KAFKA_START_ADMIN_CONSOLE_TASK_TOPIC);
+      }, config.kafka.KAFKA_START_ADMIN_CONSOLE_TASK_TOPIC, campaignDetails?.tenantId);
     }
   }
   let allTaskCompleted = false;
@@ -2765,11 +2766,11 @@ async function createAllResources(campaignDetails: any,parentCampaign : any, use
     logger.info(`Checking attempts for resources : ${attempts + 1}`);
     logger.info("Waiting for 20 seconds for resources to get created...");
     await new Promise(resolve => setTimeout(resolve, 20000));
-    let facilityTaskArray = await getCurrentProcesses(campaignDetails?.campaignNumber, allProcesses.facilityCreation);
+    let facilityTaskArray = await getCurrentProcesses(campaignDetails?.campaignNumber, campaignDetails?.tenantId, allProcesses.facilityCreation);
     facilityTask = facilityTaskArray[0];
-    let userTaskArray = await getCurrentProcesses(campaignDetails?.campaignNumber, allProcesses.userCreation);
+    let userTaskArray = await getCurrentProcesses(campaignDetails?.campaignNumber, campaignDetails?.tenantId, allProcesses.userCreation);
     userTask = userTaskArray[0];
-    let projectTaskArray = await getCurrentProcesses(campaignDetails?.campaignNumber, allProcesses.projectCreation);
+    let projectTaskArray = await getCurrentProcesses(campaignDetails?.campaignNumber, campaignDetails?.tenantId, allProcesses.projectCreation);
     projectTask = projectTaskArray[0];
     if (facilityTask?.status == processStatuses.completed && userTask?.status == processStatuses.completed && projectTask?.status == processStatuses.completed) {
       allTaskCompleted = true;
@@ -2807,7 +2808,7 @@ async function createAllResources(campaignDetails: any,parentCampaign : any, use
 async function createAllMappings(campaignDetails: any, parentCampaign : any, useruuid: string) {
   logger.info(`Starting mappings...`);
   let mappingProcesses = [allProcesses.facilityMapping,allProcesses.userMapping,allProcesses.resourceMapping];
-  let allCurrentProcesses = await getCurrentProcesses(campaignDetails?.campaignNumber);
+  let allCurrentProcesses = await getCurrentProcesses(campaignDetails?.campaignNumber, campaignDetails?.tenantId);
   for (let i = 0; i < mappingProcesses?.length; i++) {
     const task : any = allCurrentProcesses.find((process: any) => process?.processName == mappingProcesses[i]);
     if(task && task?.status == processStatuses.pending) {
@@ -2816,7 +2817,7 @@ async function createAllMappings(campaignDetails: any, parentCampaign : any, use
         CampaignDetails : campaignDetails,
         parentCampaign,
         useruuid
-      }, config.kafka.KAFKA_START_ADMIN_CONSOLE_MAPPING_TASK_TOPIC);
+      }, config.kafka.KAFKA_START_ADMIN_CONSOLE_MAPPING_TASK_TOPIC, campaignDetails?.tenantId);
     }
   }
   let allTaskCompleted = false;
@@ -2827,11 +2828,11 @@ async function createAllMappings(campaignDetails: any, parentCampaign : any, use
     logger.info(`Checking attempts for mapping : ${attempts + 1}`);
     logger.info("Waiting for 20 seconds for mappings to get created...");
     await new Promise(resolve => setTimeout(resolve, 20000));
-    let facilityMappingTaskArray = await getCurrentProcesses(campaignDetails?.campaignNumber, allProcesses.facilityMapping);
+    let facilityMappingTaskArray = await getCurrentProcesses(campaignDetails?.campaignNumber, campaignDetails?.tenantId, allProcesses.facilityMapping);
     facilityMappingTask = facilityMappingTaskArray[0];
-    let userMappingTaskArray = await getCurrentProcesses(campaignDetails?.campaignNumber, allProcesses.userMapping);
+    let userMappingTaskArray = await getCurrentProcesses(campaignDetails?.campaignNumber, campaignDetails?.tenantId, allProcesses.userMapping);
     userMappingTask = userMappingTaskArray[0];
-    let resourceMappingTaskArray = await getCurrentProcesses(campaignDetails?.campaignNumber, allProcesses.resourceMapping);
+    let resourceMappingTaskArray = await getCurrentProcesses(campaignDetails?.campaignNumber, campaignDetails?.tenantId, allProcesses.resourceMapping);
     resourceMappingTask = resourceMappingTaskArray[0];
     if(facilityMappingTask?.status == processStatuses.completed && userMappingTask?.status == processStatuses.completed && resourceMappingTask?.status == processStatuses.completed) {
       allTaskCompleted = true;

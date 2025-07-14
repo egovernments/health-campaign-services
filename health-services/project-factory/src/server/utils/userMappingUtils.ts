@@ -13,16 +13,16 @@ export async function startUserMappingAndDemapping(campaignDetails: any, useruui
 }
 
 export async function startUserMapping(campaignDetails: any, useruuid: string) {
-    const allCurrentMappingsToDo = await getMappingDataRelatedToCampaign("user", campaignDetails.campaignNumber, mappingStatuses.toBeMapped);
+    const allCurrentMappingsToDo = await getMappingDataRelatedToCampaign("user", campaignDetails.campaignNumber, campaignDetails.tenantId, mappingStatuses.toBeMapped);
     if (allCurrentMappingsToDo.length <= 0) {
         return;
     }
-    const getProjectsDataRelatedToCampaign = await getRelatedDataWithCampaign("boundary", campaignDetails.campaignNumber);
+    const getProjectsDataRelatedToCampaign = await getRelatedDataWithCampaign("boundary", campaignDetails.campaignNumber, campaignDetails.tenantId);
     const boundaryToProjectIdMapping: any = {};
     for (let i = 0; i < getProjectsDataRelatedToCampaign.length; i++) {
         boundaryToProjectIdMapping[getProjectsDataRelatedToCampaign[i]?.uniqueIdentifier] = getProjectsDataRelatedToCampaign[i]?.uniqueIdAfterProcess;
     }
-    const getUsersRelatedToCampaign = await getRelatedDataWithCampaign("user", campaignDetails.campaignNumber);
+    const getUsersRelatedToCampaign = await getRelatedDataWithCampaign("user", campaignDetails.campaignNumber, campaignDetails.tenantId);
     const phoneToUserIdMapping: any = {};
     for (let i = 0; i < getUsersRelatedToCampaign.length; i++) {
         phoneToUserIdMapping[getUsersRelatedToCampaign[i]?.uniqueIdentifier] = getUsersRelatedToCampaign[i]?.uniqueIdAfterProcess;
@@ -51,7 +51,7 @@ export async function startUserMapping(campaignDetails: any, useruuid: string) {
             else {
                 throw new Error("Failed to create project staff for user with phone " + allCurrentMappingsToDo[i]?.uniqueIdentifierForData);
             }
-            await produceModifiedMessages({ datas: [allCurrentMappingsToDo[i]] }, config.kafka.KAFKA_UPDATE_MAPPING_DATA_TOPIC);
+            await produceModifiedMessages({ datas: [allCurrentMappingsToDo[i]] }, config.kafka.KAFKA_UPDATE_MAPPING_DATA_TOPIC, campaignDetails.tenantId);
         }
         catch (error) {
             // Log the error if the API call fails
@@ -62,16 +62,16 @@ export async function startUserMapping(campaignDetails: any, useruuid: string) {
 }
 
 export async function startUserDemapping(campaignDetails: any, useruuid: string) {
-    const allCurrentMappingsToDeMap = await getMappingDataRelatedToCampaign("user", campaignDetails.campaignNumber, mappingStatuses.toBeDeMapped);
+    const allCurrentMappingsToDeMap = await getMappingDataRelatedToCampaign("user", campaignDetails.campaignNumber, campaignDetails.tenantId, mappingStatuses.toBeDeMapped);
     if (allCurrentMappingsToDeMap.length <= 0) {
         return;
     }
-    const getProjectsDataRelatedToCampaign = await getRelatedDataWithCampaign("boundary", campaignDetails.campaignNumber);
+    const getProjectsDataRelatedToCampaign = await getRelatedDataWithCampaign("boundary", campaignDetails.campaignNumber, campaignDetails.tenantId);
     const boundaryToProjectIdMapping: any = {};
     for (let i = 0; i < getProjectsDataRelatedToCampaign.length; i++) {
         boundaryToProjectIdMapping[getProjectsDataRelatedToCampaign[i]?.uniqueIdentifier] = getProjectsDataRelatedToCampaign[i]?.uniqueIdAfterProcess;
     }
-    const getUsersRelatedToCampaign = await getRelatedDataWithCampaign("user", campaignDetails.campaignNumber);
+    const getUsersRelatedToCampaign = await getRelatedDataWithCampaign("user", campaignDetails.campaignNumber, campaignDetails.tenantId);
     const phoneToUserIdMapping: any = {};
     for (let i = 0; i < getUsersRelatedToCampaign.length; i++) {
         phoneToUserIdMapping[getUsersRelatedToCampaign[i]?.uniqueIdentifier] = getUsersRelatedToCampaign[i]?.uniqueIdAfterProcess;
@@ -83,10 +83,10 @@ export async function startUserDemapping(campaignDetails: any, useruuid: string)
             const projectId = boundaryToProjectIdMapping[allCurrentMappingsToDeMap[i]?.boundaryCode];
             const userId = phoneToUserIdMapping[allCurrentMappingsToDeMap[i]?.uniqueIdentifierForData];
             if(!userId || !projectId || !allCurrentMappingsToDeMap[i]?.mappingId){
-                await produceModifiedMessages({ datas: [allCurrentMappingsToDeMap[i]] }, config.kafka.KAFKA_DELETE_MAPPING_DATA_TOPIC);
+                await produceModifiedMessages({ datas: [allCurrentMappingsToDeMap[i]] }, config.kafka.KAFKA_DELETE_MAPPING_DATA_TOPIC, campaignDetails.tenantId);
             }
             await fetchProjectStaffWsearchProjectStaff(RequestInfo, campaignDetails.tenantId, projectId, userId);
-            await produceModifiedMessages({ datas: [allCurrentMappingsToDeMap[i]] }, config.kafka.KAFKA_DELETE_MAPPING_DATA_TOPIC);
+            await produceModifiedMessages({ datas: [allCurrentMappingsToDeMap[i]] }, config.kafka.KAFKA_DELETE_MAPPING_DATA_TOPIC, campaignDetails.tenantId);
         }
         catch (error) {
             // Log the error if the API call fails

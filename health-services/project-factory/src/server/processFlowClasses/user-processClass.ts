@@ -32,11 +32,11 @@ export class TemplateClass {
         const mobileKey = "HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER";
         const mobileNumbersInSheet = userSheetData?.map((u: any) => u?.[mobileKey]);
 
-        const existingUsersForCampaign = await getRelatedDataWithCampaign(resourceDetails?.type, campaign.campaignNumber);
+        const existingUsersForCampaign = await getRelatedDataWithCampaign(resourceDetails?.type, campaign.campaignNumber, resourceDetails?.tenantId);
 
         const userDataWithMobileNumberButNotOfThisCampaign = await this.getUserDataWithMobileNumberButNotOfThisCampaign(campaign.campaignNumber, mobileNumbersInSheet, resourceDetails);
         const newUsers = await this.extractNewUsers(userSheetData, mobileKey, existingUsersForCampaign, userDataWithMobileNumberButNotOfThisCampaign, campaign.campaignNumber, resourceDetails);
-        await this.persistInBatches(newUsers, config.kafka.KAFKA_SAVE_SHEET_DATA_TOPIC);
+        await this.persistInBatches(newUsers, config.kafka.KAFKA_SAVE_SHEET_DATA_TOPIC, resourceDetails?.tenantId);
 
         await this.processBoundaryChanges(userSheetData, existingUsersForCampaign, newUsers, campaign.campaignNumber, resourceDetails);
 
@@ -46,7 +46,7 @@ export class TemplateClass {
 
         await this.createUserFromTableData(resourceDetails);
 
-        const allCurrentUsers = await getRelatedDataWithCampaign(resourceDetails?.type, campaign.campaignNumber, dataRowStatuses.completed);
+        const allCurrentUsers = await getRelatedDataWithCampaign(resourceDetails?.type, campaign.campaignNumber, resourceDetails?.tenantId, dataRowStatuses.completed);
         const allData = allCurrentUsers?.map((u: any) => {
             const data: any = u?.data;
             data["#status#"] = sheetDataRowStatuses.CREATED;
@@ -64,7 +64,7 @@ export class TemplateClass {
     }
 
     private static async getUserDataWithMobileNumberButNotOfThisCampaign(campaignNumber: string, mobileNumbersInSheet: string[], resourceDetails: any){
-        const existingUsersWithMobileNumber = await getRelatedDataWithUniqueIdentifiers(resourceDetails?.type, mobileNumbersInSheet, dataRowStatuses.completed);
+        const existingUsersWithMobileNumber = await getRelatedDataWithUniqueIdentifiers(resourceDetails?.type, mobileNumbersInSheet, resourceDetails?.tenantId, dataRowStatuses.completed);
         const existingUserWithDifferentCampaign = existingUsersWithMobileNumber?.filter((u: any) => u?.campaignNumber !== campaignNumber);
         return existingUserWithDifferentCampaign;
     }
@@ -73,7 +73,8 @@ export class TemplateClass {
         const boundaryKey = "HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY";
         const usageKey = "HCM_ADMIN_CONSOLE_USER_USAGE";
         const phoneKey = "HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER";
-        const currentMappings = await getMappingDataRelatedToCampaign("user", campaignNumber);
+        const tenantId = resourceDetails?.tenantId;
+        const currentMappings = await getMappingDataRelatedToCampaign("user", campaignNumber, resourceDetails?.tenantId);
 
         const existingUserMobileToDataMapping: any = {};
         for (const user of existingUsers) {
@@ -85,8 +86,8 @@ export class TemplateClass {
             boundaryUniqueIdentifierToCurrentMapping[`${mapping?.uniqueIdentifierForData}#${mapping?.boundaryCode}`] = mapping;
         }
 
-        await this.processActiveRows(boundaryKey, usageKey, phoneKey, userSheetData, existingUserMobileToDataMapping, boundaryUniqueIdentifierToCurrentMapping, campaignNumber);
-        await this.processInactiveRows(boundaryKey, usageKey, phoneKey, userSheetData, existingUserMobileToDataMapping, boundaryUniqueIdentifierToCurrentMapping, campaignNumber);
+        await this.processActiveRows(boundaryKey, usageKey, phoneKey, userSheetData, existingUserMobileToDataMapping, boundaryUniqueIdentifierToCurrentMapping, campaignNumber, tenantId);
+        await this.processInactiveRows(boundaryKey, usageKey, phoneKey, userSheetData, existingUserMobileToDataMapping, boundaryUniqueIdentifierToCurrentMapping, campaignNumber, tenantId);
     }
 
     private static async processActiveRows(
@@ -96,7 +97,8 @@ export class TemplateClass {
         userSheetData: any[],
         existingUserMobileToDataMapping: any,
         boundaryUniqueIdentifierToCurrentMapping: any,
-        campaignNumber: string
+        campaignNumber: string,
+        tenantId: string
     ) {
         logger.info(`Processing active rows for user sheet...`);
         const newMappingRow: any[] = [];
@@ -191,15 +193,15 @@ export class TemplateClass {
         let batchSize = 100;
         for(let i = 0; i < newMappingRow.length; i += batchSize){
             const batch = newMappingRow.slice(i, i + batchSize);
-            await produceModifiedMessages({ datas: batch }, config.kafka.KAFKA_SAVE_MAPPING_DATA_TOPIC);
+            await produceModifiedMessages({ datas: batch }, config.kafka.KAFKA_SAVE_MAPPING_DATA_TOPIC, tenantId);
         }
         for(let i = 0; i < demappingRows.length; i += batchSize){
             const batch = demappingRows.slice(i, i + batchSize);
-            await produceModifiedMessages({ datas: batch }, config.kafka.KAFKA_UPDATE_MAPPING_DATA_TOPIC);
+            await produceModifiedMessages({ datas: batch }, config.kafka.KAFKA_UPDATE_MAPPING_DATA_TOPIC, tenantId);
         }
         for(let i = 0; i < usersToBeUpdated.length; i += batchSize){
             const batch = usersToBeUpdated.slice(i, i + batchSize);
-            await produceModifiedMessages({ datas: batch }, config.kafka.KAFKA_UPDATE_SHEET_DATA_TOPIC);
+            await produceModifiedMessages({ datas: batch }, config.kafka.KAFKA_UPDATE_SHEET_DATA_TOPIC, tenantId);
         }
         logger.info(`Done processing active rows for user sheet...`);
     }
@@ -212,7 +214,8 @@ export class TemplateClass {
         userSheetData: any[],
         existingUserMobileToDataMapping: any,
         boundaryUniqueIdentifierToCurrentMapping: any,
-        campaignNumber: string
+        campaignNumber: string,
+        tenantId: string
     ) {
         logger.info(`Processing inactive rows for user sheet...`);
         const boundariesToBeDemappedRow: any[] = [];
@@ -253,12 +256,12 @@ export class TemplateClass {
 
         for (let i = 0; i < boundariesToBeDemappedRow.length; i += batchSize) {
             const batch = boundariesToBeDemappedRow.slice(i, i + batchSize);
-            await produceModifiedMessages({ datas: batch }, config.kafka.KAFKA_UPDATE_MAPPING_DATA_TOPIC);
+            await produceModifiedMessages({ datas: batch }, config.kafka.KAFKA_UPDATE_MAPPING_DATA_TOPIC, tenantId);
         }
 
         for (let i = 0; i < usersToBeUpdated.length; i += batchSize) {
             const batch = usersToBeUpdated.slice(i, i + batchSize);
-            await produceModifiedMessages({ datas: batch }, config.kafka.KAFKA_UPDATE_SHEET_DATA_TOPIC);
+            await produceModifiedMessages({ datas: batch }, config.kafka.KAFKA_UPDATE_SHEET_DATA_TOPIC, tenantId);
         }
         logger.info(`Done processing inactive rows for user sheet...`);
     }
@@ -321,11 +324,11 @@ export class TemplateClass {
         return newEntries;
     }
 
-    private static async persistInBatches(users: any[], topic: string): Promise<void> {
+    private static async persistInBatches(users: any[], topic: string, tenantId: string): Promise<void> {
         const BATCH_SIZE = 100;
         for (let i = 0; i < users.length; i += BATCH_SIZE) {
             const batch = users.slice(i, i + BATCH_SIZE);
-            await produceModifiedMessages({ datas: batch }, topic);
+            await produceModifiedMessages({ datas: batch }, topic, tenantId);
         }
     }
     
@@ -343,7 +346,7 @@ export class TemplateClass {
         const campaignNumber = campaign?.campaignNumber;
         const userUuid = campaign?.auditDetails?.createdBy;
 
-        const allCurrentUsers = await getRelatedDataWithCampaign("user", campaignNumber);
+        const allCurrentUsers = await getRelatedDataWithCampaign("user", campaignNumber, resourceDetails?.tenantId);
         const usersToCreate = allCurrentUsers?.filter(
             (user: any) => user?.status === dataRowStatuses.pending || user?.status === dataRowStatuses.failed
         );
@@ -384,10 +387,10 @@ export class TemplateClass {
                 }
 
                 logger.info(`Successfully created ${successfulUsers.length} users`);
-                await this.persistInBatches(successfulUsers, config.kafka.KAFKA_UPDATE_SHEET_DATA_TOPIC);
+                await this.persistInBatches(successfulUsers, config.kafka.KAFKA_UPDATE_SHEET_DATA_TOPIC, resourceDetails.tenantId);
             } catch (err) {
                 console.error("Error in batch creation:", err);
-                await this.handleBatchFailure(batch, usersToCreate);
+                await this.handleBatchFailure(batch, usersToCreate, resourceDetails.tenantId);
                 throw new Error(`Error in user batch creation: ${err}`);
             }
         }
@@ -406,13 +409,13 @@ export class TemplateClass {
     }
 
 
-    private static async handleBatchFailure(batch: any[], usersToCreate: any[]) {
+    private static async handleBatchFailure(batch: any[], usersToCreate: any[], tenantId: string) {
         const phoneKey = "HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER";
         const batchMobileSet = new Set(batch.map((u: any) => String(u?.user?.mobileNumber)));
         const failedUsers = usersToCreate.filter((u: any) => batchMobileSet.has(String(u?.data?.[phoneKey])));
         failedUsers.forEach(u => u.status = dataRowStatuses.failed);
         logger.warn(`${failedUsers.length} users failed in batch`);
-        await this.persistInBatches(failedUsers, config.kafka.KAFKA_UPDATE_SHEET_DATA_TOPIC);
+        await this.persistInBatches(failedUsers, config.kafka.KAFKA_UPDATE_SHEET_DATA_TOPIC, tenantId);
     }
 
 

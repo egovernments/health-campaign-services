@@ -54,11 +54,11 @@ export async function handleTaskForCampaign(messageObject: any) {
         }
         logger.info(`Process resource for campaign ${CampaignDetails?.id} : ${processName} completed..`);
         task.status = processStatuses.completed;
-        await produceModifiedMessages({ processes: [task] }, config?.kafka?.KAFKA_UPDATE_PROCESS_DATA_TOPIC);
+        await produceModifiedMessages({ processes: [task] }, config?.kafka?.KAFKA_UPDATE_PROCESS_DATA_TOPIC, CampaignDetails?.tenantId);
     } catch (error) {
         let task = messageObject?.task;
         task.status = processStatuses.failed;
-        await produceModifiedMessages({ processes: [task] }, config?.kafka?.KAFKA_UPDATE_PROCESS_DATA_TOPIC);
+        await produceModifiedMessages({ processes: [task] }, config?.kafka?.KAFKA_UPDATE_PROCESS_DATA_TOPIC, messageObject?.CampaignDetails?.tenantId);
         logger.error(`Error in campaign mapping: ${error}`);
         await enrichAndPersistCampaignWithErrorProcessingTask(messageObject?.CampaignDetails, messageObject?.parentCampaign, messageObject?.useruuid, error);
     }

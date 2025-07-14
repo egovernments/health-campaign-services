@@ -137,7 +137,8 @@ async function updateAndProduceMessage(
 ) {
     updateProcessDetails(processDetails, processDetails.type, status, details, additionalDetails);
     const produceMessage: any = { processDetails };
-    await produceModifiedMessages(produceMessage, kafkaTopic);
+    const tenantId = processDetails?.tenantId || config.app.defaultTenantId;
+    await produceModifiedMessages(produceMessage, kafkaTopic, tenantId);
 }
 
 // Creates a new process detail and produces the message
@@ -163,7 +164,8 @@ async function createAndProduceNewProcessDetail(
 
     updateProcessDetails(processDetail, type, status, details, additionalDetails);
     const produceMessage: any = { processDetails: [processDetail] };
-    await produceModifiedMessages(produceMessage, kafkaTopic);
+    const tenantId = processDetail?.tenantId || config.app.defaultTenantId;
+    await produceModifiedMessages(produceMessage, kafkaTopic, tenantId);
 }
 
 
@@ -206,7 +208,8 @@ async function createProcessTracks(campaignId: string) {
 
     logger.info(`Created ${processDetailsArray.length} process tracks`);
     const produceMessage: any = { processDetails: processDetailsArray }
-    await produceModifiedMessages(produceMessage, config?.kafka?.KAFKA_SAVE_PROCESS_TRACK_TOPIC);
+    const tenantId = config.app.defaultTenantId;
+    await produceModifiedMessages(produceMessage, config?.kafka?.KAFKA_SAVE_PROCESS_TRACK_TOPIC, tenantId);
 }
 
 function getOrderedDetailsArray(toBeCompletedArray: any[]) {

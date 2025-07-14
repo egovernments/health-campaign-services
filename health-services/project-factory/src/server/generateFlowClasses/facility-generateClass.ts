@@ -22,7 +22,7 @@ export class TemplateClass {
         const readMeColumnHeader = Object.keys(readMeSchema?.properties || {})?.[0];
         const readMeData: any = this.getReadMeData(readMeConfig, readMeColumnHeader, localizationMap);
         const allPermanentFacilities = await getAllFacilities(responseToSend?.tenantId);
-        const completedFacilitiesRow = await getRelatedDataWithCampaign(responseToSend.type, campaignDetails.campaignNumber, dataRowStatuses.completed);
+        const completedFacilitiesRow = await getRelatedDataWithCampaign(responseToSend.type, campaignDetails.campaignNumber, responseToSend?.tenantId, dataRowStatuses.completed);
         const permanentCodes = new Set(
             allPermanentFacilities.map(f => f?.id)
         );

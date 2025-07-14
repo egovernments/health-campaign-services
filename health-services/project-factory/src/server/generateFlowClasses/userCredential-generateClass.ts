@@ -23,7 +23,7 @@ export class TemplateClass {
 
 
         // Prepare User List sheet
-        const users = await getRelatedDataWithCampaign("user", campaignDetails?.campaignNumber, dataRowStatuses.completed);
+        const users = await getRelatedDataWithCampaign("user", campaignDetails?.campaignNumber, tenantId, dataRowStatuses.completed);
         const userData = users.map((u: any) => {
             const rawData = u?.data || {};
             const localizedData: Record<string, any> = {};

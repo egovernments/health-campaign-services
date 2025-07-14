@@ -57,7 +57,7 @@ export class TemplateClass {
         );
 
         const dynamicColumns = this.getDynamicColumns(schema);
-        const currentBoundaryData = await getRelatedDataWithCampaign(type, campaignDetails?.campaignNumber);
+        const currentBoundaryData = await getRelatedDataWithCampaign(type, campaignDetails?.campaignNumber, tenantId);
         const boundaryCodeToDataMap = currentBoundaryData.reduce((acc: any, curr: any) => {
             const data = curr?.data;
             const code = data?.["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"];

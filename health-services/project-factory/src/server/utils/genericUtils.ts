@@ -282,7 +282,8 @@ async function searchGeneratedResources(searchQuery : any, locale : any) {
 async function searchAllGeneratedResources(searchQuery: any, locale: any) {
   try {
     const { type, tenantId, hierarchyType, id, status, campaignId } = searchQuery;
-    let queryString = `SELECT * FROM ${config?.DB_CONFIG.DB_GENERATED_RESOURCE_DETAILS_TABLE_NAME} WHERE `;
+    const tableName = getTableName(config?.DB_CONFIG.DB_GENERATED_RESOURCE_DETAILS_TABLE_NAME, tenantId);
+    let queryString = `SELECT * FROM ${tableName} WHERE `;
     let queryConditions: string[] = [];
     let queryValues: any[] = [];
     if (id) {
@@ -1747,8 +1748,9 @@ function modifyBoundaryDataHeadersWithMap(
   });
 }
 
-export async function getRelatedDataWithCampaign(type: string, campaignNumber: string, status ?: string, uniqueIdentifier ?: string) {
-  let queryString = `SELECT * FROM ${config?.DB_CONFIG.DB_CAMPAIGN_DATA_TABLE_NAME} WHERE type = $1 AND campaignNumber = $2`;
+export async function getRelatedDataWithCampaign(type: string, campaignNumber: string, tenantId: string, status ?: string, uniqueIdentifier ?: string) {
+  const tableName = getTableName(config?.DB_CONFIG?.DB_CAMPAIGN_DATA_TABLE_NAME, tenantId);
+  let queryString = `SELECT * FROM ${tableName} WHERE type = $1 AND campaignNumber = $2`;
   if(status) queryString += ` AND status = $3`;
   const arrayStatements = [type, campaignNumber];
   if(status) arrayStatements.push(status);
@@ -1770,8 +1772,9 @@ export async function getRelatedDataWithCampaign(type: string, campaignNumber: s
   return rows;
 }
 
-export async function getRelatedDataWithUniqueIdentifiers(type : string, uniqueIdentifiers : any[], status ?: string ){
-  let queryString = `SELECT * FROM ${config?.DB_CONFIG.DB_CAMPAIGN_DATA_TABLE_NAME} WHERE type = $1`;
+export async function getRelatedDataWithUniqueIdentifiers(type : string, uniqueIdentifiers : any[], tenantId : string, status ?: string ){
+  const tableName = getTableName(config?.DB_CONFIG?.DB_CAMPAIGN_DATA_TABLE_NAME, tenantId);
+  let queryString = `SELECT * FROM ${tableName} WHERE type = $1`;
   if (uniqueIdentifiers?.length > 0) queryString += ` AND uniqueIdentifier = ANY($2)`;
   if (status) queryString += ` AND status = $3`;
   const arrayStatements = [type, uniqueIdentifiers];
@@ -1792,8 +1795,9 @@ export async function getRelatedDataWithUniqueIdentifiers(type : string, uniqueI
   return rows;
 }
 
-export async function getMappingDataRelatedToCampaign(type: string, campaignNumber: string, status?: string) {
-  let queryString = `SELECT * FROM ${config?.DB_CONFIG.DB_CAMPAIGN_MAPPING_DATA_TABLE_NAME} WHERE type = $1 AND campaignNumber = $2`;
+export async function getMappingDataRelatedToCampaign(type: string, campaignNumber: string,tenantId: string, status?: string) {
+  const tableName = getTableName(config?.DB_CONFIG?.DB_CAMPAIGN_MAPPING_DATA_TABLE_NAME, tenantId);
+  let queryString = `SELECT * FROM ${tableName} WHERE type = $1 AND campaignNumber = $2`;
   if (status) queryString += ` AND status = $3`;
   const arrayStatements = [type, campaignNumber];
   if (status) arrayStatements.push(status);
@@ -1813,8 +1817,9 @@ export async function getMappingDataRelatedToCampaign(type: string, campaignNumb
   return rows;
 }
 
-export async function getCurrentProcesses(campaignNumber: string, processName ?: string, status ?: string) {
-  let queryString = `SELECT * FROM ${config?.DB_CONFIG.DB_CAMPAIGN_PROCESS_DATA_TABLE_NAME} WHERE campaignNumber = $1`;
+export async function getCurrentProcesses(campaignNumber: string, tenantId: string, processName ?: string, status ?: string) {
+  const tableName = getTableName(config?.DB_CONFIG?.DB_CAMPAIGN_PROCESS_DATA_TABLE_NAME, tenantId);
+  let queryString = `SELECT * FROM ${tableName} WHERE campaignNumber = $1`;
   if (processName) queryString += ` AND processName = $2`;
   if (status) queryString += ` AND status = $3`;
   const arrayStatements = [campaignNumber];
@@ -1833,9 +1838,10 @@ export async function getCurrentProcesses(campaignNumber: string, processName ?:
   return rows;
 }
 
-export async function getCampaignDataRowsWithUniqueIdentifiers(type: string, uniqueIdentifiers: any[], status ?: string) {
+export async function getCampaignDataRowsWithUniqueIdentifiers(type: string, uniqueIdentifiers: any[], tenantId: string, status ?: string) {
   if(uniqueIdentifiers?.length === 0) return [];
-  let queryString = `SELECT * FROM ${config?.DB_CONFIG.DB_CAMPAIGN_DATA_TABLE_NAME} WHERE type = $1 AND uniqueIdentifier = ANY($2)`;
+  const tableName = getTableName(config?.DB_CONFIG?.DB_CAMPAIGN_DATA_TABLE_NAME, tenantId);
+  let queryString = `SELECT * FROM ${tableName} WHERE type = $1 AND uniqueIdentifier = ANY($2)`;
   if(status) queryString += ` AND status = $3`;
   const arrayStatements = [type, uniqueIdentifiers];
   if(status) arrayStatements.push(status);
@@ -1856,13 +1862,13 @@ export async function getCampaignDataRowsWithUniqueIdentifiers(type: string, uni
 }
 
 
-export async function prepareProcessesInDb(campaignNumber: any) {
+export async function prepareProcessesInDb(campaignNumber: any, tenantId: string) {
   logger.info("Preparing processes in DB...");
-  let allCurrentProcesses = await getCurrentProcesses(campaignNumber);
+  let allCurrentProcesses = await getCurrentProcesses(campaignNumber, tenantId);
   for (let i = 0; i < allCurrentProcesses?.length; i++) {
       allCurrentProcesses[i].status = processStatuses.pending;
   }
-  produceModifiedMessages({ processes: allCurrentProcesses }, config.kafka.KAFKA_UPDATE_PROCESS_DATA_TOPIC);
+  produceModifiedMessages({ processes: allCurrentProcesses }, config.kafka.KAFKA_UPDATE_PROCESS_DATA_TOPIC, tenantId);
   let allProcessesJson: any = JSON.parse(JSON.stringify(allProcesses))
   let newProcesses = [];
   for (let processKey in allProcesses) {
@@ -1875,7 +1881,7 @@ export async function prepareProcessesInDb(campaignNumber: any) {
       })
     }
   }
-  produceModifiedMessages({ processes: newProcesses }, config.kafka.KAFKA_SAVE_PROCESS_DATA_TOPIC);
+  produceModifiedMessages({ processes: newProcesses }, config.kafka.KAFKA_SAVE_PROCESS_DATA_TOPIC, tenantId);
   // wait for 2 second
   logger.info("Waiting for 10 seconds for processes to get updated...");
   await new Promise(resolve => setTimeout(resolve, 10000));

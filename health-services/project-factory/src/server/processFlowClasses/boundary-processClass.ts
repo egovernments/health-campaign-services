@@ -35,16 +35,16 @@ export class TemplateClass {
 
         this.enrichDatasForParents(boundaries, datas);
 
-        let currentBoundaryData = await getRelatedDataWithCampaign(resourceDetails?.type, campaignNumber);
+        let currentBoundaryData = await getRelatedDataWithCampaign(resourceDetails?.type, campaignNumber, resourceDetails?.tenantId);
         await this.persistNewBoundaryData(currentBoundaryData, datas, campaignNumber, resourceDetails);
-        await this.updateBoundaryData(currentBoundaryData, datas);
+        await this.updateBoundaryData(currentBoundaryData, datas, resourceDetails?.tenantId);
         
-        let currentMappingData = await getMappingDataRelatedToCampaign("resource", campaignNumber);
+        let currentMappingData = await getMappingDataRelatedToCampaign("resource", campaignNumber, resourceDetails?.tenantId);
         let mappingDataFromSheet = this.extractMappingDataFromSheets(boundaries, "resource", campaignDetails);
 
         await this.persistMappingData(currentMappingData, mappingDataFromSheet, resourceDetails);
-        currentBoundaryData = await getRelatedDataWithCampaign(resourceDetails?.type, campaignNumber);
-        currentBoundaryData.push(...await getRelatedDataWithCampaign(resourceDetails?.type, campaignNumber));
+        currentBoundaryData = await getRelatedDataWithCampaign(resourceDetails?.type, campaignNumber, resourceDetails?.tenantId);
+        currentBoundaryData.push(...await getRelatedDataWithCampaign(resourceDetails?.type, campaignNumber, resourceDetails?.tenantId));
         await this.createAndUpdateProjects(currentBoundaryData, campaignDetails, boundaries, targetConfig);
         return {};
     }
@@ -64,7 +64,7 @@ export class TemplateClass {
         let batchSize = 100;
         for (let i = 0; i < mappingDatasToBePersisted.length; i += batchSize) {
             const batch = mappingDatasToBePersisted.slice(i, i + batchSize);
-            await produceModifiedMessages({ datas: batch }, config.kafka.KAFKA_SAVE_MAPPING_DATA_TOPIC);
+            await produceModifiedMessages({ datas: batch }, config.kafka.KAFKA_SAVE_MAPPING_DATA_TOPIC, resourceDetails?.tenantId);
         }
         let waitTime = Math.max(5000, mappingDatasToBePersisted?.length * 8);
         logger.info(`Waiting for ${waitTime} ms for persistence...`);
@@ -295,7 +295,7 @@ export class TemplateClass {
                 if (updatedProjectId) {
                     logger.info(`Project updated successfully for boundary ${boundaryCode}`);
                     boundaryData.status = dataRowStatuses.completed;
-                    await produceModifiedMessages({ datas: [boundaryData] }, config.kafka.KAFKA_UPDATE_SHEET_DATA_TOPIC);
+                    await produceModifiedMessages({ datas: [boundaryData] }, config.kafka.KAFKA_UPDATE_SHEET_DATA_TOPIC, tenantId);
                 }
                 else {
                     throw new Error(`Failed to update project for boundary ${boundaryCode}`);
@@ -303,7 +303,7 @@ export class TemplateClass {
             } catch (error) {
                 console.error(`Error while updating project for boundary ${boundaryCode}: ${error}`);
                 boundaryData.status = dataRowStatuses.failed;
-                await produceModifiedMessages({ datas: [boundaryData] }, config.kafka.KAFKA_UPDATE_SHEET_DATA_TOPIC);
+                await produceModifiedMessages({ datas: [boundaryData] }, config.kafka.KAFKA_UPDATE_SHEET_DATA_TOPIC, tenantId);
                 throw error;
             }
         }
@@ -383,7 +383,7 @@ export class TemplateClass {
                     boundaryMap[boundaryCode].projectId = createdProjectId;
                     boundaryData.uniqueIdAfterProcess = createdProjectId;
                     boundaryData.status = dataRowStatuses.completed;
-                    await produceModifiedMessages({ datas: [boundaryData] }, config.kafka.KAFKA_UPDATE_SHEET_DATA_TOPIC);
+                    await produceModifiedMessages({ datas: [boundaryData] }, config.kafka.KAFKA_UPDATE_SHEET_DATA_TOPIC, tenantId);
                 }
                 else {
                     throw new Error(`Failed to create project for boundary ${boundaryCode}`);
@@ -391,7 +391,7 @@ export class TemplateClass {
             } catch (error) {
                 console.error(`Error creating project for boundary ${boundaryCode}: ${error}`);
                 boundaryData.status = dataRowStatuses.failed;
-                await produceModifiedMessages({ datas: [boundaryData] }, config.kafka.KAFKA_UPDATE_SHEET_DATA_TOPIC);
+                await produceModifiedMessages({ datas: [boundaryData] }, config.kafka.KAFKA_UPDATE_SHEET_DATA_TOPIC, tenantId);
                 throw error;
             }
         }
@@ -531,11 +531,11 @@ export class TemplateClass {
     
 
 
-    private static async persistInBatches(datas: any[], topic: string): Promise<void> {
+    private static async persistInBatches(datas: any[], topic: string, tenantId: string): Promise<void> {
         const BATCH_SIZE = 100;
         for (let i = 0; i < datas.length; i += BATCH_SIZE) {
             const batch = datas.slice(i, i + BATCH_SIZE);
-            await produceModifiedMessages({ datas: batch }, topic);
+            await produceModifiedMessages({ datas: batch }, topic, tenantId);
         }
         const waitTime = Math.max(5000, datas.length * 8);
         logger.info(`Waiting for ${waitTime} ms for persistence...`);
@@ -558,10 +558,10 @@ export class TemplateClass {
                 status: dataRowStatuses.pending
             };
         })
-        await this.persistInBatches(dataToPersist, config.kafka.KAFKA_SAVE_SHEET_DATA_TOPIC);
+        await this.persistInBatches(dataToPersist, config.kafka.KAFKA_SAVE_SHEET_DATA_TOPIC, resourceDetails?.tenantId);
     }
 
-    private static async updateBoundaryData(currentBoundaryData : any[], datas: any[]) {
+    private static async updateBoundaryData(currentBoundaryData : any[], datas: any[], tenantId: string) {
         const mapOfBoundayVsData = new Map(datas.map((d: any) => [d?.["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"], d]));
         const updatedEntries = [];
         for(const entry of currentBoundaryData) {
@@ -584,6 +584,6 @@ export class TemplateClass {
         if(updatedEntries.length == 0) {
             return;
         }
-        await this.persistInBatches(updatedEntries, config.kafka.KAFKA_UPDATE_SHEET_DATA_TOPIC);
+        await this.persistInBatches(updatedEntries, config.kafka.KAFKA_UPDATE_SHEET_DATA_TOPIC, tenantId);
     }
 }
