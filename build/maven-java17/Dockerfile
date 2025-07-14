@@ -2,13 +2,18 @@ FROM maven:3.9.6-amazoncorretto-17 AS build
 ARG WORK_DIR
 WORKDIR /app
 
-# Copy project files
+# Copy only pom.xml and resolve dependencies first
 COPY ${WORK_DIR}/pom.xml ./pom.xml
+
+# ✅ Cache Maven dependencies by resolving them up front
+RUN --mount=type=cache,target=/root/.m2 mvn -B -f ./pom.xml dependency:go-offline
+
+# Now copy full source and build
 COPY build/maven/start.sh ./start.sh
 COPY ${WORK_DIR}/src ./src
 
-# Build the project
-RUN mvn -B -f /app/pom.xml package
+# ✅ Perform the actual build (will use cached dependencies)
+RUN --mount=type=cache,target=/root/.m2 mvn -B -f ./pom.xml package
 
 # Runtime image – using a multi-arch base image
 FROM amazoncorretto:17-alpine

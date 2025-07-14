@@ -5,11 +5,16 @@ WORKDIR /app
 
 # Copy POM, entrypoint script, and source
 COPY ${WORK_DIR}/pom.xml       ./pom.xml
+
+# ✅ Cache Maven dependencies by resolving them up front
+RUN --mount=type=cache,target=/root/.m2 mvn -B -f ./pom.xml dependency:go-offline
+
 COPY build/maven/start.sh ./start.sh
 COPY ${WORK_DIR}/src           ./src
 
 # Build the app (skip tests for speed)
-RUN mvn -B -f pom.xml package -DskipTests
+# ✅ Perform the actual build (will use cached dependencies)
+RUN --mount=type=cache,target=/root/.m2 mvn -B -f ./pom.xml package -DskipTests
 
 
 # ─────────────── RUNTIME STAGE ───────────────

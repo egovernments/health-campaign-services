@@ -69,14 +69,16 @@ jobs:
     name: Resolve ${{ github.event.inputs.pipeline_name }} config
     runs-on: ubuntu-latest
     outputs:
-      service_work_dir:   ${{ steps.setenv.outputs.SERVICE_WORK_DIR }}
-      service_image_name: ${{ steps.setenv.outputs.SERVICE_IMAGE_NAME }}
-      service_dockerfile: ${{ steps.setenv.outputs.SERVICE_DOCKERFILE }}
-      db_folder_exists:   ${{ steps.check-db-folder.outputs.folder_exists }}
-      db_work_dir:        ${{ steps.setenv.outputs.DB_WORK_DIR }}
-      db_image_name:      ${{ steps.setenv.outputs.DB_IMAGE_NAME }}
-      db_dockerfile:      ${{ steps.setenv.outputs.DB_DOCKERFILE }}
-      tag:                ${{ steps.tag.outputs.tag }}
+      service_work_dir:         ${{ steps.setenv.outputs.SERVICE_WORK_DIR }}
+      service_image_name:       ${{ steps.setenv.outputs.SERVICE_IMAGE_NAME }}
+      service_dockerfile:       ${{ steps.setenv.outputs.SERVICE_DOCKERFILE }}
+      db_folder_exists:         ${{ steps.check-db-folder.outputs.folder_exists }}
+      db_work_dir:              ${{ steps.setenv.outputs.DB_WORK_DIR }}
+      db_image_name:            ${{ steps.setenv.outputs.DB_IMAGE_NAME }}
+      db_dockerfile:            ${{ steps.setenv.outputs.DB_DOCKERFILE }}
+      tag:                      ${{ steps.tag.outputs.tag }}
+      pom_exists:               ${{ steps.docker-cache-key.outputs.pom_exists }}
+      docker_cache_key_suffix:  ${{ steps.docker-cache-key.outputs.cache_key_suffix }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -178,6 +180,28 @@ jobs:
           echo "Image Name - $DB_IMAGE_NAME" >> $GITHUB_STEP_SUMMARY
           echo "Dockerfile Path - $SERVICE_DOCKERFILE" >> $GITHUB_STEP_SUMMARY
 
+      - name: Generate Docker Cache Key
+        id: docker-cache-key
+        run: |
+          SERVICE_DIR="${{ steps.setenv.outputs.SERVICE_WORK_DIR }}"
+          PIPELINE_NAME="${{ github.event.inputs.pipeline_name }}"
+          REF_NAME="${{ github.ref_name }}"
+          POM_PATH="${SERVICE_DIR}/pom.xml"
+      
+          if [ -f "$POM_PATH" ]; then
+            HASH=$(sha256sum "$POM_PATH" | cut -d ' ' -f 1)
+            KEY="${HASH}"
+            echo "pom_exists=true" >> "$GITHUB_OUTPUT"
+            echo "📦 Found pom.xml → using hash: $HASH"
+          else
+            KEY="${PIPELINE_NAME}-${REF_NAME}"
+            echo "pom_exists=false" >> "$GITHUB_OUTPUT"
+            echo "pom.xml not found → using fallback: $PIPELINE_NAME-$REF_NAME"
+          fi
+      
+          echo "cache_key_suffix=$KEY" >> $GITHUB_OUTPUT
+          echo "Using Docker cache key Suffix: $KEY"
+
       - name: Check if DB folder exists
         id: check-db-folder
         run: |
@@ -256,7 +280,7 @@ jobs:
         uses: actions/cache@v3
         with:
           path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-${{ matrix.arch }}-buildx-${{ github.event.inputs.pipeline_name }}-${{ github.ref_name }}
+          key: ${{ runner.os }}-${{ matrix.arch }}-buildx-${{ needs.resolve-config.outputs.docker_cache_key_suffix }}
           restore-keys: |
             ${{ runner.os }}-${{ matrix.arch }}-buildx-${{ github.event.inputs.pipeline_name }}-
 
@@ -273,8 +297,8 @@ jobs:
             --build-arg WORK_DIR=${{ needs.resolve-config.outputs.service_work_dir }} \
             --file ${{ needs.resolve-config.outputs.service_dockerfile }} \
             --tag egovio/${{ needs.resolve-config.outputs.service_image_name }}:${{ needs.resolve-config.outputs.tag }}-${{ matrix.arch }} \
-            --cache-from=type=local,src=/tmp/.buildx-cache \
-            --cache-to=type=local,dest=/tmp/.buildx-cache,mode=max \
+            --cache-from=type=local,src=/tmp/.buildx-cache/app \
+            --cache-to=type=local,dest=/tmp/.buildx-cache-app,mode=max \
             --push \
             --iidfile digest.txt \
             .
@@ -287,8 +311,8 @@ jobs:
             --build-arg WORK_DIR=${{ needs.resolve-config.outputs.db_work_dir }} \
             --file ${{ needs.resolve-config.outputs.db_dockerfile }} \
             --tag egovio/${{ needs.resolve-config.outputs.db_image_name }}:${{ needs.resolve-config.outputs.tag }}-${{ matrix.arch }} \
-            --cache-from=type=local,src=/tmp/.buildx-cache \
-            --cache-to=type=local,dest=/tmp/.buildx-cache,mode=max \
+            --cache-from=type=local,src=/tmp/.buildx-cache/db \
+            --cache-to=type=local,dest=/tmp/.buildx-cache-db,mode=max \
             --push \
             --iidfile db-digest.txt \
             ${{ needs.resolve-config.outputs.db_work_dir }}
@@ -332,6 +356,17 @@ jobs:
           digest=$(docker buildx imagetools inspect egovio/${{ needs.resolve-config.outputs.db_image_name }}:${{ needs.resolve-config.outputs.tag }}-${{ matrix.arch }} \
             --format '{{json .}}' | jq -r '.manifest.manifests[] | select(.platform.architecture=="${{ matrix.arch }}") | .digest')
           echo "digest=$digest" >> $GITHUB_OUTPUT
+
+      - name: Move new build cache (App)
+        run: |
+          rm -rf /tmp/.buildx-cache
+          mkdir -p /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-app /tmp/.buildx-cache/app
+
+      - name: Move new build cache (DB)
+        if: ${{ needs.resolve-config.outputs.db_folder_exists == 'true' }}
+        run: |
+          mv /tmp/.buildx-cache-db /tmp/.buildx-cache/db
 
   create-manifest:
     name: Create and Push Manifest
