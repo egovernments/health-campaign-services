@@ -1,9 +1,10 @@
-name: Auto Build project-factory on allValidations
+name: Auto Trigger for project-factory Multi-Arch Build
 
 on:
   push:
     branches:
       - allValidations
+      - master
 
 env:
   DOCKER_USERNAME: ${{ vars.DOCKER_USERNAME }}
