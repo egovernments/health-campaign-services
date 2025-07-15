@@ -102,7 +102,7 @@ public class IdPoolValidatorForUpdate implements Validator<IndividualBulkRequest
                     else if (usedUniqueBeneficiaryIdSet.contains(beneficiaryId)) {
                         updateError(errorDetailsMap, individual,
                                 INVALID_BENEFICIARY_ID,
-                                "This beneficiary id '" + beneficiaryId + "'is duplicated for multiple individuals");
+                                "This beneficiary id '" + beneficiaryId + "' is duplicated for multiple individuals");
                     }
                     usedUniqueBeneficiaryIdSet.add(beneficiaryId);
                 }
