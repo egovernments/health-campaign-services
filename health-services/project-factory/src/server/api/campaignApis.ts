@@ -41,11 +41,8 @@ import { createDataService } from "../service/dataManageService";
 import { searchProjectTypeCampaignService } from "../service/campaignManageService";
 import { getExcelWorkbookFromFileURL } from "../utils/excelUtils";
 import {
-  processTrackStatuses,
-  processTrackTypes,
   resourceDataStatuses,
 } from "../config/constants";
-import { persistTrack } from "../utils/processTrackUtils";
 import { checkAndGiveIfParentCampaignAvailable } from "../utils/onGoingCampaignUpdateUtils";
 import { validateMicroplanFacility } from "../validators/microplanValidators";
 import {
@@ -1571,29 +1568,12 @@ async function handleResouceDetailsError(request: any, error: any) {
   }
 }
 
-async function persistCreationProcess(request: any, status: any) {
-  if (request?.body?.ResourceDetails?.type == "facility") {
-    await persistTrack(
-      request?.body?.ResourceDetails?.campaignId,
-      processTrackTypes.facilityCreation,
-      status
-    );
-  } else if (request?.body?.ResourceDetails?.type == "user") {
-    await persistTrack(
-      request?.body?.ResourceDetails?.campaignId,
-      processTrackTypes.staffCreation,
-      status
-    );
-  }
-}
-
 async function processAfterValidation(
   dataFromSheet: any,
   createAndSearchConfig: any,
   request: any,
   localizationMap?: { [key: string]: string }
 ) {
-  await persistCreationProcess(request, processTrackStatuses.inprogress);
   try {
     validateEmptyActive(dataFromSheet, request?.body?.ResourceDetails?.type, localizationMap);
     if (
@@ -1640,10 +1620,8 @@ async function processAfterValidation(
     }
   } catch (error: any) {
     console.log(error);
-    await persistCreationProcess(request, processTrackStatuses.failed);
     await handleResouceDetailsError(request, error);
   }
-  await persistCreationProcess(request, processTrackStatuses.completed);
 }
 
 async function performAndSaveResourceActivityByChangingBody(
@@ -1775,11 +1753,6 @@ async function processAfterGettingSchema(
  * @param request The HTTP request object.
  */
 async function createProjectCampaignResourcData(request: any) {
-  await persistTrack(
-    request.body.CampaignDetails.id,
-    processTrackTypes.triggerResourceCreation,
-    processTrackStatuses.inprogress
-  );
   try {
     // Create resources for a project campaign
     if (
@@ -1816,24 +1789,8 @@ async function createProjectCampaignResourcData(request: any) {
     }
   } catch (error: any) {
     console.log(error);
-    await persistTrack(
-      request?.body?.CampaignDetails?.id,
-      processTrackTypes.triggerResourceCreation,
-      processTrackStatuses.failed,
-      {
-        error: String(
-          error?.message +
-          (error?.description ? ` : ${error?.description}` : "") || error
-        ),
-      }
-    );
     throw new Error(error);
   }
-  await persistTrack(
-    request.body.CampaignDetails.id,
-    processTrackTypes.triggerResourceCreation,
-    processTrackStatuses.completed
-  );
 }
 
 async function confirmProjectParentCreation(tenantId: string, uuid: string, projectId: any) {

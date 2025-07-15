@@ -59,8 +59,6 @@ import {
   generatedResourceStatuses,
   headingMapping,
   processStatuses,
-  processTrackStatuses,
-  processTrackTypes,
   resourceDataStatuses,
   usageColumnStatus,
 } from "../config/constants";
@@ -86,7 +84,6 @@ import {
   callGenerateIfBoundariesOrCampaignTypeDiffer,
   isGenerationTriggerNeeded,
 } from "./generateUtils";
-import { createProcessTracks, persistTrack } from "./processTrackUtils";
 import {
   generateDynamicTargetHeaders,
   isDynamicTargetTemplateForProjectType,
@@ -1026,17 +1023,6 @@ async function enrichAndPersistCampaignWithError(requestBody: any, error: any) {
   await new Promise((resolve) => setTimeout(resolve, 2000));
   const produceMessage: any = { CampaignDetails: requestBody.CampaignDetails };
   await produceModifiedMessages(produceMessage, topic, requestBody?.CampaignDetails?.tenantId);
-  await persistTrack(
-    requestBody?.CampaignDetails?.id,
-    processTrackTypes.error,
-    processTrackStatuses.failed,
-    {
-      error: String(
-        error?.message +
-        (error?.description ? ` : ${error?.description}` : "") || error
-      ),
-    }
-  );
   delete requestBody.CampaignDetails.campaignDetails;
 }
 
@@ -1088,17 +1074,6 @@ export async function enrichAndPersistCampaignWithErrorProcessingTask(campaignDe
   await new Promise((resolve) => setTimeout(resolve, 2000));
   const produceMessage: any = { CampaignDetails: campaignDetails };
   await produceModifiedMessages(produceMessage, topic, campaignDetails?.tenantId);
-  await persistTrack(
-    campaignDetails?.id,
-    processTrackTypes.error,
-    processTrackStatuses.failed,
-    {
-      error: String(
-        error?.message +
-        (error?.description ? ` : ${error?.description}` : "") || error
-      ),
-    }
-  );
 }
 
 async function enrichAndPersistCampaignForCreate(
@@ -1392,9 +1367,6 @@ async function enrichAndPersistProjectCampaignForFirst(
   }
   if (request?.body?.parentCampaign?.isActive) {
     await makeParentInactiveOrActive(request?.body, false);
-  }
-  if (request?.body?.CampaignDetails?.action == "create") {
-    await createProcessTracks(request.body.CampaignDetails.id);
   }
 }
 
