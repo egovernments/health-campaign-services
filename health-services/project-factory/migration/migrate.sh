@@ -1,32 +1,22 @@
 #!/bin/sh
+baseurl=$DB_URL
+echo "the baseurl : $DB_URL"
+schemasetter="?currentSchema="
+schemas=$SCHEMA_NAME
+echo "the schemas : $schemas"
 
-# Print the base DB URL
-baseurl="$DB_URL"
-echo "Base URL: $baseurl"
-
-# Append schema param to URL
-# CHANGE: use '&currentSchema=' instead of '?currentSchema='
-# because baseurl already ends with ?currentSchema=health
-schemasetter="&currentSchema="
-
-# Get schema list
-schemas="$SCHEMA_NAME"
-echo "Schemas: $schemas"
-
-# Loop through comma-separated schemas
+# Use `tr` to replace commas with spaces for portability in `sh`
 for schemaname in $(echo "$schemas" | tr ',' ' ')
 do
-    echo "Processing schema: ${schemaname}"
-    fullurl="${baseurl}${schemasetter}${schemaname}"
-    echo "Flyway DB URL: ${fullurl}"
-
-    # Run Flyway migrate
-    flyway -url="$fullurl" \
-           -table="$SCHEMA_TABLE" \
-           -user="$FLYWAY_USER" \
-           -password="$FLYWAY_PASSWORD" \
-           -locations="$FLYWAY_LOCATIONS" \
-           -baselineOnMigrate=true \
-           -outOfOrder=true \
-           migrate
+    echo "the schema name : ${baseurl}${schemasetter}${schemaname}"
+        # Run flyway migrate
+        echo "Running flyway migrate for schema: ${schemaname}"
+        flyway -url="${baseurl}${schemasetter}${schemaname}" \
+               -table="$SCHEMA_TABLE" \
+               -user="$FLYWAY_USER" \
+               -password="$FLYWAY_PASSWORD" \
+               -locations="$FLYWAY_LOCATIONS" \
+               -baselineOnMigrate=true \
+               -outOfOrder=true \
+               migrate
 done
