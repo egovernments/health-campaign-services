@@ -38,7 +38,7 @@ public class PsProjectIdValidator implements Validator<ProjectStaffBulkRequest, 
     private final RedisTemplate<String,String> redisTemplate;
 
     @Autowired
-    public PsProjectIdValidator(ProjectRepository projectRepository,RedisTemplate redisTemplate) {
+    public PsProjectIdValidator(ProjectRepository projectRepository,RedisTemplate<String,String> redisTemplate) {
         this.projectRepository = projectRepository;
         this.redisTemplate = redisTemplate;
     }

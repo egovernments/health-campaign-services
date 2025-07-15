@@ -39,65 +39,67 @@ public class PfProjectIdValidator implements Validator<ProjectFacilityBulkReques
     private final RedisTemplate<String,String> redisTemplate;
 
 
-    @Autowired
-    public PfProjectIdValidator(ProjectRepository projectRepository,RedisTemplate redisTemplate) {
-        this.projectRepository = projectRepository;
-        this.redisTemplate = redisTemplate;
-    }
+  @Autowired
+  public PfProjectIdValidator(ProjectRepository projectRepository,
+      RedisTemplate<String, String> redisTemplate) {
+    this.projectRepository = projectRepository;
+    this.redisTemplate = redisTemplate;
+  }
 
 
-    @Override
-    public Map<ProjectFacility, List<Error>> validate(ProjectFacilityBulkRequest request) {
-        log.info("validating project id");
-        Map<ProjectFacility, List<Error>> errorDetailsMap = new HashMap<>();
-        List<ProjectFacility> validEntities = request.getProjectFacilities().stream()
-                .filter(notHavingErrors())
-                .collect(Collectors.toList());
-        if(!validEntities.isEmpty()) {
-            Class<?> objClass = getObjClass(validEntities);
-            Method idMethod = getMethod(GET_PROJECT_ID, objClass);
-            String tenantId = getTenantId(validEntities);
-            Map<String, ProjectFacility> eMap = getIdToObjMap(validEntities, idMethod);
-            if (!eMap.isEmpty()) {
-                List<String> entityIds = new ArrayList<>(eMap.keySet());
-                try{
-                List<String> existingProjectIds = new ArrayList<>();
-                List<String> cacheMissIds = new ArrayList<>();
+  @Override
+  public Map<ProjectFacility, List<Error>> validate(ProjectFacilityBulkRequest request) {
+    log.info("validating project id");
+    Map<ProjectFacility, List<Error>> errorDetailsMap = new HashMap<>();
+    List<ProjectFacility> validEntities = request.getProjectFacilities().stream()
+        .filter(notHavingErrors())
+        .collect(Collectors.toList());
+    if (!validEntities.isEmpty()) {
+      Class<?> objClass = getObjClass(validEntities);
+      Method idMethod = getMethod(GET_PROJECT_ID, objClass);
+      String tenantId = getTenantId(validEntities);
+      Map<String, ProjectFacility> eMap = getIdToObjMap(validEntities, idMethod);
+      if (!eMap.isEmpty()) {
+        List<String> entityIds = new ArrayList<>(eMap.keySet());
+        try {
+          List<String> existingProjectIds = new ArrayList<>();
+          List<String> cacheMissIds = new ArrayList<>();
 
-                for (String id : entityIds) {
-                    String redisKey = "project-create-cache-" + id;
-                    try {
-                        if (Boolean.TRUE.equals(redisTemplate.hasKey(redisKey))) {
-                            existingProjectIds.add(id);
-                        } else {
-                            cacheMissIds.add(id);
-                        }
-                    } catch (Exception ex) {
-                        log.error("Redis error while checking key: {}", redisKey, ex);
-                        cacheMissIds.add(id); // safely fallback to DB
-                    }
-                }
-                if (!cacheMissIds.isEmpty()) {
-                    List<String> dbValidIds = projectRepository.validateIds(tenantId, cacheMissIds,
-                        getIdFieldName(idMethod));
-                    existingProjectIds.addAll(dbValidIds);
-                }
-                    List<ProjectFacility> invalidEntities = validEntities.stream().filter(notHavingErrors()).filter(entity ->
-                                !existingProjectIds.contains(entity.getProjectId()))
-                        .collect(Collectors.toList());
-                invalidEntities.forEach(projectFacility -> {
-                    Error error = getErrorForNonExistentRelatedEntity(projectFacility.getProjectId());
-                    populateErrorDetails(projectFacility, error, errorDetailsMap);
-                });
+          for (String id : entityIds) {
+            String redisKey = "project-create-cache-" + id;
+            try {
+              if (Boolean.TRUE.equals(redisTemplate.hasKey(redisKey))) {
+                existingProjectIds.add(id);
+              } else {
+                cacheMissIds.add(id);
+              }
+            } catch (Exception ex) {
+              log.error("Redis error while checking key: {}", redisKey, ex);
+              cacheMissIds.add(id); // safely fallback to DB
             }
-            catch (InvalidTenantIdException exception) {
-                    // Populating InvalidTenantIdException for all entities
-                    validEntities.forEach(projectFacility -> {
-                        Error error = getErrorForInvalidTenantId(tenantId, exception);
-                        populateErrorDetails(projectFacility, error, errorDetailsMap);
-                    });
-                }
+          }
+          if (!cacheMissIds.isEmpty()) {
+            List<String> dbValidIds = projectRepository.validateIds(tenantId, cacheMissIds,
+                getIdFieldName(idMethod));
+            existingProjectIds.addAll(dbValidIds);
+          }
+          List<ProjectFacility> invalidEntities = validEntities.stream().filter(notHavingErrors())
+              .filter(entity ->
+                  !existingProjectIds.contains(entity.getProjectId()))
+              .collect(Collectors.toList());
+          invalidEntities.forEach(projectFacility -> {
+            Error error = getErrorForNonExistentRelatedEntity(projectFacility.getProjectId());
+            populateErrorDetails(projectFacility, error, errorDetailsMap);
+          });
+        } catch (InvalidTenantIdException exception) {
+          // Populating InvalidTenantIdException for all entities
+          validEntities.forEach(projectFacility -> {
+            Error error = getErrorForInvalidTenantId(tenantId, exception);
+            populateErrorDetails(projectFacility, error, errorDetailsMap);
+          });
         }
-        return errorDetailsMap;
+      }
     }
+      return errorDetailsMap;
+  }
 }
