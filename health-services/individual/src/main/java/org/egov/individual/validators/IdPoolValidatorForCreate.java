@@ -57,6 +57,9 @@ public class IdPoolValidatorForCreate implements Validator<IndividualBulkRequest
         // Fetch ID records from IDGEN service
         Map<String, IdRecord> idRecordMap = getIdRecords(beneficiaryIdGenService, individuals, null, request.getRequestInfo());
 
+        // Existing Unique Beneficiary ID
+        Set<String> usedUniqueBeneficiaryIdSet = new HashSet<>();
+
         for (Individual individual : individuals) {
             if (!CollectionUtils.isEmpty(individual.getIdentifiers())) {
                 // Fetch the unique beneficiary identifier, if present
@@ -69,20 +72,27 @@ public class IdPoolValidatorForCreate implements Validator<IndividualBulkRequest
 
                     // Validate existence of ID
                     if (!idRecordMap.containsKey(idValue)) {
-                        createError(errorDetailsMap, individual, null, INVALID_BENEFICIARY_ID, "Invalid beneficiary id");
+                        createError(errorDetailsMap, individual, null, INVALID_BENEFICIARY_ID, "The beneficiary id '" + idValue + "' does not exist");
                     }
                     // Validate that ID is in DISPATCHED state
                     else if (!IdStatus.DISPATCHED.name().equals(idRecordMap.get(idValue).getStatus())) {
                         createError(errorDetailsMap, individual,
                                 idRecordMap.get(idValue).getStatus(), INVALID_BENEFICIARY_ID,
-                                "Id Status is not in DISPATCHED state");
+                                "The beneficiary id '" + idValue + "' status is not in DISPATCHED state");
                     }
                     // Validate that ID was dispatched to this user
                     else if (!userId.equals(idRecordMap.get(idValue).getLastModifiedBy())) {
                         createError(errorDetailsMap, individual,
                                 idRecordMap.get(idValue).getStatus(), INVALID_USER_ID,
-                                "This beneficiary id is dispatched to another user");
+                                "This beneficiary id '" + idValue + "' is dispatched to another user");
                     }
+                    // Validate that ID was not used by other individuals in the bulk request
+                    else if (usedUniqueBeneficiaryIdSet.contains(idValue)) {
+                        createError(errorDetailsMap, individual,
+                                idRecordMap.get(idValue).getStatus(), INVALID_BENEFICIARY_ID,
+                                "This beneficiary id '" + idValue + "' is duplicated for multiple individuals");
+                    }
+                    usedUniqueBeneficiaryIdSet.add(idValue);
                 }
             }
         }

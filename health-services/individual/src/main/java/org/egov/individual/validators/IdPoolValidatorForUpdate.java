@@ -1,8 +1,10 @@
 package org.egov.individual.validators;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -19,6 +21,7 @@ import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 
+import static org.egov.common.utils.CommonUtils.isValidPattern;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.individual.Constants.*;
 
@@ -61,6 +64,9 @@ public class IdPoolValidatorForUpdate implements Validator<IndividualBulkRequest
         Map<String, IdRecord> idRecordMap = IdPoolValidatorForCreate
                 .getIdRecords(beneficiaryIdGenService, individuals, null, request.getRequestInfo());
 
+        // Existing Unique Beneficiary ID
+        Set<String> usedUniqueBeneficiaryIdSet = new HashSet<>();
+
         // Iterate through individuals and validate beneficiary IDs
         for (Individual individual : individuals) {
             if (!CollectionUtils.isEmpty(individual.getIdentifiers())) {
@@ -73,14 +79,32 @@ public class IdPoolValidatorForUpdate implements Validator<IndividualBulkRequest
                 if (identifier != null && StringUtils.isNotBlank(identifier.getIdentifierId())) {
                     String beneficiaryId = identifier.getIdentifierId();
 
+                    if (beneficiaryId.contains("*")) {
+                        // get the last 4 digits
+                        String last4Digits = identifier.getIdentifierId()
+                                .substring(identifier.getIdentifierId().length() - 4);
+                        // regex to check if last 4 digits are numbers
+                        String regex = "[0-9]+";
+                        if (!isValidPattern(last4Digits, regex) || identifier.getIdentifierId().length() != 12) {
+                            updateError(errorDetailsMap, individual, INVALID_BENEFICIARY_ID, "The masked beneficiary id '" + beneficiaryId + "' is invalid.");
+                        }
+                        continue;
+                    }
                     // Check if ID exists in the fetched ID records
                     if (!idRecordMap.containsKey(beneficiaryId)) {
-                        updateError(errorDetailsMap, individual, INVALID_BENEFICIARY_ID, "Invalid beneficiary id");
+                        updateError(errorDetailsMap, individual, INVALID_BENEFICIARY_ID, "The beneficiary id '" + beneficiaryId + "' does not exist");
                     }
                     // Ensure that the ID is associated with the requesting user
                     else if (!userId.equals(idRecordMap.get(beneficiaryId).getLastModifiedBy())) {
-                        updateError(errorDetailsMap, individual, INVALID_USER_ID, "This beneficiary id is dispatched to another user");
+                        updateError(errorDetailsMap, individual, INVALID_USER_ID, "This beneficiary id '" + beneficiaryId + "' is dispatched to another user");
                     }
+                    // Validate that ID was not used by other individuals in the bulk request
+                    else if (usedUniqueBeneficiaryIdSet.contains(beneficiaryId)) {
+                        updateError(errorDetailsMap, individual,
+                                INVALID_BENEFICIARY_ID,
+                                "This beneficiary id '" + beneficiaryId + "' is duplicated for multiple individuals");
+                    }
+                    usedUniqueBeneficiaryIdSet.add(beneficiaryId);
                 }
             }
         }
