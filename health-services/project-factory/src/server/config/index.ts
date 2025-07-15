@@ -1,6 +1,3 @@
-// config.js
-// Importing necessary module
-import { getErrorCodes } from "./constants";
 // Defining the HOST variable
 const HOST = process.env.EGOV_HOST ||
   "https://unified-dev.digit.org/";
@@ -199,6 +196,5 @@ const config = {
     validateCampaignIdInMetadata: process.env.VALIDATE_CAMPAIGN_ID_IN_METADATA === "true"
   }
 };
-// Exporting getErrorCodes function and config object
-export { getErrorCodes };
+
 export default config;

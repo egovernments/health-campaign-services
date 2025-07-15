@@ -1,6 +1,7 @@
 import { NextFunction, Request, Response } from "express";
 import { httpRequest, defaultheader } from "./request";
-import config, { getErrorCodes } from "../config/index";
+import config from "../config/index";
+import { getErrorCodes } from "../config/constants";
 import { v4 as uuidv4 } from 'uuid';
 import { produceModifiedMessages } from "../kafka/Producer";
 import { generateHierarchyList, getAllFacilities, getCampaignSearchResponse, getHierarchy } from "../api/campaignApis";
