@@ -228,4 +228,7 @@ public class ProjectConfiguration {
 
     @Value("${project.create.cache.key}")
     private String projectCacheKey;
+
+    @Value("${project.cache.ttl.seconds:86400}") // Default 1 day
+    private long projectCacheTtl;
 }

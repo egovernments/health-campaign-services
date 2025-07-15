@@ -52,10 +52,6 @@ public class ProjectService {
 
     private final RedisTemplate<String, String> redisTemplate;
 
-
-
-
-
   @Autowired
   public ProjectService(
       ProjectRepository projectRepository,
@@ -99,7 +95,7 @@ public class ProjectService {
       if (StringUtils.isNotBlank(project.getProjectHierarchy())) {
         try {
           redisTemplate.opsForValue()
-              .set(redisKey, project.getProjectHierarchy(), Duration.ofDays(1));
+              .set(redisKey, project.getProjectHierarchy(), Duration.ofSeconds(projectConfiguration.getProjectCacheTtl()));
           log.info("Cached projectHierarchy for project {} in Redis", project.getId());
         } catch (Exception ex) {
           log.error("Failed to cache projectHierarchy for project {}: {}", project.getId(), ex.getMessage(), ex);
