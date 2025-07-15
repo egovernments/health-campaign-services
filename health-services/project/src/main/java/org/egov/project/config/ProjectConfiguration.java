@@ -225,4 +225,7 @@ public class ProjectConfiguration {
 
     @Value("${project.attendance.feature.enabled:true}")
     private Boolean isAttendanceFeatureEnabled;
+
+    @Value("${project.create.cache.key}")
+    private String projectCacheKey;
 }

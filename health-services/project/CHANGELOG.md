@@ -2,6 +2,11 @@
 
 All notable changes to this module will be documented in this file.
 
+## 1.2.1 - 2025-07-15
+- Enabled Redis caching for project-create-cache-{id} after project creation.
+- Optimized project ID validation in ProjectStaff and ProjectFacility using Redis (fallback to DB).
+- Added logs for cache hits, misses, and Redis errors.
+
 ## 1.2.0 - 2025-05-07
 * Implemented tenant-based schema handling across repository and SQL layers.
 * Required tenant ID across repository methods with validation logic.

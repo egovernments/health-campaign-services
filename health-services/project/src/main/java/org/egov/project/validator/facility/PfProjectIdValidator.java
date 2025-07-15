@@ -6,6 +6,7 @@ import org.egov.common.models.Error;
 import org.egov.common.models.project.ProjectFacility;
 import org.egov.common.models.project.ProjectFacilityBulkRequest;
 import org.egov.common.validator.Validator;
+import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.repository.ProjectRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.annotation.Order;
@@ -37,13 +38,15 @@ public class PfProjectIdValidator implements Validator<ProjectFacilityBulkReques
 
     private final ProjectRepository projectRepository;
     private final RedisTemplate<String,String> redisTemplate;
+    private final ProjectConfiguration config;
 
 
   @Autowired
   public PfProjectIdValidator(ProjectRepository projectRepository,
-      RedisTemplate<String, String> redisTemplate) {
+      RedisTemplate<String, String> redisTemplate , ProjectConfiguration config) {
     this.projectRepository = projectRepository;
     this.redisTemplate = redisTemplate;
+    this.config = config;
   }
 
 
@@ -66,7 +69,7 @@ public class PfProjectIdValidator implements Validator<ProjectFacilityBulkReques
           List<String> cacheMissIds = new ArrayList<>();
 
           for (String id : entityIds) {
-            String redisKey = "project-create-cache-" + id;
+            String redisKey = config.getProjectCacheKey() + id;
             try {
               if (Boolean.TRUE.equals(redisTemplate.hasKey(redisKey))) {
                 existingProjectIds.add(id);

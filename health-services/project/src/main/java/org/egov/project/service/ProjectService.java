@@ -94,7 +94,7 @@ public class ProjectService {
 
     // ✅ Save project IDs in Redis after Kafka push
     for (Project project : projectRequest.getProjects()) {
-      String redisKey = "project-create-cache-" + project.getId();
+      String redisKey = projectConfiguration.getProjectCacheKey() + project.getId();
 
       if (StringUtils.isNotBlank(project.getProjectHierarchy())) {
         try {
@@ -354,7 +354,7 @@ public class ProjectService {
 
     for (Project project : projectsWithParent) {
       String parentId = project.getParent();
-      String redisKey = "project-create-cache-" + parentId;
+      String redisKey = projectConfiguration.getProjectCacheKey() + parentId;
 
       try {
         String cachedHierarchy = redisTemplate.opsForValue().get(redisKey);
@@ -393,7 +393,7 @@ public class ProjectService {
       );
 
       for (Project parent : dbProjects) {
-        String redisKey = "project-create-cache-" + parent.getId();
+        String redisKey = projectConfiguration.getProjectCacheKey() + parent.getId();
         try {
           redisTemplate.opsForValue().set(redisKey, parent.getProjectHierarchy(), Duration.ofDays(1));
         } catch (Exception ex) {
