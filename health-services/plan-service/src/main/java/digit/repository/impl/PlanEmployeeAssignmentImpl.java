@@ -13,6 +13,8 @@ import org.springframework.stereotype.Repository;
 import java.util.ArrayList;
 import java.util.List;
 
+import static digit.config.ServiceConstants.COMMA_DELIMITER;
+
 @Slf4j
 @Repository
 public class PlanEmployeeAssignmentImpl implements PlanEmployeeAssignmentRepository {
@@ -56,10 +58,8 @@ public class PlanEmployeeAssignmentImpl implements PlanEmployeeAssignmentReposit
     public List<PlanEmployeeAssignment> search(PlanEmployeeAssignmentSearchCriteria searchCriteria) {
         List<Object> preparedStmtList = new ArrayList<>();
         String searchQuery = queryBuilder.getPlanEmployeeAssignmentQuery(searchCriteria, preparedStmtList);
-        log.info("Plan Employee Assignment search query : " + searchQuery);
 
-        List<PlanEmployeeAssignment> planEmployeeAssignments = jdbcTemplate.query(searchQuery, rowMapper, preparedStmtList.toArray());
-        return planEmployeeAssignments;
+        return jdbcTemplate.query(searchQuery, rowMapper, preparedStmtList.toArray());
     }
 
     /**
@@ -72,9 +72,8 @@ public class PlanEmployeeAssignmentImpl implements PlanEmployeeAssignmentReposit
     public Integer count(PlanEmployeeAssignmentSearchCriteria searchCriteria) {
         List<Object> preparedStmtList = new ArrayList<>();
         String query = queryBuilder.getPlanEmployeeAssignmentCountQuery(searchCriteria, preparedStmtList);
-        Integer count = jdbcTemplate.queryForObject(query, preparedStmtList.toArray(), Integer.class);
 
-        return count;
+        return jdbcTemplate.queryForObject(query, preparedStmtList.toArray(), Integer.class);
     }
 
     /**
@@ -106,7 +105,7 @@ public class PlanEmployeeAssignmentImpl implements PlanEmployeeAssignmentReposit
                 .role(planEmployeeAssignment.getRole())
                 .planConfigurationName(planEmployeeAssignment.getPlanConfigurationName())
                 .hierarchyLevel(planEmployeeAssignment.getHierarchyLevel())
-                .jurisdiction(String.join(",", planEmployeeAssignment.getJurisdiction()))
+                .jurisdiction(String.join(COMMA_DELIMITER, planEmployeeAssignment.getJurisdiction()))
                 .additionalDetails(planEmployeeAssignment.getAdditionalDetails())
                 .active(planEmployeeAssignment.getActive())
                 .auditDetails(planEmployeeAssignment.getAuditDetails())
