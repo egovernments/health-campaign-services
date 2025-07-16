@@ -8,12 +8,14 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Configuration;
+import org.springframework.stereotype.Component;
+
 @Getter
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-@Configuration
+@Builder
+@Component
 public class ProjectConfiguration {
 
     @Value("${project.staff.kafka.create.topic}")
