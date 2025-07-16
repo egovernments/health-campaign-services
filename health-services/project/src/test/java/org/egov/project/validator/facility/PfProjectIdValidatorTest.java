@@ -5,6 +5,7 @@ import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.Error;
 import org.egov.common.models.project.ProjectFacility;
 import org.egov.common.models.project.ProjectFacilityBulkRequest;
+import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.helper.ProjectFacilityBulkRequestTestBuilder;
 import org.egov.project.repository.ProjectRepository;
 import org.junit.jupiter.api.DisplayName;
@@ -32,6 +33,9 @@ class PfProjectIdValidatorTest {
 
     @Mock
     private ProjectRepository projectRepository;
+
+    @Mock
+    private ProjectConfiguration config;
 
     @Test
     @DisplayName("should add project facility to error details if is Deleted is true")
