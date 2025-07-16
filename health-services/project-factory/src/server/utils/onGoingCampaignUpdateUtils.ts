@@ -615,9 +615,7 @@ async function finalizeAndUpload(newWorkbook: any, mappingObject: any, resource:
   const responseData = await createAndUploadFile(newWorkbook, mappingObject, mappingObject?.CampaignDetails?.tenantId);
   const fileStoreId = responseData?.[0]?.fileStoreId;
   const resourceDetails = (await getResourceFromResourceId(mappingObject, [resource.createResourceId], resource))[0];
-  resourceDetails.processedFilestoreId = fileStoreId;
-  resourceDetails.processedFileStoreId = resourceDetails.processedFilestoreId;
-  resourceDetails.processedFilestoreId = undefined;
+  resourceDetails.processedFileStoreId = fileStoreId || null;
 
   const persistMessage: any = { ResourceDetails: resourceDetails };
   await produceModifiedMessages(persistMessage, config?.kafka?.KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC, mappingObject?.CampaignDetails?.tenantId);

@@ -920,6 +920,7 @@ async function generateProcessedFileAndPersist(
       );
     }, 30000);
   }
+  request.body.ResourceDetails.processedFileStoreId = request?.body?.ResourceDetails?.processedFileStoreId || null;
   const persistMessage: any = { ResourceDetails: request.body.ResourceDetails };
   if (request?.body?.ResourceDetails?.action == "create") {
     persistMessage.ResourceDetails.additionalDetails = {

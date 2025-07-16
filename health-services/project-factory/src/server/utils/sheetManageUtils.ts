@@ -308,6 +308,7 @@ export async function handleErrorDuringProcess(ResourceDetails: any, error: any)
             message: error.message
         }
     }
+    ResourceDetails.processedFileStoreId = ResourceDetails.processedFileStoreId || null;
     await produceModifiedMessages({ ResourceDetails: ResourceDetails }, config?.kafka?.KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC, ResourceDetails?.tenantId);
 }
 
