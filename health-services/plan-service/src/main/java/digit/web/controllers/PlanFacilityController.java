@@ -29,7 +29,7 @@ public class PlanFacilityController {
      * @return
      */
     @RequestMapping(value = "/facility/_create", method = RequestMethod.POST)
-    public ResponseEntity<PlanFacilityResponse> createPlanFacility(@Valid @RequestBody PlanFacilityRequest planFacilityRequest) {
+    public ResponseEntity<PlanFacilityResponse> create(@Valid @RequestBody PlanFacilityRequest planFacilityRequest) {
         PlanFacilityResponse planFacilityResponse = planFacilityService.createPlanFacility(planFacilityRequest);
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(planFacilityResponse);
     }
@@ -41,7 +41,7 @@ public class PlanFacilityController {
      * @return
      */
     @RequestMapping(value = "/facility/_search", method = RequestMethod.POST)
-    public ResponseEntity<PlanFacilityResponse> searchPlanFacility(@Valid @RequestBody PlanFacilitySearchRequest planFacilityRequest) {
+    public ResponseEntity<PlanFacilityResponse> search(@Valid @RequestBody PlanFacilitySearchRequest planFacilityRequest) {
         PlanFacilityResponse planFacilityResponse = planFacilityService.searchPlanFacility(planFacilityRequest);
         return ResponseEntity.status(HttpStatus.OK).body(planFacilityResponse);
     }
@@ -53,7 +53,7 @@ public class PlanFacilityController {
      * @return
      */
     @RequestMapping(value = "/facility/_update", method = RequestMethod.POST)
-    public ResponseEntity<PlanFacilityResponse> updatePlanFacility(@Valid @RequestBody PlanFacilityRequest planFacilityRequest) {
+    public ResponseEntity<PlanFacilityResponse> update(@Valid @RequestBody PlanFacilityRequest planFacilityRequest) {
         PlanFacilityResponse planFacilityResponse = planFacilityService.updatePlanFacility(planFacilityRequest);
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(planFacilityResponse);
     }

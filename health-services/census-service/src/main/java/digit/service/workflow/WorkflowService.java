@@ -3,12 +3,11 @@ package digit.service.workflow;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import digit.config.Configuration;
 import digit.repository.ServiceRequestRepository;
-import digit.util.PlanEmployeeAssignmnetUtil;
+import digit.util.PlanEmployeeAssignmentUtil;
 import digit.web.models.BulkCensusRequest;
 import digit.web.models.Census;
 import digit.web.models.CensusRequest;
 import digit.web.models.plan.PlanEmployeeAssignmentResponse;
-import digit.web.models.plan.PlanEmployeeAssignmentSearchCriteria;
 import digit.web.models.plan.PlanEmployeeAssignmentSearchRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.models.Workflow;
@@ -36,13 +35,13 @@ public class WorkflowService {
 
     private ObjectMapper mapper;
 
-    private PlanEmployeeAssignmnetUtil planEmployeeAssignmnetUtil;
+    private PlanEmployeeAssignmentUtil planEmployeeAssignmentUtil;
 
-    public WorkflowService(ServiceRequestRepository serviceRequestRepository, Configuration config, ObjectMapper mapper, PlanEmployeeAssignmnetUtil planEmployeeAssignmnetUtil) {
+    public WorkflowService(ServiceRequestRepository serviceRequestRepository, Configuration config, ObjectMapper mapper, PlanEmployeeAssignmentUtil planEmployeeAssignmentUtil) {
         this.serviceRequestRepository = serviceRequestRepository;
         this.config = config;
         this.mapper = mapper;
-        this.planEmployeeAssignmnetUtil = planEmployeeAssignmnetUtil;
+        this.planEmployeeAssignmentUtil = planEmployeeAssignmentUtil;
     }
 
     /**
@@ -119,7 +118,7 @@ public class WorkflowService {
             if (!ObjectUtils.isEmpty(assignee))
                 census.getWorkflow().setAssignes(assignee);
 
-            census.setAssignee(assignee);
+            census.setAssignee(!ObjectUtils.isEmpty(assignee) ? new HashSet<>(assignee) : Collections.emptySet());
 
             // Create process instance object from census
             ProcessInstance processInstance = ProcessInstance.builder()
@@ -133,7 +132,7 @@ public class WorkflowService {
                     .build();
 
             // Enrich user list for process instance
-            enrichAssignesInProcessInstance(processInstance, census.getWorkflow());
+            enrichAssigneesInProcessInstance(processInstance, census.getWorkflow());
 
             // Add entry for bulk transition
             processInstanceList.add(processInstance);
@@ -195,12 +194,11 @@ public class WorkflowService {
         if (!ObjectUtils.isEmpty(assignee))
             census.getWorkflow().setAssignes(assignee);
 
-        census.setAssignee(assignee);
+        census.setAssignee(!ObjectUtils.isEmpty(assignee) ? new HashSet<>(assignee) : Collections.emptySet());
 
         // Enrich user for process instance
-        enrichAssignesInProcessInstance(processInstance, census.getWorkflow());
+        enrichAssigneesInProcessInstance(processInstance, census.getWorkflow());
 
-        log.info("Process Instance assignes - " + processInstance.getAssignes());
         return ProcessInstanceRequest.builder()
                 .requestInfo(censusRequest.getRequestInfo())
                 .processInstances(Collections.singletonList(processInstance))
@@ -213,7 +211,7 @@ public class WorkflowService {
      * @param processInstance The process instance to enrich with assignees.
      * @param workflow        The workflow containing assignees to be added to the process instance.
      */
-    public void enrichAssignesInProcessInstance(ProcessInstance processInstance, Workflow workflow) {
+    public void enrichAssigneesInProcessInstance(ProcessInstance processInstance, Workflow workflow) {
         List<User> userList = CollectionUtils.isEmpty(workflow.getAssignes())
                 ? new LinkedList<>()
                 : workflow.getAssignes().stream()
@@ -244,29 +242,42 @@ public class WorkflowService {
      * @param requestInfo the requestInfo
      */
     private List<String> getAssigneeForAutoAssignment(Census census, RequestInfo requestInfo) {
-        String[] allHierarchiesBoundaryCodes = census.getBoundaryAncestralPath().get(0).split(PIPE_REGEX);
-        String[] hierarchiesBoundaryCodes = Arrays.copyOf(allHierarchiesBoundaryCodes, allHierarchiesBoundaryCodes.length - 1);
+        String[] allHierarchyBoundaryCodes = census.getBoundaryAncestralPath().get(0).split(PIPE_REGEX);
+        String[] hierarchyBoundaryCodes = Arrays.copyOf(allHierarchyBoundaryCodes, allHierarchyBoundaryCodes.length - 1);
 
-        PlanEmployeeAssignmentSearchCriteria planEmployeeAssignmentSearchCriteria =
-                PlanEmployeeAssignmentSearchCriteria.builder()
-                        .tenantId(census.getTenantId())
-                        .jurisdiction(Arrays.stream(hierarchiesBoundaryCodes).toList())
-                        .planConfigurationId(census.getSource())
-                        .role(config.getAllowedCensusRoles())
-                        .build();
+        PlanEmployeeAssignmentSearchRequest planEmployeeAssignmentSearchRequest = planEmployeeAssignmentUtil.getPlanEmployeeSearchRequest(census,
+                new ArrayList<>(), Arrays.stream(hierarchyBoundaryCodes).toList(), config.getAllowedCensusRoles(), requestInfo);
 
         //search for plan-employee assignments for the ancestral hierarchy codes.
-        PlanEmployeeAssignmentResponse planEmployeeAssignmentResponse = planEmployeeAssignmnetUtil.fetchPlanEmployeeAssignment(PlanEmployeeAssignmentSearchRequest.builder()
-                .planEmployeeAssignmentSearchCriteria(planEmployeeAssignmentSearchCriteria)
-                .requestInfo(requestInfo).build());
+        PlanEmployeeAssignmentResponse planEmployeeAssignmentResponse = planEmployeeAssignmentUtil.fetchPlanEmployeeAssignment(planEmployeeAssignmentSearchRequest);
 
         // Create a map of jurisdiction to list of employeeIds
-        Map<String, List<String>> jurisdictionToEmployeeMap = planEmployeeAssignmentResponse.getPlanEmployeeAssignment().stream()
+        Map<String, List<String>> jurisdictionToEmployeeMap = getJurisdictionToEmployeesMap(planEmployeeAssignmentResponse, hierarchyBoundaryCodes);
+
+        List<String> assignee = null; //assignee will remain null in case terminate actions are being taken
+
+        String action = census.getWorkflow().getAction();
+        if (config.getWfInitiateActions().contains(action)) {
+            for (int i = hierarchyBoundaryCodes.length - 1; i >= 0; i--) {
+                assignee = jurisdictionToEmployeeMap.get(hierarchyBoundaryCodes[i]);
+                if (assignee != null)
+                    break; // Stop iterating once an assignee is found
+            }
+        } else if (config.getWfIntermediateActions().contains(action)) {
+            assignee = assignToHigherBoundaryLevel(hierarchyBoundaryCodes, census, jurisdictionToEmployeeMap);
+        }
+
+        return assignee;
+    }
+
+    private Map<String, List<String>> getJurisdictionToEmployeesMap(PlanEmployeeAssignmentResponse planEmployeeAssignmentResponse, String[] hierarchyBoundaryCodes) {
+
+        return planEmployeeAssignmentResponse.getPlanEmployeeAssignment().stream()
                 .filter(assignment -> !CollectionUtils.isEmpty(assignment.getJurisdiction()))
                 .flatMap(assignment -> {
                     String employeeId = assignment.getEmployeeId();
                     return assignment.getJurisdiction().stream()
-                            .filter(jurisdiction -> Arrays.asList(hierarchiesBoundaryCodes).contains(jurisdiction))
+                            .filter(jurisdiction -> Arrays.asList(hierarchyBoundaryCodes).contains(jurisdiction))
                             .map(jurisdiction -> new AbstractMap.SimpleEntry<>(jurisdiction, employeeId));
                 })
                 .collect(Collectors.groupingBy(
@@ -277,43 +288,27 @@ public class WorkflowService {
                                 Collectors.toList() // Collect employee IDs into a List
                         )
                 ));
-
-        List<String> assignee = null; //assignee will remain null in case terminate actions are being taken
-
-        String action = census.getWorkflow().getAction();
-        if (config.getWfInitiateActions().contains(action)) {
-            for (int i = hierarchiesBoundaryCodes.length - 1; i >= 0; i--) {
-                assignee = jurisdictionToEmployeeMap.get(hierarchiesBoundaryCodes[i]);
-                if (assignee != null)
-                    break; // Stop iterating once an assignee is found
-            }
-        } else if (config.getWfIntermediateActions().contains(action)) {
-            assignee = assignToHigherBoundaryLevel(hierarchiesBoundaryCodes, census, jurisdictionToEmployeeMap);
-        }
-
-        return assignee;
     }
-
     /**
      * Assigns a list of employees from a higher-level jurisdiction in the hierarchy.
      * Iterates through boundary codes, checking if they match the assignee's jurisdiction.
      * If a higher-level boundary has an assigned employee, returns that employee's ID.
      *
-     * @param heirarchysBoundaryCodes   boundary codes representing the hierarchy
+     * @param hierarchyBoundaryCodes    boundary codes representing the hierarchy
      * @param census                    the census object with jurisdiction details
      * @param jurisdictionToEmployeeMap map of jurisdiction codes to employee IDs
      * @return the list of employee IDs from the higher boundary, or null if
      */
-    public List<String> assignToHigherBoundaryLevel(String[] heirarchysBoundaryCodes, Census census, Map<String, List<String>> jurisdictionToEmployeeMap) {
-        for (int i = heirarchysBoundaryCodes.length - 1; i >= 0; i--) {
-            String boundaryCode = heirarchysBoundaryCodes[i];
+    public List<String> assignToHigherBoundaryLevel(String[] hierarchyBoundaryCodes, Census census, Map<String, List<String>> jurisdictionToEmployeeMap) {
+        for (int i = hierarchyBoundaryCodes.length - 1; i >= 0; i--) {
+            String boundaryCode = hierarchyBoundaryCodes[i];
 
             // Check if this boundary code is present in assigneeJurisdiction
             if (census.getAssigneeJurisdiction().contains(boundaryCode)) {
 
                 for (int j = i - 1; j >= 0; j--) {
                     // Check the next higher level in the hierarchy (one index above the match)
-                    String higherBoundaryCode = heirarchysBoundaryCodes[j];
+                    String higherBoundaryCode = hierarchyBoundaryCodes[j];
 
                     // Fetch the employeeId from the map for the higher boundary code
                     List<String> employeeId = jurisdictionToEmployeeMap.get(higherBoundaryCode);
