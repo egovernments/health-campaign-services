@@ -1676,7 +1676,7 @@ async function validateCampaignViaId(campaignId : string,tenantId : string) {
         logger.info(`campaignId got validated`);
     }
     else {
-        throwError(`CAMPAIGN`, 400, "VALIDATION_ERROR", `campaignId not found or invalid`);
+        throwError(`CAMPAIGN`, 400, "VALIDATION_ERROR_CAMPAIGN_ID", `campaignId not found or invalid`);
     }
 }
 
