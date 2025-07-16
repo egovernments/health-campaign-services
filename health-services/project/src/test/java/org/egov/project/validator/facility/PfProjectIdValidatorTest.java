@@ -8,6 +8,7 @@ import org.egov.common.models.project.ProjectFacilityBulkRequest;
 import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.helper.ProjectFacilityBulkRequestTestBuilder;
 import org.egov.project.repository.ProjectRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -36,6 +37,11 @@ class PfProjectIdValidatorTest {
 
     @Mock
     private ProjectConfiguration config;
+
+    @BeforeEach
+    void setup() {
+      when(config.getProjectCacheKey()).thenReturn("project-create-cache-");
+    }
 
     @Test
     @DisplayName("should add project facility to error details if is Deleted is true")
