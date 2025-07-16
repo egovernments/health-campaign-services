@@ -188,6 +188,9 @@ export async function processRequest(ResourceDetails: any, workBook: any, templa
     for (const sheet of templateConfig?.sheets || []) {
         const sheetName = getLocalizedName(sheet?.sheetName, localizationMap);
         const worksheet = workBook.getWorksheet(sheetName);
+        if(!worksheet) {
+            throwError("FILE", 400, "SHEET_MISSING_ERROR", `Sheet: '${sheetName}' not found in the uploaded file.`);
+        }
         const sheetData = getSheetDataFromWorksheet(worksheet);
         const jsonData = getJsonDataWithUnlocalisedKey(sheetData, true);
         if (sheet?.validateRowsGap) checkAllRowsConsistency(jsonData);
