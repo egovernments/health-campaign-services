@@ -2985,13 +2985,25 @@ async function processAndInsertModules(
     return;
   }
 
+  await Promise.all(
+    templateModules.map((template) => {
+      logger.info(`Inserting template module: ${template?.name} for campaign number ${campaignNumber}`);
+
+      const moduleData = {
+        ...template,
+        project: campaignNumber,
+        isSelected: true,
+      };
+
+      return createMdmsData(tenantId, schemaCode, moduleData, useruuid);
+    })
+  );
+
   for (const template of templateModules) {
     const moduleName = template?.name;
     if (!moduleName) continue;
-
     const baseKey = `hcm-base-${moduleName.toLowerCase()}-${baseType}`;
     const updatedKey = `hcm-${moduleName.toLowerCase()}-${campaignNumber}`;
-
     await upsertLocalisations(
       tenantId,
       baseKey,
@@ -3000,14 +3012,6 @@ async function processAndInsertModules(
       localisation,
       RequestInfo
     );
-
-    const moduleData = {
-      ...template,
-      project: campaignNumber,
-      isSelected: true,
-    };
-
-    await createMdmsData(tenantId, schemaCode, moduleData, useruuid);
   }
 }
 
