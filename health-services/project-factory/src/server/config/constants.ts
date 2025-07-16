@@ -44,7 +44,8 @@ export const CONSTANTS: any = {
             RESOURCES_CONSOLIDATION_ERROR : "Error while consolidating resources in Campaign Update Flow ",
             VALIDATION_ERROR_ACTIVE_ROW: "At least one active row is required",
             VALIDATION_ERROR_USERNAME_FORMAT: "User name can be alphanumeric only",
-            VALIDATION_ERROR_CAMPAIGN_ID: "CampaignId not found or invalid"
+            VALIDATION_ERROR_CAMPAIGN_ID: "CampaignId not found or invalid",
+            VALIDATION_ERROR_UPDATE_CAMPAIGN: "Campaign can only be updated in drafted or failed state"
         },
         BOUNDARY: {
             BOUNDARY_DATA_NOT_FOUND: "No boundary data found in the system.",

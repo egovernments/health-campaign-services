@@ -1212,9 +1212,7 @@ async function enrichAndPersistCampaignForUpdate(
   request.body.CampaignDetails.campaignDetails = updatedInnerCampaignDetails;
   request.body.CampaignDetails.parentId = request?.body?.CampaignDetails?.parentId || null;
   request.body.CampaignDetails.status =
-    action == "changeDates"
-      ? request.body.CampaignDetails.status
-      : action == "create"
+        action == "create"
         ? campaignStatuses.started
         : campaignStatuses.drafted;
   request.body.CampaignDetails.startDate =

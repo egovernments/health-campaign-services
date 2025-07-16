@@ -52,15 +52,6 @@ async function createCampaignService(
     return requestBody?.Campaign
 };
 
-async function retryProjectTypeCampaignService(request: express.Request) {
-    logger.info("RETRYING THE PROJECT TYPE CAMPAIGN");
-    await validateProjectCampaignRequest(request, "retry");
-    logger.info("VALIDATED THE PROJECT TYPE RETRY REQUEST");
-    request.body.CampaignDetails.action = "draft";
-    await processBasedOnAction(request, "update");
-    return request?.body?.CampaignDetails;
-}
-
 async function fetchFromMicroplanService(request: express.Request) {
     logger.info("FETCHING DATA FROM MICROPLAN");
     await validateMicroplanRequest(request);
@@ -77,6 +68,5 @@ export {
     updateProjectTypeCampaignService,
     searchProjectTypeCampaignService,
     createCampaignService,
-    retryProjectTypeCampaignService,
     fetchFromMicroplanService
 }
