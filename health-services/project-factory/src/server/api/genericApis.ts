@@ -316,54 +316,6 @@ const getCampaignNumber: any = async (
   throwError("COMMON", 500, "IDGEN_ERROR");
 };
 
-// Function to generate a resource number
-const getResouceNumber: any = async (
-  RequestInfo: any,
-  idFormat: String,
-  idName: string
-) => {
-  // Construct request data
-  const data = {
-    RequestInfo,
-    idRequests: [
-      {
-        idName: idName,
-        tenantId: RequestInfo?.userInfo?.tenantId,
-        format: idFormat,
-      },
-    ],
-  };
-
-  // Construct URL for ID generation service
-  const idGenUrl = config.host.idGenHost + config.paths.idGen;
-
-  try {
-    // Make HTTP request to ID generation service
-    const result = await httpRequest(
-      idGenUrl,
-      data,
-      undefined,
-      undefined,
-      undefined,
-      undefined
-    );
-
-    // Return generated resource number
-    if (result?.idResponses?.[0]?.id) {
-      return result?.idResponses?.[0]?.id;
-    }
-
-    // Return null if ID generation fails
-    return result;
-  } catch (error: any) {
-    // Log error if ID generation fails
-    logger.error("Error: " + error);
-
-    // Return error
-    return error;
-  }
-};
-
 // Function to get schema definition based on code and request info
 const getSchema: any = async (code: string, RequestInfo: any) => {
   const data = {
@@ -1580,7 +1532,6 @@ export {
   searchMDMS,
   getCampaignNumber,
   getSchema,
-  getResouceNumber,
   getCount,
   getBoundarySheetData,
   createAndUploadFile,
