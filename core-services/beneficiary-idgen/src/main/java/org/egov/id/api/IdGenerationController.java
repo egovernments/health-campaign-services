@@ -64,8 +64,10 @@ public class IdGenerationController {
 
 	@RequestMapping(method = RequestMethod.POST, path = "id_pool/_dispatch")
 	public IdDispatchResponse dispatchIds(@RequestBody @Valid IdDispatchRequest request)  throws Exception {
-			IdDispatchResponse response = idDispatchService.dispatchIds( request);
-			return response;
+		// TODO: remove this after testing
+		request.getClientInfo().setCount(100);
+		IdDispatchResponse response = idDispatchService.dispatchIds( request);
+		return response;
 	}
 
 	/**
