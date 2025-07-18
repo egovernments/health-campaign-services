@@ -5,8 +5,7 @@ import Ajv from "ajv";
 import { throwError } from "../utils/genericUtils";
 import { validateFilters } from "./campaignValidators";
 import { generateRequestSchema } from "../config/models/generateRequestSchema";
-import { persistTrack } from "../utils/processTrackUtils";
-import { processTrackTypes, processTrackStatuses, campaignStatuses } from "../config/constants";
+import { campaignStatuses } from "../config/constants";
 import { validateMappingId } from "../utils/campaignMappingUtils";
 import { searchBoundaryRelationshipData, searchBoundaryRelationshipDefinition } from "../api/coreApis";
 import { BoundaryModels } from "../models";
@@ -128,7 +127,6 @@ async function validateCampaign(requestBody: any) {
 
 // Function to validate the entire campaign request
 async function validateCampaignRequest(requestBody: any) {
-    await persistTrack(requestBody?.Campaign?.id, processTrackTypes.validateMappingResource, processTrackStatuses.inprogress);
     try {
         if (requestBody?.Campaign) {
             if (!requestBody?.Campaign?.tenantId) {
@@ -158,10 +156,8 @@ async function validateCampaignRequest(requestBody: any) {
         }
     } catch (error: any) {
         console.log(error)
-        await persistTrack(requestBody?.Campaign?.id, processTrackTypes.validateMappingResource, processTrackStatuses.failed, { error: String((error?.message + (error?.description ? ` : ${error?.description}` : '')) || error) });
         throw new Error(error)
     }
-    await persistTrack(requestBody?.Campaign?.id, processTrackTypes.validateMappingResource, processTrackStatuses.completed);
 }
 
 // Function to validate and update project response and its ID

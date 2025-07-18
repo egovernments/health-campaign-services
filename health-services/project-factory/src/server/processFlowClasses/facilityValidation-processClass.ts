@@ -22,7 +22,7 @@ export class TemplateClass {
         logger.info(`ResourceDetails: ${JSON.stringify(resourceDetails)}`);
         const facilitySheetData = wholeSheetData[getLocalizedName("HCM_ADMIN_CONSOLE_FACILITIES", localizationMap)];
         if(!facilitySheetData || !facilitySheetData?.length ) {
-            throwError("COMMON", 400, "VALIDATION_ERROR", `Sheet: '${getLocalizedName("HCM_ADMIN_CONSOLE_FACILITIES", localizationMap)}' is empty or not present`);
+            throwError("FILE", 400, "SHEET_MISSING_ERROR", `Sheet: '${getLocalizedName("HCM_ADMIN_CONSOLE_FACILITIES", localizationMap)}' is empty or not present`);
         }
         const errors: any[] = [];
         const facilitySchema = templateConfig?.sheets?.filter((s: any) => s?.sheetName === "HCM_ADMIN_CONSOLE_FACILITIES")[0]?.schema;

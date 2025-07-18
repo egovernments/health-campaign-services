@@ -24,7 +24,7 @@ export class TemplateClass {
         logger.info(`ResourceDetails: ${JSON.stringify(resourceDetails)}`);
         const userSheetData = wholeSheetData[getLocalizedName("HCM_ADMIN_CONSOLE_USER_LIST", localizationMap)];
         if (!userSheetData || !userSheetData?.length) {
-            throwError("COMMON", 400, "VALIDATION_ERROR", `Sheet: '${getLocalizedName("HCM_ADMIN_CONSOLE_USER_LIST", localizationMap)}' is empty or not present`);
+            throwError("FILE", 400, "SHEET_MISSING_ERROR", `Sheet: '${getLocalizedName("HCM_ADMIN_CONSOLE_USER_LIST", localizationMap)}' is empty or not present`);
         }
         const errors: any[] = [];
         const userSchema = templateConfig?.sheets?.filter((s: any) => s?.sheetName === "HCM_ADMIN_CONSOLE_USER_LIST")[0]?.schema;

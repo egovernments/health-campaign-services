@@ -41,6 +41,9 @@ export const downloadRequestSchema = {
             "type": "string",
             "maxLength": 128,
             "minLength": 1
+        },
+        "forceUpdate": {
+            "type": "string"
         }
     },
     "required": ["tenantId", "type", "hierarchyType"],

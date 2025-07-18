@@ -7,8 +7,6 @@ import { produceModifiedMessages } from "../kafka/Producer";
 import { enrichAndPersistCampaignWithError, enrichAndPersistCampaignWithErrorProcessingTask, getLocalizedName } from "./campaignUtils";
 import { allProcesses, campaignStatuses, processStatuses, resourceDataStatuses, usageColumnStatus } from "../config/constants";
 import { createCampaignService, searchProjectTypeCampaignService } from "../service/campaignManageService";
-import { persistTrack } from "./processTrackUtils";
-import { processTrackTypes, processTrackStatuses } from "../config/constants";
 import { createProjectFacilityHelper, createProjectResourceHelper, createProjectStaffHelper } from "../api/genericApis";
 import { buildSearchCriteria, delinkAndLinkResourcesWithProjectCorrespondingToGivenBoundary, getResourceFromResourceId, processResources } from "./onGoingCampaignUpdateUtils";
 import { searchDataService } from "../service/dataManageService";
@@ -441,7 +439,6 @@ async function getProjectMappingBody(messageObject: any, boundaryWithProject: an
 }
 
 async function fetchAndMap(resources: any[], messageObject: any) {
-    await persistTrack(messageObject?.Campaign?.id, processTrackTypes.prepareResourceForMapping, processTrackStatuses.inprogress)
     const localizationMap = await getLocalizedMessagesHandlerViaRequestInfo(messageObject?.RequestInfo, messageObject?.Campaign?.tenantId);
     messageObject.localizationMap = localizationMap
     try {
@@ -463,10 +460,8 @@ async function fetchAndMap(resources: any[], messageObject: any) {
         logger.info("projectMapping started ");
     } catch (error: any) {
         console.log(error)
-        await persistTrack(messageObject?.Campaign?.id, processTrackTypes.prepareResourceForMapping, processTrackStatuses.failed, { error: String((error?.message + (error?.description ? ` : ${error?.description}` : '')) || error) });
         throw new Error(error)
     }
-    await persistTrack(messageObject?.Campaign?.id, processTrackTypes.prepareResourceForMapping, processTrackStatuses.completed)
     await createCampaignService(projectMappingBody);
 }
 
@@ -508,7 +503,6 @@ async function processCampaignMapping(messageObject: any) {
         logger.info("Campaign Already In Progress and Mapped");
     }
     else {
-        await persistTrack(id, processTrackTypes.confirmingResourceCreation, processTrackStatuses.inprogress);
         try {
             var completedResources: any = []
             var resources = [];
@@ -547,10 +541,8 @@ async function processCampaignMapping(messageObject: any) {
             }
         } catch (error: any) {
             console.log(error)
-            await persistTrack(id, processTrackTypes.confirmingResourceCreation, processTrackStatuses.failed, { error: String((error?.message + (error?.description ? ` : ${error?.description}` : '')) || error) });
             throw new Error(error)
         }
-        await persistTrack(id, processTrackTypes.confirmingResourceCreation, processTrackStatuses.completed);
         await fetchAndMap(resources, messageObject);
     }
 }
@@ -567,7 +559,6 @@ export async function handleCampaignMapping(messageObject: any) {
 }
 
 export async function handleStaffMapping(mappingArray: any[], campaignId: string, messageObject: any, type: string) {
-    await persistTrack(campaignId, processTrackTypes.staffMapping, processTrackStatuses.inprogress);
     try {
         logger.debug(`staff mapping count: ${mappingArray.length}`);
         await processResourceOrFacilityOrUserMappingsInBatches(type, mappingArray, config?.batchSize || 100);
@@ -579,11 +570,9 @@ export async function handleStaffMapping(mappingArray: any[], campaignId: string
         // }
     } catch (error: any) {
         logger.error("Error in staff mapping: " + error);
-        await persistTrack(campaignId, processTrackTypes.staffMapping, processTrackStatuses.failed, { error: String((error?.message + (error?.description ? ` : ${error?.description}` : '')) || error) });
         await enrichAndPersistCampaignWithError(messageObject, error);
         throw new Error(error)
     }
-    await persistTrack(campaignId, processTrackTypes.staffMapping, processTrackStatuses.completed);
 }
 
 async function processResourceOrFacilityOrUserMappingsInBatches(type: string, mappingArray: any, batchSize: number) {
@@ -639,21 +628,17 @@ async function processResourceOrFacilityOrUserMappingsInBatches(type: string, ma
 
 
 export async function handleResourceMapping(mappingArray: any[], campaignId: any, messageObject: any, type: string) {
-    await persistTrack(campaignId, processTrackTypes.resourceMapping, processTrackStatuses.inprogress);
     try {
         logger.debug(`Resource mapping count: ${mappingArray.length}`);
         await processResourceOrFacilityOrUserMappingsInBatches(type, mappingArray, config?.batchSize || 100);
     } catch (error: any) {
         logger.error("Error in resource mapping: " + error);
-        await persistTrack(campaignId, processTrackTypes.resourceMapping, processTrackStatuses.failed, { error: String((error?.message + (error?.description ? ` : ${error?.description}` : '')) || error) });
         await enrichAndPersistCampaignWithError(messageObject, error);
         throw new Error(error)
     }
-    await persistTrack(campaignId, processTrackTypes.resourceMapping, processTrackStatuses.completed);
 }
 
 export async function handleFacilityMapping(mappingArray: any, campaignId: any, messageObject: any, type: string) {
-    await persistTrack(campaignId, processTrackTypes.facilityMapping, processTrackStatuses.inprogress);
     try {
         logger.debug(`facility mapping count: ${mappingArray.length}`);
         // for (const mapping of mappingArray) {
@@ -665,11 +650,9 @@ export async function handleFacilityMapping(mappingArray: any, campaignId: any, 
         await processResourceOrFacilityOrUserMappingsInBatches(type, mappingArray, config?.batchSize || 100);
     } catch (error: any) {
         logger.error("Error in facility mapping: " + error);
-        await persistTrack(campaignId, processTrackTypes.facilityMapping, processTrackStatuses.failed, { error: String((error?.message + (error?.description ? ` : ${error?.description}` : '')) || error) });
         await enrichAndPersistCampaignWithError(messageObject, error);
         throw new Error(error)
     }
-    await persistTrack(campaignId, processTrackTypes.facilityMapping, processTrackStatuses.completed);
 }
 
 export async function processMapping(mappingObject: any) {
@@ -695,7 +678,6 @@ export async function processMapping(mappingObject: any) {
             CampaignDetails: mappingObject?.CampaignDetails
         }
         await produceModifiedMessages(produceMessage, config?.kafka?.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC, mappingObject?.CampaignDetails?.tenantId)
-        await persistTrack(mappingObject?.CampaignDetails?.id, processTrackTypes.campaignCreation, processTrackStatuses.completed);
 
             logger.info("Step 1: Starting user credential email process for campaign ID: " + mappingObject?.CampaignDetails?.id);
 

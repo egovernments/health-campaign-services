@@ -15,6 +15,7 @@ export const CONSTANTS: any = {
             VALIDATION_ERROR_MISSING_RESOURCE : "All resource files should be uploaded"
         },
         FILE: {
+            SHEET_MISSING_ERROR: "Some sheet or empty in Uploaded file, please check the file",
             INVALID_FILE: "No download URL returned for the given fileStoreId",
             INVALID_SHEETNAME: "Invalid sheet name",
             STATUS_FILE_CREATION_ERROR: "Error in creating status file",
@@ -42,7 +43,9 @@ export const CONSTANTS: any = {
             INVALID_RESOURCE_DISTRIBUTION_STRATEGY: "Invalid resource distribution strategy",
             RESOURCES_CONSOLIDATION_ERROR : "Error while consolidating resources in Campaign Update Flow ",
             VALIDATION_ERROR_ACTIVE_ROW: "At least one active row is required",
-            VALIDATION_ERROR_USERNAME_FORMAT: "User name can be alphanumeric only"
+            VALIDATION_ERROR_USERNAME_FORMAT: "User name can be alphanumeric only",
+            VALIDATION_ERROR_CAMPAIGN_ID: "CampaignId not found or invalid",
+            VALIDATION_ERROR_UPDATE_CAMPAIGN: "Campaign can only be updated in drafted or failed state"
         },
         BOUNDARY: {
             BOUNDARY_DATA_NOT_FOUND: "No boundary data found in the system.",

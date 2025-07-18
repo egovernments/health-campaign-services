@@ -2,7 +2,7 @@ import express from "express";
 import { processGenericRequest } from "../api/campaignApis";
 import { createAndUploadFile, getBoundarySheetData } from "../api/genericApis";
 import { getLocalizedName, getResourceDetails, processDataSearchRequest } from "../utils/campaignUtils";
-import { addDataToSheet, enrichResourceDetails, getLocalizedMessagesHandler, searchGeneratedResources, processGenerate, replicateRequest } from "../utils/genericUtils";
+import { addDataToSheet, enrichResourceDetails, getLocalizedMessagesHandler, searchGeneratedResources, processGenerate, throwError } from "../utils/genericUtils";
 import { getFormattedStringForDebug, logger } from "../utils/logger";
 import { validateCreateRequest, validateDownloadRequest, validateSearchRequest } from "../validators/campaignValidators";
 import { validateGenerateRequest } from "../validators/genericValidator";
@@ -13,7 +13,7 @@ import { redis, checkRedisConnection } from "../utils/redisUtils"; // Importing 
 import config from '../config/index'
 import { buildGenerateRequest, callGenerate, triggerGenerate } from "../utils/generateUtils";
 import { generatedResourceStatuses } from "../config/constants";
-
+import { isCampaignIdOfMicroplan } from "../utils/campaignUtils";
 
 
 const generateDataService = async (request: express.Request) => {
@@ -54,36 +54,33 @@ const downloadDataService = async (request: express.Request) => {
         const tenantId = String(request?.query?.tenantId);
         const hierarchyType = String(request?.query?.hierarchyType);
         const campaignId = String(request?.query?.campaignId);
-        if(type != 'boundaryManagement'){
-            triggerGenerate(type, tenantId, hierarchyType, campaignId, request?.body?.RequestInfo?.userInfo?.uuid || "null", locale);
+
+        // Use DB-level microplan check
+        let isMicroplan = false;
+        try {
+            isMicroplan = await isCampaignIdOfMicroplan(tenantId, campaignId);
+        } catch (e) {
+            throwError("COMMON", 500, "INTERNAL_SERVER_ERROR", "Error checking if campaign id is of microplan");
+        }
+
+        if(type !== 'boundaryManagement'){
+            if (isMicroplan) {
+                const newRequestToGenerate = {
+                    ...request,
+                    query: {
+                        ...request.query,
+                        type,
+                        tenantId,
+                        hierarchyType,
+                        campaignId
+                    }
+                };
+                await callGenerate(newRequestToGenerate, type);
+            } else {
+                triggerGenerate(type, tenantId, hierarchyType, campaignId, request?.body?.RequestInfo?.userInfo?.uuid || "null", locale);
+            }
         }
         else{
-            const newRequestToGenerate = buildGenerateRequest(request);
-            callGenerate(newRequestToGenerate, request?.query?.type);
-        }
-    }
-
-    else if (type === 'boundaryManagement' && responseData?.length > 0) {
-        const newRequestBodyForDataSearch = {
-            RequestInfo: request?.body?.RequestInfo,
-            SearchCriteria: {
-                tenantId: request.query.tenantId,
-                type: request.query.type,
-                hierarchyType: request.query.hierarchyType
-            }
-        };
-
-        const newRequestToSearch = replicateRequest(request, newRequestBodyForDataSearch);
-        const searchedDataResponse = await searchDataService(newRequestToSearch);
-
-        const generatedTime = responseData?.[0]?.auditDetails?.lastModifiedTime;
-        const searchedTime = searchedDataResponse?.[0]?.auditDetails?.lastModifiedTime;
-
-        if (generatedTime < searchedTime) {
-            logger.info(
-                `Triggering generate again since searched source data was updated after last generate. SearchedTime: ${searchedTime}, GeneratedTime: ${generatedTime}`
-            );
-
             const newRequestToGenerate = buildGenerateRequest(request);
             callGenerate(newRequestToGenerate, request?.query?.type);
         }
