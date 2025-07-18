@@ -48,7 +48,6 @@ public class Identifier {
     private String identifierType = null;
 
     @JsonProperty("identifierId")
-    @NotNull
     @Size(min = 2, max = 64)
     private String identifierId = null;
 
