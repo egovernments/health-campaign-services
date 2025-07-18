@@ -205,8 +205,9 @@ const config = {
     validateCampaignIdInMetadata: process.env.VALIDATE_CAMPAIGN_ID_IN_METADATA === "true"
   },
   resourceCreationConfig: {
-    maxAttempts: 200,
-    waitTimeOfEachAttempt: 60000 // 60 seconds
+  maxAttempts: Number(process.env.MAX_RESOURCE_CREATION_ATTEMPTS || 200),
+  // wait time between each polling attempt in milliseconds (default: 60 sec)
+  waitTimeOfEachAttempt: Number(process.env.WAIT_TIME_OF_EACH_ATTEMPT_MS || 40000),
   }
 };
 // Exporting getErrorCodes function and config object
