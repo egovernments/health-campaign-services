@@ -1133,7 +1133,7 @@ async function validateCampaignBody(request: any, CampaignDetails: any, actionIn
         validateDraftProjectCampaignMissingFields(CampaignDetails);
         await validateParent(request, actionInUrl);
         await validateMissingBoundaryFromParent(request?.body);
-        validateProjectDatesForCampaign(request, CampaignDetails);
+        // validateProjectDatesForCampaign(request, CampaignDetails);
         await validateCampaignName(request, actionInUrl);
         await validateHierarchyType(request, hierarchyType, tenantId);
         await validateProjectType(request, projectType, tenantId);
