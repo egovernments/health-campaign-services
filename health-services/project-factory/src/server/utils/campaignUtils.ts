@@ -2745,7 +2745,7 @@ async function userCredGeneration(campaignDetails: any, useruuid: string, locale
 }
 
 async function createAllResources(campaignDetails: any,parentCampaign : any, useruuid: string) {
-  const { maxAttempts, waitTimeOfEachAttempt } = config?.resourceCreationConfig
+  const { maxAttemptsForResourceCreationOrMapping, waitTimeOfEachAttemptOfResourceCreationOrMappping } = config?.resourceCreationConfig
   let allCurrentProcesses = await getCurrentProcesses(campaignDetails?.campaignNumber, campaignDetails?.tenantId);
   const resourcesTask = [allProcesses.facilityCreation,allProcesses.userCreation,allProcesses.projectCreation];
   for (let i = 0; i < resourcesTask?.length; i++) {
@@ -2764,10 +2764,10 @@ async function createAllResources(campaignDetails: any,parentCampaign : any, use
   let attempts = 0;
   let facilityTask: any, userTask: any, projectTask: any;
   const startTime = Date.now();
-  while (allTaskCompleted == false && anyTaskFailed == false && attempts < maxAttempts) {
-    logger.info(`Attempt ${attempts + 1}/${maxAttempts}`);
-    logger.info(`Waiting ${waitTimeOfEachAttempt / 1000}s before polling resource statuses...`);
-    await new Promise(resolve => setTimeout(resolve, waitTimeOfEachAttempt));
+  while (allTaskCompleted == false && anyTaskFailed == false && attempts < maxAttemptsForResourceCreationOrMapping) {
+    logger.info(`Attempt ${attempts + 1}/${maxAttemptsForResourceCreationOrMapping}`);
+    logger.info(`Waiting ${waitTimeOfEachAttemptOfResourceCreationOrMappping / 1000}s before polling resource statuses...`);
+    await new Promise(resolve => setTimeout(resolve, waitTimeOfEachAttemptOfResourceCreationOrMappping));
     let facilityTaskArray = await getCurrentProcesses(campaignDetails?.campaignNumber, campaignDetails?.tenantId, allProcesses.facilityCreation);
     facilityTask = facilityTaskArray[0];
     let userTaskArray = await getCurrentProcesses(campaignDetails?.campaignNumber, campaignDetails?.tenantId, allProcesses.userCreation);
@@ -2814,7 +2814,7 @@ async function createAllResources(campaignDetails: any,parentCampaign : any, use
 }
 
 async function createAllMappings(campaignDetails: any, parentCampaign : any, useruuid: string) {
-  const { maxAttempts, waitTimeOfEachAttempt } = config?.resourceCreationConfig;
+  const { maxAttemptsForResourceCreationOrMapping, waitTimeOfEachAttemptOfResourceCreationOrMappping } = config?.resourceCreationConfig;
   logger.info(`Starting mappings...`);
   let mappingProcesses = [allProcesses.facilityMapping,allProcesses.userMapping,allProcesses.resourceMapping];
   let allCurrentProcesses = await getCurrentProcesses(campaignDetails?.campaignNumber, campaignDetails?.tenantId);
@@ -2834,10 +2834,10 @@ async function createAllMappings(campaignDetails: any, parentCampaign : any, use
   let attempts = 0;
   let facilityMappingTask : any, userMappingTask : any, resourceMappingTask : any;
   const startTime = Date.now();
-  while(allTaskCompleted == false && anyTaskFailed == false && attempts < maxAttempts) {
-    logger.info(`Attempt ${attempts + 1}/${maxAttempts}`);
-    logger.info(`Waiting ${waitTimeOfEachAttempt / 1000}s before polling mapping statuses...`);
-    await new Promise(resolve => setTimeout(resolve, waitTimeOfEachAttempt));
+  while(allTaskCompleted == false && anyTaskFailed == false && attempts < maxAttemptsForResourceCreationOrMapping) {
+    logger.info(`Attempt ${attempts + 1}/${maxAttemptsForResourceCreationOrMapping}`);
+    logger.info(`Waiting ${waitTimeOfEachAttemptOfResourceCreationOrMappping / 1000}s before polling mapping statuses...`);
+    await new Promise(resolve => setTimeout(resolve, waitTimeOfEachAttemptOfResourceCreationOrMappping));
     let facilityMappingTaskArray = await getCurrentProcesses(campaignDetails?.campaignNumber, campaignDetails?.tenantId, allProcesses.facilityMapping);
     facilityMappingTask = facilityMappingTaskArray[0];
     let userMappingTaskArray = await getCurrentProcesses(campaignDetails?.campaignNumber, campaignDetails?.tenantId, allProcesses.userMapping);
