@@ -4632,6 +4632,19 @@ export function getAllColumnsFromSchema(schema: any) {
   return columns;
 }
 
+export async function isCampaignIdOfMicroplan(tenantId: string, campaignId: string) {
+    try {
+        const tableName = getTableName(config.DB_CONFIG.DB_CAMPAIGN_DETAILS_TABLE_NAME, tenantId);
+        const query = `SELECT id FROM ${tableName} WHERE id = $1 and tenantId = $2 and additionalDetails->>'source' = 'microplan'`;
+        const result = await executeQuery(query, [campaignId, tenantId]);
+        return Array.isArray(result?.rows) && result?.rows?.length > 0;
+    } catch (e) {
+        console.log(e);
+        logger.error(`Error checking if campaign id ${campaignId} is of microplan: ${e}`);
+        throwError("COMMON", 500, "INTERNAL_SERVER_ERROR", "Error checking if campaign id is of microplan");
+        return false;
+    }
+}
 
 export {
   generateProcessedFileAndPersist,

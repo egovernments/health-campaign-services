@@ -5,6 +5,7 @@ import { generateDataService } from "../service/sheetManageService";
 import config from "../config";
 import { getLocaleFromRequestInfo, getLocalisationModuleName } from "./localisationUtils";
 import { getBoundarySheetData } from "../api/genericApis";
+import { checkIfSourceIsMicroplan } from "./campaignUtils";
 
 // Now you can use Lodash functions with the "_" prefix, e.g., _.isEqual(), _.sortBy(), etc.
 function extractProperties(obj: any) {
@@ -37,18 +38,36 @@ async function callGenerateIfBoundariesOrCampaignTypeDiffer(request: any) {
     try {
         // Apply 2-second timeout after the condition check
         await new Promise(resolve => setTimeout(resolve, 2000));
-        const useruuid = request?.body?.RequestInfo?.userInfo?.uuid || request?.body?.CampaignDetails?.auditDetails?.createdBy;
+        const campaignDetails = request?.body?.CampaignDetails;
+        const tenantId = campaignDetails?.tenantId;
+        const campaignId = campaignDetails?.id;
+        const hierarchyType = campaignDetails?.hierarchyType;
+        const useruuid = request?.body?.RequestInfo?.userInfo?.uuid || campaignDetails?.auditDetails?.createdBy;
         const locale = getLocaleFromRequestInfo(request?.body?.RequestInfo);
-        const tenantId = request?.body?.CampaignDetails?.tenantId;
-        const hierarchyType = request?.body?.CampaignDetails?.hierarchyType;
-        const camapignId = request?.body?.CampaignDetails?.id;
 
+        const isMicroplan = checkIfSourceIsMicroplan(campaignDetails);
 
-        logger.info(`generating new resources for the campaignId: ${request?.body?.CampaignDetails?.id}`);
-
-         triggerGenerate("boundary", tenantId, hierarchyType, camapignId, useruuid, locale);
-         triggerGenerate("user", tenantId, hierarchyType, camapignId, useruuid, locale);
-         triggerGenerate("facility", tenantId, hierarchyType, camapignId, useruuid, locale);
+        if (isMicroplan) {
+            // For microplan, trigger all three types
+            const types = ["boundary", "facilityWithBoundary", "userWithBoundary"];
+            for (const t of types) {
+                const newRequestToGenerate = {
+                    ...request,
+                    query: {
+                        ...request.query,
+                        type: t,
+                        tenantId,
+                        hierarchyType,
+                        campaignId
+                    }
+                };
+                await callGenerate(newRequestToGenerate, t);
+            }
+        } else {
+            triggerGenerate("boundary", tenantId, hierarchyType, campaignId, useruuid, locale);
+            triggerGenerate("user", tenantId, hierarchyType, campaignId, useruuid, locale);
+            triggerGenerate("facility", tenantId, hierarchyType, campaignId, useruuid, locale);
+        }
     } catch (error: any) {
         logger.error(error);
         // throwError("COMMON", 400, "GENERATE_ERROR", `Error while generating user/facility/boundary: ${error.message}`);
