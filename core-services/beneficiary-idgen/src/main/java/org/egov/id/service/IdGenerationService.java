@@ -267,7 +267,7 @@ public class IdGenerationService {
      * @param tenantId tenant identifier for which IDs are generated
      */
     private void persistToKafka(RequestInfo requestInfo, List<String> generatedIds, String tenantId) {
-        log.info("Starting Kafka persistence for generated IDs. Tenant ID: {}, Total IDs: {}", tenantId, generatedIds.size());
+        log.trace("Starting Kafka persistence for generated IDs. Tenant ID: {}, Total IDs: {}", tenantId, generatedIds.size());
 
         List<IdRecord> buffer = new ArrayList<>(MAX_BATCH_SIZE);
 
@@ -285,17 +285,17 @@ public class IdGenerationService {
                     .rowVersion(1)
                     .build();
             buffer.add(idRecord);
-            log.info("Buffered ID [{}] for Kafka persistence.", generatedId);
+            log.trace("Buffered ID [{}] for Kafka persistence.", generatedId);
 
             // Send batch when buffer is full or last element reached
             if (buffer.size() == MAX_BATCH_SIZE || i == generatedIds.size() - 1) {
-                log.info("Sending batch of {} IDs to Kafka topic: {}", buffer.size(), propertiesManager.getSaveIdPoolTopic());
+                log.debug("Sending batch of {} IDs to Kafka topic: {}", buffer.size(), propertiesManager.getSaveIdPoolTopic());
                 sendBatch(propertiesManager.getSaveIdPoolTopic(), new ArrayList<>(buffer));
                 buffer.clear();
             }
         }
 
-        log.info("Completed Kafka persistence for {} generated IDs.", generatedIds.size());
+        log.debug("Completed Kafka persistence for {} generated IDs.", generatedIds.size());
     }
 
     /**

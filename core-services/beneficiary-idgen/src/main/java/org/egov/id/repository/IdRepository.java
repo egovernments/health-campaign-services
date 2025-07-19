@@ -4,10 +4,13 @@ import org.egov.common.models.idgen.IdRecord;
 import org.egov.common.models.idgen.IdStatus;
 import org.egov.common.models.idgen.IdTransactionLog;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 
+import java.sql.Types;
 import java.util.*;
 
 /**
@@ -46,20 +49,26 @@ public class IdRepository {
      * Fetches up to `count` unassigned IDs for a given tenant.
      * Orders them by creation time (oldest first).
      */
-    public List<IdRecord> fetchUnassigned(String tenantId, int count) {
-        Map<String, Object> paramMap = new HashMap<>();
-        paramMap.put("tenantId", tenantId);
-        paramMap.put("status", IdStatus.UNASSIGNED.name());
-        paramMap.put("limit", count);
-
+    public List<IdRecord> fetchUnassigned(String tenantId, int count, Set<String> excludedIds) {
         String query =
                 "SELECT * FROM id_pool " +
                         "WHERE status = :status " +
                         "AND tenantId = :tenantId " +
+                        (CollectionUtils.isEmpty(excludedIds) ? "" : "AND id != ALL(:excludedIds) ") +
                         "ORDER BY createdTime ASC " +
                         "LIMIT :limit";
 
-        return namedParameterJdbcTemplate.query(query, paramMap, this.idRecordRowMapper);
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("tenantId", tenantId)
+                .addValue("status", IdStatus.UNASSIGNED.name())
+                .addValue("limit", count);
+
+        if (!CollectionUtils.isEmpty(excludedIds)) {
+            params.addValue("excludedIds", excludedIds.toArray(new String[0]), Types.ARRAY);
+        }
+
+        return namedParameterJdbcTemplate.query(query, params, this.idRecordRowMapper);
+
     }
 
     /**
