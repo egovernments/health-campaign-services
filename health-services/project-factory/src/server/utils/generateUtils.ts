@@ -49,7 +49,7 @@ async function callGenerateIfBoundariesOrCampaignTypeDiffer(request: any) {
 
         if (isMicroplan) {
             // For microplan, trigger all three types
-            const types = ["boundary", "facilityWithBoundary", "userWithBoundary"];
+            const types = ["boundary", "facilityWithBoundary"];
             for (const t of types) {
                 const newRequestToGenerate = {
                     ...request,
