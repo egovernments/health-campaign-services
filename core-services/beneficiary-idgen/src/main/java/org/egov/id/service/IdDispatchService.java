@@ -106,43 +106,35 @@ public class IdDispatchService {
         // Log incoming dispatch request details
         log.debug("Dispatch request received: userUuid={}, deviceUuid={}, tenantId={}, count={}", userUuid, deviceUuid, tenantId, count);
 
-        // Get count of IDs already dispatched to this user and device from Redis cache
-        int remainingCount = redissonIDService.getRemainingUserAllowedDispatchIDCount(tenantId, userUuid, deviceUuid);
-        count = Math.min(remainingCount, count);
-
-        int totalLimit = propertiesManager.getDispatchLimitPerUser();
-        if (propertiesManager.isDispatchLimitPerUserPerDayEnabled()) {
-            totalLimit = propertiesManager.getDispatchLimitPerUserPerDay();
+        long totalLimit = propertiesManager.getDispatchLimitUserDeviceTotal();
+        if (propertiesManager.isDispatchLimitUserDevicePerDayEnabled()) {
+            totalLimit = propertiesManager.getDispatchLimitUserDevicePerDay();
         }
 
         // Handle special case: if client requests fetching previously allocated IDs instead of new dispatch
         if (!ObjectUtils.isEmpty(request.getClientInfo().getFetchAllocatedIds())
                 && request.getClientInfo().getFetchAllocatedIds()) {
+            // Get count of IDs already dispatched to this user and device from Redis cache
+            long remainingCount = redissonIDService.getUserDeviceDispatchedIDRemaining(tenantId, userUuid, deviceUuid, count, false);
             log.debug("FetchAllocatedIds flag is true, fetching previously allocated IDs.");
 
-            // Fetch all IDs already dispatched to this user/device
-            IdDispatchResponse idDispatchResponse = fetchAllDispatchedIds(request);
-            long remainingLimitToday = totalLimit - idDispatchResponse.getTotalCount();
-            if(remainingCount != remainingLimitToday) {
-                redissonIDService.updateDispatchedCountForToday(tenantId, userUuid, deviceUuid, Math.toIntExact(idDispatchResponse.getTotalCount()), false);
+            // Fetch all IDs already dispatched to this user/device for today
+            IdDispatchResponse idDispatchResponse = fetchAllDispatchedIds(request, propertiesManager.isDispatchLimitUserDevicePerDayEnabled());
+            long actualRemainingCountToday = totalLimit - idDispatchResponse.getTotalCount();
+            if(remainingCount != actualRemainingCountToday) {
+                redissonIDService.updateUserDeviceDispatchedIDCountForToday(tenantId, userUuid, deviceUuid, idDispatchResponse.getTotalCount(), false);
             }
             // Set fetch limits in the response and return
-            idDispatchResponse.setFetchLimit(remainingLimitToday);
-            idDispatchResponse.setTotalLimit((long) totalLimit);
+            idDispatchResponse.setFetchLimit(actualRemainingCountToday);
+            idDispatchResponse.setTotalLimit(totalLimit);
             return idDispatchResponse;
         }
 
-        // Validate the dispatch request against configured limits
-        validateDispatchRequest(request);
+        // Get count of IDs already dispatched to this user and device from Redis cache
+        long remainingCount = redissonIDService.getUserDeviceDispatchedIDRemaining(tenantId, userUuid, deviceUuid, count, true);
+        long fetchCount = Math.min(remainingCount, count);
 
-        // Check if total requested exceeds configured limit, if so throw exception
-        if (remainingCount <= 0) {
-            log.error("Total requested count {} exceeds configured limit", count);
-            throw new CustomException("ID LIMIT EXCEPTION",
-                    "ID generation limit exceeded for user: " + userUuid + " with the deviceId: " + deviceUuid);
-        }
-
-        List<IdRecord> idRecordsToDispatch = redissonIDService.fetchUnassignedIdsWithLock(tenantId, count);
+        List<IdRecord> idRecordsToDispatch = redissonIDService.fetchUnassignedIdsWithLock(tenantId, (int) fetchCount);
 
         if (idRecordsToDispatch.isEmpty()) {
             log.error("No IDs available from Redis or DB for tenantId: {}", tenantId);
@@ -152,15 +144,15 @@ public class IdDispatchService {
         updateStatusesAndLogs(idRecordsToDispatch, userUuid, deviceUuid,
                 request.getClientInfo().getDeviceInfo(), tenantId, requestInfo);
 
-        redissonIDService.updateDispatchedCountForToday(tenantId, userUuid, deviceUuid, idRecordsToDispatch.size(), true);
+        redissonIDService.updateUserDeviceDispatchedIDCountForToday(tenantId, userUuid, deviceUuid, idRecordsToDispatch.size(), true);
 
         idRecordsToDispatch.forEach(IdDispatchService::normalizeAdditionalFields);
 
         return IdDispatchResponse.builder()
                 .responseInfo(ResponseInfoUtil.createResponseInfoFromRequestInfo(requestInfo, true))
                 .idResponses(idRecordsToDispatch)
-                .fetchLimit((long) (remainingCount - idRecordsToDispatch.size()))
-                .totalLimit((long) totalLimit)
+                .fetchLimit(remainingCount - idRecordsToDispatch.size())
+                .totalLimit(totalLimit)
                 .build();
     }
 
@@ -171,7 +163,7 @@ public class IdDispatchService {
      * @param request the dispatch request containing user and device info
      * @return IdDispatchResponse containing previously dispatched IDs and response metadata
      */
-    private IdDispatchResponse fetchAllDispatchedIds(IdDispatchRequest request) {
+    private IdDispatchResponse fetchAllDispatchedIds(IdDispatchRequest request, boolean restrictToday) {
         // Extract user and device info
         String userUuid = request.getRequestInfo().getUserInfo().getUuid();
         String deviceUuid = request.getClientInfo().getDeviceUuid();
@@ -180,12 +172,13 @@ public class IdDispatchService {
         // Log the fetch operation
         log.trace("Fetching dispatched IDs for userUuid={}, deviceUuid={}, tenantId={}", userUuid, deviceUuid, tenantId);
 
-        // Query transaction logs for all IDs dispatched to the user/device
+        // Query transaction logs for all IDs dispatched to the user/device today or total
         List<IdTransactionLog> idTransactionLogs = idRepo.selectClientDispatchedIds(
                 tenantId,
                 deviceUuid,
                 userUuid,
-                null
+                IdStatus.DISPATCHED,
+                restrictToday
         );
         log.debug("Fetched {} transaction logs for userUuid={}, deviceUuid={}", idTransactionLogs.size(), userUuid, deviceUuid);
 
@@ -200,7 +193,7 @@ public class IdDispatchService {
             throw new CustomException("NO IDS Dispatched", "NO IDS Dispatched: No IDs found for the given user and device.");
         }
 
-        // Map the extracted IDs back to IdRecord objects from DB
+        // Map the extracted IDs back to IdRecord objects from DB dispatched or assigned
         List<IdRecord> records = idRepo.findByIDsAndStatus(ids, null, tenantId);
         log.debug("Mapped {} ID(s) to IdRecord(s) from DB", records.size());
 
@@ -259,38 +252,6 @@ public class IdDispatchService {
                 record.setAdditionalFields(null);
             }
         }
-    }
-
-
-    /**
-     * Validates the incoming dispatch request to ensure the requested ID count
-     * does not exceed the configured per-user dispatch limit.
-     * Also checks the cumulative dispatched count for the user-device combination.
-     */
-    private void validateDispatchRequest(IdDispatchRequest request) {
-        // Extract client and request information
-        ClientInfo userInfo = request.getClientInfo();
-        RequestInfo requestInfo = request.getRequestInfo();
-        String userUuid = requestInfo.getUserInfo().getUuid();
-        String deviceUuid = userInfo.getDeviceUuid();
-        String tenantId = userInfo.getTenantId();
-        int count = userInfo.getCount();
-
-        // Log details about the incoming request
-        log.trace("Validating dispatch request for userUuid: {}, deviceUuid: {}, requested count: {}", userUuid, deviceUuid, count);
-
-        // Fetch how many IDs have already been dispatched for this user-device pair
-        int remainingIDsToDispatch = redissonIDService.getRemainingUserAllowedDispatchIDCount(tenantId, userUuid, deviceUuid);
-
-        // Check if cumulative count (already dispatched + new request) exceeds limit
-        if (remainingIDsToDispatch < count) {
-            log.error("Count requested exceeds configured limit. remaining {}, requested: {}", remainingIDsToDispatch, count);
-            throw new CustomException("ID LIMIT EXCEPTION",
-                    "ID generation limit exceeded for user: " + userUuid + " with the deviceId: " + deviceUuid);
-        }
-
-        // Log successful validation
-        log.debug("Dispatch request validation passed for userUuid: {}, deviceUuid: {}", userUuid, deviceUuid);
     }
 
     /**

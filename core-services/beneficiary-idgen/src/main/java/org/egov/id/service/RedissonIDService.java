@@ -5,7 +5,7 @@ import org.egov.common.models.idgen.IdRecord;
 import org.egov.id.config.PropertiesManager;
 import org.egov.id.repository.IdRepository;
 import org.egov.tracer.model.CustomException;
-import org.redisson.api.RBucket;
+import org.redisson.api.RAtomicLong;
 import org.redisson.api.RLock;
 import org.redisson.api.RMapCache;
 import org.redisson.api.RQueue;
@@ -15,9 +15,7 @@ import org.springframework.util.CollectionUtils;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
@@ -34,12 +32,12 @@ import java.util.stream.Collectors;
 @Service
 public class RedissonIDService {
 
-    private final RedissonClient redisson;
+    private final RedissonClient redissonClient;
     private final IdRepository idRepository;
     private final PropertiesManager propertiesManager;
 
-    public RedissonIDService(RedissonClient redisson, IdRepository idRepository, PropertiesManager propertiesManager) {
-        this.redisson = redisson;
+    public RedissonIDService(RedissonClient redissonClient, IdRepository idRepository, PropertiesManager propertiesManager) {
+        this.redissonClient = redissonClient;
         this.idRepository = idRepository;
         this.propertiesManager = propertiesManager;
     }
@@ -61,7 +59,7 @@ public class RedissonIDService {
      * @return a distributed map cache instance associated with the specified tenant's dispatch processing
      */
     private RMapCache<String, String> processingCache(String tenantId) {
-        return redisson.getMapCache("tenant:" + tenantId + ":DISPATCH_PROCESSING");
+        return redissonClient.getMapCache("tenant:" + tenantId + ":DISPATCH_PROCESSING");
     }
 
     /**
@@ -130,7 +128,7 @@ public class RedissonIDService {
      */
     private List<IdRecord> fetchUnassingedIds(String tenantId, int count) {
         List<IdRecord> allIdRecords = new ArrayList<>();
-        RQueue<IdRecord> queue = redisson.getQueue(queueKey(tenantId));
+        RQueue<IdRecord> queue = redissonClient.getQueue(queueKey(tenantId));
         try {
             List<IdRecord> idRecords = queue.poll(count);
             allIdRecords.addAll(idRecords);
@@ -189,7 +187,7 @@ public class RedissonIDService {
      * @param idRecords a list of {@code IdRecord} objects to be re-queued, cannot be null or empty
      */
     private void requeue(String tenantId, List<IdRecord> idRecords) {
-        RQueue<IdRecord> queue = redisson.getQueue(queueKey(tenantId));
+        RQueue<IdRecord> queue = redissonClient.getQueue(queueKey(tenantId));
         if(!CollectionUtils.isEmpty(idRecords)) {
             queue.addAll(idRecords);
             String[] ids = idRecords.stream().map(IdRecord::getId).toArray(String[]::new);
@@ -209,7 +207,7 @@ public class RedissonIDService {
         List<IdRecord> dbResults = idRepository.fetchUnassigned(tenantId, propertiesManager.getDbFetchLimit(), idRecordsInProcess);
         if (!dbResults.isEmpty()) {
             log.debug("Fetched {} IDs from DB for tenant {}", dbResults.size(), tenantId);
-            RQueue<IdRecord> queue = redisson.getQueue(queueKey(tenantId));
+            RQueue<IdRecord> queue = redissonClient.getQueue(queueKey(tenantId));
             boolean result = queue.addAll(dbResults);
             if(!result) {
                 log.error("Failed to add IDs to queue for tenant: {}", tenantId);
@@ -223,97 +221,142 @@ public class RedissonIDService {
     }
 
     /**
-     * Generates a Redis key to uniquely track dispatched ID count per tenant-user-device pair.
+     * Constructs a key string to represent the dispatched count for a specific user and device
+     * within a given tenant context.
+     *
+     * @param tenantId the unique identifier of the tenant
+     * @param userId the unique identifier of the user
+     * @param deviceId the unique identifier of the device
+     * @return a string representing the combined key for the dispatched count
      */
     private String getUserDispatchedCountKey(String tenantId, String userId, String deviceId) {
         return "tenant:" + tenantId + ":user:" + userId + ":device:" + deviceId + ":count";
     }
 
     /**
-     * Retrieves a map containing the count of dispatched IDs grouped by date for a specific user,
-     * device, and tenant from a Redis data store.
+     * Generates a unique key string to represent the dispatched count for a user based on
+     * the provided tenant ID, user ID, device ID, and date.
      *
      * @param tenantId the identifier for the tenant
      * @param userId the identifier for the user
      * @param deviceId the identifier for the device
-     * @return a map where each key represents a date and the associated value is the count of
-     *         dispatched IDs on that date. If no data is found, an empty map is returned.
+     * @param date the date associated with the dispatched count
+     * @return a unique key string combining the tenant ID, user ID, device ID, and date
      */
-    public Map<LocalDate, Integer> getUserDispatchedIDCount(String tenantId, String userId, String deviceId) {
-        String key = getUserDispatchedCountKey(tenantId, userId, deviceId);
-
-        RBucket<Map<LocalDate, Integer>> bucket = redisson.getBucket(key);
-        Map<LocalDate, Integer> dayDispatchedCountMap = bucket.get();
-        if(dayDispatchedCountMap == null) {
-            dayDispatchedCountMap = new HashMap<>();
-        }
-        log.trace("Fetched day dispatched count map from Redis for key {}: {}", key, dayDispatchedCountMap);
-        return dayDispatchedCountMap;
+    private String getUserDispatchedCountKey(String tenantId, String userId, String deviceId, LocalDate date) {
+        return "tenant:" + tenantId + ":user:" + userId + ":device:" + deviceId + ":count:" + date;
     }
 
     /**
-     * Retrieves the count of dispatched IDs for a specific user and device for the current day.
+     * Generates a unique key for tracking the total dispatched count for a specific user and device within a tenant.
      *
-     * @param tenantId The identifier for the tenant context.
-     * @param userId The identifier for the user whose dispatched ID count is being retrieved.
-     * @param deviceId The identifier for the device associated with the dispatched IDs.
-     * @return The number of dispatched IDs for the specified user and device for today. Returns 0 if no IDs have been dispatched.
+     * @param tenantId the identifier for the tenant
+     * @param userId the identifier for the user
+     * @param deviceId the identifier for the device
+     * @return a formatted string key representing the total dispatched count for the specified user and device
      */
-    public int getUserDispatchedIDCountForToday(String tenantId, String userId, String deviceId) {
-        Map<LocalDate, Integer> dayDispatchedCountMap = getUserDispatchedIDCount(tenantId, userId, deviceId);
-        Integer todayDispatchedCount = dayDispatchedCountMap.getOrDefault(LocalDate.now(), 0);
-        log.debug("Dispatched count for user {} for device {} for today: {}", userId, deviceId, todayDispatchedCount);
-        return todayDispatchedCount;
+    private String getUserDispatchedTotalCountKey(String tenantId, String userId, String deviceId) {
+        return "tenant:" + tenantId + ":user:" + userId + ":device:" + deviceId + ":total:count";
     }
 
     /**
-     * Calculates and returns the remaining count of dispatch IDs a user is allowed to perform
-     * based on the provided tenant ID, user ID, and device ID. The calculation takes into account
-     * daily limits and overall limits if the dispatch limit per user is enabled in the system.
+     * Calculates the remaining dispatch limit for a specific user and device.
+     * This method evaluates both total and daily dispatch limits based on the given parameters and configurations.
      *
-     * @param tenantId the unique identifier of the tenant to which the user belongs
-     * @param userId the unique identifier of the user for whom the dispatch count is calculated
-     * @param deviceId the unique identifier of the device used by the user for dispatches
-     * @return the number of dispatch IDs the user is allowed to perform based on system limits
+     * @param tenantId        The identifier of the tenant.
+     * @param userId          The identifier of the user.
+     * @param deviceId        The identifier of the device.
+     * @param count           The number of IDs intended for dispatch.
+     * @param validateCount   A flag to indicate whether validation on the count should be enforced.
+     * @return The remaining dispatch limit, either the total or the daily limit, depending on system configuration.
+     * @throws CustomException If validation is enabled and the count is invalid or exceeds configured limits.
      */
-    public int getRemainingUserAllowedDispatchIDCount(String tenantId, String userId, String deviceId) {
-        Map<LocalDate, Integer> dayDispatchedCountMap = getUserDispatchedIDCount(tenantId, userId, deviceId);
-        Integer todayDispatchedCount = dayDispatchedCountMap.getOrDefault(LocalDate.now(), 0);
-        Integer AllDispatchedCount = dayDispatchedCountMap.values().stream().reduce(0, Integer::sum);
-        if(propertiesManager.isDispatchLimitPerUserPerDayEnabled()) {
-            int remainingCount = propertiesManager.getDispatchLimitPerUserPerDay() - todayDispatchedCount;
-            log.debug("Allowed dispatch count for user {} for device {} for today: {}", userId, deviceId, remainingCount);
-            return remainingCount;
+    public long getUserDeviceDispatchedIDRemaining(String tenantId, String userId, String deviceId, long count, boolean validateCount) {
+        long totalCount = getUserDeviceDispatchedIDCountTotal(tenantId, userId, deviceId);
+        if(validateCount && count <= 0) {
+            throw new CustomException("INVALID_DISPATCH_COUNT", "Dispatch count must be greater than 0.");
         }
-        int remainingCount = propertiesManager.getDispatchLimitPerUser() - AllDispatchedCount;
-        log.debug("Allowed dispatch count for user {} for device {}: {}", userId, deviceId, remainingCount);
-        return remainingCount;
+        if(validateCount && (totalCount + count > propertiesManager.getDispatchLimitUserDeviceTotal())) {
+            throw new CustomException("USER_DEVICE_LIMIT_EXCEEDED", "Total limit for user: " + userId + " and device: " + deviceId + " exceeded. Current value: " + (totalCount + count) + ". Please try again later.");
+        }
+        if(propertiesManager.isDispatchLimitUserDevicePerDayEnabled()) {
+            long todayCount = getUserDeviceDispatchedIDCountToday(tenantId, userId, deviceId);
+            if(validateCount && (todayCount + count > propertiesManager.getDispatchLimitUserDevicePerDay())) {
+                throw new CustomException("USER_DEVICE_LIMIT_EXCEEDED", "Daily limit for user: " + userId + " and device: " + deviceId + " exceeded. Current value: " + (todayCount + count) + ". Please try again later.");
+            }
+            return propertiesManager.getDispatchLimitUserDevicePerDay() - todayCount;
+        }
+        return propertiesManager.getDispatchLimitUserDeviceTotal() - totalCount;
     }
 
     /**
-     * Updates the count of dispatched items for a specific tenant, user, and device for the current day.
+     * Retrieves the total count of dispatched IDs associated with a specific user and device
+     * for a given tenant from the underlying data store.
      *
      * @param tenantId the identifier of the tenant
      * @param userId the identifier of the user
      * @param deviceId the identifier of the device
-     * @param count the number of items to increment/update
+     * @return the total count of dispatched IDs for the specified tenant, user, and device
      */
-    public void updateDispatchedCountForToday(String tenantId, String userId, String deviceId, int count, boolean increment) {
-        String key = getUserDispatchedCountKey(tenantId, userId, deviceId);
-        RBucket<Map<LocalDate, Integer>> bucket = redisson.getBucket(key);
-        Map<LocalDate, Integer> dayDispatchedCountMap = bucket.get();
-        if(dayDispatchedCountMap == null) {
-            dayDispatchedCountMap = new HashMap<>();
+    public long getUserDeviceDispatchedIDCountTotal(String tenantId, String userId, String deviceId) {
+        String key = getUserDispatchedTotalCountKey(tenantId, userId, deviceId);
+        RAtomicLong counter = redissonClient.getAtomicLong(key);
+        return counter.get();
+    }
+
+    /**
+     * Retrieves the count of dispatched IDs for a specific user and device
+     * under a particular tenant for the current day.
+     *
+     * @param tenantId the unique identifier of the tenant
+     * @param userId the unique identifier of the user
+     * @param deviceId the unique identifier of the device
+     * @return the count of dispatched IDs for the user and device on the current day
+     */
+    public long getUserDeviceDispatchedIDCountToday(String tenantId, String userId, String deviceId) {
+        String key = getUserDispatchedCountKey(tenantId, userId, deviceId, LocalDate.now());
+        RAtomicLong counter = redissonClient.getAtomicLong(key);
+        return counter.get();
+    }
+
+    /**
+     * Updates the count of dispatched IDs for a user's device for the current day and total overall.
+     * This method adjusts the dispatch counts based on the specified increment or reset operation.
+     * It also checks for daily and total dispatch limits and throws an exception if the limit is exceeded.
+     *
+     * @param tenantId   The identifier for the tenant.
+     * @param userId     The identifier for the user.
+     * @param deviceId   The identifier for the device.
+     * @param delta      The value to increment or set the dispatched ID count by.
+     * @param increment  If true, increments the count by the delta value; if false, resets the count to the delta value.
+     *
+     * @throws CustomException if the daily or total dispatch limit for the user's device is exceeded.
+     */
+    public void updateUserDeviceDispatchedIDCountForToday(String tenantId, String userId, String deviceId, long delta, boolean increment) {
+        String dailyKey = getUserDispatchedCountKey(tenantId, userId, deviceId);
+        String totalKey = getUserDispatchedTotalCountKey(tenantId, userId, deviceId);
+        RAtomicLong dailyCounter = redissonClient.getAtomicLong(dailyKey);
+        RAtomicLong totalCounter = redissonClient.getAtomicLong(totalKey);
+
+        long newDailyValue = increment ? dailyCounter.get() + delta : delta;
+        long newTotalValue = totalCounter.get() + (increment ? delta : dailyCounter.get() - delta);
+
+        if(propertiesManager.isDispatchLimitUserDevicePerDayEnabled() && newDailyValue > propertiesManager.getDispatchLimitUserDevicePerDay()) {
+            throw new CustomException("USER_DEVICE_LIMIT_EXCEEDED", "Daily limit for user: " + userId + " and device: " + deviceId + " exceeded. Current value: " + newDailyValue + ". Please try again later.");
         }
-        int updatedCount = count;
-        // if required to be incremented, then add the current count as well
-        if(increment) {
-            Integer current = dayDispatchedCountMap.getOrDefault(LocalDate.now(), 0);
-            updatedCount += current;
+
+        if (newTotalValue > propertiesManager.getDispatchLimitUserDeviceTotal()) {
+            throw new CustomException("USER_DEVICE_LIMIT_EXCEEDED", "Total limit for user: " + userId + " and device: " + deviceId + " exceeded. Current value: " + newTotalValue + ". Please try again later.");
         }
-        dayDispatchedCountMap.put(LocalDate.now(), updatedCount);
-        bucket.setAndKeepTTL(dayDispatchedCountMap);
-        log.debug("Updated day dispatched count for key {}, day {}: {}", key, LocalDate.now(), updatedCount);
+
+        if (increment) {
+            dailyCounter.addAndGet(delta);
+            totalCounter.addAndGet(delta);
+        } else {
+            dailyCounter.set(delta);
+            totalCounter.set(newTotalValue);
+        }
+
     }
 
     /**
@@ -330,7 +373,7 @@ public class RedissonIDService {
      * @throws Exception if the execution of the task or lock operations cause an exception
      */
     public <T> T executeWithLock(String lockKey, long waitTime, long leaseTime, TimeUnit timeUnit, Callable<T> task) throws Exception {
-        RLock lock = redisson.getLock(lockKey);
+        RLock lock = redissonClient.getLock(lockKey);
         int retries = propertiesManager.getRedissonLockAcquireRetryCount();
         boolean acquired = false;
         for (int attempt = 1; attempt <= retries; attempt++) {

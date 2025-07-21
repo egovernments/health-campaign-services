@@ -33,35 +33,35 @@ public class PropertiesManager {
 
 	/**
 	 * Checks whether the dispatch limit per user per day feature is enabled in the application properties.
-	 * This setting is determined by the property "limit.per.user.per.day.enabled".
+	 * This setting is determined by the property "limit.id.user.device.per.day.enabled".
 	 * If the property is not specified, it defaults to true.
 	 *
 	 * @return true if the dispatch limit per user per day is enabled, false otherwise
 	 */
-	public boolean isDispatchLimitPerUserPerDayEnabled() {
-		return Boolean.parseBoolean(environment.getProperty("limit.per.user.per.day.enabled", "true"));
+	public boolean isDispatchLimitUserDevicePerDayEnabled() {
+		return Boolean.parseBoolean(environment.getProperty("limit.id.user.device.per.day.enabled", "true"));
 	}
 
 	/**
 	 * Retrieves the dispatch limit per user as specified in the application properties.
-	 * This limit is fetched using the key "limit.per.user". If the property is not set,
+	 * This limit is fetched using the key "limit.id.user.device.total". If the property is not set,
 	 * a default value of 1000 is returned.
 	 *
 	 * @return the maximum number of dispatches allowed per user
 	 */
-	public int getDispatchLimitPerUser() {
-		return Integer.parseInt(environment.getProperty("limit.per.user", "10000"));
+	public int getDispatchLimitUserDeviceTotal() {
+		return Integer.parseInt(environment.getProperty("limit.id.user.device.total", "10000"));
 	}
 
 	/**
 	 * Retrieves the daily dispatch limit per user as defined in the application properties.
-	 * The value is fetched using the key "limit.per.user.per.day". If the property is not set,
+	 * The value is fetched using the key "limit.id.user.device.per.day". If the property is not set,
 	 * a default value of 100 is returned.
 	 *
 	 * @return the maximum number of dispatches allowed per user per day
 	 */
-	public int getDispatchLimitPerUserPerDay() {
-		return Integer.parseInt(environment.getProperty("limit.per.user.per.day", "100"));
+	public int getDispatchLimitUserDevicePerDay() {
+		return Integer.parseInt(environment.getProperty("limit.id.user.device.per.day", "100"));
 	}
 
 	/**

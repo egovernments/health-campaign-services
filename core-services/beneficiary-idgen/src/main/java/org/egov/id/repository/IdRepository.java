@@ -76,7 +76,7 @@ public class IdRepository {
      * Filters only for today’s records and orders by recent creation time.
      */
     public List<IdTransactionLog> selectClientDispatchedIds(
-            String tenantId, String deviceUuid, String userUuid, IdStatus idStatus) {
+            String tenantId, String deviceUuid, String userUuid, IdStatus idStatus, boolean restrictToday) {
 
         StringBuilder queryBuilder = new StringBuilder("SELECT * FROM id_transaction_log");
         Map<String, Object> paramMap = new HashMap<>();
@@ -103,8 +103,10 @@ public class IdRepository {
             paramMap.put("status", idStatus.name());
         }
 
-        // Restrict query to today's date (ignores time)
-        conditions.add("to_char(to_timestamp(createdTime / 1000), 'YYYY-MM-DD') = to_char(current_date, 'YYYY-MM-DD')");
+        if (restrictToday) {
+            // Restrict query to today's date (ignores time)
+            conditions.add("to_char(to_timestamp(createdTime / 1000), 'YYYY-MM-DD') = to_char(current_date, 'YYYY-MM-DD')");
+        }
 
         // Add WHERE clause only if filters exist
         if (!conditions.isEmpty()) {
