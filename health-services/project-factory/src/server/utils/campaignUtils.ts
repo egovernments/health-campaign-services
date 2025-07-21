@@ -59,8 +59,6 @@ import {
   generatedResourceStatuses,
   headingMapping,
   processStatuses,
-  processTrackStatuses,
-  processTrackTypes,
   resourceDataStatuses,
   usageColumnStatus,
 } from "../config/constants";
@@ -86,7 +84,6 @@ import {
   callGenerateIfBoundariesOrCampaignTypeDiffer,
   isGenerationTriggerNeeded,
 } from "./generateUtils";
-import { createProcessTracks, persistTrack } from "./processTrackUtils";
 import {
   generateDynamicTargetHeaders,
   isDynamicTargetTemplateForProjectType,
@@ -923,6 +920,7 @@ async function generateProcessedFileAndPersist(
       );
     }, 30000);
   }
+  request.body.ResourceDetails.processedFileStoreId = request?.body?.ResourceDetails?.processedFileStoreId || null;
   const persistMessage: any = { ResourceDetails: request.body.ResourceDetails };
   if (request?.body?.ResourceDetails?.action == "create") {
     persistMessage.ResourceDetails.additionalDetails = {
@@ -1026,17 +1024,6 @@ async function enrichAndPersistCampaignWithError(requestBody: any, error: any) {
   await new Promise((resolve) => setTimeout(resolve, 2000));
   const produceMessage: any = { CampaignDetails: requestBody.CampaignDetails };
   await produceModifiedMessages(produceMessage, topic, requestBody?.CampaignDetails?.tenantId);
-  await persistTrack(
-    requestBody?.CampaignDetails?.id,
-    processTrackTypes.error,
-    processTrackStatuses.failed,
-    {
-      error: String(
-        error?.message +
-        (error?.description ? ` : ${error?.description}` : "") || error
-      ),
-    }
-  );
   delete requestBody.CampaignDetails.campaignDetails;
 }
 
@@ -1088,17 +1075,6 @@ export async function enrichAndPersistCampaignWithErrorProcessingTask(campaignDe
   await new Promise((resolve) => setTimeout(resolve, 2000));
   const produceMessage: any = { CampaignDetails: campaignDetails };
   await produceModifiedMessages(produceMessage, topic, campaignDetails?.tenantId);
-  await persistTrack(
-    campaignDetails?.id,
-    processTrackTypes.error,
-    processTrackStatuses.failed,
-    {
-      error: String(
-        error?.message +
-        (error?.description ? ` : ${error?.description}` : "") || error
-      ),
-    }
-  );
 }
 
 async function enrichAndPersistCampaignForCreate(
@@ -1236,9 +1212,7 @@ async function enrichAndPersistCampaignForUpdate(
   request.body.CampaignDetails.campaignDetails = updatedInnerCampaignDetails;
   request.body.CampaignDetails.parentId = request?.body?.CampaignDetails?.parentId || null;
   request.body.CampaignDetails.status =
-    action == "changeDates"
-      ? request.body.CampaignDetails.status
-      : action == "create"
+        action == "create"
         ? campaignStatuses.started
         : campaignStatuses.drafted;
   request.body.CampaignDetails.startDate =
@@ -1392,9 +1366,6 @@ async function enrichAndPersistProjectCampaignForFirst(
   }
   if (request?.body?.parentCampaign?.isActive) {
     await makeParentInactiveOrActive(request?.body, false);
-  }
-  if (request?.body?.CampaignDetails?.action == "create") {
-    await createProcessTracks(request.body.CampaignDetails.id);
   }
 }
 
@@ -3032,13 +3003,25 @@ async function processAndInsertModules(
     return;
   }
 
+  await Promise.all(
+    templateModules.map((template) => {
+      logger.info(`Inserting template module: ${template?.name} for campaign number ${campaignNumber}`);
+
+      const moduleData = {
+        ...template,
+        project: campaignNumber,
+        isSelected: true,
+      };
+
+      return createMdmsData(tenantId, schemaCode, moduleData, useruuid);
+    })
+  );
+
   for (const template of templateModules) {
     const moduleName = template?.name;
     if (!moduleName) continue;
-
     const baseKey = `hcm-base-${moduleName.toLowerCase()}-${baseType}`;
     const updatedKey = `hcm-${moduleName.toLowerCase()}-${campaignNumber}`;
-
     await upsertLocalisations(
       tenantId,
       baseKey,
@@ -3047,14 +3030,6 @@ async function processAndInsertModules(
       localisation,
       RequestInfo
     );
-
-    const moduleData = {
-      ...template,
-      project: campaignNumber,
-      isSelected: true,
-    };
-
-    await createMdmsData(tenantId, schemaCode, moduleData, useruuid);
   }
 }
 
@@ -4675,6 +4650,19 @@ export function getAllColumnsFromSchema(schema: any) {
   return columns;
 }
 
+export async function isCampaignIdOfMicroplan(tenantId: string, campaignId: string) {
+    try {
+        const tableName = getTableName(config.DB_CONFIG.DB_CAMPAIGN_DETAILS_TABLE_NAME, tenantId);
+        const query = `SELECT id FROM ${tableName} WHERE id = $1 and tenantId = $2 and additionalDetails->>'source' = 'microplan'`;
+        const result = await executeQuery(query, [campaignId, tenantId]);
+        return Array.isArray(result?.rows) && result?.rows?.length > 0;
+    } catch (e) {
+        console.log(e);
+        logger.error(`Error checking if campaign id ${campaignId} is of microplan: ${e}`);
+        throwError("COMMON", 500, "INTERNAL_SERVER_ERROR", "Error checking if campaign id is of microplan");
+        return false;
+    }
+}
 
 export {
   generateProcessedFileAndPersist,

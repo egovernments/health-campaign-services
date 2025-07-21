@@ -3,8 +3,6 @@ import {
   createCampaignService,
   createProjectTypeCampaignService,
   fetchFromMicroplanService,
-  retryProjectTypeCampaignService,
-  searchProcessTracksService,
   searchProjectTypeCampaignService,
   updateProjectTypeCampaignService
 } from "../../service/campaignManageService";
@@ -31,9 +29,7 @@ class campaignManageController {
         this.router.post(`${this.path}/create`, this.createProjectTypeCampaign);
         this.router.post(`${this.path}/update`, this.updateProjectTypeCampaign);
         this.router.post(`${this.path}/search`, this.searchProjectTypeCampaign);
-        this.router.post(`${this.path}/retry`, this.retryProjectTypeCampaign);
         this.router.post(`${this.path}/createCampaign`, this.createCampaign);
-        this.router.post(`${this.path}/getProcessTrack`, this.searchProcessTracks);
         this.router.post(`${this.path}/fetch-from-microplan`, this.fetchFromMicroplan);
     }
     
@@ -126,40 +122,6 @@ class campaignManageController {
             return errorResponder({ message: String(e), code: e?.code, description: e?.description }, request, response, e?.status || 500);
         }
     };
-
-    searchProcessTracks = async (
-        request: express.Request,
-        response: express.Response
-    ) => {
-        try {
-            logger.info("RECEIVED A PROCESS SEARCH REQUEST");
-            const processTrack = await searchProcessTracksService(request);
-            // Send response with campaign details
-            return sendResponse(response, { processTrack }, request);
-        }
-        catch (e: any) {
-            console.log(e)
-            logger.error(String(e))
-            // Handle errors and send error response
-            return errorResponder({ message: String(e), code: e?.code, description: e?.description }, request, response, e?.status || 500);
-        }
-    };
-
-    retryProjectTypeCampaign = async (
-        request: express.Request,
-        response: express.Response
-    ) => {
-        try {
-            logger.info("RECEIVED A PROJECT TYPE RETRY REQUEST");
-            const CampaignDetails = await retryProjectTypeCampaignService(request);
-            return sendResponse(response, { CampaignDetails }, request);
-        } catch (e: any) {
-            console.log(e)
-            logger.error(String(e))
-            // Handle errors and send error response
-            return errorResponder({ message: String(e), code: e?.code, description: e?.description }, request, response, e?.status || 500);
-        }
-    }
 
     fetchFromMicroplan = async (
         request: express.Request,
