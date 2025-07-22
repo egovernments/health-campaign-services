@@ -7,12 +7,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
-import org.springframework.transaction.annotation.Isolation;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 
-import java.sql.Types;
 import java.util.*;
 
 /**
@@ -56,7 +52,6 @@ public class IdRepository {
      * @param count The number of unassigned IDs to fetch.
      * @return A list of {@link IdRecord} objects representing the fetched and updated IDs.
      */
-    @Transactional(isolation = Isolation.REPEATABLE_READ)
     public List<IdRecord> fetchUnassigned(String tenantId, String userUuid, int count) {
         String query =
                 "UPDATE id_pool p SET status = :updatedStatus, rowVersion = rowVersion + 1, " +
