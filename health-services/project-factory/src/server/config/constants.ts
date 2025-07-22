@@ -26,6 +26,7 @@ export const CONSTANTS: any = {
             INVALID_COLUMNS: "Columns are invalid",
             FETCHING_COLUMN_ERROR: "Error fetching Column Headers From Schema",
             INVALID_FILE_WITH_GAP: "The uploaded file has gap in rows, please remove the gap and upload again",
+            EXTRA_SHEET_ERROR: "Extra sheet(s) found in the uploaded file"
         },
         FACILITY: {
             FACILITY_SEARCH_FAILED: "Search failed for facility. Check logs",
