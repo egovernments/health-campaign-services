@@ -91,7 +91,8 @@ const sendWithReconnect = (payloads: any[]): Promise<void> => {
 };
 
 
-async function produceModifiedMessages(modifiedMessages: any, topic: any, tenantId: string): Promise<void> {
+async function produceModifiedMessages(modifiedMessages: any, topic: any, tenantId: string , key?: string
+): Promise<void> {
     try {
         if(config.isEnvironmentCentralInstance) {
             // If tenantId has no ".", default to tenantId itself
@@ -104,6 +105,7 @@ async function produceModifiedMessages(modifiedMessages: any, topic: any, tenant
             {
                 topic: topic,
                 messages: JSON.stringify(modifiedMessages),
+                key: key || null
             },
         ];
 
