@@ -33,191 +33,11 @@ import java.util.stream.Collectors;
 public class RedissonIDService {
 
     private final RedissonClient redissonClient;
-    private final IdRepository idRepository;
     private final PropertiesManager propertiesManager;
 
-    public RedissonIDService(RedissonClient redissonClient, IdRepository idRepository, PropertiesManager propertiesManager) {
+    public RedissonIDService(RedissonClient redissonClient, PropertiesManager propertiesManager) {
         this.redissonClient = redissonClient;
-        this.idRepository = idRepository;
         this.propertiesManager = propertiesManager;
-    }
-
-    /**
-     * Generates a queue key string for a specific tenant.
-     *
-     * @param tenantId the unique identifier of the tenant
-     * @return the generated queue key string in the format "tenant:{tenantId}:DISPATCH_QUEUE:"
-     */
-    private String queueKey(String tenantId) {
-        return "tenant:" + tenantId + ":DISPATCH_QUEUE:";
-    }
-
-    /**
-     * Retrieves a distributed map cache associated with a specific tenant for dispatch processing.
-     *
-     * @param tenantId the unique identifier of the tenant for which the cache will be accessed
-     * @return a distributed map cache instance associated with the specified tenant's dispatch processing
-     */
-    private RMapCache<String, String> processingCache(String tenantId) {
-        return redissonClient.getMapCache("tenant:" + tenantId + ":DISPATCH_PROCESSING");
-    }
-
-    /**
-     * Fetches a list of unassigned IDs for a specific tenant with a lock mechanism to prevent race conditions.
-     * The method ensures that only one process can fetch unassigned IDs at a time per tenant by utilizing a distributed lock.
-     * Retries are performed if the lock is not acquired initially.
-     *
-     * @param tenantId the unique identifier of the tenant for which unassigned IDs need to be fetched
-     * @param count the number of unassigned IDs to fetch
-     * @return a list of unassigned IDs wrapped in {@code IdRecord} objects for the specified tenant
-     * @throws Exception if the lock cannot be acquired after retries or any other unexpected errors occur
-     */
-    public List<IdRecord> fetchUnassignedIdsWithLock(String tenantId, int count) throws Exception {
-        String lockKey = "tenant:" + tenantId + ":select-unassigned-ids-lock:";
-        return executeWithLock(
-                lockKey,
-                propertiesManager.getRedissonLockWaitTime(),
-                propertiesManager.getRedissonLockLeaseTime(),
-                TimeUnit.SECONDS,
-                () -> fetchUnassignedIdsWithRefill(tenantId, count)
-        );
-    }
-
-
-    /**
-     * Fetches a list of unassigned ID records and ensures that the required number
-     * of IDs are retrieved, even if a shortage occurs. If there is a shortage,
-     * it refills the unassigned IDs by fetching missing IDs from the database
-     * and adding them to the unassigned ID pool.
-     *
-     * @param tenantId the identifier for the tenant, used to scope ID record operations
-     * @param count the number of unassigned ID records required
-     * @return a list of {@code IdRecord} instances representing unassigned IDs,
-     *         ensuring the specified count is fulfilled
-     */
-    private List<IdRecord> fetchUnassignedIdsWithRefill(String tenantId, int count) {
-        List<IdRecord> idRecords = fetchUnassingedIds(tenantId, count);
-        List<IdRecord> allIdRecords = new ArrayList<>(idRecords);
-
-        // Check if fetched id records from redis are less then the required
-        int shortage = count - idRecords.size();
-        if(shortage > 0) {
-            // List all the id records which are in process
-            Set<String> idRecordsInProcess = fetchIdRecordsInProcess(tenantId);
-
-            // Fetch the id records from db and refill id records in redis excluding ids which are in process
-            fetchFromDatabase(tenantId, idRecordsInProcess);
-
-            // List remaining id records and append in all ids to dispatch
-            List<IdRecord> remainingIdRecords = fetchUnassingedIds(tenantId, shortage);
-            if (remainingIdRecords.isEmpty()) {
-                throw new CustomException("NO_IDS_REFILLED", "No IDs are available in redis for tenant: " + tenantId + " to process. Please try again later.");
-            }
-            allIdRecords.addAll(remainingIdRecords);
-        }
-        return allIdRecords;
-    }
-
-    /**
-     * Fetches unassigned IDs from the queue for the given tenant and marks them as processing.
-     * In case of an exception, the method requeues the IDs before propagating the error.
-     *
-     * @param tenantId the identifier of the tenant for which unassigned IDs are to be fetched
-     * @param count the number of unassigned IDs to fetch from the queue
-     * @return a list of unassigned ID records fetched from the queue
-     */
-    private List<IdRecord> fetchUnassingedIds(String tenantId, int count) {
-        List<IdRecord> allIdRecords = new ArrayList<>();
-        RQueue<IdRecord> queue = redissonClient.getQueue(queueKey(tenantId));
-        try {
-            List<IdRecord> idRecords = queue.poll(count);
-            allIdRecords.addAll(idRecords);
-            markProcessing(tenantId, idRecords);
-            log.debug("Fetched {} records from queue for tenant {}", idRecords.size(), tenantId);
-        } catch (Exception e) {
-            requeue(tenantId, allIdRecords);
-            throw e;
-        }
-        return allIdRecords;
-    }
-
-    /**
-     * Fetches a set of processed IDs for the given tenant.
-     *
-     * @param tenantId the identifier of the tenant whose processed IDs are to be fetched
-     * @return a set of processed IDs associated with the given tenant
-     */
-    private Set<String> fetchIdRecordsInProcess(String tenantId) {
-        return processingCache(tenantId).readAllKeySet();
-    }
-
-    /**
-     * Marks the given list of IDs as processing for the specified tenant.
-     *
-     * @param tenantId the identifier for the tenant
-     * @param idRecords the list of {@code IdRecord} objects containing the IDs to mark as processing
-     */
-    public void markProcessing(String tenantId, List<IdRecord> idRecords) {
-        if(CollectionUtils.isEmpty(idRecords)) return;
-        processingCache(tenantId).putAll(
-                idRecords.stream().map(IdRecord::getId).collect(Collectors.toMap(id -> id, id -> "processing")),
-                propertiesManager.getProcessedIDCacheTime(),
-                TimeUnit.SECONDS
-        );
-        log.debug("Marked {} IDs as processing for tenant {}", idRecords.size(), tenantId);
-    }
-
-    /**
-     * Removes the specified ID records from the processing cache for the given tenant.
-     *
-     * @param tenantId The identifier of the tenant whose processing cache is to be updated.
-     * @param ids A list of ID records to be removed from the processing cache.
-     */
-    private void removeProcessing(String tenantId, String[] ids) {
-        processingCache(tenantId).fastRemove(ids);
-        log.debug("Removed {} IDs from processing cache for tenant {}", ids.length, tenantId);
-    }
-
-    /**
-     * Re-queues a list of ID records to the designated queue of the specified tenant.
-     * If the provided list of ID records is not empty, the method will add all the records to the
-     * appropriate queue, remove them from processing, and log the operation.
-     *
-     * @param tenantId the identifier for the tenant whose queue will be updated
-     * @param idRecords a list of {@code IdRecord} objects to be re-queued, cannot be null or empty
-     */
-    private void requeue(String tenantId, List<IdRecord> idRecords) {
-        RQueue<IdRecord> queue = redissonClient.getQueue(queueKey(tenantId));
-        if(!CollectionUtils.isEmpty(idRecords)) {
-            queue.addAll(idRecords);
-            String[] ids = idRecords.stream().map(IdRecord::getId).toArray(String[]::new);
-            removeProcessing(tenantId, ids);
-            log.debug("Re-queued {} IDs for tenant {}", idRecords.size(), tenantId);
-        }
-    }
-
-    /**
-     * Fetches unassigned IDs from the database for a specific tenant and adds them to a queue for processing.
-     * If the IDs cannot be added to the queue or no IDs are available, appropriate exceptions are thrown.
-     *
-     * @param tenantId the unique identifier for the tenant whose IDs need to be fetched
-     * @param idRecordsInProcess a set of IDs that are currently being processed and should be excluded from the fetch
-     */
-    private void fetchFromDatabase(String tenantId, Set<String> idRecordsInProcess) {
-        List<IdRecord> dbResults = idRepository.fetchUnassigned(tenantId, propertiesManager.getDbFetchLimit(), idRecordsInProcess);
-        if (!dbResults.isEmpty()) {
-            log.debug("Fetched {} IDs from DB for tenant {}", dbResults.size(), tenantId);
-            RQueue<IdRecord> queue = redissonClient.getQueue(queueKey(tenantId));
-            boolean result = queue.addAll(dbResults);
-            if(!result) {
-                log.error("Failed to add IDs to queue for tenant: {}", tenantId);
-                throw new CustomException("QUEUE_ADD_FAILED", "Failed to add IDs to queue for tenant: " + tenantId + ". Please try again later.");
-            }
-            log.debug("Excluded {} IDs from queue for tenant {}", idRecordsInProcess.size(), tenantId);
-            log.debug("Cached {} ID Records from DB for tenant {}", dbResults.size(), tenantId);
-        } else {
-            throw new CustomException("NO_IDS_AVAILABLE", "No IDs are available for tenant: " + tenantId + " to process. Please try again later.");
-        }
     }
 
     /**
@@ -277,12 +97,12 @@ public class RedissonIDService {
             throw new CustomException("INVALID_DISPATCH_COUNT", "Dispatch count must be greater than 0.");
         }
         if(validateCount && (totalCount + count > propertiesManager.getDispatchLimitUserDeviceTotal())) {
-            throw new CustomException("USER_DEVICE_LIMIT_EXCEEDED", "Total limit for user: " + userId + " and device: " + deviceId + " exceeded. Current value: " + (totalCount + count) + ". Please try again later.");
+            throw new CustomException("USER_DEVICE_LIMIT_EXCEEDED", "Total limit for user: " + userId + " and device: " + deviceId + " exceeded. Remaining ids: " + (propertiesManager.getDispatchLimitUserDeviceTotal() - totalCount) + ". Please try again later.");
         }
         if(propertiesManager.isDispatchLimitUserDevicePerDayEnabled()) {
             long todayCount = getUserDeviceDispatchedIDCountToday(tenantId, userId, deviceId);
             if(validateCount && (todayCount + count > propertiesManager.getDispatchLimitUserDevicePerDay())) {
-                throw new CustomException("USER_DEVICE_LIMIT_EXCEEDED", "Daily limit for user: " + userId + " and device: " + deviceId + " exceeded. Current value: " + (todayCount + count) + ". Please try again later.");
+                throw new CustomException("USER_DEVICE_LIMIT_EXCEEDED", "Daily limit for user: " + userId + " and device: " + deviceId + " exceeded. Remaining ids: " + (propertiesManager.getDispatchLimitUserDevicePerDay() - todayCount) + ". Please try again later.");
             }
             return propertiesManager.getDispatchLimitUserDevicePerDay() - todayCount;
         }
@@ -357,51 +177,6 @@ public class RedissonIDService {
             totalCounter.set(newTotalValue);
         }
 
-    }
-
-    /**
-     * Executes the provided task with a distributed lock mechanism. The method will attempt
-     * to acquire the lock within the configured retry attempts and execute the task if successful.
-     *
-     * @param lockKey the unique key representing the lock
-     * @param waitTime the maximum time to wait for acquiring the lock in the given time unit
-     * @param leaseTime the time for which the lock will be held after being acquired
-     * @param timeUnit the time unit for the waitTime and leaseTime parameters
-     * @param task the executable logic to be executed once the lock is acquired
-     * @param <T> the result type of the task execution
-     * @return the result of the executed task
-     * @throws Exception if the execution of the task or lock operations cause an exception
-     */
-    public <T> T executeWithLock(String lockKey, long waitTime, long leaseTime, TimeUnit timeUnit, Callable<T> task) throws Exception {
-        RLock lock = redissonClient.getLock(lockKey);
-        int retries = propertiesManager.getRedissonLockAcquireRetryCount();
-        boolean acquired = false;
-        for (int attempt = 1; attempt <= retries; attempt++) {
-            try {
-                acquired = lock.tryLock(waitTime, leaseTime, timeUnit);
-                if (acquired) {
-                    log.debug("Acquired lock for key: {}", lockKey);
-                    return task.call();
-                }
-                Thread.sleep(200);
-                log.trace("Failed to acquire lock for key: {}. Retry attempt {}/{}", lockKey, attempt, retries);
-            } finally {
-                // Release lock only if acquired and held by this thread
-                if (acquired && lock.isHeldByCurrentThread()) {
-                    try {
-                        lock.unlock();
-                        log.debug("Released lock for key: {}", lockKey);
-                    } catch (IllegalMonitorStateException e) {
-                        log.warn("Attempted to unlock but lock not held by thread: {}", lockKey, e);
-                    }
-                }
-            }
-        }
-
-        log.debug("Failed to acquire lock for key: {} after {} retries", lockKey, retries);
-        // In case all retry attempts fail without returning
-        throw new CustomException("REDISSON_LOCK_RETRIES_EXHAUSTED",
-                "All attempts to acquire redis lock for key " + lockKey + " failed. Please try again later.");
     }
 
 }

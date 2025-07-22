@@ -46,29 +46,32 @@ public class IdRepository {
     }
 
     /**
-     * Fetches up to `count` unassigned IDs for a given tenant.
-     * Orders them by creation time (oldest first).
+     * Fetches unassigned IDs from the ID pool table for a specific tenant and marks them as dispatched.
+     * The method updates the statuses of retrieved IDs to "DISPATCHED" and logs the modification details.
+     *
+     * @param tenantId The identifier of the tenant requesting the unassigned IDs.
+     * @param userUuid The unique identifier of the user requesting the operation.
+     * @param count The number of unassigned IDs to fetch.
+     * @return A list of {@link IdRecord} objects representing the fetched and updated IDs.
      */
-    public List<IdRecord> fetchUnassigned(String tenantId, int count, Set<String> excludedIds) {
-        String query =
-                "SELECT * FROM id_pool " +
-                        "WHERE status = :status " +
-                        "AND tenantId = :tenantId " +
-                        (CollectionUtils.isEmpty(excludedIds) ? "" : "AND id != ALL(:excludedIds) ") +
-                        "ORDER BY createdTime ASC " +
-                        "LIMIT :limit";
+    public List<IdRecord> fetchUnassigned(String tenantId, String userUuid, int count) {
+        String query = "WITH to_dispatch AS (" +
+                " SELECT id FROM id_pool WHERE status=:status AND tenantId=:tenantId " +
+                " ORDER BY id ASC LIMIT :limit FOR UPDATE SKIP LOCKED" +
+                ") " +
+                "UPDATE id_pool p SET status=:updatedStatus, rowVersion=rowVersion+1, " +
+                " lastModifiedBy=:lastModifiedBy, lastModifiedTime=:lastModifiedTime " +
+                "FROM to_dispatch t WHERE p.id=t.id RETURNING p.*";
 
         MapSqlParameterSource params = new MapSqlParameterSource()
                 .addValue("tenantId", tenantId)
                 .addValue("status", IdStatus.UNASSIGNED.name())
+                .addValue("updatedStatus", IdStatus.DISPATCHED.name())
+                .addValue("lastModifiedBy", userUuid)
+                .addValue("lastModifiedTime", System.currentTimeMillis())
                 .addValue("limit", count);
 
-        if (!CollectionUtils.isEmpty(excludedIds)) {
-            params.addValue("excludedIds", excludedIds.toArray(new String[0]), Types.ARRAY);
-        }
-
         return namedParameterJdbcTemplate.query(query, params, this.idRecordRowMapper);
-
     }
 
     /**

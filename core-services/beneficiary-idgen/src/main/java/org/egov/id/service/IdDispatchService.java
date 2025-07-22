@@ -134,7 +134,7 @@ public class IdDispatchService {
         long remainingCount = redissonIDService.getUserDeviceDispatchedIDRemaining(tenantId, userUuid, deviceUuid, count, true);
         long fetchCount = Math.min(remainingCount, count);
 
-        List<IdRecord> idRecordsToDispatch = redissonIDService.fetchUnassignedIdsWithLock(tenantId, (int) fetchCount);
+        List<IdRecord> idRecordsToDispatch = idRepo.fetchUnassigned(tenantId, userUuid, (int) fetchCount);
 
         if (idRecordsToDispatch.isEmpty()) {
             log.error("No IDs available from Redis or DB for tenantId: {}", tenantId);
@@ -279,10 +279,10 @@ public class IdDispatchService {
         );
 
         // Prepare payload to update ID status in Kafka
-        Map<String, Object> payloadToUpdate = new HashMap<>();
-        payloadToUpdate.put("idPool", selected);
-        log.debug("Pushing {} IDs to Kafka topic: {}", selected.size(), propertiesManager.getUpdateIdPoolStatusTopic());
-        idGenProducer.push(propertiesManager.getUpdateIdPoolStatusTopic(), payloadToUpdate);
+//        Map<String, Object> payloadToUpdate = new HashMap<>();
+//        payloadToUpdate.put("idPool", selected);
+//        log.debug("Pushing {} IDs to Kafka topic: {}", selected.size(), propertiesManager.getUpdateIdPoolStatusTopic());
+//        idGenProducer.push(propertiesManager.getUpdateIdPoolStatusTopic(), payloadToUpdate);
 
         // Prepare and push transaction logs to Kafka for tracking
         Map<String, Object> payloadToUpdateTransactionLog = buildTransactionLogPayload(
