@@ -72,7 +72,8 @@ const downloadDataService = async (request: express.Request) => {
                         type,
                         tenantId,
                         hierarchyType,
-                        campaignId
+                        campaignId,
+                        forceUpdate: 'true'
                     }
                 };
                 await callGenerate(newRequestToGenerate, type);
