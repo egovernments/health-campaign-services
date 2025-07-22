@@ -7,6 +7,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Isolation;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 
@@ -54,14 +56,13 @@ public class IdRepository {
      * @param count The number of unassigned IDs to fetch.
      * @return A list of {@link IdRecord} objects representing the fetched and updated IDs.
      */
+    @Transactional(isolation = Isolation.REPEATABLE_READ)
     public List<IdRecord> fetchUnassigned(String tenantId, String userUuid, int count) {
-        String query = "WITH to_dispatch AS (" +
-                " SELECT id FROM id_pool WHERE status=:status AND tenantId=:tenantId " +
-                " ORDER BY id ASC LIMIT :limit FOR UPDATE SKIP LOCKED" +
-                ") " +
-                "UPDATE id_pool p SET status=:updatedStatus, rowVersion=rowVersion+1, " +
-                " lastModifiedBy=:lastModifiedBy, lastModifiedTime=:lastModifiedTime " +
-                "FROM to_dispatch t WHERE p.id=t.id RETURNING p.*";
+        String query =
+                "UPDATE id_pool p SET status = :updatedStatus, rowVersion = rowVersion + 1, " +
+                        "lastModifiedBy = :lastModifiedBy, lastModifiedTime = :lastModifiedTime " +
+                        "WHERE p.id IN (SELECT id FROM id_pool WHERE status = :status AND tenantId = :tenantId " +
+                        "ORDER BY id ASC LIMIT :limit FOR UPDATE SKIP LOCKED) AND p.status = :status RETURNING p.*";
 
         MapSqlParameterSource params = new MapSqlParameterSource()
                 .addValue("tenantId", tenantId)
