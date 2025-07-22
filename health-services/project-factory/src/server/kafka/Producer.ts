@@ -105,7 +105,7 @@ async function produceModifiedMessages(modifiedMessages: any, topic: any, tenant
             {
                 topic: topic,
                 messages: JSON.stringify(modifiedMessages),
-                key: key || undefined
+                key: key || null
             },
         ];
 
