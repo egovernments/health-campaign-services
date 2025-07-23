@@ -15,7 +15,6 @@ const config = {
   isProduction: process.env ? true : false,
   token: "", // add default token if core services are not port forwarded
   enableDynamicTemplateFor: process.env.ENABLE_DYNAMIC_TEMPLATE_FOR || "",
-  overrideDatesFromProject: process.env.OVERRIDE_DATES_FROM_PROJECT === "true" || true,
   // isCallGenerateWhenDeliveryConditionsDiffer: (process.env.IS_CALL_GENERATE_WHEN_DELIVERY_CONDITIONS_DIFFER === "true") || false,
   prefixForMicroplanCampaigns: "MP",
   excludeHierarchyTypeFromBoundaryCodes: (process.env.EXCLUDE_HIERARCHY_TYPE_FROM_BOUNDARY_CODES === "true") || false,
