@@ -89,6 +89,7 @@ import {
   isDynamicTargetTemplateForProjectType,
 } from "./targetUtils";
 import {
+  fetchProjectsWithProjectId,
   getBoundariesFromCampaignSearchResponse,
   getColumnIndexByHeader,
   hideColumnsOfProcessedFile,
@@ -1616,7 +1617,7 @@ async function getTotalCount(campaignDetails: any) {
   return totalCount;
 }
 
-async function searchProjectCampaignResourcData(campaignDetails: any) {
+async function searchProjectCampaignResourcData(campaignDetails: any , request ? :any) {
   // const CampaignDetails = request.body.CampaignDetails;
   const { tenantId, pagination, ids, ...searchFields } = campaignDetails;
   const queryData = buildSearchQuery(tenantId, pagination, ids, searchFields);
@@ -1625,6 +1626,33 @@ async function searchProjectCampaignResourcData(campaignDetails: any) {
     queryData.query,
     queryData.values
   );
+
+  const projectIds = Array.from(
+    new Set(responseData.map(d => d?.projectId).filter(Boolean))
+  );
+
+// Step 2: Bulk fetch all project details
+let projectsMap = new Map<string, { startDate: number, endDate: number }>();
+
+  if (config?.overrideDatesFromProject) {
+    if (projectIds.length > 0) {
+      try {
+        const projects = await fetchProjectsWithProjectId(request, projectIds, tenantId , false); // returns array of projects
+
+        // Step 3: Build map of referenceId -> { startDate, endDate }
+        for (const project of projects) {
+          if (project?.referenceID) {
+            projectsMap.set(project.referenceID, {
+              startDate: project.startDate,
+              endDate: project.endDate,
+            });
+          }
+        }
+      } catch (err) {
+        console.error("Bulk project fetch failed while searching campaign with config overrideDatesFromProject enabled", err);
+      }
+    }
+  }
   // TODO @ashish check the below code looks like duplicate
   for (const data of responseData) {
     data.resources = data?.campaignDetails?.resources;
@@ -1641,7 +1669,19 @@ async function searchProjectCampaignResourcData(campaignDetails: any) {
     delete data.lastModifiedBy;
     delete data.createdTime;
     delete data.lastModifiedTime;
+
+    if (config?.overrideDatesFromProject) {
+   const projDates = projectsMap.get(data?.campaignNumber);
+    if (projDates) {
+      if (projDates.startDate !== undefined && data.startDate !== undefined &&  projDates.startDate !== data.startDate) {
+        data.startDate = projDates.startDate;
+      }
+      if (projDates.endDate !== undefined &&   data.endDate !== undefined && projDates.endDate !== data.endDate) {
+        data.endDate = projDates.endDate;
+      }
   }
+    }
+}
   return { responseData, totalCount };
 }
 

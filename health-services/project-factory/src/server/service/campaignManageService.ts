@@ -27,13 +27,13 @@ async function updateProjectTypeCampaignService(request: express.Request) {
     return request?.body?.CampaignDetails;
 }
 
-async function searchProjectTypeCampaignService(campaignDetails: any
+async function searchProjectTypeCampaignService(campaignDetails: any , request? :any
 ) {
     // await validateSearchProjectCampaignRequest(request);
     logger.info("VALIDATED THE PROJECT TYPE SEARCH REQUEST");
 
     // Search for project campaign resource data
-    const { responseData, totalCount } = await searchProjectCampaignResourcData(campaignDetails);
+    const { responseData, totalCount } = await searchProjectCampaignResourcData(campaignDetails , request);
     const responseBody: any = { CampaignDetails: responseData, totalCount: totalCount }
     return responseBody;
 };
