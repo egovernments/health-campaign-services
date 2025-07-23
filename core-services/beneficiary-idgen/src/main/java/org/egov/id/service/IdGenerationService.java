@@ -67,18 +67,18 @@ public class IdGenerationService {
     public Integer defaultBufferPercentage;
 
     /**
-     * Maximum batch size for synchronous ID generation operations.
-     * This is used to limit the number of IDs generated in a single request for performance and reliability.
+     * Maximum number of records to persist in a single batch to Kafka.
+     * This is used to control the size of each batch for performance and reliability.
      */
-    @Value("${id.pool.create.max.batch.size:1000}")
-    private Integer MAX_BATCH_SIZE;
+    @Value("${id.pool.max.records.per.persist.batch:1000}")
+    private Integer MAX_RECORDS_PER_PERSIST_BATCH;
 
     /**
-     * Maximum batch size for asynchronous Kafka operations.
-     * This is used to limit the number of IDs generated in a single batch for performance and reliability.
+     * Maximum size of each ID pool chunk to be sent to Kafka.
+     * This limits the number of IDs generated in a single request to avoid overwhelming the system.
      */
-    @Value("${id.pool.async.create.max.batch.size:50000}")
-    private Integer MAX_ASYNC_KAFKA_BATCH_SIZE;
+    @Value("${id.pool.max.ids.per.chunk:50000}")
+    private Integer MAX_ID_POOL_CHUNK_SIZE;
 
     private static final Pattern RANDOM_PATTERN = Pattern.compile("\\[d\\{\\d+}]");
 
@@ -139,21 +139,21 @@ public class IdGenerationService {
 
         // Iterate over all batch requests
         for (BatchRequest batch : batches) {
-            int fullSize = batch.getBatchSize(); // Total number of IDs requested
+            int fullSize = batch.getTotalCount(); // Total number of IDs requested
             int sent = 0;
             // Chunk and send large batch into smaller parts to Kafka
             while (sent < fullSize) {
                 // Calculate the size of the current chunk
-                int chunkSize = Math.min(MAX_ASYNC_KAFKA_BATCH_SIZE, fullSize - sent);
+                int chunkSize = Math.min(MAX_ID_POOL_CHUNK_SIZE, fullSize - sent);
                 // Build Kafka request for the current chunk
                 IDPoolGenerationKafkaRequest kafkaRequest = IDPoolGenerationKafkaRequest.builder()
                         .tenantId(batch.getTenantId())
-                        .batchSize(chunkSize)
+                        .chunkSize(chunkSize)
                         .requestInfo(request.getRequestInfo())
                         .build();
 
                 // Push the chunked request to Kafka
-                idGenProducer.push(propertiesManager.getIdPoolAsyncCreateTopic(), kafkaRequest);
+                idGenProducer.push(propertiesManager.getIdPoolBulkCreateTopic(), kafkaRequest);
                 sent += chunkSize;
             }
             // Add a response message for this tenant
@@ -240,18 +240,18 @@ public class IdGenerationService {
     public void handleAsyncIdPoolRequest(IDPoolGenerationKafkaRequest request) {
         try {
             String tenantId = request.getTenantId();
-            Integer batchSize = request.getBatchSize();
+            Integer chunkSize = request.getChunkSize();
             RequestInfo requestInfo = request.getRequestInfo();
 
             // Validate batch size
-            if (batchSize <= 0) {
+            if (chunkSize <= 0) {
                 throw new CustomException("INVALID_BATCH_SIZE", "Batch size must be > 0");
             }
 
             // Fetch ID format and adjust batch size if necessary
-            String idFormat = fetchIdFormat(tenantId, batchSize, requestInfo);
+            String idFormat = fetchIdFormat(tenantId, chunkSize, requestInfo);
             // Adjust batch size if ID format contains random patterns
-            Integer adjustedSize = adjustBatchSizeIfRandom(batchSize, idFormat);
+            Integer adjustedSize = adjustBatchSizeIfRandom(chunkSize, idFormat);
             IdRequest idRequest = new IdRequest(idPoolName, tenantId, null, adjustedSize);
             // Generate IDs
             List<String> generatedIds = generateIds(idRequest, requestInfo);
@@ -293,7 +293,7 @@ public class IdGenerationService {
     private void persistToKafka(RequestInfo requestInfo, List<String> generatedIds, String tenantId) {
         log.trace("Starting Kafka persistence for generated IDs. Tenant ID: {}, Total IDs: {}", tenantId, generatedIds.size());
 
-        List<IdRecord> buffer = new ArrayList<>(MAX_BATCH_SIZE);
+        List<IdRecord> buffer = new ArrayList<>(MAX_RECORDS_PER_PERSIST_BATCH);
 
         for (int i = 0; i < generatedIds.size(); i++) {
             String generatedId = generatedIds.get(i);
@@ -311,7 +311,7 @@ public class IdGenerationService {
             buffer.add(idRecord);
 
             // Send batch when buffer is full or last element reached
-            if (buffer.size() == MAX_BATCH_SIZE || i == generatedIds.size() - 1) {
+            if (buffer.size() == MAX_RECORDS_PER_PERSIST_BATCH || i == generatedIds.size() - 1) {
                 log.debug("Sending batch of {} IDs to Kafka topic: {}", buffer.size(), propertiesManager.getSaveIdPoolTopic());
                 sendBatch(propertiesManager.getSaveIdPoolTopic(), new ArrayList<>(buffer));
                 buffer.clear();

@@ -10,6 +10,6 @@ import lombok.*;
 public class IDPoolGenerationKafkaRequest {
     private RequestInfo requestInfo;
     private String tenantId;
-    private Integer batchSize;
+    private Integer chunkSize;
 }
 
