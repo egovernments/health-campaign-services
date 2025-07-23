@@ -1,93 +1,104 @@
-import { Producer, KafkaClient } from 'kafka-node';
+import { Kafka, logLevel } from 'kafkajs';
 import { getFormattedStringForDebug, logger } from "../utils/logger";
 import { shutdownGracefully, throwError } from '../utils/genericUtils';
 import config from '../config';
 
-let kafkaClient: KafkaClient;
-let producer: Producer;
+let kafka: Kafka;
+let producer: ReturnType<Kafka['producer']>;
+let isProducerReady = false;
 
-const createKafkaClientAndProducer = () => {
-    kafkaClient = new KafkaClient({
-        kafkaHost: config?.host?.KAFKA_BROKER_HOST,
-        connectRetryOptions: { retries: 1 },
+const createKafkaClientAndProducer = async () => {
+    kafka = new Kafka({
+        clientId: 'project-factory-producer',
+        brokers: [config?.host?.KAFKA_BROKER_HOST],
+        logLevel: logLevel.NOTHING,
     });
-
-    // Event listener for 'error' event, indicating that the client encountered an error
-    kafkaClient.on('error', (err: any) => {
-        logger.error('Kafka client is in error state'); // Log message indicating client is in error state
-        console.error(err.stack || err); // Log the error stack or message
+    producer = kafka.producer();
+    try {
+        await producer.connect();
+        isProducerReady = true;
+        logger.info('Producer is ready');
+        await checkBrokerAvailability();
+    } catch (err) {
+        logger.error('Producer connection error:', err);
+        shutdownGracefully();
+    }
+    // Listen for disconnects/errors
+    producer.on('producer.disconnect', () => {
+        logger.error('Producer disconnected');
+        isProducerReady = false;
         shutdownGracefully();
     });
-
-    producer = new Producer(kafkaClient, { partitionerType: 2 });
-
-    producer.on('ready', () => {
-        logger.info('Producer is ready');
-        checkBrokerAvailability();
-    });
-
-    producer.on('error', (err: any) => {
-        logger.error('Producer is in error state');
-        console.error(err);
+    producer.on('producer.network.request_timeout', (err: any) => {
+        logger.error('Producer network request timeout:', err);
         shutdownGracefully();
     });
 };
 
 // Function to check broker availability by listing all brokers
-const checkBrokerAvailability = () => {
-    kafkaClient.loadMetadataForTopics([], (err: any, data: any) => {
-        if (err) {
-            logger.error('Error checking broker availability:', err);
+const checkBrokerAvailability = async () => {
+    try {
+        const admin = kafka.admin();
+        await admin.connect();
+        const brokerMetadata = await admin.describeCluster();
+        const brokers = brokerMetadata.brokers || [];
+        const brokerCount = brokers.length;
+        logger.info('Broker count:' + String(brokerCount));
+        if (brokerCount <= 0) {
+            logger.error('No brokers found. Shutting down the service.');
+            await admin.disconnect();
             shutdownGracefully();
         } else {
-            const brokers = data[1]?.metadata || {};
-            const brokerCount = Object.keys(brokers).length;
-            logger.info('Broker count:' + String(brokerCount));
-
-            if (brokerCount <= 0) {
-                logger.error('No brokers found. Shutting down the service.');
-                shutdownGracefully();
-            } else {
-                logger.info('Brokers are available:', brokers);
-            }
+            logger.info('Brokers are available:', brokers);
+            await admin.disconnect();
         }
-    });
+    } catch (err) {
+        logger.error('Error checking broker availability:', err);
+        shutdownGracefully();
+    }
 };
 
-
+// Initialize producer on module load
 createKafkaClientAndProducer();
 
-const sendWithReconnect = (payloads: any[]): Promise<void> => {
-    return new Promise((resolve, reject) => {
-        // Send the message initially
-        producer.send(payloads, async (err: any) => {
-            if (err) {
-                logger.error('Error sending message:', err);
-                logger.debug(`Was trying to send: ${getFormattedStringForDebug(payloads)}`);
-
-                // Attempt to reconnect and retry
-                logger.error('Reconnecting producer and retrying...');
-                producer.close(() => {
-                    createKafkaClientAndProducer();
-                    setTimeout(() => {
-                        // Retry sending after reconnection
-                        producer.send(payloads, (err: any) => {
-                            if (err) {
-                                logger.error('Failed to send message after reconnection:', err);
-                                return reject(err); // Final failure, reject promise
-                            } else {
-                                logger.info('Message sent successfully after reconnection');
-                                resolve();
-                            }
-                        });
-                    }, 2000); // wait before retrying after reconnect
-                });
-            } else {
-                logger.info('Message sent successfully');
-                resolve();
-            }
+const sendWithReconnect = async (payloads: any[]): Promise<void> => {
+    // payloads: [{ topic, messages, key }]
+    if (!isProducerReady) {
+        logger.error('Producer is not ready. Attempting to reconnect...');
+        await createKafkaClientAndProducer();
+    }
+    const { topic, messages, key } = payloads[0];
+    try {
+        await producer.send({
+            topic,
+            messages: [
+                key ? { key, value: messages } : { value: messages }
+            ],
         });
-    });
+        logger.info('Message sent successfully');
+    } catch (err) {
+        logger.error('Error sending message:', err);
+        logger.debug(`Was trying to send: ${getFormattedStringForDebug(payloads)}`);
+        // Attempt to reconnect and retry
+        logger.error('Reconnecting producer and retrying...');
+        try {
+            await producer.disconnect();
+        } catch {}
+        await createKafkaClientAndProducer();
+        await new Promise(res => setTimeout(res, 2000));
+        try {
+            await producer.send({
+                topic,
+                messages: [
+                    key ? { key, value: messages } : { value: messages }
+                ],
+            });
+            logger.info('Message sent successfully after reconnection');
+        } catch (err2) {
+            logger.error('Failed to send message after reconnection:', err2);
+            throw err2;
+        }
+    }
 };
 
 

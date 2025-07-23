@@ -1,20 +1,20 @@
-import { ConsumerGroup, ConsumerGroupOptions, Message } from 'kafka-node';
+import { Kafka, logLevel, EachMessagePayload } from 'kafkajs';
 import config from '../config';
 import { getFormattedStringForDebug, logger } from '../utils/logger';
 import { shutdownGracefully } from '../utils/genericUtils';
 import { handleCampaignMapping, handleMappingTaskForCampaign } from '../utils/campaignMappingUtils';
 import { handleTaskForCampaign } from '../utils/taskUtils';
 
-// Kafka Configuration
-const kafkaConfig: ConsumerGroupOptions = {
-    kafkaHost: config?.host?.KAFKA_BROKER_HOST,
-    groupId: 'project-factory',
-    autoCommit: true,
-    autoCommitIntervalMs: 5000,
-    fromOffset: 'latest',
-};
 
-// Topic Names
+const kafka = new Kafka({
+    clientId: 'project-factory-consumer',
+    brokers: [config?.host?.KAFKA_BROKER_HOST],
+    logLevel: logLevel.NOTHING,
+});
+
+const groupId = 'project-factory';
+
+
 const topicNames = [
     config.kafka.KAFKA_START_CAMPAIGN_MAPPING_TOPIC,
     config.kafka.KAFKA_START_ADMIN_CONSOLE_TASK_TOPIC,
@@ -22,8 +22,8 @@ const topicNames = [
     config.kafka.KAFKA_TEST_TOPIC
 ];
 
-// Consumer Group Initialization
-const consumerGroup = new ConsumerGroup(kafkaConfig, topicNames);
+
+const consumer = kafka.consumer({ groupId });
 
 // Add a simple semaphore for concurrency control
 const MAX_CONCURRENT = 10;
@@ -50,32 +50,45 @@ function releaseSemaphore() {
     }
 }
 
-// Kafka Listener
-export function listener() {
-    consumerGroup.on('message', (message: Message) => {
-        acquireSemaphore().then(() => {
-            processMessage(message).finally(() => {
-                releaseSemaphore();
-            });
-        });
-    });
 
-    // Ensure these error handlers are present
-    consumerGroup.on('error', (err) => {
+export async function listener() {
+    try {
+        await consumer.connect();
+        for (const topic of topicNames) {
+            await consumer.subscribe({ topic, fromBeginning: false });
+        }
+
+        await consumer.run({
+            eachMessage: async (payload: EachMessagePayload) => {
+                const { topic, message } = payload;
+                await acquireSemaphore();
+                processMessageKJS(topic, message)
+                    .finally(() => {
+                        releaseSemaphore();
+                    });
+            },
+        });
+
+        consumer.on(consumer.events.CRASH, async (event) => {
+            logger.error(`Consumer crashed: ${event.payload.error}`);
+            shutdownGracefully();
+        });
+        consumer.on(consumer.events.DISCONNECT, () => {
+            logger.error('Consumer disconnected');
+            shutdownGracefully();
+        });
+    } catch (err) {
         logger.error(`Consumer Error: ${err}`);
         shutdownGracefully();
-    });
-
-    consumerGroup.on('offsetOutOfRange', (err) => {
-        logger.error(`Offset out of range error: ${err}`);
-    });
+    }
 }
 
-async function processMessage(message: Message) {
+
+async function processMessageKJS(topic: string, message: { value: Buffer | null }) {
     try {
         const messageObject = JSON.parse(message.value?.toString() || '{}');
 
-        switch (message.topic) {
+        switch (topic) {
             case config.kafka.KAFKA_START_CAMPAIGN_MAPPING_TOPIC:
                 await handleCampaignMapping(messageObject);
                 break;
@@ -86,10 +99,10 @@ async function processMessage(message: Message) {
                 await handleMappingTaskForCampaign(messageObject);
                 break;
             default:
-                logger.warn(`Unhandled topic: ${message.topic}`);
+                logger.warn(`Unhandled topic: ${topic}`);
         }
 
-        logger.info(`KAFKA :: LISTENER :: Received a message from topic ${message.topic}`);
+        logger.info(`KAFKA :: LISTENER :: Received a message from topic ${topic}`);
         logger.debug(`KAFKA :: LISTENER :: Message: ${getFormattedStringForDebug(messageObject)}`);
     } catch (error) {
         logger.error(`KAFKA :: LISTENER :: Error processing message: ${error}`);
