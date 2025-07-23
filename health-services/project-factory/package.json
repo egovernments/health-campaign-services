@@ -35,6 +35,7 @@
     "jaeger-client": "^3.19.0",
     "jsonpath": "1.1.1",
     "kafka-node": "5.0.0",
+    "kafkajs": "^2.2.4",
     "lodash": "4.17.21",
     "morgan": "1.10.0",
     "node-cache": "5.1.2",
