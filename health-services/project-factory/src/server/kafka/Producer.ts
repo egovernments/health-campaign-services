@@ -9,6 +9,11 @@ let isProducerReady = false;
 
 const createKafkaClientAndProducer = async () => {
     kafka = new Kafka({
+        retry: {
+            retries: 5,
+            initialRetryTime: 300,
+            maxRetryTime: 30000
+        },
         clientId: 'project-factory-producer',
         brokers: [config?.host?.KAFKA_BROKER_HOST],
         logLevel: logLevel.NOTHING,
@@ -84,6 +89,7 @@ const sendWithReconnect = async (payloads: any[]): Promise<void> => {
         try {
             await producer.disconnect();
         } catch {}
+    
         await createKafkaClientAndProducer();
         await new Promise(res => setTimeout(res, 2000));
         try {
