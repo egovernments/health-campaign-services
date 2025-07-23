@@ -2789,10 +2789,10 @@ async function createAllResources(campaignDetails: any,parentCampaign : any, use
     if(projectTask?.status == processStatuses.failed) {
       failedTasks.push(allProcesses.projectCreation);
     }
-    throwError("COMMON", 400, "INTERNAL_SERVER_ERROR", `${failedTasks.join(", ")} tasks failed.`);
+    throwError("COMMON", 400, "RESOURCE_CREATION_ERROR", `${failedTasks.join(", ")} tasks failed.`);
   }
   else if(!allTaskCompleted) {
-    throwError("COMMON", 400, "INTERNAL_SERVER_ERROR", "Resources creation timed out.");
+    throwError("COMMON", 400, "RESOURCE_CREATION_TIMED_OUT", "Resources creation timed out.");
   }
   logger.info(`Waiting for 20 seconds for all resources to get persisted...`);
   await new Promise(resolve => setTimeout(resolve, 20000));
@@ -2861,10 +2861,10 @@ async function createAllMappings(campaignDetails: any, parentCampaign : any, use
     if(resourceMappingTask?.status == processStatuses.failed) {
       failedTasks.push(allProcesses.resourceMapping);
     }
-    throwError("COMMON", 400, "INTERNAL_SERVER_ERROR", `${failedTasks.join(", ")} tasks failed.`);
+    throwError("COMMON", 400, "RESOURCE_MAPPING_ERROR", `${failedTasks.join(", ")} tasks failed.`);
   }
   else if(!allTaskCompleted) {
-    throwError("COMMON", 400, "INTERNAL_SERVER_ERROR", "Mappings creation timed out.");
+    throwError("COMMON", 400, "RESOURCE_MAPPING_TIMED_OUT", "Mappings creation timed out.");
   }
   campaignDetails.status = campaignStatuses.completed;
 }

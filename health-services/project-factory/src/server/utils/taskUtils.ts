@@ -59,7 +59,7 @@ export async function handleTaskForCampaign(messageObject: any) {
         let task = messageObject?.task;
         task.status = processStatuses.failed;
         await produceModifiedMessages({ processes: [task] }, config?.kafka?.KAFKA_UPDATE_PROCESS_DATA_TOPIC, messageObject?.CampaignDetails?.tenantId);
-        logger.error(`Error in campaign mapping: ${error}`);
+        logger.error(`Error in campaign creation process : ${error}`);
         await enrichAndPersistCampaignWithErrorProcessingTask(messageObject?.CampaignDetails, messageObject?.parentCampaign, messageObject?.useruuid, error);
     }
 }
