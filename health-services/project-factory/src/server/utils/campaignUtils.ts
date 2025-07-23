@@ -89,6 +89,7 @@ import {
   isDynamicTargetTemplateForProjectType,
 } from "./targetUtils";
 import {
+  fetchProjectsWithProjectId,
   getBoundariesFromCampaignSearchResponse,
   getColumnIndexByHeader,
   hideColumnsOfProcessedFile,
@@ -109,7 +110,7 @@ import { GenerateTemplateQuery } from "../models/GenerateTemplateQuery";
 import { getLocaleFromRequest } from "./localisationUtils";
 import { generateDataService } from "../service/sheetManageService";
 import Localisation from "../controllers/localisationController/localisation.controller";
-import {  triggerUserCredentialEmailFlow } from "./mailUtils";
+import { triggerUserCredentialEmailFlow } from "./mailUtils";
 
 function updateRange(range: any, worksheet: any) {
   let maxColumnIndex = 0;
@@ -1158,7 +1159,7 @@ export async function enrichAndPersistCampaignForCreateViaFlow2(
 
   campaignDetails.status =
     campaignDetails.action == "create" ? campaignStatuses.inprogress : campaignStatuses.started;
-  const topic =config?.kafka?.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC;
+  const topic = config?.kafka?.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC;
   const produceMessage: any = {
     CampaignDetails: campaignDetails,
   };
@@ -1166,7 +1167,7 @@ export async function enrichAndPersistCampaignForCreateViaFlow2(
 }
 
 async function getRootProjectIdViaCampaignNumber(campaignNumber: string, boundaryCode: string, tenantId: string) {
-  if(!campaignNumber || !boundaryCode) {
+  if (!campaignNumber || !boundaryCode) {
     return null;
   }
   const rootProjectData = await getRelatedDataWithCampaign("boundary", campaignNumber, tenantId, dataRowStatuses.completed, boundaryCode);
@@ -1206,9 +1207,9 @@ async function enrichAndPersistCampaignForUpdate(
   request.body.CampaignDetails.campaignDetails = updatedInnerCampaignDetails;
   request.body.CampaignDetails.parentId = request?.body?.CampaignDetails?.parentId || null;
   request.body.CampaignDetails.status =
-        action == "create"
-        ? campaignStatuses.started
-        : campaignStatuses.drafted;
+    action == "create"
+      ? campaignStatuses.started
+      : campaignStatuses.drafted;
   request.body.CampaignDetails.startDate =
     request?.body?.CampaignDetails?.startDate ||
     ExistingCampaignDetails?.startDate ||
@@ -1523,8 +1524,8 @@ function prepareDataForExcel(
     // 3. Get remaining key-value pairs (excluding hierarchy + boundaryKey)
     const excludedKeys = new Set([...hierarchy, boundaryKey]);
     const remainingValues = row
-    .filter(obj => !excludedKeys.has(obj.key))
-    .map(obj => obj.value || "");
+      .filter(obj => !excludedKeys.has(obj.key))
+      .map(obj => obj.value || "");
 
     // 4. Final row structure: hierarchy values + boundary code + remaining key-value pairs
     return [...hierarchyValues, boundaryCode, ...remainingValues];
@@ -1554,7 +1555,7 @@ async function getTotalCount(campaignDetails: any) {
   const campaignsIncludeDates = searchFields?.campaignsIncludeDates;
 
   for (const field in searchFields) {
-    if (searchFields[field] !== undefined && field != "campaignsIncludeDates") {
+    if (searchFields[field] !== undefined && field != "campaignsIncludeDates"  && field != "isLikeSearch" && field != "isOverrideDatesFromProject" ){
       if (field === "startDate") {
         const startDateSign = campaignsIncludeDates ? "<=" : ">=";
         conditions.push(`startDate ${startDateSign} $${index}`);
@@ -1566,7 +1567,11 @@ async function getTotalCount(campaignDetails: any) {
         values.push(searchFields[field]);
         index++;
       } else if (field === "campaignName") {
-        conditions.push(`${field} ILIKE '%' || $${index} || '%'`);
+        if (searchFields?.isLikeSearch) {
+          conditions.push(`campaignName ILIKE '%' || $${index} || '%'`);
+        } else {
+          conditions.push(`campaignName = $${index}`);
+        }
         values.push(searchFields[field]);
         index++;
       } else if (field != "status") {
@@ -1610,7 +1615,7 @@ async function getTotalCount(campaignDetails: any) {
   return totalCount;
 }
 
-async function searchProjectCampaignResourcData(campaignDetails: any) {
+async function searchProjectCampaignResourcData(campaignDetails: any, request?: any) {
   // const CampaignDetails = request.body.CampaignDetails;
   const { tenantId, pagination, ids, ...searchFields } = campaignDetails;
   const queryData = buildSearchQuery(tenantId, pagination, ids, searchFields);
@@ -1619,6 +1624,33 @@ async function searchProjectCampaignResourcData(campaignDetails: any) {
     queryData.query,
     queryData.values
   );
+
+  const projectIds = Array.from(
+    new Set(responseData.map(d => d?.projectId).filter(Boolean))
+  );
+
+  // Step 2: Bulk fetch all project details
+  let projectsMap = new Map<string, { startDate: number, endDate: number }>();
+
+  if (searchFields?.isOverrideDatesFromProject) {
+    if (projectIds.length > 0) {
+      try {
+        const projects = await fetchProjectsWithProjectId(request, projectIds, tenantId, false); // returns array of projects
+
+        // Step 3: Build map of referenceId -> { startDate, endDate }
+        for (const project of projects) {
+          if (project?.referenceID) {
+            projectsMap.set(project.referenceID, {
+              startDate: project.startDate,
+              endDate: project.endDate,
+            });
+          }
+        }
+      } catch (err) {
+        console.error("Bulk project fetch failed while searching campaign with config overrideDatesFromProject enabled", err);
+      }
+    }
+  }
   // TODO @ashish check the below code looks like duplicate
   for (const data of responseData) {
     data.resources = data?.campaignDetails?.resources;
@@ -1635,6 +1667,18 @@ async function searchProjectCampaignResourcData(campaignDetails: any) {
     delete data.lastModifiedBy;
     delete data.createdTime;
     delete data.lastModifiedTime;
+
+    if (searchFields?.isOverrideDatesFromProject) {
+      const projDates = projectsMap.get(data?.campaignNumber);
+      if (projDates) {
+        if (projDates.startDate !== undefined && data.startDate !== undefined && projDates.startDate !== data.startDate) {
+          data.startDate = projDates.startDate;
+        }
+        if (projDates.endDate !== undefined && data.endDate !== undefined && projDates.endDate !== data.endDate) {
+          data.endDate = projDates.endDate;
+        }
+      }
+    }
   }
   return { responseData, totalCount };
 }
@@ -1651,7 +1695,7 @@ function buildSearchQuery(
   const campaignsIncludeDates = searchFields?.campaignsIncludeDates;
 
   for (const field in searchFields) {
-    if (searchFields[field] !== undefined && field != "campaignsIncludeDates") {
+    if (searchFields[field] !== undefined && field != "campaignsIncludeDates" && field != "isLikeSearch" && field != "isOverrideDatesFromProject" ) {
       if (field === "startDate") {
         const startDateSign = campaignsIncludeDates ? "<=" : ">=";
         conditions.push(`startDate ${startDateSign} $${index}`);
@@ -1663,7 +1707,11 @@ function buildSearchQuery(
         values.push(searchFields[field]);
         index++;
       } else if (field === "campaignName") {
-        conditions.push(`${field} ILIKE '%' || $${index} || '%'`);
+        if (searchFields?.isLikeSearch) {
+          conditions.push(`campaignName ILIKE '%' || $${index} || '%'`);
+        } else {
+          conditions.push(`campaignName = $${index}`);
+        }
         values.push(searchFields[field]);
         index++;
       } else if (field != "status") {
@@ -2377,7 +2425,7 @@ async function getCodesTarget(request: any, localizationMap?: any) {
     // Iterate through each key in targetData
     for (const key in targetData) {
       // Iterate through each entry in the array under the current key
-      targetData[key].forEach((entry : any) => {
+      targetData[key].forEach((entry: any) => {
         // Check if the entry has both "Boundary Code" and "Target at the Selected Boundary level"
         if (
           entry[codeColumnName] !== undefined &&
@@ -2388,7 +2436,7 @@ async function getCodesTarget(request: any, localizationMap?: any) {
             entry["Target at the Selected Boundary level"];
           if (
             Object.keys(entry["Parent Target at the Selected Boundary level"]).length > 0 &&
-            !_.isEqual(entry["Parent Target at the Selected Boundary level"],entry["Target at the Selected Boundary level"])
+            !_.isEqual(entry["Parent Target at the Selected Boundary level"], entry["Target at the Selected Boundary level"])
           ) {
             boundaryCodesWhoseTargetsHasToBeUpdated.push(entry[codeColumnName]);
           }
@@ -2686,28 +2734,28 @@ async function userCredGeneration(campaignDetails: any, useruuid: string, locale
   let userCredGenerationProcess = allProcesses.userCredGeneration;
   let allCurrentProcesses = await getCurrentProcesses(campaignDetails?.campaignNumber, campaignDetails?.tenantId);
   let task = allCurrentProcesses.find((process: any) => process?.processName == userCredGenerationProcess);
-  if(task && task?.status == processStatuses.pending) {
-    const generateTemplateQuery : GenerateTemplateQuery = {
-       type : "userCredential",
-       campaignId : campaignDetails?.id,
-       tenantId : campaignDetails?.tenantId,
-       hierarchyType : campaignDetails?.hierarchyType
+  if (task && task?.status == processStatuses.pending) {
+    const generateTemplateQuery: GenerateTemplateQuery = {
+      type: "userCredential",
+      campaignId: campaignDetails?.id,
+      tenantId: campaignDetails?.tenantId,
+      hierarchyType: campaignDetails?.hierarchyType
     }
     const response = await generateDataService(generateTemplateQuery, useruuid, locale);
-    if(response && response?.id ){
+    if (response && response?.id) {
       logger.info(`Waiting for 10 seconds for user cred to template to persist...`);
       await new Promise(resolve => setTimeout(resolve, 10000));
       let status = response?.status;
       let attempts = 0
-      while(status == generatedResourceStatuses.inprogress && attempts < 15) {
-        const generatedResources : any = await searchAllGeneratedResources({ id : response?.id, tenantId : campaignDetails?.tenantId }, undefined);
-        if(generatedResources?.length > 0) {
+      while (status == generatedResourceStatuses.inprogress && attempts < 15) {
+        const generatedResources: any = await searchAllGeneratedResources({ id: response?.id, tenantId: campaignDetails?.tenantId }, undefined);
+        if (generatedResources?.length > 0) {
           status = generatedResources[0]?.status;
-          if(status == generatedResourceStatuses.completed) {
+          if (status == generatedResourceStatuses.completed) {
             break;
           }
         }
-        else{
+        else {
           throwError("COMMON", 400, "USER_CREDENTIAL_GENERATION_ERROR", "User credential generation failed");
         }
         logger.info(`Attempts : ${attempts + 1} | Status : ${status} | Waiting for 20 seconds for user cred generation to get completed...`);
@@ -2719,29 +2767,29 @@ async function userCredGeneration(campaignDetails: any, useruuid: string, locale
         }
         attempts++;
       }
-      if(status != generatedResourceStatuses.completed) {
+      if (status != generatedResourceStatuses.completed) {
         throwError("COMMON", 400, "USER_CREDENTIAL_GENERATION_ERROR", "User credential generation failed");
       }
     }
-    else{
+    else {
       throwError("COMMON", 400, "USER_CREDENTIAL_GENERATION_ERROR", "User credential generation failed");
     }
   }
 }
 
-async function createAllResources(campaignDetails: any,parentCampaign : any, useruuid: string) {
+async function createAllResources(campaignDetails: any, parentCampaign: any, useruuid: string) {
   const { maxAttemptsForResourceCreationOrMapping, waitTimeOfEachAttemptOfResourceCreationOrMappping } = config?.resourceCreationConfig
   let allCurrentProcesses = await getCurrentProcesses(campaignDetails?.campaignNumber, campaignDetails?.tenantId);
-  const resourcesTask = [allProcesses.facilityCreation,allProcesses.userCreation,allProcesses.projectCreation];
+  const resourcesTask = [allProcesses.facilityCreation, allProcesses.userCreation, allProcesses.projectCreation];
   for (let i = 0; i < resourcesTask?.length; i++) {
     const task = allCurrentProcesses.find((process: any) => process?.processName == resourcesTask[i]);
-    if(task && task?.status == processStatuses.pending) {
+    if (task && task?.status == processStatuses.pending) {
       await produceModifiedMessages({
         task,
-        CampaignDetails : campaignDetails,
+        CampaignDetails: campaignDetails,
         parentCampaign,
         useruuid
-      }, config.kafka.KAFKA_START_ADMIN_CONSOLE_TASK_TOPIC, campaignDetails?.tenantId ,resourcesTask[i]);
+      }, config.kafka.KAFKA_START_ADMIN_CONSOLE_TASK_TOPIC, campaignDetails?.tenantId, resourcesTask[i]);
     }
   }
   let allTaskCompleted = false;
@@ -2762,7 +2810,7 @@ async function createAllResources(campaignDetails: any,parentCampaign : any, use
     if (facilityTask?.status == processStatuses.completed && userTask?.status == processStatuses.completed && projectTask?.status == processStatuses.completed) {
       allTaskCompleted = true;
     }
-    if(facilityTask?.status == processStatuses.failed || userTask?.status == processStatuses.failed || projectTask?.status == processStatuses.failed) {
+    if (facilityTask?.status == processStatuses.failed || userTask?.status == processStatuses.failed || projectTask?.status == processStatuses.failed) {
       anyTaskFailed = true;
     }
     const campaignResp = await searchProjectTypeCampaignService({ tenantId: campaignDetails?.tenantId, ids: [campaignDetails?.id] });
@@ -2778,15 +2826,15 @@ async function createAllResources(campaignDetails: any,parentCampaign : any, use
   const totalTimeInMinutes = (totalTimeTakenInMs / (1000 * 60)).toFixed(2);
 
   logger.info(`⏱️ Total time taken for resource creation: ${totalTimeInSeconds}s (~${totalTimeInMinutes} minutes)`);
-  if(anyTaskFailed) {
+  if (anyTaskFailed) {
     let failedTasks = [];
-    if(facilityTask?.status == processStatuses.failed) {
+    if (facilityTask?.status == processStatuses.failed) {
       failedTasks.push(allProcesses.facilityCreation);
     }
-    if(userTask?.status == processStatuses.failed) {
+    if (userTask?.status == processStatuses.failed) {
       failedTasks.push(allProcesses.userCreation);
     }
-    if(projectTask?.status == processStatuses.failed) {
+    if (projectTask?.status == processStatuses.failed) {
       failedTasks.push(allProcesses.projectCreation);
     }
     throwError("COMMON", 400, "RESOURCE_CREATION_ERROR", `${failedTasks.join(", ")} tasks failed.`);
@@ -2798,28 +2846,28 @@ async function createAllResources(campaignDetails: any,parentCampaign : any, use
   await new Promise(resolve => setTimeout(resolve, 20000));
 }
 
-async function createAllMappings(campaignDetails: any, parentCampaign : any, useruuid: string) {
+async function createAllMappings(campaignDetails: any, parentCampaign: any, useruuid: string) {
   const { maxAttemptsForResourceCreationOrMapping, waitTimeOfEachAttemptOfResourceCreationOrMappping } = config?.resourceCreationConfig;
   logger.info(`Starting mappings...`);
-  let mappingProcesses = [allProcesses.facilityMapping,allProcesses.userMapping,allProcesses.resourceMapping];
+  let mappingProcesses = [allProcesses.facilityMapping, allProcesses.userMapping, allProcesses.resourceMapping];
   let allCurrentProcesses = await getCurrentProcesses(campaignDetails?.campaignNumber, campaignDetails?.tenantId);
   for (let i = 0; i < mappingProcesses?.length; i++) {
-    const task : any = allCurrentProcesses.find((process: any) => process?.processName == mappingProcesses[i]);
-    if(task && task?.status == processStatuses.pending) {
+    const task: any = allCurrentProcesses.find((process: any) => process?.processName == mappingProcesses[i]);
+    if (task && task?.status == processStatuses.pending) {
       await produceModifiedMessages({
         task,
-        CampaignDetails : campaignDetails,
+        CampaignDetails: campaignDetails,
         parentCampaign,
         useruuid
-      }, config.kafka.KAFKA_START_ADMIN_CONSOLE_MAPPING_TASK_TOPIC, campaignDetails?.tenantId , mappingProcesses[i]);
+      }, config.kafka.KAFKA_START_ADMIN_CONSOLE_MAPPING_TASK_TOPIC, campaignDetails?.tenantId, mappingProcesses[i]);
     }
   }
   let allTaskCompleted = false;
   let anyTaskFailed = false;
   let attempts = 0;
-  let facilityMappingTask : any, userMappingTask : any, resourceMappingTask : any;
+  let facilityMappingTask: any, userMappingTask: any, resourceMappingTask: any;
   const startTime = Date.now();
-  while(allTaskCompleted == false && anyTaskFailed == false && attempts < maxAttemptsForResourceCreationOrMapping) {
+  while (allTaskCompleted == false && anyTaskFailed == false && attempts < maxAttemptsForResourceCreationOrMapping) {
     logger.info(`Attempt ${attempts + 1}/${maxAttemptsForResourceCreationOrMapping}`);
     logger.info(`Waiting ${waitTimeOfEachAttemptOfResourceCreationOrMappping / 1000}s before polling mapping statuses...`);
     await new Promise(resolve => setTimeout(resolve, waitTimeOfEachAttemptOfResourceCreationOrMappping));
@@ -2829,10 +2877,10 @@ async function createAllMappings(campaignDetails: any, parentCampaign : any, use
     userMappingTask = userMappingTaskArray[0];
     let resourceMappingTaskArray = await getCurrentProcesses(campaignDetails?.campaignNumber, campaignDetails?.tenantId, allProcesses.resourceMapping);
     resourceMappingTask = resourceMappingTaskArray[0];
-    if(facilityMappingTask?.status == processStatuses.completed && userMappingTask?.status == processStatuses.completed && resourceMappingTask?.status == processStatuses.completed) {
+    if (facilityMappingTask?.status == processStatuses.completed && userMappingTask?.status == processStatuses.completed && resourceMappingTask?.status == processStatuses.completed) {
       allTaskCompleted = true;
     }
-    if(facilityMappingTask?.status == processStatuses.failed || userMappingTask?.status == processStatuses.failed || resourceMappingTask?.status == processStatuses.failed) {
+    if (facilityMappingTask?.status == processStatuses.failed || userMappingTask?.status == processStatuses.failed || resourceMappingTask?.status == processStatuses.failed) {
       anyTaskFailed = true;
     }
     const campaignResp = await searchProjectTypeCampaignService({ tenantId: campaignDetails?.tenantId, ids: [campaignDetails?.id] });
@@ -2850,15 +2898,15 @@ async function createAllMappings(campaignDetails: any, parentCampaign : any, use
     `⏱️ Total time taken for mappings creation: ${totalTimeInSeconds}s (~${totalTimeInMinutes} minutes)`
   );
 
-  if(anyTaskFailed) {
+  if (anyTaskFailed) {
     let failedTasks = [];
-    if(facilityMappingTask?.status == processStatuses.failed) {
+    if (facilityMappingTask?.status == processStatuses.failed) {
       failedTasks.push(allProcesses.facilityMapping);
     }
-    if(userMappingTask?.status == processStatuses.failed) {
+    if (userMappingTask?.status == processStatuses.failed) {
       failedTasks.push(allProcesses.userMapping);
     }
-    if(resourceMappingTask?.status == processStatuses.failed) {
+    if (resourceMappingTask?.status == processStatuses.failed) {
       failedTasks.push(allProcesses.resourceMapping);
     }
     throwError("COMMON", 400, "RESOURCE_MAPPING_ERROR", `${failedTasks.join(", ")} tasks failed.`);
@@ -3451,7 +3499,7 @@ async function generateFilteredBoundaryData(
   //   request,
   //   params
   // );
-  const boundaryRelationshipResponse = await searchBoundaryRelationshipData(request?.query?.tenantId,request?.query?.hierarchyType,true,true,true,rootBoundary?.[0]?.code);
+  const boundaryRelationshipResponse = await searchBoundaryRelationshipData(request?.query?.tenantId, request?.query?.hierarchyType, true, true, true, rootBoundary?.[0]?.code);
   const boundaryDataFromRootOnwards = boundaryRelationshipResponse?.TenantBoundary?.[0]?.boundary;
   logger.info(`filtering the boundaries`);
   const filteredBoundaryList = filterBoundaries(
@@ -3669,7 +3717,7 @@ async function autoGenerateBoundaryCodesForGeoJson(
   logger.info(
     "Initiated the localisation message creation for the uploaded boundary"
   );
-  transformAndCreateLocalisation(boundaryMap, request,false,false);
+  transformAndCreateLocalisation(boundaryMap, request, false, false);
   const boundaryFileDetails: any = await createAndUploadJsonFile(
     boundaryGeoJsonAfterProcessing,
     request
@@ -3968,7 +4016,7 @@ const autoGenerateBoundaryCodes = async (
       boundaryData,
       localizedHeadersOfBoundarySheet
     );
-    const result =  updateBoundaryDataForBoundaryManagement(
+    const result = updateBoundaryDataForBoundaryManagement(
       request,
       boundaryData,
       localizationMap
@@ -4040,8 +4088,8 @@ const autoGenerateBoundaryCodes = async (
   if (type === "boundaryManagement") {
     headers = [
       ...headers,
-      getLocalizedName("HCM_ADMIN_CONSOLE_FRENCH_LOCALIZATION_MESSAGE",localizationMap),
-      getLocalizedName("HCM_ADMIN_CONSOLE_FRENCH_LOCALIZATION_MESSAGE",localizationMap),
+      getLocalizedName("HCM_ADMIN_CONSOLE_FRENCH_LOCALIZATION_MESSAGE", localizationMap),
+      getLocalizedName("HCM_ADMIN_CONSOLE_FRENCH_LOCALIZATION_MESSAGE", localizationMap),
       getLocalizedName("HCM_ADMIN_CONSOLE_LAT", localizationMap),
       getLocalizedName("HCM_ADMIN_CONSOLE_LONG", localizationMap)
     ];
@@ -4482,13 +4530,13 @@ function createIdRequests(employees: any[]): any[] {
   }
 }
 
-async function createUniqueUserNameViaIdGen(idRequests : any) {
+async function createUniqueUserNameViaIdGen(idRequests: any) {
   const idgenurl = config?.host?.idGenHost + config?.paths?.idGen;
   try {
     // Make HTTP request to ID generation service
     const result = await httpRequest(
       idgenurl,
-      {RequestInfo: defaultRequestInfo?.RequestInfo, idRequests},
+      { RequestInfo: defaultRequestInfo?.RequestInfo, idRequests },
       undefined,
       undefined,
       undefined,
@@ -4589,14 +4637,14 @@ async function updateCampaignAfterSearch(request: any, source = "MICROPLAN_FETCH
   }
 }
 
-export function getBoundaryCodeAndBoundaryTypeMapping(boundaries : any, currentMapping : any = {}) {
-   for(const boundary of boundaries) {
-     currentMapping[boundary.code] = boundary.boundaryType;
-     if(boundary.children?.length > 0) {
-       getBoundaryCodeAndBoundaryTypeMapping(boundary.children, currentMapping);
-     }
-   }
-   return currentMapping;
+export function getBoundaryCodeAndBoundaryTypeMapping(boundaries: any, currentMapping: any = {}) {
+  for (const boundary of boundaries) {
+    currentMapping[boundary.code] = boundary.boundaryType;
+    if (boundary.children?.length > 0) {
+      getBoundaryCodeAndBoundaryTypeMapping(boundary.children, currentMapping);
+    }
+  }
+  return currentMapping;
 }
 
 export function validateUsernamesFormat(data: any[], localizationMap: any) {
@@ -4665,17 +4713,17 @@ export function getAllColumnsFromSchema(schema: any) {
 }
 
 export async function isCampaignIdOfMicroplan(tenantId: string, campaignId: string) {
-    try {
-        const tableName = getTableName(config.DB_CONFIG.DB_CAMPAIGN_DETAILS_TABLE_NAME, tenantId);
-        const query = `SELECT id FROM ${tableName} WHERE id = $1 and tenantId = $2 and additionalDetails->>'source' = 'microplan'`;
-        const result = await executeQuery(query, [campaignId, tenantId]);
-        return Array.isArray(result?.rows) && result?.rows?.length > 0;
-    } catch (e) {
-        console.log(e);
-        logger.error(`Error checking if campaign id ${campaignId} is of microplan: ${e}`);
-        throwError("COMMON", 500, "INTERNAL_SERVER_ERROR", "Error checking if campaign id is of microplan");
-        return false;
-    }
+  try {
+    const tableName = getTableName(config.DB_CONFIG.DB_CAMPAIGN_DETAILS_TABLE_NAME, tenantId);
+    const query = `SELECT id FROM ${tableName} WHERE id = $1 and tenantId = $2 and additionalDetails->>'source' = 'microplan'`;
+    const result = await executeQuery(query, [campaignId, tenantId]);
+    return Array.isArray(result?.rows) && result?.rows?.length > 0;
+  } catch (e) {
+    console.log(e);
+    logger.error(`Error checking if campaign id ${campaignId} is of microplan: ${e}`);
+    throwError("COMMON", 500, "INTERNAL_SERVER_ERROR", "Error checking if campaign id is of microplan");
+    return false;
+  }
 }
 
 export {
