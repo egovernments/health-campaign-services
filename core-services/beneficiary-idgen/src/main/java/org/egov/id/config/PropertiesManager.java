@@ -44,4 +44,7 @@ public class PropertiesManager {
 	public Boolean getIdValidationEnabled() {
 		return Boolean.parseBoolean(environment.getProperty("id.validation.enabled", "false"));
 	}
+	public String getIdPoolAsyncCreateTopic() {
+		return environment.getProperty("kafka.topics.consumer.bulk.create.topic");
+	}
 }
