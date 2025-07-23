@@ -299,32 +299,80 @@ async function getBoundariesFromCampaignSearchResponse(request: any, campaignDet
   return getBoundariesArray(parentCampaignBoundaries, campaignDetails?.boundaries)
 }
 
-async function fetchProjectsWithProjectId(request: any, projectId: any, tenantId: any) {
+// async function fetchProjectsWithProjectId(request: any, projectId: any, tenantId: any) {
+//   const projectSearchBody = {
+//     RequestInfo: request?.body?.RequestInfo || request?.RequestInfo,
+//     Projects: [
+//       {
+//         id: projectId,
+//         tenantId: tenantId
+//       }
+//     ]
+//   }
+//   const projectSearchParams = {
+//     tenantId: tenantId,
+//     offset: 0,
+//     limit: 1,
+//     includeDescendants: true
+//   }
+//   logger.info("Project search params " + JSON.stringify(projectSearchParams))
+//   const projectSearchResponse = await httpRequest(config?.host?.projectHost + config?.paths?.projectSearch, projectSearchBody, projectSearchParams);
+//   if (projectSearchResponse?.Project && Array.isArray(projectSearchResponse?.Project) && projectSearchResponse?.Project?.length > 0) {
+//     return projectSearchResponse;
+//   }
+//   else {
+//     throwError("PROJECT", 500, "PROJECT_SEARCH_ERROR")
+//     return []
+//   }
+// }
+
+async function fetchProjectsWithProjectId(
+  request: any,
+  projectIds: string | string[], // can accept string or array of strings
+  tenantId: string,
+  includeDescendants: boolean = true   // default to true
+) {
+  // Normalize to array
+  const idsArray = Array.isArray(projectIds) ? projectIds : [projectIds];
+
+  if (idsArray.length === 0) return [];
+
   const projectSearchBody = {
     RequestInfo: request?.body?.RequestInfo || request?.RequestInfo,
-    Projects: [
-      {
-        id: projectId,
-        tenantId: tenantId
-      }
-    ]
-  }
+    Projects: idsArray.map(id => ({
+      id,
+      tenantId
+    }))
+  };
+
   const projectSearchParams = {
-    tenantId: tenantId,
+    tenantId,
     offset: 0,
-    limit: 1,
-    includeDescendants: true
-  }
-  logger.info("Project search params " + JSON.stringify(projectSearchParams))
-  const projectSearchResponse = await httpRequest(config?.host?.projectHost + config?.paths?.projectSearch, projectSearchBody, projectSearchParams);
-  if (projectSearchResponse?.Project && Array.isArray(projectSearchResponse?.Project) && projectSearchResponse?.Project?.length > 0) {
-    return projectSearchResponse;
-  }
-  else {
-    throwError("PROJECT", 500, "PROJECT_SEARCH_ERROR")
-    return []
+    limit: idsArray.length, // Optional: adjust based on expected max
+    includeDescendants: includeDescendants
+  };
+
+  logger.info("Project search params: " + JSON.stringify(projectSearchParams));
+  logger.info("Project search body: " + JSON.stringify(projectSearchBody));
+
+  const projectSearchResponse = await httpRequest(
+    config?.host?.projectHost + config?.paths?.projectSearch,
+    projectSearchBody,
+    projectSearchParams
+  );
+
+  if (
+    projectSearchResponse?.Project &&
+    Array.isArray(projectSearchResponse?.Project) &&
+    projectSearchResponse.Project.length > 0
+  ) {
+    return projectSearchResponse.Project; // Always return array
+  } else {
+    throwError("PROJECT", 500, "PROJECT_SEARCH_ERROR");
+    return [];
   }
 }
+
 
 
 async function fetchProjectsWithBoundaryCodeAndReferenceId(boundaryCode: any, tenantId: any, referenceId: any, RequestInfo?: any) {

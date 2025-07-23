@@ -89,7 +89,7 @@ class campaignManageController {
             logger.info("RECEIVED A PROJECT TYPE SEARCH REQUEST");
             // Validate the search request for project type campaigns
             await validateSearchProjectCampaignRequest(request);
-            const responseBody = await searchProjectTypeCampaignService(request?.body?.CampaignDetails);
+            const responseBody = await searchProjectTypeCampaignService(request?.body?.CampaignDetails ,request);
             // Send response with campaign details and total count
             return sendResponse(response, responseBody, request);
         } catch (e: any) {
