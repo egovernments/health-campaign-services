@@ -1014,10 +1014,7 @@ async function enrichAndPersistCampaignWithError(requestBody: any, error: any) {
   await enrichRootProjectIdAndBoundaryCode(requestBody?.CampaignDetails);
   requestBody.CampaignDetails.additionalDetails = {
     ...requestBody?.CampaignDetails?.additionalDetails,
-    error: String(
-      error?.message + (error?.description ? ` : ${error?.description}` : "") ||
-      error
-    ),
+    error: error?.code || "INTERNAL_SERVER_ERROR",
   };
   const topic = config?.kafka?.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC;
   // wait for 2 seconds
@@ -1065,10 +1062,7 @@ export async function enrichAndPersistCampaignWithErrorProcessingTask(campaignDe
   };
   campaignDetails.additionalDetails = {
     ...campaignDetails?.additionalDetails,
-    error: String(
-      error?.message + (error?.description ? ` : ${error?.description}` : "") ||
-      error
-    ),
+    error: error?.code || "INTERNAL_SERVER_ERROR",
   };
   const topic = config?.kafka?.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC;
   // wait for 2 seconds
@@ -2687,17 +2681,35 @@ export async function processAfterPersistNew(request: any, actionInUrl: any) {
       request,
       request?.body?.CampaignDetails?.tenantId
     );
+
     if (request?.body?.CampaignDetails?.action == "create") {
       const locale = getLocaleFromRequest(request);
       const campaignDetails = request?.body?.CampaignDetails;
       const campaignNumber = campaignDetails?.campaignNumber;
-      await prepareProcessesInDb(campaignNumber, campaignDetails?.tenantId);
-      const useruuid = request?.body?.RequestInfo?.userInfo?.uuid || campaignDetails?.auditDetails?.createdBy;
-      await createAllResources(campaignDetails, request?.body?.parentCampaign || null, useruuid);
-      await createAllMappings(campaignDetails, request?.body?.parentCampaign || null, useruuid);
-      await userCredGeneration(campaignDetails, useruuid, locale);
-      await enrichAndPersistCampaignForCreateViaFlow2(campaignDetails);
-      triggerUserCredentialEmailFlow(request); // can use with or without await depending on background vs blocking
+      const tenantId = campaignDetails?.tenantId;
+      const useruuid =
+        request?.body?.RequestInfo?.userInfo?.uuid ||
+        campaignDetails?.auditDetails?.createdBy;
+
+      // Prepare DB setup synchronously
+      await prepareProcessesInDb(campaignNumber, tenantId);
+
+      // ✅ Offload the long chain into background (non-blocking)
+      setImmediate(async () => {
+        try {
+          await createAllResources(campaignDetails, request?.body?.parentCampaign || null, useruuid);
+          await createAllMappings(campaignDetails, request?.body?.parentCampaign || null, useruuid);
+          await userCredGeneration(campaignDetails, useruuid, locale);
+          await enrichAndPersistCampaignForCreateViaFlow2(campaignDetails);
+          triggerUserCredentialEmailFlow(request); // not awaited = background
+        } catch (e) {
+          logger.error("Async Background Flow Error:", e);
+          await enrichAndPersistCampaignWithError(request?.body, e);
+        }
+      });
+
+      // ✅ Immediately return so main thread isn't blocked
+      logger.info(`Started async background flow for campaign: ${campaignNumber}`);
     } else {
       await updateProjectDates(request, actionInUrl);
       await enrichAndPersistProjectCampaignRequest(
@@ -2707,6 +2719,7 @@ export async function processAfterPersistNew(request: any, actionInUrl: any) {
         localizationMap
       );
     }
+
     delete request.body?.boundariesCombined;
   } catch (error: any) {
     console.log(error);
@@ -2714,6 +2727,7 @@ export async function processAfterPersistNew(request: any, actionInUrl: any) {
     await enrichAndPersistCampaignWithError(request?.body, error);
   }
 }
+
 
 async function userCredGeneration(campaignDetails: any, useruuid: string, locale: string = config.localisation.defaultLocale) {
   logger.info(`Starting user cred generation...`);
@@ -2802,7 +2816,7 @@ async function createAllResources(campaignDetails: any, parentCampaign: any, use
     const campaignResp = await searchProjectTypeCampaignService({ tenantId: campaignDetails?.tenantId, ids: [campaignDetails?.id] });
     const campaignDetailsStatus = campaignResp?.CampaignDetails?.[0]?.status;
     if (campaignDetailsStatus == campaignStatuses.failed || !campaignDetailsStatus) {
-      throwError("COMMON", 400, "INTERNAL_SERVER_ERROR", "Campaign creation failed during resources creation.");
+      throwError("COMMON", 400, "RESOURCE_CREATION_ERROR", "Campaign creation failed during resources creation.");
     }
     attempts++;
   }
@@ -2823,10 +2837,10 @@ async function createAllResources(campaignDetails: any, parentCampaign: any, use
     if (projectTask?.status == processStatuses.failed) {
       failedTasks.push(allProcesses.projectCreation);
     }
-    throwError("COMMON", 400, "INTERNAL_SERVER_ERROR", `${failedTasks.join(", ")} tasks failed.`);
+    throwError("COMMON", 400, "RESOURCE_CREATION_ERROR", `${failedTasks.join(", ")} tasks failed.`);
   }
-  else if (!allTaskCompleted) {
-    throwError("COMMON", 400, "INTERNAL_SERVER_ERROR", "Resources creation timed out.");
+  else if(!allTaskCompleted) {
+    throwError("COMMON", 400, "RESOURCE_CREATION_TIMED_OUT", "Resources creation timed out.");
   }
   logger.info(`Waiting for 20 seconds for all resources to get persisted...`);
   await new Promise(resolve => setTimeout(resolve, 20000));
@@ -2872,7 +2886,7 @@ async function createAllMappings(campaignDetails: any, parentCampaign: any, user
     const campaignResp = await searchProjectTypeCampaignService({ tenantId: campaignDetails?.tenantId, ids: [campaignDetails?.id] });
     const campaignDetailsStatus = campaignResp?.CampaignDetails?.[0]?.status;
     if (campaignDetailsStatus == campaignStatuses.failed || !campaignDetailsStatus) {
-      throwError("COMMON", 400, "INTERNAL_SERVER_ERROR", "Campaign creation failed during mappings creation.");
+      throwError("COMMON", 400, "RESOURCE_MAPPING_ERROR", "Campaign creation failed during mappings creation.");
     }
     attempts++;
   }
@@ -2895,10 +2909,10 @@ async function createAllMappings(campaignDetails: any, parentCampaign: any, user
     if (resourceMappingTask?.status == processStatuses.failed) {
       failedTasks.push(allProcesses.resourceMapping);
     }
-    throwError("COMMON", 400, "INTERNAL_SERVER_ERROR", `${failedTasks.join(", ")} tasks failed.`);
+    throwError("COMMON", 400, "RESOURCE_MAPPING_ERROR", `${failedTasks.join(", ")} tasks failed.`);
   }
-  else if (!allTaskCompleted) {
-    throwError("COMMON", 400, "INTERNAL_SERVER_ERROR", "Mappings creation timed out.");
+  else if(!allTaskCompleted) {
+    throwError("COMMON", 400, "RESOURCE_MAPPING_TIMED_OUT", "Mappings creation timed out.");
   }
   campaignDetails.status = campaignStatuses.completed;
 }
