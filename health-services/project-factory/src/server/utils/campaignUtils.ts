@@ -1013,7 +1013,7 @@ async function enrichAndPersistCampaignWithError(requestBody: any, error: any) {
   await enrichRootProjectIdAndBoundaryCode(requestBody?.CampaignDetails);
   requestBody.CampaignDetails.additionalDetails = {
     ...requestBody?.CampaignDetails?.additionalDetails,
-    error: String(error?.code) || "INTERNAL_SERVER_ERROR",
+    error: error?.code || "INTERNAL_SERVER_ERROR",
   };
   const topic = config?.kafka?.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC;
   // wait for 2 seconds
@@ -1061,7 +1061,7 @@ export async function enrichAndPersistCampaignWithErrorProcessingTask(campaignDe
   };
   campaignDetails.additionalDetails = {
     ...campaignDetails?.additionalDetails,
-    error: String(error?.code) || "INTERNAL_SERVER_ERROR",
+    error: error?.code || "INTERNAL_SERVER_ERROR",
   };
   const topic = config?.kafka?.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC;
   // wait for 2 seconds
