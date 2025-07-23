@@ -66,9 +66,29 @@ public class IdGenerationService {
     @Value("${idgen.random.buffer:5}")
     public Integer defaultBufferPercentage;
 
-    @Value("${id.pool.create.max.batch.size:1000}")
-    private Integer MAX_BATCH_SIZE;
+    /**
+     * Maximum number of records to persist in a single batch to Kafka.
+     * This is used to control the size of each batch for performance and reliability.
+     */
+    @Value("${id.pool.max.records.per.persist.batch:1000}")
+    private Integer MAX_RECORDS_PER_PERSIST_BATCH;
+
+    /**
+     * Maximum size of each ID pool chunk to be sent to Kafka.
+     * This limits the number of IDs generated in a single request to avoid overwhelming the system.
+     */
+    @Value("${id.pool.max.ids.per.chunk:50000}")
+    private Integer MAX_ID_POOL_CHUNK_SIZE;
+
     private static final Pattern RANDOM_PATTERN = Pattern.compile("\\[d\\{\\d+}]");
+
+    /**
+     * Padding length for sequence numbers in generated IDs.
+     * This ensures that sequence numbers are zero-padded to a fixed length for consistency.
+     */
+    @Value("${id.pool.padding.length:12}")
+    private Integer paddingLength;
+
     /**
      * Description : This method to generate idGenerationResponse
      *
@@ -100,84 +120,54 @@ public class IdGenerationService {
 
     }
 
-
     /**
-     * Generates a pool of IDs in batches for multiple tenants as specified in the request.
-     * Validates each batch, generates IDs according to the configured ID format,
-     * persists generated IDs to Kafka for asynchronous processing, and returns a detailed feedback list.
+     * Description : This method to generate ID pool in batches and persist them to Kafka.
+     * It handles chunking of requests, validates input, and returns a response with results.
      *
-     * @param idPoolGenerationRequest the request containing multiple batch requests with tenant and batch size info
-     * @return IDPoolGenerationResponse containing success or error feedback for each batch processed
-     * @throws CustomException if validation fails or any processing error occurs
+     * @param request the ID pool generation request containing batch details
+     * @return IDPoolGenerationResponse containing results of the ID pool creation
      */
-    public IDPoolGenerationResponse generateIDPool(IDPoolGenerationRequest idPoolGenerationRequest) {
-        RequestInfo requestInfo = idPoolGenerationRequest.getRequestInfo();
-        List<BatchRequest> batchRequestList = idPoolGenerationRequest.getBatchRequestList();
+    public IDPoolGenerationResponse generateIDPool(IDPoolGenerationRequest request) {
+        List<BatchRequest> batches = request.getBatchRequestList();
 
-        log.info("Received ID pool generation request. Total batch requests: {}", batchRequestList.size());
-
-        if (batchRequestList.isEmpty()) {
-            log.error("EMPTY REQUEST: Please provide tenantId and the batch size");
-            throw new CustomException("EMPTY REQUEST", "Please provide tenantId and the batch size");
+        // Validate input
+        if (batches == null || batches.isEmpty()) {
+            throw new CustomException("EMPTY REQUEST", "Batch list is empty.");
         }
 
-        IDPoolGenerationResponse response = IDPoolGenerationResponse.builder()
-                .responseInfo(ResponseInfoUtil.createResponseInfoFromRequestInfo(requestInfo, true))
-                .build();
+        List<IDPoolCreationResult> results = new ArrayList<>();
 
-        List<IDPoolCreationResult> createResponses = new ArrayList<>();
-        int index = 0;
-
-        for (BatchRequest batch : batchRequestList) {
-            log.info("Processing batch index {}: tenantId={}, batchSize={}", index, batch.getTenantId(), batch.getBatchSize());
-
-            String tenantId = batch.getTenantId();
-            try {
-                Integer originalBatchSize = batch.getBatchSize();
-
-                // Validate batch size must be > 0
-                if (originalBatchSize <= 0) {
-                    log.error("Validation Error - Please make sure the batch size is greater than 0");
-                    throw new CustomException("Validation Error:", "Please make sure the batch size is greater than 0");
-                }
-
-                log.info("Fetching ID format for tenant: {}", tenantId);
-                String idFormat = fetchIdFormat(tenantId, originalBatchSize, requestInfo);
-
-                // Adjust batch size if ID format involves randomness (e.g. random suffix)
-                Integer adjustedBatchSize = adjustBatchSizeIfRandom(originalBatchSize, idFormat);
-                log.info("Adjusted batch size: {} (original: {})", adjustedBatchSize, originalBatchSize);
-
-                IdRequest finalIdRequest = new IdRequest(idPoolName, tenantId, null, adjustedBatchSize);
-
-                // Generate IDs based on adjusted batch size and ID format
-                List<String> generatedIds = generateIds(finalIdRequest, requestInfo);
-
-                log.info("Successfully generated {} IDs for tenant {}", generatedIds.size(), tenantId);
-
-                // Persist generated IDs asynchronously to Kafka for downstream processing
-                persistToKafka(requestInfo, generatedIds, tenantId);
-                log.info("Successfully pushed IDs to Kafka for tenant {}", tenantId);
-
-                IDPoolCreationResult createResponse = IDPoolCreationResult.builder()
-                        .tenantId(tenantId)
-                        .message("ID Generation has been processed")
+        // Iterate over all batch requests
+        for (BatchRequest batch : batches) {
+            int fullSize = batch.getTotalCount(); // Total number of IDs requested
+            int sent = 0;
+            // Chunk and send large batch into smaller parts to Kafka
+            while (sent < fullSize) {
+                // Calculate the size of the current chunk
+                int chunkSize = Math.min(MAX_ID_POOL_CHUNK_SIZE, fullSize - sent);
+                // Build Kafka request for the current chunk
+                IDPoolGenerationKafkaRequest kafkaRequest = IDPoolGenerationKafkaRequest.builder()
+                        .tenantId(batch.getTenantId())
+                        .chunkSize(chunkSize)
+                        .requestInfo(request.getRequestInfo())
                         .build();
-                createResponses.add(createResponse);
-            } catch (Exception e) {
-                log.error("Error processing batch index {}: {}", index, e.getMessage(), e);
-                IDPoolCreationResult createResponse = IDPoolCreationResult.builder()
-                        .tenantId(tenantId)
-                        .message(e.getMessage())
-                        .build();
-                createResponses.add(createResponse);
+
+                // Push the chunked request to Kafka
+                idGenProducer.push(propertiesManager.getIdPoolBulkCreateTopic(), kafkaRequest);
+                sent += chunkSize;
             }
-            index++;
+            // Add a response message for this tenant
+            results.add(IDPoolCreationResult.builder()
+                    .tenantId(batch.getTenantId())
+                    .message("ID Generation is chunked and queued")
+                    .build());
         }
 
-        response.setIdPoolCreateResponses(createResponses);
-        log.info("ID pool generation completed for all batches.");
-        return response;
+        // Return a combined response for all tenants
+        return IDPoolGenerationResponse.builder()
+                .responseInfo(ResponseInfoUtil.createResponseInfoFromRequestInfo(request.getRequestInfo(), true))
+                .idPoolCreateResponses(results)
+                .build();
     }
 
     /**
@@ -241,6 +231,40 @@ public class IdGenerationService {
     }
 
     /**
+     * Handles asynchronous ID pool generation requests by fetching the ID format,
+     * generating IDs in batches, and persisting them to Kafka for further processing.
+     * Validates the batch size and handles exceptions gracefully.
+     *
+     * @param request the ID pool generation request containing tenant ID, batch size, and request info
+     */
+    public void handleAsyncIdPoolRequest(IDPoolGenerationKafkaRequest request) {
+        try {
+            String tenantId = request.getTenantId();
+            Integer chunkSize = request.getChunkSize();
+            RequestInfo requestInfo = request.getRequestInfo();
+
+            // Validate batch size
+            if (chunkSize <= 0) {
+                throw new CustomException("INVALID_BATCH_SIZE", "Batch size must be > 0");
+            }
+
+            // Fetch ID format and adjust batch size if necessary
+            String idFormat = fetchIdFormat(tenantId, chunkSize, requestInfo);
+            // Adjust batch size if ID format contains random patterns
+            Integer adjustedSize = adjustBatchSizeIfRandom(chunkSize, idFormat);
+            IdRequest idRequest = new IdRequest(idPoolName, tenantId, null, adjustedSize);
+            // Generate IDs
+            List<String> generatedIds = generateIds(idRequest, requestInfo);
+            // Persist generated IDs to Kafka
+            persistToKafka(requestInfo, generatedIds, tenantId);
+            log.info("Async ID pool generated and sent to Kafka for tenant {}", tenantId);
+        } catch (Exception e) {
+            log.error("Error in async ID pool generation", e);
+            // Optional: push to DLQ or retry topic
+        }
+    }
+
+    /**
      * Generates a list of IDs by invoking the underlying ID generation service.
      * Wraps exceptions to provide consistent error handling.
      *
@@ -269,7 +293,7 @@ public class IdGenerationService {
     private void persistToKafka(RequestInfo requestInfo, List<String> generatedIds, String tenantId) {
         log.trace("Starting Kafka persistence for generated IDs. Tenant ID: {}, Total IDs: {}", tenantId, generatedIds.size());
 
-        List<IdRecord> buffer = new ArrayList<>(MAX_BATCH_SIZE);
+        List<IdRecord> buffer = new ArrayList<>(MAX_RECORDS_PER_PERSIST_BATCH);
 
         for (int i = 0; i < generatedIds.size(); i++) {
             String generatedId = generatedIds.get(i);
@@ -285,10 +309,9 @@ public class IdGenerationService {
                     .rowVersion(1)
                     .build();
             buffer.add(idRecord);
-            log.trace("Buffered ID [{}] for Kafka persistence.", generatedId);
 
             // Send batch when buffer is full or last element reached
-            if (buffer.size() == MAX_BATCH_SIZE || i == generatedIds.size() - 1) {
+            if (buffer.size() == MAX_RECORDS_PER_PERSIST_BATCH || i == generatedIds.size() - 1) {
                 log.debug("Sending batch of {} IDs to Kafka topic: {}", buffer.size(), propertiesManager.getSaveIdPoolTopic());
                 sendBatch(propertiesManager.getSaveIdPoolTopic(), new ArrayList<>(buffer));
                 buffer.clear();
@@ -350,7 +373,6 @@ public class IdGenerationService {
 
         return getFormattedId(idRequest, requestInfo,autoCreateNewSeqFlag);
     }
-
 
     /**
      * Description : This method to generate Id when format is unknown and select MDMS or DB.
@@ -656,7 +678,7 @@ public class IdGenerationService {
             throw new CustomException("SEQ_NUMBER_ERROR","Error retrieving seq number from existing seq in DB");
         }
         for (String seqId : sequenceList) {
-            String seqNumber = String.format("%012d", Long.parseLong(seqId));
+            String seqNumber = String.format("%0" + paddingLength + "d", Long.parseLong(seqId));
             sequenceLists.add(seqNumber);
         }
         return sequenceLists;
