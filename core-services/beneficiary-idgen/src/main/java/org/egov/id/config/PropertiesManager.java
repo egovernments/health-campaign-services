@@ -49,8 +49,8 @@ public class PropertiesManager {
 	 *
 	 * @return true if the retrieval is restricted to IDs dispatched only today, false otherwise
 	 */
-	public boolean isIdDispatchedRetrieveOnlyTodayEnabled() {
-		return Boolean.parseBoolean(environment.getProperty("id.dispatched.retrieve.only.today.enabled", "true"));
+	public boolean isIdDispatchRetrievalLimitToTodayEnabled() {
+		return Boolean.parseBoolean(environment.getProperty("id.dispatch.retrieval.limit-to-today.enabled", "true"));
 	}
 
 	/**

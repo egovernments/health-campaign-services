@@ -70,15 +70,15 @@ public class IdGenerationService {
      * Maximum number of records to persist in a single batch to Kafka.
      * This is used to control the size of each batch for performance and reliability.
      */
-    @Value("${id.pool.max.records.per.persist.batch:1000}")
+    @Value("${id.pool.generation.max.records.per.persist.batch:1000}")
     private Integer MAX_RECORDS_PER_PERSIST_BATCH;
 
     /**
      * Maximum size of each ID pool chunk to be sent to Kafka.
      * This limits the number of IDs generated in a single request to avoid overwhelming the system.
      */
-    @Value("${id.pool.max.ids.per.chunk:50000}")
-    private Integer MAX_ID_POOL_CHUNK_SIZE;
+    @Value("${id.pool.generation.max.size:50000}")
+    private Integer ID_POOL_GENERATION_MAX_SIZE;
 
     private static final Pattern RANDOM_PATTERN = Pattern.compile("\\[d\\{\\d+}]");
 
@@ -144,7 +144,7 @@ public class IdGenerationService {
             // Chunk and send large batch into smaller parts to Kafka
             while (sent < fullSize) {
                 // Calculate the size of the current chunk
-                int chunkSize = Math.min(MAX_ID_POOL_CHUNK_SIZE, fullSize - sent);
+                int chunkSize = Math.min(ID_POOL_GENERATION_MAX_SIZE, fullSize - sent);
                 // Build Kafka request for the current chunk
                 IDPoolGenerationKafkaRequest kafkaRequest = IDPoolGenerationKafkaRequest.builder()
                         .tenantId(batch.getTenantId())

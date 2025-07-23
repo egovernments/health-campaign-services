@@ -119,7 +119,7 @@ public class IdDispatchService {
             log.debug("FetchAllocatedIds flag is true, fetching previously allocated IDs.");
 
             // Fetch all IDs already dispatched to this user/device for today
-            IdDispatchResponse idDispatchResponse = fetchAllDispatchedIds(request, propertiesManager.isIdDispatchedRetrieveOnlyTodayEnabled());
+            IdDispatchResponse idDispatchResponse = fetchAllDispatchedIds(request, propertiesManager.isIdDispatchRetrievalLimitToTodayEnabled());
             long actualRemainingCountToday = totalLimit - idDispatchResponse.getTotalCount();
             if(remainingCount != actualRemainingCountToday) {
                 redissonIDService.updateUserDeviceDispatchedIDCountForToday(tenantId, userUuid, deviceUuid, idDispatchResponse.getTotalCount(), false);
