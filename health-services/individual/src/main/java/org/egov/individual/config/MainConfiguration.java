@@ -27,11 +27,11 @@ import org.springframework.http.converter.json.MappingJackson2HttpMessageConvert
 import jakarta.annotation.PostConstruct;
 import java.util.TimeZone;
 
-    @Import({TracerConfiguration.class})
-    @Configuration
-    @ComponentScan(basePackages = {"org.egov.individual", "org.egov.encryption", "org.egov.common"},
-            excludeFilters = @ComponentScan.Filter(type = FilterType.REGEX, pattern = {".*\\.Producer.*"}))
-    public class MainConfiguration {
+@Import({TracerConfiguration.class})
+@Configuration
+@ComponentScan(basePackages = {"org.egov.individual", "org.egov.encryption", "org.egov.common"},
+        excludeFilters = @ComponentScan.Filter(type = FilterType.REGEX, pattern = {".*\\.Producer.*"}))
+public class MainConfiguration {
 
     @Value("${app.timezone}")
     private String timeZone;

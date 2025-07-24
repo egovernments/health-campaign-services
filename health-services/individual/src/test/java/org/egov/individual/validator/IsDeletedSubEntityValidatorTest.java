@@ -10,7 +10,7 @@ import org.egov.common.models.individual.IndividualBulkRequest;
 import org.egov.common.models.individual.Skill;
 import org.egov.individual.helper.IndividualBulkRequestTestBuilder;
 import org.egov.individual.helper.IndividualTestBuilder;
-import org.egov.individual.validators.IsDeletedSubEntityValidator;
+import org.egov.individual.validators.individual.IsDeletedSubEntityValidator;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;

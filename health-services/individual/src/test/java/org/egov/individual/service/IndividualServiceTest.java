@@ -14,8 +14,8 @@ import org.egov.individual.helper.IndividualRequestTestBuilder;
 import org.egov.individual.helper.IndividualTestBuilder;
 import org.egov.individual.repository.IndividualRepository;
 import org.egov.individual.util.BeneficiaryIdGenUtil;
-import org.egov.individual.validators.AddressTypeValidator;
-import org.egov.individual.validators.UniqueSubEntityValidator;
+import org.egov.individual.validators.individual.AddressTypeValidator;
+import org.egov.individual.validators.individual.UniqueSubEntityValidator;
 import org.egov.tracer.model.CustomException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
@@ -66,7 +66,7 @@ class IndividualServiceTest {
     private IndividualProperties properties;
 
     @Mock
-    private EnrichmentService enrichmentService;
+    private IndividualEnrichmentService enrichmentService;
     @Mock
     private IndividualEncryptionService encryptionService;
 

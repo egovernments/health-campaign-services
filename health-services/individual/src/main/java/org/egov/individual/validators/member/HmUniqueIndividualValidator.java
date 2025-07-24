@@ -1,0 +1,99 @@
+package org.egov.individual.validators.member;
+
+import lombok.extern.slf4j.Slf4j;
+import org.egov.common.contract.request.RequestInfo;
+import org.egov.common.exception.InvalidTenantIdException;
+import org.egov.common.models.Error;
+import org.egov.common.models.core.SearchResponse;
+import org.egov.common.models.household.HouseholdMember;
+import org.egov.common.models.household.HouseholdMemberBulkRequest;
+import org.egov.common.models.individual.Individual;
+import org.egov.common.validator.Validator;
+import org.egov.individual.repository.HouseholdMemberRepository;
+import org.egov.individual.service.IndividualService;
+import org.egov.tracer.model.CustomException;
+import org.springframework.core.annotation.Order;
+import org.springframework.stereotype.Component;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+import static org.egov.common.utils.CommonUtils.getTenantId;
+import static org.egov.common.utils.CommonUtils.notHavingErrors;
+import static org.egov.common.utils.CommonUtils.populateErrorDetails;
+import static org.egov.common.utils.ValidatorUtils.getErrorForInvalidTenantId;
+import static org.egov.individual.Constants.INDIVIDUAL_ALREADY_MEMBER_OF_HOUSEHOLD;
+import static org.egov.individual.Constants.INDIVIDUAL_ALREADY_MEMBER_OF_HOUSEHOLD_MESSAGE;
+import static org.egov.individual.util.ValidatorUtil.getHouseholdMembersWithNonNullIndividuals;
+
+@Component
+@Order(8)
+@Slf4j
+public class HmUniqueIndividualValidator implements Validator<HouseholdMemberBulkRequest, HouseholdMember> {
+    private final HouseholdMemberRepository householdMemberRepository;
+
+    private final IndividualService individualService;
+
+    public HmUniqueIndividualValidator(HouseholdMemberRepository householdMemberRepository,
+                                       IndividualService individualService) {
+        this.householdMemberRepository = householdMemberRepository;
+        this.individualService = individualService;
+    }
+
+    @Override
+    public Map<HouseholdMember, List<Error>> validate(HouseholdMemberBulkRequest householdMemberBulkRequest) {
+        HashMap<HouseholdMember, List<Error>> errorDetailsMap = new HashMap<>();
+        log.info("validating unique individual for household member");
+
+        List<HouseholdMember> validHouseholdMembers = householdMemberBulkRequest.getHouseholdMembers().stream()
+                .filter(notHavingErrors()).collect(Collectors.toList());
+
+        log.info("checking non null individuals for household member");
+        validHouseholdMembers = getHouseholdMembersWithNonNullIndividuals(errorDetailsMap, validHouseholdMembers);
+
+        if(!validHouseholdMembers.isEmpty()){
+            RequestInfo requestInfo = householdMemberBulkRequest.getRequestInfo();
+            String tenantId = getTenantId(validHouseholdMembers);
+            log.info("searching individuals for household member");
+            SearchResponse<Individual> searchResponse = individualService.searchIndividualBeneficiary(
+                    validHouseholdMembers,
+                    requestInfo,
+                    tenantId
+            );
+            validHouseholdMembers.forEach(householdMember -> {
+                Individual individual = individualService.validateIndividual(householdMember,
+                        searchResponse, errorDetailsMap);
+                if (individual != null) {
+                    householdMember.setIndividualId(individual.getId());
+                    householdMember.setIndividualClientReferenceId(individual.getClientReferenceId());
+
+                    log.info("finding individuals mappings in household member");
+                    // Check if the individual is already a member of a household
+                    // If yes, add an error to the error details map
+                    try {
+                        List<HouseholdMember> individualSearchResult = householdMemberRepository
+                                .findIndividual(tenantId, individual.getId()).getResponse();
+                        if(!individualSearchResult.isEmpty()) {
+                            Error error = Error.builder().errorMessage(INDIVIDUAL_ALREADY_MEMBER_OF_HOUSEHOLD_MESSAGE)
+                                    .errorCode(INDIVIDUAL_ALREADY_MEMBER_OF_HOUSEHOLD)
+                                    .type(Error.ErrorType.NON_RECOVERABLE)
+                                    .exception(new CustomException(INDIVIDUAL_ALREADY_MEMBER_OF_HOUSEHOLD,
+                                            INDIVIDUAL_ALREADY_MEMBER_OF_HOUSEHOLD_MESSAGE))
+                                    .build();
+                            log.info("found error in individual mapping {}", error);
+                            populateErrorDetails(householdMember, error, errorDetailsMap);
+                        }
+                    } catch (InvalidTenantIdException exception) {
+                        Error error = getErrorForInvalidTenantId(tenantId, exception);
+                        populateErrorDetails(householdMember, error, errorDetailsMap);
+                    }
+                }
+            });
+        }
+        log.info("household member unique individual validation completed successfully, total errors: " + errorDetailsMap.size());
+
+        return errorDetailsMap;
+    }
+}

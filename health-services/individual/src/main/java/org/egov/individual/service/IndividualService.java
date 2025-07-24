@@ -1,5 +1,6 @@
 package org.egov.individual.service;
 
+import java.lang.reflect.Method;
 import java.util.*;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -14,11 +15,13 @@ import org.egov.common.models.Error;
 import org.egov.common.models.ErrorDetails;
 import org.egov.common.models.core.Role;
 import org.egov.common.models.core.SearchResponse;
+import org.egov.common.models.household.HouseholdMember;
 import org.egov.common.models.individual.Identifier;
 import org.egov.common.models.individual.Individual;
 import org.egov.common.models.individual.IndividualBulkRequest;
 import org.egov.common.models.individual.IndividualRequest;
 import org.egov.common.models.individual.IndividualSearch;
+import org.egov.common.models.individual.IndividualSearchRequest;
 import org.egov.common.models.project.ApiOperation;
 import org.egov.common.models.user.UserRequest;
 import org.egov.common.utils.CommonUtils;
@@ -26,21 +29,20 @@ import org.egov.common.validator.Validator;
 import org.egov.individual.config.IndividualProperties;
 import org.egov.individual.repository.IndividualRepository;
 import org.egov.individual.util.BeneficiaryIdGenUtil;
-import org.egov.individual.validators.AadharNumberValidator;
-import org.egov.individual.validators.AadharNumberValidatorForCreate;
-import org.egov.individual.validators.AddressTypeValidator;
-import org.egov.individual.validators.IBoundaryValidator;
-import org.egov.individual.validators.IExistentEntityValidator;
-import org.egov.individual.validators.IdPoolValidatorForCreate;
-import org.egov.individual.validators.IdPoolValidatorForUpdate;
-import org.egov.individual.validators.IsDeletedSubEntityValidator;
-import org.egov.individual.validators.IsDeletedValidator;
-import org.egov.individual.validators.MobileNumberValidator;
-import org.egov.individual.validators.NonExistentEntityValidator;
-import org.egov.individual.validators.NullIdValidator;
-import org.egov.individual.validators.RowVersionValidator;
-import org.egov.individual.validators.UniqueEntityValidator;
-import org.egov.individual.validators.UniqueSubEntityValidator;
+import org.egov.individual.validators.individual.AadharNumberValidator;
+import org.egov.individual.validators.individual.AadharNumberValidatorForCreate;
+import org.egov.individual.validators.individual.AddressTypeValidator;
+import org.egov.individual.validators.individual.IExistentEntityValidator;
+import org.egov.individual.validators.individual.IdPoolValidatorForCreate;
+import org.egov.individual.validators.individual.IdPoolValidatorForUpdate;
+import org.egov.individual.validators.individual.IsDeletedSubEntityValidator;
+import org.egov.individual.validators.individual.IsDeletedValidator;
+import org.egov.individual.validators.individual.MobileNumberValidator;
+import org.egov.individual.validators.individual.NonExistentEntityValidator;
+import org.egov.individual.validators.individual.NullIdValidator;
+import org.egov.individual.validators.individual.RowVersionValidator;
+import org.egov.individual.validators.individual.UniqueEntityValidator;
+import org.egov.individual.validators.individual.UniqueSubEntityValidator;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -51,6 +53,7 @@ import static org.egov.common.utils.CommonUtils.getIdFieldName;
 import static org.egov.common.utils.CommonUtils.getIdList;
 import static org.egov.common.utils.CommonUtils.getIdMethod;
 import static org.egov.common.utils.CommonUtils.getIdToObjMap;
+import static org.egov.common.utils.CommonUtils.getMethod;
 import static org.egov.common.utils.CommonUtils.handleErrors;
 import static org.egov.common.utils.CommonUtils.havingTenantId;
 import static org.egov.common.utils.CommonUtils.includeDeleted;
@@ -70,7 +73,7 @@ public class IndividualService {
 
     private final IndividualProperties properties;
 
-    private final EnrichmentService enrichmentService;
+    private final IndividualEnrichmentService enrichmentService;
 
     private final IndividualEncryptionService individualEncryptionService;
 
@@ -111,7 +114,7 @@ public class IndividualService {
     public IndividualService(IndividualRepository individualRepository,
                              List<Validator<IndividualBulkRequest, Individual>> validators,
                              IndividualProperties properties,
-                             EnrichmentService enrichmentService,
+                             IndividualEnrichmentService enrichmentService,
                              IndividualEncryptionService individualEncryptionService,
                              UserIntegrationService userIntegrationService,
                              NotificationService notificationService,
@@ -482,5 +485,66 @@ public class IndividualService {
                 return false;
         }
         return true;
+    }
+
+    public SearchResponse<Individual> searchIndividualBeneficiary(
+            List<HouseholdMember> householdMembers,
+            RequestInfo requestInfo,
+            String tenantId
+    ) {
+        IndividualSearch individualSearch = null;
+        Method idMethod = getMethod(GET_INDIVIDUAL_ID, HouseholdMember.class);
+        Method clientReferenceIdMethod = getMethod(GET_INDIVIDUAL_CLIENT_REFERENCE_ID, HouseholdMember.class);
+
+        if (householdMembers.get(0).getIndividualId() != null) {
+            individualSearch = IndividualSearch
+                    .builder()
+                    .id(getIdList(householdMembers, idMethod))
+                    .build();
+            log.info("searching individual beneficiary by individual Id");
+        } else if (householdMembers.get(0).getIndividualClientReferenceId() != null) {
+            individualSearch = IndividualSearch
+                    .builder()
+                    .clientReferenceId(getIdList(householdMembers, clientReferenceIdMethod))
+                    .build();
+            log.info("searching individual beneficiary by individual client reference Id");
+        }
+
+        IndividualSearchRequest individualSearchRequest = IndividualSearchRequest.builder()
+                .requestInfo(requestInfo)
+                .individual(individualSearch)
+                .build();
+
+        return search(individualSearch, 10,0,tenantId, null, false, requestInfo);
+    }
+
+    public Individual validateIndividual(HouseholdMember householdMember,
+                                         SearchResponse<Individual> searchResponse,
+                                         Map<HouseholdMember, List<Error>> errorDetailsMap) {
+        log.info("validating individual for household member with id: {} and client reference id: {}",
+                householdMember.getIndividualId(), householdMember.getIndividualClientReferenceId());
+
+        List<Individual> individuals = searchResponse.getResponse().stream().filter(individual -> {
+            if (householdMember.getIndividualId() != null) {
+                return householdMember.getIndividualId().equals(individual.getId());
+            } else {
+                return householdMember.getIndividualClientReferenceId().equals(individual.getClientReferenceId());
+            }
+        }).collect(Collectors.toList());
+        if(individuals.isEmpty()){
+            Error error = Error.builder().errorMessage(INDIVIDUAL_NOT_FOUND_MESSAGE)
+                    .errorCode(INDIVIDUAL_NOT_FOUND)
+                    .type(Error.ErrorType.NON_RECOVERABLE)
+                    .exception(new CustomException(INDIVIDUAL_NOT_FOUND,
+                            INDIVIDUAL_NOT_FOUND_MESSAGE))
+                    .build();
+            populateErrorDetails(householdMember, error, errorDetailsMap);
+            log.info("individual not found for household member with id: {} and client reference id: {}",
+                    householdMember.getIndividualId(), householdMember.getIndividualClientReferenceId());
+            return null;
+        }
+        log.info("individual found for household member with id: {} and client reference id: {}",
+                householdMember.getIndividualId(), householdMember.getIndividualClientReferenceId());
+        return individuals.get(0);
     }
 }
