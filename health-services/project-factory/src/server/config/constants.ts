@@ -12,7 +12,8 @@ export const CONSTANTS: any = {
             SCHEMA_ERROR: " Schema related error",
             RESPONSE_NOT_FOUND_ERROR: "Response not found",
             GENERATE_ERROR: "Error while generating user/facility/boundary",
-            VALIDATION_ERROR_MISSING_RESOURCE : "All resource files should be uploaded"
+            VALIDATION_ERROR_MISSING_RESOURCE : "All resource files should be uploaded",
+            LOCALISATION_ERROR: "Error occurred during localisation message retrieval"
         },
         FILE: {
             SHEET_MISSING_ERROR: "Some sheet or empty in Uploaded file, please check the file",
@@ -51,7 +52,7 @@ export const CONSTANTS: any = {
             VALIDATION_ERROR_CAMPAIGN_ID: "CampaignId not found or invalid",
             VALIDATION_ERROR_UPDATE_CAMPAIGN: "Campaign can only be updated in drafted or failed state",
             END_DATE_BEFORE_START_DATE: "endDate must be at least one day after startDate",
-            START_DATE_IN_PAST: "startDate cannot be today or past date",
+            START_DATE_IN_PAST: "startDate cannot be today or past date"
         },
         BOUNDARY: {
             BOUNDARY_DATA_NOT_FOUND: "No boundary data found in the system.",
