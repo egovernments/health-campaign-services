@@ -49,7 +49,9 @@ export const CONSTANTS: any = {
             VALIDATION_ERROR_ACTIVE_ROW: "At least one active row is required",
             VALIDATION_ERROR_USERNAME_FORMAT: "User name can be alphanumeric only",
             VALIDATION_ERROR_CAMPAIGN_ID: "CampaignId not found or invalid",
-            VALIDATION_ERROR_UPDATE_CAMPAIGN: "Campaign can only be updated in drafted or failed state"
+            VALIDATION_ERROR_UPDATE_CAMPAIGN: "Campaign can only be updated in drafted or failed state",
+            END_DATE_BEFORE_START_DATE: "endDate must be at least one day after startDate",
+            START_DATE_IN_PAST: "startDate cannot be today or past date",
         },
         BOUNDARY: {
             BOUNDARY_DATA_NOT_FOUND: "No boundary data found in the system.",

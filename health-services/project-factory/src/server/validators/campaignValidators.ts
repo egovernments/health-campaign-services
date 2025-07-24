@@ -1144,11 +1144,11 @@ function validateProjectDatesForCampaign(request: any, CampaignDetails: any) {
     if (!request?.body?.parentCampaign) {
         const { startDate, endDate } = CampaignDetails;
         if (startDate && endDate && (new Date(endDate).getTime() - new Date(startDate).getTime()) < (24 * 60 * 60 * 1000)) {
-            throwError("COMMON", 400, "VALIDATION_ERROR", "endDate must be at least one day after startDate");
+            throwError("COMMON", 400, "END_DATE_BEFORE_START_DATE", "endDate must be at least one day after startDate");
         }
         const today: any = Date.now();
         if (startDate <= today) {
-            throwError("COMMON", 400, "VALIDATION_ERROR", "startDate cannot be today or past date");
+            throwError("COMMON", 400, "START_DATE_IN_PAST", "startDate cannot be today or past date");
         }
     }
 }
