@@ -1,4 +1,4 @@
-import { Kafka, logLevel } from 'kafkajs';
+import { Kafka, logLevel, LogEntry } from 'kafkajs';
 import { getFormattedStringForDebug, logger } from "../utils/logger";
 import { shutdownGracefully, throwError } from '../utils/genericUtils';
 import config from '../config';
@@ -16,7 +16,16 @@ const createKafkaClientAndProducer = async () => {
         },
         clientId: 'project-factory-producer',
         brokers: [config?.host?.KAFKA_BROKER_HOST],
-        logLevel: logLevel.NOTHING,
+        logLevel: logLevel.INFO,
+        logCreator: (level) => (log: LogEntry) => {
+            if (log.namespace === 'kafka.network' && log.log.message && log.log.message.includes('retry')) {
+                logger.info(`[KafkaJS Retry] ${log.log.message}`);
+            }
+            // Optionally, log all KafkaJS logs at INFO or higher
+            if (level >= logLevel.INFO && log.log.message) {
+                logger.info(`[KafkaJS] ${log.log.message}`);
+            }
+        }
     });
     producer = kafka.producer();
     try {
