@@ -6,7 +6,7 @@ import org.egov.common.models.individual.Individual;
 import org.egov.common.models.individual.IndividualBulkRequest;
 import org.egov.individual.helper.IndividualBulkRequestTestBuilder;
 import org.egov.individual.helper.IndividualTestBuilder;
-import org.egov.individual.validators.UniqueEntityValidator;
+import org.egov.individual.validators.individual.UniqueEntityValidator;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;

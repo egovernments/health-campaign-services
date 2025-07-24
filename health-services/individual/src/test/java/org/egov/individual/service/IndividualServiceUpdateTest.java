@@ -13,14 +13,14 @@ import org.egov.individual.config.IndividualProperties;
 import org.egov.individual.helper.IndividualRequestTestBuilder;
 import org.egov.individual.helper.IndividualTestBuilder;
 import org.egov.individual.repository.IndividualRepository;
-import org.egov.individual.validators.AddressTypeValidator;
-import org.egov.individual.validators.IsDeletedSubEntityValidator;
-import org.egov.individual.validators.IsDeletedValidator;
-import org.egov.individual.validators.NonExistentEntityValidator;
-import org.egov.individual.validators.NullIdValidator;
-import org.egov.individual.validators.RowVersionValidator;
-import org.egov.individual.validators.UniqueEntityValidator;
-import org.egov.individual.validators.UniqueSubEntityValidator;
+import org.egov.individual.validators.individual.AddressTypeValidator;
+import org.egov.individual.validators.individual.IsDeletedSubEntityValidator;
+import org.egov.individual.validators.individual.IsDeletedValidator;
+import org.egov.individual.validators.individual.NonExistentEntityValidator;
+import org.egov.individual.validators.individual.NullIdValidator;
+import org.egov.individual.validators.individual.RowVersionValidator;
+import org.egov.individual.validators.individual.UniqueEntityValidator;
+import org.egov.individual.validators.individual.UniqueSubEntityValidator;
 import org.egov.tracer.model.CustomException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
@@ -85,7 +85,7 @@ class IndividualServiceUpdateTest {
     private IndividualProperties properties;
 
     @Mock
-    private EnrichmentService enrichmentService;
+    private IndividualEnrichmentService enrichmentService;
 
     @Mock
     private IndividualEncryptionService encryptionService;

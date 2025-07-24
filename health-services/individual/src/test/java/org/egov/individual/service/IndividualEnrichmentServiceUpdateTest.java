@@ -29,7 +29,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 public class IndividualEnrichmentServiceUpdateTest {
 
     @InjectMocks
-    EnrichmentService enrichmentService;
+    IndividualEnrichmentService enrichmentService;
 
     @Mock
     IdGenService idGenService;

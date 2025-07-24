@@ -11,9 +11,9 @@ import org.egov.common.contract.models.RequestInfoWrapper;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.models.core.SMSRequest;
 import org.egov.common.models.individual.IndividualRequest;
+import org.egov.common.producer.Producer;
 import org.egov.individual.Constants;
 import org.egov.individual.config.IndividualProperties;
-import org.egov.individual.producer.IndividualProducer;
 import org.egov.individual.repository.ServiceRequestRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -29,7 +29,7 @@ public class NotificationService {
     @Autowired
     IndividualProperties config;
     @Autowired
-    private IndividualProducer producer;
+    private Producer producer;
     @Autowired
     private ServiceRequestRepository repository;
 

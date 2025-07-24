@@ -31,7 +31,7 @@ import static org.mockito.Mockito.when;
 public class IndividualEnrichmentServiceTest {
 
     @InjectMocks
-    EnrichmentService enrichmentService;
+    IndividualEnrichmentService enrichmentService;
 
     @Mock
     IdGenService idGenService;

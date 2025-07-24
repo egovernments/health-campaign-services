@@ -11,8 +11,8 @@ import org.egov.individual.config.IndividualProperties;
 import org.egov.individual.helper.IndividualRequestTestBuilder;
 import org.egov.individual.helper.IndividualTestBuilder;
 import org.egov.individual.repository.IndividualRepository;
-import org.egov.individual.validators.NonExistentEntityValidator;
-import org.egov.individual.validators.NullIdValidator;
+import org.egov.individual.validators.individual.NonExistentEntityValidator;
+import org.egov.individual.validators.individual.NullIdValidator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -60,7 +60,7 @@ class IndividualServiceDeleteTest {
     private IndividualProperties properties;
 
     @Mock
-    private EnrichmentService enrichmentService;
+    private IndividualEnrichmentService enrichmentService;
 
     @BeforeEach
     void setUp() {

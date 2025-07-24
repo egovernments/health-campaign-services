@@ -90,4 +90,49 @@ public class IndividualProperties {
     @Value("${individual.beneficiary.id.validation.enabled:false}")
     private Boolean beneficiaryIdValidationEnabled;
 
+    @Value("${household.member.kafka.create.topic}")
+    private String createHouseholdMemberTopic;
+
+    @Value("${household.member.kafka.update.topic}")
+    private String updateHouseholdMemberTopic;
+
+    @Value("${household.member.kafka.delete.topic}")
+    private String deleteHouseholdMemberTopic;
+
+    @Value("${household.member.consumer.bulk.create.topic}")
+    private String createHouseholdMemberBulkTopic;
+
+    @Value("${household.member.consumer.bulk.update.topic}")
+    private String updateHouseholdMemberBulkTopic;
+
+    @Value("${household.member.consumer.bulk.delete.topic}")
+    private String deleteHouseholdMemberBulkTopic;
+
+    @Value("${household.kafka.create.topic}")
+    private String createHouseholdTopic;
+
+    @Value("${household.consumer.bulk.create.topic}")
+    private String createHouseholdBulkTopic;
+
+    @Value("${household.kafka.update.topic}")
+    private String updateHouseholdTopic;
+
+    @Value("${household.consumer.bulk.update.topic}")
+    private String updateHouseholdBulkTopic;
+
+    @Value("${household.kafka.delete.topic}")
+    private String deleteHouseholdTopic;
+
+    @Value("${household.consumer.bulk.delete.topic}")
+    private String deleteHouseholdBulkTopic;
+
+    @Value("${household.idgen.id.format}")
+    private String householdIdFormat;
+
+    @Value("${household.type.same.validation}")
+    private boolean householdTypeSameValidation;
+
+    @Value("${household.type.community.creator.role}")
+    private String communityHouseholdCreatorRoleCode;
+
 }

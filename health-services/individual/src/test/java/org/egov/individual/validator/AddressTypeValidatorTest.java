@@ -8,7 +8,7 @@ import org.egov.common.models.individual.Individual;
 import org.egov.common.models.individual.IndividualBulkRequest;
 import org.egov.individual.helper.IndividualBulkRequestTestBuilder;
 import org.egov.individual.helper.IndividualTestBuilder;
-import org.egov.individual.validators.AddressTypeValidator;
+import org.egov.individual.validators.individual.AddressTypeValidator;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;

@@ -30,7 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 public class IndividualEnrichmentServiceDeleteTest {
 
     @InjectMocks
-    private EnrichmentService enrichmentService;
+    private IndividualEnrichmentService enrichmentService;
 
     @Mock
     private IdGenService idGenService;
