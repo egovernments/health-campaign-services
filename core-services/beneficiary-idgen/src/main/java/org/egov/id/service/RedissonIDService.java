@@ -13,6 +13,7 @@ import org.redisson.api.RedissonClient;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 
+import java.time.Duration;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -38,19 +39,6 @@ public class RedissonIDService {
     public RedissonIDService(RedissonClient redissonClient, PropertiesManager propertiesManager) {
         this.redissonClient = redissonClient;
         this.propertiesManager = propertiesManager;
-    }
-
-    /**
-     * Constructs a key string to represent the dispatched count for a specific user and device
-     * within a given tenant context.
-     *
-     * @param tenantId the unique identifier of the tenant
-     * @param userId the unique identifier of the user
-     * @param deviceId the unique identifier of the device
-     * @return a string representing the combined key for the dispatched count
-     */
-    private String getUserDispatchedCountKey(String tenantId, String userId, String deviceId) {
-        return "tenant:" + tenantId + ":user:" + userId + ":device:" + deviceId + ":count";
     }
 
     /**
@@ -153,7 +141,7 @@ public class RedissonIDService {
      * @throws CustomException if the daily or total dispatch limit for the user's device is exceeded.
      */
     public void updateUserDeviceDispatchedIDCountForToday(String tenantId, String userId, String deviceId, long delta, boolean increment) {
-        String dailyKey = getUserDispatchedCountKey(tenantId, userId, deviceId);
+        String dailyKey = getUserDispatchedCountKey(tenantId, userId, deviceId, LocalDate.now());
         String totalKey = getUserDispatchedTotalCountKey(tenantId, userId, deviceId);
         RAtomicLong dailyCounter = redissonClient.getAtomicLong(dailyKey);
         RAtomicLong totalCounter = redissonClient.getAtomicLong(totalKey);
@@ -176,6 +164,8 @@ public class RedissonIDService {
             dailyCounter.set(delta);
             totalCounter.set(newTotalValue);
         }
+        dailyCounter.expire(Duration.ofDays(propertiesManager.getDispatchUsageUserDevicePerDayExpireDays()));
+        totalCounter.expire(Duration.ofDays(propertiesManager.getDispatchUsageUserDeviceTotalExpireDays()));
 
     }
 

@@ -75,6 +75,28 @@ public class PropertiesManager {
 		return Integer.parseInt(environment.getProperty("limit.id.user.device.per.day", "100"));
 	}
 
+	/**
+	 * Retrieves the number of days after which the dispatch usage per user per day data will expire.
+	 * This value is configured in the application properties using the key
+	 * "limit.id.user.device.per.day.expire.days". If the property is not set, it defaults to 30.
+	 *
+	 * @return the number of days after which the dispatch usage per user per day data expires
+	 */
+	public int getDispatchUsageUserDevicePerDayExpireDays() {
+		return Integer.parseInt(environment.getProperty("limit.id.user.device.per.day.expire.days", "30"));
+	}
+
+	/**
+	 * Retrieves the total number of days after which the dispatch usage for a user device expires.
+	 * This value is configured in the application's properties using the key
+	 * "limit.id.user.device.total.expire.days". If the property is not set, it defaults to 30.
+	 *
+	 * @return the number of days after which the dispatch usage for a user device expires
+	 */
+	public int getDispatchUsageUserDeviceTotalExpireDays() {
+		return Integer.parseInt(environment.getProperty("limit.id.user.device.total.expire.days", "30"));
+	}
+
 	public String getBulkIdUpdateTopic () {return  environment.getProperty("kafka.topics.consumer.bulk.update.topic");}
 
 	public Boolean getIdValidationEnabled() {
