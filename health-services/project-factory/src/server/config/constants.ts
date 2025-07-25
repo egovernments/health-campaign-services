@@ -12,7 +12,8 @@ export const CONSTANTS: any = {
             SCHEMA_ERROR: " Schema related error",
             RESPONSE_NOT_FOUND_ERROR: "Response not found",
             GENERATE_ERROR: "Error while generating user/facility/boundary",
-            VALIDATION_ERROR_MISSING_RESOURCE : "All resource files should be uploaded"
+            VALIDATION_ERROR_MISSING_RESOURCE : "All resource files should be uploaded",
+            LOCALISATION_ERROR: "Error occurred during localisation message retrieval"
         },
         FILE: {
             SHEET_MISSING_ERROR: "Some sheet or empty in Uploaded file, please check the file",
@@ -26,6 +27,7 @@ export const CONSTANTS: any = {
             INVALID_COLUMNS: "Columns are invalid",
             FETCHING_COLUMN_ERROR: "Error fetching Column Headers From Schema",
             INVALID_FILE_WITH_GAP: "The uploaded file has gap in rows, please remove the gap and upload again",
+            EXTRA_SHEET_ERROR: "Extra sheet(s) found in the uploaded file"
         },
         FACILITY: {
             FACILITY_SEARCH_FAILED: "Search failed for facility. Check logs",
@@ -36,6 +38,9 @@ export const CONSTANTS: any = {
             CAMPAIGN_NOT_FOUND: "Campaign not found",
             GENERATION_REQUIRE: "First generate then download",
             RESOURCE_CREATION_ERROR: "Some error occured during resource creation",
+            RESOURCE_MAPPING_ERROR: "Some error occured during mapping",
+            RESOURCE_CREATION_TIMED_OUT: "Resources creation timed out.",
+            RESOURCE_MAPPING_TIMED_OUT: "Mappings timed out.",
             CAMPAIGN_NAME_ERROR: "Campaign name already exists",
             CAMPAIGN_NAME_NOT_MATCHING_PARENT_ERROR: "Campaign name different from parent Campaign",
             CAMPAIGN_ALREADY_MAPPED: "Campaign is already mapped",
@@ -45,7 +50,9 @@ export const CONSTANTS: any = {
             VALIDATION_ERROR_ACTIVE_ROW: "At least one active row is required",
             VALIDATION_ERROR_USERNAME_FORMAT: "User name can be alphanumeric only",
             VALIDATION_ERROR_CAMPAIGN_ID: "CampaignId not found or invalid",
-            VALIDATION_ERROR_UPDATE_CAMPAIGN: "Campaign can only be updated in drafted or failed state"
+            VALIDATION_ERROR_UPDATE_CAMPAIGN: "Campaign can only be updated in drafted or failed state",
+            END_DATE_BEFORE_START_DATE: "endDate must be at least one day after startDate",
+            START_DATE_IN_PAST: "startDate cannot be today or past date"
         },
         BOUNDARY: {
             BOUNDARY_DATA_NOT_FOUND: "No boundary data found in the system.",
@@ -65,7 +72,7 @@ export const CONSTANTS: any = {
             PROJECT_SEARCH_ERROR: "Error occured during project search , check projectId",
             PROJECT_UPDATE_ERROR: "Error occured during project update , check projectId",
             PROJECT_CREATION_ERROR: "Some error occured during project creation",
-            PROJECT_CONFIRMATION_FAILED: "Error occured in project creation and peristence",
+            PROJECT_CONFIRMATION_FAILED: "Error occured in project creation and persistence",
             PROJECT_STAFF_SEARCH_ERROR: "Error occured during project search , check projectId and staffId",
             PROJECT_FACILITY_SEARCH_ERROR: "Error occured during project search , check projectId and facilityId",
             PROJECT_FACILITY_DELETE_ERROR: "Error occured while deleting project facility mapping",

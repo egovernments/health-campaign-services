@@ -47,13 +47,14 @@ export class TemplateClass {
         await this.createUserFromTableData(resourceDetails);
 
         const allCurrentUsers = await getRelatedDataWithCampaign(resourceDetails?.type, campaign.campaignNumber, resourceDetails?.tenantId, dataRowStatuses.completed);
-        const allData = allCurrentUsers?.map((u: any) => {
+        const allData = allCurrentUsers ? await Promise.all(allCurrentUsers.map(async (u: any, idx: number) => {
+            logger.info(`Decrypting item number ${idx + 1}`);
             const data: any = u?.data;
             data["#status#"] = sheetDataRowStatuses.CREATED;
             data["UserName"] = decrypt(u?.data?.["UserName"]);
             data["Password"] = decrypt(u?.data?.["Password"]);
             return data;
-        });
+        })) : [];
         const sheetMap : SheetMap = {};
         sheetMap["HCM_ADMIN_CONSOLE_USER_LIST"] = {
             data : allData,

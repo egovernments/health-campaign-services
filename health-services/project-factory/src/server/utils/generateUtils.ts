@@ -58,7 +58,8 @@ async function callGenerateIfBoundariesOrCampaignTypeDiffer(request: any) {
                         type: t,
                         tenantId,
                         hierarchyType,
-                        campaignId
+                        campaignId,
+                        forceUpdate: 'true'
                     }
                 };
                 await callGenerate(newRequestToGenerate, t);

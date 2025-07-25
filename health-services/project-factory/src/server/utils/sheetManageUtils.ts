@@ -199,6 +199,13 @@ export async function processRequest(ResourceDetails: any, workBook: any, templa
         const schema = await callMdmsSchema(ResourceDetails?.tenantId, sheet?.schemaName);
         sheet.schema = schema;
     }
+    // Check for extra sheets
+    const expectedSheetNames = (templateConfig?.sheets || []).map((s: any) => getLocalizedName(s?.sheetName, localizationMap));
+    const actualSheetNames = workBook.worksheets.map((ws: any) => ws.name);
+    const extraSheets = actualSheetNames.filter((name: string) => !expectedSheetNames.includes(name));
+    if (extraSheets.length > 0) {
+        throwError("FILE", 400, "EXTRA_SHEET_ERROR", `Extra sheet(s) found in the uploaded file: ${extraSheets.join(", ")}`);
+    }
     const className = `${ResourceDetails?.type}-processClass`;
     let classFilePath = path.join(__dirname, '..', 'processFlowClasses', `${className}.js`);
     if (!fs.existsSync(classFilePath)) {

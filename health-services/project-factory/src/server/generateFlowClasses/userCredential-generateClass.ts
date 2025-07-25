@@ -24,7 +24,8 @@ export class TemplateClass {
 
         // Prepare User List sheet
         const users = await getRelatedDataWithCampaign("user", campaignDetails?.campaignNumber, tenantId, dataRowStatuses.completed);
-        const userData = users.map((u: any) => {
+        const userData = await Promise.all(users.map(async (u: any, idx: number) => {
+            logger.info(`Decrypting item number ${idx + 1}`);
             const rawData = u?.data || {};
             const localizedData: Record<string, any> = {};
 
@@ -37,7 +38,7 @@ export class TemplateClass {
             localizedData["Password"] = decrypt(rawData["Password"]);
 
             return localizedData;
-        });
+        }));
 
         // Construct the final SheetMap
         const sheetMap: SheetMap = {
