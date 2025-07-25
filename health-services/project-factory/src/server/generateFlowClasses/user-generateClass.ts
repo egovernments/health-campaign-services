@@ -37,18 +37,16 @@ export class TemplateClass {
 
         // Prepare User List sheet
         const users = await getRelatedDataWithCampaign(type, campaignNumber, tenantId, dataRowStatuses.completed);
-        const userData = users.map((u: any) => {
+        const userData = users.map((u: any, idx: number) => {
             const rawData = u?.data || {};
             const localizedData: Record<string, any> = {};
-
             for (const key in rawData) {
                 localizedData[key] = rawData[key];
             }
-
             localizedData["#status#"] = sheetDataRowStatuses.CREATED;
+            logger.info(`Decrypting item number ${idx + 1}`);
             localizedData["UserName"] = decrypt(rawData["UserName"]);
             localizedData["Password"] = decrypt(rawData["Password"]);
-
             return localizedData;
         });
 

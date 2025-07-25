@@ -2532,7 +2532,14 @@ async function userCredGeneration(campaignDetails: any, useruuid: string, locale
       await new Promise(resolve => setTimeout(resolve, 10000));
       let status = response?.status;
       let attempts = 0
-      while (status == generatedResourceStatuses.inprogress && attempts < 15) {
+      while (
+        status === generatedResourceStatuses.inprogress &&
+        attempts < Math.max(
+          (config?.resourceCreationConfig?.maxAttemptsForResourceCreationOrMapping ?? 0) / 5,
+          20
+        )
+      )
+      {
         const generatedResources: any = await searchAllGeneratedResources({ id: response?.id, tenantId: campaignDetails?.tenantId }, undefined);
         if (generatedResources?.length > 0) {
           status = generatedResources[0]?.status;
@@ -2548,7 +2555,7 @@ async function userCredGeneration(campaignDetails: any, useruuid: string, locale
         const campaignResp = await searchProjectTypeCampaignService({ tenantId: campaignDetails?.tenantId, ids: [campaignDetails?.id] });
         const campaignDetailsStatus = campaignResp?.CampaignDetails?.[0]?.status;
         if (campaignDetailsStatus == campaignStatuses.failed || !campaignDetailsStatus) {
-          throwError("COMMON", 400, "INTERNAL_SERVER_ERROR", "Campaign creation failed during user credential generation");
+          throwError("COMMON", 400, "USER_CREDENTIAL_GENERATION_ERROR", "Campaign creation failed during user credential generation");
         }
         attempts++;
       }
