@@ -1657,7 +1657,6 @@ async function getTotalCount(campaignDetails: any) {
   return totalCount;
 }
 
-
 async function searchProjectCampaignResourcData(campaignDetails: any, request?: any) {
   // const CampaignDetails = request.body.CampaignDetails;
   const { tenantId, pagination, ids, ...searchFields } = campaignDetails;
