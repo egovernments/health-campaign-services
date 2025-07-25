@@ -13,6 +13,7 @@ import org.egov.individual.config.IndividualProperties;
 import org.egov.individual.helper.IndividualRequestTestBuilder;
 import org.egov.individual.helper.IndividualTestBuilder;
 import org.egov.individual.repository.IndividualRepository;
+import org.egov.individual.util.BeneficiaryIdGenUtil;
 import org.egov.individual.validators.AddressTypeValidator;
 import org.egov.individual.validators.UniqueSubEntityValidator;
 import org.egov.tracer.model.CustomException;
@@ -38,7 +39,10 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class IndividualServiceTest {
@@ -65,6 +69,9 @@ class IndividualServiceTest {
     private EnrichmentService enrichmentService;
     @Mock
     private IndividualEncryptionService encryptionService;
+
+    @Mock
+    private BeneficiaryIdGenUtil idGenUtil;
 
     @Mock
     private NotificationService notificationService;
@@ -98,6 +105,7 @@ class IndividualServiceTest {
         when(encryptionService.encrypt(any(IndividualBulkRequest.class),
                 anyList(), any(String.class), anyBoolean())).thenReturn(Collections.singletonList(IndividualTestBuilder.builder()
                 .withTenantId()
+                .withIdentifiers()
                 .withName()
                 .build()));
         lenient().doNothing().when(notificationService).sendNotification(any(IndividualRequest.class),eq(true));
