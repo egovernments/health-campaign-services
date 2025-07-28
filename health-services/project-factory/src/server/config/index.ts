@@ -21,6 +21,7 @@ const config = {
   excludeBoundaryNameAtLastFromBoundaryCodes: (process.env.EXCLUDE_BOUNDARY_NAME_AT_LAST_FROM_BOUNDARY_CODES === "true") || false,
   isEnvironmentCentralInstance: process.env.IS_ENVIRONMENT_CENTRAL_INSTANCE === "true",
   masterNameForSplitBoundariesOn: "HierarchySchema",
+  basesecret: process.env.BASE_SECRET,
   boundary: {
     boundaryCode: process.env.BOUNDARY_CODE_HEADER_NAME || "HCM_ADMIN_CONSOLE_BOUNDARY_CODE",
     boundaryCodeMandatory: 'HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY',
@@ -201,5 +202,9 @@ const config = {
   waitTimeOfEachAttemptOfResourceCreationOrMappping: Number(process.env.WAIT_TIME_OF_EACH_ATTEMPT_MS || 40000),
   }
 };
+
+if(!config.basesecret){
+  throw new Error('BASE_SECRET is undefined. Please set "BASE_SECRET" in env.');
+}
 
 export default config;
