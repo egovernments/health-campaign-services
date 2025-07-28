@@ -56,6 +56,7 @@ public class CalculationUtil {
      * @return The map of assumptions.
      */
     public Map<String, BigDecimal> convertAssumptionsToMap(List<Assumption> assumptions) {
+        // IMPORTANT: setting key value pairs in map
         return assumptions.stream().collect(Collectors.toMap(Assumption::getKey, Assumption::getValue));
     }
 
@@ -93,7 +94,8 @@ public class CalculationUtil {
      * @return The input value.
      */
     private BigDecimal getInputValueFromFeatureOrMap(JsonNode feature, Map<String, BigDecimal> resultMap, Map<String, BigDecimal> assumptionValueMap, String input, String columnName) {
-        // Try to fetch the value from resultMap, If not found in the resultMap, use the assumptionValueMap as a fallback
+        // Try to fetch the value from resultMap
+        //Gets value of key, like in census its stored p1 value is 100,  If not found in the resultMap, use the assumptionValueMap as a fallback
         BigDecimal inputValue = resultMap.getOrDefault(input, assumptionValueMap.get(input));
 
         // Try to fetch the value from the feature (if it exists)
@@ -152,9 +154,12 @@ public class CalculationUtil {
      * @param resultMap A map to store and update the calculated results.
      * @return The calculated result as a BigDecimal.
      */
+    //IMPORTANT: resultsmap holds the calculatedValues
     public BigDecimal calculateResult(Operation operation, JsonNode feature, Map<String, BigDecimal> assumptionValueMap, Map<String, BigDecimal> resultMap) {
         // Fetch the input value
+        // IMPORTANT: operation object- input, assumptionValue(input2), operation, output
         String input = operation.getInput();
+        //Gets the value from resultMap or from feature
         BigDecimal inputValue = getInputValueFromFeatureOrMap(feature, resultMap, assumptionValueMap, input, input);
 
         // Fetch the assumption value with priority: feature -> resultMap -> assumptionValueMap

@@ -81,6 +81,8 @@ public class PlanUtil {
 	 * @param boundaryCodeToCensusAdditionalDetails A Map of boundary code to censusAdditionalDetails for that boundary code.
 	 * @return The constructed PlanRequest object.
 	 */
+	//IMPORTANT: Just before getting created
+	// JsonNode is boundaryCodeToCensusAddititonalDetails
 	private PlanRequest buildPlanRequest(PlanConfigurationRequest planConfigurationRequest, JsonNode feature,
 			Map<String, BigDecimal> resultMap, Map<String, Object> boundaryCodeToCensusAdditionalDetails) {
 
@@ -96,13 +98,13 @@ public class PlanUtil {
 						.locality(boundaryCodeValue)
 						.resources(resultMap.entrySet().stream().map(result -> {
 							Resource res = new Resource();
-							res.setResourceType(result.getKey());
-							res.setEstimatedNumber(result.getValue());
+							res.setResourceType(result.getKey());  // IMPORTANT: key in resultMap
+							res.setEstimatedNumber(result.getValue()); // value in resultMap
 							return res;
 						}).collect(Collectors.toList()))
 						.activities(new ArrayList<>())
 						.targets(new ArrayList<>())
-						.workflow(Workflow.builder().action(WORKFLOW_ACTION_INITIATE).build())
+						.workflow(Workflow.builder().action(WORKFLOW_ACTION_INITIATE).build()) //INITIATE workflow
 						.isRequestFromResourceEstimationConsumer(true)
 						.additionalDetails(enrichAdditionalDetails(boundaryCodeToCensusAdditionalDetails, boundaryCodeValue))
 						.build())
@@ -117,6 +119,8 @@ public class PlanUtil {
 	 * @param boundaryCodeValue                     The boundary code for which additional details need to be enriched.
 	 * @return An updated object containing extracted and enriched additional details, or null if no details were found or added.
 	 */
+	// IMPORTANT: additional details like terrain, security in census is also populated in plan
+	// REASON: Needed filters on the map
 	private Object enrichAdditionalDetails(Map<String, Object> boundaryCodeToCensusAdditionalDetails, String boundaryCodeValue) {
 		if(!CollectionUtils.isEmpty(boundaryCodeToCensusAdditionalDetails)) {
 
@@ -132,6 +136,7 @@ public class PlanUtil {
 			Object securityDetails = parsingUtil.extractFieldsFromJsonObject(censusAdditionalDetails, SECURITY_DETAILS, Object.class);
 
 			// Creating a map of fields to be added in plan additional details with their key.
+			// IMPORTANT
 			Map<String, Object> fieldsToBeUpdated = new HashMap<>();
 			if(!ObjectUtils.isEmpty(facilityId))
 				fieldsToBeUpdated.put(FACILITY_ID, facilityId);
@@ -305,6 +310,7 @@ public class PlanUtil {
 
 			// Add the estimation file to the plan configuration
 			planConfigurationRequest.getPlanConfiguration().getFiles().add(estimationFile);
+			//DOUBT ?
 			planConfigurationRequest.getPlanConfiguration().setWorkflow(null);
 
 		} catch (FileNotFoundException e) {

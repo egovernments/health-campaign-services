@@ -66,16 +66,18 @@ public class EnrichmentUtil {
      */
     public void enrichResourceMapping(PlanConfigurationRequest request, LocaleResponse localeResponse, String campaignType, String fileStoreId)
     {
+        // IMPORTANT: Localization takes place here
         String rootTenantId = request.getPlanConfiguration().getTenantId().split("\\.")[0];
         String uniqueIndentifier = BOUNDARY + DOT_SEPARATOR  + MICROPLAN_PREFIX + campaignType;
+        // IMPORTANT: Mdms will have the schema in terms of codes for column names
         List<Mdms> mdmsV2Data = mdmsV2Util.fetchMdmsV2Data(request.getRequestInfo(), rootTenantId, MDMS_ADMIN_CONSOLE_MODULE_NAME + DOT_SEPARATOR + MDMS_MASTER_ADMIN_SCHEMA, uniqueIndentifier);
         List<String> columnNameList = parsingUtil.extractPropertyNamesFromAdminSchema(mdmsV2Data.get(0).getData());
 
         List<ResourceMapping> resourceMappingList = !CollectionUtils.isEmpty(request.getPlanConfiguration().getResourceMapping()) ?
                 request.getPlanConfiguration().getResourceMapping() : new ArrayList<>();
-
+        // IMPORTANT: Setting Inactive
         resourceMappingList.forEach(resourceMapping -> resourceMapping.setActive(Boolean.FALSE));
-
+        // DOUBT : from and to mapping
         for(String columnName : columnNameList) {
             ResourceMapping resourceMapping = ResourceMapping
                     .builder()
@@ -265,6 +267,7 @@ public class EnrichmentUtil {
         List<Plan> planList = getPlanRecordsForEnrichment(planConfigurationRequest, boundaryCodes);
 
         // Create a map from boundaryCode to Plan for quick lookups
+        //DOUBT
         Map<String, Plan> planMap = planList.stream()
                 .collect(Collectors.toMap(Plan::getLocality, plan -> plan));
 
@@ -273,6 +276,7 @@ public class EnrichmentUtil {
                 .toList();
 
         // Setting column headers for the calculated plan estimate resources.
+        //DOUBT
         outputColumnList.forEach(output -> {
             Cell outputColHeader = sheet.getRow(0).createCell(sheet.getRow(0).getLastCellNum(), CellType.STRING);
             outputColHeader.setCellValue(output);

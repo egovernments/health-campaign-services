@@ -42,7 +42,9 @@ public class MixedStrategyUtil {
      * @param request The PlanConfigurationRequest containing the plan configuration and request info.
      * @return A list of MixedStrategyOperationLogic objects fetched from MDMS.
      */
+    // IMPORTANT: For mixed strategy
     public List<MixedStrategyOperationLogic> fetchMixedStrategyOperationLogicFromMDMS(PlanConfigurationRequest request) {
+
         String rootTenantId = request.getPlanConfiguration().getTenantId().split("\\.")[0];
         List<Mdms> mdmsV2Data = mdmsV2Util.fetchMdmsV2Data(request.getRequestInfo(), rootTenantId, MDMS_PLAN_MODULE_NAME + DOT_SEPARATOR + MDMS_MASTER_MIXED_STRATEGY, null);
 
@@ -113,6 +115,7 @@ public class MixedStrategyUtil {
             List<String> outputKeys = categoryNotAllowedToOutputMap.getOrDefault(category, Collections.emptyList());
             for (String outputKey : outputKeys) {
                 if (resultMap.containsKey(outputKey)) {
+                    //IMPORTANT: Making it null if in categories not allowed
                     resultMap.put(outputKey, null);
                 }
             }

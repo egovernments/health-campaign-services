@@ -107,6 +107,7 @@ public class CampaignIntegrationUtil {
 	 * @throws CustomException if the data creation call fails
 	 */
 	public void createProjectFactoryDataCall(PlanConfigurationRequest planConfigurationRequest, CampaignResponse campaignResponse) {
+		// IMPORTANT: Project-Factory handles the plan-facility mapping
 		try {
 			serviceRequestRepository.fetchResult(
 					new StringBuilder(config.getProjectFactoryHostEndPoint() + config.getCampaignIntegrationDataCreateEndPoint()),

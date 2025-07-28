@@ -57,6 +57,7 @@ public class CensusUtil {
     public void create(PlanConfigurationRequest planConfigurationRequest, JsonNode feature, Map<String, String> mappedValues, String heirarchyType) {
         CensusRequest censusRequest = buildCensusRequest(planConfigurationRequest, feature, mappedValues, heirarchyType);
         try {
+            // Pushing to census db, census has cconsumer listening to topic
             producer.push(config.getResourceCensusCreateTopic(), censusRequest);
         } catch (Exception e) {
             log.error(ERROR_WHILE_PUSHING_TO_PLAN_SERVICE_FOR_LOCALITY + censusRequest.getCensus().getBoundaryCode(), e);
@@ -80,13 +81,13 @@ public class CensusUtil {
         Census census = Census.builder()
                 .tenantId(planConfig.getTenantId())
                 .hierarchyType(hierarchyType)
-                .boundaryCode((String) parsingUtil.extractMappedValueFromFeatureForAnInput(BOUNDARY_CODE, feature, mappedValues))
+                .boundaryCode((String) parsingUtil.extractMappedValueFromFeatureForAnInput(BOUNDARY_CODE, feature, mappedValues)) // return a key, mapped values(localised)
                 .type(Census.TypeEnum.PEOPLE)
-                .facilityAssigned(Boolean.FALSE)
+                .facilityAssigned(Boolean.FALSE) // just creating entries
                 .partnerAssignmentValidationEnabled(Boolean.TRUE)
-                .totalPopulation((BigDecimal) parsingUtil.extractMappedValueFromFeatureForAnInput(TOTAL_POPULATION, feature, mappedValues))
-                .workflow(Workflow.builder().action(WORKFLOW_ACTION_INITIATE).build())
-                .source(planConfig.getId())
+                .totalPopulation((BigDecimal) parsingUtil.extractMappedValueFromFeatureForAnInput(TOTAL_POPULATION, feature, mappedValues)) //passing value, with mappedValues
+                .workflow(Workflow.builder().action(WORKFLOW_ACTION_INITIATE).build())  // initiating workflow
+                .source(planConfig.getId())  // source need not be just microplan
                 .additionalFields(enrichAdditionalField(feature, mappedValues)).build();
 
 

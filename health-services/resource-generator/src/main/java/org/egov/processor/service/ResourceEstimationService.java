@@ -42,9 +42,11 @@ public class ResourceEstimationService {
 	 *
 	 * @param planConfigurationRequest The plan configuration request containing necessary information for estimating resources.
 	 */
+	// IMPORTANT: Used for all types of resources, census/facility
     public void estimateResources(PlanConfigurationRequest planConfigurationRequest) {
         PlanConfiguration planConfiguration = planConfigurationRequest.getPlanConfiguration();
 
+		// EXCECUTION_TO_BE_DONE
 		if(planConfiguration.getStatus().equals(config.getPlanConfigTriggerCensusRecordsStatus())) {
 			planUtil.addEstimationsFile(planConfigurationRequest);
 			planUtil.update(planConfigurationRequest);
@@ -76,6 +78,7 @@ public class ResourceEstimationService {
 		    FileParser parser = parserMap.computeIfAbsent(fileType, ft -> {
                 throw new IllegalArgumentException("Unsupported file type: " + ft);
             });
+			// IMPORTANT: ESTIMATION_IN_PROGRESS
 		    if (file.getTemplateIdentifier().equalsIgnoreCase(FILE_TEMPLATE_IDENTIFIER_ESTIMATIONS_IN_PROGRESS)) {
 		        parser.parseFileData(planConfigurationRequest, file.getFilestoreId(), campaignSearchResponse);
 				break;
@@ -107,6 +110,7 @@ public class ResourceEstimationService {
 	 * @param campaignResponse the campaign response
 	 */
 	public void processFacilityFile(PlanConfigurationRequest planConfigurationRequest, CampaignResponse campaignResponse) {
+		// EXECUTION_TO_BE_DONE
 		if (planConfigurationRequest.getPlanConfiguration().getStatus().equals(config.getPlanConfigTriggerPlanFacilityMappingsStatus())) {
 			campaignIntegrationUtil.createProjectFactoryDataCall(planConfigurationRequest, campaignResponse);
 			log.info("Facility Data creation successful.");

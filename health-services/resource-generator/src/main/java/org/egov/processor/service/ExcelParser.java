@@ -161,11 +161,13 @@ public class ExcelParser implements FileParser {
 		try {
 			PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
 			fileToUpload = parsingUtil.convertWorkbookToXls(workbook);
+			// RESOURCE_ESTIMATION_IN_PROGRESS
 			if (planConfig.getStatus().equals(config.getPlanConfigTriggerPlanEstimatesStatus())) {
 				String uploadedFileStoreId = uploadConvertedFile(fileToUpload, planConfig.getTenantId());
 				planUtil.setFileStoreIdForEstimationsInProgress(planConfigurationRequest, uploadedFileStoreId);
 				planUtil.update(planConfigurationRequest);
 			}
+			// RESOURCE_ESTIMATION_IN_PROGRESS && Integrate with admin console
 			if (planConfig.getStatus().equals(config.getPlanConfigUpdatePlanEstimatesIntoOutputFileStatus()) && config.isIntegrateWithAdminConsole()) {
 				//Upload the processed output file into project factory
 				String uploadedFileStoreId = uploadConvertedFile(fileToUpload, planConfig.getTenantId());
@@ -200,16 +202,20 @@ public class ExcelParser implements FileParser {
 	 * @param campaignResponse The response object containing campaign details.
 	 * @param excelWorkbook The workbook containing sheets to be processed.
 	 */
-	private void processSheets(PlanConfigurationRequest request, String fileStoreId,
+	private void 	processSheets(PlanConfigurationRequest request, String fileStoreId,
 							   CampaignResponse campaignResponse, Workbook excelWorkbook) {
+		// IMPORTANT: Localisation takes place, Schema against validation for mdms,
 		LocaleResponse localeResponse = localeUtil.searchLocale(request);
 		Object mdmsData = mdmsUtil.fetchMdmsData(request.getRequestInfo(),
 				request.getPlanConfiguration().getTenantId());
+		// IMPORTANT: Sorting based on executionMapping
 		planConfigurationUtil.orderPlanConfigurationOperations(request);
+		// Resource mapping: from_code-> to_code
 		enrichmentUtil.enrichResourceMapping(request, localeResponse, campaignResponse.getCampaign().get(0).getProjectType(), fileStoreId);
 		Map<String, Object> attributeNameVsDataTypeMap = prepareAttributeVsIndexMap(fileStoreId, campaignResponse, request.getPlanConfiguration(), mdmsData);
 
 		List<String> boundaryCodeList = getBoundaryCodeList(request, campaignResponse);
+		// Code vs name, non-localised vs localised values
 		Map<String, String> mappedValues = request.getPlanConfiguration().getResourceMapping().stream()
 				.filter(rm -> rm.getFilestoreId().equals(fileStoreId))
 				.filter(rm -> rm.getActive().equals(Boolean.TRUE))
@@ -221,6 +227,7 @@ public class ExcelParser implements FileParser {
 				));
 
 		// Process Census records in batches to create plan estimates on PlanConfigTriggerPlanEstimatesStatus status.
+		// RESOURCE_ESTIMATION_IN_PROGRESS
 		if (request.getPlanConfiguration().getStatus().equals(config.getPlanConfigTriggerPlanEstimatesStatus())) {
 			Map<String, Object> boundaryCodeToCensusAdditionalDetails = new HashMap<>();
 			batchProcessCensusRecords(request, boundaryCodeToCensusAdditionalDetails);
@@ -232,8 +239,10 @@ public class ExcelParser implements FileParser {
 				request.getPlanConfiguration().getTenantId());
 
 		excelWorkbook.forEach(excelWorkbookSheet -> {
+			//IMPORTANT: If readme file here skipped
 			if (outputEstimationGenerationUtil.isSheetAllowedToProcess(excelWorkbookSheet.getSheetName(), localeResponse, mdmsDataForCommonConstants)) {
 				if (request.getPlanConfiguration().getStatus().equals(config.getPlanConfigTriggerCensusRecordsStatus())) {
+					// Check inputs
 					processRowsForCensusRecords(request, excelWorkbookSheet,
 							fileStoreId, attributeNameVsDataTypeMap, boundaryCodeList, campaignResponse.getCampaign().get(0).getHierarchyType());
 				} else if (request.getPlanConfiguration().getStatus().equals(config.getPlanConfigUpdatePlanEstimatesIntoOutputFileStatus())) {
@@ -285,26 +294,31 @@ public class ExcelParser implements FileParser {
 		PlanConfiguration planConfiguration = planConfigurationRequest.getPlanConfiguration();
 
 		// Fetch mixed strategy logic from the MDMS.
+		// IMPORTANT: for some columns the value will be null in columns depending on fixed or not
 		List<MixedStrategyOperationLogic> mixedStrategyOperationLogicList = mixedStrategyUtil
 				.fetchMixedStrategyOperationLogicFromMDMS(planConfigurationRequest);
 
 		// Create a mapping of boundary codes to fixed post details.
+		// Village Mapped to fixed post or not
 		Map<String, Boolean> boundaryCodeToFixedPostMap = fetchFixedPostDetails(planConfigurationRequest);
 
 		for (Census census : censusRecords) {
 			String boundaryCode = census.getBoundaryCode();
 
 			// Convert census data into a structured JSON feature node.
+			// For making it easy to edit
 			JsonNode featureNode = createFeatureNodeFromCensus(census);
 			Map<String, BigDecimal> resultMap = new HashMap<>();
 
 			// Perform calculations for each operation defined in the plan configuration.
+			// Calculations for each of the operations and enriches the resultMap
 			performCalculationsForOperations(planConfiguration, featureNode, resultMap);
 
 			// Store census additional details mapped to their respective boundary codes.
 			boundaryCodeToCensusAdditionalDetails.put(boundaryCode, census.getAdditionalDetails());
 
 			// Process result map using mixed strategy logic
+			//Important: Clean up unneccesary fields by putting it to null in resultMap for categories not allowed
 			mixedStrategyUtil.processResultMap(resultMap, planConfiguration.getOperations(), mixedStrategyUtil.getCategoriesNotAllowed(
 							boundaryCodeToFixedPostMap.get(boundaryCode), planConfiguration, mixedStrategyOperationLogicList));
 
@@ -317,12 +331,15 @@ public class ExcelParser implements FileParser {
 	public void performCalculationsForOperations(PlanConfiguration planConfiguration, JsonNode featureNode, Map<String, BigDecimal> resultMap) {
 
 		// Convert assumptions into a map for efficient retrieval.
+		//making key value map for using assumptions
 		Map<String, BigDecimal> assumptionValueMap = calculationUtil.convertAssumptionsToMap(planConfiguration.getAssumptions());
 
 		// Perform calculations for each operation defined in the plan configuration.
 		for (Operation operation : planConfiguration.getOperations()) {
+			// Important: calculates the result
 			BigDecimal result = calculationUtil.calculateResult(operation, featureNode, assumptionValueMap, resultMap);
 			String output = operation.getOutput();
+			// IMPORTANT: Storing the output as key so that the next time it can be used as input in operations
 			resultMap.put(output, result);
 		}
 	}
@@ -337,6 +354,7 @@ public class ExcelParser implements FileParser {
 		PlanConfiguration planConfiguration = request.getPlanConfiguration();
 
 		//Create plan facility search request
+		// IMPORTANT: Service boundaries are the facilities that are serving villages
 		PlanFacilitySearchRequest searchRequest = PlanFacilitySearchRequest.builder()
 				.requestInfo(request.getRequestInfo())
 				.planFacilitySearchCriteria(PlanFacilitySearchCriteria.builder()
@@ -401,7 +419,7 @@ public class ExcelParser implements FileParser {
 
 	private void processRowsForCensusRecords(PlanConfigurationRequest planConfigurationRequest, Sheet sheet, String fileStoreId, Map<String, Object> attributeNameVsDataTypeMap, List<String> boundaryCodeList, String hierarchyType) {
 		PlanConfiguration planConfig = planConfigurationRequest.getPlanConfiguration();
-
+		// Same again
 		Map<String, String> mappedValues = planConfig.getResourceMapping().stream()
 				.filter(rm -> rm.getFilestoreId().equals(fileStoreId))
 				.filter(rm -> rm.getActive().equals(Boolean.TRUE))
@@ -412,9 +430,14 @@ public class ExcelParser implements FileParser {
 						LinkedHashMap::new
 				));
 
+		// map of column name and index
 		Map<String, Integer> mapOfColumnNameAndIndex = parsingUtil.getAttributeNameIndexFromExcel(sheet);
+
+		//All columns before boundary are strings so separate checking for both
 		Integer indexOfBoundaryCode = parsingUtil.getIndexOfBoundaryCode(0,
 				parsingUtil.sortColumnByIndex(mapOfColumnNameAndIndex), mappedValues);
+
+		//First row values header row, save it
 		Row firstRow = null;
 
 		for (Row row : sheet) {
@@ -422,14 +445,16 @@ public class ExcelParser implements FileParser {
 				continue;
 
 			if (row.getRowNum() == 0) {
+				//save
 				firstRow = row;
 				continue;
 			}
-
+			// validation
 			validateRows(indexOfBoundaryCode, row, firstRow, attributeNameVsDataTypeMap, mappedValues, mapOfColumnNameAndIndex,
 					planConfigurationRequest, boundaryCodeList, sheet);
+			// converting into json object , easy to edit then convert back into row
 			JsonNode currentRow = createFeatureNodeFromRow(row, mapOfColumnNameAndIndex);
-
+			// creating
 			censusUtil.create(planConfigurationRequest, currentRow, mappedValues, hierarchyType);
 		}
 	}
@@ -706,7 +731,9 @@ public class ExcelParser implements FileParser {
 			PlanConfigurationRequest planConfigurationRequest, List<String> boundaryCodeList, Sheet sheet) {
 
 		try {
+			//before boundary index
 			validateTillBoundaryCode(indexOfBoundaryCode, row, columnHeaderRow);
+			//at boundary and after boundary index
 			validateAttributes(attributeNameVsDataTypeMap, mappedValues, mapOfColumnNameAndIndex, row, columnHeaderRow, indexOfBoundaryCode,
 					boundaryCodeList);
 		} catch (JsonProcessingException e) {
