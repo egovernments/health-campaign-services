@@ -2578,16 +2578,30 @@ async function userCredGeneration(campaignDetails: any, useruuid: string, locale
 async function createAllResources(campaignDetails: any, parentCampaign: any, useruuid: string) {
   const { maxAttemptsForResourceCreationOrMapping, waitTimeOfEachAttemptOfResourceCreationOrMappping } = config?.resourceCreationConfig
   let allCurrentProcesses = await getCurrentProcesses(campaignDetails?.campaignNumber, campaignDetails?.tenantId);
-  const resourcesTask = [allProcesses.facilityCreation, allProcesses.userCreation, allProcesses.projectCreation];
+  const resourcesTask = [
+    {
+      processName: allProcesses.facilityCreation,
+      kafkaKey: `facilityCreation_6f1b3a0e-d9a3-4c7f-947e-1fb82e36a10c`
+    },
+    {
+      processName: allProcesses.userCreation,
+      kafkaKey: `userCreation_d50a7c12-4569-4e63-b94f-e6219f0e8ba4`
+    },
+    {
+      processName: allProcesses.projectCreation,
+      kafkaKey: `projectCreation_a9b4826e-2ed4-4b94-9f7f-d1e921ab5a3d`
+    }
+  ];
   for (let i = 0; i < resourcesTask?.length; i++) {
-    const task = allCurrentProcesses.find((process: any) => process?.processName == resourcesTask[i]);
+    const {processName , kafkaKey} = resourcesTask[i];
+    const task = allCurrentProcesses.find((process: any) => process?.processName == processName);
     if (task && task?.status == processStatuses.pending) {
       await produceModifiedMessages({
         task,
         CampaignDetails: campaignDetails,
         parentCampaign,
         useruuid
-      }, config.kafka.KAFKA_START_ADMIN_CONSOLE_TASK_TOPIC, campaignDetails?.tenantId, resourcesTask[i]);
+      }, config.kafka.KAFKA_START_ADMIN_CONSOLE_TASK_TOPIC, campaignDetails?.tenantId, kafkaKey);
     }
   }
   let allTaskCompleted = false;
@@ -2637,7 +2651,7 @@ async function createAllResources(campaignDetails: any, parentCampaign: any, use
     }
     throwError("COMMON", 400, "RESOURCE_CREATION_ERROR", `${failedTasks.join(", ")} tasks failed.`);
   }
-  else if(!allTaskCompleted) {
+  else if (!allTaskCompleted) {
     throwError("COMMON", 400, "RESOURCE_CREATION_TIMED_OUT", "Resources creation timed out.");
   }
   logger.info(`Waiting for 20 seconds for all resources to get persisted...`);
@@ -2647,17 +2661,31 @@ async function createAllResources(campaignDetails: any, parentCampaign: any, use
 async function createAllMappings(campaignDetails: any, parentCampaign: any, useruuid: string) {
   const { maxAttemptsForResourceCreationOrMapping, waitTimeOfEachAttemptOfResourceCreationOrMappping } = config?.resourceCreationConfig;
   logger.info(`Starting mappings...`);
-  let mappingProcesses = [allProcesses.facilityMapping, allProcesses.userMapping, allProcesses.resourceMapping];
+  const mappingTasks = [
+    {
+      processName: allProcesses.facilityMapping,
+      kafkaKey: `facilityMapping_f13f7b6d-f5e4-4c27-9c94-ea6c77f7a32a` // → Partition 0
+    },
+    {
+      processName: allProcesses.userMapping,
+      kafkaKey: `userMapping_92df19d1-e1f1-41d9-abc2-b6ff06301b49` // → Partition 1
+    },
+    {
+      processName: allProcesses.resourceMapping,
+      kafkaKey: `resourceMapping_ab2eea59-45d4-4699-a116-1d4edfc25136` // → Partition 2
+    }
+  ];
   let allCurrentProcesses = await getCurrentProcesses(campaignDetails?.campaignNumber, campaignDetails?.tenantId);
-  for (let i = 0; i < mappingProcesses?.length; i++) {
-    const task: any = allCurrentProcesses.find((process: any) => process?.processName == mappingProcesses[i]);
+  for (let i = 0; i < mappingTasks?.length; i++) {
+      const { processName, kafkaKey } = mappingTasks[i];
+    const task: any = allCurrentProcesses.find((process: any) => process?.processName == processName);
     if (task && task?.status == processStatuses.pending) {
       await produceModifiedMessages({
         task,
         CampaignDetails: campaignDetails,
         parentCampaign,
         useruuid
-      }, config.kafka.KAFKA_START_ADMIN_CONSOLE_MAPPING_TASK_TOPIC, campaignDetails?.tenantId, mappingProcesses[i]);
+      }, config.kafka.KAFKA_START_ADMIN_CONSOLE_MAPPING_TASK_TOPIC, campaignDetails?.tenantId, kafkaKey);
     }
   }
   let allTaskCompleted = false;
@@ -2709,7 +2737,7 @@ async function createAllMappings(campaignDetails: any, parentCampaign: any, user
     }
     throwError("COMMON", 400, "RESOURCE_MAPPING_ERROR", `${failedTasks.join(", ")} tasks failed.`);
   }
-  else if(!allTaskCompleted) {
+  else if (!allTaskCompleted) {
     throwError("COMMON", 400, "RESOURCE_MAPPING_TIMED_OUT", "Mappings creation timed out.");
   }
   campaignDetails.status = campaignStatuses.completed;
