@@ -91,7 +91,7 @@ public class IndividualService {
                     || validator.getClass().equals(UniqueSubEntityValidator.class)
                     || validator.getClass().equals(MobileNumberValidator.class)
                     || validator.getClass().equals(AadharNumberValidator.class)
-                    || validator.getClass().equals(IdPoolValidatorForUpdate.class)
+//                    || validator.getClass().equals(IdPoolValidatorForUpdate.class)
             ;
 
     private final Predicate<Validator<IndividualBulkRequest, Individual>> isApplicableForCreate = validator ->
@@ -101,7 +101,7 @@ public class IndividualService {
                     || validator.getClass().equals(UniqueSubEntityValidator.class)
                     || validator.getClass().equals(MobileNumberValidator.class)
                     || validator.getClass().equals(AadharNumberValidatorForCreate.class)
-                    || validator.getClass().equals(IdPoolValidatorForCreate.class)
+//                    || validator.getClass().equals(IdPoolValidatorForCreate.class)
             ;
 
     private final Predicate<Validator<IndividualBulkRequest, Individual>> isApplicableForDelete = validator ->
@@ -169,7 +169,7 @@ public class IndividualService {
                             .encrypt(request, validIndividuals, "IndividualEncrypt", isBulk);
                     individualRepository.save(encryptedIndividualList,
                             properties.getSaveIndividualTopic());
-                    idGenUtil.updateBeneficiaryIds(beneficiaryIds, validIndividuals.get(0).getTenantId(), request.getRequestInfo());
+//                    idGenUtil.updateBeneficiaryIds(beneficiaryIds, validIndividuals.get(0).getTenantId(), request.getRequestInfo());
                 }
             }
         } catch (CustomException exception) {
