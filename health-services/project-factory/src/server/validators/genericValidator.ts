@@ -3,23 +3,12 @@ import * as express from "express";
 import { logger } from "../utils/logger";
 import Ajv from "ajv";
 import { throwError } from "../utils/genericUtils";
-import { validateFilters } from "./campaignValidators";
 import { generateRequestSchema } from "../config/models/generateRequestSchema";
 import { campaignStatuses } from "../config/constants";
 import { validateMappingId } from "../utils/campaignMappingUtils";
-import { searchBoundaryRelationshipData, searchBoundaryRelationshipDefinition } from "../api/coreApis";
+import { searchBoundaryRelationshipDefinition } from "../api/coreApis";
 import { BoundaryModels } from "../models";
 
-// Function to validate data against a JSON schema
-function validateDataWithSchema(data: any, schema: any): { isValid: boolean; error: any | null | undefined } {
-    const ajv = new Ajv({ strict: false });
-    const validate = ajv.compile(schema);
-    const isValid: any = validate(data);
-    if (!isValid) {
-        logger.error(JSON.stringify(validate.errors));
-    }
-    return { isValid, error: validate.errors };
-}
 function validateCampaignBodyViaSchema(schema: any, objectData: any) {
     const ajv = new Ajv({ strict: false });
     const validate = ajv.compile(schema);
@@ -160,42 +149,6 @@ async function validateCampaignRequest(requestBody: any) {
     }
 }
 
-// Function to validate and update project response and its ID
-function validatedProjectResponseAndUpdateId(projectResponse: any, projectBody: any, campaignDetails: any) {
-    if (projectBody?.Projects?.length != projectResponse?.Project?.length) {
-        throwError("PROJECT", 500, "PROJECT_CREATION_ERROR");
-    } else {
-        for (const project of projectResponse?.Project) {
-            if (!project?.id) {
-                throwError("PROJECT", 500, "PROJECT_CREATION_ERROR");
-            } else {
-                campaignDetails.projectId = project.id;
-            }
-        }
-    }
-}
-
-// Function to validate project staff response
-// function validateStaffResponse(staffResponse: any) {
-//     if (!staffResponse?.ProjectStaff?.id) {
-//         throwError("CAMPAIGN", 500, "RESOURCE_CREATION_ERROR", "Project staff creation failed.");
-//     }
-// }
-
-// Function to validate project resource response
-// function validateProjectResourceResponse(projectResouceResponse: any) {
-//     if (!projectResouceResponse?.ProjectResource?.id) {
-//         throwError("CAMPAIGN", 500, "RESOURCE_CREATION_ERROR", "Project Resource creation failed.");
-//     }
-// }
-
-// Function to validate project facility response
-// function validateProjectFacilityResponse(projectFacilityResponse: any) {
-//     if (!projectFacilityResponse?.ProjectFacility?.id) {
-//         throwError("CAMPAIGN", 500, "RESOURCE_CREATION_ERROR", "Project Facility creation failed.");
-//     }
-// }
-
 // Function to validate the hierarchy type
 async function validateHierarchyType(request: any, hierarchyType: any, tenantId: any) {
 
@@ -229,30 +182,9 @@ async function validateGenerateRequest(request: express.Request) {
     await validateHierarchyType(request, hierarchyType, tenantId);
 }
 
-export async function validateFiltersInRequestBody(request: any) {
-    if (request?.body?.Filters === undefined) {
-        throwError("COMMON", 400, "VALIDATION_ERROR", "For type boundary Filters Object should be present in request body")
-    }
-    // const params = {
-    //     ...request?.query,
-    //     includeChildren: true
-    // };
-    // const boundaryData = await getBoundaryRelationshipData(request, params);
-    const boundaryRelationshipResponse: any = await searchBoundaryRelationshipData(request?.query?.tenantId, request?.query?.hierarchyType, true, true);
-    const boundaryData = boundaryRelationshipResponse?.TenantBoundary?.[0]?.boundary;
-    if (boundaryData && request?.body?.Filters != null) {
-        await validateFilters(request, boundaryData);
-    }
-}
-
 export {
-    validateDataWithSchema,
     validateBodyViaSchema,
     validateCampaignRequest,
-    validatedProjectResponseAndUpdateId,
-    // validateStaffResponse,
-    // validateProjectFacilityResponse,
-    // validateProjectResourceResponse,
     validateGenerateRequest,
     validateHierarchyType,
     validateCampaignBodyViaSchema

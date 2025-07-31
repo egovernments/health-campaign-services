@@ -1282,36 +1282,6 @@ async function createBoundaryRelationship(request: any, boundaryMap: Map<{ key: 
   }
 }
 
-
-
-// async function callMdmsData(
-//   request: any,
-//   moduleName: string,
-//   masterName: string,
-//   tenantId: string
-// ) {
-//   const { RequestInfo = {} } = request?.body || {};
-//   const requestBody = {
-//     RequestInfo,
-//     MdmsCriteria: {
-//       tenantId: tenantId,
-//       moduleDetails: [
-//         {
-//           moduleName: moduleName,
-//           masterDetails: [
-//             {
-//               name: masterName,
-//             },
-//           ],
-//         },
-//       ],
-//     },
-//   };
-//   const url = config.host.mdmsV2 + config.paths.mdms_v1_search;
-//   const response = await httpRequest(url, requestBody, { tenantId: tenantId });
-//   return response;
-// }
-
 function enrichSchema(data: any, properties: any, required: any, columns: any, unique: any, columnsNotToBeFreezed: any, columnsToBeFreezed: any, columnsToHide: any, errorMessage: any) {
 
   // Sort columns based on orderNumber, using name as tie-breaker if orderNumbers are equal
@@ -1537,8 +1507,6 @@ export {
   getTargetWorkbook,
   getTargetSheetData,
   getTargetSheetDataAfterCode,
-  // callMdmsData,
-  // getMDMSV1Data,
   callMdmsTypeSchema,
   getSheetDataFromWorksheet,
   createProjectStaffHelper,

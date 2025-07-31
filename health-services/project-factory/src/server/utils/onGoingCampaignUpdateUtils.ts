@@ -57,24 +57,6 @@ function buildSearchCriteria(request: any, createdResourceId: any, type: any) {
   };
 }
 
-// async function fetchFileUrls(request: any, processedFileStoreIdForUSerOrFacility: any) {
-//   try {
-//     const reqParamsForFetchingFile = {
-//       tenantId: request?.query?.tenantId,
-//       fileStoreIds: processedFileStoreIdForUSerOrFacility
-//     };
-//     return await httpRequest(
-//       `${config?.host?.filestore}${config?.paths?.filestorefetch}`,
-//       request?.body,
-//       reqParamsForFetchingFile,
-//       "get"
-//     );
-//   } catch (error) {
-//     logger.error("Error fetching file URLs:", error);
-//     throw error;
-//   }
-// }
-
 
 
 function modifyProcessedSheetData(type: any, sheetData: any, schema: any, localizationMap?: any) {
@@ -138,30 +120,6 @@ function getColumnIndexByHeader(sheet: any, headerName: string): number {
   }
   return 1;
 }
-
-// function validateBoundaryCodes(activeRows: any, localizationMap?: any) {
-//   const updatedBoundaryCodeKey = getLocalizedName('HCM_ADMIN_CONSOLE_UPDATED_BOUNDARY_CODE', localizationMap);
-//   const updatedBoundaryCodeValue = activeRows[updatedBoundaryCodeKey];
-//   const boundaryCodeMandatoryKey = getLocalizedName("HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY", localizationMap);
-//   const boundaryCodeMandatoryValue = activeRows[boundaryCodeMandatoryKey];
-//   if (!updatedBoundaryCodeValue && !boundaryCodeMandatoryValue) {
-//     const errorDetails = {
-//       errors: [
-//         {
-//           instancePath: '',
-//           schemaPath: '#/required',
-//           keyword: 'required',
-//           params: {
-//             missingProperty: `${updatedBoundaryCodeKey} and ${boundaryCodeMandatoryKey} both`
-//           },
-//           message: `must have required properties ${`${updatedBoundaryCodeKey}, ${boundaryCodeMandatoryKey}`}`
-//         }
-//       ]
-//     };
-
-//     throw new Error(JSON.stringify(errorDetails));
-//   }
-// }
 
 async function checkAndGiveIfParentCampaignAvailable(request: any, campaignObject: any) {
   if (campaignObject?.parentId) {
@@ -765,7 +723,6 @@ export {
     getParentCampaignObject,
     getCreatedResourceIds,
     buildSearchCriteria,
-    // fetchFileUrls,
     modifyProcessedSheetData,
     freezeUnfreezeColumnsForProcessedFile,
     getColumnIndexByHeader,

@@ -4019,35 +4019,6 @@ function updateBoundaryData(boundaryData: any[], hierarchy: any[]): any[] {
   return boundaryData;
 }
 
-// function modifyBoundaryDataHeaders(
-//   boundaryData: any[],
-//   hierarchy: any[],
-//   localizationMap?: any
-// ) {
-//   const updatedData = boundaryData.map((obj: any) => {
-//     const updatedObj: { [key: string]: string | undefined } = {}; // Updated object with modified keys
-
-//     let hierarchyIndex = 0; // Track the index of the hierarchy array
-
-//     for (const key in obj) {
-//       if (
-//         key != getLocalizedName(config?.boundary?.boundaryCode, localizationMap)
-//       ) {
-//         if (Object.prototype.hasOwnProperty.call(obj, key)) {
-//           const hierarchyKey = hierarchy[hierarchyIndex]; // Get the key from the hierarchy array
-//           updatedObj[hierarchyKey] = obj[key]; // Map the key to the updated object
-//           hierarchyIndex++; // Move to the next key in the hierarchy array
-//         }
-//       } else {
-//         updatedObj[key] = obj[key];
-//       }
-//     }
-
-//     return updatedObj;
-//   });
-//   return updatedData;
-// }
-
 function modifyChildParentMap(
   childParentMap: Map<any, any>,
   boundaryMap: Map<any, any>
@@ -4562,21 +4533,6 @@ export function validateUsernamesFormat(data: any[], localizationMap: any) {
   });
 
   return errors;
-}
-
-export function getAllColumnsFromSchema(schema: any) {
-  const properties = schema?.properties;
-  const columns = Object.keys(properties);
-  for (const header of Object.keys(properties)) {
-    if (properties?.[header]?.multiSelectDetails) {
-      const maxColumns = properties?.[header]?.multiSelectDetails?.maxSelections;
-      for (let i = 1; i <= maxColumns; i++) {
-        columns.push(`${header}_MULTISELECT_${i}`);
-      }
-    }
-  }
-
-  return columns;
 }
 
 export async function isCampaignIdOfMicroplan(tenantId: string, campaignId: string) {
