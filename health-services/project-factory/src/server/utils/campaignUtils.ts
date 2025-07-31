@@ -4563,6 +4563,44 @@ export async function isCampaignIdOfMicroplan(tenantId: string, campaignId: stri
   }
 }
 
+export async function validateAndFetchCampaign(request: any) {
+  const { tenantId, campaignId } = request.body.CampaignDetails;
+  if (!tenantId || !campaignId) {
+    throwError("COMMON", 400, "VALIDATION_ERROR", "tenantId and campaignId are required");
+  }
+
+  const searchCriteria = {
+    tenantId,
+    ids: [campaignId]
+  };
+
+  const campaignResponse = await searchProjectTypeCampaignService(searchCriteria, request);
+
+  if (campaignResponse?.CampaignDetails?.length === 0) {
+    throwError("COMMON", 404, "CAMPAIGN_NOT_FOUND", "Campaign not found");
+  }
+
+  return campaignResponse.CampaignDetails[0];
+}
+
+export async function prepareAndProduceCancelMessage(campaignToUpdate: any, request: any) {
+  const tenantId = request.body.CampaignDetails.tenantId;
+
+  campaignToUpdate.isActive = false;
+  campaignToUpdate.status = campaignStatuses.cancelled;
+  campaignToUpdate.auditDetails.lastModifiedTime = Date.now();
+  campaignToUpdate.auditDetails.lastModifiedBy = request?.body?.RequestInfo?.userInfo?.uuid;
+
+  const topic = config.kafka.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC;
+  const produceMessage = {
+    CampaignDetails: campaignToUpdate
+  };
+
+  await produceModifiedMessages(produceMessage, topic, tenantId);
+
+  return campaignToUpdate;
+}
+
 export {
   generateProcessedFileAndPersist,
   convertToTypeData,
