@@ -1027,11 +1027,11 @@ async function validateCampaignName(request: any, actionInUrl: any) {
                         if (!request.body.CampaignDetails?.parentId) {
                             throwError("CAMPAIGN", 400, "CAMPAIGN_NAME_ERROR");
                         }
-                        else if (campaignWithMatchingName?.id != request.body.CampaignDetails?.parentId) {
+                        else if (campaignWithMatchingName?.id != request.body.CampaignDetails?.parentId && campaignWithMatchingName?.id != request.body.CampaignDetails?.id) {
                             throwError("CAMPAIGN", 400, "CAMPAIGN_NAME_ERROR");
                         }
                     }
-                    else if (campaignWithMatchingName && actionInUrl == "update" && campaignWithMatchingName?.id != request.body.CampaignDetails?.id) {
+                    else if (campaignWithMatchingName && actionInUrl == "update" && campaignWithMatchingName?.id != request.body.CampaignDetails?.id && campaignWithMatchingName?.id != request.body.CampaignDetails?.parentId) {
                         throwError("CAMPAIGN", 400, "CAMPAIGN_NAME_ERROR");
                     }
                 }
