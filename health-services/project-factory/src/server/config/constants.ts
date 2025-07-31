@@ -13,7 +13,8 @@ export const CONSTANTS: any = {
             RESPONSE_NOT_FOUND_ERROR: "Response not found",
             GENERATE_ERROR: "Error while generating user/facility/boundary",
             VALIDATION_ERROR_MISSING_RESOURCE : "All resource files should be uploaded",
-            LOCALISATION_ERROR: "Error occurred during localisation message retrieval"
+            LOCALISATION_ERROR: "Error occurred during localisation message retrieval",
+            VALIDATION_ERROR_CHILD_EXIST:"A child campaign is already active for this parent"
         },
         FILE: {
             SHEET_MISSING_ERROR: "Some sheet or empty in Uploaded file, please check the file",
