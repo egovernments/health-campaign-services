@@ -137,8 +137,8 @@ public class IdDispatchService {
         List<IdRecord> idRecordsToDispatch = idRepo.fetchUnassigned(tenantId, userUuid, (int) fetchCount);
 
         if (idRecordsToDispatch.isEmpty()) {
-            log.error("No IDs available from Redis or DB for tenantId: {}", tenantId);
-            throw new CustomException("NO IDS AVAILABLE", "Unable to fetch IDs from Redis or DB");
+            log.error("No IDs available in the database for tenantId: {}", tenantId);
+            throw new CustomException("NO IDS AVAILABLE", "Unable to fetch IDs from the database");
         }
 
         updateStatusesAndLogs(idRecordsToDispatch, userUuid, deviceUuid,
@@ -277,12 +277,6 @@ public class IdDispatchService {
                         .build(),
                 IdStatus.DISPATCHED.name()
         );
-
-        // Prepare payload to update ID status in Kafka
-//        Map<String, Object> payloadToUpdate = new HashMap<>();
-//        payloadToUpdate.put("idPool", selected);
-//        log.debug("Pushing {} IDs to Kafka topic: {}", selected.size(), propertiesManager.getUpdateIdPoolStatusTopic());
-//        idGenProducer.push(propertiesManager.getUpdateIdPoolStatusTopic(), payloadToUpdate);
 
         // Prepare and push transaction logs to Kafka for tracking
         Map<String, Object> payloadToUpdateTransactionLog = buildTransactionLogPayload(

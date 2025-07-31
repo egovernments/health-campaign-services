@@ -150,19 +150,23 @@ public class RedissonIDService {
         long newTotalValue = totalCounter.get() + (increment ? delta : dailyCounter.get() - delta);
 
         if(propertiesManager.isDispatchLimitUserDevicePerDayEnabled() && newDailyValue > propertiesManager.getDispatchLimitUserDevicePerDay()) {
-            throw new CustomException("USER_DEVICE_LIMIT_EXCEEDED", "Daily limit for user: " + userId + " and device: " + deviceId + " exceeded. Current value: " + newDailyValue + ". Please try again later.");
+            log.error("USER_DEVICE_DAILY_LIMIT_EXCEEDED: Daily limit for user: {} and device: {}", userId, deviceId);
+            throw new CustomException("USER_DEVICE_DAILY_LIMIT_EXCEEDED", "Daily limit for user: " + userId + " and device: " + deviceId + " exceeded. Current value: " + newDailyValue + ". Please try again later.");
         }
 
         if (newTotalValue > propertiesManager.getDispatchLimitUserDeviceTotal()) {
+            log.error("USER_DEVICE_LIMIT_EXCEEDED: Total limit for user: {} and device: {}", userId, deviceId);
             throw new CustomException("USER_DEVICE_LIMIT_EXCEEDED", "Total limit for user: " + userId + " and device: " + deviceId + " exceeded. Current value: " + newTotalValue + ". Please try again later.");
         }
 
         if (increment) {
             dailyCounter.addAndGet(delta);
             totalCounter.addAndGet(delta);
+            log.debug("Incremented daily and total count by {} for  user: {} and device: {}", delta, userId, deviceId);
         } else {
             dailyCounter.set(delta);
             totalCounter.set(newTotalValue);
+            log.debug("Updated daily to {} and total count to {} for user: {} and device: {}", delta, newTotalValue, userId, deviceId);
         }
         dailyCounter.expire(Duration.ofDays(propertiesManager.getDispatchUsageUserDevicePerDayExpireDays()));
         totalCounter.expire(Duration.ofDays(propertiesManager.getDispatchUsageUserDeviceTotalExpireDays()));
