@@ -1121,7 +1121,7 @@ async function validateCampaignBody(request: any, CampaignDetails: any, actionIn
         if (tenantId != request?.body?.RequestInfo?.userInfo?.tenantId) {
             throwError("COMMON", 400, "VALIDATION_ERROR", "tenantId is not matching with userInfo");
         }
-        await validateMaxOneChildCampaign(request?.body?.CampaignDetails?.parentId, tenantId);
+        await validateMaxOneChildCampaign(request?.body?.CampaignDetails?.parentId, request?.body?.CampaignDetails?.id, tenantId, actionInUrl);
         await validateHierarchyType(request, hierarchyType, tenantId);
         await validateProjectType(request, projectType, tenantId);
         await validateProjectCampaignBoundaries(request?.body?.boundariesCombined, hierarchyType, tenantId, request);
@@ -1134,13 +1134,14 @@ async function validateCampaignBody(request: any, CampaignDetails: any, actionIn
         await validateMissingBoundaryFromParent(request?.body);
         // validateProjectDatesForCampaign(request, CampaignDetails);
         await validateCampaignName(request, actionInUrl);
+        await validateMaxOneChildCampaign(request?.body?.CampaignDetails?.parentId, request?.body?.CampaignDetails?.id, tenantId, actionInUrl);
         await validateHierarchyType(request, hierarchyType, tenantId);
         await validateProjectType(request, projectType, tenantId);
     }
 }
 
-async function validateMaxOneChildCampaign(parentId: string | undefined, tenantId: string) {
-    if (parentId) {
+async function validateMaxOneChildCampaign(parentId: string | undefined, currentCampaignId: string | undefined, tenantId: string, actionInUrl: string) {
+    if (parentId && actionInUrl == "create") {
         logger.info(`Checking for active child campaigns for parentId: ${parentId}`);
         const searchCriteria = {
             tenantId,
@@ -1149,7 +1150,11 @@ async function validateMaxOneChildCampaign(parentId: string | undefined, tenantI
         };
         const existingChildren = await searchProjectCampaignResourcData(searchCriteria);
         if (existingChildren?.totalCount > 0) {
-            throwError("COMMON", 400, "VALIDATION_ERROR_CHILD_EXIST", "A child campaign is already active for this parent.");
+            for(let i = 0; i < existingChildren?.responseData?.length; i++) {
+                if( existingChildren?.responseData[i]?.id != currentCampaignId) {
+                    throwError("COMMON", 400, "VALIDATION_ERROR_CHILD_EXIST", "Another child campaign is already active for this parent");
+                }
+            }
         }
     }
 }
