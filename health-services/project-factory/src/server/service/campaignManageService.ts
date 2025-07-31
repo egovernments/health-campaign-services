@@ -1,5 +1,5 @@
 import express from "express";
-import { processBasedOnAction, processFetchMicroPlan, searchProjectCampaignResourcData, updateCampaignAfterSearch } from "../utils/campaignUtils";
+import { prepareAndProduceCancelMessage, processBasedOnAction, processFetchMicroPlan, searchProjectCampaignResourcData, updateCampaignAfterSearch, validateAndFetchCampaign } from "../utils/campaignUtils";
 import { logger } from "../utils/logger";
 import { validateMicroplanRequest, validateProjectCampaignRequest } from "../validators/campaignValidators";
 import { validateCampaignRequest } from "../validators/genericValidator";
@@ -62,11 +62,18 @@ async function fetchFromMicroplanService(request: express.Request) {
     return request.body.CampaignDetails;
 }
 
+async function cancelCampaignService(request: any) {
+    const campaignToCancel = await validateAndFetchCampaign(request);
+    const cancelledCampaign = await prepareAndProduceCancelMessage(campaignToCancel, request);
+    return cancelledCampaign;
+}
+
 
 export {
     createProjectTypeCampaignService,
     updateProjectTypeCampaignService,
     searchProjectTypeCampaignService,
     createCampaignService,
-    fetchFromMicroplanService
+    fetchFromMicroplanService,
+    cancelCampaignService
 }

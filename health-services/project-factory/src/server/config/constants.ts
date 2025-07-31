@@ -119,7 +119,8 @@ export const campaignStatuses: any = {
     drafted: "drafted",
     started: "creating",
     inprogress: "created",
-    failed: "failed"
+    failed: "failed",
+    cancelled : "cancelled"
 }
 
 export const resourceDataStatuses: any = {
