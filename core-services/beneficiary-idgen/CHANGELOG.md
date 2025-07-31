@@ -7,6 +7,7 @@ All notable changes to this module will be documented in this file.
 - Updated Redis usage with radisson
 - Fixed max limit reached issue for user device per day
 - upgraded health-services-models to 1.0.28
+- upgraded health-services-common to 1.1.0
 - Enhanced beneficiary id generation flow to work in async manner
 
 ## 1.0.0 - 2025-04-29
