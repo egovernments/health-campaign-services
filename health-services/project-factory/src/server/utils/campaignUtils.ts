@@ -4615,9 +4615,10 @@ export async function validateAndFetchCampaign(request: any) {
 
 export async function prepareAndProduceCancelMessage(campaignToUpdate: any, request: any) {
   const tenantId = request.body.CampaignDetails.tenantId;
-
   campaignToUpdate.isActive = false;
   campaignToUpdate.status = campaignStatuses.cancelled;
+  campaignToUpdate.campaignDetails = campaignToUpdate.campaignDetails || {};
+  campaignToUpdate.parentId = campaignToUpdate.parentId || null;
   campaignToUpdate.auditDetails.lastModifiedTime = Date.now();
   campaignToUpdate.auditDetails.lastModifiedBy = request?.body?.RequestInfo?.userInfo?.uuid;
 
