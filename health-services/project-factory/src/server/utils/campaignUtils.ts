@@ -1567,7 +1567,8 @@ async function getTotalCount(campaignDetails: any) {
       value !== undefined &&
       field !== "campaignsIncludeDates" &&
       field !== "isLikeSearch" &&
-      field !== "isOverrideDatesFromProject"
+      field !== "isOverrideDatesFromProject" &&
+      field !== "pagination"
     ) {
       if (field === "startDate") {
         const startDateSign = campaignsIncludeDates ? "<=" : ">=";
@@ -1726,7 +1727,8 @@ function buildSearchQuery(
       value !== undefined &&
       field !== "campaignsIncludeDates" &&
       field !== "isLikeSearch" &&
-      field !== "isOverrideDatesFromProject"
+      field !== "isOverrideDatesFromProject" &&
+      field !== "pagination"
     ) {
       if (field === "startDate") {
         const startDateSign = campaignsIncludeDates ? "<=" : ">=";
