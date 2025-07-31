@@ -1618,7 +1618,7 @@ async function getTotalCount(campaignDetails: any) {
     query += ` AND id IN (${idParams.join(", ")})`;
     values.push(...ids);
     index += ids.length;
-  } else {
+  } else if (searchFields.isActive === undefined) {
     query += ` AND isActive = true`;
   }
 
@@ -1779,7 +1779,7 @@ function buildSearchQuery(
     query += ` AND id IN (${idParams.join(", ")})`;
     values.push(...ids);
     index += ids.length;
-  } else {
+  } else if (searchFields.isActive === undefined) {
     query += ` AND isActive = true`;
   }
 

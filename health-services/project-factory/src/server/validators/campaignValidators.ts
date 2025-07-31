@@ -978,7 +978,7 @@ async function validateParent(request: any, actionInUrl: any) {
                     request.body.parentCampaign = parentSearchResponse?.CampaignDetails[0]
                 }
                 else {
-                    throwError("CAMPAIGN", 400, "PARENT_CAMPAIGN_ERROR", "Parent Campaign can't be inactive when creating child campaign");
+                    throwError("CAMPAIGN", 400, "PARENT_CAMPAIGN_ERROR", "Parent Campaign should be an existing active campaign");
                 }
             }
             else {
@@ -1307,7 +1307,7 @@ async function validateSearchProjectCampaignRequest(request: any) {
     }
     validateBodyViaSchema(searchCampaignDetailsSchema, CampaignDetails);
     let count = 0;
-    let validFields = ["ids", "startDate", "endDate", "projectType", "campaignName", "status", "createdBy", "campaignNumber"];
+        let validFields = ["ids", "startDate", "endDate", "projectType", "campaignName", "status", "createdBy", "campaignNumber", "isActive", "isChildCampaign", "parentId"];
     for (const key in CampaignDetails) {
         if (key !== 'tenantId') {
             if (validFields.includes(key)) {
