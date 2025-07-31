@@ -980,9 +980,6 @@ async function enrichRootProjectIdAndBoundaryCode(campaignDetails: any) {
 }
 
 async function enrichAndPersistCampaignWithError(requestBody: any, error: any) {
-  if (requestBody?.parentCampaign) {
-    await makeParentInactiveOrActive(requestBody, true);
-  }
   requestBody.CampaignDetails = requestBody?.CampaignDetails || {};
   requestBody.CampaignDetails.campaignNumber =
     requestBody?.CampaignDetails?.campaignNumber || null;
@@ -1096,6 +1093,7 @@ async function enrichAndPersistCampaignForCreate(
         request.body.parentCampaign?.campaignNumber;
       request.body.CampaignDetails.campaignName =
         request.body.parentCampaign?.campaignName;
+      request.body.CampaignDetails.isActive = true; // Set isActive to true for child campaigns
     }
     processAppConfig(request?.body?.CampaignDetails, request?.body?.RequestInfo);
   }
@@ -1153,6 +1151,8 @@ async function processAppConfig(campaignDetails: any, RequestInfo: any) {
 
 export async function enrichAndPersistCampaignForCreateViaFlow2(
   campaignDetails: any,
+  parentCampaign: any,
+  useruuid: any
 ) {
   campaignDetails.campaignDetails = {
     deliveryRules: campaignDetails?.deliveryRules || [],
@@ -1170,6 +1170,9 @@ export async function enrichAndPersistCampaignForCreateViaFlow2(
     CampaignDetails: campaignDetails,
   };
   await produceModifiedMessages(produceMessage, topic, campaignDetails?.tenantId);
+  if(parentCampaign && campaignDetails?.status === campaignStatuses.inprogress) {
+    await makeParentInactiveOrActive(parentCampaign, useruuid, false);
+  }
 }
 
 async function getRootProjectIdViaCampaignNumber(campaignNumber: string, boundaryCode: string, tenantId: string) {
@@ -1256,8 +1259,7 @@ async function enrichAndPersistCampaignForUpdate(
   delete request.body.CampaignDetails.campaignDetails;
 }
 
-async function makeParentInactiveOrActive(requestBody: any, active: boolean) {
-  let parentCampaign = requestBody?.parentCampaign;
+async function makeParentInactiveOrActive(parentCampaign: any, userUuid: string, active: boolean) {
   parentCampaign.isActive = active;
   parentCampaign.parentId = parentCampaign?.parentId || null;
   parentCampaign.campaignDetails = {
@@ -1266,8 +1268,7 @@ async function makeParentInactiveOrActive(requestBody: any, active: boolean) {
     boundaries: parentCampaign?.boundaries || [],
   };
   parentCampaign.auditDetails.lastModifiedTime = Date.now();
-  parentCampaign.auditDetails.lastModifiedBy =
-    requestBody?.RequestInfo?.userInfo?.uuid;
+  parentCampaign.auditDetails.lastModifiedBy = userUuid;
   const produceMessage: any = {
     CampaignDetails: parentCampaign,
   };
@@ -1365,9 +1366,9 @@ async function enrichAndPersistProjectCampaignForFirst(
   } else if (actionInUrl == "update") {
     await enrichAndPersistCampaignForUpdate(request, firstPersist);
   }
-  if (request?.body?.parentCampaign?.isActive) {
-    await makeParentInactiveOrActive(request?.body, false);
-  }
+  // if (request?.body?.parentCampaign?.isActive) {
+  //   await makeParentInactiveOrActive(request?.body, false);
+  // }
 }
 
 async function enrichAndPersistProjectCampaignRequest(
@@ -1554,23 +1555,29 @@ function extractCodesFromBoundaryRelationshipResponse(boundaries: any[]): any {
 }
 
 async function getTotalCount(campaignDetails: any) {
-  const { tenantId, pagination, ids, ...searchFields } = campaignDetails;
+  const { tenantId, ids, ...searchFields } = campaignDetails;
   let conditions = [];
   let values = [tenantId];
   let index = 2;
   const campaignsIncludeDates = searchFields?.campaignsIncludeDates;
 
   for (const field in searchFields) {
-    if (searchFields[field] !== undefined && field != "campaignsIncludeDates"  && field != "isLikeSearch" && field != "isOverrideDatesFromProject" ){
+    const value = searchFields[field];
+    if (
+      value !== undefined &&
+      field !== "campaignsIncludeDates" &&
+      field !== "isLikeSearch" &&
+      field !== "isOverrideDatesFromProject"
+    ) {
       if (field === "startDate") {
         const startDateSign = campaignsIncludeDates ? "<=" : ">=";
         conditions.push(`startDate ${startDateSign} $${index}`);
-        values.push(searchFields[field]);
+        values.push(value);
         index++;
       } else if (field === "endDate") {
         const endDateSign = campaignsIncludeDates ? ">=" : "<=";
         conditions.push(`endDate ${endDateSign} $${index}`);
-        values.push(searchFields[field]);
+        values.push(value);
         index++;
       } else if (field === "campaignName") {
         if (searchFields?.isLikeSearch) {
@@ -1578,48 +1585,61 @@ async function getTotalCount(campaignDetails: any) {
         } else {
           conditions.push(`campaignName = $${index}`);
         }
-        values.push(searchFields[field]);
+        values.push(value);
         index++;
-      } else if (field != "status") {
+      } else if (field === "isChildCampaign") {
+        if (value === true) {
+          conditions.push(`parentId IS NOT NULL`);
+        } else {
+          conditions.push(`parentId IS NULL`);
+        }
+      } else if (field === "parentId") {
+        conditions.push(`parentId = $${index}`);
+        values.push(value);
+        index++;
+      } else if (field !== "status") {
         conditions.push(`${field} = $${index}`);
-        values.push(searchFields[field]);
+        values.push(value);
         index++;
       }
     }
   }
+
   const tableName = getTableName(config?.DB_CONFIG.DB_CAMPAIGN_DETAILS_TABLE_NAME, tenantId);
+
   let query = `
-        SELECT count(*)
-        FROM ${tableName}
-        WHERE tenantId = $1
-    `;
+    SELECT count(*)
+    FROM ${tableName}
+    WHERE tenantId = $1
+  `;
 
   if (ids && ids.length > 0) {
-    const idParams = ids.map((id: any, i: any) => `$${index + i}`);
+    const idParams = ids.map((_ : any, i : number) => `$${index + i}`);
     query += ` AND id IN (${idParams.join(", ")})`;
     values.push(...ids);
-    index = index + ids.length;
+    index += ids.length;
   } else {
-    // If no IDs are provided, filter by isActive = true
     query += ` AND isActive = true`;
   }
-  var status = searchFields?.status;
+
+  const status = searchFields?.status;
   if (status) {
-    if (typeof status === "string") {
-      status = [status]; // Convert string to array
-    }
-    const statusParams = status.map((param: any, i: any) => `$${index + i}`); // Increment index for each parameter
+    const statusArray = Array.isArray(status) ? status : [status];
+    const statusParams = statusArray.map((_, i) => `$${index + i}`);
     query += ` AND status IN (${statusParams.join(", ")})`;
-    values.push(...status);
+    values.push(...statusArray);
+    index += statusArray.length;
   }
 
   if (conditions.length > 0) {
     query += ` AND ${conditions.join(" AND ")}`;
   }
+
   const queryResult = await executeQuery(query, values);
   const totalCount = parseInt(queryResult.rows[0].count, 10);
   return totalCount;
 }
+
 
 async function searchProjectCampaignResourcData(campaignDetails: any, request?: any) {
   // const CampaignDetails = request.body.CampaignDetails;
@@ -1701,16 +1721,22 @@ function buildSearchQuery(
   const campaignsIncludeDates = searchFields?.campaignsIncludeDates;
 
   for (const field in searchFields) {
-    if (searchFields[field] !== undefined && field != "campaignsIncludeDates" && field != "isLikeSearch" && field != "isOverrideDatesFromProject" ) {
+    const value = searchFields[field];
+    if (
+      value !== undefined &&
+      field !== "campaignsIncludeDates" &&
+      field !== "isLikeSearch" &&
+      field !== "isOverrideDatesFromProject"
+    ) {
       if (field === "startDate") {
         const startDateSign = campaignsIncludeDates ? "<=" : ">=";
         conditions.push(`startDate ${startDateSign} $${index}`);
-        values.push(searchFields[field]);
+        values.push(value);
         index++;
       } else if (field === "endDate") {
         const endDateSign = campaignsIncludeDates ? ">=" : "<=";
         conditions.push(`endDate ${endDateSign} $${index}`);
-        values.push(searchFields[field]);
+        values.push(value);
         index++;
       } else if (field === "campaignName") {
         if (searchFields?.isLikeSearch) {
@@ -1718,50 +1744,63 @@ function buildSearchQuery(
         } else {
           conditions.push(`campaignName = $${index}`);
         }
-        values.push(searchFields[field]);
+        values.push(value);
         index++;
-      } else if (field != "status") {
+      } else if (field === "isChildCampaign") {
+        if (value === true) {
+          conditions.push(`parentId IS NOT NULL`);
+        } else {
+          conditions.push(`parentId IS NULL`);
+        }
+      } else if (field === "parentId") {
+        conditions.push(`parentId = $${index}`);
+        values.push(value);
+        index++;
+      } else if (field !== "status") {
         conditions.push(`${field} = $${index}`);
-        values.push(searchFields[field]);
+        values.push(value);
         index++;
       }
     }
   }
-  const tableName = getTableName(config?.DB_CONFIG.DB_CAMPAIGN_DETAILS_TABLE_NAME, tenantId);
-  // Build the base
-  let query = `
-        SELECT *
-        FROM ${tableName}
-        WHERE tenantId = $1
-    `;
 
+  const tableName = getTableName(config?.DB_CONFIG.DB_CAMPAIGN_DETAILS_TABLE_NAME, tenantId);
+
+  // Base query
+  let query = `
+    SELECT *
+    FROM ${tableName}
+    WHERE tenantId = $1
+  `;
+
+  // Add ID filter or default to isActive=true
   if (ids && ids.length > 0) {
-    const idParams = ids.map((id: any, i: any) => `$${index + i}`);
+    const idParams = ids.map((_, i) => `$${index + i}`);
     query += ` AND id IN (${idParams.join(", ")})`;
     values.push(...ids);
-    index = index + ids.length;
+    index += ids.length;
   } else {
-    // If no IDs are provided, filter by isActive = true
     query += ` AND isActive = true`;
   }
 
-  var status = searchFields?.status;
+  // Add status filter
+  const status = searchFields?.status;
   if (status) {
-    if (typeof status === "string") {
-      status = [status]; // Convert string to array
-    }
-    const statusParams = status.map((param: any, i: any) => `$${index + i}`); // Increment index for each parameter
+    const statusArray = Array.isArray(status) ? status : [status];
+    const statusParams = statusArray.map((_, i) => `$${index + i}`);
     query += ` AND status IN (${statusParams.join(", ")})`;
-    values.push(...status);
+    values.push(...statusArray);
+    index += statusArray.length;
   }
 
+  // Append other conditions
   if (conditions.length > 0) {
     query += ` AND ${conditions.join(" AND ")}`;
   }
 
+  // Add pagination
   if (pagination) {
     query += "\n";
-
     if (pagination.sortBy) {
       query += `ORDER BY ${pagination.sortBy}`;
       if (pagination.sortOrder) {
@@ -1769,7 +1808,6 @@ function buildSearchQuery(
       }
       query += "\n";
     }
-
     if (pagination.limit !== undefined) {
       query += `LIMIT ${pagination.limit}`;
       if (pagination.offset !== undefined) {
@@ -1781,6 +1819,7 @@ function buildSearchQuery(
 
   return { query, values };
 }
+
 
 async function executeSearchQuery(query: string, values: any[]) {
   const queryResult = await executeQuery(query, values);
@@ -2480,7 +2519,7 @@ export async function processAfterPersistNew(request: any, actionInUrl: any) {
           await createAllResources(campaignDetails, request?.body?.parentCampaign || null, useruuid);
           await createAllMappings(campaignDetails, request?.body?.parentCampaign || null, useruuid);
           await userCredGeneration(campaignDetails, useruuid, locale);
-          await enrichAndPersistCampaignForCreateViaFlow2(campaignDetails);
+          await enrichAndPersistCampaignForCreateViaFlow2(campaignDetails, request?.body?.parentCampaign || null, useruuid);
           triggerUserCredentialEmailFlow(request); // not awaited = background
         } catch (e) {
           console.log(e);
