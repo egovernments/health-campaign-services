@@ -147,7 +147,7 @@ public class RedissonIDService {
         RAtomicLong totalCounter = redissonClient.getAtomicLong(totalKey);
 
         long newDailyValue = increment ? dailyCounter.get() + delta : delta;
-        long newTotalValue = totalCounter.get() + (increment ? delta : dailyCounter.get() - delta);
+        long newTotalValue = increment ? (totalCounter.get() + delta) : (totalCounter.get() - dailyCounter.get() + delta);
 
         if(propertiesManager.isDispatchLimitUserDevicePerDayEnabled() && newDailyValue > propertiesManager.getDispatchLimitUserDevicePerDay()) {
             log.error("USER_DEVICE_DAILY_LIMIT_EXCEEDED: Daily limit for user: {} and device: {}", userId, deviceId);
@@ -164,8 +164,8 @@ public class RedissonIDService {
             totalCounter.addAndGet(delta);
             log.debug("Incremented daily and total count by {} for  user: {} and device: {}", delta, userId, deviceId);
         } else {
-            dailyCounter.set(delta);
-            totalCounter.set(newTotalValue);
+            dailyCounter.compareAndSet(dailyCounter.get(), delta);
+            totalCounter.compareAndSet(totalCounter.get(), newTotalValue);
             log.debug("Updated daily to {} and total count to {} for user: {} and device: {}", delta, newTotalValue, userId, deviceId);
         }
         dailyCounter.expire(Duration.ofDays(propertiesManager.getDispatchUsageUserDevicePerDayExpireDays()));

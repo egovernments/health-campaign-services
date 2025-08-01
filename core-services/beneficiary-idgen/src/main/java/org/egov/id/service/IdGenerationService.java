@@ -260,7 +260,6 @@ public class IdGenerationService {
             log.info("Async ID pool generated and sent to Kafka for tenant {}", tenantId);
         } catch (Exception e) {
             log.error("Error in async ID pool generation", e);
-            // Optional: push to DLQ or retry topic
         }
     }
 

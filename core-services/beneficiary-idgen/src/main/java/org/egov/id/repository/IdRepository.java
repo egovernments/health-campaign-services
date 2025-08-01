@@ -53,6 +53,14 @@ public class IdRepository {
      * @return A list of {@link IdRecord} objects representing the fetched and updated IDs.
      */
     public List<IdRecord> fetchUnassigned(String tenantId, String userUuid, int count) {
+        /**
+         * This SQL query performs an atomic update operation to fetch and mark unassigned IDs as dispatched:
+         * 1. Uses FOR UPDATE SKIP LOCKED to prevent concurrent access to the same rows
+         * 2. Inner SELECT finds the oldest unassigned IDs for the tenant
+         * 3. UPDATE marks selected IDs as dispatched and updates audit fields
+         * 4. RETURNING clause fetches the complete updated records
+         * This approach ensures thread-safe ID allocation without deadlocks
+         */
         String query =
                 "UPDATE id_pool p SET status = :updatedStatus, rowVersion = rowVersion + 1, " +
                         "lastModifiedBy = :lastModifiedBy, lastModifiedTime = :lastModifiedTime " +
