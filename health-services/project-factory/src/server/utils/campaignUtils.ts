@@ -2668,7 +2668,7 @@ async function createAllResources(campaignDetails: any, parentCampaign: any, use
     }
     const campaignResp = await searchProjectTypeCampaignService({ tenantId: campaignDetails?.tenantId, ids: [campaignDetails?.id] });
     const campaignDetailsStatus = campaignResp?.CampaignDetails?.[0]?.status;
-    if (campaignDetailsStatus == campaignStatuses.failed || !campaignDetailsStatus) {
+    if (campaignDetailsStatus == campaignStatuses.failed || campaignDetailsStatus == campaignStatuses.cancelled || !campaignDetailsStatus) {
       throwError("COMMON", 400, "RESOURCE_CREATION_ERROR", "Campaign creation failed during resources creation.");
     }
     attempts++;
@@ -2752,7 +2752,7 @@ async function createAllMappings(campaignDetails: any, parentCampaign: any, user
     }
     const campaignResp = await searchProjectTypeCampaignService({ tenantId: campaignDetails?.tenantId, ids: [campaignDetails?.id] });
     const campaignDetailsStatus = campaignResp?.CampaignDetails?.[0]?.status;
-    if (campaignDetailsStatus == campaignStatuses.failed || !campaignDetailsStatus) {
+    if (campaignDetailsStatus == campaignStatuses.failed || campaignDetailsStatus == campaignStatuses.cancelled || !campaignDetailsStatus) {
       throwError("COMMON", 400, "RESOURCE_MAPPING_ERROR", "Campaign creation failed during mappings creation.");
     }
     attempts++;
