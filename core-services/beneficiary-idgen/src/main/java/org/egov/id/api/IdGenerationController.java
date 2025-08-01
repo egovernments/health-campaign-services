@@ -64,14 +64,14 @@ public class IdGenerationController {
 
 	@RequestMapping(method = RequestMethod.POST, path = "id_pool/_dispatch")
 	public IdDispatchResponse dispatchIds(@RequestBody @Valid IdDispatchRequest request)  throws Exception {
-			IdDispatchResponse response = idDispatchService.dispatchIds( request);
-			return response;
+		IdDispatchResponse response = idDispatchService.dispatchIds( request);
+		return response;
 	}
 
 	/**
 	 * description: generate unique ID for property
 	 *
-	 * @param IdPoolSearchRequest
+	 * @param request
 	 * @return IdDispatchResponse
 	 * @throws Exception
 	 */
@@ -84,7 +84,7 @@ public class IdGenerationController {
 	/**
 	 * description: generate unique ID for property
 	 *
-	 * @param IdRecordBulkRequest
+	 * @param request
 	 * @return  ResponseEntity
 	 * @throws Exception
 	 */

@@ -17,10 +17,10 @@ import lombok.ToString;
 public class BatchRequest {
 
 
-    @JsonProperty("batchSize")
+    @JsonProperty("totalCount")
     @NotNull
     @Positive
-    private Integer batchSize;
+    private Integer totalCount;
 
     @JsonProperty("tenantId")
     @NotNull
