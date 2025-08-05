@@ -1234,6 +1234,7 @@ async function validateForRetry(request: any) {
             enrichInnerCampaignDetails(request, updatedInnerCampaignDetails)
             request.body.CampaignDetails.campaignDetails = updatedInnerCampaignDetails;
             const producerMessage: any = {
+                RequestInfo: request?.body?.RequestInfo,
                 CampaignDetails: request?.body?.CampaignDetails
             }
             await produceModifiedMessages(producerMessage, config?.kafka?.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC, request?.body?.CampaignDetails?.tenantId);

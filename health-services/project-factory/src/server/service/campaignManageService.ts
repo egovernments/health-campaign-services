@@ -64,7 +64,7 @@ async function fetchFromMicroplanService(request: express.Request) {
 
 async function cancelCampaignService(request: any) {
     const campaignToCancel = await validateAndFetchCampaign(request);
-    const cancelledCampaign = await prepareAndProduceCancelMessage(campaignToCancel, request);
+    const cancelledCampaign = await prepareAndProduceCancelMessage(campaignToCancel, request?.body?.RequestInfo, request);
     return cancelledCampaign;
 }
 

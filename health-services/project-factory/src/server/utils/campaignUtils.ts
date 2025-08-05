@@ -1020,12 +1020,17 @@ async function enrichAndPersistCampaignWithError(requestBody: any, error: any) {
   // wait for 2 seconds
   logger.info(`Waiting for 2 seconds to persist errors`);
   await new Promise((resolve) => setTimeout(resolve, 2000));
-  const produceMessage: any = { CampaignDetails: requestBody.CampaignDetails };
+  const produceMessage: any = { 
+    RequestInfo: requestBody?.RequestInfo,
+    CampaignDetails: requestBody.CampaignDetails 
+  };
   await produceModifiedMessages(produceMessage, topic, requestBody?.CampaignDetails?.tenantId);
   delete requestBody.CampaignDetails.campaignDetails;
 }
 
 export async function enrichAndPersistCampaignWithErrorProcessingTask(campaignDetails: any, parentCampaign: any, useruuid: string, error: any) {
+  const RequestInfo = JSON.parse(JSON.stringify(defaultRequestInfo || {}));
+  RequestInfo.userInfo.uuid = useruuid;
   if (parentCampaign) {
     parentCampaign.isActive = true;
     parentCampaign.parentId = parentCampaign?.parentId || null;
@@ -1037,6 +1042,7 @@ export async function enrichAndPersistCampaignWithErrorProcessingTask(campaignDe
     parentCampaign.auditDetails.lastModifiedTime = Date.now();
     parentCampaign.auditDetails.lastModifiedBy = useruuid;
     const produceMessage: any = {
+      RequestInfo,
       CampaignDetails: parentCampaign,
     };
     await produceModifiedMessages(
@@ -1071,7 +1077,10 @@ export async function enrichAndPersistCampaignWithErrorProcessingTask(campaignDe
   // wait for 2 seconds
   logger.info(`Waiting for 2 seconds to persist errors`);
   await new Promise((resolve) => setTimeout(resolve, 2000));
-  const produceMessage: any = { CampaignDetails: campaignDetails };
+  const produceMessage: any = { 
+    RequestInfo,
+    CampaignDetails: campaignDetails 
+  };
   await produceModifiedMessages(produceMessage, topic, campaignDetails?.tenantId);
 }
 
@@ -1128,6 +1137,7 @@ async function enrichAndPersistCampaignForCreate(
     : config?.kafka?.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC;
   delete request.body.CampaignDetails.codesTargetMapping;
   const produceMessage: any = {
+    RequestInfo: request?.body?.RequestInfo,
     CampaignDetails: request?.body?.CampaignDetails,
   };
   await produceModifiedMessages(produceMessage, topic, request?.body?.CampaignDetails?.tenantId);
@@ -1151,6 +1161,7 @@ async function processAppConfig(campaignDetails: any, RequestInfo: any) {
 
 export async function enrichAndPersistCampaignForCreateViaFlow2(
   campaignDetails: any,
+  RequestInfo: any,
   parentCampaign: any,
   useruuid: any
 ) {
@@ -1167,6 +1178,7 @@ export async function enrichAndPersistCampaignForCreateViaFlow2(
     campaignDetails.action == "create" ? campaignStatuses.inprogress : campaignStatuses.started;
   const topic = config?.kafka?.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC;
   const produceMessage: any = {
+    RequestInfo,
     CampaignDetails: campaignDetails,
   };
   await produceModifiedMessages(produceMessage, topic, campaignDetails?.tenantId);
@@ -1248,6 +1260,7 @@ async function enrichAndPersistCampaignForUpdate(
   await enrichRootProjectIdAndBoundaryCode(request.body?.CampaignDetails);
   delete request.body.CampaignDetails.codesTargetMapping;
   const producerMessage: any = {
+    RequestInfo: request?.body?.RequestInfo,
     CampaignDetails: request?.body?.CampaignDetails,
   };
   await produceModifiedMessages(
@@ -1269,7 +1282,10 @@ async function makeParentInactiveOrActive(parentCampaign: any, userUuid: string,
   };
   parentCampaign.auditDetails.lastModifiedTime = Date.now();
   parentCampaign.auditDetails.lastModifiedBy = userUuid;
+  const RequestInfo = JSON.parse(JSON.stringify(defaultRequestInfo || {}));
+  RequestInfo.userInfo.uuid = userUuid;
   const produceMessage: any = {
+    RequestInfo,
     CampaignDetails: parentCampaign,
   };
   await produceModifiedMessages(
@@ -2521,7 +2537,7 @@ export async function processAfterPersistNew(request: any, actionInUrl: any) {
           await createAllResources(campaignDetails, request?.body?.parentCampaign || null, useruuid);
           await createAllMappings(campaignDetails, request?.body?.parentCampaign || null, useruuid);
           await userCredGeneration(campaignDetails, useruuid, locale);
-          await enrichAndPersistCampaignForCreateViaFlow2(campaignDetails, request?.body?.parentCampaign || null, useruuid);
+          await enrichAndPersistCampaignForCreateViaFlow2(campaignDetails, request?.body?.RequestInfo, request?.body?.parentCampaign || null, useruuid);
           triggerUserCredentialEmailFlow(request); // not awaited = background
         } catch (e) {
           console.log(e);
@@ -4569,7 +4585,7 @@ export async function validateAndFetchCampaign(request: any) {
   return campaignResponse.CampaignDetails[0];
 }
 
-export async function prepareAndProduceCancelMessage(campaignToUpdate: any, request: any) {
+export async function prepareAndProduceCancelMessage(campaignToUpdate: any, requestInfo: any, request: any) {
   const tenantId = request.body.CampaignDetails.tenantId;
   campaignToUpdate.isActive = false;
   campaignToUpdate.status = campaignStatuses.cancelled;
@@ -4580,6 +4596,7 @@ export async function prepareAndProduceCancelMessage(campaignToUpdate: any, requ
 
   const topic = config.kafka.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC;
   const produceMessage = {
+    RequestInfo: requestInfo,
     CampaignDetails: campaignToUpdate
   };
 
