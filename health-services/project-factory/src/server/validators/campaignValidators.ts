@@ -1294,7 +1294,7 @@ async function validatePvarIds(pvarIds: string[]) {
     const missingPvarIds = pvarIds.filter((id: any) => !fetchedIds.has(id));
 
     if (missingPvarIds.length) {
-        throwError("COMMON", 400, "VALIDATION_ERROR", `Invalid product variant ${missingPvarIds.length === 1 ? 'id' : 'ids'}: ${missingPvarIds.join(", ")}`);
+        throwError("COMMON", 400, "VALIDATION_ERROR_PRODUCT_VARIANT", `Invalid product variant ${missingPvarIds.length === 1 ? 'id' : 'ids'}: ${missingPvarIds.join(", ")}`);
     }
 }
 

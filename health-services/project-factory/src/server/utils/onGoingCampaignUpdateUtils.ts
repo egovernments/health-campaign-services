@@ -208,6 +208,19 @@ export async function validateMissingBoundaryFromParent(requestBody : any) {
     if (missingBoundaries.length > 0) {
       throw new Error(`Missing boundaries from parent campaign: ${missingBoundaries.map((boundary: any) => boundary.code).join(', ')}`);
     }
+    if (CampaignDetails?.action == "create") {
+      const parentBoundaryCodes = new Set(allParentBoundaries.map((b: any) => b.code));
+      // If the number of boundaries is different, it means the child has extra boundaries,
+      // as we've already confirmed it's not missing any from the parent.
+      if (setOfBoundaryCodesFromCurrentCampaign.size !== parentBoundaryCodes.size) {
+        const boundaryResource = CampaignDetails.resources?.find(
+          (r: any) => r.type === 'boundary' && r.fileStoreId
+        );
+        if (!boundaryResource) {
+          throwError("COMMON", 400, "VALIDATION_ERROR_MISSING_TARGET_FILE", "A new boundary file must be provided when changing boundaries from the parent campaign.");
+        }
+      }
+    }
   }
   requestBody.boundariesCombined = allCurrentCampaignBoundaries;
 }
