@@ -74,27 +74,25 @@ public class RedissonIDService {
      * @param tenantId        The identifier of the tenant.
      * @param userId          The identifier of the user.
      * @param deviceId        The identifier of the device.
-     * @param count           The number of IDs intended for dispatch.
      * @param validateCount   A flag to indicate whether validation on the count should be enforced.
      * @return The remaining dispatch limit, either the total or the daily limit, depending on system configuration.
      * @throws CustomException If validation is enabled and the count is invalid or exceeds configured limits.
      */
-    public long getUserDeviceDispatchedIDRemaining(String tenantId, String userId, String deviceId, long count, boolean validateCount) {
+    public long getUserDeviceDispatchedIDRemaining(String tenantId, String userId, String deviceId, boolean validateCount, boolean allowToday) throws CustomException {
         long totalCount = getUserDeviceDispatchedIDCountTotal(tenantId, userId, deviceId);
-        if(validateCount && count <= 0) {
-            throw new CustomException("INVALID_DISPATCH_COUNT", "Dispatch count must be greater than 0.");
+        long remainingLimit = propertiesManager.getDispatchLimitUserDeviceTotal() - totalCount;
+        if(validateCount && remainingLimit <= 0) {
+            throw new CustomException("USER_DEVICE_LIMIT_EXCEEDED", "ID generation limit exceeded: Total limit for user: " + userId + " and device: " + deviceId + " exceeded. Remaining ids: " + remainingLimit + ". Please try again later.");
         }
-        if(validateCount && (totalCount + count > propertiesManager.getDispatchLimitUserDeviceTotal())) {
-            throw new CustomException("USER_DEVICE_LIMIT_EXCEEDED", "ID generation limit exceeded: Total limit for user: " + userId + " and device: " + deviceId + " exceeded. Remaining ids: " + (propertiesManager.getDispatchLimitUserDeviceTotal() - totalCount) + ". Please try again later.");
-        }
-        if(propertiesManager.isDispatchLimitUserDevicePerDayEnabled()) {
+        if(allowToday && propertiesManager.isDispatchLimitUserDevicePerDayEnabled()) {
             long todayCount = getUserDeviceDispatchedIDCountToday(tenantId, userId, deviceId);
-            if(validateCount && (todayCount + count > propertiesManager.getDispatchLimitUserDevicePerDay())) {
+            remainingLimit = Math.min(remainingLimit, propertiesManager.getDispatchLimitUserDevicePerDay() - todayCount);
+            if(validateCount && remainingLimit <= 0) {
                 throw new CustomException("USER_DEVICE_LIMIT_EXCEEDED", "ID generation limit exceeded: Daily limit for user: " + userId + " and device: " + deviceId + " exceeded. Remaining ids: " + (propertiesManager.getDispatchLimitUserDevicePerDay() - todayCount) + ". Please try again later.");
             }
-            return propertiesManager.getDispatchLimitUserDevicePerDay() - todayCount;
+            return remainingLimit;
         }
-        return propertiesManager.getDispatchLimitUserDeviceTotal() - totalCount;
+        return remainingLimit;
     }
 
     /**
