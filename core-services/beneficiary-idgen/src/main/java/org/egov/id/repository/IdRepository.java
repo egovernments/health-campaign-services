@@ -1,5 +1,6 @@
 package org.egov.id.repository;
 
+import org.egov.common.ds.Tuple;
 import org.egov.common.models.idgen.IdRecord;
 import org.egov.common.models.idgen.IdStatus;
 import org.egov.common.models.idgen.IdTransactionLog;
@@ -78,17 +79,11 @@ public class IdRepository {
         return namedParameterJdbcTemplate.query(query, params, this.idRecordRowMapper);
     }
 
-    /**
-     * Fetches a list of dispatched IDs for a given tenant, user, and device.
-     * Filters only for today’s records and orders by recent creation time.
-     */
-    public List<IdTransactionLog> selectIDsForUserDevice(
-            String tenantId, String deviceUuid, String userUuid, IdStatus idStatus, boolean restrictToday) {
-
-        StringBuilder queryBuilder = new StringBuilder("SELECT * FROM id_transaction_log");
+    public Tuple<String, Map<String, Object>> getIDsUserDeviceQuery(String tenantId, String deviceUuid, String userUuid, IdStatus idStatus, boolean restrictToday, Integer limit, Integer offset, boolean isCountQuery) {
+        StringBuilder queryBuilder = new StringBuilder(isCountQuery ? "SELECT count(*) " : "SELECT * ");
+        queryBuilder.append("FROM id_transaction_log");
         Map<String, Object> paramMap = new HashMap<>();
         List<String> conditions = new ArrayList<>();
-
         // Add optional filters based on device, user, tenant
         if (!ObjectUtils.isEmpty(deviceUuid)) {
             conditions.add("device_uuid = :deviceUuid");
@@ -122,9 +117,37 @@ public class IdRepository {
         }
 
         // Always order by latest createdTime
-        queryBuilder.append(" ORDER BY createdTime DESC");
 
-        return namedParameterJdbcTemplate.query(queryBuilder.toString(), paramMap, this.idTransactionLogRowMapper);
+        if(!isCountQuery) {
+            queryBuilder.append(" ORDER BY createdTime DESC LIMIT :limit OFFSET :offset");
+            paramMap.put("limit", limit);
+            paramMap.put("offset", offset);
+        }
+
+        return new Tuple<>(queryBuilder.toString(), paramMap);
+    }
+
+    /**
+     * Fetches a list of dispatched IDs for a given tenant, user, and device.
+     * Filters only for today’s records and orders by recent creation time.
+     */
+    public Tuple<List<IdTransactionLog>, Long> selectIDsForUserDevice(
+            String tenantId, String deviceUuid, String userUuid, IdStatus idStatus, Integer limit, Integer offset, boolean restrictToday) {
+
+        Tuple<String, Map<String, Object>> queryAndParams = getIDsUserDeviceQuery(tenantId, deviceUuid, userUuid, idStatus, restrictToday, limit, offset, false);
+        List<IdTransactionLog> idTransactionLogs = namedParameterJdbcTemplate.query(queryAndParams.getX(), queryAndParams.getY(), this.idTransactionLogRowMapper);
+
+        long totalCount = selectIDsForUserDeviceCount(tenantId, deviceUuid, userUuid, null, limit, offset, restrictToday);
+
+        return new Tuple<>(idTransactionLogs, totalCount);
+    }
+
+    public long selectIDsForUserDeviceCount(
+            String tenantId, String deviceUuid, String userUuid, IdStatus idStatus, Integer limit, Integer offset, boolean restrictToday) {
+
+        Tuple<String, Map<String, Object>> queryAndParams = getIDsUserDeviceQuery(tenantId, deviceUuid, userUuid, idStatus, restrictToday, limit, offset, true);
+
+        return namedParameterJdbcTemplate.queryForObject(queryAndParams.getX(), queryAndParams.getY(), Long.class);
     }
 
     /**
