@@ -82,7 +82,7 @@ public class IdRepository {
      * Fetches a list of dispatched IDs for a given tenant, user, and device.
      * Filters only for today’s records and orders by recent creation time.
      */
-    public List<IdTransactionLog> selectClientDispatchedIds(
+    public List<IdTransactionLog> selectIDsForUserDevice(
             String tenantId, String deviceUuid, String userUuid, IdStatus idStatus, boolean restrictToday) {
 
         StringBuilder queryBuilder = new StringBuilder("SELECT * FROM id_transaction_log");

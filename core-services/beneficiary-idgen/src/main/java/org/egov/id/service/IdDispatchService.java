@@ -118,14 +118,14 @@ public class IdDispatchService {
             long remainingCount = redissonIDService.getUserDeviceDispatchedIDRemaining(tenantId, userUuid, deviceUuid, count, false);
             log.debug("FetchAllocatedIds flag is true, fetching previously allocated IDs.");
 
-            // Fetch all IDs already dispatched to this user/device for today
-            IdDispatchResponse idDispatchResponse = fetchAllDispatchedIds(request, propertiesManager.isIdDispatchRetrievalRestrictToTodayEnabled());
-            long actualRemainingCountToday = totalLimit - idDispatchResponse.getTotalCount();
-            if(remainingCount != actualRemainingCountToday) {
-                redissonIDService.updateUserDeviceDispatchedIDCountForToday(tenantId, userUuid, deviceUuid, idDispatchResponse.getTotalCount(), false);
+            // Fetch all IDs already dispatched to this user/device
+            IdDispatchResponse idDispatchResponse = fetchAllUserDeviceIds(request, propertiesManager.isIdDispatchRetrievalRestrictToTodayEnabled());
+            long actualRemainingCount = totalLimit - idDispatchResponse.getTotalCount();
+            if(remainingCount != actualRemainingCount) {
+                redissonIDService.updateUserDeviceDispatchedIDCount(tenantId, userUuid, deviceUuid, idDispatchResponse.getTotalCount(), false, propertiesManager.isIdDispatchRetrievalRestrictToTodayEnabled());
             }
             // Set fetch limits in the response and return
-            idDispatchResponse.setFetchLimit(actualRemainingCountToday);
+            idDispatchResponse.setFetchLimit(actualRemainingCount);
             idDispatchResponse.setTotalLimit(totalLimit);
             return idDispatchResponse;
         }
@@ -144,7 +144,7 @@ public class IdDispatchService {
         updateStatusesAndLogs(idRecordsToDispatch, userUuid, deviceUuid,
                 request.getClientInfo().getDeviceInfo(), tenantId, requestInfo);
 
-        redissonIDService.updateUserDeviceDispatchedIDCountForToday(tenantId, userUuid, deviceUuid, idRecordsToDispatch.size(), true);
+        redissonIDService.updateUserDeviceDispatchedIDCount(tenantId, userUuid, deviceUuid, idRecordsToDispatch.size(), true, true);
 
         idRecordsToDispatch.forEach(IdDispatchService::normalizeAdditionalFields);
 
@@ -163,7 +163,7 @@ public class IdDispatchService {
      * @param request the dispatch request containing user and device info
      * @return IdDispatchResponse containing previously dispatched IDs and response metadata
      */
-    private IdDispatchResponse fetchAllDispatchedIds(IdDispatchRequest request, boolean restrictToday) {
+    private IdDispatchResponse fetchAllUserDeviceIds(IdDispatchRequest request, boolean restrictToday) {
         // Extract user and device info
         String userUuid = request.getRequestInfo().getUserInfo().getUuid();
         String deviceUuid = request.getClientInfo().getDeviceUuid();
@@ -173,11 +173,11 @@ public class IdDispatchService {
         log.trace("Fetching dispatched IDs for userUuid={}, deviceUuid={}, tenantId={}", userUuid, deviceUuid, tenantId);
 
         // Query transaction logs for all IDs dispatched to the user/device today or total
-        List<IdTransactionLog> idTransactionLogs = idRepo.selectClientDispatchedIds(
+        List<IdTransactionLog> idTransactionLogs = idRepo.selectIDsForUserDevice(
                 tenantId,
                 deviceUuid,
                 userUuid,
-                IdStatus.DISPATCHED,
+                null,
                 restrictToday
         );
         log.debug("Fetched {} transaction logs for userUuid={}, deviceUuid={}", idTransactionLogs.size(), userUuid, deviceUuid);
