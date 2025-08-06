@@ -172,12 +172,13 @@ public class IdPoolValidatorForCreate implements Validator<IndividualBulkRequest
     public static void validateDuplicateIDs(Map<Individual, List<Error>> errorDetailsMap, List<Individual> individuals) {
         Set<String> uniqueIds = new HashSet<>();
         for (Individual individual: individuals) {
+            if (individual.getIdentifiers() == null) continue;
             List<String> identifiers = individual.getIdentifiers().stream()
                     .filter(id -> UNIQUE_BENEFICIARY_ID.equalsIgnoreCase(id.getIdentifierType()))
                     .map(Identifier::getIdentifierId)
                     .filter(identifierId -> !isMaskedId(identifierId))
                     .toList();
-            if (!identifiers.isEmpty() && identifiers.stream().anyMatch(uniqueIds::add)) {
+            if (!identifiers.isEmpty() && !identifiers.stream().allMatch(uniqueIds::add)) {
                 log.error("Duplicate beneficiary ID found in the bulk request for individual {}", individual.getClientReferenceId());
                 Error error = getErrorForUniqueSubEntity();
                 populateErrorDetails(individual, error, errorDetailsMap);
