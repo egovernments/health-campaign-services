@@ -115,6 +115,7 @@ public class DashboardController {
 		return ResponseGenerator.successResponse(metadataService.getDashboardConfiguration(dashboardId, catagory, user.getRoles()));
 	}
 
+	// IMPORTANT: This is the get
 	@RequestMapping(value = PathRoutes.DashboardApi.GET_CHART_V2, method = RequestMethod.POST)
 	public String getVisualizationChartV2( @RequestBody RequestDto requestDto, @RequestHeader(value = "x-user-info", required = false) String xUserInfo, ServletWebRequest request)
 			throws IOException {

@@ -58,6 +58,7 @@ public class PlanConfigurationValidator {
     public void validateCreate(PlanConfigurationRequest request) {
         PlanConfiguration planConfiguration = request.getPlanConfiguration();
         String rootTenantId = centralInstanceUtil.getStateLevelTenant(planConfiguration.getTenantId());
+        System.out.println("rootTenantId  "+rootTenantId);
         Object mdmsData = mdmsUtil.fetchMdmsData(request.getRequestInfo(), rootTenantId);
 
         MdmsCriteriaV2 mdmsCriteriaV2 = mdmsV2Util.getMdmsCriteriaV2(rootTenantId, MDMS_PLAN_MODULE_NAME + DOT_SEPARATOR + MDMS_MASTER_VEHICLE_DETAILS);

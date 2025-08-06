@@ -29,7 +29,7 @@ public class ClientServiceFactory {
             throw new RuntimeException(clientServiceName + "not found");
 
     }
-
+    // IMPORTANT: VisualizationCode is being sent
     public ClientService get(String chartId){
 
         ObjectNode node = configurationLoader.get(Constants.ConfigurationFiles.CHART_API_CONFIG);

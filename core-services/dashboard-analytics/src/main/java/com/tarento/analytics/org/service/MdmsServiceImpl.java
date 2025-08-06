@@ -47,6 +47,7 @@ public class MdmsServiceImpl implements ClientService {
 
     @Override
     @Cacheable(value="versions", key="#request.hashKey")
+    //IMPORTANT: gets using the roles
     public AggregateDto getAggregatedData(AggregateRequestDto request, List<RoleDto> roles) throws AINException, IOException {
         // Read visualization Code
         String chartId = request.getVisualizationCode();
