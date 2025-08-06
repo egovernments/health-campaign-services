@@ -206,7 +206,8 @@ export const fetchFacilityData = async (request: any, localizationMap: any) => {
     campaignId,
     tenantId,
     "facilityWithBoundary",
-    request.body.CampaignDetails?.hierarchyType
+    request.body.CampaignDetails?.hierarchyType,
+    request?.body
   );
   logger.debug(
     `downloadresponse fetchFacilityData ${getFormattedStringForDebug(
@@ -321,7 +322,8 @@ export const fetchTargetData = async (request: any, localizationMap: any) => {
     campaignId,
     tenantId,
     "boundary",
-    request.body.CampaignDetails?.hierarchyType
+    request.body.CampaignDetails?.hierarchyType,
+    request?.body
   );
   logger.debug(
     `downloadresponse target ${getFormattedStringForDebug(
@@ -697,7 +699,8 @@ export const fetchUserData = async (request: any, localizationMap: any) => {
     campaignId,
     tenantId,
     "userWithBoundary",
-    request.body.CampaignDetails?.hierarchyType
+    request.body.CampaignDetails?.hierarchyType,
+    request?.body
   );
   logger.debug(
     `downloadresponse userWithBoundary ${getFormattedStringForDebug(
