@@ -131,7 +131,7 @@ export async function getUserCredentialFileMap(request: any): Promise<Record<str
 
     logger.info(`getUserCredentialFileMap: Initiating downloadTemplate for campaign ID: ${campaignId}`);
 
-    const downloadResponse = await downloadTemplate(campaignId, tenantId, type, hierarchy);
+    const downloadResponse = await downloadTemplate(campaignId, tenantId, type, hierarchy, request?.body);
 
     const fileStoreId = downloadResponse?.[0]?.fileStoreid;
     if (!fileStoreId) {
