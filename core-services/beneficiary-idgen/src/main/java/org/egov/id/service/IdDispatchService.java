@@ -129,7 +129,7 @@ public class IdDispatchService {
             // Set fetch limits in the response and return
             idDispatchResponse.setFetchLimit(totalCount - (offset + idDispatchResponse.getIdResponses().size()));
             idDispatchResponse.setTotalLimit(totalLimit);
-            idDispatchResponse.setTotalCount((long) idDispatchResponse.getIdResponses().size());
+            idDispatchResponse.setTotalCount(totalCount);
             return idDispatchResponse;
         }
 
