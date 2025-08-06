@@ -74,27 +74,25 @@ public class RedissonIDService {
      * @param tenantId        The identifier of the tenant.
      * @param userId          The identifier of the user.
      * @param deviceId        The identifier of the device.
-     * @param count           The number of IDs intended for dispatch.
      * @param validateCount   A flag to indicate whether validation on the count should be enforced.
      * @return The remaining dispatch limit, either the total or the daily limit, depending on system configuration.
      * @throws CustomException If validation is enabled and the count is invalid or exceeds configured limits.
      */
-    public long getUserDeviceDispatchedIDRemaining(String tenantId, String userId, String deviceId, long count, boolean validateCount) {
+    public long getUserDeviceDispatchedIDRemaining(String tenantId, String userId, String deviceId, boolean validateCount, boolean allowToday) throws CustomException {
         long totalCount = getUserDeviceDispatchedIDCountTotal(tenantId, userId, deviceId);
-        if(validateCount && count <= 0) {
-            throw new CustomException("INVALID_DISPATCH_COUNT", "Dispatch count must be greater than 0.");
+        long remainingLimit = propertiesManager.getDispatchLimitUserDeviceTotal() - totalCount;
+        if(validateCount && remainingLimit <= 0) {
+            throw new CustomException("USER_DEVICE_LIMIT_EXCEEDED", "ID generation limit exceeded: Total limit for user: " + userId + " and device: " + deviceId + " exceeded. Remaining ids: " + remainingLimit + ". Please try again later.");
         }
-        if(validateCount && (totalCount + count > propertiesManager.getDispatchLimitUserDeviceTotal())) {
-            throw new CustomException("USER_DEVICE_LIMIT_EXCEEDED", "ID generation limit exceeded: Total limit for user: " + userId + " and device: " + deviceId + " exceeded. Remaining ids: " + (propertiesManager.getDispatchLimitUserDeviceTotal() - totalCount) + ". Please try again later.");
-        }
-        if(propertiesManager.isDispatchLimitUserDevicePerDayEnabled()) {
+        if(allowToday && propertiesManager.isDispatchLimitUserDevicePerDayEnabled()) {
             long todayCount = getUserDeviceDispatchedIDCountToday(tenantId, userId, deviceId);
-            if(validateCount && (todayCount + count > propertiesManager.getDispatchLimitUserDevicePerDay())) {
+            remainingLimit = Math.min(remainingLimit, propertiesManager.getDispatchLimitUserDevicePerDay() - todayCount);
+            if(validateCount && remainingLimit <= 0) {
                 throw new CustomException("USER_DEVICE_LIMIT_EXCEEDED", "ID generation limit exceeded: Daily limit for user: " + userId + " and device: " + deviceId + " exceeded. Remaining ids: " + (propertiesManager.getDispatchLimitUserDevicePerDay() - todayCount) + ". Please try again later.");
             }
-            return propertiesManager.getDispatchLimitUserDevicePerDay() - todayCount;
+            return remainingLimit;
         }
-        return propertiesManager.getDispatchLimitUserDeviceTotal() - totalCount;
+        return remainingLimit;
     }
 
     /**
@@ -128,38 +126,74 @@ public class RedissonIDService {
     }
 
     /**
-     * Updates the count of dispatched IDs for a user's device for the current day and total overall.
-     * This method adjusts the dispatch counts based on the specified increment or reset operation.
-     * It also checks for daily and total dispatch limits and throws an exception if the limit is exceeded.
+     * Updates the dispatched ID count for a specific user and device under a given tenant.
+     * This method can handle both total count updates and daily updates based on the provided flag.
      *
-     * @param tenantId   The identifier for the tenant.
-     * @param userId     The identifier for the user.
-     * @param deviceId   The identifier for the device.
-     * @param delta      The value to increment or set the dispatched ID count by.
-     * @param increment  If true, increments the count by the delta value; if false, resets the count to the delta value.
-     *
-     * @throws CustomException if the daily or total dispatch limit for the user's device is exceeded.
+     * @param tenantId the identifier of the tenant
+     * @param userId the identifier of the user
+     * @param deviceId the identifier of the device
+     * @param delta the amount by which to adjust the dispatched ID count
+     * @param increment a flag indicating whether to increment the count (true for increment, false for set/overwrite)
+     * @param isToday a flag indicating whether the update is for today's count specifically
      */
-    public void updateUserDeviceDispatchedIDCountForToday(String tenantId, String userId, String deviceId, long delta, boolean increment) {
-        String dailyKey = getUserDispatchedCountKey(tenantId, userId, deviceId, LocalDate.now());
+    public void updateUserDeviceDispatchedIDCount(String tenantId, String userId, String deviceId, long delta, boolean increment, boolean isToday) {
+        long totalDelta = delta;
+        if (isToday) {
+            totalDelta = updateUserDeviceDispatchedIDCountForToday(tenantId,userId, deviceId, delta, increment);
+        }
+        updateUserDeviceDispatchedIDCountForTotal(tenantId, userId,deviceId, totalDelta, increment);
+    }
+
+    /**
+     * Updates the total dispatched ID count for a specific user and device within a tenant, either
+     * incrementing the count by a specified delta or setting it to a specific value. The updated
+     * count is stored with a defined expiration period.
+     *
+     * @param tenantId the unique identifier of the tenant
+     * @param userId the unique identifier of the user
+     * @param deviceId the unique identifier of the device
+     * @param delta the value to increment or set the total count
+     * @param increment if true, the count will be incremented by delta; if false, the count will be set to delta
+     */
+    private void updateUserDeviceDispatchedIDCountForTotal(String tenantId, String userId, String deviceId, long delta, boolean increment) {
         String totalKey = getUserDispatchedTotalCountKey(tenantId, userId, deviceId);
-        RAtomicLong dailyCounter = redissonClient.getAtomicLong(dailyKey);
         RAtomicLong totalCounter = redissonClient.getAtomicLong(totalKey);
+        if (increment) {
+            totalCounter.addAndGet(delta);
+            log.debug("Incremented total count by {} for  user: {} and device: {}", delta, userId, deviceId);
+        } else {
+            totalCounter.compareAndSet(totalCounter.get(), delta);
+            log.debug("Updated total count to {} for user: {} and device: {}", delta, userId, deviceId);
+        }
+        totalCounter.expire(Duration.ofDays(propertiesManager.getDispatchUsageUserDeviceTotalExpireDays()));
+    }
 
-        long newTotalValue = increment ? (totalCounter.get() + delta) : (totalCounter.get() - dailyCounter.get() + delta);
-
+    /**
+     * Updates the dispatched ID count for the specified user and device on the given day.
+     * Depending on the `increment` flag, the method either increments the existing count or updates it to the specified value.
+     *
+     * @param tenantId the unique identifier of the tenant
+     * @param userId the unique identifier of the user
+     * @param deviceId the unique identifier of the device
+     * @param delta the value to increment or set the dispatched count to
+     * @param increment boolean flag indicating whether to increment (true) or overwrite (false) the count
+     * @return the difference between the new value and the previous value of the dispatched count
+     */
+    private long updateUserDeviceDispatchedIDCountForToday(String tenantId, String userId, String deviceId, long delta, boolean increment) {
+        String dailyKey = getUserDispatchedCountKey(tenantId, userId, deviceId, LocalDate.now());
+        RAtomicLong dailyCounter = redissonClient.getAtomicLong(dailyKey);
+        long previousValue = dailyCounter.get();
+        long difference = delta;
         if (increment) {
             dailyCounter.addAndGet(delta);
-            totalCounter.addAndGet(delta);
-            log.debug("Incremented daily and total count by {} for  user: {} and device: {}", delta, userId, deviceId);
+            log.debug("Incremented daily count by {} for  user: {} and device: {}", delta, userId, deviceId);
         } else {
-            dailyCounter.compareAndSet(dailyCounter.get(), delta);
-            totalCounter.compareAndSet(totalCounter.get(), newTotalValue);
-            log.debug("Updated daily id usage to {} and total count to {} for user: {} and device: {}", delta, newTotalValue, userId, deviceId);
+            difference -= previousValue;
+            dailyCounter.compareAndSet(previousValue, delta);
+            log.debug("Updated daily count to {} for user: {} and device: {}", delta, userId, deviceId);
         }
         dailyCounter.expire(Duration.ofDays(propertiesManager.getDispatchUsageUserDevicePerDayExpireDays()));
-        totalCounter.expire(Duration.ofDays(propertiesManager.getDispatchUsageUserDeviceTotalExpireDays()));
-
+        return difference;
     }
 
 }

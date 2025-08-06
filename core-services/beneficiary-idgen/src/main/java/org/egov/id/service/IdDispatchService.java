@@ -89,7 +89,7 @@ public class IdDispatchService {
      * @return IdDispatchResponse containing the dispatched IDs and relevant metadata
      * @throws Exception if any validation or locking operation fails
      */
-    public IdDispatchResponse dispatchIds(IdDispatchRequest request) throws Exception {
+    public IdDispatchResponse dispatchIds(IdDispatchRequest request, Integer limit, Integer offset) throws Exception {
 
         // Validate that User UUID is provided in the request, else throw exception
         if (StringUtils.isEmpty(request.getRequestInfo().getUserInfo().getUuid())) {
@@ -115,23 +115,26 @@ public class IdDispatchService {
         if (!ObjectUtils.isEmpty(request.getClientInfo().getFetchAllocatedIds())
                 && request.getClientInfo().getFetchAllocatedIds()) {
             // Get count of IDs already dispatched to this user and device from Redis cache
-            long remainingCount = redissonIDService.getUserDeviceDispatchedIDRemaining(tenantId, userUuid, deviceUuid, count, false);
+            long remainingCount = redissonIDService.getUserDeviceDispatchedIDRemaining(tenantId, userUuid, deviceUuid, false, propertiesManager.isIdDispatchRetrievalRestrictToTodayEnabled());
             log.debug("FetchAllocatedIds flag is true, fetching previously allocated IDs.");
 
-            // Fetch all IDs already dispatched to this user/device for today
-            IdDispatchResponse idDispatchResponse = fetchAllDispatchedIds(request, propertiesManager.isIdDispatchRetrievalRestrictToTodayEnabled());
-            long actualRemainingCountToday = totalLimit - idDispatchResponse.getTotalCount();
-            if(remainingCount != actualRemainingCountToday) {
-                redissonIDService.updateUserDeviceDispatchedIDCountForToday(tenantId, userUuid, deviceUuid, idDispatchResponse.getTotalCount(), false);
+            // Fetch all IDs already dispatched to this user/device
+            Tuple<IdDispatchResponse, Long> idDispatchLogs = fetchAllUserDeviceIds(request, limit, offset, propertiesManager.isIdDispatchRetrievalRestrictToTodayEnabled());
+            IdDispatchResponse idDispatchResponse = idDispatchLogs.getX();
+            Long totalCount = idDispatchLogs.getY();
+            long actualRemainingCount = totalLimit - totalCount;
+            if(remainingCount != actualRemainingCount) {
+                redissonIDService.updateUserDeviceDispatchedIDCount(tenantId, userUuid, deviceUuid, totalCount, false, propertiesManager.isIdDispatchRetrievalRestrictToTodayEnabled());
             }
             // Set fetch limits in the response and return
-            idDispatchResponse.setFetchLimit(actualRemainingCountToday);
+            idDispatchResponse.setFetchLimit(totalCount - (offset + idDispatchResponse.getIdResponses().size()));
             idDispatchResponse.setTotalLimit(totalLimit);
+            idDispatchResponse.setTotalCount((long) idDispatchResponse.getIdResponses().size());
             return idDispatchResponse;
         }
 
         // Get count of IDs already dispatched to this user and device from Redis cache
-        long remainingCount = redissonIDService.getUserDeviceDispatchedIDRemaining(tenantId, userUuid, deviceUuid, count, true);
+        long remainingCount = redissonIDService.getUserDeviceDispatchedIDRemaining(tenantId, userUuid, deviceUuid, true, true);
         long fetchCount = Math.min(remainingCount, count);
 
         List<IdRecord> idRecordsToDispatch = idRepo.fetchUnassigned(tenantId, userUuid, (int) fetchCount);
@@ -144,7 +147,7 @@ public class IdDispatchService {
         updateStatusesAndLogs(idRecordsToDispatch, userUuid, deviceUuid,
                 request.getClientInfo().getDeviceInfo(), tenantId, requestInfo);
 
-        redissonIDService.updateUserDeviceDispatchedIDCountForToday(tenantId, userUuid, deviceUuid, idRecordsToDispatch.size(), true);
+        redissonIDService.updateUserDeviceDispatchedIDCount(tenantId, userUuid, deviceUuid, idRecordsToDispatch.size(), true, true);
 
         idRecordsToDispatch.forEach(IdDispatchService::normalizeAdditionalFields);
 
@@ -163,7 +166,7 @@ public class IdDispatchService {
      * @param request the dispatch request containing user and device info
      * @return IdDispatchResponse containing previously dispatched IDs and response metadata
      */
-    private IdDispatchResponse fetchAllDispatchedIds(IdDispatchRequest request, boolean restrictToday) {
+    private Tuple<IdDispatchResponse, Long> fetchAllUserDeviceIds(IdDispatchRequest request, Integer limit, Integer offset, boolean restrictToday) {
         // Extract user and device info
         String userUuid = request.getRequestInfo().getUserInfo().getUuid();
         String deviceUuid = request.getClientInfo().getDeviceUuid();
@@ -173,17 +176,19 @@ public class IdDispatchService {
         log.trace("Fetching dispatched IDs for userUuid={}, deviceUuid={}, tenantId={}", userUuid, deviceUuid, tenantId);
 
         // Query transaction logs for all IDs dispatched to the user/device today or total
-        List<IdTransactionLog> idTransactionLogs = idRepo.selectClientDispatchedIds(
+        Tuple<List<IdTransactionLog>, Long> idTransactionLogs = idRepo.selectIDsForUserDevice(
                 tenantId,
                 deviceUuid,
                 userUuid,
-                IdStatus.DISPATCHED,
+                null,
+                limit,
+                offset,
                 restrictToday
         );
-        log.debug("Fetched {} transaction logs for userUuid={}, deviceUuid={}", idTransactionLogs.size(), userUuid, deviceUuid);
+        log.debug("Fetched {} transaction logs for userUuid={}, deviceUuid={}", idTransactionLogs.getX().size(), userUuid, deviceUuid);
 
         // Extract unique ID strings from the transaction logs
-        List<String> ids = idTransactionLogs.stream()
+        List<String> ids = idTransactionLogs.getX().stream()
                 .map(IdTransactionLog::getId)
                 .collect(Collectors.toList());
         log.debug("Extracted {} unique ID(s) from transaction logs: {}", ids.size(), ids);
@@ -201,10 +206,10 @@ public class IdDispatchService {
         records.stream().forEach(idRecord -> { normalizeAdditionalFields(idRecord); });
 
         // Build and return the response with previously dispatched IDs
-        return IdDispatchResponse.builder()
+        return new Tuple<>(IdDispatchResponse.builder()
                 .responseInfo(ResponseInfoUtil.createResponseInfoFromRequestInfo(request.getRequestInfo(), true))
                 .idResponses(records)
-                .build();
+                .build(), idTransactionLogs.getY());
     }
 
 
