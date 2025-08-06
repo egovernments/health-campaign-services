@@ -57,24 +57,6 @@ function buildSearchCriteria(request: any, createdResourceId: any, type: any) {
   };
 }
 
-// async function fetchFileUrls(request: any, processedFileStoreIdForUSerOrFacility: any) {
-//   try {
-//     const reqParamsForFetchingFile = {
-//       tenantId: request?.query?.tenantId,
-//       fileStoreIds: processedFileStoreIdForUSerOrFacility
-//     };
-//     return await httpRequest(
-//       `${config?.host?.filestore}${config?.paths?.filestorefetch}`,
-//       request?.body,
-//       reqParamsForFetchingFile,
-//       "get"
-//     );
-//   } catch (error) {
-//     logger.error("Error fetching file URLs:", error);
-//     throw error;
-//   }
-// }
-
 
 
 function modifyProcessedSheetData(type: any, sheetData: any, schema: any, localizationMap?: any) {
@@ -138,30 +120,6 @@ function getColumnIndexByHeader(sheet: any, headerName: string): number {
   }
   return 1;
 }
-
-// function validateBoundaryCodes(activeRows: any, localizationMap?: any) {
-//   const updatedBoundaryCodeKey = getLocalizedName('HCM_ADMIN_CONSOLE_UPDATED_BOUNDARY_CODE', localizationMap);
-//   const updatedBoundaryCodeValue = activeRows[updatedBoundaryCodeKey];
-//   const boundaryCodeMandatoryKey = getLocalizedName("HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY", localizationMap);
-//   const boundaryCodeMandatoryValue = activeRows[boundaryCodeMandatoryKey];
-//   if (!updatedBoundaryCodeValue && !boundaryCodeMandatoryValue) {
-//     const errorDetails = {
-//       errors: [
-//         {
-//           instancePath: '',
-//           schemaPath: '#/required',
-//           keyword: 'required',
-//           params: {
-//             missingProperty: `${updatedBoundaryCodeKey} and ${boundaryCodeMandatoryKey} both`
-//           },
-//           message: `must have required properties ${`${updatedBoundaryCodeKey}, ${boundaryCodeMandatoryKey}`}`
-//         }
-//       ]
-//     };
-
-//     throw new Error(JSON.stringify(errorDetails));
-//   }
-// }
 
 async function checkAndGiveIfParentCampaignAvailable(request: any, campaignObject: any) {
   if (campaignObject?.parentId) {
@@ -249,6 +207,19 @@ export async function validateMissingBoundaryFromParent(requestBody : any) {
     const missingBoundaries = allParentBoundaries.filter((boundary: any) => !setOfBoundaryCodesFromCurrentCampaign.has(boundary.code));
     if (missingBoundaries.length > 0) {
       throw new Error(`Missing boundaries from parent campaign: ${missingBoundaries.map((boundary: any) => boundary.code).join(', ')}`);
+    }
+    if (CampaignDetails?.action == "create") {
+      const parentBoundaryCodes = new Set(allParentBoundaries.map((b: any) => b.code));
+      // If the number of boundaries is different, it means the child has extra boundaries,
+      // as we've already confirmed it's not missing any from the parent.
+      if (setOfBoundaryCodesFromCurrentCampaign.size !== parentBoundaryCodes.size) {
+        const boundaryResource = CampaignDetails.resources?.find(
+          (r: any) => r.type === 'boundary' && r.fileStoreId
+        );
+        if (!boundaryResource) {
+          throwError("COMMON", 400, "VALIDATION_ERROR_MISSING_TARGET_FILE", "A new boundary file must be provided when changing boundaries from the parent campaign.");
+        }
+      }
     }
   }
   requestBody.boundariesCombined = allCurrentCampaignBoundaries;
@@ -765,7 +736,6 @@ export {
     getParentCampaignObject,
     getCreatedResourceIds,
     buildSearchCriteria,
-    // fetchFileUrls,
     modifyProcessedSheetData,
     freezeUnfreezeColumnsForProcessedFile,
     getColumnIndexByHeader,
