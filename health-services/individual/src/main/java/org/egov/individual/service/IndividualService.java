@@ -12,35 +12,24 @@ import org.egov.common.ds.Tuple;
 import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.Error;
 import org.egov.common.models.ErrorDetails;
+import org.egov.common.models.abha.AbhaGatewayOtpVerifyRequest;
+import org.egov.common.models.abha.AbhaGatewayOtpVerifyResponse;
+import org.egov.common.models.abha.AbhaOtpRequest;
+import org.egov.common.models.abha.AbhaOtpResponse;
+import org.egov.common.models.individual.AbhaOtpVerifyRequest;
 import org.egov.common.models.core.Role;
 import org.egov.common.models.core.SearchResponse;
-import org.egov.common.models.individual.Identifier;
-import org.egov.common.models.individual.Individual;
-import org.egov.common.models.individual.IndividualBulkRequest;
-import org.egov.common.models.individual.IndividualRequest;
-import org.egov.common.models.individual.IndividualSearch;
+import org.egov.common.models.individual.*;
 import org.egov.common.models.project.ApiOperation;
 import org.egov.common.models.user.UserRequest;
+import org.egov.common.service.AbhaService;
 import org.egov.common.utils.CommonUtils;
 import org.egov.common.validator.Validator;
 import org.egov.individual.config.IndividualProperties;
+import org.egov.individual.repository.AbhaRepository;
 import org.egov.individual.repository.IndividualRepository;
 import org.egov.individual.util.BeneficiaryIdGenUtil;
-import org.egov.individual.validators.AadharNumberValidator;
-import org.egov.individual.validators.AadharNumberValidatorForCreate;
-import org.egov.individual.validators.AddressTypeValidator;
-import org.egov.individual.validators.IBoundaryValidator;
-import org.egov.individual.validators.IExistentEntityValidator;
-import org.egov.individual.validators.IdPoolValidatorForCreate;
-import org.egov.individual.validators.IdPoolValidatorForUpdate;
-import org.egov.individual.validators.IsDeletedSubEntityValidator;
-import org.egov.individual.validators.IsDeletedValidator;
-import org.egov.individual.validators.MobileNumberValidator;
-import org.egov.individual.validators.NonExistentEntityValidator;
-import org.egov.individual.validators.NullIdValidator;
-import org.egov.individual.validators.RowVersionValidator;
-import org.egov.individual.validators.UniqueEntityValidator;
-import org.egov.individual.validators.UniqueSubEntityValidator;
+import org.egov.individual.validators.*;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -65,6 +54,10 @@ import static org.egov.individual.Constants.*;
 public class IndividualService {
 
     private final IndividualRepository individualRepository;
+
+    private final AbhaRepository abhaRepository;
+
+    private final AbhaService abhaService;
 
     private final List<Validator<IndividualBulkRequest, Individual>> validators;
 
@@ -93,6 +86,7 @@ public class IndividualService {
                     || validator.getClass().equals(MobileNumberValidator.class)
                     || validator.getClass().equals(AadharNumberValidator.class)
                     || validator.getClass().equals(IdPoolValidatorForUpdate.class)
+                    || validator.getClass().equals(AbhaNumberValidator.class)
             ;
 
     private final Predicate<Validator<IndividualBulkRequest, Individual>> isApplicableForCreate = validator ->
@@ -103,6 +97,7 @@ public class IndividualService {
                     || validator.getClass().equals(MobileNumberValidator.class)
                     || validator.getClass().equals(AadharNumberValidatorForCreate.class)
                     || validator.getClass().equals(IdPoolValidatorForCreate.class)
+                    || validator.getClass().equals(AbhaNumberValidatorForCreate.class)
             ;
 
     private final Predicate<Validator<IndividualBulkRequest, Individual>> isApplicableForDelete = validator ->
@@ -117,8 +112,10 @@ public class IndividualService {
                              IndividualEncryptionService individualEncryptionService,
                              UserIntegrationService userIntegrationService,
                              NotificationService notificationService,
-                             BeneficiaryIdGenUtil beneficiaryIdGenUtil) {
+                             BeneficiaryIdGenUtil beneficiaryIdGenUtil,
+                             AbhaRepository abhaRepository, AbhaService abhaService) {
         this.individualRepository = individualRepository;
+        this.abhaRepository = abhaRepository;
         this.validators = validators;
         this.properties = properties;
         this.enrichmentService = enrichmentService;
@@ -126,6 +123,7 @@ public class IndividualService {
         this.userIntegrationService = userIntegrationService;
         this.notificationService = notificationService;
         this.beneficiaryIdGenUtil = beneficiaryIdGenUtil;
+        this.abhaService = abhaService;
     }
 
     public List<Individual> create(IndividualRequest request) {
@@ -165,6 +163,10 @@ public class IndividualService {
                                 .stream())
                         .map(identifier -> String.valueOf(identifier.getIdentifierId()))
                         .toList();
+
+                // trigger Aadhaar OTP requests
+                triggerAadhaarOtpRequests(validIndividuals, request.getRequestInfo());
+
                 if (!validIndividuals.isEmpty()) {
                     encryptedIndividualList = individualEncryptionService
                             .encrypt(request, validIndividuals, "IndividualEncrypt", isBulk);
@@ -485,4 +487,167 @@ public class IndividualService {
         }
         return true;
     }
+
+    /* * This method is used to trigger Aadhaar OTP requests for individuals
+     * It checks if the individual has an Aadhaar identifier and if so, sends an OTP request
+     */
+    public Individual verifyAbhaOtp(AbhaOtpVerifyRequest request) {
+        String tenantId = request.getRequestInfo().getUserInfo().getTenantId();
+        if (tenantId == null || tenantId.isBlank()) {
+            throw new CustomException(INVALID_TENANT_ID, INVALID_TENANT_ID_MSG);
+        }
+        String individualId = request.getIndividualId();
+
+        log.info("Starting ABHA OTP verification for individualId: {}, tenantId: {}", individualId, tenantId);
+
+        String txnId = fetchTxnId(individualId, tenantId);
+        AbhaGatewayOtpVerifyRequest externalRequest = buildGatewayOtpRequest(txnId, request);
+        String abhaNumber = fetchVerifiedAbhaNumber(externalRequest, individualId);
+
+        IndividualSearch searchCriteria = IndividualSearch.builder()
+                .individualId(Collections.singletonList(individualId))
+                .build();
+
+        SearchResponse<Individual> response = search(searchCriteria, 10, 0, tenantId, null, false, request.getRequestInfo());
+
+        if (response.getResponse() == null || response.getResponse().isEmpty()) {
+            throw new CustomException("INDIVIDUAL_NOT_FOUND", "Individual not found for ID: " + individualId);
+        }
+
+        Individual individual = response.getResponse().get(0);
+        updateIndividualWithAbha(individual, abhaNumber);
+        List<Individual> updated = persistUpdatedIndividual(individual, request.getRequestInfo());
+        cleanUpAbhaTransaction(individualId, tenantId, request.getRequestInfo());
+
+        log.info("Completed ABHA OTP verification for individualId: {}", individualId);
+        return updated.get(0);
+    }
+
+    private String fetchTxnId(String individualId, String tenantId) {
+        SearchResponse<AbhaTransaction> txnResponse = abhaRepository.findByIndividualId(individualId, tenantId);
+        if (txnResponse.getResponse() == null || txnResponse.getResponse().isEmpty()) {
+            log.error("No ABHA transaction found for individualId: {}", individualId);
+            throw new CustomException(TXN_ID_NOT_FOUND, "No ABHA transaction found for individualId: " + individualId);
+        }
+
+        String txnId = txnResponse.getResponse().get(0).getTransactionId();
+        if (txnId == null || txnId.isEmpty()) {
+            log.error("Transaction ID is missing for individualId: {}", individualId);
+            throw new CustomException(TXN_ID_MISSING, "Transaction ID is missing in AbhaTransaction");
+        }
+
+        log.info("Fetched txnId: {} for individualId: {}", txnId, individualId);
+        return txnId;
+    }
+
+    private AbhaGatewayOtpVerifyRequest buildGatewayOtpRequest(String txnId, org.egov.common.models.individual.AbhaOtpVerifyRequest request) {
+        return AbhaGatewayOtpVerifyRequest.builder()
+                .txnId(txnId)
+                .otp(request.getOtp())
+                .mobile(request.getMobile())
+                .build();
+    }
+
+    private String fetchVerifiedAbhaNumber(AbhaGatewayOtpVerifyRequest request, String individualId) {
+        log.info("Verifying ABHA OTP with txnId: {}", request.getTxnId());
+        AbhaGatewayOtpVerifyResponse response = abhaService.verifyAadhaarOtp(request);
+
+        if (response == null || response.getAbhaProfile() == null || response.getAbhaProfile().getAbhaNumber() == null) {
+            log.error("Failed ABHA verification for individualId: {}", individualId);
+            throw new CustomException(VALIDATION_ERROR, "ABHA verification failed or response was invalid");
+        }
+
+        String abhaNumber = response.getAbhaProfile().getAbhaNumber();
+        log.info("Received verified ABHA number: {} for individualId: {}", abhaNumber, individualId);
+        return abhaNumber;
+    }
+
+    private Individual fetchIndividual(String individualId, String tenantId, RequestInfo requestInfo) {
+        List<String> ids = Collections.singletonList(individualId);
+        try {
+            List<Individual> result = individualRepository.findById(tenantId, ids, "individualId", false).getResponse();
+            if (result == null || result.isEmpty()) {
+                throw new CustomException("INDIVIDUAL_NOT_FOUND", "Individual not found for ID: " + individualId);
+            }
+            return individualEncryptionService.decrypt(result, "IndividualDecrypt", requestInfo).get(0);
+        } catch (Exception e) {
+            log.error("Failed to fetch individual | individualId: {}, error: {}", individualId, e.getMessage());
+            throw new CustomException("FETCH_FAILED", "Failed to fetch individual for update");
+        }
+    }
+
+    private void updateIndividualWithAbha(Individual individual, String abhaNumber) {
+        List<Identifier> identifiers = Optional.ofNullable(individual.getIdentifiers()).orElse(new ArrayList<>());
+
+        boolean alreadyExists = identifiers.stream()
+                .anyMatch(id -> ABHA_IDENTIFIER.equalsIgnoreCase(id.getIdentifierType()) && abhaNumber.equals(id.getIdentifierId()));
+
+        if (!alreadyExists) {
+            log.info("Appending ABHA identifier to individual: {}", individual.getId());
+            identifiers.add(Identifier.builder()
+                    .identifierType(ABHA_IDENTIFIER)
+                    .identifierId(abhaNumber)
+                    .isDeleted(false)
+                    .build());
+            individual.setIdentifiers(identifiers);
+        } else {
+            log.info("ABHA identifier already exists for individual: {}", individual.getId());
+        }
+    }
+
+    private List<Individual> persistUpdatedIndividual(Individual individual, RequestInfo requestInfo) {
+        IndividualRequest updateRequest = IndividualRequest.builder()
+                .individual(individual)
+                .requestInfo(requestInfo)
+                .build();
+
+        log.info("Persisting updated Individual with ABHA number for id: {}", individual.getId());
+        return update(updateRequest);
+    }
+
+    private void cleanUpAbhaTransaction(String individualId, String tenantId , RequestInfo requestInfo) {
+        log.info("Deleting ABHA transaction log for individualId: {}", individualId);
+        abhaRepository.deleteByIndividualId(individualId, tenantId, requestInfo.getUserInfo().getUuid());
+    }
+
+
+    public void triggerAadhaarOtpRequests(List<Individual> validIndividuals, RequestInfo requestInfo) {
+        List<AbhaTransaction> abhaTransactions = new ArrayList<>();
+
+        for (Individual individual : validIndividuals) {
+            extractAadhaarIdentifier(individual).ifPresent(aadhaar -> {
+                AbhaOtpRequest otpRequest = AbhaOtpRequest.builder()
+                        .aadhaarNumber(aadhaar)
+                        .build();
+
+                AbhaOtpResponse response = abhaService.sendAadhaarOtp(otpRequest);
+                String txnId = response.getTxnId();
+
+                AbhaTransaction abhaTxn = AbhaTransaction.builder()
+                        .individualId(individual.getIndividualId())
+                        .tenantId(individual.getTenantId())
+                        .transactionId(txnId)
+                        .build();
+
+                abhaTransactions.add(abhaTxn);
+            });
+        }
+
+        if (!abhaTransactions.isEmpty()) {
+            enrichmentService.enrichAbhaTransactions(abhaTransactions, requestInfo);
+            abhaRepository.save(abhaTransactions, properties.getSaveAbhaTransactionTopic());
+        }
+    }
+
+    private Optional<String> extractAadhaarIdentifier(Individual individual) {
+        return Optional.ofNullable(individual.getIdentifiers())
+                .orElse(Collections.emptyList())
+                .stream()
+                .filter(id -> AADHAR_IDENTIFIER.equalsIgnoreCase(id.getIdentifierType())
+                        && Boolean.TRUE.equals(id.getEnableAbhaCreation()))
+                .map(Identifier::getIdentifierId)
+                .findFirst();
+    }
+
+
 }

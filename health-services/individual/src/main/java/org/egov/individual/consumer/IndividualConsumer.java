@@ -66,4 +66,20 @@ public class IndividualConsumer {
             return Collections.emptyList();
         }
     }
+
+    /**
+     * This method is a placeholder for handling ABHA OTP triggers.
+     * Currently, it does not perform any operations.
+     *
+     * @param consumerRecord the record received from Kafka
+     * @param topic          the topic from which the record was received
+     */
+    public void triggerAbhaOtp(Map<String, Object> consumerRecord , @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
+        try {
+            IndividualBulkRequest request = objectMapper.convertValue(consumerRecord, IndividualBulkRequest.class);
+            individualService.triggerAadhaarOtpRequests(request.getIndividuals(), request.getRequestInfo());
+        } catch (Exception exception) {
+            log.error("error in individual consumer bulk create", exception);
+        }
+    }
 }

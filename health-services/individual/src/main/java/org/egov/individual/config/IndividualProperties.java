@@ -43,6 +43,9 @@ public class IndividualProperties {
     @Value("${aadhaar.pattern}")
     private String aadhaarPattern;
 
+    @Value("${abha.pattern}")
+    private String abhaPattern;
+
     @Value("${mobile.pattern}")
     private String mobilePattern;
 
@@ -89,5 +92,11 @@ public class IndividualProperties {
 
     @Value("${individual.beneficiary.id.validation.enabled:false}")
     private Boolean beneficiaryIdValidationEnabled;
+
+    @Value("${individual.producer.save.abhaTransaction.topic}")
+    private String saveAbhaTransactionTopic;
+
+    @Value("${egov.abha.integration.enabled}")
+    private Boolean abhaIntegrationEnabled;
 
 }

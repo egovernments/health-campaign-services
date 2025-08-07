@@ -8,19 +8,16 @@ import io.swagger.annotations.ApiParam;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.egov.common.contract.response.ResponseInfo;
+import org.egov.common.models.individual.AbhaOtpVerifyRequest;
 import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.core.URLParams;
-import org.egov.common.models.individual.Individual;
-import org.egov.common.models.individual.IndividualBulkRequest;
-import org.egov.common.models.individual.IndividualBulkResponse;
-import org.egov.common.models.individual.IndividualRequest;
-import org.egov.common.models.individual.IndividualResponse;
-import org.egov.common.models.individual.IndividualSearchRequest;
+import org.egov.common.models.individual.*;
 import org.egov.common.producer.Producer;
 import org.egov.common.utils.ResponseInfoFactory;
 import org.egov.individual.config.IndividualProperties;
 import org.egov.individual.service.IndividualService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
@@ -50,7 +47,7 @@ public class IndividualApiController {
     @Autowired
     public IndividualApiController(IndividualService individualService,
                                    ObjectMapper objectMapper,
-                                   HttpServletRequest servletRequest, Producer producer,
+                                   HttpServletRequest servletRequest, @Qualifier("individualProducer") Producer producer,
                                    IndividualProperties individualProperties) {
         this.individualService = individualService;
         this.objectMapper = objectMapper;
@@ -146,4 +143,20 @@ public class IndividualApiController {
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(ResponseInfoFactory
                 .createResponseInfo(request.getRequestInfo(), true));
     }
+
+    @RequestMapping(value = "/v1/_verify-abha-otp", method = RequestMethod.POST)
+    public ResponseEntity<IndividualResponse> individualV1VerifyAbhaOtpPost(
+            @ApiParam(value = "ABHA OTP verification request.", required = true)
+            @Valid @RequestBody AbhaOtpVerifyRequest request) {
+
+        Individual individual = individualService.verifyAbhaOtp(request);
+
+        IndividualResponse response = IndividualResponse.builder()
+                .individual(individual)
+                .responseInfo(ResponseInfoFactory.createResponseInfo(request.getRequestInfo(), true))
+                .build();
+
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
+    }
+
 }

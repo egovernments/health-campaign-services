@@ -59,5 +59,7 @@ public class Identifier {
     @Valid
     private AuditDetails auditDetails = null;
 
+    @JsonProperty("enableAbhaCreation")
+    private Boolean enableAbhaCreation = Boolean.FALSE;
 }
 

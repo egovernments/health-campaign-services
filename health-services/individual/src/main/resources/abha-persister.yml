@@ -1,0 +1,25 @@
+serviceMaps:
+  serviceName: individual
+  mappings:
+    - version: 1.0
+      description: Persists ABHA Transaction
+      fromTopic: save-abha-transaction-topic
+      isTransaction: true
+      queryMaps:
+        - query: INSERT INTO public.abha_individual_transaction (id, individualId, transactionId, tenantId, additionalDetails, createdBy, lastModifiedBy, createdTime, lastModifiedTime, isDeleted, rowVersion )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.id
+            - jsonPath: $.*.individualId
+            - jsonPath: $.*.transactionId
+            - jsonPath: $.*.tenantId
+            - jsonPath: $.*.additionalDetails
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.*.auditDetails.createdBy
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.createdTime
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.isDeleted
+            - jsonPath: $.*.rowVersion

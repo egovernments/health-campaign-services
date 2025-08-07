@@ -8,11 +8,7 @@ import java.util.stream.IntStream;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.models.AuditDetails;
 import org.egov.common.contract.request.RequestInfo;
-import org.egov.common.models.individual.Address;
-import org.egov.common.models.individual.Identifier;
-import org.egov.common.models.individual.Individual;
-import org.egov.common.models.individual.IndividualBulkRequest;
-import org.egov.common.models.individual.Skill;
+import org.egov.common.models.individual.*;
 import org.egov.common.service.IdGenService;
 import org.egov.individual.config.IndividualProperties;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -335,7 +331,6 @@ public class EnrichmentService {
         }
     }
 
-
     private static <T> Predicate<T> havingNullId() {
         return obj -> ReflectionUtils.invokeMethod(getMethod(GET_ID, obj.getClass()), obj) == null;
     }
@@ -343,4 +338,10 @@ public class EnrichmentService {
     private static <T> Predicate<T> notHavingNullId() {
         return (Predicate<T>) havingNullId().negate();
     }
+
+    public void enrichAbhaTransactions(List<AbhaTransaction> transactions, RequestInfo requestInfo) {
+        List<String> ids = uuidSupplier().apply(transactions.size());
+        enrichForCreate(transactions, ids,requestInfo);
+    }
+
 }
