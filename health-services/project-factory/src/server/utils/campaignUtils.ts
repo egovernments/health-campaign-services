@@ -2587,7 +2587,7 @@ async function createAllResources(campaignDetails: any, parentCampaign: any, use
         CampaignDetails: campaignDetails,
         parentCampaign,
         useruuid
-      }, config.kafka.KAFKA_START_ADMIN_CONSOLE_TASK_TOPIC, campaignDetails?.tenantId, resourcesTask[i]);
+      }, config.kafka.KAFKA_START_ADMIN_CONSOLE_TASK_TOPIC, campaignDetails?.tenantId ,resourcesTask[i]);
     }
   }
   let allTaskCompleted = false;
