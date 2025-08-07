@@ -127,7 +127,7 @@ public class IdDispatchService {
                 redissonIDService.updateUserDeviceDispatchedIDCount(tenantId, userUuid, deviceUuid, totalCount, false, propertiesManager.isIdDispatchRetrievalRestrictToTodayEnabled());
             }
             // Set fetch limits in the response and return
-            idDispatchResponse.setFetchLimit(totalCount - (offset + idDispatchResponse.getIdResponses().size()));
+            idDispatchResponse.setFetchLimit(Math.max(0, totalCount - (offset + idDispatchResponse.getIdResponses().size())));
             idDispatchResponse.setTotalLimit(totalLimit);
             idDispatchResponse.setTotalCount(totalCount);
             return idDispatchResponse;
