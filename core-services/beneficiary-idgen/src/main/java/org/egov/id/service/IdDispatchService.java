@@ -140,8 +140,8 @@ public class IdDispatchService {
         List<IdRecord> idRecordsToDispatch = idRepo.fetchUnassigned(tenantId, userUuid, (int) fetchCount);
 
         if (idRecordsToDispatch.isEmpty()) {
-            log.error("No IDs available in the database for tenantId: {}", tenantId);
-            throw new CustomException("NO IDS AVAILABLE", "Unable to fetch IDs from the database");
+            log.error("No IDs available in the database for tenantId: {}, requested count: {}", tenantId, fetchCount);
+            throw new CustomException("NO IDS AVAILABLE", "Unable to fetch " + fetchCount + " IDs from the database for tenant: " + tenantId);
         }
 
         updateStatusesAndLogs(idRecordsToDispatch, userUuid, deviceUuid,
