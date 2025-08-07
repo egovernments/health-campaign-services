@@ -60,7 +60,7 @@ class IndividualApiControllerTest {
     @MockBean
     private IndividualService individualService;
 
-    @MockBean
+    @MockBean(name = "individualProducer")
     private Producer producer;
 
     @MockBean
