@@ -106,8 +106,9 @@ public class IdRepository {
         }
 
         if (restrictToday) {
-            // Restrict query to today's date (ignores time)
-            conditions.add("to_char(to_timestamp(createdTime / 1000), 'YYYY-MM-DD') = to_char(current_date, 'YYYY-MM-DD')");
+            // Restrict query to today's date using timestamp range
+            conditions.add("createdTime >= (EXTRACT(EPOCH FROM date_trunc('day', CURRENT_TIMESTAMP)) * 1000)::bigint");
+            conditions.add("createdTime < (EXTRACT(EPOCH FROM date_trunc('day', CURRENT_TIMESTAMP + interval '1 day')) * 1000)::bigint");
         }
 
         // Add WHERE clause only if filters exist
@@ -117,7 +118,6 @@ public class IdRepository {
         }
 
         // Always order by latest createdTime
-
         if(!isCountQuery) {
             queryBuilder.append(" ORDER BY createdTime DESC LIMIT :limit OFFSET :offset");
             paramMap.put("limit", limit);
