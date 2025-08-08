@@ -90,4 +90,7 @@ public class IndividualProperties {
     @Value("${individual.beneficiary.id.validation.enabled:false}")
     private Boolean beneficiaryIdValidationEnabled;
 
+    @Value("${individual.beneficiary.id.length}")
+    private Integer beneficiaryIdLength;
+
 }
