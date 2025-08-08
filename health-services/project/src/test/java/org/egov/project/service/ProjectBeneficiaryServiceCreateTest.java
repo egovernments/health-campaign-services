@@ -2,7 +2,8 @@ package org.egov.project.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import digit.models.coremodels.mdms.MdmsCriteriaReq;
+import org.egov.common.exception.InvalidTenantIdException;
+import org.egov.mdms.model.MdmsCriteriaReq;
 import org.apache.commons.io.IOUtils;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.http.client.ServiceRequestClient;
@@ -47,6 +48,7 @@ import java.util.function.Predicate;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.times;
@@ -115,14 +117,16 @@ class ProjectBeneficiaryServiceCreateTest {
                                 || validator.getClass().equals(BeneficiaryValidator.class));
     }
 
-    private void mockValidateProjectId() {
+    private void mockValidateProjectId() throws InvalidTenantIdException {
         lenient().when(projectService.validateProjectIds(
+                anyString(),
                 any(List.class))
             ).thenReturn(Collections.singletonList("some-project-id"));
     }
 
-    private void mockProjectFindIds() {
+    private void mockProjectFindIds() throws InvalidTenantIdException {
         when(projectService.findByIds(
+                anyString(),
                 any(List.class)
         )).thenReturn(
                 Collections.singletonList(
@@ -170,14 +174,14 @@ class ProjectBeneficiaryServiceCreateTest {
 
         projectBeneficiaryService.create(request);
 
-        verify(projectService, times(1)).validateProjectIds(any(List.class));
+        verify(projectService, times(1)).validateProjectIds(anyString(), any(List.class));
     }
 
     @Test
     @DisplayName("should throw exception for any invalid project id")
     @Disabled
     void shouldThrowExceptionForAnyInvalidProjectId() throws Exception {
-        when(projectService.validateProjectIds(any(List.class))).thenReturn(Collections.emptyList());
+        when(projectService.validateProjectIds(anyString(), any(List.class))).thenReturn(Collections.emptyList());
 
         assertThrows(CustomException.class, () -> projectBeneficiaryService.create(request));
     }
@@ -214,7 +218,7 @@ class ProjectBeneficiaryServiceCreateTest {
 
         projectBeneficiaryService.create(request);
 
-        verify(projectService, times(1)).validateProjectIds(any(List.class));
+        verify(projectService, times(1)).validateProjectIds(anyString(), any(List.class));
         verify(mdmsService, times(1)).fetchConfig(any(), any());
         verify(serviceRequestClient, times(1)).fetchResult(
                 any(StringBuilder.class),
@@ -241,7 +245,7 @@ class ProjectBeneficiaryServiceCreateTest {
 
         projectBeneficiaryService.create(request);
 
-        verify(projectService, times(1)).validateProjectIds(any(List.class));
+        verify(projectService, times(1)).validateProjectIds(anyString(), any(List.class));
         verify(mdmsService, times(1)).fetchConfig(any(), any());
         verify(serviceRequestClient, times(1)).fetchResult(
                 any(StringBuilder.class),
