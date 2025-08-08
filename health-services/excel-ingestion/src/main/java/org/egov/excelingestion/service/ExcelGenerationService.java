@@ -2,6 +2,8 @@ package org.egov.excelingestion.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+
+import org.apache.poi.poifs.crypt.HashAlgorithm;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.ss.util.CellRangeAddressList;
@@ -84,11 +86,16 @@ public class ExcelGenerationService {
             }
         }
 
-        Workbook workbook = new XSSFWorkbook();
+        XSSFWorkbook workbook = new XSSFWorkbook();
 
         Sheet levelSheet = workbook.createSheet("LevelData");
+        workbook.setSheetVisibility(workbook.getSheetIndex("LevelData"), SheetVisibility.VERY_HIDDEN);
+
         Sheet childrenSheet = workbook.createSheet("BoundaryChildren");
+        workbook.setSheetVisibility(workbook.getSheetIndex("BoundaryChildren"), SheetVisibility.VERY_HIDDEN);
+
         Sheet mappingSheet = workbook.createSheet("NameMappings");
+        workbook.setSheetVisibility(workbook.getSheetIndex("NameMappings"), SheetVisibility.VERY_HIDDEN);
 
         for (int i = 0; i < validLevels.size(); i++) {
             String levelName = validLevels.get(i);
@@ -144,14 +151,27 @@ public class ExcelGenerationService {
         }
 
         Sheet mainSheet = workbook.createSheet("Boundaries");
-        Row mainHeader = mainSheet.createRow(0);
+
+        Row keyRow = mainSheet.createRow(0);
+        Row headerRow = mainSheet.createRow(1);
+        String hierarchyType = generatedResource.getHierarchyType();
+
         for (int i = 0; i < originalLevels.size(); i++) {
-            mainHeader.createCell(i).setCellValue(originalLevels.get(i));
+            String unlocalizedCode = hierarchyType.toUpperCase() + "_" + originalLevels.get(i).toUpperCase();
+            keyRow.createCell(i).setCellValue(unlocalizedCode);
+            headerRow.createCell(i).setCellValue(originalLevels.get(i));
         }
+        keyRow.setZeroHeight(true);
+        for (int col = 0; col < originalLevels.size(); col++) {
+            mainSheet.setColumnWidth(col, 40 * 256); // 256 is unit size in POI
+        }
+
+        mainSheet.createFreezePane(0, 2);
+
 
         DataValidationHelper dvHelper = mainSheet.getDataValidationHelper();
 
-        for (int i = 1; i <= 5000; i++) {
+        for (int i = 2; i <= 5001; i++) { // Start from row 3 (index 2)
             DataValidationConstraint firstLevelConstraint = dvHelper.createFormulaListConstraint(validLevels.get(0));
             CellRangeAddressList firstLevelAddress = new CellRangeAddressList(i, i, 0, 0);
             DataValidation firstLevelValidation = dvHelper.createValidation(firstLevelConstraint, firstLevelAddress);
@@ -159,10 +179,12 @@ public class ExcelGenerationService {
 
             for (int j = 1; j < validLevels.size(); j++) {
                 String prevCol = CellReference.convertNumToColString(j - 1);
-                String currCol = CellReference.convertNumToColString(j);
-                String formula = "INDIRECT(IF(" + prevCol + (i + 1) + "=\"\", \"" +
-                        validLevels.get(j) + "\", VLOOKUP(" + prevCol + (i + 1) +
-                        ", NameMappings!$A:$B, 2, FALSE)))";
+                String formula = "INDIRECT(IF("
+                        + prevCol + (i + 1) + "=\"\", \""
+                        + validLevels.get(j)
+                        + "\", VLOOKUP(" + prevCol + (i + 1)
+                        + ", NameMappings!$A:$B, 2, FALSE)))";
+
                 DataValidationConstraint dvConstraint = dvHelper.createFormulaListConstraint(formula);
                 CellRangeAddressList addr = new CellRangeAddressList(i, i, j, j);
                 DataValidation validation = dvHelper.createValidation(dvConstraint, addr);
@@ -175,24 +197,47 @@ public class ExcelGenerationService {
             String col = CellReference.convertNumToColString(j);
             String prevCol = CellReference.convertNumToColString(j - 1);
             String levelName = validLevels.get(j);
+            String formula =
+                "AND(" + col + "3<>\"\", " + // Check from row 3
+                "ISERROR(MATCH(" + col + "3, INDIRECT(IF(" + prevCol + "3=\"\", \"" + levelName +
+                "\", VLOOKUP(" + prevCol + "3, NameMappings!$A:$B, 2, FALSE))), 0)))";
 
-            String formula = "AND(" + col + "2<>\"\", " +
-                    "ISERROR(MATCH(" + col + "2, INDIRECT(IF(" + prevCol + "2=\"\", \"" +
-                    levelName + "\", VLOOKUP(" + prevCol + "2, NameMappings!$A:$B, 2, FALSE))), 0)))";
 
             ConditionalFormattingRule rule = sheetCF.createConditionalFormattingRule(formula);
             PatternFormatting fill = rule.createPatternFormatting();
             fill.setFillBackgroundColor(IndexedColors.RED.getIndex());
             fill.setFillPattern(FillPatternType.SOLID_FOREGROUND.getCode());
 
-            CellRangeAddress[] regions = { new CellRangeAddress(1, 5000, j, j) };
+            CellRangeAddress[] regions = { new CellRangeAddress(2, 5001, j, j) }; // Apply from row 3
             sheetCF.addConditionalFormatting(regions, rule);
         }
+        // Unlock data entry cells
+        CellStyle unlockedCellStyle = workbook.createCellStyle();
+        unlockedCellStyle.setLocked(false);
 
-        workbook.setSheetVisibility(workbook.getSheetIndex("LevelData"), SheetVisibility.VERY_HIDDEN);
-        workbook.setSheetVisibility(workbook.getSheetIndex("BoundaryChildren"), SheetVisibility.VERY_HIDDEN);
-        workbook.setSheetVisibility(workbook.getSheetIndex("NameMappings"), SheetVisibility.VERY_HIDDEN);
+        for (int i = 2; i <= 5001; i++) {
+            Row row = mainSheet.getRow(i);
+            if (row == null) {
+                row = mainSheet.createRow(i);
+            }
+            for (int j = 0; j < originalLevels.size(); j++) {
+                Cell cell = row.getCell(j);
+                if (cell == null) {
+                    cell = row.createCell(j);
+                }
+                cell.setCellStyle(unlockedCellStyle);
+            }
+        }
 
+        mainSheet.protectSheet("passwordhere");
+
+        for (Sheet s : workbook) {
+            s.setSelected(false);
+        }
+        mainSheet.setSelected(true);
+        workbook.setActiveSheet(workbook.getSheetIndex("Boundaries"));
+        workbook.lockStructure();
+        workbook.setWorkbookPassword("passwordhere", HashAlgorithm.sha512);
         ByteArrayOutputStream bos = new ByteArrayOutputStream();
         try {
             workbook.write(bos);
