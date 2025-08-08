@@ -56,6 +56,12 @@ export const searchCampaignDetailsSchema = {
         "campaignNumber": {
             "type": "string"
         },
+        "isChildCampaign": {
+            "type": "boolean"
+        },
+        "parentId": {
+            "type": "string"
+        },
         "pagination": {
             "type": "object",
             "properties": {

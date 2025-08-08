@@ -231,21 +231,6 @@ function changeBodyViaElements(elements: any, requestBody: any) {
   }
 }
 
-// function changeBodyViaSearchFromSheet(elements: any, request: any, dataFromSheet: any) {
-//   if (!elements) {
-//     return;
-//   }
-//   for (const element of elements) {
-//     const arrayToSearch = []
-//     for (const data of dataFromSheet) {
-//       if (data[element.sheetColumnName]) {
-//         arrayToSearch.push(data[element.sheetColumnName]);
-//       }
-//     }
-//     _.set(request.body, element?.searchPath, arrayToSearch);
-//   }
-// }
-
 function updateErrorsForUser(
   request: any,
   newCreatedData: any[],
@@ -711,13 +696,6 @@ function updateOffset(
 }
 
 async function processSearchAndValidation(request: any) {
-  // if (request?.body?.dataToSearch?.length > 0) {
-  //   const params: any = getParamsViaElements(createAndSearchConfig?.searchDetails?.searchElements, request);
-  //   changeBodyViaElements(createAndSearchConfig?.searchDetails?.searchElements, request)
-  //   changeBodyViaSearchFromSheet(createAndSearchConfig?.requiresToSearchFromSheet, request, dataFromSheet)
-  //   const arraysToMatch = await processSearch(createAndSearchConfig, request, params)
-  //   matchData(request, request.body.dataToSearch, arraysToMatch, createAndSearchConfig)
-  // }
   if (request?.body?.ResourceDetails?.type == "user") {
     await enrichEmployees(request?.body?.dataToCreate, request);
     await matchUserValidation(request.body.dataToCreate, request);

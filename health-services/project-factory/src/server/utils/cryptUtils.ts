@@ -1,6 +1,7 @@
 import crypto from 'crypto';
+import config from '../config';
 
-const BASE_SECRET = process.env.BASE_SECRET || 'egov-admin-console-enc';
+const BASE_SECRET: any = config.basesecret;
 const SALT_LENGTH = 16; // bytes
 const IV_LENGTH = 12;   // recommended for GCM
 const KEY_LENGTH = 32;  // AES-256

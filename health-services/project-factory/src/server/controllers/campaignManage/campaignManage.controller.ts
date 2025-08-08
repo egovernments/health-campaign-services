@@ -1,5 +1,6 @@
 import * as express from "express";
 import {
+  cancelCampaignService,
   createCampaignService,
   createProjectTypeCampaignService,
   fetchFromMicroplanService,
@@ -31,6 +32,7 @@ class campaignManageController {
         this.router.post(`${this.path}/search`, this.searchProjectTypeCampaign);
         this.router.post(`${this.path}/createCampaign`, this.createCampaign);
         this.router.post(`${this.path}/fetch-from-microplan`, this.fetchFromMicroplan);
+        this.router.post(`${this.path}/cancel-campaign`, this.cancelCampaign);
     }
     
     
@@ -130,6 +132,22 @@ class campaignManageController {
         try {
             logger.info("RECEIVED A FETCH FROM MICROPLAN REQUEST");
             const CampaignDetails = await fetchFromMicroplanService(request);
+            return sendResponse(response, { CampaignDetails }, request);
+        }
+        catch (e: any) {
+            console.log(e)
+            logger.error(String(e))
+            return errorResponder({ message: String(e), code: e?.code, description: e?.description }, request, response, e?.status || 500);
+        }
+    }
+
+    cancelCampaign = async (
+        request: express.Request,
+        response: express.Response
+    ) => {
+        try {
+            logger.info("RECEIVED A CAMPAIGN CANCEL REQUEST");
+            const CampaignDetails = await cancelCampaignService(request);
             return sendResponse(response, { CampaignDetails }, request);
         }
         catch (e: any) {
