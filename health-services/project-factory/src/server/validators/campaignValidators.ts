@@ -6,7 +6,7 @@ import { getCampaignSearchResponse, getHeadersOfBoundarySheet, getHierarchy, han
 import { campaignDetailsSchema } from "../config/models/campaignDetails";
 import Ajv from "ajv";
 import { getDifferentDistrictTabs, getLocalizedHeaders, getMdmsDataBasedOnCampaignType, throwError } from "../utils/genericUtils";
-import { createBoundaryMap, enrichInnerCampaignDetails, generateProcessedFileAndPersist, getFinalValidHeadersForTargetSheetAsPerCampaignType, getLocalizedName } from "../utils/campaignUtils";
+import { createBoundaryMap, enrichInnerCampaignDetails, generateProcessedFileAndPersist, getFinalValidHeadersForTargetSheetAsPerCampaignType, getLocalizedName, searchProjectCampaignResourcData } from "../utils/campaignUtils";
 import { validateBodyViaSchema, validateCampaignBodyViaSchema, validateHierarchyType } from "./genericValidator";
 import { searchCriteriaSchema } from "../config/models/SearchCriteria";
 import { searchCampaignDetailsSchema } from "../config/models/searchCampaignDetails";
@@ -978,18 +978,16 @@ async function validateParent(request: any, actionInUrl: any) {
                     request.body.parentCampaign = parentSearchResponse?.CampaignDetails[0]
                 }
                 else {
-                    throwError("CAMPAIGN", 400, "PARENT_CAMPAIGN_ERROR", "Parent Campaign can't be inactive when creating child campaign");
+                    throwError("CAMPAIGN", 400, "PARENT_CAMPAIGN_ERROR", "Parent Campaign should be an existing active campaign");
                 }
             }
             else {
-                if (parentSearchResponse?.CampaignDetails?.length > 0 && parentSearchResponse?.CampaignDetails?.[0]?.status == "created" &&
-                    !parentSearchResponse?.CampaignDetails?.[0]?.isActive) {
+                if (parentSearchResponse?.CampaignDetails?.length > 0 && parentSearchResponse?.CampaignDetails?.[0]?.status == "created") {
                     request.body.parentCampaign = parentSearchResponse?.CampaignDetails[0]
                 }
                 else {
-                    throwError("CAMPAIGN", 400, "PARENT_CAMPAIGN_ERROR", "Parent Campaign can't be active when  updating child campaign");
+                    throwError("CAMPAIGN", 400, "PARENT_CAMPAIGN_ERROR", "Parent Campaign should be in created state");
                 }
-
             }
         }
     }
@@ -1029,11 +1027,11 @@ async function validateCampaignName(request: any, actionInUrl: any) {
                         if (!request.body.CampaignDetails?.parentId) {
                             throwError("CAMPAIGN", 400, "CAMPAIGN_NAME_ERROR");
                         }
-                        else if (campaignWithMatchingName?.id != request.body.CampaignDetails?.parentId) {
+                        else if (campaignWithMatchingName?.id != request.body.CampaignDetails?.parentId && campaignWithMatchingName?.id != request.body.CampaignDetails?.id) {
                             throwError("CAMPAIGN", 400, "CAMPAIGN_NAME_ERROR");
                         }
                     }
-                    else if (campaignWithMatchingName && actionInUrl == "update" && campaignWithMatchingName?.id != request.body.CampaignDetails?.id) {
+                    else if (campaignWithMatchingName && actionInUrl == "update" && campaignWithMatchingName?.id != request.body.CampaignDetails?.id && campaignWithMatchingName?.id != request.body.CampaignDetails?.parentId) {
                         throwError("CAMPAIGN", 400, "CAMPAIGN_NAME_ERROR");
                     }
                 }
@@ -1123,6 +1121,7 @@ async function validateCampaignBody(request: any, CampaignDetails: any, actionIn
         if (tenantId != request?.body?.RequestInfo?.userInfo?.tenantId) {
             throwError("COMMON", 400, "VALIDATION_ERROR", "tenantId is not matching with userInfo");
         }
+        await validateMaxOneChildCampaign(request?.body?.CampaignDetails?.parentId, request?.body?.CampaignDetails?.id, tenantId, actionInUrl);
         await validateHierarchyType(request, hierarchyType, tenantId);
         await validateProjectType(request, projectType, tenantId);
         await validateProjectCampaignBoundaries(request?.body?.boundariesCombined, hierarchyType, tenantId, request);
@@ -1135,8 +1134,28 @@ async function validateCampaignBody(request: any, CampaignDetails: any, actionIn
         await validateMissingBoundaryFromParent(request?.body);
         // validateProjectDatesForCampaign(request, CampaignDetails);
         await validateCampaignName(request, actionInUrl);
+        await validateMaxOneChildCampaign(request?.body?.CampaignDetails?.parentId, request?.body?.CampaignDetails?.id, tenantId, actionInUrl);
         await validateHierarchyType(request, hierarchyType, tenantId);
         await validateProjectType(request, projectType, tenantId);
+    }
+}
+
+async function validateMaxOneChildCampaign(parentId: string | undefined, currentCampaignId: string | undefined, tenantId: string, actionInUrl: string) {
+    if (parentId && actionInUrl == "create") {
+        logger.info(`Checking for active child campaigns for parentId: ${parentId}`);
+        const searchCriteria = {
+            tenantId,
+            parentId: parentId,
+            isActive: true
+        };
+        const existingChildren = await searchProjectCampaignResourcData(searchCriteria);
+        if (existingChildren?.totalCount > 0) {
+            for(let i = 0; i < existingChildren?.responseData?.length; i++) {
+                if( existingChildren?.responseData[i]?.id != currentCampaignId) {
+                    throwError("COMMON", 400, "VALIDATION_ERROR_CHILD_EXIST", "Another child campaign is already active for this parent");
+                }
+            }
+        }
     }
 }
 
@@ -1215,6 +1234,7 @@ async function validateForRetry(request: any) {
             enrichInnerCampaignDetails(request, updatedInnerCampaignDetails)
             request.body.CampaignDetails.campaignDetails = updatedInnerCampaignDetails;
             const producerMessage: any = {
+                RequestInfo: request?.body?.RequestInfo,
                 CampaignDetails: request?.body?.CampaignDetails
             }
             await produceModifiedMessages(producerMessage, config?.kafka?.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC, request?.body?.CampaignDetails?.tenantId);
@@ -1274,7 +1294,7 @@ async function validatePvarIds(pvarIds: string[]) {
     const missingPvarIds = pvarIds.filter((id: any) => !fetchedIds.has(id));
 
     if (missingPvarIds.length) {
-        throwError("COMMON", 400, "VALIDATION_ERROR", `Invalid product variant ${missingPvarIds.length === 1 ? 'id' : 'ids'}: ${missingPvarIds.join(", ")}`);
+        throwError("COMMON", 400, "VALIDATION_ERROR_PRODUCT_VARIANT", `Invalid product variant ${missingPvarIds.length === 1 ? 'id' : 'ids'}: ${missingPvarIds.join(", ")}`);
     }
 }
 
@@ -1293,7 +1313,7 @@ async function validateSearchProjectCampaignRequest(request: any) {
     }
     validateBodyViaSchema(searchCampaignDetailsSchema, CampaignDetails);
     let count = 0;
-    let validFields = ["ids", "startDate", "endDate", "projectType", "campaignName", "status", "createdBy", "campaignNumber"];
+        let validFields = ["ids", "startDate", "endDate", "projectType", "campaignName", "status", "createdBy", "campaignNumber", "isActive", "isChildCampaign", "parentId"];
     for (const key in CampaignDetails) {
         if (key !== 'tenantId') {
             if (validFields.includes(key)) {

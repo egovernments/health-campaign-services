@@ -129,31 +129,6 @@ const sendResponse = (
 };
 
 /* 
-Sets the cahce response
-*/
-const cacheResponse = (res: Response, key: string) => {
-  if (key != null) {
-    appCache.set(key, { ...res });
-    logger.info("CACHED RESPONSE FOR :: " + key);
-  }
-};
-
-/* 
-gets the cahce response
-*/
-const getCachedResponse = (key: string) => {
-  if (key != null) {
-    const data = appCache.get(key);
-    if (data) {
-      logger.info("CACHE STATUS :: " + JSON.stringify(appCache.getStats()));
-      logger.info("RETURNS THE CACHED RESPONSE FOR :: " + key);
-      return data;
-    }
-  }
-  return null;
-};
-
-/* 
 Response Object
 */
 const getResponseInfo = (code: Number) => ({
@@ -715,21 +690,6 @@ function getLocalizedHeadersForMicroplan(responseFromCampaignSearch: any, header
 
   const messages = headers.map((header: any) => (localizationMap ? localizationMap[header] || header : header));
   return messages;
-}
-
-
-
-function modifyRequestForLocalisation(request: any, tenantId: string) {
-  const { RequestInfo } = request?.body;
-  const query = {
-    "tenantId": tenantId,
-    "locale": getLocaleFromRequest(request),
-    "module": config.localisation.localizationModule
-  };
-  const updatedRequest = { ...request };
-  updatedRequest.body = { RequestInfo };
-  updatedRequest.query = query;
-  return updatedRequest;
 }
 
 export async function getReadMeConfig(tenantId: string , type : string) {
@@ -1305,43 +1265,6 @@ async function enrichResourceDetails(request: any) {
   await produceModifiedMessages(persistMessage, config?.kafka?.KAFKA_CREATE_RESOURCE_DETAILS_TOPIC, request?.body?.ResourceDetails?.tenantId);
 }
 
-function getFacilityIds(data: any) {
-  return data.map((obj: any) => obj["id"])
-}
-
-function matchData(request: any, datas: any, searchedDatas: any, createAndSearchConfig: any) {
-  const uid = createAndSearchConfig.uniqueIdentifier;
-  const errors = []
-  for (const data of datas) {
-    const searchData = searchedDatas.find((searchedData: any) => searchedData[uid] == data[uid]);
-
-    if (!searchData) {
-      errors.push({ status: "INVALID", rowNumber: data["!row#number!"], errorDetails: `Data with ${uid} ${data[uid]} not found in searched data.` })
-    }
-    else if (createAndSearchConfig?.matchEachKey) {
-      const keys = Object.keys(data);
-      var errorString = "";
-      var errorFound = false;
-      for (const key of keys) {
-        if (searchData.hasOwnProperty(key) && searchData[key] !== data[key] && key != "!row#number!") {
-          errorString += `Value mismatch for key "${key}. Expected: "${data[key]}", Found: "${searchData[key]}"`
-          errorFound = true;
-        }
-      }
-      if (errorFound) {
-        errors.push({ status: "MISMATCHING", rowNumber: data["!row#number!"], errorDetails: errorString })
-      }
-      else {
-        errors.push({ status: "VALID", rowNumber: data["!row#number!"], errorDetails: "" })
-      }
-    }
-    else {
-      errors.push({ status: "VALID", rowNumber: data["!row#number!"], errorDetails: "" })
-    }
-  }
-  request.body.sheetErrorDetails = request?.body?.sheetErrorDetails ? [...request?.body?.sheetErrorDetails, ...errors] : errors;
-}
-
 function modifyBoundaryData(boundaryData: any[], localizationMap?: any) {
   // Initialize arrays to store data
   const withBoundaryCode: { key: string, value: string }[][] = [];
@@ -1510,24 +1433,6 @@ async function getDataSheetReady(boundaryData: any, request: any, localizationMa
     request.body.generatedResourceCount = sheetRowCount;
   }
   return await createExcelSheet(data, localizedHeaders);
-}
-
-function modifyTargetData(data: any) {
-  const dataArray: any[] = [];
-  Object.keys(data).forEach(key => {
-    data[key].forEach((item: any) => {
-      dataArray.push(item);
-    });
-  });
-  return dataArray;
-}
-
-function calculateKeyIndex(obj: any, hierachy: any[], localizationMap?: any) {
-  const keys = Object.keys(obj);
-  const localizedBoundaryCode = getLocalizedName(getBoundaryColumnName(), localizationMap)
-  const boundaryCodeIndex = keys.indexOf(localizedBoundaryCode);
-  const keyBeforeBoundaryCode = keys[boundaryCodeIndex - 1];
-  return hierachy.indexOf(keyBeforeBoundaryCode);
 }
 
 function modifyDataBasedOnDifferentTab(boundaryData: any, differentTabsBasedOnLevel: any, localizedHeadersForMainSheet: any, localizationMap?: any) {
@@ -1898,8 +1803,6 @@ export {
   throwErrorViaRequest,
   sendResponse,
   appCache,
-  cacheResponse,
-  getCachedResponse,
   generateAuditDetails,
   searchGeneratedResources,
   generateNewRequestObject,
@@ -1910,17 +1813,12 @@ export {
   sortCampaignDetails,
   processGenerateRequest,
   processGenerate,
-  getFacilityIds,
   getDataFromSheet,
-  matchData,
   enrichResourceDetails,
   modifyBoundaryData,
   searchAllGeneratedResources,
   getDataSheetReady,
-  modifyTargetData,
-  calculateKeyIndex,
   modifyDataBasedOnDifferentTab,
-  modifyRequestForLocalisation,
   translateSchema,
   getLocalizedMessagesHandler,
   getLocalizedHeaders,

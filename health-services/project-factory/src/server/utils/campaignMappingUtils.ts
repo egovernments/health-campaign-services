@@ -675,6 +675,7 @@ export async function processMapping(mappingObject: any) {
             ];
         }
         const produceMessage: any = {
+            RequestInfo: mappingObject?.RequestInfo,
             CampaignDetails: mappingObject?.CampaignDetails
         }
         await produceModifiedMessages(produceMessage, config?.kafka?.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC, mappingObject?.CampaignDetails?.tenantId)

@@ -980,9 +980,6 @@ async function enrichRootProjectIdAndBoundaryCode(campaignDetails: any) {
 }
 
 async function enrichAndPersistCampaignWithError(requestBody: any, error: any) {
-  if (requestBody?.parentCampaign) {
-    await makeParentInactiveOrActive(requestBody, true);
-  }
   requestBody.CampaignDetails = requestBody?.CampaignDetails || {};
   requestBody.CampaignDetails.campaignNumber =
     requestBody?.CampaignDetails?.campaignNumber || null;
@@ -1023,12 +1020,17 @@ async function enrichAndPersistCampaignWithError(requestBody: any, error: any) {
   // wait for 2 seconds
   logger.info(`Waiting for 2 seconds to persist errors`);
   await new Promise((resolve) => setTimeout(resolve, 2000));
-  const produceMessage: any = { CampaignDetails: requestBody.CampaignDetails };
+  const produceMessage: any = { 
+    RequestInfo: requestBody?.RequestInfo,
+    CampaignDetails: requestBody.CampaignDetails 
+  };
   await produceModifiedMessages(produceMessage, topic, requestBody?.CampaignDetails?.tenantId);
   delete requestBody.CampaignDetails.campaignDetails;
 }
 
 export async function enrichAndPersistCampaignWithErrorProcessingTask(campaignDetails: any, parentCampaign: any, useruuid: string, error: any) {
+  const RequestInfo = JSON.parse(JSON.stringify(defaultRequestInfo || {}));
+  RequestInfo.userInfo.uuid = useruuid;
   if (parentCampaign) {
     parentCampaign.isActive = true;
     parentCampaign.parentId = parentCampaign?.parentId || null;
@@ -1040,6 +1042,7 @@ export async function enrichAndPersistCampaignWithErrorProcessingTask(campaignDe
     parentCampaign.auditDetails.lastModifiedTime = Date.now();
     parentCampaign.auditDetails.lastModifiedBy = useruuid;
     const produceMessage: any = {
+      RequestInfo,
       CampaignDetails: parentCampaign,
     };
     await produceModifiedMessages(
@@ -1074,7 +1077,10 @@ export async function enrichAndPersistCampaignWithErrorProcessingTask(campaignDe
   // wait for 2 seconds
   logger.info(`Waiting for 2 seconds to persist errors`);
   await new Promise((resolve) => setTimeout(resolve, 2000));
-  const produceMessage: any = { CampaignDetails: campaignDetails };
+  const produceMessage: any = { 
+    RequestInfo,
+    CampaignDetails: campaignDetails 
+  };
   await produceModifiedMessages(produceMessage, topic, campaignDetails?.tenantId);
 }
 
@@ -1096,6 +1102,7 @@ async function enrichAndPersistCampaignForCreate(
         request.body.parentCampaign?.campaignNumber;
       request.body.CampaignDetails.campaignName =
         request.body.parentCampaign?.campaignName;
+      request.body.CampaignDetails.isActive = true; // Set isActive to true for child campaigns
     }
     processAppConfig(request?.body?.CampaignDetails, request?.body?.RequestInfo);
   }
@@ -1130,6 +1137,7 @@ async function enrichAndPersistCampaignForCreate(
     : config?.kafka?.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC;
   delete request.body.CampaignDetails.codesTargetMapping;
   const produceMessage: any = {
+    RequestInfo: request?.body?.RequestInfo,
     CampaignDetails: request?.body?.CampaignDetails,
   };
   await produceModifiedMessages(produceMessage, topic, request?.body?.CampaignDetails?.tenantId);
@@ -1153,6 +1161,9 @@ async function processAppConfig(campaignDetails: any, RequestInfo: any) {
 
 export async function enrichAndPersistCampaignForCreateViaFlow2(
   campaignDetails: any,
+  RequestInfo: any,
+  parentCampaign: any,
+  useruuid: any
 ) {
   campaignDetails.campaignDetails = {
     deliveryRules: campaignDetails?.deliveryRules || [],
@@ -1167,9 +1178,13 @@ export async function enrichAndPersistCampaignForCreateViaFlow2(
     campaignDetails.action == "create" ? campaignStatuses.inprogress : campaignStatuses.started;
   const topic = config?.kafka?.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC;
   const produceMessage: any = {
+    RequestInfo,
     CampaignDetails: campaignDetails,
   };
   await produceModifiedMessages(produceMessage, topic, campaignDetails?.tenantId);
+  if(parentCampaign && campaignDetails?.status === campaignStatuses.inprogress) {
+    await makeParentInactiveOrActive(parentCampaign, useruuid, false);
+  }
 }
 
 async function getRootProjectIdViaCampaignNumber(campaignNumber: string, boundaryCode: string, tenantId: string) {
@@ -1245,6 +1260,7 @@ async function enrichAndPersistCampaignForUpdate(
   await enrichRootProjectIdAndBoundaryCode(request.body?.CampaignDetails);
   delete request.body.CampaignDetails.codesTargetMapping;
   const producerMessage: any = {
+    RequestInfo: request?.body?.RequestInfo,
     CampaignDetails: request?.body?.CampaignDetails,
   };
   await produceModifiedMessages(
@@ -1256,8 +1272,7 @@ async function enrichAndPersistCampaignForUpdate(
   delete request.body.CampaignDetails.campaignDetails;
 }
 
-async function makeParentInactiveOrActive(requestBody: any, active: boolean) {
-  let parentCampaign = requestBody?.parentCampaign;
+async function makeParentInactiveOrActive(parentCampaign: any, userUuid: string, active: boolean) {
   parentCampaign.isActive = active;
   parentCampaign.parentId = parentCampaign?.parentId || null;
   parentCampaign.campaignDetails = {
@@ -1266,9 +1281,11 @@ async function makeParentInactiveOrActive(requestBody: any, active: boolean) {
     boundaries: parentCampaign?.boundaries || [],
   };
   parentCampaign.auditDetails.lastModifiedTime = Date.now();
-  parentCampaign.auditDetails.lastModifiedBy =
-    requestBody?.RequestInfo?.userInfo?.uuid;
+  parentCampaign.auditDetails.lastModifiedBy = userUuid;
+  const RequestInfo = JSON.parse(JSON.stringify(defaultRequestInfo || {}));
+  RequestInfo.userInfo.uuid = userUuid;
   const produceMessage: any = {
+    RequestInfo,
     CampaignDetails: parentCampaign,
   };
   await produceModifiedMessages(
@@ -1365,9 +1382,9 @@ async function enrichAndPersistProjectCampaignForFirst(
   } else if (actionInUrl == "update") {
     await enrichAndPersistCampaignForUpdate(request, firstPersist);
   }
-  if (request?.body?.parentCampaign?.isActive) {
-    await makeParentInactiveOrActive(request?.body, false);
-  }
+  // if (request?.body?.parentCampaign?.isActive) {
+  //   await makeParentInactiveOrActive(request?.body, false);
+  // }
 }
 
 async function enrichAndPersistProjectCampaignRequest(
@@ -1554,23 +1571,30 @@ function extractCodesFromBoundaryRelationshipResponse(boundaries: any[]): any {
 }
 
 async function getTotalCount(campaignDetails: any) {
-  const { tenantId, pagination, ids, ...searchFields } = campaignDetails;
+  const { tenantId, ids, ...searchFields } = campaignDetails;
   let conditions = [];
   let values = [tenantId];
   let index = 2;
   const campaignsIncludeDates = searchFields?.campaignsIncludeDates;
 
   for (const field in searchFields) {
-    if (searchFields[field] !== undefined && field != "campaignsIncludeDates"  && field != "isLikeSearch" && field != "isOverrideDatesFromProject" ){
+    const value = searchFields[field];
+    if (
+      value !== undefined &&
+      field !== "campaignsIncludeDates" &&
+      field !== "isLikeSearch" &&
+      field !== "isOverrideDatesFromProject" &&
+      field !== "pagination"
+    ) {
       if (field === "startDate") {
         const startDateSign = campaignsIncludeDates ? "<=" : ">=";
         conditions.push(`startDate ${startDateSign} $${index}`);
-        values.push(searchFields[field]);
+        values.push(value);
         index++;
       } else if (field === "endDate") {
         const endDateSign = campaignsIncludeDates ? ">=" : "<=";
         conditions.push(`endDate ${endDateSign} $${index}`);
-        values.push(searchFields[field]);
+        values.push(value);
         index++;
       } else if (field === "campaignName") {
         if (searchFields?.isLikeSearch) {
@@ -1578,44 +1602,56 @@ async function getTotalCount(campaignDetails: any) {
         } else {
           conditions.push(`campaignName = $${index}`);
         }
-        values.push(searchFields[field]);
+        values.push(value);
         index++;
-      } else if (field != "status") {
+      } else if (field === "isChildCampaign") {
+        if (value === true) {
+          conditions.push(`parentId IS NOT NULL`);
+        } else {
+          conditions.push(`parentId IS NULL`);
+        }
+      } else if (field === "parentId") {
+        conditions.push(`parentId = $${index}`);
+        values.push(value);
+        index++;
+      } else if (field !== "status") {
         conditions.push(`${field} = $${index}`);
-        values.push(searchFields[field]);
+        values.push(value);
         index++;
       }
     }
   }
+
   const tableName = getTableName(config?.DB_CONFIG.DB_CAMPAIGN_DETAILS_TABLE_NAME, tenantId);
+
   let query = `
-        SELECT count(*)
-        FROM ${tableName}
-        WHERE tenantId = $1
-    `;
+    SELECT count(*)
+    FROM ${tableName}
+    WHERE tenantId = $1
+  `;
 
   if (ids && ids.length > 0) {
-    const idParams = ids.map((id: any, i: any) => `$${index + i}`);
+    const idParams = ids.map((_ : any, i : number) => `$${index + i}`);
     query += ` AND id IN (${idParams.join(", ")})`;
     values.push(...ids);
-    index = index + ids.length;
-  } else {
-    // If no IDs are provided, filter by isActive = true
+    index += ids.length;
+  } else if (searchFields.isActive === undefined) {
     query += ` AND isActive = true`;
   }
-  var status = searchFields?.status;
+
+  const status = searchFields?.status;
   if (status) {
-    if (typeof status === "string") {
-      status = [status]; // Convert string to array
-    }
-    const statusParams = status.map((param: any, i: any) => `$${index + i}`); // Increment index for each parameter
+    const statusArray = Array.isArray(status) ? status : [status];
+    const statusParams = statusArray.map((_, i) => `$${index + i}`);
     query += ` AND status IN (${statusParams.join(", ")})`;
-    values.push(...status);
+    values.push(...statusArray);
+    index += statusArray.length;
   }
 
   if (conditions.length > 0) {
     query += ` AND ${conditions.join(" AND ")}`;
   }
+
   const queryResult = await executeQuery(query, values);
   const totalCount = parseInt(queryResult.rows[0].count, 10);
   return totalCount;
@@ -1701,16 +1737,23 @@ function buildSearchQuery(
   const campaignsIncludeDates = searchFields?.campaignsIncludeDates;
 
   for (const field in searchFields) {
-    if (searchFields[field] !== undefined && field != "campaignsIncludeDates" && field != "isLikeSearch" && field != "isOverrideDatesFromProject" ) {
+    const value = searchFields[field];
+    if (
+      value !== undefined &&
+      field !== "campaignsIncludeDates" &&
+      field !== "isLikeSearch" &&
+      field !== "isOverrideDatesFromProject" &&
+      field !== "pagination"
+    ) {
       if (field === "startDate") {
         const startDateSign = campaignsIncludeDates ? "<=" : ">=";
         conditions.push(`startDate ${startDateSign} $${index}`);
-        values.push(searchFields[field]);
+        values.push(value);
         index++;
       } else if (field === "endDate") {
         const endDateSign = campaignsIncludeDates ? ">=" : "<=";
         conditions.push(`endDate ${endDateSign} $${index}`);
-        values.push(searchFields[field]);
+        values.push(value);
         index++;
       } else if (field === "campaignName") {
         if (searchFields?.isLikeSearch) {
@@ -1718,50 +1761,63 @@ function buildSearchQuery(
         } else {
           conditions.push(`campaignName = $${index}`);
         }
-        values.push(searchFields[field]);
+        values.push(value);
         index++;
-      } else if (field != "status") {
+      } else if (field === "isChildCampaign") {
+        if (value === true) {
+          conditions.push(`parentId IS NOT NULL`);
+        } else {
+          conditions.push(`parentId IS NULL`);
+        }
+      } else if (field === "parentId") {
+        conditions.push(`parentId = $${index}`);
+        values.push(value);
+        index++;
+      } else if (field !== "status") {
         conditions.push(`${field} = $${index}`);
-        values.push(searchFields[field]);
+        values.push(value);
         index++;
       }
     }
   }
-  const tableName = getTableName(config?.DB_CONFIG.DB_CAMPAIGN_DETAILS_TABLE_NAME, tenantId);
-  // Build the base
-  let query = `
-        SELECT *
-        FROM ${tableName}
-        WHERE tenantId = $1
-    `;
 
+  const tableName = getTableName(config?.DB_CONFIG.DB_CAMPAIGN_DETAILS_TABLE_NAME, tenantId);
+
+  // Base query
+  let query = `
+    SELECT *
+    FROM ${tableName}
+    WHERE tenantId = $1
+  `;
+
+  // Add ID filter or default to isActive=true
   if (ids && ids.length > 0) {
-    const idParams = ids.map((id: any, i: any) => `$${index + i}`);
+    const idParams = ids.map((_, i) => `$${index + i}`);
     query += ` AND id IN (${idParams.join(", ")})`;
     values.push(...ids);
-    index = index + ids.length;
-  } else {
-    // If no IDs are provided, filter by isActive = true
+    index += ids.length;
+  } else if (searchFields.isActive === undefined) {
     query += ` AND isActive = true`;
   }
 
-  var status = searchFields?.status;
+  // Add status filter
+  const status = searchFields?.status;
   if (status) {
-    if (typeof status === "string") {
-      status = [status]; // Convert string to array
-    }
-    const statusParams = status.map((param: any, i: any) => `$${index + i}`); // Increment index for each parameter
+    const statusArray = Array.isArray(status) ? status : [status];
+    const statusParams = statusArray.map((_, i) => `$${index + i}`);
     query += ` AND status IN (${statusParams.join(", ")})`;
-    values.push(...status);
+    values.push(...statusArray);
+    index += statusArray.length;
   }
 
+  // Append other conditions
   if (conditions.length > 0) {
     query += ` AND ${conditions.join(" AND ")}`;
   }
 
+  // Add pagination
   if (pagination) {
     query += "\n";
-
     if (pagination.sortBy) {
       query += `ORDER BY ${pagination.sortBy}`;
       if (pagination.sortOrder) {
@@ -1769,7 +1825,6 @@ function buildSearchQuery(
       }
       query += "\n";
     }
-
     if (pagination.limit !== undefined) {
       query += `LIMIT ${pagination.limit}`;
       if (pagination.offset !== undefined) {
@@ -1781,6 +1836,7 @@ function buildSearchQuery(
 
   return { query, values };
 }
+
 
 async function executeSearchQuery(query: string, values: any[]) {
   const queryResult = await executeQuery(query, values);
@@ -2480,7 +2536,7 @@ export async function processAfterPersistNew(request: any, actionInUrl: any) {
           await createAllResources(campaignDetails, request?.body?.parentCampaign || null, useruuid);
           await createAllMappings(campaignDetails, request?.body?.parentCampaign || null, useruuid);
           await userCredGeneration(campaignDetails, useruuid, locale);
-          await enrichAndPersistCampaignForCreateViaFlow2(campaignDetails);
+          await enrichAndPersistCampaignForCreateViaFlow2(campaignDetails, request?.body?.RequestInfo, request?.body?.parentCampaign || null, useruuid);
           triggerUserCredentialEmailFlow(request); // not awaited = background
         } catch (e) {
           console.log(e);
@@ -2578,16 +2634,30 @@ async function userCredGeneration(campaignDetails: any, useruuid: string, locale
 async function createAllResources(campaignDetails: any, parentCampaign: any, useruuid: string) {
   const { maxAttemptsForResourceCreationOrMapping, waitTimeOfEachAttemptOfResourceCreationOrMappping } = config?.resourceCreationConfig
   let allCurrentProcesses = await getCurrentProcesses(campaignDetails?.campaignNumber, campaignDetails?.tenantId);
-  const resourcesTask = [allProcesses.facilityCreation, allProcesses.userCreation, allProcesses.projectCreation];
+  const resourcesTask = [
+    {
+      processName: allProcesses.facilityCreation,
+      kafkaKey: `facilityCreation_6f1b3a0e-d9a3-4c7f-947e-1fb82e36a10c`
+    },
+    {
+      processName: allProcesses.userCreation,
+      kafkaKey: `userCreation_d50a7c12-4569-4e63-b94f-e6219f0e8ba4`
+    },
+    {
+      processName: allProcesses.projectCreation,
+      kafkaKey: `projectCreation_a9b4826e-2ed4-4b94-9f7f-d1e921ab5a3d`
+    }
+  ];
   for (let i = 0; i < resourcesTask?.length; i++) {
-    const task = allCurrentProcesses.find((process: any) => process?.processName == resourcesTask[i]);
+    const {processName , kafkaKey} = resourcesTask[i];
+    const task = allCurrentProcesses.find((process: any) => process?.processName == processName);
     if (task && task?.status == processStatuses.pending) {
       await produceModifiedMessages({
         task,
         CampaignDetails: campaignDetails,
         parentCampaign,
         useruuid
-      }, config.kafka.KAFKA_START_ADMIN_CONSOLE_TASK_TOPIC, campaignDetails?.tenantId ,resourcesTask[i]);
+      }, config.kafka.KAFKA_START_ADMIN_CONSOLE_TASK_TOPIC, campaignDetails?.tenantId, kafkaKey);
     }
   }
   let allTaskCompleted = false;
@@ -2613,7 +2683,7 @@ async function createAllResources(campaignDetails: any, parentCampaign: any, use
     }
     const campaignResp = await searchProjectTypeCampaignService({ tenantId: campaignDetails?.tenantId, ids: [campaignDetails?.id] });
     const campaignDetailsStatus = campaignResp?.CampaignDetails?.[0]?.status;
-    if (campaignDetailsStatus == campaignStatuses.failed || !campaignDetailsStatus) {
+    if (campaignDetailsStatus == campaignStatuses.failed || campaignDetailsStatus == campaignStatuses.cancelled || !campaignDetailsStatus) {
       throwError("COMMON", 400, "RESOURCE_CREATION_ERROR", "Campaign creation failed during resources creation.");
     }
     attempts++;
@@ -2637,7 +2707,7 @@ async function createAllResources(campaignDetails: any, parentCampaign: any, use
     }
     throwError("COMMON", 400, "RESOURCE_CREATION_ERROR", `${failedTasks.join(", ")} tasks failed.`);
   }
-  else if(!allTaskCompleted) {
+  else if (!allTaskCompleted) {
     throwError("COMMON", 400, "RESOURCE_CREATION_TIMED_OUT", "Resources creation timed out.");
   }
   logger.info(`Waiting for 20 seconds for all resources to get persisted...`);
@@ -2647,17 +2717,31 @@ async function createAllResources(campaignDetails: any, parentCampaign: any, use
 async function createAllMappings(campaignDetails: any, parentCampaign: any, useruuid: string) {
   const { maxAttemptsForResourceCreationOrMapping, waitTimeOfEachAttemptOfResourceCreationOrMappping } = config?.resourceCreationConfig;
   logger.info(`Starting mappings...`);
-  let mappingProcesses = [allProcesses.facilityMapping, allProcesses.userMapping, allProcesses.resourceMapping];
+  const mappingTasks = [
+    {
+      processName: allProcesses.facilityMapping,
+      kafkaKey: `facilityMapping_f13f7b6d-f5e4-4c27-9c94-ea6c77f7a32a` // → Partition 0
+    },
+    {
+      processName: allProcesses.userMapping,
+      kafkaKey: `userMapping_92df19d1-e1f1-41d9-abc2-b6ff06301b49` // → Partition 1
+    },
+    {
+      processName: allProcesses.resourceMapping,
+      kafkaKey: `resourceMapping_ab2eea59-45d4-4699-a116-1d4edfc25136` // → Partition 2
+    }
+  ];
   let allCurrentProcesses = await getCurrentProcesses(campaignDetails?.campaignNumber, campaignDetails?.tenantId);
-  for (let i = 0; i < mappingProcesses?.length; i++) {
-    const task: any = allCurrentProcesses.find((process: any) => process?.processName == mappingProcesses[i]);
+  for (let i = 0; i < mappingTasks?.length; i++) {
+      const { processName, kafkaKey } = mappingTasks[i];
+    const task: any = allCurrentProcesses.find((process: any) => process?.processName == processName);
     if (task && task?.status == processStatuses.pending) {
       await produceModifiedMessages({
         task,
         CampaignDetails: campaignDetails,
         parentCampaign,
         useruuid
-      }, config.kafka.KAFKA_START_ADMIN_CONSOLE_MAPPING_TASK_TOPIC, campaignDetails?.tenantId, mappingProcesses[i]);
+      }, config.kafka.KAFKA_START_ADMIN_CONSOLE_MAPPING_TASK_TOPIC, campaignDetails?.tenantId, kafkaKey);
     }
   }
   let allTaskCompleted = false;
@@ -2683,7 +2767,7 @@ async function createAllMappings(campaignDetails: any, parentCampaign: any, user
     }
     const campaignResp = await searchProjectTypeCampaignService({ tenantId: campaignDetails?.tenantId, ids: [campaignDetails?.id] });
     const campaignDetailsStatus = campaignResp?.CampaignDetails?.[0]?.status;
-    if (campaignDetailsStatus == campaignStatuses.failed || !campaignDetailsStatus) {
+    if (campaignDetailsStatus == campaignStatuses.failed || campaignDetailsStatus == campaignStatuses.cancelled || !campaignDetailsStatus) {
       throwError("COMMON", 400, "RESOURCE_MAPPING_ERROR", "Campaign creation failed during mappings creation.");
     }
     attempts++;
@@ -2709,7 +2793,7 @@ async function createAllMappings(campaignDetails: any, parentCampaign: any, user
     }
     throwError("COMMON", 400, "RESOURCE_MAPPING_ERROR", `${failedTasks.join(", ")} tasks failed.`);
   }
-  else if(!allTaskCompleted) {
+  else if (!allTaskCompleted) {
     throwError("COMMON", 400, "RESOURCE_MAPPING_TIMED_OUT", "Mappings creation timed out.");
   }
   campaignDetails.status = campaignStatuses.completed;
@@ -3950,35 +4034,6 @@ function updateBoundaryData(boundaryData: any[], hierarchy: any[]): any[] {
   return boundaryData;
 }
 
-// function modifyBoundaryDataHeaders(
-//   boundaryData: any[],
-//   hierarchy: any[],
-//   localizationMap?: any
-// ) {
-//   const updatedData = boundaryData.map((obj: any) => {
-//     const updatedObj: { [key: string]: string | undefined } = {}; // Updated object with modified keys
-
-//     let hierarchyIndex = 0; // Track the index of the hierarchy array
-
-//     for (const key in obj) {
-//       if (
-//         key != getLocalizedName(config?.boundary?.boundaryCode, localizationMap)
-//       ) {
-//         if (Object.prototype.hasOwnProperty.call(obj, key)) {
-//           const hierarchyKey = hierarchy[hierarchyIndex]; // Get the key from the hierarchy array
-//           updatedObj[hierarchyKey] = obj[key]; // Map the key to the updated object
-//           hierarchyIndex++; // Move to the next key in the hierarchy array
-//         }
-//       } else {
-//         updatedObj[key] = obj[key];
-//       }
-//     }
-
-//     return updatedObj;
-//   });
-//   return updatedData;
-// }
-
 function modifyChildParentMap(
   childParentMap: Map<any, any>,
   boundaryMap: Map<any, any>
@@ -4495,21 +4550,6 @@ export function validateUsernamesFormat(data: any[], localizationMap: any) {
   return errors;
 }
 
-export function getAllColumnsFromSchema(schema: any) {
-  const properties = schema?.properties;
-  const columns = Object.keys(properties);
-  for (const header of Object.keys(properties)) {
-    if (properties?.[header]?.multiSelectDetails) {
-      const maxColumns = properties?.[header]?.multiSelectDetails?.maxSelections;
-      for (let i = 1; i <= maxColumns; i++) {
-        columns.push(`${header}_MULTISELECT_${i}`);
-      }
-    }
-  }
-
-  return columns;
-}
-
 export async function isCampaignIdOfMicroplan(tenantId: string, campaignId: string) {
   try {
     const tableName = getTableName(config.DB_CONFIG.DB_CAMPAIGN_DETAILS_TABLE_NAME, tenantId);
@@ -4522,6 +4562,46 @@ export async function isCampaignIdOfMicroplan(tenantId: string, campaignId: stri
     throwError("COMMON", 500, "INTERNAL_SERVER_ERROR", "Error checking if campaign id is of microplan");
     return false;
   }
+}
+
+export async function validateAndFetchCampaign(request: any) {
+  const { tenantId, campaignId } = request.body.CampaignDetails;
+  if (!tenantId || !campaignId) {
+    throwError("COMMON", 400, "VALIDATION_ERROR", "tenantId and campaignId are required");
+  }
+
+  const searchCriteria = {
+    tenantId,
+    ids: [campaignId]
+  };
+
+  const campaignResponse = await searchProjectTypeCampaignService(searchCriteria, request);
+
+  if (campaignResponse?.CampaignDetails?.length === 0) {
+    throwError("COMMON", 404, "CAMPAIGN_NOT_FOUND", "Campaign not found");
+  }
+
+  return campaignResponse.CampaignDetails[0];
+}
+
+export async function prepareAndProduceCancelMessage(campaignToUpdate: any, requestInfo: any, request: any) {
+  const tenantId = request.body.CampaignDetails.tenantId;
+  campaignToUpdate.isActive = false;
+  campaignToUpdate.status = campaignStatuses.cancelled;
+  campaignToUpdate.campaignDetails = campaignToUpdate.campaignDetails || {};
+  campaignToUpdate.parentId = campaignToUpdate.parentId || null;
+  campaignToUpdate.auditDetails.lastModifiedTime = Date.now();
+  campaignToUpdate.auditDetails.lastModifiedBy = request?.body?.RequestInfo?.userInfo?.uuid;
+
+  const topic = config.kafka.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC;
+  const produceMessage = {
+    RequestInfo: requestInfo,
+    CampaignDetails: campaignToUpdate
+  };
+
+  await produceModifiedMessages(produceMessage, topic, tenantId);
+
+  return campaignToUpdate;
 }
 
 export {
