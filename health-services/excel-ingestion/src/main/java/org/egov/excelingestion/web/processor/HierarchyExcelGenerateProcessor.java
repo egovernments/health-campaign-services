@@ -8,17 +8,11 @@ import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.ss.util.CellRangeAddressList;
 import org.apache.poi.ss.util.CellReference;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.excelingestion.config.ExcelIngestionConfig;
 import org.egov.excelingestion.service.FileStoreService;
-import org.egov.excelingestion.web.models.BoundarySearchResponse;
-import org.egov.excelingestion.web.models.BoundaryHierarchyChild;
-import org.egov.excelingestion.web.models.BoundaryHierarchyResponse;
-import org.egov.excelingestion.web.models.EnrichedBoundary;
-import org.egov.excelingestion.web.models.GeneratedResource;
-import org.egov.excelingestion.web.models.GeneratedResourceRequest;
-import org.egov.excelingestion.web.models.HierarchyRelation;
+import org.egov.excelingestion.service.LocalizationService;
+import org.egov.excelingestion.web.models.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -26,12 +20,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 @Component("hierarchyExcelGenerateProcessor")
 @Slf4j
@@ -41,60 +30,66 @@ public class HierarchyExcelGenerateProcessor implements IGenerateProcessor {
     private final ExcelIngestionConfig config;
     private final FileStoreService fileStoreService;
     private final ObjectMapper objectMapper;
+    private final LocalizationService localizationService;
 
     @Autowired
-    public HierarchyExcelGenerateProcessor(ServiceRequestClient serviceRequestClient, ExcelIngestionConfig config, FileStoreService fileStoreService, ObjectMapper objectMapper) {
+    public HierarchyExcelGenerateProcessor(ServiceRequestClient serviceRequestClient, ExcelIngestionConfig config,
+            FileStoreService fileStoreService, ObjectMapper objectMapper, LocalizationService localizationService) {
         this.serviceRequestClient = serviceRequestClient;
         this.config = config;
         this.fileStoreService = fileStoreService;
         this.objectMapper = objectMapper;
+        this.localizationService = localizationService;
     }
 
     @Override
     public GeneratedResource process(GeneratedResourceRequest request) {
         log.info("Processing hierarchy excel generation for type: {}", request.getGeneratedResource().getType());
-        try {
-            generateExcel(request.getGeneratedResource(), request.getRequestInfo());
-        } catch (IOException e) {
-            log.error("Error generating Excel file: {}", e.getMessage());
-            throw new RuntimeException("Error generating Excel file", e);
-        }
         return request.getGeneratedResource();
     }
 
     public byte[] generateExcel(GeneratedResource generatedResource, RequestInfo requestInfo) throws IOException {
         log.info("Starting Excel generation process for hierarchyType: {}", generatedResource.getHierarchyType());
 
-        BoundaryHierarchyResponse hierarchyData = (BoundaryHierarchyResponse) postApi(new StringBuilder(config.getHierarchySearchUrl()),
-                createHierarchyPayload(requestInfo, generatedResource.getTenantId(), generatedResource.getHierarchyType()), 
+        String tenantId = generatedResource.getTenantId();
+        String hierarchyType = generatedResource.getHierarchyType();
+        String locale = requestInfo.getMsgId() != null && requestInfo.getMsgId().split("\\|").length > 1
+                ? requestInfo.getMsgId().split("\\|")[1]
+                : "en_MZ";
+
+        // Fetch localized messages
+        String localizationModule = "hcm-boundary-" + hierarchyType.toLowerCase().replace(" ", "_");
+        Map<String, String> localizationMap = localizationService.getLocalizedMessages(
+                tenantId, localizationModule, locale, convertToExcelIngestionRequestInfo(requestInfo));
+
+        BoundaryHierarchyResponse hierarchyData = postApi(new StringBuilder(config.getHierarchySearchUrl()),
+                createHierarchyPayload(requestInfo, tenantId, hierarchyType),
                 BoundaryHierarchyResponse.class);
-        log.debug("Hierarchy Data: {}", hierarchyData);
-        StringBuilder url = new StringBuilder(config.getRelationshipSearchUrl());
-        url.append("?includeChildren=true")
-        .append("&tenantId=").append(URLEncoder.encode(generatedResource.getTenantId(), StandardCharsets.UTF_8))
-        .append("&hierarchyType=").append(URLEncoder.encode(generatedResource.getHierarchyType(), StandardCharsets.UTF_8));
 
-
-        BoundarySearchResponse relationshipData = (BoundarySearchResponse) postApi(url, 
-                createRelationshipPayload(requestInfo, generatedResource.getTenantId(), generatedResource.getHierarchyType()),
-                BoundarySearchResponse.class);
-        log.debug("Relationship Data: {}", relationshipData);
-
-        List<String> originalLevels = new ArrayList<>();
-        List<String> validLevels = new ArrayList<>();
-
-        List<BoundaryHierarchyChild> hierarchyRelations = null;
-        if (hierarchyData != null && hierarchyData.getBoundaryHierarchy() != null && !hierarchyData.getBoundaryHierarchy().isEmpty()) {
-            hierarchyRelations = hierarchyData.getBoundaryHierarchy().get(0).getBoundaryHierarchy();
-        } else {
+        if (hierarchyData == null || hierarchyData.getBoundaryHierarchy() == null
+                || hierarchyData.getBoundaryHierarchy().isEmpty()) {
             throw new RuntimeException("Boundary Hierarchy Search API returned no data.");
         }
 
+        List<BoundaryHierarchyChild> hierarchyRelations = hierarchyData.getBoundaryHierarchy().get(0)
+                .getBoundaryHierarchy();
+
+        StringBuilder url = new StringBuilder(config.getRelationshipSearchUrl());
+        url.append("?includeChildren=true")
+                .append("&tenantId=").append(URLEncoder.encode(tenantId, StandardCharsets.UTF_8))
+                .append("&hierarchyType=").append(URLEncoder.encode(hierarchyType, StandardCharsets.UTF_8));
+
+        BoundarySearchResponse relationshipData = postApi(url,
+                createRelationshipPayload(requestInfo, tenantId, hierarchyType),
+                BoundarySearchResponse.class);
+
+        List<String> originalLevels = new ArrayList<>();
+        List<String> validLevels = new ArrayList<>();
         if (hierarchyRelations != null && !hierarchyRelations.isEmpty()) {
             for (BoundaryHierarchyChild hierarchyRelation : hierarchyRelations) {
                 String level = hierarchyRelation.getBoundaryType();
                 originalLevels.add(level);
-                validLevels.add(makeNameValid(level));
+                validLevels.add(makeNameValid(level, localizationMap));
             }
         }
 
@@ -103,9 +98,13 @@ public class HierarchyExcelGenerateProcessor implements IGenerateProcessor {
         Map<String, List<String>> childLookup = new HashMap<>();
         Map<String, String> nameMappings = new HashMap<>();
 
+        // NEW map for localizedName -> validCombinedKey (named range)
+        Map<String, String> localizedNameToCombinedKey = new HashMap<>();
+
         if (relationshipData != null && relationshipData.getTenantBoundary() != null) {
             for (HierarchyRelation hierarchyRelation : relationshipData.getTenantBoundary()) {
-                processNodes(hierarchyRelation.getBoundary(), boundariesByLevel, childLookup, nameMappings);
+                processNodes(hierarchyRelation.getBoundary(), boundariesByLevel, childLookup, nameMappings,
+                        localizationMap, localizedNameToCombinedKey);
             }
         }
 
@@ -120,6 +119,7 @@ public class HierarchyExcelGenerateProcessor implements IGenerateProcessor {
         Sheet mappingSheet = workbook.createSheet("NameMappings");
         workbook.setSheetVisibility(workbook.getSheetIndex("NameMappings"), SheetVisibility.VERY_HIDDEN);
 
+        // Populate LevelData sheet and named ranges for levels
         for (int i = 0; i < validLevels.size(); i++) {
             String levelName = validLevels.get(i);
             Row headerRow = levelSheet.getRow(0) != null ? levelSheet.getRow(0) : levelSheet.createRow(0);
@@ -139,103 +139,116 @@ public class HierarchyExcelGenerateProcessor implements IGenerateProcessor {
             }
         }
 
+        // Populate BoundaryChildren sheet and create named ranges for each parent
+        // localized name
         int childColumnIndex = 0;
         for (Map.Entry<String, List<String>> entry : childLookup.entrySet()) {
-            String parentCode = entry.getKey();
-            List<String> children = entry.getValue();
+            String parentLocalizedName = entry.getKey(); // localized name (displayed in main sheet)
+            List<String> childrenLocalizedNames = entry.getValue();
 
             Row headerRow = childrenSheet.getRow(0) != null ? childrenSheet.getRow(0) : childrenSheet.createRow(0);
-            headerRow.createCell(childColumnIndex).setCellValue(parentCode);
+            headerRow.createCell(childColumnIndex).setCellValue(parentLocalizedName);
 
-            for (int i = 0; i < children.size(); i++) {
+            for (int i = 0; i < childrenLocalizedNames.size(); i++) {
                 Row row = childrenSheet.getRow(i + 1) != null ? childrenSheet.getRow(i + 1)
                         : childrenSheet.createRow(i + 1);
-                row.createCell(childColumnIndex).setCellValue(children.get(i));
+                row.createCell(childColumnIndex).setCellValue(childrenLocalizedNames.get(i));
             }
-            if (!children.isEmpty()) {
-                Name namedRange = workbook.createName();
-                namedRange.setNameName(parentCode);
-                String colLetter = CellReference.convertNumToColString(childColumnIndex);
-                namedRange.setRefersToFormula(
-                        "BoundaryChildren!$" + colLetter + "$2:$" + colLetter + "$" + (children.size() + 1));
+            if (!childrenLocalizedNames.isEmpty()) {
+                String namedRangeName = localizedNameToCombinedKey.get(parentLocalizedName);
+                if (namedRangeName != null) {
+                    Name namedRange = workbook.createName();
+                    namedRange.setNameName(namedRangeName);
+                    String colLetter = CellReference.convertNumToColString(childColumnIndex);
+                    namedRange.setRefersToFormula(
+                            "BoundaryChildren!$" + colLetter + "$2:$" + colLetter + "$"
+                                    + (childrenLocalizedNames.size() + 1));
+                }
             }
             childColumnIndex++;
         }
 
+        // Populate NameMappings sheet with localizedName → namedRangeName mapping for
+        // VLOOKUP
         Row mappingHeader = mappingSheet.createRow(0);
-        mappingHeader.createCell(0).setCellValue("OriginalName");
-        mappingHeader.createCell(1).setCellValue("ValidName");
+        mappingHeader.createCell(0).setCellValue("Localized Name");
+        mappingHeader.createCell(1).setCellValue("Named Range");
 
         int mappingRowIndex = 1;
-        for (Map.Entry<String, String> entry : nameMappings.entrySet()) {
+        for (Map.Entry<String, String> entry : localizedNameToCombinedKey.entrySet()) {
             Row row = mappingSheet.createRow(mappingRowIndex++);
-            row.createCell(0).setCellValue(entry.getKey());
-            row.createCell(1).setCellValue(entry.getValue());
+            row.createCell(0).setCellValue(entry.getKey()); // Localized Name (dropdown display)
+            row.createCell(1).setCellValue(entry.getValue()); // Named Range (Excel valid named range)
         }
 
         Sheet mainSheet = workbook.createSheet("Boundaries");
 
         Row keyRow = mainSheet.createRow(0);
         Row headerRow = mainSheet.createRow(1);
-        String hierarchyType = generatedResource.getHierarchyType();
 
         for (int i = 0; i < originalLevels.size(); i++) {
             String unlocalizedCode = hierarchyType.toUpperCase() + "_" + originalLevels.get(i).toUpperCase();
             keyRow.createCell(i).setCellValue(unlocalizedCode);
-            headerRow.createCell(i).setCellValue(originalLevels.get(i));
+            headerRow.createCell(i)
+                    .setCellValue(localizationMap.getOrDefault(originalLevels.get(i), originalLevels.get(i)));
         }
         keyRow.setZeroHeight(true);
+
         for (int col = 0; col < originalLevels.size(); col++) {
-            mainSheet.setColumnWidth(col, 40 * 256); // 256 is unit size in POI
+            mainSheet.setColumnWidth(col, 40 * 256);
         }
-
         mainSheet.createFreezePane(0, 2);
-
 
         DataValidationHelper dvHelper = mainSheet.getDataValidationHelper();
 
-        for (int i = 2; i <= 5001; i++) { // Start from row 3 (index 2)
+        for (int i = 2; i <= 5001; i++) { // Rows 3 to 5002 (1-based indexing)
+            // First level dropdown uses named range directly
             DataValidationConstraint firstLevelConstraint = dvHelper.createFormulaListConstraint(validLevels.get(0));
             CellRangeAddressList firstLevelAddress = new CellRangeAddressList(i, i, 0, 0);
             DataValidation firstLevelValidation = dvHelper.createValidation(firstLevelConstraint, firstLevelAddress);
             mainSheet.addValidationData(firstLevelValidation);
 
+            // For subsequent columns, use INDIRECT(VLOOKUP()) to get child dropdown named
+            // ranges
             for (int j = 1; j < validLevels.size(); j++) {
                 String prevCol = CellReference.convertNumToColString(j - 1);
-                String formula = "INDIRECT(IF(" 
-                    + prevCol + (i + 1) + "=\"\", \"" 
-                    + validLevels.get(j) 
-                    + "\", VLOOKUP(" + prevCol + (i + 1) 
-                    + ", NameMappings!$A:$B, 2, FALSE)))";
-
+                String formula = "INDIRECT(IF(" +
+                        prevCol + (i + 1) + "=\"\", \"" + validLevels.get(j) + "\", " +
+                        "VLOOKUP(" + prevCol + (i + 1) + ", NameMappings!$A:$B, 2, FALSE)))";
 
                 DataValidationConstraint dvConstraint = dvHelper.createFormulaListConstraint(formula);
                 CellRangeAddressList addr = new CellRangeAddressList(i, i, j, j);
                 DataValidation validation = dvHelper.createValidation(dvConstraint, addr);
+
+                // To avoid Excel warnings on newer Excel versions, set explicit properties
+                if (validation instanceof org.apache.poi.ss.usermodel.DataValidation) {
+                    validation.setSuppressDropDownArrow(true);
+                    validation.setShowErrorBox(true);
+                }
+
                 mainSheet.addValidationData(validation);
             }
         }
 
+        // Conditional Formatting to highlight invalid dropdown selections
         SheetConditionalFormatting sheetCF = mainSheet.getSheetConditionalFormatting();
         for (int j = 1; j < validLevels.size(); j++) {
             String col = CellReference.convertNumToColString(j);
             String prevCol = CellReference.convertNumToColString(j - 1);
             String levelName = validLevels.get(j);
-            String formula =
-                "AND(" + col + "3<>\"\", " + // Check from row 3
-                "ISERROR(MATCH(" + col + "3, INDIRECT(IF(" + prevCol + "3=\"\", \"" + levelName +
-                "\", VLOOKUP(" + prevCol + "3, NameMappings!$A:$B, 2, FALSE))), 0)))";
-
-
+            String formula = "AND(" + col + "3<>\"\", " +
+                    "ISERROR(MATCH(" + col + "3, INDIRECT(IF(" + prevCol + "3=\"\", \"" + levelName + "\", " +
+                    "VLOOKUP(" + prevCol + "3, NameMappings!$A:$B, 2, FALSE))), 0)))";
 
             ConditionalFormattingRule rule = sheetCF.createConditionalFormattingRule(formula);
             PatternFormatting fill = rule.createPatternFormatting();
             fill.setFillBackgroundColor(IndexedColors.RED.getIndex());
             fill.setFillPattern(FillPatternType.SOLID_FOREGROUND.getCode());
 
-            CellRangeAddress[] regions = { new CellRangeAddress(2, 5001, j, j) }; // Apply from row 3
+            CellRangeAddress[] regions = { new CellRangeAddress(2, 5001, j, j) };
             sheetCF.addConditionalFormatting(regions, rule);
         }
+
         // Unlock data entry cells
         CellStyle unlockedCellStyle = workbook.createCellStyle();
         unlockedCellStyle.setLocked(false);
@@ -256,6 +269,7 @@ public class HierarchyExcelGenerateProcessor implements IGenerateProcessor {
 
         mainSheet.protectSheet("passwordhere");
 
+        // Set sheet selection and workbook protection
         for (Sheet s : workbook) {
             s.setSelected(false);
         }
@@ -263,6 +277,7 @@ public class HierarchyExcelGenerateProcessor implements IGenerateProcessor {
         workbook.setActiveSheet(workbook.getSheetIndex("Boundaries"));
         workbook.lockStructure();
         workbook.setWorkbookPassword("passwordhere", HashAlgorithm.sha512);
+
         ByteArrayOutputStream bos = new ByteArrayOutputStream();
         try {
             workbook.write(bos);
@@ -302,7 +317,8 @@ public class HierarchyExcelGenerateProcessor implements IGenerateProcessor {
         return payload;
     }
 
-    private Map<String, Object> createRelationshipPayload(RequestInfo requestInfo, String tenantId, String hierarchyType) {
+    private Map<String, Object> createRelationshipPayload(RequestInfo requestInfo, String tenantId,
+            String hierarchyType) {
         Map<String, Object> payload = new HashMap<>();
         Map<String, Object> requestInfoMap = new HashMap<>();
         requestInfoMap.put("apiId", requestInfo.getApiId());
@@ -314,37 +330,76 @@ public class HierarchyExcelGenerateProcessor implements IGenerateProcessor {
     }
 
     private void processNodes(List<EnrichedBoundary> nodes, Map<String, Set<String>> boundariesByLevel,
-            Map<String, List<String>> childLookup, Map<String, String> nameMappings) {
-        if (nodes == null) return;
+            Map<String, List<String>> childLookup,
+            Map<String, String> nameMappings,
+            Map<String, String> localizationMap,
+            Map<String, String> localizedNameToCombinedKey) {
+        if (nodes == null)
+            return;
         for (EnrichedBoundary node : nodes) {
             String code = node.getCode();
             String boundaryType = node.getBoundaryType();
 
-            String validCode = makeNameValid(code);
-            String validType = makeNameValid(boundaryType);
+            String localizedCode = localizationMap.getOrDefault(code, code);
+            String localizedBoundaryType = localizationMap.getOrDefault(boundaryType, boundaryType);
 
-            if (boundariesByLevel.containsKey(validType)) {
-                boundariesByLevel.get(validType).add(code);
+            String combinedKey = code + "_" + localizedCode;
+            String validCombinedKey = makeNameValid(combinedKey, localizationMap);
+            String validLocalizedBoundaryType = makeNameValid(localizedBoundaryType, localizationMap);
+
+            if (boundariesByLevel.containsKey(validLocalizedBoundaryType)) {
+                boundariesByLevel.get(validLocalizedBoundaryType).add(localizedCode);
             }
-            nameMappings.put(code, validCode);
+
+            nameMappings.put(combinedKey, validCombinedKey);
+            localizedNameToCombinedKey.put(localizedCode, validCombinedKey);
 
             if (node.getChildren() != null && !node.getChildren().isEmpty()) {
                 List<EnrichedBoundary> children = node.getChildren();
-                List<String> childCodes = new ArrayList<>();
+                List<String> childLocalizedNames = new ArrayList<>();
                 for (EnrichedBoundary child : children) {
-                    childCodes.add(child.getCode());
+                    childLocalizedNames.add(localizationMap.getOrDefault(child.getCode(), child.getCode()));
                 }
-                childLookup.put(validCode, childCodes);
-                processNodes(children, boundariesByLevel, childLookup, nameMappings);
+                childLookup.put(localizedCode, childLocalizedNames);
+                processNodes(children, boundariesByLevel, childLookup, nameMappings, localizationMap,
+                        localizedNameToCombinedKey);
             }
         }
     }
 
-    private String makeNameValid(String name) {
-        String valid = name.replaceAll("[^a-zA-Z0-9_.]", "_");
+    private String makeNameValid(String name, Map<String, String> localizationMap) {
+        String localizedName = localizationMap.getOrDefault(name, name);
+        String valid = localizedName.replaceAll("[^a-zA-Z0-9_.]", "_");
         if (Character.isDigit(valid.charAt(0)))
             valid = "_" + valid;
         return valid;
+    }
+
+    private org.egov.excelingestion.web.models.RequestInfo convertToExcelIngestionRequestInfo(
+            RequestInfo commonRequestInfo) {
+        return RequestInfo.builder()
+                .apiId(commonRequestInfo.getApiId())
+                .ver(commonRequestInfo.getVer())
+                .ts(commonRequestInfo.getTs())
+                .action(commonRequestInfo.getAction())
+                .did(commonRequestInfo.getDid())
+                .key(commonRequestInfo.getKey())
+                .msgId(commonRequestInfo.getMsgId())
+                .requesterId(commonRequestInfo.getRequesterId())
+                .authToken(commonRequestInfo.getAuthToken())
+                .userInfo(UserInfo.builder()
+                        .id(commonRequestInfo.getUserInfo().getId())
+                        .uuid(commonRequestInfo.getUserInfo().getUuid())
+                        .userName(commonRequestInfo.getUserInfo().getUserName())
+                        .name(commonRequestInfo.getUserInfo().getName())
+                        .mobileNumber(commonRequestInfo.getUserInfo().getMobileNumber())
+                        .emailId(commonRequestInfo.getUserInfo().getEmailId())
+                        .locale(commonRequestInfo.getUserInfo().getLocale())
+                        .type(commonRequestInfo.getUserInfo().getType())
+                        .tenantId(commonRequestInfo.getUserInfo().getTenantId())
+                        .build())
+                .correlationId(commonRequestInfo.getCorrelationId())
+                .build();
     }
 
     @Override
