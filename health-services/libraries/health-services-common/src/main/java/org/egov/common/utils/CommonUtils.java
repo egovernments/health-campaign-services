@@ -132,7 +132,7 @@ public class CommonUtils {
      * @return The audit details for create operation.
      */
     public static AuditDetails getAuditDetailsForCreate(RequestInfo requestInfo) {
-        log.info("Creating audit details for create api");
+        log.trace("Creating audit details for create api");
         Long time = System.currentTimeMillis();
         return AuditDetails.builder()
                 .createdBy(requestInfo.getUserInfo().getUuid())
@@ -150,7 +150,7 @@ public class CommonUtils {
      * @return auditDetails
      */
     public static AuditDetails getAuditDetailsForUpdate(AuditDetails existingAuditDetails, String modifiedByUuid) {
-        log.info("Creating audit details for update/delete api");
+        log.trace("Creating audit details for update/delete api");
         if (existingAuditDetails == null) {
             return AuditDetails.builder()
                     .lastModifiedBy(modifiedByUuid)
