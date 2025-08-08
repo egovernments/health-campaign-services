@@ -1,6 +1,6 @@
 package org.egov.excelingestion.web.controller;
 
-import org.egov.excelingestion.web.processor.GenerateProcessorFactory;
+import org.egov.excelingestion.service.ExcelGenerationService;
 import org.egov.excelingestion.web.models.GeneratedResource;
 import org.egov.excelingestion.web.models.GeneratedResourceRequest;
 import org.egov.excelingestion.web.models.GeneratedResourceResponse;
@@ -9,16 +9,18 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.IOException;
+
 import javax.validation.Valid;
 
 @RestController
 @RequestMapping("/v1/data")
 public class GenerateController {
 
-    private final GenerateProcessorFactory processorFactory;
+    private final ExcelGenerationService excelGenerationService;
 
-    public GenerateController(GenerateProcessorFactory processorFactory) {
-        this.processorFactory = processorFactory;
+    public GenerateController(ExcelGenerationService excelGenerationService) {
+        this.excelGenerationService = excelGenerationService;
     }
 
         @PostMapping("/_generate")
@@ -26,7 +28,7 @@ public class GenerateController {
                                                               @RequestParam("type") String type,
                                                               @RequestParam("hierarchyType") String hierarchyType,
                                                               @RequestParam("referenceId") String referenceId,
-                                                              @RequestBody @Valid GeneratedResourceRequest request) {
+                                                              @RequestBody @Valid GeneratedResourceRequest request) throws IOException {
 
         GeneratedResource generatedResource = request.getGeneratedResource();
         generatedResource.setTenantId(tenantId);
@@ -34,7 +36,7 @@ public class GenerateController {
         generatedResource.setHierarchyType(hierarchyType);
         generatedResource.setRefernceId(referenceId);
 
-        GeneratedResource processedResource = processorFactory.getProcessor(type).process(request);
+        GeneratedResource processedResource = excelGenerationService.generateAndUploadExcel(request);
 
         ResponseInfo responseInfo = ResponseInfo.builder()
                 .apiId("egov-bff")

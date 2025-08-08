@@ -12,8 +12,13 @@ import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.excelingestion.config.ExcelIngestionConfig;
 import org.egov.excelingestion.service.FileStoreService;
+import org.egov.excelingestion.web.models.BoundarySearchResponse;
+import org.egov.excelingestion.web.models.BoundaryHierarchyChild;
+import org.egov.excelingestion.web.models.BoundaryHierarchyResponse;
+import org.egov.excelingestion.web.models.EnrichedBoundary;
 import org.egov.excelingestion.web.models.GeneratedResource;
 import org.egov.excelingestion.web.models.GeneratedResourceRequest;
+import org.egov.excelingestion.web.models.HierarchyRelation;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -35,32 +40,34 @@ public class HierarchyExcelGenerateProcessor implements IGenerateProcessor {
     private final ServiceRequestClient serviceRequestClient;
     private final ExcelIngestionConfig config;
     private final FileStoreService fileStoreService;
+    private final ObjectMapper objectMapper;
 
     @Autowired
-    public HierarchyExcelGenerateProcessor(ServiceRequestClient serviceRequestClient, ExcelIngestionConfig config, FileStoreService fileStoreService) {
+    public HierarchyExcelGenerateProcessor(ServiceRequestClient serviceRequestClient, ExcelIngestionConfig config, FileStoreService fileStoreService, ObjectMapper objectMapper) {
         this.serviceRequestClient = serviceRequestClient;
         this.config = config;
         this.fileStoreService = fileStoreService;
+        this.objectMapper = objectMapper;
     }
 
     @Override
     public GeneratedResource process(GeneratedResourceRequest request) {
         log.info("Processing hierarchy excel generation for type: {}", request.getGeneratedResource().getType());
         try {
-            String fileStoreId = generateExcelAndUpload(request.getGeneratedResource(), request.getRequestInfo());
-            request.getGeneratedResource().setFileStoreId(fileStoreId);
+            generateExcel(request.getGeneratedResource(), request.getRequestInfo());
         } catch (IOException e) {
-            log.error("Error generating and uploading Excel file: {}", e.getMessage());
-            throw new RuntimeException("Error generating and uploading Excel file", e);
+            log.error("Error generating Excel file: {}", e.getMessage());
+            throw new RuntimeException("Error generating Excel file", e);
         }
         return request.getGeneratedResource();
     }
 
-    public String generateExcelAndUpload(GeneratedResource generatedResource, RequestInfo requestInfo) throws IOException {
+    public byte[] generateExcel(GeneratedResource generatedResource, RequestInfo requestInfo) throws IOException {
         log.info("Starting Excel generation process for hierarchyType: {}", generatedResource.getHierarchyType());
 
-        Map<String, Object> hierarchyData = postApi(new StringBuilder(config.getHierarchySearchUrl()),
-                createHierarchyPayload(requestInfo, generatedResource.getTenantId(), generatedResource.getHierarchyType()));
+        BoundaryHierarchyResponse hierarchyData = (BoundaryHierarchyResponse) postApi(new StringBuilder(config.getHierarchySearchUrl()),
+                createHierarchyPayload(requestInfo, generatedResource.getTenantId(), generatedResource.getHierarchyType()), 
+                BoundaryHierarchyResponse.class);
         log.debug("Hierarchy Data: {}", hierarchyData);
         StringBuilder url = new StringBuilder(config.getRelationshipSearchUrl());
         url.append("?includeChildren=true")
@@ -68,19 +75,24 @@ public class HierarchyExcelGenerateProcessor implements IGenerateProcessor {
         .append("&hierarchyType=").append(URLEncoder.encode(generatedResource.getHierarchyType(), StandardCharsets.UTF_8));
 
 
-        Map<String, Object> relationshipData = postApi(url, 
-                createRelationshipPayload(requestInfo, generatedResource.getTenantId(), generatedResource.getHierarchyType()));
+        BoundarySearchResponse relationshipData = (BoundarySearchResponse) postApi(url, 
+                createRelationshipPayload(requestInfo, generatedResource.getTenantId(), generatedResource.getHierarchyType()),
+                BoundarySearchResponse.class);
         log.debug("Relationship Data: {}", relationshipData);
 
         List<String> originalLevels = new ArrayList<>();
         List<String> validLevels = new ArrayList<>();
 
-        if (hierarchyData != null) {
-            Map<String, Object> boundaryHierarchyMap = (Map<String, Object>) ((List<Map<String, Object>>) hierarchyData.get("BoundaryHierarchy")).get(0);
-            List<Map<String, Object>> hierarchyArray = (List<Map<String, Object>>) boundaryHierarchyMap.get("boundaryHierarchy");
+        List<BoundaryHierarchyChild> hierarchyRelations = null;
+        if (hierarchyData != null && hierarchyData.getBoundaryHierarchy() != null && !hierarchyData.getBoundaryHierarchy().isEmpty()) {
+            hierarchyRelations = hierarchyData.getBoundaryHierarchy().get(0).getBoundaryHierarchy();
+        } else {
+            throw new RuntimeException("Boundary Hierarchy Search API returned no data.");
+        }
 
-            for (Map<String, Object> item : hierarchyArray) {
-                String level = (String) item.get("boundaryType");
+        if (hierarchyRelations != null && !hierarchyRelations.isEmpty()) {
+            for (BoundaryHierarchyChild hierarchyRelation : hierarchyRelations) {
+                String level = hierarchyRelation.getBoundaryType();
                 originalLevels.add(level);
                 validLevels.add(makeNameValid(level));
             }
@@ -91,12 +103,9 @@ public class HierarchyExcelGenerateProcessor implements IGenerateProcessor {
         Map<String, List<String>> childLookup = new HashMap<>();
         Map<String, String> nameMappings = new HashMap<>();
 
-        if (relationshipData != null) {
-            List<Map<String, Object>> tenantBoundaryList = (List<Map<String, Object>>) relationshipData.get("TenantBoundary");
-            if (tenantBoundaryList != null && !tenantBoundaryList.isEmpty()) {
-                Map<String, Object> tenantBoundaryMap = tenantBoundaryList.get(0);
-                List<Map<String, Object>> boundaryList = (List<Map<String, Object>>) tenantBoundaryMap.get("boundary");
-                processNodes(boundaryList, boundariesByLevel, childLookup, nameMappings);
+        if (relationshipData != null && relationshipData.getTenantBoundary() != null) {
+            for (HierarchyRelation hierarchyRelation : relationshipData.getTenantBoundary()) {
+                processNodes(hierarchyRelation.getBoundary(), boundariesByLevel, childLookup, nameMappings);
             }
         }
 
@@ -262,17 +271,16 @@ public class HierarchyExcelGenerateProcessor implements IGenerateProcessor {
         }
 
         log.info("Excel file generated successfully!");
-        return fileStoreService.uploadFile(bos.toByteArray(), generatedResource.getTenantId(),
-                generatedResource.getHierarchyType() + ".xlsx");
+        return bos.toByteArray();
     }
 
-    private Map<String, Object> postApi(StringBuilder url, Object request) {
+    private <T> T postApi(StringBuilder url, Object request, Class<T> type) {
         try {
             log.info("Calling API: {} with payload: {}", url, request);
-            return (Map<String, Object>) serviceRequestClient.fetchResult(url, request, Map.class);
+            return serviceRequestClient.fetchResult(url, request, type);
         } catch (Exception e) {
             log.error("Error calling API: {}", url, e);
-            return null;
+            throw new RuntimeException("Error calling API: " + url, e);
         }
     }
 
@@ -305,12 +313,12 @@ public class HierarchyExcelGenerateProcessor implements IGenerateProcessor {
         return payload;
     }
 
-    private void processNodes(List<Map<String, Object>> nodes, Map<String, Set<String>> boundariesByLevel,
+    private void processNodes(List<EnrichedBoundary> nodes, Map<String, Set<String>> boundariesByLevel,
             Map<String, List<String>> childLookup, Map<String, String> nameMappings) {
         if (nodes == null) return;
-        for (Map<String, Object> node : nodes) {
-            String code = (String) node.get("code");
-            String boundaryType = (String) node.get("boundaryType");
+        for (EnrichedBoundary node : nodes) {
+            String code = node.getCode();
+            String boundaryType = node.getBoundaryType();
 
             String validCode = makeNameValid(code);
             String validType = makeNameValid(boundaryType);
@@ -320,11 +328,11 @@ public class HierarchyExcelGenerateProcessor implements IGenerateProcessor {
             }
             nameMappings.put(code, validCode);
 
-            if (node.containsKey("children")) {
-                List<Map<String, Object>> children = (List<Map<String, Object>>) node.get("children");
+            if (node.getChildren() != null && !node.getChildren().isEmpty()) {
+                List<EnrichedBoundary> children = node.getChildren();
                 List<String> childCodes = new ArrayList<>();
-                for (Map<String, Object> child : children) {
-                    childCodes.add((String) child.get("code"));
+                for (EnrichedBoundary child : children) {
+                    childCodes.add(child.getCode());
                 }
                 childLookup.put(validCode, childCodes);
                 processNodes(children, boundariesByLevel, childLookup, nameMappings);
