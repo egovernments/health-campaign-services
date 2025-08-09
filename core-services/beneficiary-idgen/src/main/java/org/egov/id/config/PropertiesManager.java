@@ -21,8 +21,12 @@ public class PropertiesManager {
 		return environment.getProperty("invalid.input");
 	}
 
-    public String getTimeZone(){
+    public String getUserTimeZone(){
 		return environment.getProperty("id.timezone");
+	}
+
+	public String getAppTimeZone(){
+		return environment.getProperty("app.timezone");
 	}
 
 	public String getSaveIdPoolTopic() {return environment.getProperty("kafka.topics.save.in.id.pool");}

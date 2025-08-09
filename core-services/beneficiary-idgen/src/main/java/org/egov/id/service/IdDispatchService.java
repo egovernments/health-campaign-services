@@ -180,7 +180,7 @@ public class IdDispatchService {
                 tenantId,
                 deviceUuid,
                 userUuid,
-                null,
+                IdStatus.DISPATCHED,
                 limit,
                 offset,
                 restrictToday

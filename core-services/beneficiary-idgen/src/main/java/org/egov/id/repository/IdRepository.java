@@ -4,6 +4,7 @@ import org.egov.common.ds.Tuple;
 import org.egov.common.models.idgen.IdRecord;
 import org.egov.common.models.idgen.IdStatus;
 import org.egov.common.models.idgen.IdTransactionLog;
+import org.egov.id.config.PropertiesManager;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -28,6 +29,7 @@ public class IdRepository {
     private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
     private final IdRecordRowMapper idRecordRowMapper;
     private final IdTransactionLogRowMapper idTransactionLogRowMapper;
+    private final PropertiesManager propertiesManager;
 
     /**
      * Constructs a new IdRepository instance with required dependencies for database operations.
@@ -37,11 +39,12 @@ public class IdRepository {
      * @param idRecordRowMapper Custom row mapper for converting database rows to IdRecord objects
      * @param idTransactionLogRowMapper Custom row mapper for converting database rows to IdTransactionLog objects
      */
-    public IdRepository(JdbcTemplate jdbcTemplate, NamedParameterJdbcTemplate namedParameterJdbcTemplate, IdRecordRowMapper idRecordRowMapper, IdTransactionLogRowMapper idTransactionLogRowMapper) {
+    public IdRepository(JdbcTemplate jdbcTemplate, NamedParameterJdbcTemplate namedParameterJdbcTemplate, IdRecordRowMapper idRecordRowMapper, IdTransactionLogRowMapper idTransactionLogRowMapper, PropertiesManager propertiesManager) {
         this.jdbcTemplate = jdbcTemplate;
         this.namedParameterJdbcTemplate = namedParameterJdbcTemplate;
         this.idRecordRowMapper = idRecordRowMapper;
         this.idTransactionLogRowMapper = idTransactionLogRowMapper;
+        this.propertiesManager = propertiesManager;
     }
 
     /**
@@ -106,9 +109,11 @@ public class IdRepository {
         }
 
         if (restrictToday) {
+            String userTimeZone = propertiesManager.getUserTimeZone();  // e.g., "Asia/Kolkata"
+            String appTimeZone = propertiesManager.getAppTimeZone();
             // Restrict query to today's date using timestamp range
-            conditions.add("createdTime >= (EXTRACT(EPOCH FROM date_trunc('day', CURRENT_TIMESTAMP)) * 1000)::bigint");
-            conditions.add("createdTime < (EXTRACT(EPOCH FROM date_trunc('day', CURRENT_TIMESTAMP + interval '1 day')) * 1000)::bigint");
+            conditions.add("createdTime >= (EXTRACT(EPOCH FROM timezone('" + appTimeZone + "', date_trunc('day', CURRENT_TIMESTAMP AT TIME ZONE '" + userTimeZone + "'))) * 1000)::bigint");
+            conditions.add("createdTime < (EXTRACT(EPOCH FROM timezone('" + appTimeZone + "', date_trunc('day', (CURRENT_TIMESTAMP AT TIME ZONE '" + userTimeZone + "') + interval '1 day'))) * 1000)::bigint");
         }
 
         // Add WHERE clause only if filters exist
@@ -137,7 +142,7 @@ public class IdRepository {
         Tuple<String, Map<String, Object>> queryAndParams = getIDsUserDeviceQuery(tenantId, deviceUuid, userUuid, idStatus, restrictToday, limit, offset, false);
         List<IdTransactionLog> idTransactionLogs = namedParameterJdbcTemplate.query(queryAndParams.getX(), queryAndParams.getY(), this.idTransactionLogRowMapper);
 
-        long totalCount = selectIDsForUserDeviceCount(tenantId, deviceUuid, userUuid, null, limit, offset, restrictToday);
+        long totalCount = selectIDsForUserDeviceCount(tenantId, deviceUuid, userUuid, idStatus, limit, offset, restrictToday);
 
         return new Tuple<>(idTransactionLogs, totalCount);
     }
