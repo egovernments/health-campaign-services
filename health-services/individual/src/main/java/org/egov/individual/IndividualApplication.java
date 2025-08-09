@@ -7,7 +7,7 @@ import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.Import;
 
 @Import({ TracerConfiguration.class })
-@SpringBootApplication
+@SpringBootApplication(scanBasePackages = {"org.egov" })
 @EnableCaching
 public class IndividualApplication {
     public static void main(String[] args) throws Exception {
