@@ -1,9 +1,9 @@
 package org.egov.excelingestion.web.controller;
 
 import org.egov.excelingestion.service.ExcelGenerationService;
-import org.egov.excelingestion.web.models.GeneratedResource;
-import org.egov.excelingestion.web.models.GeneratedResourceRequest;
-import org.egov.excelingestion.web.models.GeneratedResourceResponse;
+import org.egov.excelingestion.web.models.GenerateResource;
+import org.egov.excelingestion.web.models.GenerateResourceRequest;
+import org.egov.excelingestion.web.models.GenerateResourceResponse;
 import org.egov.common.contract.response.ResponseInfo;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -24,8 +24,8 @@ public class GenerateController {
     }
 
         @PostMapping("/_generate")
-    public ResponseEntity<GeneratedResourceResponse> generate( @RequestBody @Valid GeneratedResourceRequest request) throws IOException {
-        GeneratedResource processedResource = excelGenerationService.generateAndUploadExcel(request);
+    public ResponseEntity<GenerateResourceResponse> generate( @RequestBody @Valid GenerateResourceRequest request) throws IOException {
+        GenerateResource processedResource = excelGenerationService.generateAndUploadExcel(request);
 
         ResponseInfo responseInfo = ResponseInfo.builder()
                 .apiId("egov-bff")
@@ -34,9 +34,9 @@ public class GenerateController {
                 .status("successful")
                 .build();
 
-        GeneratedResourceResponse response = GeneratedResourceResponse.builder()
+        GenerateResourceResponse response = GenerateResourceResponse.builder()
                 .responseInfo(responseInfo)
-                .generatedResource(processedResource)
+                .generateResource(processedResource)
                 .build();
 
         return new ResponseEntity<>(response, HttpStatus.OK);

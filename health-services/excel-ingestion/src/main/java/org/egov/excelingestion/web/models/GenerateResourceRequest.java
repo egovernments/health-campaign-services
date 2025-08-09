@@ -13,11 +13,11 @@ import lombok.Setter;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class GeneratedResourceRequest {
+public class GenerateResourceRequest {
 
     @JsonProperty("RequestInfo")
     private RequestInfo requestInfo;
 
-    @JsonProperty("GeneratedResource")
-    private GeneratedResource generatedResource;
+    @JsonProperty("GenerateResource")
+    private GenerateResource generateResource;
 }

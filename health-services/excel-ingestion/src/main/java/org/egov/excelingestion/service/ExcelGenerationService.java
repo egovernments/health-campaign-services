@@ -2,8 +2,8 @@ package org.egov.excelingestion.service;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-import org.egov.excelingestion.web.models.GeneratedResource;
-import org.egov.excelingestion.web.models.GeneratedResourceRequest;
+import org.egov.excelingestion.web.models.GenerateResourceRequest;
+import org.egov.excelingestion.web.models.GenerateResource;
 import org.egov.excelingestion.web.processor.GenerateProcessorFactory;
 import org.egov.excelingestion.web.processor.HierarchyExcelGenerateProcessor;
 import org.egov.excelingestion.web.processor.IGenerateProcessor;
@@ -25,13 +25,13 @@ public class ExcelGenerationService {
         this.fileStoreService = fileStoreService;
     }
 
-    public GeneratedResource generateAndUploadExcel(GeneratedResourceRequest request) throws IOException {
-        log.info("Generating and uploading Excel for type: {}", request.getGeneratedResource().getType());
+    public GenerateResource generateAndUploadExcel(GenerateResourceRequest request) throws IOException {
+        log.info("Generating and uploading Excel for type: {}", request.getGenerateResource().getType());
 
-        IGenerateProcessor processor = processorFactory.getProcessor(request.getGeneratedResource().getType());
+        IGenerateProcessor processor = processorFactory.getProcessor(request.getGenerateResource().getType());
 
         // Process resource (if process() does not generate bytes, call another method)
-        GeneratedResource generatedResource = processor.process(request);
+        GenerateResource generateResource = processor.process(request);
 
         // Suppose your processor has a method to generate bytes:
         byte[] excelBytes;
@@ -39,7 +39,7 @@ public class ExcelGenerationService {
             try {
                 // You can cast or better have a common interface method to generate bytes
                 excelBytes = ((HierarchyExcelGenerateProcessor) processor)
-                        .generateExcel(request.getGeneratedResource(), request.getRequestInfo());
+                        .generateExcel(request.getGenerateResource(), request.getRequestInfo());
             } catch (IOException e) {
                 log.error("Error generating Excel bytes", e);
                 throw new RuntimeException(e);
@@ -49,11 +49,11 @@ public class ExcelGenerationService {
         }
 
         // Upload file
-        String fileStoreId = fileStoreService.uploadFile(excelBytes, generatedResource.getTenantId(),
-                generatedResource.getHierarchyType() + ".xlsx");
+        String fileStoreId = fileStoreService.uploadFile(excelBytes, generateResource.getTenantId(),
+                generateResource.getHierarchyType() + ".xlsx");
 
-        generatedResource.setFileStoreId(fileStoreId);
+        generateResource.setFileStoreId(fileStoreId);
 
-        return generatedResource;
+        return generateResource;
     }
 }

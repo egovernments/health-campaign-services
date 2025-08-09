@@ -43,16 +43,16 @@ public class HierarchyExcelGenerateProcessor implements IGenerateProcessor {
     }
 
     @Override
-    public GeneratedResource process(GeneratedResourceRequest request) {
-        log.info("Processing hierarchy excel generation for type: {}", request.getGeneratedResource().getType());
-        return request.getGeneratedResource();
+    public GenerateResource process(GenerateResourceRequest request) {
+        log.info("Processing hierarchy excel generation for type: {}", request.getGenerateResource().getType());
+        return request.getGenerateResource();
     }
 
-    public byte[] generateExcel(GeneratedResource generatedResource, RequestInfo requestInfo) throws IOException {
-        log.info("Starting Excel generation process for hierarchyType: {}", generatedResource.getHierarchyType());
+    public byte[] generateExcel(GenerateResource generateResource, RequestInfo requestInfo) throws IOException {
+        log.info("Starting Excel generation process for hierarchyType: {}", generateResource.getHierarchyType());
 
-        String tenantId = generatedResource.getTenantId();
-        String hierarchyType = generatedResource.getHierarchyType();
+        String tenantId = generateResource.getTenantId();
+        String hierarchyType = generateResource.getHierarchyType();
         String locale = requestInfo.getMsgId() != null && requestInfo.getMsgId().split("\\|").length > 1
                 ? requestInfo.getMsgId().split("\\|")[1]
                 : "en_MZ";

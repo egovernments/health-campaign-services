@@ -16,7 +16,7 @@ import org.egov.common.contract.models.AuditDetails;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class GeneratedResource {
+public class GenerateResource {
 
     @JsonProperty("id")
     private String id;

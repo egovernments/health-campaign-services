@@ -1,8 +1,9 @@
 package org.egov.excelingestion.web.processor;
 
 import lombok.extern.slf4j.Slf4j;
-import org.egov.excelingestion.web.models.GeneratedResource;
-import org.egov.excelingestion.web.models.GeneratedResourceRequest;
+
+import org.egov.excelingestion.web.models.GenerateResourceRequest;
+import org.egov.excelingestion.web.models.GenerateResource;
 import org.springframework.stereotype.Component;
 
 @Component("userCredentialGenerateProcessor")
@@ -10,10 +11,10 @@ import org.springframework.stereotype.Component;
 public class UserCredentialGenerateProcessor implements IGenerateProcessor {
 
     @Override
-    public GeneratedResource process(GeneratedResourceRequest request) {
-        log.info("Processing user credential generation for type: {}", request.getGeneratedResource().getType());
+    public GenerateResource process(GenerateResourceRequest request) {
+        log.info("Processing user credential generation for type: {}", request.getGenerateResource().getType());
         // Implement user credential generation logic here
-        return request.getGeneratedResource();
+        return request.getGenerateResource();
     }
 
     @Override
