@@ -24,18 +24,7 @@ public class GenerateController {
     }
 
         @PostMapping("/_generate")
-    public ResponseEntity<GeneratedResourceResponse> generate(@RequestParam("tenantId") String tenantId,
-                                                              @RequestParam("type") String type,
-                                                              @RequestParam("hierarchyType") String hierarchyType,
-                                                              @RequestParam("referenceId") String referenceId,
-                                                              @RequestBody @Valid GeneratedResourceRequest request) throws IOException {
-
-        GeneratedResource generatedResource = request.getGeneratedResource();
-        generatedResource.setTenantId(tenantId);
-        generatedResource.setType(type);
-        generatedResource.setHierarchyType(hierarchyType);
-        generatedResource.setRefernceId(referenceId);
-
+    public ResponseEntity<GeneratedResourceResponse> generate( @RequestBody @Valid GeneratedResourceRequest request) throws IOException {
         GeneratedResource processedResource = excelGenerationService.generateAndUploadExcel(request);
 
         ResponseInfo responseInfo = ResponseInfo.builder()

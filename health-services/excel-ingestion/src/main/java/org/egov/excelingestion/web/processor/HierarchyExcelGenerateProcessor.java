@@ -190,7 +190,7 @@ public class HierarchyExcelGenerateProcessor implements IGenerateProcessor {
             String unlocalizedCode = hierarchyType.toUpperCase() + "_" + originalLevels.get(i).toUpperCase();
             keyRow.createCell(i).setCellValue(unlocalizedCode);
             headerRow.createCell(i)
-                    .setCellValue(localizationMap.getOrDefault(originalLevels.get(i), originalLevels.get(i)));
+                    .setCellValue(localizationMap.getOrDefault(unlocalizedCode, unlocalizedCode));
         }
         keyRow.setZeroHeight(true);
 
