@@ -43,6 +43,14 @@ public interface Constants {
 
     String HOUSEHOLD_ALREADY_HAS_HEAD_MESSAGE = "household already has head";
 
+    String HOUSEHOLD_HAS_MORE_THAN_ONE_HEAD = "HOUSEHOLD_HAS_MORE_THAN_ONE_HEAD";
+
+    String HOUSEHOLD_HAS_MORE_THAN_ONE_HEAD_MESSAGE = "household has more than one head";
+
+    String HOUSEHOLD_DOES_NOT_HAVE_A_HEAD = "HOUSEHOLD_DOES_NOT_HAVE_A_HEAD";
+
+    String HOUSEHOLD_DOES_NOT_HAVE_A_HEAD_MESSAGE = "Household does not have a head";
+
     String INDIVIDUAL_NOT_FOUND_MESSAGE = "individual id is not found";
 
     String GET_HOUSEHOLDS = "getHouseholds";
