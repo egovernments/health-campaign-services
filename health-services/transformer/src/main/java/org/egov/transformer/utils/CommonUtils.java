@@ -273,12 +273,13 @@ public class CommonUtils {
         if (ObjectUtils.isNotEmpty(projectStaff)) {
             Project project = projectService.getProject(projectStaff.getProjectId(), tenantId);
             if (ObjectUtils.isNotEmpty(project)) {
+                String campaignId = projectFactoryService.getCampaignIdFromCampaignNumber(project.getTenantId(), true, project.getReferenceID());
                 projectInfo.setProjectTypeId(project.getProjectTypeId());
                 projectInfo.setProjectId(projectStaff.getProjectId());
                 projectInfo.setProjectType(project.getProjectType());
                 projectInfo.setProjectName(project.getName());
                 projectInfo.setCampaignNumber(project.getReferenceID());
-                projectInfo.setCampaignId(projectFactoryService.getCampaignIdFromCampaignNumber(project.getTenantId(), true, project.getReferenceID()));
+                projectInfo.setCampaignId(campaignId);
                 userIdVsProjectInfoCache.put(userId, projectInfo);
             }
         }
