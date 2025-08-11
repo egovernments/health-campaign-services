@@ -17,6 +17,4 @@ public class CampaignSearchRequest {
 
     @JsonProperty("CampaignDetails")
     private CampaignSearchCriteria campaignDetails;
-
-
 }
