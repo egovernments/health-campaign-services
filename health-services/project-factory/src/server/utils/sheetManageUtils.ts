@@ -272,7 +272,7 @@ async function lockSheetAccordingToConfig(workBook: any, templateConfig: any, lo
             // Protect sheet with full options
             await worksheet.protect('passwordhere', {
                 selectLockedCells: true,
-                selectUnlockedCells: false,
+                selectUnlockedCells: true,
                 formatCells: false,
                 formatColumns: false,
                 formatRows: false,
