@@ -51,6 +51,11 @@ public interface Constants {
 
     String HOUSEHOLD_DOES_NOT_HAVE_A_HEAD_MESSAGE = "Household does not have a head";
 
+    String HOUSEHOLD_HEAD_CANNOT_BE_UNASSIGNED = "HOUSEHOLD_HEAD_CANNOT_BE_UNASSIGNED";
+
+    String HOUSEHOLD_HEAD_CANNOT_BE_UNASSIGNED_MESSAGE = "Household head cannot be unassigned";
+
+
     String INDIVIDUAL_NOT_FOUND_MESSAGE = "individual id is not found";
 
     String GET_HOUSEHOLDS = "getHouseholds";

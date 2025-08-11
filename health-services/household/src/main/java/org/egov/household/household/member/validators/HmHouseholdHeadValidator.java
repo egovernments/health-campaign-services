@@ -17,6 +17,8 @@ import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static org.egov.common.utils.CommonUtils.getIdMethod;
@@ -106,6 +108,26 @@ public class HmHouseholdHeadValidator implements Validator<HouseholdMemberBulkRe
                 });
                 log.error("No head of household found for household {}", householdId);
                 return;
+            }
+
+            // Validate if household head is removed
+            if(requestHouseholdHead.isEmpty()) {
+                HouseholdMember existingHead = existingHouseholdHead.get(0);
+                String existingHeadMemberId = (String) ReflectionUtils.invokeMethod(householdMemberidMethod, existingHead);
+                Optional<HouseholdMember> unassignedHouseholdHead = householdMembersRequest.stream().filter(householdMember ->
+                        Objects.equals(existingHeadMemberId, ReflectionUtils.invokeMethod(householdMemberidMethod, householdMember)))
+                        .findFirst();
+                if(unassignedHouseholdHead.isPresent()) {
+                    Error error = Error.builder().errorMessage(HOUSEHOLD_HEAD_CANNOT_BE_UNASSIGNED_MESSAGE)
+                            .errorCode(HOUSEHOLD_HEAD_CANNOT_BE_UNASSIGNED)
+                            .type(Error.ErrorType.NON_RECOVERABLE)
+                            .exception(new CustomException(HOUSEHOLD_HEAD_CANNOT_BE_UNASSIGNED,
+                                    HOUSEHOLD_HEAD_CANNOT_BE_UNASSIGNED_MESSAGE))
+                            .build();
+                    populateErrorDetails(unassignedHouseholdHead.get(), error, errorDetailsMap);
+                    log.error("household head cannot be unassigned, error: {}", error);
+                    return;
+                }
             }
 
             // Validates if a household
