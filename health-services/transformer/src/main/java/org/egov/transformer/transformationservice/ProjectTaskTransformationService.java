@@ -112,6 +112,12 @@ public class ProjectTaskTransformationService {
         List<String> variantList = new ArrayList<>(Collections.singleton(taskResource.getProductVariantId()));
         String productName = String.join(COMMA, productService.getProductVariantNames(variantList, tenantId));
         String projectTypeId = project.getProjectTypeId();
+        String campaignId = null;
+        if (StringUtils.isNotBlank(project.getReferenceID())) {
+            campaignId = projectFactoryService.getCampaignIdFromCampaignNumber(
+                    project.getTenantId(), true, project.getReferenceID()
+            );
+        }
 
         ProjectTaskIndexV1 projectTaskIndexV1 = ProjectTaskIndexV1.builder()
                 .id(taskResource.getId())
@@ -155,7 +161,7 @@ public class ProjectTaskTransformationService {
                 .build();
         projectTaskIndexV1.setProjectInfo(task.getId(), project.getProjectType(), projectTypeId, project.getName());
         projectTaskIndexV1.setCampaignNumber(project.getReferenceID());
-        projectTaskIndexV1.setCampaignId(StringUtils.isNotBlank(project.getReferenceID()) ? projectFactoryService.getCampaignIdFromCampaignNumber(project.getTenantId(), true, project.getReferenceID()) : null);
+        projectTaskIndexV1.setCampaignId(campaignId);
 
         //adding to additional details  from additionalFields in task and task resource
         ObjectNode additionalDetails = objectMapper.createObjectNode();

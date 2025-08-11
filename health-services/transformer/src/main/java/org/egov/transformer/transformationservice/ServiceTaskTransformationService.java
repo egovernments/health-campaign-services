@@ -99,6 +99,13 @@ public class ServiceTaskTransformationService {
         }
         additionalDetails.put(CYCLE_INDEX, cycleIndex);
 
+        String campaignId = null;
+        if (StringUtils.isNotBlank(project.getReferenceID())) {
+            campaignId = projectFactoryService.getCampaignIdFromCampaignNumber(
+                    project.getTenantId(), true, project.getReferenceID()
+            );
+        }
+
         ServiceIndexV1 serviceIndexV1 = ServiceIndexV1.builder()
                 .id(service.getId())
                 .clientReferenceId(service.getClientId())
@@ -124,7 +131,7 @@ public class ServiceTaskTransformationService {
                 .build();
         serviceIndexV1.setProjectInfo(projectId, projectType, projectTypeId, project.getName());
         serviceIndexV1.setCampaignNumber(project.getReferenceID());
-        serviceIndexV1.setCampaignId(StringUtils.isNotBlank(project.getReferenceID()) ? projectFactoryService.getCampaignIdFromCampaignNumber(project.getTenantId(), true, project.getReferenceID()) : null);
+        serviceIndexV1.setCampaignId(campaignId);
         return serviceIndexV1;
     }
 }

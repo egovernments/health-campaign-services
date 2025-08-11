@@ -72,6 +72,12 @@ public class ProjectStaffTransformationService {
         } else {
             localityCode = null;
         }
+        String campaignId = null;
+        if (StringUtils.isNotBlank(project.getReferenceID())) {
+            campaignId = projectFactoryService.getCampaignIdFromCampaignNumber(
+                    project.getTenantId(), true, project.getReferenceID()
+            );
+        }
         BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithProjectId(projectId, tenantId);
         Map<String, String> userInfoMap = userService.getUserInfo(projectStaff.getTenantId(), projectStaff.getUserId());
         JsonNode additionalDetails = projectService.fetchProjectAdditionalDetails(tenantId, projectId);
@@ -93,7 +99,7 @@ public class ProjectStaffTransformationService {
                 .build();
         projectStaffIndexV1.setProjectInfo(projectId, project.getProjectType(), projectTypeId, project.getName());
         projectStaffIndexV1.setCampaignNumber(project.getReferenceID());
-        projectStaffIndexV1.setCampaignId(StringUtils.isNotBlank(project.getReferenceID()) ? projectFactoryService.getCampaignIdFromCampaignNumber(project.getTenantId(), true, project.getReferenceID()) : null);
+        projectStaffIndexV1.setCampaignId(campaignId);
         return projectStaffIndexV1;
     }
 }

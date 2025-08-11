@@ -118,6 +118,11 @@ public class ReferralTransformationService {
             additionalDetails.put(HEIGHT, (Integer) individualDetails.get(HEIGHT));
             additionalDetails.put(DISABILITY_TYPE,(String) individualDetails.get(DISABILITY_TYPE));
         }
+
+        String campaignId = null;
+        if (StringUtils.isNotBlank(referenceId)) {
+            campaignId = projectFactoryService.getCampaignIdFromCampaignNumber(referral.getTenantId(), true, referenceId);
+        }
         ReferralIndexV1 referralIndexV1 = ReferralIndexV1.builder()
                 .referral(referral)
                 .tenantId(referral.getTenantId())
@@ -138,7 +143,7 @@ public class ReferralTransformationService {
                 .build();
         referralIndexV1.setProjectInfo(projectId, projectType, projectTypeId, projectName);
         referralIndexV1.setCampaignNumber(referenceId);
-        referralIndexV1.setCampaignId(StringUtils.isNotBlank(referenceId) ? projectFactoryService.getCampaignIdFromCampaignNumber(referral.getTenantId(), true, referenceId) : null);
+        referralIndexV1.setCampaignId(campaignId);
         return referralIndexV1;
     }
 }

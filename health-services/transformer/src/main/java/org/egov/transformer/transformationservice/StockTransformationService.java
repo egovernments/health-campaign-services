@@ -133,6 +133,13 @@ public class StockTransformationService {
             addAdditionalDetails(stock.getAdditionalFields(), additionalDetails);
         }
 
+        String campaignId = null;
+        if (StringUtils.isNotBlank(project.getReferenceID())) {
+            campaignId = projectFactoryService.getCampaignIdFromCampaignNumber(
+                    project.getTenantId(), true, project.getReferenceID()
+            );
+        }
+
         StockIndexV1 stockIndexV1 = StockIndexV1.builder()
                 .id(stock.getId())
                 .clientReferenceId(stock.getClientReferenceId())
@@ -173,7 +180,7 @@ public class StockTransformationService {
                 .build();
         stockIndexV1.setProjectInfo(projectId, project.getProjectType(), projectTypeId, project.getName());
         stockIndexV1.setCampaignNumber(project.getReferenceID());
-        stockIndexV1.setCampaignId(StringUtils.isNotBlank(project.getReferenceID()) ? projectFactoryService.getCampaignIdFromCampaignNumber(project.getTenantId(), true, project.getReferenceID()) : null);
+        stockIndexV1.setCampaignId(campaignId);
         return stockIndexV1;
     }
 

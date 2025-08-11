@@ -96,6 +96,16 @@ public class ProjectTransformationService {
 
         String projectBeneficiaryType = projectService.getProjectBeneficiaryType(tenantId, projectTypeId);
 
+        String campaignId;
+        if (StringUtils.isNotBlank(project.getReferenceID())) {
+            campaignId = projectFactoryService.getCampaignIdFromCampaignNumber(
+                    project.getTenantId(), true, project.getReferenceID()
+            );
+        } else {
+            campaignId = null;
+        }
+
+
         return targets.stream().map(r -> {
                     Long startDate = project.getStartDate();
                     Long endDate = project.getEndDate();
@@ -149,7 +159,7 @@ public class ProjectTransformationService {
                             .build();
                     projectIndexV1.setProjectInfo(project.getId(), project.getProjectType(), projectTypeId, project.getName());
                     projectIndexV1.setCampaignNumber(project.getReferenceID());
-                    projectIndexV1.setCampaignId(StringUtils.isNotBlank(project.getReferenceID()) ? projectFactoryService.getCampaignIdFromCampaignNumber(project.getTenantId(), true, project.getReferenceID()) : null);
+                    projectIndexV1.setCampaignId(campaignId);
                     return projectIndexV1;
                 }
         ).collect(Collectors.toList());

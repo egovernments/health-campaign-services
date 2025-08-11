@@ -88,6 +88,15 @@ public class ReferralServiceTaskTransformationService {
         ObjectNode additionalDetails = objectMapper.createObjectNode();
         additionalDetails.put(CYCLE_INDEX, cycleIndex);
 
+        String campaignId;
+        if (StringUtils.isNotBlank(project.getReferenceID())) {
+            campaignId = projectFactoryService.getCampaignIdFromCampaignNumber(
+                    project.getTenantId(), true, project.getReferenceID()
+            );
+        } else {
+            campaignId = null;
+        }
+
         String checkListToFilter = transformerProperties.getCheckListName().trim();
         List<AttributeValue> attributeValueList = service.getAttributes();
         Map<String, Map<String, String>> attributeCodeToQuestionAgeGroup = new HashMap<>();
@@ -116,7 +125,7 @@ public class ReferralServiceTaskTransformationService {
                         .build();
                 referralServiceTaskIndexV1.setProjectInfo(projectId, projectType, projectTypeId, project.getName());
                 referralServiceTaskIndexV1.setCampaignNumber(project.getReferenceID());
-                referralServiceTaskIndexV1.setCampaignId(StringUtils.isNotBlank(project.getReferenceID()) ? projectFactoryService.getCampaignIdFromCampaignNumber(project.getTenantId(), true, project.getReferenceID()) : null);
+                referralServiceTaskIndexV1.setCampaignId(campaignId);
                 searchAndSetAttribute(attributeValueList, value, referralServiceTaskIndexV1);
                 referralServiceTaskIndexV1List.add(referralServiceTaskIndexV1);
             });
