@@ -2,6 +2,10 @@
 
 All notable changes to this module will be documented in this file.
 
+## 1.2.1 - 2025-08-11
+
+- Resolved household head validation on different cases
+
 ## 1.2.0 - 2025-04-15
 
 - Enabled multi-schema support using dynamic schema replacement in SQL queries.
