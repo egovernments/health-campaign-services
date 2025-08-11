@@ -92,8 +92,6 @@ public class HouseholdTransformationService {
             additionalDetails.put(ISVULNERABLE, true);
         }
 
-//        String cycleIndex = commonUtils.fetchCycleIndex(household.getTenantId(), String.valueOf(additionalDetails.get(PROJECT_TYPE_ID)), household.getClientAuditDetails());
-//        additionalDetails.put(CYCLE_INDEX, cycleIndex);
 
         HouseholdIndexV1 householdIndexV1 = HouseholdIndexV1.builder()
                 .household(household)

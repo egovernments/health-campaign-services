@@ -103,8 +103,6 @@ public class HouseholdMemberTransformationService {
             additionalDetails.put(DISABILITY_TYPE,(String) individualDetails.get(DISABILITY_TYPE));
         }
 
-//        String cycleIndex = commonUtils.fetchCycleIndex(householdMember.getTenantId(), String.valueOf(additionalDetails.get(PROJECT_TYPE_ID)), householdMember.getClientAuditDetails());
-//        additionalDetails.put(CYCLE_INDEX, cycleIndex);
 
         HouseholdMemberIndexV1 householdMemberIndexV1 = HouseholdMemberIndexV1.builder()
                 .householdMember(householdMember)

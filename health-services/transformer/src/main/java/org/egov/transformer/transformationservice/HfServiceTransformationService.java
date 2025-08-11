@@ -93,6 +93,11 @@ public class HfServiceTransformationService {
         ObjectNode additionalDetails = objectMapper.createObjectNode();
         additionalDetails.put(CYCLE_INDEX, cycleIndex);
 
+        String campaignId = null;
+        if  (StringUtils.isNotBlank(project.getReferenceID())) {
+            campaignId = projectFactoryService.getCampaignIdFromCampaignNumber(project.getTenantId(), true, project.getReferenceID());
+        }
+
         String checkListToFilter = transformerProperties.getHfReferralFeverCheckListName().trim();
         List<AttributeValue> attributeValueList = service.getAttributes();
         Map<String, String> userInfoMap = userService.getUserInfo(service.getTenantId(), service.getAuditDetails().getCreatedBy());
@@ -119,7 +124,7 @@ public class HfServiceTransformationService {
                     .build();
             hfReferralServiceIndexV1.setProjectInfo(projectId, projectType, projectTypeId, project.getName());
             hfReferralServiceIndexV1.setCampaignNumber(project.getReferenceID());
-            hfReferralServiceIndexV1.setCampaignId(StringUtils.isNotBlank(project.getReferenceID()) ? projectFactoryService.getCampaignIdFromCampaignNumber(project.getTenantId(), true, project.getReferenceID()) : null);
+            hfReferralServiceIndexV1.setCampaignId(campaignId);
             searchAndSetAttribute(attributeValueList, codeToQuestionMapping, hfReferralServiceIndexV1);
             hfReferralServiceIndexV1List.add(hfReferralServiceIndexV1);
         }
