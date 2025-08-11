@@ -70,8 +70,9 @@ public class ProjectFactoryService {
                         .build())
                 .build();
         CampaignSearchResponse response;
-        StringBuilder uri = new StringBuilder(transformerProperties.getProjectFactoryHost()
-                + transformerProperties.getProjectFactorySearchUrl());
+        StringBuilder uri = new StringBuilder()
+                .append(transformerProperties.getProjectFactoryHost())
+                .append(transformerProperties.getProjectFactorySearchUrl());
         log.info("URI: {}, \n, requestBody: {}", uri, request);
         try {
             log.info("Fetching campaign details for tenantId: {}, campaignNumber: {}", tenantId, campaignNumber);
