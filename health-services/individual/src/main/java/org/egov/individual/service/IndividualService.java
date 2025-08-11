@@ -678,83 +678,109 @@ public class IndividualService {
             throw new CustomException(INVALID_TENANT_ID, INVALID_TENANT_ID_MSG);
         }
 
-        String individualId = request.getIndividualId();
+        final String individualId = request.getIndividualId();
+        final String aadhaarNumber = request.getAadhaarNumber();
         log.info("Re-triggering ABHA OTP for individualId: {}, tenantId: {}", individualId, tenantId);
 
-        // ---- (A) Fetch Individual ----
-        Individual individual = fetchIndividualOrThrow(individualId, tenantId, requestInfo);
+        // (A) Strict lookup by BOTH individualId + Aadhaar
+        Individual individual = fetchByIndividualIdAndAadhaarOrThrow(individualId, tenantId, aadhaarNumber, requestInfo);
 
-        // ---- (B) Extract Aadhaar ----
-        String aadhaarNumber = extractAadhaarIdentifier(individual, false)
-                .orElseThrow(() -> new CustomException("AADHAAR_NOT_PRESENT",
-                        "Aadhaar identifier not present for individualId: " + individualId));
+        // (B) Send OTP using provided Aadhaar
+        AbhaOtpRequest otpRequest = AbhaOtpRequest.builder()
+                .aadhaarNumber(aadhaarNumber)
+                .build();
 
 
-        // ---- (C) Reuse existing AbhaTransaction only; fail if none ----
-        SearchResponse<AbhaTransaction> existingResp =
-                abhaRepository.findByIndividualId(individualId, tenantId);
-
+        // (C) Ensure an existing txn exists; otherwise fail (resend must not create)
+        SearchResponse<AbhaTransaction> existingResp = abhaRepository.findByIndividualId(individualId, tenantId);
         if (existingResp.getResponse() == null || existingResp.getResponse().isEmpty()) {
-            // No active transaction found for this (individualId, tenantId)
             throw new CustomException(
                     "ABHA_TXN_NOT_FOUND",
                     "No existing ABHA OTP transaction found for individualId: " + individualId +
                             ". Trigger the initial OTP via the create flow."
             );
         }
-
-
-        // ---- (D) Call ABHA OTP send ----
-        AbhaOtpRequest otpRequest = AbhaOtpRequest.builder()
-                .aadhaarNumber(aadhaarNumber)
-                .build();
+        AbhaTransaction current = existingResp.getResponse().get(0);
+        
         AbhaOtpResponse otpResponse = abhaService.sendAadhaarOtp(otpRequest);
         String txnId = otpResponse.getTxnId();
-
-
-        AbhaTransaction current = existingResp.getResponse().get(0);
-
-        // Build update payload: KEEP SAME id/JSON, set new transactionId, revive if needed
+        
+        // (D) Upsert update (same row), revive if soft-deleted
         AbhaTransaction abhaTxn = AbhaTransaction.builder()
-                .id(current.getId())                           // must preserve PK to update same row
+                .id(current.getId())
                 .individualId(individualId)
                 .tenantId(tenantId)
-                .transactionId(txnId)                          // new txnId from resend
+                .transactionId(txnId)
                 .additionalDetails(current.getAdditionalDetails())
-                .isDeleted(Boolean.FALSE)                      // ensure active
-                .rowVersion(current.getRowVersion())           // enrichment will bump if needed
+                .isDeleted(Boolean.FALSE)
+                .rowVersion(current.getRowVersion())
                 .build();
 
         List<AbhaTransaction> batch = Collections.singletonList(abhaTxn);
-
-        // Use your "update" enrichment (sets audit, lastModifiedTime, bumps rowVersion, etc.)
-        enrichmentService.enrichAbhaTransactionForUpdate(batch, request.getRequestInfo());
-
-        // Publish to UPSERT topic (INSERT ... ON CONFLICT (individualId, tenantId) DO UPDATE ...)
-        abhaRepository.save(batch, properties.getSaveAbhaTransactionTopic());
+        enrichmentService.enrichAbhaTransactionForUpdate(batch, requestInfo);
+        abhaRepository.save(batch, properties.getSaveAbhaTransactionTopic()); // ON CONFLICT (individualId, tenantId) DO UPDATE
 
         log.info("ABHA txn UPDATED via resend; individualId={}, oldTxnId={}, newTxnId={}",
                 individualId, current.getTransactionId(), txnId);
-
         return txnId;
     }
 
     // ---------- Helpers (same style as in your verify flow) ----------
 
-    private Individual fetchIndividualOrThrow(String individualId, String tenantId, RequestInfo requestInfo) {
-        IndividualSearch searchCriteria = IndividualSearch.builder()
+    private Individual fetchByIndividualIdAndAadhaarOrThrow(String individualId,
+                                                            String tenantId,
+                                                            String aadhaarNumber,
+                                                            RequestInfo requestInfo) {
+        // ---- 1) Search by Individual ID only ----
+        IndividualSearch byId = IndividualSearch.builder()
                 .individualId(Collections.singletonList(individualId))
                 .build();
 
-        // If you already have 'search(...)' in this class (like in verifyAbhaOtp), call that.
-        // Otherwise delegate to your search service/facade.
-        SearchResponse<Individual> response = search(searchCriteria, 10, 0, tenantId, null, false, requestInfo);
-
-        if (response.getResponse() == null || response.getResponse().isEmpty()) {
-            throw new CustomException("INDIVIDUAL_NOT_FOUND", "Individual not found for ID: " + individualId);
+        SearchResponse<Individual> idResp = search(byId, 1, 0, tenantId, null, false, requestInfo);
+        if (idResp.getResponse() == null || idResp.getResponse().isEmpty()) {
+            throw new CustomException(
+                    "INDIVIDUAL_NOT_FOUND",
+                    "Individual not found for ID: " + individualId
+            );
         }
-        return response.getResponse().get(0);
-    }
+        Individual idHit = idResp.getResponse().get(0);
 
+        // ---- 2) Search by Aadhaar identifier only (triggers your IdentifierEncrypt path) ----
+        Identifier aadhaarFilter = Identifier.builder()
+                .identifierType(AADHAR_IDENTIFIER) // "AADHAAR"
+                .identifierId(aadhaarNumber)
+                .build();
+
+        IndividualSearch byAadhaar = IndividualSearch.builder()
+                .identifier(aadhaarFilter)
+                .build();
+
+        SearchResponse<Individual> idfResp = search(byAadhaar, 10, 0, tenantId, null, false, requestInfo);
+        if (idfResp.getResponse() == null || idfResp.getResponse().isEmpty()) {
+            throw new CustomException(
+                    "AADHAAR_NOT_FOUND",
+                    "No individual found with the provided Aadhaar number."
+            );
+        }
+
+        // ---- 3) Validate that Aadhaar belongs to the same individualId ----
+        // pick the record from identifier search whose individualId matches the requested one
+        Individual match = idfResp.getResponse()
+                .stream()
+                .filter(ind -> individualId.equals(ind.getIndividualId()))
+                .findFirst()
+                .orElse(null);
+
+        if (match == null) {
+            throw new CustomException(
+                    "INDIVIDUAL_AADHAAR_MISMATCH",
+                    "The provided Aadhaar does not belong to individualId: " + individualId
+            );
+        }
+
+        // (Optional) If you require enableAbhaCreation=true on the identifier, enforce it here by checking match.getIdentifiers()
+
+        return idHit; // or 'match' (both refer to the same Individual by now)
+    }
 
 }

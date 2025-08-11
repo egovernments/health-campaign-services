@@ -1,0 +1,2 @@
+ALTER TABLE INDIVIDUAL_IDENTIFIER
+ADD COLUMN enableAbhaCreation boolean DEFAULT false;

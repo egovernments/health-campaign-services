@@ -20,4 +20,8 @@ public class AbhaOtpResendRequest {
     @JsonProperty("individualId")
     @NotBlank
     private String individualId;
+
+    @JsonProperty("aadhaarNumber")
+    @NotBlank
+    private String aadhaarNumber;
 }
