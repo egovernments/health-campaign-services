@@ -102,6 +102,11 @@ public class StockReconciliationTransformationService {
         String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(stockReconciliation.getAuditDetails().getLastModifiedTime());
         String productName = String.join(COMMA, productService.getProductVariantNames(Collections.singletonList(stockReconciliation.getProductVariantId()), tenantId));
 
+        String campaignId = null;
+        if  (StringUtils.isNotBlank(project.getReferenceID())) {
+            campaignId = projectFactoryService.getCampaignIdFromCampaignNumber(project.getTenantId(), true, project.getReferenceID());
+        }
+
         StockReconciliationIndexV1 stockReconciliationIndexV1 = StockReconciliationIndexV1.builder()
                 .stockReconciliation(stockReconciliation)
                 .facilityName(facility != null ? facility.getName() : stockReconciliation.getFacilityId())
@@ -123,7 +128,7 @@ public class StockReconciliationTransformationService {
                 .build();
         stockReconciliationIndexV1.setProjectInfo(projectId, project.getProjectType(), project.getProjectTypeId(), project.getName());
         stockReconciliationIndexV1.setCampaignNumber(project.getReferenceID());
-        stockReconciliationIndexV1.setCampaignId(StringUtils.isNotBlank(project.getReferenceID()) ? projectFactoryService.getCampaignIdFromCampaignNumber(project.getTenantId(), true, project.getReferenceID()) : null);
+        stockReconciliationIndexV1.setCampaignId(campaignId);
         return stockReconciliationIndexV1;
     }
 

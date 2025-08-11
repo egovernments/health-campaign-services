@@ -85,6 +85,11 @@ public class HfReferralTransformationService {
         ObjectNode additionalDetails = objectMapper.createObjectNode();
         additionalDetails.put(CYCLE_INDEX, cycleIndex);
 
+        String campaignId = null;
+        if  (StringUtils.isNotBlank(project.getReferenceID())) {
+            campaignId = projectFactoryService.getCampaignIdFromCampaignNumber(project.getTenantId(), true, project.getReferenceID());
+        }
+
         HfReferralIndexV1 hfReferralIndexV1 = HfReferralIndexV1.builder()
                 .hfReferral(hfReferral)
                 .userName(userInfoMap.get(USERNAME))
@@ -98,7 +103,7 @@ public class HfReferralTransformationService {
                 .build();
         hfReferralIndexV1.setProjectInfo(projectId, projectType, projectTypeId, project.getName());
         hfReferralIndexV1.setCampaignNumber(project.getReferenceID());
-        hfReferralIndexV1.setCampaignId(StringUtils.isNotBlank(project.getReferenceID()) ? projectFactoryService.getCampaignIdFromCampaignNumber(project.getTenantId(), true, project.getReferenceID()) : null);
+        hfReferralIndexV1.setCampaignId(campaignId);
 
         return hfReferralIndexV1;
     }
