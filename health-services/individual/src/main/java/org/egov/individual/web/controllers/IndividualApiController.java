@@ -159,4 +159,20 @@ public class IndividualApiController {
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
     }
 
+    @RequestMapping(value = "/v1/_resend-abha-otp", method = RequestMethod.POST)
+    public ResponseEntity<AbhaOtpResendResponse> individualV1ResendAbhaOtpPost(
+            @ApiParam(value = "ABHA OTP re-trigger request.", required = true)
+            @Valid @RequestBody AbhaOtpResendRequest request) {
+
+        String txnId = individualService.resendAbhaOtp(request);
+
+        AbhaOtpResendResponse response = AbhaOtpResendResponse.builder()
+                .individualId(request.getIndividualId())
+                .transactionId(txnId)
+                .responseInfo(ResponseInfoFactory.createResponseInfo(request.getRequestInfo(), true))
+                .build();
+
+        // 202 Accepted (async downstream via Kafka), matches your verify style using ACCEPTED
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
+    }
 }

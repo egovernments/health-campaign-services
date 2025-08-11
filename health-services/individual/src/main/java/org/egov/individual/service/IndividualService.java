@@ -615,7 +615,7 @@ public class IndividualService {
         List<AbhaTransaction> abhaTransactions = new ArrayList<>();
 
         for (Individual individual : validIndividuals) {
-            extractAadhaarIdentifier(individual).ifPresent(aadhaar -> {
+            extractAadhaarIdentifier(individual, true ).ifPresent(aadhaar -> {
                 AbhaOtpRequest otpRequest = AbhaOtpRequest.builder()
                         .aadhaarNumber(aadhaar)
                         .build();
@@ -639,14 +639,121 @@ public class IndividualService {
         }
     }
 
-    private Optional<String> extractAadhaarIdentifier(Individual individual) {
+    /**
+     * Extracts the Aadhaar identifier from the given Individual.
+     *
+     * @param individual the Individual entity
+     * @param requireAbhaCreationFlag if true, will only return Aadhaar where enableAbhaCreation is true;
+     *                                if false, will return Aadhaar regardless of enableAbhaCreation
+     * @return Optional containing the Aadhaar identifier if found, otherwise empty
+     */
+    private Optional<String> extractAadhaarIdentifier(Individual individual, boolean requireAbhaCreationFlag) {
         return Optional.ofNullable(individual.getIdentifiers())
                 .orElse(Collections.emptyList())
                 .stream()
                 .filter(id -> AADHAR_IDENTIFIER.equalsIgnoreCase(id.getIdentifierType())
-                        && Boolean.TRUE.equals(id.getEnableAbhaCreation()))
+                        && (!requireAbhaCreationFlag || Boolean.TRUE.equals(id.getEnableAbhaCreation())))
                 .map(Identifier::getIdentifierId)
                 .findFirst();
+    }
+
+
+    /**
+     * Re-triggers Aadhaar OTP for the given individual.
+     * 1) Validates tenantId
+     * 2) Fetches Individual (search logic same style as verifyAbhaOtp)
+     * 3) Extracts Aadhaar
+     * 4) Calls ABHA sendAadhaarOtp
+     * 5) Enriches & saves AbhaTransaction (Kafka)
+     * 6) Returns txnId
+     */
+    public String resendAbhaOtp(AbhaOtpResendRequest request) {
+        RequestInfo requestInfo = request.getRequestInfo();
+
+        String tenantId = Optional.ofNullable(requestInfo)
+                .map(ri -> ri.getUserInfo() != null ? ri.getUserInfo().getTenantId() : null)
+                .orElse(null);
+
+        if (tenantId == null || tenantId.isBlank()) {
+            throw new CustomException(INVALID_TENANT_ID, INVALID_TENANT_ID_MSG);
+        }
+
+        String individualId = request.getIndividualId();
+        log.info("Re-triggering ABHA OTP for individualId: {}, tenantId: {}", individualId, tenantId);
+
+        // ---- (A) Fetch Individual ----
+        Individual individual = fetchIndividualOrThrow(individualId, tenantId, requestInfo);
+
+        // ---- (B) Extract Aadhaar ----
+        String aadhaarNumber = extractAadhaarIdentifier(individual, false)
+                .orElseThrow(() -> new CustomException("AADHAAR_NOT_PRESENT",
+                        "Aadhaar identifier not present for individualId: " + individualId));
+
+
+        // ---- (C) Reuse existing AbhaTransaction only; fail if none ----
+        SearchResponse<AbhaTransaction> existingResp =
+                abhaRepository.findByIndividualId(individualId, tenantId);
+
+        if (existingResp.getResponse() == null || existingResp.getResponse().isEmpty()) {
+            // No active transaction found for this (individualId, tenantId)
+            throw new CustomException(
+                    "ABHA_TXN_NOT_FOUND",
+                    "No existing ABHA OTP transaction found for individualId: " + individualId +
+                            ". Trigger the initial OTP via the create flow."
+            );
+        }
+
+
+        // ---- (D) Call ABHA OTP send ----
+        AbhaOtpRequest otpRequest = AbhaOtpRequest.builder()
+                .aadhaarNumber(aadhaarNumber)
+                .build();
+        AbhaOtpResponse otpResponse = abhaService.sendAadhaarOtp(otpRequest);
+        String txnId = otpResponse.getTxnId();
+
+
+        AbhaTransaction current = existingResp.getResponse().get(0);
+
+        // Build update payload: KEEP SAME id/JSON, set new transactionId, revive if needed
+        AbhaTransaction abhaTxn = AbhaTransaction.builder()
+                .id(current.getId())                           // must preserve PK to update same row
+                .individualId(individualId)
+                .tenantId(tenantId)
+                .transactionId(txnId)                          // new txnId from resend
+                .additionalDetails(current.getAdditionalDetails())
+                .isDeleted(Boolean.FALSE)                      // ensure active
+                .rowVersion(current.getRowVersion())           // enrichment will bump if needed
+                .build();
+
+        List<AbhaTransaction> batch = Collections.singletonList(abhaTxn);
+
+        // Use your "update" enrichment (sets audit, lastModifiedTime, bumps rowVersion, etc.)
+        enrichmentService.enrichAbhaTransactionForUpdate(batch, request.getRequestInfo());
+
+        // Publish to UPSERT topic (INSERT ... ON CONFLICT (individualId, tenantId) DO UPDATE ...)
+        abhaRepository.save(batch, properties.getSaveAbhaTransactionTopic());
+
+        log.info("ABHA txn UPDATED via resend; individualId={}, oldTxnId={}, newTxnId={}",
+                individualId, current.getTransactionId(), txnId);
+
+        return txnId;
+    }
+
+    // ---------- Helpers (same style as in your verify flow) ----------
+
+    private Individual fetchIndividualOrThrow(String individualId, String tenantId, RequestInfo requestInfo) {
+        IndividualSearch searchCriteria = IndividualSearch.builder()
+                .individualId(Collections.singletonList(individualId))
+                .build();
+
+        // If you already have 'search(...)' in this class (like in verifyAbhaOtp), call that.
+        // Otherwise delegate to your search service/facade.
+        SearchResponse<Individual> response = search(searchCriteria, 10, 0, tenantId, null, false, requestInfo);
+
+        if (response.getResponse() == null || response.getResponse().isEmpty()) {
+            throw new CustomException("INDIVIDUAL_NOT_FOUND", "Individual not found for ID: " + individualId);
+        }
+        return response.getResponse().get(0);
     }
 
 

@@ -6,10 +6,22 @@ serviceMaps:
       fromTopic: save-abha-transaction-topic
       isTransaction: true
       queryMaps:
-        - query: INSERT INTO public.abha_individual_transaction (id, individualId, transactionId, tenantId, additionalDetails, createdBy, lastModifiedBy, createdTime, lastModifiedTime, isDeleted, rowVersion )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+        - query: >
+            INSERT INTO public.abha_individual_transaction
+            (id, individualId, transactionId, tenantId, additionalDetails, createdBy, lastModifiedBy,
+             createdTime, lastModifiedTime, isDeleted, rowVersion)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT (individualId) DO UPDATE SET
+              transactionId = ?,
+              tenantId = ?,
+              additionalDetails = ?,
+              lastModifiedBy = ?,
+              lastModifiedTime = ?,
+              isDeleted = ?,
+              rowVersion = ?;
           basePath: $.*
           jsonMaps:
+            # INSERT params
             - jsonPath: $.*.id
             - jsonPath: $.*.individualId
             - jsonPath: $.*.transactionId
@@ -20,6 +32,17 @@ serviceMaps:
             - jsonPath: $.*.auditDetails.createdBy
             - jsonPath: $.*.auditDetails.lastModifiedBy
             - jsonPath: $.*.auditDetails.createdTime
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.isDeleted
+            - jsonPath: $.*.rowVersion
+
+            # ON CONFLICT SET params (order must match the SET clause)
+            - jsonPath: $.*.transactionId
+            - jsonPath: $.*.tenantId
+            - jsonPath: $.*.additionalDetails
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.*.auditDetails.lastModifiedBy
             - jsonPath: $.*.auditDetails.lastModifiedTime
             - jsonPath: $.*.isDeleted
             - jsonPath: $.*.rowVersion

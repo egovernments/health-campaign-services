@@ -344,4 +344,13 @@ public class EnrichmentService {
         enrichForCreate(transactions, ids,requestInfo);
     }
 
+    public void enrichAbhaTransactionForUpdate(List<AbhaTransaction> transactions, RequestInfo requestInfo) {
+        Map<String, AbhaTransaction> iMap = getIdToObjMap(transactions);
+        log.info("enriching individuals for update");
+        enrichForUpdate(iMap, AbhaOtpResendRequest.builder()
+                .requestInfo(requestInfo).build());
+        log.info("completed the enrichment for update individuals");
+    }
+
+
 }
