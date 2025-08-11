@@ -25,11 +25,21 @@ public class ExcelIngestionConfig {
     @Value("${egov.filestore.upload.endpoint}")
     private String filestoreUploadEndpoint;
 
+    @Value("${egov.mdms.host}")
+    private String mdmsHost;
+
+    @Value("${egov.mdms.search.path}")
+    private String mdmsSearchPath;
+
     public String getHierarchySearchUrl() {
         return boundaryHost + hierarchySearchPath;
     }
 
     public String getRelationshipSearchUrl() {
         return boundaryHost + relationshipSearchPath;
+    }
+
+    public String getMdmsSearchUrl() {
+        return mdmsHost + mdmsSearchPath;
     }
 }

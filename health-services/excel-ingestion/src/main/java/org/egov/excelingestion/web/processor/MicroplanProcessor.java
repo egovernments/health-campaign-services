@@ -7,11 +7,16 @@ import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.util.CellRangeAddressList;
 import org.apache.poi.ss.util.CellReference;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.excelingestion.config.ExcelIngestionConfig;
 import org.egov.excelingestion.service.LocalizationService;
+import org.egov.excelingestion.util.ExcelSchemaSheetCreator;
 import org.egov.excelingestion.web.models.*;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestTemplate;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -23,13 +28,13 @@ import java.util.*;
 @Slf4j
 public class MicroplanProcessor implements IGenerateProcessor {
 
-    private final ServiceRequestClient serviceRequestClient;
+    private final RestTemplate restTemplate;
     private final ExcelIngestionConfig config;
     private final LocalizationService localizationService;
 
-    public MicroplanProcessor(ServiceRequestClient serviceRequestClient, ExcelIngestionConfig config,
+    public MicroplanProcessor(RestTemplate restTemplate, ExcelIngestionConfig config,
             LocalizationService localizationService) {
-        this.serviceRequestClient = serviceRequestClient;
+        this.restTemplate = restTemplate;
         this.config = config;
         this.localizationService = localizationService;
     }
@@ -52,10 +57,41 @@ public class MicroplanProcessor implements IGenerateProcessor {
         String localizationModule = "hcm-boundary-" + hierarchyType.toLowerCase(); // localization module name
         Map<String, String> localizationMap = localizationService.getLocalizedMessages(
                 tenantId, localizationModule, locale, convertToExcelIngestionRequestInfo(requestInfo));
+        
+        // Also fetch localization for schema columns
+        String schemaLocalizationModule = "hcm-admin-schemas";
+        Map<String, String> schemaLocalizationMap = localizationService.getLocalizedMessages(
+                tenantId, schemaLocalizationModule, locale, convertToExcelIngestionRequestInfo(requestInfo));
+        
+        // Merge both localization maps
+        Map<String, String> mergedLocalizationMap = new HashMap<>();
+        mergedLocalizationMap.putAll(localizationMap);
+        mergedLocalizationMap.putAll(schemaLocalizationMap);
 
-        BoundaryHierarchyResponse hierarchyData = postApi(new StringBuilder(config.getHierarchySearchUrl()),
-                createHierarchyPayload(requestInfo, tenantId, hierarchyType),
-                BoundaryHierarchyResponse.class);
+        // Fetch schema from MDMS for the mapping sheet
+        String schemaJson = fetchMappingSchema(tenantId, requestInfo);
+
+        // Fetch boundary hierarchy data
+        String hierarchyUrl = config.getHierarchySearchUrl();
+        Map<String, Object> hierarchyPayload = createHierarchyPayload(requestInfo, tenantId, hierarchyType);
+        
+        log.info("Calling Boundary Hierarchy API: {} with tenantId: {}, hierarchyType: {}", hierarchyUrl, tenantId, hierarchyType);
+        
+        BoundaryHierarchyResponse hierarchyData;
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("Content-Type", "application/json");
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(hierarchyPayload, headers);
+            
+            ResponseEntity<BoundaryHierarchyResponse> response = restTemplate.exchange(
+                hierarchyUrl, HttpMethod.POST, entity, BoundaryHierarchyResponse.class);
+            
+            hierarchyData = response.getBody();
+            log.info("Successfully fetched boundary hierarchy data, status: {}", response.getStatusCode());
+        } catch (Exception e) {
+            log.error("Error calling Boundary Hierarchy API: {}", e.getMessage(), e);
+            throw new RuntimeException("Error calling Boundary Hierarchy API: " + hierarchyUrl, e);
+        }
 
         if (hierarchyData == null || hierarchyData.getBoundaryHierarchy() == null
                 || hierarchyData.getBoundaryHierarchy().isEmpty()) {
@@ -70,9 +106,26 @@ public class MicroplanProcessor implements IGenerateProcessor {
                 .append("&tenantId=").append(URLEncoder.encode(tenantId, StandardCharsets.UTF_8))
                 .append("&hierarchyType=").append(URLEncoder.encode(hierarchyType, StandardCharsets.UTF_8));
 
-        BoundarySearchResponse relationshipData = postApi(url,
-                createRelationshipPayload(requestInfo, tenantId, hierarchyType),
-                BoundarySearchResponse.class);
+        // Fetch boundary relationship data
+        Map<String, Object> relationshipPayload = createRelationshipPayload(requestInfo, tenantId, hierarchyType);
+        
+        log.info("Calling Boundary Relationship API: {} with tenantId: {}, hierarchyType: {}", url.toString(), tenantId, hierarchyType);
+        
+        BoundarySearchResponse relationshipData;
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("Content-Type", "application/json");
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(relationshipPayload, headers);
+            
+            ResponseEntity<BoundarySearchResponse> response = restTemplate.exchange(
+                url.toString(), HttpMethod.POST, entity, BoundarySearchResponse.class);
+            
+            relationshipData = response.getBody();
+            log.info("Successfully fetched boundary relationship data, status: {}", response.getStatusCode());
+        } catch (Exception e) {
+            log.error("Error calling Boundary Relationship API: {}", e.getMessage(), e);
+            throw new RuntimeException("Error calling Boundary Relationship API: " + url.toString(), e);
+        }
 
         // 1) Build level list "Level 1", "Level 2", ...
         List<String> levels = new ArrayList<>();
@@ -114,6 +167,11 @@ public class MicroplanProcessor implements IGenerateProcessor {
 
         // Create workbook and sheets
         XSSFWorkbook workbook = new XSSFWorkbook();
+
+        // === Create Mapping sheet using schema first ===
+        if (schemaJson != null && !schemaJson.isEmpty()) {
+            workbook = (XSSFWorkbook) ExcelSchemaSheetCreator.addSchemaSheetFromJson(schemaJson, "Mapping", workbook, mergedLocalizationMap);
+        }
 
         // === Levels sheet (display names visible) ===
         Sheet levelSheet = workbook.createSheet("Levels");
@@ -221,23 +279,50 @@ public class MicroplanProcessor implements IGenerateProcessor {
         // create a named range for CodeMap if desired (not strictly necessary) - we use
         // full sheet reference in VLOOKUP
 
-        // === Main Mapping sheet ===
-        Sheet mainSheet = workbook.createSheet("Mapping");
-        Row header = mainSheet.createRow(0);
-        header.createCell(0).setCellValue(localizationMap.getOrDefault("HCM_INGESTION_LEVEL_COLUMN", "Level"));
-        header.createCell(1)
-                .setCellValue(localizationMap.getOrDefault("HCM_INGESTION_BOUNDARY_COLUMN", "Boundary Name"));
-        header.createCell(2)
-                .setCellValue(localizationMap.getOrDefault("HCM_INGESTION_PARENT_COLUMN", "Parent Boundary"));
+        // === Main Mapping sheet - get existing sheet created by schema ===
+        Sheet mainSheet = workbook.getSheet("Mapping");
+        if (mainSheet == null) {
+            // Fallback if schema creation failed
+            mainSheet = workbook.createSheet("Mapping");
+        }
+        
+        // Add boundary columns after schema columns
+        // Row 0 contains technical names (hidden), Row 1 contains visible headers
+        Row hiddenRow = mainSheet.getRow(0);
+        Row visibleRow = mainSheet.getRow(1);
+        
+        if (hiddenRow == null) {
+            hiddenRow = mainSheet.createRow(0);
+        }
+        if (visibleRow == null) {
+            visibleRow = mainSheet.createRow(1);
+        }
+        
+        // Find the last used column from schema
+        int lastSchemaCol = visibleRow.getLastCellNum();
+        if (lastSchemaCol < 0) lastSchemaCol = 0;
+        
+        // Add boundary-related columns after schema columns
+        // Add technical names to hidden row
+        hiddenRow.createCell(lastSchemaCol).setCellValue("BOUNDARY_LEVEL");
+        hiddenRow.createCell(lastSchemaCol + 1).setCellValue("BOUNDARY_NAME");
+        hiddenRow.createCell(lastSchemaCol + 2).setCellValue("PARENT_BOUNDARY");
+        
+        // Add localized headers to visible row
+        visibleRow.createCell(lastSchemaCol).setCellValue(mergedLocalizationMap.getOrDefault("HCM_INGESTION_LEVEL_COLUMN", "Level"));
+        visibleRow.createCell(lastSchemaCol + 1)
+                .setCellValue(mergedLocalizationMap.getOrDefault("HCM_INGESTION_BOUNDARY_COLUMN", "Boundary Name"));
+        visibleRow.createCell(lastSchemaCol + 2)
+                .setCellValue(mergedLocalizationMap.getOrDefault("HCM_INGESTION_PARENT_COLUMN", "Parent Boundary"));
 
         DataValidationHelper dvHelper = mainSheet.getDataValidationHelper();
 
-        // Add data validation for rows (1..5000)
-        for (int rowIndex = 1; rowIndex <= 5000; rowIndex++) {
+        // Add data validation for rows (2..5000) - starting from row 2 since row 0 is hidden and row 1 is headers
+        for (int rowIndex = 2; rowIndex <= 5000; rowIndex++) {
             // Level dropdown uses named range "Levels" which contains display names "Level
             // 1", "Level 2"...
             DataValidationConstraint levelConstraint = dvHelper.createFormulaListConstraint("Levels");
-            CellRangeAddressList levelAddr = new CellRangeAddressList(rowIndex, rowIndex, 0, 0);
+            CellRangeAddressList levelAddr = new CellRangeAddressList(rowIndex, rowIndex, lastSchemaCol, lastSchemaCol);
             DataValidation levelValidation = dvHelper.createValidation(levelConstraint, levelAddr);
             mainSheet.addValidationData(levelValidation);
 
@@ -245,10 +330,10 @@ public class MicroplanProcessor implements IGenerateProcessor {
             // etc.
             // We created named ranges for Level as sanitized like "Level_1" that refer to
             // localized names in Boundaries sheet.
-            String levelCellRef = CellReference.convertNumToColString(0) + (rowIndex + 1);
+            String levelCellRef = CellReference.convertNumToColString(lastSchemaCol) + (rowIndex + 1);
             String boundaryFormula = "INDIRECT(SUBSTITUTE(" + levelCellRef + ",\" \",\"_\"))";
             DataValidationConstraint boundaryConstraint = dvHelper.createFormulaListConstraint(boundaryFormula);
-            CellRangeAddressList boundaryAddr = new CellRangeAddressList(rowIndex, rowIndex, 1, 1);
+            CellRangeAddressList boundaryAddr = new CellRangeAddressList(rowIndex, rowIndex, lastSchemaCol + 1, lastSchemaCol + 1);
             DataValidation boundaryValidation = dvHelper.createValidation(boundaryConstraint, boundaryAddr);
             mainSheet.addValidationData(boundaryValidation);
 
@@ -257,29 +342,29 @@ public class MicroplanProcessor implements IGenerateProcessor {
             // codePath
             // INDIRECT(that codePath) -> named range we created for that child codePath in
             // Parents sheet
-            String boundaryCellRef = CellReference.convertNumToColString(1) + (rowIndex + 1);
+            String boundaryCellRef = CellReference.convertNumToColString(lastSchemaCol + 1) + (rowIndex + 1);
             String parentFormula = "IF(" + boundaryCellRef + "=\"\", \"\", INDIRECT(VLOOKUP(" + boundaryCellRef
                     + ", CodeMap!$A:$B, 2, FALSE)))";
             DataValidationConstraint parentConstraint = dvHelper.createFormulaListConstraint(parentFormula);
-            CellRangeAddressList parentAddr = new CellRangeAddressList(rowIndex, rowIndex, 2, 2);
+            CellRangeAddressList parentAddr = new CellRangeAddressList(rowIndex, rowIndex, lastSchemaCol + 2, lastSchemaCol + 2);
             DataValidation parentValidation = dvHelper.createValidation(parentConstraint, parentAddr);
             mainSheet.addValidationData(parentValidation);
         }
 
         // Column widths & freeze
-        for (int c = 0; c < 3; c++) {
+        for (int c = lastSchemaCol; c < lastSchemaCol + 3; c++) {
             mainSheet.setColumnWidth(c, 40 * 256);
         }
-        mainSheet.createFreezePane(0, 1);
+        mainSheet.createFreezePane(0, 2); // Freeze after row 2 since schema creator uses row 1 for technical names
 
         // Unlock cells for user input
         CellStyle unlocked = workbook.createCellStyle();
         unlocked.setLocked(false);
-        for (int r = 1; r <= 5000; r++) {
+        for (int r = 2; r <= 5000; r++) { // Start from row 2 to skip hidden technical row
             Row row = mainSheet.getRow(r);
             if (row == null)
                 row = mainSheet.createRow(r);
-            for (int c = 0; c < 3; c++) {
+            for (int c = lastSchemaCol; c < lastSchemaCol + 3; c++) {
                 Cell cell = row.getCell(c);
                 if (cell == null)
                     cell = row.createCell(c);
@@ -287,7 +372,7 @@ public class MicroplanProcessor implements IGenerateProcessor {
             }
         }
 
-        // Protect sheet & workbook (same password as before)
+        // Protect sheet after all columns (schema + boundary) are configured
         mainSheet.protectSheet("passwordhere");
         workbook.setActiveSheet(workbook.getSheetIndex(mainSheet));
         workbook.lockStructure();
@@ -370,24 +455,10 @@ public class MicroplanProcessor implements IGenerateProcessor {
         }
     }
 
-    private <T> T postApi(StringBuilder url, Object request, Class<T> type) {
-        try {
-            log.info("Calling API: {} with payload: {}", url, request);
-            return serviceRequestClient.fetchResult(url, request, type);
-        } catch (Exception e) {
-            log.error("Error calling API: {}", url, e);
-            throw new RuntimeException("Error calling API: " + url, e);
-        }
-    }
-
     private Map<String, Object> createHierarchyPayload(RequestInfo requestInfo, String tenantId, String hierarchyType) {
         Map<String, Object> payload = new HashMap<>();
-        Map<String, Object> requestInfoMap = new HashMap<>();
-        requestInfoMap.put("apiId", requestInfo.getApiId());
-        requestInfoMap.put("msgId", requestInfo.getMsgId());
-        requestInfoMap.put("authToken", requestInfo.getAuthToken());
-        requestInfoMap.put("userInfo", requestInfo.getUserInfo());
-        payload.put("RequestInfo", requestInfoMap);
+        // Directly use the RequestInfo object
+        payload.put("RequestInfo", requestInfo);
 
         Map<String, Object> criteria = new HashMap<>();
         criteria.put("tenantId", tenantId);
@@ -401,12 +472,8 @@ public class MicroplanProcessor implements IGenerateProcessor {
     private Map<String, Object> createRelationshipPayload(RequestInfo requestInfo, String tenantId,
             String hierarchyType) {
         Map<String, Object> payload = new HashMap<>();
-        Map<String, Object> requestInfoMap = new HashMap<>();
-        requestInfoMap.put("apiId", requestInfo.getApiId());
-        requestInfoMap.put("msgId", requestInfo.getMsgId());
-        requestInfoMap.put("authToken", requestInfo.getAuthToken());
-        requestInfoMap.put("userInfo", requestInfo.getUserInfo());
-        payload.put("RequestInfo", requestInfoMap);
+        // Directly use the RequestInfo object
+        payload.put("RequestInfo", requestInfo);
         return payload;
     }
 
@@ -454,5 +521,63 @@ public class MicroplanProcessor implements IGenerateProcessor {
     @Override
     public String getType() {
         return "microplan-ingestion";
+    }
+
+    private String fetchMappingSchema(String tenantId, RequestInfo requestInfo) {
+        String url = config.getMdmsSearchUrl();
+        
+        try {
+            // Create MDMS request payload
+            Map<String, Object> mdmsRequest = new HashMap<>();
+            
+            // Directly use the RequestInfo object
+            mdmsRequest.put("RequestInfo", requestInfo);
+
+            Map<String, Object> mdmsCriteria = new HashMap<>();
+            mdmsCriteria.put("tenantId", tenantId);
+            mdmsCriteria.put("uniqueIdentifier", "facility-microplan-ingestion");
+            mdmsCriteria.put("schemaCode", "HCM-ADMIN-CONSOLE.schemas");
+            mdmsCriteria.put("limit", 1);
+            mdmsCriteria.put("offset", 0);
+            mdmsRequest.put("MdmsCriteria", mdmsCriteria);
+
+            // Call MDMS service
+            log.info("Calling MDMS API: {} for schema: facility-microplan-ingestion, tenantId: {}", url, tenantId);
+            
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("Content-Type", "application/json");
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(mdmsRequest, headers);
+            
+            ResponseEntity<Map> response = restTemplate.exchange(url, HttpMethod.POST, entity, Map.class);
+            Map<String, Object> responseBody = response.getBody();
+            
+            if (responseBody != null && responseBody.get("mdms") != null) {
+                List<Map<String, Object>> mdmsList = (List<Map<String, Object>>) responseBody.get("mdms");
+                if (!mdmsList.isEmpty()) {
+                    Map<String, Object> mdmsData = mdmsList.get(0);
+                    Map<String, Object> data = (Map<String, Object>) mdmsData.get("data");
+                    
+                    // Extract the properties part which contains stringProperties and numberProperties
+                    Map<String, Object> properties = (Map<String, Object>) data.get("properties");
+                    if (properties != null) {
+                        // Convert properties to JSON string
+                        ObjectMapper mapper = new ObjectMapper();
+                        log.info("Successfully fetched MDMS schema, status: {}", response.getStatusCode());
+                        return mapper.writeValueAsString(properties);
+                    }
+                }
+            }
+            log.warn("No MDMS data found for schema: facility-microplan-ingestion");
+        } catch (Exception e) {
+            log.error("Error calling MDMS API: {}: {}", url, e.getMessage(), e);
+        }
+        
+        // Return a default schema if MDMS fetch fails
+        return getDefaultMappingSchema();
+    }
+
+    private String getDefaultMappingSchema() {
+        // Default schema with basic columns if MDMS fetch fails
+        return "{\"stringProperties\":[],\"numberProperties\":[]}";
     }
 }
