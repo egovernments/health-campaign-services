@@ -109,7 +109,7 @@ public class HmHouseholdHeadValidator implements Validator<HouseholdMemberBulkRe
             }
 
             // Validates if a household
-            if(!existingHouseholdHead.isEmpty()) {
+            if(!existingHouseholdHead.isEmpty() && !requestHouseholdHead.isEmpty()) {
                 HouseholdMember existingHead = existingHouseholdHead.get(0);
                 String existingHeadMemberId = (String) ReflectionUtils.invokeMethod(householdMemberidMethod, existingHead);
                 String currentHeadMemberId = (String) ReflectionUtils.invokeMethod(householdMemberidMethod, requestHouseholdHead.get(0));
