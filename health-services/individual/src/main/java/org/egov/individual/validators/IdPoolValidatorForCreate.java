@@ -186,15 +186,6 @@ public class IdPoolValidatorForCreate implements Validator<IndividualBulkRequest
         }
     }
 
-    public static boolean isValidMaskedId(String beneficiaryId) {
-        // get the last 4 digits
-        String last4Digits = beneficiaryId
-                .substring(beneficiaryId.length() - 4);
-        // regex to check if last 4 digits are numbers
-        String regex = "[0-9]+";
-        return isValidPattern(last4Digits, regex) && beneficiaryId.length() == 12;
-    }
-
     public static boolean isMaskedId(String beneficiaryId) {
         return beneficiaryId.contains("*");
     }

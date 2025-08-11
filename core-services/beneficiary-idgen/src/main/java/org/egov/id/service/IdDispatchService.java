@@ -127,9 +127,9 @@ public class IdDispatchService {
                 redissonIDService.updateUserDeviceDispatchedIDCount(tenantId, userUuid, deviceUuid, totalCount, false, propertiesManager.isIdDispatchRetrievalRestrictToTodayEnabled());
             }
             // Set fetch limits in the response and return
-            idDispatchResponse.setFetchLimit(totalCount - (offset + idDispatchResponse.getIdResponses().size()));
+            idDispatchResponse.setFetchLimit(Math.max(0, totalCount - (offset + idDispatchResponse.getIdResponses().size())));
             idDispatchResponse.setTotalLimit(totalLimit);
-            idDispatchResponse.setTotalCount((long) idDispatchResponse.getIdResponses().size());
+            idDispatchResponse.setTotalCount(totalCount);
             return idDispatchResponse;
         }
 
@@ -140,8 +140,8 @@ public class IdDispatchService {
         List<IdRecord> idRecordsToDispatch = idRepo.fetchUnassigned(tenantId, userUuid, (int) fetchCount);
 
         if (idRecordsToDispatch.isEmpty()) {
-            log.error("No IDs available in the database for tenantId: {}", tenantId);
-            throw new CustomException("NO IDS AVAILABLE", "Unable to fetch IDs from the database");
+            log.error("No IDs available in the database for tenantId: {}, requested count: {}", tenantId, fetchCount);
+            throw new CustomException("NO IDS AVAILABLE", "Unable to fetch " + fetchCount + " IDs from the database for tenant: " + tenantId);
         }
 
         updateStatusesAndLogs(idRecordsToDispatch, userUuid, deviceUuid,
@@ -180,7 +180,7 @@ public class IdDispatchService {
                 tenantId,
                 deviceUuid,
                 userUuid,
-                null,
+                IdStatus.DISPATCHED,
                 limit,
                 offset,
                 restrictToday

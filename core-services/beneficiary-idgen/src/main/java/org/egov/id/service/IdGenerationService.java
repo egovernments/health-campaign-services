@@ -563,7 +563,7 @@ public class IdGenerationService {
             dateFormat = dateFormat.substring(dateFormat.indexOf(":") + 1);
             dateFormat = dateFormat.trim();
             SimpleDateFormat formatter = new SimpleDateFormat(dateFormat.trim());
-            formatter.setTimeZone(TimeZone.getTimeZone(propertiesManager.getTimeZone()));
+            formatter.setTimeZone(TimeZone.getTimeZone(propertiesManager.getUserTimeZone()));
             String formattedDate = formatter.format(date);
             return formattedDate;
 
