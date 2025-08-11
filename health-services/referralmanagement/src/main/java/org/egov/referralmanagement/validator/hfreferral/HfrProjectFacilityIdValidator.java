@@ -126,6 +126,7 @@ public class HfrProjectFacilityIdValidator implements Validator<HFReferralBulkRe
 
         // Populating error details for invalid entities
         invalidEntities.forEach(hfReferral -> {
+            log.error("project facility doesn't exists for hf referral: {}", hfReferral.getProjectFacilityId());
             Error error = getErrorForNonExistentEntity();
             populateErrorDetails(hfReferral, error, errorDetailsMap);
         });

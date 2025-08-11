@@ -97,9 +97,13 @@ public class ServiceRequestEnrichmentService {
 
         // Enrich audit details for service
         AuditDetails auditDetails = existingFromDB.getAuditDetails();
-        auditDetails.setLastModifiedBy(requestInfo.getUserInfo().getUuid());
-        auditDetails.setLastModifiedTime(System.currentTimeMillis());
-        service.setAuditDetails(auditDetails);
+        AuditDetails auditDetailsUpdated = AuditDetails.builder()
+                .createdBy(auditDetails.getCreatedBy())
+                .createdTime(auditDetails.getCreatedTime())
+                .lastModifiedBy(requestInfo.getUserInfo().getUuid())
+                .lastModifiedTime(System.currentTimeMillis())
+                .build();
+        service.setAuditDetails(auditDetailsUpdated);
 
         Map<String, AttributeValue> existingAttributeValues = existingFromDB.getAttributes()
                 .stream().collect(Collectors.toMap(
@@ -118,7 +122,7 @@ public class ServiceRequestEnrichmentService {
                 attributeValue.setServiceClientReferenceId(serviceClientId);
             }
             attributeValue.setReferenceId(serviceId);
-            attributeValue.setAuditDetails(auditDetails);
+            attributeValue.setAuditDetails(auditDetailsUpdated);
         });
 
 

@@ -31,9 +31,9 @@ public class IDPoolGenerationResponse {
     private ResponseInfo responseInfo;
 
 
-    @JsonProperty("IdCreationResponse")
+    @JsonProperty("IdPoolCreateResponses")
     @NotNull
     @Valid
-    private List<Map<String,String>> idCreationResponse;
+    private List<IDPoolCreationResult> idPoolCreateResponses;
 
 }

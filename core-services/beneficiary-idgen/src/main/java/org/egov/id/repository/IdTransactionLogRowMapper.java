@@ -4,18 +4,21 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.egov.common.contract.models.AuditDetails;
 import org.egov.common.models.core.AdditionalFields;
 import org.egov.common.models.idgen.IdTransactionLog;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Component;
 
+import java.io.IOException;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
 @Component
 public class IdTransactionLogRowMapper implements RowMapper<IdTransactionLog> {
 
-    @Autowired
-    private ObjectMapper objectMapper;
+    private final ObjectMapper objectMapper;
+
+    public IdTransactionLogRowMapper(ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
+    }
 
     @Override
     public IdTransactionLog mapRow(ResultSet rs, int rowNum) throws SQLException {
@@ -30,7 +33,13 @@ public class IdTransactionLogRowMapper implements RowMapper<IdTransactionLog> {
         Object additionalFieldObject = rs.getObject("additionalFields");
         AdditionalFields additionalFields = null;
         if (additionalFieldObject != null) {
-            additionalFields = objectMapper.convertValue(additionalFieldObject, AdditionalFields.class);
+            try {
+                // Convert database JSON object to AdditionalFields class
+                String json = additionalFieldObject.toString();
+                additionalFields = objectMapper.readValue(json, AdditionalFields.class);
+            } catch (IOException e) {
+                throw new SQLException("Failed to parse AdditionalFields from JSON", e);
+            }
         }
 
         return IdTransactionLog.builder()

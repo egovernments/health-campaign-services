@@ -28,6 +28,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.ds.Tuple;
 import org.egov.common.error.handler.ErrorHandler;
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.ApiDetails;
 import org.egov.common.models.Error;
 import org.egov.common.models.ErrorDetails;
@@ -39,6 +40,7 @@ import org.egov.tracer.model.ErrorEntity;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.util.ObjectUtils;
 import org.springframework.util.ReflectionUtils;
 
 import static org.egov.common.utils.ValidatorUtils.getErrorForNullId;
@@ -130,7 +132,7 @@ public class CommonUtils {
      * @return The audit details for create operation.
      */
     public static AuditDetails getAuditDetailsForCreate(RequestInfo requestInfo) {
-        log.info("Creating audit details for create api");
+        log.trace("Creating audit details for create api");
         Long time = System.currentTimeMillis();
         return AuditDetails.builder()
                 .createdBy(requestInfo.getUserInfo().getUuid())
@@ -148,7 +150,7 @@ public class CommonUtils {
      * @return auditDetails
      */
     public static AuditDetails getAuditDetailsForUpdate(AuditDetails existingAuditDetails, String modifiedByUuid) {
-        log.info("Creating audit details for update/delete api");
+        log.trace("Creating audit details for update/delete api");
         if (existingAuditDetails == null) {
             return AuditDetails.builder()
                     .lastModifiedBy(modifiedByUuid)
@@ -1154,6 +1156,26 @@ public class CommonUtils {
             else
                 return 0L;
         });
+    }
+
+    /**
+     * Finds the database schema name for the given tenant based on configuration
+     *
+     * @param tenantId                       The id of the tenant
+     * @param multiStateInstanceUtil         multi state instance utils with configurations
+     * @return the name of the database schema
+     */
+    public static String getSchemaName(String tenantId, MultiStateInstanceUtil multiStateInstanceUtil) {
+        String schemaName = "";
+        if (!ObjectUtils.isEmpty(multiStateInstanceUtil) && multiStateInstanceUtil.getIsEnvironmentCentralInstance()) {
+            String[] tenants = tenantId.split("\\.");
+            if (tenants.length > multiStateInstanceUtil.getStateSchemaIndexPositionInTenantId()) {
+                schemaName = tenants[multiStateInstanceUtil.getStateSchemaIndexPositionInTenantId()];
+            } else {
+                schemaName = tenantId;
+            }
+        }
+        return schemaName;
     }
 
 }

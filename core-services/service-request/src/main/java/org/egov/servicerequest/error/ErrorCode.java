@@ -88,12 +88,14 @@ public class ErrorCode {
 
     public static final String VALID_SERVICE_EXIST_ERR_MSG = "Valid Service exists corresponding to Service Definition";
 
-    public static final String VALID_SERVICE_DOES_N0T_EXIST_ERR_CODE = "VALID_SERVICE_DOES_N0T_EXIST_ERR_CODE";
+    public static final String VALID_SERVICE_DOES_NOT_EXIST_ERR_CODE = "VALID_SERVICE_DOES_NOT_EXIST_ERR_CODE";
 
-    public static final String VALID_SERVICE_DOES_N0T_EXIST_ERR_MSG = "Valid Service doesnt exists corresponding to Service Definition";
+    public static final String VALID_SERVICE_DOES_NOT_EXIST_ERR_MSG = "Valid Service doesnt exists corresponding to Service Definition";
 
     public static final String INACTIVE_SERVICE_DEFINITION_ERR_CODE = "INACTIVE_SERVICE_DEFINITION_ERR_CODE";
 
     public static final String INACTIVE_SERVICE_DEFINITION_ERR_MSG = "Inactive Service Definition cannot be updated";
+
+    public static final String INVALID_TENANT_ID_ERR_CODE = "INVALID_TENANT_ID";
 
 }

@@ -29,13 +29,14 @@ import org.springframework.util.CollectionUtils;
 import org.springframework.util.ReflectionUtils;
 
 import static org.egov.common.utils.CommonUtils.getIdMethod;
+import static org.egov.common.utils.MultiStateInstanceUtil.SCHEMA_REPLACE_STRING;
 
 @Repository
 @Slf4j
 public class UserActionRepository extends GenericRepository<UserAction> {
 
     private final String selectQuery =
-            "SELECT id, clientreferenceid, tenantid, projectid, latitude, longitude, locationaccuracy, boundarycode, action, beneficiarytag, resourcetag, status, additionaldetails, createdby, createdtime, lastmodifiedby, lastmodifiedtime, clientcreatedtime, clientlastmodifiedtime, clientcreatedby, clientlastmodifiedby, rowversion FROM user_action ua";
+            "SELECT id, clientreferenceid, tenantid, projectid, latitude, longitude, locationaccuracy, boundarycode, action, beneficiarytag, resourcetag, status, additionaldetails, createdby, createdtime, lastmodifiedby, lastmodifiedtime, clientcreatedtime, clientlastmodifiedtime, clientcreatedby, clientlastmodifiedby, rowversion FROM " + SCHEMA_REPLACE_STRING +".user_action ua";
     @Autowired
     protected UserActionRepository(Producer producer, NamedParameterJdbcTemplate namedParameterJdbcTemplate,
                                    RedisTemplate<String, Object> redisTemplate, SelectQueryBuilder selectQueryBuilder,
@@ -77,6 +78,8 @@ public class UserActionRepository extends GenericRepository<UserAction> {
 
         try {
             log.debug("Executing query to fetch total count");
+            // Replacing schema placeholder with the schema name for the tenant id
+            query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, urlParams.getTenantId());
             Long totalCount = CommonUtils.constructTotalCountCTEAndReturnResult(query, paramsMap, this.namedParameterJdbcTemplate);
 
             query = query + " ORDER BY ua.id ASC LIMIT :limit OFFSET :offset";
@@ -98,13 +101,14 @@ public class UserActionRepository extends GenericRepository<UserAction> {
      * Finds user actions by their IDs, first checking the cache before querying the database.
      *
      * @param ids         The list of IDs to search for.
+     * @param tenantId    The identifier for the tenant
      * @param columnName  The name of the column to search by.
      * @return A SearchResponse containing the list of user actions found.
      */
-    public SearchResponse<UserAction> findById(List<String> ids, String columnName) {
+    public SearchResponse<UserAction> findById(String tenantId, List<String> ids, String columnName) {
         log.info("Executing findById with ids: {} and columnName: {}", ids, columnName);
 
-        List<UserAction> objFound = findInCache(ids);
+        List<UserAction> objFound = findInCache(tenantId, ids);
 
         if (!objFound.isEmpty()) {
             Method idMethod = getIdMethod(objFound, columnName);
@@ -124,6 +128,8 @@ public class UserActionRepository extends GenericRepository<UserAction> {
 
         try {
             log.debug("Executing query to fetch user actions by ID: {}", query);
+            // Replacing schema placeholder with the schema name for the tenant id
+            query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
             List<UserAction> userActionList = this.namedParameterJdbcTemplate.query(query, paramMap, this.rowMapper);
 
             objFound.addAll(userActionList);

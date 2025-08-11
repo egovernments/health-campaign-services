@@ -19,7 +19,7 @@ import java.util.Map;
 public class EnrichmentService {
 
 
-    public void update(List<IdRecord> validIdRecords, IdRecordBulkRequest request) throws Exception {
+    public void update(List<IdRecord> validIdRecords, IdRecordBulkRequest request) {
         log.info("starting the enrichment for update idRecords");
         Map<String, IdRecord> iMap = getIdToObjMap(validIdRecords);
         log.info("enriching individuals for update");
@@ -28,16 +28,10 @@ public class EnrichmentService {
     }
 
     public void enrichStatusForUpdate(List<IdRecord> validIdRecords , IdRecordBulkRequest request, String status) {
-        validIdRecords.forEach(
-                idRecord -> {
-                    idRecord.setStatus(status);
-                }
-        );
-        log.info("starting the enrichment for update idRecords");
-        Map<String, IdRecord> iMap = getIdToObjMap(validIdRecords);
-        log.info("enriching individuals for update");
-        enrichForUpdate(iMap, request);
-        log.info("completed the enrichment for update idRecords");
+        for (IdRecord idRecord : validIdRecords) {
+            idRecord.setStatus(status);
+        }
+        update(validIdRecords, request);
     }
 
 }

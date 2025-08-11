@@ -1,6 +1,7 @@
 package org.egov.household.household.member.validators;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.Error;
 import org.egov.common.models.household.HouseholdMember;
 import org.egov.common.models.household.HouseholdMemberBulkRequest;
@@ -23,6 +24,8 @@ import static org.egov.common.utils.CommonUtils.getIdMethod;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.household.Constants.CLIENT_REFERENCE_ID_FIELD;
+import static org.egov.common.utils.ValidatorUtils.getErrorForInvalidTenantId;
+import static org.egov.household.Constants.*;
 import static org.egov.household.Constants.HOUSEHOLD_ALREADY_HAS_HEAD;
 import static org.egov.household.Constants.HOUSEHOLD_ALREADY_HAS_HEAD_MESSAGE;
 import static org.egov.household.Constants.HOUSEHOLD_CLIENT_REFERENCE_ID_FIELD;
@@ -70,37 +73,44 @@ public class HmHouseholdHeadValidator implements Validator<HouseholdMemberBulkRe
                                          HashMap<HouseholdMember, List<Error>> errorDetailsMap, List<HouseholdMember> requestMembers) {
 
         if(householdMember.getIsHeadOfHousehold()){
-            log.info("validating if household already has a head");
-            Method householdMemberidMethod = getIdMethod(requestMembers, ID_FIELD, CLIENT_REFERENCE_ID_FIELD);
-            List<HouseholdMember> householdMembersHeadCheck = householdMemberRepository
-                    .findIndividualByHousehold((String) ReflectionUtils.invokeMethod(IdMethod, householdMember),
-                            columnName).getResponse().stream().filter(HouseholdMember::getIsHeadOfHousehold)
-                    .collect(Collectors.toList());
+            try {
+                // fetch the tenantId from the householdMember
+                String tenantId = householdMember.getTenantId();
+                log.info("validating if household already has a head");
+                Method householdMemberidMethod = getIdMethod(requestMembers, ID_FIELD, CLIENT_REFERENCE_ID_FIELD);
+                List<HouseholdMember> householdMembersHeadCheck = householdMemberRepository
+                        .findIndividualByHousehold((String) ReflectionUtils.invokeMethod(IdMethod, householdMember),
+                                columnName).getResponse().stream().filter(HouseholdMember::getIsHeadOfHousehold)
+                        .collect(Collectors.toList());
 
-            boolean isSameAsExistingHead = householdMembersHeadCheck.stream()
-                    .allMatch(existing -> {
-                        String existingHeadMemberId = (String) ReflectionUtils.invokeMethod(householdMemberidMethod, existing);
-                        String currentHeadMemberId = (String) ReflectionUtils.invokeMethod(householdMemberidMethod, householdMember);
-                        return existingHeadMemberId != null && existingHeadMemberId.equals(currentHeadMemberId);
-                    });
+                boolean isSameAsExistingHead = householdMembersHeadCheck.stream()
+                        .allMatch(existing -> {
+                            String existingHeadMemberId = (String) ReflectionUtils.invokeMethod(householdMemberidMethod, existing);
+                            String currentHeadMemberId = (String) ReflectionUtils.invokeMethod(householdMemberidMethod, householdMember);
+                            return existingHeadMemberId != null && existingHeadMemberId.equals(currentHeadMemberId);
+                        });
 
-            if(!householdMembersHeadCheck.isEmpty() && !isSameAsExistingHead) {
-                HouseholdMember existinghead = householdMembersHeadCheck.get(0);
-                String existingHeadMemberId = (String) ReflectionUtils.invokeMethod(householdMemberidMethod, existinghead);
-                String currentHeadMemberId = (String) ReflectionUtils.invokeMethod(householdMemberidMethod, householdMember);
-                boolean isReassigning = existingHeadMemberId != null && currentHeadMemberId != null
-                        && !existingHeadMemberId.equals(currentHeadMemberId);
+                if(!householdMembersHeadCheck.isEmpty() && !isSameAsExistingHead) {
+                    HouseholdMember existinghead = householdMembersHeadCheck.get(0);
+                    String existingHeadMemberId = (String) ReflectionUtils.invokeMethod(householdMemberidMethod, existinghead);
+                    String currentHeadMemberId = (String) ReflectionUtils.invokeMethod(householdMemberidMethod, householdMember);
+                    boolean isReassigning = existingHeadMemberId != null && currentHeadMemberId != null
+                            && !existingHeadMemberId.equals(currentHeadMemberId);
 
-                if(!isReassigning) {
-                    Error error = Error.builder().errorMessage(HOUSEHOLD_ALREADY_HAS_HEAD_MESSAGE)
-                            .errorCode(HOUSEHOLD_ALREADY_HAS_HEAD)
-                            .type(Error.ErrorType.NON_RECOVERABLE)
-                            .exception(new CustomException(HOUSEHOLD_ALREADY_HAS_HEAD,
-                                    HOUSEHOLD_ALREADY_HAS_HEAD_MESSAGE))
-                            .build();
-                    log.info("household already has a head, error: {}", error);
-                    populateErrorDetails(householdMember, error, errorDetailsMap);
+                    if(!isReassigning) {
+                        Error error = Error.builder().errorMessage(HOUSEHOLD_ALREADY_HAS_HEAD_MESSAGE)
+                                .errorCode(HOUSEHOLD_ALREADY_HAS_HEAD)
+                                .type(Error.ErrorType.NON_RECOVERABLE)
+                                .exception(new CustomException(HOUSEHOLD_ALREADY_HAS_HEAD,
+                                        HOUSEHOLD_ALREADY_HAS_HEAD_MESSAGE))
+                                .build();
+                        log.info("household already has a head, error: {}", error);
+                        populateErrorDetails(householdMember, error, errorDetailsMap);
+                    }
                 }
+            } catch (InvalidTenantIdException exception) {
+                Error error = getErrorForInvalidTenantId(tenantId, exception);
+                populateErrorDetails(householdMember, error, errorDetailsMap);
             }
         }
     }

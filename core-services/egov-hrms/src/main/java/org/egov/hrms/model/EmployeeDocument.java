@@ -40,17 +40,10 @@
 
 package org.egov.hrms.model;
 
+import lombok.*;
 import org.egov.hrms.model.enums.EmployeeDocumentReferenceType;
-import org.hibernate.validator.constraints.SafeHtml;
+import org.egov.tracer.annotations.CustomSafeHtml;
 import org.springframework.validation.annotation.Validated;
-
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
-import lombok.ToString;
 
 @Validated
 @EqualsAndHashCode(exclude = {"auditDetails"})
@@ -62,24 +55,23 @@ import lombok.ToString;
 @Builder
 public class EmployeeDocument {
 
-	@SafeHtml
+	@CustomSafeHtml
 	private String id;
 
-	@SafeHtml
+	@CustomSafeHtml
 	private String documentName;
 
-	@SafeHtml
-	private  String documentId;
+	@CustomSafeHtml
+	private String documentId;
 
 	private EmployeeDocumentReferenceType referenceType;
 
-	@SafeHtml
+	@CustomSafeHtml
 	private String referenceId;
 
-	@SafeHtml
+	@CustomSafeHtml
 	private String tenantId;
 
 	private AuditDetails auditDetails;
-
 
 }

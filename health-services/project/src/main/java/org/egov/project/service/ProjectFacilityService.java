@@ -227,7 +227,7 @@ public class ProjectFacilityService {
             log.info("searching project facility by id");
             List<String> ids = projectFacilitySearchRequest.getProjectFacility().getId();
             log.info("fetching project facility with ids: {}", ids);
-            List<ProjectFacility> projectfacilities = projectFacilityRepository.findById(ids, includeDeleted).stream()
+            List<ProjectFacility> projectfacilities = projectFacilityRepository.findById(tenantId, ids, includeDeleted).stream()
                     .filter(lastChangedSince(lastChangedSince))
                     .filter(havingTenantId(tenantId))
                     .filter(includeDeleted(includeDeleted))

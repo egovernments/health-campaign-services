@@ -9,6 +9,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.ds.Tuple;
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.Error;
 import org.egov.common.models.ErrorDetails;
 import org.egov.common.models.core.Role;
@@ -24,7 +25,7 @@ import org.egov.common.utils.CommonUtils;
 import org.egov.common.validator.Validator;
 import org.egov.individual.config.IndividualProperties;
 import org.egov.individual.repository.IndividualRepository;
-import org.egov.individual.util.IdGenUtil;
+import org.egov.individual.util.BeneficiaryIdGenUtil;
 import org.egov.individual.validators.AadharNumberValidator;
 import org.egov.individual.validators.AadharNumberValidatorForCreate;
 import org.egov.individual.validators.AddressTypeValidator;
@@ -77,7 +78,7 @@ public class IndividualService {
 
     private final NotificationService notificationService;
 
-    private final IdGenUtil idGenUtil;
+    private final BeneficiaryIdGenUtil beneficiaryIdGenUtil;
 
     private final Predicate<Validator<IndividualBulkRequest, Individual>> isApplicableForUpdate = validator ->
             validator.getClass().equals(NullIdValidator.class)
@@ -116,7 +117,7 @@ public class IndividualService {
                              IndividualEncryptionService individualEncryptionService,
                              UserIntegrationService userIntegrationService,
                              NotificationService notificationService,
-                             IdGenUtil idGenUtil) {
+                             BeneficiaryIdGenUtil beneficiaryIdGenUtil) {
         this.individualRepository = individualRepository;
         this.validators = validators;
         this.properties = properties;
@@ -124,7 +125,7 @@ public class IndividualService {
         this.individualEncryptionService = individualEncryptionService;
         this.userIntegrationService = userIntegrationService;
         this.notificationService = notificationService;
-        this.idGenUtil = idGenUtil;
+        this.beneficiaryIdGenUtil = beneficiaryIdGenUtil;
     }
 
     public List<Individual> create(IndividualRequest request) {
@@ -170,7 +171,7 @@ public class IndividualService {
                     individualRepository.save(encryptedIndividualList,
                             properties.getSaveIndividualTopic());
                     // update beneficiary ids in idgen
-                    idGenUtil.updateBeneficiaryIds(beneficiaryIds, validIndividuals.get(0).getTenantId(), request.getRequestInfo());
+                    beneficiaryIdGenUtil.updateBeneficiaryIds(beneficiaryIds, validIndividuals.get(0).getTenantId(), request.getRequestInfo());
                 }
             }
         } catch (CustomException exception) {
@@ -217,6 +218,7 @@ public class IndividualService {
     }
 
     public List<Individual> update(IndividualBulkRequest request, boolean isBulk) {
+        String tenantId =  request.getRequestInfo().getUserInfo().getTenantId();
         Tuple<List<Individual>, Map<Individual, ErrorDetails>> tuple = validate(validators,
                 isApplicableForUpdate, request,
                 isBulk);
@@ -258,7 +260,7 @@ public class IndividualService {
 
                 Map<String, Individual> idToObjMap = getIdToObjMap(encryptedIndividualList);
                 // find existing individuals from db
-                List<Individual> existingIndividuals = individualRepository.findById(new ArrayList<>(idToObjMap.keySet()),
+                List<Individual> existingIndividuals = individualRepository.findById(tenantId, new ArrayList<>(idToObjMap.keySet()),
                         "id", false).getResponse();
 
                 if (identifiersPresent) {
@@ -319,7 +321,11 @@ public class IndividualService {
                             .singletonList(individualSearch)),
                     individualSearch);
 
-            searchResponse = individualRepository.findById(ids, idFieldName, includeDeleted);
+            try {
+                searchResponse = individualRepository.findById(tenantId ,ids, idFieldName, includeDeleted);
+            } catch (InvalidTenantIdException e) {
+                throw new CustomException(INVALID_TENANT_ID, INVALID_TENANT_ID_MSG);
+            }
 
             encryptedIndividualList = searchResponse.getResponse().stream()
                     .filter(lastChangedSince(lastChangedSince))
@@ -439,7 +445,7 @@ public class IndividualService {
                         List<UserRequest> userRequests = userIntegrationService.createUser(individual,
                                 request.getRequestInfo());
                             individual.setUserId(Long.toString(userRequests.get(0).getId()));
-                            individualList.get(0).setUserUuid(userRequests.get(0).getUuid());
+                            individual.setUserUuid(userRequests.get(0).getUuid());
                         log.info("successfully created user for {} ",
                                 individual.getName());
                     } else {

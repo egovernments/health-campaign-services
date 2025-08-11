@@ -5,7 +5,7 @@ import { defaultheader, httpRequest } from "../utils/request";
 import { getCampaignSearchResponse, getHeadersOfBoundarySheet, getHierarchy, handleResouceDetailsError } from "../api/campaignApis";
 import { campaignDetailsSchema } from "../config/models/campaignDetails";
 import Ajv from "ajv";
-import { getDifferentDistrictTabs, getLocalizedHeaders, getLocalizedMessagesHandler, getMdmsDataBasedOnCampaignType, replicateRequest, throwError } from "../utils/genericUtils";
+import { getDifferentDistrictTabs, getLocalizedHeaders, getMdmsDataBasedOnCampaignType, replicateRequest, throwError } from "../utils/genericUtils";
 import { createBoundaryMap, enrichInnerCampaignDetails, generateProcessedFileAndPersist, getFinalValidHeadersForTargetSheetAsPerCampaignType, getLocalizedName } from "../utils/campaignUtils";
 import { validateBodyViaSchema, validateCampaignBodyViaSchema, validateHierarchyType } from "./genericValidator";
 import { searchCriteriaSchema } from "../config/models/SearchCriteria";
@@ -17,16 +17,18 @@ import { getSheetData, getTargetWorkbook } from "../api/genericApis";
 const _ = require('lodash');
 import { searchDataService } from "../service/dataManageService";
 import { searchProjectTypeCampaignService } from "../service/campaignManageService";
-import { campaignStatuses, resourceDataStatuses } from "../config/constants";
+import { campaignStatuses, resourceDataStatuses, usageColumnStatus } from "../config/constants";
 import { getBoundaryColumnName, getBoundaryTabName } from "../utils/boundaryUtils";
 import addAjvErrors from "ajv-errors";
 import { generateTargetColumnsBasedOnDeliveryConditions, isDynamicTargetTemplateForProjectType, modifyDeliveryConditions } from "../utils/targetUtils";
 import { getBoundariesFromCampaignSearchResponse, validateBoundariesIfParentPresent } from "../utils/onGoingCampaignUpdateUtils";
-import { validateExtraBoundariesForMicroplan, validateFacilityBoundaryForLowestLevel, validateLatLongForMicroplanCampaigns, validatePhoneNumberSheetWise, validateTargetsForMicroplanCampaigns, validateUniqueSheetWise, validateUserForMicroplan } from "./microplanValidators";
+import { validateExtraBoundariesForMicroplan, validateLatLongForMicroplanCampaigns, validatePhoneNumberSheetWise, validateRequiredTargetsForMicroplanCampaigns, validateUniqueSheetWise, validateUserForMicroplan } from "./microplanValidators";
 import { produceModifiedMessages } from "../kafka/Producer";
-import { planConfigSearch, planFacilitySearch } from "../utils/microplanUtils";
+import { isMicroplanRequest, planConfigSearch, planFacilitySearch } from "../utils/microplanUtils";
 import { getPvarIds } from "../utils/campaignMappingUtils";
 import { fetchProductVariants } from "../api/healthApis";
+import { validateFileMetaDataViaFileUrl } from "../utils/excelUtils";
+import { getLocaleFromRequest } from "../utils/localisationUtils";
 
 
 
@@ -88,42 +90,48 @@ async function fetchBoundariesFromCampaignDetails(request: any) {
     return responseBoundaries;
 }
 
-function validateTargetForNormalCampaigns(data: any, errors: any, localizedTargetColumnNames: any, localizationMap?: { [key: string]: string }) {
+function validateTargetForNormalCampaigns(data: any, errors: any, localizedTargetColumnNames: any, isGenericType: boolean, localizationMap?: { [key: string]: string }) {
     for (const key in data) {
         if (key !== getLocalizedName(getBoundaryTabName(), localizationMap) && key !== getLocalizedName(config.values?.readMeTab, localizationMap)) {
             if (Array.isArray(data[key])) {
                 const boundaryData = data[key];
+                const targetColumnsToValidate = isGenericType ? localizedTargetColumnNames.filter((column: string) =>
+                    boundaryData.some((row: any) => row.hasOwnProperty(column) && row[column] !== null && row[column] !== undefined)
+                ) : localizedTargetColumnNames;
                 boundaryData.forEach((obj: any, index: number) => {
-                    for (const targetColumn of localizedTargetColumnNames) {
+                    for (const targetColumn of targetColumnsToValidate) {
                         const target = obj[targetColumn];
-                        if (!target) {
+                        if (!target && !isGenericType) {
                             errors.push({
                                 status: "INVALID",
                                 rowNumber: obj["!row#number!"],
-                                errorDetails: `Target value is missing at row ${obj['!row#number!']} in sheet ${key}.(Targets values can only be positive numbers less than 1 Million)`,
+                                errorDetails: `Data in column '${targetColumn}' cannot be empty or zero.(It can only be positive numbers less than or equal to 1 Million)`,
                                 sheetName: key
                             });
-                        } else if (typeof target !== 'number') {
-                            errors.push({
-                                status: "INVALID",
-                                rowNumber: obj["!row#number!"],
-                                errorDetails: `Target value at row ${obj['!row#number!']} in sheet ${key} is not a number.(Targets values can only be positive numbers less than 1 Million)`,
-                                sheetName: key
-                            });
-                        } else if (target <= 0 || target > 1000000) {
-                            errors.push({
-                                status: "INVALID",
-                                rowNumber: obj["!row#number!"],
-                                errorDetails: `Target value at row ${obj['!row#number!']} in sheet ${key} is out of range.(Targets values can only be positive numbers less than 1 Million)`,
-                                sheetName: key
-                            });
-                        } else if (!Number.isInteger(target)) {
-                            errors.push({
-                                status: "INVALID",
-                                rowNumber: obj["!row#number!"],
-                                errorDetails: `Target value at row ${obj['!row#number!']} in sheet ${key} is not an integer.(Targets values can only be positive numbers less than 1 Million)`,
-                                sheetName: key
-                            });
+                        }
+                        else if (target) {
+                            if (typeof target !== 'number') {
+                                errors.push({
+                                    status: "INVALID",
+                                    rowNumber: obj["!row#number!"],
+                                    errorDetails: `Data in column '${targetColumn}' is not a number.(It can only be positive numbers less than or equal to 1 Million)`,
+                                    sheetName: key
+                                });
+                            } else if (target <= 0 || target > 1000000) {
+                                errors.push({
+                                    status: "INVALID",
+                                    rowNumber: obj["!row#number!"],
+                                    errorDetails: `Data in column '${targetColumn}' is out of range.(It can only be positive numbers less than or equal to 1 Million)`,
+                                    sheetName: key
+                                });
+                            } else if (!Number.isInteger(target)) {
+                                errors.push({
+                                    status: "INVALID",
+                                    rowNumber: obj["!row#number!"],
+                                    errorDetails: `Data in column '${targetColumn}' is not an integer.(It can only be positive numbers less than or equal to 1 Million)`,
+                                    sheetName: key
+                                });
+                            }
                         }
                     }
                 });
@@ -135,27 +143,30 @@ function validateTargetForNormalCampaigns(data: any, errors: any, localizedTarge
 
 async function validateTargets(request: any, data: any[], errors: any[], localizationMap?: any) {
     let columnsToValidate: any;
+    let targetColumnsWhoseValidationIsNotMandatory: any;
     const responseFromCampaignSearch = await getCampaignSearchResponse(request);
     const campaignObject = responseFromCampaignSearch?.CampaignDetails?.[0];
     if (isDynamicTargetTemplateForProjectType(campaignObject?.projectType) && campaignObject.deliveryRules && campaignObject.deliveryRules.length > 0) {
-
         const modifiedUniqueDeliveryConditions = modifyDeliveryConditions(campaignObject.deliveryRules);
         columnsToValidate = generateTargetColumnsBasedOnDeliveryConditions(modifiedUniqueDeliveryConditions, localizationMap);
-
     }
     else {
-        const mdmsResponse = await getMdmsDataBasedOnCampaignType(request);
-        const columnsNotToBeFreezed = mdmsResponse?.columnsNotToBeFreezed;
-        const requiredColumns = mdmsResponse?.required;
+        const schema = await getMdmsDataBasedOnCampaignType(request);
+        const columnsNotToBeFreezed = schema?.columnsNotToBeFreezed;
+        const requiredColumns = schema?.required;
         columnsToValidate = columnsNotToBeFreezed.filter((element: any) => requiredColumns.includes(element));
+        targetColumnsWhoseValidationIsNotMandatory = columnsNotToBeFreezed.filter((element: any) => !requiredColumns.includes(element));
     }
-    const localizedTargetColumnNames = getLocalizedHeaders(columnsToValidate, localizationMap);
+    const localizedRequiredTargetColumnNames = getLocalizedHeaders(columnsToValidate, localizationMap);
+    const localizedNotRequiredTargetColumnNames = getLocalizedHeaders(targetColumnsWhoseValidationIsNotMandatory, localizationMap);
     if (request?.body?.ResourceDetails?.additionalDetails?.source === "microplan") {
-        validateTargetsForMicroplanCampaigns(data, errors, localizedTargetColumnNames, localizationMap);
+        validateRequiredTargetsForMicroplanCampaigns(data, errors, localizedRequiredTargetColumnNames, localizationMap);
         validateLatLongForMicroplanCampaigns(data, errors, localizationMap);
     }
     else {
-        validateTargetForNormalCampaigns(data, errors, localizedTargetColumnNames, localizationMap);
+        validateTargetForNormalCampaigns(data, errors, localizedRequiredTargetColumnNames, false, localizationMap);
+        // validate target columns which are not required but has data present in those columns for genric camapign types 
+        validateTargetForNormalCampaigns(data, errors, localizedNotRequiredTargetColumnNames, true, localizationMap);
     }
 }
 
@@ -243,12 +254,12 @@ function validateData(data: any[], validationErrors: any[], activeColumnName: an
             if (!item?.[activeColumnName]) {
                 validationErrors.push({ index: item?.["!row#number!"], errors: [{ instancePath: `${activeColumnName}`, message: `should not be empty` }] });
             }
-            else if (item?.[activeColumnName] != "Active" && item?.[activeColumnName] != "Inactive") {
-                validationErrors.push({ index: item?.["!row#number!"], errors: [{ instancePath: `${activeColumnName}`, message: `should be equal to one of the allowed values. Allowed values are Active, Inactive` }] });
+            else if (item?.[activeColumnName] != usageColumnStatus.active && item?.[activeColumnName] != usageColumnStatus.inactive) {
+                validationErrors.push({ index: item?.["!row#number!"], errors: [{ instancePath: `${activeColumnName}`, message: `should be equal to one of the allowed values. Allowed values are ${usageColumnStatus.active}, ${usageColumnStatus.inactive}` }] });
             }
         }
-        const active = activeColumnName ? item[activeColumnName] : "Active";
-        if (active == "Active" || !item?.[uniqueIdentifierColumnName]) {
+        const active = activeColumnName ? item[activeColumnName] : usageColumnStatus.active;
+        if (active == usageColumnStatus.active || !item?.[uniqueIdentifierColumnName]) {
             const validationResult = validate(item);
             if (!validationResult) {
                 validationErrors.push({ index: item?.["!row#number!"], errors: validate.errors });
@@ -534,8 +545,9 @@ async function validateCreateRequest(request: any, localizationMap?: any) {
             throwError("COMMON", 400, "VALIDATION_ERROR", "tenantId is not matching with userInfo");
         }
         const fileUrl = await validateFile(request);
-        const localizationMap = await getLocalizedMessagesHandler(request, request?.body?.ResourceDetails?.tenantId);
-        if (request.body.ResourceDetails.type == 'boundary') {
+        await validateFileMetaDataViaFileUrl(fileUrl, getLocaleFromRequest(request), request?.body?.ResourceDetails?.campaignId, request?.body?.ResourceDetails?.action);
+        // const localizationMap = await getLocalizedMessagesHandler(request, request?.body?.ResourceDetails?.tenantId);
+        if (request.body.ResourceDetails.type == 'boundary' || request.body.ResourceDetails.type == 'boundaryManagement') {
             await validateBoundarySheetData(request, fileUrl, localizationMap);
         }
     }
@@ -577,6 +589,13 @@ function validateForRootElementExists(boundaryData: any[], hierachy: any[], shee
     }
 }
 function validateForDupicateRows(boundaryData: any[]) {
+    boundaryData = boundaryData.map(row =>
+        Object.fromEntries(
+          Object.entries(row).map(([key, value]) =>
+            [key, typeof value === "string" ? value.trim() : value]
+          )
+        )
+      );
     const uniqueRows = _.uniqWith(boundaryData, (obj1: any, obj2: any) => {
         // Exclude '!row#number!' property when comparing objects
         const filteredObj1 = _.omit(obj1, ['!row#number!']);
@@ -699,8 +718,8 @@ async function validateBoundariesForTabs(CampaignDetails: any, resource: any, re
     const fileResponse = await httpRequest(config.host.filestore + config.paths.filestore + "/url", {}, { tenantId, fileStoreIds: resource.fileStoreId }, "get");
     const datas = await getSheetData(fileResponse?.fileStoreIds?.[0]?.url, localizedTab, true, undefined, localizationMap);
     var boundaryColumn: any;
-    if (resource?.additionalDetails?.source == 'microplan') {
-        boundaryColumn = getLocalizedName(createAndSearch?.[`${resource.type}Microplan`]?.boundaryValidation?.column, localizationMap);
+    if (await isMicroplanRequest(request) && resource?.type == "facility") {
+        boundaryColumn = getLocalizedName(config.boundary.boundaryCodeMandatoryForMicroplanFacility, localizationMap);
     }
     else {
         boundaryColumn = getLocalizedName(createAndSearch?.[resource.type]?.boundaryValidation?.column, localizationMap);
@@ -713,8 +732,8 @@ async function validateBoundariesForTabs(CampaignDetails: any, resource: any, re
     }
     datas.forEach((data: any) => {
         const codes = data?.[boundaryColumn]?.split(',').map((code: string) => code.trim()) || [];
-        var active = activeColumnName ? data?.[activeColumnName] : "Active";
-        if (active == "Active") {
+        var active = activeColumnName ? data?.[activeColumnName] : usageColumnStatus.active;
+        if (active == usageColumnStatus.active) {
             resourceBoundaryCodesArray.push({ boundaryCodes: codes, rowNumber: data?.['!row#number!'] })
         }
     });
@@ -729,7 +748,6 @@ async function validateBoundariesForTabs(CampaignDetails: any, resource: any, re
             const errorString = `The following boundary codes are not present in selected boundaries : ${missingBoundaries.join(', ')}`
             errors.push({ status: "BOUNDARYERROR", rowNumber: rowData.rowNumber, errorDetails: errorString })
         }
-        validateFacilityBoundaryForLowestLevel(request, boundaries, rowData, errors, localizationMap);
     }
     if (errors?.length > 0) {
         request.body.ResourceDetails.status = resourceDataStatuses.invalid
@@ -1372,18 +1390,18 @@ function validateAllDistrictTabsPresentOrNot(request: any, dataFromSheet: any, d
         const campaignBoundaries = request?.body?.campaignBoundaries;
         if (campaignBoundaries && campaignBoundaries?.length > 0) {
             const districtsLocalised = campaignBoundaries
-                .filter((data: any) => getLocalizedName(`${request?.body?.ResourceDetails?.hierarchyType}_${data.type.toUpperCase()}`, localizationMap).toLocaleLowerCase() == differentTabsBasedOnLevel.toLowerCase())
+                .filter((data: any) => getLocalizedName(`${request?.body?.ResourceDetails?.hierarchyType}_${data.type}`.toUpperCase(), localizationMap).toLocaleLowerCase() == differentTabsBasedOnLevel.toLowerCase())
                 .map((data: any) => getLocalizedName(data?.code, localizationMap)) || [];
 
-            tabsOfDistrict.forEach((tab: any) => {
-                if (!districtsLocalised.includes(tab)) {
+            districtsLocalised?.forEach((tab: any) => {
+                if (!tabsOfDistrict?.includes(tab)) {
                     MissingDistricts.push(tab);
                 }
             });
         }
 
         if (MissingDistricts.length > 0) {
-            throwError("COMMON", 400, "VALIDATION_ERROR", `Districts ${MissingDistricts.join(', ')} not present in the Target Sheet Uploaded`);
+            throwError("COMMON", 400, "VALIDATION_ERROR", `District${MissingDistricts?.length > 1 ? 's' : ''} ${MissingDistricts.join(', ')} not present in the Target Sheet Uploaded`);
         }
     }
 
@@ -1482,8 +1500,8 @@ export function validateEmptyActive(data: any, type: string, localizationMap?: {
     const activeColumnName = createAndSearch?.[type]?.activeColumnName ? getLocalizedName(createAndSearch?.[type]?.activeColumnName, localizationMap) : null;
     if(Array.isArray(data)){
         data.forEach((item: any) => {
-            const active = activeColumnName ? item[activeColumnName] : "Active";
-            if (active == "Active") {
+            const active = activeColumnName ? item[activeColumnName] : usageColumnStatus.active;
+            if (active == usageColumnStatus.active) {
                 isActiveRowsZero = false;
                 return;
             }

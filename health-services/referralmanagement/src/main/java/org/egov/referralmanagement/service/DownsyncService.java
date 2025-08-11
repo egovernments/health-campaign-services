@@ -11,8 +11,10 @@ import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.RequestInfo;
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.common.models.core.Pagination;
+import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.household.Household;
 import org.egov.common.models.household.HouseholdBulkResponse;
 import org.egov.common.models.household.HouseholdMember;
@@ -45,6 +47,7 @@ import org.egov.common.models.referralmanagement.sideeffect.SideEffectSearchRequ
 import org.egov.common.models.service.ServiceCriteria;
 import org.egov.common.models.service.ServiceResponse;
 import org.egov.common.models.service.ServiceSearchRequest;
+import org.egov.common.utils.MultiStateInstanceUtil;
 import org.egov.referralmanagement.Constants;
 import org.egov.referralmanagement.config.ReferralManagementConfiguration;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -52,6 +55,7 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 
+import static org.egov.common.utils.MultiStateInstanceUtil.SCHEMA_REPLACE_STRING;
 import static org.egov.referralmanagement.Constants.HOUSEHOLD;
 
 @Service
@@ -70,20 +74,23 @@ public class DownsyncService {
 
     private MasterDataService masterDataService;
 
+    private final MultiStateInstanceUtil multiStateInstanceUtil;
+
     @Autowired
     public DownsyncService( ServiceRequestClient serviceRequestClient,
                             ReferralManagementConfiguration referralManagementConfiguration,
                             NamedParameterJdbcTemplate jdbcTemplate,
                             SideEffectService sideEffectService,
                             ReferralManagementService referralService,
-                            MasterDataService masterDataService ) {
+                            MasterDataService masterDataService, MultiStateInstanceUtil multiStateInstanceUtil) {
 
         this.restClient = serviceRequestClient;
         this.configs = referralManagementConfiguration;
         this.jdbcTemplate = jdbcTemplate;
-        this.sideEffectService=sideEffectService;
-        this.referralService=referralService;
-        this.masterDataService=masterDataService;
+        this.sideEffectService = sideEffectService;
+        this.referralService = referralService;
+        this.masterDataService = masterDataService;
+        this.multiStateInstanceUtil = multiStateInstanceUtil;
 
     }
 
@@ -92,7 +99,7 @@ public class DownsyncService {
      * @param downsyncRequest
      * @return Downsync
      */
-    public Downsync prepareDownsyncData(DownsyncRequest downsyncRequest) {
+    public Downsync prepareDownsyncData(DownsyncRequest downsyncRequest) throws InvalidTenantIdException {
 
         Downsync downsync = new Downsync();
         DownsyncCriteria downsyncCriteria = downsyncRequest.getDownsyncCriteria();
@@ -173,7 +180,7 @@ public class DownsyncService {
 
         StringBuilder householdUrl = new StringBuilder(configs.getHouseholdHost())
                 .append(configs.getHouseholdSearchUrl());
-        householdUrl = 	appendUrlParams(householdUrl, criteria, null, null, true);
+        appendUrlParams(householdUrl, criteria, null, null, true);
 
         HouseholdSearch householdSearch = HouseholdSearch.builder()
                 .localityCode(criteria.getLocality())
@@ -203,34 +210,47 @@ public class DownsyncService {
      * @return individual ClientReferenceIds
      */
     private List<String> searchIndividuals(DownsyncRequest downsyncRequest, Downsync downsync,
-                                           List<String> individualClientRefIds) {
+                                           List<String> individualClientRefIds) throws InvalidTenantIdException {
 
         DownsyncCriteria criteria = downsyncRequest.getDownsyncCriteria();
         RequestInfo requestInfo = downsyncRequest.getRequestInfo();
+        String tenantId = criteria.getTenantId();
 
-        List<String> individualIds = getPrimaryIds(individualClientRefIds, "clientReferenceId", "INDIVIDUAL", criteria.getLastSyncedTime());
+        List<String> individualIds = getPrimaryIds(tenantId, individualClientRefIds, "clientReferenceId", "INDIVIDUAL", criteria.getLastSyncedTime());
 
-        if (CollectionUtils.isEmpty(individualClientRefIds))
+        if (CollectionUtils.isEmpty(individualIds))
             return Collections.emptyList();
 
         /* builds url for individual search */
         StringBuilder url = new StringBuilder(configs.getIndividualHost())
                 .append(configs.getIndividualSearchUrl());
-        url = appendUrlParams(url, criteria, 0, individualIds.size(),true);
 
-        IndividualSearch individualSearch = IndividualSearch.builder()
-                .id(individualIds)
-                .build();
+        List<Individual> allIndividuals = new ArrayList<>();
 
-        IndividualSearchRequest searchRequest = IndividualSearchRequest.builder()
-                .individual(individualSearch)
-                .requestInfo(requestInfo)
-                .build();
+        /* get batch size to fetch individuals from environment */
+        int batchSize = configs.getIndividualSearchBatchSize();
 
-        List<Individual> individuals = restClient.fetchResult(url, searchRequest, IndividualBulkResponse.class).getIndividual();
-        downsync.setIndividuals(individuals);
+        appendUrlParams(url, criteria, 0, batchSize, true);
 
-        return individuals.stream().map(Individual::getClientReferenceId).collect(Collectors.toList());
+        /* fetches the data in the batches of batch size */
+        for (int i = 0; i < individualIds.size(); i += batchSize) {
+            List<String> batch = getIdsForBatch(batchSize, i, individualIds);
+
+            IndividualSearch individualSearch = IndividualSearch.builder()
+                    .id(batch)
+                    .build();
+
+            IndividualSearchRequest searchRequest = IndividualSearchRequest.builder()
+                    .individual(individualSearch)
+                    .requestInfo(requestInfo)
+                    .build();
+
+            List<Individual> individuals = restClient.fetchResult(url, searchRequest, IndividualBulkResponse.class).getIndividual();
+            allIndividuals.addAll(individuals);
+        }
+        downsync.setIndividuals(allIndividuals);
+
+        return allIndividuals.stream().map(Individual::getClientReferenceId).collect(Collectors.toList());
     }
 
     /** Fetches service request services in batch of configured size based on household and individual
@@ -263,9 +283,9 @@ public class DownsyncService {
         /* get batch size to fetch services from environment */
         int batchSize = configs.getServiceRequestSearchBatchSize();
 
-        /* fetches the services in the batches of batch size */
+        /* fetches the data in the batches of batch size */
         for (int i = 0; i < referenceIds.size(); i += batchSize) {
-            List<String> batch = referenceIds.subList(i, Math.min(i + batchSize, referenceIds.size()));
+            List<String> batch = getIdsForBatch(batchSize, i, referenceIds);
 
             ServiceCriteria serviceCriteria = ServiceCriteria.builder()
                     .tenantId(criteria.getTenantId())
@@ -302,34 +322,46 @@ public class DownsyncService {
      * @return household member's individual client reference ids list
      */
     private List<String> searchMembers(DownsyncRequest downsyncRequest, Downsync downsync,
-                                                      List<String> householdClientReferenceIds) {
+                                                      List<String> householdClientReferenceIds) throws InvalidTenantIdException {
 
         Long lastChangedSince = downsyncRequest.getDownsyncCriteria().getLastSyncedTime();
+        String tenantId = downsyncRequest.getDownsyncCriteria().getTenantId();
 
-        List<String> memberIds = getPrimaryIds(householdClientReferenceIds, "householdClientReferenceId","HOUSEHOLD_MEMBER",lastChangedSince);
+        List<String> memberIds = getPrimaryIds(tenantId, householdClientReferenceIds, "householdClientReferenceId","HOUSEHOLD_MEMBER",lastChangedSince);
 
-        if (CollectionUtils.isEmpty(householdClientReferenceIds))
+        if (CollectionUtils.isEmpty(memberIds))
             return Collections.emptyList();
 
         /* builds url for household member search */
         StringBuilder memberUrl = new StringBuilder(configs.getHouseholdHost())
                 .append(configs.getHouseholdMemberSearchUrl());
 
-        appendUrlParams(memberUrl, downsyncRequest.getDownsyncCriteria(), 0, memberIds.size(), false);
+        List<HouseholdMember> allMembers = new ArrayList<>();
 
-        HouseholdMemberSearch memberSearch = HouseholdMemberSearch.builder()
-                .id(memberIds)
-                .build();
+        /* get batch size to fetch household members from environment */
+        int batchSize = configs.getHouseholdMemberSearchBatchSize();
 
-        HouseholdMemberSearchRequest searchRequest = HouseholdMemberSearchRequest.builder()
-                .householdMemberSearch(memberSearch)
-                .requestInfo(downsyncRequest.getRequestInfo())
-                .build();
+        appendUrlParams(memberUrl, downsyncRequest.getDownsyncCriteria(), 0, batchSize, false);
 
-        List<HouseholdMember> members = restClient.fetchResult(memberUrl, searchRequest, HouseholdMemberBulkResponse.class).getHouseholdMembers();
-        downsync.setHouseholdMembers(members);
+        /* fetches the data in the batches of batch size */
+        for (int i = 0; i < memberIds.size(); i += batchSize) {
+            List<String> batch = getIdsForBatch(batchSize, i, memberIds);
 
-        return members.stream().map(HouseholdMember::getIndividualClientReferenceId).collect(Collectors.toList());
+            HouseholdMemberSearch memberSearch = HouseholdMemberSearch.builder()
+                    .id(batch)
+                    .build();
+
+            HouseholdMemberSearchRequest searchRequest = HouseholdMemberSearchRequest.builder()
+                    .householdMemberSearch(memberSearch)
+                    .requestInfo(downsyncRequest.getRequestInfo())
+                    .build();
+
+            List<HouseholdMember> members = restClient.fetchResult(memberUrl, searchRequest, HouseholdMemberBulkResponse.class).getHouseholdMembers();
+            allMembers.addAll(members);
+        }
+        downsync.setHouseholdMembers(allMembers);
+
+        return allMembers.stream().map(HouseholdMember::getIndividualClientReferenceId).collect(Collectors.toList());
     }
 
     /**
@@ -340,13 +372,15 @@ public class DownsyncService {
      * @return clientreferenceid of beneficiary object
      */
     private List<String> searchBeneficiaries(DownsyncRequest downsyncRequest, Downsync downsync,
-                                             List<String> beneficiaryClientRefIds) {
+                                             List<String> beneficiaryClientRefIds) throws InvalidTenantIdException {
 
         DownsyncCriteria criteria = downsyncRequest.getDownsyncCriteria();
         RequestInfo requestInfo = downsyncRequest.getRequestInfo();
         Long lastChangedSince =criteria.getLastSyncedTime();
+        String tenantId = criteria.getTenantId();
 
         List<String> beneficiaryIds = getPrimaryIds(
+                tenantId,
                 beneficiaryClientRefIds,
                 "beneficiaryclientreferenceid",
                 "PROJECT_BENEFICIARY",
@@ -359,22 +393,33 @@ public class DownsyncService {
         StringBuilder url = new StringBuilder(configs.getProjectHost())
                 .append(configs.getProjectBeneficiarySearchUrl());
 
-        url = appendUrlParams(url, criteria, 0, beneficiaryClientRefIds.size(),false);
+        List<ProjectBeneficiary> allBeneficiaries = new ArrayList<>();
 
-        ProjectBeneficiarySearch search = ProjectBeneficiarySearch.builder()
-                .id(beneficiaryIds)
-                .projectId(Collections.singletonList(downsyncRequest.getDownsyncCriteria().getProjectId()))
-                .build();
+        /* get batch size to fetch project beneficiaries from environment */
+        int batchSize = configs.getProjectBeneficiarySearchBatchSize();
 
-        BeneficiarySearchRequest searchRequest = BeneficiarySearchRequest.builder()
-                .projectBeneficiary(search)
-                .requestInfo(requestInfo)
-                .build();
+        appendUrlParams(url, criteria, 0, batchSize, false);
 
-        List<ProjectBeneficiary> beneficiaries = restClient.fetchResult(url, searchRequest, BeneficiaryBulkResponse.class).getProjectBeneficiaries();
-        downsync.setProjectBeneficiaries(beneficiaries);
+        /* fetches the data in the batches of batch size */
+        for (int i = 0; i < beneficiaryIds.size(); i += batchSize) {
+            List<String> batch = getIdsForBatch(batchSize, i, beneficiaryIds);
 
-        return beneficiaries.stream().map(ProjectBeneficiary::getClientReferenceId).collect(Collectors.toList());
+            ProjectBeneficiarySearch search = ProjectBeneficiarySearch.builder()
+                    .id(batch)
+                    .projectId(Collections.singletonList(downsyncRequest.getDownsyncCriteria().getProjectId()))
+                    .build();
+
+            BeneficiarySearchRequest searchRequest = BeneficiarySearchRequest.builder()
+                    .projectBeneficiary(search)
+                    .requestInfo(requestInfo)
+                    .build();
+
+            List<ProjectBeneficiary> beneficiaries = restClient.fetchResult(url, searchRequest, BeneficiaryBulkResponse.class).getProjectBeneficiaries();
+            allBeneficiaries.addAll(beneficiaries);
+        }
+        downsync.setProjectBeneficiaries(allBeneficiaries);
+
+        return allBeneficiaries.stream().map(ProjectBeneficiary::getClientReferenceId).collect(Collectors.toList());
     }
 
 
@@ -388,11 +433,13 @@ public class DownsyncService {
      * @return
      */
     private List<String> searchTasks(DownsyncRequest downsyncRequest, Downsync downsync,
-                                     List<String> beneficiaryClientRefIds, LinkedHashMap<String, Object> projectType) {
+                                     List<String> beneficiaryClientRefIds, LinkedHashMap<String, Object> projectType) throws InvalidTenantIdException {
 
         DownsyncCriteria criteria = downsyncRequest.getDownsyncCriteria();
         RequestInfo requestInfo = downsyncRequest.getRequestInfo();
-        List<String> taskIds = getPrimaryIds(beneficiaryClientRefIds, "projectBeneficiaryClientReferenceId", "PROJECT_TASK",
+        String tenantId = criteria.getTenantId();
+
+        List<String> taskIds = getPrimaryIds(tenantId, beneficiaryClientRefIds, "projectBeneficiaryClientReferenceId", "PROJECT_TASK",
                 criteria.getLastSyncedTime());
 
         if(CollectionUtils.isEmpty(taskIds))
@@ -401,22 +448,33 @@ public class DownsyncService {
         StringBuilder url = new StringBuilder(configs.getProjectHost())
                  .append(configs.getProjectTaskSearchUrl());
 
-        url = appendUrlParams(url, criteria, 0, taskIds.size(), false);
+        List<Task> allTasks = new ArrayList<>();
 
-        TaskSearch search = TaskSearch.builder()
-                .id(taskIds)
-                .projectId(Collections.singletonList(downsyncRequest.getDownsyncCriteria().getProjectId()))
-                .build();
+        /* get batch size to fetch project tasks from environment */
+        int batchSize = configs.getProjectTaskSearchBatchSize();
 
-        TaskSearchRequest searchRequest = TaskSearchRequest.builder()
-                .task(search)
-                .requestInfo(requestInfo)
-                .build();
+        appendUrlParams(url, criteria, 0, batchSize, false);
 
-        List<Task> tasks = restClient.fetchResult(url, searchRequest, TaskBulkResponse.class).getTasks();
-        downsync.setTasks(tasks);
+        /* fetches the data in the batches of batch size */
+        for (int i = 0; i < taskIds.size(); i += batchSize) {
+            List<String> batch = getIdsForBatch(batchSize, i, taskIds);
 
-        return tasks.stream().map(Task::getClientReferenceId).collect(Collectors.toList());
+            TaskSearch search = TaskSearch.builder()
+                    .id(batch)
+                    .projectId(Collections.singletonList(downsyncRequest.getDownsyncCriteria().getProjectId()))
+                    .build();
+
+            TaskSearchRequest searchRequest = TaskSearchRequest.builder()
+                    .task(search)
+                    .requestInfo(requestInfo)
+                    .build();
+
+            List<Task> tasks = restClient.fetchResult(url, searchRequest, TaskBulkResponse.class).getTasks();
+            allTasks.addAll(tasks);
+        }
+        downsync.setTasks(allTasks);
+
+        return allTasks.stream().map(Task::getClientReferenceId).collect(Collectors.toList());
     }
 
     /**
@@ -426,68 +484,95 @@ public class DownsyncService {
      * @param taskClientRefIds
      */
     private void searchSideEffect(DownsyncRequest downsyncRequest, Downsync downsync,
-                                  List<String> taskClientRefIds) {
+                                  List<String> taskClientRefIds) throws InvalidTenantIdException {
 
         DownsyncCriteria criteria = downsyncRequest.getDownsyncCriteria();
         RequestInfo requestInfo = downsyncRequest.getRequestInfo();
+        String tenantId = criteria.getTenantId();
 
         /* FIXME SHOULD BE REMOVED AND TASK SEARCH SHOULD BE enhanced with list of client-ref-beneficiary ids*/
-        List<String> SEIds = getPrimaryIds(taskClientRefIds, "taskClientReferenceId", "SIDE_EFFECT", criteria.getLastSyncedTime());
+        List<String> SEIds = getPrimaryIds(tenantId, taskClientRefIds, "taskClientReferenceId", "SIDE_EFFECT", criteria.getLastSyncedTime());
 
         if(CollectionUtils.isEmpty(SEIds))
             return;
 
-        SideEffectSearch search = SideEffectSearch.builder()
-                .id(SEIds)
-                .build();
+        List<SideEffect> allSideEffects = new ArrayList<>();
 
-        SideEffectSearchRequest effectSearchRequest = SideEffectSearchRequest.builder()
-                .sideEffect(search)
-                .requestInfo(requestInfo)
-                .build();
+        /* get batch size to fetch side effects from environment */
+        int batchSize = configs.getSideEffectSearchBatchSize();
 
-        List<SideEffect> effects = sideEffectService.search(
-            effectSearchRequest,
-            SEIds.size(),
-            0,
-            criteria.getTenantId(),
-            criteria.getLastSyncedTime(),
-            criteria.getIncludeDeleted()
-        ).getResponse();
+        /* fetches the data in the batches of batch size */
+        for (int i = 0; i < SEIds.size(); i += batchSize) {
+            List<String> batch = getIdsForBatch(batchSize, i, SEIds);
 
-        downsync.setSideEffects(effects);
+            SideEffectSearch search = SideEffectSearch.builder()
+                    .id(batch)
+                    .build();
+
+            SideEffectSearchRequest effectSearchRequest = SideEffectSearchRequest.builder()
+                    .sideEffect(search)
+                    .requestInfo(requestInfo)
+                    .build();
+
+            List<SideEffect> effects = sideEffectService.search(
+                    effectSearchRequest,
+                    batchSize,
+                    0,
+                    criteria.getTenantId(),
+                    criteria.getLastSyncedTime(),
+                    criteria.getIncludeDeleted()
+            ).getResponse();
+            allSideEffects.addAll(effects);
+        }
+
+        downsync.setSideEffects(allSideEffects);
     }
 
     private void referralSearch(DownsyncRequest downsyncRequest, Downsync downsync,
-                                List<String> beneficiaryClientRefIds) {
+                                List<String> beneficiaryClientRefIds) throws InvalidTenantIdException {
 
         DownsyncCriteria criteria = downsyncRequest.getDownsyncCriteria();
         RequestInfo requestInfo = downsyncRequest.getRequestInfo();
-        Integer limit = beneficiaryClientRefIds.size();
 
-        ReferralSearch search = ReferralSearch.builder()
-                .build();
-
-        if(!CollectionUtils.isEmpty(beneficiaryClientRefIds)) {
-            search.setProjectBeneficiaryClientReferenceId(beneficiaryClientRefIds);
-            limit = null;
+        if(CollectionUtils.isEmpty(beneficiaryClientRefIds)) {
+            return;
         }
 
-        ReferralSearchRequest searchRequest = ReferralSearchRequest.builder()
-                .referral(search)
-                .requestInfo(requestInfo)
-                .build();
+        List<Referral> allReferrals = new ArrayList<>();
 
-        List<Referral> referrals = referralService.search(
-            searchRequest,
-            limit,
-            0,
-            criteria.getTenantId(),
-            criteria.getLastSyncedTime(),
-            criteria.getIncludeDeleted()
-        ).getResponse();
+        /* get batch size to fetch project tasks from environment */
+        int batchSize = configs.getReferralSearchBatchSize();
 
-        downsync.setReferrals(referrals);
+        int fetched = 0;
+        Long totalCount;
+
+        do {
+            ReferralSearch search = ReferralSearch.builder()
+                    .projectBeneficiaryClientReferenceId(beneficiaryClientRefIds)
+                    .build();
+
+            ReferralSearchRequest searchRequest = ReferralSearchRequest.builder()
+                    .referral(search)
+                    .requestInfo(requestInfo)
+                    .build();
+
+            SearchResponse<Referral> searchResponse = referralService.search(
+                    searchRequest,
+                    batchSize,
+                    fetched,
+                    criteria.getTenantId(),
+                    criteria.getLastSyncedTime(),
+                    criteria.getIncludeDeleted()
+            );
+
+            totalCount = searchResponse.getTotalCount();
+            List<Referral> referrals = searchResponse.getResponse();
+            allReferrals.addAll(referrals);
+
+            fetched += batchSize;
+        } while (fetched < totalCount);
+
+        downsync.setReferrals(allReferrals);
     }
 
 
@@ -499,14 +584,18 @@ public class DownsyncService {
      * @param lastChangedSince
      * @return
      */
-    private List<String> getPrimaryIds(List<String> idList, String idListFieldName, String tableName, Long lastChangedSince) {
+    private List<String> getPrimaryIds(String tenantId, List<String> idList, String idListFieldName, String tableName, Long lastChangedSince) throws InvalidTenantIdException {
 
         /**
          * Adding lastShangedSince to id query to avoid load on API search for members
          */
         boolean isAndRequired = false;
         Map<String, Object> paramMap = new HashMap<>();
-        StringBuilder memberIdsquery = new StringBuilder("SELECT id from %s WHERE ");
+
+        if (CollectionUtils.isEmpty(idList))
+            return Collections.emptyList();
+
+        StringBuilder memberIdsquery = new StringBuilder("SELECT id from %s.%s WHERE ");
 
 
         if (!CollectionUtils.isEmpty(idList)) {
@@ -523,10 +612,14 @@ public class DownsyncService {
             paramMap.put("lastChangedSince", lastChangedSince);
         }
 
-        String finalQuery = String.format(memberIdsquery.toString(), tableName, idListFieldName, idListFieldName);
-        /* FIXME SHOULD BE REMOVED AND SEARCH SHOULD BE enhanced with list of household ids*/
+        String finalQuery = String.format(memberIdsquery.toString(), SCHEMA_REPLACE_STRING, tableName, idListFieldName, idListFieldName);
+        finalQuery = multiStateInstanceUtil.replaceSchemaPlaceholder(finalQuery, tenantId);
         List<String> memberids = jdbcTemplate.queryForList(finalQuery, paramMap, String.class);
         return memberids;
+    }
+
+    private List<String> getIdsForBatch(int batchSize, int offset, List<String> idList) {
+        return idList.subList(offset, Math.min(offset + batchSize, idList.size()));
     }
 
     /**

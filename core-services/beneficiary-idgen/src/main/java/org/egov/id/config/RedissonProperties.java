@@ -1,6 +1,7 @@
 package org.egov.id.config;
 
-import lombok.*;
+import lombok.Getter;
+import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties(prefix = "redisson.redis")
@@ -8,10 +9,10 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @Setter
 public class RedissonProperties {
     private String host;
-    private int port;
-    private int timeout;
-    private int connectionPoolSize;
-    private int threads;
-    private int nettyThreads;
-    private int connectionMinimumIdleSize;
+    private Integer port;
+    private Integer timeout;
+    private Integer connectionPoolSize;
+    private Integer threads;
+    private Integer nettyThreads;
+    private Integer connectionMinimumIdleSize;
 }

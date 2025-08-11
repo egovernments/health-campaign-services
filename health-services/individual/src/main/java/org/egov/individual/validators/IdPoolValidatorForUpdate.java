@@ -1,8 +1,10 @@
 package org.egov.individual.validators;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -19,8 +21,10 @@ import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 
+import static org.egov.common.utils.CommonUtils.isValidPattern;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.individual.Constants.*;
+import static org.egov.individual.validators.IdPoolValidatorForCreate.validateDuplicateIDs;
 
 /**
  * Validator class for validating beneficiary IDs during update operations on Individual records.
@@ -57,9 +61,14 @@ public class IdPoolValidatorForUpdate implements Validator<IndividualBulkRequest
 
         List<Individual> individuals = request.getIndividuals();
 
+        validateDuplicateIDs(errorDetailsMap, individuals);
+
         // Retrieve existing ID records for the individuals
         Map<String, IdRecord> idRecordMap = IdPoolValidatorForCreate
                 .getIdRecords(beneficiaryIdGenService, individuals, null, request.getRequestInfo());
+
+        // Existing Unique Beneficiary ID
+        Set<String> usedUniqueBeneficiaryIdSet = new HashSet<>();
 
         // Iterate through individuals and validate beneficiary IDs
         for (Individual individual : individuals) {
@@ -67,20 +76,32 @@ public class IdPoolValidatorForUpdate implements Validator<IndividualBulkRequest
 
                 // Find the unique beneficiary ID (if present)
                 Identifier identifier = individual.getIdentifiers().stream()
-                        .filter(id -> id.getIdentifierType().contains(UNIQUE_BENEFICIARY_ID))
+                        .filter(id -> UNIQUE_BENEFICIARY_ID.equalsIgnoreCase(id.getIdentifierType()))
                         .findFirst().orElse(null);
 
                 if (identifier != null && StringUtils.isNotBlank(identifier.getIdentifierId())) {
                     String beneficiaryId = identifier.getIdentifierId();
-
+                    if(IdPoolValidatorForCreate.isMaskedId(beneficiaryId)) {
+                        if (!IdPoolValidatorForCreate.isValidMaskedId(beneficiaryId)) {
+                            updateError(errorDetailsMap, individual, INVALID_BENEFICIARY_ID, "The masked beneficiary id '" + beneficiaryId + "' is invalid.");
+                        }
+                        continue;
+                    }
                     // Check if ID exists in the fetched ID records
                     if (!idRecordMap.containsKey(beneficiaryId)) {
-                        updateError(errorDetailsMap, individual, INVALID_BENEFICIARY_ID, "Invalid beneficiary id");
+                        updateError(errorDetailsMap, individual, INVALID_BENEFICIARY_ID, "The beneficiary id '" + beneficiaryId + "' does not exist");
                     }
                     // Ensure that the ID is associated with the requesting user
                     else if (!userId.equals(idRecordMap.get(beneficiaryId).getLastModifiedBy())) {
-                        updateError(errorDetailsMap, individual, INVALID_USER_ID, "This beneficiary id is dispatched to another user");
+                        updateError(errorDetailsMap, individual, INVALID_USER_ID, "This beneficiary id '" + beneficiaryId + "' is dispatched to another user");
                     }
+                    // Validate that ID was not used by other individuals in the bulk request
+                    else if (usedUniqueBeneficiaryIdSet.contains(beneficiaryId)) {
+                        updateError(errorDetailsMap, individual,
+                                INVALID_BENEFICIARY_ID,
+                                "This beneficiary id '" + beneficiaryId + "'is duplicated for multiple individuals");
+                    }
+                    usedUniqueBeneficiaryIdSet.add(beneficiaryId);
                 }
             }
         }

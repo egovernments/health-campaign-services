@@ -2,6 +2,7 @@ package org.egov.id.consumer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.models.idgen.IDPoolGenerationKafkaRequest;
 import org.egov.common.models.idgen.IdRecord;
 import org.egov.common.models.idgen.IdRecordBulkRequest;
 import org.egov.id.service.IdDispatchService;
@@ -27,18 +28,20 @@ public class IdGenerationConsumer {
 
     private final IdDispatchService idDispatchService;
 
+    private final IdGenerationService idGenerationService;
+
     private final ObjectMapper objectMapper;
 
     /**
      * Constructor to inject required services and object mapper.
      *
      * @param idDispatchService Service for dispatching IDs
-     * @param idGenerationService (Unused here but injected possibly for side effects or future use)
      * @param objectMapper Jackson ObjectMapper for converting Kafka message payloads
      */
     @Autowired
     public IdGenerationConsumer(IdDispatchService idDispatchService, IdGenerationService idGenerationService, @Qualifier("objectMapper") ObjectMapper objectMapper) {
         this.idDispatchService =  idDispatchService;
+        this.idGenerationService = idGenerationService;
         this.objectMapper = objectMapper;
     }
 
@@ -59,6 +62,22 @@ public class IdGenerationConsumer {
         } catch (Exception exception) {
             log.error("error in individual consumer bulk update", exception);
             return Collections.emptyList();
+        }
+    }
+
+    /**
+     * Kafka listener method for handling asynchronous ID pool creation requests.
+     * Converts incoming Kafka message to IDPoolGenerationKafkaRequest and processes it.
+     *
+     * @param message The message payload as a Map
+     */
+    @KafkaListener(topics = "${kafka.topics.consumer.bulk.create.topic}")
+    public void consumeIDPoolCreationAsyncRequest(Map<String, Object> message) {
+        try {
+            IDPoolGenerationKafkaRequest request = new ObjectMapper().convertValue(message, IDPoolGenerationKafkaRequest.class);
+            idGenerationService.handleAsyncIdPoolRequest(request);
+        } catch (Exception e) {
+            log.error("Failed to process async ID pool generation", e);
         }
     }
 

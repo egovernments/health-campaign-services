@@ -1,12 +1,15 @@
 package org.egov.household.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.household.Household;
 import org.egov.common.models.household.HouseholdMember;
 import org.egov.common.models.household.HouseholdMemberBulkRequest;
 import org.egov.common.models.household.Relationship;
 import org.egov.common.service.IdGenService;
+import org.egov.common.utils.CommonUtils;
 import org.egov.household.repository.HouseholdMemberRepository;
+import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
@@ -23,6 +26,7 @@ import static org.egov.common.utils.CommonUtils.getIdList;
 import static org.egov.common.utils.CommonUtils.getIdMethod;
 import static org.egov.common.utils.CommonUtils.getIdToObjMap;
 import static org.egov.common.utils.CommonUtils.uuidSupplier;
+import static org.egov.household.Constants.TENANT_ID_EXCEPTION;
 import static org.egov.household.Constants.CLIENT_REFERENCE_ID_FIELD;
 import static org.egov.household.Constants.HOUSEHOLD_CLIENT_REFERENCE_ID_FIELD;
 import static org.egov.household.Constants.HOUSEHOLD_ID_FIELD;
@@ -59,28 +63,31 @@ public class HouseholdMemberEnrichmentService {
     }
 
     public void update(List<HouseholdMember> householdMembers,
-                       HouseholdMemberBulkRequest beneficiaryRequest) {
+                       HouseholdMemberBulkRequest beneficiaryRequest) throws InvalidTenantIdException {
         log.info("updating household members");
         log.info("enriching household for household members");
         enrichHousehold(householdMembers);
         Map<String, HouseholdMember> hMap = getIdToObjMap(householdMembers);
         List<String> householdMemberIds = new ArrayList<>(hMap.keySet());
-        List<HouseholdMember> existingHouseholdMembers = householdMemberRepository.findById(householdMemberIds,
-                "id", false).getResponse();
+        String tenantId = CommonUtils.getTenantId(householdMembers);
+        List<HouseholdMember> existingHouseholdMembers = null;
+        existingHouseholdMembers = householdMemberRepository.findById(tenantId,householdMemberIds,
+                    "id", false).getResponse();
         log.info("updating lastModifiedTime and lastModifiedBy");
         enrichForUpdate(hMap, existingHouseholdMembers, beneficiaryRequest);
         enrichRelationshipsForUpdate(beneficiaryRequest, householdMembers, existingHouseholdMembers);
         log.info("household Members updated successfully.");
     }
 
-    public void enrichHousehold(List<HouseholdMember> householdMembers) {
+    public void enrichHousehold(List<HouseholdMember> householdMembers) throws InvalidTenantIdException {
+        String tenantId = CommonUtils.getTenantId(householdMembers);
         log.info("getting method for householdId and householdClientReferenceId");
         Method idMethod = getIdMethod(householdMembers, HOUSEHOLD_ID_FIELD, HOUSEHOLD_CLIENT_REFERENCE_ID_FIELD);
         String columnName = getColumnName(idMethod);
         log.info("getting houseHoldIds for householdMembers");
         List<String> houseHoldIds = getIdList(householdMembers, idMethod);
         log.info("finding households from householdService with ids: {}", houseHoldIds);
-        List<Household> householdList = householdService.findById(houseHoldIds, columnName, false).getResponse();
+        List<Household> householdList =  householdService.findById(tenantId, houseHoldIds, columnName, false).getResponse();
         log.info("getting method for householdList with columnName: {}", columnName);
         Method householdMethod = getIdMethod(householdList, columnName);
         log.info("getting Map of households");
@@ -128,8 +135,6 @@ public class HouseholdMemberEnrichmentService {
             List<Relationship> relationships = householdMember.getMemberRelationships();
             if(CollectionUtils.isEmpty(relationships))
                 continue;
-            List<String> ids = uuidSupplier().apply(relationships.size());
-            enrichForCreate(relationships, ids, request.getRequestInfo(), true);
             enrichRelationshipsForCreate(request, relationships, householdMember, householdMemberMap);
         }
     }
@@ -160,7 +165,7 @@ public class HouseholdMemberEnrichmentService {
             List<Relationship> updatedResources = householdMember.getMemberRelationships();
             if(!CollectionUtils.isEmpty(updatedResources)) {
                 resourcesToCreate = householdMember.getMemberRelationships().stream()
-                        .filter(ObjectUtils::isEmpty).toList();
+                        .filter(relationship -> ObjectUtils.isEmpty(relationship.getId())).toList();
                 resourcesToUpdate = householdMember.getMemberRelationships().stream()
                         .filter(relationship -> !ObjectUtils.isEmpty(relationship.getId())).toList();
             }

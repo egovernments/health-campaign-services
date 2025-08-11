@@ -1,6 +1,7 @@
 package org.egov.servicerequest.validators;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.servicerequest.config.Configuration;
 import org.egov.servicerequest.repository.ServiceDefinitionRequestRepository;
 import org.egov.servicerequest.repository.ServiceRequestRepository;
@@ -43,7 +44,7 @@ public class ServiceRequestValidator {
     @Autowired
     private Configuration config;
 
-    public void validateServiceRequest(ServiceRequest serviceRequest){
+    public void validateServiceRequest(ServiceRequest serviceRequest) throws InvalidTenantIdException {
         List<ServiceDefinition> serviceDefinitions = validateServiceDefID(serviceRequest.getService().getTenantId(), serviceRequest.getService().getServiceDefId());
         validateServiceRequestAlreadyExists(serviceRequest);
         validateAttributeValuesAgainstServiceDefinition(serviceDefinitions.get(0), serviceRequest.getService().getAttributes());
@@ -161,7 +162,7 @@ public class ServiceRequestValidator {
         }
     }
 
-    private List<ServiceDefinition> validateServiceDefID(String tenantId, String serviceDefId) {
+    private List<ServiceDefinition> validateServiceDefID(String tenantId, String serviceDefId) throws InvalidTenantIdException {
         List<ServiceDefinition> serviceDefinitions = serviceDefinitionRequestRepository.getServiceDefinitions(ServiceDefinitionSearchRequest.builder().serviceDefinitionCriteria(ServiceDefinitionCriteria.builder().tenantId(tenantId).ids(Arrays.asList(serviceDefId)).build()).build());
 
         if(serviceDefinitions.isEmpty())
@@ -170,7 +171,7 @@ public class ServiceRequestValidator {
         return serviceDefinitions;
     }
 
-    private void validateServiceRequestAlreadyExists(ServiceRequest serviceRequest) {
+    private void validateServiceRequestAlreadyExists(ServiceRequest serviceRequest) throws InvalidTenantIdException {
         Service service = serviceRequest.getService();
         List<Service> services = serviceRequestRepository.getService(ServiceSearchRequest.builder()
                 .serviceCriteria(ServiceCriteria.builder()
@@ -183,7 +184,7 @@ public class ServiceRequestValidator {
         }
     }
 
-    private List<Service> validateExistingServiceRequest(ServiceRequest serviceRequest) {
+    private List<Service> validateExistingServiceRequest(ServiceRequest serviceRequest) throws InvalidTenantIdException {
         Service service = serviceRequest.getService();
         List<Service> services = serviceRequestRepository.getService(ServiceSearchRequest.builder()
                         .serviceCriteria(ServiceCriteria.builder()
@@ -208,6 +209,7 @@ public class ServiceRequestValidator {
                             attributeValue -> attributeValue
                     ));
             attributeValueMap = service.getAttributes().stream()
+                    .filter(attributeValue -> !ObjectUtils.isEmpty(attributeValue.getId()))
                     .collect(Collectors.toMap(
                             AttributeValue::getId,
                             attributeValue -> attributeValue
@@ -238,7 +240,7 @@ public class ServiceRequestValidator {
         return attributeValuesToUpdate;
     }
 
-    public Service validateServiceUpdateRequest(ServiceRequest serviceRequest) {
+    public Service validateServiceUpdateRequest(ServiceRequest serviceRequest) throws InvalidTenantIdException {
         List<Service> existingService = validateExistingServiceRequest(serviceRequest);
         List<ServiceDefinition> serviceDefinitions = validateServiceDefID(serviceRequest.getService().getTenantId(), serviceRequest.getService().getServiceDefId());
         List<AttributeValue> attributeValues = validateIdForAttributeValues(serviceRequest.getService(), existingService.get(0));

@@ -44,6 +44,11 @@ public class ProjectFacilityTestBuilder {
         return this;
     }
 
+    public ProjectFacilityTestBuilder withTenantId(String tenantId) {
+        this.builder.tenantId(tenantId);
+        return this;
+    }
+
     public ProjectFacilityTestBuilder withBadTenantId() {
         this.builder.tenantId(null);
         return this;

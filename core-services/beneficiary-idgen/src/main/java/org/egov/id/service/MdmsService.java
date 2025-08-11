@@ -19,8 +19,6 @@ import org.springframework.stereotype.Service;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
 
-import lombok.extern.log4j.Log4j;
-
 @Service
 @Log4j2
 public class MdmsService {
@@ -114,8 +112,8 @@ public class MdmsService {
 
         Map<String, List<MasterDetail>> masterDetails = new HashMap<String, List<MasterDetail>>();
 
-        List<MasterDetail> masterDetailListCity = new LinkedList();
-        List<MasterDetail> masterDetailListFormat = new LinkedList();
+        List<MasterDetail> masterDetailListCity = new LinkedList<>();
+        List<MasterDetail> masterDetailListFormat = new LinkedList<>();
 
         MasterDetail masterDetailForCity = MasterDetail.builder().name(tenantMaster)
                 .filter("[?(@.code=='" + tenantId + "')]").build();
@@ -159,7 +157,7 @@ public class MdmsService {
             log.error("MDMS Fetch failed", e);
             throw new CustomException("PARSING ERROR", "Failed to get citycode/formatid from MDMS");
         }
-        Map<String, String> mdmsCallMap = new HashMap();
+        Map<String, String> mdmsCallMap = new HashMap<>();
         mdmsCallMap.put(formatMaster, idFormatFromMdms);
         mdmsCallMap.put(tenantMaster, cityCodeFromMdms);
 

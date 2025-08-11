@@ -1,13 +1,24 @@
+# Change Logs
+
 All notable changes to this module will be documented in this file.
+
+## 1.2.0 - 2025-04-15
+
+- Enabled multi-schema support using dynamic schema replacement in SQL queries.
+- Refactored repositories to validate and apply tenant-specific logic.
+- Enhanced error handling and validators for tenant awareness.
+- Modified migration scripts for central instance compatibility.
+- Updated migration script logic for schema support.
+- Updated the persister file to handle multiple schemas.
 
 ## 1.1.7 - 2025-04-11
 
-- Upgraded to health services models to 1.0.27
+- Upgraded health-services-models to 1.0.27
 - Added relationship type support for household members
 
 ## 1.1.6 - 2025-02-28
 
-- Upgraded to health common 1.0.21
+- Upgraded to health commons library version 1.0.21
 
 ## 1.1.5 - 2025-01-28
 
