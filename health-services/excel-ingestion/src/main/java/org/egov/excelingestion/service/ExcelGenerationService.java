@@ -1,16 +1,11 @@
 package org.egov.excelingestion.service;
 
 import lombok.extern.slf4j.Slf4j;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.egov.excelingestion.web.models.GenerateResourceRequest;
 import org.egov.excelingestion.web.models.GenerateResource;
-import org.egov.excelingestion.web.processor.GenerateProcessorFactory;
-import org.egov.excelingestion.web.processor.HierarchyExcelGenerateProcessor;
 import org.egov.excelingestion.web.processor.IGenerateProcessor;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.egov.excelingestion.web.processor.GenerateProcessorFactory;
 import org.springframework.stereotype.Service;
-
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
 @Service
@@ -30,26 +25,21 @@ public class ExcelGenerationService {
 
         IGenerateProcessor processor = processorFactory.getProcessor(request.getGenerateResource().getType());
 
-        // Process resource (if process() does not generate bytes, call another method)
+        // Process resource first
         GenerateResource generateResource = processor.process(request);
 
-        // Suppose your processor has a method to generate bytes:
         byte[] excelBytes;
-        if (processor instanceof HierarchyExcelGenerateProcessor) {
-            try {
-                // You can cast or better have a common interface method to generate bytes
-                excelBytes = ((HierarchyExcelGenerateProcessor) processor)
-                        .generateExcel(request.getGenerateResource(), request.getRequestInfo());
-            } catch (IOException e) {
-                log.error("Error generating Excel bytes", e);
-                throw new RuntimeException(e);
-            }
-        } else {
-            throw new UnsupportedOperationException("Processor does not support Excel generation");
+        try {
+            excelBytes = processor.generateExcel(generateResource, request.getRequestInfo());
+        } catch (IOException e) {
+            log.error("Error generating Excel bytes", e);
+            throw new RuntimeException("Failed to generate Excel file", e);
         }
 
-        // Upload file
-        String fileStoreId = fileStoreService.uploadFile(excelBytes, generateResource.getTenantId(),
+        // Upload the generated Excel bytes to file store
+        String fileStoreId = fileStoreService.uploadFile(
+                excelBytes,
+                generateResource.getTenantId(),
                 generateResource.getHierarchyType() + ".xlsx");
 
         generateResource.setFileStoreId(fileStoreId);
