@@ -4,11 +4,13 @@ import digit.models.coremodels.AuditDetails;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.servicerequest.constants.Constants;
 import org.egov.servicerequest.web.models.AttributeDefinition;
+import org.egov.servicerequest.web.models.AttributeValue;
 import org.egov.servicerequest.web.models.Service;
 import org.egov.servicerequest.web.models.ServiceDefinition;
 import org.egov.servicerequest.web.models.ServiceDefinitionRequest;
 import org.egov.servicerequest.web.models.ServiceRequest;
 import org.springframework.stereotype.Component;
+import org.springframework.util.ObjectUtils;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -74,6 +76,7 @@ public class ServiceRequestEnrichmentService {
             attributeValue.setId(UUID.randomUUID().toString());
             attributeValue.setAuditDetails(auditDetails);
             attributeValue.setReferenceId(service.getId());
+            attributeValue.setServiceClientReferenceId(service.getClientId());
         });
 
         // Enrich audit details for service
@@ -83,6 +86,45 @@ public class ServiceRequestEnrichmentService {
         Map<String, Object> attributeCodeVsValueMap = convertAttributeValuesIntoJson(serviceRequest);
 
         return attributeCodeVsValueMap;
+
+    }
+
+    public Map<String, Object> enrichServiceRequestUpdate(ServiceRequest serviceRequest, Service existingFromDB) {
+        Service service = serviceRequest.getService();
+        String serviceId = service.getId();
+        String serviceClientId = service.getClientId();
+        RequestInfo requestInfo = serviceRequest.getRequestInfo();
+
+        // Enrich audit details for service
+        AuditDetails auditDetails = existingFromDB.getAuditDetails();
+        auditDetails.setLastModifiedBy(requestInfo.getUserInfo().getUuid());
+        auditDetails.setLastModifiedTime(System.currentTimeMillis());
+        service.setAuditDetails(auditDetails);
+
+        Map<String, AttributeValue> existingAttributeValues = existingFromDB.getAttributes()
+                .stream().collect(Collectors.toMap(
+                        AttributeValue::getId,
+                        attributeValue -> attributeValue
+                ));
+
+        // Enrich audit details in attribute values
+        service.getAttributes().forEach(attributeValue -> {
+            if (ObjectUtils.isEmpty(attributeValue.getId())) attributeValue.setId(UUID.randomUUID().toString());
+            AttributeValue existingAttributeValue = existingAttributeValues.get(attributeValue.getId());
+            if (ObjectUtils.isEmpty(attributeValue.getAdditionalDetails()) && !ObjectUtils.isEmpty(existingAttributeValue)) {
+                attributeValue.setAdditionalDetails(existingAttributeValue.getAdditionalDetails());
+            }
+            if(!ObjectUtils.isEmpty(serviceClientId)) {
+                attributeValue.setServiceClientReferenceId(serviceClientId);
+            }
+            attributeValue.setReferenceId(serviceId);
+            attributeValue.setAuditDetails(auditDetails);
+        });
+
+
+
+        // Convert incoming attribute value into JSON object
+        return convertAttributeValuesIntoJson(serviceRequest);
 
     }
 
