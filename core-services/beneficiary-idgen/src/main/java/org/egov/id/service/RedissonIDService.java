@@ -1,26 +1,16 @@
 package org.egov.id.service;
 
 import lombok.extern.slf4j.Slf4j;
-import org.egov.common.models.idgen.IdRecord;
 import org.egov.id.config.PropertiesManager;
-import org.egov.id.repository.IdRepository;
 import org.egov.tracer.model.CustomException;
 import org.redisson.api.RAtomicLong;
-import org.redisson.api.RLock;
-import org.redisson.api.RMapCache;
-import org.redisson.api.RQueue;
 import org.redisson.api.RedissonClient;
 import org.springframework.stereotype.Service;
-import org.springframework.util.CollectionUtils;
 
 import java.time.Duration;
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
-import java.util.concurrent.Callable;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 
 /**
  * A service class that manages ID generation and dispatch operations using Redis as the distributed storage system.
@@ -120,7 +110,7 @@ public class RedissonIDService {
      * @return the count of dispatched IDs for the user and device on the current day
      */
     public long getUserDeviceDispatchedIDCountToday(String tenantId, String userId, String deviceId) {
-        String key = getUserDispatchedCountKey(tenantId, userId, deviceId, LocalDate.now());
+        String key = getUserDispatchedCountKey(tenantId, userId, deviceId, ZonedDateTime.now(ZoneId.of(propertiesManager.getUserTimeZone())).toLocalDate());
         RAtomicLong counter = redissonClient.getAtomicLong(key);
         return counter.get();
     }
@@ -180,7 +170,7 @@ public class RedissonIDService {
      * @return the difference between the new value and the previous value of the dispatched count
      */
     private long updateUserDeviceDispatchedIDCountForToday(String tenantId, String userId, String deviceId, long delta, boolean increment) {
-        String dailyKey = getUserDispatchedCountKey(tenantId, userId, deviceId, LocalDate.now());
+        String dailyKey = getUserDispatchedCountKey(tenantId, userId, deviceId, ZonedDateTime.now(ZoneId.of(propertiesManager.getUserTimeZone())).toLocalDate());
         RAtomicLong dailyCounter = redissonClient.getAtomicLong(dailyKey);
         long previousValue = dailyCounter.get();
         long difference = delta;

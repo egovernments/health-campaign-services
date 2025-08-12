@@ -74,7 +74,7 @@ public class IdGenerationConsumer {
     @KafkaListener(topics = "${kafka.topics.consumer.bulk.create.topic}")
     public void consumeIDPoolCreationAsyncRequest(Map<String, Object> message) {
         try {
-            IDPoolGenerationKafkaRequest request = new ObjectMapper().convertValue(message, IDPoolGenerationKafkaRequest.class);
+            IDPoolGenerationKafkaRequest request = objectMapper.convertValue(message, IDPoolGenerationKafkaRequest.class);
             idGenerationService.handleAsyncIdPoolRequest(request);
         } catch (Exception e) {
             log.error("Failed to process async ID pool generation", e);
