@@ -70,22 +70,23 @@ public class BoundaryHierarchySheetCreator {
         // Freeze panes after headers
         hierarchySheet.createFreezePane(0, 2);
         
-        // Only unlock the hierarchy columns for data entry (rows 3-5000)
-        // Excel will default lock all other cells when sheet protection is applied
+        // Set default cell styles for the entire sheet
+        CellStyle lockedStyle = workbook.createCellStyle();
+        lockedStyle.setLocked(true);
+        
         CellStyle unlockedStyle = workbook.createCellStyle();
         unlockedStyle.setLocked(false);
         
-        // Apply unlocked style only to hierarchy columns in data rows
-        for (int r = 2; r <= 5000; r++) {
-            Row row = hierarchySheet.getRow(r);
-            if (row == null) row = hierarchySheet.createRow(r);
-            
-            // Only create and unlock cells for hierarchy columns
-            for (int c = 0; c < originalLevels.size(); c++) {
-                Cell cell = row.getCell(c);
-                if (cell == null) cell = row.createCell(c);
-                cell.setCellStyle(unlockedStyle);
-            }
+        // Set column-level default styles to avoid creating millions of cells
+        for (int c = 0; c < originalLevels.size(); c++) {
+            // Set default style for entire hierarchy columns as unlocked
+            hierarchySheet.setDefaultColumnStyle(c, unlockedStyle);
+        }
+        
+        // Lock only the header rows (row 0 and row 1) by applying locked style
+        for (int c = 0; c < originalLevels.size(); c++) {
+            hiddenRow.getCell(c).setCellStyle(lockedStyle);
+            visibleRow.getCell(c).setCellStyle(lockedStyle);
         }
         
         // Protect the sheet to enforce locking (headers locked by default, only hierarchy columns unlocked)
