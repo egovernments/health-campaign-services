@@ -174,7 +174,7 @@ public class MicroplanProcessor implements IGenerateProcessor {
         }
 
         // === Levels sheet (display names visible) ===
-        Sheet levelSheet = workbook.createSheet("Levels");
+        Sheet levelSheet = workbook.createSheet("_h_Levels_h_");
         Row levelRow = levelSheet.createRow(0);
         for (int i = 0; i < levels.size(); i++) {
             levelRow.createCell(i).setCellValue(levels.get(i)); // "Level 1", "Level 2", ...
@@ -183,10 +183,10 @@ public class MicroplanProcessor implements IGenerateProcessor {
         Name levelsNamedRange = workbook.createName();
         levelsNamedRange.setNameName("Levels");
         String lastColLetter = CellReference.convertNumToColString(levels.size() - 1);
-        levelsNamedRange.setRefersToFormula("Levels!$A$1:$" + lastColLetter + "$1");
+        levelsNamedRange.setRefersToFormula("_h_Levels_h_!$A$1:$" + lastColLetter + "$1");
 
         // === Boundaries sheet (localized names) - one column per level ===
-        Sheet boundarySheet = workbook.createSheet("Boundaries");
+        Sheet boundarySheet = workbook.createSheet("_h_Boundaries_h_");
         int maxBoundaries = 0;
         for (int i = 0; i < levels.size(); i++) {
             String level = levels.get(i);
@@ -218,7 +218,7 @@ public class MicroplanProcessor implements IGenerateProcessor {
                     namedRange.setNameName(levelSanitized);
                     String colLetter = CellReference.convertNumToColString(i);
                     namedRange.setRefersToFormula(
-                            "Boundaries!$" + colLetter + "$2:$" + colLetter + "$" + (codePaths.size() + 1));
+                            "_h_Boundaries_h_!$" + colLetter + "$2:$" + colLetter + "$" + (codePaths.size() + 1));
                 }
             }
         }
@@ -227,7 +227,7 @@ public class MicroplanProcessor implements IGenerateProcessor {
         // For parents sheet, each column corresponds to a child codePath (unique).
         // Column header = codePath
         // Under each header we will put localized parent names (if any).
-        Sheet parentSheet = workbook.createSheet("Parents");
+        Sheet parentSheet = workbook.createSheet("_h_Parents_h_");
         int parentCol = 0;
         for (Map.Entry<String, List<String>> entry : childToParentCodes.entrySet()) {
             String childCode = entry.getKey(); // unique code path
@@ -252,7 +252,7 @@ public class MicroplanProcessor implements IGenerateProcessor {
                 namedRange.setNameName(sanitizedCodeName);
                 String colLetter = CellReference.convertNumToColString(parentCol);
                 namedRange.setRefersToFormula(
-                        "Parents!$" + colLetter + "$2:$" + colLetter + "$" + (parentCodes.size() + 1));
+                        "_h_Parents_h_!$" + colLetter + "$2:$" + colLetter + "$" + (parentCodes.size() + 1));
             }
             parentCol++;
         }
@@ -261,7 +261,7 @@ public class MicroplanProcessor implements IGenerateProcessor {
         // dropdown) ===
         // IMPORTANT: if a localized name maps to multiple codePaths, the VLOOKUP will
         // find the first - avoid duplicates in localized names if possible
-        Sheet codeMapSheet = workbook.createSheet("CodeMap");
+        Sheet codeMapSheet = workbook.createSheet("_h_CodeMap_h_");
         Row cmHeader = codeMapSheet.createRow(0);
         cmHeader.createCell(0).setCellValue("LocalizedName");
         cmHeader.createCell(1).setCellValue("CodePath");
@@ -285,6 +285,10 @@ public class MicroplanProcessor implements IGenerateProcessor {
             // Fallback if schema creation failed
             mainSheet = workbook.createSheet("Mapping");
         }
+        
+        // Rename Mapping sheet to localized value
+        String localizedSheetName = mergedLocalizationMap.getOrDefault("HCM_ADMIN_CONSOLE_FACILITIES_LIST", "HCM_ADMIN_CONSOLE_FACILITIES_LIST");
+        workbook.setSheetName(workbook.getSheetIndex(mainSheet), localizedSheetName);
         
         // Add boundary columns after schema columns
         // Row 0 contains technical names (hidden), Row 1 contains visible headers
@@ -354,7 +358,7 @@ public class MicroplanProcessor implements IGenerateProcessor {
             // Parents sheet
             String boundaryCellRef = CellReference.convertNumToColString(lastSchemaCol + 1) + (rowIndex + 1);
             String parentFormula = "IF(" + boundaryCellRef + "=\"\", \"\", INDIRECT(VLOOKUP(" + boundaryCellRef
-                    + ", CodeMap!$A:$B, 2, FALSE)))";
+                    + ", _h_CodeMap_h_!$A:$B, 2, FALSE)))";
             DataValidationConstraint parentConstraint = dvHelper.createFormulaListConstraint(parentFormula);
             CellRangeAddressList parentAddr = new CellRangeAddressList(rowIndex, rowIndex, lastSchemaCol + 2, lastSchemaCol + 2);
             DataValidation parentValidation = dvHelper.createValidation(parentConstraint, parentAddr);
@@ -387,6 +391,14 @@ public class MicroplanProcessor implements IGenerateProcessor {
             }
         }
 
+        // Hide all sheets except the main Mapping sheet
+        for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
+            Sheet sheet = workbook.getSheetAt(i);
+            if (sheet != mainSheet) {
+                workbook.setSheetHidden(i, true);
+            }
+        }
+        
         // Protect sheet after all columns (schema + boundary) are configured
         mainSheet.protectSheet("passwordhere");
         workbook.setActiveSheet(workbook.getSheetIndex(mainSheet));
