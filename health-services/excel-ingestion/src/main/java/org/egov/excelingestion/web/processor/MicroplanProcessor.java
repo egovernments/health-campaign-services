@@ -391,6 +391,12 @@ public class MicroplanProcessor implements IGenerateProcessor {
             }
         }
 
+        // Set zoom to 60% BEFORE protection and hiding (Excel compatibility)
+        for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
+            Sheet sheet = workbook.getSheetAt(i);
+            sheet.setZoom(70);
+        }
+        
         // Hide all sheets except the main Mapping sheet
         for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
             Sheet sheet = workbook.getSheetAt(i);
@@ -399,9 +405,11 @@ public class MicroplanProcessor implements IGenerateProcessor {
             }
         }
         
+        // Set the active sheet before protection
+        workbook.setActiveSheet(workbook.getSheetIndex(mainSheet));
+        
         // Protect sheet after all columns (schema + boundary) are configured
         mainSheet.protectSheet("passwordhere");
-        workbook.setActiveSheet(workbook.getSheetIndex(mainSheet));
         workbook.lockStructure();
         workbook.setWorkbookPassword("passwordhere", HashAlgorithm.sha512);
 
