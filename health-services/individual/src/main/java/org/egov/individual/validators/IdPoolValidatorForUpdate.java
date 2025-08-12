@@ -81,8 +81,14 @@ public class IdPoolValidatorForUpdate implements Validator<IndividualBulkRequest
 
                 if (identifier != null && StringUtils.isNotBlank(identifier.getIdentifierId())) {
                     String beneficiaryId = identifier.getIdentifierId();
-                    if(IdPoolValidatorForCreate.isMaskedId(beneficiaryId)) {
-                        if (!isValidMaskedId(beneficiaryId, individualProperties.getBeneficiaryIdLength())) {
+
+                    if (beneficiaryId.contains("*")) {
+                        // get the last 4 digits
+                        String last4Digits = identifier.getIdentifierId()
+                                .substring(identifier.getIdentifierId().length() - 4);
+                        // regex to check if last 4 digits are numbers
+                        String regex = "[0-9]+";
+                        if (!isValidPattern(last4Digits, regex) || identifier.getIdentifierId().length() != 12) {
                             updateError(errorDetailsMap, individual, INVALID_BENEFICIARY_ID, "The masked beneficiary id '" + beneficiaryId + "' is invalid.");
                         }
                         continue;

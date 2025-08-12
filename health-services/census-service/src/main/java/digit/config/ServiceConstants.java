@@ -23,9 +23,14 @@ public class ServiceConstants {
 
     public static final String ERROR_WHILE_FETCHING_BUSINESS_SERVICE_DETAILS = "Exception occurred while fetching business service details: ";
 
+    public static final String ERROR_WHILE_SETTING_JSONB_OBJECT = "Error while setting JSONB object :";
+
+    public static final String NO_CENSUS_IDS_FOUND_ERROR = "No census ids found for provided census search criteria.";
+
     public static final String RES_MSG_ID = "uief87324";
     public static final String SUCCESSFUL = "successful";
     public static final String FAILED = "failed";
+    public static final String JSONB = "jsonb";
 
     public static final String URL = "url";
     public static final String URL_SHORTENING_ERROR_CODE = "URL_SHORTENING_ERROR";
@@ -46,8 +51,11 @@ public class ServiceConstants {
     public static final String CITIZEN_LOWER = "Citizen";
     public static final String USER = "user";
     public static final String PIPE_REGEX = "\\|";
+    public static final String COMMA_DELIMITER = ",";
+    public static final String PIPE_DELIMITER = "|";
     public static final String FACILITY_ID_FIELD = "facilityId";
     public static final String FACILITY_NAME_FIELD = "facilityName";
+    public static final String ID = "id";
 
     public static final String PARSING_ERROR_CODE = "PARSING ERROR";
     public static final String PARSING_ERROR_MESSAGE = "Failed to parse JSON data from PGobject";
@@ -56,8 +64,8 @@ public class ServiceConstants {
     public static final String BUSINESS_SERVICE_NOT_FOUND = "BUSINESSSERVICE_NOT_FOUND";
     public static final String THE_BUSINESS_SERVICE = "The businessService ";
     public static final String NOT_FOUND = " is not found";
-    public static final String TENANTID = "?tenantId=";
-    public static final String BUSINESS_SERVICES = "&businessServices=";
+    public static final String TENANT_ID = "tenantId";
+    public static final String BUSINESS_SERVICE = "businessService";
 
     public static final String NO_BOUNDARY_DATA_FOUND_FOR_GIVEN_BOUNDARY_CODE_CODE = "NO_BOUNDARY_DATA_FOUND_FOR_GIVEN_BOUNDARY_CODE";
     public static final String NO_BOUNDARY_DATA_FOUND_FOR_GIVEN_BOUNDARY_CODE_MESSAGE = "Invalid or incorrect boundaryCode. No boundary data found.";
@@ -111,4 +119,7 @@ public class ServiceConstants {
     public static final String MODULE_NAME_VALUE = "census-service";
 
     public static final String CENSUS_BUSINESS_SERVICE = "CENSUS";
+
+    public static final String BUSINESS_SERVICE_QUERY_TEMPLATE = "?tenantId={tenantId}&businessServices={businessService}";
+
 }

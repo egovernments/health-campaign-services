@@ -18,8 +18,7 @@ public class PlanEmployeeController {
 
     PlanEmployeeService planEmployeeService;
 
-    public PlanEmployeeController(PlanEmployeeService planEmployeeService)
-    {
+    public PlanEmployeeController(PlanEmployeeService planEmployeeService) {
         this.planEmployeeService = planEmployeeService;
     }
 
@@ -29,7 +28,7 @@ public class PlanEmployeeController {
      * @return
      */
     @RequestMapping(value = "/employee/_create", method = RequestMethod.POST)
-    public ResponseEntity<PlanEmployeeAssignmentResponse> employeeCreatePost(@Parameter(in = ParameterIn.DEFAULT, description = "", schema = @Schema()) @Valid @RequestBody PlanEmployeeAssignmentRequest body) {
+    public ResponseEntity<PlanEmployeeAssignmentResponse> create(@Parameter(in = ParameterIn.DEFAULT, description = "", schema = @Schema()) @Valid @RequestBody PlanEmployeeAssignmentRequest body) {
 
         PlanEmployeeAssignmentResponse response = planEmployeeService.create(body);
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
@@ -42,7 +41,7 @@ public class PlanEmployeeController {
      * @return
      */
     @RequestMapping(value = "/employee/_search", method = RequestMethod.POST)
-    public ResponseEntity<PlanEmployeeAssignmentResponse> employeeSearchPost(@Parameter(in = ParameterIn.DEFAULT, description = "", schema = @Schema()) @Valid @RequestBody PlanEmployeeAssignmentSearchRequest body) {
+    public ResponseEntity<PlanEmployeeAssignmentResponse> search(@Parameter(in = ParameterIn.DEFAULT, description = "", schema = @Schema()) @Valid @RequestBody PlanEmployeeAssignmentSearchRequest body) {
 
         PlanEmployeeAssignmentResponse response = planEmployeeService.search(body);
         return ResponseEntity.status(HttpStatus.OK).body(response);
@@ -54,7 +53,7 @@ public class PlanEmployeeController {
      * @return
      */
     @RequestMapping(value = "/employee/_update", method = RequestMethod.POST)
-    public ResponseEntity<PlanEmployeeAssignmentResponse> employeeUpdatePost(@Parameter(in = ParameterIn.DEFAULT, description = "", schema = @Schema()) @Valid @RequestBody PlanEmployeeAssignmentRequest body) {
+    public ResponseEntity<PlanEmployeeAssignmentResponse> update(@Parameter(in = ParameterIn.DEFAULT, description = "", schema = @Schema()) @Valid @RequestBody PlanEmployeeAssignmentRequest body) {
 
         PlanEmployeeAssignmentResponse response = planEmployeeService.update(body);
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);

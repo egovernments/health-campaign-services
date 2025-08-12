@@ -1,21 +1,9 @@
 package org.egov.processor.util;
 
-import static org.egov.processor.config.ServiceConstants.FILES;
-import static org.egov.processor.config.ServiceConstants.FILESTORE_ID;
-import static org.egov.processor.config.ServiceConstants.FILESTORE_ID_REPLACER;
-import static org.egov.processor.config.ServiceConstants.MICROPLANNING_MODULE;
-import static org.egov.processor.config.ServiceConstants.MODULE;
-import static org.egov.processor.config.ServiceConstants.NOT_ABLE_TO_CONVERT_MULTIPARTFILE_TO_BYTESTREAM_CODE;
-import static org.egov.processor.config.ServiceConstants.NOT_ABLE_TO_CONVERT_MULTIPARTFILE_TO_BYTESTREAM_MESSAGE;
-import static org.egov.processor.config.ServiceConstants.TENANTID;
-import static org.egov.processor.config.ServiceConstants.TENANTID_REPLACER;
-
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.util.Arrays;
-import java.util.List;
-
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.extern.slf4j.Slf4j;
 import org.egov.processor.config.Configuration;
 import org.egov.processor.repository.ServiceRequestRepository;
 import org.egov.tracer.model.CustomException;
@@ -29,11 +17,15 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.util.Arrays;
+import java.util.List;
 
-import lombok.extern.slf4j.Slf4j;
+import static org.egov.processor.config.ErrorConstants.NOT_ABLE_TO_CONVERT_MULTIPARTFILE_TO_BYTESTREAM_CODE;
+import static org.egov.processor.config.ErrorConstants.NOT_ABLE_TO_CONVERT_MULTIPARTFILE_TO_BYTESTREAM_MESSAGE;
+import static org.egov.processor.config.ServiceConstants.*;
 
 @Component
 @Slf4j
@@ -56,7 +48,7 @@ public class FilestoreUtil {
      * @param fileStoreId The ID of the file in the file store.
      * @return The file content as a byte array.
      */
-    public byte[] getFile(String tenantId, String fileStoreId) {
+    public byte[] getFileByteArray(String tenantId, String fileStoreId) {
         String fileStoreServiceLink = getFileStoreServiceLink(tenantId, fileStoreId);
         byte[] responseInByteArray;
         Object response;
