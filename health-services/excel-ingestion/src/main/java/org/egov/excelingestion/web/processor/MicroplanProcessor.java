@@ -65,7 +65,10 @@ public class MicroplanProcessor implements IGenerateProcessor {
         mergedLocalizationMap.putAll(schemaLocalizationMap);
 
         // Fetch schema from MDMS for the mapping sheet
-        String schemaJson = fetchMappingSchema(tenantId, requestInfo);
+        String schemaJson = fetchSchemaFromMDMS(tenantId, requestInfo, "facility-microplan-ingestion");
+        
+        // Fetch schema from MDMS for the user sheet
+        String userSchemaJson = fetchSchemaFromMDMS(tenantId, requestInfo, "user-microplan-ingestion");
 
         // Fetch boundary hierarchy data
         String hierarchyUrl = config.getHierarchySearchUrl();
@@ -359,6 +362,13 @@ public class MicroplanProcessor implements IGenerateProcessor {
         }
         mainSheet.createFreezePane(0, 2); // Freeze after row 2 since schema creator uses row 1 for technical names
 
+        // === Create User sheet using user schema ===
+        String userSheetName = mergedLocalizationMap.getOrDefault("HCM_ADMIN_CONSOLE_USERS_LIST",
+                "HCM_ADMIN_CONSOLE_USERS_LIST");
+        if (userSchemaJson != null && !userSchemaJson.isEmpty()) {
+            workbook = (XSSFWorkbook) ExcelSchemaSheetCreator.addEnhancedSchemaSheetFromJson(userSchemaJson, userSheetName, workbook, mergedLocalizationMap);
+        }
+
         // Unlock cells for user input
         CellStyle unlocked = workbook.createCellStyle();
         unlocked.setLocked(false);
@@ -380,10 +390,10 @@ public class MicroplanProcessor implements IGenerateProcessor {
             sheet.setZoom(70);
         }
         
-        // Hide all sheets except the main Mapping sheet
+        // Hide all sheets except the main sheet and user sheet
         for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
             Sheet sheet = workbook.getSheetAt(i);
-            if (sheet != mainSheet) {
+            if (sheet != mainSheet && !sheet.getSheetName().equals(userSheetName)) {
                 workbook.setSheetHidden(i, true);
             }
         }
@@ -541,7 +551,7 @@ public class MicroplanProcessor implements IGenerateProcessor {
         return "microplan-ingestion";
     }
 
-    private String fetchMappingSchema(String tenantId, RequestInfo requestInfo) {
+    private String fetchSchemaFromMDMS(String tenantId, RequestInfo requestInfo, String title) {
         String url = config.getMdmsSearchUrl();
         
         try {
@@ -553,14 +563,21 @@ public class MicroplanProcessor implements IGenerateProcessor {
 
             Map<String, Object> mdmsCriteria = new HashMap<>();
             mdmsCriteria.put("tenantId", tenantId);
-            mdmsCriteria.put("uniqueIdentifier", "facility-microplan-ingestion");
+            
+            // Use filters with title instead of uniqueIdentifier
+            Map<String, Object> filters = new HashMap<>();
+            filters.put("title", title);
+            mdmsCriteria.put("filters", filters);
+            
             mdmsCriteria.put("schemaCode", "HCM-ADMIN-CONSOLE.schemas");
             mdmsCriteria.put("limit", 1);
             mdmsCriteria.put("offset", 0);
+            mdmsCriteria.put("sortBy", "uniqueIdentifier");
+            mdmsCriteria.put("order", "ASC");
             mdmsRequest.put("MdmsCriteria", mdmsCriteria);
 
             // Call MDMS service
-            log.info("Calling MDMS API: {} for schema: facility-microplan-ingestion, tenantId: {}", url, tenantId);
+            log.info("Calling MDMS API: {} for schema: {}, tenantId: {}", url, title, tenantId);
             
             StringBuilder uri = new StringBuilder(url);
             Map<String, Object> responseBody = serviceRequestClient.fetchResult(uri, mdmsRequest, Map.class);
@@ -571,27 +588,27 @@ public class MicroplanProcessor implements IGenerateProcessor {
                     Map<String, Object> mdmsData = mdmsList.get(0);
                     Map<String, Object> data = (Map<String, Object>) mdmsData.get("data");
                     
-                    // Extract the properties part which contains stringProperties and numberProperties
+                    // Extract the properties part which contains stringProperties, numberProperties, and enumProperties
                     Map<String, Object> properties = (Map<String, Object>) data.get("properties");
                     if (properties != null) {
                         // Convert properties to JSON string
                         ObjectMapper mapper = new ObjectMapper();
-                        log.info("Successfully fetched MDMS schema");
+                        log.info("Successfully fetched MDMS schema for: {}", title);
                         return mapper.writeValueAsString(properties);
                     }
                 }
             }
-            log.warn("No MDMS data found for schema: facility-microplan-ingestion");
+            log.warn("No MDMS data found for schema: {}", title);
         } catch (Exception e) {
-            log.error("Error calling MDMS API: {}: {}", url, e.getMessage(), e);
+            log.error("Error calling MDMS API for schema {}: {}", title, e.getMessage(), e);
         }
         
         // Return a default schema if MDMS fetch fails
-        return getDefaultMappingSchema();
+        return getDefaultSchema();
     }
 
-    private String getDefaultMappingSchema() {
+    private String getDefaultSchema() {
         // Default schema with basic columns if MDMS fetch fails
-        return "{\"stringProperties\":[],\"numberProperties\":[]}";
+        return "{\"stringProperties\":[],\"numberProperties\":[],\"enumProperties\":[]}";
     }
 }
