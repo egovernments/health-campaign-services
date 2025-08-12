@@ -5,6 +5,7 @@ on:
     branches:
       - allValidations
       - master
+      - master-multi-broker
 
 env:
   DOCKER_USERNAME: ${{ vars.DOCKER_USERNAME }}
