@@ -9,7 +9,9 @@ import org.apache.poi.ss.util.CellReference;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.egov.excelingestion.config.ExcelIngestionConfig;
 import org.egov.excelingestion.service.LocalizationService;
+import org.egov.excelingestion.service.BoundaryService;
 import org.egov.excelingestion.util.ExcelSchemaSheetCreator;
+import org.egov.excelingestion.util.BoundaryHierarchySheetCreator;
 import org.egov.excelingestion.web.models.*;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Component;
@@ -28,12 +30,17 @@ public class MicroplanProcessor implements IGenerateProcessor {
     private final ServiceRequestClient serviceRequestClient;
     private final ExcelIngestionConfig config;
     private final LocalizationService localizationService;
+    private final BoundaryHierarchySheetCreator boundaryHierarchySheetCreator;
+    private final BoundaryService boundaryService;
 
     public MicroplanProcessor(ServiceRequestClient serviceRequestClient, ExcelIngestionConfig config,
-            LocalizationService localizationService) {
+            LocalizationService localizationService, BoundaryHierarchySheetCreator boundaryHierarchySheetCreator,
+            BoundaryService boundaryService) {
         this.serviceRequestClient = serviceRequestClient;
         this.config = config;
         this.localizationService = localizationService;
+        this.boundaryHierarchySheetCreator = boundaryHierarchySheetCreator;
+        this.boundaryService = boundaryService;
     }
 
     @Override
@@ -71,8 +78,8 @@ public class MicroplanProcessor implements IGenerateProcessor {
         // Fetch schema from MDMS for the user sheet
         String userSchemaJson = fetchSchemaFromMDMS(tenantId, requestInfo, "user-microplan-ingestion");
 
-        // Fetch boundary hierarchy data (cached)
-        BoundaryHierarchyResponse hierarchyData = fetchBoundaryHierarchy(tenantId, hierarchyType, requestInfo);
+        // Fetch boundary hierarchy data
+        BoundaryHierarchyResponse hierarchyData = boundaryService.fetchBoundaryHierarchy(tenantId, hierarchyType, requestInfo);
 
         if (hierarchyData == null || hierarchyData.getBoundaryHierarchy() == null
                 || hierarchyData.getBoundaryHierarchy().isEmpty()) {
@@ -82,8 +89,8 @@ public class MicroplanProcessor implements IGenerateProcessor {
         List<BoundaryHierarchyChild> hierarchyRelations = hierarchyData.getBoundaryHierarchy().get(0)
                 .getBoundaryHierarchy();
 
-        // Fetch boundary relationship data (cached)
-        BoundarySearchResponse relationshipData = fetchBoundaryRelationship(tenantId, hierarchyType, requestInfo);
+        // Fetch boundary relationship data
+        BoundarySearchResponse relationshipData = boundaryService.fetchBoundaryRelationship(tenantId, hierarchyType, requestInfo);
 
         // 1) Build level list "Level 1", "Level 2", ...
         List<String> levels = new ArrayList<>();
@@ -286,6 +293,21 @@ public class MicroplanProcessor implements IGenerateProcessor {
             addBoundaryColumnsToSheet(workbook, actualUserSheetName, mergedLocalizationMap);
         }
 
+        // === Create Boundary Hierarchy sheet ===
+        String localizedHierarchySheetName = mergedLocalizationMap.getOrDefault("HCM_CONSOLE_BOUNDARY_HIERARCHY",
+                "HCM_CONSOLE_BOUNDARY_HIERARCHY");
+        
+        // Handle Excel's 31 character limit for sheet names
+        String actualHierarchySheetName = localizedHierarchySheetName;
+        if (localizedHierarchySheetName.length() > 31) {
+            actualHierarchySheetName = localizedHierarchySheetName.substring(0, 31);
+            log.warn("Sheet name '{}' exceeds 31 character limit, trimming to '{}'", localizedHierarchySheetName, actualHierarchySheetName);
+        }
+        
+        workbook = (XSSFWorkbook) boundaryHierarchySheetCreator.createBoundaryHierarchySheet(
+                workbook, hierarchyType, tenantId, requestInfo,
+                mergedLocalizationMap, actualHierarchySheetName);
+
 
         // Set zoom to 60% BEFORE protection and hiding (Excel compatibility)
         for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
@@ -293,10 +315,12 @@ public class MicroplanProcessor implements IGenerateProcessor {
             sheet.setZoom(70);
         }
         
-        // Hide all sheets except the main sheet and user sheet
+        // Hide all sheets except the main sheet, user sheet, and hierarchy sheet
         for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
             Sheet sheet = workbook.getSheetAt(i);
-            if (sheet != mainSheet && !sheet.getSheetName().equals(actualUserSheetName)) {
+            if (sheet != mainSheet && 
+                !sheet.getSheetName().equals(actualUserSheetName) &&
+                !sheet.getSheetName().equals(actualHierarchySheetName)) {
                 workbook.setSheetHidden(i, true);
             }
         }
@@ -515,44 +539,6 @@ public class MicroplanProcessor implements IGenerateProcessor {
         return "{\"stringProperties\":[],\"numberProperties\":[],\"enumProperties\":[]}";
     }
 
-    @Cacheable(value = "boundaryHierarchy", key = "#tenantId + '_' + #hierarchyType")
-    private BoundaryHierarchyResponse fetchBoundaryHierarchy(String tenantId, String hierarchyType, RequestInfo requestInfo) {
-        String hierarchyUrl = config.getHierarchySearchUrl();
-        Map<String, Object> hierarchyPayload = createHierarchyPayload(requestInfo, tenantId, hierarchyType);
-        
-        log.info("Calling Boundary Hierarchy API: {} with tenantId: {}, hierarchyType: {} (cached)", hierarchyUrl, tenantId, hierarchyType);
-        
-        try {
-            StringBuilder uri = new StringBuilder(hierarchyUrl);
-            BoundaryHierarchyResponse result = serviceRequestClient.fetchResult(uri, hierarchyPayload, BoundaryHierarchyResponse.class);
-            log.info("Successfully fetched boundary hierarchy data (cached)");
-            return result;
-        } catch (Exception e) {
-            log.error("Error calling Boundary Hierarchy API: {}", e.getMessage(), e);
-            throw new RuntimeException("Error calling Boundary Hierarchy API: " + hierarchyUrl, e);
-        }
-    }
-
-    @Cacheable(value = "boundaryRelationship", key = "#tenantId + '_' + #hierarchyType")
-    private BoundarySearchResponse fetchBoundaryRelationship(String tenantId, String hierarchyType, RequestInfo requestInfo) {
-        StringBuilder url = new StringBuilder(config.getRelationshipSearchUrl());
-        url.append("?includeChildren=true")
-                .append("&tenantId=").append(URLEncoder.encode(tenantId, StandardCharsets.UTF_8))
-                .append("&hierarchyType=").append(URLEncoder.encode(hierarchyType, StandardCharsets.UTF_8));
-
-        Map<String, Object> relationshipPayload = createRelationshipPayload(requestInfo, tenantId, hierarchyType);
-        
-        log.info("Calling Boundary Relationship API: {} with tenantId: {}, hierarchyType: {} (cached)", url.toString(), tenantId, hierarchyType);
-        
-        try {
-            BoundarySearchResponse result = serviceRequestClient.fetchResult(url, relationshipPayload, BoundarySearchResponse.class);
-            log.info("Successfully fetched boundary relationship data (cached)");
-            return result;
-        } catch (Exception e) {
-            log.error("Error calling Boundary Relationship API: {}", e.getMessage(), e);
-            throw new RuntimeException("Error calling Boundary Relationship API: " + url.toString(), e);
-        }
-    }
 
     private void addBoundaryColumnsToSheet(XSSFWorkbook workbook, String sheetName, Map<String, String> localizationMap) {
         Sheet sheet = workbook.getSheet(sheetName);
