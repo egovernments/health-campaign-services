@@ -11,6 +11,7 @@ import org.egov.excelingestion.config.ExcelIngestionConfig;
 import org.egov.excelingestion.service.LocalizationService;
 import org.egov.excelingestion.util.ExcelSchemaSheetCreator;
 import org.egov.excelingestion.web.models.*;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Component;
 import org.egov.common.http.client.ServiceRequestClient;
 
@@ -70,21 +71,8 @@ public class MicroplanProcessor implements IGenerateProcessor {
         // Fetch schema from MDMS for the user sheet
         String userSchemaJson = fetchSchemaFromMDMS(tenantId, requestInfo, "user-microplan-ingestion");
 
-        // Fetch boundary hierarchy data
-        String hierarchyUrl = config.getHierarchySearchUrl();
-        Map<String, Object> hierarchyPayload = createHierarchyPayload(requestInfo, tenantId, hierarchyType);
-        
-        log.info("Calling Boundary Hierarchy API: {} with tenantId: {}, hierarchyType: {}", hierarchyUrl, tenantId, hierarchyType);
-        
-        BoundaryHierarchyResponse hierarchyData;
-        try {
-            StringBuilder uri = new StringBuilder(hierarchyUrl);
-            hierarchyData = serviceRequestClient.fetchResult(uri, hierarchyPayload, BoundaryHierarchyResponse.class);
-            log.info("Successfully fetched boundary hierarchy data");
-        } catch (Exception e) {
-            log.error("Error calling Boundary Hierarchy API: {}", e.getMessage(), e);
-            throw new RuntimeException("Error calling Boundary Hierarchy API: " + hierarchyUrl, e);
-        }
+        // Fetch boundary hierarchy data (cached)
+        BoundaryHierarchyResponse hierarchyData = fetchBoundaryHierarchy(tenantId, hierarchyType, requestInfo);
 
         if (hierarchyData == null || hierarchyData.getBoundaryHierarchy() == null
                 || hierarchyData.getBoundaryHierarchy().isEmpty()) {
@@ -94,24 +82,8 @@ public class MicroplanProcessor implements IGenerateProcessor {
         List<BoundaryHierarchyChild> hierarchyRelations = hierarchyData.getBoundaryHierarchy().get(0)
                 .getBoundaryHierarchy();
 
-        StringBuilder url = new StringBuilder(config.getRelationshipSearchUrl());
-        url.append("?includeChildren=true")
-                .append("&tenantId=").append(URLEncoder.encode(tenantId, StandardCharsets.UTF_8))
-                .append("&hierarchyType=").append(URLEncoder.encode(hierarchyType, StandardCharsets.UTF_8));
-
-        // Fetch boundary relationship data
-        Map<String, Object> relationshipPayload = createRelationshipPayload(requestInfo, tenantId, hierarchyType);
-        
-        log.info("Calling Boundary Relationship API: {} with tenantId: {}, hierarchyType: {}", url.toString(), tenantId, hierarchyType);
-        
-        BoundarySearchResponse relationshipData;
-        try {
-            relationshipData = serviceRequestClient.fetchResult(url, relationshipPayload, BoundarySearchResponse.class);
-            log.info("Successfully fetched boundary relationship data");
-        } catch (Exception e) {
-            log.error("Error calling Boundary Relationship API: {}", e.getMessage(), e);
-            throw new RuntimeException("Error calling Boundary Relationship API: " + url.toString(), e);
-        }
+        // Fetch boundary relationship data (cached)
+        BoundarySearchResponse relationshipData = fetchBoundaryRelationship(tenantId, hierarchyType, requestInfo);
 
         // 1) Build level list "Level 1", "Level 2", ...
         List<String> levels = new ArrayList<>();
@@ -282,91 +254,8 @@ public class MicroplanProcessor implements IGenerateProcessor {
             mainSheet = workbook.createSheet(actualFacilitySheetName);
         }
         
-        // Add boundary columns after schema columns
-        // Row 0 contains technical names (hidden), Row 1 contains visible headers
-        Row hiddenRow = mainSheet.getRow(0);
-        Row visibleRow = mainSheet.getRow(1);
-        
-        if (hiddenRow == null) {
-            hiddenRow = mainSheet.createRow(0);
-        }
-        if (visibleRow == null) {
-            visibleRow = mainSheet.createRow(1);
-        }
-        
-        // Find the last used column from schema
-        int lastSchemaCol = visibleRow.getLastCellNum();
-        if (lastSchemaCol < 0) lastSchemaCol = 0;
-        
-        // Add boundary-related columns after schema columns
-        // Add technical names to hidden row
-        hiddenRow.createCell(lastSchemaCol).setCellValue("BOUNDARY_LEVEL");
-        hiddenRow.createCell(lastSchemaCol + 1).setCellValue("BOUNDARY_NAME");
-        hiddenRow.createCell(lastSchemaCol + 2).setCellValue("PARENT_BOUNDARY");
-        
-        // Add localized headers to visible row
-        visibleRow.createCell(lastSchemaCol).setCellValue(mergedLocalizationMap.getOrDefault("HCM_INGESTION_LEVEL_COLUMN", "Level"));
-        visibleRow.createCell(lastSchemaCol + 1)
-                .setCellValue(mergedLocalizationMap.getOrDefault("HCM_INGESTION_BOUNDARY_COLUMN", "Boundary Name"));
-        visibleRow.createCell(lastSchemaCol + 2)
-                .setCellValue(mergedLocalizationMap.getOrDefault("HCM_INGESTION_PARENT_COLUMN", "Parent Boundary"));
-
-        DataValidationHelper dvHelper = mainSheet.getDataValidationHelper();
-
-        // Add data validation for rows (2..5000) - starting from row 2 since row 0 is hidden and row 1 is headers
-        for (int rowIndex = 2; rowIndex <= 5000; rowIndex++) {
-            // Level dropdown uses named range "Levels" which contains display names "Level
-            // 1", "Level 2"...
-            DataValidationConstraint levelConstraint = dvHelper.createFormulaListConstraint("Levels");
-            CellRangeAddressList levelAddr = new CellRangeAddressList(rowIndex, rowIndex, lastSchemaCol, lastSchemaCol);
-            DataValidation levelValidation = dvHelper.createValidation(levelConstraint, levelAddr);
-            levelValidation.setErrorStyle(DataValidation.ErrorStyle.STOP);
-            levelValidation.setShowErrorBox(true);
-            levelValidation.createErrorBox("Invalid Level", "Please select a valid level from the dropdown list.");
-            levelValidation.setShowPromptBox(true);
-            levelValidation.createPromptBox("Select Level", "Choose a level from the dropdown list.");
-            mainSheet.addValidationData(levelValidation);
-
-            // Boundary dropdown: depends on Level chosen. Level cell contains "Level 1"
-            // etc.
-            // We created named ranges for Level as sanitized like "Level_1" that refer to
-            // localized names in Boundaries sheet.
-            String levelCellRef = CellReference.convertNumToColString(lastSchemaCol) + (rowIndex + 1);
-            String boundaryFormula = "INDIRECT(SUBSTITUTE(" + levelCellRef + ",\" \",\"_\"))";
-            DataValidationConstraint boundaryConstraint = dvHelper.createFormulaListConstraint(boundaryFormula);
-            CellRangeAddressList boundaryAddr = new CellRangeAddressList(rowIndex, rowIndex, lastSchemaCol + 1, lastSchemaCol + 1);
-            DataValidation boundaryValidation = dvHelper.createValidation(boundaryConstraint, boundaryAddr);
-            boundaryValidation.setErrorStyle(DataValidation.ErrorStyle.STOP);
-            boundaryValidation.setShowErrorBox(true);
-            boundaryValidation.createErrorBox("Invalid Boundary", "Please select a valid boundary from the dropdown list.");
-            boundaryValidation.setShowPromptBox(true);
-            boundaryValidation.createPromptBox("Select Boundary", "Choose a boundary based on the selected level.");
-            mainSheet.addValidationData(boundaryValidation);
-
-            // Parent dropdown: depends on selected boundary's localized name.
-            // Steps: VLOOKUP(localizedBoundary, CodeMap!$A:$B, 2, FALSE) -> returns
-            // codePath
-            // INDIRECT(that codePath) -> named range we created for that child codePath in
-            // Parents sheet
-            String boundaryCellRef = CellReference.convertNumToColString(lastSchemaCol + 1) + (rowIndex + 1);
-            String parentFormula = "IF(" + boundaryCellRef + "=\"\", \"\", INDIRECT(VLOOKUP(" + boundaryCellRef
-                    + ", _h_CodeMap_h_!$A:$B, 2, FALSE)))";
-            DataValidationConstraint parentConstraint = dvHelper.createFormulaListConstraint(parentFormula);
-            CellRangeAddressList parentAddr = new CellRangeAddressList(rowIndex, rowIndex, lastSchemaCol + 2, lastSchemaCol + 2);
-            DataValidation parentValidation = dvHelper.createValidation(parentConstraint, parentAddr);
-            parentValidation.setErrorStyle(DataValidation.ErrorStyle.STOP);
-            parentValidation.setShowErrorBox(true);
-            parentValidation.createErrorBox("Invalid Parent Boundary", "Please select a valid parent boundary from the dropdown list.");
-            parentValidation.setShowPromptBox(true);
-            parentValidation.createPromptBox("Select Parent Boundary", "Choose a parent boundary based on the selected boundary.");
-            mainSheet.addValidationData(parentValidation);
-        }
-
-        // Column widths & freeze
-        for (int c = lastSchemaCol; c < lastSchemaCol + 3; c++) {
-            mainSheet.setColumnWidth(c, 40 * 256);
-        }
-        mainSheet.createFreezePane(0, 2); // Freeze after row 2 since schema creator uses row 1 for technical names
+        // Add boundary columns to facility sheet
+        addBoundaryColumnsToSheet(workbook, actualFacilitySheetName, mergedLocalizationMap);
 
         // === Create User sheet using user schema ===
         String localizedUserSheetName = mergedLocalizationMap.getOrDefault("HCM_ADMIN_CONSOLE_USERS_LIST",
@@ -381,22 +270,11 @@ public class MicroplanProcessor implements IGenerateProcessor {
         
         if (userSchemaJson != null && !userSchemaJson.isEmpty()) {
             workbook = (XSSFWorkbook) ExcelSchemaSheetCreator.addEnhancedSchemaSheetFromJson(userSchemaJson, actualUserSheetName, workbook, mergedLocalizationMap);
+            
+            // Add boundary columns to user sheet as well
+            addBoundaryColumnsToSheet(workbook, actualUserSheetName, mergedLocalizationMap);
         }
 
-        // Unlock cells for user input
-        CellStyle unlocked = workbook.createCellStyle();
-        unlocked.setLocked(false);
-        for (int r = 2; r <= 5000; r++) { // Start from row 2 to skip hidden technical row
-            Row row = mainSheet.getRow(r);
-            if (row == null)
-                row = mainSheet.createRow(r);
-            for (int c = lastSchemaCol; c < lastSchemaCol + 3; c++) {
-                Cell cell = row.getCell(c);
-                if (cell == null)
-                    cell = row.createCell(c);
-                cell.setCellStyle(unlocked);
-            }
-        }
 
         // Set zoom to 60% BEFORE protection and hiding (Excel compatibility)
         for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
@@ -415,7 +293,7 @@ public class MicroplanProcessor implements IGenerateProcessor {
         // Set the active sheet before protection
         workbook.setActiveSheet(workbook.getSheetIndex(mainSheet));
         
-        // Protect sheet after all columns (schema + boundary) are configured
+        // Protect facility sheet after all columns (schema + boundary) are configured
         mainSheet.protectSheet("passwordhere");
         workbook.lockStructure();
         workbook.setWorkbookPassword("passwordhere", HashAlgorithm.sha512);
@@ -624,5 +502,148 @@ public class MicroplanProcessor implements IGenerateProcessor {
     private String getDefaultSchema() {
         // Default schema with basic columns if MDMS fetch fails
         return "{\"stringProperties\":[],\"numberProperties\":[],\"enumProperties\":[]}";
+    }
+
+    @Cacheable(value = "boundaryHierarchy", key = "#tenantId + '_' + #hierarchyType")
+    private BoundaryHierarchyResponse fetchBoundaryHierarchy(String tenantId, String hierarchyType, RequestInfo requestInfo) {
+        String hierarchyUrl = config.getHierarchySearchUrl();
+        Map<String, Object> hierarchyPayload = createHierarchyPayload(requestInfo, tenantId, hierarchyType);
+        
+        log.info("Calling Boundary Hierarchy API: {} with tenantId: {}, hierarchyType: {} (cached)", hierarchyUrl, tenantId, hierarchyType);
+        
+        try {
+            StringBuilder uri = new StringBuilder(hierarchyUrl);
+            BoundaryHierarchyResponse result = serviceRequestClient.fetchResult(uri, hierarchyPayload, BoundaryHierarchyResponse.class);
+            log.info("Successfully fetched boundary hierarchy data (cached)");
+            return result;
+        } catch (Exception e) {
+            log.error("Error calling Boundary Hierarchy API: {}", e.getMessage(), e);
+            throw new RuntimeException("Error calling Boundary Hierarchy API: " + hierarchyUrl, e);
+        }
+    }
+
+    @Cacheable(value = "boundaryRelationship", key = "#tenantId + '_' + #hierarchyType")
+    private BoundarySearchResponse fetchBoundaryRelationship(String tenantId, String hierarchyType, RequestInfo requestInfo) {
+        StringBuilder url = new StringBuilder(config.getRelationshipSearchUrl());
+        url.append("?includeChildren=true")
+                .append("&tenantId=").append(URLEncoder.encode(tenantId, StandardCharsets.UTF_8))
+                .append("&hierarchyType=").append(URLEncoder.encode(hierarchyType, StandardCharsets.UTF_8));
+
+        Map<String, Object> relationshipPayload = createRelationshipPayload(requestInfo, tenantId, hierarchyType);
+        
+        log.info("Calling Boundary Relationship API: {} with tenantId: {}, hierarchyType: {} (cached)", url.toString(), tenantId, hierarchyType);
+        
+        try {
+            BoundarySearchResponse result = serviceRequestClient.fetchResult(url, relationshipPayload, BoundarySearchResponse.class);
+            log.info("Successfully fetched boundary relationship data (cached)");
+            return result;
+        } catch (Exception e) {
+            log.error("Error calling Boundary Relationship API: {}", e.getMessage(), e);
+            throw new RuntimeException("Error calling Boundary Relationship API: " + url.toString(), e);
+        }
+    }
+
+    private void addBoundaryColumnsToSheet(XSSFWorkbook workbook, String sheetName, Map<String, String> localizationMap) {
+        Sheet sheet = workbook.getSheet(sheetName);
+        if (sheet == null) {
+            log.warn("Sheet '{}' not found, cannot add boundary columns", sheetName);
+            return;
+        }
+
+        // Add boundary columns after schema columns
+        // Row 0 contains technical names (hidden), Row 1 contains visible headers
+        Row hiddenRow = sheet.getRow(0);
+        Row visibleRow = sheet.getRow(1);
+        
+        if (hiddenRow == null) {
+            hiddenRow = sheet.createRow(0);
+        }
+        if (visibleRow == null) {
+            visibleRow = sheet.createRow(1);
+        }
+        
+        // Find the last used column from schema
+        int lastSchemaCol = visibleRow.getLastCellNum();
+        if (lastSchemaCol < 0) lastSchemaCol = 0;
+        
+        // Add boundary-related columns after schema columns
+        // Add technical names to hidden row
+        hiddenRow.createCell(lastSchemaCol).setCellValue("BOUNDARY_LEVEL");
+        hiddenRow.createCell(lastSchemaCol + 1).setCellValue("BOUNDARY_NAME");
+        hiddenRow.createCell(lastSchemaCol + 2).setCellValue("PARENT_BOUNDARY");
+        
+        // Add localized headers to visible row
+        visibleRow.createCell(lastSchemaCol).setCellValue(localizationMap.getOrDefault("HCM_INGESTION_LEVEL_COLUMN", "Level"));
+        visibleRow.createCell(lastSchemaCol + 1)
+                .setCellValue(localizationMap.getOrDefault("HCM_INGESTION_BOUNDARY_COLUMN", "Boundary Name"));
+        visibleRow.createCell(lastSchemaCol + 2)
+                .setCellValue(localizationMap.getOrDefault("HCM_INGESTION_PARENT_COLUMN", "Parent Boundary"));
+
+        DataValidationHelper dvHelper = sheet.getDataValidationHelper();
+
+        // Add data validation for rows (2..5000) - starting from row 2 since row 0 is hidden and row 1 is headers
+        for (int rowIndex = 2; rowIndex <= 5000; rowIndex++) {
+            // Level dropdown uses named range "Levels" which contains display names "Level 1", "Level 2"...
+            DataValidationConstraint levelConstraint = dvHelper.createFormulaListConstraint("Levels");
+            CellRangeAddressList levelAddr = new CellRangeAddressList(rowIndex, rowIndex, lastSchemaCol, lastSchemaCol);
+            DataValidation levelValidation = dvHelper.createValidation(levelConstraint, levelAddr);
+            levelValidation.setErrorStyle(DataValidation.ErrorStyle.STOP);
+            levelValidation.setShowErrorBox(true);
+            levelValidation.createErrorBox("Invalid Level", "Please select a valid level from the dropdown list.");
+            levelValidation.setShowPromptBox(true);
+            levelValidation.createPromptBox("Select Level", "Choose a level from the dropdown list.");
+            sheet.addValidationData(levelValidation);
+
+            // Boundary dropdown: depends on Level chosen. Level cell contains "Level 1" etc.
+            // We created named ranges for Level as sanitized like "Level_1" that refer to localized names in Boundaries sheet.
+            String levelCellRef = CellReference.convertNumToColString(lastSchemaCol) + (rowIndex + 1);
+            String boundaryFormula = "INDIRECT(SUBSTITUTE(" + levelCellRef + ",\" \",\"_\"))";
+            DataValidationConstraint boundaryConstraint = dvHelper.createFormulaListConstraint(boundaryFormula);
+            CellRangeAddressList boundaryAddr = new CellRangeAddressList(rowIndex, rowIndex, lastSchemaCol + 1, lastSchemaCol + 1);
+            DataValidation boundaryValidation = dvHelper.createValidation(boundaryConstraint, boundaryAddr);
+            boundaryValidation.setErrorStyle(DataValidation.ErrorStyle.STOP);
+            boundaryValidation.setShowErrorBox(true);
+            boundaryValidation.createErrorBox("Invalid Boundary", "Please select a valid boundary from the dropdown list.");
+            boundaryValidation.setShowPromptBox(true);
+            boundaryValidation.createPromptBox("Select Boundary", "Choose a boundary based on the selected level.");
+            sheet.addValidationData(boundaryValidation);
+
+            // Parent dropdown: depends on selected boundary's localized name.
+            // Steps: VLOOKUP(localizedBoundary, CodeMap!$A:$B, 2, FALSE) -> returns codePath
+            // INDIRECT(that codePath) -> named range we created for that child codePath in Parents sheet
+            String boundaryCellRef = CellReference.convertNumToColString(lastSchemaCol + 1) + (rowIndex + 1);
+            String parentFormula = "IF(" + boundaryCellRef + "=\"\", \"\", INDIRECT(VLOOKUP(" + boundaryCellRef
+                    + ", _h_CodeMap_h_!$A:$B, 2, FALSE)))";
+            DataValidationConstraint parentConstraint = dvHelper.createFormulaListConstraint(parentFormula);
+            CellRangeAddressList parentAddr = new CellRangeAddressList(rowIndex, rowIndex, lastSchemaCol + 2, lastSchemaCol + 2);
+            DataValidation parentValidation = dvHelper.createValidation(parentConstraint, parentAddr);
+            parentValidation.setErrorStyle(DataValidation.ErrorStyle.STOP);
+            parentValidation.setShowErrorBox(true);
+            parentValidation.createErrorBox("Invalid Parent Boundary", "Please select a valid parent boundary from the dropdown list.");
+            parentValidation.setShowPromptBox(true);
+            parentValidation.createPromptBox("Select Parent Boundary", "Choose a parent boundary based on the selected boundary.");
+            sheet.addValidationData(parentValidation);
+        }
+
+        // Column widths & freeze
+        for (int c = lastSchemaCol; c < lastSchemaCol + 3; c++) {
+            sheet.setColumnWidth(c, 40 * 256);
+        }
+        sheet.createFreezePane(0, 2); // Freeze after row 2 since schema creator uses row 1 for technical names
+
+        // Unlock cells for user input (for both sheets)
+        CellStyle unlocked = workbook.createCellStyle();
+        unlocked.setLocked(false);
+        for (int r = 2; r <= 5000; r++) { // Start from row 2 to skip hidden technical row
+            Row row = sheet.getRow(r);
+            if (row == null)
+                row = sheet.createRow(r);
+            for (int c = lastSchemaCol; c < lastSchemaCol + 3; c++) {
+                Cell cell = row.getCell(c);
+                if (cell == null)
+                    cell = row.createCell(c);
+                cell.setCellStyle(unlocked);
+            }
+        }
     }
 }

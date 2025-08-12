@@ -22,7 +22,7 @@ public class ExcelIngestionApplication {
 
     @Bean
     public CacheManager cacheManager() {
-        CaffeineCacheManager cacheManager = new CaffeineCacheManager("localizationMessages");
+        CaffeineCacheManager cacheManager = new CaffeineCacheManager("localizationMessages", "boundaryHierarchy", "boundaryRelationship");
         cacheManager.setCaffeine(Caffeine.newBuilder()
                 .expireAfterWrite(1, TimeUnit.HOURS)
                 .maximumSize(100));
