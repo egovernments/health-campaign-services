@@ -15,9 +15,13 @@ export const downloadTemplate = async (
   campaignId: string,
   tenantId: string,
   type: string,
-  hierarchy: string
+  hierarchy: string,
+  requestBody?: any
 ) => {
-  const searchBody = {
+  // Use request body info if provided, otherwise fall back to default
+  const searchBody = requestBody ? {
+    RequestInfo: requestBody.RequestInfo
+  } : {
     ...defaultRequestInfo, // Include default request metadata
   };
 
@@ -170,12 +174,13 @@ export const getTheGeneratedResource = async (
   campaignId: string,
   tenantId: string,
   type: string,
-  hierarchy: string
+  hierarchy: string,
+  requestBody?: any
 ) => {
   try {
     // Await the response from polling for template generation
     const polledResponse: any = await pollForTemplateGeneration(
-      () => downloadTemplate(campaignId, tenantId, type, hierarchy),
+      () => downloadTemplate(campaignId, tenantId, type, hierarchy, requestBody),
       conditionForTermination
     );
 

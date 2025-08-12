@@ -2,20 +2,55 @@ import Redis from "ioredis";
 import config from "../config";
 import { logger } from "./logger";
 
-const redis = new Redis({
-    host: config.host.redisHost,
-    port: parseInt(config.cacheValues.redisPort),
-    retryStrategy(times) {
-        if (times > 1) {
-            return null; // Stop retrying after one attempt
+let redis: Redis;
+
+function createRedisInstance(): Redis {
+    const client = new Redis({
+        host: config.host.redisHost,
+        port: parseInt(config.cacheValues.redisPort),
+        retryStrategy() {
+            return null;
+        },
+        maxRetriesPerRequest: 1,
+        reconnectOnError() {
+            return false;
+        },
+    });
+
+    client.on("connect", () => {
+        logger.info(`✅ Connected to Redis — Host: ${config.host.redisHost}, Port: ${config.cacheValues.redisPort}`);
+    });
+
+    client.on("error", (err) => {
+        logger.error(`❌ Redis error — Host: ${config.host.redisHost}, Port: ${config.cacheValues.redisPort}`);
+        logger.error("Details:", err);
+    });
+
+    return client;
+}
+
+async function reconnectRedis(): Promise<void> {
+    try {
+        logger.info("🔄 Re-establishing Redis connection...");
+        if (redis) {
+            try {
+                await redis.quit();
+            } catch (err) {
+                logger.warn("⚠️ Failed to quit old Redis connection:", err);
+            }
         }
-        return 500; // Delay before retrying (in milliseconds)
-    },
-    maxRetriesPerRequest: 1, // Allow only 1 retry per request
-    reconnectOnError(err) {
-        return false; // Do not reconnect on errors
-    },
-});
+        redis = createRedisInstance();
+
+        // Wait a bit before pinging to give Redis time to come up
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        await redis.ping();
+
+        logger.info("✅ Redis reconnection successful.");
+    } catch (error) {
+        logger.error("❌ Redis reconnection failed:", error);
+    }
+}
+
 
 async function checkRedisConnection(): Promise<boolean> {
     try {
@@ -23,55 +58,54 @@ async function checkRedisConnection(): Promise<boolean> {
             await redis.ping();
         }
         return true;
-
     } catch (error) {
-        console.error("Redis connection error:", error);
+        logger.error("❌ Redis ping failed:", error);
         return false;
     }
 }
 
-// Listen for the 'connect' event
-redis.on('connect', () => {
-    logger.info(`Successfully connected to Redis!  host :: ${config.host.redisHost} & port :: ${config.cacheValues.redisPort}`);
-    // You can add additional code here to perform actions after a successful connection
-});
-
-// Listen for errors
-redis.on('error', (err) => {
-    logger.info(`failed connecting to Redis!  host :: ${config.host.redisHost} & port :: ${config.cacheValues.redisPort}`);
-    logger.error("Redis connection error:", err);
-});
-
-
-
-async function deleteRedisCacheKeysWithPrefix(prefix: any) {
+async function deleteRedisCacheKeysWithPrefix(prefix: string): Promise<void> {
     try {
-        // Use SCAN instead of KEYS to avoid performance issues
+        let isConnected = await checkRedisConnection();
+        if (!isConnected) {
+            await reconnectRedis();
+            isConnected = await checkRedisConnection();
+        }
+
+        if (!isConnected) {
+            logger.error("❌ Redis still not connected. Skipping cache deletion.");
+            return;
+        }
+
         let cursor = '0';
-        let keysToDelete: any = [];
+        const keysToDelete: string[] = [];
 
         do {
-            const result = await redis.scan(cursor, 'MATCH', `${prefix}*`, 'COUNT', '100');
-            cursor = result[0];
-            const keys = result[1];
-
+            const [nextCursor, keys] = await redis.scan(cursor, 'MATCH', `${prefix}*`, 'COUNT', '100');
+            cursor = nextCursor;
             if (keys.length > 0) {
-                keysToDelete = keysToDelete.concat(keys);
-                logger.info("Cache keys found to be deleted: " + keys);
+                keysToDelete.push(...keys);
+                logger.info(`🧹 Found cache keys to delete: ${keys}`);
             }
         } while (cursor !== '0');
 
         if (keysToDelete.length > 0) {
             await redis.del(...keysToDelete);
-            logger.info(`Deleted keys with prefix "${prefix}":`, keysToDelete);
+            logger.info(`✅ Deleted keys with prefix "${prefix}":`, keysToDelete);
         } else {
-            logger.info(`No keys found with prefix "${prefix}"`);
+            logger.info(`ℹ️ No keys found with prefix "${prefix}"`);
         }
     } catch (error) {
-        logger.info("Error deleting keys:", error);
-        throw error;
+        logger.warn("⚠️ Error deleting Redis keys:", error);
     }
 }
 
+// Start
+redis = createRedisInstance();
 
-export { redis, checkRedisConnection, deleteRedisCacheKeysWithPrefix };
+export {
+    redis,
+    checkRedisConnection,
+    reconnectRedis,
+    deleteRedisCacheKeysWithPrefix,
+};

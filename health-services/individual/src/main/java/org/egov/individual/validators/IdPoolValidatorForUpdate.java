@@ -139,6 +139,10 @@ public class IdPoolValidatorForUpdate implements Validator<IndividualBulkRequest
     }
 
     public static boolean isValidMaskedId(String beneficiaryId, Integer length) {
+        // Check minimum length first
+        if (beneficiaryId == null || beneficiaryId.length() < 4) {
+            return false;
+        }
         // get the last 4 digits
         String last4Digits = beneficiaryId
                 .substring(beneficiaryId.length() - 4);

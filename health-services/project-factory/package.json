@@ -1,6 +1,6 @@
 {
   "name": "project-factory",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "main": "src/server/index.ts",
   "author": "Jagankumar <jagan.kumar@egov.org.in>",
   "description": "Backend For Frontend service",
@@ -10,7 +10,7 @@
     "build": "yarn run build-ts",
     "build-ts": "tsc",
     "clean": "rm -rf ./dist",
-    "serve": "if [ \"$DEBUG\" = \"true\" ]; then node --inspect=0.0.0.0:9229 dist/index.js; else node dist/index.js; fi",
+    "serve": "if [ \"$DEBUG\" = \"true\" ]; then NODE_OPTIONS=--max-old-space-size=3072 node --inspect=0.0.0.0:9229 dist/index.js; else NODE_OPTIONS=--max-old-space-size=3072 node dist/index.js; fi",
     "start": "yarn run dev",
     "test": "jest",
     "dev": "ts-node-dev --respawn src/server/index.ts",
@@ -34,7 +34,7 @@
     "ioredis": "^5.4.1",
     "jaeger-client": "^3.19.0",
     "jsonpath": "1.1.1",
-    "kafka-node": "5.0.0",
+    "kafkajs": "^2.2.4",
     "lodash": "4.17.21",
     "morgan": "1.10.0",
     "node-cache": "5.1.2",
@@ -44,7 +44,8 @@
     "winston": "3.12.0",
     "xlsx": "0.18.5",
     "xlsx-populate": "1.21.0",
-    "yup": "1.4.0"
+    "yup": "1.4.0",
+    "zod": "^3.24.4"
   },
   "devDependencies": {
     "@types/compression": "1.7.5",

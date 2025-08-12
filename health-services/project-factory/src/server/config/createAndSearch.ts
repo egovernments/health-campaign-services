@@ -89,7 +89,9 @@ const createAndSearch: any = {
                 },
                 {
                     sheetColumn: "F",
-                    sheetColumnName: "HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY"
+                    sheetColumnName: "HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY",
+                    resultantPath: "address.locality.code",
+                    type: "string"
                 }
             ],
             tenantId: {
@@ -213,6 +215,18 @@ const createAndSearch: any = {
                     sheetColumnName: "HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY",
                     resultantPath: "jurisdictions",
                     type: "string"
+                },
+                {
+                    sheetColumn: "L",
+                    sheetColumnName: "UserName",
+                    resultantPath: "user.userName",
+                    type: "string"
+                },
+                {
+                    sheetColumn: "M",
+                    sheetColumnName: "Password",
+                    resultantPath: "user.password",
+                    type: "string"
                 }
             ],
             tenantId: {
@@ -221,9 +235,9 @@ const createAndSearch: any = {
             }
         },
         uniqueIdentifier: "user.userServiceUuid",
-        uniqueIdentifierColumn: "I",
+        uniqueIdentifierColumn: "P",
         uniqueIdentifierColumnName: "UserService Uuids",
-        activeColumn: "F",
+        activeColumn: "J",
         activeColumnName: "HCM_ADMIN_CONSOLE_USER_USAGE",
         createBulkDetails: {
             limit: 50,

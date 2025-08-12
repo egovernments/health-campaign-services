@@ -4,7 +4,7 @@ All notable changes to this module will be documented in this file.
 
 ## 1.2.1 - 2025-08-11
 
-- Resolved household head validation on different cases
+- Enhanced household head validation to handle multiple head detection, head assignment/unassignment scenarios, and improved error handling
 
 ## 1.2.0 - 2025-04-15
 

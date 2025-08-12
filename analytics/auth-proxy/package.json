@@ -5,7 +5,8 @@
   "main": "server.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node ${DEBUG_ENABLED:+--inspect=0.0.0.0:9229} server.js"
+    "start": "node server.js",
+    "start:debug": "node ${DEBUG_ENABLED:+--inspect=0.0.0.0:9229} server.js"
   },
   "author": "",
   "license": "ISC",

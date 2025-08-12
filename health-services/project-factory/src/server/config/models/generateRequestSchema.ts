@@ -12,6 +12,8 @@ export const generateRequestSchema = {
       "maxLength": 128,
       "minLength": 1,
       "enum": [
+        "facility",
+        "user",
         "boundary",
         "boundaryManagement",
         "facilityWithBoundary",

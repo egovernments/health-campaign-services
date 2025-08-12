@@ -1,3 +1,4 @@
+import config from "../../config";
 import pool from "../../config/dbPoolConfig";
 import { throwError } from "../genericUtils";
 import { getFormattedStringForDebug, logger } from "../logger";
@@ -29,3 +30,21 @@ export const executeQuery = async (
     throw error;
   }
 };
+
+export const getTableName = (tableName: string, tenantId: string): string => {
+  if (config.isEnvironmentCentralInstance) {
+    // If tenantId has no ".", default to tenantId itself
+    const firstTenantPartAfterSplit = tenantId.includes(".")
+      ? tenantId.split(".")[0]
+      : tenantId;
+    return `${firstTenantPartAfterSplit}.${tableName}`;
+  } else {
+    return `${getDBSchemaName(config.DB_CONFIG.DB_SCHEMA)}.${tableName}`;
+  }
+};
+
+
+const getDBSchemaName = (dbSchema = "") => {
+  // return "health";
+  return dbSchema ? (dbSchema == "egov" ? "public" : dbSchema) : "public";
+}

@@ -2,16 +2,19 @@
 import { BoundaryModels, MDMSModels } from "../models";
 import config from "../config";
 import { defaultheader, httpRequest } from "../utils/request";
+import { logger } from "../utils/logger";
 
 // Default request information for MDMS API requests
 export const defaultRequestInfo: any = {
   RequestInfo: {
     apiId: "PROJECTFACTORY", // Identifier for the calling application,
     msgId: `${new Date().getTime()}|${config.localisation.defaultLocale}`,
-    ...(config.isProduction && config.token && { authToken :config.token}),
-     ...{ userInfo:{
-      tenantId:config?.app?.defaultTenantId
-     }},
+    ...(config.isProduction && config.token && { authToken: config.token }),
+    ...{
+      userInfo: {
+        tenantId: config?.app?.defaultTenantId
+      }
+    },
   },
 };
 
@@ -23,24 +26,50 @@ export const defaultRequestInfo: any = {
  * @param MdmsCriteria - The criteria for the MDMS v2 search, including tenantId and schemaCode.
  * @returns Promise resolving to the MDMS v2 search response containing matched data.
  */
+/**
+ * Searches MDMS data using the v2 API with optional caching.
+ * 
+ * @param criteria - The MDMS criteria used to search.
+ * @param cacheEnabled - Enables cache key header if true.
+ * @returns A promise resolving to MDMS v2 API response.
+ */
 const searchMDMSDataViaV2Api = async (
-  MdmsCriteria: MDMSModels.MDMSv2RequestCriteria
+  criteria: MDMSModels.MDMSv2RequestCriteria,
+  cacheEnabled: boolean = false
 ): Promise<MDMSModels.MDMSv2Response> => {
-  // Construct the full API URL for the v2 MDMS search
-  const apiUrl: string = config.host.mdmsV2 + config.paths.mdms_v2_search;
+  const apiUrl = `${config.host.mdmsV2}${config.paths.mdms_v2_search}`;
 
-  // Prepare the data payload for the API request
-  const data = {
-    MdmsCriteria,
-    ...defaultRequestInfo,
+  const mdms = criteria?.MdmsCriteria || criteria;
+  if (!mdms?.tenantId || !mdms?.schemaCode) {
+    throw new Error("Invalid MDMS criteria: tenantId and schemaCode are required.");
+  }
+
+  const headers: Record<string, string> = { ...defaultheader };
+
+  if (cacheEnabled) {
+    const uniqueIdsPart = Array.isArray(mdms.uniqueIdentifiers)
+      ? mdms.uniqueIdentifiers.join(",")
+      : "";
+    headers.cachekey = `mdmsv2Seacrh${mdms.tenantId}${uniqueIdsPart}${mdms.schemaCode}`;
+  }
+
+  const requestBody = {
+    MdmsCriteria: mdms,
+    RequestInfo: defaultRequestInfo?.RequestInfo
   };
 
-  // Make an HTTP request to the MDMS v2 API
-  const response: MDMSModels.MDMSv2Response = await httpRequest(apiUrl, data);
+  const response: MDMSModels.MDMSv2Response = await httpRequest(
+    apiUrl,
+    requestBody,
+    undefined,
+    undefined,
+    undefined,
+    headers
+  );
 
-  // Return the response from the API
   return response;
 };
+
 
 /**
  * Fetches the schema definitions from MDMS based on specified criteria.
@@ -174,24 +203,35 @@ const searchBoundaryRelationshipData = async (
   hierarchyType: string,
   includeChildren: boolean = true,
   includeParents: boolean = true,
+  isCache?:boolean,
+  codes?: string
 ): Promise<BoundaryModels.BoundaryHierarchyRelationshipResponse> => {
   // Prepare request body with default request information
   const requestBody = {
     ...defaultRequestInfo,
   };
-  const headers : any = {
-        ...defaultheader,
-        cachekey: `boundaryRelationShipSearch${hierarchyType}${tenantId}${""}${includeChildren || ""}`,
-      };
+  const headers: any = {
+    ...defaultheader,
+    ...(isCache && {
+      cachekey: `boundaryRelationShipSearch${hierarchyType}${tenantId}${codes || ""}${includeChildren || ""}`,
+    }),
+  };
 
   // Construct API URL for boundary hierarchy relationship search
   const url = config.host.boundaryHost + config.paths.boundaryRelationship;
+  const params = {
+    tenantId,
+    hierarchyType,
+    includeChildren,
+    includeParents,
+    ...(codes && { codes }) // Only add `codes` if it's provided
+  };
 
   // Execute HTTP request with tenant ID, hierarchy type, and inclusion flags in headers
   const response: BoundaryModels.BoundaryHierarchyRelationshipResponse = await httpRequest(
     url,
     requestBody,
-    { tenantId, hierarchyType, includeChildren, includeParents },
+    params,
     undefined,
     undefined,
     headers
@@ -242,14 +282,14 @@ const searchBoundaryRelationshipDefinition = async (
 
 
 
-const  fetchFileFromFilestore=async(filestoreId:string,tenantId:string)=> {
-  
+const fetchFileFromFilestore = async (filestoreId: string, tenantId: string) => {
+
   try {
     const reqParamsForFetchingFile = {
       tenantId: tenantId,
       fileStoreIds: filestoreId
     };
-    const fileResponse= await httpRequest(
+    const fileResponse = await httpRequest(
       `${config?.host?.filestore}${config?.paths?.filestorefetch}`,
       {},
       reqParamsForFetchingFile,
@@ -262,5 +302,39 @@ const  fetchFileFromFilestore=async(filestoreId:string,tenantId:string)=> {
   }
 }
 
+/**
+ * Creates or updates MDMS data for a specific schema code in the given tenant.
+ * 
+ * 
+ * @param tenantId - The unique identifier for the tenant.
+ * @param schemaCode - The schema code for which data is being created or updated.
+ * @param data - The data to be stored in MDMS.
+ * @param useruuid - The UUID of the user performing the operation.
+ * @returns Promise resolving when the MDMS data creation is complete.
+ */
+async function createMdmsData(
+  tenantId: string,
+  schemaCode: string,
+  data: any,
+  useruuid: string
+): Promise<void> {
+  const RequestInfo = { ...defaultRequestInfo?.RequestInfo };
+  RequestInfo.userInfo.uuid = useruuid;
+
+  const requestBody = {
+    RequestInfo,
+    Mdms: {
+      tenantId,
+      schemaCode,
+      data
+    },
+  };
+
+  const url = `${config?.host?.mdmsV2}${config?.paths?.mdms_v2_create}/${schemaCode}`;
+  await httpRequest(url, requestBody);
+
+  logger.info(`Created data for ${schemaCode} in MDMS for tenant ${tenantId}`);
+}
+
 // Exporting all API functions for MDMS operations
-export { searchMDMSDataViaV2Api, searchMDMSSchema, searchMDMSDataViaV1Api ,searchBoundaryEntity, searchBoundaryRelationshipData, searchBoundaryRelationshipDefinition ,fetchFileFromFilestore};
+export { searchMDMSDataViaV2Api, searchMDMSSchema, searchMDMSDataViaV1Api, searchBoundaryEntity, searchBoundaryRelationshipData, searchBoundaryRelationshipDefinition, fetchFileFromFilestore, createMdmsData };

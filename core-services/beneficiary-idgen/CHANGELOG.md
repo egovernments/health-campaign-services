@@ -1,10 +1,10 @@
 # Changelog
 All notable changes to this module will be documented in this file.
 
-## 1.1.0 - 2025-7-23
+## 1.1.0 - 2025-07-23
 
 - Changed dispatch user id flow with DB query
-- Updated Redis usage with radisson
+- Updated Redis usage with Redisson
 - Fixed max limit reached issue for user device per day
 - upgraded health-services-models to 1.0.28
 - upgraded health-services-common to 1.1.0

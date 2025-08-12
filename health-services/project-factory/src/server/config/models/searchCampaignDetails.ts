@@ -27,6 +27,12 @@ export const searchCampaignDetailsSchema = {
         "campaignsIncludeDates": {
             "type": "boolean"
         },
+        "isLikeSearch": {
+            "type": "boolean"
+        },
+        "isOverrideDatesFromProject": {
+            "type": "boolean"
+        },
         "projectType": {
             "type": "string"
         },
@@ -48,6 +54,12 @@ export const searchCampaignDetailsSchema = {
             "type": "string"
         },
         "campaignNumber": {
+            "type": "string"
+        },
+        "isChildCampaign": {
+            "type": "boolean"
+        },
+        "parentId": {
             "type": "string"
         },
         "pagination": {
