@@ -5,6 +5,7 @@ on:
     branches:
       - allValidations
       - master
+      - unlock-boundary-sheet
 
 env:
   DOCKER_USERNAME: ${{ vars.DOCKER_USERNAME }}
