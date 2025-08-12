@@ -324,6 +324,11 @@ public class MicroplanProcessor implements IGenerateProcessor {
             DataValidationConstraint levelConstraint = dvHelper.createFormulaListConstraint("Levels");
             CellRangeAddressList levelAddr = new CellRangeAddressList(rowIndex, rowIndex, lastSchemaCol, lastSchemaCol);
             DataValidation levelValidation = dvHelper.createValidation(levelConstraint, levelAddr);
+            levelValidation.setErrorStyle(DataValidation.ErrorStyle.STOP);
+            levelValidation.setShowErrorBox(true);
+            levelValidation.createErrorBox("Invalid Level", "Please select a valid level from the dropdown list.");
+            levelValidation.setShowPromptBox(true);
+            levelValidation.createPromptBox("Select Level", "Choose a level from the dropdown list.");
             mainSheet.addValidationData(levelValidation);
 
             // Boundary dropdown: depends on Level chosen. Level cell contains "Level 1"
@@ -335,6 +340,11 @@ public class MicroplanProcessor implements IGenerateProcessor {
             DataValidationConstraint boundaryConstraint = dvHelper.createFormulaListConstraint(boundaryFormula);
             CellRangeAddressList boundaryAddr = new CellRangeAddressList(rowIndex, rowIndex, lastSchemaCol + 1, lastSchemaCol + 1);
             DataValidation boundaryValidation = dvHelper.createValidation(boundaryConstraint, boundaryAddr);
+            boundaryValidation.setErrorStyle(DataValidation.ErrorStyle.STOP);
+            boundaryValidation.setShowErrorBox(true);
+            boundaryValidation.createErrorBox("Invalid Boundary", "Please select a valid boundary from the dropdown list.");
+            boundaryValidation.setShowPromptBox(true);
+            boundaryValidation.createPromptBox("Select Boundary", "Choose a boundary based on the selected level.");
             mainSheet.addValidationData(boundaryValidation);
 
             // Parent dropdown: depends on selected boundary's localized name.
@@ -348,6 +358,11 @@ public class MicroplanProcessor implements IGenerateProcessor {
             DataValidationConstraint parentConstraint = dvHelper.createFormulaListConstraint(parentFormula);
             CellRangeAddressList parentAddr = new CellRangeAddressList(rowIndex, rowIndex, lastSchemaCol + 2, lastSchemaCol + 2);
             DataValidation parentValidation = dvHelper.createValidation(parentConstraint, parentAddr);
+            parentValidation.setErrorStyle(DataValidation.ErrorStyle.STOP);
+            parentValidation.setShowErrorBox(true);
+            parentValidation.createErrorBox("Invalid Parent Boundary", "Please select a valid parent boundary from the dropdown list.");
+            parentValidation.setShowPromptBox(true);
+            parentValidation.createPromptBox("Select Parent Boundary", "Choose a parent boundary based on the selected boundary.");
             mainSheet.addValidationData(parentValidation);
         }
 
