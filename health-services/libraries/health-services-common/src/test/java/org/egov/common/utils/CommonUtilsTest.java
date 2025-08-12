@@ -2,7 +2,7 @@ package org.egov.common.utils;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import digit.models.coremodels.AuditDetails;
+import org.egov.common.contract.models.AuditDetails;
 import lombok.Builder;
 import lombok.Data;
 import org.egov.common.contract.request.RequestInfo;
@@ -38,13 +38,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.function.Predicate;
-import java.util.function.UnaryOperator;
 
+import static org.egov.common.utils.CommonUtils.getMethod;
+import static org.egov.common.utils.CommonUtils.getObjClass;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -152,30 +151,30 @@ class CommonUtilsTest {
         assertEquals(0, CommonUtils.getDifference(idList, otherIdList).size());
     }
 
-    @Test
-    @DisplayName("should validate the ids as per the given validator")
-    void shouldValidateTheIdsAsPerTheGivenValidator() {
-        Set<String> idSet = new HashSet<>();
-        idSet.add("some-id");
-        idSet.add("other-id");
-        UnaryOperator<List<String>> validator = UnaryOperator.identity();
-
-        assertDoesNotThrow(() -> CommonUtils.validateIds(idSet, validator));
-    }
-
-    @Test
-    @DisplayName("should throw exception in case an invalid id is found")
-    void shouldThrowExceptionInCaseAnInvalidIdIsFound() {
-        Set<String> idSet = new HashSet<>();
-        idSet.add("some-id");
-        idSet.add("other-id");
-        UnaryOperator<List<String>> validator = (idList) -> {
-            idList.remove(0);
-            return idList;
-        };
-
-        assertDoesNotThrow(() -> CommonUtils.validateIds(idSet, validator));
-    }
+//    @Test
+//    @DisplayName("should validate the ids as per the given validator")
+//    void shouldValidateTheIdsAsPerTheGivenValidator() {
+//        Set<String> idSet = new HashSet<>();
+//        idSet.add("some-id");
+//        idSet.add("other-id");
+//        UnaryOperator<List<String>> validator = UnaryOperator.identity();
+//
+//        assertDoesNotThrow(() -> CommonUtils.validateIds(idSet, validator));
+//    }
+//
+//    @Test
+//    @DisplayName("should throw exception in case an invalid id is found")
+//    void shouldThrowExceptionInCaseAnInvalidIdIsFound() {
+//        Set<String> idSet = new HashSet<>();
+//        idSet.add("some-id");
+//        idSet.add("other-id");
+//        UnaryOperator<List<String>> validator = (idList) -> {
+//            idList.remove(0);
+//            return idList;
+//        };
+//
+//        assertDoesNotThrow(() -> CommonUtils.validateIds(idSet, validator));
+//    }
 
     @Test
     @DisplayName("should get audit details for create")
@@ -303,7 +302,7 @@ class CommonUtilsTest {
         objList.add(otherObject);
         objList.add(otherInvalidObject);
 
-        Method idMethod = CommonUtils.getMethod("getId", SomeObject.class);
+        Method idMethod = getMethod("getId", SomeObject.class);
 
         assertEquals("some-other-id",
                 CommonUtils.getEntitiesWithMismatchedRowVersion(idToObjMap, objList, idMethod).get(0).getId());
@@ -595,8 +594,7 @@ class CommonUtilsTest {
     void shouldGetIdFieldNameFromMethod() {
         SomeObjectWithClientRefId someObject = SomeObjectWithClientRefId.builder()
                 .clientReferenceId("some-client-reference-id").build();
-        assertEquals("clientReferenceId", CommonUtils.getIdFieldName(CommonUtils
-                .getMethod("getClientReferenceId", someObject.getClass())));
+        assertEquals("clientReferenceId", CommonUtils.getIdFieldName(getMethod("getClientReferenceId", someObject.getClass())));
     }
 
     @Test

@@ -1,5 +1,12 @@
 package org.egov.referralmanagement.validator;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
+
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.Error;
 import org.egov.common.models.referralmanagement.Referral;
@@ -12,13 +19,6 @@ import org.egov.referralmanagement.service.SideEffectService;
 import org.egov.tracer.model.CustomException;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
-
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.stream.Collectors;
 
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
@@ -58,7 +58,7 @@ public class RmSideEffectIdValidator implements Validator<ReferralBulkRequest, R
                     validSideEffectIds = sideEffectService.search(
                             SideEffectSearchRequest.builder().sideEffect(SideEffectSearch.builder().id(sideEffectIds).build()).build(),
                             sideEffectIds.size(), 0, tenantId, null, false
-                    ).stream().map(SideEffect::getId).collect(Collectors.toList());
+                    ).getResponse().stream().map(SideEffect::getId).collect(Collectors.toList());
                 } catch (Exception e) {
                     throw new CustomException("Side Effect failed to fetch", "Exception : " + e.getMessage());
                 }

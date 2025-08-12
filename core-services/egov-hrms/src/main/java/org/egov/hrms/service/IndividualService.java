@@ -2,6 +2,7 @@ package org.egov.hrms.service;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
@@ -13,28 +14,22 @@ import java.util.stream.Collectors;
 import digit.models.coremodels.AuditDetails;
 import digit.models.coremodels.user.enums.UserType;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.models.core.Role;
-import org.egov.common.models.individual.Address;
-import org.egov.common.models.individual.AddressType;
-import org.egov.common.models.individual.Gender;
-import org.egov.common.models.individual.Identifier;
-import org.egov.common.models.individual.Individual;
-import org.egov.common.models.individual.IndividualBulkResponse;
-import org.egov.common.models.individual.IndividualRequest;
-import org.egov.common.models.individual.IndividualResponse;
-import org.egov.common.models.individual.IndividualSearch;
-import org.egov.common.models.individual.IndividualSearchRequest;
-import org.egov.common.models.individual.Name;
-import org.egov.common.models.individual.UserDetails;
+import org.egov.common.models.individual.*;
 import org.egov.hrms.config.PropertiesManager;
 import org.egov.hrms.repository.RestCallRepository;
 import org.egov.hrms.utils.HRMSConstants;
 import org.egov.hrms.web.contract.User;
 import org.egov.hrms.web.contract.UserRequest;
 import org.egov.hrms.web.contract.UserResponse;
+import org.egov.hrms.web.models.IndividualBulkResponse;
+import org.egov.hrms.web.models.IndividualSearch;
+import org.egov.hrms.web.models.IndividualSearchRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import static org.egov.hrms.utils.HRMSConstants.HRMS_USER_SEARCH_CRITERA_USER_SERVICE_UUIDS;
 import static org.egov.hrms.utils.HRMSConstants.SYSTEM_GENERATED;
 
 @Slf4j
@@ -54,7 +49,7 @@ public class IndividualService implements UserService {
 
     @Override
     public UserResponse createUser(UserRequest userRequest) {
-        IndividualRequest request = mapToIndividualRequest(userRequest);
+        IndividualRequest request = mapToIndividualRequest(userRequest, null);
         StringBuilder uri = new StringBuilder();
         uri.append(propertiesManager.getIndividualHost());
         uri.append(propertiesManager.getIndividualCreateEndpoint());
@@ -68,14 +63,13 @@ public class IndividualService implements UserService {
         return userResponse;
     }
 
-    @Override
-    public UserResponse updateUser(UserRequest userRequest) {
-        IndividualRequest request = mapToIndividualRequest(userRequest);
+    public UserResponse createUserByLocality(UserRequest userRequest, String localityCode) {
+        IndividualRequest request = mapToIndividualRequest(userRequest,localityCode);
         StringBuilder uri = new StringBuilder();
         uri.append(propertiesManager.getIndividualHost());
-        uri.append(propertiesManager.getIndividualUpdateEndpoint());
+        uri.append(propertiesManager.getIndividualCreateEndpoint());
         IndividualResponse response = restCallRepository
-                .fetchResult(uri, request, IndividualResponse.class);
+          .fetchResult(uri, request, IndividualResponse.class);
         UserResponse userResponse = null;
         if (response != null && response.getIndividual() != null) {
             log.info("response received from individual service");
@@ -84,18 +78,153 @@ public class IndividualService implements UserService {
         return userResponse;
     }
 
+    /**
+     * Updates a user by searching for the corresponding individual and updating their details.
+     *
+     * Steps:
+     * 1. Map UserRequest to IndividualSearchRequest.
+     * 2. Fetch individual data using tenant ID and search request.
+     * 3. Return null if no individual is found.
+     * 4. Prepare an IndividualRequest for update.
+     * 5. Construct the update endpoint URI.
+     * 6. Perform REST call to update individual.
+     * 7. Map response to UserResponse if successful.
+     * 8. Return UserResponse.
+     * TODO FIXME
+     * @param userRequest The request object containing user details to be updated.
+     * @return UserResponse containing updated user information, or null if no individual was found.
+     */
+    @Override
+    public UserResponse updateUser(UserRequest userRequest) {
+        // Map the UserRequest to an IndividualSearchRequest
+        IndividualSearchRequest individualSearchRequest = mapToIndividualSearchRequest(userRequest);
+
+        // Fetch the individual response from the individual service
+        IndividualBulkResponse individualSearchResponse =
+                getIndividualResponse(userRequest.getUser().getTenantId(), individualSearchRequest);
+
+        UserResponse userResponse = null;
+
+        // Check if the individual search response is null or contains no individuals
+        if (individualSearchResponse == null || individualSearchResponse.getIndividual() == null || individualSearchResponse.getIndividual().isEmpty()) {
+            return userResponse;  // Return null if no individual is found
+        }
+
+        // Get the first individual from the search response
+        Individual individual = individualSearchResponse.getIndividual().get(0);
+
+        // Map the found individual and the user request to an IndividualRequest for update
+        IndividualRequest updateRequest = mapToIndividualUpdateRequest(individual, userRequest);
+
+        // Build the URI for the update endpoint
+        StringBuilder uri = new StringBuilder();
+        uri.append(propertiesManager.getIndividualHost());
+        uri.append(propertiesManager.getIndividualUpdateEndpoint());
+
+        // Make a REST call to update the individual
+        IndividualResponse response = restCallRepository
+                .fetchResult(uri, updateRequest, IndividualResponse.class);
+
+        // If the response is not null and contains an updated individual, map it to UserResponse
+        if (response != null && response.getIndividual() != null) {
+            log.info("Response received from individual service");
+            userResponse = mapToUserResponse(response);
+        }
+
+        // Return the UserResponse
+        return userResponse;
+    }
+
+
+    private IndividualRequest mapToIndividualUpdateRequest(Individual individual, UserRequest userRequest) {
+        Individual updatedIndividual = Individual.builder()
+                .id(individual.getId())
+                .userId(individual.getUserId())
+                .userUuid(individual.getUserUuid())
+                .isSystemUser(true)
+                .isSystemUserActive(userRequest.getUser().getActive())
+                .name(Name.builder()
+                        .givenName(userRequest.getUser().getName())
+                        .build())
+                .gender(Gender.fromValue(userRequest.getUser().getGender()))
+                .email(userRequest.getUser().getEmailId())
+                .mobileNumber(userRequest.getUser().getMobileNumber())
+                .dateOfBirth(convertMillisecondsToDate(userRequest.getUser().getDob()))
+                .tenantId(userRequest.getUser().getTenantId())
+                .address(Collections.singletonList(Address.builder()
+                        .type(AddressType.CORRESPONDENCE)
+                        .addressLine1(userRequest.getUser().getCorrespondenceAddress())
+                        .clientReferenceId(String.valueOf(UUID.randomUUID()))
+                        .isDeleted(Boolean.FALSE)
+                        .build()))
+                /*
+                 * FIXME (HCM specific change) clientReferenceId is the primary key in the individual table of the FrontEnd Worker Application's local database.
+                 */
+                // Generating a unique client reference ID using UUID
+                .clientReferenceId(individual.getClientReferenceId())
+                .userDetails(UserDetails.builder()
+                        .username(userRequest.getUser().getUserName())
+                        .password(userRequest.getUser().getPassword())
+                        .tenantId(userRequest.getUser().getTenantId())
+                        .roles(userRequest.getUser().getRoles().stream().map(role -> Role.builder()
+                                .code(role.getCode())
+                                .name(role.getName())
+                                .tenantId(userRequest.getUser().getTenantId())
+                                .description(role.getDescription())
+                                .build()).collect(Collectors.toList()))
+                        .userType(individual.getUserDetails().getUserType())
+                        .build())
+                .isDeleted(Boolean.FALSE)
+                .clientAuditDetails(AuditDetails.builder()
+                        .createdBy(individual.getAuditDetails().getCreatedBy())
+                        .createdTime(individual.getAuditDetails().getCreatedTime())
+                        .lastModifiedBy(userRequest.getRequestInfo().getUserInfo().getUuid()).build())
+                .rowVersion(userRequest.getUser().getRowVersion())
+                .build();
+        return IndividualRequest.builder()
+                .requestInfo(userRequest.getRequestInfo())
+                .individual(updatedIndividual)
+                .build();
+    }
+
+    private IndividualSearchRequest mapToIndividualSearchRequest(UserRequest userRequest) {
+        return IndividualSearchRequest.builder()
+                .requestInfo(userRequest.getRequestInfo())
+                .individual(
+                        IndividualSearch.builder()
+                        .id(Collections.singletonList(userRequest.getUser().getUuid()))
+                        .userUuid(userRequest.getUser().getUserServiceUuid() != null ? Collections.singletonList(userRequest.getUser().getUserServiceUuid()) : null)
+                        .build()
+                )
+                .build();
+    }
+
     @Override
     public UserResponse getUser(RequestInfo requestInfo, Map<String, Object> userSearchCriteria ) {
+        String mobileNumber = (String) userSearchCriteria.get("mobileNumber");
+        String username = (String) userSearchCriteria.get(HRMSConstants.HRMS_USER_SEARCH_CRITERA_USERNAME);
+        List<String> mobileNumberList = null;
+        List<String> usernameList = null;
+        if(!StringUtils.isEmpty(mobileNumber)) {
+            mobileNumberList = Collections.singletonList(mobileNumber);
+        }
+        if(!StringUtils.isEmpty(username)) {
+            usernameList = Collections.singletonList(username);
+        }
         IndividualSearchRequest request = IndividualSearchRequest.builder()
                 .requestInfo(requestInfo)
                 .individual(IndividualSearch.builder()
-                        .mobileNumber((String) userSearchCriteria.get("mobileNumber"))
+                        .mobileNumber(
+                                mobileNumberList
+                        )
                         .id((List<String>) userSearchCriteria.get("uuid"))
+                        .userUuid((List<String>) userSearchCriteria.get(HRMS_USER_SEARCH_CRITERA_USER_SERVICE_UUIDS))
                         .roleCodes((List<String>) userSearchCriteria.get("roleCodes"))
-                        .username((String) userSearchCriteria.get(HRMSConstants.HRMS_USER_SEARCH_CRITERA_USERNAME))
+                        .username(usernameList)
                         // given name
                         .individualName((String) userSearchCriteria
                                 .get(HRMSConstants.HRMS_USER_SEARCH_CRITERA_NAME))
+                        .type((String) userSearchCriteria.get(HRMSConstants.HRMS_USER_SERACH_CRITERIA_USERTYPE_CODE))
                 .build())
                 .build();
         IndividualBulkResponse response = getIndividualResponse((String) userSearchCriteria
@@ -136,7 +265,7 @@ public class IndividualService implements UserService {
         }
     }
 
-    private static IndividualRequest mapToIndividualRequest(UserRequest userRequest) {
+    private static IndividualRequest mapToIndividualRequest(UserRequest userRequest, String localityCode) {
         Individual individual = Individual.builder()
                 .id(userRequest.getUser().getUuid())
                 .userId(userRequest.getUser().getId() != null ?
@@ -156,6 +285,7 @@ public class IndividualService implements UserService {
                                 .type(AddressType.CORRESPONDENCE)
                                 .addressLine1(userRequest.getUser().getCorrespondenceAddress())
                                 .clientReferenceId(String.valueOf(UUID.randomUUID()))
+                                .locality((localityCode!=null) ? Boundary.builder().code(localityCode).build() : null)
                                 .isDeleted(Boolean.FALSE)
                         .build()))
                 /*
@@ -186,6 +316,9 @@ public class IndividualService implements UserService {
                                 .build()).collect(Collectors.toList()))
                         .userType(UserType.fromValue(userRequest.getUser().getType()))
                         .build())
+                .skills(userRequest.getUser().getRoles().stream().map(role -> Skill.builder()
+                        .type(role.getCode()).level(role.getCode())
+                        .build()).collect(Collectors.toList()))
                 .isDeleted(Boolean.FALSE)
                 .clientAuditDetails(AuditDetails.builder().createdBy(userRequest.getRequestInfo().getUserInfo().getUuid()).lastModifiedBy(userRequest.getRequestInfo().getUserInfo().getUuid()).build())
                 .rowVersion(userRequest.getUser().getRowVersion())
@@ -211,6 +344,7 @@ public class IndividualService implements UserService {
                 .responseInfo(response.getResponseInfo())
                 .user(response.getIndividual().stream()
                         .map(IndividualService::getUser).collect(Collectors.toList()))
+                .totalCount(response.getTotalCount())
                 .build();
         return userResponse;
     }
@@ -225,6 +359,7 @@ public class IndividualService implements UserService {
                 .userServiceUuid(individual.getUserUuid())
                 .active(individual.getIsSystemUserActive())
                 .gender(individual.getGender() != null ? individual.getGender().name() : null)
+                .type(individual.getUserDetails().getUserType().toString())
                 .userName(individual.getUserDetails().getUsername())
                 .emailId(individual.getEmail())
                 .correspondenceAddress(individual.getAddress() != null && !individual.getAddress().isEmpty()

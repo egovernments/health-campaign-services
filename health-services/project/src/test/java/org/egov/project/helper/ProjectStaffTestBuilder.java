@@ -1,16 +1,16 @@
 package org.egov.project.helper;
 
 import org.egov.common.helper.AuditDetailsTestBuilder;
-import org.egov.common.models.project.AdditionalFields;
+import org.egov.common.models.core.AdditionalFields;
 import org.egov.common.models.project.ProjectStaff;
 
 
 public class ProjectStaffTestBuilder {
 
-    private ProjectStaff.ProjectStaffBuilder builder;
+    private ProjectStaff.ProjectStaffBuilder<ProjectStaff, ?> builder;
 
     public ProjectStaffTestBuilder() {
-        this.builder = ProjectStaff.builder();
+        this.builder = (ProjectStaff.ProjectStaffBuilder<ProjectStaff, ?>) ProjectStaff.builder();
     }
 
     public static ProjectStaffTestBuilder builder() {

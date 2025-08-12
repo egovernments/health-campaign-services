@@ -1,6 +1,24 @@
 package org.egov.household.repository;
 
-import static org.egov.common.utils.CommonUtils.getIdMethod;
+import lombok.extern.slf4j.Slf4j;
+import org.egov.common.data.query.builder.GenericQueryBuilder;
+import org.egov.common.data.query.builder.QueryFieldChecker;
+import org.egov.common.data.query.builder.SelectQueryBuilder;
+import org.egov.common.data.query.exception.QueryBuilderException;
+import org.egov.common.data.repository.GenericRepository;
+import org.egov.common.exception.InvalidTenantIdException;
+import org.egov.common.models.core.SearchResponse;
+import org.egov.common.models.household.Household;
+import org.egov.common.producer.Producer;
+import org.egov.household.repository.rowmapper.HouseholdRowMapper;
+import org.egov.common.models.household.HouseholdSearch;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.ScanCursor;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.stereotype.Repository;
+import org.springframework.util.CollectionUtils;
+import org.springframework.util.ReflectionUtils;
 
 import java.lang.reflect.Method;
 import java.util.HashMap;
@@ -9,23 +27,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-import org.egov.common.data.query.builder.GenericQueryBuilder;
-import org.egov.common.data.query.builder.QueryFieldChecker;
-import org.egov.common.data.query.builder.SelectQueryBuilder;
-import org.egov.common.data.query.exception.QueryBuilderException;
-import org.egov.common.data.repository.GenericRepository;
-import org.egov.common.ds.Tuple;
-import org.egov.common.models.household.Household;
-import org.egov.common.producer.Producer;
-import org.egov.household.repository.rowmapper.HouseholdRowMapper;
-import org.egov.household.web.models.HouseholdSearch;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
-import org.springframework.stereotype.Repository;
-import org.springframework.util.ReflectionUtils;
-
-import lombok.extern.slf4j.Slf4j;
+import static org.egov.common.utils.CommonUtils.constructTotalCountCTEAndReturnResult;
+import static org.egov.common.utils.CommonUtils.getIdMethod;
+import static org.egov.common.utils.MultiStateInstanceUtil.SCHEMA_REPLACE_STRING;
 
 @Repository
 @Slf4j
@@ -39,47 +43,83 @@ public class HouseholdRepository extends GenericRepository<Household> {
                                   RedisTemplate<String, Object> redisTemplate,
                                   SelectQueryBuilder selectQueryBuilder,
                                   HouseholdRowMapper householdRowMapper) {
-        super(producer, namedParameterJdbcTemplate, redisTemplate, selectQueryBuilder, householdRowMapper, Optional.of("household"));
+        super(producer, namedParameterJdbcTemplate, redisTemplate, selectQueryBuilder, householdRowMapper, Optional.of("household h"));
     }
 
-    public Tuple<Long, List<Household>> findById(List<String> ids, String columnName, Boolean includeDeleted) {
-        List<Household> objFound = findInCache(ids).stream()
-                .filter(entity -> entity.getIsDeleted().equals(includeDeleted))
-                .collect(Collectors.toList());
+    /**
+     * @param tenantId
+     * @param ids
+     * @param columnName
+     * @param includeDeleted
+     * @return
+     * @throws InvalidTenantIdException
+     *
+     * Fetches the household details based on the provided IDs and column name.
+     */
+    public SearchResponse<Household> findById(String tenantId, List<String> ids, String columnName, Boolean includeDeleted) throws InvalidTenantIdException {
+        List<Household> objFound = findInCache( tenantId,ids);
+        if (!includeDeleted) {
+            objFound = objFound.stream()
+                    .filter(entity -> entity.getIsDeleted().equals(false))
+                    .collect(Collectors.toList());
+        }
         if (!objFound.isEmpty()) {
             Method idMethod = getIdMethod(objFound, columnName);
             ids.removeAll(objFound.stream()
                     .map(obj -> (String) ReflectionUtils.invokeMethod(idMethod, obj))
                     .collect(Collectors.toList()));
             if (ids.isEmpty()) {
-                return new Tuple<>(Long.valueOf(objFound.size()), objFound);
+                return SearchResponse.<Household>builder().totalCount(Long.valueOf(objFound.size())).response(objFound).build();
             }
         }
-
-        String query = String.format("SELECT *, a.id as aid,a.tenantid as atenantid, a.clientreferenceid as aclientreferenceid FROM household h LEFT JOIN address a ON h.addressid = a.id WHERE h.%s IN (:ids) AND isDeleted = false", columnName);
+        // add the schema placeholder to the query
+        String query = String.format("SELECT *, a.id as aid,a.tenantid as atenantid, a.clientreferenceid as aclientreferenceid FROM %s.household h LEFT JOIN %s.address a ON h.addressid = a.id WHERE h.%s IN (:ids) AND isDeleted = false",SCHEMA_REPLACE_STRING , SCHEMA_REPLACE_STRING, columnName);
         if (null != includeDeleted && includeDeleted) {
-            query = String.format("SELECT *, a.id as aid,a.tenantid as atenantid, a.clientreferenceid as aclientreferenceid FROM household h LEFT JOIN address a ON h.addressid = a.id  WHERE h.%s IN (:ids)", columnName);
+            query = String.format("SELECT *, a.id as aid,a.tenantid as atenantid, a.clientreferenceid as aclientreferenceid FROM %s.household h LEFT JOIN %s.address a ON h.addressid = a.id  WHERE h.%s IN (:ids)", SCHEMA_REPLACE_STRING , SCHEMA_REPLACE_STRING, columnName);
         }
         Map<String, Object> paramMap = new HashMap();
         paramMap.put("ids", ids);
 
-        Long totalCount = constructTotalCountCTEAndReturnResult(query, paramMap);
+        // replace the schema placeholder with the tenantId
+        query=  multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
+        Long totalCount = constructTotalCountCTEAndReturnResult(query, paramMap, this.namedParameterJdbcTemplate);
 
         objFound.addAll(this.namedParameterJdbcTemplate.query(query, paramMap, this.rowMapper));
         putInCache(objFound);
-        return new Tuple<>(totalCount, objFound);
+        return SearchResponse.<Household>builder().totalCount(totalCount).response(objFound).build();
     }
 
-    public Tuple<Long, List<Household>> find(HouseholdSearch searchObject, Integer limit, Integer offset, String tenantId, Long lastChangedSince, Boolean includeDeleted) throws QueryBuilderException {
-        String query = "SELECT *, a.id as aid,a.tenantid as atenantid, a.clientreferenceid as aclientreferenceid";
-        query += " FROM household h LEFT JOIN address a ON h.addressid = a.id";
+    /**
+     * @param searchObject
+     * @param limit
+     * @param offset
+     * @param tenantId
+     * @param lastChangedSince
+     * @param includeDeleted
+     * @return
+     * @throws QueryBuilderException
+     *
+     * Fetch all the household based on the search criteria provided.
+     */
+    public SearchResponse<Household> find(HouseholdSearch searchObject, Integer limit, Integer offset, String tenantId, Long lastChangedSince, Boolean includeDeleted) throws InvalidTenantIdException {
+        // add the schema placeholder to the query
+        String query = String.format("SELECT *, a.id as aid,a.tenantid as atenantid, a.clientreferenceid as aclientreferenceid FROM %s.household h LEFT JOIN %s.address a ON h.addressid = a.id", SCHEMA_REPLACE_STRING, SCHEMA_REPLACE_STRING) ;
         Map<String, Object> paramsMap = new HashMap<>();
         List<String> whereFields = GenericQueryBuilder.getFieldsWithCondition(searchObject, QueryFieldChecker.isNotNull, paramsMap);
         query = GenericQueryBuilder.generateQuery(query, whereFields).toString();
         query = query.replace("id IN (:id)", "h.id IN (:id)");
         query = query.replace("clientReferenceId IN (:clientReferenceId)", "h.clientReferenceId IN (:clientReferenceId)");
+        // To consider null values present in db as family if family parameter is passed
+        if (searchObject.getHouseholdType() != null && searchObject.getHouseholdType().equalsIgnoreCase("FAMILY")) {
+            query = query.replace("householdType=:householdType", "(householdType!='COMMUNITY' OR householdType IS NULL)");
+        }
 
-        query = query + " and h.tenantId=:tenantId ";
+        if(CollectionUtils.isEmpty(whereFields)) {
+            query = query + " where h.tenantId=:tenantId ";
+        } else {
+            query = query + " and h.tenantId=:tenantId ";
+        }
+
         if (Boolean.FALSE.equals(includeDeleted)) {
             query = query + "and isDeleted=:isDeleted ";
         }
@@ -90,13 +130,15 @@ public class HouseholdRepository extends GenericRepository<Household> {
         paramsMap.put("tenantId", tenantId);
         paramsMap.put("isDeleted", includeDeleted);
         paramsMap.put("lastModifiedTime", lastChangedSince);
-
-        Long totalCount = constructTotalCountCTEAndReturnResult(query, paramsMap);
+        // replace the schema placeholder with the tenantId
+        query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
+        Long totalCount = constructTotalCountCTEAndReturnResult(query, paramsMap, this.namedParameterJdbcTemplate);
 
         query = query + "ORDER BY h.id ASC LIMIT :limit OFFSET :offset";
         paramsMap.put("limit", limit);
         paramsMap.put("offset", offset);
-        return new Tuple<>(totalCount, this.namedParameterJdbcTemplate.query(query, paramsMap, this.rowMapper));
+        List<Household> households = this.namedParameterJdbcTemplate.query(query, paramsMap, this.rowMapper);
+        return SearchResponse.<Household>builder().totalCount(totalCount).response(households).build();
     }
 
     /**
@@ -110,16 +152,27 @@ public class HouseholdRepository extends GenericRepository<Household> {
      *
      * Fetch all the household which falls under the radius provided using longitude and latitude provided.
      */
-    public Tuple<Long, List<Household>> findByRadius(HouseholdSearch searchObject, Integer limit, Integer offset, String tenantId, Boolean includeDeleted) throws QueryBuilderException {
-        String query = searchCriteriaWaypointQuery +
+    public SearchResponse<Household> findByRadius(HouseholdSearch searchObject, Integer limit, Integer offset, String tenantId, Boolean includeDeleted) throws QueryBuilderException, InvalidTenantIdException {
+        // add the schema placeholder to the query
+        String query = String.format(searchCriteriaWaypointQuery +
                 "SELECT * FROM (SELECT h.*, a.*, a.id as aid,a.tenantid as atenantid, a.clientreferenceid as aclientreferenceid, " + calculateDistanceFromTwoWaypointsFormulaQuery + " \n" +
-                "FROM public.household h LEFT JOIN public.address a ON h.addressid = a.id AND h.tenantid = a.tenantid, cte_search_criteria_waypoint cte_scw ";
+                "FROM %s.household h LEFT JOIN %s.address a ON h.addressid = a.id AND h.tenantid = a.tenantid, cte_search_criteria_waypoint cte_scw ", SCHEMA_REPLACE_STRING, SCHEMA_REPLACE_STRING);
         Map<String, Object> paramsMap = new HashMap<>();
         List<String> whereFields = GenericQueryBuilder.getFieldsWithCondition(searchObject, QueryFieldChecker.isNotNull, paramsMap);
         query = GenericQueryBuilder.generateQuery(query, whereFields).toString();
         query = query.replace("id IN (:id)", "h.id IN (:id)");
         query = query.replace("clientReferenceId IN (:clientReferenceId)", "h.clientReferenceId IN (:clientReferenceId)");
-        query = query + " and h.tenantId=:tenantId ";
+        // To consider null values present in db as family if family parameter is passed
+        if (searchObject.getHouseholdType() != null && searchObject.getHouseholdType().equalsIgnoreCase("FAMILY")) {
+            query = query.replace("householdType=:householdType", "(householdType!='COMMUNITY' OR householdType IS NULL)");
+        }
+
+        if(CollectionUtils.isEmpty(whereFields)) {
+            query = query + " where h.tenantId=:tenantId ";
+        } else {
+            query = query + " and h.tenantId=:tenantId ";
+        }
+
         if (Boolean.FALSE.equals(includeDeleted)) {
             query = query + "and isDeleted=:isDeleted ";
         }
@@ -130,22 +183,15 @@ public class HouseholdRepository extends GenericRepository<Household> {
         paramsMap.put("tenantId", tenantId);
         paramsMap.put("isDeleted", includeDeleted);
         paramsMap.put("distance", searchObject.getSearchRadius());
-        Long totalCount = constructTotalCountCTEAndReturnResult(query, paramsMap);
-        query = query + " ORDER BY distance ASC LIMIT :limit OFFSET :offset ";
+        query = query + " ORDER BY distance ASC";
+        // replace the schema placeholder with the tenantId
+        query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
+        Long totalCount = constructTotalCountCTEAndReturnResult(query, paramsMap, this.namedParameterJdbcTemplate);
+        query = query + " LIMIT :limit OFFSET :offset ";
         paramsMap.put("limit", limit);
         paramsMap.put("offset", offset);
-        return new Tuple<>(totalCount, this.namedParameterJdbcTemplate.query(query, paramsMap, this.rowMapper));
+        List<Household> households = this.namedParameterJdbcTemplate.query(query, paramsMap, this.rowMapper);
+        return SearchResponse.<Household>builder().totalCount(totalCount).response(households).build();
     }
-
-    private Long constructTotalCountCTEAndReturnResult(String query, Map<String, Object> paramsMap) {
-        String cteQuery = "WITH result_cte AS ("+query+"), totalCount_cte AS (SELECT COUNT(*) AS totalRows FROM result_cte) select * from totalCount_cte";
-        return this.namedParameterJdbcTemplate.query(cteQuery, paramsMap, resultSet -> {
-            if(resultSet.next())
-                return resultSet.getLong("totalRows");
-            else
-                return 0L;
-        });
-    }
-
 
 }

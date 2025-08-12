@@ -1,5 +1,7 @@
 package org.egov.project.config;
 
+import java.util.List;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -177,6 +179,9 @@ public class ProjectConfiguration {
     @Value("${project.mdms.module}")
     private String mdmsModule;
 
+    @Value("${task.mdms.module}")
+    private String taskMdmsModule;
+
     @Value("${egov.location.hierarchy.type}")
     private String locationHierarchyType;
 
@@ -186,4 +191,38 @@ public class ProjectConfiguration {
     @Value("${project.staff.attendance.topic}")
     private String projectStaffAttendanceTopic;
 
+    @Value("${project.management.system.kafka.update.date.topic}")
+    private String updateProjectDateTopic;
+
+
+    // closed household task
+    @Value("${project.user.action.kafka.create.topic}")
+    private String createUserActionTopic;
+
+    @Value("${project.user.action.consumer.bulk.create.topic}")
+    private String bulkCreateUserActionTopic;
+
+    @Value("${project.user.action.kafka.update.topic}")
+    private String updateUserActionTopic;
+
+    @Value("${project.user.action.consumer.bulk.update.topic}")
+    private String bulkUpdateUserActionTopic;
+
+    @Value("${project.location.capture.consumer.bulk.create.topic}")
+    private String bulkCreateLocationCaptureTopic;
+
+    @Value("${project.location.capture.kafka.create.topic}")
+    private String createLocationCaptureTopic;
+
+    @Value("${egov.boundary.host}")
+    private String boundaryServiceHost;
+
+    @Value("${egov.boundary.search.url}")
+    private String boundarySearchUrl;
+
+    @Value("${project.task.no.resource.validation.status}")
+    private List<String> noResourceStatuses;
+
+    @Value("${project.attendance.feature.enabled:true}")
+    private Boolean isAttendanceFeatureEnabled;
 }

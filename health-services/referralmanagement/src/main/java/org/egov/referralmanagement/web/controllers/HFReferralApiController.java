@@ -1,14 +1,13 @@
 package org.egov.referralmanagement.web.controllers;
 
 import java.util.List;
-import javax.servlet.http.HttpServletRequest;
-import javax.validation.Valid;
-import javax.validation.constraints.Max;
-import javax.validation.constraints.Min;
-import javax.validation.constraints.NotNull;
 
 import io.swagger.annotations.ApiParam;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import org.egov.common.contract.response.ResponseInfo;
+import org.egov.common.models.core.SearchResponse;
+import org.egov.common.models.core.URLParams;
 import org.egov.common.models.referralmanagement.hfreferral.HFReferral;
 import org.egov.common.models.referralmanagement.hfreferral.HFReferralBulkRequest;
 import org.egov.common.models.referralmanagement.hfreferral.HFReferralBulkResponse;
@@ -23,10 +22,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RequestParam;
 
 /**
  * Controller class for managing HF Referrals.
@@ -100,25 +99,27 @@ public class HFReferralApiController {
      * API endpoint to search for HFReferrals based on certain criteria.
      *
      * @param request         The HFReferralSearchRequest containing search criteria.
-     * @param limit           Pagination - limit records in response.
-     * @param offset          Pagination - offset from which records should be returned in response.
-     * @param tenantId        Unique id for a tenant.
-     * @param lastChangedSince Epoch of the time since when the changes on the object should be picked up.
-     * @param includeDeleted  Used in search APIs to specify if (soft) deleted records should be included in search results.
      * @return ResponseEntity containing HFReferralBulkResponse.
      * @throws Exception
      */
     @RequestMapping(value = "/v1/_search", method = RequestMethod.POST)
-    public ResponseEntity<HFReferralBulkResponse> referralV1SearchPost(@ApiParam(value = "HFReferral Search.", required = true) @Valid @RequestBody HFReferralSearchRequest request,
-                                                                       @NotNull @Min(0) @Max(1000) @ApiParam(value = "Pagination - limit records in response", required = true) @Valid @RequestParam(value = "limit", required = true) Integer limit,
-                                                                       @NotNull @Min(0) @ApiParam(value = "Pagination - offset from which records should be returned in response", required = true) @Valid @RequestParam(value = "offset", required = true) Integer offset,
-                                                                       @NotNull @ApiParam(value = "Unique id for a tenant.", required = true) @Valid @RequestParam(value = "tenantId", required = true) String tenantId,
-                                                                       @ApiParam(value = "Epoch of the time since when the changes on the object should be picked up. Search results from this parameter should include both newly created objects since this time as well as any modified objects since this time. This criterion is included to help polling clients to get the changes in system since a last time they synchronized with the platform. ") @Valid @RequestParam(value = "lastChangedSince", required = false) Long lastChangedSince,
-                                                                       @ApiParam(value = "Used in search APIs to specify if (soft) deleted records should be included in search results.", defaultValue = "false") @Valid @RequestParam(value = "includeDeleted", required = false, defaultValue = "false") Boolean includeDeleted) throws Exception {
+    public ResponseEntity<HFReferralBulkResponse> referralV1SearchPost(
+            @Valid @ModelAttribute URLParams urlParams,
+            @ApiParam(value = "HFReferral Search.", required = true) @Valid @RequestBody HFReferralSearchRequest request
+    ) throws Exception {
 
-        List<HFReferral> hfReferrals = hfReferralService.search(request, limit, offset, tenantId, lastChangedSince, includeDeleted);
+        SearchResponse<HFReferral> searchResponse = hfReferralService.search(
+                request,
+                urlParams.getLimit(),
+                urlParams.getOffset(),
+                urlParams.getTenantId(),
+                urlParams.getLastChangedSince(),
+                urlParams.getIncludeDeleted());
         HFReferralBulkResponse response = HFReferralBulkResponse.builder().responseInfo(ResponseInfoFactory
-                .createResponseInfo(request.getRequestInfo(), true)).hfReferrals(hfReferrals).build();
+                .createResponseInfo(request.getRequestInfo(), true))
+                .hfReferrals(searchResponse.getResponse())
+                .totalCount(searchResponse.getTotalCount())
+                .build();
 
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }

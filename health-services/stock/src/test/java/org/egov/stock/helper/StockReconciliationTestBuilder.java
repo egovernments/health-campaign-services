@@ -1,15 +1,16 @@
 package org.egov.stock.helper;
 
 import org.egov.common.helper.AuditDetailsTestBuilder;
+import org.egov.common.models.household.Household;
 import org.egov.common.models.stock.StockReconciliation;
 
 
 public class StockReconciliationTestBuilder {
 
-    private final StockReconciliation.StockReconciliationBuilder builder;
+    private final StockReconciliation.StockReconciliationBuilder<StockReconciliation, ?> builder;
 
     public StockReconciliationTestBuilder() {
-        this.builder = StockReconciliation.builder();
+        this.builder = (StockReconciliation.StockReconciliationBuilder<StockReconciliation, ?>) StockReconciliation.builder();
     }
 
     public static StockReconciliationTestBuilder builder() {

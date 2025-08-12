@@ -32,13 +32,16 @@ public class HRMSUtil {
 
     /**
      * Gets the list of department for the given list of uuids of employees
-     * @param uuids
+     *
+     * @param tenantId the ID of the tenant
+     * @param uuids user uuids
+     * @param employeeUuids employee uuids
      * @param requestInfo
      * @return
      */
-    public List<String> getDepartment(List<String> uuids, RequestInfo requestInfo){
+    public List<String> getDepartment(String tenantId, List<String> uuids, List<String> employeeUuids, RequestInfo requestInfo){
 
-        StringBuilder url = getHRMSURI(uuids);
+        StringBuilder url = getHRMSURI(tenantId, employeeUuids);
 
         RequestInfoWrapper requestInfoWrapper = RequestInfoWrapper.builder().requestInfo(requestInfo).build();
 
@@ -62,16 +65,19 @@ public class HRMSUtil {
 
     /**
      * Builds HRMS search URL
+     *
+     * @param tenantId the ID of the tenant
      * @param uuids
      * @return
      */
-
-    public StringBuilder getHRMSURI(List<String> uuids){
+    public StringBuilder getHRMSURI(String tenantId, List<String> uuids){
 
         StringBuilder builder = new StringBuilder(config.getHrmsHost());
         builder.append(config.getHrmsEndPoint());
         builder.append("?uuids=");
         builder.append(StringUtils.join(uuids, ","));
+        builder.append("&tenantId=");
+        builder.append(tenantId);
 
         return builder;
     }

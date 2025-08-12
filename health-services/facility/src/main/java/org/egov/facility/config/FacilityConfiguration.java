@@ -35,4 +35,10 @@ public class FacilityConfiguration {
 
     @Value("${facility.idgen.id.format}")
     private String facilityIdFormat;
+
+    @Value("${egov.boundary.host}")
+    private String boundaryServiceHost;
+
+    @Value("${egov.boundary.search.url}")
+    private String boundarySearchUrl;
 }

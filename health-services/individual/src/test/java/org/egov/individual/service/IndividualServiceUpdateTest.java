@@ -1,6 +1,8 @@
 package org.egov.individual.service;
 
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.helper.RequestInfoTestBuilder;
+import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.individual.Identifier;
 import org.egov.common.models.individual.Individual;
 import org.egov.common.models.individual.IndividualBulkRequest;
@@ -37,11 +39,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.ArgumentMatchers.anyList;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -141,7 +139,7 @@ class IndividualServiceUpdateTest {
 
     @Test
     @DisplayName("should check row versions if entities are valid")
-    void shouldCheckRowVersionsIfEntitiesAreValid() {
+    void shouldCheckRowVersionsIfEntitiesAreValid() throws InvalidTenantIdException {
         Individual requestIndividual = IndividualTestBuilder.builder()
                 .withClientReferenceId()
                 .withId("some-id")
@@ -175,7 +173,12 @@ class IndividualServiceUpdateTest {
                 .build());
 
 
-        when(individualRepository.findById(anyList(),eq("id"),eq(false))).thenReturn(individualsInDb);
+        when(individualRepository.findById(nullable(String.class), anyList(), eq("id"), eq(false)))
+                .thenReturn(SearchResponse.<Individual>builder()
+                        .totalCount((long) individualsInDb.size())
+                        .response(individualsInDb)
+                        .build());
+
         when(encryptionService.encrypt(any(IndividualBulkRequest.class),
                 anyList(), any(String.class), anyBoolean())).thenReturn(Collections.singletonList(requestIndividual));
 
@@ -213,7 +216,7 @@ class IndividualServiceUpdateTest {
 
     @Test
     @DisplayName("should save the updated entities")
-    void shouldSaveTheUpdatedEntities() {
+    void shouldSaveTheUpdatedEntities() throws InvalidTenantIdException {
         Individual requestIndividual = IndividualTestBuilder.builder()
                 .withClientReferenceId()
                 .withName("some-new-family-name", "some-new-given-name")
@@ -226,31 +229,42 @@ class IndividualServiceUpdateTest {
                         .identifierType("some-type").build())
                 .withRowVersion()
                 .build();
+
         IndividualRequest request = IndividualRequestTestBuilder.builder()
                 .withRequestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
                 .withIndividuals(requestIndividual)
                 .build();
-        List<Individual> individualsInDb = new ArrayList<>();
-        individualsInDb.add(IndividualTestBuilder.builder()
-                .withClientReferenceId()
-                .withId("some-id")
-                .withName()
-                .withTenantId()
-                .withAddress()
-                .withIdentifiers(Identifier.builder()
-                        .id("some-id")
-                        .individualId("some-id")
-                        .identifierId("some-id")
-                        .identifierType("some-type").build())
-                .withRowVersion()
-                .withAuditDetails()
-                .build());
 
-        when(individualRepository.findById(anyList(),eq("id"),eq(false))).thenReturn(individualsInDb);
-        when(encryptionService.encrypt(any(IndividualBulkRequest.class),
-                anyList(), any(String.class), anyBoolean())).thenReturn(Collections.singletonList(requestIndividual));
+        List<Individual> individualsInDb = List.of(
+                IndividualTestBuilder.builder()
+                        .withClientReferenceId()
+                        .withId("some-id")
+                        .withName()
+                        .withTenantId()
+                        .withAddress()
+                        .withIdentifiers(Identifier.builder()
+                                .id("some-id")
+                                .individualId("some-id")
+                                .identifierId("some-id")
+                                .identifierType("some-type").build())
+                        .withRowVersion()
+                        .withAuditDetails()
+                        .build()
+        );
+
+        when(individualRepository.findById(nullable(String.class), anyList(), eq("id"), eq(false)))
+                .thenReturn(SearchResponse.<Individual>builder()
+                        .totalCount((long) individualsInDb.size())
+                        .response(individualsInDb)
+                        .build());
+
+        when(encryptionService.encrypt(any(IndividualBulkRequest.class), anyList(), anyString(), anyBoolean()))
+                .thenReturn(Collections.singletonList(requestIndividual));
+
         List<Individual> result = individualService.update(request);
+
         verify(individualRepository, times(1)).save(anyList(), anyString());
     }
+
 
 }

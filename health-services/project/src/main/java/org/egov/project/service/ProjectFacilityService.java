@@ -1,11 +1,20 @@
 package org.egov.project.service;
 
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
+
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.ds.Tuple;
 import org.egov.common.models.ErrorDetails;
+import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.project.ProjectFacility;
 import org.egov.common.models.project.ProjectFacilityBulkRequest;
 import org.egov.common.models.project.ProjectFacilityRequest;
+import org.egov.common.models.project.ProjectFacilitySearchRequest;
 import org.egov.common.service.IdGenService;
 import org.egov.common.service.UserService;
 import org.egov.common.utils.CommonUtils;
@@ -21,16 +30,9 @@ import org.egov.project.validator.facility.PfProjectIdValidator;
 import org.egov.project.validator.facility.PfRowVersionValidator;
 import org.egov.project.validator.facility.PfUniqueCombinationValidator;
 import org.egov.project.validator.facility.PfUniqueEntityValidator;
-import org.egov.project.web.models.ProjectFacilitySearchRequest;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.function.Predicate;
-import java.util.stream.Collectors;
 
 import static org.egov.common.utils.CommonUtils.handleErrors;
 import static org.egov.common.utils.CommonUtils.havingTenantId;
@@ -121,7 +123,7 @@ public class ProjectFacilityService {
                 log.info("successfully created project facility");
             }
         } catch (Exception exception) {
-            log.error("error occurred while creating project facility: {}", exception.getMessage());
+            log.error("error occurred while creating project facility: {}", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_PROJECT_FACILITIES);
         }
 
@@ -155,7 +157,7 @@ public class ProjectFacilityService {
                 log.info("successfully updated bulk project facility");
             }
         } catch (Exception exception) {
-            log.error("error occurred while updating project facility", exception);
+            log.error("error occurred while updating project facility", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_PROJECT_FACILITIES);
         }
 
@@ -187,7 +189,7 @@ public class ProjectFacilityService {
                 log.info("successfully deleted entities");
             }
         } catch (Exception exception) {
-            log.error("error occurred while deleting entities: {}", exception);
+            log.error("error occurred while deleting entities: {}", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_PROJECT_FACILITIES);
         }
 
@@ -213,27 +215,27 @@ public class ProjectFacilityService {
         return new Tuple<>(validEntities, errorDetailsMap);
     }
 
-    public List<ProjectFacility> search(ProjectFacilitySearchRequest projectFacilitySearchRequest,
-                                        Integer limit,
-                                        Integer offset,
-                                        String tenantId,
-                                        Long lastChangedSince,
-                                        Boolean includeDeleted) throws Exception {
+    public SearchResponse<ProjectFacility> search(ProjectFacilitySearchRequest projectFacilitySearchRequest,
+                                                  Integer limit,
+                                                  Integer offset,
+                                                  String tenantId,
+                                                  Long lastChangedSince,
+                                                  Boolean includeDeleted) throws Exception {
         log.info("received request to search project facility");
 
         if (isSearchByIdOnly(projectFacilitySearchRequest.getProjectFacility())) {
             log.info("searching project facility by id");
             List<String> ids = projectFacilitySearchRequest.getProjectFacility().getId();
             log.info("fetching project facility with ids: {}", ids);
-            return projectFacilityRepository.findById(ids, includeDeleted).stream()
+            List<ProjectFacility> projectfacilities = projectFacilityRepository.findById(tenantId, ids, includeDeleted).stream()
                     .filter(lastChangedSince(lastChangedSince))
                     .filter(havingTenantId(tenantId))
                     .filter(includeDeleted(includeDeleted))
                     .collect(Collectors.toList());
+            return SearchResponse.<ProjectFacility>builder().response(projectfacilities).build();
         }
         log.info("searching project facility using criteria");
-        return projectFacilityRepository.find(projectFacilitySearchRequest.getProjectFacility(),
+        return projectFacilityRepository.findWithCount(projectFacilitySearchRequest.getProjectFacility(),
                 limit, offset, tenantId, lastChangedSince, includeDeleted);
     }
-
 }

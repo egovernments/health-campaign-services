@@ -1,17 +1,16 @@
 package org.egov.transformer.boundary;
 
 
-import org.egov.common.models.transformer.upstream.Boundary;
+import org.egov.common.models.core.Boundary;
 
 public class BoundaryMapper {
 
     public static BoundaryNode from(Boundary boundary) {
         return BoundaryNode.builder()
-                .name(boundary.getName())
+                .id(boundary.getId())
                 .code(boundary.getCode())
-                .label(boundary.getLabel())
-                .latitude(boundary.getLatitude())
-                .longitude(boundary.getLongitude())
+                .tenantId(boundary.getTenantId())
+                .geometry(boundary.getGeometry())
                 .build();
     }
 

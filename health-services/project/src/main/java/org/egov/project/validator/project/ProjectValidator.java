@@ -13,15 +13,19 @@ import java.util.stream.Collectors;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
+import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.egov.common.contract.request.RequestInfo;
+import org.egov.common.models.core.ProjectSearchURLParams;
 import org.egov.common.models.project.Document;
 import org.egov.common.models.project.Project;
 import org.egov.common.models.project.ProjectRequest;
+import org.egov.common.models.project.ProjectSearch;
+import org.egov.common.models.project.ProjectSearchRequest;
 import org.egov.common.models.project.Target;
 import org.egov.project.config.ProjectConfiguration;
-import org.egov.project.util.BoundaryUtil;
+import org.egov.project.util.BoundaryV2Util;
 import org.egov.project.util.MDMSUtils;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -46,7 +50,7 @@ public class ProjectValidator {
     MDMSUtils mdmsUtils;
 
     @Autowired
-    BoundaryUtil boundaryUtil;
+    BoundaryV2Util boundaryV2Util;
 
     @Autowired
     ProjectConfiguration config;
@@ -71,7 +75,7 @@ public class ProjectValidator {
         //Verify MDMS Data
         // TODO: Uncomment and fix as per HCM once we get clarity
         // validateRequestMDMSData(request, tenantId, errorMap);
-        validateAttendanceSessionAgainstMDMS(request,errorMap,tenantId);
+        if(config.getIsAttendanceFeatureEnabled()) validateAttendanceSessionAgainstMDMS(request,errorMap,tenantId);
 
         //Get boundaries in list from all Projects in request body for validation
         Map<String, List<String>> boundariesForValidation = getBoundaryForValidation(request.getProjects());
@@ -105,6 +109,64 @@ public class ProjectValidator {
         if (!errorMap.isEmpty())
             throw new CustomException(errorMap);
     }
+
+    /* Validates Project search request body */
+    public void validateSearchV2ProjectRequest(ProjectSearchRequest projectSearchRequest, @Valid ProjectSearchURLParams urlParams) {
+        Map<String, String> errorMap = new HashMap<>();
+        RequestInfo requestInfo = projectSearchRequest.getRequestInfo();
+        ProjectSearch projectSearch = projectSearchRequest.getProject();
+
+        // Verify if RequestInfo and UserInfo is present
+        validateRequestInfo(requestInfo);
+
+        // Verify if search project request parameters are valid
+        validateSearchProjectRequestParams(
+                urlParams.getLimit(),
+                urlParams.getOffset(),
+                urlParams.getTenantId(),
+                projectSearch.getCreatedFrom(),
+                projectSearch.getCreatedTo()
+        );
+
+        // Check if tenant ID is present in the request
+        if (StringUtils.isBlank(urlParams.getTenantId())) {
+            log.error("Tenant ID is mandatory in Project request body");
+            throw new CustomException("TENANT_ID", "Tenant ID is mandatory");
+        }
+
+        // Validate if at least one project search field is present
+        if (CollectionUtils.isEmpty(projectSearch.getId())
+                && StringUtils.isBlank(projectSearch.getProjectTypeId())
+                && StringUtils.isBlank(projectSearch.getName())
+                && StringUtils.isBlank(projectSearch.getSubProjectTypeId())
+                && (projectSearch.getStartDate() == null || projectSearch.getStartDate() == 0)
+                && (projectSearch.getEndDate() == null || projectSearch.getEndDate() == 0)
+                && (projectSearch.getCreatedFrom() == null || projectSearch.getCreatedFrom() == 0)
+                && (projectSearch.getBoundaryCode() == null || StringUtils.isBlank(projectSearch.getBoundaryCode()))) {
+            log.error("Any one project search field is required for Project Search");
+            throw new CustomException("PROJECT_SEARCH_FIELDS", "Any one project search field is required");
+        }
+
+        // Validate that start date is less than or equal to end date
+        if ((projectSearch.getStartDate() != null && projectSearch.getEndDate() != null && projectSearch.getEndDate() != 0)
+                && (projectSearch.getStartDate().compareTo(projectSearch.getEndDate()) > 0)) {
+            log.error("Start date should be less than end date");
+            throw new CustomException("INVALID_DATE", "Start date should be less than end date");
+        }
+
+        // Validate that if end date is provided, start date should also be provided
+        if ((projectSearch.getStartDate() == null || projectSearch.getStartDate() == 0)
+                && (projectSearch.getEndDate() != null && projectSearch.getEndDate() != 0)) {
+            log.error("Start date is required if end date is passed");
+            throw new CustomException("INVALID_DATE", "Start date is required if end date is passed");
+        }
+
+        // If there are any collected errors, throw a CustomException with the error map
+        if (!errorMap.isEmpty()) {
+            throw new CustomException(errorMap);
+        }
+    }
+
 
     /* Validates Update Project request body */
     public void validateUpdateProjectRequest(ProjectRequest request) {
@@ -401,7 +463,7 @@ public class ProjectValidator {
     /* Validates Boundary data with location service */
     private void validateBoundary(Map<String, List<String>> boundaries, String tenantId, RequestInfo requestInfo, Map<String, String> errorMap) {
         if (boundaries.size() > 0) {
-            boundaryUtil.validateBoundaryDetails(boundaries, tenantId, requestInfo, config.getLocationHierarchyType());
+            boundaryV2Util.validateBoundaryDetails(boundaries, tenantId, requestInfo, config.getLocationHierarchyType());
         }
     }
 

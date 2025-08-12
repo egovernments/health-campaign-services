@@ -542,13 +542,17 @@ definitions:
       clientReferenceId:
         $ref: '#/definitions/clientReferenceIdForSearch'
       taskId:
-        type: string
+        type: array
+        items:
+          type: string
         minLength: 2
         maxLength: 64
         description: Unique TaskId
       taskClientReferenceId:
-        type: string
-        example: R-ID-1
+        type: array
+        items:
+          type: string
+          example: R-ID-1
   SideEffectSearchRequest:
     type: object
     properties:
@@ -671,6 +675,24 @@ definitions:
         type: array
         items:
           type: string
+      sideEffectId:
+        type: array
+        items:
+          type: string
+      sideEffectClientReferenceId:
+        type: array
+        items:
+          type: string
+      referrerId:
+        type: array
+        items:
+          type: string
+      recipientId:
+        type: array
+        items:
+          type: string
+
+
   ReferralSearchRequest:
     type: object
     properties:

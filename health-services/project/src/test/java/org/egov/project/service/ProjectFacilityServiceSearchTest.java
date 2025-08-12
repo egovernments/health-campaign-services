@@ -1,11 +1,13 @@
 package org.egov.project.service;
 
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.helper.RequestInfoTestBuilder;
+import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.project.ProjectFacility;
 import org.egov.project.helper.ProjectFacilityTestBuilder;
 import org.egov.project.repository.ProjectFacilityRepository;
-import org.egov.project.web.models.ProjectFacilitySearch;
-import org.egov.project.web.models.ProjectFacilitySearchRequest;
+import org.egov.common.models.project.ProjectFacilitySearch;
+import org.egov.common.models.project.ProjectFacilitySearchRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -23,6 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
@@ -46,9 +49,9 @@ class ProjectFacilityServiceSearchTest {
     @Test
     @DisplayName("should not raise exception if no search results are found")
     void shouldNotRaiseExceptionIfNoProjectFacilityFound() throws Exception {
-        when(projectFacilityRepository.find(any(ProjectFacilitySearch.class), any(Integer.class),
+        when(projectFacilityRepository.findWithCount(any(ProjectFacilitySearch.class), any(Integer.class),
                 any(Integer.class), any(String.class), eq(null), any(Boolean.class)))
-                .thenReturn(Collections.emptyList());
+                .thenReturn(SearchResponse.<ProjectFacility>builder().response(Collections.emptyList()).build());
         ProjectFacilitySearch projectFacilitySearch = ProjectFacilitySearch.builder()
                 .id(Collections.singletonList("ID101")).facilityId(Collections.singletonList("some-facility-id")).build();
         ProjectFacilitySearchRequest projectFacilitySearchRequest = ProjectFacilitySearchRequest.builder()
@@ -62,8 +65,8 @@ class ProjectFacilityServiceSearchTest {
 
     @Test
     @DisplayName("should not raise exception if no search results are found for search by id")
-    void shouldNotRaiseExceptionIfNoProjectFacilityFoundForSearchById() {
-        when(projectFacilityRepository.findById(anyList(),anyBoolean())).thenReturn(Collections.emptyList());
+    void shouldNotRaiseExceptionIfNoProjectFacilityFoundForSearchById() throws InvalidTenantIdException {
+        when(projectFacilityRepository.findById(anyString(), anyList(),anyBoolean())).thenReturn(Collections.emptyList());
         ProjectFacilitySearch projectFacilitySearch = ProjectFacilitySearch.builder()
                 .id(Collections.singletonList("ID101")).build();
         ProjectFacilitySearchRequest projectFacilitySearchRequest = ProjectFacilitySearchRequest.builder()
@@ -77,8 +80,9 @@ class ProjectFacilityServiceSearchTest {
     @Test
     @DisplayName("should return project facility if search criteria is matched")
     void shouldReturnProjectFacilityIfSearchCriteriaIsMatched() throws Exception {
-        when(projectFacilityRepository.find(any(ProjectFacilitySearch.class), any(Integer.class),
-                any(Integer.class), any(String.class), eq(null), any(Boolean.class))).thenReturn(projectFacilities);
+        when(projectFacilityRepository.findWithCount(any(ProjectFacilitySearch.class), any(Integer.class),
+                any(Integer.class), any(String.class), eq(null), any(Boolean.class))).thenReturn(SearchResponse.<ProjectFacility>builder()
+                .response(projectFacilities).build());
         projectFacilities.add(ProjectFacilityTestBuilder.builder().withId().withId().withAuditDetails().build());
         ProjectFacilitySearch projectFacilitySearch = ProjectFacilitySearch.builder()
                 .id(Collections.singletonList("ID101")).projectId(Collections.singletonList("some-projectId")).build();
@@ -87,7 +91,7 @@ class ProjectFacilityServiceSearchTest {
                         .withCompleteRequestInfo().build()).build();
 
         List<ProjectFacility> projectFacilities = projectFacilityService.search(projectFacilitySearchRequest, 
-                10, 0, "default", null, false);
+                10, 0, "default", null, false).getResponse();
 
         assertEquals(1, projectFacilities.size());
     }
@@ -101,10 +105,10 @@ class ProjectFacilityServiceSearchTest {
         ProjectFacilitySearchRequest projectFacilitySearchRequest = ProjectFacilitySearchRequest.builder()
                 .projectFacility(projectFacilitySearch).requestInfo(RequestInfoTestBuilder.builder()
                         .withCompleteRequestInfo().build()).build();
-        when(projectFacilityRepository.findById(anyList(), anyBoolean())).thenReturn(projectFacilities);
+        when(projectFacilityRepository.findById(eq("some-tenant-id"), anyList(), anyBoolean())).thenReturn(projectFacilities);
 
         List<ProjectFacility> projectFacilities = projectFacilityService.search(projectFacilitySearchRequest,
-                10, 0, null, null, true);
+                10, 0, "some-tenant-id", null, true).getResponse();
 
         assertEquals(1, projectFacilities.size());
     }

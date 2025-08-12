@@ -1,7 +1,14 @@
 package org.egov.common.models.user;
 
+import java.util.Date;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.stream.Collectors;
+
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -9,14 +16,6 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
 import org.hibernate.validator.constraints.Email;
-import org.hibernate.validator.constraints.SafeHtml;
-
-import javax.validation.constraints.Pattern;
-import javax.validation.constraints.Size;
-import java.util.Date;
-import java.util.HashSet;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 @Setter
 @Getter
@@ -25,14 +24,19 @@ import java.util.stream.Collectors;
 @AllArgsConstructor
 @ToString
 public class UserRequest {
+/**
+ * FIXME
+ * to be removed or replace with some alternative as the //@SafeHtml is no longer present 
+ * with modern version of hibernate validator supported by springboot version 3.2.2
+ */
 
     private Long id;
 
-    @SafeHtml
+//    //@SafeHtml
     @Size(max = 64)
     private String userName;
 
-    @SafeHtml
+//    //@SafeHtml
     @Size(max = 5)
     private String salutation;
 
@@ -54,33 +58,33 @@ public class UserRequest {
     @Size(max = 128)
     private String emailId;
 
-    @SafeHtml
+    //@SafeHtml
     @Size(max = 50)
     private String altContactNumber;
 
-    @SafeHtml
+    //@SafeHtml
     @Size(max = 10)
     private String pan;
 
-    @SafeHtml
+    //@SafeHtml
     @Size(max = 20)
     private String aadhaarNumber;
 
-    @SafeHtml
+    //@SafeHtml
     @Size(max = 300)
     private String permanentAddress;
 
-    @SafeHtml
+    //@SafeHtml
     @Pattern(regexp = UserServiceConstants.PATTERN_CITY)
     @Size(max = 50)
     private String permanentCity;
 
-    @SafeHtml
+    //@SafeHtml
     @Pattern(regexp = UserServiceConstants.PATTERN_PINCODE)
     @Size(max = 10)
     private String permanentPinCode;
 
-    @SafeHtml
+    //@SafeHtml
     @Size(max = 300)
     private String correspondenceAddress;
 
@@ -93,7 +97,7 @@ public class UserRequest {
     private String correspondencePinCode;
     private Boolean active;
 
-    @SafeHtml
+    //@SafeHtml
     @Size(max = 16)
     private String locale;
 
@@ -106,19 +110,19 @@ public class UserRequest {
     private String fatherOrHusbandName;
     private GuardianRelation relationship;
 
-    @SafeHtml
+    //@SafeHtml
     @Size(max = 36)
     private String signature;
 
-    @SafeHtml
+    //@SafeHtml
     @Size(max = 32)
     private String bloodGroup;
 
-    @SafeHtml
+    //@SafeHtml
     @Size(max = 36)
     private String photo;
 
-    @SafeHtml
+    //@SafeHtml
     @Size(max = 300)
     private String identificationMark;
     private Long createdBy;
@@ -126,7 +130,7 @@ public class UserRequest {
     @Size(max = 64)
     private String password;
 
-    @SafeHtml
+    //@SafeHtml
     private String otpReference;
     private Long lastModifiedBy;
 
@@ -136,7 +140,7 @@ public class UserRequest {
 
     private Set<RoleRequest> roles;
 
-    @SafeHtml
+    //@SafeHtml
     @Size(max = 36)
     private String uuid;
 

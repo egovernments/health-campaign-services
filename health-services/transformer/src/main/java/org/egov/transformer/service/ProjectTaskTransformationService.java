@@ -5,7 +5,7 @@ import org.egov.common.models.project.Task;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.enums.Operation;
 import org.egov.transformer.models.downstream.ProjectTaskIndexV1;
-import org.egov.transformer.producer.Producer;
+import org.egov.common.producer.Producer;
 import org.egov.transformer.service.transformer.Transformer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -68,10 +68,10 @@ public abstract class ProjectTaskTransformationService implements Transformation
             Map<String, String> boundaryLabelToNameMap = null;
             if (task.getAddress().getLocality() != null && task.getAddress().getLocality().getCode() != null) {
                 boundaryLabelToNameMap = projectService
-                        .getBoundaryLabelToNameMap(task.getAddress().getLocality().getCode(), task.getTenantId());
+                        .getBoundaryCodeToNameMap(task.getAddress().getLocality().getCode(), task.getTenantId());
             } else {
                 boundaryLabelToNameMap = projectService
-                        .getBoundaryLabelToNameMapByProjectId(task.getProjectId(), task.getTenantId());
+                        .getBoundaryCodeToNameMapByProjectId(task.getProjectId(), task.getTenantId());
             }
             log.info("boundary labels {}", boundaryLabelToNameMap.toString());
             Map<String, String> finalBoundaryLabelToNameMap = boundaryLabelToNameMap;

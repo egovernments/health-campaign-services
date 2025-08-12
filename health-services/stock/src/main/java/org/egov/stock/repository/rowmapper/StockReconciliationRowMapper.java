@@ -1,15 +1,15 @@
 package org.egov.stock.repository.rowmapper;
 
+import java.sql.ResultSet;
+import java.sql.SQLException;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import digit.models.coremodels.AuditDetails;
-import org.egov.common.models.stock.AdditionalFields;
+import org.egov.common.contract.models.AuditDetails;
+import org.egov.common.models.core.AdditionalFields;
 import org.egov.common.models.stock.StockReconciliation;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Component;
-
-import java.sql.ResultSet;
-import java.sql.SQLException;
 
 @Component
 public class StockReconciliationRowMapper implements RowMapper<StockReconciliation> {

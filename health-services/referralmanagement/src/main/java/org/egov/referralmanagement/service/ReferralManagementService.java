@@ -1,24 +1,18 @@
 package org.egov.referralmanagement.service;
 
 
-import static org.egov.common.utils.CommonUtils.getIdFieldName;
-import static org.egov.common.utils.CommonUtils.getIdMethod;
-import static org.egov.common.utils.CommonUtils.handleErrors;
-import static org.egov.common.utils.CommonUtils.havingTenantId;
-import static org.egov.common.utils.CommonUtils.includeDeleted;
-import static org.egov.common.utils.CommonUtils.isSearchByIdOnly;
-import static org.egov.common.utils.CommonUtils.lastChangedSince;
-import static org.egov.common.utils.CommonUtils.notHavingErrors;
-import static org.egov.common.utils.CommonUtils.populateErrorDetails;
-
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.ds.Tuple;
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.ErrorDetails;
+import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.referralmanagement.Referral;
 import org.egov.common.models.referralmanagement.ReferralBulkRequest;
 import org.egov.common.models.referralmanagement.ReferralRequest;
@@ -30,19 +24,29 @@ import org.egov.referralmanagement.Constants;
 import org.egov.referralmanagement.config.ReferralManagementConfiguration;
 import org.egov.referralmanagement.repository.ReferralRepository;
 import org.egov.referralmanagement.service.enrichment.ReferralManagementEnrichmentService;
+import org.egov.referralmanagement.validator.RmExistentEntityValidator;
 import org.egov.referralmanagement.validator.RmIsDeletedValidator;
 import org.egov.referralmanagement.validator.RmNonExistentEntityValidator;
 import org.egov.referralmanagement.validator.RmNullIdValidator;
 import org.egov.referralmanagement.validator.RmProjectBeneficiaryIdValidator;
 import org.egov.referralmanagement.validator.RmRecipientIdValidator;
 import org.egov.referralmanagement.validator.RmReferrerIdValidator;
+import org.egov.referralmanagement.validator.RmRowVersionValidator;
 import org.egov.referralmanagement.validator.RmSideEffectIdValidator;
 import org.egov.referralmanagement.validator.RmUniqueEntityValidator;
 import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ReflectionUtils;
 
-import lombok.extern.slf4j.Slf4j;
+import static org.egov.common.utils.CommonUtils.getIdFieldName;
+import static org.egov.common.utils.CommonUtils.getIdMethod;
+import static org.egov.common.utils.CommonUtils.handleErrors;
+import static org.egov.common.utils.CommonUtils.havingTenantId;
+import static org.egov.common.utils.CommonUtils.includeDeleted;
+import static org.egov.common.utils.CommonUtils.isSearchByIdOnly;
+import static org.egov.common.utils.CommonUtils.lastChangedSince;
+import static org.egov.common.utils.CommonUtils.notHavingErrors;
+import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 
 @Service
 @Slf4j
@@ -60,6 +64,7 @@ public class ReferralManagementService {
 
     private final Predicate<Validator<ReferralBulkRequest, Referral>> isApplicableForCreate = validator ->
             validator.getClass().equals(RmProjectBeneficiaryIdValidator.class)
+                || validator.getClass().equals(RmExistentEntityValidator.class)
                 || validator.getClass().equals(RmReferrerIdValidator.class)
                 || validator.getClass().equals(RmRecipientIdValidator.class)
                 || validator.getClass().equals(RmSideEffectIdValidator.class);
@@ -72,11 +77,13 @@ public class ReferralManagementService {
                 || validator.getClass().equals(RmNullIdValidator.class)
                 || validator.getClass().equals(RmIsDeletedValidator.class)
                 || validator.getClass().equals(RmUniqueEntityValidator.class)
-                || validator.getClass().equals(RmNonExistentEntityValidator.class);
+                || validator.getClass().equals(RmNonExistentEntityValidator.class)
+                || validator.getClass().equals(RmRowVersionValidator.class);
 
     private final Predicate<Validator<ReferralBulkRequest, Referral>> isApplicableForDelete = validator ->
             validator.getClass().equals(RmNullIdValidator.class)
-                || validator.getClass().equals(RmNonExistentEntityValidator.class);
+                || validator.getClass().equals(RmNonExistentEntityValidator.class)
+                || validator.getClass().equals(RmRowVersionValidator.class);
 
 
     public ReferralManagementService(IdGenService idGenService, ReferralRepository referralRepository, ReferralManagementConfiguration referralManagementConfiguration, ReferralManagementEnrichmentService referralManagementEnrichmentService, List<Validator<ReferralBulkRequest, Referral>> validators) {
@@ -111,7 +118,7 @@ public class ReferralManagementService {
                 log.info("successfully created referrals");
             }
         } catch (Exception exception) {
-            log.error("error occurred while creating referrals: {}", exception.getMessage());
+            log.error("error occurred while creating referrals: {}", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(referralRequest, errorDetailsMap, validReferrals,
                     exception, Constants.SET_REFERRALS);
         }
@@ -144,7 +151,7 @@ public class ReferralManagementService {
                 log.info("successfully updated bulk referrals");
             }
         } catch (Exception exception) {
-            log.error("error occurred while updating referrals", exception);
+            log.error("error occurred while updating referrals: {}", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(referralRequest, errorDetailsMap, validReferrals,
                     exception, Constants.SET_REFERRALS);
         }
@@ -153,12 +160,12 @@ public class ReferralManagementService {
         return validReferrals;
     }
 
-    public List<Referral> search(ReferralSearchRequest referralSearchRequest,
-                                 Integer limit,
-                                 Integer offset,
-                                 String tenantId,
-                                 Long lastChangedSince,
-                                 Boolean includeDeleted) {
+    public SearchResponse<Referral> search(ReferralSearchRequest referralSearchRequest,
+                                           Integer limit,
+                                           Integer offset,
+                                           String tenantId,
+                                           Long lastChangedSince,
+                                           Boolean includeDeleted) throws InvalidTenantIdException {
         log.info("received request to search referrals");
         String idFieldName = getIdFieldName(referralSearchRequest.getReferral());
         if (isSearchByIdOnly(referralSearchRequest.getReferral(), idFieldName)) {
@@ -167,11 +174,12 @@ public class ReferralManagementService {
                             .singletonList(referralSearchRequest.getReferral())),
                     referralSearchRequest.getReferral());
             log.info("fetching referrals with ids: {}", ids);
-            return referralRepository.findById(ids, includeDeleted, idFieldName).stream()
+            List<Referral> referrals = referralRepository.findById(tenantId, ids, idFieldName, includeDeleted).getResponse().stream()
                     .filter(lastChangedSince(lastChangedSince))
                     .filter(havingTenantId(tenantId))
                     .filter(includeDeleted(includeDeleted))
                     .collect(Collectors.toList());
+            return SearchResponse.<Referral>builder().response(referrals).build();
         }
         log.info("searching referrals using criteria");
         return referralRepository.find(referralSearchRequest.getReferral(),
@@ -195,16 +203,17 @@ public class ReferralManagementService {
         try {
             if (!validReferrals.isEmpty()) {
                 log.info("processing {} valid entities", validReferrals.size());
+                String tenantId = CommonUtils.getTenantId(validReferrals);
                 List<String> referralIds = validReferrals.stream().map(entity -> entity.getId()).collect(Collectors.toSet()).stream().collect(Collectors.toList());
                 List<Referral> existingReferrals = referralRepository
-                        .findById(referralIds, false);
+                        .findById(tenantId, referralIds, false);
                 referralManagementEnrichmentService.delete(existingReferrals, referralRequest);
                 referralRepository.save(existingReferrals,
                         referralManagementConfiguration.getDeleteReferralTopic());
                 log.info("successfully deleted entities");
             }
         } catch (Exception exception) {
-            log.error("error occurred while deleting entities: {}", exception);
+            log.error("error occurred while deleting entities: {}", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(referralRequest, errorDetailsMap, validReferrals,
                     exception, Constants.SET_REFERRALS);
         }

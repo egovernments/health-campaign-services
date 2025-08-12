@@ -11,29 +11,39 @@ import org.egov.hrms.model.SMSRequest;
 import org.egov.hrms.producer.HRMSProducer;
 import org.egov.hrms.repository.RestCallRepository;
 import org.egov.hrms.utils.HRMSConstants;
+import org.egov.hrms.utils.NotificationUtil;
+import org.egov.hrms.web.contract.EmailRequest;
 import org.egov.hrms.web.contract.EmployeeRequest;
 import org.egov.hrms.web.contract.RequestInfoWrapper;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import com.jayway.jsonpath.JsonPath;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.util.CollectionUtils;
 import org.springframework.web.client.RestTemplate;
+
+import static org.egov.hrms.utils.HRMSConstants.HEALTH_HRMS_EMAIL_LOCALIZATION_CODE;
 
 @Service
 @Slf4j
 public class NotificationService {
-	
-	@Autowired
+
 	private HRMSProducer producer;
-	
-	@Autowired
+
 	private RestCallRepository repository;
 
-	@Autowired
 	private RestTemplate restTemplate;
+
+	private NotificationUtil notificationUtil;
+
+	public NotificationService(HRMSProducer producer, RestCallRepository repository, RestTemplate restTemplate, NotificationUtil notificationUtil) {
+		this.producer = producer;
+		this.repository = repository;
+		this.restTemplate = restTemplate;
+		this.notificationUtil = notificationUtil;
+	}
 
 	@Value("${kafka.topics.notification.sms}")
     private String smsTopic;
@@ -193,4 +203,26 @@ public class NotificationService {
 		return localizedMessageMap;
 	}
 
+	/**
+	 * Creates and sends email notification to the employees whose details are provided in the employeeRequest.
+	 *
+	 * @param employeeRequest The employee request with employee details.
+	 */
+	public void processEmailNotification(EmployeeRequest employeeRequest) {
+		if (employeeRequest == null || CollectionUtils.isEmpty(employeeRequest.getEmployees())) {
+			log.error("Invalid employee request received for email notification");
+			return;
+		}
+		try {
+			// Fetch localization messages and get email message template for HEALTH_HRMS_EMAIL_LOCALIZATION_CODE template code.
+			String localizationMessages = notificationUtil.getLocalizationMessages(employeeRequest);
+			String messageTemplate = notificationUtil.getMessageTemplate(HEALTH_HRMS_EMAIL_LOCALIZATION_CODE, localizationMessages);
+
+			// Create email requests from the employee details provided in the employeeRequest.
+			List<EmailRequest> emailRequests = notificationUtil.createEmailRequest(employeeRequest, messageTemplate);
+			notificationUtil.sendEmail(emailRequests);
+		} catch (Exception e) {
+			log.error("Error processing email notification for given employees");
+		}
+	}
 }

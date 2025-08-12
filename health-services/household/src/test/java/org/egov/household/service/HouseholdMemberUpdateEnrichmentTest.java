@@ -1,6 +1,8 @@
 package org.egov.household.service;
 
 import org.egov.common.ds.Tuple;
+import org.egov.common.exception.InvalidTenantIdException;
+import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.household.Household;
 import org.egov.common.models.household.HouseholdMember;
 import org.egov.common.models.household.HouseholdMemberBulkRequest;
@@ -39,26 +41,28 @@ class HouseholdMemberUpdateEnrichmentTest {
 
     }
 
-    private void mockHouseholdFindIds() {
+    private void mockHouseholdFindIds() throws InvalidTenantIdException {
         when(householdService.findById(
+                any(String.class),
                 any(List.class),
                 any(String.class),
                 any(Boolean.class)
-        )).thenReturn(new Tuple(1L,
-                Collections.singletonList(
-                        Household.builder().id("some-household-id").clientReferenceId("some-client-ref-id").build())
-            )
+        )).thenReturn(SearchResponse.<Household>builder()
+                .response(Collections.singletonList(
+                    Household.builder().id("some-household-id").clientReferenceId("some-client-ref-id").build()))
+                .build()
         );
     }
 
-    private void mockFindById() {
+    private void mockFindById() throws InvalidTenantIdException {
         when(householdMemberRepository.findById(
+                any(String.class),
                 any(List.class),
                 any(String.class),
                 any(Boolean.class)
         )).thenReturn(
-                Collections.singletonList(
-                        HouseholdMember.builder().id("some-id").build())
+                SearchResponse.<HouseholdMember>builder().response(Collections.singletonList(
+                        HouseholdMember.builder().id("some-id").build())).build()
         );
     }
 

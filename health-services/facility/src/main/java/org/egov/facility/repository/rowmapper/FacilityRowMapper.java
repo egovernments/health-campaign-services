@@ -1,18 +1,18 @@
 package org.egov.facility.repository.rowmapper;
 
+import java.sql.ResultSet;
+import java.sql.SQLException;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import digit.models.coremodels.AuditDetails;
-import org.egov.common.models.facility.AdditionalFields;
+import org.egov.common.contract.models.AuditDetails;
+import org.egov.common.models.core.AdditionalFields;
 import org.egov.common.models.facility.Address;
 import org.egov.common.models.facility.AddressType;
-import org.egov.common.models.facility.Boundary;
+import org.egov.common.models.core.Boundary;
 import org.egov.common.models.facility.Facility;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Component;
-
-import java.sql.ResultSet;
-import java.sql.SQLException;
 
 @Component
 public class FacilityRowMapper implements RowMapper<Facility> {

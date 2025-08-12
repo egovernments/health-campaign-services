@@ -2,6 +2,7 @@ package org.egov.project.util;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
+import org.egov.common.models.project.TaskStatus;
 
 public class ProjectConstants {
     public static final String MASTER_TENANTS = "tenants";
@@ -22,30 +23,9 @@ public class ProjectConstants {
     public static final String TASK_NOT_ALLOWED_BENEFICIARY_REFUSED_RESOURCE_EMPTY_ERROR_MESSAGE = "Task not allowed as resources can not be provided when " + TaskStatus.BENEFICIARY_REFUSED;
     public static final String TASK_NOT_ALLOWED_RESOURCE_CANNOT_EMPTY_ERROR_MESSAGE = "Task not allowed as resources can not be empty when ";
     public static final String NUMBER_OF_SESSIONS = "numberOfSessions";
+    public static final String OR = " OR ";
 
-    public enum TaskStatus {
-        BENEFICIARY_REFUSED("BENEFICIARY_REFUSED");
-        private String value;
+    public static final String INVALID_TENANT_ID_ERR_CODE = "INVALID_TENANT_ID";
 
-        TaskStatus(String value) {
-            this.value = value;
-        }
-
-        @Override
-        @JsonValue
-        public String toString() {
-            return String.valueOf(value);
-        }
-
-        @JsonCreator
-        public static TaskStatus fromValue(String text) {
-            for (TaskStatus status : TaskStatus.values()) {
-                if (String.valueOf(status.value).equals(text)) {
-                    return status;
-                }
-            }
-            return null;
-        }
-    }
 
 }

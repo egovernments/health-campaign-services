@@ -1,54 +1,40 @@
 package org.egov.common.models.individual;
 
-import com.fasterxml.jackson.annotation.JsonFormat;
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import digit.models.coremodels.AuditDetails;
-import io.swagger.annotations.ApiModel;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import org.springframework.validation.annotation.Validated;
-
-import javax.validation.Valid;
-import javax.validation.constraints.NotNull;
-import javax.validation.constraints.Size;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+
+import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import io.swagger.annotations.ApiModel;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
+import org.egov.common.models.core.EgovOfflineModel;
+import org.springframework.validation.annotation.Validated;
 
 /**
  * A representation of an Individual.
  */
 @ApiModel(description = "A representation of an Individual.")
 @Validated
-@javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2022-12-27T11:47:19.561+05:30")
+
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
+@SuperBuilder
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class Individual {
-
-    @JsonProperty("id")
-    @Size(min = 2, max = 64)
-    private String id = null;
+public class Individual extends EgovOfflineModel {
 
     @JsonProperty("individualId")
     @Size(min = 2, max = 64)
     private String individualId = null;
-
-    @JsonProperty("tenantId")
-    @NotNull
-    @Size(min = 2, max = 1000)
-    private String tenantId = null;
-
-    @JsonProperty("clientReferenceId")
-    @Size(min = 2, max = 64)
-    private String clientReferenceId = null;
 
     @JsonProperty("userId")
     private String userId = null;
@@ -113,26 +99,9 @@ public class Individual {
     @JsonProperty("photo")
     private String photo = null;
 
-    @JsonProperty("additionalFields")
-    @Valid
-    private AdditionalFields additionalFields = null;
-
+    //TODO remove
     @JsonProperty("isDeleted")
     private Boolean isDeleted = Boolean.FALSE;
-
-    @JsonProperty("rowVersion")
-    private Integer rowVersion = null;
-
-    @JsonProperty("auditDetails")
-    @Valid
-    private AuditDetails auditDetails = null;
-
-    @JsonProperty("clientAuditDetails")
-    @Valid
-    private AuditDetails clientAuditDetails = null;
-
-    @JsonIgnore
-    private Boolean hasErrors = Boolean.FALSE;
 
     @JsonProperty("isSystemUser")
     private Boolean isSystemUser = Boolean.FALSE;
@@ -142,7 +111,6 @@ public class Individual {
 
     @JsonProperty("userDetails")
     private UserDetails userDetails;
-
 
     public Individual addAddressItem(Address addressItem) {
         if (this.address == null) {

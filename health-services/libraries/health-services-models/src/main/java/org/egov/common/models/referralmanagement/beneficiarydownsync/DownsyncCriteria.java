@@ -1,6 +1,6 @@
 package org.egov.common.models.referralmanagement.beneficiarydownsync;
 
-import javax.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotNull;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -35,5 +35,7 @@ public class DownsyncCriteria {
 	private Integer limit = 50;
 	
 	private Long totalCount;
+
+	private String householdId;
 }
 

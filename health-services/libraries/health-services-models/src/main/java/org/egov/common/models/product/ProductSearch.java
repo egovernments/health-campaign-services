@@ -1,38 +1,36 @@
 package org.egov.common.models.product;
 
+import java.util.List;
+
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
+import org.egov.common.models.core.EgovSearchModel;
 import org.springframework.validation.annotation.Validated;
-
-import java.util.List;
 
 /**
 * ProductSearch
 */
 @Validated
-@javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2022-12-02T16:45:24.641+05:30")
+
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
+@SuperBuilder
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class ProductSearch {
-
-    @JsonProperty("id")
-    private List<String> id = null;
+public class ProductSearch extends EgovSearchModel {
 
     @JsonProperty("type")
     private String type = null;
 
     @JsonProperty("name")
-    private String name = null;
+    private List<String> name = null;
 
     @JsonProperty("manufacturer")
-    private String manufacturer = null;
+    private List<String> manufacturer = null;
 }
 

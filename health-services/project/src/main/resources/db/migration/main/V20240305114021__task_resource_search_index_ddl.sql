@@ -1,0 +1,1 @@
+CREATE INDEX IF NOT EXISTS idx_task_resource_taskid ON task_resource(taskid);

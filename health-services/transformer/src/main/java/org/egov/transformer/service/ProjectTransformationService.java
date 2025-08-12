@@ -6,7 +6,7 @@ import org.egov.common.models.project.Target;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.enums.Operation;
 import org.egov.transformer.models.downstream.ProjectIndexV1;
-import org.egov.transformer.producer.Producer;
+import org.egov.common.producer.Producer;
 import org.egov.transformer.service.transformer.Transformer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -70,7 +70,7 @@ public abstract class ProjectTransformationService implements TransformationServ
         @Override
         public List<ProjectIndexV1> transform(Project project) {
             Map<String, String> boundaryLabelToNameMap = projectService
-                    .getBoundaryLabelToNameMap(project.getAddress().getBoundary(), project.getTenantId());
+                    .getBoundaryCodeToNameMap(project.getAddress().getBoundary(), project.getTenantId());
             log.info("boundary labels {}", boundaryLabelToNameMap.toString());
             List<Target> targets = project.getTargets();
             if (targets == null || targets.isEmpty()) {

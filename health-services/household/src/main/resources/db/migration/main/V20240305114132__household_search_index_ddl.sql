@@ -1,0 +1,1 @@
+CREATE INDEX IF NOT EXISTS idx_household_tenantId_isDeleted_addressId ON household(tenantId, isDeleted, addressId);

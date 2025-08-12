@@ -1,28 +1,24 @@
 package org.egov.common.models.referralmanagement.sideeffect;
 
+import java.util.List;
+
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
-import java.util.List;
+import lombok.experimental.SuperBuilder;
+import org.egov.common.models.core.EgovOfflineSearchModel;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
-public class SideEffectSearch {
-    @JsonProperty("id")
-    private List<String> id;
-
-    @JsonProperty("clientReferenceId")
-    private List<String> clientReferenceId;
+@SuperBuilder
+public class SideEffectSearch extends EgovOfflineSearchModel {
 
     @JsonProperty("taskId")
-    private String taskId;
+    private List<String> taskId;
 
     @JsonProperty("taskClientReferenceId")
-    private String taskClientReferenceId;
+    private List<String> taskClientReferenceId;
 
 }

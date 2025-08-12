@@ -1,44 +1,32 @@
 package org.egov.common.models.project;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
+import java.util.ArrayList;
+import java.util.List;
+
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import digit.models.coremodels.AuditDetails;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
+import org.egov.common.models.core.EgovOfflineModel;
 import org.springframework.validation.annotation.Validated;
-
-import javax.validation.Valid;
-import javax.validation.constraints.NotNull;
-import javax.validation.constraints.Size;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
 * Task
 */
 @Validated
-@javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2022-12-02T17:32:25.406+05:30")
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
+@SuperBuilder
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class Task {
-
-    @JsonProperty("id")
-    private String id = null;
-
-    @JsonProperty("tenantId")
-    @NotNull
-    private String tenantId = null;
-
-    @JsonProperty("clientReferenceId")
-    @Size(min = 2, max = 64)
-    private String clientReferenceId = null;
+public class Task extends EgovOfflineModel {
 
     @JsonProperty("projectId")
     @NotNull
@@ -80,29 +68,13 @@ public class Task {
     @Valid
     private Address address = null;
 
-    @JsonProperty("additionalFields")
-    @Valid
-    private AdditionalFields additionalFields = null;
-
+    //TODO remove this
     @JsonProperty("isDeleted")
     private Boolean isDeleted = Boolean.FALSE;
 
-    @JsonProperty("rowVersion")
-    private Integer rowVersion = null;
-
-    @JsonProperty("auditDetails")
-    @Valid
-    private AuditDetails auditDetails = null;
-
-    @JsonProperty("clientAuditDetails")
-    @Valid
-    private AuditDetails clientAuditDetails = null;
-
     @JsonProperty("status")
-    private String status = null;
-
-    @JsonIgnore
-    private Boolean hasErrors = Boolean.FALSE;
+    @NotNull
+    TaskStatus status = null;
 
     public Task addResourcesItem(TaskResource resourcesItem) {
         this.resources.add(resourcesItem);

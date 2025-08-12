@@ -1,37 +1,32 @@
 package org.egov.common.models.household;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
+import java.util.ArrayList;
+import java.util.List;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import digit.models.coremodels.AuditDetails;
 import io.swagger.annotations.ApiModel;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
+import org.egov.common.models.core.EgovOfflineModel;
 import org.springframework.validation.annotation.Validated;
-
-import javax.validation.Valid;
-import javax.validation.constraints.NotNull;
-import javax.validation.constraints.Size;
 
 /**
 * A representation of a household member (already registered as an individual)
 */
     @ApiModel(description = "A representation of a household member (already registered as an individual)")
 @Validated
-@javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2022-12-21T13:41:16.379+05:30")
+
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
-    @JsonIgnoreProperties(ignoreUnknown = true)
-public class HouseholdMember{
-
-    @JsonProperty("id")
-    @Size(min = 2, max = 64)
-    private String id = null;
+@SuperBuilder
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class HouseholdMember extends EgovOfflineModel {
 
     @JsonProperty("householdId")
     @Size(min = 2, max = 64)
@@ -40,11 +35,6 @@ public class HouseholdMember{
     @JsonProperty("householdClientReferenceId")
     @Size(min = 2, max = 64)
     private String householdClientReferenceId = null;
-
-    @JsonProperty("clientReferenceId")
-    @Size(min = 2, max = 64)
-    @NotNull
-    private String clientReferenceId = null;
 
     @JsonProperty("individualId")
     @Size(min = 2, max = 64)
@@ -57,30 +47,20 @@ public class HouseholdMember{
     @JsonProperty("isHeadOfHousehold")
     private Boolean isHeadOfHousehold = false;
 
-    @JsonProperty("tenantId")
-    @Size(min = 2, max = 1000)
-    @NotNull
-    private String tenantId = null;
-
-    @JsonProperty("additionalFields")
+    @JsonProperty("memberRelationships")
     @Valid
-    private AdditionalFields additionalFields = null;
+    private List<Relationship> memberRelationships;
 
+    //TODO remove
     @JsonProperty("isDeleted")
     private Boolean isDeleted = Boolean.FALSE;
 
-    @JsonProperty("rowVersion")
-    private Integer rowVersion = null;
-
-    @JsonProperty("auditDetails")
-    @Valid
-    private AuditDetails auditDetails = null;
-
-    @JsonProperty("clientAuditDetails")
-    @Valid
-    private AuditDetails clientAuditDetails = null;
-
-    @JsonIgnore
-    private Boolean hasErrors = Boolean.FALSE;
+    public HouseholdMember addHouseholdMemberRelationship(Relationship relationship) {
+        if (this.memberRelationships == null) this.memberRelationships = new ArrayList<>();
+        relationship.setSelfId(this.getId());
+        relationship.setSelfClientReferenceId(this.getClientReferenceId());
+        this.memberRelationships.add(relationship);
+        return this;
+    }
 }
 

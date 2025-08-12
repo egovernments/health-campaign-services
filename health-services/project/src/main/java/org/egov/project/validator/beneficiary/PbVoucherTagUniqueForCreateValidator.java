@@ -6,7 +6,7 @@ import org.egov.common.models.project.BeneficiaryBulkRequest;
 import org.egov.common.models.project.ProjectBeneficiary;
 import org.egov.common.validator.Validator;
 import org.egov.project.repository.ProjectBeneficiaryRepository;
-import org.egov.project.web.models.ProjectBeneficiarySearch;
+import org.egov.common.models.project.ProjectBeneficiarySearch;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.annotation.Order;
@@ -106,7 +106,7 @@ public class PbVoucherTagUniqueForCreateValidator implements Validator<Beneficia
             existingProjectBeneficiaries = projectBeneficiaryRepository.find(
                     projectBeneficiarySearch,
                     voucherTags.size(), 0, validProjectBeneficiaries.get(0).getTenantId(), null, false
-            );
+            ).getResponse();
         } catch (Exception e) {
             log.error("Exception while fetching project beneficiary service : ", e);
             throw new CustomException("PROJECT_BENEFICIARY_VOUCHER_TAG_SEARCH_FAILED","Error occurred while fetching project beneficiary based on voucher tags. "+e);

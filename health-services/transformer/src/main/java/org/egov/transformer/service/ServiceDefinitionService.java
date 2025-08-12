@@ -1,21 +1,21 @@
 package org.egov.transformer.service;
 
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.contract.request.User;
 import org.egov.tracer.model.CustomException;
 import org.egov.transformer.config.TransformerProperties;
-import org.egov.transformer.http.client.ServiceRequestClient;
+import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.transformer.models.upstream.ServiceDefinition;
 import org.egov.transformer.models.upstream.ServiceDefinitionCriteria;
 import org.egov.transformer.models.upstream.ServiceDefinitionResponse;
 import org.egov.transformer.models.upstream.ServiceDefinitionSearchRequest;
 import org.springframework.stereotype.Component;
-
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 @Component
 @Slf4j
