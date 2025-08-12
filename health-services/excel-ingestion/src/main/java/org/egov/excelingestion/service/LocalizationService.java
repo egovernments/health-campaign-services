@@ -9,7 +9,7 @@ import org.egov.excelingestion.web.models.localization.LocalisationSearchCriteri
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
+import org.egov.common.http.client.ServiceRequestClient;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.util.Collections;
@@ -21,7 +21,7 @@ import java.util.Objects;
 @Slf4j
 public class LocalizationService {
 
-    private final RestTemplate restTemplate;
+    private final ServiceRequestClient serviceRequestClient;
 
     @Value("${egov.localization.host}")
     private String localizationHost;
@@ -29,8 +29,8 @@ public class LocalizationService {
     @Value("${egov.localization.search.path}")
     private String localizationSearchPath;
 
-    public LocalizationService(RestTemplate restTemplate) {
-        this.restTemplate = restTemplate;
+    public LocalizationService(ServiceRequestClient serviceRequestClient) {
+        this.serviceRequestClient = serviceRequestClient;
     }
 
     @Cacheable(value = "localizationMessages", key = "#tenantId + #module + #locale")
@@ -44,7 +44,8 @@ public class LocalizationService {
 
         try {
             // Post only RequestInfo in body (assuming API accepts it)
-            LocalisationResponse response = restTemplate.postForObject(url, requestInfo, LocalisationResponse.class);
+            StringBuilder uri = new StringBuilder(url);
+            LocalisationResponse response = serviceRequestClient.fetchResult(uri, requestInfo, LocalisationResponse.class);
 
             if (response != null && response.getMessages() != null) {
                 Map<String, String> localizedMessages = new HashMap<>();

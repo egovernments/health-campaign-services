@@ -11,12 +11,8 @@ import org.egov.excelingestion.config.ExcelIngestionConfig;
 import org.egov.excelingestion.service.LocalizationService;
 import org.egov.excelingestion.util.ExcelSchemaSheetCreator;
 import org.egov.excelingestion.web.models.*;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestTemplate;
+import org.egov.common.http.client.ServiceRequestClient;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -28,13 +24,13 @@ import java.util.*;
 @Slf4j
 public class MicroplanProcessor implements IGenerateProcessor {
 
-    private final RestTemplate restTemplate;
+    private final ServiceRequestClient serviceRequestClient;
     private final ExcelIngestionConfig config;
     private final LocalizationService localizationService;
 
-    public MicroplanProcessor(RestTemplate restTemplate, ExcelIngestionConfig config,
+    public MicroplanProcessor(ServiceRequestClient serviceRequestClient, ExcelIngestionConfig config,
             LocalizationService localizationService) {
-        this.restTemplate = restTemplate;
+        this.serviceRequestClient = serviceRequestClient;
         this.config = config;
         this.localizationService = localizationService;
     }
@@ -79,15 +75,9 @@ public class MicroplanProcessor implements IGenerateProcessor {
         
         BoundaryHierarchyResponse hierarchyData;
         try {
-            HttpHeaders headers = new HttpHeaders();
-            headers.set("Content-Type", "application/json");
-            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(hierarchyPayload, headers);
-            
-            ResponseEntity<BoundaryHierarchyResponse> response = restTemplate.exchange(
-                hierarchyUrl, HttpMethod.POST, entity, BoundaryHierarchyResponse.class);
-            
-            hierarchyData = response.getBody();
-            log.info("Successfully fetched boundary hierarchy data, status: {}", response.getStatusCode());
+            StringBuilder uri = new StringBuilder(hierarchyUrl);
+            hierarchyData = serviceRequestClient.fetchResult(uri, hierarchyPayload, BoundaryHierarchyResponse.class);
+            log.info("Successfully fetched boundary hierarchy data");
         } catch (Exception e) {
             log.error("Error calling Boundary Hierarchy API: {}", e.getMessage(), e);
             throw new RuntimeException("Error calling Boundary Hierarchy API: " + hierarchyUrl, e);
@@ -113,15 +103,8 @@ public class MicroplanProcessor implements IGenerateProcessor {
         
         BoundarySearchResponse relationshipData;
         try {
-            HttpHeaders headers = new HttpHeaders();
-            headers.set("Content-Type", "application/json");
-            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(relationshipPayload, headers);
-            
-            ResponseEntity<BoundarySearchResponse> response = restTemplate.exchange(
-                url.toString(), HttpMethod.POST, entity, BoundarySearchResponse.class);
-            
-            relationshipData = response.getBody();
-            log.info("Successfully fetched boundary relationship data, status: {}", response.getStatusCode());
+            relationshipData = serviceRequestClient.fetchResult(url, relationshipPayload, BoundarySearchResponse.class);
+            log.info("Successfully fetched boundary relationship data");
         } catch (Exception e) {
             log.error("Error calling Boundary Relationship API: {}", e.getMessage(), e);
             throw new RuntimeException("Error calling Boundary Relationship API: " + url.toString(), e);
@@ -579,12 +562,8 @@ public class MicroplanProcessor implements IGenerateProcessor {
             // Call MDMS service
             log.info("Calling MDMS API: {} for schema: facility-microplan-ingestion, tenantId: {}", url, tenantId);
             
-            HttpHeaders headers = new HttpHeaders();
-            headers.set("Content-Type", "application/json");
-            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(mdmsRequest, headers);
-            
-            ResponseEntity<Map> response = restTemplate.exchange(url, HttpMethod.POST, entity, Map.class);
-            Map<String, Object> responseBody = response.getBody();
+            StringBuilder uri = new StringBuilder(url);
+            Map<String, Object> responseBody = serviceRequestClient.fetchResult(uri, mdmsRequest, Map.class);
             
             if (responseBody != null && responseBody.get("mdms") != null) {
                 List<Map<String, Object>> mdmsList = (List<Map<String, Object>>) responseBody.get("mdms");
@@ -597,7 +576,7 @@ public class MicroplanProcessor implements IGenerateProcessor {
                     if (properties != null) {
                         // Convert properties to JSON string
                         ObjectMapper mapper = new ObjectMapper();
-                        log.info("Successfully fetched MDMS schema, status: {}", response.getStatusCode());
+                        log.info("Successfully fetched MDMS schema");
                         return mapper.writeValueAsString(properties);
                     }
                 }

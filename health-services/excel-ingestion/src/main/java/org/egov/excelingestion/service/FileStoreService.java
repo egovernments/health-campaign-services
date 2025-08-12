@@ -8,6 +8,7 @@ import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
+import org.egov.common.http.client.ServiceRequestClient;
 import org.springframework.web.client.RestTemplate;
 
 import java.io.IOException;
@@ -18,12 +19,12 @@ import java.util.Map;
 @Slf4j
 public class FileStoreService {
 
-    private final RestTemplate restTemplate;
+    private final RestTemplate restTemplate; // Keep for multipart file upload
     private final ExcelIngestionConfig config;
     private final ObjectMapper objectMapper;
 
     public FileStoreService(RestTemplate restTemplate, ExcelIngestionConfig config, ObjectMapper objectMapper) {
-        this.restTemplate = restTemplate;
+        this.restTemplate = restTemplate; // FileStore requires multipart upload, keeping RestTemplate
         this.config = config;
         this.objectMapper = objectMapper;
     }
