@@ -49,7 +49,7 @@ public interface Constants {
 
     String HOUSEHOLD_DOES_NOT_HAVE_A_HEAD = "HOUSEHOLD_DOES_NOT_HAVE_A_HEAD";
 
-    String HOUSEHOLD_DOES_NOT_HAVE_A_HEAD_MESSAGE = "Household does not have a head";
+    String HOUSEHOLD_DOES_NOT_HAVE_A_HEAD_MESSAGE = "household does not have a head";
 
     String HOUSEHOLD_HEAD_CANNOT_BE_UNASSIGNED = "HOUSEHOLD_HEAD_CANNOT_BE_UNASSIGNED";
 

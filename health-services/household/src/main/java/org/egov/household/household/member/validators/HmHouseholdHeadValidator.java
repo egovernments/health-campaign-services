@@ -88,12 +88,10 @@ public class HmHouseholdHeadValidator implements Validator<HouseholdMemberBulkRe
             log.error("More than one head of household found for household {}", householdId);
             return;
         }
-        List<HouseholdMember> existingHouseholdMembers = null;
         try {
-            existingHouseholdMembers = householdMemberRepository
-                    .findIndividualByHousehold(tenantId, householdId, householdColumnName).getResponse().stream().filter(HouseholdMember::getIsHeadOfHousehold)
-                    .toList();
-            List<HouseholdMember> existingHouseholdHead = existingHouseholdMembers.stream().filter(HouseholdMember::getIsHeadOfHousehold).toList();
+            List<HouseholdMember> existingHouseholdHead = householdMemberRepository
+                    .findIndividualByHousehold(tenantId, householdId, householdColumnName).getResponse()
+                    .stream().filter(HouseholdMember::getIsHeadOfHousehold).toList();
 
             // Validates if a household doesn't have a head
             if(requestHouseholdHead.isEmpty() && existingHouseholdHead.isEmpty()) {
@@ -130,7 +128,7 @@ public class HmHouseholdHeadValidator implements Validator<HouseholdMemberBulkRe
                 }
             }
 
-            // Validates if a household
+            // Validates if a household head reassignment is valid
             if(!existingHouseholdHead.isEmpty() && !requestHouseholdHead.isEmpty()) {
                 HouseholdMember existingHead = existingHouseholdHead.get(0);
                 String existingHeadMemberId = (String) ReflectionUtils.invokeMethod(householdMemberidMethod, existingHead);
@@ -143,7 +141,8 @@ public class HmHouseholdHeadValidator implements Validator<HouseholdMemberBulkRe
                             return existingHeadMemberIdInRequest != null && existingHeadMemberIdInRequest.equals(existingHeadMemberId);
                         });
 
-                // Validate if household head is being reassigned but existing head is not set to non-head
+                // Validate if household head is being reassigned but existing head is not present
+                // in the request with isHeadOfHousehold = false
                 if(isReassigning && !existingHeadInRequest) {
                     Error error = Error.builder().errorMessage(HOUSEHOLD_ALREADY_HAS_HEAD_MESSAGE)
                             .errorCode(HOUSEHOLD_ALREADY_HAS_HEAD)
