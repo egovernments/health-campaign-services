@@ -164,29 +164,33 @@ public class MicroplanProcessor implements IGenerateProcessor {
             Row header = boundarySheet.getRow(0) != null ? boundarySheet.getRow(0) : boundarySheet.createRow(0);
             header.createCell(i).setCellValue(level); // header shows level display name
 
-            // We will write localized names in this column (aligned with codePaths
-            // iteration order)
-            int rowNum = 1;
-            // To keep mapping stable, iterate codePaths (which is LinkedHashSet) and write
-            // localized for each codePath
+            // Sort localized names alphabetically
+            List<String> sortedLocalizedNames = new ArrayList<>();
             for (String codePath : codePaths) {
                 String localized = codeToLocalized.getOrDefault(codePath, codePath);
+                sortedLocalizedNames.add(localized);
+            }
+            Collections.sort(sortedLocalizedNames, String.CASE_INSENSITIVE_ORDER);
+
+            // Write sorted localized names
+            int rowNum = 1;
+            for (String localizedName : sortedLocalizedNames) {
                 Row row = boundarySheet.getRow(rowNum) != null ? boundarySheet.getRow(rowNum)
                         : boundarySheet.createRow(rowNum);
-                row.createCell(i).setCellValue(localized);
+                row.createCell(i).setCellValue(localizedName);
                 rowNum++;
             }
-            maxBoundaries = Math.max(maxBoundaries, codePaths.size());
+            maxBoundaries = Math.max(maxBoundaries, sortedLocalizedNames.size());
 
             // Create named range for this level using sanitized name like Level_1
-            if (!codePaths.isEmpty()) {
+            if (!sortedLocalizedNames.isEmpty()) {
                 String levelSanitized = makeNameValid(level);
                 if (workbook.getName(levelSanitized) == null) {
                     Name namedRange = workbook.createName();
                     namedRange.setNameName(levelSanitized);
                     String colLetter = CellReference.convertNumToColString(i);
                     namedRange.setRefersToFormula(
-                            "_h_Boundaries_h_!$" + colLetter + "$2:$" + colLetter + "$" + (codePaths.size() + 1));
+                            "_h_Boundaries_h_!$" + colLetter + "$2:$" + colLetter + "$" + (sortedLocalizedNames.size() + 1));
                 }
             }
         }
@@ -205,9 +209,16 @@ public class MicroplanProcessor implements IGenerateProcessor {
             // we store header as codePath so we can create named ranges by codePath
             headerRow.createCell(parentCol).setCellValue(childCode);
 
-            int r = 1;
+            // Sort parent names alphabetically
+            List<String> sortedParentNames = new ArrayList<>();
             for (String parentCode : parentCodes) {
                 String localizedParent = codeToLocalized.getOrDefault(parentCode, parentCode);
+                sortedParentNames.add(localizedParent);
+            }
+            Collections.sort(sortedParentNames, String.CASE_INSENSITIVE_ORDER);
+
+            int r = 1;
+            for (String localizedParent : sortedParentNames) {
                 Row row = parentSheet.getRow(r) != null ? parentSheet.getRow(r) : parentSheet.createRow(r);
                 row.createCell(parentCol).setCellValue(localizedParent);
                 r++;
@@ -215,12 +226,12 @@ public class MicroplanProcessor implements IGenerateProcessor {
 
             // create named range named by sanitized codePath (unique)
             String sanitizedCodeName = makeNameValid(childCode);
-            if (workbook.getName(sanitizedCodeName) == null && !parentCodes.isEmpty()) {
+            if (workbook.getName(sanitizedCodeName) == null && !sortedParentNames.isEmpty()) {
                 Name namedRange = workbook.createName();
                 namedRange.setNameName(sanitizedCodeName);
                 String colLetter = CellReference.convertNumToColString(parentCol);
                 namedRange.setRefersToFormula(
-                        "_h_Parents_h_!$" + colLetter + "$2:$" + colLetter + "$" + (parentCodes.size() + 1));
+                        "_h_Parents_h_!$" + colLetter + "$2:$" + colLetter + "$" + (sortedParentNames.size() + 1));
             }
             parentCol++;
         }
