@@ -81,14 +81,8 @@ public class IdPoolValidatorForUpdate implements Validator<IndividualBulkRequest
 
                 if (identifier != null && StringUtils.isNotBlank(identifier.getIdentifierId())) {
                     String beneficiaryId = identifier.getIdentifierId();
-
-                    if (beneficiaryId.contains("*")) {
-                        // get the last 4 digits
-                        String last4Digits = identifier.getIdentifierId()
-                                .substring(identifier.getIdentifierId().length() - 4);
-                        // regex to check if last 4 digits are numbers
-                        String regex = "[0-9]+";
-                        if (!isValidPattern(last4Digits, regex) || identifier.getIdentifierId().length() != 12) {
+                    if(IdPoolValidatorForCreate.isMaskedId(beneficiaryId)) {
+                        if (!isValidMaskedId(beneficiaryId, individualProperties.getBeneficiaryIdLength())) {
                             updateError(errorDetailsMap, individual, INVALID_BENEFICIARY_ID, "The masked beneficiary id '" + beneficiaryId + "' is invalid.");
                         }
                         continue;
@@ -145,6 +139,10 @@ public class IdPoolValidatorForUpdate implements Validator<IndividualBulkRequest
     }
 
     public static boolean isValidMaskedId(String beneficiaryId, Integer length) {
+        // Check minimum length first
+        if (beneficiaryId == null || beneficiaryId.length() < 4) {
+            return false;
+        }
         // get the last 4 digits
         String last4Digits = beneficiaryId
                 .substring(beneficiaryId.length() - 4);
