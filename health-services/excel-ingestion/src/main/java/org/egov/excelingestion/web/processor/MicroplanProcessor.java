@@ -154,9 +154,19 @@ public class MicroplanProcessor implements IGenerateProcessor {
         // Create workbook and sheets
         XSSFWorkbook workbook = new XSSFWorkbook();
 
-        // === Create Mapping sheet using schema first ===
+        // Get the localized sheet name first
+        String localizedFacilitySheetName = mergedLocalizationMap.getOrDefault("HCM_ADMIN_CONSOLE_FACILITIES_LIST", "HCM_ADMIN_CONSOLE_FACILITIES_LIST");
+        
+        // Excel has a 31 character limit for sheet names, so we need to handle this
+        String actualFacilitySheetName = localizedFacilitySheetName;
+        if (localizedFacilitySheetName.length() > 31) {
+            actualFacilitySheetName = localizedFacilitySheetName.substring(0, 31);
+            log.warn("Sheet name '{}' exceeds 31 character limit, trimming to '{}'", localizedFacilitySheetName, actualFacilitySheetName);
+        }
+        
+        // === Create facility sheet using schema with correct localized name ===
         if (schemaJson != null && !schemaJson.isEmpty()) {
-            workbook = (XSSFWorkbook) ExcelSchemaSheetCreator.addSchemaSheetFromJson(schemaJson, "Mapping", workbook, mergedLocalizationMap);
+            workbook = (XSSFWorkbook) ExcelSchemaSheetCreator.addSchemaSheetFromJson(schemaJson, actualFacilitySheetName, workbook, mergedLocalizationMap);
         }
 
         // === Levels sheet (display names visible) ===
@@ -265,16 +275,12 @@ public class MicroplanProcessor implements IGenerateProcessor {
         // create a named range for CodeMap if desired (not strictly necessary) - we use
         // full sheet reference in VLOOKUP
 
-        // === Main Mapping sheet - get existing sheet created by schema ===
-        Sheet mainSheet = workbook.getSheet("Mapping");
+        // === Main facility sheet - get existing sheet created by schema ===
+        Sheet mainSheet = workbook.getSheet(actualFacilitySheetName);
         if (mainSheet == null) {
             // Fallback if schema creation failed
-            mainSheet = workbook.createSheet("Mapping");
+            mainSheet = workbook.createSheet(actualFacilitySheetName);
         }
-        
-        // Rename Mapping sheet to localized value
-        String localizedSheetName = mergedLocalizationMap.getOrDefault("HCM_ADMIN_CONSOLE_FACILITIES_LIST", "HCM_ADMIN_CONSOLE_FACILITIES_LIST");
-        workbook.setSheetName(workbook.getSheetIndex(mainSheet), localizedSheetName);
         
         // Add boundary columns after schema columns
         // Row 0 contains technical names (hidden), Row 1 contains visible headers
@@ -363,10 +369,18 @@ public class MicroplanProcessor implements IGenerateProcessor {
         mainSheet.createFreezePane(0, 2); // Freeze after row 2 since schema creator uses row 1 for technical names
 
         // === Create User sheet using user schema ===
-        String userSheetName = mergedLocalizationMap.getOrDefault("HCM_ADMIN_CONSOLE_USERS_LIST",
+        String localizedUserSheetName = mergedLocalizationMap.getOrDefault("HCM_ADMIN_CONSOLE_USERS_LIST",
                 "HCM_ADMIN_CONSOLE_USERS_LIST");
+        
+        // Handle Excel's 31 character limit for sheet names
+        String actualUserSheetName = localizedUserSheetName;
+        if (localizedUserSheetName.length() > 31) {
+            actualUserSheetName = localizedUserSheetName.substring(0, 31);
+            log.warn("Sheet name '{}' exceeds 31 character limit, trimming to '{}'", localizedUserSheetName, actualUserSheetName);
+        }
+        
         if (userSchemaJson != null && !userSchemaJson.isEmpty()) {
-            workbook = (XSSFWorkbook) ExcelSchemaSheetCreator.addEnhancedSchemaSheetFromJson(userSchemaJson, userSheetName, workbook, mergedLocalizationMap);
+            workbook = (XSSFWorkbook) ExcelSchemaSheetCreator.addEnhancedSchemaSheetFromJson(userSchemaJson, actualUserSheetName, workbook, mergedLocalizationMap);
         }
 
         // Unlock cells for user input
@@ -393,7 +407,7 @@ public class MicroplanProcessor implements IGenerateProcessor {
         // Hide all sheets except the main sheet and user sheet
         for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
             Sheet sheet = workbook.getSheetAt(i);
-            if (sheet != mainSheet && !sheet.getSheetName().equals(userSheetName)) {
+            if (sheet != mainSheet && !sheet.getSheetName().equals(actualUserSheetName)) {
                 workbook.setSheetHidden(i, true);
             }
         }
