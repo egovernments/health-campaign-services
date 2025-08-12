@@ -7,6 +7,8 @@ import org.apache.poi.ss.util.CellRangeAddressList;
 import org.apache.poi.xssf.usermodel.XSSFCellStyle;
 import org.apache.poi.xssf.usermodel.XSSFColor;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.egov.excelingestion.web.models.excel.ColumnDef;
+import org.egov.excelingestion.web.models.excel.MultiSelectDetails;
 import java.awt.Color;
 import java.io.IOException;
 import java.util.*;
@@ -27,11 +29,11 @@ public class ExcelSchemaSheetCreator {
 
         // Merge stringProperties & numberProperties
         StreamSupport.stream(root.path("stringProperties").spliterator(), false)
-                .map(ExcelSchemaSheetCreator::parseColumnDef)
+                .map(node -> parseSimpleColumnDef(node))
                 .forEach(columns::add);
 
         StreamSupport.stream(root.path("numberProperties").spliterator(), false)
-                .map(ExcelSchemaSheetCreator::parseColumnDef)
+                .map(node -> parseSimpleColumnDef(node))
                 .forEach(columns::add);
 
         // Sort by orderNumber, stable for ties
@@ -82,28 +84,28 @@ public class ExcelSchemaSheetCreator {
         ObjectMapper mapper = new ObjectMapper();
         JsonNode root = mapper.readTree(json);
 
-        List<EnhancedColumnDef> columns = new ArrayList<>();
+        List<ColumnDef> columns = new ArrayList<>();
 
         // Process stringProperties 
         StreamSupport.stream(root.path("stringProperties").spliterator(), false)
-                .map(node -> parseEnhancedColumnDef(node, "string"))
+                .map(node -> parseColumnDef(node, "string"))
                 .forEach(columns::add);
 
         // Process numberProperties
         StreamSupport.stream(root.path("numberProperties").spliterator(), false)
-                .map(node -> parseEnhancedColumnDef(node, "number"))
+                .map(node -> parseColumnDef(node, "number"))
                 .forEach(columns::add);
 
         // Process enumProperties (new support)
         StreamSupport.stream(root.path("enumProperties").spliterator(), false)
-                .map(node -> parseEnhancedColumnDef(node, "enum"))
+                .map(node -> parseColumnDef(node, "enum"))
                 .forEach(columns::add);
 
         // Sort by orderNumber, stable for ties
-        columns.sort(Comparator.comparingInt(EnhancedColumnDef::getOrderNumber));
+        columns.sort(Comparator.comparingInt(ColumnDef::getOrderNumber));
 
         // Expand multiselect columns
-        List<EnhancedColumnDef> expandedColumns = expandMultiSelectColumns(columns);
+        List<ColumnDef> expandedColumns = expandMultiSelectColumns(columns);
 
         Sheet sheet = workbook.createSheet(sheetName);
 
@@ -112,7 +114,7 @@ public class ExcelSchemaSheetCreator {
         Row visibleRow = sheet.createRow(1);
 
         int colIndex = 0;
-        for (EnhancedColumnDef def : expandedColumns) {
+        for (ColumnDef def : expandedColumns) {
             // Row 1: technical name
             Cell techCell = hiddenRow.createCell(colIndex);
             techCell.setCellValue(def.getTechnicalName());
@@ -154,14 +156,14 @@ public class ExcelSchemaSheetCreator {
         return workbook;
     }
 
-    private static ColumnDef parseColumnDef(JsonNode node) {
-        ColumnDef def = new ColumnDef();
-        def.setName(node.path("name").asText());
-        def.setDescription(node.path("description").asText());
-        def.setColorHex(node.path("color").asText());
-        def.setOrderNumber(node.path("orderNumber").asInt(9999));
-        def.setFreezeColumnIfFilled(node.path("freezeColumnIfFilled").asBoolean(false));
-        return def;
+    private static ColumnDef parseSimpleColumnDef(JsonNode node) {
+        return ColumnDef.builder()
+                .name(node.path("name").asText())
+                .description(node.path("description").asText())
+                .colorHex(node.path("color").asText())
+                .orderNumber(node.path("orderNumber").asInt(9999))
+                .freezeColumnIfFilled(node.path("freezeColumnIfFilled").asBoolean(false))
+                .build();
     }
 
     private static CellStyle createColoredHeaderStyle(Workbook workbook, String colorHex) {
@@ -224,94 +226,108 @@ public class ExcelSchemaSheetCreator {
     }
 
     // Enhanced parsing method for new schema types
-    private static EnhancedColumnDef parseEnhancedColumnDef(JsonNode node, String type) {
-        EnhancedColumnDef def = new EnhancedColumnDef();
-        def.setName(node.path("name").asText());
-        def.setType(type);
-        def.setDescription(node.path("description").asText());
-        def.setColorHex(node.path("color").asText());
-        def.setOrderNumber(node.path("orderNumber").asInt(9999));
-        def.setFreezeColumnIfFilled(node.path("freezeColumnIfFilled").asBoolean(false));
-        def.setHideColumn(node.path("hideColumn").asBoolean(false));
-        def.setRequired(node.path("isRequired").asBoolean(false));
+    private static ColumnDef parseColumnDef(JsonNode node, String type) {
+        ColumnDef.ColumnDefBuilder builder = ColumnDef.builder()
+                .name(node.path("name").asText())
+                .type(type)
+                .description(node.path("description").asText())
+                .colorHex(node.path("color").asText())
+                .orderNumber(node.path("orderNumber").asInt(9999))
+                .freezeColumnIfFilled(node.path("freezeColumnIfFilled").asBoolean(false))
+                .hideColumn(node.path("hideColumn").asBoolean(false))
+                .required(node.path("isRequired").asBoolean(false));
         
         // Handle enum properties
         if ("enum".equals(type) && node.has("enum")) {
             List<String> enumValues = new ArrayList<>();
             node.path("enum").forEach(enumNode -> enumValues.add(enumNode.asText()));
-            def.setEnumValues(enumValues);
+            builder.enumValues(enumValues);
         }
         
         // Handle multiSelectDetails for string properties
         if (node.has("multiSelectDetails")) {
             JsonNode multiSelectNode = node.path("multiSelectDetails");
-            MultiSelectDetails details = new MultiSelectDetails();
-            details.setMaxSelections(multiSelectNode.path("maxSelections").asInt(1));
-            details.setMinSelections(multiSelectNode.path("minSelections").asInt(0));
-            
             List<String> enumValues = new ArrayList<>();
             multiSelectNode.path("enum").forEach(enumNode -> enumValues.add(enumNode.asText()));
-            details.setEnumValues(enumValues);
             
-            def.setMultiSelectDetails(details);
+            MultiSelectDetails details = MultiSelectDetails.builder()
+                    .maxSelections(multiSelectNode.path("maxSelections").asInt(1))
+                    .minSelections(multiSelectNode.path("minSelections").asInt(0))
+                    .enumValues(enumValues)
+                    .build();
+            
+            builder.multiSelectDetails(details);
         }
         
-        return def;
+        return builder.build();
     }
     
-    private static List<EnhancedColumnDef> expandMultiSelectColumns(List<EnhancedColumnDef> columns) {
-        List<EnhancedColumnDef> expandedColumns = new ArrayList<>();
+    private static List<ColumnDef> expandMultiSelectColumns(List<ColumnDef> columns) {
+        List<ColumnDef> expandedColumns = new ArrayList<>();
         
-        for (EnhancedColumnDef column : columns) {
+        for (ColumnDef column : columns) {
             if (column.getMultiSelectDetails() != null) {
                 MultiSelectDetails details = column.getMultiSelectDetails();
                 int maxSelections = details.getMaxSelections();
                 
                 // Create individual columns for each selection
                 for (int i = 1; i <= maxSelections; i++) {
-                    EnhancedColumnDef multiCol = new EnhancedColumnDef();
-                    multiCol.setName(column.getName());
-                    multiCol.setTechnicalName(column.getName() + "_" + i);
-                    multiCol.setDisplayName(column.getName() + " " + i);
-                    multiCol.setType("multiselect_item");
-                    multiCol.setColorHex(column.getColorHex());
-                    multiCol.setOrderNumber(column.getOrderNumber());
-                    multiCol.setEnumValues(details.getEnumValues());
-                    multiCol.setParentColumn(column.getName());
-                    multiCol.setMultiSelectIndex(i);
-                    multiCol.setFreezeColumnIfFilled(column.isFreezeColumnIfFilled());
+                    ColumnDef multiCol = ColumnDef.builder()
+                            .name(column.getName())
+                            .technicalName(column.getName() + "_" + i)
+                            .displayName(column.getName() + " " + i)
+                            .type("multiselect_item")
+                            .colorHex(column.getColorHex())
+                            .orderNumber(column.getOrderNumber())
+                            .enumValues(details.getEnumValues())
+                            .parentColumn(column.getName())
+                            .multiSelectIndex(i)
+                            .freezeColumnIfFilled(column.isFreezeColumnIfFilled())
+                            .build();
                     expandedColumns.add(multiCol);
                 }
                 
                 // Add the hidden concatenated column
-                EnhancedColumnDef hiddenCol = new EnhancedColumnDef();
-                hiddenCol.setName(column.getName());
-                hiddenCol.setTechnicalName(column.getName());
-                hiddenCol.setDisplayName(column.getName());
-                hiddenCol.setType("multiselect_hidden");
-                hiddenCol.setColorHex(column.getColorHex());
-                hiddenCol.setOrderNumber(column.getOrderNumber());
-                hiddenCol.setHideColumn(column.isHideColumn());
-                hiddenCol.setParentColumn(column.getName());
-                hiddenCol.setMultiSelectMaxSelections(maxSelections);
-                hiddenCol.setFreezeColumnIfFilled(column.isFreezeColumnIfFilled());
+                ColumnDef hiddenCol = ColumnDef.builder()
+                        .name(column.getName())
+                        .technicalName(column.getName())
+                        .displayName(column.getName())
+                        .type("multiselect_hidden")
+                        .colorHex(column.getColorHex())
+                        .orderNumber(column.getOrderNumber())
+                        .hideColumn(column.isHideColumn())
+                        .parentColumn(column.getName())
+                        .multiSelectMaxSelections(maxSelections)
+                        .freezeColumnIfFilled(column.isFreezeColumnIfFilled())
+                        .build();
                 expandedColumns.add(hiddenCol);
             } else {
                 // Regular column (string, number, enum)
-                column.setTechnicalName(column.getName());
-                column.setDisplayName(column.getName());
-                expandedColumns.add(column);
+                ColumnDef regularCol = ColumnDef.builder()
+                        .name(column.getName())
+                        .technicalName(column.getName())
+                        .displayName(column.getName())
+                        .type(column.getType())
+                        .description(column.getDescription())
+                        .colorHex(column.getColorHex())
+                        .orderNumber(column.getOrderNumber())
+                        .freezeColumnIfFilled(column.isFreezeColumnIfFilled())
+                        .hideColumn(column.isHideColumn())
+                        .required(column.isRequired())
+                        .enumValues(column.getEnumValues())
+                        .build();
+                expandedColumns.add(regularCol);
             }
         }
         
         return expandedColumns;
     }
     
-    private static void applyValidations(Workbook workbook, Sheet sheet, List<EnhancedColumnDef> columns) {
+    private static void applyValidations(Workbook workbook, Sheet sheet, List<ColumnDef> columns) {
         DataValidationHelper dvHelper = sheet.getDataValidationHelper();
         
         for (int colIndex = 0; colIndex < columns.size(); colIndex++) {
-            EnhancedColumnDef column = columns.get(colIndex);
+            ColumnDef column = columns.get(colIndex);
             
             // Apply enum dropdown validation
             if ("enum".equals(column.getType()) || "multiselect_item".equals(column.getType())) {
@@ -331,13 +347,13 @@ public class ExcelSchemaSheetCreator {
         }
     }
     
-    private static void applyMultiSelectFormulas(Sheet sheet, List<EnhancedColumnDef> columns) {
+    private static void applyMultiSelectFormulas(Sheet sheet, List<ColumnDef> columns) {
         Map<String, List<Integer>> multiSelectGroups = new HashMap<>();
         Map<String, Integer> hiddenColumnIndexes = new HashMap<>();
         
         // Group columns by parent and find hidden column indexes
         for (int i = 0; i < columns.size(); i++) {
-            EnhancedColumnDef column = columns.get(i);
+            ColumnDef column = columns.get(i);
             if ("multiselect_item".equals(column.getType())) {
                 multiSelectGroups.computeIfAbsent(column.getParentColumn(), k -> new ArrayList<>()).add(i);
             } else if ("multiselect_hidden".equals(column.getType())) {
@@ -398,7 +414,7 @@ public class ExcelSchemaSheetCreator {
         }
     }
     
-    private static void prepareEnhancedCellLocking(Workbook workbook, Sheet sheet, List<EnhancedColumnDef> columns) {
+    private static void prepareEnhancedCellLocking(Workbook workbook, Sheet sheet, List<ColumnDef> columns) {
         // First, unlock all cells by default
         CellStyle unlockedStyle = workbook.createCellStyle();
         unlockedStyle.setLocked(false);
@@ -427,221 +443,5 @@ public class ExcelSchemaSheetCreator {
             columnIndex /= 26;
         }
         return columnName.toString();
-    }
-
-    private static class ColumnDef {
-        private String name;
-        private String description;
-        private String colorHex;
-        private int orderNumber;
-        private boolean freezeColumnIfFilled;
-
-        public String getName() {
-            return name;
-        }
-
-        public void setName(String name) {
-            this.name = name;
-        }
-
-        public String getDescription() {
-            return description;
-        }
-
-        public void setDescription(String description) {
-            this.description = description;
-        }
-
-        public String getColorHex() {
-            return colorHex;
-        }
-
-        public void setColorHex(String colorHex) {
-            this.colorHex = colorHex;
-        }
-
-        public int getOrderNumber() {
-            return orderNumber;
-        }
-
-        public void setOrderNumber(int orderNumber) {
-            this.orderNumber = orderNumber;
-        }
-
-        public boolean isFreezeColumnIfFilled() {
-            return freezeColumnIfFilled;
-        }
-
-        public void setFreezeColumnIfFilled(boolean freezeColumnIfFilled) {
-            this.freezeColumnIfFilled = freezeColumnIfFilled;
-        }
-    }
-    
-    private static class EnhancedColumnDef {
-        private String name;
-        private String technicalName;
-        private String displayName;
-        private String type;
-        private String description;
-        private String colorHex;
-        private int orderNumber;
-        private boolean freezeColumnIfFilled;
-        private boolean hideColumn;
-        private boolean required;
-        private List<String> enumValues;
-        private MultiSelectDetails multiSelectDetails;
-        private String parentColumn;
-        private int multiSelectIndex;
-        private int multiSelectMaxSelections;
-
-        public String getName() {
-            return name;
-        }
-
-        public void setName(String name) {
-            this.name = name;
-        }
-
-        public String getTechnicalName() {
-            return technicalName;
-        }
-
-        public void setTechnicalName(String technicalName) {
-            this.technicalName = technicalName;
-        }
-
-        public String getDisplayName() {
-            return displayName;
-        }
-
-        public void setDisplayName(String displayName) {
-            this.displayName = displayName;
-        }
-
-        public String getType() {
-            return type;
-        }
-
-        public void setType(String type) {
-            this.type = type;
-        }
-
-        public String getDescription() {
-            return description;
-        }
-
-        public void setDescription(String description) {
-            this.description = description;
-        }
-
-        public String getColorHex() {
-            return colorHex;
-        }
-
-        public void setColorHex(String colorHex) {
-            this.colorHex = colorHex;
-        }
-
-        public int getOrderNumber() {
-            return orderNumber;
-        }
-
-        public void setOrderNumber(int orderNumber) {
-            this.orderNumber = orderNumber;
-        }
-
-        public boolean isFreezeColumnIfFilled() {
-            return freezeColumnIfFilled;
-        }
-
-        public void setFreezeColumnIfFilled(boolean freezeColumnIfFilled) {
-            this.freezeColumnIfFilled = freezeColumnIfFilled;
-        }
-
-        public boolean isHideColumn() {
-            return hideColumn;
-        }
-
-        public void setHideColumn(boolean hideColumn) {
-            this.hideColumn = hideColumn;
-        }
-
-        public boolean isRequired() {
-            return required;
-        }
-
-        public void setRequired(boolean required) {
-            this.required = required;
-        }
-
-        public List<String> getEnumValues() {
-            return enumValues;
-        }
-
-        public void setEnumValues(List<String> enumValues) {
-            this.enumValues = enumValues;
-        }
-
-        public MultiSelectDetails getMultiSelectDetails() {
-            return multiSelectDetails;
-        }
-
-        public void setMultiSelectDetails(MultiSelectDetails multiSelectDetails) {
-            this.multiSelectDetails = multiSelectDetails;
-        }
-
-        public String getParentColumn() {
-            return parentColumn;
-        }
-
-        public void setParentColumn(String parentColumn) {
-            this.parentColumn = parentColumn;
-        }
-
-        public int getMultiSelectIndex() {
-            return multiSelectIndex;
-        }
-
-        public void setMultiSelectIndex(int multiSelectIndex) {
-            this.multiSelectIndex = multiSelectIndex;
-        }
-
-        public int getMultiSelectMaxSelections() {
-            return multiSelectMaxSelections;
-        }
-
-        public void setMultiSelectMaxSelections(int multiSelectMaxSelections) {
-            this.multiSelectMaxSelections = multiSelectMaxSelections;
-        }
-    }
-    
-    private static class MultiSelectDetails {
-        private int maxSelections;
-        private int minSelections;
-        private List<String> enumValues;
-
-        public int getMaxSelections() {
-            return maxSelections;
-        }
-
-        public void setMaxSelections(int maxSelections) {
-            this.maxSelections = maxSelections;
-        }
-
-        public int getMinSelections() {
-            return minSelections;
-        }
-
-        public void setMinSelections(int minSelections) {
-            this.minSelections = minSelections;
-        }
-
-        public List<String> getEnumValues() {
-            return enumValues;
-        }
-
-        public void setEnumValues(List<String> enumValues) {
-            this.enumValues = enumValues;
-        }
     }
 }

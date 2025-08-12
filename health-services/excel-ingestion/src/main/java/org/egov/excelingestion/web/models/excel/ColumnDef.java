@@ -1,0 +1,30 @@
+package org.egov.excelingestion.web.models.excel;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.util.List;
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class ColumnDef {
+    private String name;
+    private String technicalName;
+    private String displayName;
+    private String type;
+    private String description;
+    private String colorHex;
+    private int orderNumber;
+    private boolean freezeColumnIfFilled;
+    private boolean hideColumn;
+    private boolean required;
+    private List<String> enumValues;
+    private MultiSelectDetails multiSelectDetails;
+    private String parentColumn;
+    private int multiSelectIndex;
+    private int multiSelectMaxSelections;
+}
