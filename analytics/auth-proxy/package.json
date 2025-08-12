@@ -1,0 +1,22 @@
+{
+  "name": "auth-proxy",
+  "version": "1.0.0",
+  "description": "",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node ${DEBUG_ENABLED:+--inspect=0.0.0.0:9229} server.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^1.6.8",
+    "deasync": "^0.1.29",
+    "express": "^4.17.1",
+    "express-http-proxy": "^1.6.2",
+    "http-proxy": "^1.18.1",
+    "request": "^2.88.2",
+    "request-promise": "^4.2.6",
+    "winston": "^3.13.0"
+  }
+}
