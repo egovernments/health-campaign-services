@@ -15,7 +15,7 @@ const createKafkaClientAndProducer = async () => {
             maxRetryTime: 30000
         },
         clientId: 'project-factory-producer',
-        brokers: [config?.host?.KAFKA_BROKER_HOST],
+        brokers: config?.host?.KAFKA_BROKER_HOST?.split(',').map(b => b.trim()),
         logLevel: logLevel.INFO,
         logCreator: (level) => (log: LogEntry) => {
             if (log.namespace === 'kafka.network' && log.log.message && log.log.message.includes('retry')) {
