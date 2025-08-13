@@ -14,14 +14,25 @@ import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
+import org.egov.excelingestion.config.ExcelIngestionConfig;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 
+@Component
 public class ExcelSchemaSheetCreator {
+    
+    private final ExcelIngestionConfig config;
+    
+    @Autowired
+    public ExcelSchemaSheetCreator(ExcelIngestionConfig config) {
+        this.config = config;
+    }
 
-    public static Workbook addSchemaSheetFromJson(String json, String sheetName, Workbook workbook) throws IOException {
+    public Workbook addSchemaSheetFromJson(String json, String sheetName, Workbook workbook) throws IOException {
         return addSchemaSheetFromJson(json, sheetName, workbook, null);
     }
     
-    public static Workbook addSchemaSheetFromJson(String json, String sheetName, Workbook workbook, Map<String, String> localizationMap) throws IOException {
+    public Workbook addSchemaSheetFromJson(String json, String sheetName, Workbook workbook, Map<String, String> localizationMap) throws IOException {
         ObjectMapper mapper = new ObjectMapper();
         JsonNode root = mapper.readTree(json);
 
@@ -80,7 +91,7 @@ public class ExcelSchemaSheetCreator {
         return workbook;
     }
     
-    public static Workbook addEnhancedSchemaSheetFromJson(String json, String sheetName, Workbook workbook, Map<String, String> localizationMap) throws IOException {
+    public Workbook addEnhancedSchemaSheetFromJson(String json, String sheetName, Workbook workbook, Map<String, String> localizationMap) throws IOException {
         ObjectMapper mapper = new ObjectMapper();
         JsonNode root = mapper.readTree(json);
 
@@ -151,12 +162,12 @@ public class ExcelSchemaSheetCreator {
         prepareEnhancedCellLocking(workbook, sheet, expandedColumns);
         
         // Protect the User sheet with password (same as facility sheet)
-        sheet.protectSheet("passwordhere");
+        sheet.protectSheet(config.getExcelSheetPassword());
 
         return workbook;
     }
 
-    private static ColumnDef parseSimpleColumnDef(JsonNode node) {
+    private ColumnDef parseSimpleColumnDef(JsonNode node) {
         return ColumnDef.builder()
                 .name(node.path("name").asText())
                 .description(node.path("description").asText())
@@ -166,7 +177,7 @@ public class ExcelSchemaSheetCreator {
                 .build();
     }
 
-    private static CellStyle createColoredHeaderStyle(Workbook workbook, String colorHex) {
+    private CellStyle createColoredHeaderStyle(Workbook workbook, String colorHex) {
         CellStyle style = workbook.createCellStyle();
         Font boldFont = workbook.createFont();
         boldFont.setBold(true);
@@ -185,13 +196,13 @@ public class ExcelSchemaSheetCreator {
         return style;
     }
 
-    private static void prepareCellLocking(Workbook workbook, Sheet sheet, List<ColumnDef> columns) {
+    private void prepareCellLocking(Workbook workbook, Sheet sheet, List<ColumnDef> columns) {
         // First, unlock all cells by default
         CellStyle unlockedStyle = workbook.createCellStyle();
         unlockedStyle.setLocked(false);
         
         // Apply unlocked style to all data cells in schema columns
-        for (int rowIdx = 2; rowIdx <= Math.max(sheet.getLastRowNum(), 5000); rowIdx++) {
+        for (int rowIdx = 2; rowIdx <= Math.max(sheet.getLastRowNum(), config.getExcelRowLimit()); rowIdx++) {
             Row row = sheet.getRow(rowIdx);
             if (row == null) {
                 row = sheet.createRow(rowIdx);
@@ -226,7 +237,7 @@ public class ExcelSchemaSheetCreator {
     }
 
     // Enhanced parsing method for new schema types
-    private static ColumnDef parseColumnDef(JsonNode node, String type) {
+    private ColumnDef parseColumnDef(JsonNode node, String type) {
         ColumnDef.ColumnDefBuilder builder = ColumnDef.builder()
                 .name(node.path("name").asText())
                 .type(type)
@@ -262,7 +273,7 @@ public class ExcelSchemaSheetCreator {
         return builder.build();
     }
     
-    private static List<ColumnDef> expandMultiSelectColumns(List<ColumnDef> columns) {
+    private List<ColumnDef> expandMultiSelectColumns(List<ColumnDef> columns) {
         List<ColumnDef> expandedColumns = new ArrayList<>();
         
         for (ColumnDef column : columns) {
@@ -323,7 +334,7 @@ public class ExcelSchemaSheetCreator {
         return expandedColumns;
     }
     
-    private static void applyValidations(Workbook workbook, Sheet sheet, List<ColumnDef> columns) {
+    private void applyValidations(Workbook workbook, Sheet sheet, List<ColumnDef> columns) {
         DataValidationHelper dvHelper = sheet.getDataValidationHelper();
         
         for (int colIndex = 0; colIndex < columns.size(); colIndex++) {
@@ -334,7 +345,7 @@ public class ExcelSchemaSheetCreator {
                 if (column.getEnumValues() != null && !column.getEnumValues().isEmpty()) {
                     String[] enumArray = column.getEnumValues().toArray(new String[0]);
                     DataValidationConstraint constraint = dvHelper.createExplicitListConstraint(enumArray);
-                    CellRangeAddressList addressList = new CellRangeAddressList(2, 5000, colIndex, colIndex);
+                    CellRangeAddressList addressList = new CellRangeAddressList(2, config.getExcelRowLimit(), colIndex, colIndex);
                     DataValidation validation = dvHelper.createValidation(constraint, addressList);
                     validation.setErrorStyle(DataValidation.ErrorStyle.STOP);
                     validation.setShowErrorBox(true);
@@ -347,7 +358,7 @@ public class ExcelSchemaSheetCreator {
         }
     }
     
-    private static void applyMultiSelectFormulas(Sheet sheet, List<ColumnDef> columns) {
+    private void applyMultiSelectFormulas(Sheet sheet, List<ColumnDef> columns) {
         Map<String, List<Integer>> multiSelectGroups = new HashMap<>();
         Map<String, Integer> hiddenColumnIndexes = new HashMap<>();
         
@@ -398,7 +409,7 @@ public class ExcelSchemaSheetCreator {
                 String formula = formulaBuilder.toString();
                 
                 // Apply formula to all rows
-                for (int row = 2; row <= 5000; row++) {
+                for (int row = 2; row <= config.getExcelRowLimit(); row++) {
                     String rowFormula = formula.replace("2", String.valueOf(row));
                     Row excelRow = sheet.getRow(row);
                     if (excelRow == null) {
@@ -414,13 +425,13 @@ public class ExcelSchemaSheetCreator {
         }
     }
     
-    private static void prepareEnhancedCellLocking(Workbook workbook, Sheet sheet, List<ColumnDef> columns) {
+    private void prepareEnhancedCellLocking(Workbook workbook, Sheet sheet, List<ColumnDef> columns) {
         // First, unlock all cells by default
         CellStyle unlockedStyle = workbook.createCellStyle();
         unlockedStyle.setLocked(false);
         
         // Apply unlocked style to all data cells
-        for (int rowIdx = 2; rowIdx <= Math.max(sheet.getLastRowNum(), 5000); rowIdx++) {
+        for (int rowIdx = 2; rowIdx <= Math.max(sheet.getLastRowNum(), config.getExcelRowLimit()); rowIdx++) {
             Row row = sheet.getRow(rowIdx);
             if (row == null) {
                 row = sheet.createRow(rowIdx);
@@ -435,7 +446,7 @@ public class ExcelSchemaSheetCreator {
         }
     }
     
-    private static String getColumnLetter(int columnIndex) {
+    private String getColumnLetter(int columnIndex) {
         StringBuilder columnName = new StringBuilder();
         while (columnIndex > 0) {
             columnIndex--; // Make it 0-indexed

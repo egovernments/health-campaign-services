@@ -1,11 +1,20 @@
 package org.egov.excelingestion.util;
 
+import org.egov.excelingestion.config.ExcelIngestionConfig;
 import org.egov.excelingestion.web.models.RequestInfo;
 import org.egov.excelingestion.web.models.UserInfo;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 @Component
 public class RequestInfoConverter {
+
+    private final ExcelIngestionConfig config;
+
+    @Autowired
+    public RequestInfoConverter(ExcelIngestionConfig config) {
+        this.config = config;
+    }
 
     /**
      * Converts a common RequestInfo object to Excel Ingestion specific RequestInfo.
@@ -51,7 +60,7 @@ public class RequestInfoConverter {
 
     /**
      * Extracts locale from RequestInfo msgId field.
-     * Default locale is "en_MZ" if not found.
+     * Default locale is taken from configuration if not found.
      *
      * @param requestInfo The RequestInfo object
      * @return The locale string
@@ -63,6 +72,6 @@ public class RequestInfoConverter {
                 return parts[1];
             }
         }
-        return "en_MZ";
+        return config.getDefaultLocale();
     }
 }

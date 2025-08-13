@@ -3,6 +3,7 @@ package org.egov.excelingestion.util;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.egov.excelingestion.config.ExcelIngestionConfig;
 import org.egov.excelingestion.web.models.*;
 import org.egov.excelingestion.service.BoundaryService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,6 +17,9 @@ public class BoundaryHierarchySheetCreator {
 
     @Autowired
     private BoundaryService boundaryService;
+    
+    @Autowired
+    private ExcelIngestionConfig config;
 
     public Workbook createBoundaryHierarchySheet(XSSFWorkbook workbook, 
                                                  String hierarchyType,
@@ -90,7 +94,7 @@ public class BoundaryHierarchySheetCreator {
         }
         
         // Protect the sheet to enforce locking (headers locked by default, only hierarchy columns unlocked)
-        hierarchySheet.protectSheet("passwordhere");
+        hierarchySheet.protectSheet(config.getExcelSheetPassword());
         
         return workbook;
     }

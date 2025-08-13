@@ -206,7 +206,7 @@ public class HierarchyExcelGenerateProcessor implements IGenerateProcessor {
 
         DataValidationHelper dvHelper = mainSheet.getDataValidationHelper();
 
-        for (int i = 2; i <= 5001; i++) { // Rows 3 to 5002 (1-based indexing)
+        for (int i = 2; i <= config.getExcelRowLimit() + 1; i++) { // Rows 3 to row limit + 2 (1-based indexing)
             // First level dropdown uses named range directly
             DataValidationConstraint firstLevelConstraint = dvHelper.createFormulaListConstraint(validLevels.get(0));
             CellRangeAddressList firstLevelAddress = new CellRangeAddressList(i, i, 0, 0);
@@ -250,7 +250,7 @@ public class HierarchyExcelGenerateProcessor implements IGenerateProcessor {
             fill.setFillBackgroundColor(IndexedColors.RED.getIndex());
             fill.setFillPattern(FillPatternType.SOLID_FOREGROUND.getCode());
 
-            CellRangeAddress[] regions = { new CellRangeAddress(2, 5001, j, j) };
+            CellRangeAddress[] regions = { new CellRangeAddress(2, config.getExcelRowLimit() + 1, j, j) };
             sheetCF.addConditionalFormatting(regions, rule);
         }
 
@@ -258,7 +258,7 @@ public class HierarchyExcelGenerateProcessor implements IGenerateProcessor {
         CellStyle unlockedCellStyle = workbook.createCellStyle();
         unlockedCellStyle.setLocked(false);
 
-        for (int i = 2; i <= 5001; i++) {
+        for (int i = 2; i <= config.getExcelRowLimit() + 1; i++) {
             Row row = mainSheet.getRow(i);
             if (row == null) {
                 row = mainSheet.createRow(i);
@@ -272,7 +272,7 @@ public class HierarchyExcelGenerateProcessor implements IGenerateProcessor {
             }
         }
 
-        mainSheet.protectSheet("passwordhere");
+        mainSheet.protectSheet(config.getExcelSheetPassword());
 
         // Set sheet selection and workbook protection
         for (Sheet s : workbook) {
@@ -281,7 +281,7 @@ public class HierarchyExcelGenerateProcessor implements IGenerateProcessor {
         mainSheet.setSelected(true);
         workbook.setActiveSheet(workbook.getSheetIndex("Boundaries"));
         workbook.lockStructure();
-        workbook.setWorkbookPassword("passwordhere", HashAlgorithm.sha512);
+        workbook.setWorkbookPassword(config.getExcelSheetPassword(), HashAlgorithm.sha512);
 
         ByteArrayOutputStream bos = new ByteArrayOutputStream();
         try {

@@ -36,11 +36,12 @@ public class MicroplanProcessor implements IGenerateProcessor {
     private final BoundaryService boundaryService;
     private final RequestInfoConverter requestInfoConverter;
     private final ApiPayloadBuilder apiPayloadBuilder;
+    private final ExcelSchemaSheetCreator excelSchemaSheetCreator;
 
     public MicroplanProcessor(ServiceRequestClient serviceRequestClient, ExcelIngestionConfig config,
             LocalizationService localizationService, BoundaryHierarchySheetCreator boundaryHierarchySheetCreator,
             BoundaryService boundaryService, RequestInfoConverter requestInfoConverter,
-            ApiPayloadBuilder apiPayloadBuilder) {
+            ApiPayloadBuilder apiPayloadBuilder, ExcelSchemaSheetCreator excelSchemaSheetCreator) {
         this.serviceRequestClient = serviceRequestClient;
         this.config = config;
         this.localizationService = localizationService;
@@ -48,6 +49,7 @@ public class MicroplanProcessor implements IGenerateProcessor {
         this.boundaryService = boundaryService;
         this.requestInfoConverter = requestInfoConverter;
         this.apiPayloadBuilder = apiPayloadBuilder;
+        this.excelSchemaSheetCreator = excelSchemaSheetCreator;
     }
 
     @Override
@@ -150,7 +152,7 @@ public class MicroplanProcessor implements IGenerateProcessor {
         
         // === Create facility sheet using schema with correct localized name ===
         if (schemaJson != null && !schemaJson.isEmpty()) {
-            workbook = (XSSFWorkbook) ExcelSchemaSheetCreator.addSchemaSheetFromJson(schemaJson, actualFacilitySheetName, workbook, mergedLocalizationMap);
+            workbook = (XSSFWorkbook) excelSchemaSheetCreator.addSchemaSheetFromJson(schemaJson, actualFacilitySheetName, workbook, mergedLocalizationMap);
         }
 
         // === Levels sheet (display names visible) ===
@@ -292,7 +294,7 @@ public class MicroplanProcessor implements IGenerateProcessor {
         }
         
         if (userSchemaJson != null && !userSchemaJson.isEmpty()) {
-            workbook = (XSSFWorkbook) ExcelSchemaSheetCreator.addEnhancedSchemaSheetFromJson(userSchemaJson, actualUserSheetName, workbook, mergedLocalizationMap);
+            workbook = (XSSFWorkbook) excelSchemaSheetCreator.addEnhancedSchemaSheetFromJson(userSchemaJson, actualUserSheetName, workbook, mergedLocalizationMap);
             
             // Add boundary columns to user sheet as well
             addBoundaryColumnsToSheet(workbook, actualUserSheetName, mergedLocalizationMap);
@@ -317,7 +319,7 @@ public class MicroplanProcessor implements IGenerateProcessor {
         // Set zoom to 60% BEFORE protection and hiding (Excel compatibility)
         for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
             Sheet sheet = workbook.getSheetAt(i);
-            sheet.setZoom(70);
+            sheet.setZoom(config.getExcelSheetZoom());
         }
         
         // Hide all sheets except the main sheet, user sheet, and hierarchy sheet
@@ -334,9 +336,9 @@ public class MicroplanProcessor implements IGenerateProcessor {
         workbook.setActiveSheet(workbook.getSheetIndex(mainSheet));
         
         // Protect facility sheet after all columns (schema + boundary) are configured
-        mainSheet.protectSheet("passwordhere");
+        mainSheet.protectSheet(config.getExcelSheetPassword());
         workbook.lockStructure();
-        workbook.setWorkbookPassword("passwordhere", HashAlgorithm.sha512);
+        workbook.setWorkbookPassword(config.getExcelSheetPassword(), HashAlgorithm.sha512);
 
         ByteArrayOutputStream bos = new ByteArrayOutputStream();
         try {
@@ -520,7 +522,7 @@ public class MicroplanProcessor implements IGenerateProcessor {
         DataValidationHelper dvHelper = sheet.getDataValidationHelper();
 
         // Add data validation for rows (2..5000) - starting from row 2 since row 0 is hidden and row 1 is headers
-        for (int rowIndex = 2; rowIndex <= 5000; rowIndex++) {
+        for (int rowIndex = 2; rowIndex <= config.getExcelRowLimit(); rowIndex++) {
             // Level dropdown uses named range "Levels" which contains display names "Level 1", "Level 2"...
             DataValidationConstraint levelConstraint = dvHelper.createFormulaListConstraint("Levels");
             CellRangeAddressList levelAddr = new CellRangeAddressList(rowIndex, rowIndex, lastSchemaCol, lastSchemaCol);
@@ -572,7 +574,7 @@ public class MicroplanProcessor implements IGenerateProcessor {
         // Unlock cells for user input (for both sheets)
         CellStyle unlocked = workbook.createCellStyle();
         unlocked.setLocked(false);
-        for (int r = 2; r <= 5000; r++) { // Start from row 2 to skip hidden technical row
+        for (int r = 2; r <= config.getExcelRowLimit(); r++) { // Start from row 2 to skip hidden technical row
             Row row = sheet.getRow(r);
             if (row == null)
                 row = sheet.createRow(r);

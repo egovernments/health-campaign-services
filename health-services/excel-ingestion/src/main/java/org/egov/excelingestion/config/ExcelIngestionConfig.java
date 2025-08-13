@@ -31,6 +31,16 @@ public class ExcelIngestionConfig {
     @Value("${egov.mdms.search.path}")
     private String mdmsSearchPath;
 
+    @Value("${excel.row.limit:5000}")
+    private int excelRowLimit;
+
+    @Value("${default.locale:en_IN}")
+    private String defaultLocale;
+
+    private String excelSheetPassword = "passwordhere";
+
+    private int excelSheetZoom = 70;
+
     public String getHierarchySearchUrl() {
         return boundaryHost + hierarchySearchPath;
     }
