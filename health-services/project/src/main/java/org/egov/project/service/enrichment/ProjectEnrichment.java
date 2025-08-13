@@ -278,18 +278,44 @@ public class ProjectEnrichment {
 
 
     private void pushProjectsToKafka(List<Project> projects) {
-        /*
-         * Create a ProjectRequest object with the list of projects
-         */
-        ProjectRequest projectRequest = ProjectRequest.builder()
-            .projects(projects)
-            .build();
+        if (projects == null || projects.isEmpty()) {
+            log.warn("No projects to push to Kafka");
+            return;
+        }
+
         String tenantId = getTenantId(projects);
+        int batchSize = projectConfiguration.getKafkaBatchSize();
+        
+        log.info("Pushing {} projects to Kafka in batches of {}", projects.size(), batchSize);
 
         /*
-         * Push the ProjectRequest to the Kafka topic for updating projects
+         * Split projects into batches and push each batch separately
          */
-        producer.push(tenantId, projectConfiguration.getUpdateProjectTopic(), projectRequest);
+        for (int i = 0; i < projects.size(); i += batchSize) {
+            int endIndex = Math.min(i + batchSize, projects.size());
+            List<Project> batch = projects.subList(i, endIndex);
+            
+            /*
+             * Create a ProjectRequest object with the current batch of projects
+             */
+            ProjectRequest projectRequest = ProjectRequest.builder()
+                .projects(batch)
+                .build();
+
+            /*
+             * Push the current batch to the Kafka topic for updating projects
+             */
+            log.info("Pushing batch {}/{} with {} projects to Kafka", 
+                    (i / batchSize) + 1, 
+                    (projects.size() + batchSize - 1) / batchSize, 
+                    batch.size());
+            
+            producer.push(tenantId, projectConfiguration.getUpdateProjectTopic(), projectRequest);
+        }
+        
+        log.info("Successfully pushed all {} projects to Kafka in {} batches", 
+                projects.size(), 
+                (projects.size() + batchSize - 1) / batchSize);
     }
 
 
