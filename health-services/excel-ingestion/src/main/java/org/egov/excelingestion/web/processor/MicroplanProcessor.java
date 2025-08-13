@@ -13,6 +13,8 @@ import org.egov.excelingestion.service.BoundaryService;
 import org.egov.excelingestion.util.ExcelSchemaSheetCreator;
 import org.egov.excelingestion.util.BoundaryHierarchySheetCreator;
 import org.egov.excelingestion.web.models.*;
+import org.egov.excelingestion.util.RequestInfoConverter;
+import org.egov.excelingestion.service.ApiPayloadBuilder;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Component;
 import org.egov.common.http.client.ServiceRequestClient;
@@ -32,15 +34,20 @@ public class MicroplanProcessor implements IGenerateProcessor {
     private final LocalizationService localizationService;
     private final BoundaryHierarchySheetCreator boundaryHierarchySheetCreator;
     private final BoundaryService boundaryService;
+    private final RequestInfoConverter requestInfoConverter;
+    private final ApiPayloadBuilder apiPayloadBuilder;
 
     public MicroplanProcessor(ServiceRequestClient serviceRequestClient, ExcelIngestionConfig config,
             LocalizationService localizationService, BoundaryHierarchySheetCreator boundaryHierarchySheetCreator,
-            BoundaryService boundaryService) {
+            BoundaryService boundaryService, RequestInfoConverter requestInfoConverter,
+            ApiPayloadBuilder apiPayloadBuilder) {
         this.serviceRequestClient = serviceRequestClient;
         this.config = config;
         this.localizationService = localizationService;
         this.boundaryHierarchySheetCreator = boundaryHierarchySheetCreator;
         this.boundaryService = boundaryService;
+        this.requestInfoConverter = requestInfoConverter;
+        this.apiPayloadBuilder = apiPayloadBuilder;
     }
 
     @Override
@@ -54,18 +61,16 @@ public class MicroplanProcessor implements IGenerateProcessor {
 
         String tenantId = generateResource.getTenantId();
         String hierarchyType = generateResource.getHierarchyType();
-        String locale = requestInfo.getMsgId() != null && requestInfo.getMsgId().split("\\|").length > 1
-                ? requestInfo.getMsgId().split("\\|")[1]
-                : "en_MZ";
+        String locale = requestInfoConverter.extractLocale(requestInfo);
 
         String localizationModule = "hcm-boundary-" + hierarchyType.toLowerCase(); // localization module name
         Map<String, String> localizationMap = localizationService.getLocalizedMessages(
-                tenantId, localizationModule, locale, convertToExcelIngestionRequestInfo(requestInfo));
+                tenantId, localizationModule, locale, requestInfoConverter.convertToExcelIngestionRequestInfo(requestInfo));
         
         // Also fetch localization for schema columns
         String schemaLocalizationModule = "hcm-admin-schemas";
         Map<String, String> schemaLocalizationMap = localizationService.getLocalizedMessages(
-                tenantId, schemaLocalizationModule, locale, convertToExcelIngestionRequestInfo(requestInfo));
+                tenantId, schemaLocalizationModule, locale, requestInfoConverter.convertToExcelIngestionRequestInfo(requestInfo));
         
         // Merge both localization maps
         Map<String, String> mergedLocalizationMap = new HashMap<>();
@@ -410,27 +415,6 @@ public class MicroplanProcessor implements IGenerateProcessor {
         }
     }
 
-    private Map<String, Object> createHierarchyPayload(RequestInfo requestInfo, String tenantId, String hierarchyType) {
-        Map<String, Object> payload = new HashMap<>();
-        // Directly use the RequestInfo object
-        payload.put("RequestInfo", requestInfo);
-
-        Map<String, Object> criteria = new HashMap<>();
-        criteria.put("tenantId", tenantId);
-        criteria.put("limit", 5);
-        criteria.put("offset", 0);
-        criteria.put("hierarchyType", hierarchyType);
-        payload.put("BoundaryTypeHierarchySearchCriteria", criteria);
-        return payload;
-    }
-
-    private Map<String, Object> createRelationshipPayload(RequestInfo requestInfo, String tenantId,
-            String hierarchyType) {
-        Map<String, Object> payload = new HashMap<>();
-        // Directly use the RequestInfo object
-        payload.put("RequestInfo", requestInfo);
-        return payload;
-    }
 
     /**
      * Make an Excel-friendly name (valid for named ranges) from any input string.
@@ -446,32 +430,6 @@ public class MicroplanProcessor implements IGenerateProcessor {
         return valid;
     }
 
-    private org.egov.excelingestion.web.models.RequestInfo convertToExcelIngestionRequestInfo(
-            RequestInfo commonRequestInfo) {
-        return RequestInfo.builder()
-                .apiId(commonRequestInfo.getApiId())
-                .ver(commonRequestInfo.getVer())
-                .ts(commonRequestInfo.getTs())
-                .action(commonRequestInfo.getAction())
-                .did(commonRequestInfo.getDid())
-                .key(commonRequestInfo.getKey())
-                .msgId(commonRequestInfo.getMsgId())
-                .requesterId(commonRequestInfo.getRequesterId())
-                .authToken(commonRequestInfo.getAuthToken())
-                .userInfo(UserInfo.builder()
-                        .id(commonRequestInfo.getUserInfo().getId())
-                        .uuid(commonRequestInfo.getUserInfo().getUuid())
-                        .userName(commonRequestInfo.getUserInfo().getUserName())
-                        .name(commonRequestInfo.getUserInfo().getName())
-                        .mobileNumber(commonRequestInfo.getUserInfo().getMobileNumber())
-                        .emailId(commonRequestInfo.getUserInfo().getEmailId())
-                        .locale(commonRequestInfo.getUserInfo().getLocale())
-                        .type(commonRequestInfo.getUserInfo().getType())
-                        .tenantId(commonRequestInfo.getUserInfo().getTenantId())
-                        .build())
-                .correlationId(commonRequestInfo.getCorrelationId())
-                .build();
-    }
 
     @Override
     public String getType() {
@@ -483,25 +441,8 @@ public class MicroplanProcessor implements IGenerateProcessor {
         
         try {
             // Create MDMS request payload
-            Map<String, Object> mdmsRequest = new HashMap<>();
-            
-            // Directly use the RequestInfo object
-            mdmsRequest.put("RequestInfo", requestInfo);
-
-            Map<String, Object> mdmsCriteria = new HashMap<>();
-            mdmsCriteria.put("tenantId", tenantId);
-            
-            // Use filters with title instead of uniqueIdentifier
-            Map<String, Object> filters = new HashMap<>();
-            filters.put("title", title);
-            mdmsCriteria.put("filters", filters);
-            
-            mdmsCriteria.put("schemaCode", "HCM-ADMIN-CONSOLE.schemas");
-            mdmsCriteria.put("limit", 1);
-            mdmsCriteria.put("offset", 0);
-            mdmsCriteria.put("sortBy", "uniqueIdentifier");
-            mdmsCriteria.put("order", "ASC");
-            mdmsRequest.put("MdmsCriteria", mdmsCriteria);
+            Map<String, Object> mdmsRequest = apiPayloadBuilder.createMdmsPayload(
+                    requestInfo, tenantId, title, "HCM-ADMIN-CONSOLE.schemas");
 
             // Call MDMS service
             log.info("Calling MDMS API: {} for schema: {}, tenantId: {}", url, title, tenantId);

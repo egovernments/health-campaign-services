@@ -13,6 +13,8 @@ import org.egov.excelingestion.config.ExcelIngestionConfig;
 import org.egov.excelingestion.service.FileStoreService;
 import org.egov.excelingestion.service.LocalizationService;
 import org.egov.excelingestion.web.models.*;
+import org.egov.excelingestion.util.RequestInfoConverter;
+import org.egov.excelingestion.service.ApiPayloadBuilder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -31,15 +33,20 @@ public class HierarchyExcelGenerateProcessor implements IGenerateProcessor {
     private final FileStoreService fileStoreService;
     private final ObjectMapper objectMapper;
     private final LocalizationService localizationService;
+    private final RequestInfoConverter requestInfoConverter;
+    private final ApiPayloadBuilder apiPayloadBuilder;
 
     @Autowired
     public HierarchyExcelGenerateProcessor(ServiceRequestClient serviceRequestClient, ExcelIngestionConfig config,
-            FileStoreService fileStoreService, ObjectMapper objectMapper, LocalizationService localizationService) {
+            FileStoreService fileStoreService, ObjectMapper objectMapper, LocalizationService localizationService,
+            RequestInfoConverter requestInfoConverter, ApiPayloadBuilder apiPayloadBuilder) {
         this.serviceRequestClient = serviceRequestClient;
         this.config = config;
         this.fileStoreService = fileStoreService;
         this.objectMapper = objectMapper;
         this.localizationService = localizationService;
+        this.requestInfoConverter = requestInfoConverter;
+        this.apiPayloadBuilder = apiPayloadBuilder;
     }
 
     @Override
@@ -53,17 +60,15 @@ public class HierarchyExcelGenerateProcessor implements IGenerateProcessor {
 
         String tenantId = generateResource.getTenantId();
         String hierarchyType = generateResource.getHierarchyType();
-        String locale = requestInfo.getMsgId() != null && requestInfo.getMsgId().split("\\|").length > 1
-                ? requestInfo.getMsgId().split("\\|")[1]
-                : "en_MZ";
+        String locale = requestInfoConverter.extractLocale(requestInfo);
 
         // Fetch localized messages
         String localizationModule = "hcm-boundary-" + hierarchyType.toLowerCase().replace(" ", "_");
         Map<String, String> localizationMap = localizationService.getLocalizedMessages(
-                tenantId, localizationModule, locale, convertToExcelIngestionRequestInfo(requestInfo));
+                tenantId, localizationModule, locale, requestInfoConverter.convertToExcelIngestionRequestInfo(requestInfo));
 
         BoundaryHierarchyResponse hierarchyData = postApi(new StringBuilder(config.getHierarchySearchUrl()),
-                createHierarchyPayload(requestInfo, tenantId, hierarchyType),
+                apiPayloadBuilder.createHierarchyPayload(requestInfo, tenantId, hierarchyType),
                 BoundaryHierarchyResponse.class);
 
         if (hierarchyData == null || hierarchyData.getBoundaryHierarchy() == null
@@ -80,7 +85,7 @@ public class HierarchyExcelGenerateProcessor implements IGenerateProcessor {
                 .append("&hierarchyType=").append(URLEncoder.encode(hierarchyType, StandardCharsets.UTF_8));
 
         BoundarySearchResponse relationshipData = postApi(url,
-                createRelationshipPayload(requestInfo, tenantId, hierarchyType),
+                apiPayloadBuilder.createRelationshipPayload(requestInfo),
                 BoundarySearchResponse.class);
 
         List<String> originalLevels = new ArrayList<>();
@@ -299,35 +304,6 @@ public class HierarchyExcelGenerateProcessor implements IGenerateProcessor {
         }
     }
 
-    private Map<String, Object> createHierarchyPayload(RequestInfo requestInfo, String tenantId, String hierarchyType) {
-        Map<String, Object> payload = new HashMap<>();
-        Map<String, Object> requestInfoMap = new HashMap<>();
-        requestInfoMap.put("apiId", requestInfo.getApiId());
-        requestInfoMap.put("msgId", requestInfo.getMsgId());
-        requestInfoMap.put("authToken", requestInfo.getAuthToken());
-        requestInfoMap.put("userInfo", requestInfo.getUserInfo());
-        payload.put("RequestInfo", requestInfoMap);
-
-        Map<String, Object> criteria = new HashMap<>();
-        criteria.put("tenantId", tenantId);
-        criteria.put("limit", 5);
-        criteria.put("offset", 0);
-        criteria.put("hierarchyType", hierarchyType);
-        payload.put("BoundaryTypeHierarchySearchCriteria", criteria);
-        return payload;
-    }
-
-    private Map<String, Object> createRelationshipPayload(RequestInfo requestInfo, String tenantId,
-            String hierarchyType) {
-        Map<String, Object> payload = new HashMap<>();
-        Map<String, Object> requestInfoMap = new HashMap<>();
-        requestInfoMap.put("apiId", requestInfo.getApiId());
-        requestInfoMap.put("msgId", requestInfo.getMsgId());
-        requestInfoMap.put("authToken", requestInfo.getAuthToken());
-        requestInfoMap.put("userInfo", requestInfo.getUserInfo());
-        payload.put("RequestInfo", requestInfoMap);
-        return payload;
-    }
 
     private void processNodes(List<EnrichedBoundary> nodes, Map<String, Set<String>> boundariesByLevel,
             Map<String, List<String>> childLookup,
@@ -375,32 +351,6 @@ public class HierarchyExcelGenerateProcessor implements IGenerateProcessor {
         return valid;
     }
 
-    private org.egov.excelingestion.web.models.RequestInfo convertToExcelIngestionRequestInfo(
-            RequestInfo commonRequestInfo) {
-        return RequestInfo.builder()
-                .apiId(commonRequestInfo.getApiId())
-                .ver(commonRequestInfo.getVer())
-                .ts(commonRequestInfo.getTs())
-                .action(commonRequestInfo.getAction())
-                .did(commonRequestInfo.getDid())
-                .key(commonRequestInfo.getKey())
-                .msgId(commonRequestInfo.getMsgId())
-                .requesterId(commonRequestInfo.getRequesterId())
-                .authToken(commonRequestInfo.getAuthToken())
-                .userInfo(UserInfo.builder()
-                        .id(commonRequestInfo.getUserInfo().getId())
-                        .uuid(commonRequestInfo.getUserInfo().getUuid())
-                        .userName(commonRequestInfo.getUserInfo().getUserName())
-                        .name(commonRequestInfo.getUserInfo().getName())
-                        .mobileNumber(commonRequestInfo.getUserInfo().getMobileNumber())
-                        .emailId(commonRequestInfo.getUserInfo().getEmailId())
-                        .locale(commonRequestInfo.getUserInfo().getLocale())
-                        .type(commonRequestInfo.getUserInfo().getType())
-                        .tenantId(commonRequestInfo.getUserInfo().getTenantId())
-                        .build())
-                .correlationId(commonRequestInfo.getCorrelationId())
-                .build();
-    }
 
     @Override
     public String getType() {

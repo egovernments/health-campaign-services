@@ -18,16 +18,19 @@ public class BoundaryService {
 
     private final ServiceRequestClient serviceRequestClient;
     private final ExcelIngestionConfig config;
+    private final ApiPayloadBuilder apiPayloadBuilder;
 
-    public BoundaryService(ServiceRequestClient serviceRequestClient, ExcelIngestionConfig config) {
+    public BoundaryService(ServiceRequestClient serviceRequestClient, ExcelIngestionConfig config,
+            ApiPayloadBuilder apiPayloadBuilder) {
         this.serviceRequestClient = serviceRequestClient;
         this.config = config;
+        this.apiPayloadBuilder = apiPayloadBuilder;
     }
 
     @Cacheable(value = "boundaryHierarchy", key = "#tenantId + '_' + #hierarchyType")
     public BoundaryHierarchyResponse fetchBoundaryHierarchy(String tenantId, String hierarchyType, RequestInfo requestInfo) {
         String hierarchyUrl = config.getHierarchySearchUrl();
-        Map<String, Object> hierarchyPayload = createHierarchyPayload(requestInfo, tenantId, hierarchyType);
+        Map<String, Object> hierarchyPayload = apiPayloadBuilder.createHierarchyPayload(requestInfo, tenantId, hierarchyType);
         
         log.info("Calling Boundary Hierarchy API: {} with tenantId: {}, hierarchyType: {}", hierarchyUrl, tenantId, hierarchyType);
         
@@ -49,7 +52,7 @@ public class BoundaryService {
                 .append("&tenantId=").append(URLEncoder.encode(tenantId, StandardCharsets.UTF_8))
                 .append("&hierarchyType=").append(URLEncoder.encode(hierarchyType, StandardCharsets.UTF_8));
 
-        Map<String, Object> relationshipPayload = createRelationshipPayload(requestInfo, tenantId, hierarchyType);
+        Map<String, Object> relationshipPayload = apiPayloadBuilder.createRelationshipPayload(requestInfo);
         
         log.info("Calling Boundary Relationship API: {} with tenantId: {}, hierarchyType: {}", url.toString(), tenantId, hierarchyType);
         
@@ -61,24 +64,5 @@ public class BoundaryService {
             log.error("Error calling Boundary Relationship API: {}", e.getMessage(), e);
             throw new RuntimeException("Error calling Boundary Relationship API: " + url.toString(), e);
         }
-    }
-
-    private Map<String, Object> createHierarchyPayload(RequestInfo requestInfo, String tenantId, String hierarchyType) {
-        Map<String, Object> payload = new HashMap<>();
-        payload.put("RequestInfo", requestInfo);
-
-        Map<String, Object> criteria = new HashMap<>();
-        criteria.put("tenantId", tenantId);
-        criteria.put("limit", 5);
-        criteria.put("offset", 0);
-        criteria.put("hierarchyType", hierarchyType);
-        payload.put("BoundaryTypeHierarchySearchCriteria", criteria);
-        return payload;
-    }
-
-    private Map<String, Object> createRelationshipPayload(RequestInfo requestInfo, String tenantId, String hierarchyType) {
-        Map<String, Object> payload = new HashMap<>();
-        payload.put("RequestInfo", requestInfo);
-        return payload;
     }
 }
