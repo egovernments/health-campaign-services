@@ -8,7 +8,7 @@ import { handleTaskForCampaign } from '../utils/taskUtils';
 
 const kafka = new Kafka({
     clientId: 'project-factory-consumer',
-    brokers: [config?.host?.KAFKA_BROKER_HOST],
+    brokers: config?.host?.KAFKA_BROKER_HOST?.split(',').map(b => b.trim()),
     logLevel: logLevel.NOTHING,
 });
 
