@@ -41,6 +41,8 @@ public class ExcelIngestionConfig {
 
     private int excelSheetZoom = 70;
 
+    private String defaultHeaderColor = "#93c47d";
+
     public String getHierarchySearchUrl() {
         return boundaryHost + hierarchySearchPath;
     }

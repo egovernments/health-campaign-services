@@ -2,7 +2,10 @@ package org.egov.excelingestion.util;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.usermodel.XSSFCellStyle;
+import org.apache.poi.xssf.usermodel.XSSFColor;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import java.awt.Color;
 import org.egov.excelingestion.config.ExcelIngestionConfig;
 import org.egov.excelingestion.web.models.*;
 import org.egov.excelingestion.service.BoundaryService;
@@ -52,6 +55,9 @@ public class BoundaryHierarchySheetCreator {
         Row hiddenRow = hierarchySheet.createRow(0);
         Row visibleRow = hierarchySheet.createRow(1);
         
+        // Create header style with default color
+        CellStyle headerStyle = createHeaderStyle(workbook, config.getDefaultHeaderColor());
+        
         // Add columns for each level
         for (int i = 0; i < originalLevels.size(); i++) {
             String levelType = originalLevels.get(i);
@@ -62,7 +68,9 @@ public class BoundaryHierarchySheetCreator {
             
             // Visible row: localized level names
             String localizedLevelName = localizationMap.getOrDefault(unlocalizedCode, unlocalizedCode);
-            visibleRow.createCell(i).setCellValue(localizedLevelName);
+            Cell headerCell = visibleRow.createCell(i);
+            headerCell.setCellValue(localizedLevelName);
+            headerCell.setCellStyle(headerStyle);
             
             // Set column width
             hierarchySheet.setColumnWidth(i, 40 * 256);
@@ -88,9 +96,10 @@ public class BoundaryHierarchySheetCreator {
         }
         
         // Lock only the header rows (row 0 and row 1) by applying locked style
+        // Note: visibleRow cells already have headerStyle which includes locking
         for (int c = 0; c < originalLevels.size(); c++) {
             hiddenRow.getCell(c).setCellStyle(lockedStyle);
-            visibleRow.getCell(c).setCellStyle(lockedStyle);
+            // visibleRow cells already have headerStyle applied above
         }
         
         // Protect the sheet to enforce locking (headers locked by default, only hierarchy columns unlocked)
@@ -98,6 +107,35 @@ public class BoundaryHierarchySheetCreator {
         
         return workbook;
     }
-
+    
+    private CellStyle createHeaderStyle(Workbook workbook, String colorHex) {
+        XSSFCellStyle style = (XSSFCellStyle) workbook.createCellStyle();
+        
+        // Set background color
+        Color color = Color.decode(colorHex);
+        XSSFColor xssfColor = new XSSFColor(color, null);
+        style.setFillForegroundColor(xssfColor);
+        style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        
+        // Set borders
+        style.setBorderTop(BorderStyle.THIN);
+        style.setBorderBottom(BorderStyle.THIN);
+        style.setBorderLeft(BorderStyle.THIN);
+        style.setBorderRight(BorderStyle.THIN);
+        
+        // Center align text
+        style.setAlignment(HorizontalAlignment.CENTER);
+        style.setVerticalAlignment(VerticalAlignment.CENTER);
+        
+        // Bold font
+        Font font = workbook.createFont();
+        font.setBold(true);
+        style.setFont(font);
+        
+        // Lock the cell
+        style.setLocked(true);
+        
+        return style;
+    }
 
 }

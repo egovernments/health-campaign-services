@@ -6,7 +6,10 @@ import org.apache.poi.poifs.crypt.HashAlgorithm;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.util.CellRangeAddressList;
 import org.apache.poi.ss.util.CellReference;
+import org.apache.poi.xssf.usermodel.XSSFCellStyle;
+import org.apache.poi.xssf.usermodel.XSSFColor;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import java.awt.Color;
 import org.egov.excelingestion.config.ExcelIngestionConfig;
 import org.egov.excelingestion.service.LocalizationService;
 import org.egov.excelingestion.service.BoundaryService;
@@ -512,12 +515,21 @@ public class MicroplanProcessor implements IGenerateProcessor {
         hiddenRow.createCell(lastSchemaCol + 1).setCellValue("BOUNDARY_NAME");
         hiddenRow.createCell(lastSchemaCol + 2).setCellValue("PARENT_BOUNDARY");
         
-        // Add localized headers to visible row
-        visibleRow.createCell(lastSchemaCol).setCellValue(localizationMap.getOrDefault("HCM_INGESTION_LEVEL_COLUMN", "Level"));
-        visibleRow.createCell(lastSchemaCol + 1)
-                .setCellValue(localizationMap.getOrDefault("HCM_INGESTION_BOUNDARY_COLUMN", "Boundary Name"));
-        visibleRow.createCell(lastSchemaCol + 2)
-                .setCellValue(localizationMap.getOrDefault("HCM_INGESTION_PARENT_COLUMN", "Parent Boundary"));
+        // Create header style for boundary columns
+        CellStyle boundaryHeaderStyle = createBoundaryHeaderStyle(workbook, config.getDefaultHeaderColor());
+        
+        // Add localized headers to visible row with styling
+        Cell levelHeaderCell = visibleRow.createCell(lastSchemaCol);
+        levelHeaderCell.setCellValue(localizationMap.getOrDefault("HCM_INGESTION_LEVEL_COLUMN", "Level"));
+        levelHeaderCell.setCellStyle(boundaryHeaderStyle);
+        
+        Cell boundaryHeaderCell = visibleRow.createCell(lastSchemaCol + 1);
+        boundaryHeaderCell.setCellValue(localizationMap.getOrDefault("HCM_INGESTION_BOUNDARY_COLUMN", "Boundary Name"));
+        boundaryHeaderCell.setCellStyle(boundaryHeaderStyle);
+        
+        Cell parentHeaderCell = visibleRow.createCell(lastSchemaCol + 2);
+        parentHeaderCell.setCellValue(localizationMap.getOrDefault("HCM_INGESTION_PARENT_COLUMN", "Parent Boundary"));
+        parentHeaderCell.setCellStyle(boundaryHeaderStyle);
 
         DataValidationHelper dvHelper = sheet.getDataValidationHelper();
 
@@ -585,5 +597,35 @@ public class MicroplanProcessor implements IGenerateProcessor {
                 cell.setCellStyle(unlocked);
             }
         }
+    }
+    
+    private CellStyle createBoundaryHeaderStyle(Workbook workbook, String colorHex) {
+        XSSFCellStyle style = (XSSFCellStyle) workbook.createCellStyle();
+        
+        // Set background color
+        Color color = Color.decode(colorHex);
+        XSSFColor xssfColor = new XSSFColor(color, null);
+        style.setFillForegroundColor(xssfColor);
+        style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        
+        // Set borders
+        style.setBorderTop(BorderStyle.THIN);
+        style.setBorderBottom(BorderStyle.THIN);
+        style.setBorderLeft(BorderStyle.THIN);
+        style.setBorderRight(BorderStyle.THIN);
+        
+        // Center align text
+        style.setAlignment(HorizontalAlignment.CENTER);
+        style.setVerticalAlignment(VerticalAlignment.CENTER);
+        
+        // Bold font
+        Font font = workbook.createFont();
+        font.setBold(true);
+        style.setFont(font);
+        
+        // Lock the cell
+        style.setLocked(true);
+        
+        return style;
     }
 }
