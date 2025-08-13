@@ -305,17 +305,10 @@ public class ProjectEnrichment {
             /*
              * Push the current batch to the Kafka topic for updating projects
              */
-            log.info("Pushing batch {}/{} with {} projects to Kafka", 
-                    (i / batchSize) + 1, 
-                    (projects.size() + batchSize - 1) / batchSize, 
-                    batch.size());
+            log.info("Pushing batch {} with {} projects to Kafka", (i / batchSize) + 1, batch.size());
             
             producer.push(tenantId, projectConfiguration.getUpdateProjectTopic(), projectRequest);
         }
-        
-        log.info("Successfully pushed all {} projects to Kafka in {} batches", 
-                projects.size(), 
-                (projects.size() + batchSize - 1) / batchSize);
     }
 
 
