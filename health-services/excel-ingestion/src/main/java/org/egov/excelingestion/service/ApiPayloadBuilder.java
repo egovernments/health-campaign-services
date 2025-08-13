@@ -93,4 +93,31 @@ public class ApiPayloadBuilder {
         payload.put("MdmsCriteria", mdmsCriteria);
         return payload;
     }
+
+    /**
+     * Creates MDMS search API payload for campaign configuration.
+     *
+     * @param requestInfo The RequestInfo object
+     * @param tenantId The tenant ID
+     * @param sheetName The sheet name filter
+     * @return The payload map
+     */
+    public Map<String, Object> createCampaignConfigMdmsPayload(RequestInfo requestInfo, String tenantId, String sheetName) {
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("RequestInfo", requestInfo);
+
+        Map<String, Object> mdmsCriteria = new HashMap<>();
+        mdmsCriteria.put("tenantId", tenantId);
+        
+        Map<String, Object> filters = new HashMap<>();
+        filters.put("sheetName", sheetName);
+        mdmsCriteria.put("filters", filters);
+        
+        mdmsCriteria.put("schemaCode", "HCM-ADMIN-CONSOLE.configsheet");
+        mdmsCriteria.put("limit", 1);
+        mdmsCriteria.put("offset", 0);
+        
+        payload.put("MdmsCriteria", mdmsCriteria);
+        return payload;
+    }
 }

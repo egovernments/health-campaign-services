@@ -15,6 +15,7 @@ import org.egov.excelingestion.service.LocalizationService;
 import org.egov.excelingestion.service.BoundaryService;
 import org.egov.excelingestion.util.ExcelSchemaSheetCreator;
 import org.egov.excelingestion.util.BoundaryHierarchySheetCreator;
+import org.egov.excelingestion.util.CampaignConfigSheetCreator;
 import org.egov.excelingestion.web.models.*;
 import org.egov.excelingestion.util.RequestInfoConverter;
 import org.egov.excelingestion.service.ApiPayloadBuilder;
@@ -40,11 +41,13 @@ public class MicroplanProcessor implements IGenerateProcessor {
     private final RequestInfoConverter requestInfoConverter;
     private final ApiPayloadBuilder apiPayloadBuilder;
     private final ExcelSchemaSheetCreator excelSchemaSheetCreator;
+    private final CampaignConfigSheetCreator campaignConfigSheetCreator;
 
     public MicroplanProcessor(ServiceRequestClient serviceRequestClient, ExcelIngestionConfig config,
             LocalizationService localizationService, BoundaryHierarchySheetCreator boundaryHierarchySheetCreator,
             BoundaryService boundaryService, RequestInfoConverter requestInfoConverter,
-            ApiPayloadBuilder apiPayloadBuilder, ExcelSchemaSheetCreator excelSchemaSheetCreator) {
+            ApiPayloadBuilder apiPayloadBuilder, ExcelSchemaSheetCreator excelSchemaSheetCreator,
+            CampaignConfigSheetCreator campaignConfigSheetCreator) {
         this.serviceRequestClient = serviceRequestClient;
         this.config = config;
         this.localizationService = localizationService;
@@ -53,6 +56,7 @@ public class MicroplanProcessor implements IGenerateProcessor {
         this.requestInfoConverter = requestInfoConverter;
         this.apiPayloadBuilder = apiPayloadBuilder;
         this.excelSchemaSheetCreator = excelSchemaSheetCreator;
+        this.campaignConfigSheetCreator = campaignConfigSheetCreator;
     }
 
     @Override
@@ -142,6 +146,29 @@ public class MicroplanProcessor implements IGenerateProcessor {
 
         // Create workbook and sheets
         XSSFWorkbook workbook = new XSSFWorkbook();
+
+        // === Create Campaign Configuration sheet as the first sheet ===
+        String campaignConfigData = fetchCampaignConfigFromMDMS(tenantId, requestInfo, "HCM_CAMP_CONF_SHEETNAME");
+        if (campaignConfigData != null && !campaignConfigData.isEmpty()) {
+            String localizedConfigSheetName = mergedLocalizationMap.getOrDefault("HCM_CAMP_CONF_SHEETNAME", "HCM_CAMP_CONF_SHEETNAME");
+            
+            // Handle Excel's 31 character limit for sheet names
+            String actualConfigSheetName = localizedConfigSheetName;
+            if (localizedConfigSheetName.length() > 31) {
+                actualConfigSheetName = localizedConfigSheetName.substring(0, 31);
+                log.warn("Sheet name '{}' exceeds 31 character limit, trimming to '{}'", localizedConfigSheetName, actualConfigSheetName);
+            }
+            
+            try {
+                ObjectMapper mapper = new ObjectMapper();
+                Map<String, Object> configData = mapper.readValue(campaignConfigData, Map.class);
+                workbook = (XSSFWorkbook) campaignConfigSheetCreator.createCampaignConfigSheet(
+                        workbook, actualConfigSheetName, configData, mergedLocalizationMap);
+                log.info("Campaign configuration sheet created successfully");
+            } catch (Exception e) {
+                log.error("Error creating campaign configuration sheet: {}", e.getMessage(), e);
+            }
+        }
 
         // Get the localized sheet name first
         String localizedFacilitySheetName = mergedLocalizationMap.getOrDefault("HCM_ADMIN_CONSOLE_FACILITIES_LIST", "HCM_ADMIN_CONSOLE_FACILITIES_LIST");
@@ -325,18 +352,32 @@ public class MicroplanProcessor implements IGenerateProcessor {
             sheet.setZoom(config.getExcelSheetZoom());
         }
         
-        // Hide all sheets except the main sheet, user sheet, and hierarchy sheet
+        // Get the campaign config sheet if it exists
+        String actualConfigSheetName = null;
+        if (campaignConfigData != null && !campaignConfigData.isEmpty()) {
+            String localizedConfigSheetName = mergedLocalizationMap.getOrDefault("HCM_CAMP_CONF_SHEETNAME", "HCM_CAMP_CONF_SHEETNAME");
+            actualConfigSheetName = localizedConfigSheetName.length() > 31 ? localizedConfigSheetName.substring(0, 31) : localizedConfigSheetName;
+        }
+        
+        // Hide all sheets except the visible sheets (campaign config, facility, user, hierarchy)
         for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
             Sheet sheet = workbook.getSheetAt(i);
-            if (sheet != mainSheet && 
-                !sheet.getSheetName().equals(actualUserSheetName) &&
-                !sheet.getSheetName().equals(actualHierarchySheetName)) {
+            boolean isVisible = sheet == mainSheet || 
+                               sheet.getSheetName().equals(actualUserSheetName) ||
+                               sheet.getSheetName().equals(actualHierarchySheetName) ||
+                               (actualConfigSheetName != null && sheet.getSheetName().equals(actualConfigSheetName));
+            
+            if (!isVisible) {
                 workbook.setSheetHidden(i, true);
             }
         }
         
-        // Set the active sheet before protection
-        workbook.setActiveSheet(workbook.getSheetIndex(mainSheet));
+        // Set the active sheet before protection - prioritize campaign config sheet as first sheet
+        if (actualConfigSheetName != null && workbook.getSheet(actualConfigSheetName) != null) {
+            workbook.setActiveSheet(workbook.getSheetIndex(actualConfigSheetName));
+        } else {
+            workbook.setActiveSheet(workbook.getSheetIndex(mainSheet));
+        }
         
         // Protect facility sheet after all columns (schema + boundary) are configured
         mainSheet.protectSheet(config.getExcelSheetPassword());
@@ -483,6 +524,43 @@ public class MicroplanProcessor implements IGenerateProcessor {
     private String getDefaultSchema() {
         // Default schema with basic columns if MDMS fetch fails
         return "{\"stringProperties\":[],\"numberProperties\":[],\"enumProperties\":[]}";
+    }
+
+    private String fetchCampaignConfigFromMDMS(String tenantId, RequestInfo requestInfo, String sheetName) {
+        String url = config.getMdmsSearchUrl();
+        
+        try {
+            // Create MDMS request payload for campaign configuration
+            Map<String, Object> mdmsRequest = apiPayloadBuilder.createCampaignConfigMdmsPayload(
+                    requestInfo, tenantId, sheetName);
+
+            // Call MDMS service
+            log.info("Calling MDMS API: {} for campaign config: {}, tenantId: {}", url, sheetName, tenantId);
+            
+            StringBuilder uri = new StringBuilder(url);
+            Map<String, Object> responseBody = serviceRequestClient.fetchResult(uri, mdmsRequest, Map.class);
+            
+            if (responseBody != null && responseBody.get("mdms") != null) {
+                List<Map<String, Object>> mdmsList = (List<Map<String, Object>>) responseBody.get("mdms");
+                if (!mdmsList.isEmpty()) {
+                    Map<String, Object> mdmsData = mdmsList.get(0);
+                    Map<String, Object> data = (Map<String, Object>) mdmsData.get("data");
+                    
+                    if (data != null) {
+                        // Convert data to JSON string
+                        ObjectMapper mapper = new ObjectMapper();
+                        log.info("Successfully fetched MDMS campaign config for: {}", sheetName);
+                        return mapper.writeValueAsString(data);
+                    }
+                }
+            }
+            log.warn("No MDMS data found for campaign config: {}", sheetName);
+        } catch (Exception e) {
+            log.error("Error calling MDMS API for campaign config {}: {}", sheetName, e.getMessage(), e);
+        }
+        
+        // Return null if MDMS fetch fails - campaign config sheet is optional
+        return null;
     }
 
 
