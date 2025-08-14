@@ -197,13 +197,13 @@ const config = {
     validateCampaignIdInMetadata: process.env.VALIDATE_CAMPAIGN_ID_IN_METADATA === "true"
   },
   resourceCreationConfig: {
-  maxAttemptsForResourceCreationOrMapping: Number(process.env.MAX_RESOURCE_CREATION_ATTEMPTS || 200),
-  // wait time between each polling attempt in milliseconds (default: 60 sec)
-  waitTimeOfEachAttemptOfResourceCreationOrMappping: Number(process.env.WAIT_TIME_OF_EACH_ATTEMPT_MS || 40000),
+    maxAttemptsForResourceCreationOrMapping: Number(process.env.MAX_RESOURCE_CREATION_ATTEMPTS || 200),
+    // wait time between each polling attempt in milliseconds (default: 60 sec)
+    waitTimeOfEachAttemptOfResourceCreationOrMappping: Number(process.env.WAIT_TIME_OF_EACH_ATTEMPT_MS || 40000),
   }
 };
 
-if(!config.basesecret){
+if (!config.basesecret) {
   throw new Error('BASE_SECRET is undefined. Please set "BASE_SECRET" in env.');
 }
 
