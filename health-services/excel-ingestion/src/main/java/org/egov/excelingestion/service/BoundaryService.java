@@ -5,7 +5,8 @@ import org.egov.excelingestion.config.ErrorConstants;
 import org.egov.excelingestion.config.ExcelIngestionConfig;
 import org.egov.excelingestion.web.models.*;
 import org.egov.common.http.client.ServiceRequestClient;
-import org.egov.tracer.model.CustomException;
+import org.egov.excelingestion.exception.CustomExceptionHandler;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
@@ -21,6 +22,9 @@ public class BoundaryService {
     private final ServiceRequestClient serviceRequestClient;
     private final ExcelIngestionConfig config;
     private final ApiPayloadBuilder apiPayloadBuilder;
+    
+    @Autowired
+    private CustomExceptionHandler exceptionHandler;
 
     public BoundaryService(ServiceRequestClient serviceRequestClient, ExcelIngestionConfig config,
             ApiPayloadBuilder apiPayloadBuilder) {
@@ -43,8 +47,9 @@ public class BoundaryService {
             return result;
         } catch (Exception e) {
             log.error("Error calling Boundary Hierarchy API: {}", e.getMessage(), e);
-            throw new CustomException(ErrorConstants.BOUNDARY_SERVICE_ERROR, 
-                    ErrorConstants.BOUNDARY_SERVICE_ERROR_MESSAGE);
+            exceptionHandler.throwCustomException(ErrorConstants.BOUNDARY_SERVICE_ERROR, 
+                    ErrorConstants.BOUNDARY_SERVICE_ERROR_MESSAGE, e);
+            return null; // This will never be reached due to exception throwing above
         }
     }
 
@@ -65,8 +70,9 @@ public class BoundaryService {
             return result;
         } catch (Exception e) {
             log.error("Error calling Boundary Relationship API: {}", e.getMessage(), e);
-            throw new CustomException(ErrorConstants.BOUNDARY_SERVICE_ERROR, 
-                    ErrorConstants.BOUNDARY_SERVICE_ERROR_MESSAGE);
+            exceptionHandler.throwCustomException(ErrorConstants.BOUNDARY_SERVICE_ERROR, 
+                    ErrorConstants.BOUNDARY_SERVICE_ERROR_MESSAGE, e);
+            return null; // This will never be reached due to exception throwing above
         }
     }
 }

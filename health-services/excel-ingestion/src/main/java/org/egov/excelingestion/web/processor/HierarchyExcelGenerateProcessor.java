@@ -11,7 +11,7 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.excelingestion.config.ErrorConstants;
 import org.egov.excelingestion.config.ExcelIngestionConfig;
-import org.egov.tracer.model.CustomException;
+import org.egov.excelingestion.exception.CustomExceptionHandler;
 import org.egov.excelingestion.service.FileStoreService;
 import org.egov.excelingestion.service.LocalizationService;
 import org.egov.excelingestion.web.models.*;
@@ -37,6 +37,9 @@ public class HierarchyExcelGenerateProcessor implements IGenerateProcessor {
     private final LocalizationService localizationService;
     private final RequestInfoConverter requestInfoConverter;
     private final ApiPayloadBuilder apiPayloadBuilder;
+    
+    @Autowired
+    private CustomExceptionHandler exceptionHandler;
 
     @Autowired
     public HierarchyExcelGenerateProcessor(ServiceRequestClient serviceRequestClient, ExcelIngestionConfig config,
@@ -75,8 +78,9 @@ public class HierarchyExcelGenerateProcessor implements IGenerateProcessor {
 
         if (hierarchyData == null || hierarchyData.getBoundaryHierarchy() == null
                 || hierarchyData.getBoundaryHierarchy().isEmpty()) {
-            throw new CustomException(ErrorConstants.BOUNDARY_HIERARCHY_NOT_FOUND,
-                    ErrorConstants.BOUNDARY_HIERARCHY_NOT_FOUND_MESSAGE.replace("{0}", hierarchyType));
+            exceptionHandler.throwCustomException(ErrorConstants.BOUNDARY_HIERARCHY_NOT_FOUND,
+                    ErrorConstants.BOUNDARY_HIERARCHY_NOT_FOUND_MESSAGE.replace("{0}", hierarchyType),
+                    new RuntimeException("Boundary hierarchy data is null or empty for type: " + hierarchyType));
         }
 
         List<BoundaryHierarchyChild> hierarchyRelations = hierarchyData.getBoundaryHierarchy().get(0)
@@ -303,8 +307,9 @@ public class HierarchyExcelGenerateProcessor implements IGenerateProcessor {
             return serviceRequestClient.fetchResult(url, request, type);
         } catch (Exception e) {
             log.error("Error calling API: {}", url, e);
-            throw new CustomException(ErrorConstants.NETWORK_ERROR,
-                    ErrorConstants.NETWORK_ERROR_MESSAGE.replace("{0}", url.toString()));
+            exceptionHandler.throwCustomException(ErrorConstants.NETWORK_ERROR,
+                    ErrorConstants.NETWORK_ERROR_MESSAGE.replace("{0}", url.toString()), e);
+            return null; // This will never be reached due to exception throwing above
         }
     }
 

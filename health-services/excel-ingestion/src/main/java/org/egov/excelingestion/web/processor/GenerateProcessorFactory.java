@@ -1,7 +1,8 @@
 package org.egov.excelingestion.web.processor;
 
 import org.egov.excelingestion.config.ErrorConstants;
-import org.egov.tracer.model.CustomException;
+import org.egov.excelingestion.exception.CustomExceptionHandler;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import jakarta.annotation.PostConstruct;
@@ -16,6 +17,9 @@ public class GenerateProcessorFactory {
 
     private final Map<String, IGenerateProcessor> processorMap = new HashMap<>();
     private final List<IGenerateProcessor> processors;
+    
+    @Autowired
+    private CustomExceptionHandler exceptionHandler;
 
     public GenerateProcessorFactory(List<IGenerateProcessor> processors) {
         this.processors = processors;
@@ -31,8 +35,9 @@ public class GenerateProcessorFactory {
     public IGenerateProcessor getProcessor(String type) {
         IGenerateProcessor processor = processorMap.get(type);
         if (processor == null) {
-            throw new CustomException(ErrorConstants.PROCESSOR_NOT_FOUND,
-                    ErrorConstants.PROCESSOR_NOT_FOUND_MESSAGE.replace("{0}", type));
+            exceptionHandler.throwCustomException(ErrorConstants.PROCESSOR_NOT_FOUND,
+                    ErrorConstants.PROCESSOR_NOT_FOUND_MESSAGE.replace("{0}", type),
+                    new RuntimeException("No processor implementation found for type: " + type));
         }
         return processor;
     }

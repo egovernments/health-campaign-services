@@ -21,11 +21,25 @@ public class CustomExceptionHandler {
      * Generic method to create Error object
      */
     public Error createError(String errorCode, String errorMessage, Error.ErrorType errorType) {
+        // Use the overloaded method with a generic RuntimeException for consistency
+        return createError(errorCode, errorMessage, errorType, new RuntimeException("Error object creation: " + errorMessage));
+    }
+    
+    /**
+     * Create Error object with original exception
+     */
+    public Error createError(String errorCode, String errorMessage, Error.ErrorType errorType, Exception originalException) {
+        // Create custom exception using 3-parameter pattern
+        String detailedMessage = errorMessage;
+        if (originalException != null && originalException.getMessage() != null) {
+            detailedMessage = errorMessage + "::: " + originalException.getMessage();
+        }
+        CustomException exception = new CustomException(errorCode, detailedMessage);
         return Error.builder()
                 .errorCode(errorCode)
                 .errorMessage(errorMessage)
                 .type(errorType)
-                .exception(new CustomException(errorCode, errorMessage))
+                .exception(exception)
                 .build();
     }
 
@@ -71,7 +85,8 @@ public class CustomExceptionHandler {
      * Throw CustomException directly - used when immediate failure is needed
      */
     public void throwCustomException(String errorCode, String errorMessage) {
-        throw new CustomException(errorCode, errorMessage);
+        // Use 3-parameter version for consistency - create generic RuntimeException
+        throwCustomException(errorCode, errorMessage, new RuntimeException("Generic error: " + errorMessage));
     }
 
     /**
@@ -79,6 +94,19 @@ public class CustomExceptionHandler {
      */
     public void throwCustomException(String errorCode, String errorMessageTemplate, String param) {
         String errorMessage = errorMessageTemplate.replace("{0}", param);
-        throw new CustomException(errorCode, errorMessage);
+        // Use 3-parameter version for consistency - create generic RuntimeException
+        throwCustomException(errorCode, errorMessage, new RuntimeException("Formatted error: " + errorMessage));
+    }
+    
+    /**
+     * Throw CustomException with error details from original exception
+     * Combines error message with exception details for description
+     */
+    public void throwCustomException(String errorCode, String errorMessage, Exception originalException) {
+        String detailedMessage = errorMessage;
+        if (originalException != null && originalException.getMessage() != null) {
+            detailedMessage = errorMessage + "::: " + originalException.getMessage();
+        }
+        throw new CustomException(errorCode, detailedMessage);
     }
 }

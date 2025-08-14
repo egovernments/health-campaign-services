@@ -5,7 +5,7 @@ import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.excelingestion.config.ErrorConstants;
 import org.egov.excelingestion.config.ExcelIngestionConfig;
 import org.egov.excelingestion.web.models.RequestInfo;
-import org.egov.tracer.model.CustomException;
+import org.egov.excelingestion.exception.CustomExceptionHandler;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -23,6 +23,9 @@ public class MDMSService {
 
     private final ServiceRequestClient serviceRequestClient;
     private final ExcelIngestionConfig config;
+    
+    @Autowired
+    private CustomExceptionHandler exceptionHandler;
 
     @Autowired
     public MDMSService(ServiceRequestClient serviceRequestClient, ExcelIngestionConfig config) {
@@ -85,8 +88,8 @@ public class MDMSService {
             log.warn("No MDMS data found for schemaCode: {}, filters: {}", schemaCode, filters);
         } catch (Exception e) {
             log.error("Error calling MDMS API: {}", e.getMessage(), e);
-            throw new CustomException(ErrorConstants.MDMS_SERVICE_ERROR, 
-                    ErrorConstants.MDMS_SERVICE_ERROR_MESSAGE);
+            exceptionHandler.throwCustomException(ErrorConstants.MDMS_SERVICE_ERROR, 
+                    ErrorConstants.MDMS_SERVICE_ERROR_MESSAGE, e);
         }
         
         return new ArrayList<>();

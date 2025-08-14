@@ -4,7 +4,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.excelingestion.config.ErrorConstants;
 import org.egov.excelingestion.config.ExcelIngestionConfig;
-import org.egov.tracer.model.CustomException;
+import org.egov.excelingestion.exception.CustomExceptionHandler;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
@@ -24,6 +25,9 @@ public class FileStoreService {
     private final RestTemplate restTemplate; // Keep for multipart file upload
     private final ExcelIngestionConfig config;
     private final ObjectMapper objectMapper;
+    
+    @Autowired
+    private CustomExceptionHandler exceptionHandler;
 
     public FileStoreService(RestTemplate restTemplate, ExcelIngestionConfig config, ObjectMapper objectMapper) {
         this.restTemplate = restTemplate; // FileStore requires multipart upload, keeping RestTemplate
@@ -64,12 +68,15 @@ public class FileStoreService {
                 }
             }
             log.error("Failed to upload file to filestore, response: {}", response.getBody());
-            throw new CustomException(ErrorConstants.FILE_STORE_SERVICE_ERROR, 
-                    ErrorConstants.FILE_STORE_SERVICE_ERROR_MESSAGE);
+            exceptionHandler.throwCustomException(ErrorConstants.FILE_STORE_SERVICE_ERROR, 
+                    ErrorConstants.FILE_STORE_SERVICE_ERROR_MESSAGE, 
+                    new RuntimeException("FileStore API returned unsuccessful response: " + response.getBody()));
+            return null; // This will never be reached due to exception throwing above
         } catch (Exception e) {
             log.error("Error uploading file to filestore: {}", e.getMessage());
-            throw new CustomException(ErrorConstants.FILE_STORE_SERVICE_ERROR, 
-                    ErrorConstants.FILE_STORE_SERVICE_ERROR_MESSAGE);
+            exceptionHandler.throwCustomException(ErrorConstants.FILE_STORE_SERVICE_ERROR, 
+                    ErrorConstants.FILE_STORE_SERVICE_ERROR_MESSAGE, e);
+            return null; // This will never be reached due to exception throwing above
         }
     }
 }

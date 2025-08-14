@@ -12,7 +12,8 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import java.awt.Color;
 import org.egov.excelingestion.config.ErrorConstants;
 import org.egov.excelingestion.config.ExcelIngestionConfig;
-import org.egov.tracer.model.CustomException;
+import org.egov.excelingestion.exception.CustomExceptionHandler;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.egov.excelingestion.service.LocalizationService;
 import org.egov.excelingestion.service.BoundaryService;
 import org.egov.excelingestion.service.MDMSService;
@@ -44,6 +45,9 @@ public class MicroplanProcessor implements IGenerateProcessor {
     private final ExcelSchemaSheetCreator excelSchemaSheetCreator;
     private final CampaignConfigSheetCreator campaignConfigSheetCreator;
     private final MDMSService mdmsService;
+    
+    @Autowired
+    private CustomExceptionHandler exceptionHandler;
 
     public MicroplanProcessor(ExcelIngestionConfig config,
             LocalizationService localizationService, BoundaryHierarchySheetCreator boundaryHierarchySheetCreator,
@@ -99,8 +103,9 @@ public class MicroplanProcessor implements IGenerateProcessor {
 
         if (hierarchyData == null || hierarchyData.getBoundaryHierarchy() == null
                 || hierarchyData.getBoundaryHierarchy().isEmpty()) {
-            throw new CustomException(ErrorConstants.BOUNDARY_HIERARCHY_NOT_FOUND,
-                    ErrorConstants.BOUNDARY_HIERARCHY_NOT_FOUND_MESSAGE.replace("{0}", hierarchyType));
+            exceptionHandler.throwCustomException(ErrorConstants.BOUNDARY_HIERARCHY_NOT_FOUND,
+                    ErrorConstants.BOUNDARY_HIERARCHY_NOT_FOUND_MESSAGE.replace("{0}", hierarchyType),
+                    new RuntimeException("Boundary hierarchy data is null or empty for type: " + hierarchyType));
         }
 
         List<BoundaryHierarchyChild> hierarchyRelations = hierarchyData.getBoundaryHierarchy().get(0)
@@ -170,8 +175,8 @@ public class MicroplanProcessor implements IGenerateProcessor {
                 log.info("Campaign configuration sheet created successfully");
             } catch (Exception e) {
                 log.error("Error creating campaign configuration sheet: {}", e.getMessage(), e);
-                throw new CustomException(ErrorConstants.CAMPAIGN_CONFIG_CREATION_ERROR, 
-                        ErrorConstants.CAMPAIGN_CONFIG_CREATION_ERROR_MESSAGE);
+                exceptionHandler.throwCustomException(ErrorConstants.CAMPAIGN_CONFIG_CREATION_ERROR, 
+                        ErrorConstants.CAMPAIGN_CONFIG_CREATION_ERROR_MESSAGE, e);
             }
         }
 
@@ -513,13 +518,15 @@ public class MicroplanProcessor implements IGenerateProcessor {
             log.warn("No MDMS data found for schema: {}", title);
         } catch (Exception e) {
             log.error("Error fetching MDMS schema {}: {}", title, e.getMessage(), e);
-            throw new CustomException(ErrorConstants.MDMS_SERVICE_ERROR, 
-                    ErrorConstants.MDMS_SERVICE_ERROR_MESSAGE);
+            exceptionHandler.throwCustomException(ErrorConstants.MDMS_SERVICE_ERROR, 
+                    ErrorConstants.MDMS_SERVICE_ERROR_MESSAGE, e);
         }
         
         // No MDMS data found - throw error instead of returning default
-        throw new CustomException(ErrorConstants.MDMS_DATA_NOT_FOUND, 
-                ErrorConstants.MDMS_DATA_NOT_FOUND_MESSAGE.replace("{0}", title));
+        exceptionHandler.throwCustomException(ErrorConstants.MDMS_DATA_NOT_FOUND, 
+                ErrorConstants.MDMS_DATA_NOT_FOUND_MESSAGE.replace("{0}", title),
+                new RuntimeException("Schema '" + title + "' not found in MDMS configuration"));
+        return null; // This will never be reached due to exception throwing above
     }
 
 
@@ -547,13 +554,15 @@ public class MicroplanProcessor implements IGenerateProcessor {
             log.warn("No MDMS data found for campaign config: {}", sheetName);
         } catch (Exception e) {
             log.error("Error fetching MDMS campaign config {}: {}", sheetName, e.getMessage(), e);
-            throw new CustomException(ErrorConstants.MDMS_SERVICE_ERROR, 
-                    ErrorConstants.MDMS_SERVICE_ERROR_MESSAGE);
+            exceptionHandler.throwCustomException(ErrorConstants.MDMS_SERVICE_ERROR, 
+                    ErrorConstants.MDMS_SERVICE_ERROR_MESSAGE, e);
         }
         
         // No MDMS data found - throw error instead of returning null
-        throw new CustomException(ErrorConstants.MDMS_DATA_NOT_FOUND, 
-                ErrorConstants.MDMS_DATA_NOT_FOUND_MESSAGE.replace("{0}", sheetName));
+        exceptionHandler.throwCustomException(ErrorConstants.MDMS_DATA_NOT_FOUND, 
+                ErrorConstants.MDMS_DATA_NOT_FOUND_MESSAGE.replace("{0}", sheetName),
+                new RuntimeException("Campaign config sheet '" + sheetName + "' not found in MDMS configuration"));
+        return null; // This will never be reached due to exception throwing above
     }
 
 

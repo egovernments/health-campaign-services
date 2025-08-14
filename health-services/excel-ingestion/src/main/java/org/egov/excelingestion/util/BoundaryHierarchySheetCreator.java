@@ -8,7 +8,7 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import java.awt.Color;
 import org.egov.excelingestion.config.ErrorConstants;
 import org.egov.excelingestion.config.ExcelIngestionConfig;
-import org.egov.tracer.model.CustomException;
+import org.egov.excelingestion.exception.CustomExceptionHandler;
 import org.egov.excelingestion.web.models.*;
 import org.egov.excelingestion.service.BoundaryService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,6 +25,9 @@ public class BoundaryHierarchySheetCreator {
     
     @Autowired
     private ExcelIngestionConfig config;
+    
+    @Autowired
+    private CustomExceptionHandler exceptionHandler;
 
     public Workbook createBoundaryHierarchySheet(XSSFWorkbook workbook, 
                                                  String hierarchyType,
@@ -37,8 +40,9 @@ public class BoundaryHierarchySheetCreator {
         BoundaryHierarchyResponse hierarchyData = boundaryService.fetchBoundaryHierarchy(tenantId, hierarchyType, requestInfo);
         
         if (hierarchyData == null || hierarchyData.getBoundaryHierarchy() == null || hierarchyData.getBoundaryHierarchy().isEmpty()) {
-            throw new CustomException(ErrorConstants.BOUNDARY_HIERARCHY_NOT_FOUND,
-                    ErrorConstants.BOUNDARY_HIERARCHY_NOT_FOUND_MESSAGE.replace("{0}", hierarchyType));
+            exceptionHandler.throwCustomException(ErrorConstants.BOUNDARY_HIERARCHY_NOT_FOUND,
+                    ErrorConstants.BOUNDARY_HIERARCHY_NOT_FOUND_MESSAGE.replace("{0}", hierarchyType),
+                    new RuntimeException("Boundary hierarchy data is null or empty for type: " + hierarchyType));
         }
 
         List<BoundaryHierarchyChild> hierarchyRelations = hierarchyData.getBoundaryHierarchy().get(0).getBoundaryHierarchy();

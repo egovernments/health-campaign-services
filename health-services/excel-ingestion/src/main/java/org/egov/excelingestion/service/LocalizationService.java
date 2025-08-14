@@ -4,7 +4,8 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.egov.excelingestion.config.ErrorConstants;
 import org.egov.excelingestion.web.models.RequestInfo;
-import org.egov.tracer.model.CustomException;
+import org.egov.excelingestion.exception.CustomExceptionHandler;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.egov.excelingestion.web.models.localization.LocalisationRequest;
 import org.egov.excelingestion.web.models.localization.LocalisationResponse;
 import org.egov.excelingestion.web.models.localization.LocalisationSearchCriteria;
@@ -24,6 +25,9 @@ import java.util.Objects;
 public class LocalizationService {
 
     private final ServiceRequestClient serviceRequestClient;
+    
+    @Autowired
+    private CustomExceptionHandler exceptionHandler;
 
     @Value("${egov.localization.host}")
     private String localizationHost;
@@ -58,8 +62,8 @@ public class LocalizationService {
             }
         } catch (Exception e) {
             log.error("Error fetching localized messages from {}: {}", url, e.getMessage(), e);
-            throw new CustomException(ErrorConstants.LOCALIZATION_SERVICE_ERROR, 
-                    ErrorConstants.LOCALIZATION_SERVICE_ERROR_MESSAGE);
+            exceptionHandler.throwCustomException(ErrorConstants.LOCALIZATION_SERVICE_ERROR, 
+                    ErrorConstants.LOCALIZATION_SERVICE_ERROR_MESSAGE, e);
         }
         return Collections.emptyMap();
     }

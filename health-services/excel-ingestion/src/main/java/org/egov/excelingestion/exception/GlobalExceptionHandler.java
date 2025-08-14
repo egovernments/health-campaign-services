@@ -27,11 +27,23 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleCustomException(CustomException ex) {
         log.error("CustomException occurred: {} - {}", ex.getCode(), ex.getMessage(), ex);
         
+        // Extract description from error message or exception cause
+        String description = ex.getMessage();
+        String message = ex.getMessage();
+        // If message contains "::: " it means we combined error message with original exception
+        if (description != null && description.contains("::: ")) {
+            String[] parts = description.split("::: ", 2);
+            description = parts.length > 1 ? parts[1] : description;
+            message = parts[0];
+        } else if (ex.getCause() != null && ex.getCause().getMessage() != null) {
+            description = ex.getCause().getMessage();
+        }
+        
         // Create simple error without using Error class to avoid tracerModel serialization
         Map<String, Object> error = Map.of(
                 "errorCode", ex.getCode(),
-                "errorMessage", ex.getMessage(),
-                "type", "NON_RECOVERABLE"
+                "errorMessage", message,
+                "description", description
         );
         
         // Create failed response info
@@ -57,11 +69,18 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleGenericException(Exception ex) {
         log.error("Unexpected exception occurred: {}", ex.getMessage(), ex);
         
+        // Extract description from exception details or fallback to message
+        String description = null;
+        if (ex.getCause() != null) {
+            description = ex.getCause().getMessage();
+        }
+        description = description != null ? description : ex.getMessage();
+        
         // Create simple error without using Error class to avoid tracerModel serialization
         Map<String, Object> error = Map.of(
                 "errorCode", ErrorConstants.INTERNAL_SERVER_ERROR,
                 "errorMessage", ErrorConstants.INTERNAL_SERVER_ERROR_MESSAGE,
-                "type", "NON_RECOVERABLE"
+                "description", description
         );
         
         // Create failed response info

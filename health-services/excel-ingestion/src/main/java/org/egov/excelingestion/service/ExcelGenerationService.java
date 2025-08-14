@@ -2,7 +2,8 @@ package org.egov.excelingestion.service;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.excelingestion.config.ErrorConstants;
-import org.egov.tracer.model.CustomException;
+import org.egov.excelingestion.exception.CustomExceptionHandler;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.egov.excelingestion.web.models.GenerateResourceRequest;
 import org.egov.excelingestion.web.models.GenerateResource;
 import org.egov.excelingestion.web.processor.IGenerateProcessor;
@@ -16,6 +17,9 @@ public class ExcelGenerationService {
 
     private final GenerateProcessorFactory processorFactory;
     private final FileStoreService fileStoreService;
+    
+    @Autowired
+    private CustomExceptionHandler exceptionHandler;
 
     public ExcelGenerationService(GenerateProcessorFactory processorFactory, FileStoreService fileStoreService) {
         this.processorFactory = processorFactory;
@@ -35,8 +39,9 @@ public class ExcelGenerationService {
             excelBytes = processor.generateExcel(generateResource, request.getRequestInfo());
         } catch (IOException e) {
             log.error("Error generating Excel bytes", e);
-            throw new CustomException(ErrorConstants.EXCEL_GENERATION_ERROR, 
-                    ErrorConstants.EXCEL_GENERATION_ERROR_MESSAGE);
+            exceptionHandler.throwCustomException(ErrorConstants.EXCEL_GENERATION_ERROR, 
+                    ErrorConstants.EXCEL_GENERATION_ERROR_MESSAGE, e);
+            return null; // This will never be reached due to exception throwing above
         }
 
         // Upload the generated Excel bytes to file store
