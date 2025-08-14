@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.egov.common.models.project.AdditionalFields;
 import org.egov.common.models.project.Project;
@@ -86,7 +87,7 @@ public class HfReferralTransformationService {
         additionalDetails.put(CYCLE_INDEX, cycleIndex);
 
         String campaignId = null;
-        if  (StringUtils.isNotBlank(project.getReferenceID())) {
+        if  (ObjectUtils.isNotEmpty(project) && StringUtils.isNotBlank(project.getReferenceID())) {
             campaignId = projectFactoryService.getCampaignIdFromCampaignNumber(project.getTenantId(), true, project.getReferenceID());
         }
 

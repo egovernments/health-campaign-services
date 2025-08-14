@@ -134,7 +134,7 @@ public class StockTransformationService {
         }
 
         String campaignId = null;
-        if (StringUtils.isNotBlank(project.getReferenceID())) {
+        if (ObjectUtils.isNotEmpty(project) && StringUtils.isNotBlank(project.getReferenceID())) {
             campaignId = projectFactoryService.getCampaignIdFromCampaignNumber(
                     project.getTenantId(), true, project.getReferenceID()
             );

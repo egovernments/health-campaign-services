@@ -113,7 +113,7 @@ public class ProjectTaskTransformationService {
         String productName = String.join(COMMA, productService.getProductVariantNames(variantList, tenantId));
         String projectTypeId = project.getProjectTypeId();
         String campaignId = null;
-        if (StringUtils.isNotBlank(project.getReferenceID())) {
+        if (ObjectUtils.isNotEmpty(project) && StringUtils.isNotBlank(project.getReferenceID())) {
             campaignId = projectFactoryService.getCampaignIdFromCampaignNumber(
                     project.getTenantId(), true, project.getReferenceID()
             );
