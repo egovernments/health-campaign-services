@@ -3,6 +3,8 @@ package org.egov.transformer.transformationservice;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.ObjectUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.egov.common.models.project.Project;
 import org.egov.transformer.Constants;
 import org.egov.transformer.config.TransformerProperties;
@@ -12,10 +14,7 @@ import org.egov.transformer.models.upstream.AttributeValue;
 import org.egov.transformer.models.upstream.Service;
 import org.egov.transformer.models.upstream.ServiceDefinition;
 import org.egov.transformer.producer.Producer;
-import org.egov.transformer.service.BoundaryService;
-import org.egov.transformer.service.ProjectService;
-import org.egov.transformer.service.ServiceDefinitionService;
-import org.egov.transformer.service.UserService;
+import org.egov.transformer.service.*;
 import org.egov.transformer.utils.CommonUtils;
 import org.springframework.stereotype.Component;
 
@@ -34,9 +33,10 @@ public class ReferralServiceTaskTransformationService {
     private final CommonUtils commonUtils;
     private final ObjectMapper objectMapper;
     private final BoundaryService boundaryService;
+    private final ProjectFactoryService projectFactoryService;
 
 
-    public ReferralServiceTaskTransformationService(ServiceDefinitionService serviceDefinitionService, TransformerProperties transformerProperties, Producer producer, ProjectService projectService, UserService userService, CommonUtils commonUtils, ObjectMapper objectMapper, BoundaryService boundaryService) {
+    public ReferralServiceTaskTransformationService(ServiceDefinitionService serviceDefinitionService, TransformerProperties transformerProperties, Producer producer, ProjectService projectService, UserService userService, CommonUtils commonUtils, ObjectMapper objectMapper, BoundaryService boundaryService, ProjectFactoryService projectFactoryService) {
 
         this.serviceDefinitionService = serviceDefinitionService;
         this.transformerProperties = transformerProperties;
@@ -46,6 +46,7 @@ public class ReferralServiceTaskTransformationService {
         this.commonUtils = commonUtils;
         this.objectMapper = objectMapper;
         this.boundaryService = boundaryService;
+        this.projectFactoryService = projectFactoryService;
     }
 
     public void transform(List<Service> serviceList) {
@@ -84,9 +85,18 @@ public class ReferralServiceTaskTransformationService {
         Map<String, String > boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
         String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(service.getAuditDetails().getCreatedTime());
 
-        String cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectTypeId, service.getAuditDetails());
+        String cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectId, service.getAuditDetails());
         ObjectNode additionalDetails = objectMapper.createObjectNode();
         additionalDetails.put(CYCLE_INDEX, cycleIndex);
+
+        String campaignId;
+        if (ObjectUtils.isNotEmpty(project) && StringUtils.isNotBlank(project.getReferenceID())) {
+            campaignId = projectFactoryService.getCampaignIdFromCampaignNumber(
+                    project.getTenantId(), true, project.getReferenceID()
+            );
+        } else {
+            campaignId = null;
+        }
 
         String checkListToFilter = transformerProperties.getCheckListName().trim();
         List<AttributeValue> attributeValueList = service.getAttributes();
@@ -115,6 +125,8 @@ public class ReferralServiceTaskTransformationService {
                         .additionalDetails(additionalDetails)
                         .build();
                 referralServiceTaskIndexV1.setProjectInfo(projectId, projectType, projectTypeId, project.getName());
+                referralServiceTaskIndexV1.setCampaignNumber(project.getReferenceID());
+                referralServiceTaskIndexV1.setCampaignId(campaignId);
                 searchAndSetAttribute(attributeValueList, value, referralServiceTaskIndexV1);
                 referralServiceTaskIndexV1List.add(referralServiceTaskIndexV1);
             });

@@ -212,4 +212,10 @@ public class TransformerProperties {
 
     @Value("${egov.project.target.number-type}")
     private String projectTargetNumberType;
+
+    @Value("${egov.project.factory.host}")
+    private String projectFactoryHost;
+
+    @Value("${egov.project.factory.search.endpoint}")
+    private String projectFactorySearchUrl;
 }

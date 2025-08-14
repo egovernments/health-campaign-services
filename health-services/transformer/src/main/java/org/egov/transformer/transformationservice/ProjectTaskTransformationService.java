@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import digit.models.coremodels.AuditDetails;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ObjectUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.egov.common.models.household.Household;
 import org.egov.common.models.project.*;
 import org.egov.transformer.config.TransformerProperties;
@@ -35,6 +36,7 @@ public class ProjectTaskTransformationService {
     private final HouseholdService householdService;
     private final UserService userService;
     private final BoundaryService boundaryService;
+    private final ProjectFactoryService projectFactoryService;
     private static final Set<String> ADDITIONAL_DETAILS_DOUBLE_FIELDS = new HashSet<>(Arrays.asList(QUANTITY_WASTED));
     private static final Set<String> ADDITIONAL_DETAILS_INTEGER_FIELDS = new HashSet<>(Arrays.asList(NO_OF_ROOMS_SPRAYED_KEY));
     private static final Map<String, Class<?>> campaignSpecificFieldsTypeMap = new HashMap<>();
@@ -44,7 +46,7 @@ public class ProjectTaskTransformationService {
     }
 
 
-    public ProjectTaskTransformationService(TransformerProperties transformerProperties, Producer producer, ObjectMapper objectMapper, CommonUtils commonUtils, ProjectService projectService, ProductService productService, IndividualService individualService, HouseholdService householdService, UserService userService, BoundaryService boundaryService) {
+    public ProjectTaskTransformationService(TransformerProperties transformerProperties, Producer producer, ObjectMapper objectMapper, CommonUtils commonUtils, ProjectService projectService, ProductService productService, IndividualService individualService, HouseholdService householdService, UserService userService, BoundaryService boundaryService, ProjectFactoryService projectFactoryService) {
         this.transformerProperties = transformerProperties;
         this.producer = producer;
         this.objectMapper = objectMapper;
@@ -55,6 +57,7 @@ public class ProjectTaskTransformationService {
         this.householdService = householdService;
         this.userService = userService;
         this.boundaryService = boundaryService;
+        this.projectFactoryService = projectFactoryService;
     }
 
     public void transform(List<Task> taskList) {
@@ -90,8 +93,6 @@ public class ProjectTaskTransformationService {
         }
         Project project = projectService.getProject(task.getProjectId(), tenantId);
         String projectTypeId = project.getProjectTypeId();
-        String projectType = project.getProjectType();
-        String projectName = project.getName();
 
         String projectBeneficiaryClientReferenceId = task.getProjectBeneficiaryClientReferenceId();
         String projectBeneficiaryType = projectService.getProjectBeneficiaryType(task.getTenantId(), projectTypeId);
@@ -100,16 +101,23 @@ public class ProjectTaskTransformationService {
         Task constructedTask = constructTaskResourceIfNull(task);
         Map<String, String> userInfoMap = userService.getUserInfo(task.getTenantId(), task.getClientAuditDetails().getCreatedBy());
         return constructedTask.getResources().stream().map(r ->
-                transformTaskToProjectTaskIndex(r, task, boundaryHierarchy, boundaryHierarchyCode, tenantId, beneficiaryInfo, projectBeneficiaryType, projectTypeId, projectType, userInfoMap, localityCode, projectName)
+                transformTaskToProjectTaskIndex(r, task, boundaryHierarchy, boundaryHierarchyCode, tenantId, beneficiaryInfo, projectBeneficiaryType, userInfoMap, localityCode, project)
         ).collect(Collectors.toList());
     }
 
     private ProjectTaskIndexV1 transformTaskToProjectTaskIndex(TaskResource taskResource, Task task, Map<String, String> boundaryHierarchy, Map<String, String> boundaryHierarchyCode, String tenantId,
-                                                               Map<String, Object> beneficiaryInfo, String projectBeneficiaryType, String projectTypeId, String projectType,
-                                                               Map<String, String> userInfoMap, String localityCode, String projectName) {
+                                                               Map<String, Object> beneficiaryInfo, String projectBeneficiaryType,
+                                                               Map<String, String> userInfoMap, String localityCode, Project project) {
         String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(task.getAuditDetails().getCreatedTime());
         List<String> variantList = new ArrayList<>(Collections.singleton(taskResource.getProductVariantId()));
         String productName = String.join(COMMA, productService.getProductVariantNames(variantList, tenantId));
+        String projectTypeId = project.getProjectTypeId();
+        String campaignId = null;
+        if (ObjectUtils.isNotEmpty(project) && StringUtils.isNotBlank(project.getReferenceID())) {
+            campaignId = projectFactoryService.getCampaignIdFromCampaignNumber(
+                    project.getTenantId(), true, project.getReferenceID()
+            );
+        }
 
         ProjectTaskIndexV1 projectTaskIndexV1 = ProjectTaskIndexV1.builder()
                 .id(taskResource.getId())
@@ -151,13 +159,15 @@ public class ProjectTaskTransformationService {
                 .dateOfBirth(beneficiaryInfo.containsKey(DATE_OF_BIRTH) ? (Long) beneficiaryInfo.get(DATE_OF_BIRTH) : null)
                 .individualId(beneficiaryInfo.containsKey(INDIVIDUAL_ID) ? (String) beneficiaryInfo.get(INDIVIDUAL_ID) : null)
                 .build();
-        projectTaskIndexV1.setProjectInfo(task.getId(), projectType, projectTypeId, projectName);
+        projectTaskIndexV1.setProjectInfo(task.getId(), project.getProjectType(), projectTypeId, project.getName());
+        projectTaskIndexV1.setCampaignNumber(project.getReferenceID());
+        projectTaskIndexV1.setCampaignId(campaignId);
 
         //adding to additional details  from additionalFields in task and task resource
         ObjectNode additionalDetails = objectMapper.createObjectNode();
         if (task.getAdditionalFields() != null) {
             addAdditionalDetails(task.getAdditionalFields(), additionalDetails);
-            addCycleIndex(additionalDetails, task.getAuditDetails(), tenantId, projectTypeId);
+            addCycleIndex(additionalDetails, task.getAuditDetails(), tenantId, project.getId());
         }
         enrichWithCampaignSpecificFields(additionalDetails, beneficiaryInfo);
         // TODO below code is commented because the additionalFields is removed from taskResource but his has to be added back
@@ -217,9 +227,9 @@ public class ProjectTaskTransformationService {
     }
 
     //This cycleIndex logic has to be changed if we send all required additionalDetails from app
-    private void addCycleIndex(ObjectNode additionalDetails, AuditDetails auditDetails, String tenantId, String projectTypeId) {
+    private void addCycleIndex(ObjectNode additionalDetails, AuditDetails auditDetails, String tenantId, String projectId) {
         if (!additionalDetails.has(CYCLE_INDEX)) {
-            String cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectTypeId, auditDetails);
+            String cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectId, auditDetails);
             additionalDetails.put(CYCLE_INDEX, cycleIndex);
         }
     }

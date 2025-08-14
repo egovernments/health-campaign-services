@@ -14,6 +14,8 @@ import digit.models.coremodels.mdms.MdmsCriteria;
 import digit.models.coremodels.mdms.MdmsCriteriaReq;
 import digit.models.coremodels.mdms.ModuleDetail;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.ObjectUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.contract.request.User;
@@ -364,25 +366,26 @@ public class ProjectService {
 
     }
 
-    public JsonNode fetchProjectTypes(String tenantId, String filter, String projectTypeId) {
-        List<JsonNode> projectTypes = new ArrayList<>();
-        RequestInfo requestInfo = RequestInfo.builder()
-                .userInfo(User.builder().uuid("transformer-uuid").build())
-                .build();
-        try {
-            JsonNode response = fetchMdmsResponse(requestInfo, tenantId, PROJECT_TYPES, transformerProperties.getMdmsModule(), filter);
-            projectTypes = convertToProjectTypeJsonNodeList(response);
-            JsonNode requiredProjectType = projectTypes.stream().filter(projectType -> projectType.get(Constants.ID).asText().equals(projectTypeId)).findFirst().get();
+
+    public JsonNode fetchProjectTypeFromProject(String tenantId, String projectId) {
+        JsonNode requiredProjectType = null;
+        if (StringUtils.isBlank(projectId)) {
             return requiredProjectType;
-        } catch (IOException e) {
-            throw new RuntimeException(e);
         }
+        Project project = getProject(projectId, tenantId);
+        if (ObjectUtils.isNotEmpty(project)) {
+            JsonNode additionalDetails = objectMapper.valueToTree(project.getAdditionalDetails());
+            if (additionalDetails != null && !additionalDetails.isEmpty() && additionalDetails.has(PROJECT_TYPE)) {
+                requiredProjectType = additionalDetails.get(PROJECT_TYPE);
+            }
+        }
+        return requiredProjectType;
     }
 
-    public JsonNode fetchProjectAdditionalDetails(String tenantId, String filter, String projectTypeId) {
+    public JsonNode fetchProjectAdditionalDetails(String tenantId, String projectId) {
 
         JsonNode additionalDetails = null;
-        JsonNode requiredProjectType = fetchProjectTypes(tenantId, filter, projectTypeId);
+        JsonNode requiredProjectType = fetchProjectTypeFromProject(tenantId, projectId);
         if (requiredProjectType.has(CYCLES) && !requiredProjectType.get(CYCLES).isEmpty()) {
             additionalDetails = extractProjectCycleAndDoseIndexes(requiredProjectType);
         }
@@ -414,7 +417,7 @@ public class ProjectService {
             result.set(CYCLE_INDEX, cycleIndex);
             return result;
         } catch (Exception e) {
-            log.info("Error while fetching cycle and dose indexes from MDMS: {}", ExceptionUtils.getStackTrace(e));
+            log.info("Error while extracting cycle and dose indexes from projectType: {}", ExceptionUtils.getStackTrace(e));
             return null;
         }
     }

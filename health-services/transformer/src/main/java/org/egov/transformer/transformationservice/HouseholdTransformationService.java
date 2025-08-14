@@ -92,8 +92,6 @@ public class HouseholdTransformationService {
             additionalDetails.put(ISVULNERABLE, true);
         }
 
-        String cycleIndex = commonUtils.fetchCycleIndex(household.getTenantId(), String.valueOf(additionalDetails.get(PROJECT_TYPE_ID)), household.getClientAuditDetails());
-        additionalDetails.put(CYCLE_INDEX, cycleIndex);
 
         HouseholdIndexV1 householdIndexV1 = HouseholdIndexV1.builder()
                 .household(household)
@@ -107,11 +105,14 @@ public class HouseholdTransformationService {
                 .taskDates(commonUtils.getDateFromEpoch(household.getClientAuditDetails().getLastModifiedTime()))
                 .syncedDate(commonUtils.getDateFromEpoch(household.getAuditDetails().getLastModifiedTime()))
                 .syncedTimeStamp(syncedTimeStamp)
-                .additionalDetails(additionalDetails)
                 .build();
         commonUtils.addProjectDetailsForUserIdAndTenantId(householdIndexV1,
                 household.getClientAuditDetails().getLastModifiedBy(),
                 household.getTenantId());
+
+        String cycleIndex = commonUtils.fetchCycleIndex(household.getTenantId(), householdIndexV1.getProjectId(), household.getClientAuditDetails());
+        additionalDetails.put(CYCLE_INDEX, cycleIndex);
+        householdIndexV1.setAdditionalDetails(additionalDetails);
         return householdIndexV1;
     }
 

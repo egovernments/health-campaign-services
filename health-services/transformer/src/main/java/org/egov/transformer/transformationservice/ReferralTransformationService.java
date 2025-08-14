@@ -3,6 +3,8 @@ package org.egov.transformer.transformationservice;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.ObjectUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.egov.common.models.facility.Facility;
 import org.egov.common.models.project.Project;
 import org.egov.common.models.project.ProjectBeneficiary;
@@ -37,13 +39,14 @@ public class ReferralTransformationService {
     private final IndividualService individualService;
     private final FacilityService facilityService;
     private final BoundaryService boundaryService;
+    private final ProjectFactoryService projectFactoryService;
 
     private final CommonUtils commonUtils;
 
     private final ObjectMapper objectMapper;
 
     public ReferralTransformationService(TransformerProperties transformerProperties,
-                                         Producer producer, UserService userService, ProjectService projectService, IndividualService individualService, FacilityService facilityService, BoundaryService boundaryService, CommonUtils commonUtils, ObjectMapper objectMapper) {
+                                         Producer producer, UserService userService, ProjectService projectService, IndividualService individualService, FacilityService facilityService, BoundaryService boundaryService, ProjectFactoryService projectFactoryService, CommonUtils commonUtils, ObjectMapper objectMapper) {
         this.transformerProperties = transformerProperties;
         this.producer = producer;
         this.userService = userService;
@@ -51,6 +54,7 @@ public class ReferralTransformationService {
         this.individualService = individualService;
         this.facilityService = facilityService;
         this.boundaryService = boundaryService;
+        this.projectFactoryService = projectFactoryService;
         this.commonUtils = commonUtils;
         this.objectMapper = objectMapper;
     }
@@ -80,6 +84,7 @@ public class ReferralTransformationService {
         String projectType = null;
         String projectTypeId = null;
         String projectName = null;
+        String referenceId = null;
         if (!CollectionUtils.isEmpty(projectBeneficiaryList)) {
             ProjectBeneficiary projectBeneficiary = projectBeneficiaryList.get(0);
             individualDetails = individualService.getIndividualInfo(projectBeneficiary.getBeneficiaryClientReferenceId(), tenantId);
@@ -88,6 +93,7 @@ public class ReferralTransformationService {
             projectTypeId = project.getProjectTypeId();
             projectType = project.getProjectType();
             projectName = project.getName();
+            referenceId = project.getReferenceID();
             if (individualDetails.containsKey(ADDRESS_CODE)) {
                 BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode((String) individualDetails.get(ADDRESS_CODE), tenantId);
                 boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
@@ -106,12 +112,17 @@ public class ReferralTransformationService {
 
         Map<String, String> userInfoMap = userService.getUserInfo(tenantId, referral.getAuditDetails().getCreatedBy());
 
-        String cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectTypeId, referral.getAuditDetails());
+        String cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectId, referral.getAuditDetails());
         ObjectNode additionalDetails = objectMapper.createObjectNode();
         additionalDetails.put(CYCLE_INDEX, cycleIndex);
         if (individualDetails.containsKey(HEIGHT) && individualDetails.containsKey(DISABILITY_TYPE)) {
             additionalDetails.put(HEIGHT, (Integer) individualDetails.get(HEIGHT));
             additionalDetails.put(DISABILITY_TYPE,(String) individualDetails.get(DISABILITY_TYPE));
+        }
+
+        String campaignId = null;
+        if (StringUtils.isNotBlank(referenceId)) {
+            campaignId = projectFactoryService.getCampaignIdFromCampaignNumber(referral.getTenantId(), true, referenceId);
         }
         ReferralIndexV1 referralIndexV1 = ReferralIndexV1.builder()
                 .referral(referral)
@@ -132,6 +143,8 @@ public class ReferralTransformationService {
                 .additionalDetails(additionalDetails)
                 .build();
         referralIndexV1.setProjectInfo(projectId, projectType, projectTypeId, projectName);
+        referralIndexV1.setCampaignNumber(referenceId);
+        referralIndexV1.setCampaignId(campaignId);
         return referralIndexV1;
     }
 }

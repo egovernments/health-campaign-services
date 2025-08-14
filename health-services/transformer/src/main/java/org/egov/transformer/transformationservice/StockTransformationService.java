@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ObjectUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.egov.common.models.facility.Facility;
 import org.egov.common.models.project.ProjectStaff;
 import org.egov.common.models.stock.AdditionalFields;
@@ -38,9 +39,10 @@ public class StockTransformationService {
     private final ObjectMapper objectMapper;
     private final BoundaryService boundaryService;
     private final ProductService productService;
+    private final ProjectFactoryService projectFactoryService;
     private static final Set<String> ADDITIONAL_DETAILS_DOUBLE_FIELDS = new HashSet<>(Arrays.asList(LAT, LNG));
 
-    public StockTransformationService(Producer producer, FacilityService facilityService, TransformerProperties transformerProperties, CommonUtils commonUtils, ProjectService projectService, UserService userService, ObjectMapper objectMapper, ProductService productService, BoundaryService boundaryService) {
+    public StockTransformationService(Producer producer, FacilityService facilityService, TransformerProperties transformerProperties, CommonUtils commonUtils, ProjectService projectService, UserService userService, ObjectMapper objectMapper, ProductService productService, BoundaryService boundaryService, ProjectFactoryService projectFactoryService) {
         this.producer = producer;
         this.facilityService = facilityService;
         this.transformerProperties = transformerProperties;
@@ -50,6 +52,7 @@ public class StockTransformationService {
         this.objectMapper = objectMapper;
         this.boundaryService = boundaryService;
         this.productService = productService;
+        this.projectFactoryService = projectFactoryService;
     }
 
     public void transform(List<Stock> stocksList) {
@@ -122,12 +125,19 @@ public class StockTransformationService {
         List<String> variantList = new ArrayList<>(Collections.singleton(stock.getProductVariantId()));
         String productName = String.join(COMMA, productService.getProductVariantNames(variantList, tenantId));
         Map<String, String> userInfoMap = userService.getUserInfo(stock.getTenantId(), stock.getClientAuditDetails().getCreatedBy());
-        String cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectTypeId, stock.getAuditDetails());
+        String cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectId, stock.getAuditDetails());
         ObjectNode additionalDetails = objectMapper.createObjectNode();
         additionalDetails.put(CYCLE_INDEX, cycleIndex);
 
         if (ObjectUtils.isNotEmpty(stock.getAdditionalFields()) && !CollectionUtils.isEmpty(stock.getAdditionalFields().getFields())) {
             addAdditionalDetails(stock.getAdditionalFields(), additionalDetails);
+        }
+
+        String campaignId = null;
+        if (ObjectUtils.isNotEmpty(project) && StringUtils.isNotBlank(project.getReferenceID())) {
+            campaignId = projectFactoryService.getCampaignIdFromCampaignNumber(
+                    project.getTenantId(), true, project.getReferenceID()
+            );
         }
 
         StockIndexV1 stockIndexV1 = StockIndexV1.builder()
@@ -169,6 +179,8 @@ public class StockTransformationService {
                 .additionalDetails(additionalDetails)
                 .build();
         stockIndexV1.setProjectInfo(projectId, project.getProjectType(), projectTypeId, project.getName());
+        stockIndexV1.setCampaignNumber(project.getReferenceID());
+        stockIndexV1.setCampaignId(campaignId);
         return stockIndexV1;
     }
 

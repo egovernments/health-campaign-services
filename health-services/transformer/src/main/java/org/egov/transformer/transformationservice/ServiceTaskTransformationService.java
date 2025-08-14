@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.JsonNodeType;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.egov.common.models.project.Project;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.models.boundary.BoundaryHierarchyResult;
@@ -12,10 +13,7 @@ import org.egov.transformer.models.downstream.ServiceIndexV1;
 import org.egov.transformer.models.upstream.Service;
 import org.egov.transformer.models.upstream.ServiceDefinition;
 import org.egov.transformer.producer.Producer;
-import org.egov.transformer.service.BoundaryService;
-import org.egov.transformer.service.ProjectService;
-import org.egov.transformer.service.ServiceDefinitionService;
-import org.egov.transformer.service.UserService;
+import org.egov.transformer.service.*;
 import org.egov.transformer.utils.CommonUtils;
 import org.springframework.stereotype.Component;
 
@@ -35,8 +33,9 @@ public class ServiceTaskTransformationService {
     private final CommonUtils commonUtils;
     private final UserService userService;
     private final BoundaryService boundaryService;
+    private final ProjectFactoryService projectFactoryService;
 
-    public ServiceTaskTransformationService(Producer producer, TransformerProperties transformerProperties, ObjectMapper objectMapper, ServiceDefinitionService serviceDefinitionService, ProjectService projectService, CommonUtils commonUtils, UserService userService, BoundaryService boundaryService) {
+    public ServiceTaskTransformationService(Producer producer, TransformerProperties transformerProperties, ObjectMapper objectMapper, ServiceDefinitionService serviceDefinitionService, ProjectService projectService, CommonUtils commonUtils, UserService userService, BoundaryService boundaryService, ProjectFactoryService projectFactoryService) {
         this.producer = producer;
         this.transformerProperties = transformerProperties;
         this.objectMapper = objectMapper;
@@ -45,6 +44,7 @@ public class ServiceTaskTransformationService {
         this.commonUtils = commonUtils;
         this.userService = userService;
         this.boundaryService = boundaryService;
+        this.projectFactoryService = projectFactoryService;
     }
 
     public void transform(List<Service> serviceList) {
@@ -92,12 +92,19 @@ public class ServiceTaskTransformationService {
         }
         String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(service.getAuditDetails().getCreatedTime());
         Map<String, String> userInfoMap = userService.getUserInfo(service.getTenantId(), service.getAuditDetails().getCreatedBy());
-        String cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectTypeId, service.getAuditDetails());
+        String cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectId, service.getAuditDetails());
         ObjectNode additionalDetails = objectMapper.createObjectNode();
         if(serviceAdditionalDetails != null && serviceAdditionalDetails.isObject()) {
             additionalDetails = (ObjectNode) serviceAdditionalDetails;
         }
         additionalDetails.put(CYCLE_INDEX, cycleIndex);
+
+        String campaignId = null;
+        if (StringUtils.isNotBlank(project.getReferenceID())) {
+            campaignId = projectFactoryService.getCampaignIdFromCampaignNumber(
+                    project.getTenantId(), true, project.getReferenceID()
+            );
+        }
 
         ServiceIndexV1 serviceIndexV1 = ServiceIndexV1.builder()
                 .id(service.getId())
@@ -123,6 +130,8 @@ public class ServiceTaskTransformationService {
                 .geoPoint(geoPoint)
                 .build();
         serviceIndexV1.setProjectInfo(projectId, projectType, projectTypeId, project.getName());
+        serviceIndexV1.setCampaignNumber(project.getReferenceID());
+        serviceIndexV1.setCampaignId(campaignId);
         return serviceIndexV1;
     }
 }
