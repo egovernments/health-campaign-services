@@ -26,26 +26,27 @@ public class PlanConfigRowMapper implements ResultSetExtractor<List<PlanConfigur
     @Override
     public List<PlanConfiguration> extractData(ResultSet rs) throws SQLException, DataAccessException {
         Map<String, PlanConfiguration> planConfigurationMap = new LinkedHashMap<>();
-        Set<String> fileSet = new HashSet<>();
-        Set<String> operationSet = new HashSet<>();
-        Set<String> assumptionSet = new HashSet<>();
-        Set<String> resourceMappingSet = new HashSet<>();
 
+        // Per-planConfigId dedup sets
+        Map<String, Set<String>> fileSets = new HashMap<>();
+        Map<String, Set<String>> operationSets = new HashMap<>();
+        Map<String, Set<String>> assumptionSets = new HashMap<>();
+        Map<String, Set<String>> resourceMappingSets = new HashMap<>();
 
         while (rs.next()) {
             String planConfigId = rs.getString("plan_configuration_id");
 
             PlanConfiguration planConfigEntry = planConfigurationMap.get(planConfigId);
-
             if (ObjectUtils.isEmpty(planConfigEntry)) {
                 planConfigEntry = new PlanConfiguration();
-                fileSet.clear();
-                operationSet.clear();
-                assumptionSet.clear();
-                resourceMappingSet.clear();
 
                 // Prepare audit details
-                AuditDetails auditDetails = AuditDetails.builder().createdBy(rs.getString("plan_configuration_created_by")).createdTime(rs.getLong("plan_configuration_created_time")).lastModifiedBy(rs.getString("plan_configuration_last_modified_by")).lastModifiedTime(rs.getLong("plan_configuration_last_modified_time")).build();
+                AuditDetails auditDetails = AuditDetails.builder()
+                        .createdBy(rs.getString("plan_configuration_created_by"))
+                        .createdTime(rs.getLong("plan_configuration_created_time"))
+                        .lastModifiedBy(rs.getString("plan_configuration_last_modified_by"))
+                        .lastModifiedTime(rs.getLong("plan_configuration_last_modified_time"))
+                        .build();
 
                 // Prepare plan object
                 planConfigEntry.setId(planConfigId);
@@ -53,25 +54,33 @@ public class PlanConfigRowMapper implements ResultSetExtractor<List<PlanConfigur
                 planConfigEntry.setName(rs.getString("plan_configuration_name"));
                 planConfigEntry.setCampaignId(rs.getString("plan_configuration_campaign_id"));
                 planConfigEntry.setStatus(rs.getString("plan_configuration_status"));
-                planConfigEntry.setAdditionalDetails(queryUtil.getAdditionalDetail((PGobject) rs.getObject("plan_configuration_additional_details")));
+                planConfigEntry.setAdditionalDetails(
+                        queryUtil.getAdditionalDetail((PGobject) rs.getObject("plan_configuration_additional_details"))
+                );
                 planConfigEntry.setAuditDetails(auditDetails);
 
+                planConfigurationMap.put(planConfigId, planConfigEntry);
             }
+
+            // Get per-config dedup sets
+            Set<String> fileSet = fileSets.computeIfAbsent(planConfigId, k -> new HashSet<>());
+            Set<String> assumptionSet = assumptionSets.computeIfAbsent(planConfigId, k -> new HashSet<>());
+            Set<String> operationSet = operationSets.computeIfAbsent(planConfigId, k -> new HashSet<>());
+            Set<String> resourceMappingSet = resourceMappingSets.computeIfAbsent(planConfigId, k -> new HashSet<>());
+
+            // Add children with per-config dedup
             addFiles(rs, planConfigEntry, fileSet);
             addAssumptions(rs, planConfigEntry, assumptionSet);
             addOperations(rs, planConfigEntry, operationSet);
             addResourceMappings(rs, planConfigEntry, resourceMappingSet);
-
-            planConfigurationMap.put(planConfigId, planConfigEntry);
         }
 
         List<PlanConfiguration> planConfigurations = new ArrayList<>(planConfigurationMap.values());
-
-        // Sort the list of operations in the plan configuration object by execution order.
+        // Keep your existing sort
         sortOperationsByExecutionOrder(planConfigurations);
         return planConfigurations;
-
     }
+
 
     /**
      * Adds a File object to the PlanConfiguration entry based on the result set.
