@@ -1,14 +1,5 @@
 package org.egov.stock.validator.stockreconciliation;
 
-import lombok.extern.slf4j.Slf4j;
-import org.egov.common.models.Error;
-import org.egov.common.models.stock.StockReconciliation;
-import org.egov.common.models.stock.StockReconciliationBulkRequest;
-import org.egov.common.validator.Validator;
-import org.egov.stock.repository.StockReconciliationRepository;
-import org.springframework.core.annotation.Order;
-import org.springframework.stereotype.Component;
-
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -16,8 +7,18 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import lombok.extern.slf4j.Slf4j;
+import org.egov.common.models.Error;
+import org.egov.common.models.stock.StockReconciliation;
+import org.egov.common.models.stock.StockReconciliationBulkRequest;
+import org.egov.common.models.stock.StockReconciliationSearch;
+import org.egov.common.validator.Validator;
+import org.egov.stock.repository.StockReconciliationRepository;
+import org.egov.tracer.model.CustomException;
+import org.springframework.core.annotation.Order;
+import org.springframework.stereotype.Component;
+
 import static org.egov.common.utils.CommonUtils.checkNonExistentEntities;
-import static org.egov.common.utils.CommonUtils.getIdFieldName;
 import static org.egov.common.utils.CommonUtils.getIdToObjMap;
 import static org.egov.common.utils.CommonUtils.getMethod;
 import static org.egov.common.utils.CommonUtils.getObjClass;
@@ -46,10 +47,30 @@ public class SrNonExistentValidator implements Validator<StockReconciliationBulk
         Method idMethod = getMethod(GET_ID, objClass);
         Map<String, StockReconciliation> eMap = getIdToObjMap(entities
                 .stream().filter(notHavingErrors()).collect(Collectors.toList()), idMethod);
+        // Lists to store IDs and client reference IDs
+        List<String> idList = new ArrayList<>();
+        List<String> clientReferenceIdList = new ArrayList<>();
+        // Extract IDs and client reference IDs from StockReconciliation entities
+        entities.forEach(entity -> {
+            idList.add(entity.getId());
+            clientReferenceIdList.add(entity.getClientReferenceId());
+        });
         if (!eMap.isEmpty()) {
-            List<String> entityIds = new ArrayList<>(eMap.keySet());
-            List<StockReconciliation> existingEntities = stockReconciliationRepository.findById(entityIds,false,
-                    getIdFieldName(idMethod));
+            StockReconciliationSearch stockReconciliationSearch = StockReconciliationSearch.builder()
+                    .clientReferenceId(clientReferenceIdList)
+                    .id(idList)
+                    .build();
+
+            List<StockReconciliation> existingEntities;
+            try {
+                // Query the repository to find existing entities
+                existingEntities = stockReconciliationRepository.find(stockReconciliationSearch, entities.size(), 0,
+                        entities.get(0).getTenantId(), null, false);
+            } catch (Exception e) {
+                // Handle query builder exception
+                log.error("Search failed for StockReconciliation with error: {}", e.getMessage(), e);
+                throw new CustomException("STOCK_RECONCILIANTION_SEARCH_FAILED", "Search Failed for StockReconciliation, " + e.getMessage());
+            }
             List<StockReconciliation> nonExistentEntities = checkNonExistentEntities(eMap,
                     existingEntities, idMethod);
             nonExistentEntities.forEach(task -> {

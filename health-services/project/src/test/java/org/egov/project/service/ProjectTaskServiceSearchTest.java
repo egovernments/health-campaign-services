@@ -1,7 +1,9 @@
 package org.egov.project.service;
 
 import org.egov.common.data.query.exception.QueryBuilderException;
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.helper.RequestInfoTestBuilder;
+import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.project.Task;
 import org.egov.common.models.project.TaskSearch;
 import org.egov.common.models.project.TaskSearchRequest;
@@ -50,60 +52,60 @@ public class ProjectTaskServiceSearchTest {
 
     @Test
     @DisplayName("should search only by id if only id is present")
-    void shouldOnlySearchByIdIfOnlyIdIsPresent() {
+    void shouldOnlySearchByIdIfOnlyIdIsPresent() throws InvalidTenantIdException {
         TaskSearchRequest taskSearchRequest = TaskSearchRequest.builder()
                 .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
                 .task(TaskSearch.builder().id(Collections.singletonList("some-id")).build()).build();
-        when(projectTaskRepository.findById(anyList(), eq("id"), anyBoolean()))
-                .thenReturn(Collections.emptyList());
+        when(projectTaskRepository.findById(anyString(), anyList(), eq("id"), anyBoolean()))
+                .thenReturn(SearchResponse.<Task>builder().build());
 
         projectTaskService.search(taskSearchRequest.getTask(), 10, 0, "default",
                 null, false);
 
         verify(projectTaskRepository, times(1))
-                .findById(anyList(), eq("id"), anyBoolean());
+                .findById(anyString(), anyList(), eq("id"), anyBoolean());
     }
 
     @Test
     @DisplayName("should search only by clientReferenceId if only clientReferenceId is present")
-    void shouldOnlySearchByClientReferenceIdIfOnlyClientReferenceIdIsPresent() {
+    void shouldOnlySearchByClientReferenceIdIfOnlyClientReferenceIdIsPresent() throws InvalidTenantIdException {
         TaskSearchRequest taskSearchRequest = TaskSearchRequest.builder()
                 .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
                 .task(TaskSearch.builder().clientReferenceId(Collections.singletonList("some-id")).build()).build();
-        when(projectTaskRepository.findById(anyList(), eq("clientReferenceId"), anyBoolean()))
-                .thenReturn(Collections.emptyList());
+        when(projectTaskRepository.findById(anyString(), anyList(), eq("clientReferenceId"), anyBoolean()))
+                .thenReturn(SearchResponse.<Task>builder().build());
 
         projectTaskService.search(taskSearchRequest.getTask(), 10, 0, "default",
                 null, false);
 
-        verify(projectTaskRepository, times(1)).findById(anyList(),
+        verify(projectTaskRepository, times(1)).findById(anyString(), anyList(),
                 eq("clientReferenceId"), anyBoolean());
     }
 
     @Test
     @DisplayName("should not call findById if more search parameters are available")
-    void shouldNotCallFindByIfIfMoreParametersAreAvailable() throws QueryBuilderException {
+    void shouldNotCallFindByIfIfMoreParametersAreAvailable() throws QueryBuilderException, InvalidTenantIdException {
         TaskSearchRequest taskSearchRequest = TaskSearchRequest.builder()
                 .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
                 .task(TaskSearch.builder().id(Collections.singletonList("some-id")).clientReferenceId(Collections.singletonList("some-id")).build()).build();
         when(projectTaskRepository.find(any(TaskSearch.class), anyInt(),
-                anyInt(), anyString(), anyLong(), anyBoolean())).thenReturn(Collections.emptyList());
+                anyInt(), anyString(), anyLong(), anyBoolean())).thenReturn(SearchResponse.<Task>builder().build());
 
         projectTaskService.search(taskSearchRequest.getTask(), 10, 0,
                 "default", 0L, false);
 
         verify(projectTaskRepository, times(0))
-                .findById(anyList(), anyString(), anyBoolean());
+                .findById(anyString(), anyList(), anyString(), anyBoolean());
     }
 
     @Test
     @DisplayName("should call find if more parameters are available")
-    void shouldCallFindIfMoreParametersAreAvailable() throws QueryBuilderException {
+    void shouldCallFindIfMoreParametersAreAvailable() throws QueryBuilderException, InvalidTenantIdException {
         TaskSearchRequest taskSearchRequest = TaskSearchRequest.builder()
                 .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
                 .task(TaskSearch.builder().id(Collections.singletonList("some-id")).clientReferenceId(Collections.singletonList("some-id")).build()).build();
         when(projectTaskRepository.find(any(TaskSearch.class), anyInt(),
-                anyInt(), anyString(), anyLong(), anyBoolean())).thenReturn(Collections.emptyList());
+                anyInt(), anyString(), anyLong(), anyBoolean())).thenReturn(SearchResponse.<Task>builder().build());
 
         projectTaskService.search(taskSearchRequest.getTask(), 10, 0,
                 "default", 0L, false);
@@ -117,7 +119,7 @@ public class ProjectTaskServiceSearchTest {
     @DisplayName("should not raise exception if no search results are found")
     void shouldNotRaiseExceptionIfNoProjectTaskFound() throws Exception {
         when(projectTaskRepository.find(any(TaskSearch.class), any(Integer.class),
-                any(Integer.class), any(String.class), eq(null), any(Boolean.class))).thenReturn(Collections.emptyList());
+                any(Integer.class), any(String.class), eq(null), any(Boolean.class))).thenReturn(SearchResponse.<Task>builder().build());
         TaskSearchRequest taskSearchRequest = TaskSearchRequest.builder()
                 .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
                 .task(TaskSearch.builder().id(Collections.singletonList("someid")).clientReferenceId(Collections.singletonList("some-id")).build()).build();
@@ -130,7 +132,7 @@ public class ProjectTaskServiceSearchTest {
     @Test
     @DisplayName("should not raise exception if no search results are found for search by id")
     void shouldNotRaiseExceptionIfNoProjectTaskFoundForSearchById() throws Exception {
-        when(projectTaskRepository.findById(anyList(), anyString(), anyBoolean())).thenReturn(Collections.emptyList());
+        when(projectTaskRepository.findById(anyString(), anyList(), anyString(), anyBoolean())).thenReturn(SearchResponse.<Task>builder().build());
         TaskSearchRequest taskSearchRequest = TaskSearchRequest.builder()
                 .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
                 .task(TaskSearch.builder().id(Collections.singletonList("some-id")).build()).build();
@@ -144,13 +146,13 @@ public class ProjectTaskServiceSearchTest {
     void shouldReturnProjectStaffIfSearchCriteriaIsMatched() throws Exception {
         projectTasks.add(TaskTestBuilder.builder().withTask().build());
         when(projectTaskRepository.find(any(TaskSearch.class), any(Integer.class),
-                any(Integer.class), any(String.class), eq(null), any(Boolean.class))).thenReturn(projectTasks);
+                any(Integer.class), any(String.class), eq(null), any(Boolean.class))).thenReturn(SearchResponse.<Task>builder().response(projectTasks).build());
         TaskSearchRequest taskSearchRequest = TaskSearchRequest.builder()
                 .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
-                .task(TaskSearch.builder().id(Collections.singletonList("some-id")).projectId("some-id").build()).build();
+                .task(TaskSearch.builder().id(Collections.singletonList("some-id")).projectId(Collections.singletonList("some-id")).build()).build();
 
         List<Task> projectTasks = projectTaskService.search(taskSearchRequest.getTask(), 10, 0, 
-                "default", null, false);
+                "default", null, false).getResponse();
 
         assertEquals(1, projectTasks.size());
     }
@@ -159,13 +161,13 @@ public class ProjectTaskServiceSearchTest {
     @DisplayName("should return from find by id if search criteria has id only")
     void shouldReturnFromFindByIdIfSearchCriteriaHasIdOnly() throws Exception {
         projectTasks.add(TaskTestBuilder.builder().withTask().build());
-        when(projectTaskRepository.findById(anyList(), anyString(), anyBoolean())).thenReturn(projectTasks);
+        when(projectTaskRepository.findById(anyString(), anyList(), anyString(), anyBoolean())).thenReturn(SearchResponse.<Task>builder().response(projectTasks).build());
         TaskSearchRequest taskSearchRequest = TaskSearchRequest.builder()
                 .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
                 .task(TaskSearch.builder().id(Collections.singletonList("some-id")).build()).build();
 
         List<Task> projectTasks = projectTaskService.search(taskSearchRequest.getTask(), 10, 0,
-                "default", null, false);
+                "default", null, false).getResponse();
 
         assertEquals(1, projectTasks.size());
     }
