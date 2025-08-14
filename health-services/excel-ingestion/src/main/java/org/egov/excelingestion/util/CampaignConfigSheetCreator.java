@@ -148,7 +148,7 @@ public class CampaignConfigSheetCreator {
         
         List<String> boundaryLevelNames = null;
         if (hasBoundaryLevels) {
-            boundaryLevelNames = fetchBoundaryLevelNames(tenantId, hierarchyType, requestInfo);
+            boundaryLevelNames = fetchBoundaryLevelNames(tenantId, hierarchyType, requestInfo, localizationMap);
             
             // Validate rows count should not be less than boundary levels count
             if (rows.size() < boundaryLevelNames.size()) {
@@ -179,9 +179,13 @@ public class CampaignConfigSheetCreator {
                 
                 // Handle boundary levels column
                 if (areBoundaryLevels && boundaryLevelNames != null && rowIndex < boundaryLevelNames.size()) {
-                    String boundaryLevelName = boundaryLevelNames.get(rowIndex);
-                    String localizedBoundaryLevel = localizationMap.getOrDefault(boundaryLevelName, boundaryLevelName);
+                    // Boundary level names are already localized in fetchBoundaryLevelNames method
+                    String localizedBoundaryLevel = boundaryLevelNames.get(rowIndex);
                     dataCell.setCellValue(localizedBoundaryLevel);
+                } else if (areBoundaryLevels) {
+                    // If this is a boundary levels column but no boundary level available for this row index,
+                    // leave the cell empty (this handles the case where rows > boundary levels)
+                    dataCell.setCellValue("");
                 } else {
                     // Only localize the cell value if the column has localize: true
                     String displayValue = shouldLocalize ? 
@@ -344,9 +348,10 @@ public class CampaignConfigSheetCreator {
      * @param tenantId The tenant ID
      * @param hierarchyType The hierarchy type
      * @param requestInfo The request info for API calls
-     * @return List of boundary level names in order
+     * @param localizationMap The localization map for translating boundary level names
+     * @return List of localized boundary level names in order
      */
-    private List<String> fetchBoundaryLevelNames(String tenantId, String hierarchyType, RequestInfo requestInfo) {
+    private List<String> fetchBoundaryLevelNames(String tenantId, String hierarchyType, RequestInfo requestInfo, Map<String, String> localizationMap) {
         log.info("Fetching boundary level names for tenantId: {}, hierarchyType: {}", tenantId, hierarchyType);
         
         try {
@@ -374,12 +379,20 @@ public class CampaignConfigSheetCreator {
                 return null; // Never reached
             }
             
-            // Extract boundary level names from hierarchy definition
+            // Extract boundary level names from hierarchy definition and localize them
             List<String> boundaryLevelNames = hierarchy.getBoundaryHierarchy().stream()
-                .map(level -> level.getBoundaryType())
+                .map(level -> {
+                    String levelType = level.getBoundaryType();
+                    // Use same prefix logic as BoundaryHierarchySheetCreator
+                    String unlocalizedCode = hierarchyType.toUpperCase() + "_" + levelType.toUpperCase();
+                    String localizedLevelName = localizationMap.getOrDefault(unlocalizedCode, unlocalizedCode);
+                    log.debug("Boundary level: {} -> Localization key: {} -> Localized: {}", 
+                        levelType, unlocalizedCode, localizedLevelName);
+                    return localizedLevelName;
+                })
                 .toList();
             
-            log.info("Successfully fetched {} boundary levels: {}", boundaryLevelNames.size(), boundaryLevelNames);
+            log.info("Successfully fetched {} boundary levels with localization", boundaryLevelNames.size());
             return boundaryLevelNames;
             
         } catch (Exception e) {
