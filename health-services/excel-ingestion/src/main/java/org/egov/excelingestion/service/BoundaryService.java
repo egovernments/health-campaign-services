@@ -1,9 +1,11 @@
 package org.egov.excelingestion.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.excelingestion.config.ErrorConstants;
 import org.egov.excelingestion.config.ExcelIngestionConfig;
 import org.egov.excelingestion.web.models.*;
 import org.egov.common.http.client.ServiceRequestClient;
+import org.egov.tracer.model.CustomException;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
@@ -41,7 +43,8 @@ public class BoundaryService {
             return result;
         } catch (Exception e) {
             log.error("Error calling Boundary Hierarchy API: {}", e.getMessage(), e);
-            throw new RuntimeException("Error calling Boundary Hierarchy API: " + hierarchyUrl, e);
+            throw new CustomException(ErrorConstants.BOUNDARY_SERVICE_ERROR, 
+                    ErrorConstants.BOUNDARY_SERVICE_ERROR_MESSAGE);
         }
     }
 
@@ -62,7 +65,8 @@ public class BoundaryService {
             return result;
         } catch (Exception e) {
             log.error("Error calling Boundary Relationship API: {}", e.getMessage(), e);
-            throw new RuntimeException("Error calling Boundary Relationship API: " + url.toString(), e);
+            throw new CustomException(ErrorConstants.BOUNDARY_SERVICE_ERROR, 
+                    ErrorConstants.BOUNDARY_SERVICE_ERROR_MESSAGE);
         }
     }
 }

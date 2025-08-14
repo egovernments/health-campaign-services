@@ -10,7 +10,9 @@ import org.apache.poi.xssf.usermodel.XSSFCellStyle;
 import org.apache.poi.xssf.usermodel.XSSFColor;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import java.awt.Color;
+import org.egov.excelingestion.config.ErrorConstants;
 import org.egov.excelingestion.config.ExcelIngestionConfig;
+import org.egov.tracer.model.CustomException;
 import org.egov.excelingestion.service.LocalizationService;
 import org.egov.excelingestion.service.BoundaryService;
 import org.egov.excelingestion.service.MDMSService;
@@ -97,7 +99,8 @@ public class MicroplanProcessor implements IGenerateProcessor {
 
         if (hierarchyData == null || hierarchyData.getBoundaryHierarchy() == null
                 || hierarchyData.getBoundaryHierarchy().isEmpty()) {
-            throw new RuntimeException("Boundary Hierarchy Search API returned no data.");
+            throw new CustomException(ErrorConstants.BOUNDARY_HIERARCHY_NOT_FOUND,
+                    ErrorConstants.BOUNDARY_HIERARCHY_NOT_FOUND_MESSAGE.replace("{0}", hierarchyType));
         }
 
         List<BoundaryHierarchyChild> hierarchyRelations = hierarchyData.getBoundaryHierarchy().get(0)
@@ -167,6 +170,8 @@ public class MicroplanProcessor implements IGenerateProcessor {
                 log.info("Campaign configuration sheet created successfully");
             } catch (Exception e) {
                 log.error("Error creating campaign configuration sheet: {}", e.getMessage(), e);
+                throw new CustomException(ErrorConstants.CAMPAIGN_CONFIG_CREATION_ERROR, 
+                        ErrorConstants.CAMPAIGN_CONFIG_CREATION_ERROR_MESSAGE);
             }
         }
 
@@ -508,16 +513,15 @@ public class MicroplanProcessor implements IGenerateProcessor {
             log.warn("No MDMS data found for schema: {}", title);
         } catch (Exception e) {
             log.error("Error fetching MDMS schema {}: {}", title, e.getMessage(), e);
+            throw new CustomException(ErrorConstants.MDMS_SERVICE_ERROR, 
+                    ErrorConstants.MDMS_SERVICE_ERROR_MESSAGE);
         }
         
-        // Return a default schema if MDMS fetch fails
-        return getDefaultSchema();
+        // No MDMS data found - throw error instead of returning default
+        throw new CustomException(ErrorConstants.MDMS_DATA_NOT_FOUND, 
+                ErrorConstants.MDMS_DATA_NOT_FOUND_MESSAGE.replace("{0}", title));
     }
 
-    private String getDefaultSchema() {
-        // Default schema with basic columns if MDMS fetch fails
-        return "{\"stringProperties\":[],\"numberProperties\":[],\"enumProperties\":[]}";
-    }
 
     private String fetchCampaignConfigFromMDMS(String tenantId, RequestInfo requestInfo, String sheetName) {
         try {
@@ -543,10 +547,13 @@ public class MicroplanProcessor implements IGenerateProcessor {
             log.warn("No MDMS data found for campaign config: {}", sheetName);
         } catch (Exception e) {
             log.error("Error fetching MDMS campaign config {}: {}", sheetName, e.getMessage(), e);
+            throw new CustomException(ErrorConstants.MDMS_SERVICE_ERROR, 
+                    ErrorConstants.MDMS_SERVICE_ERROR_MESSAGE);
         }
         
-        // Return null if MDMS fetch fails - campaign config sheet is optional
-        return null;
+        // No MDMS data found - throw error instead of returning null
+        throw new CustomException(ErrorConstants.MDMS_DATA_NOT_FOUND, 
+                ErrorConstants.MDMS_DATA_NOT_FOUND_MESSAGE.replace("{0}", sheetName));
     }
 
 

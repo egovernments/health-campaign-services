@@ -2,7 +2,9 @@ package org.egov.excelingestion.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.egov.excelingestion.config.ErrorConstants;
 import org.egov.excelingestion.config.ExcelIngestionConfig;
+import org.egov.tracer.model.CustomException;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
@@ -62,10 +64,12 @@ public class FileStoreService {
                 }
             }
             log.error("Failed to upload file to filestore, response: {}", response.getBody());
-            throw new RuntimeException("Failed to upload file to filestore");
+            throw new CustomException(ErrorConstants.FILE_STORE_SERVICE_ERROR, 
+                    ErrorConstants.FILE_STORE_SERVICE_ERROR_MESSAGE);
         } catch (Exception e) {
             log.error("Error uploading file to filestore: {}", e.getMessage());
-            throw new IOException("Error uploading file to filestore", e);
+            throw new CustomException(ErrorConstants.FILE_STORE_SERVICE_ERROR, 
+                    ErrorConstants.FILE_STORE_SERVICE_ERROR_MESSAGE);
         }
     }
 }

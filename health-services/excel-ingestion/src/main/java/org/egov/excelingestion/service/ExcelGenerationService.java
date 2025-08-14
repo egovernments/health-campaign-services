@@ -1,6 +1,8 @@
 package org.egov.excelingestion.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.excelingestion.config.ErrorConstants;
+import org.egov.tracer.model.CustomException;
 import org.egov.excelingestion.web.models.GenerateResourceRequest;
 import org.egov.excelingestion.web.models.GenerateResource;
 import org.egov.excelingestion.web.processor.IGenerateProcessor;
@@ -33,7 +35,8 @@ public class ExcelGenerationService {
             excelBytes = processor.generateExcel(generateResource, request.getRequestInfo());
         } catch (IOException e) {
             log.error("Error generating Excel bytes", e);
-            throw new RuntimeException("Failed to generate Excel file", e);
+            throw new CustomException(ErrorConstants.EXCEL_GENERATION_ERROR, 
+                    ErrorConstants.EXCEL_GENERATION_ERROR_MESSAGE);
         }
 
         // Upload the generated Excel bytes to file store

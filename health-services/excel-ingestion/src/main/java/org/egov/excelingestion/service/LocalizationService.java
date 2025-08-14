@@ -2,7 +2,9 @@ package org.egov.excelingestion.service;
 
 import lombok.extern.slf4j.Slf4j;
 
+import org.egov.excelingestion.config.ErrorConstants;
 import org.egov.excelingestion.web.models.RequestInfo;
+import org.egov.tracer.model.CustomException;
 import org.egov.excelingestion.web.models.localization.LocalisationRequest;
 import org.egov.excelingestion.web.models.localization.LocalisationResponse;
 import org.egov.excelingestion.web.models.localization.LocalisationSearchCriteria;
@@ -55,7 +57,9 @@ public class LocalizationService {
                 return localizedMessages;
             }
         } catch (Exception e) {
-            log.error("Error fetching localized messages from {}: {}", url, e.getMessage());
+            log.error("Error fetching localized messages from {}: {}", url, e.getMessage(), e);
+            throw new CustomException(ErrorConstants.LOCALIZATION_SERVICE_ERROR, 
+                    ErrorConstants.LOCALIZATION_SERVICE_ERROR_MESSAGE);
         }
         return Collections.emptyMap();
     }

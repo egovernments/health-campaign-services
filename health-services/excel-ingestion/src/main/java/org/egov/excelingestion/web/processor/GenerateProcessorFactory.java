@@ -1,5 +1,7 @@
 package org.egov.excelingestion.web.processor;
 
+import org.egov.excelingestion.config.ErrorConstants;
+import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
 
 import jakarta.annotation.PostConstruct;
@@ -29,7 +31,8 @@ public class GenerateProcessorFactory {
     public IGenerateProcessor getProcessor(String type) {
         IGenerateProcessor processor = processorMap.get(type);
         if (processor == null) {
-            throw new IllegalArgumentException("No processor found for type: " + type);
+            throw new CustomException(ErrorConstants.PROCESSOR_NOT_FOUND,
+                    ErrorConstants.PROCESSOR_NOT_FOUND_MESSAGE.replace("{0}", type));
         }
         return processor;
     }

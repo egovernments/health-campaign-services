@@ -9,7 +9,9 @@ import org.apache.poi.ss.util.CellRangeAddressList;
 import org.apache.poi.ss.util.CellReference;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.egov.common.http.client.ServiceRequestClient;
+import org.egov.excelingestion.config.ErrorConstants;
 import org.egov.excelingestion.config.ExcelIngestionConfig;
+import org.egov.tracer.model.CustomException;
 import org.egov.excelingestion.service.FileStoreService;
 import org.egov.excelingestion.service.LocalizationService;
 import org.egov.excelingestion.web.models.*;
@@ -73,7 +75,8 @@ public class HierarchyExcelGenerateProcessor implements IGenerateProcessor {
 
         if (hierarchyData == null || hierarchyData.getBoundaryHierarchy() == null
                 || hierarchyData.getBoundaryHierarchy().isEmpty()) {
-            throw new RuntimeException("Boundary Hierarchy Search API returned no data.");
+            throw new CustomException(ErrorConstants.BOUNDARY_HIERARCHY_NOT_FOUND,
+                    ErrorConstants.BOUNDARY_HIERARCHY_NOT_FOUND_MESSAGE.replace("{0}", hierarchyType));
         }
 
         List<BoundaryHierarchyChild> hierarchyRelations = hierarchyData.getBoundaryHierarchy().get(0)
@@ -300,7 +303,8 @@ public class HierarchyExcelGenerateProcessor implements IGenerateProcessor {
             return serviceRequestClient.fetchResult(url, request, type);
         } catch (Exception e) {
             log.error("Error calling API: {}", url, e);
-            throw new RuntimeException("Error calling API: " + url, e);
+            throw new CustomException(ErrorConstants.NETWORK_ERROR,
+                    ErrorConstants.NETWORK_ERROR_MESSAGE.replace("{0}", url.toString()));
         }
     }
 
