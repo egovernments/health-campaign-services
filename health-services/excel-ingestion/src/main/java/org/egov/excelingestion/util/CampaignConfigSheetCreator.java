@@ -128,13 +128,15 @@ public class CampaignConfigSheetCreator {
                 Map<String, Object> columnDef = columns.get(col);
                 boolean isEditable = Boolean.TRUE.equals(columnDef.get("editable"));
                 boolean isHighlighted = Boolean.TRUE.equals(columnDef.get("highlight"));
+                boolean shouldLocalize = Boolean.TRUE.equals(columnDef.get("localize"));
                 
                 Cell dataCell = dataRow.createCell(col);
                 String cellValue = rowData.get(col);
                 
-                // Localize the cell value if it's a key
-                String localizedValue = localizationMap.getOrDefault(cellValue, cellValue);
-                dataCell.setCellValue(localizedValue);
+                // Only localize the cell value if the column has localize: true
+                String displayValue = shouldLocalize ? 
+                    localizationMap.getOrDefault(cellValue, cellValue) : cellValue;
+                dataCell.setCellValue(displayValue);
                 
                 // Apply appropriate style
                 if (isEditable && isHighlighted) {
