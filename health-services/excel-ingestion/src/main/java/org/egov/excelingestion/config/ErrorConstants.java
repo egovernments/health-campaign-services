@@ -60,6 +60,13 @@ public class ErrorConstants {
     public static final String PROCESSOR_NOT_FOUND = "PROCESSOR_NOT_FOUND";
     public static final String PROCESSOR_NOT_FOUND_MESSAGE = "No processor found for type: {0}";
     
+    // Campaign Config Errors
+    public static final String MISMATCH_ROWS_FOR_LEVELS = "MISMATCH_ROWS_FOR_LEVELS";
+    public static final String MISMATCH_ROWS_FOR_LEVELS_MESSAGE = "Number of rows ({0}) is less than boundary hierarchy levels ({1})";
+    
+    public static final String BOUNDARY_LEVELS_NOT_FOUND = "BOUNDARY_LEVELS_NOT_FOUND";
+    public static final String BOUNDARY_LEVELS_NOT_FOUND_MESSAGE = "Boundary levels not found in hierarchy definition";
+    
     // Generic Errors
     public static final String INTERNAL_SERVER_ERROR = "INTERNAL_SERVER_ERROR";
     public static final String INTERNAL_SERVER_ERROR_MESSAGE = "An internal server error occurred";

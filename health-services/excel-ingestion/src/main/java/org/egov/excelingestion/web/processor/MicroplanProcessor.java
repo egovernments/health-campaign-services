@@ -171,7 +171,8 @@ public class MicroplanProcessor implements IGenerateProcessor {
                 ObjectMapper mapper = new ObjectMapper();
                 Map<String, Object> configData = mapper.readValue(campaignConfigData, Map.class);
                 workbook = (XSSFWorkbook) campaignConfigSheetCreator.createCampaignConfigSheet(
-                        workbook, actualConfigSheetName, configData, mergedLocalizationMap);
+                        workbook, actualConfigSheetName, configData, mergedLocalizationMap,
+                        tenantId, hierarchyType, requestInfo);
                 log.info("Campaign configuration sheet created successfully");
             } catch (Exception e) {
                 log.error("Error creating campaign configuration sheet: {}", e.getMessage(), e);

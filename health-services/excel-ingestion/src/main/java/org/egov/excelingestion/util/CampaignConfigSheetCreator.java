@@ -5,7 +5,14 @@ import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFCellStyle;
 import org.apache.poi.xssf.usermodel.XSSFColor;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.egov.excelingestion.config.ErrorConstants;
 import org.egov.excelingestion.config.ExcelIngestionConfig;
+import org.egov.excelingestion.exception.CustomExceptionHandler;
+import org.egov.excelingestion.service.BoundaryService;
+import org.egov.excelingestion.service.LocalizationService;
+import org.egov.excelingestion.web.models.BoundaryHierarchyResponse;
+import org.egov.excelingestion.web.models.BoundaryHierarchy;
+import org.egov.excelingestion.web.models.RequestInfo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -19,6 +26,15 @@ public class CampaignConfigSheetCreator {
 
     @Autowired
     private ExcelIngestionConfig config;
+    
+    @Autowired
+    private BoundaryService boundaryService;
+    
+    @Autowired
+    private LocalizationService localizationService;
+    
+    @Autowired
+    private CustomExceptionHandler exceptionHandler;
 
     /**
      * Creates a campaign configuration sheet with sections and editable cells
@@ -27,11 +43,16 @@ public class CampaignConfigSheetCreator {
      * @param sheetName The localized name for the sheet
      * @param configData The configuration data from MDMS
      * @param localizationMap The localization map for translating keys
+     * @param tenantId The tenant ID for fetching boundary data
+     * @param hierarchyType The hierarchy type for boundary levels
+     * @param requestInfo The request info for API calls
      * @return The updated workbook
      */
     public Workbook createCampaignConfigSheet(XSSFWorkbook workbook, String sheetName, 
                                             Map<String, Object> configData, 
-                                            Map<String, String> localizationMap) {
+                                            Map<String, String> localizationMap,
+                                            String tenantId, String hierarchyType, 
+                                            RequestInfo requestInfo) {
         
         log.info("Creating campaign configuration sheet: {}", sheetName);
         
@@ -63,7 +84,7 @@ public class CampaignConfigSheetCreator {
         // Process each section
         for (Map<String, Object> section : sections) {
             currentRow = createSection(workbook, configSheet, section, localizationMap, 
-                                     highlightColor, currentRow);
+                                     highlightColor, currentRow, tenantId, hierarchyType, requestInfo);
             currentRow += 2; // Add spacing between sections
         }
         
@@ -83,7 +104,8 @@ public class CampaignConfigSheetCreator {
     }
     
     private int createSection(Workbook workbook, Sheet sheet, Map<String, Object> section,
-                            Map<String, String> localizationMap, String highlightColor, int startRow) {
+                            Map<String, String> localizationMap, String highlightColor, int startRow,
+                            String tenantId, String hierarchyType, RequestInfo requestInfo) {
         
         String sectionTitle = (String) section.get("title");
         @SuppressWarnings("unchecked")
@@ -120,8 +142,29 @@ public class CampaignConfigSheetCreator {
             headerCell.setCellStyle(createColumnHeaderStyle(workbook));
         }
         
+        // Check if any column has areBoundaryLevels: true
+        boolean hasBoundaryLevels = columns.stream()
+            .anyMatch(col -> Boolean.TRUE.equals(col.get("areBoundaryLevels")));
+        
+        List<String> boundaryLevelNames = null;
+        if (hasBoundaryLevels) {
+            boundaryLevelNames = fetchBoundaryLevelNames(tenantId, hierarchyType, requestInfo);
+            
+            // Validate rows count should not be less than boundary levels count
+            if (rows.size() < boundaryLevelNames.size()) {
+                String errorMessage = String.format("Number of rows (%d) is less than boundary hierarchy levels (%d). Minimum required rows: %d, found: %d rows in MDMS configuration.", 
+                    rows.size(), boundaryLevelNames.size(), boundaryLevelNames.size(), rows.size());
+                exceptionHandler.throwCustomException(
+                    ErrorConstants.MISMATCH_ROWS_FOR_LEVELS,
+                    errorMessage,
+                    new IllegalStateException("Row count is less than boundary levels")
+                );
+            }
+        }
+        
         // Create data rows
-        for (List<String> rowData : rows) {
+        for (int rowIndex = 0; rowIndex < rows.size(); rowIndex++) {
+            List<String> rowData = rows.get(rowIndex);
             Row dataRow = sheet.createRow(currentRow++);
             
             for (int col = 0; col < rowData.size() && col < columns.size(); col++) {
@@ -129,14 +172,22 @@ public class CampaignConfigSheetCreator {
                 boolean isEditable = Boolean.TRUE.equals(columnDef.get("editable"));
                 boolean isHighlighted = Boolean.TRUE.equals(columnDef.get("highlight"));
                 boolean shouldLocalize = Boolean.TRUE.equals(columnDef.get("localize"));
+                boolean areBoundaryLevels = Boolean.TRUE.equals(columnDef.get("areBoundaryLevels"));
                 
                 Cell dataCell = dataRow.createCell(col);
                 String cellValue = rowData.get(col);
                 
-                // Only localize the cell value if the column has localize: true
-                String displayValue = shouldLocalize ? 
-                    localizationMap.getOrDefault(cellValue, cellValue) : cellValue;
-                dataCell.setCellValue(displayValue);
+                // Handle boundary levels column
+                if (areBoundaryLevels && boundaryLevelNames != null && rowIndex < boundaryLevelNames.size()) {
+                    String boundaryLevelName = boundaryLevelNames.get(rowIndex);
+                    String localizedBoundaryLevel = localizationMap.getOrDefault(boundaryLevelName, boundaryLevelName);
+                    dataCell.setCellValue(localizedBoundaryLevel);
+                } else {
+                    // Only localize the cell value if the column has localize: true
+                    String displayValue = shouldLocalize ? 
+                        localizationMap.getOrDefault(cellValue, cellValue) : cellValue;
+                    dataCell.setCellValue(displayValue);
+                }
                 
                 // Apply appropriate style
                 if (isEditable && isHighlighted) {
@@ -285,5 +336,62 @@ public class CampaignConfigSheetCreator {
     private void protectSheetWithEditableCells(Workbook workbook, Sheet sheet) {
         // The sheet is protected, but cells with unlocked style can be edited
         sheet.protectSheet(config.getExcelSheetPassword());
+    }
+    
+    /**
+     * Fetches boundary level names from boundary hierarchy definition
+     * 
+     * @param tenantId The tenant ID
+     * @param hierarchyType The hierarchy type
+     * @param requestInfo The request info for API calls
+     * @return List of boundary level names in order
+     */
+    private List<String> fetchBoundaryLevelNames(String tenantId, String hierarchyType, RequestInfo requestInfo) {
+        log.info("Fetching boundary level names for tenantId: {}, hierarchyType: {}", tenantId, hierarchyType);
+        
+        try {
+            BoundaryHierarchyResponse boundaryResponse = boundaryService.fetchBoundaryHierarchy(
+                tenantId, hierarchyType, requestInfo);
+            
+            if (boundaryResponse == null || boundaryResponse.getBoundaryHierarchy() == null 
+                || boundaryResponse.getBoundaryHierarchy().isEmpty()) {
+                exceptionHandler.throwCustomException(
+                    ErrorConstants.BOUNDARY_HIERARCHY_NOT_FOUND,
+                    String.format(ErrorConstants.BOUNDARY_HIERARCHY_NOT_FOUND_MESSAGE, hierarchyType),
+                    new IllegalStateException("Boundary hierarchy response is null or empty")
+                );
+                return null; // Never reached
+            }
+            
+            BoundaryHierarchy hierarchy = boundaryResponse.getBoundaryHierarchy().get(0);
+            
+            if (hierarchy.getBoundaryHierarchy() == null || hierarchy.getBoundaryHierarchy().isEmpty()) {
+                exceptionHandler.throwCustomException(
+                    ErrorConstants.BOUNDARY_LEVELS_NOT_FOUND,
+                    ErrorConstants.BOUNDARY_LEVELS_NOT_FOUND_MESSAGE,
+                    new IllegalStateException("Boundary levels not found in hierarchy definition")
+                );
+                return null; // Never reached
+            }
+            
+            // Extract boundary level names from hierarchy definition
+            List<String> boundaryLevelNames = hierarchy.getBoundaryHierarchy().stream()
+                .map(level -> level.getBoundaryType())
+                .toList();
+            
+            log.info("Successfully fetched {} boundary levels: {}", boundaryLevelNames.size(), boundaryLevelNames);
+            return boundaryLevelNames;
+            
+        } catch (Exception e) {
+            log.error("Error fetching boundary level names: {}", e.getMessage(), e);
+            if (!(e instanceof RuntimeException)) {
+                exceptionHandler.throwCustomException(
+                    ErrorConstants.BOUNDARY_SERVICE_ERROR,
+                    ErrorConstants.BOUNDARY_SERVICE_ERROR_MESSAGE,
+                    e
+                );
+            }
+            throw e; // Re-throw runtime exceptions (like CustomException)
+        }
     }
 }
