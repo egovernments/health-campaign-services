@@ -1,42 +1,58 @@
 # Excel Ingestion Service - TODO
 
-## Campaign Configuration Sheet Improvements
+## Model Usage Analysis and Implementation
 
-### 1. Refactor Campaign Config Creation Logic
-- **Status**: Pending
-- **Priority**: Medium  
-- **Description**:
-  - Review and refactor campaign configuration sheet creation logic for better maintainability
-  - Areas to examine:
-    - `CampaignConfigSheetCreator.createSection()` method - check if it can be simplified
-    - Row/column positioning logic - ensure it's robust and easy to understand
-    - Style application logic - consolidate repetitive styling code
-    - Error handling in sheet creation process
-    - Memory efficiency for large config data
-  - Consider extracting common patterns into helper methods
-  - Add comprehensive logging for debugging
-  - Ensure the code follows existing patterns from other sheet creators
-  - Validate that sheet ordering (campaign config as first sheet) works correctly in all scenarios
+### 1. Analyze Objects/Maps That Need Model Classes  
+- **Status**: Completed
+- **Priority**: High
+- **Description**: Analysis completed - identified 8 files using Map<String, Object> that need model classes. Migration plan created with 5 phases.
 
-### 2. Improve Error Handling - Align with Health Services Pattern
+## 5-Phase Migration Plan Implementation
+
+### 2. Phase 1: MDMS Integration Models
 - **Status**: Pending
 - **Priority**: High
 - **Description**:
-  - Analyze error handling patterns used in other health services:
-    - project-service
-    - facility-service  
-    - individual-service
+  - Create MDMSResponse, MDMSData, MDMSCriteria model classes
+  - Update MDMSService.searchMDMS() method to use typed models instead of Map<String, Object>
+  - Modify callers in MicroplanProcessor to use model methods
+  - Add JSON parsing logic for structured MDMS data
+  - Test MDMS API integration with new models
 
-  - Check how these services handle:
-    - API call failures
-    - Service integration errors
-    - Data validation errors
-    - Configuration issues
-  - Use the exact same error handling format and logic as other health services
-  - Review current excel-ingestion error handling where errors are just logged and execution continues
-  - Replace inconsistent error handling with health services standard pattern:
-    - Same exception types and hierarchy
-    - Same error response format
-    - Same logging patterns
-    - Same error propagation mechanism
-  - Ensure consistency across the entire health-campaign-services ecosystem
+### 3. Phase 2: Campaign Configuration Models
+- **Status**: Pending  
+- **Priority**: High
+- **Description**:
+  - Create CampaignConfig, ConfigSection, ConfigColumn model classes
+  - Refactor campaign config processing logic in CampaignConfigSheetCreator
+  - Update MicroplanProcessor campaign config parsing to use models
+  - Add model conversion from MDMS response to structured config objects
+  - Test with real campaign configuration data
+
+### 4. Phase 3: API Payload Models
+- **Status**: Pending
+- **Priority**: Medium
+- **Description**:
+  - Create request-specific models for boundary, hierarchy services
+  - Create BoundaryHierarchyRequest, BoundaryRelationshipRequest models
+  - Update ApiPayloadBuilder to use typed requests instead of Map<String, Object>
+  - Modify service methods to use typed requests
+  - Ensure JSON serialization works correctly
+
+### 5. Phase 4: File Store Models
+- **Status**: Pending
+- **Priority**: Low
+- **Description**:
+  - Create FileStoreResponse, FileInfo model classes
+  - Update FileStoreService.uploadFile() to use models
+  - Handle file upload response parsing with proper models
+  - Add file metadata handling through structured models
+
+### 6. Phase 5: Error Response Models
+- **Status**: Pending
+- **Priority**: Low  
+- **Description**:
+  - Enhance existing error handling with dedicated models
+  - Create ErrorResponse, ErrorDetail model classes (if needed beyond current implementation)
+  - Ensure error response consistency with health services pattern
+  - Update GlobalExceptionHandler to use structured error models

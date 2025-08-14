@@ -7,6 +7,9 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
+
 
 @Getter
 @Setter
@@ -16,8 +19,12 @@ import lombok.Setter;
 public class GenerateResourceRequest {
 
     @JsonProperty("RequestInfo")
+    @NotNull(message = "RequestInfo is mandatory")
+    @Valid
     private RequestInfo requestInfo;
 
     @JsonProperty("GenerateResource")
+    @NotNull(message = "GenerateResource is mandatory")
+    @Valid
     private GenerateResource generateResource;
 }
