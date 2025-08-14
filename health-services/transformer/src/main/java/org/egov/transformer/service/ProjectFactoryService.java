@@ -38,7 +38,7 @@ public class ProjectFactoryService {
     public String getCampaignIdFromCampaignNumber(String tenantId, Boolean isActive, String campaignNumber) {
         String campaignId = null;
 
-        campaignId = cacheService.get(campaignNumber, String.class);
+        campaignId = cacheService.get(campaignNumber, tenantId, String.class);
         if (campaignId != null) {
             log.debug("Picking campaign id {} from cache for campaign number {}", campaignId, campaignNumber);
             return campaignId;
@@ -49,7 +49,7 @@ public class ProjectFactoryService {
         if (!CollectionUtils.isEmpty(campaignDetailsList)) {
             //The API is expected to return only one campaign for the params used
             campaignId = campaignDetailsList.get(0).getId();
-            cacheService.put(campaignNumber, campaignId);
+            cacheService.put(campaignNumber, tenantId, campaignId);
         }
         return campaignId;
     }

@@ -23,18 +23,18 @@ public class TransformerCacheService {
         this.redisTemplate = redisTemplate;
     }
 
-    public void put(String key, Object value) {
+    public void put(String key, String tenantId, Object value) {
         if (value == null) {
             log.warn("Skipping cache put for key {} as value is null", REDIS_CACHE_PREFIX + key);
             return;
         }
-        String finalKey = REDIS_CACHE_PREFIX + key;
+        String finalKey = REDIS_CACHE_PREFIX + tenantId + key;
         log.debug("Adding key {} and value {} in redis cache", finalKey, value);
         redisTemplate.opsForValue().set(finalKey, value, ttl, TimeUnit.MINUTES);
     }
 
-    public <T> T get(String key, Class<T> clazz) {
-        String finalKey = REDIS_CACHE_PREFIX + key;
+    public <T> T get(String key, String tenantId, Class<T> clazz) {
+        String finalKey = REDIS_CACHE_PREFIX + tenantId + key;
         Object value = redisTemplate.opsForValue().get(finalKey);
         if (ObjectUtils.isEmpty(value)) {
             log.info("Cache miss for key {}", finalKey);
