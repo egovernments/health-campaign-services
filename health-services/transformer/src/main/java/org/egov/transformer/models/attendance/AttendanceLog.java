@@ -1,6 +1,7 @@
 package org.egov.transformer.models.attendance;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.JsonNode;
 import digit.models.coremodels.AuditDetails;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -35,6 +36,9 @@ public class AttendanceLog {
     @JsonProperty("individualId")
     private String individualId = null;
 
+    @JsonProperty("userName")
+    private String userName = null;
+
     @JsonProperty("tenantId")
     private String tenantId = null;
 
@@ -55,7 +59,7 @@ public class AttendanceLog {
     private AuditDetails auditDetails = null;
 
     @JsonProperty("additionalDetails")
-    private Object additionalDetails = null;
+    private JsonNode additionalDetails = null;
 
 
     public AttendanceLog addDocumentIdsItem(Document documentIdsItem) {

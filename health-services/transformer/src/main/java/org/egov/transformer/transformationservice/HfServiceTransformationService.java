@@ -3,16 +3,17 @@ package org.egov.transformer.transformationservice;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.ObjectUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.egov.common.models.project.Project;
 import org.egov.transformer.config.TransformerProperties;
+import org.egov.transformer.models.boundary.BoundaryHierarchyResult;
 import org.egov.transformer.models.downstream.HfReferralServiceIndexV1;
 import org.egov.transformer.models.upstream.AttributeValue;
 import org.egov.transformer.models.upstream.Service;
 import org.egov.transformer.models.upstream.ServiceDefinition;
 import org.egov.transformer.producer.Producer;
-import org.egov.transformer.service.ProjectService;
-import org.egov.transformer.service.ServiceDefinitionService;
-import org.egov.transformer.service.UserService;
+import org.egov.transformer.service.*;
 import org.egov.transformer.utils.CommonUtils;
 import org.springframework.stereotype.Component;
 
@@ -33,9 +34,11 @@ public class HfServiceTransformationService {
     private final UserService userService;
     private final CommonUtils commonUtils;
     private final ObjectMapper objectMapper;
+    private final BoundaryService boundaryService;
+    private final ProjectFactoryService projectFactoryService;
 
 
-    public HfServiceTransformationService(ServiceDefinitionService serviceDefinitionService, TransformerProperties transformerProperties, Producer producer, ProjectService projectService, UserService userService, CommonUtils commonUtils, ObjectMapper objectMapper) {
+    public HfServiceTransformationService(ServiceDefinitionService serviceDefinitionService, TransformerProperties transformerProperties, Producer producer, ProjectService projectService, UserService userService, CommonUtils commonUtils, ObjectMapper objectMapper, BoundaryService boundaryService, ProjectFactoryService projectFactoryService) {
 
         this.serviceDefinitionService = serviceDefinitionService;
         this.transformerProperties = transformerProperties;
@@ -44,6 +47,8 @@ public class HfServiceTransformationService {
         this.userService = userService;
         this.commonUtils = commonUtils;
         this.objectMapper = objectMapper;
+        this.boundaryService = boundaryService;
+        this.projectFactoryService = projectFactoryService;
     }
 
     public void transform(List<Service> serviceList) {
@@ -63,28 +68,36 @@ public class HfServiceTransformationService {
         String projectName = parts[0];
         String supervisorLevel = parts[2];
         String projectId;
+        BoundaryHierarchyResult boundaryHierarchyResult;
         if (service.getAccountId() != null) {
             projectId = service.getAccountId();
         } else {
             projectId = projectService.getProjectByName(projectName, service.getTenantId()).getId();
         }
-        Map<String, String> boundaryLabelToNameMap;
         Project project = projectService.getProject(projectId, tenantId);
         String projectTypeId = project.getProjectTypeId();
-
-        if (service.getAdditionalDetails() != null) {
-            boundaryLabelToNameMap = projectService
-                    .getBoundaryCodeToNameMap((String) service.getAdditionalDetails(), service.getTenantId());
+        String projectType = project.getProjectType();
+        String localityCode = commonUtils.getLocalityCodeFromAdditionalFields(service.getAdditionalFields(), service.getAdditionalDetails());
+        if (localityCode != null) {
+            boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(localityCode, service.getTenantId());
         } else {
-            boundaryLabelToNameMap = projectService.getBoundaryCodeToNameMapByProjectId(projectId, service.getTenantId());
+            boundaryHierarchyResult = boundaryService.getBoundaryCodeToNameMapByProjectId(projectId, service.getTenantId());
         }
-        log.info("boundary labels {}", boundaryLabelToNameMap.toString());
-        ObjectNode boundaryHierarchy = (ObjectNode) commonUtils.getBoundaryHierarchy(tenantId, projectTypeId, boundaryLabelToNameMap);
+
+//        log.info("boundary labels {}", boundaryLabelToNameMap.toString());
+        Map<String, String > boundaryHierarchyMap = boundaryHierarchyResult.getBoundaryHierarchy();
+        ObjectNode boundaryHierarchy = objectMapper.convertValue(boundaryHierarchyMap, ObjectNode.class);
+        Map<String, String > boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
         String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(service.getAuditDetails().getCreatedTime());
 
-        Integer cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectTypeId, service.getAuditDetails());
+        String cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectId, service.getAuditDetails());
         ObjectNode additionalDetails = objectMapper.createObjectNode();
         additionalDetails.put(CYCLE_INDEX, cycleIndex);
+
+        String campaignId = null;
+        if  (ObjectUtils.isNotEmpty(project) && StringUtils.isNotBlank(project.getReferenceID())) {
+            campaignId = projectFactoryService.getCampaignIdFromCampaignNumber(project.getTenantId(), true, project.getReferenceID());
+        }
 
         String checkListToFilter = transformerProperties.getHfReferralFeverCheckListName().trim();
         List<AttributeValue> attributeValueList = service.getAttributes();
@@ -98,7 +111,6 @@ public class HfServiceTransformationService {
                     .supervisorLevel(supervisorLevel)
                     .checklistName(checklistName)
                     .tenantId(tenantId)
-                    .projectId(projectId)
                     .userName(userInfoMap.get(USERNAME))
                     .role(userInfoMap.get(ROLE))
                     .userAddress(userInfoMap.get(CITY))
@@ -108,9 +120,12 @@ public class HfServiceTransformationService {
                     .createdBy(service.getAuditDetails().getCreatedBy())
                     .syncedTimeStamp(syncedTimeStamp)
                     .boundaryHierarchy(boundaryHierarchy)
+                    .boundaryHierarchyCode(boundaryHierarchyCode)
                     .additionalDetails(additionalDetails)
                     .build();
-
+            hfReferralServiceIndexV1.setProjectInfo(projectId, projectType, projectTypeId, project.getName());
+            hfReferralServiceIndexV1.setCampaignNumber(project.getReferenceID());
+            hfReferralServiceIndexV1.setCampaignId(campaignId);
             searchAndSetAttribute(attributeValueList, codeToQuestionMapping, hfReferralServiceIndexV1);
             hfReferralServiceIndexV1List.add(hfReferralServiceIndexV1);
         }

@@ -3,19 +3,29 @@ package org.egov.transformer.utils;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.fasterxml.jackson.databind.node.JsonNodeType;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import digit.models.coremodels.AuditDetails;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
+import org.egov.common.models.project.Project;
+import org.egov.common.models.project.ProjectStaff;
 import org.egov.transformer.config.TransformerProperties;
+import org.egov.transformer.models.downstream.ProjectInfo;
+import org.egov.transformer.service.ProjectFactoryService;
 import org.egov.transformer.service.ProjectService;
 import org.springframework.stereotype.Component;
+import org.springframework.util.CollectionUtils;
+import org.apache.commons.lang3.ObjectUtils;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
@@ -28,12 +38,15 @@ public class CommonUtils {
     private final TransformerProperties properties;
     private final ProjectService projectService;
     private final ObjectMapper objectMapper;
+    private final ProjectFactoryService projectFactoryService;
     private static Map<String, List<JsonNode>> boundaryLevelVsLabelCache = new ConcurrentHashMap<>();
+    private static Map<String, ProjectInfo> userIdVsProjectInfoCache = new ConcurrentHashMap<>();
 
-    public CommonUtils(TransformerProperties properties, ObjectMapper objectMapper, ProjectService projectService) {
+    public CommonUtils(TransformerProperties properties, ObjectMapper objectMapper, ProjectService projectService, ProjectFactoryService projectFactoryService) {
         this.properties = properties;
         this.projectService = projectService;
         this.objectMapper = objectMapper;
+        this.projectFactoryService = projectFactoryService;
     }
 
     public List<String> getProjectDatesList(Long startDateEpoch, Long endDateEpoch) {
@@ -100,6 +113,54 @@ public class CommonUtils {
         }
     }
 
+    public List<Double> getGeoPointFromAdditionalFields(JsonNode additionalFields, JsonNode additionalDetails) {
+        if (additionalFields != null && JsonNodeType.OBJECT.equals(additionalFields.getNodeType()) && additionalFields.has(ADDITIONAL_FIELDS_FIELDS_KEY)) {
+            JsonNode additionalFieldsMap = convertAdditionalFieldsToMap(additionalFields);
+            if(additionalFieldsMap != null) additionalDetails = additionalFieldsMap;
+        }
+        if (additionalDetails != null && JsonNodeType.OBJECT.equals(additionalDetails.getNodeType())
+                && additionalDetails.hasNonNull(LAT) && additionalDetails.hasNonNull(LNG)) {
+            return Arrays.asList(
+                    additionalDetails.get(LNG).asDouble(),
+                    additionalDetails.get(LAT).asDouble()
+            );
+        }
+        return null;
+    }
+
+    public String getLocalityCodeFromAdditionalFields(JsonNode additionalFields, JsonNode additionalDetails) {
+        if (additionalFields != null && JsonNodeType.OBJECT.equals(additionalFields.getNodeType()) && additionalFields.hasNonNull(ADDITIONAL_FIELDS_FIELDS_KEY)) {
+            JsonNode additionalFieldsMap = convertAdditionalFieldsToMap(additionalFields);
+            if(additionalFieldsMap != null) additionalDetails = additionalFieldsMap;
+        }
+        if (additionalDetails != null && JsonNodeType.OBJECT.equals(additionalDetails.getNodeType()) && additionalDetails.hasNonNull(BOUNDARY_CODE_KEY)) {
+            return additionalDetails.get(BOUNDARY_CODE_KEY).asText();
+        }
+        if (additionalDetails != null && JsonNodeType.STRING.equals(additionalDetails.getNodeType())){
+            return additionalDetails.asText();
+        }
+        return null;
+    }
+
+    public String getLocalityCodeFromAdditionalFields(Object additionalFields) {
+        if(additionalFields == null) return null;
+        JsonNode node = objectMapper.valueToTree(additionalFields);
+        return getLocalityCodeFromAdditionalFields(node, null);
+    }
+
+    public JsonNode convertAdditionalFieldsToMap(Object additionalFields) {
+        ObjectNode data = JsonNodeFactory.instance.objectNode();
+        JsonNode node = objectMapper.valueToTree(additionalFields);
+        ArrayNode fields = (ArrayNode) node.get(ADDITIONAL_FIELDS_FIELDS_KEY);
+        fields.spliterator().forEachRemaining(field -> {
+            data.set(
+                    field.get(ADDITIONAL_FIELDS_FIELDS_KEY_KEY).asText(),
+                    field.get(ADDITIONAL_FIELDS_FIELDS_VALUE_KEY)
+            );
+        });
+        return data;
+    }
+
     public Integer calculateAgeInMonthsFromDOB(Date birthDate) {
         Calendar currentDate = Calendar.getInstance();
 
@@ -159,10 +220,10 @@ public class CommonUtils {
     }
 
     //TODO move below cycle fetching logic to mdmsService
-    public Integer fetchCycleIndex(String tenantId, String projectTypeId, AuditDetails auditDetails) {
+    public String fetchCycleIndex(String tenantId, String projectId, AuditDetails auditDetails) {
         Long createdTime = auditDetails.getCreatedTime();
-        JsonNode projectType = projectService.fetchProjectTypes(tenantId, null, projectTypeId);
-        if (projectType.has(CYCLES)) {
+        JsonNode projectType = projectService.fetchProjectTypeFromProject(tenantId, projectId);
+        if (projectType != null && projectType.has(CYCLES)) {
             ArrayNode cycles = (ArrayNode) projectType.get(CYCLES);
 
             for (int i = 0; i < cycles.size(); i++) {
@@ -171,7 +232,7 @@ public class CommonUtils {
                     Long startDate = currentCycle.get(START_DATE).asLong();
                     Long endDate = currentCycle.get(END_DATE).asLong();
                     if (isWithinCycle(createdTime, startDate, endDate) || isBetweenCycles(createdTime, cycles, i)) {
-                        return currentCycle.get(ID).asInt();
+                        return String.format("%02d", currentCycle.get(ID).asInt());
                     }
                 }
             }
@@ -197,6 +258,45 @@ public class CommonUtils {
             }
         }
         return false;
+    }
+
+    public ProjectInfo projectDetailsFromUserId(String userId, String tenantId){
+        if (userIdVsProjectInfoCache.containsKey(userId)) {
+            return userIdVsProjectInfoCache.get(userId);
+        }
+
+        List<String> userIds = new ArrayList<>(Arrays.asList(userId));
+        ProjectInfo projectInfo = new ProjectInfo();
+        List<ProjectStaff> projectStaffList = projectService.searchProjectStaff(userIds, tenantId);
+        ProjectStaff projectStaff = !CollectionUtils.isEmpty(projectStaffList) ? projectStaffList.get(0) : null;
+
+        if (ObjectUtils.isNotEmpty(projectStaff)) {
+            Project project = projectService.getProject(projectStaff.getProjectId(), tenantId);
+            if (ObjectUtils.isNotEmpty(project)) {
+                String campaignId = projectFactoryService.getCampaignIdFromCampaignNumber(project.getTenantId(), true, project.getReferenceID());
+                projectInfo.setProjectTypeId(project.getProjectTypeId());
+                projectInfo.setProjectId(projectStaff.getProjectId());
+                projectInfo.setProjectType(project.getProjectType());
+                projectInfo.setProjectName(project.getName());
+                projectInfo.setCampaignNumber(project.getReferenceID());
+                projectInfo.setCampaignId(campaignId);
+                userIdVsProjectInfoCache.put(userId, projectInfo);
+            }
+        }
+
+        return projectInfo;
+    }
+
+    public void addProjectDetailsForUserIdAndTenantId(ProjectInfo projectInfo, String userId, String tenantId) {
+        ProjectInfo projectDetails = projectDetailsFromUserId(userId, tenantId);
+        if(ObjectUtils.isNotEmpty(projectDetails)) {
+            projectInfo.setProjectId(projectDetails.getProjectId());
+            projectInfo.setProjectTypeId(projectDetails.getProjectTypeId());
+            projectInfo.setProjectType(projectDetails.getProjectType());
+            projectInfo.setProjectName(projectDetails.getProjectName());
+            projectInfo.setCampaignNumber(projectDetails.getCampaignNumber());
+            projectInfo.setCampaignId(projectDetails.getCampaignId());
+        }
     }
 
 //    public ObjectNode additionalFieldsToDetails(List<Object> fields) {
