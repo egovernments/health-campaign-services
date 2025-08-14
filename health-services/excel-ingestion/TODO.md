@@ -29,7 +29,7 @@
     - Schema codes
     - Filter criteria
     - Response parsing logic
-  - Move to a dedicated utility class (e.g., `MDMSUtil`) or enhance existing `ApiPayloadBuilder`
+  - Move to a dedicated service for mdms calls.
   - Ensure error handling and fallback mechanisms are preserved
 
 ### 3. Refactor Campaign Config Creation Logic

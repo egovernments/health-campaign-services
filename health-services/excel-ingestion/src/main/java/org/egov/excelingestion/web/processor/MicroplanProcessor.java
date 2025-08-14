@@ -13,6 +13,7 @@ import java.awt.Color;
 import org.egov.excelingestion.config.ExcelIngestionConfig;
 import org.egov.excelingestion.service.LocalizationService;
 import org.egov.excelingestion.service.BoundaryService;
+import org.egov.excelingestion.service.MDMSService;
 import org.egov.excelingestion.util.ExcelSchemaSheetCreator;
 import org.egov.excelingestion.util.BoundaryHierarchySheetCreator;
 import org.egov.excelingestion.util.CampaignConfigSheetCreator;
@@ -21,7 +22,6 @@ import org.egov.excelingestion.util.RequestInfoConverter;
 import org.egov.excelingestion.service.ApiPayloadBuilder;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Component;
-import org.egov.common.http.client.ServiceRequestClient;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -33,7 +33,6 @@ import java.util.*;
 @Slf4j
 public class MicroplanProcessor implements IGenerateProcessor {
 
-    private final ServiceRequestClient serviceRequestClient;
     private final ExcelIngestionConfig config;
     private final LocalizationService localizationService;
     private final BoundaryHierarchySheetCreator boundaryHierarchySheetCreator;
@@ -42,13 +41,13 @@ public class MicroplanProcessor implements IGenerateProcessor {
     private final ApiPayloadBuilder apiPayloadBuilder;
     private final ExcelSchemaSheetCreator excelSchemaSheetCreator;
     private final CampaignConfigSheetCreator campaignConfigSheetCreator;
+    private final MDMSService mdmsService;
 
-    public MicroplanProcessor(ServiceRequestClient serviceRequestClient, ExcelIngestionConfig config,
+    public MicroplanProcessor(ExcelIngestionConfig config,
             LocalizationService localizationService, BoundaryHierarchySheetCreator boundaryHierarchySheetCreator,
             BoundaryService boundaryService, RequestInfoConverter requestInfoConverter,
             ApiPayloadBuilder apiPayloadBuilder, ExcelSchemaSheetCreator excelSchemaSheetCreator,
-            CampaignConfigSheetCreator campaignConfigSheetCreator) {
-        this.serviceRequestClient = serviceRequestClient;
+            CampaignConfigSheetCreator campaignConfigSheetCreator, MDMSService mdmsService) {
         this.config = config;
         this.localizationService = localizationService;
         this.boundaryHierarchySheetCreator = boundaryHierarchySheetCreator;
@@ -57,6 +56,7 @@ public class MicroplanProcessor implements IGenerateProcessor {
         this.apiPayloadBuilder = apiPayloadBuilder;
         this.excelSchemaSheetCreator = excelSchemaSheetCreator;
         this.campaignConfigSheetCreator = campaignConfigSheetCreator;
+        this.mdmsService = mdmsService;
     }
 
     @Override
@@ -483,38 +483,31 @@ public class MicroplanProcessor implements IGenerateProcessor {
     }
 
     private String fetchSchemaFromMDMS(String tenantId, RequestInfo requestInfo, String title) {
-        String url = config.getMdmsSearchUrl();
-        
         try {
-            // Create MDMS request payload
-            Map<String, Object> mdmsRequest = apiPayloadBuilder.createMdmsPayload(
-                    requestInfo, tenantId, title, "HCM-ADMIN-CONSOLE.schemas");
-
+            // Create filters for schema search
+            Map<String, Object> filters = new HashMap<>();
+            filters.put("title", title);
+            
             // Call MDMS service
-            log.info("Calling MDMS API: {} for schema: {}, tenantId: {}", url, title, tenantId);
+            List<Map<String, Object>> mdmsList = mdmsService.searchMDMS(
+                    requestInfo, tenantId, "HCM-ADMIN-CONSOLE.schemas", filters, 1, 0);
             
-            StringBuilder uri = new StringBuilder(url);
-            Map<String, Object> responseBody = serviceRequestClient.fetchResult(uri, mdmsRequest, Map.class);
-            
-            if (responseBody != null && responseBody.get("mdms") != null) {
-                List<Map<String, Object>> mdmsList = (List<Map<String, Object>>) responseBody.get("mdms");
-                if (!mdmsList.isEmpty()) {
-                    Map<String, Object> mdmsData = mdmsList.get(0);
-                    Map<String, Object> data = (Map<String, Object>) mdmsData.get("data");
-                    
-                    // Extract the properties part which contains stringProperties, numberProperties, and enumProperties
-                    Map<String, Object> properties = (Map<String, Object>) data.get("properties");
-                    if (properties != null) {
-                        // Convert properties to JSON string
-                        ObjectMapper mapper = new ObjectMapper();
-                        log.info("Successfully fetched MDMS schema for: {}", title);
-                        return mapper.writeValueAsString(properties);
-                    }
+            if (!mdmsList.isEmpty()) {
+                Map<String, Object> mdmsData = mdmsList.get(0);
+                Map<String, Object> data = (Map<String, Object>) mdmsData.get("data");
+                
+                // Extract the properties part which contains stringProperties, numberProperties, and enumProperties
+                Map<String, Object> properties = (Map<String, Object>) data.get("properties");
+                if (properties != null) {
+                    // Convert properties to JSON string
+                    ObjectMapper mapper = new ObjectMapper();
+                    log.info("Successfully fetched MDMS schema for: {}", title);
+                    return mapper.writeValueAsString(properties);
                 }
             }
             log.warn("No MDMS data found for schema: {}", title);
         } catch (Exception e) {
-            log.error("Error calling MDMS API for schema {}: {}", title, e.getMessage(), e);
+            log.error("Error fetching MDMS schema {}: {}", title, e.getMessage(), e);
         }
         
         // Return a default schema if MDMS fetch fails
@@ -527,36 +520,29 @@ public class MicroplanProcessor implements IGenerateProcessor {
     }
 
     private String fetchCampaignConfigFromMDMS(String tenantId, RequestInfo requestInfo, String sheetName) {
-        String url = config.getMdmsSearchUrl();
-        
         try {
-            // Create MDMS request payload for campaign configuration
-            Map<String, Object> mdmsRequest = apiPayloadBuilder.createCampaignConfigMdmsPayload(
-                    requestInfo, tenantId, sheetName);
-
+            // Create filters for campaign config search
+            Map<String, Object> filters = new HashMap<>();
+            filters.put("sheetName", sheetName);
+            
             // Call MDMS service
-            log.info("Calling MDMS API: {} for campaign config: {}, tenantId: {}", url, sheetName, tenantId);
+            List<Map<String, Object>> mdmsList = mdmsService.searchMDMS(
+                    requestInfo, tenantId, "HCM-ADMIN-CONSOLE.configsheet", filters, 1, 0);
             
-            StringBuilder uri = new StringBuilder(url);
-            Map<String, Object> responseBody = serviceRequestClient.fetchResult(uri, mdmsRequest, Map.class);
-            
-            if (responseBody != null && responseBody.get("mdms") != null) {
-                List<Map<String, Object>> mdmsList = (List<Map<String, Object>>) responseBody.get("mdms");
-                if (!mdmsList.isEmpty()) {
-                    Map<String, Object> mdmsData = mdmsList.get(0);
-                    Map<String, Object> data = (Map<String, Object>) mdmsData.get("data");
-                    
-                    if (data != null) {
-                        // Convert data to JSON string
-                        ObjectMapper mapper = new ObjectMapper();
-                        log.info("Successfully fetched MDMS campaign config for: {}", sheetName);
-                        return mapper.writeValueAsString(data);
-                    }
+            if (!mdmsList.isEmpty()) {
+                Map<String, Object> mdmsData = mdmsList.get(0);
+                Map<String, Object> data = (Map<String, Object>) mdmsData.get("data");
+                
+                if (data != null) {
+                    // Convert data to JSON string
+                    ObjectMapper mapper = new ObjectMapper();
+                    log.info("Successfully fetched MDMS campaign config for: {}", sheetName);
+                    return mapper.writeValueAsString(data);
                 }
             }
             log.warn("No MDMS data found for campaign config: {}", sheetName);
         } catch (Exception e) {
-            log.error("Error calling MDMS API for campaign config {}: {}", sheetName, e.getMessage(), e);
+            log.error("Error fetching MDMS campaign config {}: {}", sheetName, e.getMessage(), e);
         }
         
         // Return null if MDMS fetch fails - campaign config sheet is optional
