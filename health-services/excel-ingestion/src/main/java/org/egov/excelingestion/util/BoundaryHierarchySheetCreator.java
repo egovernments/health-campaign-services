@@ -89,7 +89,7 @@ public class BoundaryHierarchySheetCreator {
         int boundaryCodeCol = originalLevels.size();
         hiddenRow.createCell(boundaryCodeCol).setCellValue("HCM_ADMIN_CONSOLE_BOUNDARY_CODE");
         Cell codeHeaderCell = visibleRow.createCell(boundaryCodeCol);
-        codeHeaderCell.setCellValue(localizationMap.getOrDefault("HCM_ADMIN_CONSOLE_BOUNDARY_CODE", "Boundary Code"));
+        codeHeaderCell.setCellValue(localizationMap.getOrDefault("HCM_ADMIN_CONSOLE_BOUNDARY_CODE", "HCM_ADMIN_CONSOLE_BOUNDARY_CODE"));
         codeHeaderCell.setCellStyle(headerStyle);
         // Hide the boundary code column
         hierarchySheet.setColumnHidden(boundaryCodeCol, true);

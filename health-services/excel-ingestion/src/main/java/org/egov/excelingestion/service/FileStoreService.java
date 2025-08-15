@@ -13,6 +13,8 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.egov.common.http.client.ServiceRequestClient;
 import org.springframework.web.client.RestTemplate;
+import org.egov.excelingestion.web.models.filestore.FileStoreResponse;
+import org.egov.excelingestion.web.models.filestore.FileInfo;
 
 import java.io.IOException;
 import java.util.List;
@@ -55,16 +57,14 @@ public class FileStoreService {
         HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
 
         try {
-            ResponseEntity<Map> response = restTemplate.exchange(url, HttpMethod.POST, requestEntity, Map.class);
+            ResponseEntity<FileStoreResponse> response = restTemplate.exchange(url, HttpMethod.POST, requestEntity, FileStoreResponse.class);
             if (response.getStatusCode() == HttpStatus.OK || response.getStatusCode() == HttpStatus.CREATED) {
-                Map<String, Object> responseBody = response.getBody();
-                if (responseBody != null && responseBody.containsKey("files")) {
-                    List<Map<String, Object>> files = (List<Map<String, Object>>) responseBody.get("files");
-                    if (!files.isEmpty() && files.get(0).containsKey("fileStoreId")) {
-                        String fileStoreId = (String) files.get(0).get("fileStoreId");
-                        log.info("File uploaded successfully, fileStoreId: {}", fileStoreId);
-                        return fileStoreId;
-                    }
+                FileStoreResponse fileStoreResponse = response.getBody();
+                if (fileStoreResponse != null && fileStoreResponse.getFiles() != null && !fileStoreResponse.getFiles().isEmpty()) {
+                    FileInfo fileInfo = fileStoreResponse.getFiles().get(0);
+                    String fileStoreId = fileInfo.getFileStoreId();
+                    log.info("File uploaded successfully, fileStoreId: {}", fileStoreId);
+                    return fileStoreId;
                 }
             }
             log.error("Failed to upload file to filestore, response: {}", response.getBody());

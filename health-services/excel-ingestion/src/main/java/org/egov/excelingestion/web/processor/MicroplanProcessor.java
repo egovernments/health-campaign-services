@@ -446,7 +446,11 @@ public class MicroplanProcessor implements IGenerateProcessor {
             String localized = localizationMap.getOrDefault(code, code);
 
             // level name (display)
-            String level = boundaryTypeToLevel.getOrDefault(boundaryType, "Level 1");
+            String level = boundaryTypeToLevel.get(boundaryType);
+            if (level == null) {
+                log.warn("Boundary type {} not found in hierarchy, skipping", boundaryType);
+                continue;
+            }
 
             // track codePath -> localized
             codeToLocalized.putIfAbsent(codePath, localized);
@@ -601,15 +605,15 @@ public class MicroplanProcessor implements IGenerateProcessor {
         
         // Add localized headers to visible row with styling
         Cell levelHeaderCell = visibleRow.createCell(lastSchemaCol);
-        levelHeaderCell.setCellValue(localizationMap.getOrDefault("HCM_INGESTION_LEVEL_COLUMN", "Level"));
+        levelHeaderCell.setCellValue(localizationMap.getOrDefault("HCM_INGESTION_LEVEL_COLUMN", "HCM_INGESTION_LEVEL_COLUMN"));
         levelHeaderCell.setCellStyle(boundaryHeaderStyle);
         
         Cell boundaryHeaderCell = visibleRow.createCell(lastSchemaCol + 1);
-        boundaryHeaderCell.setCellValue(localizationMap.getOrDefault("HCM_INGESTION_BOUNDARY_COLUMN", "Boundary Name"));
+        boundaryHeaderCell.setCellValue(localizationMap.getOrDefault("HCM_INGESTION_BOUNDARY_COLUMN", "HCM_INGESTION_BOUNDARY_COLUMN"));
         boundaryHeaderCell.setCellStyle(boundaryHeaderStyle);
         
         Cell parentHeaderCell = visibleRow.createCell(lastSchemaCol + 2);
-        parentHeaderCell.setCellValue(localizationMap.getOrDefault("HCM_INGESTION_PARENT_COLUMN", "Parent Boundary"));
+        parentHeaderCell.setCellValue(localizationMap.getOrDefault("HCM_INGESTION_PARENT_COLUMN", "HCM_INGESTION_PARENT_COLUMN"));
         parentHeaderCell.setCellStyle(boundaryHeaderStyle);
 
         DataValidationHelper dvHelper = sheet.getDataValidationHelper();
