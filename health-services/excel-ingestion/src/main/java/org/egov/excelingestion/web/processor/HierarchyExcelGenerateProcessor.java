@@ -122,14 +122,14 @@ public class HierarchyExcelGenerateProcessor implements IGenerateProcessor {
 
         XSSFWorkbook workbook = new XSSFWorkbook();
 
-        Sheet levelSheet = workbook.createSheet("LevelData");
-        workbook.setSheetVisibility(workbook.getSheetIndex("LevelData"), SheetVisibility.VERY_HIDDEN);
+        Sheet levelSheet = workbook.createSheet("_h_LevelData_h_");
+        workbook.setSheetVisibility(workbook.getSheetIndex("_h_LevelData_h_"), SheetVisibility.VERY_HIDDEN);
 
-        Sheet childrenSheet = workbook.createSheet("BoundaryChildren");
-        workbook.setSheetVisibility(workbook.getSheetIndex("BoundaryChildren"), SheetVisibility.VERY_HIDDEN);
+        Sheet childrenSheet = workbook.createSheet("_h_BoundaryChildren_h_");
+        workbook.setSheetVisibility(workbook.getSheetIndex("_h_BoundaryChildren_h_"), SheetVisibility.VERY_HIDDEN);
 
-        Sheet mappingSheet = workbook.createSheet("NameMappings");
-        workbook.setSheetVisibility(workbook.getSheetIndex("NameMappings"), SheetVisibility.VERY_HIDDEN);
+        Sheet mappingSheet = workbook.createSheet("_h_NameMappings_h_");
+        workbook.setSheetVisibility(workbook.getSheetIndex("_h_NameMappings_h_"), SheetVisibility.VERY_HIDDEN);
 
         // Populate LevelData sheet and named ranges for levels
         for (int i = 0; i < validLevels.size(); i++) {
@@ -147,7 +147,7 @@ public class HierarchyExcelGenerateProcessor implements IGenerateProcessor {
                 namedRange.setNameName(levelName);
                 String colLetter = CellReference.convertNumToColString(i);
                 namedRange.setRefersToFormula(
-                        "LevelData!$" + colLetter + "$2:$" + colLetter + "$" + (boundaries.size() + 1));
+                        "_h_LevelData_h_!$" + colLetter + "$2:$" + colLetter + "$" + (boundaries.size() + 1));
             }
         }
 
@@ -173,7 +173,7 @@ public class HierarchyExcelGenerateProcessor implements IGenerateProcessor {
                     namedRange.setNameName(namedRangeName);
                     String colLetter = CellReference.convertNumToColString(childColumnIndex);
                     namedRange.setRefersToFormula(
-                            "BoundaryChildren!$" + colLetter + "$2:$" + colLetter + "$"
+                            "_h_BoundaryChildren_h_!$" + colLetter + "$2:$" + colLetter + "$"
                                     + (childrenLocalizedNames.size() + 1));
                 }
             }
@@ -226,7 +226,7 @@ public class HierarchyExcelGenerateProcessor implements IGenerateProcessor {
                 String prevCol = CellReference.convertNumToColString(j - 1);
                 String formula = "INDIRECT(IF(" +
                         prevCol + (i + 1) + "=\"\", \"" + validLevels.get(j) + "\", " +
-                        "VLOOKUP(" + prevCol + (i + 1) + ", NameMappings!$A:$B, 2, FALSE)))";
+                        "VLOOKUP(" + prevCol + (i + 1) + ", _h_NameMappings_h_!$A:$B, 2, FALSE)))";
 
                 DataValidationConstraint dvConstraint = dvHelper.createFormulaListConstraint(formula);
                 CellRangeAddressList addr = new CellRangeAddressList(i, i, j, j);
@@ -250,7 +250,7 @@ public class HierarchyExcelGenerateProcessor implements IGenerateProcessor {
             String levelName = validLevels.get(j);
             String formula = "AND(" + col + "3<>\"\", " +
                     "ISERROR(MATCH(" + col + "3, INDIRECT(IF(" + prevCol + "3=\"\", \"" + levelName + "\", " +
-                    "VLOOKUP(" + prevCol + "3, NameMappings!$A:$B, 2, FALSE))), 0)))";
+                    "VLOOKUP(" + prevCol + "3, _h_NameMappings_h_!$A:$B, 2, FALSE))), 0)))";
 
             ConditionalFormattingRule rule = sheetCF.createConditionalFormattingRule(formula);
             PatternFormatting fill = rule.createPatternFormatting();

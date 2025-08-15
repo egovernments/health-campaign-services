@@ -114,10 +114,14 @@ public class MicroplanProcessor implements IGenerateProcessor {
         // Fetch boundary relationship data
         BoundarySearchResponse relationshipData = boundaryService.fetchBoundaryRelationship(tenantId, hierarchyType, requestInfo);
 
-        // 1) Build level list "Level 1", "Level 2", ...
+        // 1) Build level list using localized level names from HCM_CAMP_CONF_LEVEL_* keys
         List<String> levels = new ArrayList<>();
+        List<String> levelKeys = new ArrayList<>();
         for (int i = 0; i < hierarchyRelations.size(); i++) {
-            levels.add("Level " + (i + 1));
+            String levelKey = "HCM_CAMP_CONF_LEVEL_" + (i + 1);
+            String localizedLevel = mergedLocalizationMap.getOrDefault(levelKey, levelKey);
+            levels.add(localizedLevel);
+            levelKeys.add(levelKey);
         }
 
         // map boundaryType -> levelName
@@ -196,11 +200,30 @@ public class MicroplanProcessor implements IGenerateProcessor {
             workbook = (XSSFWorkbook) excelSchemaSheetCreator.addSchemaSheetFromJson(schemaJson, actualFacilitySheetName, workbook, mergedLocalizationMap);
         }
 
-        // === Levels sheet (display names visible) ===
+        // === Level Mapping sheet (hidden) for localization keys and values ===
+        Sheet levelMappingSheet = workbook.createSheet("_h_LevelMapping_h_");
+        workbook.setSheetHidden(workbook.getSheetIndex("_h_LevelMapping_h_"), true);
+        
+        // Header row
+        Row mappingHeaderRow = levelMappingSheet.createRow(0);
+        mappingHeaderRow.createCell(0).setCellValue("Level Key");
+        mappingHeaderRow.createCell(1).setCellValue("Localized Level");
+        mappingHeaderRow.createCell(2).setCellValue("Generic Level");
+        
+        // Data rows
+        for (int i = 0; i < levels.size(); i++) {
+            Row mappingRow = levelMappingSheet.createRow(i + 1);
+            mappingRow.createCell(0).setCellValue(levelKeys.get(i));          // HCM_CAMP_CONF_LEVEL_1
+            mappingRow.createCell(1).setCellValue(levels.get(i));             // Localized level name
+            mappingRow.createCell(2).setCellValue("Level " + (i + 1));        // Generic "Level 1" for backward compatibility
+        }
+        
+        // === Levels sheet (localized display names visible) ===
         Sheet levelSheet = workbook.createSheet("_h_Levels_h_");
+        workbook.setSheetHidden(workbook.getSheetIndex("_h_Levels_h_"), true);
         Row levelRow = levelSheet.createRow(0);
         for (int i = 0; i < levels.size(); i++) {
-            levelRow.createCell(i).setCellValue(levels.get(i)); // "Level 1", "Level 2", ...
+            levelRow.createCell(i).setCellValue(levels.get(i)); // Localized level names
         }
         // Named range "Levels"
         Name levelsNamedRange = workbook.createName();
@@ -210,6 +233,7 @@ public class MicroplanProcessor implements IGenerateProcessor {
 
         // === Boundaries sheet (localized names) - one column per level ===
         Sheet boundarySheet = workbook.createSheet("_h_Boundaries_h_");
+        workbook.setSheetHidden(workbook.getSheetIndex("_h_Boundaries_h_"), true);
         int maxBoundaries = 0;
         for (int i = 0; i < levels.size(); i++) {
             String level = levels.get(i);
@@ -255,6 +279,7 @@ public class MicroplanProcessor implements IGenerateProcessor {
         // Column header = codePath
         // Under each header we will put localized parent names (if any).
         Sheet parentSheet = workbook.createSheet("_h_Parents_h_");
+        workbook.setSheetHidden(workbook.getSheetIndex("_h_Parents_h_"), true);
         int parentCol = 0;
         for (Map.Entry<String, List<String>> entry : childToParentCodes.entrySet()) {
             String childCode = entry.getKey(); // unique code path
@@ -296,6 +321,7 @@ public class MicroplanProcessor implements IGenerateProcessor {
         // IMPORTANT: if a localized name maps to multiple codePaths, the VLOOKUP will
         // find the first - avoid duplicates in localized names if possible
         Sheet codeMapSheet = workbook.createSheet("_h_CodeMap_h_");
+        workbook.setSheetHidden(workbook.getSheetIndex("_h_CodeMap_h_"), true);
         Row cmHeader = codeMapSheet.createRow(0);
         cmHeader.createCell(0).setCellValue("LocalizedName");
         cmHeader.createCell(1).setCellValue("CodePath");
