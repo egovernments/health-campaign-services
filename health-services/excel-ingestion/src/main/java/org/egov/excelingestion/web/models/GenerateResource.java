@@ -46,9 +46,6 @@ public class GenerateResource {
     @Size(min = 1, max = 255, message = "INGEST_INVALID_REFERENCE_ID_LENGTH")
     private String refernceId;
 
-    @JsonProperty("locale")
-    private String locale;
-
     @JsonProperty("status")
     private String status;
 
