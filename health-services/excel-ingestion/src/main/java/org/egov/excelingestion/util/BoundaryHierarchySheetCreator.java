@@ -67,7 +67,7 @@ public class BoundaryHierarchySheetCreator {
         // Create header style with default color
         CellStyle headerStyle = createHeaderStyle(workbook, config.getDefaultHeaderColor());
         
-        // Add columns for each level
+        // Add columns for each level first
         for (int i = 0; i < originalLevels.size(); i++) {
             String levelType = originalLevels.get(i);
             
@@ -85,6 +85,16 @@ public class BoundaryHierarchySheetCreator {
             hierarchySheet.setColumnWidth(i, 40 * 256);
         }
         
+        // Add boundary code column as the last column (hidden)
+        int boundaryCodeCol = originalLevels.size();
+        hiddenRow.createCell(boundaryCodeCol).setCellValue("HCM_ADMIN_CONSOLE_BOUNDARY_CODE");
+        Cell codeHeaderCell = visibleRow.createCell(boundaryCodeCol);
+        codeHeaderCell.setCellValue(localizationMap.getOrDefault("HCM_ADMIN_CONSOLE_BOUNDARY_CODE", "Boundary Code"));
+        codeHeaderCell.setCellStyle(headerStyle);
+        // Hide the boundary code column
+        hierarchySheet.setColumnHidden(boundaryCodeCol, true);
+        hierarchySheet.setColumnWidth(boundaryCodeCol, 40 * 256);
+        
         // Hide the first row (technical names)
         hiddenRow.setZeroHeight(true);
         
@@ -99,15 +109,18 @@ public class BoundaryHierarchySheetCreator {
         unlockedStyle.setLocked(false);
         
         // Set column-level default styles to avoid creating millions of cells
-        for (int c = 0; c < originalLevels.size(); c++) {
+        // Column 0 is for boundary code, then levels start from column 1
+        for (int c = 0; c <= originalLevels.size(); c++) {
             // Set default style for entire hierarchy columns as unlocked
             hierarchySheet.setDefaultColumnStyle(c, unlockedStyle);
         }
         
         // Lock only the header rows (row 0 and row 1) by applying locked style
         // Note: visibleRow cells already have headerStyle which includes locking
-        for (int c = 0; c < originalLevels.size(); c++) {
-            hiddenRow.getCell(c).setCellStyle(lockedStyle);
+        for (int c = 0; c <= originalLevels.size(); c++) {
+            if (hiddenRow.getCell(c) != null) {
+                hiddenRow.getCell(c).setCellStyle(lockedStyle);
+            }
             // visibleRow cells already have headerStyle applied above
         }
         
@@ -168,7 +181,7 @@ public class BoundaryHierarchySheetCreator {
         }
         
         // Process boundaries and expand includeAllChildren
-        List<List<String>> boundaryRows = new ArrayList<>();
+        List<BoundaryRowData> boundaryRows = new ArrayList<>();
         Set<String> processedCodes = new HashSet<>();
         
         // Find root boundary
@@ -186,10 +199,19 @@ public class BoundaryHierarchySheetCreator {
         processBoundary(rootBoundary, boundaries, codeToEnrichedBoundary, boundaryRows, 
                        processedCodes, new ArrayList<>(), levelTypes);
         
+        // Filter to keep only last level boundaries
+        int lastLevelIndex = levelTypes.size() - 1;
+        List<BoundaryRowData> lastLevelRows = boundaryRows.stream()
+                .filter(row -> row.isLastLevel(lastLevelIndex))
+                .collect(Collectors.toList());
+        
         // Write rows to sheet
         int rowNum = 2; // Start after headers
-        for (List<String> boundaryRow : boundaryRows) {
+        for (BoundaryRowData boundaryRowData : lastLevelRows) {
             Row row = sheet.createRow(rowNum++);
+            
+            // Columns 0 to n-1: Localized names for each level
+            List<String> boundaryRow = boundaryRowData.getBoundaryPath();
             for (int i = 0; i < boundaryRow.size(); i++) {
                 Cell cell = row.createCell(i);
                 String boundaryCode = boundaryRow.get(i);
@@ -200,6 +222,12 @@ public class BoundaryHierarchySheetCreator {
                     cell.setCellStyle(unlockedStyle);
                 }
             }
+            
+            // Last column: Boundary code of the last level (hidden column)
+            String lastLevelCode = boundaryRowData.getLastLevelCode();
+            Cell codeCell = row.createCell(levelTypes.size());
+            codeCell.setCellValue(lastLevelCode);
+            codeCell.setCellStyle(unlockedStyle);
         }
     }
     
@@ -216,7 +244,7 @@ public class BoundaryHierarchySheetCreator {
     
     private void processBoundary(Boundary boundary, List<Boundary> allBoundaries, 
                                 Map<String, EnrichedBoundary> codeToEnrichedBoundary,
-                                List<List<String>> boundaryRows, Set<String> processedCodes,
+                                List<BoundaryRowData> boundaryRows, Set<String> processedCodes,
                                 List<String> currentPath, List<String> levelTypes) {
         
         if (boundary == null || processedCodes.contains(boundary.getCode())) {
@@ -243,13 +271,13 @@ public class BoundaryHierarchySheetCreator {
                                  boundaryRows, processedCodes, newPath, levelTypes);
             }
         } else {
-            // Add current path as a row
-            boundaryRows.add(new ArrayList<>(newPath));
+            // Add current path as a row with boundary code
+            boundaryRows.add(new BoundaryRowData(new ArrayList<>(newPath), boundary.getCode()));
             
             // Process only the boundaries that are in the input list and are children of current
             List<Boundary> children = allBoundaries.stream()
                     .filter(b -> boundary.getCode().equals(b.getParent()))
-                    .collect(java.util.stream.Collectors.toList());
+                    .collect(Collectors.toList());
                     
             for (Boundary child : children) {
                 processBoundary(child, allBoundaries, codeToEnrichedBoundary, 
@@ -260,7 +288,7 @@ public class BoundaryHierarchySheetCreator {
     
     private void processAllChildren(List<EnrichedBoundary> children, 
                                    Map<String, EnrichedBoundary> codeToEnrichedBoundary,
-                                   List<List<String>> boundaryRows, Set<String> processedCodes,
+                                   List<BoundaryRowData> boundaryRows, Set<String> processedCodes,
                                    List<String> currentPath, List<String> levelTypes) {
         
         if (children == null || children.isEmpty()) {
@@ -281,8 +309,8 @@ public class BoundaryHierarchySheetCreator {
                 }
                 newPath.set(levelIndex, child.getCode());
                 
-                // Add current path as a row
-                boundaryRows.add(new ArrayList<>(newPath));
+                // Add current path as a row with boundary code
+                boundaryRows.add(new BoundaryRowData(new ArrayList<>(newPath), child.getCode()));
                 
                 // Recursively process children
                 if (child.getChildren() != null && !child.getChildren().isEmpty()) {
@@ -300,6 +328,30 @@ public class BoundaryHierarchySheetCreator {
             }
         }
         return -1;
+    }
+    
+    // Inner class to hold boundary row data
+    private static class BoundaryRowData {
+        private final List<String> boundaryPath;
+        private final String lastLevelCode;
+        
+        public BoundaryRowData(List<String> boundaryPath, String lastLevelCode) {
+            this.boundaryPath = boundaryPath;
+            this.lastLevelCode = lastLevelCode;
+        }
+        
+        public List<String> getBoundaryPath() {
+            return boundaryPath;
+        }
+        
+        public String getLastLevelCode() {
+            return lastLevelCode;
+        }
+        
+        public boolean isLastLevel(int lastLevelIndex) {
+            // Check if the boundary path has a non-null value at the last level index
+            return boundaryPath.size() > lastLevelIndex && boundaryPath.get(lastLevelIndex) != null;
+        }
     }
 
 }
