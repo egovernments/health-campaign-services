@@ -13,9 +13,9 @@
 * Generates **multi-sheet Excel templates** directly from MDMS JSON schema.
 * **Campaign Configuration Sheet**: First sheet with editable green-highlighted cells for campaign setup.
 * **Facility & User Sheets**: Schema-driven data entry with boundary dropdowns.
-* **Boundary Hierarchy Sheet**: Visual boundary relationships.
+* **Boundary Hierarchy Sheet**: Visual boundary relationships with dynamic population.
 * Supports localization, color coding, cascading dropdowns, multi-select values.
-* Uses **hidden helper sheets** for dropdown data and validation logic.
+* Uses **hidden helper sheets** (`_h_SheetName_h_`) for dropdown data and validation logic.
 
 ---
 
@@ -31,30 +31,42 @@
 * **Row 1 (hidden):** Technical column names.
 * **Row 2 (visible):** Localized names with color formatting.
 
-### **3. Dropdowns**
+### **3. Dropdowns & Validation**
 
 * **Enum Dropdown:** Static list of values.
-* **Cascading Dropdown:** Dependent on the previous column’s selection.
+* **Cascading Boundary Dropdown:** Level → Boundary → Parent relationships.
 * **Multi-Select:** Multiple visible columns + hidden concatenated column for backend.
 
-### **4. Hidden Mapping Sheets**
+### **4. Boundaries Feature**
 
-* Store **parent → child** boundaries.
-* Store **level → boundary lists**.
-* Maintain **localization mappings**.
+* **Dynamic Population**: Generates rows from boundaries array with `includeAllChildren` expansion.
+* **Last-Level Filtering**: Shows only leaf-level boundaries (e.g., C1→P1→T1, C1→P1→T2).
+* **Hidden Code Column**: Stores boundary codes for backend processing.
 
-### **5. Cell Locking & Freezing**
+### **5. Hidden Mapping Sheets**
+
+* Store **parent → child** boundaries using `_h_SheetName_h_` naming format.
+* Store **level → boundary lists** with localized names.
+* Maintain **localization mappings** and level consistency.
+
+### **6. Localization & Consistency**
+
+* **Level Consistency**: Uses `HCM_CAMP_CONF_LEVEL_*` keys across all sheets.
+* **Fallback Strategy**: Returns original localization key when translation missing.
+* **Mapping Sheets**: Hidden level mapping (`_h_LevelMapping_h_`) for dropdown consistency.
+
+### **7. Cell Locking & Freezing**
 
 * Cells are **unlocked by default**.
 * Freeze columns when `freezeColumnIfFilled = true`.
 
-### **6. Campaign Configuration**
+### **8. Campaign Configuration**
 
 * **First sheet** with structured sections for campaign setup.
 * **Green-highlighted editable cells** for boundary names and campaign details.
 * **Protected layout** with only designated cells editable.
 
-### **7. Sheet Protection**
+### **9. Sheet Protection**
 
 * Password-protected after setup.
 * Only unlocked cells are editable.
@@ -79,13 +91,13 @@
 The `excel-ingestion` service is a sophisticated Spring Boot 3.2.2 microservice built with Java 17, designed to generate complex multi-sheet Excel templates for health campaign data management.
 
 ### **Current Statistics**
-* **Total Files**: 39 Java files + 5 configuration/documentation files
-* **Code Volume**: ~3,727 lines of Java code
+* **Total Files**: 42 Java files + configuration/documentation files
+* **Code Volume**: ~4,100+ lines of Java code
 * **Architecture**: Clean layered microservice with processor-based pattern
 
 ### **Component Breakdown**
-* **6 Core Services**: Excel generation, boundary management, localization, MDMS integration, file store, API payload building
-* **18 Model Classes**: Comprehensive data models with Jakarta validation
+* **7 Core Services**: Excel generation, boundary management, localization, MDMS integration, file store, API payload building
+* **20+ Model Classes**: Including new `Boundary`, `FileStoreResponse`, `FileInfo` models with Jakarta validation
 * **4 Utility Classes**: Specialized Excel sheet creators for different purposes  
 * **2 Processor Implementations**: Microplan and hierarchy-based Excel generation
 * **1 REST Controller**: Clean API interface with validation
@@ -97,7 +109,33 @@ The `excel-ingestion` service is a sophisticated Spring Boot 3.2.2 microservice 
 * **Builder Pattern**: Lombok-enhanced model construction
 * **Caching Strategy**: Caffeine cache for external service data (1-hour expiry, 100 max entries)
 
-### **Recent Major Improvements (Claude-Driven)**
+### **Recent Major Enhancements (Latest Session)**
+1. **Boundaries Feature Implementation**
+   - Dynamic boundary hierarchy population from request payload
+   - Last-level filtering with `includeAllChildren` expansion logic
+   - Hidden boundary code column for backend integration
+
+2. **Level Localization Standardization**
+   - Unified `HCM_CAMP_CONF_LEVEL_*` usage across campaign config and dropdowns
+   - Level mapping sheet (`_h_LevelMapping_h_`) for consistent key-value handling
+   - Maintained dropdown functionality with proper Excel formulas
+
+3. **Hidden Sheet Naming Standardization**
+   - All hidden sheets use `_h_SheetName_h_` format consistently
+   - Updated formula references across both processors
+   - Improved maintainability and debugging
+
+4. **FileStore Service Enhancement**
+   - Proper model classes (`FileStoreResponse`, `FileInfo`) replacing raw Maps
+   - Better JSON parsing and error handling
+   - Type-safe response processing
+
+5. **Model Cleanup & API Enhancement**
+   - Removed redundant `locale` field from `GenerateResource` (using RequestInfo)
+   - Enhanced validation with `Boundary` model class
+   - Cleaner API contracts with consistent localization fallbacks
+
+### **Previous Major Improvements (Claude-Driven)**
 1. **Comprehensive Error Handling**: Three-tier exception handling system
    - CustomExceptionHandler for service-level errors with context
    - ValidationExceptionHandler for input validation with custom error codes  
@@ -158,7 +196,7 @@ Updating it regularly ensures Claude Max (and future developers) always have **a
 
 ### **Complex Code Generation & Refactoring**
 Claude successfully:
-* **Generated 3,727+ lines** of production-quality Java code for a complete microservice
+* **Generated 4,100+ lines** of production-quality Java code for a complete microservice
 * **Implemented sophisticated Excel generation** with multi-sheet templates, cascading dropdowns, and data validation
 * **Created comprehensive error handling** with three-tier exception management system
 * **Designed clean architecture** following Spring Boot best practices with proper layering
