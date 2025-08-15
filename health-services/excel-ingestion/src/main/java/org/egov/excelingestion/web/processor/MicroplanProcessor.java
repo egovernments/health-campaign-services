@@ -354,7 +354,7 @@ public class MicroplanProcessor implements IGenerateProcessor {
         
         workbook = (XSSFWorkbook) boundaryHierarchySheetCreator.createBoundaryHierarchySheet(
                 workbook, hierarchyType, tenantId, requestInfo,
-                mergedLocalizationMap, actualHierarchySheetName);
+                mergedLocalizationMap, actualHierarchySheetName, generateResource.getBoundaries());
 
 
         // Set zoom to 60% BEFORE protection and hiding (Excel compatibility)

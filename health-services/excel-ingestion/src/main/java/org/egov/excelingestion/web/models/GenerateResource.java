@@ -8,11 +8,13 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.util.Map;
+import java.util.List;
 
 import org.egov.common.contract.models.AuditDetails;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import jakarta.validation.Valid;
 
 @Getter
 @Setter
@@ -58,4 +60,8 @@ public class GenerateResource {
 
     @JsonProperty("fileStoreId")
     private String fileStoreId;
+
+    @JsonProperty("boundaries")
+    @Valid
+    private List<Boundary> boundaries;
 }
