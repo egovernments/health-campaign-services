@@ -89,16 +89,16 @@ public class PlanConfigQueryBuilder {
     private String buildPlanConfigSearchQuery(PlanConfigurationSearchCriteria criteria, List<Object> preparedStmtList) {
         StringBuilder builder = new StringBuilder(PLAN_CONFIG_SEARCH_BASE_QUERY);
 
-        if (!ObjectUtils.isEmpty(criteria.getTenantId())) {
-            queryUtil.addClauseIfRequired(builder, preparedStmtList);
-            builder.append(" pc.tenant_id = ?");
-            preparedStmtList.add(criteria.getTenantId());
-        }
-
         if (!ObjectUtils.isEmpty(criteria.getId())) {
             queryUtil.addClauseIfRequired(builder, preparedStmtList);
             builder.append(" pc.id = ?");
             preparedStmtList.add(criteria.getId());
+        }
+
+        if (!ObjectUtils.isEmpty(criteria.getTenantId())) {
+            queryUtil.addClauseIfRequired(builder, preparedStmtList);
+            builder.append(" pc.tenant_id = ?");
+            preparedStmtList.add(criteria.getTenantId());
         }
 
         if (!CollectionUtils.isEmpty(criteria.getIds())) {
