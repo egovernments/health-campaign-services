@@ -91,17 +91,19 @@
 The `excel-ingestion` service is a sophisticated Spring Boot 3.2.2 microservice built with Java 17, designed to generate complex multi-sheet Excel templates for health campaign data management.
 
 ### **Current Statistics**
-* **Total Files**: 42 Java files + configuration/documentation files
-* **Code Volume**: ~4,100+ lines of Java code
+* **Total Files**: 42 Java files + 6 documentation/configuration files
+* **Code Volume**: 4,198 lines of Java code
 * **Architecture**: Clean layered microservice with processor-based pattern
 
 ### **Component Breakdown**
-* **7 Core Services**: Excel generation, boundary management, localization, MDMS integration, file store, API payload building
-* **20+ Model Classes**: Including new `Boundary`, `FileStoreResponse`, `FileInfo` models with Jakarta validation
+* **6 Service Classes**: Excel generation, boundary management, localization, MDMS integration, file store, API payload building
+* **20 Model Classes**: Including new `Boundary`, `FileStoreResponse`, `FileInfo` models with Jakarta validation
 * **4 Utility Classes**: Specialized Excel sheet creators for different purposes  
-* **2 Processor Implementations**: Microplan and hierarchy-based Excel generation
+* **4 Processor Classes**: Factory, interface, and 2 implementations (Microplan and HierarchyExcel processors)
 * **1 REST Controller**: Clean API interface with validation
-* **8 Configuration/Exception Classes**: Robust error handling and configuration management
+* **3 Configuration Classes**: Application config, Excel ingestion config, error constants
+* **3 Exception Classes**: Custom, validation, and global exception handlers
+* **1 Main Application Class**: Spring Boot application entry point
 
 ### **Key Architectural Patterns**
 * **Factory Pattern**: Dynamic processor selection based on Excel type
@@ -244,3 +246,16 @@ Successfully handled:
 * **Finding**: Claude discovered that date updates were cascading to all child entities, sending entire bulk project arrays as single Kafka messages.
 * **Solution**: Implemented batch processing with batches of 100 projects.
 * **Result**: Reduced Kafka message size and improved system stability.
+
+### **3. Comprehensive Documentation Creation**
+* **Issue**: Excel ingestion service lacked Swagger documentation and proper README.
+* **Analysis**: Claude analyzed existing service README files to understand documentation patterns.
+* **Implementation**: 
+  - Created complete Swagger specification (`excel-ingestion-swagger.yml`) with proper schemas matching Java models
+  - Built comprehensive README.md following project standards with service architecture, dependencies, API details
+  - Added sequence diagrams showing integration flow with boundary-service, localization-service, MDMS, and filestore
+* **Key Features**:
+  - Swagger spec includes complete request/response models with examples
+  - README has proper sections: DB UML Diagram, Service Dependencies, API Details, Configuration, Error Codes
+  - Sequence diagram accurately depicts the 4-sheet Excel generation flow
+* **Result**: Service now has enterprise-grade documentation matching other health campaign services.
