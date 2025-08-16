@@ -1,0 +1,344 @@
+openapi: 3.0.1
+info:
+  title: Excel Ingestion Service
+  description: Service for Excel template generation based on boundary hierarchy for DIGIT Health Campaign platform
+  version: 1.0.0
+  contact:
+    name: Digit
+    email: info@egovernments.org
+  license:
+    name: eGov Systems License
+    url: http://www.egovernments.org
+
+servers:
+  - url: https://api.example.com
+    description: Production server
+  - url: https://staging.example.com
+    description: Staging server
+
+paths:
+  /excel-ingestion/v1/data/_generate:
+    post:
+      summary: Generate Excel template
+      description: Generates an Excel template based on hierarchy type and boundaries, then uploads it to filestore
+      operationId: generateExcelTemplate
+      tags:
+        - Excel Generation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenerateResourceRequest'
+            example:
+              RequestInfo:
+                apiId: "excel-ingestion"
+                ver: "1.0"
+                ts: 1690371438000
+                msgId: "1234567890"
+                userInfo:
+                  uuid: "11b0e02b-0145-4de2-bc42-c97b96264807"
+                  userName: "testuser"
+                  tenantId: "pg.citya"
+              GenerateResource:
+                tenantId: "pg.citya"
+                type: "boundary"
+                hierarchyType: "ADMIN"
+                refernceId: "REF-2023-001"
+                boundaries:
+                  - code: "CITY001"
+                    name: "City A"
+                    type: "City"
+                    isRoot: true
+                    includeAllChildren: true
+      responses:
+        '200':
+          description: Excel template generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenerateResourceResponse'
+              example:
+                ResponseInfo:
+                  apiId: "egov-bff"
+                  ver: "0.0.1"
+                  ts: 1690371438000
+                  status: "successful"
+                GenerateResource:
+                  id: "550e8400-e29b-41d4-a716-446655440000"
+                  tenantId: "pg.citya"
+                  type: "boundary"
+                  hierarchyType: "ADMIN"
+                  refernceId: "REF-2023-001"
+                  status: "COMPLETED"
+                  fileStoreId: "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+                  boundaries:
+                    - code: "CITY001"
+                      name: "City A"
+                      type: "City"
+                      isRoot: true
+                      includeAllChildren: true
+        '400':
+          description: Bad Request - Invalid input parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    GenerateResourceRequest:
+      type: object
+      required:
+        - RequestInfo
+        - GenerateResource
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        GenerateResource:
+          $ref: '#/components/schemas/GenerateResource'
+
+    GenerateResourceResponse:
+      type: object
+      properties:
+        ResponseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        GenerateResource:
+          $ref: '#/components/schemas/GenerateResource'
+
+    GenerateResource:
+      type: object
+      required:
+        - tenantId
+        - type
+        - hierarchyType
+        - refernceId
+      properties:
+        id:
+          type: string
+          description: Unique identifier of the resource
+          readOnly: true
+        tenantId:
+          type: string
+          description: Tenant identifier
+          minLength: 2
+          maxLength: 50
+        type:
+          type: string
+          description: Type of resource to generate
+          minLength: 2
+          maxLength: 100
+        hierarchyType:
+          type: string
+          description: Type of hierarchy (e.g., ADMIN, WORKBENCH)
+          minLength: 2
+          maxLength: 100
+        refernceId:
+          type: string
+          description: Reference identifier for tracking
+          minLength: 1
+          maxLength: 255
+        status:
+          type: string
+          description: Processing status
+          readOnly: true
+        fileStoreId:
+          type: string
+          description: File store reference ID for the generated Excel file
+          readOnly: true
+        boundaries:
+          type: array
+          items:
+            $ref: '#/components/schemas/Boundary'
+          description: List of boundaries to include in the Excel template
+        additionalDetails:
+          type: object
+          description: Additional metadata
+        auditDetails:
+          $ref: '#/components/schemas/AuditDetails'
+          readOnly: true
+
+    Boundary:
+      type: object
+      required:
+        - code
+        - name
+        - type
+      properties:
+        code:
+          type: string
+          description: Unique code for the boundary
+        name:
+          type: string
+          description: Name of the boundary
+        type:
+          type: string
+          description: Type of boundary (e.g., City, Ward, Zone)
+        isRoot:
+          type: boolean
+          description: Indicates if this is a root boundary
+          default: false
+        parent:
+          type: string
+          description: Parent boundary code
+        includeAllChildren:
+          type: boolean
+          description: Include all child boundaries in the hierarchy
+          default: false
+
+    RequestInfo:
+      type: object
+      properties:
+        apiId:
+          type: string
+          description: API ID
+        ver:
+          type: string
+          description: API version
+        ts:
+          type: integer
+          format: int64
+          description: Request timestamp
+        action:
+          type: string
+          description: API action
+        did:
+          type: string
+          description: Device ID
+        key:
+          type: string
+          description: API key
+        msgId:
+          type: string
+          description: Message ID
+        requesterId:
+          type: string
+          description: Requester ID
+        authToken:
+          type: string
+          description: Authentication token
+        userInfo:
+          $ref: '#/components/schemas/UserInfo'
+        correlationId:
+          type: string
+          description: Correlation ID for tracking
+
+    UserInfo:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: User ID
+        uuid:
+          type: string
+          description: User UUID
+        userName:
+          type: string
+          description: Username
+        name:
+          type: string
+          description: Full name
+        mobileNumber:
+          type: string
+          description: Mobile number
+        emailId:
+          type: string
+          description: Email address
+        locale:
+          type: string
+          description: User locale
+        type:
+          type: string
+          description: User type
+        tenantId:
+          type: string
+          description: Tenant ID
+
+    ResponseInfo:
+      type: object
+      properties:
+        apiId:
+          type: string
+          description: API ID
+        ver:
+          type: string
+          description: API version
+        ts:
+          type: integer
+          format: int64
+          description: Response timestamp
+        resMsgId:
+          type: string
+          description: Response message ID
+        msgId:
+          type: string
+          description: Original message ID
+        status:
+          type: string
+          description: Response status
+
+    AuditDetails:
+      type: object
+      properties:
+        createdBy:
+          type: string
+          description: User ID who created the record
+        lastModifiedBy:
+          type: string
+          description: User ID who last modified the record
+        createdTime:
+          type: integer
+          format: int64
+          description: Created timestamp
+        lastModifiedTime:
+          type: integer
+          format: int64
+          description: Last modified timestamp
+
+    ErrorResponse:
+      type: object
+      properties:
+        ResponseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        Errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/Error'
+
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+          description: Error code
+        message:
+          type: string
+          description: Error message
+        description:
+          type: string
+          description: Detailed error description
+        params:
+          type: array
+          items:
+            type: string
+          description: Error parameters
+
+tags:
+  - name: Excel Generation
+    description: API for generating Excel templates based on boundary hierarchy
+
+security:
+  - bearerAuth: []
+
+securitySchemes:
+  bearerAuth:
+    type: http
+    scheme: bearer
+    bearerFormat: JWT
