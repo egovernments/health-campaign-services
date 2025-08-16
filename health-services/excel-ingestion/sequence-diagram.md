@@ -28,9 +28,10 @@ sequenceDiagram
     ExcelIngestionService->>ExcelGenerator: Generate Excel Sheets
     
     Note over ExcelGenerator: Create Workbook
-    Note over ExcelGenerator: Sheet 1: Boundary Hierarchy
-    Note over ExcelGenerator: Sheet 2: Campaign Config
-    Note over ExcelGenerator: Sheet 3: Schema Definition
+    Note over ExcelGenerator: Sheet 1: Campaign Config
+    Note over ExcelGenerator: Sheet 2: Facility Sheet
+    Note over ExcelGenerator: Sheet 3: User Sheet
+    Note over ExcelGenerator: Sheet 4: Boundary Sheet
     
     ExcelGenerator-->>ExcelIngestionService: Generated Excel (byte[])
     

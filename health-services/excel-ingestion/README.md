@@ -3,6 +3,49 @@
 ### Excel Ingestion Service
 Excel Ingestion Service is a Health Campaign Service that facilitates the generation of Excel templates based on boundary hierarchies. The service generates structured Excel sheets with boundary data and uploads them to the file store. The functionality is exposed via REST API.
 
+### Service Architecture Diagram
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant ExcelIngestionService
+    participant boundary-service
+    participant localization-service
+    participant egov-mdms-service
+    participant ExcelGenerator
+    participant filestore-service
+    
+    Client->>ExcelIngestionService: POST /v1/data/_generate<br/>(GenerateResourceRequest)
+    
+    Note over ExcelIngestionService: Validate Request
+    
+    ExcelIngestionService->>boundary-service: Fetch Boundary Hierarchy<br/>(tenantId, hierarchyType)
+    boundary-service-->>ExcelIngestionService: Boundary Hierarchy Data
+    
+    ExcelIngestionService->>localization-service: Fetch Localized Labels<br/>(locale, module, tenantId)
+    localization-service-->>ExcelIngestionService: Localized Messages
+    
+    ExcelIngestionService->>egov-mdms-service: Fetch Master Data<br/>(module config, schemas)
+    egov-mdms-service-->>ExcelIngestionService: MDMS Configuration
+    
+    ExcelIngestionService->>ExcelGenerator: Generate Excel Sheets
+    
+    Note over ExcelGenerator: Create Workbook
+    Note over ExcelGenerator: Sheet 1: Campaign Config
+    Note over ExcelGenerator: Sheet 2: Facility Sheet
+    Note over ExcelGenerator: Sheet 3: User Sheet
+    Note over ExcelGenerator: Sheet 4: Boundary Sheet
+    
+    ExcelGenerator-->>ExcelIngestionService: Generated Excel (byte[])
+    
+    ExcelIngestionService->>filestore-service: Upload Excel File<br/>(multipart file)
+    filestore-service-->>ExcelIngestionService: FileStore ID
+    
+    Note over ExcelIngestionService: Update Resource<br/>with FileStore ID
+    
+    ExcelIngestionService-->>Client: GenerateResourceResponse<br/>(with fileStoreId)
+```
+
 ### DB UML Diagram
 
 - NA (This service does not maintain its own database)
@@ -138,14 +181,17 @@ egov.mdms.service.search.endpoint=/egov-mdms-service/v1/_search
 
 ## Excel Template Structure
 
-### Sheet 1: Boundary Hierarchy
+### Sheet 1: Campaign Config
+Contains campaign configuration parameters and metadata for the microplan.
+
+### Sheet 2: Facility Sheet
+Contains facility data with boundary columns for mapping facilities to geographical areas.
+
+### Sheet 3: User Sheet
+Contains user information with boundary columns for assigning users to specific areas.
+
+### Sheet 4: Boundary Sheet
 Contains the complete boundary hierarchy with dynamic columns based on hierarchy levels.
-
-### Sheet 2: Campaign Config
-Contains campaign configuration parameters and metadata.
-
-### Sheet 3: Schema Definition
-Contains the schema definition for data validation and field mappings.
 
 ## Error Codes
 
