@@ -9,7 +9,6 @@ sequenceDiagram
     participant boundary-service
     participant localization-service
     participant egov-mdms-service
-    participant ExcelGenerator
     participant filestore-service
     
     Client->>ExcelIngestionService: POST /v1/data/_generate<br/>(GenerateResourceRequest)
@@ -25,15 +24,12 @@ sequenceDiagram
     ExcelIngestionService->>egov-mdms-service: Fetch Master Data<br/>(module config, schemas)
     egov-mdms-service-->>ExcelIngestionService: MDMS Configuration
     
-    ExcelIngestionService->>ExcelGenerator: Generate Excel Sheets
-    
-    Note over ExcelGenerator: Create Workbook
-    Note over ExcelGenerator: Sheet 1: Campaign Config
-    Note over ExcelGenerator: Sheet 2: Facility Sheet
-    Note over ExcelGenerator: Sheet 3: User Sheet
-    Note over ExcelGenerator: Sheet 4: Boundary Sheet
-    
-    ExcelGenerator-->>ExcelIngestionService: Generated Excel (byte[])
+    Note over ExcelIngestionService: Generate Excel Sheets
+    Note over ExcelIngestionService: Create Workbook
+    Note over ExcelIngestionService: Sheet 1: Campaign Config
+    Note over ExcelIngestionService: Sheet 2: Facility Sheet
+    Note over ExcelIngestionService: Sheet 3: User Sheet
+    Note over ExcelIngestionService: Sheet 4: Boundary Sheet
     
     ExcelIngestionService->>filestore-service: Upload Excel File<br/>(multipart file)
     filestore-service-->>ExcelIngestionService: FileStore ID
