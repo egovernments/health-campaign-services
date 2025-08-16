@@ -94,10 +94,11 @@ public class IndividualRepository extends GenericRepository<Individual> {
 
         // If the list of IDs is not empty, proceed to fetch from the database
         // add the schema placeholder to the query
-        String individualQuery = String.format(getQuery("SELECT * FROM %s.individual WHERE %s IN (:ids)",
+        String individualQuery = String.format(getQuery("SELECT * FROM %s.individual WHERE %s IN (:ids) AND tenantId = :tenantId",
                 includeDeleted), SCHEMA_REPLACE_STRING , idColumn);
         Map<String, Object> paramMap = new HashMap<>();
         paramMap.put("ids", ids);
+        paramMap.put("tenantId", tenantId);
 
         // replace the schema placeholder with the tenantId
         individualQuery = multiStateInstanceUtil.replaceSchemaPlaceholder(individualQuery, tenantId);
