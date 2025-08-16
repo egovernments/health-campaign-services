@@ -76,9 +76,10 @@ For local reference, see [excel-ingestion-swagger.yml](./excel-ingestion-swagger
 
 1. **Excel Template Generation**: Generates Excel templates with boundary hierarchy data
 2. **Multi-sheet Support**: Creates multiple sheets including:
-   - Boundary Hierarchy Sheet
    - Campaign Config Sheet
-   - Schema Definition Sheet
+   - Facility Sheet
+   - User Sheet
+   - Boundary Sheet
 3. **Dynamic Column Generation**: Dynamically creates columns based on hierarchy levels
 4. **File Upload**: Automatically uploads generated Excel files to egov-filestore
 5. **Localization Support**: Integrates with localization service for multi-language support

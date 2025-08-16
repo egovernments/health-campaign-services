@@ -1,6 +1,9 @@
 # Excel Ingestion Service - TODO
 
-All tasks completed successfully.
+## Pending Tasks
+
+### Code Quality Issues
+- [ ] Fix typo: Rename `refernceId` to `referenceId` in GenerateResource model (requires migration strategy for backward compatibility)
 
 ## Completed Tasks
 
