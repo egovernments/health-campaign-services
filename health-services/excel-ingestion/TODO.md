@@ -8,3 +8,7 @@
 - [ ] Remove unused `createPayloadWithCriteria()` method from `ApiPayloadBuilder.java`
 - [ ] Remove unused `createMdmsPayload()` method from `ApiPayloadBuilder.java`
 - [ ] Remove unused `createCampaignConfigMdmsPayload()` method from `ApiPayloadBuilder.java`
+
+### Model Enhancements
+- [ ] Move boundaries to additionalDetails in GenerateResource model
+- [ ] Align logic with boundaries in additionalDetails change

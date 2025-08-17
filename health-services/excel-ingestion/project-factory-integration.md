@@ -35,14 +35,42 @@ POST /v1/data/_create-campaign-with-microplan
 - Validate extracted data
 
 #### Step 4: Excel-Ingestion Service persists data and creates draft campaign
-- Format and validate data according to Project-Factory requirements
-- Create a draft campaign in Project-Factory with basic campaign details
+- Format data according to Project-Factory requirements
 - Send data to Project-Factory's `save-sheet-data` Kafka topic
 - Data gets saved directly to sheet data table for later processing
+- Create a draft campaign in Project-Factory with basic campaign details
+- Associate the sheet data with the newly created draft campaign
 
 #### Step 5: Campaign is ready with pre-filled data
 - Sheet data exists in database table associated with the campaign
 - When users generate sheets in Project-Factory, templates are pre-filled with the sheet data
+
+## Mermaid Flow Chart
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant E as Excel-Ingestion Service
+    participant K as Kafka (save-sheet-data)
+    participant D as Sheet Data Table
+    participant P as Project-Factory Service
+
+    U->>E: Fill microplan Excel file
+    U->>E: POST /v1/data/_create-campaign-with-microplan
+    E->>E: Parse and validate Excel data
+    E->>K: Send sheet data to Kafka topic
+    K->>D: Persist sheet data in table
+    E->>P: Create draft campaign
+    P->>P: Store campaign details
+    E-->>U: Return campaignId
+    
+    note right of D: Sheet data associated with campaignId
+    
+    U->>P: Generate sheets for campaign
+    P->>D: Retrieve sheet data
+    P->>P: Create pre-filled Excel templates
+    P-->>U: Return fileStoreId of pre-filled templates
+```
 
 ## How Pre-filling Works in Project-Factory
 
@@ -84,16 +112,18 @@ POST /v1/data/_create-campaign-with-microplan
   "tenantId": "tenant-id",
   "hierarchyType": "ADMIN",
   "fileStoreId": "file-store-id-of-filled-excel",
-  "campaignDetails": {
-    "campaignName": "Sample Campaign",
-    "startDate": 1624523434000,
-    "endDate": 1627211434000,
-    "projectType": "immunization",
+  "additionalDetails": {
+    "campaignDetails": {
+      "campaignName": "Sample Campaign",
+      "startDate": 1624523434000,
+      "endDate": 1627211434000,
+      "projectType": "immunization"
+    },
     "boundaries": [
-      {
-        "code": "boundary-code"
-      }
-    ]
+        {
+          "code": "boundary-code"
+        }
+      ]
   }
 }
 ```
