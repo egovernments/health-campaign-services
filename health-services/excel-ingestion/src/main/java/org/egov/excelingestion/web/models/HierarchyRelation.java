@@ -28,6 +28,6 @@ public class HierarchyRelation {
 
     @JsonProperty("boundary")
     @Valid
-    private List<EnrichedBoundary> boundary = null;
+    private final List<EnrichedBoundary> boundary = null;
 
 }

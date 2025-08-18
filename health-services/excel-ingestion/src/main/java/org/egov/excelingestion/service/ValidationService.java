@@ -1,0 +1,211 @@
+package org.egov.excelingestion.service;
+
+import lombok.extern.slf4j.Slf4j;
+import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.egov.excelingestion.config.ValidationConstants;
+import org.egov.excelingestion.web.models.ValidationError;
+import org.egov.excelingestion.web.models.ValidationColumnInfo;
+import org.springframework.stereotype.Service;
+
+import java.util.*;
+import java.util.stream.Collectors;
+
+@Service
+@Slf4j
+public class ValidationService {
+
+    /**
+     * Finds the last column with data in the header row
+     */
+    private int findLastDataColumn(Sheet sheet) {
+        Row headerRow = sheet.getRow(0);
+        if (headerRow == null) return 0;
+        
+        int lastColumn = 0;
+        for (int i = headerRow.getLastCellNum() - 1; i >= 0; i--) {
+            Cell cell = headerRow.getCell(i);
+            if (cell != null && cell.getCellType() != CellType.BLANK) {
+                lastColumn = i;
+                break;
+            }
+        }
+        return lastColumn;
+    }
+
+    /**
+     * Finds or adds status and error columns to the sheet
+     */
+    public ValidationColumnInfo addValidationColumns(Sheet sheet) {
+        Row headerRow = sheet.getRow(0);
+        if (headerRow == null) {
+            headerRow = sheet.createRow(0);
+        }
+
+        // Check if status and error columns already exist
+        int statusColumnIndex = findColumnByName(headerRow, "#status#");
+        int errorColumnIndex = findColumnByName(headerRow, "#errorDetails#");
+
+        // If columns don't exist, add them at the end
+        if (statusColumnIndex == -1) {
+            int lastDataColumn = findLastDataColumn(sheet);
+            statusColumnIndex = lastDataColumn + 1;
+            
+            Cell statusCell = headerRow.createCell(statusColumnIndex);
+            statusCell.setCellValue(ValidationConstants.STATUS_COLUMN_NAME);
+            applyCellStyle(statusCell, true);
+            sheet.setColumnWidth(statusColumnIndex, 5000); // ~20 characters
+        }
+
+        if (errorColumnIndex == -1) {
+            int lastDataColumn = findLastDataColumn(sheet);
+            errorColumnIndex = statusColumnIndex == lastDataColumn + 1 ? lastDataColumn + 2 : lastDataColumn + 1;
+            
+            Cell errorCell = headerRow.createCell(errorColumnIndex);
+            errorCell.setCellValue(ValidationConstants.ERROR_DETAILS_COLUMN_NAME);
+            applyCellStyle(errorCell, true);
+            sheet.setColumnWidth(errorColumnIndex, 10000); // ~40 characters
+        }
+
+        return new ValidationColumnInfo(statusColumnIndex, errorColumnIndex);
+    }
+
+    /**
+     * Finds a column by its header name
+     */
+    private int findColumnByName(Row headerRow, String columnName) {
+        for (int i = 0; i < headerRow.getLastCellNum(); i++) {
+            Cell cell = headerRow.getCell(i);
+            if (cell != null && cell.getCellType() == CellType.STRING) {
+                String headerValue = cell.getStringCellValue().trim();
+                if (columnName.equals(headerValue)) {
+                    return i;
+                }
+            }
+        }
+        return -1; // Column not found
+    }
+
+    /**
+     * Processes validation errors and adds them to the sheet
+     */
+    public void processValidationErrors(Sheet sheet, List<ValidationError> errors, ValidationColumnInfo columnInfo) {
+        if (errors == null || errors.isEmpty()) {
+            return;
+        }
+
+        // Group errors by row number
+        Map<Integer, List<ValidationError>> errorsByRow = errors.stream()
+                .filter(error -> error.getRowNumber() != null)
+                .collect(Collectors.groupingBy(ValidationError::getRowNumber));
+
+        // Process each row with errors
+        for (Map.Entry<Integer, List<ValidationError>> entry : errorsByRow.entrySet()) {
+            int rowNumber = entry.getKey();
+            List<ValidationError> rowErrors = entry.getValue();
+
+            Row row = sheet.getRow(rowNumber - 1); // Convert to 0-based index
+            if (row == null) {
+                row = sheet.createRow(rowNumber - 1);
+            }
+
+            // Merge error messages for the row
+            String mergedErrorMessage = rowErrors.stream()
+                    .map(ValidationError::getErrorDetails)
+                    .filter(Objects::nonNull)
+                    .filter(msg -> !msg.trim().isEmpty())
+                    .collect(Collectors.joining("; "));
+
+            // Set status
+            String status = determineRowStatus(rowErrors);
+            Cell statusCell = row.getCell(columnInfo.getStatusColumnIndex());
+            if (statusCell == null) {
+                statusCell = row.createCell(columnInfo.getStatusColumnIndex());
+            }
+            statusCell.setCellValue(status);
+
+            // Set error details
+            if (!mergedErrorMessage.isEmpty()) {
+                Cell errorCell = row.getCell(columnInfo.getErrorColumnIndex());
+                if (errorCell == null) {
+                    errorCell = row.createCell(columnInfo.getErrorColumnIndex());
+                }
+                errorCell.setCellValue(mergedErrorMessage);
+            }
+        }
+    }
+
+    /**
+     * Determines the overall status for a row based on its errors
+     */
+    private String determineRowStatus(List<ValidationError> errors) {
+        if (errors.isEmpty()) {
+            return ValidationConstants.STATUS_VALID;
+        }
+        
+        // Check if any error has CREATED status
+        boolean hasCreated = errors.stream()
+                .anyMatch(e -> ValidationConstants.STATUS_CREATED.equals(e.getStatus()));
+        if (hasCreated) {
+            return ValidationConstants.STATUS_CREATED;
+        }
+
+        // Check if any error has ERROR status
+        boolean hasError = errors.stream()
+                .anyMatch(e -> ValidationConstants.STATUS_ERROR.equals(e.getStatus()));
+        if (hasError) {
+            return ValidationConstants.STATUS_ERROR;
+        }
+
+        // Default to INVALID
+        return ValidationConstants.STATUS_INVALID;
+    }
+
+    /**
+     * Applies cell styling
+     */
+    private void applyCellStyle(Cell cell, boolean isHeader) {
+        Workbook workbook = cell.getSheet().getWorkbook();
+        CellStyle style = workbook.createCellStyle();
+        Font font = workbook.createFont();
+
+        if (isHeader) {
+            font.setBold(true);
+            style.setFillForegroundColor(IndexedColors.GREY_25_PERCENT.getIndex());
+            style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        }
+
+        style.setFont(font);
+        style.setBorderBottom(BorderStyle.THIN);
+        style.setBorderTop(BorderStyle.THIN);
+        style.setBorderRight(BorderStyle.THIN);
+        style.setBorderLeft(BorderStyle.THIN);
+        
+        cell.setCellStyle(style);
+    }
+
+    /**
+     * Merges duplicate errors for the same row
+     */
+    public List<ValidationError> mergeErrors(List<ValidationError> errors) {
+        if (errors == null || errors.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        Map<String, ValidationError> errorMap = new HashMap<>();
+
+        for (ValidationError error : errors) {
+            String key = error.getRowNumber() + "_" + error.getSheetName();
+            
+            if (errorMap.containsKey(key)) {
+                ValidationError existing = errorMap.get(key);
+                String mergedDetails = existing.getErrorDetails() + "; " + error.getErrorDetails();
+                existing.setErrorDetails(mergedDetails);
+            } else {
+                errorMap.put(key, error);
+            }
+        }
+
+        return new ArrayList<>(errorMap.values());
+    }
+}

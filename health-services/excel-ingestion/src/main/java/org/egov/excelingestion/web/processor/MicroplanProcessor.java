@@ -80,12 +80,12 @@ public class MicroplanProcessor implements IGenerateProcessor {
 
         String localizationModule = "hcm-boundary-" + hierarchyType.toLowerCase(); // localization module name
         Map<String, String> localizationMap = localizationService.getLocalizedMessages(
-                tenantId, localizationModule, locale, requestInfoConverter.convertToExcelIngestionRequestInfo(requestInfo));
+                tenantId, localizationModule, locale,requestInfo);
         
         // Also fetch localization for schema columns
         String schemaLocalizationModule = "hcm-admin-schemas";
         Map<String, String> schemaLocalizationMap = localizationService.getLocalizedMessages(
-                tenantId, schemaLocalizationModule, locale, requestInfoConverter.convertToExcelIngestionRequestInfo(requestInfo));
+                tenantId, schemaLocalizationModule, locale, requestInfo);
         
         // Merge both localization maps
         Map<String, String> mergedLocalizationMap = new HashMap<>();

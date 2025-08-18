@@ -40,4 +40,7 @@ public class FileInfo {
 
     @JsonProperty("additionalDetails")
     private Object additionalDetails;
+
+    @JsonProperty("url")
+    private String url;
 }

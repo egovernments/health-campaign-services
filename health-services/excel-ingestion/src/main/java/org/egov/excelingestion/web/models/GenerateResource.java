@@ -1,5 +1,6 @@
 package org.egov.excelingestion.web.models;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -60,9 +61,37 @@ public class GenerateResource {
     private String fileStoreId;
 
     // Getter for boundaries from additionalDetails
+    @JsonIgnore
     public List<Boundary> getBoundaries() {
         if (additionalDetails != null && additionalDetails.containsKey("boundaries")) {
-            return (List<Boundary>) additionalDetails.get("boundaries");
+            Object boundariesObj = additionalDetails.get("boundaries");
+            if (boundariesObj instanceof List) {
+                @SuppressWarnings("unchecked")
+                List<Object> boundariesList = (List<Object>) boundariesObj;
+                return boundariesList.stream()
+                        .map(this::mapToBoundary)
+                        .filter(boundary -> boundary != null)
+                        .collect(java.util.stream.Collectors.toList());
+            }
+        }
+        return null;
+    }
+
+    // Helper method to convert Map to Boundary object
+    private Boundary mapToBoundary(Object obj) {
+        if (obj instanceof Boundary) {
+            return (Boundary) obj;
+        } else if (obj instanceof Map) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> map = (Map<String, Object>) obj;
+            return Boundary.builder()
+                    .code((String) map.get("code"))
+                    .name((String) map.get("name"))
+                    .type((String) map.get("type"))
+                    .isRoot((Boolean) map.get("isRoot"))
+                    .parent((String) map.get("parent"))
+                    .includeAllChildren((Boolean) map.get("includeAllChildren"))
+                    .build();
         }
         return null;
     }

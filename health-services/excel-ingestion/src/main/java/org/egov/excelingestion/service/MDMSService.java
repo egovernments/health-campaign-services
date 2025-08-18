@@ -94,4 +94,43 @@ public class MDMSService {
         
         return new ArrayList<>();
     }
+
+    /**
+     * Generic MDMS search method with MdmsCriteria
+     * 
+     * @param requestInfo Request info object
+     * @param mdmsCriteria MDMS search criteria
+     * @return List of MDMS data maps
+     */
+    public List<Map<String, Object>> searchMDMSData(RequestInfo requestInfo, Map<String, Object> mdmsCriteria) {
+        String url = config.getMdmsSearchUrl();
+        
+        try {
+            // Build request payload
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("RequestInfo", requestInfo);
+            payload.put("MdmsCriteria", mdmsCriteria);
+            
+            log.info("Calling MDMS API with criteria: {}", mdmsCriteria);
+            
+            // Make API call
+            StringBuilder uri = new StringBuilder(url);
+            Map<String, Object> responseBody = serviceRequestClient.fetchResult(uri, payload, Map.class);
+            
+            if (responseBody != null && responseBody.get("mdms") != null) {
+                @SuppressWarnings("unchecked")
+                List<Map<String, Object>> mdmsList = (List<Map<String, Object>>) responseBody.get("mdms");
+                log.info("Successfully fetched {} MDMS records", mdmsList.size());
+                return mdmsList;
+            }
+            
+            log.warn("No MDMS data found");
+        } catch (Exception e) {
+            log.error("Error calling MDMS API: {}", e.getMessage(), e);
+            exceptionHandler.throwCustomException(ErrorConstants.MDMS_SERVICE_ERROR, 
+                    ErrorConstants.MDMS_SERVICE_ERROR_MESSAGE, e);
+        }
+        
+        return new ArrayList<>();
+    }
 }

@@ -14,8 +14,8 @@ import org.egov.excelingestion.config.ExcelIngestionConfig;
 import org.egov.excelingestion.exception.CustomExceptionHandler;
 import org.egov.excelingestion.service.FileStoreService;
 import org.egov.excelingestion.service.LocalizationService;
-import org.egov.excelingestion.web.models.*;
 import org.egov.excelingestion.util.RequestInfoConverter;
+import org.egov.excelingestion.web.models.*;
 import org.egov.excelingestion.service.ApiPayloadBuilder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -35,23 +35,23 @@ public class HierarchyExcelGenerateProcessor implements IGenerateProcessor {
     private final FileStoreService fileStoreService;
     private final ObjectMapper objectMapper;
     private final LocalizationService localizationService;
-    private final RequestInfoConverter requestInfoConverter;
     private final ApiPayloadBuilder apiPayloadBuilder;
+    private final RequestInfoConverter requestInfoConverter;
     
     @Autowired
     private CustomExceptionHandler exceptionHandler;
 
     @Autowired
     public HierarchyExcelGenerateProcessor(ServiceRequestClient serviceRequestClient, ExcelIngestionConfig config,
-            FileStoreService fileStoreService, ObjectMapper objectMapper, LocalizationService localizationService,
-            RequestInfoConverter requestInfoConverter, ApiPayloadBuilder apiPayloadBuilder) {
+            FileStoreService fileStoreService, ObjectMapper objectMapper, LocalizationService localizationService, 
+            ApiPayloadBuilder apiPayloadBuilder, RequestInfoConverter requestInfoConverter) {
         this.serviceRequestClient = serviceRequestClient;
         this.config = config;
         this.fileStoreService = fileStoreService;
         this.objectMapper = objectMapper;
         this.localizationService = localizationService;
-        this.requestInfoConverter = requestInfoConverter;
         this.apiPayloadBuilder = apiPayloadBuilder;
+        this.requestInfoConverter = requestInfoConverter;
     }
 
     @Override
@@ -70,7 +70,7 @@ public class HierarchyExcelGenerateProcessor implements IGenerateProcessor {
         // Fetch localized messages
         String localizationModule = "hcm-boundary-" + hierarchyType.toLowerCase().replace(" ", "_");
         Map<String, String> localizationMap = localizationService.getLocalizedMessages(
-                tenantId, localizationModule, locale, requestInfoConverter.convertToExcelIngestionRequestInfo(requestInfo));
+                tenantId, localizationModule, locale, requestInfo);
 
         BoundaryHierarchyResponse hierarchyData = postApi(new StringBuilder(config.getHierarchySearchUrl()),
                 apiPayloadBuilder.createHierarchyPayload(requestInfo, tenantId, hierarchyType),

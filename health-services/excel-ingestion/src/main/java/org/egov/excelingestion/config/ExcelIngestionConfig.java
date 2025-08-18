@@ -25,6 +25,9 @@ public class ExcelIngestionConfig {
     @Value("${egov.filestore.upload.endpoint}")
     private String filestoreUploadEndpoint;
 
+    @Value("${egov.filestore.url.endpoint}")
+    private String filestoreUrlEndpoint;
+
     @Value("${egov.mdms.host}")
     private String mdmsHost;
 
