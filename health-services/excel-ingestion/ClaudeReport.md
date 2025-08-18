@@ -21,219 +21,108 @@
 
 ## 3️⃣ Key Features
 
-### **1. Schema-Driven Columns**
+### **1. Schema-Driven Architecture**
+* Reads `stringProperties`, `numberProperties`, `enumProperties` from MDMS
+* **Dynamic headers** with localized names and color formatting
+* **Cascading boundary dropdowns** with parent-child relationships
+* **Multi-select support** with hidden concatenated columns
 
-* Reads `stringProperties`, `numberProperties`, `enumProperties` from MDMS.
-* Applies **color**, **order**, **required flags**, **hide/freeze settings**.
+### **2. Boundaries & Validation**
+* **Dynamic population** from boundaries array with `includeAllChildren` expansion
+* **Last-level filtering** for leaf-level boundaries only
+* **Hidden mapping sheets** for dropdown data and parent-child relationships
+* **Level consistency** using `HCM_CAMP_CONF_LEVEL_*` keys
 
-### **2. Header Structure**
-
-* **Row 1 (hidden):** Technical column names.
-* **Row 2 (visible):** Localized names with color formatting.
-
-### **3. Dropdowns & Validation**
-
-* **Enum Dropdown:** Static list of values.
-* **Cascading Boundary Dropdown:** Level → Boundary → Parent relationships.
-* **Multi-Select:** Multiple visible columns + hidden concatenated column for backend.
-
-### **4. Boundaries Feature**
-
-* **Dynamic Population**: Generates rows from boundaries array with `includeAllChildren` expansion.
-* **Last-Level Filtering**: Shows only leaf-level boundaries (e.g., C1→P1→T1, C1→P1→T2).
-* **Hidden Code Column**: Stores boundary codes for backend processing.
-
-### **5. Hidden Mapping Sheets**
-
-* Store **parent → child** boundaries using `_h_SheetName_h_` naming format.
-* Store **level → boundary lists** with localized names.
-* Maintain **localization mappings** and level consistency.
-
-### **6. Localization & Consistency**
-
-* **Level Consistency**: Uses `HCM_CAMP_CONF_LEVEL_*` keys across all sheets.
-* **Fallback Strategy**: Returns original localization key when translation missing.
-* **Mapping Sheets**: Hidden level mapping (`_h_LevelMapping_h_`) for dropdown consistency.
-
-### **7. Cell Locking & Freezing**
-
-* Cells are **unlocked by default**.
-* Freeze columns when `freezeColumnIfFilled = true`.
-
-### **8. Campaign Configuration**
-
-* **First sheet** with structured sections for campaign setup.
-* **Green-highlighted editable cells** for boundary names and campaign details.
-* **Protected layout** with only designated cells editable.
-
-### **9. Sheet Protection**
-
-* Password-protected after setup.
-* Only unlocked cells are editable.
+### **3. Excel Features**
+* **Cell locking & freezing** with schema-driven protection
+* **Campaign configuration** with green-highlighted editable cells
+* **Password protection** after setup
+* **Color-coded validation** and error handling
 
 ---
 
-## 4️⃣ Workflow
-
-1. **Fetch** campaign config & schemas from MDMS.
-2. **Create** campaign configuration sheet (first sheet).
-3. **Generate** facility & user sheets with schema-driven columns.
-4. **Add** boundary hierarchy sheet with visual relationships.
-5. **Apply** dropdowns (enum/cascading), multi-select formulas.
-6. **Lock/Freeze** cells as per rules, protect sheets.
-7. **Set** campaign config as active sheet and deliver.
-
----
-
-## 5️⃣ Current Service Architecture & Stats
+## 4️⃣ Current Service Architecture & Latest Updates
 
 ### **Service Overview**
-The `excel-ingestion` service is a sophisticated Spring Boot 3.2.2 microservice built with Java 17, designed to generate complex multi-sheet Excel templates for health campaign data management.
+Spring Boot 3.2.2 microservice with Java 17, featuring sophisticated Excel template generation with processor-based architecture.
 
-### **Current Statistics**
-* **Total Files**: 42 Java files + 6 documentation/configuration files
-* **Code Volume**: 4,198 lines of Java code
-* **Architecture**: Clean layered microservice with processor-based pattern
+### **Statistics**
+* **50 Java files** + 6 config/documentation files
+* **5,263 lines** of production Java code
+* **Clean layered architecture** with factory and strategy patterns
 
-### **Component Breakdown**
-* **6 Service Classes**: Excel generation, boundary management, localization, MDMS integration, file store, API payload building
-* **20 Model Classes**: Including new `Boundary`, `FileStoreResponse`, `FileInfo` models with Jakarta validation
-* **4 Utility Classes**: Specialized Excel sheet creators for different purposes  
-* **4 Processor Classes**: Factory, interface, and 2 implementations (Microplan and HierarchyExcel processors)
-* **1 REST Controller**: Clean API interface with validation
-* **3 Configuration Classes**: Application config, Excel ingestion config, error constants
-* **3 Exception Classes**: Custom, validation, and global exception handlers
-* **1 Main Application Class**: Spring Boot application entry point
+### **Latest Session Improvements (Current)**
 
-### **Key Architectural Patterns**
-* **Factory Pattern**: Dynamic processor selection based on Excel type
-* **Strategy Pattern**: Multiple Excel generation strategies via IGenerateProcessor
-* **Builder Pattern**: Lombok-enhanced model construction
-* **Caching Strategy**: Caffeine cache for external service data (1-hour expiry, 100 max entries)
+#### **1. Controller Consolidation & Renaming**
+* **Merged ProcessController into GenerateController**
+* **Renamed to IngestionController** for better semantic clarity
+* **Consolidated endpoints**: `/_generate` and `/_process` in single controller
+* **Maintained clean error handling** patterns across both endpoints
 
-### **Recent Major Enhancements (Latest Session)**
-1. **Boundaries Feature Implementation**
-   - Dynamic boundary hierarchy population from request payload
-   - Last-level filtering with `includeAllChildren` expansion logic
-   - Hidden boundary code column for backend integration
+#### **2. Error Handling Standardization**
+* **Added file-specific error constants**:
+  - `FILE_DOWNLOAD_ERROR` for file retrieval failures
+  - `FILE_URL_RETRIEVAL_ERROR` for file store URL issues
+  - `FILE_NOT_FOUND_ERROR` for missing files
+* **Migrated from IOException to CustomExceptionHandler** pattern
+* **Consistent error responses** across all file operations
 
-2. **Level Localization Standardization**
-   - Unified `HCM_CAMP_CONF_LEVEL_*` usage across campaign config and dropdowns
-   - Level mapping sheet (`_h_LevelMapping_h_`) for consistent key-value handling
-   - Maintained dropdown functionality with proper Excel formulas
+#### **3. Code Quality Improvements**
+* **Removed hardcoded error messages** - moved to ErrorConstants.java
+* **Applied clean controller pattern** - removed try-catch blocks, let exceptions bubble up
+* **Consistent CustomException usage** throughout service layer
+* **Simplified method signatures** with proper exception propagation
 
-3. **Hidden Sheet Naming Standardization**
-   - All hidden sheets use `_h_SheetName_h_` format consistently
-   - Updated formula references across both processors
-   - Improved maintainability and debugging
+### **Previous Major Enhancements**
+1. **Boundaries Feature**: Dynamic hierarchy population with last-level filtering
+2. **Level Localization**: Unified `HCM_CAMP_CONF_LEVEL_*` usage across sheets
+3. **FileStore Enhancement**: Type-safe model classes replacing raw Maps
+4. **Hidden Sheet Standardization**: `_h_SheetName_h_` naming convention
+5. **Comprehensive Error System**: Three-tier exception handling with custom codes
 
-4. **FileStore Service Enhancement**
-   - Proper model classes (`FileStoreResponse`, `FileInfo`) replacing raw Maps
-   - Better JSON parsing and error handling
-   - Type-safe response processing
-
-5. **Model Cleanup & API Enhancement**
-   - Removed redundant `locale` field from `GenerateResource` (using RequestInfo)
-   - Enhanced validation with `Boundary` model class
-   - Cleaner API contracts with consistent localization fallbacks
-
-### **Previous Major Improvements (Claude-Driven)**
-1. **Comprehensive Error Handling**: Three-tier exception handling system
-   - CustomExceptionHandler for service-level errors with context
-   - ValidationExceptionHandler for input validation with custom error codes  
-   - GlobalExceptionHandler for standardized health services error responses
-
-2. **Advanced Validation System**: Jakarta validation with custom error codes
-   - GenerateResource model with @NotBlank, @Size annotations
-   - Custom error codes like "INGEST_MISSING_TENANT_ID"
-   - Cascade validation with @Valid annotations
-
-3. **MDMS Integration Refactoring**: Generic utility function replacing duplicate code
-   - Single mdmsSearch function with filters, limit, offset parameters
-   - Eliminated code duplication across multiple service calls
-
-4. **Service Quality Enhancements**:
-   - Excel sheet protection with password locking
-   - Color-coded headers and cell formatting
-   - Cascading dropdown validations with boundary relationships
-   - Multi-language localization support
-
-### **Integration Capabilities** 
-* **External Services**: Boundary-service, MDMS-service, Localization-service, File-store
-* **Caching Layer**: Distributed caching for boundary hierarchy, localization messages
-* **File Management**: Automated Excel upload to external file store with unique IDs
-
-### **Code Quality Indicators**
-* **Clean Architecture**: Proper separation of concerns with service/utility/model layers
-* **Error Safety**: Comprehensive error constants and exception handling patterns
-* **Type Safety**: Moving from Map<String, Object> to proper model classes (5-phase migration plan)
-* **Logging**: SLF4J logging throughout with proper error tracking
-
-This reflects a **mature, well-architected microservice** with sophisticated Excel generation capabilities and enterprise-grade error handling - all primarily **authored by Claude CLI** with targeted refactoring guidance.
+### **Integration & Quality**
+* **External Services**: Boundary, MDMS, Localization, File-store integration
+* **Caching Layer**: Caffeine cache (1-hour expiry, 100 max entries)
+* **Type Safety**: Ongoing migration from Map<String, Object> to proper models
+* **Error Safety**: Never silently fails, comprehensive error constants
 
 ---
 
-## 6️⃣ Usage Cautions
+## 5️⃣ Usage Cautions
 
 ⚠ **Best Practices When Using Claude Max for Refactoring**
 
-* **Review all suggestions** carefully — some changes may be inaccurate.
-* **Test all working cases** before committing.
-* **Commit small, functional changes** instead of large refactors.
-* After each refactor, **validate all use cases** again and then commit.
-* **Multiple refactoring iterations may be needed** — Claude gets the logic mostly right and is always accurate, but refactoring-wise you may need to iterate a few more times to achieve the desired structure.
-* **Monitor each change closely** — check what files Claude is editing and verify the changes before proceeding.
-* **Refactor incrementally** — break large refactoring tasks into smaller, manageable chunks and validate each change.
+* **Review all suggestions** carefully — some changes may be inaccurate
+* **Test all working cases** before committing
+* **Commit small, functional changes** instead of large refactors
+* **Validate all use cases** after each refactor and then commit
+* **Refactor incrementally** — break large tasks into smaller, manageable chunks
+* **Monitor each change closely** — verify files Claude edits before proceeding
 
 ---
 
-## 7️⃣ Recommended Practice for Ongoing Improvements
+## 6️⃣ Claude's Advanced Capabilities Demonstrated
 
-Maintain a **dedicated `.md` file** to log changes and architectural decisions.
-Updating it regularly ensures Claude Max (and future developers) always have **accurate project context**, enabling **better and more relevant refactoring suggestions**.
+### **Complex Code Generation**
+* **5,260+ lines** across 50 Java files of production-quality microservice code
+* **Sophisticated Excel generation** with multi-sheet templates and validation
+* **Clean architecture** following Spring Boot best practices
 
----
+### **Problem-Solving & Integration**
+* **MDMS Integration** with generic utility functions
+* **Comprehensive validation** with Jakarta annotations and custom error codes
+* **Service integration** with 4 external microservices
+* **Caching strategy** with Caffeine-based optimization
 
-## 8️⃣ Claude's Advanced Capabilities Demonstrated
-
-### **Complex Code Generation & Refactoring**
-Claude successfully:
-* **Generated 4,100+ lines** of production-quality Java code for a complete microservice
-* **Implemented sophisticated Excel generation** with multi-sheet templates, cascading dropdowns, and data validation
-* **Created comprehensive error handling** with three-tier exception management system
-* **Designed clean architecture** following Spring Boot best practices with proper layering
-
-### **Problem-Solving & System Integration**
-* **MDMS Integration**: Created generic utility functions to eliminate code duplication
-* **Validation Framework**: Implemented Jakarta validation with custom error codes and cascade validation
-* **Caching Strategy**: Designed and implemented Caffeine-based caching for external service data
-* **Service Integration**: Built seamless integration with 4 external microservices
-
-### **Code Quality & Patterns**
-* **Design Patterns**: Implemented Factory, Strategy, and Builder patterns appropriately
-* **Error Safety**: Created robust error handling that never silently fails
-* **Type Safety**: Planned and started 5-phase migration from Map<String, Object> to proper models
-* **Documentation**: Maintained comprehensive documentation throughout development
-
-### **Iterative Improvement Process**
-Claude demonstrated ability to:
-1. **Understand complex requirements** and translate them into working code
-2. **Respond to feedback** and refactor code based on specific user guidance  
-3. **Maintain context** across multiple sessions and large codebases
-4. **Follow coding standards** and existing project patterns consistently
-5. **Debug issues** and implement fixes based on error analysis
-
-### **Technical Depth**
-Successfully handled:
-* **Spring Boot 3.2.2** with Java 17 and Jakarta validation migration
-* **Apache POI** for advanced Excel manipulation with cell protection and formatting
-* **Caffeine caching** with proper configuration and expiration policies
-* **REST API design** with proper validation and error response formatting
-* **Maven dependency management** and configuration
+### **Iterative Improvement**
+* **Context maintenance** across multiple sessions
+* **Pattern recognition** and consistent coding standards
+* **Error analysis** and debugging based on compilation/runtime errors
+* **Refactoring guidance** for better code organization
 
 ---
 
-## 9️⃣ Side Issues Fixed via Claude CLI
+## 7️⃣ Side Issues Fixed via Claude CLI
 
 ### **1. YAML Duplicate Code Detection**
 * **Issue**: Duplicate configurations in service YAML files (visible in logs but easy to miss).
