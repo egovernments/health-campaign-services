@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.util.Map;
+import java.util.HashMap;
 import java.util.List;
 
 import org.egov.common.contract.models.AuditDetails;
@@ -41,10 +42,10 @@ public class GenerateResource {
     @Size(min = 2, max = 100, message = "INGEST_INVALID_HIERARCHY_TYPE_LENGTH")
     private String hierarchyType;
 
-    @JsonProperty("refernceId")
+    @JsonProperty("referenceId")
     @NotBlank(message = "INGEST_MISSING_REFERENCE_ID")
     @Size(min = 1, max = 255, message = "INGEST_INVALID_REFERENCE_ID_LENGTH")
-    private String refernceId;
+    private String referenceId;
 
     @JsonProperty("status")
     private String status;
@@ -58,7 +59,23 @@ public class GenerateResource {
     @JsonProperty("fileStoreId")
     private String fileStoreId;
 
-    @JsonProperty("boundaries")
-    @Valid
-    private List<Boundary> boundaries;
+    // Getter for boundaries from additionalDetails
+    public List<Boundary> getBoundaries() {
+        if (additionalDetails != null && additionalDetails.containsKey("boundaries")) {
+            return (List<Boundary>) additionalDetails.get("boundaries");
+        }
+        return null;
+    }
+
+    // Setter for boundaries in additionalDetails
+    public void setBoundaries(List<Boundary> boundaries) {
+        if (additionalDetails == null) {
+            additionalDetails = new HashMap<>();
+        }
+        if (boundaries != null) {
+            additionalDetails.put("boundaries", boundaries);
+        } else {
+            additionalDetails.remove("boundaries");
+        }
+    }
 }

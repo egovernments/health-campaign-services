@@ -111,16 +111,18 @@ Excel Ingestion service APIs - contains Excel template generation endpoint
     "tenantId": "pg.citya",
     "type": "boundary",
     "hierarchyType": "ADMIN",
-    "refernceId": "REF-2023-001",
-    "boundaries": [
-      {
-        "code": "CITY001",
-        "name": "City A",
-        "type": "City",
-        "isRoot": true,
-        "includeAllChildren": true
-      }
-    ]
+    "referenceId": "REF-2023-001",
+    "additionalDetails": {
+      "boundaries": [
+        {
+          "code": "CITY001",
+          "name": "City A",
+          "type": "City",
+          "isRoot": true,
+          "includeAllChildren": true
+        }
+      ]
+    }
   }
 }
 ```
@@ -139,10 +141,12 @@ Excel Ingestion service APIs - contains Excel template generation endpoint
     "tenantId": "pg.citya",
     "type": "boundary",
     "hierarchyType": "ADMIN",
-    "refernceId": "REF-2023-001",
+    "referenceId": "REF-2023-001",
     "status": "COMPLETED",
     "fileStoreId": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
-    "boundaries": [...]
+    "additionalDetails": {
+      "boundaries": [...]
+    }
   }
 }
 ```
@@ -233,16 +237,18 @@ curl -X POST \
       "tenantId": "pg.citya",
       "type": "boundary",
       "hierarchyType": "ADMIN",
-      "refernceId": "REF-2023-001",
-      "boundaries": [
-        {
-          "code": "CITY001",
-          "name": "City A",
-          "type": "City",
-          "isRoot": true,
-          "includeAllChildren": true
-        }
-      ]
+      "referenceId": "REF-2023-001",
+      "additionalDetails": {
+        "boundaries": [
+          {
+            "code": "CITY001",
+            "name": "City A",
+            "type": "City",
+            "isRoot": true,
+            "includeAllChildren": true
+          }
+        ]
+      }
     }
   }'
 ```

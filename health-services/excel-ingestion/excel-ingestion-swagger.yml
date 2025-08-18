@@ -44,13 +44,14 @@ paths:
                 tenantId: "pg.citya"
                 type: "boundary"
                 hierarchyType: "ADMIN"
-                refernceId: "REF-2023-001"
-                boundaries:
-                  - code: "CITY001"
-                    name: "City A"
-                    type: "City"
-                    isRoot: true
-                    includeAllChildren: true
+                referenceId: "REF-2023-001"
+                additionalDetails:
+                  boundaries:
+                    - code: "CITY001"
+                      name: "City A"
+                      type: "City"
+                      isRoot: true
+                      includeAllChildren: true
       responses:
         '200':
           description: Excel template generated successfully
@@ -69,15 +70,16 @@ paths:
                   tenantId: "pg.citya"
                   type: "boundary"
                   hierarchyType: "ADMIN"
-                  refernceId: "REF-2023-001"
+                  referenceId: "REF-2023-001"
                   status: "COMPLETED"
                   fileStoreId: "f47ac10b-58cc-4372-a567-0e02b2c3d479"
-                  boundaries:
-                    - code: "CITY001"
-                      name: "City A"
-                      type: "City"
-                      isRoot: true
-                      includeAllChildren: true
+                  additionalDetails:
+                    boundaries:
+                      - code: "CITY001"
+                        name: "City A"
+                        type: "City"
+                        isRoot: true
+                        includeAllChildren: true
         '400':
           description: Bad Request - Invalid input parameters
           content:
@@ -118,7 +120,7 @@ components:
         - tenantId
         - type
         - hierarchyType
-        - refernceId
+        - referenceId
       properties:
         id:
           type: string
@@ -139,7 +141,7 @@ components:
           description: Type of hierarchy (e.g., ADMIN, WORKBENCH)
           minLength: 2
           maxLength: 100
-        refernceId:
+        referenceId:
           type: string
           description: Reference identifier for tracking
           minLength: 1
@@ -152,14 +154,15 @@ components:
           type: string
           description: File store reference ID for the generated Excel file
           readOnly: true
-        boundaries:
-          type: array
-          items:
-            $ref: '#/components/schemas/Boundary'
-          description: List of boundaries to include in the Excel template
         additionalDetails:
           type: object
-          description: Additional metadata
+          description: Additional metadata including boundaries
+          properties:
+            boundaries:
+              type: array
+              items:
+                $ref: '#/components/schemas/Boundary'
+              description: List of boundaries to include in the Excel template
         auditDetails:
           $ref: '#/components/schemas/AuditDetails'
           readOnly: true
