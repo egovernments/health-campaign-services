@@ -1,0 +1,23 @@
+# Build stage
+FROM golang:1.24-alpine AS builder
+WORKDIR /app
+
+# Cache deps
+COPY go.mod go.sum ./
+RUN go mod download
+
+# Copy source
+COPY . .
+
+# Build only the migration runner
+RUN CGO_ENABLED=0 GOOS=linux go build -o migrate-runner ./cmd/migrate
+
+# Final stage
+FROM alpine:3.19
+WORKDIR /app
+
+# Copy binary + migrations folder
+COPY --from=builder /app/migrate-runner .
+COPY migrations ./migrations
+
+ENTRYPOINT ["./migrate-runner"]
