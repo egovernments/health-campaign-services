@@ -30,9 +30,23 @@ public class ErrorConstants {
     public static final String FILE_STORE_SERVICE_ERROR = "FILE_STORE_SERVICE_ERROR";
     public static final String FILE_STORE_SERVICE_ERROR_MESSAGE = "Error while uploading file to file store";
     
+    public static final String FILE_DOWNLOAD_ERROR = "FILE_DOWNLOAD_ERROR";
+    public static final String FILE_DOWNLOAD_ERROR_MESSAGE = "Error while downloading file from file store";
+    
+    public static final String FILE_URL_RETRIEVAL_ERROR = "FILE_URL_RETRIEVAL_ERROR";
+    public static final String FILE_URL_RETRIEVAL_ERROR_MESSAGE = "Could not retrieve file URL from file store";
+    
+    public static final String FILE_NOT_FOUND_ERROR = "FILE_NOT_FOUND_ERROR";
+    public static final String FILE_NOT_FOUND_ERROR_MESSAGE = "File not found in file store";
+    
     // Excel Generation Errors
     public static final String EXCEL_GENERATION_ERROR = "EXCEL_GENERATION_ERROR";
     public static final String EXCEL_GENERATION_ERROR_MESSAGE = "Error while generating Excel file";
+    
+    // Excel Processing Errors
+    public static final String EXCEL_PROCESSING_ERROR = "EXCEL_PROCESSING_ERROR";
+    public static final String EXCEL_PROCESSING_ERROR_MESSAGE = "Error processing Excel file";
+    public static final String EXCEL_PROCESSING_ERROR_DESCRIPTION = "An error occurred while processing the Excel file: {0}";
     
     public static final String INVALID_SCHEMA_FORMAT = "INVALID_SCHEMA_FORMAT";
     public static final String INVALID_SCHEMA_FORMAT_MESSAGE = "Invalid schema format received from MDMS";

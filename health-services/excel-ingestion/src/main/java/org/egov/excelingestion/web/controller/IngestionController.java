@@ -1,0 +1,95 @@
+package org.egov.excelingestion.web.controller;
+
+import lombok.extern.slf4j.Slf4j;
+import org.egov.excelingestion.config.ErrorConstants;
+import org.egov.excelingestion.service.ExcelGenerationService;
+import org.egov.excelingestion.service.ExcelProcessingService;
+import org.egov.excelingestion.web.models.GenerateResource;
+import org.egov.excelingestion.web.models.GenerateResourceRequest;
+import org.egov.excelingestion.web.models.GenerateResourceResponse;
+import org.egov.excelingestion.web.models.ProcessResource;
+import org.egov.excelingestion.web.models.ProcessResourceRequest;
+import org.egov.excelingestion.web.models.RequestInfo;
+import org.egov.common.contract.response.ResponseInfo;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.validation.annotation.Validated;
+
+import java.io.IOException;
+
+import jakarta.validation.Valid;
+
+@RestController
+@RequestMapping("/v1/data")
+@Validated
+@Slf4j
+public class IngestionController {
+
+    private final ExcelGenerationService excelGenerationService;
+    
+    @Autowired
+    private ExcelProcessingService processingService;
+
+    public IngestionController(ExcelGenerationService excelGenerationService) {
+        this.excelGenerationService = excelGenerationService;
+    }
+
+        @PostMapping("/_generate")
+    public ResponseEntity<GenerateResourceResponse> generate( @RequestBody @Valid GenerateResourceRequest request) throws IOException {
+        GenerateResource processedResource = excelGenerationService.generateAndUploadExcel(request);
+
+        ResponseInfo responseInfo = ResponseInfo.builder()
+                .apiId("egov-bff")
+                .ver("0.0.1")
+                .ts(System.currentTimeMillis())
+                .status("successful")
+                .build();
+
+        GenerateResourceResponse response = GenerateResourceResponse.builder()
+                .responseInfo(responseInfo)
+                .generateResource(processedResource)
+                .build();
+
+        return new ResponseEntity<>(response, HttpStatus.OK);
+    }
+
+    @PostMapping("/_process")
+    public ResponseEntity<GenerateResourceResponse> processExcel(
+            @Valid @RequestBody ProcessResourceRequest request) {
+        
+        log.info("Received process request for type: {} and tenantId: {}", 
+                request.getResourceDetails().getType(), 
+                request.getResourceDetails().getTenantId());
+        
+        RequestInfo requestInfo = request.getRequestInfo();
+        ProcessResource processedResource = processingService.processExcelFile(request);
+        
+        GenerateResourceResponse response = GenerateResourceResponse.builder()
+                .responseInfo(org.egov.common.contract.response.ResponseInfo.builder()
+                        .apiId(requestInfo.getApiId())
+                        .ver(requestInfo.getVer())
+                        .ts(requestInfo.getTs())
+                        .status("successful")
+                        .build())
+                .generateResource(convertToGenerateResource(processedResource))
+                .build();
+        
+        return new ResponseEntity<>(response, HttpStatus.OK);
+    }
+    
+    private org.egov.excelingestion.web.models.GenerateResource convertToGenerateResource(ProcessResource processResource) {
+        return org.egov.excelingestion.web.models.GenerateResource.builder()
+                .id(processResource.getId())
+                .tenantId(processResource.getTenantId())
+                .type(processResource.getType())
+                .hierarchyType(processResource.getHierarchyType())
+                .referenceId(processResource.getReferenceId())
+                .status(processResource.getStatus())
+                .fileStoreId(processResource.getProcessedFileStoreId())
+                .additionalDetails(processResource.getAdditionalDetails())
+                .auditDetails(processResource.getAuditDetails())
+                .build();
+    }
+}

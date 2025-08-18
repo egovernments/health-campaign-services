@@ -4,8 +4,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.egov.common.contract.models.AuditDetails;
+import org.egov.excelingestion.config.ErrorConstants;
 import org.egov.excelingestion.config.ExcelIngestionConfig;
 import org.egov.excelingestion.config.ValidationConstants;
+import org.egov.excelingestion.exception.CustomExceptionHandler;
 import org.egov.excelingestion.web.models.ProcessResource;
 import org.egov.excelingestion.web.models.ProcessResourceRequest;
 import org.egov.excelingestion.web.models.ValidationError;
@@ -42,52 +44,62 @@ public class ExcelProcessingService {
     private RestTemplate restTemplate;
     
     @Autowired
+    private CustomExceptionHandler exceptionHandler;
+    
+    @Autowired
     private ExcelIngestionConfig config;
 
     /**
      * Processes the uploaded Excel file, validates data, and adds error columns
      */
-    public ProcessResource processExcelFile(ProcessResourceRequest request) throws IOException {
+    public ProcessResource processExcelFile(ProcessResourceRequest request) {
         log.info("Starting Excel file processing for type: {}", request.getResourceDetails().getType());
 
         ProcessResource resource = request.getResourceDetails();
         
-        // Download and validate the Excel file
-        try (Workbook workbook = downloadExcelFromFileStore(resource.getFileStoreId(), resource.getTenantId())) {
-            
-            // Validate data and collect errors
-            List<ValidationError> validationErrors = validateExcelData(workbook, resource, request.getRequestInfo());
-            
-            // Process each sheet: add validation columns and errors
-            Map<String, ValidationColumnInfo> columnInfoMap = new HashMap<>();
-            for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
-                Sheet sheet = workbook.getSheetAt(i);
-                String sheetName = sheet.getSheetName();
+        try {
+            // Download and validate the Excel file
+            try (Workbook workbook = downloadExcelFromFileStore(resource.getFileStoreId(), resource.getTenantId())) {
                 
-                // Add or find validation columns
-                ValidationColumnInfo columnInfo = validationService.addValidationColumns(sheet);
-                columnInfoMap.put(sheetName, columnInfo);
+                // Validate data and collect errors
+                List<ValidationError> validationErrors = validateExcelData(workbook, resource, request.getRequestInfo());
                 
-                // Get errors for this sheet and process them
-                List<ValidationError> sheetErrors = validationErrors.stream()
-                        .filter(error -> sheetName.equals(error.getSheetName()))
-                        .toList();
+                // Process each sheet: add validation columns and errors
+                Map<String, ValidationColumnInfo> columnInfoMap = new HashMap<>();
+                for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
+                    Sheet sheet = workbook.getSheetAt(i);
+                    String sheetName = sheet.getSheetName();
+                    
+                    // Add or find validation columns
+                    ValidationColumnInfo columnInfo = validationService.addValidationColumns(sheet);
+                    columnInfoMap.put(sheetName, columnInfo);
+                    
+                    // Get errors for this sheet and process them
+                    List<ValidationError> sheetErrors = validationErrors.stream()
+                            .filter(error -> sheetName.equals(error.getSheetName()))
+                            .toList();
+                    
+                    validationService.processValidationErrors(sheet, sheetErrors, columnInfo);
+                }
                 
-                validationService.processValidationErrors(sheet, sheetErrors, columnInfo);
+                // Upload the processed Excel file
+                String processedFileStoreId = uploadProcessedExcel(workbook, resource);
+                
+                // Update resource with results
+                return updateResourceWithResults(resource, validationErrors, processedFileStoreId);
             }
-            
-            // Upload the processed Excel file
-            String processedFileStoreId = uploadProcessedExcel(workbook, resource);
-            
-            // Update resource with results
-            return updateResourceWithResults(resource, validationErrors, processedFileStoreId);
+        } catch (IOException e) {
+            log.error("Error processing Excel file: {}", e.getMessage(), e);
+            exceptionHandler.throwCustomException(ErrorConstants.EXCEL_PROCESSING_ERROR, 
+                    ErrorConstants.EXCEL_PROCESSING_ERROR_MESSAGE, e);
         }
+        return null; // This should never be reached due to exception above
     }
 
     /**
      * Downloads Excel file from file store
      */
-    private Workbook downloadExcelFromFileStore(String fileStoreId, String tenantId) throws IOException {
+    private Workbook downloadExcelFromFileStore(String fileStoreId, String tenantId) {
         String fileStoreUrl = config.getFilestoreHost() + config.getFilestoreUrlEndpoint();
         
         try {
@@ -108,12 +120,15 @@ public class ExcelProcessingService {
                 }
             }
             
-            throw new IOException("Could not retrieve file URL from file store");
+            exceptionHandler.throwCustomException(ErrorConstants.FILE_URL_RETRIEVAL_ERROR, 
+                    ErrorConstants.FILE_URL_RETRIEVAL_ERROR_MESSAGE);
             
         } catch (Exception e) {
             log.error("Error downloading file from file store: {}", e.getMessage());
-            throw new IOException("Failed to download Excel file: " + e.getMessage(), e);
+            exceptionHandler.throwCustomException(ErrorConstants.FILE_DOWNLOAD_ERROR, 
+                    ErrorConstants.FILE_DOWNLOAD_ERROR_MESSAGE, e);
         }
+        return null; // This should never be reached due to exceptions above
     }
 
     /**
