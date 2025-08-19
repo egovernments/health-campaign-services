@@ -74,3 +74,24 @@
    - Consider `includeChildren` flag - if true, include child boundaries in dropdown options
    - Apply this logic to both facility and user sheets
    - The enrichment of child boundaries (when includeAllChildren = true) is already handled in BoundaryHierarchySheetCreator. Extract that logic into a BoundaryUtil class and reuse it across BoundaryHierarchySheetCreator, User sheet generation, and Facility sheet generation for microplan.
+
+9. **✅ Simple Boundary Dropdown with Auto-Parent Logic** - COMPLETED
+   - **Problem**: When multiple boundary codes have the same localized name (e.g., "GEDETARBO 1" appears at Level 5 and Level 6), users need to see both options and get correct parent auto-filled
+   
+   - **Simple Solution**:
+     - **Level Column**: Shows available levels from boundaries configuration
+     - **Boundary Column**: Shows ALL localized boundary names for the selected level (including duplicates)
+     - **Parent Column**: Auto-fills the correct parent based on which specific boundary was selected
+   
+   - **Excel Logic**:
+     - User selects Level → Boundary dropdown shows all boundaries at that level
+     - User selects Boundary → Parent column automatically populates with the correct parent for that boundary
+     - If "GEDETARBO 1" appears twice, both options are shown in dropdown
+     - When user selects first "GEDETARBO 1", its specific parent auto-fills
+     - When user selects second "GEDETARBO 1", its specific parent auto-fills
+   
+   - **Key Benefits**:
+     - Simple and intuitive - user sees all options
+     - No complex clash detection needed
+     - Parent always auto-fills correctly based on selection
+     - Works naturally with Excel VLOOKUP mechanism
