@@ -63,7 +63,7 @@ public class SchemaValidationService {
                 int excelRowNumber = rowIndex + 3; // +1 for 0-based to 1-based, +2 for two header rows
                 
                 List<ValidationError> rowErrors = validateRowAgainstSchema(
-                    rowData, excelRowNumber, sheetName, validationRules);
+                    rowData, excelRowNumber, sheetName, validationRules, localizationMap);
                 errors.addAll(rowErrors);
             }
             
@@ -236,7 +236,7 @@ public class SchemaValidationService {
      * Validates a single row against schema rules
      */
     private List<ValidationError> validateRowAgainstSchema(Map<String, Object> rowData, 
-            int rowNumber, String sheetName, Map<String, ValidationRule> rules) {
+            int rowNumber, String sheetName, Map<String, ValidationRule> rules, Map<String, String> localizationMap) {
         
         List<ValidationError> errors = new ArrayList<>();
         
@@ -248,7 +248,8 @@ public class SchemaValidationService {
             if (rule.isRequired() && (value == null || value.toString().trim().isEmpty())) {
                 String errorMessage = rule.getErrorMessage() != null 
                     ? rule.getErrorMessage() 
-                    : String.format("Required field '%s' is missing", fieldName);
+                    : getLocalizedMessage(localizationMap, "HCM_VALIDATION_REQUIRED_FIELD", 
+                            String.format("Required field '%s' is missing", fieldName), fieldName);
                     
                 errors.add(ValidationError.builder()
                         .rowNumber(rowNumber)
@@ -268,13 +269,13 @@ public class SchemaValidationService {
             // Type-specific validation
             switch (rule.getType()) {
                 case "string":
-                    validateStringField(value, rule, rowNumber, sheetName, errors);
+                    validateStringField(value, rule, rowNumber, sheetName, errors, localizationMap);
                     break;
                 case "number":
-                    validateNumberField(value, rule, rowNumber, sheetName, errors);
+                    validateNumberField(value, rule, rowNumber, sheetName, errors, localizationMap);
                     break;
                 case "enum":
-                    validateEnumField(value, rule, rowNumber, sheetName, errors);
+                    validateEnumField(value, rule, rowNumber, sheetName, errors, localizationMap);
                     break;
             }
         }
@@ -293,54 +294,60 @@ public class SchemaValidationService {
     }
 
     private void validateStringField(Object value, ValidationRule rule, int rowNumber, 
-            String sheetName, List<ValidationError> errors) {
+            String sheetName, List<ValidationError> errors, Map<String, String> localizationMap) {
         
         String strValue = value.toString();
         
         // Length validation
         if (rule.getMinLength() != null && strValue.length() < rule.getMinLength()) {
-            String errorMessage = String.format("Field '%s' must be at least %d characters", 
-                    rule.getFieldName(), rule.getMinLength());
+            String errorMessage = getLocalizedMessage(localizationMap, "HCM_VALIDATION_MIN_LENGTH", 
+                    String.format("Field '%s' must be at least %d characters", rule.getFieldName(), rule.getMinLength()),
+                    rule.getFieldName(), rule.getMinLength().toString());
             errors.add(createValidationError(rowNumber, sheetName, rule.getFieldName(), errorMessage));
         }
         
         if (rule.getMaxLength() != null && strValue.length() > rule.getMaxLength()) {
-            String errorMessage = String.format("Field '%s' must not exceed %d characters", 
-                    rule.getFieldName(), rule.getMaxLength());
+            String errorMessage = getLocalizedMessage(localizationMap, "HCM_VALIDATION_MAX_LENGTH", 
+                    String.format("Field '%s' must not exceed %d characters", rule.getFieldName(), rule.getMaxLength()),
+                    rule.getFieldName(), rule.getMaxLength().toString());
             errors.add(createValidationError(rowNumber, sheetName, rule.getFieldName(), errorMessage));
         }
     }
 
     private void validateNumberField(Object value, ValidationRule rule, int rowNumber, 
-            String sheetName, List<ValidationError> errors) {
+            String sheetName, List<ValidationError> errors, Map<String, String> localizationMap) {
         
         try {
             Double numValue = Double.parseDouble(value.toString());
             
             if (rule.getMinimum() != null && numValue < rule.getMinimum().doubleValue()) {
-                String errorMessage = String.format("Field '%s' must be at least %s", 
-                        rule.getFieldName(), rule.getMinimum());
+                String errorMessage = getLocalizedMessage(localizationMap, "HCM_VALIDATION_MIN_NUMBER", 
+                        String.format("Field '%s' must be at least %s", rule.getFieldName(), rule.getMinimum()),
+                        rule.getFieldName(), rule.getMinimum().toString());
                 errors.add(createValidationError(rowNumber, sheetName, rule.getFieldName(), errorMessage));
             }
             
             if (rule.getMaximum() != null && numValue > rule.getMaximum().doubleValue()) {
-                String errorMessage = String.format("Field '%s' must not exceed %s", 
-                        rule.getFieldName(), rule.getMaximum());
+                String errorMessage = getLocalizedMessage(localizationMap, "HCM_VALIDATION_MAX_NUMBER", 
+                        String.format("Field '%s' must not exceed %s", rule.getFieldName(), rule.getMaximum()),
+                        rule.getFieldName(), rule.getMaximum().toString());
                 errors.add(createValidationError(rowNumber, sheetName, rule.getFieldName(), errorMessage));
             }
             
         } catch (NumberFormatException e) {
-            String errorMessage = String.format("Field '%s' must be a valid number", rule.getFieldName());
+            String errorMessage = getLocalizedMessage(localizationMap, "HCM_VALIDATION_INVALID_NUMBER", 
+                    String.format("Field '%s' must be a valid number", rule.getFieldName()), rule.getFieldName());
             errors.add(createValidationError(rowNumber, sheetName, rule.getFieldName(), errorMessage));
         }
     }
 
     private void validateEnumField(Object value, ValidationRule rule, int rowNumber, 
-            String sheetName, List<ValidationError> errors) {
+            String sheetName, List<ValidationError> errors, Map<String, String> localizationMap) {
         
         String strValue = value.toString();
         if (rule.getAllowedValues() != null && !rule.getAllowedValues().contains(strValue)) {
-            String errorMessage = String.format("Field '%s' must be one of: %s", 
+            String errorMessage = getLocalizedMessage(localizationMap, "HCM_VALIDATION_INVALID_ENUM", 
+                    String.format("Field '%s' must be one of: %s", rule.getFieldName(), String.join(", ", rule.getAllowedValues())),
                     rule.getFieldName(), String.join(", ", rule.getAllowedValues()));
             errors.add(createValidationError(rowNumber, sheetName, rule.getFieldName(), errorMessage));
         }
@@ -458,5 +465,24 @@ public class SchemaValidationService {
         }
         
         return localizedName;
+    }
+    
+    /**
+     * Gets localized message with parameter substitution support
+     */
+    private String getLocalizedMessage(Map<String, String> localizationMap, String messageKey, 
+            String defaultMessage, String... parameters) {
+        if (localizationMap == null || !localizationMap.containsKey(messageKey)) {
+            return defaultMessage;
+        }
+        
+        String localizedMessage = localizationMap.get(messageKey);
+        
+        // Replace parameters in message (assuming {0}, {1} format)
+        for (int i = 0; i < parameters.length; i++) {
+            localizedMessage = localizedMessage.replace("{" + i + "}", parameters[i]);
+        }
+        
+        return localizedMessage;
     }
 }

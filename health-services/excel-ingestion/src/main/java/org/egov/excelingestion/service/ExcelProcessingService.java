@@ -8,13 +8,12 @@ import org.egov.excelingestion.config.ErrorConstants;
 import org.egov.excelingestion.config.ExcelIngestionConfig;
 import org.egov.excelingestion.config.ValidationConstants;
 import org.egov.excelingestion.exception.CustomExceptionHandler;
+import org.egov.excelingestion.util.RequestInfoConverter;
 import org.egov.excelingestion.web.models.ProcessResource;
 import org.egov.excelingestion.web.models.ProcessResourceRequest;
 import org.egov.excelingestion.web.models.ValidationError;
 import org.egov.excelingestion.web.models.ValidationColumnInfo;
 import org.egov.excelingestion.web.models.filestore.FileStoreResponse;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
@@ -33,6 +32,8 @@ public class ExcelProcessingService {
     private final ValidationService validationService;
     private final SchemaValidationService schemaValidationService;
     private final FileStoreService fileStoreService;
+    private final LocalizationService localizationService;
+    private final RequestInfoConverter requestInfoConverter;
     private final RestTemplate restTemplate;
     private final CustomExceptionHandler exceptionHandler;
     private final ExcelIngestionConfig config;
@@ -40,12 +41,16 @@ public class ExcelProcessingService {
     public ExcelProcessingService(ValidationService validationService,
                                 SchemaValidationService schemaValidationService,
                                 FileStoreService fileStoreService,
+                                LocalizationService localizationService,
+                                RequestInfoConverter requestInfoConverter,
                                 RestTemplate restTemplate,
                                 CustomExceptionHandler exceptionHandler,
                                 ExcelIngestionConfig config) {
         this.validationService = validationService;
         this.schemaValidationService = schemaValidationService;
         this.fileStoreService = fileStoreService;
+        this.localizationService = localizationService;
+        this.requestInfoConverter = requestInfoConverter;
         this.restTemplate = restTemplate;
         this.exceptionHandler = exceptionHandler;
         this.config = config;
@@ -60,11 +65,30 @@ public class ExcelProcessingService {
         ProcessResource resource = request.getResourceDetails();
         
         try {
+            // Extract locale and create localization maps
+            String locale = requestInfoConverter.extractLocale(request.getRequestInfo());
+            String tenantId = resource.getTenantId();
+            
+            // Get localization for validation messages
+            String validationModule = "hcm-admin-validation"; 
+            Map<String, String> validationLocalizationMap = localizationService.getLocalizedMessages(
+                    tenantId, validationModule, locale, request.getRequestInfo());
+            
+            // Get schema localization for field names
+            String schemaModule = "hcm-admin-schemas";
+            Map<String, String> schemaLocalizationMap = localizationService.getLocalizedMessages(
+                    tenantId, schemaModule, locale, request.getRequestInfo());
+            
+            // Merge localization maps
+            Map<String, String> mergedLocalizationMap = new HashMap<>();
+            mergedLocalizationMap.putAll(validationLocalizationMap);
+            mergedLocalizationMap.putAll(schemaLocalizationMap);
+            
             // Download and validate the Excel file
             try (Workbook workbook = downloadExcelFromFileStore(resource.getFileStoreId(), resource.getTenantId())) {
                 
-                // Validate data and collect errors
-                List<ValidationError> validationErrors = validateExcelData(workbook, resource, request.getRequestInfo());
+                // Validate data and collect errors with localization
+                List<ValidationError> validationErrors = validateExcelData(workbook, resource, request.getRequestInfo(), mergedLocalizationMap);
                 
                 // Process each sheet: add validation columns and errors
                 Map<String, ValidationColumnInfo> columnInfoMap = new HashMap<>();
@@ -147,7 +171,7 @@ public class ExcelProcessingService {
      * Validates data in all sheets of the workbook
      */
     private List<ValidationError> validateExcelData(Workbook workbook, ProcessResource resource, 
-            org.egov.excelingestion.web.models.RequestInfo requestInfo) {
+            org.egov.excelingestion.web.models.RequestInfo requestInfo, Map<String, String> localizationMap) {
         List<ValidationError> allErrors = new ArrayList<>();
         
         for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
@@ -159,10 +183,10 @@ public class ExcelProcessingService {
             // Convert sheet data to List<Map> format for schema validation
             List<Map<String, Object>> sheetData = convertSheetToMapList(sheet);
             
-            // Perform schema validation
+            // Perform schema validation with localization
             List<ValidationError> schemaErrors = schemaValidationService.validateDataWithSchema(
                     sheetData, sheetName, resource.getTenantId(), 
-                    resource.getType(), "all", requestInfo);
+                    resource.getType(), "all", requestInfo, localizationMap);
             
             allErrors.addAll(schemaErrors);
         }

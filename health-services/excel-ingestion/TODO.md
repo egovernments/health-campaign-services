@@ -65,3 +65,11 @@
    - Ensure localized sheet names and field names are properly handled
    - Validate that validation errors use localized messages
    - Confirm localization is passed through the entire validation chain
+
+
+8. **Boundary Dropdown Configuration for Facility and User Sheets**
+   - Boundary columns (level, boundary, parent) should be populated from the `boundaries` array in additionalDetails
+   - If `boundaries` array is empty or not present, no boundary dropdown columns should be added
+   - When `boundaries` array exists, dropdown should contain only those specific boundaries
+   - Consider `includeChildren` flag - if true, include child boundaries in dropdown options
+   - Apply this logic to both facility and user sheets
