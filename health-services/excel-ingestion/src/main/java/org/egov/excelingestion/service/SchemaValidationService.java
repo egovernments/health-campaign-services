@@ -1,6 +1,8 @@
 package org.egov.excelingestion.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.excelingestion.config.ProcessingConstants;
+import org.egov.excelingestion.config.SheetSchemaConfig;
 import org.egov.excelingestion.config.ValidationConstants;
 import org.egov.excelingestion.web.models.ValidationError;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,6 +16,9 @@ public class SchemaValidationService {
 
     @Autowired
     private MDMSService mdmsService;
+    
+    @Autowired
+    private SheetSchemaConfig sheetSchemaConfig;
 
     /**
      * Validates sheet data against JSON schema from MDMS
@@ -84,7 +89,7 @@ public class SchemaValidationService {
             // Create MDMS search criteria with title filter
             Map<String, Object> mdmsCriteria = new HashMap<>();
             mdmsCriteria.put("tenantId", tenantId);
-            mdmsCriteria.put("schemaCode", "HCM-ADMIN-CONSOLE.schemas");
+            mdmsCriteria.put("schemaCode", ProcessingConstants.MDMS_SCHEMA_CODE);
             
             // Add filters for title
             Map<String, Object> filters = new HashMap<>();
@@ -399,33 +404,37 @@ public class SchemaValidationService {
     }
     
     /**
-     * Maps sheet names to schema names for microplan-ingestion
+     * Maps sheet names to schema names using configuration
      * Handles localized sheet names and Excel's 31-character limit
      */
     private String getSchemaNameForSheet(String sheetName, String type, Map<String, String> localizationMap) {
-        if ("microplan-ingestion".equals(type)) {
-            // Get localized names and trim to 31 characters if needed
-            String facilitiesSheetName = getLocalizedSheetName("HCM_ADMIN_CONSOLE_FACILITIES_LIST", localizationMap);
-            String userListSheetName = getLocalizedSheetName("HCM_ADMIN_CONSOLE_USER_LIST", localizationMap);
-            String boundaryDataSheetName = getLocalizedSheetName("HCM_ADMIN_CONSOLE_BOUNDARY_DATA", localizationMap);
-            String readmeSheetName = getLocalizedSheetName("HCM_README_SHEETNAME", localizationMap);
+        if (!sheetSchemaConfig.isProcessingTypeSupported(type)) {
+            log.warn("No schema mapping configured for type: {}", type);
+            return null;
+        }
+        
+        // Get configuration for this processing type
+        Map<String, String> typeConfig = sheetSchemaConfig.getConfigForType(type);
+        if (typeConfig == null) {
+            log.warn("No configuration found for processing type: {}", type);
+            return null;
+        }
+        
+        // Check each configured sheet against the provided sheet name
+        for (Map.Entry<String, String> entry : typeConfig.entrySet()) {
+            String sheetKey = entry.getKey();
+            String schemaName = entry.getValue();
             
-            if (facilitiesSheetName.equals(sheetName)) {
-                return "facility";
-            } else if (userListSheetName.equals(sheetName)) {
-                return "user";
-            } else if (boundaryDataSheetName.equals(sheetName)) {
-                return null; // No validation for boundary data sheet
-            } else if (readmeSheetName.equals(sheetName)) {
-                return null; // No validation for readme sheet
-            } else {
-                log.warn("Unknown sheet name for microplan-ingestion: {}", sheetName);
-                return null;
+            // Get localized sheet name and trim to 31 characters if needed
+            String localizedSheetName = getLocalizedSheetName(sheetKey, localizationMap);
+            
+            if (localizedSheetName.equals(sheetName)) {
+                log.debug("Matched sheet '{}' to schema '{}'", sheetName, schemaName);
+                return schemaName;
             }
         }
         
-        // For other types, you can add more mappings here
-        log.warn("No schema mapping configured for type: {} and sheet: {}", type, sheetName);
+        log.warn("Unknown sheet name '{}' for processing type: {}", sheetName, type);
         return null;
     }
     
