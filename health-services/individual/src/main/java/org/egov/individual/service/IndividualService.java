@@ -1,5 +1,7 @@
 package org.egov.individual.service;
 
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -12,10 +14,7 @@ import org.egov.common.ds.Tuple;
 import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.Error;
 import org.egov.common.models.ErrorDetails;
-import org.egov.common.models.abha.AbhaGatewayOtpVerifyRequest;
-import org.egov.common.models.abha.AbhaGatewayOtpVerifyResponse;
-import org.egov.common.models.abha.AbhaOtpRequest;
-import org.egov.common.models.abha.AbhaOtpResponse;
+import org.egov.common.models.abha.*;
 import org.egov.common.models.individual.AbhaOtpVerifyRequest;
 import org.egov.common.models.core.Role;
 import org.egov.common.models.core.SearchResponse;
@@ -502,7 +501,8 @@ public class IndividualService {
 
         String txnId = fetchTxnId(individualId, tenantId);
         AbhaGatewayOtpVerifyRequest externalRequest = buildGatewayOtpRequest(txnId, request);
-        String abhaNumber = fetchVerifiedAbhaNumber(externalRequest, individualId);
+        AbhaProfile abhaProfile = fetchVerifiedAbhaProfile(externalRequest, individualId);
+        String abhaNumber = abhaProfile.getAbhaNumber();
 
         IndividualSearch searchCriteria = IndividualSearch.builder()
                 .individualId(Collections.singletonList(individualId))
@@ -515,6 +515,7 @@ public class IndividualService {
         }
 
         Individual individual = response.getResponse().get(0);
+        individual = updateIndividualFromAbhaProfile(individual, abhaProfile);
         updateIndividualWithAbha(individual, abhaNumber);
         List<Individual> updated = persistUpdatedIndividual(individual, request.getRequestInfo());
         cleanUpAbhaTransaction(individualId, tenantId, request.getRequestInfo());
@@ -548,19 +549,17 @@ public class IndividualService {
                 .build();
     }
 
-    private String fetchVerifiedAbhaNumber(AbhaGatewayOtpVerifyRequest request, String individualId) {
+    private AbhaProfile fetchVerifiedAbhaProfile(AbhaGatewayOtpVerifyRequest request, String individualId) {
         log.info("Verifying ABHA OTP with txnId: {}", request.getTxnId());
         AbhaGatewayOtpVerifyResponse response = abhaService.verifyAadhaarOtp(request);
 
         if (response == null || response.getAbhaProfile() == null || response.getAbhaProfile().getAbhaNumber() == null) {
-            log.error("Failed ABHA verification for individualId: {}", individualId);
             throw new CustomException(VALIDATION_ERROR, "ABHA verification failed or response was invalid");
         }
 
-        String abhaNumber = response.getAbhaProfile().getAbhaNumber();
-        log.info("Received verified ABHA number: {} for individualId: {}", abhaNumber, individualId);
-        return abhaNumber;
+        return response.getAbhaProfile();
     }
+
 
     private Individual fetchIndividual(String individualId, String tenantId, RequestInfo requestInfo) {
         List<String> ids = Collections.singletonList(individualId);
@@ -782,5 +781,61 @@ public class IndividualService {
 
         return idHit; // or 'match' (both refer to the same Individual by now)
     }
+
+    private Individual updateIndividualFromAbhaProfile(Individual individual, AbhaProfile profile) {
+        if (profile == null) {
+            return individual;
+        }
+
+        // ---- 1. Name ----
+        if (StringUtils.isNotBlank(profile.getFirstName())) {
+            individual.getName().setGivenName(profile.getFirstName());
+        }
+        if (StringUtils.isNotBlank(profile.getLastName())) {
+            individual.getName().setFamilyName(profile.getLastName());
+        }
+
+        // ---- 2. DOB (dd-MM-yyyy -> parse to Date) ----
+        if (StringUtils.isNotBlank(profile.getDob())) {
+            String dobStr = profile.getDob().replace("-", "/");
+            try {
+                SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy");
+                Date date = sdf.parse(dobStr);
+                individual.setDateOfBirth(date);
+            } catch (ParseException e) {
+                log.warn("Failed to parse dob '{}' from ABHA profile", dobStr, e);
+            }
+        }
+
+        // ---- 3. Gender (convert to ENUM) ----
+        if (StringUtils.isNotBlank(profile.getGender())) {
+            String g = profile.getGender().equalsIgnoreCase("M") ? "MALE"
+                    : profile.getGender().equalsIgnoreCase("F") ? "FEMALE"
+                    : profile.getGender();
+            try {
+                individual.setGender(Gender.valueOf(g));
+            } catch (Exception ignored) { /* ignore invalid gender */ }
+        }
+
+        // ---- 4. Mobile ----
+        if (StringUtils.isNotBlank(profile.getMobile())) {
+            individual.setMobileNumber(profile.getMobile());
+        }
+
+        // ---- 5. Address ----
+        if (individual.getAddress() != null && !individual.getAddress().isEmpty()) {
+            Address addr = individual.getAddress().get(0);
+
+            if (StringUtils.isNotBlank(profile.getAddress())) {
+                addr.setAddressLine1(profile.getAddress());
+            }
+            if (StringUtils.isNotBlank(profile.getPinCode())) {
+                addr.setPincode(profile.getPinCode());
+            }
+        }
+
+        return individual;
+    }
+
 
 }
