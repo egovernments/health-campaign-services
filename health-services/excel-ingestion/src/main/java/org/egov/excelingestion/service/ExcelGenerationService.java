@@ -3,7 +3,6 @@ package org.egov.excelingestion.service;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.excelingestion.config.ErrorConstants;
 import org.egov.excelingestion.exception.CustomExceptionHandler;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.egov.excelingestion.web.models.GenerateResourceRequest;
 import org.egov.excelingestion.web.models.GenerateResource;
 import org.egov.excelingestion.web.processor.IGenerateProcessor;
@@ -17,13 +16,14 @@ public class ExcelGenerationService {
 
     private final GenerateProcessorFactory processorFactory;
     private final FileStoreService fileStoreService;
-    
-    @Autowired
-    private CustomExceptionHandler exceptionHandler;
+    private final CustomExceptionHandler exceptionHandler;
 
-    public ExcelGenerationService(GenerateProcessorFactory processorFactory, FileStoreService fileStoreService) {
+    public ExcelGenerationService(GenerateProcessorFactory processorFactory, 
+                                 FileStoreService fileStoreService,
+                                 CustomExceptionHandler exceptionHandler) {
         this.processorFactory = processorFactory;
         this.fileStoreService = fileStoreService;
+        this.exceptionHandler = exceptionHandler;
     }
 
     public GenerateResource generateAndUploadExcel(GenerateResourceRequest request) throws IOException {

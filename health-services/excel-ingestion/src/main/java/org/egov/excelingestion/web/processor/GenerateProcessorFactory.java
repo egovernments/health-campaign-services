@@ -2,7 +2,6 @@ package org.egov.excelingestion.web.processor;
 
 import org.egov.excelingestion.config.ErrorConstants;
 import org.egov.excelingestion.exception.CustomExceptionHandler;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import jakarta.annotation.PostConstruct;
@@ -17,12 +16,12 @@ public class GenerateProcessorFactory {
 
     private final Map<String, IGenerateProcessor> processorMap = new HashMap<>();
     private final List<IGenerateProcessor> processors;
-    
-    @Autowired
-    private CustomExceptionHandler exceptionHandler;
+    private final CustomExceptionHandler exceptionHandler;
 
-    public GenerateProcessorFactory(List<IGenerateProcessor> processors) {
+    public GenerateProcessorFactory(List<IGenerateProcessor> processors,
+                                   CustomExceptionHandler exceptionHandler) {
         this.processors = processors;
+        this.exceptionHandler = exceptionHandler;
     }
 
     @PostConstruct

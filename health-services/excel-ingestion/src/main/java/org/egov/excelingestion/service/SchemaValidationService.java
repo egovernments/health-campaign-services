@@ -5,7 +5,6 @@ import org.egov.excelingestion.config.ProcessingConstants;
 import org.egov.excelingestion.config.SheetSchemaConfig;
 import org.egov.excelingestion.config.ValidationConstants;
 import org.egov.excelingestion.web.models.ValidationError;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -14,11 +13,13 @@ import java.util.*;
 @Slf4j
 public class SchemaValidationService {
 
-    @Autowired
-    private MDMSService mdmsService;
+    private final MDMSService mdmsService;
+    private final SheetSchemaConfig sheetSchemaConfig;
     
-    @Autowired
-    private SheetSchemaConfig sheetSchemaConfig;
+    public SchemaValidationService(MDMSService mdmsService, SheetSchemaConfig sheetSchemaConfig) {
+        this.mdmsService = mdmsService;
+        this.sheetSchemaConfig = sheetSchemaConfig;
+    }
 
     /**
      * Validates sheet data against JSON schema from MDMS

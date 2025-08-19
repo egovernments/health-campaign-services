@@ -5,7 +5,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.egov.excelingestion.config.ErrorConstants;
 import org.egov.excelingestion.web.models.RequestInfo;
 import org.egov.excelingestion.exception.CustomExceptionHandler;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.egov.excelingestion.web.models.localization.LocalisationRequest;
 import org.egov.excelingestion.web.models.localization.LocalisationResponse;
 import org.egov.excelingestion.web.models.localization.LocalisationSearchCriteria;
@@ -25,9 +24,7 @@ import java.util.Objects;
 public class LocalizationService {
 
     private final ServiceRequestClient serviceRequestClient;
-    
-    @Autowired
-    private CustomExceptionHandler exceptionHandler;
+    private final CustomExceptionHandler exceptionHandler;
 
     @Value("${egov.localization.host}")
     private String localizationHost;
@@ -35,8 +32,10 @@ public class LocalizationService {
     @Value("${egov.localization.search.path}")
     private String localizationSearchPath;
 
-    public LocalizationService(ServiceRequestClient serviceRequestClient) {
+    public LocalizationService(ServiceRequestClient serviceRequestClient, 
+                              CustomExceptionHandler exceptionHandler) {
         this.serviceRequestClient = serviceRequestClient;
+        this.exceptionHandler = exceptionHandler;
     }
 
     @Cacheable(value = "localizationMessages", key = "#tenantId + #module + #locale")

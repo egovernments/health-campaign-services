@@ -11,7 +11,6 @@ import org.egov.excelingestion.web.models.ProcessResource;
 import org.egov.excelingestion.web.models.ProcessResourceRequest;
 import org.egov.excelingestion.web.models.RequestInfo;
 import org.egov.common.contract.response.ResponseInfo;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -28,12 +27,12 @@ import jakarta.validation.Valid;
 public class IngestionController {
 
     private final ExcelGenerationService excelGenerationService;
-    
-    @Autowired
-    private ExcelProcessingService processingService;
+    private final ExcelProcessingService processingService;
 
-    public IngestionController(ExcelGenerationService excelGenerationService) {
+    public IngestionController(ExcelGenerationService excelGenerationService,
+                              ExcelProcessingService processingService) {
         this.excelGenerationService = excelGenerationService;
+        this.processingService = processingService;
     }
 
         @PostMapping("/_generate")

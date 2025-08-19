@@ -17,7 +17,6 @@ import org.egov.excelingestion.service.LocalizationService;
 import org.egov.excelingestion.util.RequestInfoConverter;
 import org.egov.excelingestion.web.models.*;
 import org.egov.excelingestion.service.ApiPayloadBuilder;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.io.ByteArrayOutputStream;
@@ -37,14 +36,12 @@ public class HierarchyExcelGenerateProcessor implements IGenerateProcessor {
     private final LocalizationService localizationService;
     private final ApiPayloadBuilder apiPayloadBuilder;
     private final RequestInfoConverter requestInfoConverter;
-    
-    @Autowired
-    private CustomExceptionHandler exceptionHandler;
+    private final CustomExceptionHandler exceptionHandler;
 
-    @Autowired
     public HierarchyExcelGenerateProcessor(ServiceRequestClient serviceRequestClient, ExcelIngestionConfig config,
             FileStoreService fileStoreService, ObjectMapper objectMapper, LocalizationService localizationService, 
-            ApiPayloadBuilder apiPayloadBuilder, RequestInfoConverter requestInfoConverter) {
+            ApiPayloadBuilder apiPayloadBuilder, RequestInfoConverter requestInfoConverter,
+            CustomExceptionHandler exceptionHandler) {
         this.serviceRequestClient = serviceRequestClient;
         this.config = config;
         this.fileStoreService = fileStoreService;
@@ -52,6 +49,7 @@ public class HierarchyExcelGenerateProcessor implements IGenerateProcessor {
         this.localizationService = localizationService;
         this.apiPayloadBuilder = apiPayloadBuilder;
         this.requestInfoConverter = requestInfoConverter;
+        this.exceptionHandler = exceptionHandler;
     }
 
     @Override

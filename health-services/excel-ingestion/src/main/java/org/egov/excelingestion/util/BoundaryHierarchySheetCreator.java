@@ -11,7 +11,6 @@ import org.egov.excelingestion.config.ExcelIngestionConfig;
 import org.egov.excelingestion.exception.CustomExceptionHandler;
 import org.egov.excelingestion.web.models.*;
 import org.egov.excelingestion.service.BoundaryService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.*;
@@ -21,14 +20,17 @@ import java.util.stream.Collectors;
 @Component
 public class BoundaryHierarchySheetCreator {
 
-    @Autowired
-    private BoundaryService boundaryService;
+    private final BoundaryService boundaryService;
+    private final ExcelIngestionConfig config;
+    private final CustomExceptionHandler exceptionHandler;
     
-    @Autowired
-    private ExcelIngestionConfig config;
-    
-    @Autowired
-    private CustomExceptionHandler exceptionHandler;
+    public BoundaryHierarchySheetCreator(BoundaryService boundaryService,
+                                        ExcelIngestionConfig config,
+                                        CustomExceptionHandler exceptionHandler) {
+        this.boundaryService = boundaryService;
+        this.config = config;
+        this.exceptionHandler = exceptionHandler;
+    }
 
     public Workbook createBoundaryHierarchySheet(XSSFWorkbook workbook, 
                                                  String hierarchyType,

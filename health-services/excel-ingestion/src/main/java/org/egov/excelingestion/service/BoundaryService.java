@@ -6,7 +6,6 @@ import org.egov.excelingestion.config.ExcelIngestionConfig;
 import org.egov.excelingestion.web.models.*;
 import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.excelingestion.exception.CustomExceptionHandler;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
@@ -22,15 +21,14 @@ public class BoundaryService {
     private final ServiceRequestClient serviceRequestClient;
     private final ExcelIngestionConfig config;
     private final ApiPayloadBuilder apiPayloadBuilder;
-    
-    @Autowired
-    private CustomExceptionHandler exceptionHandler;
+    private final CustomExceptionHandler exceptionHandler;
 
     public BoundaryService(ServiceRequestClient serviceRequestClient, ExcelIngestionConfig config,
-            ApiPayloadBuilder apiPayloadBuilder) {
+            ApiPayloadBuilder apiPayloadBuilder, CustomExceptionHandler exceptionHandler) {
         this.serviceRequestClient = serviceRequestClient;
         this.config = config;
         this.apiPayloadBuilder = apiPayloadBuilder;
+        this.exceptionHandler = exceptionHandler;
     }
 
     @Cacheable(value = "boundaryHierarchy", key = "#tenantId + '_' + #hierarchyType")

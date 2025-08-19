@@ -13,7 +13,6 @@ import org.egov.excelingestion.web.models.ProcessResourceRequest;
 import org.egov.excelingestion.web.models.ValidationError;
 import org.egov.excelingestion.web.models.ValidationColumnInfo;
 import org.egov.excelingestion.web.models.filestore.FileStoreResponse;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -31,23 +30,26 @@ import java.util.*;
 @Slf4j
 public class ExcelProcessingService {
 
-    @Autowired
-    private ValidationService validationService;
-
-    @Autowired
-    private SchemaValidationService schemaValidationService;
-
-    @Autowired
-    private FileStoreService fileStoreService;
-
-    @Autowired
-    private RestTemplate restTemplate;
+    private final ValidationService validationService;
+    private final SchemaValidationService schemaValidationService;
+    private final FileStoreService fileStoreService;
+    private final RestTemplate restTemplate;
+    private final CustomExceptionHandler exceptionHandler;
+    private final ExcelIngestionConfig config;
     
-    @Autowired
-    private CustomExceptionHandler exceptionHandler;
-    
-    @Autowired
-    private ExcelIngestionConfig config;
+    public ExcelProcessingService(ValidationService validationService,
+                                SchemaValidationService schemaValidationService,
+                                FileStoreService fileStoreService,
+                                RestTemplate restTemplate,
+                                CustomExceptionHandler exceptionHandler,
+                                ExcelIngestionConfig config) {
+        this.validationService = validationService;
+        this.schemaValidationService = schemaValidationService;
+        this.fileStoreService = fileStoreService;
+        this.restTemplate = restTemplate;
+        this.exceptionHandler = exceptionHandler;
+        this.config = config;
+    }
 
     /**
      * Processes the uploaded Excel file, validates data, and adds error columns

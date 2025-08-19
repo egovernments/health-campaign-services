@@ -5,7 +5,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.egov.excelingestion.config.ErrorConstants;
 import org.egov.excelingestion.config.ExcelIngestionConfig;
 import org.egov.excelingestion.exception.CustomExceptionHandler;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.*;
 import org.springframework.http.converter.FormHttpMessageConverter;
@@ -28,14 +27,14 @@ public class FileStoreService {
     private final RestTemplate restTemplate; // Keep for multipart file upload
     private final ExcelIngestionConfig config;
     private final ObjectMapper objectMapper;
-    
-    @Autowired
-    private CustomExceptionHandler exceptionHandler;
+    private final CustomExceptionHandler exceptionHandler;
 
-    public FileStoreService(RestTemplate restTemplate, ExcelIngestionConfig config, ObjectMapper objectMapper) {
+    public FileStoreService(RestTemplate restTemplate, ExcelIngestionConfig config, ObjectMapper objectMapper,
+                           CustomExceptionHandler exceptionHandler) {
         this.restTemplate = restTemplate; // FileStore requires multipart upload, keeping RestTemplate
         this.config = config;
         this.objectMapper = objectMapper;
+        this.exceptionHandler = exceptionHandler;
     }
 
     public String uploadFile(byte[] fileBytes, String tenantId, String fileName) throws IOException {

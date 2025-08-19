@@ -35,11 +35,29 @@
      - ✅ Added additional styling methods for different cell types (data, numeric, bordered, locked)
      - ✅ Updated MicroplanProcessor to use ExcelStyleHelper
 
-5. **Dependency Injection Cleanup**
-   - Remove @Autowired annotations from everywhere in excel-ingestion service
-   - Replace all field injection with constructor injection only
-   - Ensure all dependencies are properly injected through constructors
-   - Follow Spring best practices for dependency injection
+5. **✅ Dependency Injection Cleanup** - COMPLETED
+   - ✅ Removed @Autowired annotations from everywhere in excel-ingestion service
+   - ✅ Replaced all field injection with constructor injection only
+   - ✅ Ensured all dependencies are properly injected through constructors
+   - ✅ Removed all unused @Autowired imports from all classes
+   - ✅ Following Spring best practices for dependency injection
+   
+   **Classes Updated:**
+   - ✅ MicroplanProcessor - moved CustomExceptionHandler to constructor
+   - ✅ MDMSService - moved CustomExceptionHandler to constructor
+   - ✅ SchemaValidationService - converted to constructor injection
+   - ✅ BoundaryService - moved CustomExceptionHandler to constructor
+   - ✅ LocalizationService - moved CustomExceptionHandler to constructor
+   - ✅ FileStoreService - moved CustomExceptionHandler to constructor
+   - ✅ ExcelProcessingService - converted all 6 dependencies to constructor injection
+   - ✅ ExcelGenerationService - moved CustomExceptionHandler to constructor
+   - ✅ IngestionController - moved ExcelProcessingService to constructor
+   - ✅ GenerateProcessorFactory - moved CustomExceptionHandler to constructor
+   - ✅ CampaignConfigSheetCreator - converted all 4 dependencies to constructor injection
+   - ✅ BoundaryHierarchySheetCreator - converted all 3 dependencies to constructor injection
+   - ✅ ExcelSchemaSheetCreator - removed @Autowired from constructor
+   - ✅ RequestInfoConverter - removed @Autowired from constructor
+   - ✅ HierarchyExcelGenerateProcessor - moved CustomExceptionHandler to constructor
 
 6. **Localization Service Integration**
    - Check if process API flow is properly calling localization service

@@ -15,7 +15,6 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import org.egov.excelingestion.config.ExcelIngestionConfig;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -23,7 +22,6 @@ public class ExcelSchemaSheetCreator {
     
     private final ExcelIngestionConfig config;
     
-    @Autowired
     public ExcelSchemaSheetCreator(ExcelIngestionConfig config) {
         this.config = config;
     }

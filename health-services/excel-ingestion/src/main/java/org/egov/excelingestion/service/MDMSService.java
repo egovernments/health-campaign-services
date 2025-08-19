@@ -6,7 +6,6 @@ import org.egov.excelingestion.config.ErrorConstants;
 import org.egov.excelingestion.config.ExcelIngestionConfig;
 import org.egov.excelingestion.web.models.RequestInfo;
 import org.egov.excelingestion.exception.CustomExceptionHandler;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -23,14 +22,13 @@ public class MDMSService {
 
     private final ServiceRequestClient serviceRequestClient;
     private final ExcelIngestionConfig config;
-    
-    @Autowired
-    private CustomExceptionHandler exceptionHandler;
+    private final CustomExceptionHandler exceptionHandler;
 
-    @Autowired
-    public MDMSService(ServiceRequestClient serviceRequestClient, ExcelIngestionConfig config) {
+    public MDMSService(ServiceRequestClient serviceRequestClient, ExcelIngestionConfig config,
+                      CustomExceptionHandler exceptionHandler) {
         this.serviceRequestClient = serviceRequestClient;
         this.config = config;
+        this.exceptionHandler = exceptionHandler;
     }
 
     /**

@@ -10,7 +10,6 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.egov.excelingestion.config.ErrorConstants;
 import org.egov.excelingestion.config.ExcelIngestionConfig;
 import org.egov.excelingestion.exception.CustomExceptionHandler;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.egov.excelingestion.service.LocalizationService;
 import org.egov.excelingestion.service.BoundaryService;
 import org.egov.excelingestion.service.MDMSService;
@@ -41,16 +40,14 @@ public class MicroplanProcessor implements IGenerateProcessor {
     private final CampaignConfigSheetCreator campaignConfigSheetCreator;
     private final MDMSService mdmsService;
     private final ExcelStyleHelper excelStyleHelper;
-    
-    @Autowired
-    private CustomExceptionHandler exceptionHandler;
+    private final CustomExceptionHandler exceptionHandler;
 
     public MicroplanProcessor(ExcelIngestionConfig config,
             LocalizationService localizationService, BoundaryHierarchySheetCreator boundaryHierarchySheetCreator,
             BoundaryService boundaryService, RequestInfoConverter requestInfoConverter,
             ApiPayloadBuilder apiPayloadBuilder, ExcelSchemaSheetCreator excelSchemaSheetCreator,
             CampaignConfigSheetCreator campaignConfigSheetCreator, MDMSService mdmsService,
-            ExcelStyleHelper excelStyleHelper) {
+            ExcelStyleHelper excelStyleHelper, CustomExceptionHandler exceptionHandler) {
         this.config = config;
         this.localizationService = localizationService;
         this.boundaryHierarchySheetCreator = boundaryHierarchySheetCreator;
@@ -61,6 +58,7 @@ public class MicroplanProcessor implements IGenerateProcessor {
         this.campaignConfigSheetCreator = campaignConfigSheetCreator;
         this.mdmsService = mdmsService;
         this.excelStyleHelper = excelStyleHelper;
+        this.exceptionHandler = exceptionHandler;
     }
 
     @Override

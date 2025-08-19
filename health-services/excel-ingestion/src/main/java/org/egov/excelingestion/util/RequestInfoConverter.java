@@ -3,7 +3,6 @@ package org.egov.excelingestion.util;
 import org.egov.excelingestion.config.ExcelIngestionConfig;
 import org.egov.excelingestion.web.models.RequestInfo;
 import org.egov.excelingestion.web.models.UserInfo;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -11,7 +10,6 @@ public class RequestInfoConverter {
 
     private final ExcelIngestionConfig config;
 
-    @Autowired
     public RequestInfoConverter(ExcelIngestionConfig config) {
         this.config = config;
     }

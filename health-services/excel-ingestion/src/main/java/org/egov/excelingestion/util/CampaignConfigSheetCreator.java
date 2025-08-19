@@ -13,7 +13,6 @@ import org.egov.excelingestion.service.LocalizationService;
 import org.egov.excelingestion.web.models.BoundaryHierarchyResponse;
 import org.egov.excelingestion.web.models.BoundaryHierarchy;
 import org.egov.excelingestion.web.models.RequestInfo;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.awt.Color;
@@ -24,17 +23,20 @@ import java.util.Map;
 @Component
 public class CampaignConfigSheetCreator {
 
-    @Autowired
-    private ExcelIngestionConfig config;
+    private final ExcelIngestionConfig config;
+    private final BoundaryService boundaryService;
+    private final LocalizationService localizationService;
+    private final CustomExceptionHandler exceptionHandler;
     
-    @Autowired
-    private BoundaryService boundaryService;
-    
-    @Autowired
-    private LocalizationService localizationService;
-    
-    @Autowired
-    private CustomExceptionHandler exceptionHandler;
+    public CampaignConfigSheetCreator(ExcelIngestionConfig config,
+                                     BoundaryService boundaryService,
+                                     LocalizationService localizationService,
+                                     CustomExceptionHandler exceptionHandler) {
+        this.config = config;
+        this.boundaryService = boundaryService;
+        this.localizationService = localizationService;
+        this.exceptionHandler = exceptionHandler;
+    }
 
     /**
      * Creates a campaign configuration sheet with sections and editable cells
