@@ -9,6 +9,7 @@ import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
+import org.apache.commons.lang3.tuple.Pair;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.ds.Tuple;
 import org.egov.common.exception.InvalidTenantIdException;
@@ -31,9 +32,11 @@ import org.egov.individual.util.BeneficiaryIdGenUtil;
 import org.egov.individual.validators.*;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ReflectionUtils;
+import org.springframework.web.client.RestTemplate;
 
 import static org.egov.common.utils.CommonUtils.getIdFieldName;
 import static org.egov.common.utils.CommonUtils.getIdList;
@@ -501,7 +504,9 @@ public class IndividualService {
 
         String txnId = fetchTxnId(individualId, tenantId);
         AbhaGatewayOtpVerifyRequest externalRequest = buildGatewayOtpRequest(txnId, request);
-        AbhaProfile abhaProfile = fetchVerifiedAbhaProfile(externalRequest, individualId);
+        AbhaGatewayOtpVerifyResponse abdmResponse = fetchVerifiedAbhaProfile(externalRequest, individualId);
+        AbhaProfile abhaProfile = abdmResponse.getAbhaProfile();
+        String updatedTxnId = abdmResponse.getTxnId();
         String abhaNumber = abhaProfile.getAbhaNumber();
 
         IndividualSearch searchCriteria = IndividualSearch.builder()
@@ -518,7 +523,7 @@ public class IndividualService {
         individual = updateIndividualFromAbhaProfile(individual, abhaProfile);
         updateIndividualWithAbha(individual, abhaNumber);
         List<Individual> updated = persistUpdatedIndividual(individual, request.getRequestInfo());
-        cleanUpAbhaTransaction(individualId, tenantId, request.getRequestInfo());
+        cleanUpAbhaTransaction(individualId, tenantId, request.getRequestInfo(), updatedTxnId, abhaNumber);
 
         log.info("Completed ABHA OTP verification for individualId: {}", individualId);
         return updated.get(0);
@@ -549,7 +554,7 @@ public class IndividualService {
                 .build();
     }
 
-    private AbhaProfile fetchVerifiedAbhaProfile(AbhaGatewayOtpVerifyRequest request, String individualId) {
+    private AbhaGatewayOtpVerifyResponse fetchVerifiedAbhaProfile(AbhaGatewayOtpVerifyRequest request, String individualId) {
         log.info("Verifying ABHA OTP with txnId: {}", request.getTxnId());
         AbhaGatewayOtpVerifyResponse response = abhaService.verifyAadhaarOtp(request);
 
@@ -557,7 +562,7 @@ public class IndividualService {
             throw new CustomException(VALIDATION_ERROR, "ABHA verification failed or response was invalid");
         }
 
-        return response.getAbhaProfile();
+        return response;
     }
 
 
@@ -604,9 +609,9 @@ public class IndividualService {
         return update(updateRequest);
     }
 
-    private void cleanUpAbhaTransaction(String individualId, String tenantId , RequestInfo requestInfo) {
+    private void cleanUpAbhaTransaction(String individualId, String tenantId , RequestInfo requestInfo, String transactionId, String abhaNumber) {
         log.info("Deleting ABHA transaction log for individualId: {}", individualId);
-        abhaRepository.deleteByIndividualId(individualId, tenantId, requestInfo.getUserInfo().getUuid());
+        abhaRepository.deleteByIndividualId(individualId, tenantId, requestInfo.getUserInfo().getUuid() , transactionId, abhaNumber);
     }
 
 
@@ -836,6 +841,63 @@ public class IndividualService {
 
         return individual;
     }
+
+
+
+
+    public Pair<byte[], MediaType> fetchAbhaCardFromGoService(String abhaNumber, String cardType) {
+        if (Boolean.FALSE.equals(properties.getAbhaIntegrationEnabled())) {
+            throw new CustomException("ABHA_INTEGRATION_DISABLED", "ABHA Integration is disabled");
+        }
+        try {
+            String url = properties.getAbhaHost() + properties.getAbhaCardFetchPath();
+            RestTemplate restTemplate = new RestTemplate();
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+
+            Map<String, String> payload = new HashMap<>();
+            payload.put("abha_number", abhaNumber);
+            payload.put("card_type", cardType);
+
+            HttpEntity<Map<String, String>> entity = new HttpEntity<>(payload, headers);
+
+            ResponseEntity<byte[]> response = restTemplate.exchange(
+                    url,
+                    HttpMethod.POST,
+                    entity,
+                    byte[].class
+            );
+
+            if (response.getStatusCode().is2xxSuccessful()) {
+                MediaType contentType = response.getHeaders().getContentType();
+                log.info("ABHA card fetched successfully, ContentType={}", contentType);
+                return Pair.of(response.getBody(), contentType);
+            } else {
+                throw new CustomException("ABHA_CARD_FETCH_FAILED", "HTTP Status: " + response.getStatusCode());
+            }
+        } catch (Exception e) {
+            log.error("Error while fetching ABHA card", e);
+            throw new CustomException("ABHA_CARD_FETCH_FAILED", e.getMessage());
+        }
+    }
+
+
+    public String getActiveAbhaNumber(String individualId, String tenantId) {
+        if (StringUtils.isBlank(individualId)) {
+            throw new CustomException("INVALID_INPUT", "individualId cannot be blank");
+        }
+        if (StringUtils.isBlank(tenantId)) {
+            throw new CustomException("INVALID_INPUT", "tenantId cannot be blank");
+        }
+
+        // this throws CustomException(INVALID_TENANT_ID, ...) if tenant is bad
+        Optional<String> abhaNum = abhaRepository.findActiveAbhaNumberByIndividualId(individualId, tenantId);
+
+        return abhaNum.orElseThrow(() ->
+                new CustomException("NOT_FOUND", "No active ABHA number found for this individualId"));
+    }
+
 
 
 }

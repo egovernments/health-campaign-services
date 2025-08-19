@@ -31,6 +31,10 @@ public class AbhaTransaction extends EgovModel {
     @Size(max = 255)
     private String transactionId = null;
 
+    @JsonProperty("abhaNumber")
+    @Size(min = 2, max = 64)
+    private String abhaNumber = null;
+
     @JsonProperty("additionalDetails")
     private Object additionalDetails = null;
 

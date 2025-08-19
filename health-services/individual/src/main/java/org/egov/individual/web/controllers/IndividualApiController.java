@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.annotations.ApiParam;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import org.apache.commons.lang3.tuple.Pair;
 import org.egov.common.contract.response.ResponseInfo;
 import org.egov.common.models.individual.AbhaOtpVerifyRequest;
 import org.egov.common.models.core.SearchResponse;
@@ -16,9 +17,12 @@ import org.egov.common.producer.Producer;
 import org.egov.common.utils.ResponseInfoFactory;
 import org.egov.individual.config.IndividualProperties;
 import org.egov.individual.service.IndividualService;
+import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.validation.annotation.Validated;
@@ -175,4 +179,37 @@ public class IndividualApiController {
         // 202 Accepted (async downstream via Kafka), matches your verify style using ACCEPTED
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
     }
+
+    @RequestMapping(value = "/v1/_fetch-abha-card", method = RequestMethod.POST)
+    public ResponseEntity<byte[]> fetchAbhaCard(
+            @Valid @RequestBody AbhaCardFetchRequest request) {
+
+        Pair<byte[], MediaType> cardData = individualService.fetchAbhaCardFromGoService(
+                request.getAbhaNumber(), request.getCardType()
+        );
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(cardData.getRight());          // image/png / image/jpeg / image/svg+xml
+        headers.set("Content-Disposition", "inline; filename=abha_card");
+
+        return new ResponseEntity<>(cardData.getLeft(), headers, HttpStatus.OK);
+    }
+
+    @RequestMapping(value = "/v1/_get-abha-number", method = RequestMethod.POST)
+    public ResponseEntity<SearchAbhaNumberResponse> getActiveAbhaNumber(
+            @Valid @RequestBody SearchAbhaNumberRequest request) {
+
+        // If anything goes wrong, exception is thrown → handled globally or by spring exception handler
+        String abhaNumber = individualService.getActiveAbhaNumber(request.getIndividualId(), request.getTenantId());
+
+        SearchAbhaNumberResponse response = SearchAbhaNumberResponse.builder()
+                .individualId(request.getIndividualId())
+                .abhaNumber(abhaNumber)
+                .responseInfo(ResponseInfoFactory.createResponseInfo(request.getRequestInfo(), true))
+                .build();
+
+        return ResponseEntity.ok(response);
+    }
+
+
 }

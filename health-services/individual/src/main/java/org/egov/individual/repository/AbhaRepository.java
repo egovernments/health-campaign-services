@@ -62,9 +62,9 @@ public class AbhaRepository extends GenericRepository<AbhaTransaction> {
         }
     }
 
-    public void deleteByIndividualId(String individualId, String tenantId, String modifiedBy) {
+    public void deleteByIndividualId(String individualId, String tenantId, String modifiedBy, String transacitonId, String abhaNumber) {
         String query = String.format(
-                "UPDATE %s.%s SET isDeleted = true, lastModifiedTime = :modifiedTime, lastModifiedBy = :modifiedBy WHERE individualId = :individualId",
+                "UPDATE %s.%s SET isDeleted = true, lastModifiedTime = :modifiedTime, lastModifiedBy = :modifiedBy, transactionId= :transactionId, abhaNumber = :abhaNumber WHERE individualId = :individualId",
                 SCHEMA_REPLACE_STRING, TABLE_NAME
         );
 
@@ -78,6 +78,9 @@ public class AbhaRepository extends GenericRepository<AbhaTransaction> {
         params.put("individualId", individualId);
         params.put("modifiedTime", System.currentTimeMillis());
         params.put("modifiedBy", modifiedBy);
+        params.put("transactionId", transacitonId);
+        params.put("abhaNumber", abhaNumber);
+
 
         try {
             this.namedParameterJdbcTemplate.update(query, params);
@@ -86,6 +89,26 @@ public class AbhaRepository extends GenericRepository<AbhaTransaction> {
             log.error("Failed to soft delete AbhaTxn for individualId: {}", individualId, e);
         }
     }
+
+    public Optional<String> findActiveAbhaNumberByIndividualId(String individualId, String tenantId) {
+        String query = String.format("SELECT abhaNumber FROM %s.%s WHERE individualId = :individualId ", SCHEMA_REPLACE_STRING, TABLE_NAME);
+
+        try {
+            query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
+        } catch (InvalidTenantIdException e) {
+            throw new CustomException(INVALID_TENANT_ID, INVALID_TENANT_ID_MSG);
+        }
+
+        Map<String, Object> params = Map.of("individualId", individualId);
+        try {
+            List<String> results = this.namedParameterJdbcTemplate.query(query, params, (rs, rowNum) -> rs.getString("abhaNumber"));
+            return results.isEmpty() ? Optional.empty() : Optional.ofNullable(results.get(0));
+        } catch (DataAccessException e) {
+            log.error("Error querying abhaNumber by individualId", e);
+            throw new CustomException("DB_ERROR", "Error fetching ABHA number");
+        }
+    }
+
 
 }
 

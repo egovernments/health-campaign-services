@@ -17,6 +17,7 @@ public class AbhaRowMapper implements RowMapper<AbhaTransaction> {
                 .id(rs.getString("id"))
                 .individualId(rs.getString("individualId"))
                 .transactionId(rs.getString("transactionId"))
+                .abhaNumber(rs.getString("abhaNumber"))
                 .tenantId(rs.getString("tenantId"))
                 .additionalDetails(rs.getObject("additionalDetails")) // Assuming JSONB can be read directly
                 .isDeleted(rs.getObject("isDeleted") != null && rs.getBoolean("isDeleted"))

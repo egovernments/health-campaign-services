@@ -99,4 +99,9 @@ public class IndividualProperties {
     @Value("${egov.abha.integration.enabled}")
     private Boolean abhaIntegrationEnabled;
 
+    @Value("${egov.abha.host}")
+    private String abhaHost;
+
+    @Value("${egov.abha.card.fetchPath}")
+    private String abhaCardFetchPath;
 }
