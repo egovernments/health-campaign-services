@@ -22,13 +22,16 @@ public class BoundaryHierarchySheetCreator {
 
     private final BoundaryService boundaryService;
     private final ExcelIngestionConfig config;
+    private final BoundaryUtil boundaryUtil;
     private final CustomExceptionHandler exceptionHandler;
     
     public BoundaryHierarchySheetCreator(BoundaryService boundaryService,
                                         ExcelIngestionConfig config,
+                                        BoundaryUtil boundaryUtil,
                                         CustomExceptionHandler exceptionHandler) {
         this.boundaryService = boundaryService;
         this.config = config;
+        this.boundaryUtil = boundaryUtil;
         this.exceptionHandler = exceptionHandler;
     }
 
@@ -173,43 +176,21 @@ public class BoundaryHierarchySheetCreator {
         
         // Fetch all boundary relationships to get children when includeAllChildren is true
         BoundarySearchResponse relationshipData = boundaryService.fetchBoundaryRelationship(tenantId, hierarchyType, requestInfo);
+        Map<String, EnrichedBoundary> codeToEnrichedBoundary = boundaryUtil.buildCodeToBoundaryMap(relationshipData);
         
-        // Build a map of code to EnrichedBoundary for quick lookup
-        Map<String, EnrichedBoundary> codeToEnrichedBoundary = new HashMap<>();
-        if (relationshipData != null && relationshipData.getTenantBoundary() != null) {
-            for (HierarchyRelation hr : relationshipData.getTenantBoundary()) {
-                buildCodeToBoundaryMap(hr.getBoundary(), codeToEnrichedBoundary);
-            }
-        }
-        
-        // Process boundaries and expand includeAllChildren
-        List<BoundaryRowData> boundaryRows = new ArrayList<>();
-        Set<String> processedCodes = new HashSet<>();
-        
-        // Find root boundary
-        Boundary rootBoundary = boundaries.stream()
-                .filter(b -> Boolean.TRUE.equals(b.getIsRoot()))
-                .findFirst()
-                .orElse(null);
-                
-        if (rootBoundary == null) {
-            log.error("No root boundary found in the boundaries list");
-            return;
-        }
-        
-        // Process boundaries starting from root
-        processBoundary(rootBoundary, boundaries, codeToEnrichedBoundary, boundaryRows, 
-                       processedCodes, new ArrayList<>(), levelTypes);
+        // Process boundaries and expand includeAllChildren using BoundaryUtil
+        List<BoundaryUtil.BoundaryRowData> boundaryRows = boundaryUtil.processBoundariesWithEnrichment(
+                boundaries, codeToEnrichedBoundary, levelTypes);
         
         // Filter to keep only last level boundaries
         int lastLevelIndex = levelTypes.size() - 1;
-        List<BoundaryRowData> lastLevelRows = boundaryRows.stream()
+        List<BoundaryUtil.BoundaryRowData> lastLevelRows = boundaryRows.stream()
                 .filter(row -> row.isLastLevel(lastLevelIndex))
                 .collect(Collectors.toList());
         
         // Write rows to sheet
         int rowNum = 2; // Start after headers
-        for (BoundaryRowData boundaryRowData : lastLevelRows) {
+        for (BoundaryUtil.BoundaryRowData boundaryRowData : lastLevelRows) {
             Row row = sheet.createRow(rowNum++);
             
             // Columns 0 to n-1: Localized names for each level
@@ -230,129 +211,6 @@ public class BoundaryHierarchySheetCreator {
             Cell codeCell = row.createCell(levelTypes.size());
             codeCell.setCellValue(lastLevelCode);
             codeCell.setCellStyle(unlockedStyle);
-        }
-    }
-    
-    private void buildCodeToBoundaryMap(List<EnrichedBoundary> boundaries, Map<String, EnrichedBoundary> codeMap) {
-        if (boundaries == null) return;
-        
-        for (EnrichedBoundary boundary : boundaries) {
-            codeMap.put(boundary.getCode(), boundary);
-            if (boundary.getChildren() != null && !boundary.getChildren().isEmpty()) {
-                buildCodeToBoundaryMap(boundary.getChildren(), codeMap);
-            }
-        }
-    }
-    
-    private void processBoundary(Boundary boundary, List<Boundary> allBoundaries, 
-                                Map<String, EnrichedBoundary> codeToEnrichedBoundary,
-                                List<BoundaryRowData> boundaryRows, Set<String> processedCodes,
-                                List<String> currentPath, List<String> levelTypes) {
-        
-        if (boundary == null || processedCodes.contains(boundary.getCode())) {
-            return;
-        }
-        
-        processedCodes.add(boundary.getCode());
-        
-        // Create new path with current boundary
-        List<String> newPath = new ArrayList<>(currentPath);
-        int levelIndex = getLevelIndex(boundary.getType(), levelTypes);
-        
-        // Ensure path has enough elements
-        while (newPath.size() <= levelIndex) {
-            newPath.add(null);
-        }
-        newPath.set(levelIndex, boundary.getCode());
-        
-        // If includeAllChildren is true, process all children from enriched boundary data
-        if (Boolean.TRUE.equals(boundary.getIncludeAllChildren())) {
-            EnrichedBoundary enrichedBoundary = codeToEnrichedBoundary.get(boundary.getCode());
-            if (enrichedBoundary != null && enrichedBoundary.getChildren() != null) {
-                processAllChildren(enrichedBoundary.getChildren(), codeToEnrichedBoundary, 
-                                 boundaryRows, processedCodes, newPath, levelTypes);
-            }
-        } else {
-            // Add current path as a row with boundary code
-            boundaryRows.add(new BoundaryRowData(new ArrayList<>(newPath), boundary.getCode()));
-            
-            // Process only the boundaries that are in the input list and are children of current
-            List<Boundary> children = allBoundaries.stream()
-                    .filter(b -> boundary.getCode().equals(b.getParent()))
-                    .collect(Collectors.toList());
-                    
-            for (Boundary child : children) {
-                processBoundary(child, allBoundaries, codeToEnrichedBoundary, 
-                              boundaryRows, processedCodes, newPath, levelTypes);
-            }
-        }
-    }
-    
-    private void processAllChildren(List<EnrichedBoundary> children, 
-                                   Map<String, EnrichedBoundary> codeToEnrichedBoundary,
-                                   List<BoundaryRowData> boundaryRows, Set<String> processedCodes,
-                                   List<String> currentPath, List<String> levelTypes) {
-        
-        if (children == null || children.isEmpty()) {
-            return;
-        }
-        
-        for (EnrichedBoundary child : children) {
-            if (!processedCodes.contains(child.getCode())) {
-                processedCodes.add(child.getCode());
-                
-                // Create new path with child
-                List<String> newPath = new ArrayList<>(currentPath);
-                int levelIndex = getLevelIndex(child.getBoundaryType(), levelTypes);
-                
-                // Ensure path has enough elements
-                while (newPath.size() <= levelIndex) {
-                    newPath.add(null);
-                }
-                newPath.set(levelIndex, child.getCode());
-                
-                // Add current path as a row with boundary code
-                boundaryRows.add(new BoundaryRowData(new ArrayList<>(newPath), child.getCode()));
-                
-                // Recursively process children
-                if (child.getChildren() != null && !child.getChildren().isEmpty()) {
-                    processAllChildren(child.getChildren(), codeToEnrichedBoundary,
-                                     boundaryRows, processedCodes, newPath, levelTypes);
-                }
-            }
-        }
-    }
-    
-    private int getLevelIndex(String boundaryType, List<String> levelTypes) {
-        for (int i = 0; i < levelTypes.size(); i++) {
-            if (levelTypes.get(i).equalsIgnoreCase(boundaryType)) {
-                return i;
-            }
-        }
-        return -1;
-    }
-    
-    // Inner class to hold boundary row data
-    private static class BoundaryRowData {
-        private final List<String> boundaryPath;
-        private final String lastLevelCode;
-        
-        public BoundaryRowData(List<String> boundaryPath, String lastLevelCode) {
-            this.boundaryPath = boundaryPath;
-            this.lastLevelCode = lastLevelCode;
-        }
-        
-        public List<String> getBoundaryPath() {
-            return boundaryPath;
-        }
-        
-        public String getLastLevelCode() {
-            return lastLevelCode;
-        }
-        
-        public boolean isLastLevel(int lastLevelIndex) {
-            // Check if the boundary path has a non-null value at the last level index
-            return boundaryPath.size() > lastLevelIndex && boundaryPath.get(lastLevelIndex) != null;
         }
     }
 

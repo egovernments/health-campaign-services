@@ -73,3 +73,4 @@
    - When `boundaries` array exists, dropdown should contain only those specific boundaries
    - Consider `includeChildren` flag - if true, include child boundaries in dropdown options
    - Apply this logic to both facility and user sheets
+   - The enrichment of child boundaries (when includeAllChildren = true) is already handled in BoundaryHierarchySheetCreator. Extract that logic into a BoundaryUtil class and reuse it across BoundaryHierarchySheetCreator, User sheet generation, and Facility sheet generation for microplan.
