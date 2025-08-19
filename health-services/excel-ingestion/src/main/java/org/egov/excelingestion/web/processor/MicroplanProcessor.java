@@ -6,10 +6,7 @@ import org.apache.poi.poifs.crypt.HashAlgorithm;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.util.CellRangeAddressList;
 import org.apache.poi.ss.util.CellReference;
-import org.apache.poi.xssf.usermodel.XSSFCellStyle;
-import org.apache.poi.xssf.usermodel.XSSFColor;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-import java.awt.Color;
 import org.egov.excelingestion.config.ErrorConstants;
 import org.egov.excelingestion.config.ExcelIngestionConfig;
 import org.egov.excelingestion.exception.CustomExceptionHandler;
@@ -20,16 +17,14 @@ import org.egov.excelingestion.service.MDMSService;
 import org.egov.excelingestion.util.ExcelSchemaSheetCreator;
 import org.egov.excelingestion.util.BoundaryHierarchySheetCreator;
 import org.egov.excelingestion.util.CampaignConfigSheetCreator;
+import org.egov.excelingestion.util.ExcelStyleHelper;
 import org.egov.excelingestion.web.models.*;
 import org.egov.excelingestion.util.RequestInfoConverter;
 import org.egov.excelingestion.service.ApiPayloadBuilder;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Component;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 @Component("microplanProcessor")
@@ -45,6 +40,7 @@ public class MicroplanProcessor implements IGenerateProcessor {
     private final ExcelSchemaSheetCreator excelSchemaSheetCreator;
     private final CampaignConfigSheetCreator campaignConfigSheetCreator;
     private final MDMSService mdmsService;
+    private final ExcelStyleHelper excelStyleHelper;
     
     @Autowired
     private CustomExceptionHandler exceptionHandler;
@@ -53,7 +49,8 @@ public class MicroplanProcessor implements IGenerateProcessor {
             LocalizationService localizationService, BoundaryHierarchySheetCreator boundaryHierarchySheetCreator,
             BoundaryService boundaryService, RequestInfoConverter requestInfoConverter,
             ApiPayloadBuilder apiPayloadBuilder, ExcelSchemaSheetCreator excelSchemaSheetCreator,
-            CampaignConfigSheetCreator campaignConfigSheetCreator, MDMSService mdmsService) {
+            CampaignConfigSheetCreator campaignConfigSheetCreator, MDMSService mdmsService,
+            ExcelStyleHelper excelStyleHelper) {
         this.config = config;
         this.localizationService = localizationService;
         this.boundaryHierarchySheetCreator = boundaryHierarchySheetCreator;
@@ -63,6 +60,7 @@ public class MicroplanProcessor implements IGenerateProcessor {
         this.excelSchemaSheetCreator = excelSchemaSheetCreator;
         this.campaignConfigSheetCreator = campaignConfigSheetCreator;
         this.mdmsService = mdmsService;
+        this.excelStyleHelper = excelStyleHelper;
     }
 
     @Override
@@ -93,10 +91,18 @@ public class MicroplanProcessor implements IGenerateProcessor {
         mergedLocalizationMap.putAll(schemaLocalizationMap);
 
         // Fetch schema from MDMS for the mapping sheet
-        String schemaJson = fetchSchemaFromMDMS(tenantId, requestInfo, "facility-microplan-ingestion");
+        Map<String, Object> facilityFilters = new HashMap<>();
+        facilityFilters.put("title", "facility-microplan-ingestion");
+        List<Map<String, Object>> facilityMdmsList = mdmsService.searchMDMS(
+                requestInfo, tenantId, "HCM-ADMIN-CONSOLE.schemas", facilityFilters, 1, 0);
+        String schemaJson = extractSchemaFromMDMSResponse(facilityMdmsList, "facility-microplan-ingestion");
         
         // Fetch schema from MDMS for the user sheet
-        String userSchemaJson = fetchSchemaFromMDMS(tenantId, requestInfo, "user-microplan-ingestion");
+        Map<String, Object> userFilters = new HashMap<>();
+        userFilters.put("title", "user-microplan-ingestion");
+        List<Map<String, Object>> userMdmsList = mdmsService.searchMDMS(
+                requestInfo, tenantId, "HCM-ADMIN-CONSOLE.schemas", userFilters, 1, 0);
+        String userSchemaJson = extractSchemaFromMDMSResponse(userMdmsList, "user-microplan-ingestion");
 
         // Fetch boundary hierarchy data
         BoundaryHierarchyResponse hierarchyData = boundaryService.fetchBoundaryHierarchy(tenantId, hierarchyType, requestInfo);
@@ -160,7 +166,11 @@ public class MicroplanProcessor implements IGenerateProcessor {
         XSSFWorkbook workbook = new XSSFWorkbook();
 
         // === Create Campaign Configuration sheet as the first sheet ===
-        String campaignConfigData = fetchCampaignConfigFromMDMS(tenantId, requestInfo, "HCM_CAMP_CONF_SHEETNAME");
+        Map<String, Object> configFilters = new HashMap<>();
+        configFilters.put("sheetName", "HCM_CAMP_CONF_SHEETNAME");
+        List<Map<String, Object>> configMdmsList = mdmsService.searchMDMS(
+                requestInfo, tenantId, "HCM-ADMIN-CONSOLE.configsheet", configFilters, 1, 0);
+        String campaignConfigData = extractCampaignConfigFromMDMSResponse(configMdmsList, "HCM_CAMP_CONF_SHEETNAME");
         if (campaignConfigData != null && !campaignConfigData.isEmpty()) {
             String localizedConfigSheetName = mergedLocalizationMap.getOrDefault("HCM_CAMP_CONF_SHEETNAME", "HCM_CAMP_CONF_SHEETNAME");
             
@@ -238,7 +248,6 @@ public class MicroplanProcessor implements IGenerateProcessor {
         for (int i = 0; i < levels.size(); i++) {
             String level = levels.get(i);
             Set<String> codePaths = boundariesByLevelCode.getOrDefault(level, Collections.emptySet());
-            Set<String> localizedSet = boundariesByLevelLocalized.getOrDefault(level, Collections.emptySet());
 
             Row header = boundarySheet.getRow(0) != null ? boundarySheet.getRow(0) : boundarySheet.createRow(0);
             header.createCell(i).setCellValue(level); // header shows level display name
@@ -523,16 +532,8 @@ public class MicroplanProcessor implements IGenerateProcessor {
         return "microplan-ingestion";
     }
 
-    private String fetchSchemaFromMDMS(String tenantId, RequestInfo requestInfo, String title) {
+    private String extractSchemaFromMDMSResponse(List<Map<String, Object>> mdmsList, String title) {
         try {
-            // Create filters for schema search
-            Map<String, Object> filters = new HashMap<>();
-            filters.put("title", title);
-            
-            // Call MDMS service
-            List<Map<String, Object>> mdmsList = mdmsService.searchMDMS(
-                    requestInfo, tenantId, "HCM-ADMIN-CONSOLE.schemas", filters, 1, 0);
-            
             if (!mdmsList.isEmpty()) {
                 Map<String, Object> mdmsData = mdmsList.get(0);
                 Map<String, Object> data = (Map<String, Object>) mdmsData.get("data");
@@ -542,13 +543,13 @@ public class MicroplanProcessor implements IGenerateProcessor {
                 if (properties != null) {
                     // Convert properties to JSON string
                     ObjectMapper mapper = new ObjectMapper();
-                    log.info("Successfully fetched MDMS schema for: {}", title);
+                    log.info("Successfully extracted MDMS schema for: {}", title);
                     return mapper.writeValueAsString(properties);
                 }
             }
             log.warn("No MDMS data found for schema: {}", title);
         } catch (Exception e) {
-            log.error("Error fetching MDMS schema {}: {}", title, e.getMessage(), e);
+            log.error("Error extracting MDMS schema {}: {}", title, e.getMessage(), e);
             exceptionHandler.throwCustomException(ErrorConstants.MDMS_SERVICE_ERROR, 
                     ErrorConstants.MDMS_SERVICE_ERROR_MESSAGE, e);
         }
@@ -560,17 +561,8 @@ public class MicroplanProcessor implements IGenerateProcessor {
         return null; // This will never be reached due to exception throwing above
     }
 
-
-    private String fetchCampaignConfigFromMDMS(String tenantId, RequestInfo requestInfo, String sheetName) {
+    private String extractCampaignConfigFromMDMSResponse(List<Map<String, Object>> mdmsList, String sheetName) {
         try {
-            // Create filters for campaign config search
-            Map<String, Object> filters = new HashMap<>();
-            filters.put("sheetName", sheetName);
-            
-            // Call MDMS service
-            List<Map<String, Object>> mdmsList = mdmsService.searchMDMS(
-                    requestInfo, tenantId, "HCM-ADMIN-CONSOLE.configsheet", filters, 1, 0);
-            
             if (!mdmsList.isEmpty()) {
                 Map<String, Object> mdmsData = mdmsList.get(0);
                 Map<String, Object> data = (Map<String, Object>) mdmsData.get("data");
@@ -578,13 +570,13 @@ public class MicroplanProcessor implements IGenerateProcessor {
                 if (data != null) {
                     // Convert data to JSON string
                     ObjectMapper mapper = new ObjectMapper();
-                    log.info("Successfully fetched MDMS campaign config for: {}", sheetName);
+                    log.info("Successfully extracted MDMS campaign config for: {}", sheetName);
                     return mapper.writeValueAsString(data);
                 }
             }
             log.warn("No MDMS data found for campaign config: {}", sheetName);
         } catch (Exception e) {
-            log.error("Error fetching MDMS campaign config {}: {}", sheetName, e.getMessage(), e);
+            log.error("Error extracting MDMS campaign config {}: {}", sheetName, e.getMessage(), e);
             exceptionHandler.throwCustomException(ErrorConstants.MDMS_SERVICE_ERROR, 
                     ErrorConstants.MDMS_SERVICE_ERROR_MESSAGE, e);
         }
@@ -627,7 +619,7 @@ public class MicroplanProcessor implements IGenerateProcessor {
         hiddenRow.createCell(lastSchemaCol + 2).setCellValue("PARENT_BOUNDARY");
         
         // Create header style for boundary columns
-        CellStyle boundaryHeaderStyle = createBoundaryHeaderStyle(workbook, config.getDefaultHeaderColor());
+        CellStyle boundaryHeaderStyle = excelStyleHelper.createHeaderStyle(workbook, config.getDefaultHeaderColor());
         
         // Add localized headers to visible row with styling
         Cell levelHeaderCell = visibleRow.createCell(lastSchemaCol);
@@ -710,33 +702,4 @@ public class MicroplanProcessor implements IGenerateProcessor {
         }
     }
     
-    private CellStyle createBoundaryHeaderStyle(Workbook workbook, String colorHex) {
-        XSSFCellStyle style = (XSSFCellStyle) workbook.createCellStyle();
-        
-        // Set background color
-        Color color = Color.decode(colorHex);
-        XSSFColor xssfColor = new XSSFColor(color, null);
-        style.setFillForegroundColor(xssfColor);
-        style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
-        
-        // Set borders
-        style.setBorderTop(BorderStyle.THIN);
-        style.setBorderBottom(BorderStyle.THIN);
-        style.setBorderLeft(BorderStyle.THIN);
-        style.setBorderRight(BorderStyle.THIN);
-        
-        // Center align text
-        style.setAlignment(HorizontalAlignment.CENTER);
-        style.setVerticalAlignment(VerticalAlignment.CENTER);
-        
-        // Bold font
-        Font font = workbook.createFont();
-        font.setBold(true);
-        style.setFont(font);
-        
-        // Lock the cell
-        style.setLocked(true);
-        
-        return style;
-    }
 }

@@ -10,17 +10,30 @@
    - ✅ Replaced hardcoded sheet name mappings with configurable SheetSchemaConfig
    - ✅ Created SheetSchemaConfig component for different processing types
 
-3. **Update Schema Names**
-   - Change schema names from simple names to prefixed names:
+3. **✅ Update Schema Names** - COMPLETED
+   - ✅ Changed schema names from simple names to prefixed names:
      - "facility" → "facility-microplan-ingestion"
      - "user" → "user-microplan-ingestion"
-   - Update MDMS schema lookup accordingly
+   - ✅ Updated MDMS schema lookup accordingly
 
-4. **Code Refactoring - Large File Analysis**
-   - Check if any files in excel-ingestion service exceed 500 lines
-   - Identify oversized files that need refactoring/splitting
-   - Break down large classes into smaller, focused components
-   - Consider extracting utility methods, creating separate service classes, or using composition patterns
+4. **✅ Code Refactoring - Large File Analysis** - COMPLETED
+   - ✅ Checked files exceeding 500 lines - Found 6 files
+   - ✅ Identified oversized files that need refactoring:
+     - **MicroplanProcessor.java** (742 lines) - Main processor with multiple responsibilities
+     - **SchemaValidationService.java** (460 lines) - Complex validation logic
+     - **ExcelSchemaSheetCreator.java** (458 lines) - Excel sheet creation utilities  
+     - **CampaignConfigSheetCreator.java** (409 lines) - Campaign config sheet utilities
+     - **HierarchyExcelGenerateProcessor.java** (368 lines) - Hierarchy generation logic
+     - **BoundaryHierarchySheetCreator.java** (356 lines) - Boundary sheet utilities
+   
+   **✅ Refactoring Recommendations - COMPLETED:**
+   - ✅ Replaced MDMS fetching methods in MicroplanProcessor with direct calls to MDMSService.searchMDMS()
+     - ✅ fetchSchemaFromMDMS() → replaced with direct MDMSService.searchMDMS() calls using title filter
+     - ✅ fetchCampaignConfigFromMDMS() → replaced with direct MDMSService.searchMDMS() calls using sheetName filter
+   - ✅ Created ExcelStyleHelper utility class for Excel styling and formatting
+     - ✅ Extracted createBoundaryHeaderStyle() into reusable ExcelStyleHelper.createHeaderStyle()
+     - ✅ Added additional styling methods for different cell types (data, numeric, bordered, locked)
+     - ✅ Updated MicroplanProcessor to use ExcelStyleHelper
 
 5. **Dependency Injection Cleanup**
    - Remove @Autowired annotations from everywhere in excel-ingestion service

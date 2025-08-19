@@ -11,9 +11,9 @@ public class ProcessingConstants {
     public static final String BOUNDARY_DATA_SHEET_KEY = "HCM_ADMIN_CONSOLE_BOUNDARY_DATA";
     public static final String README_SHEET_KEY = "HCM_README_SHEETNAME";
     
-    // Schema Names
-    public static final String FACILITY_SCHEMA = "facility";
-    public static final String USER_SCHEMA = "user";
+    // Schema Names (prefixed with processing type)
+    public static final String FACILITY_SCHEMA = "facility-microplan-ingestion";
+    public static final String USER_SCHEMA = "user-microplan-ingestion";
     
     // MDMS Configuration
     public static final String MDMS_SCHEMA_CODE = "HCM-ADMIN-CONSOLE.schemas";
