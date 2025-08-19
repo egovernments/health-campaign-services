@@ -51,6 +51,7 @@ public class LocalizationService {
         try {
             // Post only RequestInfo in body (assuming API accepts it)
             StringBuilder uri = new StringBuilder(url);
+            log.info("Fetching localized messages from: {}", uri);
             LocalisationResponse response = serviceRequestClient.fetchResult(uri, requestInfo, LocalisationResponse.class);
 
             if (response != null && response.getMessages() != null) {

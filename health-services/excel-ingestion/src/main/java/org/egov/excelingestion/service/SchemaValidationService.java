@@ -21,24 +21,40 @@ public class SchemaValidationService {
     public List<ValidationError> validateDataWithSchema(List<Map<String, Object>> sheetData, 
             String sheetName, String tenantId, String type, String campaignType,
             org.egov.excelingestion.web.models.RequestInfo requestInfo) {
+        return validateDataWithSchema(sheetData, sheetName, tenantId, type, campaignType, requestInfo, null);
+    }
+    
+    /**
+     * Validates sheet data against JSON schema from MDMS with localization support
+     */
+    public List<ValidationError> validateDataWithSchema(List<Map<String, Object>> sheetData, 
+            String sheetName, String tenantId, String type, String campaignType,
+            org.egov.excelingestion.web.models.RequestInfo requestInfo, 
+            Map<String, String> localizationMap) {
         
         List<ValidationError> errors = new ArrayList<>();
         
         try {
+            String schemaName = getSchemaNameForSheet(sheetName, type, localizationMap);
+            if (schemaName == null) {
+                log.info("No schema validation configured for sheet: {} with type: {}", sheetName, type);
+                return errors;
+            }
+            
             // Fetch schema from MDMS
-            Map<String, Object> schema = fetchSchemaFromMDMS(tenantId, type, campaignType, requestInfo);
+            Map<String, Object> schema = fetchSchemaFromMDMS(tenantId, schemaName, requestInfo);
             if (schema == null) {
-                log.warn("No schema found for type: {} and campaignType: {}", type, campaignType);
+                log.warn("No schema found for schema name: {}", schemaName);
                 return errors;
             }
             
             // Extract validation rules from schema
             Map<String, ValidationRule> validationRules = extractValidationRules(schema);
             
-            // Validate each row against the schema
+            // Validate each row against the schema 
             for (int rowIndex = 0; rowIndex < sheetData.size(); rowIndex++) {
                 Map<String, Object> rowData = sheetData.get(rowIndex);
-                int excelRowNumber = rowIndex + 2; // +1 for header, +1 for 1-based indexing
+                int excelRowNumber = rowIndex + 3; // +1 for 0-based to 1-based, +2 for two header rows
                 
                 List<ValidationError> rowErrors = validateRowAgainstSchema(
                     rowData, excelRowNumber, sheetName, validationRules);
@@ -60,19 +76,20 @@ public class SchemaValidationService {
     }
 
     /**
-     * Fetches schema from MDMS v2
+     * Fetches schema from MDMS v2 using title
      */
-    private Map<String, Object> fetchSchemaFromMDMS(String tenantId, String type, String campaignType,
+    private Map<String, Object> fetchSchemaFromMDMS(String tenantId, String schemaName,
             org.egov.excelingestion.web.models.RequestInfo requestInfo) {
         try {
-            // Build unique identifier for schema
-            String uniqueIdentifier = String.format("%s.%s", type, campaignType != null ? campaignType : "all");
-            
-            // Create MDMS search criteria
+            // Create MDMS search criteria with title filter
             Map<String, Object> mdmsCriteria = new HashMap<>();
             mdmsCriteria.put("tenantId", tenantId);
-            mdmsCriteria.put("uniqueIdentifiers", Arrays.asList(uniqueIdentifier));
-            mdmsCriteria.put("schemaCode", "HCM-ADMIN-CONSOLE.adminSchema");
+            mdmsCriteria.put("schemaCode", "HCM-ADMIN-CONSOLE.schemas");
+            
+            // Add filters for title
+            Map<String, Object> filters = new HashMap<>();
+            filters.put("title", schemaName);
+            mdmsCriteria.put("filters", filters);
             
             // Call MDMS service
             List<Map<String, Object>> mdmsResponse = mdmsService.searchMDMSData(requestInfo, mdmsCriteria);
@@ -113,15 +130,27 @@ public class SchemaValidationService {
     private Map<String, ValidationRule> extractValidationRules(Map<String, Object> schema) {
         Map<String, ValidationRule> rules = new HashMap<>();
         
-        // Extract string properties
-        extractStringPropertyRules(schema, rules);
+        // Schema structure: schema.properties.stringProperties, etc.
+        Map<String, Object> propertiesSection = null;
+        if (schema.containsKey("properties")) {
+            propertiesSection = (Map<String, Object>) schema.get("properties");
+        } else {
+            // Fallback: use schema directly if no properties section
+            propertiesSection = null;
+        }
         
-        // Extract number properties  
-        extractNumberPropertyRules(schema, rules);
+        if (propertiesSection != null) {
+            // Extract string properties
+            extractStringPropertyRules(propertiesSection, rules);
+            
+            // Extract number properties  
+            extractNumberPropertyRules(propertiesSection, rules);
+            
+            // Extract enum properties
+            extractEnumPropertyRules(propertiesSection, rules);
+        }
         
-        // Extract enum properties
-        extractEnumPropertyRules(schema, rules);
-        
+        log.info("Extracted {} validation rules from schema", rules.size());
         return rules;
     }
 
@@ -367,5 +396,57 @@ public class SchemaValidationService {
         
         public String getErrorMessage() { return errorMessage; }
         public void setErrorMessage(String errorMessage) { this.errorMessage = errorMessage; }
+    }
+    
+    /**
+     * Maps sheet names to schema names for microplan-ingestion
+     * Handles localized sheet names and Excel's 31-character limit
+     */
+    private String getSchemaNameForSheet(String sheetName, String type, Map<String, String> localizationMap) {
+        if ("microplan-ingestion".equals(type)) {
+            // Get localized names and trim to 31 characters if needed
+            String facilitiesSheetName = getLocalizedSheetName("HCM_ADMIN_CONSOLE_FACILITIES_LIST", localizationMap);
+            String userListSheetName = getLocalizedSheetName("HCM_ADMIN_CONSOLE_USER_LIST", localizationMap);
+            String boundaryDataSheetName = getLocalizedSheetName("HCM_ADMIN_CONSOLE_BOUNDARY_DATA", localizationMap);
+            String readmeSheetName = getLocalizedSheetName("HCM_README_SHEETNAME", localizationMap);
+            
+            if (facilitiesSheetName.equals(sheetName)) {
+                return "facility";
+            } else if (userListSheetName.equals(sheetName)) {
+                return "user";
+            } else if (boundaryDataSheetName.equals(sheetName)) {
+                return null; // No validation for boundary data sheet
+            } else if (readmeSheetName.equals(sheetName)) {
+                return null; // No validation for readme sheet
+            } else {
+                log.warn("Unknown sheet name for microplan-ingestion: {}", sheetName);
+                return null;
+            }
+        }
+        
+        // For other types, you can add more mappings here
+        log.warn("No schema mapping configured for type: {} and sheet: {}", type, sheetName);
+        return null;
+    }
+    
+    /**
+     * Gets localized sheet name and trims to 31 characters if needed
+     */
+    private String getLocalizedSheetName(String key, Map<String, String> localizationMap) {
+        String localizedName = key;
+        
+        // Get localized value if available
+        if (localizationMap != null && localizationMap.containsKey(key)) {
+            localizedName = localizationMap.get(key);
+        }
+        
+        // Trim to 31 characters if needed (Excel sheet name limit)
+        if (localizedName.length() > 31) {
+            localizedName = localizedName.substring(0, 31);
+            log.debug("Trimmed sheet name from {} to {} (31 char limit)", 
+                    localizationMap != null ? localizationMap.get(key) : key, localizedName);
+        }
+        
+        return localizedName;
     }
 }

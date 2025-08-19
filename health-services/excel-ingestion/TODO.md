@@ -1,14 +1,23 @@
 # Excel Ingestion Service - TODO
 
-### Code Quality Issues
-- [x] Fix typo: Rename `refernceId` to `referenceId` in GenerateResource model (requires migration strategy for backward compatibility)
+## Configuration Improvements Needed
 
-### Unused Methods to Remove
-- [x] ~~Remove unused `getFilename()` method from `FileStoreService.java`~~ (Not removed - this is actually used as an override in anonymous ByteArrayResource class)
-- [x] Remove unused `createPayloadWithCriteria()` method from `ApiPayloadBuilder.java`
-- [x] Remove unused `createMdmsPayload()` method from `ApiPayloadBuilder.java`
-- [x] Remove unused `createCampaignConfigMdmsPayload()` method from `ApiPayloadBuilder.java`
+1. **Create Constants Configuration**
+   - Move hardcoded strings like "microplan-ingestion" to constants
+   - Create ProcessingConstants class for type definitions
 
-### Model Enhancements
-- [x] Move boundaries to additionalDetails in GenerateResource model
-- [x] Align logic with boundaries in additionalDetails change
+2. **Sheet-Schema Mapping Configuration**
+   - Replace hardcoded sheet name mappings with configurable approach
+   - Create SheetSchemaConfig for different processing types
+
+3. **Update Schema Names**
+   - Change schema names from simple names to prefixed names:
+     - "facility" → "facility-microplan-ingestion"
+     - "user" → "user-microplan-ingestion"
+   - Update MDMS schema lookup accordingly
+
+4. **Code Refactoring - Large File Analysis**
+   - Check if any files in excel-ingestion service exceed 500 lines
+   - Identify oversized files that need refactoring/splitting
+   - Break down large classes into smaller, focused components
+   - Consider extracting utility methods, creating separate service classes, or using composition patterns

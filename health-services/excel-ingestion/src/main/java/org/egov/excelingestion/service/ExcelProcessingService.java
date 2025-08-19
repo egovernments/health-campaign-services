@@ -109,9 +109,19 @@ public class ExcelProcessingService {
             ResponseEntity<FileStoreResponse> response = restTemplate.exchange(
                     url, HttpMethod.GET, null, FileStoreResponse.class);
             
-            if (response.getBody() != null && response.getBody().getFiles() != null 
-                    && !response.getBody().getFiles().isEmpty()) {
-                String fileUrl = response.getBody().getFiles().get(0).getUrl();
+            FileStoreResponse responseBody = response.getBody();
+            if (responseBody != null) {
+                String fileUrl = null;
+                
+                // Try to get URL from fileStoreIds array first
+                if (responseBody.getFiles() != null && !responseBody.getFiles().isEmpty()) {
+                    fileUrl = responseBody.getFiles().get(0).getUrl();
+                }
+                
+                // If not found in array, try the file ID to URL mapping
+                if (fileUrl == null && responseBody.getFileIdToUrlMap() != null) {
+                    fileUrl = responseBody.getFileIdToUrlMap().get(fileStoreId);
+                }
                 
                 if (fileUrl != null) {
                     try (InputStream inputStream = new URL(fileUrl).openStream()) {
@@ -175,8 +185,8 @@ public class ExcelProcessingService {
             headers.add(getCellValueAsString(cell));
         }
         
-        // Process data rows
-        for (int rowNum = 1; rowNum <= sheet.getLastRowNum(); rowNum++) {
+        // Process data rows (skip row 1 as it's second header row, start from row 2)
+        for (int rowNum = 2; rowNum <= sheet.getLastRowNum(); rowNum++) {
             Row row = sheet.getRow(rowNum);
             if (row == null) continue;
             
