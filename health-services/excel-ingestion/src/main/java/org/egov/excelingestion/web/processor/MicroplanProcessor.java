@@ -146,8 +146,6 @@ public class MicroplanProcessor implements IGenerateProcessor {
         Map<String, Set<String>> boundariesByLevelCode = new HashMap<>();
         // mapping codePath -> localized name
         Map<String, String> codeToLocalized = new LinkedHashMap<>();
-        // child codePath -> list of parent codePaths
-        Map<String, List<String>> childToParentCodes = new LinkedHashMap<>();
 
         levels.forEach(l -> {
             boundariesByLevelLocalized.put(l, new TreeSet<>());
@@ -158,7 +156,7 @@ public class MicroplanProcessor implements IGenerateProcessor {
         if (relationshipData != null && relationshipData.getTenantBoundary() != null) {
             for (HierarchyRelation hr : relationshipData.getTenantBoundary()) {
                 processNodesBuildCodePaths(hr.getBoundary(), boundaryTypeToLevel, null,
-                        boundariesByLevelLocalized, boundariesByLevelCode, codeToLocalized, childToParentCodes,
+                        boundariesByLevelLocalized, boundariesByLevelCode, codeToLocalized,
                         localizationMap);
             }
         }
@@ -211,24 +209,6 @@ public class MicroplanProcessor implements IGenerateProcessor {
             workbook = (XSSFWorkbook) excelSchemaSheetCreator.addSchemaSheetFromJson(schemaJson, actualFacilitySheetName, workbook, mergedLocalizationMap);
         }
 
-        // === Level Mapping sheet (hidden) for localization keys and values ===
-        Sheet levelMappingSheet = workbook.createSheet("_h_LevelMapping_h_");
-        workbook.setSheetHidden(workbook.getSheetIndex("_h_LevelMapping_h_"), true);
-        
-        // Header row
-        Row mappingHeaderRow = levelMappingSheet.createRow(0);
-        mappingHeaderRow.createCell(0).setCellValue("Level Key");
-        mappingHeaderRow.createCell(1).setCellValue("Localized Level");
-        mappingHeaderRow.createCell(2).setCellValue("Generic Level");
-        
-        // Data rows
-        for (int i = 0; i < levels.size(); i++) {
-            Row mappingRow = levelMappingSheet.createRow(i + 1);
-            mappingRow.createCell(0).setCellValue(levelKeys.get(i));          // HCM_CAMP_CONF_LEVEL_1
-            mappingRow.createCell(1).setCellValue(levels.get(i));             // Localized level name
-            mappingRow.createCell(2).setCellValue("Level " + (i + 1));        // Generic "Level 1" for backward compatibility
-        }
-        
         // === Levels sheet (localized display names visible) ===
         Sheet levelSheet = workbook.createSheet("_h_Levels_h_");
         workbook.setSheetHidden(workbook.getSheetIndex("_h_Levels_h_"), true);
@@ -283,71 +263,6 @@ public class MicroplanProcessor implements IGenerateProcessor {
                 }
             }
         }
-
-        // === Parents sheet ===
-        // For parents sheet, each column corresponds to a child codePath (unique).
-        // Column header = codePath
-        // Under each header we will put localized parent names (if any).
-        Sheet parentSheet = workbook.createSheet("_h_Parents_h_");
-        workbook.setSheetHidden(workbook.getSheetIndex("_h_Parents_h_"), true);
-        int parentCol = 0;
-        for (Map.Entry<String, List<String>> entry : childToParentCodes.entrySet()) {
-            String childCode = entry.getKey(); // unique code path
-            List<String> parentCodes = entry.getValue();
-
-            Row headerRow = parentSheet.getRow(0) != null ? parentSheet.getRow(0) : parentSheet.createRow(0);
-            // we store header as codePath so we can create named ranges by codePath
-            headerRow.createCell(parentCol).setCellValue(childCode);
-
-            // Sort parent names alphabetically
-            List<String> sortedParentNames = new ArrayList<>();
-            for (String parentCode : parentCodes) {
-                String localizedParent = codeToLocalized.getOrDefault(parentCode, parentCode);
-                sortedParentNames.add(localizedParent);
-            }
-            Collections.sort(sortedParentNames, String.CASE_INSENSITIVE_ORDER);
-
-            int r = 1;
-            for (String localizedParent : sortedParentNames) {
-                Row row = parentSheet.getRow(r) != null ? parentSheet.getRow(r) : parentSheet.createRow(r);
-                row.createCell(parentCol).setCellValue(localizedParent);
-                r++;
-            }
-
-            // create named range named by sanitized codePath (unique)
-            String sanitizedCodeName = makeNameValid(childCode);
-            if (workbook.getName(sanitizedCodeName) == null && !sortedParentNames.isEmpty()) {
-                Name namedRange = workbook.createName();
-                namedRange.setNameName(sanitizedCodeName);
-                String colLetter = CellReference.convertNumToColString(parentCol);
-                namedRange.setRefersToFormula(
-                        "_h_Parents_h_!$" + colLetter + "$2:$" + colLetter + "$" + (sortedParentNames.size() + 1));
-            }
-            parentCol++;
-        }
-
-        // === CodeMap sheet: localizedName -> codePath (used by VLOOKUP in parent
-        // dropdown) ===
-        // IMPORTANT: if a localized name maps to multiple codePaths, the VLOOKUP will
-        // find the first - avoid duplicates in localized names if possible
-        Sheet codeMapSheet = workbook.createSheet("_h_CodeMap_h_");
-        workbook.setSheetHidden(workbook.getSheetIndex("_h_CodeMap_h_"), true);
-        Row cmHeader = codeMapSheet.createRow(0);
-        cmHeader.createCell(0).setCellValue("LocalizedName");
-        cmHeader.createCell(1).setCellValue("CodePath");
-
-        int cmRow = 1;
-        for (Map.Entry<String, String> e : codeToLocalized.entrySet()) {
-            String codePath = e.getKey();
-            String localized = e.getValue();
-            Row r = codeMapSheet.getRow(cmRow) != null ? codeMapSheet.getRow(cmRow) : codeMapSheet.createRow(cmRow);
-            r.createCell(0).setCellValue(localized);
-            r.createCell(1).setCellValue(codePath);
-            cmRow++;
-        }
-
-        // create a named range for CodeMap if desired (not strictly necessary) - we use
-        // full sheet reference in VLOOKUP
 
         // === Main facility sheet - get existing sheet created by schema ===
         Sheet mainSheet = workbook.getSheet(actualFacilitySheetName);
@@ -448,7 +363,6 @@ public class MicroplanProcessor implements IGenerateProcessor {
      * - boundariesByLevelLocalized: level -> localized names (display)
      * - boundariesByLevelCode: level -> codePath strings (unique keys)
      * - codeToLocalized: codePath -> localized name
-     * - childToParentCodes: childCodePath -> list of parent codePaths
      *
      * @param nodes                      current nodes
      * @param boundaryTypeToLevel        mapping boundaryType -> LevelName ("Level
@@ -457,7 +371,6 @@ public class MicroplanProcessor implements IGenerateProcessor {
      * @param boundariesByLevelLocalized
      * @param boundariesByLevelCode
      * @param codeToLocalized
-     * @param childToParentCodes
      * @param localizationMap            code->localized string map from
      *                                   LocalizationService
      */
@@ -467,7 +380,6 @@ public class MicroplanProcessor implements IGenerateProcessor {
             Map<String, Set<String>> boundariesByLevelLocalized,
             Map<String, Set<String>> boundariesByLevelCode,
             Map<String, String> codeToLocalized,
-            Map<String, List<String>> childToParentCodes,
             Map<String, String> localizationMap) {
         if (nodes == null)
             return;
@@ -497,18 +409,10 @@ public class MicroplanProcessor implements IGenerateProcessor {
             boundariesByLevelCode.computeIfAbsent(level, k -> new LinkedHashSet<>()).add(codePath);
             boundariesByLevelLocalized.computeIfAbsent(level, k -> new TreeSet<>()).add(localized);
 
-            // if parent exists, add parent code mapping for child
-            if (parentCodePath != null) {
-                childToParentCodes.computeIfAbsent(codePath, k -> new ArrayList<>()).add(parentCodePath);
-            } else {
-                // ensure childToParentCodes has an entry (maybe empty list)
-                childToParentCodes.putIfAbsent(codePath, new ArrayList<>());
-            }
-
             // Recurse children: pass current codePath as parent
             if (node.getChildren() != null && !node.getChildren().isEmpty()) {
                 processNodesBuildCodePaths(node.getChildren(), boundaryTypeToLevel, codePath,
-                        boundariesByLevelLocalized, boundariesByLevelCode, codeToLocalized, childToParentCodes,
+                        boundariesByLevelLocalized, boundariesByLevelCode, codeToLocalized,
                         localizationMap);
             }
         }
@@ -650,10 +554,11 @@ public class MicroplanProcessor implements IGenerateProcessor {
         int lastSchemaCol = visibleRow.getLastCellNum();
         if (lastSchemaCol < 0) lastSchemaCol = 0;
         
-        // Add level and boundary columns after schema columns (no parent column needed)
+        // Add level, boundary name, and boundary code columns after schema columns
         // Add technical names to hidden row
         hiddenRow.createCell(lastSchemaCol).setCellValue("BOUNDARY_LEVEL");
         hiddenRow.createCell(lastSchemaCol + 1).setCellValue("BOUNDARY_NAME");
+        hiddenRow.createCell(lastSchemaCol + 2).setCellValue("HCM_ADMIN_CONSOLE_BOUNDARY_CODE");
         
         // Create header style for boundary columns (left-aligned to match schema columns)
         CellStyle boundaryHeaderStyle = excelStyleHelper.createLeftAlignedHeaderStyle(workbook, config.getDefaultHeaderColor());
@@ -667,25 +572,34 @@ public class MicroplanProcessor implements IGenerateProcessor {
         boundaryHeaderCell.setCellValue(localizationMap.getOrDefault("HCM_INGESTION_BOUNDARY_COLUMN", "HCM_INGESTION_BOUNDARY_COLUMN"));
         boundaryHeaderCell.setCellStyle(boundaryHeaderStyle);
         
+        Cell boundaryCodeHeaderCell = visibleRow.createCell(lastSchemaCol + 2);
+        boundaryCodeHeaderCell.setCellValue(localizationMap.getOrDefault("HCM_ADMIN_CONSOLE_BOUNDARY_CODE", "HCM_ADMIN_CONSOLE_BOUNDARY_CODE"));
+        boundaryCodeHeaderCell.setCellStyle(boundaryHeaderStyle);
+        
         // Create level and boundary dropdowns with "Boundary (Parent)" format to avoid duplicates
         createLevelAndBoundaryDropdowns(workbook, filteredBoundaries, levelTypes, localizationMap);
+        
+        // Add boundary code mapping BEFORE data validations to ensure named range exists
+        addBoundaryCodeMapping(workbook, filteredBoundaries, localizationMap);
         
         // Add data validation for level and boundary columns
         addLevelAndBoundaryDataValidations(workbook, sheet, lastSchemaCol, levelTypes, localizationMap);
 
 
-        // Column widths & freeze - level and boundary columns
-        sheet.setColumnWidth(lastSchemaCol, 50 * 256); // Level column (same width as boundary column)
+        // Column widths & freeze - level, boundary name, and boundary code columns
+        sheet.setColumnWidth(lastSchemaCol, 50 * 256); // Level column
         sheet.setColumnWidth(lastSchemaCol + 1, 50 * 256); // Boundary column (wider for "Boundary (Parent)" format)
+        sheet.setColumnWidth(lastSchemaCol + 2, 25 * 256); // Boundary code column (narrower)
         sheet.createFreezePane(0, 2); // Freeze after row 2 since schema creator uses row 1 for technical names
 
-        // Unlock cells for user input - level and boundary columns
+        // Unlock cells for user input - level and boundary columns only (boundary code is auto-populated)
         CellStyle unlocked = workbook.createCellStyle();
         unlocked.setLocked(false);
         for (int r = 2; r <= config.getExcelRowLimit(); r++) { // Start from row 2 to skip hidden technical row
             Row row = sheet.getRow(r);
             if (row == null)
                 row = sheet.createRow(r);
+            // Only unlock level and boundary name columns (not boundary code)
             for (int c = lastSchemaCol; c < lastSchemaCol + 2; c++) {
                 Cell cell = row.getCell(c);
                 if (cell == null)
@@ -693,6 +607,9 @@ public class MicroplanProcessor implements IGenerateProcessor {
                 cell.setCellStyle(unlocked);
             }
         }
+        
+        // Hide the boundary code column
+        sheet.setColumnHidden(lastSchemaCol + 2, true);
     }
 
     /**
@@ -829,6 +746,69 @@ public class MicroplanProcessor implements IGenerateProcessor {
     }
     
     /**
+     * Creates boundary code mapping sheet for automatic code population
+     */
+    private void addBoundaryCodeMapping(XSSFWorkbook workbook, List<BoundaryUtil.BoundaryRowData> filteredBoundaries,
+                                      Map<String, String> localizationMap) {
+        // Check if boundary code mapping sheet already exists (since this method may be called for multiple sheets)
+        Sheet boundaryCodeMapSheet = workbook.getSheet("_h_BoundaryCodeMap_h_");
+        if (boundaryCodeMapSheet != null) {
+            // Sheet already exists, no need to recreate
+            return;
+        }
+        
+        // Create hidden sheet for boundary display name -> code mapping
+        boundaryCodeMapSheet = workbook.createSheet("_h_BoundaryCodeMap_h_");
+        workbook.setSheetHidden(workbook.getSheetIndex("_h_BoundaryCodeMap_h_"), true);
+        
+        // Header row
+        Row headerRow = boundaryCodeMapSheet.createRow(0);
+        headerRow.createCell(0).setCellValue("BoundaryDisplay");
+        headerRow.createCell(1).setCellValue("BoundaryCode");
+        
+        // Build mapping from display name to boundary code
+        Map<String, String> displayToCodeMap = new HashMap<>();
+        
+        for (BoundaryUtil.BoundaryRowData boundary : filteredBoundaries) {
+            List<String> path = boundary.getBoundaryPath();
+            for (int i = 0; i < path.size(); i++) {
+                if (path.get(i) != null) {
+                    String boundaryCode = path.get(i);
+                    String boundaryName = localizationMap.getOrDefault(boundaryCode, boundaryCode);
+                    
+                    // Get parent name if exists for display format
+                    String parentName = "";
+                    if (i > 0 && path.get(i-1) != null) {
+                        String parentCode = path.get(i-1);
+                        parentName = localizationMap.getOrDefault(parentCode, parentCode);
+                    }
+                    
+                    // Create display format: "Boundary (Parent)" or just "Boundary" if no parent
+                    String displayText = parentName.isEmpty() ? boundaryName : boundaryName + " (" + parentName + ")";
+                    
+                    // Store mapping
+                    displayToCodeMap.put(displayText, boundaryCode);
+                }
+            }
+        }
+        
+        // Populate mapping sheet
+        int rowNum = 1;
+        for (Map.Entry<String, String> entry : displayToCodeMap.entrySet()) {
+            Row row = boundaryCodeMapSheet.createRow(rowNum++);
+            row.createCell(0).setCellValue(entry.getKey());   // Display name
+            row.createCell(1).setCellValue(entry.getValue()); // Code
+        }
+        
+        // Create named range for the mapping
+        if (!displayToCodeMap.isEmpty()) {
+            Name boundaryCodeMapRange = workbook.createName();
+            boundaryCodeMapRange.setNameName("BoundaryCodeMap");
+            boundaryCodeMapRange.setRefersToFormula("_h_BoundaryCodeMap_h_!$A$1:$B$" + (displayToCodeMap.size() + 1));
+        }
+    }
+
+    /**
      * Adds data validations for level and boundary columns
      */
     private void addLevelAndBoundaryDataValidations(XSSFWorkbook workbook, Sheet sheet, int lastSchemaCol, 
@@ -860,6 +840,15 @@ public class MicroplanProcessor implements IGenerateProcessor {
             boundaryValidation.setShowPromptBox(true);
             boundaryValidation.createPromptBox("Select Boundary", "Choose a boundary from the dropdown list. Format: 'Boundary (Parent)' to avoid duplicates.");
             sheet.addValidationData(boundaryValidation);
+            
+            // Add VLOOKUP formula to boundary code column for automatic population
+            String boundaryNameCellRef = CellReference.convertNumToColString(lastSchemaCol + 1) + (rowIndex + 1);
+            String vlookupFormula = "IF(" + boundaryNameCellRef + "=\"\", \"\", VLOOKUP(" + boundaryNameCellRef + ", BoundaryCodeMap, 2, FALSE))";
+            
+            Row row = sheet.getRow(rowIndex);
+            if (row == null) row = sheet.createRow(rowIndex);
+            Cell boundaryCodeCell = row.createCell(lastSchemaCol + 2);
+            boundaryCodeCell.setCellFormula(vlookupFormula);
         }
     }
 }
