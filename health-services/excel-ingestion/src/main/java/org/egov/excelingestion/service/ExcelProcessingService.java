@@ -98,22 +98,26 @@ public class ExcelProcessingService {
                 // Validate data and collect errors with localization
                 List<ValidationError> validationErrors = validateExcelData(workbook, resource, request.getRequestInfo(), mergedLocalizationMap);
                 
-                // Process each sheet: add validation columns and errors
+                // Process each sheet: only add validation columns to sheets with errors
                 Map<String, ValidationColumnInfo> columnInfoMap = new HashMap<>();
                 for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
                     Sheet sheet = workbook.getSheetAt(i);
                     String sheetName = sheet.getSheetName();
                     
-                    // Add or find validation columns with localization
-                    ValidationColumnInfo columnInfo = validationService.addValidationColumns(sheet, mergedLocalizationMap);
-                    columnInfoMap.put(sheetName, columnInfo);
-                    
-                    // Get errors for this sheet and process them
+                    // Get errors for this sheet first
                     List<ValidationError> sheetErrors = validationErrors.stream()
                             .filter(error -> sheetName.equals(error.getSheetName()))
                             .toList();
                     
-                    validationService.processValidationErrors(sheet, sheetErrors, columnInfo);
+                    // Only add validation columns if there are errors for this sheet
+                    if (!sheetErrors.isEmpty()) {
+                        // Add validation columns with localization
+                        ValidationColumnInfo columnInfo = validationService.addValidationColumns(sheet, mergedLocalizationMap);
+                        columnInfoMap.put(sheetName, columnInfo);
+                        
+                        // Process the validation errors
+                        validationService.processValidationErrors(sheet, sheetErrors, columnInfo);
+                    }
                 }
                 
                 // Upload the processed Excel file

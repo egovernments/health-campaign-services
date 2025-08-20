@@ -7,7 +7,7 @@ public class ProcessingConstants {
     
     // Sheet Name Keys for Localization
     public static final String FACILITIES_SHEET_KEY = "HCM_ADMIN_CONSOLE_FACILITIES_LIST";
-    public static final String USER_LIST_SHEET_KEY = "HCM_ADMIN_CONSOLE_USER_LIST";
+    public static final String USER_LIST_SHEET_KEY = "HCM_ADMIN_CONSOLE_USERS_LIST";
     public static final String BOUNDARY_DATA_SHEET_KEY = "HCM_ADMIN_CONSOLE_BOUNDARY_DATA";
     public static final String README_SHEET_KEY = "HCM_README_SHEETNAME";
     

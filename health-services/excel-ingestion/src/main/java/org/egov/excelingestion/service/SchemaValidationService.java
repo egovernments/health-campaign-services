@@ -8,6 +8,8 @@ import org.egov.excelingestion.web.models.ValidationError;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 
 @Service
 @Slf4j
@@ -179,6 +181,19 @@ public class SchemaValidationService {
                     rule.setUnique((Boolean) prop.getOrDefault("isUnique", false));
                     rule.setErrorMessage((String) prop.get("errorMessage"));
                     
+                    // New string validation properties
+                    rule.setPattern((String) prop.get("pattern"));
+                    
+                    // Multi-select validation
+                    if (prop.containsKey("multiSelectDetails")) {
+                        Map<String, Object> multiSelectMap = (Map<String, Object>) prop.get("multiSelectDetails");
+                        MultiSelectDetails multiSelect = new MultiSelectDetails();
+                        multiSelect.setEnumValues((List<String>) multiSelectMap.get("enum"));
+                        multiSelect.setMinSelections((Integer) multiSelectMap.get("minSelections"));
+                        multiSelect.setMaxSelections((Integer) multiSelectMap.get("maxSelections"));
+                        rule.setMultiSelectDetails(multiSelect);
+                    }
+                    
                     rules.put(name, rule);
                 }
             }
@@ -202,6 +217,11 @@ public class SchemaValidationService {
                     rule.setMinimum((Number) prop.get("minimum"));
                     rule.setMaximum((Number) prop.get("maximum"));
                     rule.setErrorMessage((String) prop.get("errorMessage"));
+                    
+                    // New number validation properties
+                    rule.setMultipleOf((Number) prop.get("multipleOf"));
+                    rule.setExclusiveMinimum((Number) prop.get("exclusiveMinimum"));
+                    rule.setExclusiveMaximum((Number) prop.get("exclusiveMaximum"));
                     
                     rules.put(name, rule);
                 }
@@ -312,6 +332,30 @@ public class SchemaValidationService {
                     rule.getFieldName(), rule.getMaxLength().toString());
             errors.add(createValidationError(rowNumber, sheetName, rule.getFieldName(), errorMessage));
         }
+        
+        // Pattern validation
+        if (rule.getPattern() != null && !rule.getPattern().trim().isEmpty()) {
+            try {
+                Pattern pattern = Pattern.compile(rule.getPattern());
+                if (!pattern.matcher(strValue).matches()) {
+                    String errorMessage = getLocalizedMessage(localizationMap, "HCM_VALIDATION_PATTERN", 
+                            String.format("Field '%s' does not match required pattern", rule.getFieldName()),
+                            rule.getFieldName());
+                    errors.add(createValidationError(rowNumber, sheetName, rule.getFieldName(), errorMessage));
+                }
+            } catch (PatternSyntaxException e) {
+                log.warn("Invalid regex pattern '{}' for field '{}'", rule.getPattern(), rule.getFieldName());
+                String errorMessage = getLocalizedMessage(localizationMap, "HCM_VALIDATION_INVALID_PATTERN", 
+                        String.format("Field '%s' has invalid validation pattern", rule.getFieldName()),
+                        rule.getFieldName());
+                errors.add(createValidationError(rowNumber, sheetName, rule.getFieldName(), errorMessage));
+            }
+        }
+        
+        // Multi-select validation
+        if (rule.getMultiSelectDetails() != null) {
+            validateMultiSelectField(strValue, rule, rowNumber, sheetName, errors, localizationMap);
+        }
     }
 
     private void validateNumberField(Object value, ValidationRule rule, int rowNumber, 
@@ -334,6 +378,33 @@ public class SchemaValidationService {
                 errors.add(createValidationError(rowNumber, sheetName, rule.getFieldName(), errorMessage));
             }
             
+            // Exclusive minimum validation
+            if (rule.getExclusiveMinimum() != null && numValue <= rule.getExclusiveMinimum().doubleValue()) {
+                String errorMessage = getLocalizedMessage(localizationMap, "HCM_VALIDATION_EXCLUSIVE_MIN", 
+                        String.format("Field '%s' must be greater than %s", rule.getFieldName(), rule.getExclusiveMinimum()),
+                        rule.getFieldName(), rule.getExclusiveMinimum().toString());
+                errors.add(createValidationError(rowNumber, sheetName, rule.getFieldName(), errorMessage));
+            }
+            
+            // Exclusive maximum validation
+            if (rule.getExclusiveMaximum() != null && numValue >= rule.getExclusiveMaximum().doubleValue()) {
+                String errorMessage = getLocalizedMessage(localizationMap, "HCM_VALIDATION_EXCLUSIVE_MAX", 
+                        String.format("Field '%s' must be less than %s", rule.getFieldName(), rule.getExclusiveMaximum()),
+                        rule.getFieldName(), rule.getExclusiveMaximum().toString());
+                errors.add(createValidationError(rowNumber, sheetName, rule.getFieldName(), errorMessage));
+            }
+            
+            // Multiple of validation
+            if (rule.getMultipleOf() != null) {
+                double divisor = rule.getMultipleOf().doubleValue();
+                if (divisor != 0 && (numValue % divisor) != 0) {
+                    String errorMessage = getLocalizedMessage(localizationMap, "HCM_VALIDATION_MULTIPLE_OF", 
+                            String.format("Field '%s' must be a multiple of %s", rule.getFieldName(), rule.getMultipleOf()),
+                            rule.getFieldName(), rule.getMultipleOf().toString());
+                    errors.add(createValidationError(rowNumber, sheetName, rule.getFieldName(), errorMessage));
+                }
+            }
+            
         } catch (NumberFormatException e) {
             String errorMessage = getLocalizedMessage(localizationMap, "HCM_VALIDATION_INVALID_NUMBER", 
                     String.format("Field '%s' must be a valid number", rule.getFieldName()), rule.getFieldName());
@@ -350,6 +421,56 @@ public class SchemaValidationService {
                     String.format("Field '%s' must be one of: %s", rule.getFieldName(), String.join(", ", rule.getAllowedValues())),
                     rule.getFieldName(), String.join(", ", rule.getAllowedValues()));
             errors.add(createValidationError(rowNumber, sheetName, rule.getFieldName(), errorMessage));
+        }
+    }
+
+    private void validateMultiSelectField(String value, ValidationRule rule, int rowNumber, 
+            String sheetName, List<ValidationError> errors, Map<String, String> localizationMap) {
+        
+        MultiSelectDetails multiSelect = rule.getMultiSelectDetails();
+        if (multiSelect == null) {
+            return;
+        }
+        
+        // Parse multi-select value (assuming comma-separated)
+        String[] selectedValues = value.split(",");
+        List<String> trimmedValues = new ArrayList<>();
+        
+        for (String selectedValue : selectedValues) {
+            String trimmed = selectedValue.trim();
+            if (!trimmed.isEmpty()) {
+                trimmedValues.add(trimmed);
+            }
+        }
+        
+        // Validate minimum selections
+        if (multiSelect.getMinSelections() != null && trimmedValues.size() < multiSelect.getMinSelections()) {
+            String errorMessage = getLocalizedMessage(localizationMap, "HCM_VALIDATION_MIN_SELECTIONS", 
+                    String.format("Field '%s' must have at least %d selections", rule.getFieldName(), multiSelect.getMinSelections()),
+                    rule.getFieldName(), multiSelect.getMinSelections().toString());
+            errors.add(createValidationError(rowNumber, sheetName, rule.getFieldName(), errorMessage));
+        }
+        
+        // Validate maximum selections
+        if (multiSelect.getMaxSelections() != null && trimmedValues.size() > multiSelect.getMaxSelections()) {
+            String errorMessage = getLocalizedMessage(localizationMap, "HCM_VALIDATION_MAX_SELECTIONS", 
+                    String.format("Field '%s' must have at most %d selections", rule.getFieldName(), multiSelect.getMaxSelections()),
+                    rule.getFieldName(), multiSelect.getMaxSelections().toString());
+            errors.add(createValidationError(rowNumber, sheetName, rule.getFieldName(), errorMessage));
+        }
+        
+        // Validate each selected value against allowed enum values
+        if (multiSelect.getEnumValues() != null && !multiSelect.getEnumValues().isEmpty()) {
+            for (String selectedValue : trimmedValues) {
+                if (!multiSelect.getEnumValues().contains(selectedValue)) {
+                    String errorMessage = getLocalizedMessage(localizationMap, "HCM_VALIDATION_INVALID_MULTI_SELECT", 
+                            String.format("Field '%s' contains invalid selection '%s'. Must be one of: %s", 
+                                    rule.getFieldName(), selectedValue, String.join(", ", multiSelect.getEnumValues())),
+                            rule.getFieldName(), selectedValue, String.join(", ", multiSelect.getEnumValues()));
+                    errors.add(createValidationError(rowNumber, sheetName, rule.getFieldName(), errorMessage));
+                    break; // Only show first invalid value to avoid too many errors
+                }
+            }
         }
     }
 
@@ -378,6 +499,13 @@ public class SchemaValidationService {
         private List<String> allowedValues;
         private boolean unique;
         private String errorMessage;
+        
+        // New validation properties
+        private String pattern; // Regex pattern for string validation
+        private Number multipleOf; // Number must be multiple of this value
+        private Number exclusiveMinimum; // Number must be greater than (not equal to) this value
+        private Number exclusiveMaximum; // Number must be less than (not equal to) this value
+        private MultiSelectDetails multiSelectDetails; // Multi-select validation details
 
         // Getters and setters
         public String getFieldName() { return fieldName; }
@@ -409,6 +537,40 @@ public class SchemaValidationService {
         
         public String getErrorMessage() { return errorMessage; }
         public void setErrorMessage(String errorMessage) { this.errorMessage = errorMessage; }
+        
+        // New getters and setters
+        public String getPattern() { return pattern; }
+        public void setPattern(String pattern) { this.pattern = pattern; }
+        
+        public Number getMultipleOf() { return multipleOf; }
+        public void setMultipleOf(Number multipleOf) { this.multipleOf = multipleOf; }
+        
+        public Number getExclusiveMinimum() { return exclusiveMinimum; }
+        public void setExclusiveMinimum(Number exclusiveMinimum) { this.exclusiveMinimum = exclusiveMinimum; }
+        
+        public Number getExclusiveMaximum() { return exclusiveMaximum; }
+        public void setExclusiveMaximum(Number exclusiveMaximum) { this.exclusiveMaximum = exclusiveMaximum; }
+        
+        public MultiSelectDetails getMultiSelectDetails() { return multiSelectDetails; }
+        public void setMultiSelectDetails(MultiSelectDetails multiSelectDetails) { this.multiSelectDetails = multiSelectDetails; }
+    }
+    
+    /**
+     * Inner class for multi-select validation details
+     */
+    private static class MultiSelectDetails {
+        private List<String> enumValues;
+        private Integer minSelections;
+        private Integer maxSelections;
+        
+        public List<String> getEnumValues() { return enumValues; }
+        public void setEnumValues(List<String> enumValues) { this.enumValues = enumValues; }
+        
+        public Integer getMinSelections() { return minSelections; }
+        public void setMinSelections(Integer minSelections) { this.minSelections = minSelections; }
+        
+        public Integer getMaxSelections() { return maxSelections; }
+        public void setMaxSelections(Integer maxSelections) { this.maxSelections = maxSelections; }
     }
     
     /**
