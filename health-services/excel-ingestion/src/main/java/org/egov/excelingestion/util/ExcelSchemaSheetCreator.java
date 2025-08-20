@@ -22,10 +22,13 @@ public class ExcelSchemaSheetCreator {
     
     private final ExcelIngestionConfig config;
     private final ExcelStyleHelper excelStyleHelper;
+    private final CellProtectionManager cellProtectionManager;
     
-    public ExcelSchemaSheetCreator(ExcelIngestionConfig config, ExcelStyleHelper excelStyleHelper) {
+    public ExcelSchemaSheetCreator(ExcelIngestionConfig config, ExcelStyleHelper excelStyleHelper, 
+                                 CellProtectionManager cellProtectionManager) {
         this.config = config;
         this.excelStyleHelper = excelStyleHelper;
+        this.cellProtectionManager = cellProtectionManager;
     }
 
     public Workbook addSchemaSheetFromJson(String json, String sheetName, Workbook workbook) throws IOException {
@@ -349,41 +352,8 @@ public class ExcelSchemaSheetCreator {
     }
 
     private void prepareCellLocking(Workbook workbook, Sheet sheet, List<ColumnDef> columns) {
-        // First, unlock all cells by default
-        CellStyle unlockedStyle = workbook.createCellStyle();
-        unlockedStyle.setLocked(false);
-        
-        // Apply unlocked style to all data cells in schema columns
-        for (int rowIdx = 2; rowIdx <= Math.max(sheet.getLastRowNum(), config.getExcelRowLimit()); rowIdx++) {
-            Row row = sheet.getRow(rowIdx);
-            if (row == null) {
-                row = sheet.createRow(rowIdx);
-            }
-            for (int col = 0; col < columns.size(); col++) {
-                Cell cell = row.getCell(col);
-                if (cell == null) {
-                    cell = row.createCell(col);
-                }
-                cell.setCellStyle(unlockedStyle);
-            }
-        }
-        
-        // Now lock only filled cells for columns with freezeColumnIfFilled=true
-        for (int col = 0; col < columns.size(); col++) {
-            if (columns.get(col).isFreezeColumnIfFilled()) {
-                for (int rowIdx = 2; rowIdx <= sheet.getLastRowNum(); rowIdx++) {
-                    Row row = sheet.getRow(rowIdx);
-                    if (row != null) {
-                        Cell cell = row.getCell(col);
-                        if (cell != null && cell.getCellType() != CellType.BLANK && !cell.toString().trim().isEmpty()) {
-                            CellStyle lockedStyle = workbook.createCellStyle();
-                            lockedStyle.setLocked(true);
-                            cell.setCellStyle(lockedStyle);
-                        }
-                    }
-                }
-            }
-        }
+        // Use the comprehensive cell protection manager to handle all protection features
+        cellProtectionManager.applyCellProtection(workbook, sheet, columns);
         
         // Don't protect sheet here - let the caller handle protection after all columns are added
     }
@@ -586,51 +556,8 @@ public class ExcelSchemaSheetCreator {
     }
     
     private void prepareEnhancedCellLocking(Workbook workbook, Sheet sheet, List<ColumnDef> columns) {
-        // Create styles for locked and unlocked cells
-        CellStyle lockedStyle = excelStyleHelper.createLockedCellStyle(workbook);
-        CellStyle unlockedStyle = excelStyleHelper.createUnlockedCellStyle(workbook);
-        
-        // Find the last row with data for freezeTillData calculations
-        int lastDataRow = findLastDataRow(sheet);
-        
-        // Apply cell locking based on column properties
-        for (int rowIdx = 2; rowIdx <= Math.max(sheet.getLastRowNum(), config.getExcelRowLimit()); rowIdx++) {
-            Row row = sheet.getRow(rowIdx);
-            if (row == null) {
-                row = sheet.createRow(rowIdx);
-            }
-            
-            for (int colIdx = 0; colIdx < columns.size(); colIdx++) {
-                ColumnDef column = columns.get(colIdx);
-                Cell cell = row.getCell(colIdx);
-                if (cell == null) {
-                    cell = row.createCell(colIdx);
-                }
-                
-                // Determine if cell should be locked based on column properties
-                boolean shouldLock = false;
-                
-                if (column.isFreezeColumn()) {
-                    // Lock column cells permanently
-                    shouldLock = true;
-                } else if (column.isFreezeTillData() && rowIdx <= lastDataRow) {
-                    // Lock column cells until last data row
-                    shouldLock = true;
-                } else if (column.isFreezeColumnIfFilled() && cellHasValue(cell)) {
-                    // Lock cell only if it contains data
-                    shouldLock = true;
-                } else if (column.isUnFreezeColumnTillData() && rowIdx <= lastDataRow) {
-                    // Explicitly unlock column cells until last data row (overrides other freeze settings)
-                    shouldLock = false;
-                } else {
-                    // Default to unlocked for editing
-                    shouldLock = false;
-                }
-                
-                // Apply the appropriate style
-                cell.setCellStyle(shouldLock ? lockedStyle : unlockedStyle);
-            }
-        }
+        // Use the comprehensive cell protection manager to handle all protection features
+        cellProtectionManager.applyCellProtection(workbook, sheet, columns);
     }
     
     /**

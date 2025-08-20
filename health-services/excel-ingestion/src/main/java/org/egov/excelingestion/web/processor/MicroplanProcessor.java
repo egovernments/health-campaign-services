@@ -18,6 +18,7 @@ import org.egov.excelingestion.util.BoundaryHierarchySheetCreator;
 import org.egov.excelingestion.util.CampaignConfigSheetCreator;
 import org.egov.excelingestion.util.ExcelStyleHelper;
 import org.egov.excelingestion.util.BoundaryUtil;
+import org.egov.excelingestion.util.CellProtectionManager;
 import org.egov.excelingestion.web.models.*;
 import org.egov.excelingestion.util.RequestInfoConverter;
 import org.egov.excelingestion.service.ApiPayloadBuilder;
@@ -43,13 +44,15 @@ public class MicroplanProcessor implements IGenerateProcessor {
     private final ExcelStyleHelper excelStyleHelper;
     private final BoundaryUtil boundaryUtil;
     private final CustomExceptionHandler exceptionHandler;
+    private final CellProtectionManager cellProtectionManager;
 
     public MicroplanProcessor(ExcelIngestionConfig config,
             LocalizationService localizationService, BoundaryHierarchySheetCreator boundaryHierarchySheetCreator,
             BoundaryService boundaryService, RequestInfoConverter requestInfoConverter,
             ApiPayloadBuilder apiPayloadBuilder, ExcelSchemaSheetCreator excelSchemaSheetCreator,
             CampaignConfigSheetCreator campaignConfigSheetCreator, MDMSService mdmsService,
-            ExcelStyleHelper excelStyleHelper, BoundaryUtil boundaryUtil, CustomExceptionHandler exceptionHandler) {
+            ExcelStyleHelper excelStyleHelper, BoundaryUtil boundaryUtil, CustomExceptionHandler exceptionHandler,
+            CellProtectionManager cellProtectionManager) {
         this.config = config;
         this.localizationService = localizationService;
         this.boundaryHierarchySheetCreator = boundaryHierarchySheetCreator;
@@ -62,6 +65,7 @@ public class MicroplanProcessor implements IGenerateProcessor {
         this.excelStyleHelper = excelStyleHelper;
         this.boundaryUtil = boundaryUtil;
         this.exceptionHandler = exceptionHandler;
+        this.cellProtectionManager = cellProtectionManager;
     }
 
     @Override
@@ -343,10 +347,37 @@ public class MicroplanProcessor implements IGenerateProcessor {
             workbook.setActiveSheet(workbook.getSheetIndex(mainSheet));
         }
         
-        // Protect facility sheet after all columns (schema + boundary) are configured
-        mainSheet.protectSheet(config.getExcelSheetPassword());
-        workbook.lockStructure();
+        // Apply comprehensive protection to all visible sheets using the CellProtectionManager
+        log.info("Applying comprehensive sheet protection...");
+        
+        // Protect main facility sheet
+        cellProtectionManager.applySheetProtection(workbook, mainSheet, config.getExcelSheetPassword());
+        
+        // Protect user sheet if it exists
+        Sheet userSheet = workbook.getSheet(actualUserSheetName);
+        if (userSheet != null) {
+            cellProtectionManager.applySheetProtection(workbook, userSheet, config.getExcelSheetPassword());
+        }
+        
+        // Protect hierarchy sheet if it exists
+        Sheet hierarchySheet = workbook.getSheet(actualHierarchySheetName);
+        if (hierarchySheet != null) {
+            cellProtectionManager.applySheetProtection(workbook, hierarchySheet, config.getExcelSheetPassword());
+        }
+        
+        // Protect campaign config sheet if it exists
+        if (actualConfigSheetName != null) {
+            Sheet configSheet = workbook.getSheet(actualConfigSheetName);
+            if (configSheet != null) {
+                cellProtectionManager.applySheetProtection(workbook, configSheet, config.getExcelSheetPassword());
+            }
+        }
+        
+        // Apply workbook-level structure protection
+        cellProtectionManager.applyWorkbookProtection(workbook, config.getExcelSheetPassword());
         workbook.setWorkbookPassword(config.getExcelSheetPassword(), HashAlgorithm.sha512);
+        
+        log.info("Comprehensive protection applied successfully to all sheets");
 
         ByteArrayOutputStream bos = new ByteArrayOutputStream();
         try {
