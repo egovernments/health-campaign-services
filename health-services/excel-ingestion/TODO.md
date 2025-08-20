@@ -1,97 +1,11 @@
 # Excel Ingestion Service - TODO
 
-## Configuration Improvements
+## Pending Tasks
 
-1. **✅ Create Constants Configuration** - COMPLETED
-   - ✅ Moved hardcoded strings like "microplan-ingestion" to ProcessingConstants
-   - ✅ Created ProcessingConstants class for type definitions
+### Status Handling
+- [ ] After resource is generated it should return `"status": "generated"`
+- [ ] If generation fails in between then return `"status": "failed"`
 
-2. **✅ Sheet-Schema Mapping Configuration** - COMPLETED
-   - ✅ Replaced hardcoded sheet name mappings with configurable SheetSchemaConfig
-   - ✅ Created SheetSchemaConfig component for different processing types
-
-3. **✅ Update Schema Names** - COMPLETED
-   - ✅ Changed schema names from simple names to prefixed names:
-     - "facility" → "facility-microplan-ingestion"
-     - "user" → "user-microplan-ingestion"
-   - ✅ Updated MDMS schema lookup accordingly
-
-4. **✅ Code Refactoring - Large File Analysis** - COMPLETED
-   - ✅ Checked files exceeding 500 lines - Found 6 files
-   - ✅ Identified oversized files that need refactoring:
-     - **MicroplanProcessor.java** (742 lines) - Main processor with multiple responsibilities
-     - **SchemaValidationService.java** (460 lines) - Complex validation logic
-     - **ExcelSchemaSheetCreator.java** (458 lines) - Excel sheet creation utilities  
-     - **CampaignConfigSheetCreator.java** (409 lines) - Campaign config sheet utilities
-     - **HierarchyExcelGenerateProcessor.java** (368 lines) - Hierarchy generation logic
-     - **BoundaryHierarchySheetCreator.java** (356 lines) - Boundary sheet utilities
-   
-   **✅ Refactoring Recommendations - COMPLETED:**
-   - ✅ Replaced MDMS fetching methods in MicroplanProcessor with direct calls to MDMSService.searchMDMS()
-     - ✅ fetchSchemaFromMDMS() → replaced with direct MDMSService.searchMDMS() calls using title filter
-     - ✅ fetchCampaignConfigFromMDMS() → replaced with direct MDMSService.searchMDMS() calls using sheetName filter
-   - ✅ Created ExcelStyleHelper utility class for Excel styling and formatting
-     - ✅ Extracted createBoundaryHeaderStyle() into reusable ExcelStyleHelper.createHeaderStyle()
-     - ✅ Added additional styling methods for different cell types (data, numeric, bordered, locked)
-     - ✅ Updated MicroplanProcessor to use ExcelStyleHelper
-
-5. **✅ Dependency Injection Cleanup** - COMPLETED
-   - ✅ Removed @Autowired annotations from everywhere in excel-ingestion service
-   - ✅ Replaced all field injection with constructor injection only
-   - ✅ Ensured all dependencies are properly injected through constructors
-   - ✅ Removed all unused @Autowired imports from all classes
-   - ✅ Following Spring best practices for dependency injection
-   
-   **Classes Updated:**
-   - ✅ MicroplanProcessor - moved CustomExceptionHandler to constructor
-   - ✅ MDMSService - moved CustomExceptionHandler to constructor
-   - ✅ SchemaValidationService - converted to constructor injection
-   - ✅ BoundaryService - moved CustomExceptionHandler to constructor
-   - ✅ LocalizationService - moved CustomExceptionHandler to constructor
-   - ✅ FileStoreService - moved CustomExceptionHandler to constructor
-   - ✅ ExcelProcessingService - converted all 6 dependencies to constructor injection
-   - ✅ ExcelGenerationService - moved CustomExceptionHandler to constructor
-   - ✅ IngestionController - moved ExcelProcessingService to constructor
-   - ✅ GenerateProcessorFactory - moved CustomExceptionHandler to constructor
-   - ✅ CampaignConfigSheetCreator - converted all 4 dependencies to constructor injection
-   - ✅ BoundaryHierarchySheetCreator - converted all 3 dependencies to constructor injection
-   - ✅ ExcelSchemaSheetCreator - removed @Autowired from constructor
-   - ✅ RequestInfoConverter - removed @Autowired from constructor
-   - ✅ HierarchyExcelGenerateProcessor - moved CustomExceptionHandler to constructor
-
-6. **Localization Service Integration**
-   - Check if process API flow is properly calling localization service
-   - Verify localization map is being created and used throughout the process
-   - Ensure localized sheet names and field names are properly handled
-   - Validate that validation errors use localized messages
-   - Confirm localization is passed through the entire validation chain
-
-
-8. **Boundary Dropdown Configuration for Facility and User Sheets**
-   - Boundary columns (level, boundary, parent) should be populated from the `boundaries` array in additionalDetails
-   - If `boundaries` array is empty or not present, no boundary dropdown columns should be added
-   - When `boundaries` array exists, dropdown should contain only those specific boundaries
-   - Consider `includeChildren` flag - if true, include child boundaries in dropdown options
-   - Apply this logic to both facility and user sheets
-   - The enrichment of child boundaries (when includeAllChildren = true) is already handled in BoundaryHierarchySheetCreator. Extract that logic into a BoundaryUtil class and reuse it across BoundaryHierarchySheetCreator, User sheet generation, and Facility sheet generation for microplan.
-
-9. **✅ Simple Boundary Dropdown with Auto-Parent Logic** - COMPLETED
-   - **Problem**: When multiple boundary codes have the same localized name (e.g., "GEDETARBO 1" appears at Level 5 and Level 6), users need to see both options and get correct parent auto-filled
-   
-   - **Simple Solution**:
-     - **Level Column**: Shows available levels from boundaries configuration
-     - **Boundary Column**: Shows ALL localized boundary names for the selected level (including duplicates)
-     - **Parent Column**: Auto-fills the correct parent based on which specific boundary was selected
-   
-   - **Excel Logic**:
-     - User selects Level → Boundary dropdown shows all boundaries at that level
-     - User selects Boundary → Parent column automatically populates with the correct parent for that boundary
-     - If "GEDETARBO 1" appears twice, both options are shown in dropdown
-     - When user selects first "GEDETARBO 1", its specific parent auto-fills
-     - When user selects second "GEDETARBO 1", its specific parent auto-fills
-   
-   - **Key Benefits**:
-     - Simple and intuitive - user sees all options
-     - No complex clash detection needed
-     - Parent always auto-fills correctly based on selection
-     - Works naturally with Excel VLOOKUP mechanism
+## Notes
+- Status should be included in the response to indicate generation result
+- Proper error handling needed for failed generation scenarios

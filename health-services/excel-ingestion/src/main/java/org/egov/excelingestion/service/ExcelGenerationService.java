@@ -2,7 +2,9 @@ package org.egov.excelingestion.service;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.excelingestion.config.ErrorConstants;
+import org.egov.excelingestion.config.ProcessingConstants;
 import org.egov.excelingestion.exception.CustomExceptionHandler;
+import org.egov.excelingestion.util.EnrichmentUtil;
 import org.egov.excelingestion.web.models.GenerateResourceRequest;
 import org.egov.excelingestion.web.models.GenerateResource;
 import org.egov.excelingestion.web.processor.IGenerateProcessor;
@@ -17,13 +19,16 @@ public class ExcelGenerationService {
     private final GenerateProcessorFactory processorFactory;
     private final FileStoreService fileStoreService;
     private final CustomExceptionHandler exceptionHandler;
+    private final EnrichmentUtil enrichmentUtil;
 
     public ExcelGenerationService(GenerateProcessorFactory processorFactory, 
                                  FileStoreService fileStoreService,
-                                 CustomExceptionHandler exceptionHandler) {
+                                 CustomExceptionHandler exceptionHandler,
+                                 EnrichmentUtil enrichmentUtil) {
         this.processorFactory = processorFactory;
         this.fileStoreService = fileStoreService;
         this.exceptionHandler = exceptionHandler;
+        this.enrichmentUtil = enrichmentUtil;
     }
 
     public GenerateResource generateAndUploadExcel(GenerateResourceRequest request) throws IOException {
@@ -33,24 +38,41 @@ public class ExcelGenerationService {
 
         // Process resource first
         GenerateResource generateResource = processor.process(request);
+        
+        // Enrich resource with UUID and status
+        enrichmentUtil.enrichGenerateResource(generateResource);
 
         byte[] excelBytes;
         try {
             excelBytes = processor.generateExcel(generateResource, request.getRequestInfo());
-        } catch (IOException e) {
-            log.error("Error generating Excel bytes", e);
+        } catch (Exception e) {
+            log.error("Error generating Excel for type: {}, ID: {}", generateResource.getType(), generateResource.getId(), e);
+            generateResource.setStatus(ProcessingConstants.STATUS_FAILED);
             exceptionHandler.throwCustomException(ErrorConstants.EXCEL_GENERATION_ERROR, 
                     ErrorConstants.EXCEL_GENERATION_ERROR_MESSAGE, e);
             return null; // This will never be reached due to exception throwing above
         }
 
-        // Upload the generated Excel bytes to file store
-        String fileStoreId = fileStoreService.uploadFile(
-                excelBytes,
-                generateResource.getTenantId(),
-                generateResource.getHierarchyType() + ".xlsx");
+        try {
+            // Upload the generated Excel bytes to file store
+            String fileStoreId = fileStoreService.uploadFile(
+                    excelBytes,
+                    generateResource.getTenantId(),
+                    generateResource.getHierarchyType() + ".xlsx");
 
-        generateResource.setFileStoreId(fileStoreId);
+            generateResource.setFileStoreId(fileStoreId);
+            generateResource.setStatus(ProcessingConstants.STATUS_GENERATED);
+            
+            log.info("Excel generation completed successfully for type: {}, ID: {}, fileStoreId: {}", 
+                    generateResource.getType(), generateResource.getId(), fileStoreId);
+            
+        } catch (Exception e) {
+            log.error("Error uploading Excel file to file store for type: {}, ID: {}", generateResource.getType(), generateResource.getId(), e);
+            generateResource.setStatus(ProcessingConstants.STATUS_FAILED);
+            exceptionHandler.throwCustomException(ErrorConstants.FILE_STORE_SERVICE_ERROR, 
+                    ErrorConstants.FILE_STORE_SERVICE_ERROR_MESSAGE, e);
+            return null; // This will never be reached due to exception throwing above
+        }
 
         return generateResource;
     }
