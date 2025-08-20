@@ -18,6 +18,7 @@ import org.egov.common.validator.Validator;
 import org.egov.individual.config.IndividualProperties;
 import org.egov.tracer.model.CustomException;
 import org.springframework.core.annotation.Order;
+import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 
@@ -38,7 +39,7 @@ import static org.egov.individual.validators.IdPoolValidatorForCreate.validateDu
 @Order(value = 12) // Determines execution order among multiple validators
 public class IdPoolValidatorForUpdate implements Validator<IndividualBulkRequest, Individual> {
 
-    private final BeneficiaryIdGenService beneficiaryIdGenService;
+    private final @Nullable BeneficiaryIdGenService beneficiaryIdGenService;
     private final IndividualProperties individualProperties;
 
     /**
