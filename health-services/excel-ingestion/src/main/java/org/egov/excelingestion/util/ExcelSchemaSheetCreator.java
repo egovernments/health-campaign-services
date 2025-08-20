@@ -135,9 +135,9 @@ public class ExcelSchemaSheetCreator {
 
             // Row 2: localized display name
             Cell headerCell = visibleRow.createCell(colIndex);
-            String displayName = localizationMap != null && localizationMap.containsKey(def.getDisplayName()) 
-                ? localizationMap.get(def.getDisplayName()) 
-                : def.getDisplayName();
+            String displayName = localizationMap != null && localizationMap.containsKey(def.getName()) 
+                ? localizationMap.get(def.getName()) 
+                : def.getName();
             headerCell.setCellValue(displayName);
             
             // Apply enhanced header styling with color and text wrapping
@@ -228,9 +228,9 @@ public class ExcelSchemaSheetCreator {
 
             // Row 2: localized display name
             Cell headerCell = visibleRow.createCell(colIndex);
-            String displayName = localizationMap != null && localizationMap.containsKey(def.getDisplayName()) 
-                ? localizationMap.get(def.getDisplayName()) 
-                : def.getDisplayName();
+            String displayName = localizationMap != null && localizationMap.containsKey(def.getName()) 
+                ? localizationMap.get(def.getName()) 
+                : def.getName();
             headerCell.setCellValue(displayName);
             
             // Apply enhanced header styling with color and text wrapping
@@ -414,9 +414,8 @@ public class ExcelSchemaSheetCreator {
                 // Create individual columns for each selection
                 for (int i = 1; i <= maxSelections; i++) {
                     ColumnDef multiCol = ColumnDef.builder()
-                            .name(column.getName())
-                            .technicalName(column.getName() + "_" + i)
-                            .displayName(column.getName() + " " + i)
+                            .name(column.getName() + "_" + i)
+                            .technicalName(column.getName())
                             .type("multiselect_item")
                             .colorHex(column.getColorHex())
                             .orderNumber(column.getOrderNumber())
@@ -432,7 +431,6 @@ public class ExcelSchemaSheetCreator {
                 ColumnDef hiddenCol = ColumnDef.builder()
                         .name(column.getName())
                         .technicalName(column.getName())
-                        .displayName(column.getName())
                         .type("multiselect_hidden")
                         .colorHex(column.getColorHex())
                         .orderNumber(column.getOrderNumber())
@@ -447,7 +445,6 @@ public class ExcelSchemaSheetCreator {
                 ColumnDef regularCol = ColumnDef.builder()
                         .name(column.getName())
                         .technicalName(column.getName())
-                        .displayName(column.getName())
                         .type(column.getType())
                         .description(column.getDescription())
                         .colorHex(column.getColorHex())

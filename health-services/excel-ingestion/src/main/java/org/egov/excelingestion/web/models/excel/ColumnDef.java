@@ -14,7 +14,6 @@ import java.util.List;
 public class ColumnDef {
     private String name;
     private String technicalName;
-    private String displayName;
     private String type;
     private String description;
     private String colorHex;

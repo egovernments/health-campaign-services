@@ -1,102 +1,66 @@
-# Excel Ingestion Service - TODO (3-Part Implementation Plan)
+# Excel Ingestion Service - TODO
 
-## Task 1: Core Validation Rules Implementation 🔍 ✅ COMPLETED
+## Task: Dynamic Data Population Function Design =�
 
-**Objective**: Implement missing validation logic in `SchemaValidationService` to ensure data integrity
+**Objective**: Create comprehensive design document for a function that dynamically populates Excel sheets with data using column properties and formatting
 
-### ✅ Implemented Validation Features:
+### Design Requirements:
 
-#### String Properties:
-- ✅ `pattern` - Regex pattern validation (format: "regex")
-- ✅ `multiSelectDetails` - Multi-select dropdown validation
-  - ✅ `enum` - Available options
-  - ✅ `minSelections` - Minimum selections required
-  - ✅ `maxSelections` - Maximum selections allowed
+#### Core Function Design:
+- **Function Name**: `populateSheetWithData`
+- **Input Parameters**:
+  - `columnProperties` - List of ColumnDef objects with all schema properties
+  - `columnHeaders` - Pre-localized column headers (String array)
+  - `dataRows` - Array of Map<String, Object> where key = unlocalised column code, value = data
+  - `sheetName` - Target sheet name to create/update
+  - `workbook` - Target Excel workbook
 
-#### Number Properties:
-- ✅ `multipleOf` - Value must be multiple of specified number
-- ✅ `exclusiveMinimum` - Value must be greater than (not equal to) minimum
-- ✅ `exclusiveMaximum` - Value must be less than (not equal to) maximum
+#### Function Behavior Design:
+1. **Sheet Management Logic**: 
+   - Check if sheet exists � clear all data if found
+   - Create new sheet with specified name
+   - No localization processing (headers already localized)
 
-### ✅ Implementation Completed:
-1. ✅ Added regex pattern validation for string fields with proper error handling
-2. ✅ Implemented multipleOf validation for numbers
-3. ✅ Added exclusive minimum/maximum bounds checking (> and < instead of >= and <=)
-4. ✅ Implemented multi-select validation with min/max selections and enum validation
-5. ✅ Added proper error messages for all new validations with localization support
-6. ✅ Enhanced ValidationRule class with new properties
-7. ✅ Created MultiSelectDetails class for multi-select validation
-8. ✅ Added comprehensive validation methods with proper exception handling
+2. **Data Population Strategy**:
+   - Map column properties by unlocalised technical codes
+   - Iterate through data rows and populate cells
+   - Apply column formatting from properties:
+     - Colors, widths, text wrapping, prefixes
+     - Hide/show columns, cell protection rules
+     - Data validation and dropdown constraints
 
-**Status**: ✅ COMPLETED - All validation logic successfully implemented
-**Files**: `SchemaValidationService.java` - Successfully compiled and tested
+3. **Complete Formatting Application**:
+   - Header styling with colors and fonts
+   - Column width and text wrapping settings
+   - Cell protection and sheet protection
+   - Multiselect column handling and formulas
+   - Auto-height adjustment where needed
 
----
+### Design Document Requirements:
+1. **Create comprehensive design specification** in `EXCEL_DATA_POPULATOR_DESIGN.md`
+2. **Include detailed function signatures** with parameter descriptions
+3. **Document complete behavior flow** with step-by-step logic
+4. **Provide multiple usage examples** with different data scenarios
+5. **Show integration points** with existing ExcelStyleHelper, CellProtectionManager
+6. **Include error handling scenarios** and edge cases
+7. **Add data flow diagrams** and architecture overview
+8. **Document performance considerations** and optimization strategies
 
-## Task 2: Excel Display & Styling Features 🎨 ✅ COMPLETED
+### Expected Usage Examples to Document:
+```java
+// Example 1: Basic facility data
+List<Map<String, Object>> facilityData = Arrays.asList(
+    Map.of("facility_name", "Hospital A", "facility_type", "PRIMARY", "location_code", "LOC001"),
+    Map.of("facility_name", "Clinic B", "facility_type", "SECONDARY", "location_code", "LOC002")
+);
 
-**Objective**: Implement visual formatting and column management features
+populateSheetWithData(workbook, "Facilities Data", columnProperties, headers, facilityData);
 
-### ✅ Implemented Display Features:
+// Example 2: Mixed data types with protection
+// Example 3: Multiselect columns with formulas
+// Example 4: Large datasets with performance optimization
+```
 
-#### Column Styling:
-- ✅ `color` - Header background color (#RRGGBB) (row 2)
-- ✅ `width` - Column width specification  
-- ✅ `wrapText` - Text wrapping in cells
-- ✅ `prefix` - Text prefix for values
-- ✅ `adjustHeight` - Auto-adjust row height
-
-#### Column Management:
-- ✅ `hideColumn` - Hide specific columns
-- ✅ `orderNumber` - Column ordering
-- ✅ `showInProcessed` - Column visibility in processed files
-
-### ✅ Implementation Completed:
-1. ✅ Extended column styling support (colors, widths, text wrapping)
-2. ✅ Implemented column visibility controls (hide/show)  
-3. ✅ Enhanced column ordering by orderNumber
-4. ✅ Added prefix text support for cell values
-5. ✅ Implemented auto-height adjustment for rows
-6. ✅ Added showInProcessed feature for processed file visibility
-7. ✅ Enhanced ExcelStyleHelper with custom styling methods
-8. ✅ Created addProcessedSchemaSheetFromJson for filtered exports
-
-**Status**: ✅ COMPLETED - All styling and column management features successfully implemented
-**Files**: `ColumnDef.java`, `ExcelStyleHelper.java`, `ExcelSchemaSheetCreator.java` - Successfully enhanced and tested
-
----
-
-## Task 3: Advanced Excel Cell Protection 🔒 ✅ COMPLETED
-
-**Objective**: Implement dynamic cell locking/unlocking features based on data state
-
-### ✅ Implemented Protection Features:
-
-#### Cell Locking Controls:
-- ✅ `freezeColumn` - **Lock column cells permanently** (cells cannot be edited)
-- ✅ `freezeTillData` - **Lock column cells until last data row** (locks cells only in rows with data)
-- ✅ `freezeColumnIfFilled` - **Conditional cell locking** (lock cell only if it contains data, unlock if empty)
-- ✅ `unFreezeColumnTillData` - **Unlock column cells until last data row** (allows editing in all data rows)
-
-### ✅ Implementation Completed:
-1. ✅ Researched Apache POI cell protection APIs and best practices
-2. ✅ Implemented permanent column locking (freezeColumn) with locked cell styles
-3. ✅ Added data-aware cell protection (freezeTillData) based on last data row detection
-4. ✅ Implemented conditional locking based on cell content (freezeColumnIfFilled)
-5. ✅ Added unlock functionality for data rows (unFreezeColumnTillData) with priority override
-6. ✅ Created comprehensive CellProtectionManager utility class
-7. ✅ Added proper sheet protection with user editing permissions for all sheets
-8. ✅ Enhanced ExcelSchemaSheetCreator with integrated protection management
-9. ✅ Updated MicroplanProcessor with comprehensive workbook protection
-
-**Status**: ✅ COMPLETED - All cell protection features successfully implemented
-**Files**: `CellProtectionManager.java` (NEW), `ExcelSchemaSheetCreator.java`, `MicroplanProcessor.java` - Successfully enhanced and tested
-
----
-
-## Implementation Order:
-1. **Task 1** (Core Validations) - Essential for data quality
-2. **Task 2** (Display Features) - User experience improvements  
-3. **Task 3** (Cell Protection) - Advanced data protection features
-
-Each task is independent and can be implemented separately without dependencies.
+**Priority**: HIGH - Essential design phase for dynamic data population functionality
+**Deliverable**: `EXCEL_DATA_POPULATOR_DESIGN.md` - Complete design specification document
+**Note**: **NO CODE IMPLEMENTATION** - Design documentation and specification only
