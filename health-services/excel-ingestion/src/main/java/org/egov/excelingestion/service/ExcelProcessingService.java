@@ -11,6 +11,7 @@ import org.egov.excelingestion.config.ProcessingConstants;
 import org.egov.excelingestion.exception.CustomExceptionHandler;
 import org.egov.excelingestion.util.RequestInfoConverter;
 import org.egov.excelingestion.util.EnrichmentUtil;
+import org.egov.excelingestion.validate.ProcessValidationService;
 import org.egov.excelingestion.web.models.ProcessResource;
 import org.egov.excelingestion.web.models.ProcessResourceRequest;
 import org.egov.excelingestion.web.models.ValidationError;
@@ -33,6 +34,7 @@ public class ExcelProcessingService {
 
     private final ValidationService validationService;
     private final SchemaValidationService schemaValidationService;
+    private final ProcessValidationService processValidationService;
     private final FileStoreService fileStoreService;
     private final LocalizationService localizationService;
     private final RequestInfoConverter requestInfoConverter;
@@ -43,6 +45,7 @@ public class ExcelProcessingService {
     
     public ExcelProcessingService(ValidationService validationService,
                                 SchemaValidationService schemaValidationService,
+                                ProcessValidationService processValidationService,
                                 FileStoreService fileStoreService,
                                 LocalizationService localizationService,
                                 RequestInfoConverter requestInfoConverter,
@@ -52,6 +55,7 @@ public class ExcelProcessingService {
                                 EnrichmentUtil enrichmentUtil) {
         this.validationService = validationService;
         this.schemaValidationService = schemaValidationService;
+        this.processValidationService = processValidationService;
         this.fileStoreService = fileStoreService;
         this.localizationService = localizationService;
         this.requestInfoConverter = requestInfoConverter;
@@ -77,32 +81,36 @@ public class ExcelProcessingService {
             String locale = requestInfoConverter.extractLocale(request.getRequestInfo());
             String tenantId = resource.getTenantId();
             
-            // Get localization for validation messages
-            String validationModule = "hcm-admin-validation"; 
-            Map<String, String> validationLocalizationMap = localizationService.getLocalizedMessages(
-                    tenantId, validationModule, locale, request.getRequestInfo());
-            
             // Get schema localization for field names
             String schemaModule = "hcm-admin-schemas";
             Map<String, String> schemaLocalizationMap = localizationService.getLocalizedMessages(
                     tenantId, schemaModule, locale, request.getRequestInfo());
             
             // Merge localization maps
-            Map<String, String> mergedLocalizationMap = new HashMap<>();
-            mergedLocalizationMap.putAll(validationLocalizationMap);
-            mergedLocalizationMap.putAll(schemaLocalizationMap);
+            Map<String, String> mergedLocalizationMap = new HashMap<>(schemaLocalizationMap);
             
             // Download and validate the Excel file
             try (Workbook workbook = downloadExcelFromFileStore(resource.getFileStoreId(), resource.getTenantId())) {
                 
+                // Pre-validate schemas and fetch them before data validation
+                Map<String, Map<String, Object>> preValidatedSchemas = processValidationService.preValidateAndFetchSchemas(
+                        workbook, resource, request.getRequestInfo(), mergedLocalizationMap);
+                
                 // Validate data and collect errors with localization
-                List<ValidationError> validationErrors = validateExcelData(workbook, resource, request.getRequestInfo(), mergedLocalizationMap);
+                List<ValidationError> validationErrors = validateExcelData(workbook, resource, 
+                        request.getRequestInfo(), mergedLocalizationMap, preValidatedSchemas);
                 
                 // Process each sheet: only add validation columns to sheets with errors
                 Map<String, ValidationColumnInfo> columnInfoMap = new HashMap<>();
                 for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
                     Sheet sheet = workbook.getSheetAt(i);
                     String sheetName = sheet.getSheetName();
+                    
+                    // Skip hidden sheets (wrapped in _h_ prefix and suffix)
+                    if (sheetName != null && sheetName.startsWith("_h_") && sheetName.endsWith("_h_")) {
+                        log.debug("Skipping hidden sheet in validation column processing: {}", sheetName);
+                        continue;
+                    }
                     
                     // Get errors for this sheet first
                     List<ValidationError> sheetErrors = validationErrors.stream()
@@ -181,30 +189,50 @@ public class ExcelProcessingService {
     }
 
     /**
-     * Validates data in all sheets of the workbook
+     * Validates data in all sheets of the workbook using pre-fetched schemas
      */
     private List<ValidationError> validateExcelData(Workbook workbook, ProcessResource resource, 
-            org.egov.excelingestion.web.models.RequestInfo requestInfo, Map<String, String> localizationMap) {
+            org.egov.excelingestion.web.models.RequestInfo requestInfo, Map<String, String> localizationMap,
+            Map<String, Map<String, Object>> preValidatedSchemas) {
         List<ValidationError> allErrors = new ArrayList<>();
         
         for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
             Sheet sheet = workbook.getSheetAt(i);
             String sheetName = sheet.getSheetName();
             
+            // Skip hidden sheets (wrapped in _h_ prefix and suffix)
+            if (sheetName != null && sheetName.startsWith("_h_") && sheetName.endsWith("_h_")) {
+                log.info("Skipping validation for hidden sheet: {}", sheetName);
+                continue;
+            }
+            
             log.info("Validating sheet: {}", sheetName);
             
             // Convert sheet data to List<Map> format for schema validation
             List<Map<String, Object>> sheetData = convertSheetToMapList(sheet);
             
-            // Perform schema validation with localization
-            List<ValidationError> schemaErrors = schemaValidationService.validateDataWithSchema(
-                    sheetData, sheetName, resource.getTenantId(), 
-                    resource.getType(), "all", requestInfo, localizationMap);
+            // Get pre-fetched schema for this sheet
+            String schemaName = getSchemaNameForSheet(sheetName, resource.getType(), localizationMap);
+            Map<String, Object> schema = null;
+            if (schemaName != null && preValidatedSchemas.containsKey(schemaName)) {
+                schema = preValidatedSchemas.get(schemaName);
+            }
+            
+            // Perform schema validation with pre-fetched schema
+            List<ValidationError> schemaErrors = schemaValidationService.validateDataWithPreFetchedSchema(
+                    sheetData, sheetName, schema, localizationMap);
             
             allErrors.addAll(schemaErrors);
         }
         
         return validationService.mergeErrors(allErrors);
+    }
+
+    /**
+     * Helper method to get schema name for a sheet (delegates to ProcessValidationService)
+     */
+    private String getSchemaNameForSheet(String sheetName, String type, Map<String, String> localizationMap) {
+        return processValidationService.getSchemaNameForSheet(sheetName, type, localizationMap);
     }
 
     /**

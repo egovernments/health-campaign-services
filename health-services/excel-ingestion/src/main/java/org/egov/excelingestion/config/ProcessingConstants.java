@@ -10,6 +10,8 @@ public class ProcessingConstants {
     public static final String USER_LIST_SHEET_KEY = "HCM_ADMIN_CONSOLE_USERS_LIST";
     public static final String BOUNDARY_DATA_SHEET_KEY = "HCM_ADMIN_CONSOLE_BOUNDARY_DATA";
     public static final String README_SHEET_KEY = "HCM_README_SHEETNAME";
+    public static final String CAMP_CONF_SHEET_KEY = "HCM_CAMP_CONF_SHEETNAME";
+    public static final String BOUNDARY_HIERARCHY_SHEET_KEY = "HCM_CONSOLE_BOUNDARY_HIERARCHY";
     
     // Schema Names (prefixed with processing type)
     public static final String FACILITY_SCHEMA = "facility-microplan-ingestion";

@@ -64,6 +64,19 @@ public class ErrorConstants {
     public static final String MISSING_REQUIRED_FIELD = "MISSING_REQUIRED_FIELD";
     public static final String MISSING_REQUIRED_FIELD_MESSAGE = "Required field missing: {0}";
     
+    // Schema Configuration Errors
+    public static final String PROCESSING_TYPE_NOT_SUPPORTED = "PROCESSING_TYPE_NOT_SUPPORTED";
+    public static final String PROCESSING_TYPE_NOT_SUPPORTED_MESSAGE = "Processing type '{0}' is not supported. Supported types: {1}";
+    
+    public static final String SHEET_NOT_CONFIGURED = "SHEET_NOT_CONFIGURED";
+    public static final String SHEET_NOT_CONFIGURED_MESSAGE = "Unknown sheet name '{0}' for processing type '{1}'. Expected sheet names: {2}";
+    
+    public static final String SCHEMA_NOT_FOUND_IN_MDMS = "SCHEMA_NOT_FOUND_IN_MDMS";
+    public static final String SCHEMA_NOT_FOUND_IN_MDMS_MESSAGE = "Schema '{0}' not found in MDMS for tenant '{1}'. Please verify the schema exists in MDMS";
+    
+    public static final String REQUIRED_SHEET_MISSING = "REQUIRED_SHEET_MISSING";
+    public static final String REQUIRED_SHEET_MISSING_MESSAGE = "Required sheet '{0}' is missing from the Excel file. Expected sheets: {1}";
+    
     // Validation Errors
     public static final String INVALID_TENANT_ID = "INVALID_TENANT_ID";
     public static final String INVALID_TENANT_ID_MESSAGE = "Invalid tenant ID provided: {0}";

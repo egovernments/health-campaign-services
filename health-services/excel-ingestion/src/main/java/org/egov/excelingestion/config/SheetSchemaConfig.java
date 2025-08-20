@@ -22,10 +22,11 @@ public class SheetSchemaConfig {
      */
     private static void initializeMicroplanIngestionConfig() {
         Map<String, String> microplanConfig = new HashMap<>();
+    
         microplanConfig.put(ProcessingConstants.FACILITIES_SHEET_KEY, ProcessingConstants.FACILITY_SCHEMA);
         microplanConfig.put(ProcessingConstants.USER_LIST_SHEET_KEY, ProcessingConstants.USER_SCHEMA);
-        microplanConfig.put(ProcessingConstants.BOUNDARY_DATA_SHEET_KEY, null); // No validation
-        microplanConfig.put(ProcessingConstants.README_SHEET_KEY, null); // No validation
+        microplanConfig.put(ProcessingConstants.CAMP_CONF_SHEET_KEY, null); // No validation
+        microplanConfig.put(ProcessingConstants.BOUNDARY_HIERARCHY_SHEET_KEY, null); // No validation
         
         TYPE_TO_SHEET_SCHEMA_MAP.put(ProcessingConstants.MICROPLAN_INGESTION, microplanConfig);
     }

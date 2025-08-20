@@ -647,4 +647,45 @@ public class SchemaValidationService {
         
         return localizedMessage;
     }
+    
+    /**
+     * Validates sheet data against pre-fetched schema
+     */
+    public List<ValidationError> validateDataWithPreFetchedSchema(List<Map<String, Object>> sheetData,
+            String sheetName, Map<String, Object> schema, Map<String, String> localizationMap) {
+        
+        List<ValidationError> errors = new ArrayList<>();
+        
+        if (schema == null) {
+            log.info("No schema provided for sheet: {}", sheetName);
+            return errors;
+        }
+        
+        try {
+            // Extract validation rules from schema
+            Map<String, ValidationRule> validationRules = extractValidationRules(schema);
+            
+            // Validate each row against the schema
+            for (int rowIndex = 0; rowIndex < sheetData.size(); rowIndex++) {
+                Map<String, Object> rowData = sheetData.get(rowIndex);
+                int excelRowNumber = rowIndex + 3; // +1 for 0-based to 1-based, +2 for two header rows
+                
+                List<ValidationError> rowErrors = validateRowAgainstSchema(
+                    rowData, excelRowNumber, sheetName, validationRules, localizationMap);
+                errors.addAll(rowErrors);
+            }
+            
+        } catch (Exception e) {
+            log.error("Error during schema validation for sheet {}: {}", sheetName, e.getMessage(), e);
+            ValidationError error = ValidationError.builder()
+                    .rowNumber(1)
+                    .sheetName(sheetName)
+                    .status(ValidationConstants.STATUS_ERROR)
+                    .errorDetails("Schema validation failed: " + e.getMessage())
+                    .build();
+            errors.add(error);
+        }
+        
+        return errors;
+    }
 }
