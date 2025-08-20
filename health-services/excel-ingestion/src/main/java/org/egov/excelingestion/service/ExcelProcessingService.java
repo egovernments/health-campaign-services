@@ -104,8 +104,8 @@ public class ExcelProcessingService {
                     Sheet sheet = workbook.getSheetAt(i);
                     String sheetName = sheet.getSheetName();
                     
-                    // Add or find validation columns
-                    ValidationColumnInfo columnInfo = validationService.addValidationColumns(sheet);
+                    // Add or find validation columns with localization
+                    ValidationColumnInfo columnInfo = validationService.addValidationColumns(sheet, mergedLocalizationMap);
                     columnInfoMap.put(sheetName, columnInfo);
                     
                     // Get errors for this sheet and process them

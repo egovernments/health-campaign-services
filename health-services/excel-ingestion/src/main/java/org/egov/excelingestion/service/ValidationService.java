@@ -37,9 +37,21 @@ public class ValidationService {
      * Finds or adds status and error columns to the sheet
      */
     public ValidationColumnInfo addValidationColumns(Sheet sheet) {
+        return addValidationColumns(sheet, null);
+    }
+    
+    /**
+     * Finds or adds status and error columns to the sheet with localization support
+     */
+    public ValidationColumnInfo addValidationColumns(Sheet sheet, Map<String, String> localizationMap) {
         Row headerRow = sheet.getRow(0);
         if (headerRow == null) {
             headerRow = sheet.createRow(0);
+        }
+        
+        Row visibleRow = sheet.getRow(1);
+        if (visibleRow == null) {
+            visibleRow = sheet.createRow(1);
         }
 
         // Check if status and error columns already exist
@@ -51,9 +63,19 @@ public class ValidationService {
             int lastDataColumn = findLastDataColumn(sheet);
             statusColumnIndex = lastDataColumn + 1;
             
+            // Row 0: Technical name
             Cell statusCell = headerRow.createCell(statusColumnIndex);
             statusCell.setCellValue(ValidationConstants.STATUS_COLUMN_NAME);
             applyCellStyle(statusCell, true);
+            
+            // Row 1: Localized visible header with yellow background
+            Cell statusVisibleCell = visibleRow.createCell(statusColumnIndex);
+            String statusDisplayName = (localizationMap != null && localizationMap.containsKey(ValidationConstants.STATUS_COLUMN_NAME))
+                ? localizationMap.get(ValidationConstants.STATUS_COLUMN_NAME)
+                : ValidationConstants.STATUS_COLUMN_NAME;
+            statusVisibleCell.setCellValue(statusDisplayName);
+            applyYellowHeaderStyle(statusVisibleCell);
+            
             sheet.setColumnWidth(statusColumnIndex, 5000); // ~20 characters
         }
 
@@ -61,9 +83,19 @@ public class ValidationService {
             int lastDataColumn = findLastDataColumn(sheet);
             errorColumnIndex = statusColumnIndex == lastDataColumn + 1 ? lastDataColumn + 2 : lastDataColumn + 1;
             
+            // Row 0: Technical name
             Cell errorCell = headerRow.createCell(errorColumnIndex);
             errorCell.setCellValue(ValidationConstants.ERROR_DETAILS_COLUMN_NAME);
             applyCellStyle(errorCell, true);
+            
+            // Row 1: Localized visible header with yellow background
+            Cell errorVisibleCell = visibleRow.createCell(errorColumnIndex);
+            String errorDisplayName = (localizationMap != null && localizationMap.containsKey(ValidationConstants.ERROR_DETAILS_COLUMN_NAME))
+                ? localizationMap.get(ValidationConstants.ERROR_DETAILS_COLUMN_NAME)
+                : ValidationConstants.ERROR_DETAILS_COLUMN_NAME;
+            errorVisibleCell.setCellValue(errorDisplayName);
+            applyYellowHeaderStyle(errorVisibleCell);
+            
             sheet.setColumnWidth(errorColumnIndex, 10000); // ~40 characters
         }
 
@@ -181,6 +213,31 @@ public class ValidationService {
         style.setBorderRight(BorderStyle.THIN);
         style.setBorderLeft(BorderStyle.THIN);
         
+        cell.setCellStyle(style);
+    }
+    
+    /**
+     * Applies yellow header styling for validation column headers
+     */
+    private void applyYellowHeaderStyle(Cell cell) {
+        Workbook workbook = cell.getSheet().getWorkbook();
+        CellStyle style = workbook.createCellStyle();
+        Font font = workbook.createFont();
+
+        // Bold font for header
+        font.setBold(true);
+        
+        // Yellow background
+        style.setFillForegroundColor(IndexedColors.YELLOW.getIndex());
+        style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+
+        // Borders
+        style.setBorderBottom(BorderStyle.THIN);
+        style.setBorderTop(BorderStyle.THIN);
+        style.setBorderRight(BorderStyle.THIN);
+        style.setBorderLeft(BorderStyle.THIN);
+        
+        style.setFont(font);
         cell.setCellStyle(style);
     }
 
