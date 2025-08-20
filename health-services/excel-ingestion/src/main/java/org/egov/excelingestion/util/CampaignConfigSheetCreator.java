@@ -238,8 +238,6 @@ public class CampaignConfigSheetCreator {
         style.setVerticalAlignment(VerticalAlignment.CENTER);
         style.setLocked(true);
         
-        // Add borders
-        style.setBorderBottom(BorderStyle.THIN);
         style.setBottomBorderColor(IndexedColors.GREY_40_PERCENT.getIndex());
         
         return style;
@@ -263,10 +261,6 @@ public class CampaignConfigSheetCreator {
         style.setVerticalAlignment(VerticalAlignment.CENTER);
         
         // Add borders
-        style.setBorderTop(BorderStyle.THIN);
-        style.setBorderBottom(BorderStyle.THIN);
-        style.setBorderLeft(BorderStyle.THIN);
-        style.setBorderRight(BorderStyle.THIN);
         
         style.setLocked(true);
         
@@ -289,10 +283,6 @@ public class CampaignConfigSheetCreator {
         }
         
         // Add borders
-        style.setBorderTop(BorderStyle.THIN);
-        style.setBorderBottom(BorderStyle.THIN);
-        style.setBorderLeft(BorderStyle.THIN);
-        style.setBorderRight(BorderStyle.THIN);
         
         style.setAlignment(HorizontalAlignment.LEFT);
         style.setVerticalAlignment(VerticalAlignment.CENTER);
@@ -307,10 +297,6 @@ public class CampaignConfigSheetCreator {
         CellStyle style = workbook.createCellStyle();
         
         // Add subtle border to indicate editability
-        style.setBorderTop(BorderStyle.THIN);
-        style.setBorderBottom(BorderStyle.THIN);
-        style.setBorderLeft(BorderStyle.THIN);
-        style.setBorderRight(BorderStyle.THIN);
         style.setBottomBorderColor(IndexedColors.GREY_25_PERCENT.getIndex());
         
         style.setAlignment(HorizontalAlignment.LEFT);

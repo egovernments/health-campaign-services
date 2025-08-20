@@ -21,9 +21,11 @@ import org.springframework.stereotype.Component;
 public class ExcelSchemaSheetCreator {
     
     private final ExcelIngestionConfig config;
+    private final ExcelStyleHelper excelStyleHelper;
     
-    public ExcelSchemaSheetCreator(ExcelIngestionConfig config) {
+    public ExcelSchemaSheetCreator(ExcelIngestionConfig config, ExcelStyleHelper excelStyleHelper) {
         this.config = config;
+        this.excelStyleHelper = excelStyleHelper;
     }
 
     public Workbook addSchemaSheetFromJson(String json, String sheetName, Workbook workbook) throws IOException {
@@ -134,15 +136,23 @@ public class ExcelSchemaSheetCreator {
                 ? localizationMap.get(def.getDisplayName()) 
                 : def.getDisplayName();
             headerCell.setCellValue(displayName);
-            headerCell.setCellStyle(createColoredHeaderStyle(workbook, def.getColorHex()));
+            
+            // Apply enhanced header styling with color and text wrapping
+            headerCell.setCellStyle(excelStyleHelper.createCustomHeaderStyle(workbook, def.getColorHex(), def.isWrapText()));
+
+            // Set column width if specified
+            if (def.getWidth() != null && def.getWidth() > 0) {
+                sheet.setColumnWidth(colIndex, def.getWidth() * 256); // POI uses 1/256th of character width
+            } else {
+                // Autosize if no specific width is set
+                sheet.autoSizeColumn(colIndex);
+            }
 
             // Hide column if specified
             if (def.isHideColumn()) {
                 sheet.setColumnHidden(colIndex, true);
             }
 
-            // Autosize
-            sheet.autoSizeColumn(colIndex);
             colIndex++;
         }
 
@@ -156,6 +166,9 @@ public class ExcelSchemaSheetCreator {
         // Apply multiselect formulas
         applyMultiSelectFormulas(sheet, expandedColumns);
 
+        // Apply data cell styling and auto-height adjustment for rows
+        applyDataCellStyling(workbook, sheet, expandedColumns);
+
         // Prepare cell locking and apply sheet protection (same as facility sheet)
         prepareEnhancedCellLocking(workbook, sheet, expandedColumns);
         
@@ -163,6 +176,138 @@ public class ExcelSchemaSheetCreator {
         sheet.protectSheet(config.getExcelSheetPassword());
 
         return workbook;
+    }
+    
+    /**
+     * Creates a processed version of the sheet with only columns marked for showInProcessed
+     */
+    public Workbook addProcessedSchemaSheetFromJson(String json, String sheetName, Workbook workbook, Map<String, String> localizationMap) throws IOException {
+        ObjectMapper mapper = new ObjectMapper();
+        JsonNode root = mapper.readTree(json);
+
+        List<ColumnDef> columns = new ArrayList<>();
+
+        // Process stringProperties 
+        StreamSupport.stream(root.path("stringProperties").spliterator(), false)
+                .map(node -> parseColumnDef(node, "string"))
+                .forEach(columns::add);
+
+        // Process numberProperties
+        StreamSupport.stream(root.path("numberProperties").spliterator(), false)
+                .map(node -> parseColumnDef(node, "number"))
+                .forEach(columns::add);
+
+        // Process enumProperties
+        StreamSupport.stream(root.path("enumProperties").spliterator(), false)
+                .map(node -> parseColumnDef(node, "enum"))
+                .forEach(columns::add);
+
+        // Filter columns to show only those marked for showInProcessed
+        List<ColumnDef> processedColumns = columns.stream()
+                .filter(ColumnDef::isShowInProcessed)
+                .sorted(Comparator.comparingInt(ColumnDef::getOrderNumber))
+                .collect(Collectors.toList());
+
+        // Expand multiselect columns
+        List<ColumnDef> expandedColumns = expandMultiSelectColumns(processedColumns);
+
+        Sheet sheet = workbook.createSheet(sheetName);
+
+        // Create Row 1 (hidden technical names) and Row 2 (localized visible headers)
+        Row hiddenRow = sheet.createRow(0);
+        Row visibleRow = sheet.createRow(1);
+
+        int colIndex = 0;
+        for (ColumnDef def : expandedColumns) {
+            // Row 1: technical name
+            Cell techCell = hiddenRow.createCell(colIndex);
+            techCell.setCellValue(def.getTechnicalName());
+
+            // Row 2: localized display name
+            Cell headerCell = visibleRow.createCell(colIndex);
+            String displayName = localizationMap != null && localizationMap.containsKey(def.getDisplayName()) 
+                ? localizationMap.get(def.getDisplayName()) 
+                : def.getDisplayName();
+            headerCell.setCellValue(displayName);
+            
+            // Apply enhanced header styling with color and text wrapping
+            headerCell.setCellStyle(excelStyleHelper.createCustomHeaderStyle(workbook, def.getColorHex(), def.isWrapText()));
+
+            // Set column width if specified
+            if (def.getWidth() != null && def.getWidth() > 0) {
+                sheet.setColumnWidth(colIndex, def.getWidth() * 256); // POI uses 1/256th of character width
+            } else {
+                // Autosize if no specific width is set
+                sheet.autoSizeColumn(colIndex);
+            }
+
+            // Note: hideColumn is ignored for processed files - all included columns are visible
+
+            colIndex++;
+        }
+
+        // Hide first row
+        sheet.createFreezePane(0, 2);
+        hiddenRow.setZeroHeight(true);
+
+        // Apply data cell styling and auto-height adjustment for rows
+        applyDataCellStyling(workbook, sheet, expandedColumns);
+
+        // For processed files, typically no cell locking is applied as they're read-only outputs
+
+        return workbook;
+    }
+
+    /**
+     * Apply data cell styling including text wrapping, prefix text, and auto-height
+     */
+    private void applyDataCellStyling(Workbook workbook, Sheet sheet, List<ColumnDef> columns) {
+        // Create styles for different requirements
+        CellStyle wrapTextStyle = excelStyleHelper.createDataCellStyle(workbook, true);
+        CellStyle normalStyle = excelStyleHelper.createDataCellStyle(workbook, false);
+        
+        // Apply styling to initial data rows
+        for (int rowIdx = 2; rowIdx < 20; rowIdx++) { // Apply to first 20 rows for demonstration
+            Row row = sheet.getRow(rowIdx);
+            if (row == null) {
+                row = sheet.createRow(rowIdx);
+            }
+            
+            boolean needsAutoHeight = false;
+            
+            for (int colIdx = 0; colIdx < columns.size(); colIdx++) {
+                ColumnDef column = columns.get(colIdx);
+                Cell cell = row.getCell(colIdx);
+                if (cell == null) {
+                    cell = row.createCell(colIdx);
+                }
+                
+                // Apply appropriate cell style
+                if (column.isWrapText()) {
+                    cell.setCellStyle(wrapTextStyle);
+                    needsAutoHeight = true;
+                } else {
+                    cell.setCellStyle(normalStyle);
+                }
+                
+                // Apply prefix to cell if specified and cell has content
+                if (column.getPrefix() != null && !column.getPrefix().isEmpty() && 
+                    cell.getCellType() != CellType.BLANK && !cell.toString().trim().isEmpty()) {
+                    String currentValue = cell.toString();
+                    cell.setCellValue(column.getPrefix() + currentValue);
+                }
+            }
+            
+            // Auto-adjust row height if any column in this row requires it
+            if (needsAutoHeight) {
+                for (int colIdx = 0; colIdx < columns.size(); colIdx++) {
+                    if (columns.get(colIdx).isAdjustHeight()) {
+                        row.setHeight((short) -1); // Auto-size height
+                        break;
+                    }
+                }
+            }
+        }
     }
 
     private ColumnDef parseSimpleColumnDef(JsonNode node) {
@@ -172,6 +317,15 @@ public class ExcelSchemaSheetCreator {
                 .colorHex(node.path("color").asText())
                 .orderNumber(node.path("orderNumber").asInt(9999))
                 .freezeColumnIfFilled(node.path("freezeColumnIfFilled").asBoolean(false))
+                .width(node.has("width") ? node.path("width").asInt() : null)
+                .wrapText(node.path("wrapText").asBoolean(false))
+                .prefix(node.path("prefix").asText(null))
+                .adjustHeight(node.path("adjustHeight").asBoolean(false))
+                .hideColumn(node.path("hideColumn").asBoolean(false))
+                .showInProcessed(node.path("showInProcessed").asBoolean(true))
+                .freezeColumn(node.path("freezeColumn").asBoolean(false))
+                .freezeTillData(node.path("freezeTillData").asBoolean(false))
+                .unFreezeColumnTillData(node.path("unFreezeColumnTillData").asBoolean(false))
                 .build();
     }
 
@@ -244,7 +398,15 @@ public class ExcelSchemaSheetCreator {
                 .orderNumber(node.path("orderNumber").asInt(9999))
                 .freezeColumnIfFilled(node.path("freezeColumnIfFilled").asBoolean(false))
                 .hideColumn(node.path("hideColumn").asBoolean(false))
-                .required(node.path("isRequired").asBoolean(false));
+                .required(node.path("isRequired").asBoolean(false))
+                .width(node.has("width") ? node.path("width").asInt() : null)
+                .wrapText(node.path("wrapText").asBoolean(false))
+                .prefix(node.path("prefix").asText(null))
+                .adjustHeight(node.path("adjustHeight").asBoolean(false))
+                .showInProcessed(node.path("showInProcessed").asBoolean(true))
+                .freezeColumn(node.path("freezeColumn").asBoolean(false))
+                .freezeTillData(node.path("freezeTillData").asBoolean(false))
+                .unFreezeColumnTillData(node.path("unFreezeColumnTillData").asBoolean(false));
         
         // Handle enum properties
         if ("enum".equals(type) && node.has("enum")) {
@@ -424,23 +586,91 @@ public class ExcelSchemaSheetCreator {
     }
     
     private void prepareEnhancedCellLocking(Workbook workbook, Sheet sheet, List<ColumnDef> columns) {
-        // First, unlock all cells by default
-        CellStyle unlockedStyle = workbook.createCellStyle();
-        unlockedStyle.setLocked(false);
+        // Create styles for locked and unlocked cells
+        CellStyle lockedStyle = excelStyleHelper.createLockedCellStyle(workbook);
+        CellStyle unlockedStyle = excelStyleHelper.createUnlockedCellStyle(workbook);
         
-        // Apply unlocked style to all data cells
+        // Find the last row with data for freezeTillData calculations
+        int lastDataRow = findLastDataRow(sheet);
+        
+        // Apply cell locking based on column properties
         for (int rowIdx = 2; rowIdx <= Math.max(sheet.getLastRowNum(), config.getExcelRowLimit()); rowIdx++) {
             Row row = sheet.getRow(rowIdx);
             if (row == null) {
                 row = sheet.createRow(rowIdx);
             }
-            for (int col = 0; col < columns.size(); col++) {
-                Cell cell = row.getCell(col);
+            
+            for (int colIdx = 0; colIdx < columns.size(); colIdx++) {
+                ColumnDef column = columns.get(colIdx);
+                Cell cell = row.getCell(colIdx);
                 if (cell == null) {
-                    cell = row.createCell(col);
+                    cell = row.createCell(colIdx);
                 }
-                cell.setCellStyle(unlockedStyle);
+                
+                // Determine if cell should be locked based on column properties
+                boolean shouldLock = false;
+                
+                if (column.isFreezeColumn()) {
+                    // Lock column cells permanently
+                    shouldLock = true;
+                } else if (column.isFreezeTillData() && rowIdx <= lastDataRow) {
+                    // Lock column cells until last data row
+                    shouldLock = true;
+                } else if (column.isFreezeColumnIfFilled() && cellHasValue(cell)) {
+                    // Lock cell only if it contains data
+                    shouldLock = true;
+                } else if (column.isUnFreezeColumnTillData() && rowIdx <= lastDataRow) {
+                    // Explicitly unlock column cells until last data row (overrides other freeze settings)
+                    shouldLock = false;
+                } else {
+                    // Default to unlocked for editing
+                    shouldLock = false;
+                }
+                
+                // Apply the appropriate style
+                cell.setCellStyle(shouldLock ? lockedStyle : unlockedStyle);
             }
+        }
+    }
+    
+    /**
+     * Find the last row that contains data in any cell
+     */
+    private int findLastDataRow(Sheet sheet) {
+        int lastDataRow = 1; // Start from row 2 (index 1), as rows 0-1 are headers
+        
+        for (int rowIdx = 2; rowIdx <= sheet.getLastRowNum(); rowIdx++) {
+            Row row = sheet.getRow(rowIdx);
+            if (row != null) {
+                for (Cell cell : row) {
+                    if (cellHasValue(cell)) {
+                        lastDataRow = rowIdx;
+                        break;
+                    }
+                }
+            }
+        }
+        
+        return lastDataRow;
+    }
+    
+    /**
+     * Check if a cell has a value (not blank and not empty string)
+     */
+    private boolean cellHasValue(Cell cell) {
+        if (cell == null) return false;
+        
+        switch (cell.getCellType()) {
+            case STRING:
+                return !cell.getStringCellValue().trim().isEmpty();
+            case NUMERIC:
+                return true;
+            case BOOLEAN:
+                return true;
+            case FORMULA:
+                return true;
+            default:
+                return false;
         }
     }
     

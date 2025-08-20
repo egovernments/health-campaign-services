@@ -27,4 +27,14 @@ public class ColumnDef {
     private String parentColumn;
     private int multiSelectIndex;
     private int multiSelectMaxSelections;
+    
+    // New display and styling properties
+    private Integer width;
+    private boolean wrapText;
+    private String prefix;
+    private boolean adjustHeight;
+    private boolean showInProcessed;
+    private boolean freezeColumn;
+    private boolean freezeTillData;
+    private boolean unFreezeColumnTillData;
 }

@@ -149,11 +149,6 @@ public class BoundaryHierarchySheetCreator {
         style.setFillForegroundColor(xssfColor);
         style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
         
-        // Set borders
-        style.setBorderTop(BorderStyle.THIN);
-        style.setBorderBottom(BorderStyle.THIN);
-        style.setBorderLeft(BorderStyle.THIN);
-        style.setBorderRight(BorderStyle.THIN);
         
         // Center align text
         style.setAlignment(HorizontalAlignment.CENTER);
