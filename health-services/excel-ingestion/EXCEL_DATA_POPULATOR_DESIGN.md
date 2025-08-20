@@ -4,7 +4,6 @@
 
 ```java
 public Workbook populateSheetWithData(
-    Workbook workbook,
     String sheetName,
     List<ColumnDef> columnProperties,
     List<Map<String, Object>> dataRows
@@ -13,19 +12,26 @@ public Workbook populateSheetWithData(
 
 ## Parameters
 
-- **workbook** - Target Excel workbook
-- **sheetName** - Sheet name to create/replace
+- **sheetName** - Sheet name to create/replace (workbook created/fetched internally)
 - **columnProperties** - Column definitions with formatting rules (name used for localization lookup)
 - **dataRows** - Data as Map<unlocalised_code, value>
 
-## Behavior
+## Behavior (Simple Flow)
 
-1. **Sheet Management**: If sheet exists → clear data, create new sheet
-2. **Header Creation**: Row 0 (hidden technical names), Row 1 (localized headers from name field)
-3. **Data Population**: Map data using unlocalised codes, fill rows starting from Row 2
-4. **Formatting**: Apply colors, widths, text wrap, prefixes from column properties
-5. **Protection**: Apply freeze rules, cell locking, sheet protection
-6. **Validation**: Add dropdowns for enum columns
+1. **Create/Get Workbook**: `new XSSFWorkbook()`
+2. **Create/Replace Sheet**: Remove if exists, create new with sheetName
+3. **Create Headers**: 
+   - Use existing `createHeaderRows()` pattern from ExcelSchemaSheetCreator
+   - Row 0: technical names, Row 1: localized names
+4. **Fill Data** (if not empty/null):
+   - Simple loop: for each dataRow → create Excel row → fill cells
+5. **Apply Formatting**:
+   - Reuse `excelStyleHelper.createCustomHeaderStyle()`
+   - Reuse column width, text wrap logic from existing code
+6. **Apply Protection**: 
+   - Reuse `cellProtectionManager.applyCellProtection()`
+7. **Apply Validation**: 
+   - Reuse existing dropdown creation logic
 
 ## Usage Example
 
@@ -42,22 +48,31 @@ List<ColumnDef> columns = Arrays.asList(
         .build()
 );
 
+// Example 1: With data
 List<Map<String, Object>> data = Arrays.asList(
     Map.of("facility_name", "Hospital A", "facility_type", "PRIMARY"),
     Map.of("facility_name", "Clinic B", "facility_type", "SECONDARY")
 );
+populateSheetWithData("Facilities", columns, data);
 
-populateSheetWithData(workbook, "Facilities", columns, data);
+// Example 2: Empty/null data - creates headers-only sheet
+populateSheetWithData("Empty Facilities", columns, null);
+populateSheetWithData("Template", columns, new ArrayList<>());
 ```
 
-## Integration Points
+## Integration Points (Reuse Existing Functions)
 
-- **ExcelStyleHelper** - Header and cell styling
-- **CellProtectionManager** - Apply protection rules
-- **DataValidationHelper** - Dropdown validations
+- **ExcelStyleHelper.createCustomHeaderStyle()** - Reuse for header styling
+- **ExcelStyleHelper.createDataCellStyle()** - Reuse for data cell formatting
+- **CellProtectionManager.applyCellProtection()** - Reuse for protection rules
+- **ExcelSchemaSheetCreator patterns** - Reuse header creation, validation logic
+- **DataValidationHelper** - Reuse existing dropdown creation methods
+- **Column width/formatting logic** - Copy from existing ExcelSchemaSheetCreator methods
 
-## Error Handling
+## Implementation Notes
 
-- Validate parameters (null checks, matching sizes)
-- Handle data type mismatches gracefully
-- Log errors but continue processing where possible
+- **Keep it Simple**: Don't reinvent - copy/reuse existing patterns from ExcelSchemaSheetCreator
+- **Reuse Methods**: Call existing helper methods instead of writing new ones
+- **Simple Loop**: Basic for-each loop for data population, no complex logic
+- **Copy Validation Logic**: Reuse enum dropdown creation from existing code
+- **Error Handling**: Basic null checks, continue on errors, log issues
