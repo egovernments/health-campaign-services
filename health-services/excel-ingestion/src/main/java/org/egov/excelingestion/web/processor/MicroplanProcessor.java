@@ -650,14 +650,13 @@ public class MicroplanProcessor implements IGenerateProcessor {
         int lastSchemaCol = visibleRow.getLastCellNum();
         if (lastSchemaCol < 0) lastSchemaCol = 0;
         
-        // Add boundary-related columns after schema columns
+        // Add level and boundary columns after schema columns (no parent column needed)
         // Add technical names to hidden row
         hiddenRow.createCell(lastSchemaCol).setCellValue("BOUNDARY_LEVEL");
         hiddenRow.createCell(lastSchemaCol + 1).setCellValue("BOUNDARY_NAME");
-        hiddenRow.createCell(lastSchemaCol + 2).setCellValue("PARENT_BOUNDARY");
         
-        // Create header style for boundary columns
-        CellStyle boundaryHeaderStyle = excelStyleHelper.createHeaderStyle(workbook, config.getDefaultHeaderColor());
+        // Create header style for boundary columns (left-aligned to match schema columns)
+        CellStyle boundaryHeaderStyle = excelStyleHelper.createLeftAlignedHeaderStyle(workbook, config.getDefaultHeaderColor());
         
         // Add localized headers to visible row with styling
         Cell levelHeaderCell = visibleRow.createCell(lastSchemaCol);
@@ -668,31 +667,26 @@ public class MicroplanProcessor implements IGenerateProcessor {
         boundaryHeaderCell.setCellValue(localizationMap.getOrDefault("HCM_INGESTION_BOUNDARY_COLUMN", "HCM_INGESTION_BOUNDARY_COLUMN"));
         boundaryHeaderCell.setCellStyle(boundaryHeaderStyle);
         
-        Cell parentHeaderCell = visibleRow.createCell(lastSchemaCol + 2);
-        parentHeaderCell.setCellValue(localizationMap.getOrDefault("HCM_INGESTION_PARENT_COLUMN", "HCM_INGESTION_PARENT_COLUMN"));
-        parentHeaderCell.setCellStyle(boundaryHeaderStyle);
+        // Create level and boundary dropdowns with "Boundary (Parent)" format to avoid duplicates
+        createLevelAndBoundaryDropdowns(workbook, filteredBoundaries, levelTypes, localizationMap);
         
-        // Create boundary dropdown data based on filtered boundaries
-        createBoundaryDropdownData(workbook, filteredBoundaries, levelTypes, localizationMap);
-        
-        // Add data validations for boundary columns
-        addBoundaryDataValidations(workbook, sheet, lastSchemaCol, levelTypes, localizationMap);
+        // Add data validation for level and boundary columns
+        addLevelAndBoundaryDataValidations(workbook, sheet, lastSchemaCol, levelTypes, localizationMap);
 
 
-        // Column widths & freeze
-        for (int c = lastSchemaCol; c < lastSchemaCol + 3; c++) {
-            sheet.setColumnWidth(c, 40 * 256);
-        }
+        // Column widths & freeze - level and boundary columns
+        sheet.setColumnWidth(lastSchemaCol, 50 * 256); // Level column (same width as boundary column)
+        sheet.setColumnWidth(lastSchemaCol + 1, 50 * 256); // Boundary column (wider for "Boundary (Parent)" format)
         sheet.createFreezePane(0, 2); // Freeze after row 2 since schema creator uses row 1 for technical names
 
-        // Unlock cells for user input (for both sheets)
+        // Unlock cells for user input - level and boundary columns
         CellStyle unlocked = workbook.createCellStyle();
         unlocked.setLocked(false);
         for (int r = 2; r <= config.getExcelRowLimit(); r++) { // Start from row 2 to skip hidden technical row
             Row row = sheet.getRow(r);
             if (row == null)
                 row = sheet.createRow(r);
-            for (int c = lastSchemaCol; c < lastSchemaCol + 3; c++) {
+            for (int c = lastSchemaCol; c < lastSchemaCol + 2; c++) {
                 Cell cell = row.getCell(c);
                 if (cell == null)
                     cell = row.createCell(c);
@@ -702,48 +696,75 @@ public class MicroplanProcessor implements IGenerateProcessor {
     }
 
     /**
-     * Creates boundary dropdown data sheets based on filtered boundaries
+     * Creates level dropdown and level-specific boundary dropdowns with "boundary (parent)" format to avoid duplicates
      */
-    private void createBoundaryDropdownData(XSSFWorkbook workbook, List<BoundaryUtil.BoundaryRowData> filteredBoundaries,
-                                          List<String> levelTypes, Map<String, String> localizationMap) {
+    private void createLevelAndBoundaryDropdowns(XSSFWorkbook workbook, List<BoundaryUtil.BoundaryRowData> filteredBoundaries,
+                                               List<String> levelTypes, Map<String, String> localizationMap) {
         
-        // Create level sheet for dropdown options (or use existing one)
-        Sheet levelSheet = workbook.getSheet("_h_Levels_h_");
-        if (levelSheet == null) {
-            levelSheet = workbook.createSheet("_h_Levels_h_");
-            workbook.setSheetHidden(workbook.getSheetIndex("_h_Levels_h_"), true);
-        }
-        
-        // Clear existing content if sheet already existed
-        if (levelSheet.getLastRowNum() >= 0) {
-            for (int i = levelSheet.getLastRowNum(); i >= 0; i--) {
-                Row row = levelSheet.getRow(i);
-                if (row != null) {
-                    levelSheet.removeRow(row);
-                }
-            }
-        }
-        
-        Row levelRow = levelSheet.createRow(0);
-        
-        // Build ALL levels from hierarchy using localized level names (not just ones with data)
+        // Build levels and boundary options by level
         Set<String> availableLevels = new LinkedHashSet<>();
-        Map<String, String> levelIndexToLocalizedName = new HashMap<>();
+        Map<String, Set<String>> boundariesByLevel = new HashMap<>();
         
         // Create all levels based on the full hierarchy
         for (int i = 0; i < levelTypes.size(); i++) {
             String levelKey = "HCM_CAMP_CONF_LEVEL_" + (i + 1);
             String localizedLevel = localizationMap.getOrDefault(levelKey, levelKey);
             availableLevels.add(localizedLevel);
-            levelIndexToLocalizedName.put(String.valueOf(i), localizedLevel);
+            boundariesByLevel.put(localizedLevel, new TreeSet<>());
         }
         
+        // Debug: Log the boundary data we're processing
+        log.info("Processing {} filtered boundaries for dropdown creation", filteredBoundaries.size());
+        
+        // Process filtered boundaries and group by level with "Boundary (Parent)" format
+        for (BoundaryUtil.BoundaryRowData boundary : filteredBoundaries) {
+            List<String> path = boundary.getBoundaryPath();
+            for (int i = 0; i < path.size(); i++) {
+                if (path.get(i) != null) {
+                    String boundaryCode = path.get(i);
+                    String boundaryName = localizationMap.getOrDefault(boundaryCode, boundaryCode);
+                    String levelKey = "HCM_CAMP_CONF_LEVEL_" + (i + 1);
+                    String localizedLevel = localizationMap.getOrDefault(levelKey, levelKey);
+                    
+                    // Get parent name if exists  
+                    String parentName = "";
+                    if (i > 0 && path.get(i-1) != null) {
+                        String parentCode = path.get(i-1);
+                        parentName = localizationMap.getOrDefault(parentCode, parentCode);
+                    }
+                    
+                    // Create display format: "Boundary (Parent)" or just "Boundary" if no parent
+                    String displayText = parentName.isEmpty() ? boundaryName : boundaryName + " (" + parentName + ")";
+                    
+                    boundariesByLevel.get(localizedLevel).add(displayText);
+                }
+            }
+        }
+        
+        // Create levels sheet  
+        Sheet levelSheet = workbook.getSheet("_h_Levels_h_");
+        if (levelSheet == null) {
+            levelSheet = workbook.createSheet("_h_Levels_h_");
+            workbook.setSheetHidden(workbook.getSheetIndex("_h_Levels_h_"), true);
+        } else {
+            // Clear existing content
+            if (levelSheet.getLastRowNum() >= 0) {
+                for (int i = levelSheet.getLastRowNum(); i >= 0; i--) {
+                    Row row = levelSheet.getRow(i);
+                    if (row != null) {
+                        levelSheet.removeRow(row);
+                    }
+                }
+            }
+        }
+        
+        Row levelRow = levelSheet.createRow(0);
         int colIndex = 0;
         for (String level : availableLevels) {
             levelRow.createCell(colIndex++).setCellValue(level);
         }
         
-        // Create named range "Levels" (or update existing one) only if we have levels
+        // Create named range "Levels" for level dropdown
         if (!availableLevels.isEmpty()) {
             Name levelsNamedRange = workbook.getName("Levels");
             if (levelsNamedRange == null) {
@@ -754,169 +775,69 @@ public class MicroplanProcessor implements IGenerateProcessor {
             levelsNamedRange.setRefersToFormula("_h_Levels_h_!$A$1:$" + lastColLetter + "$1");
         }
         
-        // Create boundaries sheet with filtered boundaries (or use existing one)
+        // Create boundaries sheet with level-specific columns
         Sheet boundarySheet = workbook.getSheet("_h_Boundaries_h_");
         if (boundarySheet == null) {
             boundarySheet = workbook.createSheet("_h_Boundaries_h_");
             workbook.setSheetHidden(workbook.getSheetIndex("_h_Boundaries_h_"), true);
-        }
-        
-        // Clear existing content if sheet already existed
-        if (boundarySheet.getLastRowNum() >= 0) {
-            for (int i = boundarySheet.getLastRowNum(); i >= 0; i--) {
-                Row row = boundarySheet.getRow(i);
-                if (row != null) {
-                    boundarySheet.removeRow(row);
+        } else {
+            // Clear existing content
+            if (boundarySheet.getLastRowNum() >= 0) {
+                for (int i = boundarySheet.getLastRowNum(); i >= 0; i--) {
+                    Row row = boundarySheet.getRow(i);
+                    if (row != null) {
+                        boundarySheet.removeRow(row);
+                    }
                 }
             }
         }
         
-        // Group boundaries by level
-        Map<String, Set<String>> boundariesByLevel = new HashMap<>();
-        Map<String, String> codeToLocalized = new HashMap<>();
-        
-        // Debug: Log the boundary data we're processing
-        log.info("Processing {} filtered boundaries for dropdown creation", filteredBoundaries.size());
-        for (int idx = 0; idx < Math.min(5, filteredBoundaries.size()); idx++) {
-            BoundaryUtil.BoundaryRowData boundary = filteredBoundaries.get(idx);
-            log.info("Boundary {}: path size={}, path={}", idx, boundary.getBoundaryPath().size(), boundary.getBoundaryPath());
-        }
-        
-        for (BoundaryUtil.BoundaryRowData boundary : filteredBoundaries) {
-            List<String> path = boundary.getBoundaryPath();
-            for (int i = 0; i < path.size(); i++) {  // Remove levelTypes.size() limit to see all levels
-                if (path.get(i) != null) {
-                    String levelKey = "HCM_CAMP_CONF_LEVEL_" + (i + 1);
-                    String localizedLevel = localizationMap.getOrDefault(levelKey, levelKey);
-                    boundariesByLevel.computeIfAbsent(localizedLevel, k -> new TreeSet<>()).add(path.get(i));
-                    
-                    // Store localized name for the boundary code
-                    String localizedName = localizationMap.getOrDefault(path.get(i), path.get(i));
-                    codeToLocalized.put(path.get(i), localizedName);
-                }
-            }
-        }
-        
-        // Debug: Log what levels we found
-        log.info("Found boundaries for levels: {}", boundariesByLevel.keySet());
-        
-        // Write boundary data by level
+        // Create header row and populate boundary data by level
         int maxBoundaries = 0;
         colIndex = 0;
         for (String level : availableLevels) {
             Row header = boundarySheet.getRow(0) != null ? boundarySheet.getRow(0) : boundarySheet.createRow(0);
             header.createCell(colIndex).setCellValue(level);
             
-            Set<String> boundaries = boundariesByLevel.getOrDefault(level, new TreeSet<>());
-            List<String> sortedBoundaries = new ArrayList<>();
-            for (String boundaryCode : boundaries) {
-                sortedBoundaries.add(codeToLocalized.getOrDefault(boundaryCode, boundaryCode));
-            }
+            Set<String> boundaries = boundariesByLevel.get(level);
+            List<String> sortedBoundaries = new ArrayList<>(boundaries);
             Collections.sort(sortedBoundaries, String.CASE_INSENSITIVE_ORDER);
             
             int rowNum = 1;
-            for (String boundaryName : sortedBoundaries) {
+            for (String boundaryOption : sortedBoundaries) {
                 Row row = boundarySheet.getRow(rowNum) != null ? boundarySheet.getRow(rowNum) : boundarySheet.createRow(rowNum);
-                row.createCell(colIndex).setCellValue(boundaryName);
+                row.createCell(colIndex).setCellValue(boundaryOption);
                 rowNum++;
             }
             maxBoundaries = Math.max(maxBoundaries, sortedBoundaries.size());
             
-            // Create named range for this level (or update existing one)
+            // Create named range for this level
             if (!sortedBoundaries.isEmpty()) {
-                // Create sanitized name for Excel named range - find the corresponding level index
-                String levelSanitized = null;
-                for (Map.Entry<String, String> entry : levelIndexToLocalizedName.entrySet()) {
-                    if (entry.getValue().equals(level)) {
-                        levelSanitized = "Level_" + (Integer.parseInt(entry.getKey()) + 1);
-                        break;
-                    }
+                String levelSanitized = "Level_" + (colIndex + 1);
+                Name namedRange = workbook.getName(levelSanitized);
+                if (namedRange == null) {
+                    namedRange = workbook.createName();
+                    namedRange.setNameName(levelSanitized);
                 }
-                
-                if (levelSanitized != null) {
-                    Name namedRange = workbook.getName(levelSanitized);
-                    if (namedRange == null) {
-                        namedRange = workbook.createName();
-                        namedRange.setNameName(levelSanitized);
-                    }
-                    String colLetter = CellReference.convertNumToColString(colIndex);
-                    namedRange.setRefersToFormula("_h_Boundaries_h_!$" + colLetter + "$2:$" + colLetter + "$" + (sortedBoundaries.size() + 1));
-                }
+                String colLetter = CellReference.convertNumToColString(colIndex);
+                namedRange.setRefersToFormula("_h_Boundaries_h_!$" + colLetter + "$2:$" + colLetter + "$" + (sortedBoundaries.size() + 1));
             }
             colIndex++;
         }
         
-        // Create code mapping sheet for parent lookups (or use existing one)
-        Sheet codeMapSheet = workbook.getSheet("_h_CodeMap_h_");
-        if (codeMapSheet == null) {
-            codeMapSheet = workbook.createSheet("_h_CodeMap_h_");
-            workbook.setSheetHidden(workbook.getSheetIndex("_h_CodeMap_h_"), true);
-        }
-        
-        // Clear existing content if sheet already existed
-        if (codeMapSheet.getLastRowNum() >= 0) {
-            for (int i = codeMapSheet.getLastRowNum(); i >= 0; i--) {
-                Row row = codeMapSheet.getRow(i);
-                if (row != null) {
-                    codeMapSheet.removeRow(row);
-                }
-            }
-        }
-        
-        Row codeMapHeader = codeMapSheet.createRow(0);
-        codeMapHeader.createCell(0).setCellValue("Boundary Name");
-        codeMapHeader.createCell(1).setCellValue("Boundary Code");
-        codeMapHeader.createCell(2).setCellValue("Parent Name");
-        codeMapHeader.createCell(3).setCellValue("Level Name");
-        codeMapHeader.createCell(4).setCellValue("Named Range");
-        
-        int codeRowNum = 1;
-        
-        // Build parent-child mapping from boundary paths
-        Map<String, String> childToParentName = new HashMap<>();
-        for (BoundaryUtil.BoundaryRowData boundary : filteredBoundaries) {
-            List<String> path = boundary.getBoundaryPath();
-            for (int i = 1; i < path.size(); i++) { // Start from 1 to skip root
-                if (path.get(i) != null && path.get(i-1) != null) {
-                    String childCode = path.get(i);
-                    String parentCode = path.get(i-1);
-                    String childName = localizationMap.getOrDefault(childCode, childCode);
-                    String parentName = localizationMap.getOrDefault(parentCode, parentCode);
-                    childToParentName.put(childName, parentName);
-                }
-            }
-        }
-        
-        // Add boundary mappings with parent information
-        for (Map.Entry<String, String> entry : codeToLocalized.entrySet()) {
-            Row codeRow = codeMapSheet.createRow(codeRowNum++);
-            String boundaryName = entry.getValue(); // Localized boundary name
-            String boundaryCode = entry.getKey();   // Boundary code
-            String parentName = childToParentName.getOrDefault(boundaryName, ""); // Parent name
-            
-            codeRow.createCell(0).setCellValue(boundaryName);
-            codeRow.createCell(1).setCellValue(boundaryCode);
-            codeRow.createCell(2).setCellValue(parentName);
-        }
-        
-        // Add level name to named range mappings
-        for (Map.Entry<String, String> entry : levelIndexToLocalizedName.entrySet()) {
-            Row levelMappingRow = codeMapSheet.createRow(codeRowNum++);
-            levelMappingRow.createCell(3).setCellValue(entry.getValue()); // Localized level name
-            levelMappingRow.createCell(4).setCellValue("Level_" + (Integer.parseInt(entry.getKey()) + 1)); // Named range name
-        }
+        log.info("Created level and boundary dropdowns for {} levels", availableLevels.size());
     }
     
     /**
-     * Adds data validations for boundary columns
+     * Adds data validations for level and boundary columns
      */
-    private void addBoundaryDataValidations(XSSFWorkbook workbook, Sheet sheet, int lastSchemaCol, List<String> levelTypes, 
-                                          Map<String, String> localizationMap) {
+    private void addLevelAndBoundaryDataValidations(XSSFWorkbook workbook, Sheet sheet, int lastSchemaCol, 
+                                                  List<String> levelTypes, Map<String, String> localizationMap) {
         DataValidationHelper dvHelper = sheet.getDataValidationHelper();
         
-        // Add data validation for rows (2..5000) - starting from row 2 since row 0 is hidden and row 1 is headers
+        // Add data validation for rows starting from row 2
         for (int rowIndex = 2; rowIndex <= config.getExcelRowLimit(); rowIndex++) {
-            // Level dropdown uses named range "Levels"
+            // Level dropdown uses "Levels" named range
             DataValidationConstraint levelConstraint = dvHelper.createFormulaListConstraint("Levels");
             CellRangeAddressList levelAddr = new CellRangeAddressList(rowIndex, rowIndex, lastSchemaCol, lastSchemaCol);
             DataValidation levelValidation = dvHelper.createValidation(levelConstraint, levelAddr);
@@ -927,9 +848,9 @@ public class MicroplanProcessor implements IGenerateProcessor {
             levelValidation.createPromptBox("Select Level", "Choose a level from the dropdown list.");
             sheet.addValidationData(levelValidation);
             
-            // Boundary dropdown: depends on Level chosen - lookup the named range from the mapping  
+            // Boundary dropdown: depends on level selected, shows "Boundary (Parent)" format 
             String levelCellRef = CellReference.convertNumToColString(lastSchemaCol) + (rowIndex + 1);
-            String boundaryFormula = "IF(" + levelCellRef + "=\"\", \"\", INDIRECT(VLOOKUP(" + levelCellRef + ", _h_CodeMap_h_!$D:$E, 2, FALSE)))";
+            String boundaryFormula = "IF(" + levelCellRef + "=\"\", \"\", INDIRECT(\"Level_\"&MATCH(" + levelCellRef + ", Levels, 0)))";
             DataValidationConstraint boundaryConstraint = dvHelper.createFormulaListConstraint(boundaryFormula);
             CellRangeAddressList boundaryAddr = new CellRangeAddressList(rowIndex, rowIndex, lastSchemaCol + 1, lastSchemaCol + 1);
             DataValidation boundaryValidation = dvHelper.createValidation(boundaryConstraint, boundaryAddr);
@@ -937,27 +858,8 @@ public class MicroplanProcessor implements IGenerateProcessor {
             boundaryValidation.setShowErrorBox(true);
             boundaryValidation.createErrorBox("Invalid Boundary", "Please select a valid boundary from the dropdown list.");
             boundaryValidation.setShowPromptBox(true);
-            boundaryValidation.createPromptBox("Select Boundary", "Choose a boundary based on the selected level.");
+            boundaryValidation.createPromptBox("Select Boundary", "Choose a boundary from the dropdown list. Format: 'Boundary (Parent)' to avoid duplicates.");
             sheet.addValidationData(boundaryValidation);
-            
-            // Parent column: automatically populate with formula (not a dropdown)
-            // The parent will be auto-filled when user selects a boundary
-            String boundaryCellRef = CellReference.convertNumToColString(lastSchemaCol + 1) + (rowIndex + 1);
-            String parentFormula = "IF(" + boundaryCellRef + "=\"\", \"\", IFERROR(VLOOKUP(" + boundaryCellRef + ", _h_CodeMap_h_!$A:$C, 3, FALSE), \"\"))";
-            
-            // Set formula in parent column cells
-            Row row = sheet.getRow(rowIndex);
-            if (row == null) {
-                row = sheet.createRow(rowIndex);
-            }
-            Cell parentCell = row.createCell(lastSchemaCol + 2);
-            parentCell.setCellFormula(parentFormula);
-            
-            // Make parent cell locked (user can't edit it directly)
-            CellStyle lockedStyle = workbook.createCellStyle();
-            lockedStyle.setLocked(true);
-            parentCell.setCellStyle(lockedStyle);
         }
     }
-    
 }

@@ -50,4 +50,42 @@ public class ExcelStyleHelper {
         return style;
     }
 
+    /**
+     * Creates a header style with background color, borders, left alignment, and bold font
+     * This style matches the alignment of schema column headers
+     *
+     * @param workbook The workbook to create style for
+     * @param colorHex The background color in hex format (e.g., "#FF0000")
+     * @return CellStyle with header formatting and left alignment
+     */
+    public CellStyle createLeftAlignedHeaderStyle(Workbook workbook, String colorHex) {
+        XSSFCellStyle style = (XSSFCellStyle) workbook.createCellStyle();
+        
+        // Set background color
+        Color color = Color.decode(colorHex);
+        XSSFColor xssfColor = new XSSFColor(color, null);
+        style.setFillForegroundColor(xssfColor);
+        style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        
+        // Set borders
+        style.setBorderTop(BorderStyle.THIN);
+        style.setBorderBottom(BorderStyle.THIN);
+        style.setBorderLeft(BorderStyle.THIN);
+        style.setBorderRight(BorderStyle.THIN);
+        
+        // Left align text (matching schema columns)
+        style.setAlignment(HorizontalAlignment.LEFT);
+        style.setVerticalAlignment(VerticalAlignment.CENTER);
+        
+        // Bold font
+        Font font = workbook.createFont();
+        font.setBold(true);
+        style.setFont(font);
+        
+        // Lock the cell
+        style.setLocked(true);
+        
+        return style;
+    }
+
 }
