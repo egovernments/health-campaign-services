@@ -7,8 +7,10 @@ import org.egov.common.contract.models.AuditDetails;
 import org.egov.excelingestion.config.ErrorConstants;
 import org.egov.excelingestion.config.ExcelIngestionConfig;
 import org.egov.excelingestion.config.ValidationConstants;
+import org.egov.excelingestion.config.ProcessingConstants;
 import org.egov.excelingestion.exception.CustomExceptionHandler;
 import org.egov.excelingestion.util.RequestInfoConverter;
+import org.egov.excelingestion.util.EnrichmentUtil;
 import org.egov.excelingestion.web.models.ProcessResource;
 import org.egov.excelingestion.web.models.ProcessResourceRequest;
 import org.egov.excelingestion.web.models.ValidationError;
@@ -37,6 +39,7 @@ public class ExcelProcessingService {
     private final RestTemplate restTemplate;
     private final CustomExceptionHandler exceptionHandler;
     private final ExcelIngestionConfig config;
+    private final EnrichmentUtil enrichmentUtil;
     
     public ExcelProcessingService(ValidationService validationService,
                                 SchemaValidationService schemaValidationService,
@@ -45,7 +48,8 @@ public class ExcelProcessingService {
                                 RequestInfoConverter requestInfoConverter,
                                 RestTemplate restTemplate,
                                 CustomExceptionHandler exceptionHandler,
-                                ExcelIngestionConfig config) {
+                                ExcelIngestionConfig config,
+                                EnrichmentUtil enrichmentUtil) {
         this.validationService = validationService;
         this.schemaValidationService = schemaValidationService;
         this.fileStoreService = fileStoreService;
@@ -54,6 +58,7 @@ public class ExcelProcessingService {
         this.restTemplate = restTemplate;
         this.exceptionHandler = exceptionHandler;
         this.config = config;
+        this.enrichmentUtil = enrichmentUtil;
     }
 
     /**
@@ -63,6 +68,9 @@ public class ExcelProcessingService {
         log.info("Starting Excel file processing for type: {}", request.getResourceDetails().getType());
 
         ProcessResource resource = request.getResourceDetails();
+        
+        // Enrich resource with UUID and status
+        enrichmentUtil.enrichProcessResource(resource);
         
         try {
             // Extract locale and create localization maps
@@ -115,7 +123,8 @@ public class ExcelProcessingService {
                 return updateResourceWithResults(resource, validationErrors, processedFileStoreId);
             }
         } catch (IOException e) {
-            log.error("Error processing Excel file: {}", e.getMessage(), e);
+            log.error("Error processing Excel file for ID: {}", resource.getId(), e);
+            resource.setStatus(ProcessingConstants.STATUS_FAILED);
             exceptionHandler.throwCustomException(ErrorConstants.EXCEL_PROCESSING_ERROR, 
                     ErrorConstants.EXCEL_PROCESSING_ERROR_MESSAGE, e);
         }
@@ -298,7 +307,9 @@ public class ExcelProcessingService {
                 .filter(error -> !ValidationConstants.STATUS_VALID.equals(error.getStatus()))
                 .count();
         
-        String status = errorCount > 0 ? ValidationConstants.STATUS_INVALID : ValidationConstants.STATUS_VALID;
+        // Processing is complete, so status is PROCESSED regardless of validation errors
+        String processStatus = ProcessingConstants.STATUS_PROCESSED;
+        String validationStatus = errorCount > 0 ? ValidationConstants.STATUS_INVALID : ValidationConstants.STATUS_VALID;
         
         // Update additional details
         Map<String, Object> additionalDetails = resource.getAdditionalDetails();
@@ -309,6 +320,7 @@ public class ExcelProcessingService {
         additionalDetails.put("totalErrors", errorCount);
         additionalDetails.put("totalRecordsProcessed", errors.size());
         additionalDetails.put("hasValidationErrors", errorCount > 0);
+        additionalDetails.put("validationStatus", validationStatus);
         additionalDetails.put("processedTimestamp", System.currentTimeMillis());
         
         // Update audit details
@@ -327,7 +339,7 @@ public class ExcelProcessingService {
                 .referenceId(resource.getReferenceId())
                 .fileStoreId(resource.getFileStoreId())
                 .processedFileStoreId(processedFileStoreId)
-                .status(status)
+                .status(processStatus)
                 .additionalDetails(additionalDetails)
                 .auditDetails(auditDetails)
                 .build();

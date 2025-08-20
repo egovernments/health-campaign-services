@@ -9,6 +9,7 @@ import org.egov.excelingestion.web.models.GenerateResourceRequest;
 import org.egov.excelingestion.web.models.GenerateResourceResponse;
 import org.egov.excelingestion.web.models.ProcessResource;
 import org.egov.excelingestion.web.models.ProcessResourceRequest;
+import org.egov.excelingestion.web.models.ProcessResourceResponse;
 import org.egov.excelingestion.web.models.RequestInfo;
 import org.egov.common.contract.response.ResponseInfo;
 import org.springframework.http.HttpStatus;
@@ -55,7 +56,7 @@ public class IngestionController {
     }
 
     @PostMapping("/_process")
-    public ResponseEntity<GenerateResourceResponse> processExcel(
+    public ResponseEntity<ProcessResourceResponse> processExcel(
             @Valid @RequestBody ProcessResourceRequest request) {
         
         log.info("Received process request for type: {} and tenantId: {}", 
@@ -65,30 +66,16 @@ public class IngestionController {
         RequestInfo requestInfo = request.getRequestInfo();
         ProcessResource processedResource = processingService.processExcelFile(request);
         
-        GenerateResourceResponse response = GenerateResourceResponse.builder()
+        ProcessResourceResponse response = ProcessResourceResponse.builder()
                 .responseInfo(org.egov.common.contract.response.ResponseInfo.builder()
                         .apiId(requestInfo.getApiId())
                         .ver(requestInfo.getVer())
                         .ts(requestInfo.getTs())
                         .status("successful")
                         .build())
-                .generateResource(convertToGenerateResource(processedResource))
+                .processResource(processedResource)
                 .build();
         
         return new ResponseEntity<>(response, HttpStatus.OK);
-    }
-    
-    private org.egov.excelingestion.web.models.GenerateResource convertToGenerateResource(ProcessResource processResource) {
-        return org.egov.excelingestion.web.models.GenerateResource.builder()
-                .id(processResource.getId())
-                .tenantId(processResource.getTenantId())
-                .type(processResource.getType())
-                .hierarchyType(processResource.getHierarchyType())
-                .referenceId(processResource.getReferenceId())
-                .status(processResource.getStatus())
-                .fileStoreId(processResource.getProcessedFileStoreId())
-                .additionalDetails(processResource.getAdditionalDetails())
-                .auditDetails(processResource.getAuditDetails())
-                .build();
     }
 }
