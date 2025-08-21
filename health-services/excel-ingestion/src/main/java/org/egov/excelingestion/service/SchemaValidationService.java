@@ -497,7 +497,6 @@ public class SchemaValidationService {
         // For each unique field, collect values and find duplicates
         for (Map.Entry<String, ValidationRule> entry : uniqueFields.entrySet()) {
             String fieldName = entry.getKey();
-            ValidationRule rule = entry.getValue();
             
             // Map to track value -> list of row indices where it appears
             Map<String, List<Integer>> valueToRows = new HashMap<>();

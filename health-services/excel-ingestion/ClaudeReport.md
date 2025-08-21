@@ -41,84 +41,50 @@
 
 ---
 
-## 4️⃣ Current Service Architecture & Latest Updates
-
-### **Service Overview**
-Spring Boot 3.2.2 microservice with Java 17, featuring sophisticated Excel template generation with processor-based architecture.
+## 4️⃣ Current Service Architecture
 
 ### **Statistics**
-* **50 Java files** + 6 config/documentation files
-* **5,263 lines** of production Java code
-* **Clean layered architecture** with factory and strategy patterns
+* **66 Java files** | **7,212 lines of code** | **113 error constants**
+* Spring Boot 3.2.2 with Java 17
 
-### **Latest Session Improvements (Current)**
+### **Architecture Patterns**
+* **Strategy Pattern**: 3 generation strategies (Schema-based, Excel Populator, Direct)
+* **Configuration Registry**: Dynamic processor-to-sheet mapping
+* **Chain of Responsibility**: Multi-level validation pipeline
+* **Caching**: Caffeine (1-hour TTL) for boundaries/localization
 
-#### **1. Controller Consolidation & Renaming**
-* **Merged ProcessController into GenerateController**
-* **Renamed to IngestionController** for better semantic clarity
-* **Consolidated endpoints**: `/_generate` and `/_process` in single controller
-* **Maintained clean error handling** patterns across both endpoints
+### **Processing Workflow**
+* **Generation**: Type resolution → Schema validation → Multi-sheet generation → Localization → Protection → Upload
+* **Processing**: Download → Pre-validation → Row validation → Error annotation → Re-upload
 
-#### **2. Error Handling Standardization**
-* **Added file-specific error constants**:
-  - `FILE_DOWNLOAD_ERROR` for file retrieval failures
-  - `FILE_URL_RETRIEVAL_ERROR` for file store URL issues
-  - `FILE_NOT_FOUND_ERROR` for missing files
-* **Migrated from IOException to CustomExceptionHandler** pattern
-* **Consistent error responses** across all file operations
-
-#### **3. Code Quality Improvements**
-* **Removed hardcoded error messages** - moved to ErrorConstants.java
-* **Applied clean controller pattern** - removed try-catch blocks, let exceptions bubble up
-* **Consistent CustomException usage** throughout service layer
-* **Simplified method signatures** with proper exception propagation
-
-### **Previous Major Enhancements**
-1. **Boundaries Feature**: Dynamic hierarchy population with last-level filtering
-2. **Level Localization**: Unified `HCM_CAMP_CONF_LEVEL_*` usage across sheets
-3. **FileStore Enhancement**: Type-safe model classes replacing raw Maps
-4. **Hidden Sheet Standardization**: `_h_SheetName_h_` naming convention
-5. **Comprehensive Error System**: Three-tier exception handling with custom codes
-
-### **Integration & Quality**
-* **External Services**: Boundary, MDMS, Localization, File-store integration
-* **Caching Layer**: Caffeine cache (1-hour expiry, 100 max entries)
-* **Type Safety**: Ongoing migration from Map<String, Object> to proper models
-* **Error Safety**: Never silently fails, comprehensive error constants
 
 ---
 
-## 5️⃣ Usage Cautions
+## 5️⃣ Claude's Limitations & How to Work Around Them
 
-⚠ **Best Practices When Using Claude Max for Refactoring**
+### **Known Limitations**
+* **Context Blindness**: May miss related code in other files/packages without explicit direction
+* **Pattern Assumptions**: Sometimes applies patterns from other frameworks incorrectly
+* **Partial Fixes**: May fix one occurrence but miss duplicate logic elsewhere (e.g., v1/v2 endpoints)
+* **Over-Engineering**: Can suggest complex solutions for simple problems
 
-* **Review all suggestions** carefully — some changes may be inaccurate
-* **Test all working cases** before committing
-* **Commit small, functional changes** instead of large refactors
-* **Validate all use cases** after each refactor and then commit
-* **Refactor incrementally** — break large tasks into smaller, manageable chunks
-* **Monitor each change closely** — verify files Claude edits before proceeding
+### **Best Practices to Avoid Issues**
+* **Provide Full Context**: Always mention related files, API versions, and dependencies
+* **Incremental Changes**: Make small changes and test before proceeding
+* **Explicit Instructions**: Specify exact locations (e.g., "check both v1 and v2 endpoints")
+* **Verify Suggestions**: Review generated code always
+* **Test Immediately**: Test after each change to catch issues early
+* **Commit Working Code**: Save progress frequently with small, functional commits
 
 ---
 
 ## 6️⃣ Claude's Advanced Capabilities Demonstrated
 
-### **Complex Code Generation**
-* **5,260+ lines** across 50 Java files of production-quality microservice code
-* **Sophisticated Excel generation** with multi-sheet templates and validation
-* **Clean architecture** following Spring Boot best practices
-
-### **Problem-Solving & Integration**
-* **MDMS Integration** with generic utility functions
-* **Comprehensive validation** with Jakarta annotations and custom error codes
-* **Service integration** with 4 external microservices
-* **Caching strategy** with Caffeine-based optimization
-
-### **Iterative Improvement**
-* **Context maintenance** across multiple sessions
-* **Pattern recognition** and consistent coding standards
-* **Error analysis** and debugging based on compilation/runtime errors
-* **Refactoring guidance** for better code organization
+* **Complex Code Generation**: 7,212+ lines across 66 Java files
+* **Architecture Design**: Clean layered architecture with proper patterns
+* **Problem-Solving**: MDMS integration, comprehensive validation, service orchestration
+* **Context Maintenance**: Across multiple sessions with consistent patterns
+* **Error Analysis**: Debugging based on compilation/runtime errors
 
 ---
 
@@ -135,3 +101,12 @@ Spring Boot 3.2.2 microservice with Java 17, featuring sophisticated Excel templ
 * **Finding**: Claude discovered that date updates were cascading to all child entities, sending entire bulk project arrays as single Kafka messages.
 * **Solution**: Implemented batch processing with batches of 100 projects.
 * **Result**: Reduced Kafka message size and improved system stability.
+
+### **3. Project Service Search API Reference ID Bug**
+* **Issue**: Project search API throwing "pass any field to search" error even when referenceId was provided in search body.
+* **Investigation**: Opened Claude CLI in projects folder and described the issue.
+* **Finding**: Claude found the validation logic was only checking for null values with AND operator, needed to include referenceId check.
+* **First Fix**: Changed validation in one place (v2 search endpoint) - Claude confirmed it would work.
+* **Problem**: Fix didn't work because the validation existed in two places (v1 and v2 search endpoints).
+* **Final Solution**: Had to tell Claude to add the same fix in v1 search endpoint as well.
+* **Learning**: Always check for multiple occurrences of similar validation logic across different API versions.
