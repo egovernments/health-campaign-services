@@ -2,30 +2,34 @@ package org.egov.excelingestion.config;
 
 import org.egov.excelingestion.web.models.ProcessorGenerationConfig;
 import org.egov.excelingestion.web.models.SheetGenerationConfig;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
+import org.springframework.stereotype.Component;
 
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
- * Configuration for microplan processor generation
+ * Registry for all processor configurations
  */
-@Configuration
-public class MicroplanGenerationConfig {
+@Component
+public class ProcessorConfigurationRegistry {
     
-    private final ExcelIngestionConfig config;
+    private final Map<String, ProcessorGenerationConfig> configs;
+    private final ExcelIngestionConfig excelConfig;
     
-    public MicroplanGenerationConfig(ExcelIngestionConfig config) {
-        this.config = config;
+    public ProcessorConfigurationRegistry(ExcelIngestionConfig excelConfig) {
+        this.excelConfig = excelConfig;
+        this.configs = new HashMap<>();
+        initializeConfigurations();
     }
     
-    @Bean("microplanProcessorConfig")
-    public ProcessorGenerationConfig getMicroplanProcessorConfig() {
-        return ProcessorGenerationConfig.builder()
+    private void initializeConfigurations() {
+        // Microplan processor configuration
+        configs.put("microplan-ingestion", ProcessorGenerationConfig.builder()
                 .processorType("microplan-ingestion")
                 .applyWorkbookProtection(true)
-                .protectionPassword(config.getExcelSheetPassword())
-                .zoomLevel(config.getExcelSheetZoom())
+                .protectionPassword(excelConfig.getExcelSheetPassword())
+                .zoomLevel(excelConfig.getExcelSheetZoom())
                 .sheets(Arrays.asList(
                         // 1. Campaign Configuration Sheet (first sheet, directly generated)
                         SheetGenerationConfig.builder()
@@ -71,6 +75,29 @@ public class MicroplanGenerationConfig {
                                 .visible(true)
                                 .build()
                 ))
-                .build();
+                .build());
+                
+        // Add more processor configurations here as needed
+    }
+    
+    /**
+     * Get processor configuration by type
+     */
+    public ProcessorGenerationConfig getConfigByType(String processorType) {
+        return configs.get(processorType);
+    }
+    
+    /**
+     * Check if processor type is supported
+     */
+    public boolean isProcessorTypeSupported(String processorType) {
+        return configs.containsKey(processorType);
+    }
+    
+    /**
+     * Get all supported processor types
+     */
+    public String[] getSupportedProcessorTypes() {
+        return configs.keySet().toArray(new String[0]);
     }
 }

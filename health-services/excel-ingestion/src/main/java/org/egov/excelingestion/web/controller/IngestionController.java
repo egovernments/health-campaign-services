@@ -2,7 +2,7 @@ package org.egov.excelingestion.web.controller;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.excelingestion.config.ErrorConstants;
-import org.egov.excelingestion.service.ExcelGenerationService;
+import org.egov.excelingestion.service.ExcelWorkflowService;
 import org.egov.excelingestion.service.ExcelProcessingService;
 import org.egov.excelingestion.web.models.GenerateResource;
 import org.egov.excelingestion.web.models.GenerateResourceRequest;
@@ -27,18 +27,18 @@ import jakarta.validation.Valid;
 @Slf4j
 public class IngestionController {
 
-    private final ExcelGenerationService excelGenerationService;
+    private final ExcelWorkflowService excelWorkflowService;
     private final ExcelProcessingService processingService;
 
-    public IngestionController(ExcelGenerationService excelGenerationService,
+    public IngestionController(ExcelWorkflowService excelWorkflowService,
                               ExcelProcessingService processingService) {
-        this.excelGenerationService = excelGenerationService;
+        this.excelWorkflowService = excelWorkflowService;
         this.processingService = processingService;
     }
 
         @PostMapping("/_generate")
     public ResponseEntity<GenerateResourceResponse> generate( @RequestBody @Valid GenerateResourceRequest request) throws IOException {
-        GenerateResource processedResource = excelGenerationService.generateAndUploadExcel(request);
+        GenerateResource processedResource = excelWorkflowService.generateAndUploadExcel(request);
 
         ResponseInfo responseInfo = ResponseInfo.builder()
                 .apiId("egov-bff")
