@@ -1,0 +1,38 @@
+name: Enforce Branch Naming Convention
+
+on:
+  push:
+    branches:
+      - "*"
+  pull_request:
+    branches:
+      - "*"
+
+jobs:
+  branch-name-check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Enforce branch naming convention
+        run: |
+          # Determine if this is a PR or push
+          if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
+            branch_name="$GITHUB_HEAD_REF"
+          else
+            branch_name="${GITHUB_REF#refs/heads/}"
+          fi
+
+          # Define the branch name pattern
+          branch_regex="^(master|develop|(HCMPRE|HCMPOST|HCMSUB)-[0-9]{3,}-[a-zA-Z0-9-]+)$"
+
+          # Check if the branch name matches the pattern
+          if [[ ! "$branch_name" =~ $branch_regex ]]; then
+            echo "Branch name '$branch_name' does not follow the required naming convention."
+            echo "Expected: 'master', 'develop', or (HCMPRE|HCMPOST|HCMSUB)-123-description"
+            exit 1
+          else
+            echo "Branch name '$branch_name' follows the required naming convention: 'master', 'develop', or (HCMPRE|HCMPOST|HCMSUB)-123-description"
+          fi

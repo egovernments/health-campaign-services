@@ -3,6 +3,7 @@ package org.egov.project.consumer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.models.project.ProjectResource;
 import org.egov.common.models.project.ProjectResourceBulkRequest;
 import org.egov.project.service.ProjectResourceService;
@@ -35,7 +36,7 @@ public class ProjectResourceConsumer {
             ProjectResourceBulkRequest request = objectMapper.convertValue(consumerRecord, ProjectResourceBulkRequest.class);
             return service.create(request, true);
         } catch (Exception exception) {
-            log.error("error in project resource consumer bulk create", exception);
+            log.error("error in project resource consumer bulk create", ExceptionUtils.getStackTrace(exception));
             return Collections.emptyList();
         }
     }
@@ -47,7 +48,7 @@ public class ProjectResourceConsumer {
             ProjectResourceBulkRequest request = objectMapper.convertValue(consumerRecord, ProjectResourceBulkRequest.class);
             return service.update(request, true);
         } catch (Exception exception) {
-            log.error("error in project resource consumer bulk update", exception);
+            log.error("error in project resource consumer bulk update", ExceptionUtils.getStackTrace(exception));
             return Collections.emptyList();
         }
     }
@@ -59,7 +60,7 @@ public class ProjectResourceConsumer {
             ProjectResourceBulkRequest request = objectMapper.convertValue(consumerRecord, ProjectResourceBulkRequest.class);
             return service.delete(request, true);
         } catch (Exception exception) {
-            log.error("error in project resource consumer bulk delete", exception);
+            log.error("error in project resource consumer bulk delete", ExceptionUtils.getStackTrace(exception));
             return Collections.emptyList();
         }
     }
