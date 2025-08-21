@@ -35,6 +35,13 @@ public enum TaskStatus {
     BENEFICIARY_REFUSED("BENEFICIARY_REFUSED"),
 
     /**
+     * Indicates that the beneficiary has refused the task.
+     * This status means that the individual or entity for whom the task
+     * was intended has declined to participate or accept it.
+     */
+    BENEFICIARY_ABSENT("BENEFICIARY_ABSENT"),
+
+    /**
      * Indicates that the household associated with the task has been closed.
      * This status implies that the household is no longer active or
      * relevant to the task, possibly due to its closure or other reasons.
