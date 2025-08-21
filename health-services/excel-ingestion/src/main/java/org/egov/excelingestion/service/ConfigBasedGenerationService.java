@@ -77,8 +77,13 @@ public class ConfigBasedGenerationService {
             log.info("Generating sheet: {} (order: {})", actualSheetName, sheetConfig.getOrder());
             
             try {
-                if (sheetConfig.isGenerationClassViaExcelPopulator()) {
-                    // Use ExcelPopulator approach
+                // Auto-detect generation approach
+                if (shouldUseSchemaBasedGeneration(sheetConfig)) {
+                    // Use schema-based ExcelPopulator approach (automatic)
+                    generateSheetViaSchemaBasedGeneration(workbook, actualSheetName, sheetConfig, 
+                                                        generateResource, requestInfo, localizationMap);
+                } else if (sheetConfig.isGenerationClassViaExcelPopulator()) {
+                    // Use custom ExcelPopulator approach
                     generateSheetViaExcelPopulator(workbook, actualSheetName, sheetConfig, 
                                                  generateResource, requestInfo, localizationMap);
                 } else {
@@ -120,6 +125,39 @@ public class ConfigBasedGenerationService {
         return bos.toByteArray();
     }
     
+    /**
+     * Check if sheet should use automatic schema-based generation
+     */
+    private boolean shouldUseSchemaBasedGeneration(SheetGenerationConfig config) {
+        return (config.getGenerationClass() == null || config.getGenerationClass().isEmpty()) &&
+               (config.getSchemaName() != null && !config.getSchemaName().isEmpty());
+    }
+    
+    /**
+     * Generate sheet using automatic schema-based approach
+     */
+    private void generateSheetViaSchemaBasedGeneration(XSSFWorkbook workbook, String sheetName,
+                                                     SheetGenerationConfig config,
+                                                     GenerateResource generateResource,
+                                                     RequestInfo requestInfo,
+                                                     Map<String, String> localizationMap) {
+        try {
+            // Get the schema-based generator automatically
+            IExcelPopulatorSheetGenerator generator = getExcelPopulatorGenerator("org.egov.excelingestion.generator.SchemaBasedSheetGenerator");
+            
+            // Generate sheet data
+            SheetGenerationResult result = generator.generateSheetData(config, generateResource, requestInfo, localizationMap);
+            
+            // Use ExcelDataPopulator to create the sheet
+            excelDataPopulator.populateSheetWithData(workbook, sheetName, 
+                                                    result.getColumnDefs(), result.getData(), localizationMap);
+            
+        } catch (Exception e) {
+            log.error("Error in automatic schema-based sheet generation for {}: {}", sheetName, e.getMessage(), e);
+            throw new RuntimeException("Failed to generate schema-based sheet: " + sheetName, e);
+        }
+    }
+
     private void generateSheetViaExcelPopulator(XSSFWorkbook workbook, String sheetName,
                                               SheetGenerationConfig config,
                                               GenerateResource generateResource,

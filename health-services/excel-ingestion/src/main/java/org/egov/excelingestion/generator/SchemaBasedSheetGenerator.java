@@ -27,7 +27,6 @@ public class SchemaBasedSheetGenerator implements IExcelPopulatorSheetGenerator 
     private final MDMSService mdmsService;
     private final CustomExceptionHandler exceptionHandler;
 
-    @Autowired
     public SchemaBasedSheetGenerator(MDMSService mdmsService, CustomExceptionHandler exceptionHandler) {
         this.mdmsService = mdmsService;
         this.exceptionHandler = exceptionHandler;

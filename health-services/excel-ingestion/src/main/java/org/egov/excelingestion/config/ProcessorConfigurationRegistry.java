@@ -42,24 +42,20 @@ public class ProcessorConfigurationRegistry {
                                 .visible(true)
                                 .build(),
                         
-                        // 2. Facility Sheet (schema-based with boundary columns)
+                        // 2. Facility Sheet (automatic schema-based with boundary columns)
                         SheetGenerationConfig.builder()
                                 .sheetNameKey("HCM_ADMIN_CONSOLE_FACILITIES_LIST")
                                 .schemaName("facility-microplan-ingestion")
                                 .addLevelAndBoundaryColumns(true)
-                                .generationClass("org.egov.excelingestion.generator.SchemaBasedSheetGenerator")
-                                .isGenerationClassViaExcelPopulator(true) // Use ExcelPopulator
                                 .order(2)
                                 .visible(true)
                                 .build(),
                         
-                        // 3. User Sheet (schema-based with boundary columns)
+                        // 3. User Sheet (automatic schema-based with boundary columns)
                         SheetGenerationConfig.builder()
                                 .sheetNameKey("HCM_ADMIN_CONSOLE_USERS_LIST")
                                 .schemaName("user-microplan-ingestion")
                                 .addLevelAndBoundaryColumns(true)
-                                .generationClass("org.egov.excelingestion.generator.SchemaBasedSheetGenerator")
-                                .isGenerationClassViaExcelPopulator(true) // Use ExcelPopulator
                                 .order(3)
                                 .visible(true)
                                 .build(),

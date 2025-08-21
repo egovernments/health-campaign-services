@@ -98,10 +98,12 @@ public class GenerationConfigValidationService {
                     new IllegalArgumentException("Sheet name key cannot be null or empty"));
         }
         
-        if (!StringUtils.hasText(sheetConfig.getGenerationClass())) {
+        // Validate that either generationClass or schemaName is provided
+        if (!StringUtils.hasText(sheetConfig.getGenerationClass()) && 
+            !StringUtils.hasText(sheetConfig.getSchemaName())) {
             exceptionHandler.throwCustomException(ErrorConstants.VALIDATION_ERROR,
-                    "Generation class is required", 
-                    new IllegalArgumentException("Generation class cannot be null or empty"));
+                    "Either generation class or schema name is required for sheet: " + sheetConfig.getSheetNameKey(), 
+                    new IllegalArgumentException("Sheet must have either generationClass or schemaName"));
         }
         
         if (sheetConfig.getOrder() < 0) {
@@ -109,46 +111,66 @@ public class GenerationConfigValidationService {
                     "Sheet order must be non-negative", 
                     new IllegalArgumentException("Invalid sheet order: " + sheetConfig.getOrder()));
         }
-        
-        // Validate schema name for ExcelPopulator sheets that need it
-        if (sheetConfig.isGenerationClassViaExcelPopulator() && 
-            sheetConfig.isAddLevelAndBoundaryColumns() && 
-            !StringUtils.hasText(sheetConfig.getSchemaName())) {
-            log.warn("Sheet {} uses ExcelPopulator with boundary columns but has no schema name", 
-                    sheetConfig.getSheetNameKey());
-        }
     }
     
     private void validateGenerationClasses(ProcessorGenerationConfig config) {
         for (SheetGenerationConfig sheetConfig : config.getSheets()) {
-            try {
-                Class<?> clazz = Class.forName(sheetConfig.getGenerationClass());
-                
-                // Check if the class is a Spring bean
-                if (applicationContext.getBeanNamesForType(clazz).length == 0) {
-                    log.warn("Generation class {} is not registered as a Spring bean", 
-                            sheetConfig.getGenerationClass());
-                }
-                
-                // Validate that the class implements the correct interface
-                if (sheetConfig.isGenerationClassViaExcelPopulator()) {
-                    if (!org.egov.excelingestion.generator.IExcelPopulatorSheetGenerator.class.isAssignableFrom(clazz)) {
+            // Skip validation for automatic schema-based sheets
+            if (shouldUseSchemaBasedGeneration(sheetConfig)) {
+                // Validate that SchemaBasedSheetGenerator exists as Spring bean
+                try {
+                    Class<?> schemaGenClass = Class.forName("org.egov.excelingestion.generator.SchemaBasedSheetGenerator");
+                    if (applicationContext.getBeanNamesForType(schemaGenClass).length == 0) {
                         exceptionHandler.throwCustomException(ErrorConstants.VALIDATION_ERROR,
-                                "ExcelPopulator generation class must implement IExcelPopulatorSheetGenerator", 
-                                new IllegalArgumentException("Invalid interface for class: " + sheetConfig.getGenerationClass()));
+                                "SchemaBasedSheetGenerator not registered as Spring bean", 
+                                new RuntimeException("SchemaBasedSheetGenerator bean not found"));
                     }
-                } else {
-                    if (!org.egov.excelingestion.generator.ISheetGenerator.class.isAssignableFrom(clazz)) {
-                        exceptionHandler.throwCustomException(ErrorConstants.VALIDATION_ERROR,
-                                "Direct generation class must implement ISheetGenerator", 
-                                new IllegalArgumentException("Invalid interface for class: " + sheetConfig.getGenerationClass()));
-                    }
+                } catch (ClassNotFoundException e) {
+                    exceptionHandler.throwCustomException(ErrorConstants.VALIDATION_ERROR,
+                            "SchemaBasedSheetGenerator class not found", e);
                 }
-                
-            } catch (ClassNotFoundException e) {
-                exceptionHandler.throwCustomException(ErrorConstants.VALIDATION_ERROR,
-                        "Generation class not found: " + sheetConfig.getGenerationClass(), e);
+                continue;
+            }
+            
+            // Validate custom generation classes
+            if (StringUtils.hasText(sheetConfig.getGenerationClass())) {
+                try {
+                    Class<?> clazz = Class.forName(sheetConfig.getGenerationClass());
+                    
+                    // Check if the class is a Spring bean
+                    if (applicationContext.getBeanNamesForType(clazz).length == 0) {
+                        log.warn("Generation class {} is not registered as a Spring bean", 
+                                sheetConfig.getGenerationClass());
+                    }
+                    
+                    // Validate that the class implements the correct interface
+                    if (sheetConfig.isGenerationClassViaExcelPopulator()) {
+                        if (!org.egov.excelingestion.generator.IExcelPopulatorSheetGenerator.class.isAssignableFrom(clazz)) {
+                            exceptionHandler.throwCustomException(ErrorConstants.VALIDATION_ERROR,
+                                    "ExcelPopulator generation class must implement IExcelPopulatorSheetGenerator", 
+                                    new IllegalArgumentException("Invalid interface for class: " + sheetConfig.getGenerationClass()));
+                        }
+                    } else {
+                        if (!org.egov.excelingestion.generator.ISheetGenerator.class.isAssignableFrom(clazz)) {
+                            exceptionHandler.throwCustomException(ErrorConstants.VALIDATION_ERROR,
+                                    "Direct generation class must implement ISheetGenerator", 
+                                    new IllegalArgumentException("Invalid interface for class: " + sheetConfig.getGenerationClass()));
+                        }
+                    }
+                    
+                } catch (ClassNotFoundException e) {
+                    exceptionHandler.throwCustomException(ErrorConstants.VALIDATION_ERROR,
+                            "Generation class not found: " + sheetConfig.getGenerationClass(), e);
+                }
             }
         }
+    }
+    
+    /**
+     * Check if sheet should use automatic schema-based generation
+     */
+    private boolean shouldUseSchemaBasedGeneration(SheetGenerationConfig config) {
+        return (config.getGenerationClass() == null || config.getGenerationClass().isEmpty()) &&
+               (config.getSchemaName() != null && !config.getSchemaName().isEmpty());
     }
 }
