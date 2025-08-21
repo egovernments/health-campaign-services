@@ -45,6 +45,7 @@ import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
+import org.springframework.util.ObjectUtils;
 import org.springframework.util.ReflectionUtils;
 
 import static org.egov.common.utils.CommonUtils.getIdFieldName;
@@ -171,7 +172,9 @@ public class IndividualService {
                     individualRepository.save(encryptedIndividualList,
                             properties.getSaveIndividualTopic());
                     // update beneficiary ids in idgen
-                    beneficiaryIdGenUtil.updateBeneficiaryIds(beneficiaryIds, validIndividuals.get(0).getTenantId(), request.getRequestInfo());
+                    if (properties.getBeneficiaryIdGenIntegrationEnabled()) {
+                        beneficiaryIdGenUtil.updateBeneficiaryIds(beneficiaryIds, validIndividuals.get(0).getTenantId(), request.getRequestInfo());
+                    }
                 }
             }
         } catch (CustomException exception) {
@@ -253,6 +256,14 @@ public class IndividualService {
                 // integrate with user service update call
                 individualsToEncrypt = integrateWithUserService(request, individualsToEncrypt, ApiOperation.UPDATE, errorDetailsMap);
 
+                List<String> beneficiaryIdsToUpdate = individualsToEncrypt.stream()
+                        .flatMap(individual -> Optional.ofNullable(individual.getIdentifiers()).
+                                orElse(Collections.emptyList()).stream())
+                        .filter(identifier -> UNIQUE_BENEFICIARY_ID.equals(identifier.getIdentifierType()))
+                        .map(Identifier::getIdentifierId)
+                        .filter(identifierId -> !ObjectUtils.isEmpty(identifierId) && !identifierId.startsWith("*"))
+                        .toList();
+
                 // encrypt new data
                 encryptedIndividualList = individualEncryptionService
                         .encrypt(request, individualsToEncrypt, "IndividualEncrypt", isBulk);
@@ -286,6 +297,10 @@ public class IndividualService {
                 // save
                 individualRepository.save(encryptedIndividualList,
                         properties.getUpdateIndividualTopic());
+                if (properties.getBeneficiaryIdGenIntegrationEnabled()) {
+                    // update beneficiary ids in idgen
+                    beneficiaryIdGenUtil.updateBeneficiaryIds(beneficiaryIdsToUpdate, validIndividuals.get(0).getTenantId(), request.getRequestInfo());
+                }
             }
         } catch (Exception exception) {
             log.error("error occurred", ExceptionUtils.getStackTrace(exception));

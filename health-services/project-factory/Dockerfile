@@ -8,6 +8,7 @@ WORKDIR /app
 ARG BRANCH_NAME
 ARG ACTION_NUMBER
 ARG COMMIT_ID
+ARG WORK_DIR
 
 # Set environment variables based on build arguments
 ENV BRANCH_NAME=$BRANCH_NAME
@@ -18,7 +19,7 @@ ENV COMMIT_ID=$COMMIT_ID
 ENV NODE_OPTIONS="--max-old-space-size=3072"
 
 # Copy package.json and yarn.lock (if exists)
-COPY package.json ./
+COPY ${WORK_DIR}/package.json ./
 
 # Install dependencies
 RUN yarn install
