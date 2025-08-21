@@ -16,7 +16,6 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.egov.common.models.service.Service;
 
 @Data
 @NoArgsConstructor
@@ -43,10 +42,7 @@ public class Downsync {
 	private List<SideEffect> SideEffects;
 	
     @JsonProperty("Referrals")
-    private List<Referral> Referrals;
-
-    @JsonProperty("Services")
-    private List<Service> services;
+	private List<Referral> Referrals;
     
     @JsonProperty("DownsyncCriteria")
     private DownsyncCriteria downsyncCriteria;

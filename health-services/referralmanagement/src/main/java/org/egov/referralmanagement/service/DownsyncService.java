@@ -348,7 +348,7 @@ public class DownsyncService {
             }
         }
 
-        downsync.setServices(allServices);
+//        downsync.setServices(allServices);
     }
 
     /** Searches for household members of the given household client reference ids
