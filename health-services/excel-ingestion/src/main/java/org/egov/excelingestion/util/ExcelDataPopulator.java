@@ -306,7 +306,7 @@ public class ExcelDataPopulator {
                 // Create individual columns for each selection
                 for (int i = 1; i <= maxSelections; i++) {
                     ColumnDef multiCol = ColumnDef.builder()
-                            .name(column.getName() + "_" + i)
+                            .name(column.getName() + "_MULTISELECT_" + i)
                             .technicalName(column.getName())
                             .type("multiselect_item")
                             .colorHex(column.getColorHex())

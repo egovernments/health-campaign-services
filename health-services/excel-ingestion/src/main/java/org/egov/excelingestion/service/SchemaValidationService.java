@@ -142,6 +142,7 @@ public class SchemaValidationService {
                     rule.setMinimum((Number) prop.get("minimum"));
                     rule.setMaximum((Number) prop.get("maximum"));
                     rule.setErrorMessage((String) prop.get("errorMessage"));
+                    rule.setUnique((Boolean.TRUE.equals(prop.get("isUnique"))));
                     
                     // New number validation properties
                     rule.setMultipleOf((Number) prop.get("multipleOf"));
@@ -170,6 +171,7 @@ public class SchemaValidationService {
                     rule.setRequired((Boolean) prop.getOrDefault("isRequired", false));
                     rule.setAllowedValues((List<String>) prop.get("enum"));
                     rule.setErrorMessage((String) prop.get("errorMessage"));
+                    rule.setUnique((Boolean.TRUE.equals(prop.get("isUnique"))));
                     
                     rules.put(name, rule);
                 }
@@ -207,15 +209,10 @@ public class SchemaValidationService {
             }
         }
         
-        // If no validation errors, mark row as valid
-        if (errors.isEmpty()) {
-            errors.add(ValidationError.builder()
-                    .rowNumber(rowNumber)
-                    .sheetName(sheetName)
-                    .status(ValidationConstants.STATUS_VALID)
-                    .errorDetails("")
-                    .build());
-        }
+        // Note: We don't add a ValidationError with STATUS_VALID here because:
+        // 1. The ValidationService will set the row status to VALID if there are no errors
+        // 2. Adding a VALID error here conflicts with later additions of uniqueness validation errors
+        // The ValidationService.determineRowStatus() method handles setting the correct status
         
         return errors;
     }

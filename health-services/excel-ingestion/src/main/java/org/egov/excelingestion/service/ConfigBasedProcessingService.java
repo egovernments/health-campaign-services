@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.egov.excelingestion.config.ErrorConstants;
+import org.egov.excelingestion.config.ProcessingConstants;
 import org.egov.excelingestion.config.ProcessorConfigurationRegistry;
 import org.egov.excelingestion.config.ProcessorConfigurationRegistry.ProcessorSheetConfig;
 import org.egov.excelingestion.exception.CustomExceptionHandler;
@@ -224,7 +225,7 @@ public class ConfigBasedProcessingService {
             filters.put("title", schemaName);
             
             java.util.List<Map<String, Object>> mdmsList = mdmsService.searchMDMS(
-                    requestInfo, tenantId, "HCM-ADMIN-CONSOLE.schemas", filters, 1, 0);
+                    requestInfo, tenantId, ProcessingConstants.MDMS_SCHEMA_CODE, filters, 1, 0);
             
             if (!mdmsList.isEmpty()) {
                 Map<String, Object> mdmsData = mdmsList.get(0);

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.excelingestion.config.ErrorConstants;
+import org.egov.excelingestion.config.ProcessingConstants;
 import org.egov.excelingestion.exception.CustomExceptionHandler;
 import org.egov.excelingestion.service.MDMSService;
 import org.egov.excelingestion.web.models.GenerateResource;
@@ -46,7 +47,7 @@ public class SchemaBasedSheetGenerator implements IExcelPopulatorSheetGenerator 
             filters.put("title", config.getSchemaName());
             
             List<Map<String, Object>> mdmsList = mdmsService.searchMDMS(
-                    requestInfo, generateResource.getTenantId(), "HCM-ADMIN-CONSOLE.schemas", filters, 1, 0);
+                    requestInfo, generateResource.getTenantId(), ProcessingConstants.MDMS_SCHEMA_CODE, filters, 1, 0);
             
             String schemaJson = extractSchemaFromMDMSResponse(mdmsList, config.getSchemaName());
             
