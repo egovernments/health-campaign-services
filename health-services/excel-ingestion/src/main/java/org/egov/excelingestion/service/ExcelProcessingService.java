@@ -6,14 +6,16 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.egov.common.contract.models.AuditDetails;
 import org.egov.excelingestion.config.ErrorConstants;
 import org.egov.excelingestion.config.ExcelIngestionConfig;
+import org.egov.excelingestion.config.ProcessorConfigurationRegistry;
 import org.egov.excelingestion.config.ValidationConstants;
 import org.egov.excelingestion.config.ProcessingConstants;
 import org.egov.excelingestion.exception.CustomExceptionHandler;
 import org.egov.excelingestion.util.RequestInfoConverter;
 import org.egov.excelingestion.util.EnrichmentUtil;
-import org.egov.excelingestion.validate.ProcessValidationService;
 import org.egov.excelingestion.web.models.ProcessResource;
 import org.egov.excelingestion.web.models.ProcessResourceRequest;
+import org.egov.excelingestion.web.models.ProcessorGenerationConfig;
+import org.egov.excelingestion.web.models.SheetGenerationConfig;
 import org.egov.excelingestion.web.models.ValidationError;
 import org.egov.excelingestion.web.models.ValidationColumnInfo;
 import org.egov.excelingestion.web.models.filestore.FileStoreResponse;
@@ -34,7 +36,7 @@ public class ExcelProcessingService {
 
     private final ValidationService validationService;
     private final SchemaValidationService schemaValidationService;
-    private final ProcessValidationService processValidationService;
+    private final ConfigBasedProcessingService configBasedProcessingService;
     private final FileStoreService fileStoreService;
     private final LocalizationService localizationService;
     private final RequestInfoConverter requestInfoConverter;
@@ -42,20 +44,22 @@ public class ExcelProcessingService {
     private final CustomExceptionHandler exceptionHandler;
     private final ExcelIngestionConfig config;
     private final EnrichmentUtil enrichmentUtil;
+    private final ProcessorConfigurationRegistry configRegistry;
     
     public ExcelProcessingService(ValidationService validationService,
                                 SchemaValidationService schemaValidationService,
-                                ProcessValidationService processValidationService,
+                                ConfigBasedProcessingService configBasedProcessingService,
                                 FileStoreService fileStoreService,
                                 LocalizationService localizationService,
                                 RequestInfoConverter requestInfoConverter,
                                 RestTemplate restTemplate,
                                 CustomExceptionHandler exceptionHandler,
                                 ExcelIngestionConfig config,
-                                EnrichmentUtil enrichmentUtil) {
+                                EnrichmentUtil enrichmentUtil,
+                                ProcessorConfigurationRegistry configRegistry) {
         this.validationService = validationService;
         this.schemaValidationService = schemaValidationService;
-        this.processValidationService = processValidationService;
+        this.configBasedProcessingService = configBasedProcessingService;
         this.fileStoreService = fileStoreService;
         this.localizationService = localizationService;
         this.requestInfoConverter = requestInfoConverter;
@@ -63,6 +67,7 @@ public class ExcelProcessingService {
         this.exceptionHandler = exceptionHandler;
         this.config = config;
         this.enrichmentUtil = enrichmentUtil;
+        this.configRegistry = configRegistry;
     }
 
     /**
@@ -92,8 +97,8 @@ public class ExcelProcessingService {
             // Download and validate the Excel file
             try (Workbook workbook = downloadExcelFromFileStore(resource.getFileStoreId(), resource.getTenantId())) {
                 
-                // Pre-validate schemas and fetch them before data validation
-                Map<String, Map<String, Object>> preValidatedSchemas = processValidationService.preValidateAndFetchSchemas(
+                // Pre-validate schemas and fetch them before data validation using config-based approach
+                Map<String, Map<String, Object>> preValidatedSchemas = configBasedProcessingService.preValidateAndFetchSchemas(
                         workbook, resource, request.getRequestInfo(), mergedLocalizationMap);
                 
                 // Validate data and collect errors with localization
@@ -211,12 +216,8 @@ public class ExcelProcessingService {
             // Convert sheet data to List<Map> format for schema validation
             List<Map<String, Object>> sheetData = convertSheetToMapList(sheet);
             
-            // Get pre-fetched schema for this sheet
-            String schemaName = getSchemaNameForSheet(sheetName, resource.getType(), localizationMap);
-            Map<String, Object> schema = null;
-            if (schemaName != null && preValidatedSchemas.containsKey(schemaName)) {
-                schema = preValidatedSchemas.get(schemaName);
-            }
+            // Get schema for this sheet from pre-validated schemas
+            Map<String, Object> schema = getSchemaForSheet(sheetName, resource.getType(), localizationMap, preValidatedSchemas);
             
             // Perform schema validation with pre-fetched schema
             List<ValidationError> schemaErrors = schemaValidationService.validateDataWithPreFetchedSchema(
@@ -229,10 +230,52 @@ public class ExcelProcessingService {
     }
 
     /**
-     * Helper method to get schema name for a sheet (delegates to ProcessValidationService)
+     * Helper method to get schema for a sheet from pre-validated schemas
      */
-    private String getSchemaNameForSheet(String sheetName, String type, Map<String, String> localizationMap) {
-        return processValidationService.getSchemaNameForSheet(sheetName, type, localizationMap);
+    private Map<String, Object> getSchemaForSheet(String sheetName, String type, 
+                                                 Map<String, String> localizationMap,
+                                                 Map<String, Map<String, Object>> preValidatedSchemas) {
+        try {
+            // Get processor configuration
+            ProcessorGenerationConfig config = configRegistry.getConfigByType(type);
+            if (config == null) {
+                return null;
+            }
+            
+            // Find the schema name for this sheet
+            for (SheetGenerationConfig sheetConfig : config.getSheets()) {
+                String localizedName = getLocalizedSheetName(sheetConfig.getSheetNameKey(), localizationMap);
+                if (localizedName.equals(sheetName)) {
+                    String schemaName = sheetConfig.getSchemaName();
+                    if (schemaName != null && preValidatedSchemas.containsKey(schemaName)) {
+                        return preValidatedSchemas.get(schemaName);
+                    }
+                    break;
+                }
+            }
+        } catch (Exception e) {
+            log.error("Error getting schema for sheet {}: {}", sheetName, e.getMessage(), e);
+        }
+        
+        return null;
+    }
+    
+    /**
+     * Get localized sheet name with 31-char limit handling
+     */
+    private String getLocalizedSheetName(String sheetKey, Map<String, String> localizationMap) {
+        String localizedName = sheetKey;
+        
+        if (localizationMap != null && localizationMap.containsKey(sheetKey)) {
+            localizedName = localizationMap.get(sheetKey);
+        }
+        
+        // Handle Excel's 31 character limit
+        if (localizedName.length() > 31) {
+            localizedName = localizedName.substring(0, 31);
+        }
+        
+        return localizedName;
     }
 
     /**

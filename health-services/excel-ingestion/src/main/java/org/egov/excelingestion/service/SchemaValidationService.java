@@ -2,7 +2,6 @@ package org.egov.excelingestion.service;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.excelingestion.config.ProcessingConstants;
-import org.egov.excelingestion.config.SheetSchemaConfig;
 import org.egov.excelingestion.config.ValidationConstants;
 import org.egov.excelingestion.web.models.ValidationError;
 import org.springframework.stereotype.Service;
@@ -14,48 +13,28 @@ import java.util.regex.PatternSyntaxException;
 @Service
 @Slf4j
 public class SchemaValidationService {
-
+    
     private final MDMSService mdmsService;
-    private final SheetSchemaConfig sheetSchemaConfig;
     
-    public SchemaValidationService(MDMSService mdmsService, SheetSchemaConfig sheetSchemaConfig) {
+    public SchemaValidationService(MDMSService mdmsService) {
         this.mdmsService = mdmsService;
-        this.sheetSchemaConfig = sheetSchemaConfig;
     }
 
     /**
-     * Validates sheet data against JSON schema from MDMS
+     * Validates sheet data against pre-fetched schema with localization support
      */
-    public List<ValidationError> validateDataWithSchema(List<Map<String, Object>> sheetData, 
-            String sheetName, String tenantId, String type, String campaignType,
-            org.egov.excelingestion.web.models.RequestInfo requestInfo) {
-        return validateDataWithSchema(sheetData, sheetName, tenantId, type, campaignType, requestInfo, null);
-    }
-    
-    /**
-     * Validates sheet data against JSON schema from MDMS with localization support
-     */
-    public List<ValidationError> validateDataWithSchema(List<Map<String, Object>> sheetData, 
-            String sheetName, String tenantId, String type, String campaignType,
-            org.egov.excelingestion.web.models.RequestInfo requestInfo, 
-            Map<String, String> localizationMap) {
-        
+    public List<ValidationError> validateDataWithPreFetchedSchema(List<Map<String, Object>> sheetData,
+                                                                String sheetName, 
+                                                                Map<String, Object> schema,
+                                                                Map<String, String> localizationMap) {
         List<ValidationError> errors = new ArrayList<>();
         
+        if (schema == null) {
+            log.info("No schema provided for validation of sheet: {}", sheetName);
+            return errors;
+        }
+        
         try {
-            String schemaName = getSchemaNameForSheet(sheetName, type, localizationMap);
-            if (schemaName == null) {
-                log.info("No schema validation configured for sheet: {} with type: {}", sheetName, type);
-                return errors;
-            }
-            
-            // Fetch schema from MDMS
-            Map<String, Object> schema = fetchSchemaFromMDMS(tenantId, schemaName, requestInfo);
-            if (schema == null) {
-                log.warn("No schema found for schema name: {}", schemaName);
-                return errors;
-            }
-            
             // Extract validation rules from schema
             Map<String, ValidationRule> validationRules = extractValidationRules(schema);
             
@@ -70,7 +49,7 @@ public class SchemaValidationService {
             }
             
         } catch (Exception e) {
-            log.error("Error during schema validation: {}", e.getMessage(), e);
+            log.error("Error during schema validation for sheet {}: {}", sheetName, e.getMessage(), e);
             ValidationError error = ValidationError.builder()
                     .rowNumber(1)
                     .sheetName(sheetName)
@@ -83,54 +62,6 @@ public class SchemaValidationService {
         return errors;
     }
 
-    /**
-     * Fetches schema from MDMS v2 using title
-     */
-    private Map<String, Object> fetchSchemaFromMDMS(String tenantId, String schemaName,
-            org.egov.excelingestion.web.models.RequestInfo requestInfo) {
-        try {
-            // Create MDMS search criteria with title filter
-            Map<String, Object> mdmsCriteria = new HashMap<>();
-            mdmsCriteria.put("tenantId", tenantId);
-            mdmsCriteria.put("schemaCode", ProcessingConstants.MDMS_SCHEMA_CODE);
-            
-            // Add filters for title
-            Map<String, Object> filters = new HashMap<>();
-            filters.put("title", schemaName);
-            mdmsCriteria.put("filters", filters);
-            
-            // Call MDMS service
-            List<Map<String, Object>> mdmsResponse = mdmsService.searchMDMSData(requestInfo, mdmsCriteria);
-            
-            if (mdmsResponse != null && !mdmsResponse.isEmpty()) {
-                return convertToValidationSchema(mdmsResponse.get(0));
-            }
-            
-            return null;
-        } catch (Exception e) {
-            log.error("Error fetching schema from MDMS: {}", e.getMessage(), e);
-            return null;
-        }
-    }
-
-    /**
-     * Converts MDMS response to validation schema
-     */
-    private Map<String, Object> convertToValidationSchema(Map<String, Object> mdmsData) {
-        Map<String, Object> schema = new HashMap<>();
-        
-        // Extract properties from MDMS data structure
-        if (mdmsData.containsKey("data")) {
-            Object data = mdmsData.get("data");
-            if (data instanceof Map) {
-                @SuppressWarnings("unchecked")
-                Map<String, Object> dataMap = (Map<String, Object>) data;
-                schema.putAll(dataMap);
-            }
-        }
-        
-        return schema;
-    }
 
     /**
      * Extracts validation rules from schema
@@ -574,118 +505,18 @@ public class SchemaValidationService {
     }
     
     /**
-     * Maps sheet names to schema names using configuration
-     * Handles localized sheet names and Excel's 31-character limit
+     * Helper method to get localized message with fallback
      */
-    private String getSchemaNameForSheet(String sheetName, String type, Map<String, String> localizationMap) {
-        if (!sheetSchemaConfig.isProcessingTypeSupported(type)) {
-            log.warn("No schema mapping configured for type: {}", type);
-            return null;
-        }
-        
-        // Get configuration for this processing type
-        Map<String, String> typeConfig = sheetSchemaConfig.getConfigForType(type);
-        if (typeConfig == null) {
-            log.warn("No configuration found for processing type: {}", type);
-            return null;
-        }
-        
-        // Check each configured sheet against the provided sheet name
-        for (Map.Entry<String, String> entry : typeConfig.entrySet()) {
-            String sheetKey = entry.getKey();
-            String schemaName = entry.getValue();
-            
-            // Get localized sheet name and trim to 31 characters if needed
-            String localizedSheetName = getLocalizedSheetName(sheetKey, localizationMap);
-            
-            if (localizedSheetName.equals(sheetName)) {
-                log.debug("Matched sheet '{}' to schema '{}'", sheetName, schemaName);
-                return schemaName;
-            }
-        }
-        
-        log.warn("Unknown sheet name '{}' for processing type: {}", sheetName, type);
-        return null;
-    }
-    
-    /**
-     * Gets localized sheet name and trims to 31 characters if needed
-     */
-    private String getLocalizedSheetName(String key, Map<String, String> localizationMap) {
-        String localizedName = key;
-        
-        // Get localized value if available
+    private String getLocalizedMessage(Map<String, String> localizationMap, String key, String defaultMessage, String... params) {
         if (localizationMap != null && localizationMap.containsKey(key)) {
-            localizedName = localizationMap.get(key);
-        }
-        
-        // Trim to 31 characters if needed (Excel sheet name limit)
-        if (localizedName.length() > 31) {
-            localizedName = localizedName.substring(0, 31);
-            log.debug("Trimmed sheet name from {} to {} (31 char limit)", 
-                    localizationMap != null ? localizationMap.get(key) : key, localizedName);
-        }
-        
-        return localizedName;
-    }
-    
-    /**
-     * Gets localized message with parameter substitution support
-     */
-    private String getLocalizedMessage(Map<String, String> localizationMap, String messageKey, 
-            String defaultMessage, String... parameters) {
-        if (localizationMap == null || !localizationMap.containsKey(messageKey)) {
-            return defaultMessage;
-        }
-        
-        String localizedMessage = localizationMap.get(messageKey);
-        
-        // Replace parameters in message (assuming {0}, {1} format)
-        for (int i = 0; i < parameters.length; i++) {
-            localizedMessage = localizedMessage.replace("{" + i + "}", parameters[i]);
-        }
-        
-        return localizedMessage;
-    }
-    
-    /**
-     * Validates sheet data against pre-fetched schema
-     */
-    public List<ValidationError> validateDataWithPreFetchedSchema(List<Map<String, Object>> sheetData,
-            String sheetName, Map<String, Object> schema, Map<String, String> localizationMap) {
-        
-        List<ValidationError> errors = new ArrayList<>();
-        
-        if (schema == null) {
-            log.info("No schema provided for sheet: {}", sheetName);
-            return errors;
-        }
-        
-        try {
-            // Extract validation rules from schema
-            Map<String, ValidationRule> validationRules = extractValidationRules(schema);
-            
-            // Validate each row against the schema
-            for (int rowIndex = 0; rowIndex < sheetData.size(); rowIndex++) {
-                Map<String, Object> rowData = sheetData.get(rowIndex);
-                int excelRowNumber = rowIndex + 3; // +1 for 0-based to 1-based, +2 for two header rows
-                
-                List<ValidationError> rowErrors = validateRowAgainstSchema(
-                    rowData, excelRowNumber, sheetName, validationRules, localizationMap);
-                errors.addAll(rowErrors);
+            String localizedMessage = localizationMap.get(key);
+            // Simple parameter replacement for {0}, {1}, etc.
+            for (int i = 0; i < params.length; i++) {
+                localizedMessage = localizedMessage.replace("{" + i + "}", params[i]);
             }
-            
-        } catch (Exception e) {
-            log.error("Error during schema validation for sheet {}: {}", sheetName, e.getMessage(), e);
-            ValidationError error = ValidationError.builder()
-                    .rowNumber(1)
-                    .sheetName(sheetName)
-                    .status(ValidationConstants.STATUS_ERROR)
-                    .errorDetails("Schema validation failed: " + e.getMessage())
-                    .build();
-            errors.add(error);
+            return localizedMessage;
         }
-        
-        return errors;
+        return defaultMessage;
     }
+    
 }
