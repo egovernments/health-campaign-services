@@ -185,43 +185,25 @@ public class SchemaValidationService {
         
         List<ValidationError> errors = new ArrayList<>();
         
+        // First, validate fields that have direct rules
         for (ValidationRule rule : rules.values()) {
             String fieldName = rule.getFieldName();
             Object value = rowData.get(fieldName);
             
-            // Check required fields
-            if (rule.isRequired() && (value == null || value.toString().trim().isEmpty())) {
-                String errorMessage = rule.getErrorMessage() != null 
-                    ? rule.getErrorMessage() 
-                    : getLocalizedMessage(localizationMap, "HCM_VALIDATION_REQUIRED_FIELD", 
-                            String.format("Required field '%s' is missing", fieldName), fieldName);
-                    
-                errors.add(ValidationError.builder()
-                        .rowNumber(rowNumber)
-                        .sheetName(sheetName)
-                        .columnName(fieldName)
-                        .status(ValidationConstants.STATUS_INVALID)
-                        .errorDetails(errorMessage)
-                        .build());
-                continue;
-            }
-            
-            // Skip validation if value is empty and not required
-            if (value == null || value.toString().trim().isEmpty()) {
-                continue;
-            }
-            
-            // Type-specific validation
-            switch (rule.getType()) {
-                case "string":
-                    validateStringField(value, rule, rowNumber, sheetName, errors, localizationMap);
-                    break;
-                case "number":
-                    validateNumberField(value, rule, rowNumber, sheetName, errors, localizationMap);
-                    break;
-                case "enum":
-                    validateEnumField(value, rule, rowNumber, sheetName, errors, localizationMap);
-                    break;
+            validateField(fieldName, value, rule, rowNumber, sheetName, errors, localizationMap);
+        }
+        
+        // Second, validate child multi-select fields (fields ending with _1, _2, etc.)
+        for (String fieldName : rowData.keySet()) {
+            if (isChildMultiSelectField(fieldName) && !rules.containsKey(fieldName)) {
+                String parentFieldName = getParentFieldName(fieldName);
+                ValidationRule parentRule = rules.get(parentFieldName);
+                
+                if (parentRule != null && parentRule.getMultiSelectDetails() != null) {
+                    Object value = rowData.get(fieldName);
+                    // Validate child field using parent's multi-select rules
+                    validateChildMultiSelectField(fieldName, value, parentRule, rowNumber, sheetName, errors, localizationMap);
+                }
             }
         }
         
@@ -343,8 +325,8 @@ public class SchemaValidationService {
         String strValue = value.toString();
         if (rule.getAllowedValues() != null && !rule.getAllowedValues().contains(strValue)) {
             String errorMessage = getLocalizedMessage(localizationMap, "HCM_VALIDATION_INVALID_ENUM", 
-                    String.format("Field '%s' must be one of: %s", rule.getFieldName(), String.join(", ", rule.getAllowedValues())),
-                    rule.getFieldName(), String.join(", ", rule.getAllowedValues()));
+                    String.format("Field '%s' contains invalid value '%s'", rule.getFieldName(), strValue),
+                    rule.getFieldName(), strValue);
             errors.add(createValidationError(rowNumber, sheetName, rule.getFieldName(), errorMessage));
         }
     }
@@ -389,9 +371,8 @@ public class SchemaValidationService {
             for (String selectedValue : trimmedValues) {
                 if (!multiSelect.getEnumValues().contains(selectedValue)) {
                     String errorMessage = getLocalizedMessage(localizationMap, "HCM_VALIDATION_INVALID_MULTI_SELECT", 
-                            String.format("Field '%s' contains invalid selection '%s'. Must be one of: %s", 
-                                    rule.getFieldName(), selectedValue, String.join(", ", multiSelect.getEnumValues())),
-                            rule.getFieldName(), selectedValue, String.join(", ", multiSelect.getEnumValues()));
+                            String.format("Field '%s' contains invalid value '%s'", rule.getFieldName(), selectedValue),
+                            rule.getFieldName(), selectedValue);
                     errors.add(createValidationError(rowNumber, sheetName, rule.getFieldName(), errorMessage));
                     break; // Only show first invalid value to avoid too many errors
                 }
@@ -603,6 +584,103 @@ public class SchemaValidationService {
         }
         
         return message;
+    }
+    
+    /**
+     * Validate a single field with its rule
+     */
+    private void validateField(String fieldName, Object value, ValidationRule rule, int rowNumber, 
+                              String sheetName, List<ValidationError> errors, Map<String, String> localizationMap) {
+        // Check required fields
+        if (rule.isRequired() && (value == null || value.toString().trim().isEmpty())) {
+            String errorMessage = rule.getErrorMessage() != null 
+                ? rule.getErrorMessage() 
+                : getLocalizedMessage(localizationMap, "HCM_VALIDATION_REQUIRED_FIELD", 
+                        String.format("Required field '%s' is missing", fieldName), fieldName);
+                
+            errors.add(ValidationError.builder()
+                    .rowNumber(rowNumber)
+                    .sheetName(sheetName)
+                    .columnName(fieldName)
+                    .status(ValidationConstants.STATUS_INVALID)
+                    .errorDetails(errorMessage)
+                    .build());
+            return;
+        }
+        
+        // Skip validation if value is empty and not required
+        if (value == null || value.toString().trim().isEmpty()) {
+            return;
+        }
+        
+        // Type-specific validation
+        switch (rule.getType()) {
+            case "string":
+                validateStringField(value, rule, rowNumber, sheetName, errors, localizationMap);
+                break;
+            case "number":
+                validateNumberField(value, rule, rowNumber, sheetName, errors, localizationMap);
+                break;
+            case "enum":
+                validateEnumField(value, rule, rowNumber, sheetName, errors, localizationMap);
+                break;
+        }
+    }
+    
+    /**
+     * Check if field is a child multi-select field (ends with _1, _2, etc.)
+     */
+    private boolean isChildMultiSelectField(String fieldName) {
+        if (fieldName == null || fieldName.length() < 3) {
+            return false;
+        }
+        
+        // Check if field ends with _X where X is a number
+        int lastUnderscore = fieldName.lastIndexOf('_');
+        if (lastUnderscore == -1 || lastUnderscore == fieldName.length() - 1) {
+            return false;
+        }
+        
+        String suffix = fieldName.substring(lastUnderscore + 1);
+        try {
+            Integer.parseInt(suffix);
+            return true; // It's a number, so it's a child field
+        } catch (NumberFormatException e) {
+            return false;
+        }
+    }
+    
+    /**
+     * Get parent field name by removing _X suffix
+     */
+    private String getParentFieldName(String childFieldName) {
+        int lastUnderscore = childFieldName.lastIndexOf('_');
+        return childFieldName.substring(0, lastUnderscore);
+    }
+    
+    /**
+     * Validate child multi-select field using parent's enum values
+     */
+    private void validateChildMultiSelectField(String fieldName, Object value, ValidationRule parentRule, 
+                                             int rowNumber, String sheetName, List<ValidationError> errors, 
+                                             Map<String, String> localizationMap) {
+        if (value == null || value.toString().trim().isEmpty()) {
+            return; // Empty child fields are usually OK
+        }
+        
+        String strValue = value.toString().trim();
+        MultiSelectDetails multiSelect = parentRule.getMultiSelectDetails();
+        
+        if (multiSelect != null && multiSelect.getEnumValues() != null && !multiSelect.getEnumValues().isEmpty()) {
+            // For child fields, the value should be a single enum value (not comma-separated)
+            if (!multiSelect.getEnumValues().contains(strValue)) {
+                String errorMessage = getLocalizedMessage(localizationMap, "HCM_VALIDATION_INVALID_ENUM", 
+                        String.format("Field '%s' contains invalid value '%s'", fieldName, strValue),
+                        fieldName, strValue);
+                
+                errors.add(createValidationError(rowNumber, sheetName, fieldName, errorMessage));
+            }
+        }
     }
     
 }
