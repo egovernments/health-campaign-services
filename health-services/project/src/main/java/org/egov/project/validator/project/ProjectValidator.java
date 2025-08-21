@@ -139,6 +139,7 @@ public class ProjectValidator {
                 && StringUtils.isBlank(projectSearch.getProjectTypeId())
                 && StringUtils.isBlank(projectSearch.getName())
                 && StringUtils.isBlank(projectSearch.getSubProjectTypeId())
+                && StringUtils.isBlank(projectSearch.getReferenceId())
                 && (projectSearch.getStartDate() == null || projectSearch.getStartDate() == 0)
                 && (projectSearch.getEndDate() == null || projectSearch.getEndDate() == 0)
                 && (projectSearch.getCreatedFrom() == null || projectSearch.getCreatedFrom() == 0)
