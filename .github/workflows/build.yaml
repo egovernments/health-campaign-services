@@ -61,6 +61,7 @@ on:
           - "census-service"
           - "plan-service"
           - "resource-generator"
+          - "project"
         default: "audit-service"
 
 env:
