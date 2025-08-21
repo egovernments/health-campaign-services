@@ -78,6 +78,9 @@ public class ErrorConstants {
     public static final String REQUIRED_SHEET_MISSING_MESSAGE = "Required sheet '{0}' is missing from the Excel file. Expected sheets: {1}";
     
     // Validation Errors
+    public static final String VALIDATION_ERROR = "VALIDATION_ERROR";
+    public static final String VALIDATION_ERROR_MESSAGE = "Validation error: {0}";
+    
     public static final String INVALID_TENANT_ID = "INVALID_TENANT_ID";
     public static final String INVALID_TENANT_ID_MESSAGE = "Invalid tenant ID provided: {0}";
     

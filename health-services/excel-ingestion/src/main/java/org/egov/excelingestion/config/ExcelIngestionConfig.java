@@ -40,9 +40,11 @@ public class ExcelIngestionConfig {
     @Value("${default.locale:en_IN}")
     private String defaultLocale;
 
-    private String excelSheetPassword = "passwordhere";
+    @Value("${egov.excel.sheet.password:passwordhere}")
+    private String excelSheetPassword;
 
-    private int excelSheetZoom = 70;
+    @Value("${egov.excel.sheet.zoom:60}")
+    private int excelSheetZoom;
 
     private String defaultHeaderColor = "#93c47d";
 
