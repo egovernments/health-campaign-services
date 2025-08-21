@@ -94,6 +94,13 @@ public class ErrorConstants {
     public static final String BOUNDARY_LEVELS_NOT_FOUND = "BOUNDARY_LEVELS_NOT_FOUND";
     public static final String BOUNDARY_LEVELS_NOT_FOUND_MESSAGE = "Boundary levels not found in hierarchy definition";
     
+    // Excel Data Populator Errors
+    public static final String SCHEMA_CONVERSION_ERROR = "SCHEMA_CONVERSION_ERROR";
+    public static final String SCHEMA_CONVERSION_ERROR_MESSAGE = "Error while converting schema to column definitions";
+    
+    public static final String SHEET_COPY_ERROR = "SHEET_COPY_ERROR";
+    public static final String SHEET_COPY_ERROR_MESSAGE = "Error while copying sheet to workbook";
+    
     // Generic Errors
     public static final String INTERNAL_SERVER_ERROR = "INTERNAL_SERVER_ERROR";
     public static final String INTERNAL_SERVER_ERROR_MESSAGE = "An internal server error occurred";

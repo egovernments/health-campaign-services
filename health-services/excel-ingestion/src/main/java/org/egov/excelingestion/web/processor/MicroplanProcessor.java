@@ -19,10 +19,14 @@ import org.egov.excelingestion.util.CampaignConfigSheetCreator;
 import org.egov.excelingestion.util.ExcelStyleHelper;
 import org.egov.excelingestion.util.BoundaryUtil;
 import org.egov.excelingestion.util.CellProtectionManager;
+import org.egov.excelingestion.util.ExcelDataPopulator;
 import org.egov.excelingestion.web.models.*;
+import org.egov.excelingestion.web.models.excel.ColumnDef;
+import org.egov.excelingestion.web.models.excel.MultiSelectDetails;
 import org.egov.excelingestion.util.RequestInfoConverter;
 import org.egov.excelingestion.service.ApiPayloadBuilder;
 import org.springframework.stereotype.Component;
+import com.fasterxml.jackson.databind.JsonNode;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -45,6 +49,7 @@ public class MicroplanProcessor implements IGenerateProcessor {
     private final BoundaryUtil boundaryUtil;
     private final CustomExceptionHandler exceptionHandler;
     private final CellProtectionManager cellProtectionManager;
+    private final ExcelDataPopulator excelDataPopulator;
 
     public MicroplanProcessor(ExcelIngestionConfig config,
             LocalizationService localizationService, BoundaryHierarchySheetCreator boundaryHierarchySheetCreator,
@@ -52,7 +57,7 @@ public class MicroplanProcessor implements IGenerateProcessor {
             ApiPayloadBuilder apiPayloadBuilder, ExcelSchemaSheetCreator excelSchemaSheetCreator,
             CampaignConfigSheetCreator campaignConfigSheetCreator, MDMSService mdmsService,
             ExcelStyleHelper excelStyleHelper, BoundaryUtil boundaryUtil, CustomExceptionHandler exceptionHandler,
-            CellProtectionManager cellProtectionManager) {
+            CellProtectionManager cellProtectionManager, ExcelDataPopulator excelDataPopulator) {
         this.config = config;
         this.localizationService = localizationService;
         this.boundaryHierarchySheetCreator = boundaryHierarchySheetCreator;
@@ -66,6 +71,7 @@ public class MicroplanProcessor implements IGenerateProcessor {
         this.boundaryUtil = boundaryUtil;
         this.exceptionHandler = exceptionHandler;
         this.cellProtectionManager = cellProtectionManager;
+        this.excelDataPopulator = excelDataPopulator;
     }
 
     @Override
@@ -208,9 +214,10 @@ public class MicroplanProcessor implements IGenerateProcessor {
             log.warn("Sheet name '{}' exceeds 31 character limit, trimming to '{}'", localizedFacilitySheetName, actualFacilitySheetName);
         }
         
-        // === Create facility sheet using schema with correct localized name ===
+        // === Create facility sheet using ExcelDataPopulator (headers-only) ===
         if (schemaJson != null && !schemaJson.isEmpty()) {
-            workbook = (XSSFWorkbook) excelSchemaSheetCreator.addSchemaSheetFromJson(schemaJson, actualFacilitySheetName, workbook, mergedLocalizationMap);
+            List<ColumnDef> facilityColumns = convertSchemaToColumnDefs(schemaJson);
+            workbook = (XSSFWorkbook) excelDataPopulator.populateSheetWithData(workbook, actualFacilitySheetName, facilityColumns, null, mergedLocalizationMap);
         }
 
         // === Levels sheet (localized display names visible) ===
@@ -291,7 +298,8 @@ public class MicroplanProcessor implements IGenerateProcessor {
         }
         
         if (userSchemaJson != null && !userSchemaJson.isEmpty()) {
-            workbook = (XSSFWorkbook) excelSchemaSheetCreator.addEnhancedSchemaSheetFromJson(userSchemaJson, actualUserSheetName, workbook, mergedLocalizationMap);
+            List<ColumnDef> userColumns = convertSchemaToColumnDefs(userSchemaJson);
+            workbook = (XSSFWorkbook) excelDataPopulator.populateSheetWithData(workbook, actualUserSheetName, userColumns, null, mergedLocalizationMap);
             
             // Add boundary columns to user sheet as well based on configured boundaries  
             addBoundaryColumnsToSheet(workbook, actualUserSheetName, mergedLocalizationMap,
@@ -309,9 +317,24 @@ public class MicroplanProcessor implements IGenerateProcessor {
             log.warn("Sheet name '{}' exceeds 31 character limit, trimming to '{}'", localizedHierarchySheetName, actualHierarchySheetName);
         }
         
-        workbook = (XSSFWorkbook) boundaryHierarchySheetCreator.createBoundaryHierarchySheet(
-                workbook, hierarchyType, tenantId, requestInfo,
-                mergedLocalizationMap, actualHierarchySheetName, generateResource.getBoundaries());
+        // Create boundary hierarchy sheet with data using ExcelDataPopulator
+        // Use existing boundary filtering logic to get only configured boundaries
+        BoundarySearchResponse boundaryRelationshipData = boundaryService.fetchBoundaryRelationship(tenantId, hierarchyType, requestInfo);
+        Map<String, EnrichedBoundary> codeToEnrichedBoundary = boundaryUtil.buildCodeToBoundaryMap(boundaryRelationshipData);
+        
+        // Get level types
+        List<String> levelTypes = new ArrayList<>();
+        for (BoundaryHierarchyChild hierarchyRelation : hierarchyRelations) {
+            levelTypes.add(hierarchyRelation.getBoundaryType());
+        }
+        
+        // Filter boundaries based on additionalDetails configuration (reuse existing logic)
+        List<BoundaryUtil.BoundaryRowData> filteredBoundaries = boundaryUtil.processBoundariesWithEnrichment(
+                generateResource.getBoundaries(), codeToEnrichedBoundary, levelTypes);
+        
+        List<ColumnDef> boundaryColumns = createBoundaryHierarchyColumnDefs(hierarchyRelations, hierarchyType);
+        List<Map<String, Object>> boundaryData = getBoundaryHierarchyDataFromFiltered(filteredBoundaries, hierarchyRelations, hierarchyType, localizationMap);
+        workbook = (XSSFWorkbook) excelDataPopulator.populateSheetWithData(workbook, actualHierarchySheetName, boundaryColumns, boundaryData, mergedLocalizationMap);
 
 
         // Set zoom to 60% BEFORE protection and hiding (Excel compatibility)
@@ -880,6 +903,225 @@ public class MicroplanProcessor implements IGenerateProcessor {
             if (row == null) row = sheet.createRow(rowIndex);
             Cell boundaryCodeCell = row.createCell(lastSchemaCol + 2);
             boundaryCodeCell.setCellFormula(vlookupFormula);
+        }
+    }
+
+    /**
+     * Convert MDMS schema JSON to List<ColumnDef> for ExcelDataPopulator
+     */
+    private List<ColumnDef> convertSchemaToColumnDefs(String schemaJson) {
+        List<ColumnDef> columns = new ArrayList<>();
+        
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            JsonNode root = mapper.readTree(schemaJson);
+            
+            // Process stringProperties
+            if (root.has("stringProperties")) {
+                for (JsonNode node : root.path("stringProperties")) {
+                    columns.add(parseJsonToColumnDef(node, "string"));
+                }
+            }
+            
+            // Process numberProperties
+            if (root.has("numberProperties")) {
+                for (JsonNode node : root.path("numberProperties")) {
+                    columns.add(parseJsonToColumnDef(node, "number"));
+                }
+            }
+            
+            // Process enumProperties
+            if (root.has("enumProperties")) {
+                for (JsonNode node : root.path("enumProperties")) {
+                    columns.add(parseJsonToColumnDef(node, "enum"));
+                }
+            }
+            
+            // Sort by orderNumber
+            columns.sort(Comparator.comparingInt(ColumnDef::getOrderNumber));
+            
+        } catch (Exception e) {
+            log.error("Error converting schema JSON to ColumnDefs: {}", e.getMessage(), e);
+            exceptionHandler.throwCustomException(ErrorConstants.SCHEMA_CONVERSION_ERROR, 
+                    "Error converting schema to column definitions", e);
+        }
+        
+        return columns;
+    }
+
+    /**
+     * Parse JsonNode to ColumnDef
+     */
+    private ColumnDef parseJsonToColumnDef(JsonNode node, String type) {
+        ColumnDef.ColumnDefBuilder builder = ColumnDef.builder()
+                .name(node.path("name").asText())
+                .type(type)
+                .description(node.path("description").asText())
+                .colorHex(node.path("color").asText())
+                .orderNumber(node.path("orderNumber").asInt(9999))
+                .freezeColumnIfFilled(node.path("freezeColumnIfFilled").asBoolean(false))
+                .hideColumn(node.path("hideColumn").asBoolean(false))
+                .required(node.path("isRequired").asBoolean(false))
+                .width(node.has("width") ? node.path("width").asInt() : null)
+                .wrapText(node.path("wrapText").asBoolean(false))
+                .prefix(node.path("prefix").asText(null))
+                .adjustHeight(node.path("adjustHeight").asBoolean(false))
+                .showInProcessed(node.path("showInProcessed").asBoolean(true))
+                .freezeColumn(node.path("freezeColumn").asBoolean(false))
+                .freezeTillData(node.path("freezeTillData").asBoolean(false))
+                .unFreezeColumnTillData(node.path("unFreezeColumnTillData").asBoolean(false));
+        
+        // Handle enum properties
+        if ("enum".equals(type) && node.has("enum")) {
+            List<String> enumValues = new ArrayList<>();
+            node.path("enum").forEach(enumNode -> enumValues.add(enumNode.asText()));
+            builder.enumValues(enumValues);
+        }
+        
+        // Handle multiSelectDetails for string properties
+        if (node.has("multiSelectDetails")) {
+            JsonNode multiSelectNode = node.path("multiSelectDetails");
+            List<String> enumValues = new ArrayList<>();
+            multiSelectNode.path("enum").forEach(enumNode -> enumValues.add(enumNode.asText()));
+            
+            MultiSelectDetails details = MultiSelectDetails.builder()
+                    .maxSelections(multiSelectNode.path("maxSelections").asInt(1))
+                    .minSelections(multiSelectNode.path("minSelections").asInt(0))
+                    .enumValues(enumValues)
+                    .build();
+            
+            builder.multiSelectDetails(details);
+        }
+        
+        return builder.build();
+    }
+
+
+    /**
+     * Create column definitions for boundary hierarchy sheet - one column per hierarchy level
+     * Uses project-factory pattern: HIERARCHYTYPE_BOUNDARYTYPE
+     */
+    private List<ColumnDef> createBoundaryHierarchyColumnDefs(List<BoundaryHierarchyChild> hierarchyRelations, String hierarchyType) {
+        List<ColumnDef> columns = new ArrayList<>();
+        
+        // Create columns for each hierarchy level using exact project-factory pattern
+        // Pattern: ${hierarchyType}_${boundaryType} (e.g., MICROPLAN_COUNTRY, MICROPLAN_PROVINCE)
+        for (int i = 0; i < hierarchyRelations.size(); i++) {
+            String boundaryType = hierarchyRelations.get(i).getBoundaryType();
+            
+            // Create localization key in exact project-factory format: HIERARCHYTYPE_BOUNDARYTYPE
+            String columnName = (hierarchyType + "_" + boundaryType).toUpperCase();
+            
+            columns.add(ColumnDef.builder()
+                    .name(columnName)
+                    .orderNumber(i + 1)
+                    .width(50) // Smaller default width
+                    .colorHex("#93c47d") // Correct boundary color
+                    .build());
+        }
+        
+        // Add hidden boundary code column (following project-factory pattern)
+        columns.add(ColumnDef.builder()
+                .name("HCM_ADMIN_CONSOLE_BOUNDARY_CODE")
+                .orderNumber(hierarchyRelations.size() + 1)
+                .width(80) // Same as project-factory
+                .hideColumn(true) // Hidden column
+                .freezeColumn(true) // Same as project-factory
+                .adjustHeight(true) // Same as project-factory
+                .build());
+        
+        return columns;
+    }
+
+    /**
+     * Get boundary hierarchy data from filtered boundaries - create one row per boundary with hierarchy path
+     * Only includes last level (leaf) boundaries and adds hidden boundary code column
+     * Uses project-factory pattern for column names: HIERARCHYTYPE_BOUNDARYTYPE
+     */
+    private List<Map<String, Object>> getBoundaryHierarchyDataFromFiltered(List<BoundaryUtil.BoundaryRowData> filteredBoundaries,
+                                                                          List<BoundaryHierarchyChild> hierarchyRelations,
+                                                                          String hierarchyType,
+                                                                          Map<String, String> localizationMap) {
+        List<Map<String, Object>> data = new ArrayList<>();
+        
+        // Find the index of the last level (leaf level)
+        int lastLevelIndex = hierarchyRelations.size() - 1;
+        
+        // Process each filtered boundary to create hierarchy rows
+        for (BoundaryUtil.BoundaryRowData boundary : filteredBoundaries) {
+            List<String> boundaryPath = boundary.getBoundaryPath();
+            
+            // Only include boundaries that have data at the last level (leaf boundaries)
+            if (boundaryPath.size() > lastLevelIndex && 
+                boundaryPath.get(lastLevelIndex) != null && 
+                !boundaryPath.get(lastLevelIndex).isEmpty()) {
+                
+                Map<String, Object> row = new HashMap<>();
+                
+                // Fill columns based on hierarchy levels using exact project-factory column naming
+                for (int i = 0; i < hierarchyRelations.size(); i++) {
+                    String boundaryType = hierarchyRelations.get(i).getBoundaryType();
+                    // Use same column naming pattern as in createBoundaryHierarchyColumnDefs
+                    String columnName = (hierarchyType + "_" + boundaryType).toUpperCase();
+                    String boundaryCode = i < boundaryPath.size() ? boundaryPath.get(i) : "";
+                    String boundaryName = "";
+                    
+                    if (boundaryCode != null && !boundaryCode.isEmpty()) {
+                        boundaryName = localizationMap.getOrDefault(boundaryCode, boundaryCode);
+                    }
+                    
+                    row.put(columnName, boundaryName);
+                }
+                
+                // Add the hidden boundary code column with the last level boundary code
+                String lastLevelBoundaryCode = boundaryPath.get(lastLevelIndex);
+                row.put("HCM_ADMIN_CONSOLE_BOUNDARY_CODE", lastLevelBoundaryCode);
+                
+                data.add(row);
+            }
+        }
+        
+        return data;
+    }
+
+    /**
+     * Recursively collect boundary paths - each row represents complete hierarchy path to a boundary
+     */
+    private void collectBoundaryPaths(List<EnrichedBoundary> boundaries, List<String> currentPath,
+                                    List<Map<String, Object>> data, List<BoundaryHierarchyChild> hierarchyRelations,
+                                    Map<String, Integer> boundaryTypeToLevel, Map<String, String> localizationMap) {
+        if (boundaries == null) return;
+        
+        for (EnrichedBoundary boundary : boundaries) {
+            // Create new path with current boundary
+            List<String> newPath = new ArrayList<>(currentPath);
+            
+            // Find the level for this boundary type
+            Integer level = boundaryTypeToLevel.get(boundary.getBoundaryType());
+            if (level != null) {
+                // Extend path to accommodate this level
+                while (newPath.size() <= level) {
+                    newPath.add("");
+                }
+                // Set the boundary name at the correct level
+                String boundaryName = localizationMap.getOrDefault(boundary.getCode(), boundary.getCode());
+                newPath.set(level, boundaryName);
+            }
+            
+            // If this boundary has children, recurse
+            if (boundary.getChildren() != null && !boundary.getChildren().isEmpty()) {
+                collectBoundaryPaths(boundary.getChildren(), newPath, data, hierarchyRelations, 
+                                   boundaryTypeToLevel, localizationMap);
+            } else {
+                // This is a leaf boundary - create a row
+                Map<String, Object> row = new HashMap<>();
+                for (int i = 0; i < hierarchyRelations.size(); i++) {
+                    String columnName = hierarchyRelations.get(i).getBoundaryType();
+                    String value = i < newPath.size() ? newPath.get(i) : "";
+                    row.put(columnName, value);
+                }
+                data.add(row);
+            }
         }
     }
 }
