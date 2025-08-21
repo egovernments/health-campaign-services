@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import java.util.*;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
+import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -47,6 +48,11 @@ public class SchemaValidationService {
                     rowData, excelRowNumber, sheetName, validationRules, localizationMap);
                 errors.addAll(rowErrors);
             }
+            
+            // Perform uniqueness validation across all rows
+            List<ValidationError> uniquenessErrors = validateUniquenessConstraints(
+                sheetData, sheetName, validationRules, localizationMap);
+            errors.addAll(uniquenessErrors);
             
         } catch (Exception e) {
             log.error("Error during schema validation for sheet {}: {}", sheetName, e.getMessage(), e);
@@ -493,18 +499,110 @@ public class SchemaValidationService {
     }
     
     /**
-     * Helper method to get localized message with fallback
+     * Validates uniqueness constraints across all rows
+     */
+    private List<ValidationError> validateUniquenessConstraints(List<Map<String, Object>> sheetData,
+                                                               String sheetName,
+                                                               Map<String, ValidationRule> validationRules,
+                                                               Map<String, String> localizationMap) {
+        List<ValidationError> errors = new ArrayList<>();
+        
+        // Find fields that need uniqueness validation
+        Map<String, ValidationRule> uniqueFields = validationRules.entrySet().stream()
+                .filter(entry -> entry.getValue().isUnique())
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+        
+        if (uniqueFields.isEmpty()) {
+            return errors; // No unique fields to validate
+        }
+        
+        // For each unique field, collect values and find duplicates
+        for (Map.Entry<String, ValidationRule> entry : uniqueFields.entrySet()) {
+            String fieldName = entry.getKey();
+            ValidationRule rule = entry.getValue();
+            
+            // Map to track value -> list of row indices where it appears
+            Map<String, List<Integer>> valueToRows = new HashMap<>();
+            
+            // Collect all values for this field
+            for (int rowIndex = 0; rowIndex < sheetData.size(); rowIndex++) {
+                Map<String, Object> rowData = sheetData.get(rowIndex);
+                Object value = rowData.get(fieldName);
+                
+                // Skip null or empty values for uniqueness check
+                if (value != null && !value.toString().trim().isEmpty()) {
+                    String strValue = value.toString().trim();
+                    valueToRows.computeIfAbsent(strValue, k -> new ArrayList<>()).add(rowIndex);
+                }
+            }
+            
+            // Find duplicates and create errors
+            for (Map.Entry<String, List<Integer>> valueEntry : valueToRows.entrySet()) {
+                String duplicateValue = valueEntry.getKey();
+                List<Integer> rowIndices = valueEntry.getValue();
+                
+                if (rowIndices.size() > 1) {
+                    // This value appears in multiple rows - create errors for all occurrences
+                    for (int rowIndex : rowIndices) {
+                        int excelRowNumber = rowIndex + 3; // +1 for 0-based to 1-based, +2 for two header rows
+                        
+                        // Create list of other row numbers with same value
+                        List<String> otherRows = rowIndices.stream()
+                                .filter(idx -> idx != rowIndex)
+                                .map(idx -> String.valueOf(idx + 3))
+                                .collect(Collectors.toList());
+                        
+                        String errorMessage = getLocalizedMessage(localizationMap, 
+                                "HCM_VALIDATION_DUPLICATE_VALUE",
+                                String.format("Field '%s' must be unique. Value '%s' is also found in row(s): %s", 
+                                        fieldName, duplicateValue, String.join(", ", otherRows)),
+                                fieldName, duplicateValue, String.join(", ", otherRows));
+                        
+                        errors.add(createValidationError(excelRowNumber, sheetName, fieldName, errorMessage));
+                    }
+                }
+            }
+        }
+        
+        log.info("Found {} uniqueness validation errors for sheet: {}", errors.size(), sheetName);
+        return errors;
+    }
+
+    /**
+     * Helper method to get localized message with fallback and clean formatting
      */
     private String getLocalizedMessage(Map<String, String> localizationMap, String key, String defaultMessage, String... params) {
+        String message;
         if (localizationMap != null && localizationMap.containsKey(key)) {
-            String localizedMessage = localizationMap.get(key);
+            message = localizationMap.get(key);
             // Simple parameter replacement for {0}, {1}, etc.
             for (int i = 0; i < params.length; i++) {
-                localizedMessage = localizedMessage.replace("{" + i + "}", params[i]);
+                message = message.replace("{" + i + "}", params[i]);
             }
-            return localizedMessage;
+        } else {
+            message = defaultMessage;
         }
-        return defaultMessage;
+        
+        // Clean up the message - remove leading semicolons and whitespace
+        return cleanErrorMessage(message);
+    }
+    
+    /**
+     * Clean error message by removing leading semicolons and whitespace
+     */
+    private String cleanErrorMessage(String message) {
+        if (message == null) {
+            return "";
+        }
+        
+        message = message.trim();
+        
+        // Remove leading semicolons (common in localized messages)
+        while (message.startsWith(";")) {
+            message = message.substring(1).trim();
+        }
+        
+        return message;
     }
     
 }

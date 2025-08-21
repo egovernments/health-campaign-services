@@ -140,12 +140,29 @@ public class ValidationService {
                 row = sheet.createRow(rowNumber - 1);
             }
 
-            // Merge error messages for the row
-            String mergedErrorMessage = rowErrors.stream()
+            // Merge error messages for the row - robust empty message filtering
+            List<String> validMessages = rowErrors.stream()
                     .map(ValidationError::getErrorDetails)
                     .filter(Objects::nonNull)
-                    .filter(msg -> !msg.trim().isEmpty())
-                    .collect(Collectors.joining("; "));
+                    .map(String::trim)
+                    .filter(msg -> !msg.isEmpty() && !msg.equals("")) // Double check for empty strings
+                    .filter(msg -> msg.length() > 0) // Extra safety check
+                    .distinct() // Remove duplicate messages
+                    .collect(Collectors.toList());
+            
+            // Join messages safely
+            String mergedErrorMessage = "";
+            if (!validMessages.isEmpty()) {
+                mergedErrorMessage = String.join("; ", validMessages);
+                // Additional safety - clean any leading/trailing semicolons
+                mergedErrorMessage = mergedErrorMessage.trim();
+                if (mergedErrorMessage.startsWith(";")) {
+                    mergedErrorMessage = mergedErrorMessage.substring(1).trim();
+                }
+                if (mergedErrorMessage.endsWith(";")) {
+                    mergedErrorMessage = mergedErrorMessage.substring(0, mergedErrorMessage.length() - 1).trim();
+                }
+            }
 
             // Set status
             String status = determineRowStatus(rowErrors);
