@@ -6,7 +6,7 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.egov.common.contract.models.AuditDetails;
 import org.egov.excelingestion.config.ErrorConstants;
 import org.egov.excelingestion.config.ExcelIngestionConfig;
-import org.egov.excelingestion.config.ProcessorConfigurationRegistry;
+import org.egov.excelingestion.config.GeneratorConfigurationRegistry;
 import org.egov.excelingestion.config.ValidationConstants;
 import org.egov.excelingestion.config.ProcessingConstants;
 import org.egov.excelingestion.exception.CustomExceptionHandler;
@@ -44,7 +44,7 @@ public class ExcelProcessingService {
     private final CustomExceptionHandler exceptionHandler;
     private final ExcelIngestionConfig config;
     private final EnrichmentUtil enrichmentUtil;
-    private final ProcessorConfigurationRegistry configRegistry;
+    private final GeneratorConfigurationRegistry configRegistry;
     
     public ExcelProcessingService(ValidationService validationService,
                                 SchemaValidationService schemaValidationService,
@@ -56,7 +56,7 @@ public class ExcelProcessingService {
                                 CustomExceptionHandler exceptionHandler,
                                 ExcelIngestionConfig config,
                                 EnrichmentUtil enrichmentUtil,
-                                ProcessorConfigurationRegistry configRegistry) {
+                                GeneratorConfigurationRegistry configRegistry) {
         this.validationService = validationService;
         this.schemaValidationService = schemaValidationService;
         this.configBasedProcessingService = configBasedProcessingService;
@@ -85,14 +85,23 @@ public class ExcelProcessingService {
             // Extract locale and create localization maps
             String locale = requestInfoConverter.extractLocale(request.getRequestInfo());
             String tenantId = resource.getTenantId();
+            String hierarchyType = resource.getHierarchyType();
+            
+            Map<String, String> mergedLocalizationMap = new HashMap<>();
+            
+            // Get boundary hierarchy localization if hierarchyType is provided
+            if (hierarchyType != null && !hierarchyType.trim().isEmpty()) {
+                String boundaryModule = "hcm-boundary-" + hierarchyType.toLowerCase();
+                Map<String, String> boundaryLocalizationMap = localizationService.getLocalizedMessages(
+                        tenantId, boundaryModule, locale, request.getRequestInfo());
+                mergedLocalizationMap.putAll(boundaryLocalizationMap);
+            }
             
             // Get schema localization for field names
             String schemaModule = "hcm-admin-schemas";
             Map<String, String> schemaLocalizationMap = localizationService.getLocalizedMessages(
                     tenantId, schemaModule, locale, request.getRequestInfo());
-            
-            // Merge localization maps
-            Map<String, String> mergedLocalizationMap = new HashMap<>(schemaLocalizationMap);
+            mergedLocalizationMap.putAll(schemaLocalizationMap);
             
             // Download and validate the Excel file
             try (Workbook workbook = downloadExcelFromFileStore(resource.getFileStoreId(), resource.getTenantId())) {
@@ -377,9 +386,10 @@ public class ExcelProcessingService {
     private ProcessResource updateResourceWithResults(ProcessResource resource, 
             List<ValidationError> errors, String processedFileStoreId) {
         
-        // Count errors
+        // Count actual validation errors (excluding valid status entries)
         long errorCount = errors.stream()
-                .filter(error -> !ValidationConstants.STATUS_VALID.equals(error.getStatus()))
+                .filter(error -> ValidationConstants.STATUS_INVALID.equals(error.getStatus()) ||
+                               ValidationConstants.STATUS_ERROR.equals(error.getStatus()))
                 .count();
         
         // Processing is complete, so status is PROCESSED regardless of validation errors
@@ -392,8 +402,14 @@ public class ExcelProcessingService {
             additionalDetails = new HashMap<>();
         }
         
+        // Count unique rows processed across all sheets (sheet + row combination)
+        long totalRecordsProcessed = errors.stream()
+                .map(error -> error.getSheetName() + ":" + error.getRowNumber())
+                .distinct()
+                .count();
+        
         additionalDetails.put("totalErrors", errorCount);
-        additionalDetails.put("totalRecordsProcessed", errors.size());
+        additionalDetails.put("totalRecordsProcessed", totalRecordsProcessed);
         additionalDetails.put("hasValidationErrors", errorCount > 0);
         additionalDetails.put("validationStatus", validationStatus);
         additionalDetails.put("processedTimestamp", System.currentTimeMillis());

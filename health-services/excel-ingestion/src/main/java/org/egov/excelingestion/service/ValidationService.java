@@ -156,12 +156,19 @@ public class ValidationService {
             statusCell.setCellValue(status);
 
             // Set error details
+            Cell errorCell = row.getCell(columnInfo.getErrorColumnIndex());
+            if (errorCell == null) {
+                errorCell = row.createCell(columnInfo.getErrorColumnIndex());
+            }
+            
             if (!mergedErrorMessage.isEmpty()) {
-                Cell errorCell = row.getCell(columnInfo.getErrorColumnIndex());
-                if (errorCell == null) {
-                    errorCell = row.createCell(columnInfo.getErrorColumnIndex());
-                }
                 errorCell.setCellValue(mergedErrorMessage);
+            } else if (ValidationConstants.STATUS_INVALID.equals(status) || 
+                      ValidationConstants.STATUS_ERROR.equals(status)) {
+                // If status is invalid but no error details, provide a default message
+                errorCell.setCellValue("Validation failed - no specific error details available");
+            } else {
+                errorCell.setCellValue("");
             }
         }
     }
@@ -188,8 +195,15 @@ public class ValidationService {
             return ValidationConstants.STATUS_ERROR;
         }
 
-        // Default to INVALID
-        return ValidationConstants.STATUS_INVALID;
+        // Check if any error has INVALID status
+        boolean hasInvalid = errors.stream()
+                .anyMatch(e -> ValidationConstants.STATUS_INVALID.equals(e.getStatus()));
+        if (hasInvalid) {
+            return ValidationConstants.STATUS_INVALID;
+        }
+
+        // If only VALID errors exist, return VALID
+        return ValidationConstants.STATUS_VALID;
     }
 
     /**

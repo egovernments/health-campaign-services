@@ -69,24 +69,12 @@ public class SchemaValidationService {
     private Map<String, ValidationRule> extractValidationRules(Map<String, Object> schema) {
         Map<String, ValidationRule> rules = new HashMap<>();
         
-        // Schema structure: schema.properties.stringProperties, etc.
-        Map<String, Object> propertiesSection = null;
-        if (schema.containsKey("properties")) {
-            propertiesSection = (Map<String, Object>) schema.get("properties");
-        } else {
-            // Fallback: use schema directly if no properties section
-            propertiesSection = null;
-        }
-        
-        if (propertiesSection != null) {
-            // Extract string properties
-            extractStringPropertyRules(propertiesSection, rules);
-            
-            // Extract number properties  
-            extractNumberPropertyRules(propertiesSection, rules);
-            
-            // Extract enum properties
-            extractEnumPropertyRules(propertiesSection, rules);
+        if (schema != null) {
+            // The schema passed here is already the properties section from MDMS
+            // Look for stringProperties, numberProperties, enumProperties directly
+            extractStringPropertyRules(schema, rules);
+            extractNumberPropertyRules(schema, rules);
+            extractEnumPropertyRules(schema, rules);
         }
         
         log.info("Extracted {} validation rules from schema", rules.size());

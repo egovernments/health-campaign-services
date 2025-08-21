@@ -2,7 +2,7 @@ package org.egov.excelingestion.service;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.excelingestion.config.ErrorConstants;
-import org.egov.excelingestion.config.ProcessorConfigurationRegistry;
+import org.egov.excelingestion.config.GeneratorConfigurationRegistry;
 import org.egov.excelingestion.exception.CustomExceptionHandler;
 import org.egov.excelingestion.util.RequestInfoConverter;
 import org.egov.excelingestion.web.models.GenerateResource;
@@ -21,14 +21,14 @@ import java.util.Map;
 @Slf4j
 public class ExcelGenerationService {
 
-    private final ProcessorConfigurationRegistry configRegistry;
+    private final GeneratorConfigurationRegistry configRegistry;
     private final GenerationConfigValidationService validationService;
     private final ConfigBasedGenerationService generationService;
     private final LocalizationService localizationService;
     private final RequestInfoConverter requestInfoConverter;
     private final CustomExceptionHandler exceptionHandler;
 
-    public ExcelGenerationService(ProcessorConfigurationRegistry configRegistry,
+    public ExcelGenerationService(GeneratorConfigurationRegistry configRegistry,
                                 GenerationConfigValidationService validationService,
                                 ConfigBasedGenerationService generationService,
                                 LocalizationService localizationService,

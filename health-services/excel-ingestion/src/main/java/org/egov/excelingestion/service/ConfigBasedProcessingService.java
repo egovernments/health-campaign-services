@@ -5,13 +5,11 @@ import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.egov.excelingestion.config.ErrorConstants;
 import org.egov.excelingestion.config.ProcessorConfigurationRegistry;
+import org.egov.excelingestion.config.ProcessorConfigurationRegistry.ProcessorSheetConfig;
 import org.egov.excelingestion.exception.CustomExceptionHandler;
 import org.egov.excelingestion.web.models.ProcessResource;
-import org.egov.excelingestion.web.models.ProcessorGenerationConfig;
 import org.egov.excelingestion.web.models.RequestInfo;
-import org.egov.excelingestion.web.models.SheetGenerationConfig;
 import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -49,7 +47,7 @@ public class ConfigBasedProcessingService {
         Map<String, Map<String, Object>> schemas = new HashMap<>();
 
         // Step 1: Get processor configuration by type
-        ProcessorGenerationConfig config = getConfigByType(resource.getType());
+        java.util.List<ProcessorSheetConfig> config = getConfigByType(resource.getType());
 
         // Step 2: Check if all required sheets are present in the workbook
         checkRequiredSheetsPresent(workbook, config, localizationMap);
@@ -109,7 +107,7 @@ public class ConfigBasedProcessingService {
     /**
      * Get processor configuration by type with validation
      */
-    private ProcessorGenerationConfig getConfigByType(String processorType) {
+    private java.util.List<ProcessorConfigurationRegistry.ProcessorSheetConfig> getConfigByType(String processorType) {
         if (!configRegistry.isProcessorTypeSupported(processorType)) {
             log.error("Processor type '{}' is not supported. Supported types: {}", 
                     processorType, String.join(", ", configRegistry.getSupportedProcessorTypes()));
@@ -129,7 +127,7 @@ public class ConfigBasedProcessingService {
     /**
      * Check if all required sheets are present in the workbook
      */
-    private void checkRequiredSheetsPresent(Workbook workbook, ProcessorGenerationConfig config, Map<String, String> localizationMap) {
+    private void checkRequiredSheetsPresent(Workbook workbook, java.util.List<ProcessorConfigurationRegistry.ProcessorSheetConfig> config, Map<String, String> localizationMap) {
         // Get all non-hidden sheet names from workbook
         Set<String> workbookSheets = new HashSet<>();
         for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
@@ -139,19 +137,17 @@ public class ConfigBasedProcessingService {
             }
         }
         
-        // Check for all configured visible sheets
-        for (SheetGenerationConfig sheetConfig : config.getSheets()) {
-            if (sheetConfig.isVisible()) {
-                String localizedName = getLocalizedSheetName(sheetConfig.getSheetNameKey(), localizationMap);
-                if (!workbookSheets.contains(localizedName)) {
-                    Set<String> expectedSheets = getConfiguredSheetNames(config, localizationMap);
-                    
-                    exceptionHandler.throwCustomException(ErrorConstants.REQUIRED_SHEET_MISSING,
-                            ErrorConstants.REQUIRED_SHEET_MISSING_MESSAGE
-                                    .replace("{0}", localizedName)
-                                    .replace("{1}", expectedSheets.toString()),
-                            new RuntimeException("Required sheet '" + localizedName + "' missing"));
-                }
+        // Check for all configured sheets
+        for (ProcessorConfigurationRegistry.ProcessorSheetConfig sheetConfig : config) {
+            String localizedName = getLocalizedSheetName(sheetConfig.getSheetNameKey(), localizationMap);
+            if (!workbookSheets.contains(localizedName)) {
+                Set<String> expectedSheets = getConfiguredSheetNames(config, localizationMap);
+                
+                exceptionHandler.throwCustomException(ErrorConstants.REQUIRED_SHEET_MISSING,
+                        ErrorConstants.REQUIRED_SHEET_MISSING_MESSAGE
+                                .replace("{0}", localizedName)
+                                .replace("{1}", expectedSheets.toString()),
+                        new RuntimeException("Required sheet '" + localizedName + "' missing"));
             }
         }
     }
@@ -159,8 +155,8 @@ public class ConfigBasedProcessingService {
     /**
      * Get schema name for a sheet from configuration
      */
-    private String getSchemaNameForSheet(String actualSheetName, ProcessorGenerationConfig config, Map<String, String> localizationMap) {
-        for (SheetGenerationConfig sheetConfig : config.getSheets()) {
+    private String getSchemaNameForSheet(String actualSheetName, java.util.List<ProcessorConfigurationRegistry.ProcessorSheetConfig> config, Map<String, String> localizationMap) {
+        for (ProcessorConfigurationRegistry.ProcessorSheetConfig sheetConfig : config) {
             String localizedName = getLocalizedSheetName(sheetConfig.getSheetNameKey(), localizationMap);
             if (localizedName.equals(actualSheetName)) {
                 return sheetConfig.getSchemaName();
@@ -172,8 +168,8 @@ public class ConfigBasedProcessingService {
     /**
      * Check if a sheet is configured
      */
-    private boolean isSheetConfigured(String actualSheetName, ProcessorGenerationConfig config, Map<String, String> localizationMap) {
-        for (SheetGenerationConfig sheetConfig : config.getSheets()) {
+    private boolean isSheetConfigured(String actualSheetName, java.util.List<ProcessorConfigurationRegistry.ProcessorSheetConfig> config, Map<String, String> localizationMap) {
+        for (ProcessorConfigurationRegistry.ProcessorSheetConfig sheetConfig : config) {
             String localizedName = getLocalizedSheetName(sheetConfig.getSheetNameKey(), localizationMap);
             if (localizedName.equals(actualSheetName)) {
                 return true;
@@ -185,13 +181,11 @@ public class ConfigBasedProcessingService {
     /**
      * Get all configured sheet names
      */
-    private Set<String> getConfiguredSheetNames(ProcessorGenerationConfig config, Map<String, String> localizationMap) {
+    private Set<String> getConfiguredSheetNames(java.util.List<ProcessorConfigurationRegistry.ProcessorSheetConfig> config, Map<String, String> localizationMap) {
         Set<String> sheetNames = new HashSet<>();
-        for (SheetGenerationConfig sheetConfig : config.getSheets()) {
-            if (sheetConfig.isVisible()) {
-                String localizedName = getLocalizedSheetName(sheetConfig.getSheetNameKey(), localizationMap);
-                sheetNames.add(localizedName);
-            }
+        for (ProcessorConfigurationRegistry.ProcessorSheetConfig sheetConfig : config) {
+            String localizedName = getLocalizedSheetName(sheetConfig.getSheetNameKey(), localizationMap);
+            sheetNames.add(localizedName);
         }
         return sheetNames;
     }
