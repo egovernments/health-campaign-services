@@ -1,55 +1,111 @@
-import { ConsumerGroup, ConsumerGroupOptions, Message } from 'kafka-node';
+import { Kafka, logLevel, EachMessagePayload } from 'kafkajs';
 import config from '../config';
 import { getFormattedStringForDebug, logger } from '../utils/logger';
 import { shutdownGracefully } from '../utils/genericUtils';
-import { handleCampaignMapping } from '../utils/campaignMappingUtils';
+import { handleCampaignMapping, handleMappingTaskForCampaign } from '../utils/campaignMappingUtils';
+import { handleTaskForCampaign } from '../utils/taskUtils';
 
-// Kafka Configuration
-const kafkaConfig: ConsumerGroupOptions = {
-    kafkaHost: config?.host?.KAFKA_BROKER_HOST,
-    groupId: 'project-factory',
-    autoCommit: true,
-    autoCommitIntervalMs: 5000,
-    fromOffset: 'latest',
-};
 
-// Topic Names
+const kafka = new Kafka({
+    clientId: 'project-factory-consumer',
+    brokers: [config?.host?.KAFKA_BROKER_HOST],
+    logLevel: logLevel.NOTHING,
+});
+
+const groupId = 'project-factory';
+
+
 const topicNames = [
     config.kafka.KAFKA_START_CAMPAIGN_MAPPING_TOPIC,
+    config.kafka.KAFKA_START_ADMIN_CONSOLE_TASK_TOPIC,
+    config.kafka.KAFKA_START_ADMIN_CONSOLE_MAPPING_TASK_TOPIC,
     config.kafka.KAFKA_TEST_TOPIC
 ];
 
-// Consumer Group Initialization
-const consumerGroup = new ConsumerGroup(kafkaConfig, topicNames);
 
-// Kafka Listener
-export function listener() {
-    consumerGroup.on('message', async (message: Message) => {
-        try {
-            const messageObject = JSON.parse(message.value?.toString() || '{}');
+const consumer = kafka.consumer({ groupId });
 
-            switch (message.topic) {
-                case config.kafka.KAFKA_START_CAMPAIGN_MAPPING_TOPIC:
-                    await handleCampaignMapping(messageObject);
-                    break;
-                default:
-                    logger.warn(`Unhandled topic: ${message.topic}`);
-            }
+// Add a simple semaphore for concurrency control
+const MAX_CONCURRENT = 10;
+let currentConcurrent = 0;
+const queue: (() => void)[] = [];
 
-            logger.info(`KAFKA :: LISTENER :: Received a message from topic ${message.topic}`);
-            logger.debug(`KAFKA :: LISTENER :: Message: ${getFormattedStringForDebug(messageObject)}`);
-        } catch (error) {
-            logger.error(`KAFKA :: LISTENER :: Error processing message: ${error}`);
-            console.error(error);
+function acquireSemaphore() {
+    return new Promise<void>((resolve) => {
+        if (currentConcurrent < MAX_CONCURRENT) {
+            currentConcurrent++;
+            resolve();
+        } else {
+            queue.push(resolve);
+            logger.warn(`Kafka listener concurrency limit reached (${MAX_CONCURRENT}). Message will wait.`);
         }
     });
+}
 
-    consumerGroup.on('error', (err) => {
+function releaseSemaphore() {
+    currentConcurrent--;
+    if (queue.length > 0) {
+        const next = queue.shift();
+        if (next) next();
+    }
+}
+
+
+export async function listener() {
+    try {
+        await consumer.connect();
+        for (const topic of topicNames) {
+            await consumer.subscribe({ topic, fromBeginning: false });
+        }
+
+        await consumer.run({
+            eachMessage: async (payload: EachMessagePayload) => {
+                const { topic, message } = payload;
+                await acquireSemaphore();
+                processMessageKJS(topic, message)
+                    .finally(() => {
+                        releaseSemaphore();
+                    });
+            },
+        });
+
+        consumer.on(consumer.events.CRASH, async (event) => {
+            logger.error(`Consumer crashed: ${event.payload.error}`);
+            shutdownGracefully();
+        });
+        consumer.on(consumer.events.DISCONNECT, () => {
+            logger.error('Consumer disconnected');
+            shutdownGracefully();
+        });
+    } catch (err) {
         logger.error(`Consumer Error: ${err}`);
         shutdownGracefully();
-    });
+    }
+}
 
-    consumerGroup.on('offsetOutOfRange', (err) => {
-        logger.error(`Offset out of range error: ${err}`);
-    });
+
+async function processMessageKJS(topic: string, message: { value: Buffer | null }) {
+    try {
+        const messageObject = JSON.parse(message.value?.toString() || '{}');
+
+        switch (topic) {
+            case config.kafka.KAFKA_START_CAMPAIGN_MAPPING_TOPIC:
+                await handleCampaignMapping(messageObject);
+                break;
+            case config.kafka.KAFKA_START_ADMIN_CONSOLE_TASK_TOPIC:
+                await handleTaskForCampaign(messageObject);
+                break;
+            case config.kafka.KAFKA_START_ADMIN_CONSOLE_MAPPING_TASK_TOPIC:
+                await handleMappingTaskForCampaign(messageObject);
+                break;
+            default:
+                logger.warn(`Unhandled topic: ${topic}`);
+        }
+
+        logger.info(`KAFKA :: LISTENER :: Received a message from topic ${topic}`);
+        logger.debug(`KAFKA :: LISTENER :: Message: ${getFormattedStringForDebug(messageObject)}`);
+    } catch (error) {
+        logger.error(`KAFKA :: LISTENER :: Error processing message: ${error}`);
+        console.error(error);
+    }
 }

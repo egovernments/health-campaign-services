@@ -30,3 +30,12 @@ All notable changes to this module will be documented in this file.
   3. Introduced the template validation based on meta data like locale & camapign id
   4. Target to dashboard mapping was introduced for additional configurations
   5. Boundary Bulk creation patch by trimming the boundary names if it exceeds the max limit
+
+
+## 0.4.0 - 2025-07-14
+#### ProjectFactory service version 0.4.0
+  1. V2 data process flow completed for data creation and validation
+  2. V2 template generation implemented
+  3. Data processing and generation logic modularized and loosely coupled
+  4. App config and localization creation handled from backend
+  5. Retry functionality integrated from backend

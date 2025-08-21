@@ -18,6 +18,7 @@ import org.egov.common.validator.Validator;
 import org.egov.individual.config.IndividualProperties;
 import org.egov.tracer.model.CustomException;
 import org.springframework.core.annotation.Order;
+import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 
@@ -38,7 +39,7 @@ import static org.egov.individual.validators.IdPoolValidatorForCreate.validateDu
 @Order(value = 12) // Determines execution order among multiple validators
 public class IdPoolValidatorForUpdate implements Validator<IndividualBulkRequest, Individual> {
 
-    private final BeneficiaryIdGenService beneficiaryIdGenService;
+    private final @Nullable BeneficiaryIdGenService beneficiaryIdGenService;
     private final IndividualProperties individualProperties;
 
     /**
@@ -139,6 +140,10 @@ public class IdPoolValidatorForUpdate implements Validator<IndividualBulkRequest
     }
 
     public static boolean isValidMaskedId(String beneficiaryId, Integer length) {
+        // Check minimum length first
+        if (beneficiaryId == null || beneficiaryId.length() < 4) {
+            return false;
+        }
         // get the last 4 digits
         String last4Digits = beneficiaryId
                 .substring(beneficiaryId.length() - 4);

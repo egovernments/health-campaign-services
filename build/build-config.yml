@@ -214,7 +214,6 @@ config:
     build:
       - work-dir: "health-services/libraries/health-services-models"
         image-name: "health-services-models"
-
   - name: "builds/health-campaign-services/core-services/pgr-services"
     build:
       - work-dir: "core-services/pgr-services"
@@ -297,7 +296,7 @@ config:
     build:
       - work-dir: "health-services/resource-generator"
         image-name: "resource-generator"
-        dockerfile: "build/maven-java17/Dockerfile"     
+        dockerfile: "build/maven-java17/Dockerfile"
   - name: "builds/health-campaign-services/analytics/auth-proxy"
     build:
       - work-dir: "analytics/auth-proxy"
@@ -342,3 +341,5 @@ config:
         dockerfile: "health-services/project-factory/Dockerfile"
       - work-dir: "health-services/project-factory/migration"
         image-name: "project-factory-db"
+        dockerfile: "health-services/project-factory/migration/Dockerfile"
+

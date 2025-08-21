@@ -1,11 +1,10 @@
 import express from "express";
-import { processBasedOnAction, processFetchMicroPlan, searchProjectCampaignResourcData, updateCampaignAfterSearch } from "../utils/campaignUtils";
+import { prepareAndProduceCancelMessage, processBasedOnAction, processFetchMicroPlan, searchProjectCampaignResourcData, updateCampaignAfterSearch, validateAndFetchCampaign } from "../utils/campaignUtils";
 import { logger } from "../utils/logger";
-import { validateMicroplanRequest, validateProjectCampaignRequest, validateSearchProcessTracksRequest } from "../validators/campaignValidators";
+import { validateMicroplanRequest, validateProjectCampaignRequest } from "../validators/campaignValidators";
 import { validateCampaignRequest } from "../validators/genericValidator";
 import { createRelatedResouce } from "../api/genericApis";
 import { enrichCampaign } from "../api/campaignApis";
-import { getProcessDetails, modifyProcessDetails } from "../utils/processTrackUtils";
 
 async function createProjectTypeCampaignService(request: express.Request) {
     // Validate the request for creating a project type campaign
@@ -28,13 +27,13 @@ async function updateProjectTypeCampaignService(request: express.Request) {
     return request?.body?.CampaignDetails;
 }
 
-async function searchProjectTypeCampaignService(campaignDetails: any
+async function searchProjectTypeCampaignService(campaignDetails: any , request? :any
 ) {
     // await validateSearchProjectCampaignRequest(request);
     logger.info("VALIDATED THE PROJECT TYPE SEARCH REQUEST");
 
     // Search for project campaign resource data
-    const { responseData, totalCount } = await searchProjectCampaignResourcData(campaignDetails);
+    const { responseData, totalCount } = await searchProjectCampaignResourcData(campaignDetails , request);
     const responseBody: any = { CampaignDetails: responseData, totalCount: totalCount }
     return responseBody;
 };
@@ -53,30 +52,6 @@ async function createCampaignService(
     return requestBody?.Campaign
 };
 
-async function searchProcessTracksService(
-    request: express.Request
-) {
-    await validateSearchProcessTracksRequest(request)
-    logger.info("VALIDATED THE PROCESS SEARCH REQUEST");
-
-    // Search and return related process tracks
-    const processDetailsArray = await getProcessDetails(request?.query?.campaignId as string)
-
-    // sort and modify process details so that details with status as toBeCompleted comes in last
-    const resultArray = modifyProcessDetails(processDetailsArray)
-
-    return resultArray
-};
-
-async function retryProjectTypeCampaignService(request: express.Request) {
-    logger.info("RETRYING THE PROJECT TYPE CAMPAIGN");
-    await validateProjectCampaignRequest(request, "retry");
-    logger.info("VALIDATED THE PROJECT TYPE RETRY REQUEST");
-    request.body.CampaignDetails.action = "draft";
-    await processBasedOnAction(request, "update");
-    return request?.body?.CampaignDetails;
-}
-
 async function fetchFromMicroplanService(request: express.Request) {
     logger.info("FETCHING DATA FROM MICROPLAN");
     await validateMicroplanRequest(request);
@@ -87,13 +62,18 @@ async function fetchFromMicroplanService(request: express.Request) {
     return request.body.CampaignDetails;
 }
 
+async function cancelCampaignService(request: any) {
+    const campaignToCancel = await validateAndFetchCampaign(request);
+    const cancelledCampaign = await prepareAndProduceCancelMessage(campaignToCancel, request?.body?.RequestInfo, request);
+    return cancelledCampaign;
+}
+
 
 export {
     createProjectTypeCampaignService,
     updateProjectTypeCampaignService,
     searchProjectTypeCampaignService,
     createCampaignService,
-    searchProcessTracksService,
-    retryProjectTypeCampaignService,
-    fetchFromMicroplanService
+    fetchFromMicroplanService,
+    cancelCampaignService
 }

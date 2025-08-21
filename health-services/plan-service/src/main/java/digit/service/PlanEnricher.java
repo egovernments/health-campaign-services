@@ -1,5 +1,6 @@
 package digit.service;
 
+import digit.util.CommonUtil;
 import digit.web.models.*;
 import digit.web.models.boundary.BoundaryTypeHierarchy;
 import digit.web.models.boundary.BoundaryTypeHierarchyDefinition;
@@ -18,24 +19,27 @@ import static digit.config.ServiceConstants.*;
 @Component
 public class PlanEnricher {
 
+    private CommonUtil commonUtil;
+
+    public PlanEnricher(CommonUtil commonUtil) {
+        this.commonUtil = commonUtil;
+    }
+
     /**
      * Enriches the plan create request
      * @param body
      */
     public void enrichPlanCreate(PlanRequest body) {
-    	 if (body.getPlan() == null) {
-             throw new IllegalArgumentException("Plan details are missing in the request.");
-         }
         // Generate id for plan
-        UUIDEnrichmentUtil.enrichRandomUuid(body.getPlan(), "id");
+        UUIDEnrichmentUtil.enrichRandomUuid(body.getPlan(), ID);
 
         // Generate id for activities
-        body.getPlan().getActivities().forEach(activity -> UUIDEnrichmentUtil.enrichRandomUuid(activity, "id"));
+        body.getPlan().getActivities().forEach(activity -> UUIDEnrichmentUtil.enrichRandomUuid(activity, ID));
 
         // Generate id for activity conditions
         body.getPlan().getActivities().forEach(activity -> {
             if(!CollectionUtils.isEmpty(activity.getConditions())) {
-                UUIDEnrichmentUtil.enrichRandomUuid(activity.getConditions(), "id");
+                UUIDEnrichmentUtil.enrichRandomUuid(activity.getConditions(), ID);
             }
         });
 
@@ -49,14 +53,14 @@ public class PlanEnricher {
         });
 
         // Generate id for resources
-        body.getPlan().getResources().forEach(resource -> UUIDEnrichmentUtil.enrichRandomUuid(resource, "id"));
+        body.getPlan().getResources().forEach(resource -> UUIDEnrichmentUtil.enrichRandomUuid(resource, ID));
 
         // Generate id for targets
-        body.getPlan().getTargets().forEach(target -> UUIDEnrichmentUtil.enrichRandomUuid(target, "id"));
+        body.getPlan().getTargets().forEach(target -> UUIDEnrichmentUtil.enrichRandomUuid(target, ID));
 
         // Generate id for additional fields
         if(!CollectionUtils.isEmpty(body.getPlan().getAdditionalFields()))
-            body.getPlan().getAdditionalFields().forEach(additionalField -> UUIDEnrichmentUtil.enrichRandomUuid(additionalField, "id"));
+            body.getPlan().getAdditionalFields().forEach(additionalField -> UUIDEnrichmentUtil.enrichRandomUuid(additionalField, ID));
 
         // Enrich audit details
         body.getPlan().setAuditDetails(AuditDetailsEnrichmentUtil
@@ -73,7 +77,7 @@ public class PlanEnricher {
         Set<String> newActivityUuids = new HashSet<>();
         body.getPlan().getActivities().forEach(activity -> {
             if(ObjectUtils.isEmpty(activity.getId())) {
-                UUIDEnrichmentUtil.enrichRandomUuid(activity, "id");
+                UUIDEnrichmentUtil.enrichRandomUuid(activity, ID);
                 newActivityUuids.add(activity.getId());
             }
         });
@@ -83,7 +87,7 @@ public class PlanEnricher {
             if(!CollectionUtils.isEmpty(activity.getConditions()) && newActivityUuids.contains(activity.getId())) {
                 activity.getConditions().forEach(condition -> {
                     if(ObjectUtils.isEmpty(condition.getId())) {
-                        UUIDEnrichmentUtil.enrichRandomUuid(condition, "id");
+                        UUIDEnrichmentUtil.enrichRandomUuid(condition, ID);
                     }
                 });
             }
@@ -101,14 +105,14 @@ public class PlanEnricher {
         // Generate uuid for new resources
         body.getPlan().getResources().forEach(resource -> {
             if(ObjectUtils.isEmpty(resource.getId())) {
-                UUIDEnrichmentUtil.enrichRandomUuid(resource, "id");
+                UUIDEnrichmentUtil.enrichRandomUuid(resource, ID);
             }
         });
 
         // Generate uuid for new targets
         body.getPlan().getTargets().forEach(target -> {
             if(ObjectUtils.isEmpty(target.getId())) {
-                UUIDEnrichmentUtil.enrichRandomUuid(target, "id");
+                UUIDEnrichmentUtil.enrichRandomUuid(target, ID);
             }
         });
 
@@ -116,7 +120,7 @@ public class PlanEnricher {
         if(!CollectionUtils.isEmpty(body.getPlan().getAdditionalFields())) {
             body.getPlan().getAdditionalFields().forEach(additionalFields -> {
                 if(ObjectUtils.isEmpty(additionalFields.getId())) {
-                    UUIDEnrichmentUtil.enrichRandomUuid(additionalFields, "id");
+                    UUIDEnrichmentUtil.enrichRandomUuid(additionalFields, ID);
                 }
             });
         }
@@ -132,24 +136,26 @@ public class PlanEnricher {
      * @param tenantBoundary boundary relationship from the boundary service for the given boundary code.
      */
     public void enrichBoundaryAncestralPath(Plan plan, HierarchyRelation tenantBoundary) {
-        EnrichedBoundary boundary = tenantBoundary.getBoundary().get(0);
-        Map<String, String> jurisdictionMapping = new LinkedHashMap<>();
+        if(plan.isRequestFromResourceEstimationConsumer()) {
+            EnrichedBoundary boundary = tenantBoundary.getBoundary().get(0);
+            Map<String, String> jurisdictionMapping = new LinkedHashMap<>();
 
-        StringBuilder boundaryAncestralPath = new StringBuilder(boundary.getCode());
-        jurisdictionMapping.put(boundary.getBoundaryType(), boundary.getCode());
-
-        // Iterate through the child boundary until there are no more
-        while (!CollectionUtils.isEmpty(boundary.getChildren())) {
-            boundary = boundary.getChildren().get(0);
-            boundaryAncestralPath.append("|").append(boundary.getCode());
+            StringBuilder boundaryAncestralPath = new StringBuilder(boundary.getCode());
             jurisdictionMapping.put(boundary.getBoundaryType(), boundary.getCode());
+
+            // Iterate through the child boundary until there are no more
+            while (!CollectionUtils.isEmpty(boundary.getChildren())) {
+                boundary = boundary.getChildren().get(0);
+                boundaryAncestralPath.append(PIPE_SEPARATOR).append(boundary.getCode());
+                jurisdictionMapping.put(boundary.getBoundaryType(), boundary.getCode());
+            }
+
+            // Setting the boundary ancestral path for the provided boundary
+            plan.setBoundaryAncestralPath(boundaryAncestralPath.toString());
+
+            // Setting jurisdiction mapping for the provided boundary
+            plan.setJurisdictionMapping(jurisdictionMapping);
         }
-
-        // Setting the boundary ancestral path for the provided boundary
-        plan.setBoundaryAncestralPath(boundaryAncestralPath.toString());
-
-        // Setting jurisdiction mapping for the provided boundary
-        plan.setJurisdictionMapping(jurisdictionMapping);
     }
 
     /**
@@ -189,7 +195,7 @@ public class PlanEnricher {
         String boundaryHierarchy = highestBoundaryHierarchy;
 
         // Get the list of boundary codes from pipe separated boundaryAncestralPath.
-        List<String> boundaryCode = getBoundaryCodeFromAncestralPath(plan.getBoundaryAncestralPath());
+        List<String> boundaryCode = commonUtil.getBoundaryCodeFromAncestralPath(plan.getBoundaryAncestralPath());
 
         // Creates the mapping of boundary hierarchy with the corresponding boundary code.
         for (String boundary : boundaryCode) {
@@ -218,7 +224,7 @@ public class PlanEnricher {
             String boundaryHierarchy = highestBoundaryHierarchy;
 
             // Get the list of boundary codes from pipe separated boundaryAncestralPath.
-            List<String> boundaryCode = getBoundaryCodeFromAncestralPath(plan.getBoundaryAncestralPath());
+            List<String> boundaryCode = commonUtil.getBoundaryCodeFromAncestralPath(plan.getBoundaryAncestralPath());
 
             // Creates the mapping of boundary hierarchy with the corresponding boundary code.
             for (String boundary : boundaryCode) {
@@ -230,18 +236,6 @@ public class PlanEnricher {
         }
     }
 
-    /**
-     * Converts the boundaryAncestral path from a pipe separated string to an array of boundary codes.
-     *
-     * @param boundaryAncestralPath pipe separated boundaryAncestralPath.
-     * @return a list of boundary codes.
-     */
-    private List<String> getBoundaryCodeFromAncestralPath(String boundaryAncestralPath) {
-        if (ObjectUtils.isEmpty(boundaryAncestralPath)) {
-            return Collections.emptyList();
-        }
-        return Arrays.asList(boundaryAncestralPath.split("\\|"));
-    }
 
     /**
      * Enriches the PlanSearchRequest by populating the filters map from the fields in search criteria.
@@ -256,7 +250,7 @@ public class PlanEnricher {
         Map<String, Set<String>> filtersMap = new LinkedHashMap<>();
 
         // Add facility id as a filter if present in search criteria
-        if (!ObjectUtils.isEmpty(planSearchCriteria.getFacilityIds())) {
+        if (!CollectionUtils.isEmpty(planSearchCriteria.getFacilityIds())) {
             filtersMap.put(FACILITY_ID_SEARCH_PARAMETER_KEY, planSearchCriteria.getFacilityIds());
         }
 

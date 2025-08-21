@@ -1,8 +1,11 @@
-import { getLocalizedMessagesHandler, processGenerate, replicateRequest, throwError } from "./genericUtils";
+import { getLocalizedMessagesHandler, processGenerate, replicateRequest } from "./genericUtils";
 import _ from 'lodash';
-import { getFormattedStringForDebug, logger } from "./logger";
+import { logger } from "./logger";
+import { generateDataService } from "../service/sheetManageService";
+import config from "../config";
+import { getLocaleFromRequestInfo, getLocalisationModuleName } from "./localisationUtils";
 import { getBoundarySheetData } from "../api/genericApis";
-import { getLocalisationModuleName } from "./localisationUtils";
+import { checkIfSourceIsMicroplan } from "./campaignUtils";
 
 // Now you can use Lodash functions with the "_" prefix, e.g., _.isEqual(), _.sortBy(), etc.
 function extractProperties(obj: any) {
@@ -14,12 +17,17 @@ function extractProperties(obj: any) {
 }
 
 function areBoundariesSame(existingBoundaries: any, currentBoundaries: any) {
-    if (!existingBoundaries || !currentBoundaries) return false;
-    if (existingBoundaries.length !== currentBoundaries.length) return false;
-    const existingSetOfBoundaries = new Set(existingBoundaries.map((exboundary: any) => JSON.stringify(extractProperties(exboundary))));
-    const currentSetOfBoundaries = new Set(currentBoundaries.map((currboundary: any) => JSON.stringify(extractProperties(currboundary))));
+    const existing = existingBoundaries ?? [];
+    const current = currentBoundaries ?? [];
+
+    // If both are empty, return true
+    if (existing.length === 0 && current.length === 0) return true;
+    if (existing.length !== current.length) return false;
+    const existingSetOfBoundaries = new Set(existing.map((exboundary: any) => JSON.stringify(extractProperties(exboundary))));
+    const currentSetOfBoundaries = new Set(current.map((currboundary: any) => JSON.stringify(extractProperties(currboundary))));
     return _.isEqual(existingSetOfBoundaries, currentSetOfBoundaries);
 }
+
 function isCampaignTypeSame(request: any) {
     const existingCampaignType = request?.body?.ExistingCampaignDetails?.projectType;
     const currentCampaignType = request?.body?.CampaignDetails?.projectType;
@@ -28,46 +36,42 @@ function isCampaignTypeSame(request: any) {
 
 async function callGenerateIfBoundariesOrCampaignTypeDiffer(request: any) {
     try {
-        const ExistingCampaignDetails = request?.body?.ExistingCampaignDetails;
-        const boundaries = request?.body?.boundariesCombined
-        if (ExistingCampaignDetails) {
-            if (!areBoundariesSame(ExistingCampaignDetails?.boundaries, boundaries) || isSourceDifferent(request) || !isCampaignTypeSame(request)) {
-                logger.info("Boundaries or Campaign Type  differ, generating new resources");
-                // Apply 2-second timeout after the condition check
-                await new Promise(resolve => setTimeout(resolve, 2000));
+        // Apply 2-second timeout after the condition check
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        const campaignDetails = request?.body?.CampaignDetails;
+        const tenantId = campaignDetails?.tenantId;
+        const campaignId = campaignDetails?.id;
+        const hierarchyType = campaignDetails?.hierarchyType;
+        const useruuid = request?.body?.RequestInfo?.userInfo?.uuid || campaignDetails?.auditDetails?.createdBy;
+        const locale = getLocaleFromRequestInfo(request?.body?.RequestInfo);
 
-                const newRequestBody = {
-                    RequestInfo: request?.body?.RequestInfo,
-                    Filters: {
-                        boundaries: boundaries
+        const isMicroplan = checkIfSourceIsMicroplan(campaignDetails);
+
+        if (isMicroplan) {
+            // For microplan, trigger all three types
+            const types = ["boundary", "facilityWithBoundary"];
+            for (const t of types) {
+                const newRequestToGenerate = {
+                    ...request,
+                    query: {
+                        ...request.query,
+                        type: t,
+                        tenantId,
+                        hierarchyType,
+                        campaignId,
+                        forceUpdate: 'true'
                     }
                 };
-
-                const { query } = request;
-                const params = {
-                    tenantId: request?.body?.CampaignDetails?.tenantId,
-                    forceUpdate: 'true',
-                    hierarchyType: request?.body?.CampaignDetails?.hierarchyType,
-                    campaignId: request?.body?.CampaignDetails?.id
-                };
-                logger.info(`generating new resources for the campaignId: ${request?.body?.CampaignDetails?.id}`);
-                logger.debug(`boundaries of the generate request : ${getFormattedStringForDebug(boundaries)}`)
-                const newParamsBoundary = { ...query, ...params, type: "boundary" };
-                const newRequestBoundary = replicateRequest(request, newRequestBody, newParamsBoundary);
-                await callGenerate(newRequestBoundary, "boundary");
-
-                const newParamsFacilityWithBoundary = { ...query, ...params, type: "facilityWithBoundary" };
-                const newRequestFacilityWithBoundary = replicateRequest(request, newRequestBody, newParamsFacilityWithBoundary);
-                await callGenerate(newRequestFacilityWithBoundary, "facilityWithBoundary");
-
-                const newParamsUserWithBoundary = { ...query, ...params, type: "userWithBoundary" };
-                const newRequestUserWithBoundary = replicateRequest(request, newRequestBody, newParamsUserWithBoundary);
-                await callGenerate(newRequestUserWithBoundary, "userWithBoundary");
+                await callGenerate(newRequestToGenerate, t);
             }
+        } else {
+            triggerGenerate("boundary", tenantId, hierarchyType, campaignId, useruuid, locale);
+            triggerGenerate("user", tenantId, hierarchyType, campaignId, useruuid, locale);
+            triggerGenerate("facility", tenantId, hierarchyType, campaignId, useruuid, locale);
         }
     } catch (error: any) {
         logger.error(error);
-        throwError("COMMON", 400, "GENERATE_ERROR", `Error while generating user/facility/boundary: ${error.message}`);
+        // throwError("COMMON", 400, "GENERATE_ERROR", `Error while generating user/facility/boundary: ${error.message}`);
     }
 }
 
@@ -75,13 +79,13 @@ function isSourceDifferent(request: any){
     const ExistingCampaignDetails = request?.body?.ExistingCampaignDetails;
     const CampaignDetails = request?.body?.CampaignDetails;
 
-    if(CampaignDetails.additionalDetails.source !== ExistingCampaignDetails.additionalDetails.source){
+    if(CampaignDetails?.additionalDetails?.source !== ExistingCampaignDetails?.additionalDetails?.source){
         return true;
     }
     return false;
 }
 
-async function callGenerate(request: any, type: any, enableCaching = false) {
+export async function callGenerate(request: any, type: any, enableCaching = false) {
     logger.info(`calling generate api for type ${type}`);
     if (type === "facilityWithBoundary" || type == "userWithBoundary") {
         const { hierarchyType } = request.query;
@@ -99,6 +103,55 @@ async function callGenerate(request: any, type: any, enableCaching = false) {
     }
 }
 
+export async function triggerGenerate(type: string, tenantId: string, hierarchyType: string, campaignId: string, userUuid: string, locale: string = config.localisation.defaultLocale) {
+
+    logger.info(`Calling generate API for type ${type}`);
+
+    const generateRequestQuery = {
+        type,
+        tenantId,
+        hierarchyType,
+        campaignId
+    };
+
+    try {
+        await generateDataService(generateRequestQuery, userUuid, locale);
+    } catch (error: any) {
+        logger.error(`Error in triggerGenerate for type ${type}: ${error?.message}`, error);
+    }
+}
 
 
-export { callGenerateIfBoundariesOrCampaignTypeDiffer, callGenerate, areBoundariesSame }
+
+const buildGenerateRequest = (request: any) => {
+    const newRequestBody = {
+        RequestInfo: request?.body?.RequestInfo
+    };
+
+    const params = {
+        type: request?.query?.type,
+        tenantId: request?.query?.tenantId,
+        forceUpdate: 'true',
+        hierarchyType: request?.query?.hierarchyType,
+        campaignId: request?.query?.campaignId
+    };
+
+    return replicateRequest(request, newRequestBody, params);
+};
+
+export const isGenerationTriggerNeeded = (request: any) => {
+    const ExistingCampaignDetails = request?.body?.ExistingCampaignDetails;
+    const boundaries = request?.body?.CampaignDetails?.boundaries;
+    const newBoundaries = boundaries?.filter((boundary: any) => !boundary.insertedAfter) || [];
+
+
+    if (!areBoundariesSame(ExistingCampaignDetails?.boundaries, newBoundaries) || isSourceDifferent(request) || !isCampaignTypeSame(request)) {
+        logger.info("Boundaries or Campaign Type  differ, generating new resources");
+        return { trigger: true, newBoundaries };
+    }
+    return { trigger: false };
+}
+
+
+
+export { callGenerateIfBoundariesOrCampaignTypeDiffer, areBoundariesSame, buildGenerateRequest }

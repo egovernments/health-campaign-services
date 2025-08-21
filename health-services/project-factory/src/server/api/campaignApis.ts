@@ -13,11 +13,12 @@ import {
 import {
   immediateValidationForTargetSheet,
   validateEmptyActive,
+  validateMultiSelect,
   validateSheetData,
   validateTargetSheetData,
   validateViaSchemaSheetWise,
 } from "../validators/campaignValidators";
-import { callMdmsTypeSchema, getCampaignNumber } from "./genericApis";
+import { getCampaignNumber } from "./genericApis";
 import {
   boundaryBulkUpload,
   convertToTypeData,
@@ -31,6 +32,8 @@ import {
   createUniqueUserNameViaIdGen,
   boundaryGeometryManagement,
   getBoundaryCodeAndBoundaryTypeMapping,
+  getSchema,
+  validateUsernamesFormat,
 } from "../utils/campaignUtils";
 const _ = require("lodash");
 import { produceModifiedMessages } from "../kafka/Producer";
@@ -38,11 +41,8 @@ import { createDataService } from "../service/dataManageService";
 import { searchProjectTypeCampaignService } from "../service/campaignManageService";
 import { getExcelWorkbookFromFileURL } from "../utils/excelUtils";
 import {
-  processTrackStatuses,
-  processTrackTypes,
   resourceDataStatuses,
 } from "../config/constants";
-import { persistTrack } from "../utils/processTrackUtils";
 import { checkAndGiveIfParentCampaignAvailable } from "../utils/onGoingCampaignUpdateUtils";
 import { validateMicroplanFacility } from "../validators/microplanValidators";
 import {
@@ -51,7 +51,7 @@ import {
 } from "../utils/microplanUtils";
 import { getTransformedLocale } from "../utils/localisationUtils";
 import { BoundaryModels } from "../models";
-import { searchBoundaryRelationshipData, searchBoundaryRelationshipDefinition } from "./coreApis";
+import { defaultRequestInfo, searchBoundaryRelationshipData, searchBoundaryRelationshipDefinition } from "./coreApis";
 
 /**
  * Enriches the campaign data with unique IDs and generates campaign numbers.
@@ -101,10 +101,10 @@ async function getAllFacilitiesInLoop(
  * @param requestBody The request body containing additional parameters.
  * @returns An array of facilities.
  */
-async function getAllFacilities(tenantId: string, requestBody: any) {
+async function getAllFacilities(tenantId: string) {
   // Retrieve all facilities for the given tenant ID
   const facilitySearchBody = {
-    RequestInfo: requestBody?.RequestInfo,
+    RequestInfo: defaultRequestInfo,
     Facility: { isPermanent: true },
   };
 
@@ -114,19 +114,26 @@ async function getAllFacilities(tenantId: string, requestBody: any) {
     tenantId: tenantId?.split(".")?.[0],
   };
 
-  const searchedFacilities: any[] = [];
+  const facilityMap: Map<string, any> = new Map();
   let searchAgain = true;
 
   while (searchAgain) {
+    const batch: any[] = [];
     searchAgain = await getAllFacilitiesInLoop(
-      searchedFacilities,
+      batch,
       facilitySearchParams,
       facilitySearchBody
     );
+    for (const facility of batch) {
+      const name = facility?.name?.trim();
+      if (!name) continue;
+      // Overwrite previous if same name found
+      facilityMap.set(name, facility);
+    }
     facilitySearchParams.offset += 50;
   }
 
-  return searchedFacilities;
+  return Array.from(facilityMap.values());
 }
 
 /**
@@ -223,21 +230,6 @@ function changeBodyViaElements(elements: any, requestBody: any) {
     }
   }
 }
-
-// function changeBodyViaSearchFromSheet(elements: any, request: any, dataFromSheet: any) {
-//   if (!elements) {
-//     return;
-//   }
-//   for (const element of elements) {
-//     const arrayToSearch = []
-//     for (const data of dataFromSheet) {
-//       if (data[element.sheetColumnName]) {
-//         arrayToSearch.push(data[element.sheetColumnName]);
-//       }
-//     }
-//     _.set(request.body, element?.searchPath, arrayToSearch);
-//   }
-// }
 
 function updateErrorsForUser(
   request: any,
@@ -378,7 +370,7 @@ async function getUuidsError(
   }
 }
 
-const createBatchRequest = async (
+const searchBatchRequest = async (
   request: any,
   batch: any[],
   mobileNumberRowNumberMapping: any
@@ -441,7 +433,7 @@ async function getUserWithMobileNumbers(
   for (let i = 0; i < mobileNumbers.length; i += BATCH_SIZE) {
     const batch = mobileNumbers.slice(i, i + BATCH_SIZE);
     batchPromises.push(
-      createBatchRequest(request, batch, mobileNumberRowNumberMapping)
+      searchBatchRequest(request, batch, mobileNumberRowNumberMapping)
     );
   }
 
@@ -459,7 +451,8 @@ async function getUserWithMobileNumbers(
 }
 
 async function matchUserValidation(createdData: any[], request: any) {
-  var count = 0;
+  var mobileNumbercount = 0;
+  var userNameCount = 0;
   const errors = [];
   const mobileNumbers = createdData
     .filter((item) => item?.user?.mobileNumber)
@@ -468,6 +461,42 @@ async function matchUserValidation(createdData: any[], request: any) {
     acc[curr.user.mobileNumber] = curr["!row#number!"];
     return acc;
   }, {});
+  // const userNames = createdData
+  // .filter((item) => item?.user?.code)
+  // .map((item) => item?.user?.code);
+
+  const userNameRowNumberMapping = createdData.reduce((acc, curr) => {
+    if (curr?.user?.userName) {
+      acc[curr.user.userName] = curr["!row#number!"];
+    }
+    return acc;
+  }, {});
+  const userNameResponses = await getEmployeesBasedOnUserName(createdData, request);
+
+  for (const key in userNameRowNumberMapping) {
+    if (
+      userNameResponses.has(key)
+    ) {
+      if (Array.isArray(userNameRowNumberMapping[key])) {
+        for (const row of userNameRowNumberMapping[key]) {
+          errors.push({
+            status: "INVALID",
+            rowNumber: row.row,
+            sheetName: row.sheetName,
+            errorDetails: `User with user name ${key} already exists`,
+          });
+        }
+      } else {
+        errors.push({
+          status: "INVALID",
+          rowNumber: userNameRowNumberMapping[key],
+          errorDetails: `User with user name ${key} already exists`,
+        });
+      }
+      userNameCount++;
+    }
+  }
+
   logger.debug(
     "mobileNumberRowNumberMapping : " +
     getFormattedStringForDebug(mobileNumberRowNumberMapping)
@@ -498,13 +527,13 @@ async function matchUserValidation(createdData: any[], request: any) {
           errorDetails: `User with contact number ${key} already exists`,
         });
       }
-      count++;
+      mobileNumbercount++;
     }
   }
-  if (count) {
+  if (mobileNumbercount || userNameCount) {
     request.body.ResourceDetails.status = "invalid";
   }
-  logger.info("Invalid resources count : " + count);
+  logger.info("Invalid resources count : " + mobileNumbercount + userNameCount);
   request.body.sheetErrorDetails = request?.body?.sheetErrorDetails
     ? [...request?.body?.sheetErrorDetails, ...errors]
     : errors;
@@ -667,13 +696,6 @@ function updateOffset(
 }
 
 async function processSearchAndValidation(request: any) {
-  // if (request?.body?.dataToSearch?.length > 0) {
-  //   const params: any = getParamsViaElements(createAndSearchConfig?.searchDetails?.searchElements, request);
-  //   changeBodyViaElements(createAndSearchConfig?.searchDetails?.searchElements, request)
-  //   changeBodyViaSearchFromSheet(createAndSearchConfig?.requiresToSearchFromSheet, request, dataFromSheet)
-  //   const arraysToMatch = await processSearch(createAndSearchConfig, request, params)
-  //   matchData(request, request.body.dataToSearch, arraysToMatch, createAndSearchConfig)
-  // }
   if (request?.body?.ResourceDetails?.type == "user") {
     await enrichEmployees(request?.body?.dataToCreate, request);
     await matchUserValidation(request.body.dataToCreate, request);
@@ -734,6 +756,61 @@ async function getEmployeesBasedOnUuids(dataToCreate: any[], request: any) {
   return employeesSearched;
 }
 
+async function getEmployeesBasedOnUserName(dataToCreate: any[], request: any) {
+  const searchBody = {
+    RequestInfo: request?.body?.RequestInfo,
+  };
+
+  // const tenantId = request?.body?.ResourceDetails?.tenantId;
+  const searchUrl = config.host.hrmsHost + config.paths.hrmsEmployeeSearch;
+  logger.info(`Waiting for 10 seconds`);
+  // await new Promise((resolve) => setTimeout(resolve, 10000));
+  const chunkSize = 50;
+  let foundUsernames = new Set<string>(); // ✅ Initialize resultSet properly
+
+  for (let i = 0; i < dataToCreate.length; i += chunkSize) {
+    const chunk = dataToCreate.slice(i, i + chunkSize);
+    const userNames = chunk.map((data: any) => data?.code).filter(Boolean); // ✅ Now an array, not a string
+
+
+    const params = {
+      tenantId: 'mz',
+      limit: 51,
+      offset: 0,
+      codes: userNames.join(","), // ✅ Convert array to comma-separated string
+    };
+
+    try {
+      const response = await httpRequest(
+        searchUrl,
+        searchBody,
+        params,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        true
+      );
+      if (response?.Employees?.length) {
+        response.Employees.forEach((emp: any) => {
+          if (emp?.code) foundUsernames.add(emp.code); // ✅ Add only valid codes
+        });
+      }
+    } catch (error: any) {
+      console.log(error);
+      throwError(
+        "COMMON",
+        500,
+        "INTERNAL_SERVER_ERROR",
+        error.message ||
+        "Some internal error occurred while searching employees"
+      );
+    }
+  }
+
+  return foundUsernames;
+}
+
 // Confirms the creation of resources by matching created and searched data.
 async function confirmCreation(
   createAndSearchConfig: any,
@@ -778,10 +855,20 @@ async function processValidateAfterSchema(
   dataFromSheet: any,
   request: any,
   createAndSearchConfig: any,
+  properties: any,
   localizationMap?: { [key: string]: string }
 ) {
   try {
     validateEmptyActive(dataFromSheet, request?.body?.ResourceDetails?.type, localizationMap);
+    const errorsRelatedToUserName :any = validateUsernamesFormat(dataFromSheet,localizationMap)
+    const errorsRelatedToMultiSelect:any = validateMultiSelect(dataFromSheet, properties, localizationMap);
+    const allErrors = [...errorsRelatedToUserName, ...errorsRelatedToMultiSelect];
+    request.body.sheetErrorDetails = request?.body?.sheetErrorDetails
+      ? [...request?.body?.sheetErrorDetails, ...allErrors]
+      : allErrors;
+    if(request?.body?.sheetErrorDetails?.length){
+      request.body.ResourceDetails.status = resourceDataStatuses.invalid
+    }
     if (
       request?.body?.ResourceDetails?.additionalDetails?.source ==
       "microplan" &&
@@ -890,7 +977,6 @@ async function processValidate(
   localizationMap?: { [key: string]: string }
 ) {
   const type: string = request.body.ResourceDetails.type;
-  const tenantId = request.body.ResourceDetails.tenantId;
   const createAndSearchConfig = createAndSearch[type];
   const dataFromSheet: any = await getDataFromSheet(
     request,
@@ -913,7 +999,7 @@ async function processValidate(
       ...localizationMap,
       ...localizationMapForHierarchy,
     };
-    let differentTabsBasedOnLevel = await getBoundaryOnWhichWeSplit(request, request?.body?.ResourceDetails?.tenantId);
+    let differentTabsBasedOnLevel = await getBoundaryOnWhichWeSplit(request?.body?.ResourceDetails?.campaignId, request?.body?.ResourceDetails?.tenantId);
     differentTabsBasedOnLevel = getLocalizedName(
       `${request?.body?.ResourceDetails?.hierarchyType}_${differentTabsBasedOnLevel}`.toUpperCase(),
       localizationMap
@@ -936,23 +1022,11 @@ async function processValidate(
       localizationMap
     );
   } else {
-    let schema: any;
-    if (type == "facility" || type == "user") {
-      const isUpdate = request?.body?.parentCampaignObject ? true : false;
-      if (
-        request?.body?.ResourceDetails?.additionalDetails?.source == "microplan"
-      ) {
-        schema = await callMdmsTypeSchema(
-          request,
-          tenantId,
-          isUpdate,
-          type,
-          "microplan"
-        );
-      } else {
-        schema = await callMdmsTypeSchema(request, tenantId, isUpdate, type);
-      }
-    }
+    const type = request?.body?.ResourceDetails?.type;
+    const tenantId = request?.body?.ResourceDetails?.tenantId;
+    const isUpdate = request?.body?.parentCampaignObject ? true : false;
+    const isSourceMicroplan = checkIfSourceIsMicroplan(request?.body?.ResourceDetails);
+    const schema : any = await getSchema(tenantId, isUpdate, type, isSourceMicroplan);
     const translatedSchema = await translateSchema(schema, localizationMap);
     if (Array.isArray(dataFromSheet)) {
       if (
@@ -970,6 +1044,7 @@ async function processValidate(
         dataFromSheet,
         request,
         createAndSearchConfig,
+        schema?.properties,
         localizationMap
       );
     } else {
@@ -1016,7 +1091,7 @@ function convertUserRoles(employees: any[], request: any) {
   }
 }
 
-function generateUserPassword() {
+export function generateUserPassword() {
   // Function to generate a random lowercase letter
   function getRandomLowercaseLetter() {
     const letters = "abcdefghijklmnopqrstuvwxyz";
@@ -1051,28 +1126,12 @@ function generateUserPassword() {
 }
 
 async function enrichJurisdictions(employee: any, request: any, boundaryCodeAndBoundaryTypeMapping : any) {
-  let jurisdictionsArray = [];
-  if (typeof employee?.jurisdictions === 'string') {
-    jurisdictionsArray = employee.jurisdictions
-      .split(",")
-      .map((jurisdiction: any) => jurisdiction.trim())
-      .filter((jurisdiction: string) => jurisdiction.length > 0);
-  }
-  else if (Array.isArray(employee?.jurisdictions) && employee.jurisdictions.length > 0) {
-    // Check if every element has both boundary and boundaryType
-    jurisdictionsArray = employee?.jurisdictions.map((jurisdiction: any) => jurisdiction?.boundary);
-    const isValidJurisdictions = employee.jurisdictions.every(
-      (jurisdiction: any) => jurisdiction?.boundary && jurisdiction?.boundaryType
-    );
-  
-    // If all elements meet the criteria, return the full jurisdictions array
-    if (isValidJurisdictions) {
-      return employee.jurisdictions;
-    }
-  }
-  
+  const jurisdictionsArray =
+    typeof employee?.jurisdictions === "string"
+      ? employee.jurisdictions.split(",").map((jurisdiction: any) => jurisdiction.trim())
+      : undefined;
 
-  if(Array.isArray(jurisdictionsArray) && jurisdictionsArray.length > 0) {
+  if (Array.isArray(jurisdictionsArray) && jurisdictionsArray.length > 0) {
     const jurisdictions = jurisdictionsArray.map((jurisdiction: any) => {
       return {
         tenantId: request?.body?.ResourceDetails?.tenantId,
@@ -1084,7 +1143,7 @@ async function enrichJurisdictions(employee: any, request: any, boundaryCodeAndB
     })
     employee.jurisdictions = jurisdictions
   }
-  else{
+  else {
     employee.jurisdictions = [
       {
         tenantId: request?.body?.ResourceDetails?.tenantId,
@@ -1099,30 +1158,37 @@ async function enrichJurisdictions(employee: any, request: any, boundaryCodeAndB
 
 async function enrichEmployees(employees: any[], request: any) {
   const boundaryRelationshipResponse = await searchBoundaryRelationshipData(request?.body?.ResourceDetails?.tenantId, request?.body?.ResourceDetails?.hierarchyType, true);
-  if(!boundaryRelationshipResponse?.TenantBoundary?.[0]?.boundary) {
+  if (!boundaryRelationshipResponse?.TenantBoundary?.[0]?.boundary) {
     throw new Error("Boundary relationship search failed");
   }
   const boundaryCodeAndBoundaryTypeMapping = getBoundaryCodeAndBoundaryTypeMapping(boundaryRelationshipResponse?.TenantBoundary?.[0]?.boundary);
   convertUserRoles(employees, request);
   const idRequests = createIdRequests(employees);
   request.body.idRequests = idRequests;
-  let result = await createUniqueUserNameViaIdGen(request);
+  let result = await createUniqueUserNameViaIdGen(idRequests);
   var i = 0;
   for (const employee of employees) {
     const { user } = employee;
-    const generatedPassword =
-      config?.user?.userPasswordAutoGenerate == "true"
+    var generatedPassword = user?.password;
+    if(!user.password || user.password === "undefined" || user.password.trim() === "")
+    {
+       generatedPassword = config?.user?.userPasswordAutoGenerate
         ? generateUserPassword()
         : config?.user?.userDefaultPassword;
-    user.userName = result?.idResponses?.[i]?.id;
+    }
+    if (!user.userName || user.userName === "undefined" || user.userName.trim() === "") {
+      // Assign an ID only if the userName is missing
+      user.userName = result?.idResponses?.[i]?.id;
+      i++; // Only increment when an ID is used
+    }
+    // user.userName = employee.user?.userName || result?.idResponses?.[i]?.id;
     user.password = generatedPassword;
-    employee.code = result?.idResponses?.[i]?.id;
+    employee.code = user.userName;
     await enrichJurisdictions(employee, request, boundaryCodeAndBoundaryTypeMapping);
     if (employee?.user) {
       employee.user.tenantId = request?.body?.ResourceDetails?.tenantId;
       employee.user.dob = 0;
     }
-    i++;
   }
 }
 
@@ -1158,7 +1224,7 @@ async function handeFacilityProcess(
   params: any,
   newRequestBody: any
 ) {
-  newRequestBody.Facility.address = {};
+  modifyFacilityAddress(newRequestBody);
   const response = await httpRequest(
     createAndSearchConfig?.createDetails?.url,
     newRequestBody,
@@ -1169,6 +1235,16 @@ async function handeFacilityProcess(
     true
   );
   return response?.Facility?.id;
+}
+
+function modifyFacilityAddress(newRequestBody: any) {
+  if (newRequestBody?.Facility?.address?.locality?.code) {
+    newRequestBody.Facility.address.locality.code = newRequestBody.Facility.address.locality.code?.split(",")[0]?.trim();
+    newRequestBody.Facility.address.tenantId = newRequestBody.Facility.tenantId;
+  }
+  else {
+    newRequestBody.Facility.address = {}
+  }
 }
 
 async function handleUserProcess(
@@ -1427,6 +1503,7 @@ async function handleResouceDetailsError(request: any, error: any) {
   logger.error("Error while processing after validation : " + error);
   if (request?.body?.ResourceDetails) {
     request.body.ResourceDetails.status = "failed";
+    request.body.ResourceDetails.processedFileStoreId = request?.body?.ResourceDetails?.processedFileStoreId || null;
     request.body.ResourceDetails.additionalDetails = {
       ...request?.body?.ResourceDetails?.additionalDetails,
       error: stringifiedError,
@@ -1441,7 +1518,8 @@ async function handleResouceDetailsError(request: any, error: any) {
     }
     await produceModifiedMessages(
       persistMessage,
-      config?.kafka?.KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC
+      config?.kafka?.KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC,
+      request?.body?.ResourceDetails?.tenantId
     );
   }
   if (
@@ -1458,29 +1536,14 @@ async function handleResouceDetailsError(request: any, error: any) {
       const chunk = activities.slice(i, Math.min(i + 10, activities.length));
       const activityObject: any = { Activities: chunk };
       chunkPromises.push(
-        produceModifiedMessages(
+        await produceModifiedMessages(
           activityObject,
-          config?.kafka?.KAFKA_CREATE_RESOURCE_ACTIVITY_TOPIC
+          config?.kafka?.KAFKA_CREATE_RESOURCE_ACTIVITY_TOPIC,
+          activities?.tenantId || config.app.defaultTenantId
         )
       );
     }
     await Promise.all(chunkPromises);
-  }
-}
-
-async function persistCreationProcess(request: any, status: any) {
-  if (request?.body?.ResourceDetails?.type == "facility") {
-    await persistTrack(
-      request?.body?.ResourceDetails?.campaignId,
-      processTrackTypes.facilityCreation,
-      status
-    );
-  } else if (request?.body?.ResourceDetails?.type == "user") {
-    await persistTrack(
-      request?.body?.ResourceDetails?.campaignId,
-      processTrackTypes.staffCreation,
-      status
-    );
   }
 }
 
@@ -1490,7 +1553,6 @@ async function processAfterValidation(
   request: any,
   localizationMap?: { [key: string]: string }
 ) {
-  await persistCreationProcess(request, processTrackStatuses.inprogress);
   try {
     validateEmptyActive(dataFromSheet, request?.body?.ResourceDetails?.type, localizationMap);
     if (
@@ -1517,10 +1579,10 @@ async function processAfterValidation(
       request.body.ResourceDetails.status != "invalid"
     ) {
       await performAndSaveResourceActivityByChangingBody(
-       request,
-       createAndSearchConfig,
-       localizationMap
-     )
+        request,
+        createAndSearchConfig,
+        localizationMap
+      )
     }
     else if (createAndSearchConfig?.createDetails &&
       request.body.ResourceDetails.status != "invalid") {
@@ -1537,17 +1599,15 @@ async function processAfterValidation(
     }
   } catch (error: any) {
     console.log(error);
-    await persistCreationProcess(request, processTrackStatuses.failed);
     await handleResouceDetailsError(request, error);
   }
-  await persistCreationProcess(request, processTrackStatuses.completed);
 }
 
 async function performAndSaveResourceActivityByChangingBody(
   request: any,
-  createAndSearchConfig: any, 
+  createAndSearchConfig: any,
   localizationMap?: { [key: string]: string }
-){
+) {
   _.set(
     request.body,
     createAndSearchConfig?.createBulkDetails?.createPath,
@@ -1577,7 +1637,6 @@ async function performAndSaveResourceActivityByChangingBody(
 async function processCreate(request: any, localizationMap?: any) {
   // Process creation of resources
   const type: string = request.body.ResourceDetails.type;
-  const tenantId = request?.body?.ResourceDetails?.tenantId;
   if (type == "boundary" || type == "boundaryManagement") {
     boundaryBulkUpload(request, localizationMap);
   } else if (type == "boundaryGeometryManagement") {
@@ -1610,7 +1669,8 @@ async function processCreate(request: any, localizationMap?: any) {
       undefined,
       localizationMap
     );
-    const schema = await getSchema(request, tenantId, type);
+    const isUpdate = request?.body?.parentCampaignObject ? true : false;
+    const schema = await getSchema(request?.body?.ResourceDetails?.tenantId, isUpdate, type, checkIfSourceIsMicroplan(request?.body?.ResourceDetails));
     await processAfterGettingSchema(
       dataFromSheet,
       schema,
@@ -1621,51 +1681,6 @@ async function processCreate(request: any, localizationMap?: any) {
   }
 }
 
-async function getSchema(
-  request: any,
-  tenantId: string,
-  type: string
-) {
-  let schema: any;
-  const isUpdate = request?.body?.parentCampaignObject ? true : false;
-  if (type == "facility") {
-    logger.info(
-      "Fetching schema to validate the created data for type: " + type
-    );
-    const mdmsResponse = await callMdmsTypeSchema(
-      request,
-      tenantId,
-      isUpdate,
-      type
-    );
-    schema = mdmsResponse;
-  } else if (type == "user") {
-    logger.info(
-      "Fetching schema to validate the created data for type: " + type
-    );
-    if (
-      request?.body?.ResourceDetails?.additionalDetails?.source == "microplan"
-    ) {
-      const mdmsResponse = await callMdmsTypeSchema(
-        request,
-        tenantId,
-        isUpdate,
-        type,
-        "microplan"
-      );
-      schema = mdmsResponse;
-    } else {
-      const mdmsResponse = await callMdmsTypeSchema(
-        request,
-        tenantId,
-        isUpdate,
-        type
-      );
-      schema = mdmsResponse;
-    }
-  }
-  return schema;
-}
 
 async function processAfterGettingSchema(
   dataFromSheet: any,
@@ -1717,11 +1732,6 @@ async function processAfterGettingSchema(
  * @param request The HTTP request object.
  */
 async function createProjectCampaignResourcData(request: any) {
-  await persistTrack(
-    request.body.CampaignDetails.id,
-    processTrackTypes.triggerResourceCreation,
-    processTrackStatuses.inprogress
-  );
   try {
     // Create resources for a project campaign
     if (
@@ -1758,38 +1768,23 @@ async function createProjectCampaignResourcData(request: any) {
     }
   } catch (error: any) {
     console.log(error);
-    await persistTrack(
-      request?.body?.CampaignDetails?.id,
-      processTrackTypes.triggerResourceCreation,
-      processTrackStatuses.failed,
-      {
-        error: String(
-          error?.message +
-          (error?.description ? ` : ${error?.description}` : "") || error
-        ),
-      }
-    );
     throw new Error(error);
   }
-  await persistTrack(
-    request.body.CampaignDetails.id,
-    processTrackTypes.triggerResourceCreation,
-    processTrackStatuses.completed
-  );
 }
 
-async function confirmProjectParentCreation(request: any, projectId: any) {
+async function confirmProjectParentCreation(tenantId: string, uuid: string, projectId: any) {
   const searchBody = {
-    RequestInfo: request.body.RequestInfo,
+    RequestInfo: JSON.parse(JSON.stringify(defaultRequestInfo?.RequestInfo)),
     Projects: [
       {
         id: projectId,
-        tenantId: request.body.CampaignDetails.tenantId,
+        tenantId,
       },
     ],
   };
+  searchBody.RequestInfo.userInfo.uuid = uuid;
   const params = {
-    tenantId: request.body.CampaignDetails.tenantId,
+    tenantId,
     offset: 0,
     limit: 5,
   };
@@ -1910,7 +1905,6 @@ function generateHierarchyList(data: any[], parentChain: any = []) {
 }
 
 const getHierarchy = async (
-  request: any,
   tenantId: string,
   hierarchyType: string
 ) => {

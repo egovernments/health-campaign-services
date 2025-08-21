@@ -141,7 +141,7 @@ jobs:
           
           # Step 8: Set Default Dockerfile if service dockerfile config is missing
           if [ -z "$SERVICE_DOCKERFILE" ]; then
-            echo "No dockerfile entry found for \"$SERVICE\" in build-config.yml; using default"
+            echo "No dockerfile entry found for \"$PIPELINE_NAME\" in build-config.yml; using default"
             SERVICE_DOCKERFILE="$SERVICE_WORK_DIR/$DEFAULT_DOCKERFILE"
           fi
           
@@ -176,7 +176,7 @@ jobs:
           echo "#### DB Config Summary" >> $GITHUB_STEP_SUMMARY
           echo "Application Work Directory - $DB_WORK_DIR" >> $GITHUB_STEP_SUMMARY
           echo "Image Name - $DB_IMAGE_NAME" >> $GITHUB_STEP_SUMMARY
-          echo "Dockerfile Path - $SERVICE_DOCKERFILE" >> $GITHUB_STEP_SUMMARY
+          echo "Dockerfile Path - $DB_DOCKERFILE" >> $GITHUB_STEP_SUMMARY
 
       - name: Check if DB folder exists
         id: check-db-folder
@@ -376,7 +376,7 @@ jobs:
           echo "- Image: egovio/${{ needs.resolve-config.outputs.service_image_name }}:${{ needs.resolve-config.outputs.tag }}" >> $GITHUB_STEP_SUMMARY
           echo "- Platforms: amd64, arm64" >> $GITHUB_STEP_SUMMARY
 
-      - name: Add Summary (Application)
+      - name: Add Summary (DB)
         run: |
           echo "### DB Docker Manifest Summary" >> $GITHUB_STEP_SUMMARY
           echo "- Image: egovio/${{ needs.resolve-config.outputs.db_image_name }}:${{ needs.resolve-config.outputs.tag }}" >> $GITHUB_STEP_SUMMARY

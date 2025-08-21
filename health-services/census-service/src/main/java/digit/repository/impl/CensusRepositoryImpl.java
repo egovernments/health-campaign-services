@@ -19,6 +19,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import static digit.config.ServiceConstants.COMMA_DELIMITER;
+import static digit.config.ServiceConstants.NO_CENSUS_IDS_FOUND_ERROR;
 import static digit.config.ServiceConstants.CENSUS_BUSINESS_SERVICE;
 
 @Slf4j
@@ -77,7 +79,7 @@ public class CensusRepositoryImpl implements CensusRepository {
 
         // Return empty list back as response if no census ids are found
         if(CollectionUtils.isEmpty(censusIds)) {
-            log.info("No census ids found for provided census search criteria.");
+            log.debug(NO_CENSUS_IDS_FOUND_ERROR);
             return new ArrayList<>();
         }
 
@@ -89,7 +91,7 @@ public class CensusRepositoryImpl implements CensusRepository {
 
         List<Object> preparedStmtList = new ArrayList<>();
         String query = queryBuilder.getCensusQuery(censusIds, preparedStmtList);
-        log.info("Census query: " + query);
+
         return jdbcTemplate.query(query, censusRowMapper, preparedStmtList.toArray());
 
     }
@@ -97,7 +99,7 @@ public class CensusRepositoryImpl implements CensusRepository {
     private List<String> queryDatabaseForCensusIds(CensusSearchCriteria censusSearchCriteria) {
         List<Object> preparedStmtList = new ArrayList<>();
         String query = queryBuilder.getCensusSearchQuery(censusSearchCriteria, preparedStmtList);
-        log.info("Census search query: " + query);
+
         return jdbcTemplate.query(query, new SingleColumnRowMapper<>(String.class), preparedStmtList.toArray());
     }
 
@@ -165,7 +167,7 @@ public class CensusRepositoryImpl implements CensusRepository {
         // Prepare rows for bulk update
         List<Object[]> rows = request.getCensus().stream().map(census -> new Object[] {
                     census.getStatus(),
-                    !CollectionUtils.isEmpty(census.getAssignee()) ? String.join(",", census.getAssignee()) : census.getAssignee(),
+                    !CollectionUtils.isEmpty(census.getAssignee()) ? String.join(COMMA_DELIMITER, census.getAssignee()) : null,
                     census.getAuditDetails().getLastModifiedBy(),
                     census.getAuditDetails().getLastModifiedTime(),
                     commonUtil.convertToPgObject(census.getAdditionalDetails()),
@@ -187,7 +189,7 @@ public class CensusRepositoryImpl implements CensusRepository {
     private CensusRequestDTO convertToReqDTO(CensusRequest censusRequest) {
         Census census = censusRequest.getCensus();
 
-        String assignee = !CollectionUtils.isEmpty(census.getAssignee()) ? String.join(",", census.getAssignee()) : null;
+        String assignee = !CollectionUtils.isEmpty(census.getAssignee()) ? String.join(COMMA_DELIMITER, census.getAssignee()) : null;
 
         // Creating a new data transfer object (DTO) for Census
         CensusDTO censusDTO = CensusDTO.builder()

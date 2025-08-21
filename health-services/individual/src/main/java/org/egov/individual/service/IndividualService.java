@@ -172,7 +172,9 @@ public class IndividualService {
                     individualRepository.save(encryptedIndividualList,
                             properties.getSaveIndividualTopic());
                     // update beneficiary ids in idgen
-                    beneficiaryIdGenUtil.updateBeneficiaryIds(beneficiaryIds, validIndividuals.get(0).getTenantId(), request.getRequestInfo());
+                    if (properties.getBeneficiaryIdGenIntegrationEnabled()) {
+                        beneficiaryIdGenUtil.updateBeneficiaryIds(beneficiaryIds, validIndividuals.get(0).getTenantId(), request.getRequestInfo());
+                    }
                 }
             }
         } catch (CustomException exception) {
@@ -295,7 +297,7 @@ public class IndividualService {
                 // save
                 individualRepository.save(encryptedIndividualList,
                         properties.getUpdateIndividualTopic());
-                if (!beneficiaryIdsToUpdate.isEmpty()) {
+                if (properties.getBeneficiaryIdGenIntegrationEnabled()) {
                     // update beneficiary ids in idgen
                     beneficiaryIdGenUtil.updateBeneficiaryIds(beneficiaryIdsToUpdate, validIndividuals.get(0).getTenantId(), request.getRequestInfo());
                 }
