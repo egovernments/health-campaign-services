@@ -83,8 +83,6 @@ public class DownsyncService {
 
     private HouseholdRepository householdRepository;
 
-    private static final Integer SEARCH_MAX_COUNT = 1000;
-
     @Autowired
     RedisTemplate<String, Object> redisTemplate;
 
@@ -201,7 +199,7 @@ public class DownsyncService {
      * @param downsync
      * @return household client reference ids list
      */
-    private List<String> searchHouseholds(DownsyncRequest downsyncRequest, Downsync downsync) {
+    private List<String> searchHouseholds(DownsyncRequest downsyncRequest, Downsync downsync) throws InvalidTenantIdException {
 
         DownsyncCriteria criteria = downsyncRequest.getDownsyncCriteria();
         RequestInfo requestInfo = downsyncRequest.getRequestInfo();
