@@ -402,17 +402,8 @@ public class ExcelProcessingService {
             additionalDetails = new HashMap<>();
         }
         
-        // Count unique rows processed across all sheets (sheet + row combination)
-        long totalRecordsProcessed = errors.stream()
-                .map(error -> error.getSheetName() + ":" + error.getRowNumber())
-                .distinct()
-                .count();
-        
         additionalDetails.put("totalErrors", errorCount);
-        additionalDetails.put("totalRecordsProcessed", totalRecordsProcessed);
-        additionalDetails.put("hasValidationErrors", errorCount > 0);
         additionalDetails.put("validationStatus", validationStatus);
-        additionalDetails.put("processedTimestamp", System.currentTimeMillis());
         
         // Update audit details
         AuditDetails auditDetails = resource.getAuditDetails();
