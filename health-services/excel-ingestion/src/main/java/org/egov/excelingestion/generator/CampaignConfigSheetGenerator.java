@@ -28,7 +28,6 @@ public class CampaignConfigSheetGenerator implements ISheetGenerator {
     private final CampaignConfigSheetCreator campaignConfigSheetCreator;
     private final CustomExceptionHandler exceptionHandler;
 
-    @Autowired
     public CampaignConfigSheetGenerator(MDMSService mdmsService,
                                       CampaignConfigSheetCreator campaignConfigSheetCreator,
                                       CustomExceptionHandler exceptionHandler) {

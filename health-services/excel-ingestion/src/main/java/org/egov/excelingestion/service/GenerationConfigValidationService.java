@@ -23,7 +23,6 @@ public class GenerationConfigValidationService {
     private final ApplicationContext applicationContext;
     private final CustomExceptionHandler exceptionHandler;
 
-    @Autowired
     public GenerationConfigValidationService(ApplicationContext applicationContext, 
                                            CustomExceptionHandler exceptionHandler) {
         this.applicationContext = applicationContext;

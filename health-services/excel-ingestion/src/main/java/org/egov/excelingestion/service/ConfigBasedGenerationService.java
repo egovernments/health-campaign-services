@@ -33,7 +33,6 @@ public class ConfigBasedGenerationService {
     private final CustomExceptionHandler exceptionHandler;
     private final GenerationConfigValidationService validationService;
 
-    @Autowired
     public ConfigBasedGenerationService(ApplicationContext applicationContext,
                                       ExcelDataPopulator excelDataPopulator,
                                       BoundaryColumnUtil boundaryColumnUtil,

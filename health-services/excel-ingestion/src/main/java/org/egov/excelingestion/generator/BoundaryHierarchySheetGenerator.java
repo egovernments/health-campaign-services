@@ -20,7 +20,6 @@ public class BoundaryHierarchySheetGenerator implements IExcelPopulatorSheetGene
     private final BoundaryService boundaryService;
     private final BoundaryUtil boundaryUtil;
 
-    @Autowired
     public BoundaryHierarchySheetGenerator(BoundaryService boundaryService, BoundaryUtil boundaryUtil) {
         this.boundaryService = boundaryService;
         this.boundaryUtil = boundaryUtil;
