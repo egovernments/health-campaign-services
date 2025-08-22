@@ -36,8 +36,8 @@ public class SchemaValidationService {
         }
         
         try {
-            // Extract validation rules from schema
-            Map<String, ValidationRule> validationRules = extractValidationRules(schema);
+            // Extract validation rules from schema with localization support
+            Map<String, ValidationRule> validationRules = extractValidationRules(schema, localizationMap);
             
             // Validate each row against the schema 
             for (int rowIndex = 0; rowIndex < sheetData.size(); rowIndex++) {
@@ -86,19 +86,49 @@ public class SchemaValidationService {
         log.info("Extracted {} validation rules from schema", rules.size());
         return rules;
     }
+    
+    /**
+     * Extracts validation rules from schema with localization support
+     */
+    private Map<String, ValidationRule> extractValidationRules(Map<String, Object> schema, Map<String, String> localizationMap) {
+        Map<String, ValidationRule> rules = new HashMap<>();
+        
+        if (schema != null) {
+            // The schema passed here is already the properties section from MDMS
+            // Look for stringProperties, numberProperties, enumProperties directly
+            extractStringPropertyRules(schema, rules, localizationMap);
+            extractNumberPropertyRules(schema, rules, localizationMap);
+            extractEnumPropertyRules(schema, rules, localizationMap);
+        }
+        
+        log.info("Extracted {} validation rules from schema", rules.size());
+        return rules;
+    }
 
     /**
      * Extracts string property validation rules
      */
     @SuppressWarnings("unchecked")
     private void extractStringPropertyRules(Map<String, Object> schema, Map<String, ValidationRule> rules) {
+        extractStringPropertyRules(schema, rules, null);
+    }
+    
+    /**
+     * Extracts string property validation rules with localization support
+     */
+    @SuppressWarnings("unchecked")
+    private void extractStringPropertyRules(Map<String, Object> schema, Map<String, ValidationRule> rules, Map<String, String> localizationMap) {
         if (schema.containsKey("stringProperties")) {
             List<Map<String, Object>> stringProps = (List<Map<String, Object>>) schema.get("stringProperties");
             for (Map<String, Object> prop : stringProps) {
                 String name = (String) prop.get("name");
                 if (name != null) {
                     ValidationRule rule = new ValidationRule();
-                    rule.setFieldName(name);
+                    rule.setFieldName(name); // Keep technical name for lookup
+                    // Set localized display name if available
+                    if (localizationMap != null && localizationMap.containsKey(name)) {
+                        rule.setDisplayName(localizationMap.get(name));
+                    }
                     rule.setType("string");
                     rule.setRequired((Boolean) prop.getOrDefault("isRequired", false));
                     rule.setMinLength((Integer) prop.get("minLength"));
@@ -130,13 +160,25 @@ public class SchemaValidationService {
      */
     @SuppressWarnings("unchecked")
     private void extractNumberPropertyRules(Map<String, Object> schema, Map<String, ValidationRule> rules) {
+        extractNumberPropertyRules(schema, rules, null);
+    }
+    
+    /**
+     * Extracts number property validation rules with localization support
+     */
+    @SuppressWarnings("unchecked")
+    private void extractNumberPropertyRules(Map<String, Object> schema, Map<String, ValidationRule> rules, Map<String, String> localizationMap) {
         if (schema.containsKey("numberProperties")) {
             List<Map<String, Object>> numberProps = (List<Map<String, Object>>) schema.get("numberProperties");
             for (Map<String, Object> prop : numberProps) {
                 String name = (String) prop.get("name");
                 if (name != null) {
                     ValidationRule rule = new ValidationRule();
-                    rule.setFieldName(name);
+                    rule.setFieldName(name); // Keep technical name for lookup
+                    // Set localized display name if available
+                    if (localizationMap != null && localizationMap.containsKey(name)) {
+                        rule.setDisplayName(localizationMap.get(name));
+                    }
                     rule.setType("number");
                     rule.setRequired((Boolean) prop.getOrDefault("isRequired", false));
                     rule.setMinimum((Number) prop.get("minimum"));
@@ -160,13 +202,25 @@ public class SchemaValidationService {
      */
     @SuppressWarnings("unchecked")
     private void extractEnumPropertyRules(Map<String, Object> schema, Map<String, ValidationRule> rules) {
+        extractEnumPropertyRules(schema, rules, null);
+    }
+    
+    /**
+     * Extracts enum property validation rules with localization support
+     */
+    @SuppressWarnings("unchecked")
+    private void extractEnumPropertyRules(Map<String, Object> schema, Map<String, ValidationRule> rules, Map<String, String> localizationMap) {
         if (schema.containsKey("enumProperties")) {
             List<Map<String, Object>> enumProps = (List<Map<String, Object>>) schema.get("enumProperties");
             for (Map<String, Object> prop : enumProps) {
                 String name = (String) prop.get("name");
                 if (name != null) {
                     ValidationRule rule = new ValidationRule();
-                    rule.setFieldName(name);
+                    rule.setFieldName(name); // Keep technical name for lookup
+                    // Set localized display name if available
+                    if (localizationMap != null && localizationMap.containsKey(name)) {
+                        rule.setDisplayName(localizationMap.get(name));
+                    }
                     rule.setType("enum");
                     rule.setRequired((Boolean) prop.getOrDefault("isRequired", false));
                     rule.setAllowedValues((List<String>) prop.get("enum"));
@@ -249,15 +303,15 @@ public class SchemaValidationService {
         // Length validation
         if (rule.getMinLength() != null && strValue.length() < rule.getMinLength()) {
             String errorMessage = getLocalizedMessage(localizationMap, "HCM_VALIDATION_MIN_LENGTH", 
-                    String.format("Field '%s' must be at least %d characters", rule.getFieldName(), rule.getMinLength()),
-                    rule.getFieldName(), rule.getMinLength().toString());
+                    String.format("Field '%s' must be at least %d characters", rule.getDisplayName(), rule.getMinLength()),
+                    rule.getDisplayName(), rule.getMinLength().toString());
             errors.add(createValidationError(rowNumber, sheetName, rule.getFieldName(), errorMessage));
         }
         
         if (rule.getMaxLength() != null && strValue.length() > rule.getMaxLength()) {
             String errorMessage = getLocalizedMessage(localizationMap, "HCM_VALIDATION_MAX_LENGTH", 
-                    String.format("Field '%s' must not exceed %d characters", rule.getFieldName(), rule.getMaxLength()),
-                    rule.getFieldName(), rule.getMaxLength().toString());
+                    String.format("Field '%s' must not exceed %d characters", rule.getDisplayName(), rule.getMaxLength()),
+                    rule.getDisplayName(), rule.getMaxLength().toString());
             errors.add(createValidationError(rowNumber, sheetName, rule.getFieldName(), errorMessage));
         }
         
@@ -267,15 +321,15 @@ public class SchemaValidationService {
                 Pattern pattern = Pattern.compile(rule.getPattern());
                 if (!pattern.matcher(strValue).matches()) {
                     String errorMessage = getLocalizedMessage(localizationMap, "HCM_VALIDATION_PATTERN", 
-                            String.format("Field '%s' does not match required pattern", rule.getFieldName()),
-                            rule.getFieldName());
+                            String.format("Field '%s' does not match required pattern", rule.getDisplayName()),
+                            rule.getDisplayName());
                     errors.add(createValidationError(rowNumber, sheetName, rule.getFieldName(), errorMessage));
                 }
             } catch (PatternSyntaxException e) {
-                log.warn("Invalid regex pattern '{}' for field '{}'", rule.getPattern(), rule.getFieldName());
+                log.warn("Invalid regex pattern '{}' for field '{}'", rule.getPattern(), rule.getDisplayName());
                 String errorMessage = getLocalizedMessage(localizationMap, "HCM_VALIDATION_INVALID_PATTERN", 
-                        String.format("Field '%s' has invalid validation pattern", rule.getFieldName()),
-                        rule.getFieldName());
+                        String.format("Field '%s' has invalid validation pattern", rule.getDisplayName()),
+                        rule.getDisplayName());
                 errors.add(createValidationError(rowNumber, sheetName, rule.getFieldName(), errorMessage));
             }
         }
@@ -425,7 +479,8 @@ public class SchemaValidationService {
      * Inner class for validation rules
      */
     private static class ValidationRule {
-        private String fieldName;
+        private String fieldName; // Technical field name for lookup
+        private String displayName; // Localized field name for display in errors
         private String type;
         private boolean required;
         private Integer minLength;
@@ -446,6 +501,9 @@ public class SchemaValidationService {
         // Getters and setters
         public String getFieldName() { return fieldName; }
         public void setFieldName(String fieldName) { this.fieldName = fieldName; }
+        
+        public String getDisplayName() { return displayName != null ? displayName : fieldName; }
+        public void setDisplayName(String displayName) { this.displayName = displayName; }
         
         public String getType() { return type; }
         public void setType(String type) { this.type = type; }
@@ -562,12 +620,13 @@ public class SchemaValidationService {
                                 .map(idx -> String.valueOf(idx + 3))
                                 .collect(Collectors.toList());
                         
-                        String localizedFieldName = getLocalizedFieldName(fieldName, localizationMap);
+                        ValidationRule fieldRule = uniqueFields.get(fieldName);
+                        String displayName = fieldRule != null ? fieldRule.getDisplayName() : fieldName;
                         String errorMessage = getLocalizedMessage(localizationMap, 
                                 "HCM_VALIDATION_DUPLICATE_VALUE",
                                 String.format("Field '%s' must be unique. Value '%s' is also found in row(s): %s", 
-                                        localizedFieldName, duplicateValue, String.join(", ", otherRows)),
-                                localizedFieldName, duplicateValue, String.join(", ", otherRows));
+                                        displayName, duplicateValue, String.join(", ", otherRows)),
+                                displayName, duplicateValue, String.join(", ", otherRows));
                         
                         errors.add(createValidationError(excelRowNumber, sheetName, fieldName, errorMessage));
                     }
@@ -647,12 +706,12 @@ public class SchemaValidationService {
                     : "HCM_VALIDATION_REQUIRED_FIELD";
                     
                 String defaultMessage = rule.getMultiSelectDetails() != null
-                    ? String.format("Required multi-select field '%s' must have at least one selection", fieldName)
-                    : String.format("Required field '%s' is missing", fieldName);
+                    ? String.format("Required multi-select field '%s' must have at least one selection", rule.getDisplayName())
+                    : String.format("Required field '%s' is missing", rule.getDisplayName());
                 
                 String errorMessage = rule.getErrorMessage() != null 
                     ? rule.getErrorMessage() 
-                    : getLocalizedMessage(localizationMap, localizationKey, defaultMessage, fieldName);
+                    : getLocalizedMessage(localizationMap, localizationKey, defaultMessage, rule.getDisplayName());
                     
                 errors.add(ValidationError.builder()
                         .rowNumber(rowNumber)
@@ -725,8 +784,8 @@ public class SchemaValidationService {
         // Check if field is required and has no selections
         if (rule.isRequired() && selectedValues.isEmpty()) {
             String errorMessage = getLocalizedMessage(localizationMap, ValidationConstants.HCM_VALIDATION_REQUIRED_MULTI_SELECT, 
-                    String.format("Required multi-select field '%s' must have at least one selection", fieldName),
-                    fieldName);
+                    String.format("Required multi-select field '%s' must have at least one selection", rule.getDisplayName()),
+                    rule.getDisplayName());
             errors.add(createValidationError(rowNumber, sheetName, fieldName, errorMessage));
             // Don't return here - continue with min/max validation even for required fields
         }
@@ -734,8 +793,8 @@ public class SchemaValidationService {
         // Validate minimum selections (applies even to empty fields)
         if (multiSelect.getMinSelections() != null && selectedValues.size() < multiSelect.getMinSelections()) {
             String errorMessage = getLocalizedMessage(localizationMap, "HCM_VALIDATION_MIN_SELECTIONS", 
-                    String.format("Field '%s' must have at least %d selections", fieldName, multiSelect.getMinSelections()),
-                    fieldName, multiSelect.getMinSelections().toString());
+                    String.format("Field '%s' must have at least %d selections", rule.getDisplayName(), multiSelect.getMinSelections()),
+                    rule.getDisplayName(), multiSelect.getMinSelections().toString());
             errors.add(createValidationError(rowNumber, sheetName, fieldName, errorMessage));
         }
         
@@ -748,16 +807,16 @@ public class SchemaValidationService {
         Set<String> uniqueValues = new HashSet<>(selectedValues);
         if (uniqueValues.size() < selectedValues.size()) {
             String errorMessage = getLocalizedMessage(localizationMap, ValidationConstants.HCM_VALIDATION_DUPLICATE_SELECTIONS, 
-                    String.format("Field '%s' contains duplicate selections", fieldName),
-                    fieldName);
+                    String.format("Field '%s' contains duplicate selections", rule.getDisplayName()),
+                    rule.getDisplayName());
             errors.add(createValidationError(rowNumber, sheetName, fieldName, errorMessage));
         }
         
         // Validate maximum selections
         if (multiSelect.getMaxSelections() != null && selectedValues.size() > multiSelect.getMaxSelections()) {
             String errorMessage = getLocalizedMessage(localizationMap, "HCM_VALIDATION_MAX_SELECTIONS", 
-                    String.format("Field '%s' must have at most %d selections", fieldName, multiSelect.getMaxSelections()),
-                    fieldName, multiSelect.getMaxSelections().toString());
+                    String.format("Field '%s' must have at most %d selections", rule.getDisplayName(), multiSelect.getMaxSelections()),
+                    rule.getDisplayName(), multiSelect.getMaxSelections().toString());
             errors.add(createValidationError(rowNumber, sheetName, fieldName, errorMessage));
         }
         
@@ -766,8 +825,8 @@ public class SchemaValidationService {
             for (String selectedValue : selectedValues) {
                 if (!multiSelect.getEnumValues().contains(selectedValue)) {
                     String errorMessage = getLocalizedMessage(localizationMap, "HCM_VALIDATION_INVALID_MULTI_SELECT", 
-                            String.format("Field '%s' contains invalid value '%s'", fieldName, selectedValue),
-                            fieldName, selectedValue);
+                            String.format("Field '%s' contains invalid value '%s'", rule.getDisplayName(), selectedValue),
+                            rule.getDisplayName(), selectedValue);
                     errors.add(createValidationError(rowNumber, sheetName, fieldName, errorMessage));
                     break; // Only show first invalid value to avoid too many errors
                 }
