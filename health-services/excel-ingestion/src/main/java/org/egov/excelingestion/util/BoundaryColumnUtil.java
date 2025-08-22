@@ -206,39 +206,6 @@ public class BoundaryColumnUtil {
             }
         }
         
-        // Create levels sheet  
-        Sheet levelSheet = workbook.getSheet("_h_Levels_h_");
-        if (levelSheet == null) {
-            levelSheet = workbook.createSheet("_h_Levels_h_");
-            workbook.setSheetHidden(workbook.getSheetIndex("_h_Levels_h_"), true);
-        } else {
-            // Clear existing content
-            if (levelSheet.getLastRowNum() >= 0) {
-                for (int i = levelSheet.getLastRowNum(); i >= 0; i--) {
-                    Row row = levelSheet.getRow(i);
-                    if (row != null) {
-                        levelSheet.removeRow(row);
-                    }
-                }
-            }
-        }
-        
-        Row levelRow = levelSheet.createRow(0);
-        int colIndex = 0;
-        for (String level : availableLevels) {
-            levelRow.createCell(colIndex++).setCellValue(level);
-        }
-        
-        // Create named range "Levels" for level dropdown
-        if (!availableLevels.isEmpty()) {
-            Name levelsNamedRange = workbook.getName("Levels");
-            if (levelsNamedRange == null) {
-                levelsNamedRange = workbook.createName();
-                levelsNamedRange.setNameName("Levels");
-            }
-            String lastColLetter = CellReference.convertNumToColString(availableLevels.size() - 1);
-            levelsNamedRange.setRefersToFormula("_h_Levels_h_!$A$1:$" + lastColLetter + "$1");
-        }
         
         // Create boundaries sheet with level-specific columns
         Sheet boundarySheet = workbook.getSheet("_h_Boundaries_h_");
@@ -259,7 +226,7 @@ public class BoundaryColumnUtil {
         
         // Create header row and populate boundary data by level
         int maxBoundaries = 0;
-        colIndex = 0;
+        int colIndex = 0;
         for (String level : availableLevels) {
             Row header = boundarySheet.getRow(0) != null ? boundarySheet.getRow(0) : boundarySheet.createRow(0);
             header.createCell(colIndex).setCellValue(level);
@@ -288,6 +255,19 @@ public class BoundaryColumnUtil {
                 namedRange.setRefersToFormula("_h_Boundaries_h_!$" + colLetter + "$2:$" + colLetter + "$" + (sortedBoundaries.size() + 1));
             }
             colIndex++;
+        }
+        
+        // Create named range "Levels" pointing to _h_Boundaries_h_ header row
+        // Note: Previously used a separate _h_Levels_h_ sheet, but that was redundant 
+        // since _h_Boundaries_h_ header row already contains the same level names
+        if (!availableLevels.isEmpty()) {
+            Name levelsNamedRange = workbook.getName("Levels");
+            if (levelsNamedRange == null) {
+                levelsNamedRange = workbook.createName();
+                levelsNamedRange.setNameName("Levels");
+            }
+            String lastColLetter = CellReference.convertNumToColString(availableLevels.size() - 1);
+            levelsNamedRange.setRefersToFormula("_h_Boundaries_h_!$A$1:$" + lastColLetter + "$1");
         }
         
         log.info("Created level and boundary dropdowns for {} levels", availableLevels.size());
