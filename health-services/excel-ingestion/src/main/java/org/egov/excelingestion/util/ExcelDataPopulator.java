@@ -395,9 +395,10 @@ public class ExcelDataPopulator {
                 }
                 
                 // Create formula for concatenating non-blank values with commas
+                // Start from row 3 to match validation expectations (row 3 = first data row)
                 StringBuilder formulaBuilder = new StringBuilder("=IF(AND(");
                 for (String colLetter : colLetters) {
-                    formulaBuilder.append("ISBLANK(").append(colLetter).append("2),");
+                    formulaBuilder.append("ISBLANK(").append(colLetter).append("3),");
                 }
                 // Remove last comma
                 if (colLetters.size() > 0) {
@@ -406,8 +407,8 @@ public class ExcelDataPopulator {
                 formulaBuilder.append("),\"\",TRIM(CONCATENATE(");
                 
                 for (String colLetter : colLetters) {
-                    formulaBuilder.append("IF(ISBLANK(").append(colLetter).append("2),\"\",")
-                                  .append(colLetter).append("2&\",\"),");
+                    formulaBuilder.append("IF(ISBLANK(").append(colLetter).append("3),\"\",")
+                                  .append(colLetter).append("3&\",\"),");
                 }
                 // Remove last comma
                 if (colLetters.size() > 0) {
@@ -417,12 +418,12 @@ public class ExcelDataPopulator {
                 
                 String formula = formulaBuilder.toString();
                 
-                // Apply formula to first few rows
-                for (int row = 2; row <= 100; row++) { // Apply to first 100 rows
-                    String rowFormula = formula.replace("2", String.valueOf(row));
-                    Row excelRow = sheet.getRow(row);
+                // Apply formula starting from row 3 (first data row) to match validation expectations
+                for (int row = 3; row <= 101; row++) { // Apply to first 100 data rows (3-102)
+                    String rowFormula = formula.replace("3", String.valueOf(row));
+                    Row excelRow = sheet.getRow(row - 1); // POI rows are 0-indexed, so row 3 = index 2
                     if (excelRow == null) {
-                        excelRow = sheet.createRow(row);
+                        excelRow = sheet.createRow(row - 1);
                     }
                     Cell cell = excelRow.getCell(hiddenColumnIndex);
                     if (cell == null) {

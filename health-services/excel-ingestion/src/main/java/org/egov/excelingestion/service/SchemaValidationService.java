@@ -173,6 +173,16 @@ public class SchemaValidationService {
                     rule.setErrorMessage((String) prop.get("errorMessage"));
                     rule.setUnique((Boolean.TRUE.equals(prop.get("isUnique"))));
                     
+                    // Multi-select validation for enum properties
+                    if (prop.containsKey("multiSelectDetails")) {
+                        Map<String, Object> multiSelectMap = (Map<String, Object>) prop.get("multiSelectDetails");
+                        MultiSelectDetails multiSelect = new MultiSelectDetails();
+                        multiSelect.setEnumValues((List<String>) multiSelectMap.get("enum"));
+                        multiSelect.setMinSelections((Integer) multiSelectMap.get("minSelections"));
+                        multiSelect.setMaxSelections((Integer) multiSelectMap.get("maxSelections"));
+                        rule.setMultiSelectDetails(multiSelect);
+                    }
+                    
                     rules.put(name, rule);
                 }
             }
@@ -195,7 +205,21 @@ public class SchemaValidationService {
             validateField(fieldName, value, rule, rowNumber, sheetName, errors, localizationMap);
         }
         
-        // Second, validate child multi-select fields (fields ending with _1, _2, etc.)
+        // Second, validate multi-select field groups (collect values from _MULTISELECT_* columns)
+        Map<String, List<String>> multiSelectGroups = collectMultiSelectValues(rowData, rules);
+        
+        for (Map.Entry<String, List<String>> entry : multiSelectGroups.entrySet()) {
+            String parentFieldName = entry.getKey();
+            List<String> selectedValues = entry.getValue();
+            ValidationRule parentRule = rules.get(parentFieldName);
+            
+            if (parentRule != null && parentRule.getMultiSelectDetails() != null) {
+                validateCollectedMultiSelectValues(parentFieldName, selectedValues, parentRule, 
+                    rowNumber, sheetName, errors, localizationMap);
+            }
+        }
+        
+        // Third, validate individual child multi-select fields for enum compliance
         for (String fieldName : rowData.keySet()) {
             if (isChildMultiSelectField(fieldName) && !rules.containsKey(fieldName)) {
                 String parentFieldName = getParentFieldName(fieldName);
@@ -336,8 +360,8 @@ public class SchemaValidationService {
             return;
         }
         
-        // Parse multi-select value (assuming comma-separated)
-        String[] selectedValues = value.split(",");
+        // Parse multi-select value (using constant separator)
+        String[] selectedValues = value.split(ValidationConstants.MULTI_SELECT_SEPARATOR);
         List<String> trimmedValues = new ArrayList<>();
         
         for (String selectedValue : selectedValues) {
@@ -345,6 +369,15 @@ public class SchemaValidationService {
             if (!trimmed.isEmpty()) {
                 trimmedValues.add(trimmed);
             }
+        }
+        
+        // Validate for duplicate selections
+        Set<String> uniqueValues = new HashSet<>(trimmedValues);
+        if (uniqueValues.size() < trimmedValues.size()) {
+            String errorMessage = getLocalizedMessage(localizationMap, ValidationConstants.HCM_VALIDATION_DUPLICATE_SELECTIONS, 
+                    String.format("Field '%s' contains duplicate selections", rule.getFieldName()),
+                    rule.getFieldName());
+            errors.add(createValidationError(rowNumber, sheetName, rule.getFieldName(), errorMessage));
         }
         
         // Validate minimum selections
@@ -529,11 +562,12 @@ public class SchemaValidationService {
                                 .map(idx -> String.valueOf(idx + 3))
                                 .collect(Collectors.toList());
                         
+                        String localizedFieldName = getLocalizedFieldName(fieldName, localizationMap);
                         String errorMessage = getLocalizedMessage(localizationMap, 
                                 "HCM_VALIDATION_DUPLICATE_VALUE",
                                 String.format("Field '%s' must be unique. Value '%s' is also found in row(s): %s", 
-                                        fieldName, duplicateValue, String.join(", ", otherRows)),
-                                fieldName, duplicateValue, String.join(", ", otherRows));
+                                        localizedFieldName, duplicateValue, String.join(", ", otherRows)),
+                                localizedFieldName, duplicateValue, String.join(", ", otherRows));
                         
                         errors.add(createValidationError(excelRowNumber, sheetName, fieldName, errorMessage));
                     }
@@ -587,21 +621,48 @@ public class SchemaValidationService {
      */
     private void validateField(String fieldName, Object value, ValidationRule rule, int rowNumber, 
                               String sheetName, List<ValidationError> errors, Map<String, String> localizationMap) {
-        // Check required fields
-        if (rule.isRequired() && (value == null || value.toString().trim().isEmpty())) {
-            String errorMessage = rule.getErrorMessage() != null 
-                ? rule.getErrorMessage() 
-                : getLocalizedMessage(localizationMap, "HCM_VALIDATION_REQUIRED_FIELD", 
-                        String.format("Required field '%s' is missing", fieldName), fieldName);
+        // Check required fields - special handling for multi-select fields
+        if (rule.isRequired()) {
+            boolean isEmpty = false;
+            
+            if (value == null || value.toString().trim().isEmpty()) {
+                isEmpty = true;
+            } else if (rule.getMultiSelectDetails() != null) {
+                // For multi-select fields, check if all values are empty after parsing
+                String[] selectedValues = value.toString().split(ValidationConstants.MULTI_SELECT_SEPARATOR);
+                boolean hasNonEmptyValue = false;
                 
-            errors.add(ValidationError.builder()
-                    .rowNumber(rowNumber)
-                    .sheetName(sheetName)
-                    .columnName(fieldName)
-                    .status(ValidationConstants.STATUS_INVALID)
-                    .errorDetails(errorMessage)
-                    .build());
-            return;
+                for (String selectedValue : selectedValues) {
+                    if (!selectedValue.trim().isEmpty()) {
+                        hasNonEmptyValue = true;
+                        break;
+                    }
+                }
+                isEmpty = !hasNonEmptyValue;
+            }
+            
+            if (isEmpty) {
+                String localizationKey = rule.getMultiSelectDetails() != null 
+                    ? ValidationConstants.HCM_VALIDATION_REQUIRED_MULTI_SELECT
+                    : "HCM_VALIDATION_REQUIRED_FIELD";
+                    
+                String defaultMessage = rule.getMultiSelectDetails() != null
+                    ? String.format("Required multi-select field '%s' must have at least one selection", fieldName)
+                    : String.format("Required field '%s' is missing", fieldName);
+                
+                String errorMessage = rule.getErrorMessage() != null 
+                    ? rule.getErrorMessage() 
+                    : getLocalizedMessage(localizationMap, localizationKey, defaultMessage, fieldName);
+                    
+                errors.add(ValidationError.builder()
+                        .rowNumber(rowNumber)
+                        .sheetName(sheetName)
+                        .columnName(fieldName)
+                        .status(ValidationConstants.STATUS_INVALID)
+                        .errorDetails(errorMessage)
+                        .build());
+                return;
+            }
         }
         
         // Skip validation if value is empty and not required
@@ -624,32 +685,116 @@ public class SchemaValidationService {
     }
     
     /**
-     * Check if field is a child multi-select field (ends with _1, _2, etc.)
+     * Collect multi-select values from _MULTISELECT_* columns grouped by parent field
      */
-    private boolean isChildMultiSelectField(String fieldName) {
-        if (fieldName == null || fieldName.length() < 3) {
-            return false;
+    private Map<String, List<String>> collectMultiSelectValues(Map<String, Object> rowData, Map<String, ValidationRule> rules) {
+        Map<String, List<String>> multiSelectGroups = new HashMap<>();
+        
+        for (String fieldName : rowData.keySet()) {
+            if (fieldName.contains("_MULTISELECT_")) {
+                // Extract parent field name (everything before _MULTISELECT_)
+                String parentFieldName = fieldName.substring(0, fieldName.indexOf("_MULTISELECT_"));
+                
+                // Check if parent has multi-select rules
+                ValidationRule parentRule = rules.get(parentFieldName);
+                if (parentRule != null && parentRule.getMultiSelectDetails() != null) {
+                    // Always ensure parent field is in the map for validation
+                    multiSelectGroups.computeIfAbsent(parentFieldName, k -> new ArrayList<>());
+                    
+                    Object value = rowData.get(fieldName);
+                    if (value != null && !value.toString().trim().isEmpty()) {
+                        multiSelectGroups.get(parentFieldName).add(value.toString().trim());
+                    }
+                }
+            }
+        }
+        return multiSelectGroups;
+    }
+    
+    /**
+     * Validate collected multi-select values for min/max/duplicate constraints
+     */
+    private void validateCollectedMultiSelectValues(String fieldName, List<String> selectedValues, 
+                                                   ValidationRule rule, int rowNumber, String sheetName, 
+                                                   List<ValidationError> errors, Map<String, String> localizationMap) {
+        MultiSelectDetails multiSelect = rule.getMultiSelectDetails();
+        if (multiSelect == null) {
+            return;
         }
         
-        // Check if field ends with _X where X is a number
-        int lastUnderscore = fieldName.lastIndexOf('_');
-        if (lastUnderscore == -1 || lastUnderscore == fieldName.length() - 1) {
-            return false;
+        // Check if field is required and has no selections
+        if (rule.isRequired() && selectedValues.isEmpty()) {
+            String errorMessage = getLocalizedMessage(localizationMap, ValidationConstants.HCM_VALIDATION_REQUIRED_MULTI_SELECT, 
+                    String.format("Required multi-select field '%s' must have at least one selection", fieldName),
+                    fieldName);
+            errors.add(createValidationError(rowNumber, sheetName, fieldName, errorMessage));
+            // Don't return here - continue with min/max validation even for required fields
         }
         
-        String suffix = fieldName.substring(lastUnderscore + 1);
-        try {
-            Integer.parseInt(suffix);
-            return true; // It's a number, so it's a child field
-        } catch (NumberFormatException e) {
-            return false;
+        // Validate minimum selections (applies even to empty fields)
+        if (multiSelect.getMinSelections() != null && selectedValues.size() < multiSelect.getMinSelections()) {
+            String errorMessage = getLocalizedMessage(localizationMap, "HCM_VALIDATION_MIN_SELECTIONS", 
+                    String.format("Field '%s' must have at least %d selections", fieldName, multiSelect.getMinSelections()),
+                    fieldName, multiSelect.getMinSelections().toString());
+            errors.add(createValidationError(rowNumber, sheetName, fieldName, errorMessage));
+        }
+        
+        // Skip further validation if no values selected
+        if (selectedValues.isEmpty()) {
+            return;
+        }
+        
+        // Validate for duplicate selections (only if we have values)
+        Set<String> uniqueValues = new HashSet<>(selectedValues);
+        if (uniqueValues.size() < selectedValues.size()) {
+            String errorMessage = getLocalizedMessage(localizationMap, ValidationConstants.HCM_VALIDATION_DUPLICATE_SELECTIONS, 
+                    String.format("Field '%s' contains duplicate selections", fieldName),
+                    fieldName);
+            errors.add(createValidationError(rowNumber, sheetName, fieldName, errorMessage));
+        }
+        
+        // Validate maximum selections
+        if (multiSelect.getMaxSelections() != null && selectedValues.size() > multiSelect.getMaxSelections()) {
+            String errorMessage = getLocalizedMessage(localizationMap, "HCM_VALIDATION_MAX_SELECTIONS", 
+                    String.format("Field '%s' must have at most %d selections", fieldName, multiSelect.getMaxSelections()),
+                    fieldName, multiSelect.getMaxSelections().toString());
+            errors.add(createValidationError(rowNumber, sheetName, fieldName, errorMessage));
+        }
+        
+        // Validate each selected value against allowed enum values
+        if (multiSelect.getEnumValues() != null && !multiSelect.getEnumValues().isEmpty()) {
+            for (String selectedValue : selectedValues) {
+                if (!multiSelect.getEnumValues().contains(selectedValue)) {
+                    String errorMessage = getLocalizedMessage(localizationMap, "HCM_VALIDATION_INVALID_MULTI_SELECT", 
+                            String.format("Field '%s' contains invalid value '%s'", fieldName, selectedValue),
+                            fieldName, selectedValue);
+                    errors.add(createValidationError(rowNumber, sheetName, fieldName, errorMessage));
+                    break; // Only show first invalid value to avoid too many errors
+                }
+            }
         }
     }
     
     /**
-     * Get parent field name by removing _X suffix
+     * Check if field is a child multi-select field (contains _MULTISELECT_)
+     */
+    private boolean isChildMultiSelectField(String fieldName) {
+        if (fieldName == null) {
+            return false;
+        }
+        
+        // Check if field contains _MULTISELECT_ pattern
+        return fieldName.contains("_MULTISELECT_");
+    }
+    
+    /**
+     * Get parent field name by removing _MULTISELECT_X suffix
      */
     private String getParentFieldName(String childFieldName) {
+        if (childFieldName.contains("_MULTISELECT_")) {
+            return childFieldName.substring(0, childFieldName.indexOf("_MULTISELECT_"));
+        }
+        // Fallback for legacy pattern _X
         int lastUnderscore = childFieldName.lastIndexOf('_');
         return childFieldName.substring(0, lastUnderscore);
     }

@@ -12,6 +12,11 @@ public class ValidationConstants {
     public static final String STATUS_CREATED = "CREATED";
     public static final String STATUS_ERROR = "ERROR";
     
+    // Multi-select validation constants
+    public static final String MULTI_SELECT_SEPARATOR = ",";
+    public static final String HCM_VALIDATION_DUPLICATE_SELECTIONS = "HCM_VALIDATION_DUPLICATE_SELECTIONS";
+    public static final String HCM_VALIDATION_REQUIRED_MULTI_SELECT = "HCM_VALIDATION_REQUIRED_MULTI_SELECT";
+    
     private ValidationConstants() {
         // Private constructor to prevent instantiation
     }
