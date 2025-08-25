@@ -339,9 +339,16 @@ public class SchemaValidationService {
             try {
                 Pattern pattern = Pattern.compile(rule.getPattern());
                 if (!pattern.matcher(strValue).matches()) {
-                    String errorMessage = getLocalizedMessage(localizationMap, "HCM_VALIDATION_PATTERN", 
-                            String.format("Field '%s' does not match required pattern", rule.getDisplayName()),
-                            rule.getDisplayName());
+                    String errorMessage;
+                    if (rule.getErrorMessage() != null && !rule.getErrorMessage().isEmpty()) {
+                        // Use custom error message and try to localize it
+                        errorMessage = getLocalizedMessage(localizationMap, rule.getErrorMessage(), rule.getErrorMessage());
+                    } else {
+                        // Use dynamic message with localization
+                        errorMessage = getLocalizedMessage(localizationMap, "HCM_VALIDATION_PATTERN", 
+                                String.format("Field '%s' does not match required pattern", rule.getDisplayName()),
+                                rule.getDisplayName());
+                    }
                     errors.add(createValidationError(rowNumber, sheetName, rule.getFieldName(), errorMessage));
                 }
             } catch (PatternSyntaxException e) {
@@ -395,17 +402,31 @@ public class SchemaValidationService {
             
             // Exclusive minimum validation
             if (rule.getExclusiveMinimum() != null && numValue <= rule.getExclusiveMinimum().doubleValue()) {
-                String errorMessage = getLocalizedMessage(localizationMap, "HCM_VALIDATION_EXCLUSIVE_MIN", 
-                        String.format("Field '%s' must be greater than %s", rule.getFieldName(), rule.getExclusiveMinimum()),
-                        rule.getFieldName(), rule.getExclusiveMinimum().toString());
+                String errorMessage;
+                if (rule.getErrorMessage() != null && !rule.getErrorMessage().isEmpty()) {
+                    // Use custom error message and try to localize it
+                    errorMessage = getLocalizedMessage(localizationMap, rule.getErrorMessage(), rule.getErrorMessage());
+                } else {
+                    // Use dynamic message with localization
+                    errorMessage = getLocalizedMessage(localizationMap, "HCM_VALIDATION_EXCLUSIVE_MIN", 
+                            String.format("Field '%s' must be greater than %s", rule.getFieldName(), rule.getExclusiveMinimum()),
+                            rule.getFieldName(), rule.getExclusiveMinimum().toString());
+                }
                 errors.add(createValidationError(rowNumber, sheetName, rule.getFieldName(), errorMessage));
             }
             
             // Exclusive maximum validation
             if (rule.getExclusiveMaximum() != null && numValue >= rule.getExclusiveMaximum().doubleValue()) {
-                String errorMessage = getLocalizedMessage(localizationMap, "HCM_VALIDATION_EXCLUSIVE_MAX", 
-                        String.format("Field '%s' must be less than %s", rule.getFieldName(), rule.getExclusiveMaximum()),
-                        rule.getFieldName(), rule.getExclusiveMaximum().toString());
+                String errorMessage;
+                if (rule.getErrorMessage() != null && !rule.getErrorMessage().isEmpty()) {
+                    // Use custom error message and try to localize it
+                    errorMessage = getLocalizedMessage(localizationMap, rule.getErrorMessage(), rule.getErrorMessage());
+                } else {
+                    // Use dynamic message with localization
+                    errorMessage = getLocalizedMessage(localizationMap, "HCM_VALIDATION_EXCLUSIVE_MAX", 
+                            String.format("Field '%s' must be less than %s", rule.getFieldName(), rule.getExclusiveMaximum()),
+                            rule.getFieldName(), rule.getExclusiveMaximum().toString());
+                }
                 errors.add(createValidationError(rowNumber, sheetName, rule.getFieldName(), errorMessage));
             }
             
@@ -413,16 +434,30 @@ public class SchemaValidationService {
             if (rule.getMultipleOf() != null) {
                 double divisor = rule.getMultipleOf().doubleValue();
                 if (divisor != 0 && (numValue % divisor) != 0) {
-                    String errorMessage = getLocalizedMessage(localizationMap, "HCM_VALIDATION_MULTIPLE_OF", 
-                            String.format("Field '%s' must be a multiple of %s", rule.getFieldName(), rule.getMultipleOf()),
-                            rule.getFieldName(), rule.getMultipleOf().toString());
+                    String errorMessage;
+                    if (rule.getErrorMessage() != null && !rule.getErrorMessage().isEmpty()) {
+                        // Use custom error message and try to localize it
+                        errorMessage = getLocalizedMessage(localizationMap, rule.getErrorMessage(), rule.getErrorMessage());
+                    } else {
+                        // Use dynamic message with localization
+                        errorMessage = getLocalizedMessage(localizationMap, "HCM_VALIDATION_MULTIPLE_OF", 
+                                String.format("Field '%s' must be a multiple of %s", rule.getFieldName(), rule.getMultipleOf()),
+                                rule.getFieldName(), rule.getMultipleOf().toString());
+                    }
                     errors.add(createValidationError(rowNumber, sheetName, rule.getFieldName(), errorMessage));
                 }
             }
             
         } catch (NumberFormatException e) {
-            String errorMessage = getLocalizedMessage(localizationMap, "HCM_VALIDATION_INVALID_NUMBER", 
-                    String.format("Field '%s' must be a valid number", rule.getFieldName()), rule.getFieldName());
+            String errorMessage;
+            if (rule.getErrorMessage() != null && !rule.getErrorMessage().isEmpty()) {
+                // Use custom error message and try to localize it
+                errorMessage = getLocalizedMessage(localizationMap, rule.getErrorMessage(), rule.getErrorMessage());
+            } else {
+                // Use dynamic message with localization
+                errorMessage = getLocalizedMessage(localizationMap, "HCM_VALIDATION_INVALID_NUMBER", 
+                        String.format("Field '%s' must be a valid number", rule.getFieldName()), rule.getFieldName());
+            }
             errors.add(createValidationError(rowNumber, sheetName, rule.getFieldName(), errorMessage));
         }
     }
@@ -432,9 +467,16 @@ public class SchemaValidationService {
         
         String strValue = value.toString();
         if (rule.getAllowedValues() != null && !rule.getAllowedValues().contains(strValue)) {
-            String errorMessage = getLocalizedMessage(localizationMap, "HCM_VALIDATION_INVALID_ENUM", 
-                    String.format("Field '%s' contains invalid value '%s'", rule.getFieldName(), strValue),
-                    rule.getFieldName(), strValue);
+            String errorMessage;
+            if (rule.getErrorMessage() != null && !rule.getErrorMessage().isEmpty()) {
+                // Use custom error message and try to localize it
+                errorMessage = getLocalizedMessage(localizationMap, rule.getErrorMessage(), rule.getErrorMessage());
+            } else {
+                // Use dynamic message with localization
+                errorMessage = getLocalizedMessage(localizationMap, "HCM_VALIDATION_INVALID_ENUM", 
+                        String.format("Field '%s' contains invalid value '%s'", rule.getFieldName(), strValue),
+                        rule.getFieldName(), strValue);
+            }
             errors.add(createValidationError(rowNumber, sheetName, rule.getFieldName(), errorMessage));
         }
     }
