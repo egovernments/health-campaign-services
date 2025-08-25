@@ -343,3 +343,9 @@ config:
         image-name: "project-factory-db"
         dockerfile: "health-services/project-factory/migration/Dockerfile"
 
+  - name: "builds/health-campaign-services/health-services/excel-ingestion"
+    build:
+      - work-dir: "health-services/excel-ingestion"
+        image-name: "excel-ingestion"
+        dockerfile: "build/17/maven/Dockerfile"
+

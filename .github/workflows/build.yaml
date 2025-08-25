@@ -61,6 +61,7 @@ on:
           - "census-service"
           - "plan-service"
           - "resource-generator"
+          - "excel-ingestion"
         default: "audit-service"
 
 env:
