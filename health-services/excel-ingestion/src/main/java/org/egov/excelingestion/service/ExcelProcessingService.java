@@ -325,6 +325,8 @@ public class ExcelProcessingService {
             }
             
             if (hasData) {
+                // Add actual Excel row number for error reporting (Excel rows are 1-indexed, +1 to match Excel display)
+                rowData.put("__actualRowNumber__", rowNum + 1);
                 data.add(rowData);
             }
         }

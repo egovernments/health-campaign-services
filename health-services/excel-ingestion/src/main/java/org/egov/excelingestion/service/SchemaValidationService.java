@@ -42,7 +42,12 @@ public class SchemaValidationService {
             // Validate each row against the schema 
             for (int rowIndex = 0; rowIndex < sheetData.size(); rowIndex++) {
                 Map<String, Object> rowData = sheetData.get(rowIndex);
-                int excelRowNumber = rowIndex + 3; // +1 for 0-based to 1-based, +2 for two header rows
+                if (rowData == null) {
+                    continue; // Skip null rows
+                }
+                // Use actual Excel row number from data if available, otherwise fallback to calculated
+                int excelRowNumber = rowData.containsKey("__actualRowNumber__") ? 
+                    (Integer) rowData.get("__actualRowNumber__") : rowIndex + 3;
                 
                 List<ValidationError> rowErrors = validateRowAgainstSchema(
                     rowData, excelRowNumber, sheetName, validationRules, localizationMap);
@@ -595,6 +600,9 @@ public class SchemaValidationService {
             // Collect all values for this field
             for (int rowIndex = 0; rowIndex < sheetData.size(); rowIndex++) {
                 Map<String, Object> rowData = sheetData.get(rowIndex);
+                if (rowData == null) {
+                    continue; // Skip null rows
+                }
                 Object value = rowData.get(fieldName);
                 
                 // Skip null or empty values for uniqueness check
@@ -612,12 +620,19 @@ public class SchemaValidationService {
                 if (rowIndices.size() > 1) {
                     // This value appears in multiple rows - create errors for all occurrences
                     for (int rowIndex : rowIndices) {
-                        int excelRowNumber = rowIndex + 3; // +1 for 0-based to 1-based, +2 for two header rows
+                        Map<String, Object> rowData = sheetData.get(rowIndex);
+                        // Use actual Excel row number from data if available, otherwise fallback to calculated
+                        int excelRowNumber = rowData.containsKey("__actualRowNumber__") ? 
+                            (Integer) rowData.get("__actualRowNumber__") : rowIndex + 3;
                         
                         // Create list of other row numbers with same value
                         List<String> otherRows = rowIndices.stream()
                                 .filter(idx -> idx != rowIndex)
-                                .map(idx -> String.valueOf(idx + 3))
+                                .map(idx -> {
+                                    Map<String, Object> otherRowData = sheetData.get(idx);
+                                    return String.valueOf(otherRowData.containsKey("__actualRowNumber__") ? 
+                                        (Integer) otherRowData.get("__actualRowNumber__") : idx + 3);
+                                })
                                 .collect(Collectors.toList());
                         
                         ValidationRule fieldRule = uniqueFields.get(fieldName);
