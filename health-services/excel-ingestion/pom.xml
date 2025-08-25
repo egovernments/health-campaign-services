@@ -12,7 +12,18 @@
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
         <lombok.version>1.18.22</lombok.version>
+        <!-- Default: skip tests -->
+        <skipTests>true</skipTests>
     </properties>
+        <profiles>
+        <profile>
+            <id>run-tests</id>
+            <properties>
+                <!-- Only in this profile, tests will run -->
+                <skipTests>false</skipTests>
+            </properties>
+        </profile>
+    </profiles>
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
