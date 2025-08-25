@@ -94,7 +94,7 @@ public class ExcelDataPopulator {
         applyProtection(workbook, sheet, expandedColumns);
 
         // 8. Apply Validation - reuse existing dropdown creation logic
-        applyValidations(workbook, sheet, expandedColumns);
+        applyValidations(workbook, sheet, expandedColumns, localizationMap);
         
         // 9. Apply multiselect formulas if any
         applyMultiSelectFormulas(sheet, expandedColumns);
@@ -270,7 +270,7 @@ public class ExcelDataPopulator {
     /**
      * Apply validations - Excel in-sheet validation for different field types
      */
-    private void applyValidations(Workbook workbook, Sheet sheet, List<ColumnDef> columns) {
+    private void applyValidations(Workbook workbook, Sheet sheet, List<ColumnDef> columns, Map<String, String> localizationMap) {
         DataValidationHelper dvHelper = sheet.getDataValidationHelper();
         
         for (int colIndex = 0; colIndex < columns.size(); colIndex++) {
@@ -296,7 +296,7 @@ public class ExcelDataPopulator {
             
             // Apply MDMS number validation based on minimum/maximum properties
             else if ("number".equals(column.getType()) && hasNumberValidation(column)) {
-                applyNumberValidation(dvHelper, sheet, column, colIndex);
+                applyNumberValidation(dvHelper, sheet, column, colIndex, localizationMap);
             }
         }
     }
@@ -311,7 +311,7 @@ public class ExcelDataPopulator {
     /**
      * Apply number validation rules from MDMS schema (minimum/maximum only)
      */
-    private void applyNumberValidation(DataValidationHelper dvHelper, Sheet sheet, ColumnDef column, int colIndex) {
+    private void applyNumberValidation(DataValidationHelper dvHelper, Sheet sheet, ColumnDef column, int colIndex, Map<String, String> localizationMap) {
         try {
             DataValidationConstraint constraint = null;
             String errorMessage = "";
@@ -325,10 +325,14 @@ public class ExcelDataPopulator {
                     String.valueOf(column.getMaximum().doubleValue())
                 );
                 // Use custom error message from MDMS if available, otherwise use dynamic message
-                errorMessage = column.getErrorMessage() != null && !column.getErrorMessage().isEmpty() ? 
-                    column.getErrorMessage() : 
-                    String.format("Value must be between %.0f and %.0f", 
+                if (column.getErrorMessage() != null && !column.getErrorMessage().isEmpty()) {
+                    // Try to localize the custom error message
+                    errorMessage = getLocalizedMessage(localizationMap, column.getErrorMessage(), column.getErrorMessage());
+                } else {
+                    // Use dynamic message
+                    errorMessage = String.format("Value must be between %.0f and %.0f", 
                         column.getMinimum().doubleValue(), column.getMaximum().doubleValue());
+                }
                     
             } else if (column.getMinimum() != null) {
                 // Only minimum defined from MDMS schema
@@ -338,9 +342,13 @@ public class ExcelDataPopulator {
                     null
                 );
                 // Use custom error message from MDMS if available, otherwise use dynamic message
-                errorMessage = column.getErrorMessage() != null && !column.getErrorMessage().isEmpty() ? 
-                    column.getErrorMessage() : 
-                    String.format("Value must be at least %.0f", column.getMinimum().doubleValue());
+                if (column.getErrorMessage() != null && !column.getErrorMessage().isEmpty()) {
+                    // Try to localize the custom error message
+                    errorMessage = getLocalizedMessage(localizationMap, column.getErrorMessage(), column.getErrorMessage());
+                } else {
+                    // Use dynamic message
+                    errorMessage = String.format("Value must be at least %.0f", column.getMinimum().doubleValue());
+                }
                 
             } else if (column.getMaximum() != null) {
                 // Only maximum defined from MDMS schema
@@ -350,9 +358,13 @@ public class ExcelDataPopulator {
                     null
                 );
                 // Use custom error message from MDMS if available, otherwise use dynamic message
-                errorMessage = column.getErrorMessage() != null && !column.getErrorMessage().isEmpty() ? 
-                    column.getErrorMessage() : 
-                    String.format("Value must be at most %.0f", column.getMaximum().doubleValue());
+                if (column.getErrorMessage() != null && !column.getErrorMessage().isEmpty()) {
+                    // Try to localize the custom error message
+                    errorMessage = getLocalizedMessage(localizationMap, column.getErrorMessage(), column.getErrorMessage());
+                } else {
+                    // Use dynamic message
+                    errorMessage = String.format("Value must be at most %.0f", column.getMaximum().doubleValue());
+                }
             }
             
             if (constraint != null) {
@@ -533,5 +545,15 @@ public class ExcelDataPopulator {
             columnIndex /= 26;
         }
         return columnName.toString();
+    }
+    
+    /**
+     * Get localized message from localization map, with fallback to default message
+     */
+    private String getLocalizedMessage(Map<String, String> localizationMap, String key, String defaultMessage) {
+        if (localizationMap != null && key != null && localizationMap.containsKey(key)) {
+            return localizationMap.get(key);
+        }
+        return defaultMessage;
     }
 }
