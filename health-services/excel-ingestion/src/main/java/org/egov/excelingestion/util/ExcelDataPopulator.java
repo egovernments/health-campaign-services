@@ -294,7 +294,12 @@ public class ExcelDataPopulator {
                 sheet.addValidationData(validation);
             }
             
-            // Apply MDMS number validation based on minimum/maximum properties
+            // Apply MDMS string validation based on minLength/maxLength/pattern properties
+            else if ("string".equals(column.getType()) && hasStringValidation(column)) {
+                applyStringValidation(dvHelper, sheet, column, colIndex, localizationMap);
+            }
+            
+            // Apply MDMS number validation based on minimum/maximum and additional properties
             else if ("number".equals(column.getType()) && hasNumberValidation(column)) {
                 applyNumberValidation(dvHelper, sheet, column, colIndex, localizationMap);
             }
@@ -302,22 +307,153 @@ public class ExcelDataPopulator {
     }
     
     /**
-     * Check if column has number validation rules
+     * Check if column has string validation rules
      */
-    private boolean hasNumberValidation(ColumnDef column) {
-        return column.getMinimum() != null || column.getMaximum() != null;
+    private boolean hasStringValidation(ColumnDef column) {
+        return column.getMinLength() != null || column.getMaxLength() != null || 
+               (column.getPattern() != null && !column.getPattern().trim().isEmpty());
     }
     
     /**
-     * Apply number validation rules from MDMS schema (minimum/maximum only)
+     * Check if column has number validation rules
+     */
+    private boolean hasNumberValidation(ColumnDef column) {
+        return column.getMinimum() != null || column.getMaximum() != null ||
+               column.getMultipleOf() != null || column.getExclusiveMinimum() != null ||
+               column.getExclusiveMaximum() != null;
+    }
+    
+    /**
+     * Apply string validation rules from MDMS schema (minLength/maxLength/pattern)
+     */
+    private void applyStringValidation(DataValidationHelper dvHelper, Sheet sheet, ColumnDef column, int colIndex, Map<String, String> localizationMap) {
+        try {
+            // For string validations that Excel doesn't support directly (like regex pattern),
+            // we can use TEXT_LENGTH constraint for minLength/maxLength
+            DataValidationConstraint constraint = null;
+            String errorMessage = "";
+            
+            // Apply text length validation if minLength or maxLength is specified
+            if (column.getMinLength() != null || column.getMaxLength() != null) {
+                if (column.getMinLength() != null && column.getMaxLength() != null) {
+                    // Both minLength and maxLength defined
+                    constraint = dvHelper.createTextLengthConstraint(
+                        DataValidationConstraint.OperatorType.BETWEEN,
+                        String.valueOf(column.getMinLength()),
+                        String.valueOf(column.getMaxLength())
+                    );
+                    // Use custom error message from MDMS if available, otherwise use dynamic message
+                    if (column.getErrorMessage() != null && !column.getErrorMessage().isEmpty()) {
+                        errorMessage = getLocalizedMessage(localizationMap, column.getErrorMessage(), column.getErrorMessage());
+                    } else {
+                        errorMessage = String.format("Text length must be between %d and %d characters", 
+                            column.getMinLength(), column.getMaxLength());
+                    }
+                    
+                } else if (column.getMinLength() != null) {
+                    // Only minLength defined
+                    constraint = dvHelper.createTextLengthConstraint(
+                        DataValidationConstraint.OperatorType.GREATER_OR_EQUAL,
+                        String.valueOf(column.getMinLength()),
+                        null
+                    );
+                    if (column.getErrorMessage() != null && !column.getErrorMessage().isEmpty()) {
+                        errorMessage = getLocalizedMessage(localizationMap, column.getErrorMessage(), column.getErrorMessage());
+                    } else {
+                        errorMessage = String.format("Text must be at least %d characters long", column.getMinLength());
+                    }
+                    
+                } else if (column.getMaxLength() != null) {
+                    // Only maxLength defined
+                    constraint = dvHelper.createTextLengthConstraint(
+                        DataValidationConstraint.OperatorType.LESS_OR_EQUAL,
+                        String.valueOf(column.getMaxLength()),
+                        null
+                    );
+                    if (column.getErrorMessage() != null && !column.getErrorMessage().isEmpty()) {
+                        errorMessage = getLocalizedMessage(localizationMap, column.getErrorMessage(), column.getErrorMessage());
+                    } else {
+                        errorMessage = String.format("Text must not exceed %d characters", column.getMaxLength());
+                    }
+                }
+                
+                if (constraint != null) {
+                    CellRangeAddressList addressList = new CellRangeAddressList(2, config.getExcelRowLimit(), colIndex, colIndex);
+                    DataValidation validation = dvHelper.createValidation(constraint, addressList);
+                    
+                    validation.setErrorStyle(DataValidation.ErrorStyle.STOP);
+                    validation.setShowErrorBox(true);
+                    validation.createErrorBox("Invalid Text Length", errorMessage);
+                    validation.setShowPromptBox(false);
+                    
+                    sheet.addValidationData(validation);
+                    log.info("Applied MDMS string length validation for column '{}': {}", column.getName(), errorMessage);
+                }
+            }
+            
+            // Note: Excel doesn't support regex pattern validation directly in data validation
+            // Pattern validation is handled during processing, not in-sheet validation
+            if (column.getPattern() != null && !column.getPattern().trim().isEmpty()) {
+                log.info("Pattern validation '{}' for column '{}' will be applied during processing (not supported in Excel in-sheet validation)", 
+                    column.getPattern(), column.getName());
+            }
+            
+        } catch (Exception e) {
+            log.warn("Failed to apply MDMS string validation for column '{}': {}", column.getName(), e.getMessage());
+        }
+    }
+    
+    /**
+     * Apply number validation rules from MDMS schema (minimum/maximum and additional properties)
      */
     private void applyNumberValidation(DataValidationHelper dvHelper, Sheet sheet, ColumnDef column, int colIndex, Map<String, String> localizationMap) {
         try {
             DataValidationConstraint constraint = null;
             String errorMessage = "";
             
-            // Handle MDMS minimum/maximum validation
-            if (column.getMinimum() != null && column.getMaximum() != null) {
+            // Priority order: exclusiveMinimum/exclusiveMaximum > minimum/maximum
+            // Handle exclusive minimum/maximum validation first (higher priority)
+            if (column.getExclusiveMinimum() != null && column.getExclusiveMaximum() != null) {
+                // Both exclusive minimum and maximum defined from MDMS schema
+                constraint = dvHelper.createDecimalConstraint(
+                    DataValidationConstraint.OperatorType.BETWEEN,
+                    String.valueOf(column.getExclusiveMinimum().doubleValue() + 0.000001), // Add small epsilon for "greater than"
+                    String.valueOf(column.getExclusiveMaximum().doubleValue() - 0.000001)  // Subtract small epsilon for "less than"
+                );
+                if (column.getErrorMessage() != null && !column.getErrorMessage().isEmpty()) {
+                    errorMessage = getLocalizedMessage(localizationMap, column.getErrorMessage(), column.getErrorMessage());
+                } else {
+                    errorMessage = String.format("Value must be greater than %.0f and less than %.0f", 
+                        column.getExclusiveMinimum().doubleValue(), column.getExclusiveMaximum().doubleValue());
+                }
+                
+            } else if (column.getExclusiveMinimum() != null) {
+                // Only exclusive minimum defined from MDMS schema
+                constraint = dvHelper.createDecimalConstraint(
+                    DataValidationConstraint.OperatorType.GREATER_THAN,
+                    String.valueOf(column.getExclusiveMinimum().doubleValue()),
+                    null
+                );
+                if (column.getErrorMessage() != null && !column.getErrorMessage().isEmpty()) {
+                    errorMessage = getLocalizedMessage(localizationMap, column.getErrorMessage(), column.getErrorMessage());
+                } else {
+                    errorMessage = String.format("Value must be greater than %.0f", column.getExclusiveMinimum().doubleValue());
+                }
+                
+            } else if (column.getExclusiveMaximum() != null) {
+                // Only exclusive maximum defined from MDMS schema
+                constraint = dvHelper.createDecimalConstraint(
+                    DataValidationConstraint.OperatorType.LESS_THAN,
+                    String.valueOf(column.getExclusiveMaximum().doubleValue()),
+                    null
+                );
+                if (column.getErrorMessage() != null && !column.getErrorMessage().isEmpty()) {
+                    errorMessage = getLocalizedMessage(localizationMap, column.getErrorMessage(), column.getErrorMessage());
+                } else {
+                    errorMessage = String.format("Value must be less than %.0f", column.getExclusiveMaximum().doubleValue());
+                }
+                
+            } else if (column.getMinimum() != null && column.getMaximum() != null) {
                 // Both minimum and maximum defined from MDMS schema
                 constraint = dvHelper.createDecimalConstraint(
                     DataValidationConstraint.OperatorType.BETWEEN,
@@ -379,6 +515,13 @@ public class ExcelDataPopulator {
                 
                 sheet.addValidationData(validation);
                 log.info("Applied MDMS number validation for column '{}': {}", column.getName(), errorMessage);
+            }
+            
+            // Note: Excel doesn't support "multipleOf" validation directly in data validation
+            // MultipleOf validation is handled during processing, not in-sheet validation
+            if (column.getMultipleOf() != null) {
+                log.info("MultipleOf validation '{}' for column '{}' will be applied during processing (not supported in Excel in-sheet validation)", 
+                    column.getMultipleOf(), column.getName());
             }
             
         } catch (Exception e) {
@@ -455,6 +598,14 @@ public class ExcelDataPopulator {
                         .minimum(column.getMinimum())
                         .maximum(column.getMaximum())
                         .errorMessage(column.getErrorMessage())
+                        // Copy string validation properties
+                        .minLength(column.getMinLength())
+                        .maxLength(column.getMaxLength())
+                        .pattern(column.getPattern())
+                        // Copy additional number validation properties
+                        .multipleOf(column.getMultipleOf())
+                        .exclusiveMinimum(column.getExclusiveMinimum())
+                        .exclusiveMaximum(column.getExclusiveMaximum())
                         .build();
                 expandedColumns.add(regularCol);
             }

@@ -8,6 +8,7 @@ import org.egov.excelingestion.web.models.excel.ColumnDef;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -194,6 +195,88 @@ class MDMSInSheetValidationTest {
         log.info("✅ Validation range test passed");
     }
 
+    @Test
+    void testStringValidationsAreApplied() throws IOException {
+        log.info("🧪 Testing MDMS string validations (minLength, maxLength) are applied to Excel sheets");
+        
+        // Create columns with string validation properties
+        List<ColumnDef> columns = Arrays.asList(
+            createStringColumnWithLength("name", 3, 50),        // Min-Max length validation
+            createStringColumnWithLength("email", 5, null),     // Min only validation  
+            createStringColumnWithLength("code", null, 10)      // Max only validation
+        );
+        
+        // Generate Excel workbook with validation
+        Workbook workbook = excelDataPopulator.populateSheetWithData(
+            "StringValidationTest", columns, null);
+        Sheet sheet = workbook.getSheetAt(0);
+        
+        // Verify that string validations are applied
+        List<? extends DataValidation> validations = sheet.getDataValidations();
+        assertFalse(validations.isEmpty(), "Sheet should have string validations");
+        log.info("✅ Found {} string validations on sheet", validations.size());
+        
+        // Test each validation
+        for (DataValidation validation : validations) {
+            DataValidationConstraint constraint = validation.getValidationConstraint();
+            
+            // Check that constraint is for text length validation
+            assertEquals(DataValidationConstraint.ValidationType.TEXT_LENGTH, constraint.getValidationType(),
+                    "Should be text length validation");
+            assertEquals(DataValidation.ErrorStyle.STOP, validation.getErrorStyle(),
+                    "Should stop on invalid data");
+            assertTrue(validation.getShowErrorBox(), "Error box should be shown");
+            assertFalse(validation.getShowPromptBox(), "Prompt box should not be shown");
+            
+            log.info("✅ String validation: {} - {}", 
+                    validation.getErrorBoxTitle(), validation.getErrorBoxText());
+        }
+        
+        workbook.close();
+        log.info("✅ String validation test passed");
+    }
+    
+    @Test
+    void testAdditionalNumberValidationsAreApplied() throws IOException {
+        log.info("🧪 Testing additional MDMS number validations (exclusiveMin/Max) are applied to Excel sheets");
+        
+        // Create columns with additional number validation properties
+        List<ColumnDef> columns = Arrays.asList(
+            createNumberColumnWithExclusive("score", null, null, 0.0, 100.0),  // Exclusive min-max validation
+            createNumberColumnWithExclusive("rating", null, null, 1.0, null),   // Exclusive min only
+            createNumberColumnWithExclusive("percentage", null, null, null, 99.0), // Exclusive max only
+            createNumberColumnWithMultiple("quantity", 5.0)  // MultipleOf (will be processing-only)
+        );
+        
+        // Generate Excel workbook with validation
+        Workbook workbook = excelDataPopulator.populateSheetWithData(
+            "AdditionalNumberValidationTest", columns, null);
+        Sheet sheet = workbook.getSheetAt(0);
+        
+        // Verify that number validations are applied (exclusive validations should work, multipleOf should be logged only)
+        List<? extends DataValidation> validations = sheet.getDataValidations();
+        assertEquals(3, validations.size(), "Should have 3 validations (exclusive validations only, multipleOf is processing-only)");
+        
+        // Test each validation
+        for (DataValidation validation : validations) {
+            DataValidationConstraint constraint = validation.getValidationConstraint();
+            
+            // Check that constraint is for decimal/number validation
+            assertEquals(DataValidationConstraint.ValidationType.DECIMAL, constraint.getValidationType(),
+                    "Should be decimal validation");
+            assertEquals(DataValidation.ErrorStyle.STOP, validation.getErrorStyle(),
+                    "Should stop on invalid data");
+            assertTrue(validation.getShowErrorBox(), "Error box should be shown");
+            assertFalse(validation.getShowPromptBox(), "Prompt box should not be shown");
+            
+            log.info("✅ Additional number validation: {} - {}", 
+                    validation.getErrorBoxTitle(), validation.getErrorBoxText());
+        }
+        
+        workbook.close();
+        log.info("✅ Additional number validation test passed");
+    }
+
     // Helper methods to create test columns
 
     private ColumnDef createNumberColumn(String name, Double min, Double max) {
@@ -217,6 +300,35 @@ class MDMSInSheetValidationTest {
                 .name(name)
                 .type("enum")
                 .enumValues(enumValues)
+                .build();
+    }
+    
+    private ColumnDef createStringColumnWithLength(String name, Integer minLength, Integer maxLength) {
+        return ColumnDef.builder()
+                .name(name)
+                .type("string")
+                .minLength(minLength)
+                .maxLength(maxLength)
+                .build();
+    }
+    
+    private ColumnDef createNumberColumnWithExclusive(String name, Double min, Double max, 
+                                                     Double exclusiveMin, Double exclusiveMax) {
+        return ColumnDef.builder()
+                .name(name)
+                .type("number")
+                .minimum(min)
+                .maximum(max)
+                .exclusiveMinimum(exclusiveMin)
+                .exclusiveMaximum(exclusiveMax)
+                .build();
+    }
+    
+    private ColumnDef createNumberColumnWithMultiple(String name, Double multipleOf) {
+        return ColumnDef.builder()
+                .name(name)
+                .type("number")
+                .multipleOf(multipleOf)
                 .build();
     }
 }

@@ -156,6 +156,23 @@ public class SchemaBasedSheetGenerator implements IExcelPopulatorSheetGenerator 
                 .freezeTillData(node.path("freezeTillData").asBoolean(false))
                 .unFreezeColumnTillData(node.path("unFreezeColumnTillData").asBoolean(false));
         
+        // Handle MDMS validation properties for string fields
+        if ("string".equals(type)) {
+            if (node.has("minLength")) {
+                builder.minLength(node.path("minLength").asInt());
+            }
+            if (node.has("maxLength")) {
+                builder.maxLength(node.path("maxLength").asInt());
+            }
+            if (node.has("pattern")) {
+                builder.pattern(node.path("pattern").asText());
+            }
+            // Extract custom error message if provided in MDMS schema
+            if (node.has("errorMessage")) {
+                builder.errorMessage(node.path("errorMessage").asText());
+            }
+        }
+        
         // Handle MDMS validation properties for number fields
         if ("number".equals(type)) {
             if (node.has("minimum")) {
@@ -163,6 +180,15 @@ public class SchemaBasedSheetGenerator implements IExcelPopulatorSheetGenerator 
             }
             if (node.has("maximum")) {
                 builder.maximum(node.path("maximum").asDouble());
+            }
+            if (node.has("multipleOf")) {
+                builder.multipleOf(node.path("multipleOf").asDouble());
+            }
+            if (node.has("exclusiveMinimum")) {
+                builder.exclusiveMinimum(node.path("exclusiveMinimum").asDouble());
+            }
+            if (node.has("exclusiveMaximum")) {
+                builder.exclusiveMaximum(node.path("exclusiveMaximum").asDouble());
             }
             // Extract custom error message if provided in MDMS schema
             if (node.has("errorMessage")) {
@@ -175,6 +201,10 @@ public class SchemaBasedSheetGenerator implements IExcelPopulatorSheetGenerator 
             List<String> enumValues = new ArrayList<>();
             node.path("enum").forEach(enumNode -> enumValues.add(enumNode.asText()));
             builder.enumValues(enumValues);
+            // Extract custom error message if provided in MDMS schema
+            if (node.has("errorMessage")) {
+                builder.errorMessage(node.path("errorMessage").asText());
+            }
         }
         
         // Handle multiSelectDetails for string properties
