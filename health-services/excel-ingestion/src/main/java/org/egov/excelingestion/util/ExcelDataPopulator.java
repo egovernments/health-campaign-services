@@ -268,13 +268,18 @@ public class ExcelDataPopulator {
     }
 
     /**
-     * Apply validations - reuse existing dropdown creation logic from ExcelSchemaSheetCreator
+     * Apply validations - Excel in-sheet validation for different field types
      */
     private void applyValidations(Workbook workbook, Sheet sheet, List<ColumnDef> columns) {
         DataValidationHelper dvHelper = sheet.getDataValidationHelper();
         
         for (int colIndex = 0; colIndex < columns.size(); colIndex++) {
             ColumnDef column = columns.get(colIndex);
+            
+            // Skip multi-select hidden columns from validation
+            if ("multiselect_hidden".equals(column.getType())) {
+                continue;
+            }
             
             // Apply enum dropdown validation - reuse existing pattern
             if (column.getEnumValues() != null && !column.getEnumValues().isEmpty()) {
@@ -285,12 +290,90 @@ public class ExcelDataPopulator {
                 validation.setErrorStyle(DataValidation.ErrorStyle.STOP);
                 validation.setShowErrorBox(true);
                 validation.createErrorBox("Invalid Selection", "Please select a value from the dropdown list.");
-                validation.setShowPromptBox(true);
-                validation.createPromptBox("Select Value", "Choose a value from the dropdown list.");
+                validation.setShowPromptBox(false); // No input prompt, only error on invalid data
                 sheet.addValidationData(validation);
+            }
+            
+            // Apply MDMS number validation based on minimum/maximum properties
+            else if ("number".equals(column.getType()) && hasNumberValidation(column)) {
+                applyNumberValidation(dvHelper, sheet, column, colIndex);
             }
         }
     }
+    
+    /**
+     * Check if column has number validation rules
+     */
+    private boolean hasNumberValidation(ColumnDef column) {
+        return column.getMinimum() != null || column.getMaximum() != null;
+    }
+    
+    /**
+     * Apply number validation rules from MDMS schema (minimum/maximum only)
+     */
+    private void applyNumberValidation(DataValidationHelper dvHelper, Sheet sheet, ColumnDef column, int colIndex) {
+        try {
+            DataValidationConstraint constraint = null;
+            String errorMessage = "";
+            
+            // Handle MDMS minimum/maximum validation
+            if (column.getMinimum() != null && column.getMaximum() != null) {
+                // Both minimum and maximum defined from MDMS schema
+                constraint = dvHelper.createDecimalConstraint(
+                    DataValidationConstraint.OperatorType.BETWEEN,
+                    String.valueOf(column.getMinimum().doubleValue()),
+                    String.valueOf(column.getMaximum().doubleValue())
+                );
+                // Use custom error message from MDMS if available, otherwise use dynamic message
+                errorMessage = column.getErrorMessage() != null && !column.getErrorMessage().isEmpty() ? 
+                    column.getErrorMessage() : 
+                    String.format("Value must be between %.0f and %.0f", 
+                        column.getMinimum().doubleValue(), column.getMaximum().doubleValue());
+                    
+            } else if (column.getMinimum() != null) {
+                // Only minimum defined from MDMS schema
+                constraint = dvHelper.createDecimalConstraint(
+                    DataValidationConstraint.OperatorType.GREATER_OR_EQUAL,
+                    String.valueOf(column.getMinimum().doubleValue()),
+                    null
+                );
+                // Use custom error message from MDMS if available, otherwise use dynamic message
+                errorMessage = column.getErrorMessage() != null && !column.getErrorMessage().isEmpty() ? 
+                    column.getErrorMessage() : 
+                    String.format("Value must be at least %.0f", column.getMinimum().doubleValue());
+                
+            } else if (column.getMaximum() != null) {
+                // Only maximum defined from MDMS schema
+                constraint = dvHelper.createDecimalConstraint(
+                    DataValidationConstraint.OperatorType.LESS_OR_EQUAL,
+                    String.valueOf(column.getMaximum().doubleValue()),
+                    null
+                );
+                // Use custom error message from MDMS if available, otherwise use dynamic message
+                errorMessage = column.getErrorMessage() != null && !column.getErrorMessage().isEmpty() ? 
+                    column.getErrorMessage() : 
+                    String.format("Value must be at most %.0f", column.getMaximum().doubleValue());
+            }
+            
+            if (constraint != null) {
+                CellRangeAddressList addressList = new CellRangeAddressList(2, config.getExcelRowLimit(), colIndex, colIndex);
+                DataValidation validation = dvHelper.createValidation(constraint, addressList);
+                
+                // Configure validation behavior - no prompts, only error on invalid entry
+                validation.setErrorStyle(DataValidation.ErrorStyle.STOP);
+                validation.setShowErrorBox(true);
+                validation.createErrorBox("Invalid Number", errorMessage);
+                validation.setShowPromptBox(false); // No input prompt as requested
+                
+                sheet.addValidationData(validation);
+                log.info("Applied MDMS number validation for column '{}': {}", column.getName(), errorMessage);
+            }
+            
+        } catch (Exception e) {
+            log.warn("Failed to apply MDMS number validation for column '{}': {}", column.getName(), e.getMessage());
+        }
+    }
+    
 
     /**
      * Expand multi-select columns - copied from ExcelSchemaSheetCreator
@@ -356,6 +439,10 @@ public class ExcelDataPopulator {
                         .freezeColumn(column.isFreezeColumn())
                         .freezeTillData(column.isFreezeTillData())
                         .unFreezeColumnTillData(column.isUnFreezeColumnTillData())
+                        // Copy MDMS validation properties
+                        .minimum(column.getMinimum())
+                        .maximum(column.getMaximum())
+                        .errorMessage(column.getErrorMessage())
                         .build();
                 expandedColumns.add(regularCol);
             }

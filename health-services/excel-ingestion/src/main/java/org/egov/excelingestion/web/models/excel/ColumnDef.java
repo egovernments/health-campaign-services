@@ -36,4 +36,9 @@ public class ColumnDef {
     private boolean freezeColumn;
     private boolean freezeTillData;
     private boolean unFreezeColumnTillData;
+    
+    // Validation properties for MDMS number fields
+    private Number minimum;
+    private Number maximum;
+    private String errorMessage; // Custom error message from MDMS schema
 }

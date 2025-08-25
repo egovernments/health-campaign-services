@@ -156,6 +156,20 @@ public class SchemaBasedSheetGenerator implements IExcelPopulatorSheetGenerator 
                 .freezeTillData(node.path("freezeTillData").asBoolean(false))
                 .unFreezeColumnTillData(node.path("unFreezeColumnTillData").asBoolean(false));
         
+        // Handle MDMS validation properties for number fields
+        if ("number".equals(type)) {
+            if (node.has("minimum")) {
+                builder.minimum(node.path("minimum").asDouble());
+            }
+            if (node.has("maximum")) {
+                builder.maximum(node.path("maximum").asDouble());
+            }
+            // Extract custom error message if provided in MDMS schema
+            if (node.has("errorMessage")) {
+                builder.errorMessage(node.path("errorMessage").asText());
+            }
+        }
+        
         // Handle enum properties
         if ("enum".equals(type) && node.has("enum")) {
             List<String> enumValues = new ArrayList<>();
