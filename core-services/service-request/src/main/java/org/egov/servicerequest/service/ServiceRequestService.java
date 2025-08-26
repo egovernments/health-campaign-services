@@ -37,7 +37,7 @@ public class ServiceRequestService {
         org.egov.servicerequest.web.models.Service service = serviceRequest.getService();
 
         // Validate incoming service definition request
-        serviceRequestValidator.validateServiceRequest(serviceRequest);
+//        serviceRequestValidator.validateServiceRequest(serviceRequest);
 
         // Enrich incoming service definition request
         Map<String, Object> attributeCodeVsValueMap = enrichmentService.enrichServiceRequest(serviceRequest);
