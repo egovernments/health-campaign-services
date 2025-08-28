@@ -4,7 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.egov.excelingestion.config.ErrorConstants;
 import org.egov.excelingestion.config.ExcelIngestionConfig;
 import org.egov.excelingestion.web.models.*;
-import org.egov.common.http.client.ServiceRequestClient;
+import org.egov.excelingestion.repository.ServiceRequestRepository;
 import org.egov.excelingestion.exception.CustomExceptionHandler;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
@@ -18,14 +18,14 @@ import java.util.Map;
 @Slf4j
 public class BoundaryService {
 
-    private final ServiceRequestClient serviceRequestClient;
+    private final ServiceRequestRepository serviceRequestRepository;
     private final ExcelIngestionConfig config;
     private final ApiPayloadBuilder apiPayloadBuilder;
     private final CustomExceptionHandler exceptionHandler;
 
-    public BoundaryService(ServiceRequestClient serviceRequestClient, ExcelIngestionConfig config,
+    public BoundaryService(ServiceRequestRepository serviceRequestRepository, ExcelIngestionConfig config,
             ApiPayloadBuilder apiPayloadBuilder, CustomExceptionHandler exceptionHandler) {
-        this.serviceRequestClient = serviceRequestClient;
+        this.serviceRequestRepository = serviceRequestRepository;
         this.config = config;
         this.apiPayloadBuilder = apiPayloadBuilder;
         this.exceptionHandler = exceptionHandler;
@@ -40,14 +40,12 @@ public class BoundaryService {
         
         try {
             StringBuilder uri = new StringBuilder(hierarchyUrl);
-            BoundaryHierarchyResponse result = serviceRequestClient.fetchResult(uri, hierarchyPayload, BoundaryHierarchyResponse.class);
+            BoundaryHierarchyResponse result = serviceRequestRepository.fetchResult(uri, hierarchyPayload, BoundaryHierarchyResponse.class);
             log.info("Successfully fetched boundary hierarchy data");
             return result;
         } catch (Exception e) {
-            log.error("Error calling Boundary Hierarchy API: {}", e.getMessage(), e);
-            exceptionHandler.throwCustomException(ErrorConstants.BOUNDARY_SERVICE_ERROR, 
-                    ErrorConstants.BOUNDARY_SERVICE_ERROR_MESSAGE, e);
-            return null; // This will never be reached due to exception throwing above
+            // ServiceRequestRepository already handles the error with actual message
+            throw e;
         }
     }
 
@@ -63,14 +61,12 @@ public class BoundaryService {
         log.info("Calling Boundary Relationship API: {} with tenantId: {}, hierarchyType: {}", url.toString(), tenantId, hierarchyType);
         
         try {
-            BoundarySearchResponse result = serviceRequestClient.fetchResult(url, relationshipPayload, BoundarySearchResponse.class);
+            BoundarySearchResponse result = serviceRequestRepository.fetchResult(url, relationshipPayload, BoundarySearchResponse.class);
             log.info("Successfully fetched boundary relationship data");
             return result;
         } catch (Exception e) {
-            log.error("Error calling Boundary Relationship API: {}", e.getMessage(), e);
-            exceptionHandler.throwCustomException(ErrorConstants.BOUNDARY_SERVICE_ERROR, 
-                    ErrorConstants.BOUNDARY_SERVICE_ERROR_MESSAGE, e);
-            return null; // This will never be reached due to exception throwing above
+            // ServiceRequestRepository already handles the error with actual message
+            throw e;
         }
     }
 }

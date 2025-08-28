@@ -66,6 +66,13 @@ public class CampaignConfigSheetGenerator implements ISheetGenerator {
             
         } catch (Exception e) {
             log.error("Error creating campaign configuration sheet {}: {}", sheetName, e.getMessage(), e);
+            
+            // If it's already a CustomException with specific error code, preserve it
+            if (e instanceof org.egov.tracer.model.CustomException) {
+                throw (org.egov.tracer.model.CustomException) e;
+            }
+            
+            // Otherwise, treat as campaign config creation error
             exceptionHandler.throwCustomException(ErrorConstants.CAMPAIGN_CONFIG_CREATION_ERROR,
                     ErrorConstants.CAMPAIGN_CONFIG_CREATION_ERROR_MESSAGE, e);
         }

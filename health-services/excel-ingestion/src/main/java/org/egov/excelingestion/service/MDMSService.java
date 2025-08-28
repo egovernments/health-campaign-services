@@ -1,7 +1,7 @@
 package org.egov.excelingestion.service;
 
 import lombok.extern.slf4j.Slf4j;
-import org.egov.common.http.client.ServiceRequestClient;
+import org.egov.excelingestion.repository.ServiceRequestRepository;
 import org.egov.excelingestion.config.ErrorConstants;
 import org.egov.excelingestion.config.ExcelIngestionConfig;
 import org.egov.excelingestion.web.models.RequestInfo;
@@ -20,13 +20,13 @@ import java.util.Map;
 @Slf4j
 public class MDMSService {
 
-    private final ServiceRequestClient serviceRequestClient;
+    private final ServiceRequestRepository serviceRequestRepository;
     private final ExcelIngestionConfig config;
     private final CustomExceptionHandler exceptionHandler;
 
-    public MDMSService(ServiceRequestClient serviceRequestClient, ExcelIngestionConfig config,
+    public MDMSService(ServiceRequestRepository serviceRequestRepository, ExcelIngestionConfig config,
                       CustomExceptionHandler exceptionHandler) {
-        this.serviceRequestClient = serviceRequestClient;
+        this.serviceRequestRepository = serviceRequestRepository;
         this.config = config;
         this.exceptionHandler = exceptionHandler;
     }
@@ -74,7 +74,8 @@ public class MDMSService {
             
             // Make API call
             StringBuilder uri = new StringBuilder(url);
-            Map<String, Object> responseBody = serviceRequestClient.fetchResult(uri, payload, Map.class);
+            @SuppressWarnings("unchecked")
+            Map<String, Object> responseBody = (Map<String, Object>) serviceRequestRepository.fetchResult(uri, payload);
             
             if (responseBody != null && responseBody.get("mdms") != null) {
                 @SuppressWarnings("unchecked")
@@ -85,9 +86,8 @@ public class MDMSService {
             
             log.warn("No MDMS data found for schemaCode: {}, filters: {}", schemaCode, filters);
         } catch (Exception e) {
-            log.error("Error calling MDMS API: {}", e.getMessage(), e);
-            exceptionHandler.throwCustomException(ErrorConstants.MDMS_SERVICE_ERROR, 
-                    ErrorConstants.MDMS_SERVICE_ERROR_MESSAGE, e);
+            // ServiceRequestRepository already handles the error with actual message
+            throw e;
         }
         
         return new ArrayList<>();
@@ -113,7 +113,8 @@ public class MDMSService {
             
             // Make API call
             StringBuilder uri = new StringBuilder(url);
-            Map<String, Object> responseBody = serviceRequestClient.fetchResult(uri, payload, Map.class);
+            @SuppressWarnings("unchecked")
+            Map<String, Object> responseBody = (Map<String, Object>) serviceRequestRepository.fetchResult(uri, payload);
             
             if (responseBody != null && responseBody.get("mdms") != null) {
                 @SuppressWarnings("unchecked")
@@ -124,9 +125,8 @@ public class MDMSService {
             
             log.warn("No MDMS data found");
         } catch (Exception e) {
-            log.error("Error calling MDMS API: {}", e.getMessage(), e);
-            exceptionHandler.throwCustomException(ErrorConstants.MDMS_SERVICE_ERROR, 
-                    ErrorConstants.MDMS_SERVICE_ERROR_MESSAGE, e);
+            // ServiceRequestRepository already handles the error with actual message
+            throw e;
         }
         
         return new ArrayList<>();

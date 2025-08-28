@@ -11,7 +11,7 @@ import org.egov.excelingestion.web.models.localization.LocalisationSearchCriteri
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
-import org.egov.common.http.client.ServiceRequestClient;
+import org.egov.excelingestion.repository.ServiceRequestRepository;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.util.Collections;
@@ -23,7 +23,7 @@ import java.util.Objects;
 @Slf4j
 public class LocalizationService {
 
-    private final ServiceRequestClient serviceRequestClient;
+    private final ServiceRequestRepository serviceRequestRepository;
     private final CustomExceptionHandler exceptionHandler;
 
     @Value("${egov.localization.host}")
@@ -32,9 +32,9 @@ public class LocalizationService {
     @Value("${egov.localization.search.path}")
     private String localizationSearchPath;
 
-    public LocalizationService(ServiceRequestClient serviceRequestClient, 
+    public LocalizationService(ServiceRequestRepository serviceRequestRepository, 
                               CustomExceptionHandler exceptionHandler) {
-        this.serviceRequestClient = serviceRequestClient;
+        this.serviceRequestRepository = serviceRequestRepository;
         this.exceptionHandler = exceptionHandler;
     }
 
@@ -51,7 +51,7 @@ public class LocalizationService {
             // Post only RequestInfo in body (assuming API accepts it)
             StringBuilder uri = new StringBuilder(url);
             log.info("Fetching localized messages from: {}", uri);
-            LocalisationResponse response = serviceRequestClient.fetchResult(uri, requestInfo, LocalisationResponse.class);
+            LocalisationResponse response = serviceRequestRepository.fetchResult(uri, requestInfo, LocalisationResponse.class);
 
             if (response != null && response.getMessages() != null) {
                 Map<String, String> localizedMessages = new HashMap<>();
@@ -61,9 +61,8 @@ public class LocalizationService {
                 return localizedMessages;
             }
         } catch (Exception e) {
-            log.error("Error fetching localized messages from {}: {}", url, e.getMessage(), e);
-            exceptionHandler.throwCustomException(ErrorConstants.LOCALIZATION_SERVICE_ERROR, 
-                    ErrorConstants.LOCALIZATION_SERVICE_ERROR_MESSAGE, e);
+            // ServiceRequestRepository already handles the error with actual message
+            throw e;
         }
         return Collections.emptyMap();
     }

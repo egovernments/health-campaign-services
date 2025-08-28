@@ -105,6 +105,13 @@ public class ConfigBasedGenerationService {
                 
             } catch (Exception e) {
                 log.error("Error generating sheet {}: {}", actualSheetName, e.getMessage(), e);
+                
+                // If it's already a CustomException with specific error code, preserve it
+                if (e instanceof org.egov.tracer.model.CustomException) {
+                    throw (org.egov.tracer.model.CustomException) e;
+                }
+                
+                // Otherwise, wrap in RuntimeException
                 throw new RuntimeException("Failed to generate sheet: " + actualSheetName, e);
             }
         }
@@ -193,6 +200,13 @@ public class ConfigBasedGenerationService {
             
         } catch (Exception e) {
             log.error("Error in direct sheet generation for {}: {}", sheetName, e.getMessage(), e);
+            
+            // If it's already a CustomException with specific error code, preserve it
+            if (e instanceof org.egov.tracer.model.CustomException) {
+                throw (org.egov.tracer.model.CustomException) e;
+            }
+            
+            // Otherwise, wrap in RuntimeException
             throw new RuntimeException("Failed to generate sheet directly: " + sheetName, e);
         }
     }

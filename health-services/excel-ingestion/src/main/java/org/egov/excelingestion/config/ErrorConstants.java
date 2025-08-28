@@ -110,4 +110,7 @@ public class ErrorConstants {
     
     public static final String NETWORK_ERROR = "NETWORK_ERROR";
     public static final String NETWORK_ERROR_MESSAGE = "Network error while calling external service: {0}";
+    
+    public static final String EXTERNAL_SERVICE_ERROR = "EXTERNAL_SERVICE_ERROR";
+    public static final String EXTERNAL_SERVICE_ERROR_MESSAGE = "External service error";
 }

@@ -60,9 +60,9 @@ class SkippedRowsExcelProcessingTest {
         assertEquals("Jane", secondRow.get("name"), "Second row should contain 'Jane'");
         assertEquals("Bob", thirdRow.get("name"), "Third row should contain 'Bob'");
         
-        assertEquals(25.0, firstRow.get("age"), "First row age should be 25");
-        assertEquals(30.0, secondRow.get("age"), "Second row age should be 30");
-        assertEquals(35.0, thirdRow.get("age"), "Third row age should be 35");
+        assertEquals(25L, firstRow.get("age"), "First row age should be 25");
+        assertEquals(30L, secondRow.get("age"), "Second row age should be 30");
+        assertEquals(35L, thirdRow.get("age"), "Third row age should be 35");
         
         workbook.close();
         
@@ -154,10 +154,10 @@ class SkippedRowsExcelProcessingTest {
         // Empty name cell could be null or empty string  
         Object nameValue = result.get(1).get("name");
         assertTrue(nameValue == null || "".equals(nameValue), "Name should be null or empty");
-        assertEquals(30.0, result.get(1).get("age"));
+        assertEquals(30L, result.get(1).get("age"));
         
         assertEquals("Bob", result.get(2).get("name"));
-        assertEquals(35.0, result.get(2).get("age"));
+        assertEquals(35L, result.get(2).get("age"));
         
         workbook.close();
         

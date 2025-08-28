@@ -347,7 +347,12 @@ public class ExcelProcessingService {
                 if (DateUtil.isCellDateFormatted(cell)) {
                     return cell.getDateCellValue();
                 }
-                return cell.getNumericCellValue();
+                double numericValue = cell.getNumericCellValue();
+                // If it's a whole number, return as integer to avoid .0 display
+                if (numericValue == Math.floor(numericValue)) {
+                    return (long) numericValue;
+                }
+                return numericValue;
             case BOOLEAN:
                 return cell.getBooleanCellValue();
             case BLANK:

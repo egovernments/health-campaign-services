@@ -6,7 +6,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.web.client.RestTemplate;
-import org.egov.common.http.client.ServiceRequestClient;
 
 @Configuration
 public class ApplicationConfig {
@@ -26,10 +25,5 @@ public class ApplicationConfig {
         RestTemplate restTemplate = new RestTemplate();
         restTemplate.getMessageConverters().add(0, new MappingJackson2HttpMessageConverter(objectMapper));
         return restTemplate;
-    }
-
-    @Bean
-    public ServiceRequestClient serviceRequestClient(ObjectMapper objectMapper, RestTemplate restTemplate) {
-        return new ServiceRequestClient(objectMapper, restTemplate);
     }
 }

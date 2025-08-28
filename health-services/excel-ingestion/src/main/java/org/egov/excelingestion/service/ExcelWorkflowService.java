@@ -51,8 +51,15 @@ public class ExcelWorkflowService {
         } catch (Exception e) {
             log.error("Error generating Excel for type: {}, ID: {}", generateResource.getType(), generateResource.getId(), e);
             generateResource.setStatus(ProcessingConstants.STATUS_FAILED);
-            exceptionHandler.throwCustomException(ErrorConstants.EXCEL_GENERATION_ERROR,
-                    ErrorConstants.EXCEL_GENERATION_ERROR_MESSAGE, e);
+            
+            // If it's already a CustomException with specific error code, preserve it
+            if (e instanceof org.egov.tracer.model.CustomException) {
+                throw (org.egov.tracer.model.CustomException) e;
+            }
+            
+            // Otherwise, treat as internal server error
+            exceptionHandler.throwCustomException(ErrorConstants.INTERNAL_SERVER_ERROR,
+                    ErrorConstants.INTERNAL_SERVER_ERROR_MESSAGE, e);
             return null; // This will never be reached due to exception throwing above
         }
 
@@ -72,8 +79,15 @@ public class ExcelWorkflowService {
         } catch (Exception e) {
             log.error("Error uploading Excel file to file store for type: {}, ID: {}", generateResource.getType(), generateResource.getId(), e);
             generateResource.setStatus(ProcessingConstants.STATUS_FAILED);
-            exceptionHandler.throwCustomException(ErrorConstants.FILE_STORE_SERVICE_ERROR,
-                    ErrorConstants.FILE_STORE_SERVICE_ERROR_MESSAGE, e);
+            
+            // If it's already a CustomException with specific error code, preserve it
+            if (e instanceof org.egov.tracer.model.CustomException) {
+                throw (org.egov.tracer.model.CustomException) e;
+            }
+            
+            // Otherwise, treat as internal server error
+            exceptionHandler.throwCustomException(ErrorConstants.INTERNAL_SERVER_ERROR,
+                    ErrorConstants.INTERNAL_SERVER_ERROR_MESSAGE, e);
             return null; // This will never be reached due to exception throwing above
         }
 

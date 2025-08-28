@@ -102,25 +102,19 @@ public class ExcelGenerationService {
 
         Map<String, String> mergedLocalizationMap = new HashMap<>();
 
-        try {
-            // Boundary localization
-            String boundaryLocalizationModule = "hcm-boundary-" + hierarchyType.toLowerCase();
-            Map<String, String> boundaryLocalizationMap = localizationService.getLocalizedMessages(
-                    tenantId, boundaryLocalizationModule, locale, requestInfo);
-            mergedLocalizationMap.putAll(boundaryLocalizationMap);
+        // Boundary localization - now critical, any failure will stop processing
+        String boundaryLocalizationModule = "hcm-boundary-" + hierarchyType.toLowerCase();
+        Map<String, String> boundaryLocalizationMap = localizationService.getLocalizedMessages(
+                tenantId, boundaryLocalizationModule, locale, requestInfo);
+        mergedLocalizationMap.putAll(boundaryLocalizationMap);
 
-            // Schema localization
-            String schemaLocalizationModule = "hcm-admin-schemas";
-            Map<String, String> schemaLocalizationMap = localizationService.getLocalizedMessages(
-                    tenantId, schemaLocalizationModule, locale, requestInfo);
-            mergedLocalizationMap.putAll(schemaLocalizationMap);
+        // Schema localization - now critical, any failure will stop processing
+        String schemaLocalizationModule = "hcm-admin-schemas";
+        Map<String, String> schemaLocalizationMap = localizationService.getLocalizedMessages(
+                tenantId, schemaLocalizationModule, locale, requestInfo);
+        mergedLocalizationMap.putAll(schemaLocalizationMap);
 
-            log.info("Prepared localization map with {} entries", mergedLocalizationMap.size());
-            
-        } catch (Exception e) {
-            log.warn("Error preparing localization map: {}", e.getMessage());
-            // Continue with empty map - localization is not critical for generation
-        }
+        log.info("Prepared localization map with {} entries", mergedLocalizationMap.size());
 
         return mergedLocalizationMap;
     }
