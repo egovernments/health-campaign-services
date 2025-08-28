@@ -6,6 +6,9 @@ import com.fasterxml.jackson.annotation.JsonValue;
 public enum UserActionEnum {
     CLOSED_HOUSEHOLD("CLOSED_HOUSEHOLD"),
     LOCATION_CAPTURE("LOCATION_CAPTURE"),
+    TRANSIT("TRANSIT"),
+    FIXED("FIXED"),
+    DAILY_PLAN("DAILY_PLAN"),
     OTHER("OTHER");
 
     private String value;
