@@ -27,15 +27,10 @@ public class SheetGenerationConfig {
     private String schemaName;
     
     /**
-     * Whether to add boundary hierarchy columns to this sheet
+     * Boundary column handler class name (e.g., "BoundaryColumnUtil", "HierarchicalBoundaryUtil", "SecondLevelBoundaryDropdownUtil")
+     * If null or empty, no boundary columns will be added to this sheet
      */
-    private boolean addLevelAndBoundaryColumns;
-    
-    /**
-     * Whether to use simplified single column 2nd level boundary dropdown
-     * Only applies when addLevelAndBoundaryColumns is true
-     */
-    private boolean useSecondLevelBoundaryOnly;
+    private String boundaryColumnsClass;
     
     /**
      * Fully qualified class name for sheet generation (e.g., "org.egov.excelingestion.generator.FacilitySheetGenerator")

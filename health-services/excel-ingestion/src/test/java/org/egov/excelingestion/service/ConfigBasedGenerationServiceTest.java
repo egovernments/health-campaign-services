@@ -93,7 +93,7 @@ class ConfigBasedGenerationServiceTest {
                         SheetGenerationConfig.builder()
                                 .sheetNameKey("TEST_SHEET")
                                 .schemaName("test-schema")
-                                .addLevelAndBoundaryColumns(false)
+                                .boundaryColumnsClass(null)
                                 .generationClass("org.test.TestGenerator")
                                 .isGenerationClassViaExcelPopulator(true)
                                 .order(1)

@@ -14,7 +14,6 @@ import org.egov.excelingestion.util.ExcelDataPopulator;
 import org.egov.excelingestion.util.HierarchicalBoundaryUtil;
 import org.egov.excelingestion.util.SecondLevelBoundaryDropdownUtil;
 import org.egov.excelingestion.web.models.*;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Service;
 
@@ -100,11 +99,9 @@ public class ConfigBasedGenerationService {
                 }
                 
                 // Add boundary columns if configured
-                if (sheetConfig.isAddLevelAndBoundaryColumns()) {
-                    // Use hierarchical boundary dropdown in a single column
-                    hierarchicalBoundaryUtil.addHierarchicalBoundaryColumn(workbook, actualSheetName, localizationMap,
-                            generateResource.getBoundaries(), generateResource.getHierarchyType(),
-                            generateResource.getTenantId(), requestInfo);
+                if (sheetConfig.getBoundaryColumnsClass() != null && !sheetConfig.getBoundaryColumnsClass().trim().isEmpty()) {
+                    addBoundaryColumns(workbook, actualSheetName, sheetConfig.getBoundaryColumnsClass(), 
+                            localizationMap, generateResource, requestInfo);
                 }
                 
                 // Track first visible sheet for setting as active
@@ -305,5 +302,43 @@ public class ConfigBasedGenerationService {
             return truncated;
         }
         return sheetName;
+    }
+    
+    /**
+     * Add boundary columns based on the specified boundary columns class
+     */
+    private void addBoundaryColumns(XSSFWorkbook workbook, String sheetName, String boundaryColumnsClass,
+                                  Map<String, String> localizationMap, GenerateResource generateResource, RequestInfo requestInfo) {
+        try {
+            switch (boundaryColumnsClass) {
+                case "BoundaryColumnUtil":
+                    boundaryColumnUtil.addBoundaryColumnsToSheet(workbook, sheetName, localizationMap,
+                            generateResource.getBoundaries(), generateResource.getHierarchyType(),
+                            generateResource.getTenantId(), requestInfo);
+                    break;
+                    
+                case "HierarchicalBoundaryUtil":
+                    hierarchicalBoundaryUtil.addHierarchicalBoundaryColumn(workbook, sheetName, localizationMap,
+                            generateResource.getBoundaries(), generateResource.getHierarchyType(),
+                            generateResource.getTenantId(), requestInfo);
+                    break;
+                    
+                case "SecondLevelBoundaryDropdownUtil":
+                    secondLevelBoundaryDropdownUtil.addSecondLevelBoundaryColumn(workbook, sheetName, localizationMap,
+                            generateResource.getBoundaries(), generateResource.getHierarchyType(),
+                            generateResource.getTenantId(), requestInfo);
+                    break;
+                    
+                default:
+                    log.warn("Unknown boundary columns class: {}", boundaryColumnsClass);
+                    throw new IllegalArgumentException("Unknown boundary columns class: " + boundaryColumnsClass);
+            }
+            
+            log.info("Added boundary columns using {} for sheet {}", boundaryColumnsClass, sheetName);
+            
+        } catch (Exception e) {
+            log.error("Error adding boundary columns using {} for sheet {}: {}", boundaryColumnsClass, sheetName, e.getMessage(), e);
+            throw new RuntimeException("Failed to add boundary columns using " + boundaryColumnsClass, e);
+        }
     }
 }
