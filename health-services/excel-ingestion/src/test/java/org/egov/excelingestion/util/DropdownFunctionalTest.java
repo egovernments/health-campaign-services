@@ -135,8 +135,7 @@ public class DropdownFunctionalTest {
         CellRangeAddressList levelAddr = new CellRangeAddressList(2, 49, 2, 2);
         DataValidation levelValidation = dvHelper.createValidation(levelConstraint, levelAddr);
         levelValidation.setShowErrorBox(true);
-        levelValidation.setShowPromptBox(true);
-        levelValidation.createPromptBox("Select Level", "Choose a boundary level from the dropdown");
+        levelValidation.setShowPromptBox(false);
         levelValidation.createErrorBox("Invalid Level", "Please select a valid level from the dropdown");
         sheet.addValidationData(levelValidation);
         
@@ -146,8 +145,7 @@ public class DropdownFunctionalTest {
         CellRangeAddressList boundaryAddr = new CellRangeAddressList(2, 49, 3, 3);
         DataValidation boundaryValidation = dvHelper.createValidation(boundaryConstraint, boundaryAddr);
         boundaryValidation.setShowErrorBox(true);
-        boundaryValidation.setShowPromptBox(true);
-        boundaryValidation.createPromptBox("Select Boundary", "Choose a boundary from the dropdown");
+        boundaryValidation.setShowPromptBox(false);
         boundaryValidation.createErrorBox("Invalid Boundary", "Please select a valid boundary");
         sheet.addValidationData(boundaryValidation);
         
@@ -226,8 +224,7 @@ public class DropdownFunctionalTest {
         DataValidationConstraint col1Constraint = dvHelper.createFormulaListConstraint("Level2Boundaries");
         CellRangeAddressList col1Addr = new CellRangeAddressList(2, 49, 2, 2);
         DataValidation col1Validation = dvHelper.createValidation(col1Constraint, col1Addr);
-        col1Validation.setShowPromptBox(true);
-        col1Validation.createPromptBox("Select District", "Choose a district from the dropdown");
+        col1Validation.setShowPromptBox(false);
         sheet.addValidationData(col1Validation);
         
         // Second column (Village) - cascades from first
@@ -235,8 +232,7 @@ public class DropdownFunctionalTest {
         DataValidationConstraint col2Constraint = dvHelper.createFormulaListConstraint(col2Formula);
         CellRangeAddressList col2Addr = new CellRangeAddressList(2, 49, 3, 3);
         DataValidation col2Validation = dvHelper.createValidation(col2Constraint, col2Addr);
-        col2Validation.setShowPromptBox(true);
-        col2Validation.createPromptBox("Select Village", "Choose a village from the dropdown");
+        col2Validation.setShowPromptBox(false);
         sheet.addValidationData(col2Validation);
         
         // Third column (Zone) - cascades from second
@@ -244,8 +240,7 @@ public class DropdownFunctionalTest {
         DataValidationConstraint col3Constraint = dvHelper.createFormulaListConstraint(col3Formula);
         CellRangeAddressList col3Addr = new CellRangeAddressList(2, 49, 4, 4);
         DataValidation col3Validation = dvHelper.createValidation(col3Constraint, col3Addr);
-        col3Validation.setShowPromptBox(true);
-        col3Validation.createPromptBox("Select Zone", "Choose a zone from the dropdown");
+        col3Validation.setShowPromptBox(false);
         sheet.addValidationData(col3Validation);
         
         // Add dynamic boundary code formulas (rows 3-50)

@@ -353,8 +353,7 @@ public class BoundaryColumnUtil {
             levelValidation.setErrorStyle(DataValidation.ErrorStyle.STOP);
             levelValidation.setShowErrorBox(true);
             levelValidation.createErrorBox("Invalid Level", "Please select a valid level from the dropdown list.");
-            levelValidation.setShowPromptBox(true);
-            levelValidation.createPromptBox("Select Level", "Choose a level from the dropdown list.");
+            levelValidation.setShowPromptBox(false);
             sheet.addValidationData(levelValidation);
             
             // Boundary dropdown: depends on level selected, shows "Boundary (Parent)" format 
@@ -366,8 +365,7 @@ public class BoundaryColumnUtil {
             boundaryValidation.setErrorStyle(DataValidation.ErrorStyle.STOP);
             boundaryValidation.setShowErrorBox(true);
             boundaryValidation.createErrorBox("Invalid Boundary", "Please select a valid boundary from the dropdown list.");
-            boundaryValidation.setShowPromptBox(true);
-            boundaryValidation.createPromptBox("Select Boundary", "Choose a boundary from the dropdown list. Format: 'Boundary (Parent)' to avoid duplicates.");
+            boundaryValidation.setShowPromptBox(false);
             sheet.addValidationData(boundaryValidation);
             
             // Add VLOOKUP formula to boundary code column for automatic population
