@@ -11,7 +11,6 @@ import org.egov.excelingestion.web.models.*;
 import org.springframework.stereotype.Component;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 /**
  * Utility class for adding boundary columns to Excel sheets
@@ -126,13 +125,13 @@ public class BoundaryColumnUtil {
         boundaryCodeHeaderCell.setCellStyle(boundaryHeaderStyle);
         
         // Create level and boundary dropdowns with "Boundary (Parent)" format to avoid duplicates
-        createLevelAndBoundaryDropdowns(workbook, filteredBoundaries, levelTypes, localizationMap);
+        createLevelAndBoundaryDropdowns(workbook, filteredBoundaries, levelTypes, hierarchyType, localizationMap);
         
         // Add boundary code mapping BEFORE data validations to ensure named range exists
         addBoundaryCodeMapping(workbook, filteredBoundaries, localizationMap);
         
         // Add data validation for level and boundary columns
-        addLevelAndBoundaryDataValidations(workbook, sheet, lastSchemaCol, levelTypes, localizationMap);
+        addLevelAndBoundaryDataValidations(workbook, sheet, lastSchemaCol, levelTypes, hierarchyType, localizationMap);
 
         // Column widths & freeze - level, boundary name, and boundary code columns
         sheet.setColumnWidth(lastSchemaCol, 50 * 256); // Level column
@@ -164,15 +163,16 @@ public class BoundaryColumnUtil {
      * Creates level dropdown and level-specific boundary dropdowns with "boundary (parent)" format to avoid duplicates
      */
     private void createLevelAndBoundaryDropdowns(XSSFWorkbook workbook, List<BoundaryUtil.BoundaryRowData> filteredBoundaries,
-                                               List<String> levelTypes, Map<String, String> localizationMap) {
+                                               List<String> levelTypes, String hierarchyType, Map<String, String> localizationMap) {
         
         // Build levels and boundary options by level
         Set<String> availableLevels = new LinkedHashSet<>();
         Map<String, Set<String>> boundariesByLevel = new HashMap<>();
         
-        // Create all levels based on the full hierarchy
+        // Create all levels based on the full hierarchy using hierarchyType_boundaryType pattern
         for (int i = 0; i < levelTypes.size(); i++) {
-            String levelKey = "HCM_CAMP_CONF_LEVEL_" + (i + 1);
+            String boundaryType = levelTypes.get(i);
+            String levelKey = (hierarchyType + "_" + boundaryType).toUpperCase();
             String localizedLevel = localizationMap.getOrDefault(levelKey, levelKey);
             availableLevels.add(localizedLevel);
             boundariesByLevel.put(localizedLevel, new TreeSet<>());
@@ -188,7 +188,8 @@ public class BoundaryColumnUtil {
                 if (path.get(i) != null) {
                     String boundaryCode = path.get(i);
                     String boundaryName = localizationMap.getOrDefault(boundaryCode, boundaryCode);
-                    String levelKey = "HCM_CAMP_CONF_LEVEL_" + (i + 1);
+                    String boundaryType = levelTypes.get(i);
+                    String levelKey = (hierarchyType + "_" + boundaryType).toUpperCase();
                     String localizedLevel = localizationMap.getOrDefault(levelKey, levelKey);
                     
                     // Get parent name if exists  
@@ -340,7 +341,7 @@ public class BoundaryColumnUtil {
      * Adds data validations for level and boundary columns
      */
     private void addLevelAndBoundaryDataValidations(XSSFWorkbook workbook, Sheet sheet, int lastSchemaCol, 
-                                                  List<String> levelTypes, Map<String, String> localizationMap) {
+                                                  List<String> levelTypes, String hierarchyType, Map<String, String> localizationMap) {
         DataValidationHelper dvHelper = sheet.getDataValidationHelper();
         
         // Add data validation for rows starting from row 2
