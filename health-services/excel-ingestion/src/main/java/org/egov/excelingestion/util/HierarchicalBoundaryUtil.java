@@ -613,15 +613,37 @@ public class HierarchicalBoundaryUtil {
                 }
             }
             
-            // Add VLOOKUP formula to boundary code column (last selected boundary)
+            // Add formula to boundary code column for the last selected level
             int codeColumnIndex = startColumnIndex + numColumns;
-            String lastBoundaryColRef = CellReference.convertNumToColString(startColumnIndex + numColumns - 1) + (rowIndex + 1);
-            String vlookupFormula = "IF(" + lastBoundaryColRef + "=\"\", \"\", VLOOKUP(" + lastBoundaryColRef + ", BoundaryCodeMap, 2, FALSE))";
+            
+            // Build simple nested IF statements from rightmost to leftmost
+            // This checks the last column first, then works backwards
+            StringBuilder formula = new StringBuilder();
+            
+            for (int colIdx = numColumns - 1; colIdx >= 0; colIdx--) {
+                int actualColIndex = startColumnIndex + colIdx;
+                String colRef = CellReference.convertNumToColString(actualColIndex) + (rowIndex + 1);
+                
+                if (colIdx == numColumns - 1) {
+                    // Start with the rightmost column
+                    formula.append("IF(").append(colRef).append("<>\"\",VLOOKUP(").append(colRef).append(",BoundaryCodeMap,2,FALSE),");
+                } else if (colIdx == 0) {
+                    // End with the leftmost column and close all IFs
+                    formula.append("IF(").append(colRef).append("<>\"\",VLOOKUP(").append(colRef).append(",BoundaryCodeMap,2,FALSE),\"\")");
+                    // Close all the IF statements
+                    for (int j = 0; j < numColumns - 1; j++) {
+                        formula.append(")");
+                    }
+                } else {
+                    // Middle columns
+                    formula.append("IF(").append(colRef).append("<>\"\",VLOOKUP(").append(colRef).append(",BoundaryCodeMap,2,FALSE),");
+                }
+            }
             
             Row row = sheet.getRow(rowIndex);
             if (row == null) row = sheet.createRow(rowIndex);
             Cell boundaryCodeCell = row.createCell(codeColumnIndex);
-            boundaryCodeCell.setCellFormula(vlookupFormula);
+            boundaryCodeCell.setCellFormula(formula.toString());
         }
     }
 }
