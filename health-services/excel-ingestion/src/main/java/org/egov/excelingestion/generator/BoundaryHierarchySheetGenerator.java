@@ -51,6 +51,15 @@ public class BoundaryHierarchySheetGenerator implements IExcelPopulatorSheetGene
                 levelTypes.add(hierarchyRelation.getBoundaryType());
             }
             
+            // Check if boundaries are configured in additionalDetails
+            if (generateResource.getBoundaries() == null || generateResource.getBoundaries().isEmpty()) {
+                log.info("No boundaries configured in additionalDetails for boundary hierarchy sheet, returning empty result");
+                return SheetGenerationResult.builder()
+                        .columnDefs(new ArrayList<>())
+                        .data(new ArrayList<>())
+                        .build();
+            }
+            
             // Filter boundaries based on additionalDetails configuration
             List<BoundaryUtil.BoundaryRowData> filteredBoundaries = boundaryUtil.processBoundariesWithEnrichment(
                     generateResource.getBoundaries(), codeToEnrichedBoundary, levelTypes);

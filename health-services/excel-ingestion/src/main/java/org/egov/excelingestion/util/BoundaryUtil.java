@@ -28,6 +28,13 @@ public class BoundaryUtil {
                                                                Map<String, EnrichedBoundary> codeToEnrichedBoundary,
                                                                List<String> levelTypes) {
         List<BoundaryRowData> boundaryRows = new ArrayList<>();
+        
+        // Null check for boundaries - if null or empty, return empty list
+        if (boundaries == null || boundaries.isEmpty()) {
+            log.info("No boundaries provided for processing, returning empty list");
+            return boundaryRows;
+        }
+        
         Set<String> processedCodes = new HashSet<>();
         
         // Find root boundary
