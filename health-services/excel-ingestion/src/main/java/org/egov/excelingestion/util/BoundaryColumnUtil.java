@@ -352,7 +352,10 @@ public class BoundaryColumnUtil {
             DataValidation levelValidation = dvHelper.createValidation(levelConstraint, levelAddr);
             levelValidation.setErrorStyle(DataValidation.ErrorStyle.STOP);
             levelValidation.setShowErrorBox(true);
-            levelValidation.createErrorBox("Invalid Level", "Please select a valid level from the dropdown list.");
+            levelValidation.createErrorBox(
+                getLocalizedMessage(localizationMap, "HCM_VALIDATION_INVALID_LEVEL", "Invalid Level"),
+                getLocalizedMessage(localizationMap, "HCM_VALIDATION_INVALID_LEVEL_MESSAGE", "Please select a valid level from the dropdown list.")
+            );
             levelValidation.setShowPromptBox(false);
             sheet.addValidationData(levelValidation);
             
@@ -364,7 +367,10 @@ public class BoundaryColumnUtil {
             DataValidation boundaryValidation = dvHelper.createValidation(boundaryConstraint, boundaryAddr);
             boundaryValidation.setErrorStyle(DataValidation.ErrorStyle.STOP);
             boundaryValidation.setShowErrorBox(true);
-            boundaryValidation.createErrorBox("Invalid Boundary", "Please select a valid boundary from the dropdown list.");
+            boundaryValidation.createErrorBox(
+                getLocalizedMessage(localizationMap, "HCM_VALIDATION_INVALID_BOUNDARY", "Invalid Boundary"),
+                getLocalizedMessage(localizationMap, "HCM_VALIDATION_INVALID_BOUNDARY_MESSAGE", "Please select a valid boundary from the dropdown list.")
+            );
             boundaryValidation.setShowPromptBox(false);
             sheet.addValidationData(boundaryValidation);
             
@@ -377,5 +383,15 @@ public class BoundaryColumnUtil {
             Cell boundaryCodeCell = row.createCell(lastSchemaCol + 2);
             boundaryCodeCell.setCellFormula(vlookupFormula);
         }
+    }
+
+    /**
+     * Get localized message from localization map, with fallback to default message
+     */
+    private String getLocalizedMessage(Map<String, String> localizationMap, String key, String defaultMessage) {
+        if (localizationMap != null && key != null && localizationMap.containsKey(key)) {
+            return localizationMap.get(key);
+        }
+        return defaultMessage;
     }
 }

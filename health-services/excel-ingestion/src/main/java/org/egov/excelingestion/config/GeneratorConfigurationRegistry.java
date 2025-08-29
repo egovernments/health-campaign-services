@@ -55,7 +55,7 @@ public class GeneratorConfigurationRegistry {
                         SheetGenerationConfig.builder()
                                 .sheetNameKey("HCM_ADMIN_CONSOLE_USERS_LIST")
                                 .schemaName("user-microplan-ingestion")
-                                .boundaryColumnsClass("BoundaryColumnUtil")
+                                .boundaryColumnsClass("HierarchicalBoundaryUtil")
                                 .order(3)
                                 .visible(true)
                                 .build(),

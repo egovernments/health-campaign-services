@@ -145,7 +145,7 @@ public class HierarchicalBoundaryUtil {
         createBoundaryNameLookupSheet(workbook, mappingResult.codeToDisplayNameMap);
         
         // Add cascading data validations
-        addCascadingBoundaryValidations(workbook, sheet, lastSchemaCol, numCascadingColumns, filteredBoundaries, mappingResult.codeToDisplayNameMap);
+        addCascadingBoundaryValidations(workbook, sheet, lastSchemaCol, numCascadingColumns, filteredBoundaries, mappingResult.codeToDisplayNameMap, localizationMap);
         
         // Set column widths and styling
         for (int i = 0; i < numCascadingColumns; i++) {
@@ -570,7 +570,7 @@ public class HierarchicalBoundaryUtil {
     private void addCascadingBoundaryValidations(XSSFWorkbook workbook, Sheet sheet, 
             int startColumnIndex, int numColumns, 
             List<BoundaryUtil.BoundaryRowData> boundaries,
-            Map<String, String> codeToDisplayNameMap) {
+            Map<String, String> codeToDisplayNameMap, Map<String, String> localizationMap) {
         
         DataValidationHelper dvHelper = sheet.getDataValidationHelper();
         
@@ -594,7 +594,10 @@ public class HierarchicalBoundaryUtil {
                     DataValidation validation = dvHelper.createValidation(constraint, addr);
                     validation.setErrorStyle(DataValidation.ErrorStyle.STOP);
                     validation.setShowErrorBox(true);
-                    validation.createErrorBox("Invalid Selection", "Please select a valid boundary from the dropdown list.");
+                    validation.createErrorBox(
+                        getLocalizedMessage(localizationMap, "HCM_VALIDATION_INVALID_SELECTION", "Invalid Selection"),
+                        getLocalizedMessage(localizationMap, "HCM_VALIDATION_INVALID_SELECTION_MESSAGE", "Please select a valid boundary from the dropdown list.")
+                    );
                     sheet.addValidationData(validation);
                     
                 } else {
@@ -608,7 +611,10 @@ public class HierarchicalBoundaryUtil {
                     DataValidation validation = dvHelper.createValidation(constraint, addr);
                     validation.setErrorStyle(DataValidation.ErrorStyle.WARNING);
                     validation.setShowErrorBox(true);
-                    validation.createErrorBox("Invalid Selection", "Please select a valid child boundary.");
+                    validation.createErrorBox(
+                        getLocalizedMessage(localizationMap, "HCM_VALIDATION_INVALID_CHILD_SELECTION", "Invalid Selection"),
+                        getLocalizedMessage(localizationMap, "HCM_VALIDATION_INVALID_CHILD_SELECTION_MESSAGE", "Please select a valid child boundary.")
+                    );
                     sheet.addValidationData(validation);
                 }
             }
@@ -645,5 +651,15 @@ public class HierarchicalBoundaryUtil {
             Cell boundaryCodeCell = row.createCell(codeColumnIndex);
             boundaryCodeCell.setCellFormula(formula.toString());
         }
+    }
+
+    /**
+     * Get localized message from localization map, with fallback to default message
+     */
+    private String getLocalizedMessage(Map<String, String> localizationMap, String key, String defaultMessage) {
+        if (localizationMap != null && key != null && localizationMap.containsKey(key)) {
+            return localizationMap.get(key);
+        }
+        return defaultMessage;
     }
 }

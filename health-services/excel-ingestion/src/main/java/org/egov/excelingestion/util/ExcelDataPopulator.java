@@ -289,7 +289,10 @@ public class ExcelDataPopulator {
                 DataValidation validation = dvHelper.createValidation(constraint, addressList);
                 validation.setErrorStyle(DataValidation.ErrorStyle.STOP);
                 validation.setShowErrorBox(true);
-                validation.createErrorBox("Invalid Selection", "Please select a value from the dropdown list.");
+                validation.createErrorBox(
+                    getLocalizedMessage(localizationMap, "HCM_VALIDATION_INVALID_DROPDOWN_SELECTION", "Invalid Selection"),
+                    getLocalizedMessage(localizationMap, "HCM_VALIDATION_INVALID_DROPDOWN_SELECTION_MESSAGE", "Please select a value from the dropdown list.")
+                );
                 validation.setShowPromptBox(false); // No input prompt, only error on invalid data
                 sheet.addValidationData(validation);
             }
@@ -346,8 +349,8 @@ public class ExcelDataPopulator {
                     if (column.getErrorMessage() != null && !column.getErrorMessage().isEmpty()) {
                         errorMessage = getLocalizedMessage(localizationMap, column.getErrorMessage(), column.getErrorMessage());
                     } else {
-                        errorMessage = String.format("Text length must be between %d and %d characters", 
-                            column.getMinLength(), column.getMaxLength());
+                        String template = getLocalizedMessage(localizationMap, "HCM_VALIDATION_TEXT_LENGTH_BETWEEN", "Text length must be between %d and %d characters");
+                        errorMessage = String.format(template, column.getMinLength(), column.getMaxLength());
                     }
                     
                 } else if (column.getMinLength() != null) {
@@ -360,7 +363,8 @@ public class ExcelDataPopulator {
                     if (column.getErrorMessage() != null && !column.getErrorMessage().isEmpty()) {
                         errorMessage = getLocalizedMessage(localizationMap, column.getErrorMessage(), column.getErrorMessage());
                     } else {
-                        errorMessage = String.format("Text must be at least %d characters long", column.getMinLength());
+                        String template = getLocalizedMessage(localizationMap, "HCM_VALIDATION_TEXT_MIN_LENGTH", "Text must be at least %d characters long");
+                        errorMessage = String.format(template, column.getMinLength());
                     }
                     
                 } else if (column.getMaxLength() != null) {
@@ -373,7 +377,8 @@ public class ExcelDataPopulator {
                     if (column.getErrorMessage() != null && !column.getErrorMessage().isEmpty()) {
                         errorMessage = getLocalizedMessage(localizationMap, column.getErrorMessage(), column.getErrorMessage());
                     } else {
-                        errorMessage = String.format("Text must not exceed %d characters", column.getMaxLength());
+                        String template = getLocalizedMessage(localizationMap, "HCM_VALIDATION_TEXT_MAX_LENGTH", "Text must not exceed %d characters");
+                        errorMessage = String.format(template, column.getMaxLength());
                     }
                 }
                 
@@ -383,7 +388,10 @@ public class ExcelDataPopulator {
                     
                     validation.setErrorStyle(DataValidation.ErrorStyle.STOP);
                     validation.setShowErrorBox(true);
-                    validation.createErrorBox("Invalid Text Length", errorMessage);
+                    validation.createErrorBox(
+                        getLocalizedMessage(localizationMap, "HCM_VALIDATION_INVALID_TEXT_LENGTH", "Invalid Text Length"),
+                        errorMessage
+                    );
                     validation.setShowPromptBox(false);
                     
                     sheet.addValidationData(validation);
@@ -423,8 +431,8 @@ public class ExcelDataPopulator {
                 if (column.getErrorMessage() != null && !column.getErrorMessage().isEmpty()) {
                     errorMessage = getLocalizedMessage(localizationMap, column.getErrorMessage(), column.getErrorMessage());
                 } else {
-                    errorMessage = String.format("Value must be greater than %.0f and less than %.0f", 
-                        column.getExclusiveMinimum().doubleValue(), column.getExclusiveMaximum().doubleValue());
+                    String template = getLocalizedMessage(localizationMap, "HCM_VALIDATION_NUMBER_BETWEEN_EXCLUSIVE", "Value must be greater than %.0f and less than %.0f");
+                    errorMessage = String.format(template, column.getExclusiveMinimum().doubleValue(), column.getExclusiveMaximum().doubleValue());
                 }
                 
             } else if (column.getExclusiveMinimum() != null) {
@@ -437,7 +445,8 @@ public class ExcelDataPopulator {
                 if (column.getErrorMessage() != null && !column.getErrorMessage().isEmpty()) {
                     errorMessage = getLocalizedMessage(localizationMap, column.getErrorMessage(), column.getErrorMessage());
                 } else {
-                    errorMessage = String.format("Value must be greater than %.0f", column.getExclusiveMinimum().doubleValue());
+                    String template = getLocalizedMessage(localizationMap, "HCM_VALIDATION_NUMBER_GREATER_THAN", "Value must be greater than %.0f");
+                    errorMessage = String.format(template, column.getExclusiveMinimum().doubleValue());
                 }
                 
             } else if (column.getExclusiveMaximum() != null) {
@@ -450,7 +459,8 @@ public class ExcelDataPopulator {
                 if (column.getErrorMessage() != null && !column.getErrorMessage().isEmpty()) {
                     errorMessage = getLocalizedMessage(localizationMap, column.getErrorMessage(), column.getErrorMessage());
                 } else {
-                    errorMessage = String.format("Value must be less than %.0f", column.getExclusiveMaximum().doubleValue());
+                    String template = getLocalizedMessage(localizationMap, "HCM_VALIDATION_NUMBER_LESS_THAN", "Value must be less than %.0f");
+                    errorMessage = String.format(template, column.getExclusiveMaximum().doubleValue());
                 }
                 
             } else if (column.getMinimum() != null && column.getMaximum() != null) {
@@ -466,8 +476,8 @@ public class ExcelDataPopulator {
                     errorMessage = getLocalizedMessage(localizationMap, column.getErrorMessage(), column.getErrorMessage());
                 } else {
                     // Use dynamic message
-                    errorMessage = String.format("Value must be between %.0f and %.0f", 
-                        column.getMinimum().doubleValue(), column.getMaximum().doubleValue());
+                    String template = getLocalizedMessage(localizationMap, "HCM_VALIDATION_NUMBER_BETWEEN", "Value must be between %.0f and %.0f");
+                    errorMessage = String.format(template, column.getMinimum().doubleValue(), column.getMaximum().doubleValue());
                 }
                     
             } else if (column.getMinimum() != null) {
@@ -483,7 +493,8 @@ public class ExcelDataPopulator {
                     errorMessage = getLocalizedMessage(localizationMap, column.getErrorMessage(), column.getErrorMessage());
                 } else {
                     // Use dynamic message
-                    errorMessage = String.format("Value must be at least %.0f", column.getMinimum().doubleValue());
+                    String template = getLocalizedMessage(localizationMap, "HCM_VALIDATION_NUMBER_MIN", "Value must be at least %.0f");
+                    errorMessage = String.format(template, column.getMinimum().doubleValue());
                 }
                 
             } else if (column.getMaximum() != null) {
@@ -499,7 +510,8 @@ public class ExcelDataPopulator {
                     errorMessage = getLocalizedMessage(localizationMap, column.getErrorMessage(), column.getErrorMessage());
                 } else {
                     // Use dynamic message
-                    errorMessage = String.format("Value must be at most %.0f", column.getMaximum().doubleValue());
+                    String template = getLocalizedMessage(localizationMap, "HCM_VALIDATION_NUMBER_MAX", "Value must be at most %.0f");
+                    errorMessage = String.format(template, column.getMaximum().doubleValue());
                 }
             }
             
@@ -510,7 +522,10 @@ public class ExcelDataPopulator {
                 // Configure validation behavior - no prompts, only error on invalid entry
                 validation.setErrorStyle(DataValidation.ErrorStyle.STOP);
                 validation.setShowErrorBox(true);
-                validation.createErrorBox("Invalid Number", errorMessage);
+                validation.createErrorBox(
+                    getLocalizedMessage(localizationMap, "HCM_VALIDATION_INVALID_NUMBER", "Invalid Number"),
+                    errorMessage
+                );
                 validation.setShowPromptBox(false); // No input prompt as requested
                 
                 sheet.addValidationData(validation);
