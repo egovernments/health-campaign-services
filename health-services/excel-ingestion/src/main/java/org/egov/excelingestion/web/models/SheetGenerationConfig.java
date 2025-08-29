@@ -32,6 +32,12 @@ public class SheetGenerationConfig {
     private boolean addLevelAndBoundaryColumns;
     
     /**
+     * Whether to use simplified single column 2nd level boundary dropdown
+     * Only applies when addLevelAndBoundaryColumns is true
+     */
+    private boolean useSecondLevelBoundaryOnly;
+    
+    /**
      * Fully qualified class name for sheet generation (e.g., "org.egov.excelingestion.generator.FacilitySheetGenerator")
      */
     private String generationClass;

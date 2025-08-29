@@ -5,6 +5,8 @@ import org.egov.excelingestion.exception.CustomExceptionHandler;
 import org.egov.excelingestion.util.BoundaryColumnUtil;
 import org.egov.excelingestion.util.CellProtectionManager;
 import org.egov.excelingestion.util.ExcelDataPopulator;
+import org.egov.excelingestion.util.HierarchicalBoundaryUtil;
+import org.egov.excelingestion.util.SecondLevelBoundaryDropdownUtil;
 import org.egov.excelingestion.web.models.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -34,6 +36,12 @@ class ConfigBasedGenerationServiceTest {
     private BoundaryColumnUtil boundaryColumnUtil;
     
     @Mock
+    private HierarchicalBoundaryUtil hierarchicalBoundaryUtil;
+    
+    @Mock
+    private SecondLevelBoundaryDropdownUtil secondLevelBoundaryDropdownUtil;
+    
+    @Mock
     private CellProtectionManager cellProtectionManager;
     
     @Mock
@@ -53,6 +61,8 @@ class ConfigBasedGenerationServiceTest {
                 applicationContext,
                 excelDataPopulator,
                 boundaryColumnUtil,
+                hierarchicalBoundaryUtil,
+                secondLevelBoundaryDropdownUtil,
                 cellProtectionManager,
                 config,
                 exceptionHandler,

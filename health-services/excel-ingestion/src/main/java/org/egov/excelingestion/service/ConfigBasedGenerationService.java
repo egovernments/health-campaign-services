@@ -11,6 +11,8 @@ import org.egov.excelingestion.generator.ISheetGenerator;
 import org.egov.excelingestion.util.BoundaryColumnUtil;
 import org.egov.excelingestion.util.CellProtectionManager;
 import org.egov.excelingestion.util.ExcelDataPopulator;
+import org.egov.excelingestion.util.HierarchicalBoundaryUtil;
+import org.egov.excelingestion.util.SecondLevelBoundaryDropdownUtil;
 import org.egov.excelingestion.web.models.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
@@ -28,6 +30,8 @@ public class ConfigBasedGenerationService {
     private final ApplicationContext applicationContext;
     private final ExcelDataPopulator excelDataPopulator;
     private final BoundaryColumnUtil boundaryColumnUtil;
+    private final HierarchicalBoundaryUtil hierarchicalBoundaryUtil;
+    private final SecondLevelBoundaryDropdownUtil secondLevelBoundaryDropdownUtil;
     private final CellProtectionManager cellProtectionManager;
     private final ExcelIngestionConfig config;
     private final CustomExceptionHandler exceptionHandler;
@@ -36,6 +40,8 @@ public class ConfigBasedGenerationService {
     public ConfigBasedGenerationService(ApplicationContext applicationContext,
                                       ExcelDataPopulator excelDataPopulator,
                                       BoundaryColumnUtil boundaryColumnUtil,
+                                      HierarchicalBoundaryUtil hierarchicalBoundaryUtil,
+                                      SecondLevelBoundaryDropdownUtil secondLevelBoundaryDropdownUtil,
                                       CellProtectionManager cellProtectionManager,
                                       ExcelIngestionConfig config,
                                       CustomExceptionHandler exceptionHandler,
@@ -43,6 +49,8 @@ public class ConfigBasedGenerationService {
         this.applicationContext = applicationContext;
         this.excelDataPopulator = excelDataPopulator;
         this.boundaryColumnUtil = boundaryColumnUtil;
+        this.hierarchicalBoundaryUtil = hierarchicalBoundaryUtil;
+        this.secondLevelBoundaryDropdownUtil = secondLevelBoundaryDropdownUtil;
         this.cellProtectionManager = cellProtectionManager;
         this.config = config;
         this.exceptionHandler = exceptionHandler;
@@ -93,7 +101,8 @@ public class ConfigBasedGenerationService {
                 
                 // Add boundary columns if configured
                 if (sheetConfig.isAddLevelAndBoundaryColumns()) {
-                    boundaryColumnUtil.addBoundaryColumnsToSheet(workbook, actualSheetName, localizationMap,
+                    // Use hierarchical boundary dropdown in a single column
+                    hierarchicalBoundaryUtil.addHierarchicalBoundaryColumn(workbook, actualSheetName, localizationMap,
                             generateResource.getBoundaries(), generateResource.getHierarchyType(),
                             generateResource.getTenantId(), requestInfo);
                 }
