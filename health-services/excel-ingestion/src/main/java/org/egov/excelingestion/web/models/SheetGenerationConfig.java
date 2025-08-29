@@ -27,7 +27,7 @@ public class SheetGenerationConfig {
     private String schemaName;
     
     /**
-     * Boundary column handler class name (e.g., "BoundaryColumnUtil", "HierarchicalBoundaryUtil", "SecondLevelBoundaryDropdownUtil")
+     * Boundary column handler class name (e.g., "BoundaryColumnUtil", "HierarchicalBoundaryUtil")
      * If null or empty, no boundary columns will be added to this sheet
      */
     private String boundaryColumnsClass;

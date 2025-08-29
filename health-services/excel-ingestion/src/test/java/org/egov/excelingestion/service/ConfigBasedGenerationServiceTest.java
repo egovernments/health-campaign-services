@@ -6,7 +6,6 @@ import org.egov.excelingestion.util.BoundaryColumnUtil;
 import org.egov.excelingestion.util.CellProtectionManager;
 import org.egov.excelingestion.util.ExcelDataPopulator;
 import org.egov.excelingestion.util.HierarchicalBoundaryUtil;
-import org.egov.excelingestion.util.SecondLevelBoundaryDropdownUtil;
 import org.egov.excelingestion.web.models.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -16,7 +15,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationContext;
 
 import java.util.Arrays;
-import java.util.HashMap;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -39,9 +37,6 @@ class ConfigBasedGenerationServiceTest {
     private HierarchicalBoundaryUtil hierarchicalBoundaryUtil;
     
     @Mock
-    private SecondLevelBoundaryDropdownUtil secondLevelBoundaryDropdownUtil;
-    
-    @Mock
     private CellProtectionManager cellProtectionManager;
     
     @Mock
@@ -62,7 +57,6 @@ class ConfigBasedGenerationServiceTest {
                 excelDataPopulator,
                 boundaryColumnUtil,
                 hierarchicalBoundaryUtil,
-                secondLevelBoundaryDropdownUtil,
                 cellProtectionManager,
                 config,
                 exceptionHandler,

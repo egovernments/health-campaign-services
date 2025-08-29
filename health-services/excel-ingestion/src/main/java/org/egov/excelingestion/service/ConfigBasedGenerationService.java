@@ -12,7 +12,6 @@ import org.egov.excelingestion.util.BoundaryColumnUtil;
 import org.egov.excelingestion.util.CellProtectionManager;
 import org.egov.excelingestion.util.ExcelDataPopulator;
 import org.egov.excelingestion.util.HierarchicalBoundaryUtil;
-import org.egov.excelingestion.util.SecondLevelBoundaryDropdownUtil;
 import org.egov.excelingestion.web.models.*;
 import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Service;
@@ -30,7 +29,6 @@ public class ConfigBasedGenerationService {
     private final ExcelDataPopulator excelDataPopulator;
     private final BoundaryColumnUtil boundaryColumnUtil;
     private final HierarchicalBoundaryUtil hierarchicalBoundaryUtil;
-    private final SecondLevelBoundaryDropdownUtil secondLevelBoundaryDropdownUtil;
     private final CellProtectionManager cellProtectionManager;
     private final ExcelIngestionConfig config;
     private final CustomExceptionHandler exceptionHandler;
@@ -40,7 +38,6 @@ public class ConfigBasedGenerationService {
                                       ExcelDataPopulator excelDataPopulator,
                                       BoundaryColumnUtil boundaryColumnUtil,
                                       HierarchicalBoundaryUtil hierarchicalBoundaryUtil,
-                                      SecondLevelBoundaryDropdownUtil secondLevelBoundaryDropdownUtil,
                                       CellProtectionManager cellProtectionManager,
                                       ExcelIngestionConfig config,
                                       CustomExceptionHandler exceptionHandler,
@@ -49,7 +46,6 @@ public class ConfigBasedGenerationService {
         this.excelDataPopulator = excelDataPopulator;
         this.boundaryColumnUtil = boundaryColumnUtil;
         this.hierarchicalBoundaryUtil = hierarchicalBoundaryUtil;
-        this.secondLevelBoundaryDropdownUtil = secondLevelBoundaryDropdownUtil;
         this.cellProtectionManager = cellProtectionManager;
         this.config = config;
         this.exceptionHandler = exceptionHandler;
@@ -319,12 +315,6 @@ public class ConfigBasedGenerationService {
                     
                 case "HierarchicalBoundaryUtil":
                     hierarchicalBoundaryUtil.addHierarchicalBoundaryColumn(workbook, sheetName, localizationMap,
-                            generateResource.getBoundaries(), generateResource.getHierarchyType(),
-                            generateResource.getTenantId(), requestInfo);
-                    break;
-                    
-                case "SecondLevelBoundaryDropdownUtil":
-                    secondLevelBoundaryDropdownUtil.addSecondLevelBoundaryColumn(workbook, sheetName, localizationMap,
                             generateResource.getBoundaries(), generateResource.getHierarchyType(),
                             generateResource.getTenantId(), requestInfo);
                     break;
