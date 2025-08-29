@@ -116,14 +116,18 @@ public class HierarchicalBoundaryUtil {
             int levelIndex = i + 1; // Start from 2nd level (index 1)
             int colIndex = lastSchemaCol + i;
             
-            // Add technical name to hidden row
-            hiddenRow.createCell(colIndex).setCellValue("BOUNDARY_LEVEL_" + (levelIndex + 1));
+            // Get boundary type for this level from hierarchyRelations
+            String boundaryType = hierarchyRelations.get(levelIndex).getBoundaryType();
+            // Create column name using hierarchyType + "_" + boundaryType pattern (same as boundary sheet)
+            String columnName = (hierarchyType + "_" + boundaryType).toUpperCase();
             
-            // Add localized header
+            // Add technical name to hidden row
+            hiddenRow.createCell(colIndex).setCellValue(columnName);
+            
+            // Add localized header using the same pattern as boundary sheet
             Cell headerCell = visibleRow.createCell(colIndex);
-            String levelKey = "HCM_CAMP_CONF_LEVEL_" + (levelIndex + 1);
-            String levelName = localizationMap.getOrDefault(levelKey, "Level " + (levelIndex + 1));
-            headerCell.setCellValue(levelName);
+            String localizedHeaderName = localizationMap.getOrDefault(columnName, columnName);
+            headerCell.setCellValue(localizedHeaderName);
             headerCell.setCellStyle(boundaryHeaderStyle);
         }
         
