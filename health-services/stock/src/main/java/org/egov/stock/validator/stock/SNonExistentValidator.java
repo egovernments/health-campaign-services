@@ -18,18 +18,13 @@ import org.egov.tracer.model.CustomException;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
-import static org.egov.common.utils.CommonUtils.checkNonExistentEntities;
-import static org.egov.common.utils.CommonUtils.getIdToObjMap;
-import static org.egov.common.utils.CommonUtils.getMethod;
-import static org.egov.common.utils.CommonUtils.getObjClass;
-import static org.egov.common.utils.CommonUtils.notHavingErrors;
-import static org.egov.common.utils.CommonUtils.populateErrorDetails;
+import static org.egov.common.utils.CommonUtils.*;
 import static org.egov.common.utils.ValidatorUtils.getErrorForNonExistentEntity;
-import static org.egov.stock.Constants.GET_ID;
+import static org.egov.stock.Constants.*;
 
 @Component
 @Slf4j
-@Order(2)
+@Order(3)
 public class SNonExistentValidator implements Validator<StockBulkRequest, Stock> {
 
     private final StockRepository stockRepository;
@@ -42,6 +37,7 @@ public class SNonExistentValidator implements Validator<StockBulkRequest, Stock>
     public Map<Stock, List<Error>> validate(StockBulkRequest request) {
         Map<Stock, List<Error>> errorDetailsMap = new HashMap<>();
         List<Stock> entities = request.getStock();
+
         log.info("validating non existent stock");
         Class<?> objClass = getObjClass(entities);
         Method idMethod = getMethod(GET_ID, objClass);
@@ -69,7 +65,7 @@ public class SNonExistentValidator implements Validator<StockBulkRequest, Stock>
             } catch (Exception e) {
                 // Handle query builder exception
                 log.error("Search failed for Stock with error: {}", e.getMessage(), e);
-                throw new CustomException("STOCK_SEARCH_FAILED", "Search Failed for Stock, " + e.getMessage()); 
+                throw new CustomException(S_VALIDATION_STOCK_SEARCH_FAILED, "Search Failed for Stock, " + e.getMessage());
             }
             List<Stock> nonExistentEntities = checkNonExistentEntities(eMap,
                     existingEntities, idMethod);

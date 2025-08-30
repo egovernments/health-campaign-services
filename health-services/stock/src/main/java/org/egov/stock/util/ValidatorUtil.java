@@ -27,8 +27,7 @@ import static org.egov.common.utils.CommonUtils.getTenantId;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.common.utils.ValidatorUtils.getErrorForNonExistentRelatedEntity;
-import static org.egov.stock.Constants.GET_REQUEST_INFO;
-import static org.egov.stock.Constants.NO_PROJECT_FACILITY_MAPPING_EXISTS;
+import static org.egov.stock.Constants.*;
 
 public class ValidatorUtil {
 
@@ -68,21 +67,21 @@ public class ValidatorUtil {
 	 *
 	 * @param requestInfo
 	 * @param errorDetailsMap
-	 * @param validStockEntities
+	 * @param stockEntities
 	 * @param facilityService
 	 * @param userService
 	 * @return
 	 */
 	public static <R, T> Map<T, List<Error>> validateStockTransferParties(RequestInfo requestInfo,
-			Map<T, List<Error>> errorDetailsMap, List<Stock> validStockEntities, FacilityService facilityService,
+			Map<T, List<Error>> errorDetailsMap, List<Stock> stockEntities, FacilityService facilityService,
 			UserService userService) {
 
-		if (!validStockEntities.isEmpty()) {
+		if (!stockEntities.isEmpty()) {
 
 			Tuple<List<String>, List<String>> tupleOfInvalidStaffIdsAndFacilityIds = validateAndEnrichInvalidPartyIds(
-					requestInfo, errorDetailsMap, validStockEntities, facilityService, userService);
+					requestInfo, errorDetailsMap, stockEntities, facilityService, userService);
 
-			enrichErrorMapFromInvalidPartyIds(errorDetailsMap, validStockEntities,
+			enrichErrorMapFromInvalidPartyIds(errorDetailsMap, stockEntities,
 					tupleOfInvalidStaffIdsAndFacilityIds.getX(), tupleOfInvalidStaffIdsAndFacilityIds.getY());
 
 		}
@@ -94,32 +93,32 @@ public class ValidatorUtil {
 	 *
 	 * @param requestInfo
 	 * @param errorDetailsMap
-	 * @param validStockEntities
+	 * @param stockEntities
 	 * @param facilityService
 	 * @param userService
 	 * @return A tuple containing lists of invalid facility ids and invalid staff ids
 	 */
 	@SuppressWarnings("unchecked")
 	private static <T> Tuple<List<String>, List<String>> validateAndEnrichInvalidPartyIds(RequestInfo requestInfo,
-			Map<T, List<Error>> errorDetailsMap, List<Stock> validStockEntities, FacilityService facilityService,
+			Map<T, List<Error>> errorDetailsMap, List<Stock> stockEntities, FacilityService facilityService,
 			UserService userService) {
 
 		List<String> facilityIds = new ArrayList<>();
 		List<String> staffIds = new ArrayList<>();
 
-		enrichFaciltyAndStaffIdsFromStock(validStockEntities, facilityIds, staffIds);
+		enrichFaciltyAndStaffIdsFromStock(stockEntities, facilityIds, staffIds);
 
 		// copy all of party identifiers into invalid list
 		List<String> invalidStaffIds = new ArrayList<>(staffIds);
 		List<String> invalidFacilityIds = new ArrayList<>(facilityIds);
 
-		String tenantId = getTenantId(validStockEntities);
+		String tenantId = getTenantId(stockEntities);
 
 		// validate and remove valid identifiers from invalidStaffIds
 		validateAndEnrichStaffIds(requestInfo, userService, staffIds, invalidStaffIds);
 
 		// validate and remove valid identifiers from invalidfacilityIds
-		List<String> validFacilityIds = facilityService.validateFacilityIds(facilityIds, (List<T>) validStockEntities,
+		List<String> validFacilityIds = facilityService.validateFacilityIds(facilityIds, (List<T>) stockEntities,
 					tenantId, errorDetailsMap, requestInfo);
 		invalidFacilityIds.removeAll(validFacilityIds);
 
@@ -316,9 +315,9 @@ public class ValidatorUtil {
 		String errorMessage = String.format("No mapping exists for project id: %s & facility id: %s",
 				stock.getReferenceId(), facilityId);
 
-		Error error = Error.builder().errorMessage(errorMessage).errorCode(NO_PROJECT_FACILITY_MAPPING_EXISTS)
+		Error error = Error.builder().errorMessage(errorMessage).errorCode(S_REFERENCEID_VALIDATION_ERROR)
 				.type(Error.ErrorType.NON_RECOVERABLE)
-				.exception(new CustomException(NO_PROJECT_FACILITY_MAPPING_EXISTS, errorMessage)).build();
+				.exception(new CustomException(S_REFERENCEID_VALIDATION_ERROR, errorMessage)).build();
 		populateErrorDetails((T) stock, error, errorDetailsMap);
 	}
 
@@ -344,9 +343,9 @@ public class ValidatorUtil {
 		String errorMessage = String.format("No mapping exists for project id: %s & facility id: %s",
 				stockReconciliation.getReferenceId(), stockReconciliation.getFacilityId());
 
-		Error error = Error.builder().errorMessage(errorMessage).errorCode(NO_PROJECT_FACILITY_MAPPING_EXISTS)
+		Error error = Error.builder().errorMessage(errorMessage).errorCode(SR_REFERENCEID_VALIDATION_ERROR)
 				.type(Error.ErrorType.NON_RECOVERABLE)
-				.exception(new CustomException(NO_PROJECT_FACILITY_MAPPING_EXISTS, errorMessage)).build();
+				.exception(new CustomException(SR_REFERENCEID_VALIDATION_ERROR, errorMessage)).build();
 		populateErrorDetails((T) stockReconciliation, error, errorDetailsMap);
 	}
 }

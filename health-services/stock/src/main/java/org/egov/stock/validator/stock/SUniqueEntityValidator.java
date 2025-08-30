@@ -20,7 +20,7 @@ import static org.egov.common.utils.ValidatorUtils.getErrorForUniqueEntity;
 
 @Component
 @Slf4j
-@Order(3)
+@Order(2)
 public class SUniqueEntityValidator implements Validator<StockBulkRequest, Stock> {
     @Override
     public Map<Stock, List<Error>> validate(StockBulkRequest request) {

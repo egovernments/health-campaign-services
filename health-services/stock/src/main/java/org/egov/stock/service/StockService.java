@@ -41,9 +41,7 @@ import static org.egov.common.utils.CommonUtils.isSearchByIdOnly;
 import static org.egov.common.utils.CommonUtils.lastChangedSince;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.common.utils.CommonUtils.validate;
-import static org.egov.stock.Constants.GET_STOCK;
-import static org.egov.stock.Constants.SET_STOCK;
-import static org.egov.stock.Constants.VALIDATION_ERROR;
+import static org.egov.stock.Constants.*;
 
 
 @Service
@@ -98,7 +96,7 @@ public class StockService {
     public List<Stock> create(StockBulkRequest request, boolean isBulk) {
         log.info("starting create method for stock");
         Tuple<List<Stock>, Map<Stock, ErrorDetails>> tuple = validate(validators,
-                isApplicableForCreate, request, SET_STOCK, GET_STOCK, VALIDATION_ERROR,
+                isApplicableForCreate, request, SET_STOCK, GET_STOCK, S_CREATE_VALIDATION_ERROR,
                 isBulk);
         Map<Stock, ErrorDetails> errorDetailsMap = tuple.getY();
         List<Stock> validEntities = tuple.getX();
@@ -113,7 +111,7 @@ public class StockService {
             populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_STOCK);
         }
 
-        handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
+        handleErrors(errorDetailsMap, isBulk, S_CREATE_VALIDATION_ERROR);
         log.info("completed create method for stock");
         return validEntities;
     }
@@ -128,7 +126,7 @@ public class StockService {
     public List<Stock> update(StockBulkRequest request, boolean isBulk) {
         log.info("starting update method for stock");
         Tuple<List<Stock>, Map<Stock, ErrorDetails>> tuple = validate(validators,
-                isApplicableForUpdate, request, SET_STOCK, GET_STOCK, VALIDATION_ERROR,
+                isApplicableForUpdate, request, SET_STOCK, GET_STOCK, S_UPDATE_VALIDATION_ERROR,
                 isBulk);
         Map<Stock, ErrorDetails> errorDetailsMap = tuple.getY();
         List<Stock> validEntities = tuple.getX();
@@ -143,7 +141,7 @@ public class StockService {
             populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_STOCK);
         }
 
-        handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
+        handleErrors(errorDetailsMap, isBulk, S_UPDATE_VALIDATION_ERROR);
         log.info("completed update method for stock");
         return validEntities;
     }
@@ -158,7 +156,7 @@ public class StockService {
     public List<Stock> delete(StockBulkRequest request, boolean isBulk) {
         log.info("starting delete method for stock");
         Tuple<List<Stock>, Map<Stock, ErrorDetails>> tuple = validate(validators,
-                isApplicableForDelete, request, SET_STOCK, GET_STOCK, VALIDATION_ERROR,
+                isApplicableForDelete, request, SET_STOCK, GET_STOCK, S_DELETE_VALIDATION_ERROR,
                 isBulk);
         Map<Stock, ErrorDetails> errorDetailsMap = tuple.getY();
         List<Stock> validEntities = tuple.getX();
@@ -173,7 +171,7 @@ public class StockService {
             populateErrorDetails(request, errorDetailsMap, validEntities, exception, SET_STOCK);
         }
 
-        handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
+        handleErrors(errorDetailsMap, isBulk, S_DELETE_VALIDATION_ERROR);
         log.info("completed delete method for stock");
         return validEntities;
     }

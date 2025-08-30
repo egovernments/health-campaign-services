@@ -20,7 +20,7 @@ import static org.egov.common.utils.ValidatorUtils.getErrorForUniqueEntity;
 
 @Component
 @Slf4j
-@Order(3)
+@Order(2)
 public class SrUniqueEntityValidator implements Validator<StockReconciliationBulkRequest, StockReconciliation> {
     @Override
     

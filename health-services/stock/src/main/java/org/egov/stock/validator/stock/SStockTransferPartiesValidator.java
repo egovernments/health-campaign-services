@@ -1,12 +1,10 @@
 package org.egov.stock.validator.stock;
 
-import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.stock.util.ValidatorUtil.validateStockTransferParties;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import org.egov.common.models.Error;
 import org.egov.common.models.stock.Stock;
@@ -40,9 +38,9 @@ public class SStockTransferPartiesValidator implements Validator<StockBulkReques
 		log.info("validating for facility id");
 		Map<Stock, List<Error>> errorDetailsMap = new HashMap<>();
 
-		List<Stock> validEntities = request.getStock().stream().filter(notHavingErrors()).collect(Collectors.toList());
+		List<Stock> entities = request.getStock();
 
-		return validateStockTransferParties(request.getRequestInfo(), errorDetailsMap, validEntities, facilityService,
+		return validateStockTransferParties(request.getRequestInfo(), errorDetailsMap, entities, facilityService,
 				userService);
 	}
 }
