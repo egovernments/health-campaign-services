@@ -49,7 +49,12 @@ public class CensusRowMapper implements ResultSetExtractor<List<Census>> {
                 additionalFieldSet.clear();
 
                 // Prepare audit details
-                AuditDetails auditDetails = AuditDetails.builder().createdBy(rs.getString("census_created_by")).createdTime(rs.getLong("census_created_time")).lastModifiedBy(rs.getString("census_last_modified_by")).lastModifiedTime(rs.getLong("census_last_modified_time")).build();
+                AuditDetails auditDetails = AuditDetails.builder()
+                        .createdBy(rs.getString("census_created_by"))
+                        .createdTime(rs.getLong("census_created_time"))
+                        .lastModifiedBy(rs.getString("census_last_modified_by"))
+                        .lastModifiedTime(rs.getLong("census_last_modified_time"))
+                        .build();
 
                 String commaSeparatedAssignee = rs.getString("census_assignee");
                 Set<String> assignee = !ObjectUtils.isEmpty(commaSeparatedAssignee) ? new HashSet<>(List.of(commaSeparatedAssignee.split(","))) : null;
@@ -91,10 +96,12 @@ public class CensusRowMapper implements ResultSetExtractor<List<Census>> {
     private void addAdditionalField(ResultSet rs, Set<String> additionalFieldSet, Census censusEntry) throws SQLException {
         String additionalFieldId = rs.getString("additional_field_id");
 
+        // Skip processing if the additionalField Id is empty or already processed
         if (ObjectUtils.isEmpty(additionalFieldId) || additionalFieldSet.contains(additionalFieldId)) {
             return;
         }
 
+        // Create and populate the AdditionalField object
         AdditionalField additionalField = new AdditionalField();
         additionalField.setId(rs.getString("additional_field_id"));
         additionalField.setKey(rs.getString("additional_field_key"));
@@ -103,6 +110,7 @@ public class CensusRowMapper implements ResultSetExtractor<List<Census>> {
         additionalField.setEditable(rs.getBoolean("additional_field_editable"));
         additionalField.setOrder(rs.getInt("additional_field_order"));
 
+        // Creates a new additionalField list if it is not already initialized in censusEntry and adds the additionalField object.
         if (CollectionUtils.isEmpty(censusEntry.getAdditionalFields())) {
             List<AdditionalField> additionalFields = new ArrayList<>();
             additionalFields.add(additionalField);
@@ -111,6 +119,7 @@ public class CensusRowMapper implements ResultSetExtractor<List<Census>> {
             censusEntry.getAdditionalFields().add(additionalField);
         }
 
+        // Mark this additionalFieldId as processed
         additionalFieldSet.add(additionalFieldId);
     }
 
@@ -126,15 +135,18 @@ public class CensusRowMapper implements ResultSetExtractor<List<Census>> {
     private void addPopulationByDemographic(ResultSet rs, Set<String> populationByDemographicSet, Census censusEntry) throws SQLException {
         String populationByDemographicId = rs.getString("population_by_demographics_id");
 
+        // Skip processing if the populationByDemographic Id is empty or already processed
         if (ObjectUtils.isEmpty(populationByDemographicId) || populationByDemographicSet.contains(populationByDemographicId)) {
             return;
         }
 
+        // Create and populate the PopulationByDemographic object
         PopulationByDemographic populationByDemographic = new PopulationByDemographic();
         populationByDemographic.setId(rs.getString("population_by_demographics_id"));
         populationByDemographic.setDemographicVariable(PopulationByDemographic.DemographicVariableEnum.fromValue(rs.getString("population_by_demographics_demographic_variable")));
         populationByDemographic.setPopulationDistribution(queryUtil.parseJson((PGobject) rs.getObject("population_by_demographics_population_distribution")));
 
+        // Creates a new populationByDemographic list if it is not already initialized in censusEntry and adds the populationByDemographic object.
         if (CollectionUtils.isEmpty(censusEntry.getPopulationByDemographics())) {
             List<PopulationByDemographic> populationByDemographicList = new ArrayList<>();
             populationByDemographicList.add(populationByDemographic);
@@ -143,6 +155,7 @@ public class CensusRowMapper implements ResultSetExtractor<List<Census>> {
             censusEntry.getPopulationByDemographics().add(populationByDemographic);
         }
 
+        // Mark this populationByDemographicId as processed
         populationByDemographicSet.add(populationByDemographicId);
     }
 }
