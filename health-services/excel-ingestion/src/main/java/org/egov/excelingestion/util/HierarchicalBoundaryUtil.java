@@ -131,31 +131,30 @@ public class HierarchicalBoundaryUtil {
             headerCell.setCellStyle(boundaryHeaderStyle);
         }
         
-        // Add final boundary code column (hidden)
-        int codeColumnIndex = lastSchemaCol + numCascadingColumns;
-        hiddenRow.createCell(codeColumnIndex).setCellValue("HCM_ADMIN_CONSOLE_BOUNDARY_CODE");
-        Cell boundaryCodeHeaderCell = visibleRow.createCell(codeColumnIndex);
-        boundaryCodeHeaderCell.setCellValue(localizationMap.getOrDefault("HCM_ADMIN_CONSOLE_BOUNDARY_CODE", "HCM_ADMIN_CONSOLE_BOUNDARY_CODE"));
-        boundaryCodeHeaderCell.setCellStyle(boundaryHeaderStyle);
+        
+        // Get second level boundaries for hardcoded dropdown
+        Set<String> level2Boundaries = new LinkedHashSet<>();
+        for (BoundaryUtil.BoundaryRowData boundary : filteredBoundaries) {
+            List<String> path = boundary.getBoundaryPath();
+            // Get level 2 boundaries (index 1)
+            if (path.size() > 1 && path.get(1) != null) {
+                String displayName = localizationMap.getOrDefault(path.get(1), path.get(1));
+                level2Boundaries.add(displayName);
+            }
+        }
         
         // Create cascading boundary hierarchy sheet and get mapping result
         ParentChildrenMapping mappingResult = createCascadingBoundaryHierarchySheet(workbook, filteredBoundaries, levelTypes, localizationMap);
         
-        // Create boundary name to sanitized name lookup
-        createBoundaryNameLookupSheet(workbook, mappingResult.codeToDisplayNameMap);
-        
         // Add cascading data validations
-        addCascadingBoundaryValidations(workbook, sheet, lastSchemaCol, numCascadingColumns, filteredBoundaries, mappingResult.codeToDisplayNameMap, localizationMap);
+        addCascadingBoundaryValidations(workbook, sheet, lastSchemaCol, numCascadingColumns, 
+                                       new ArrayList<>(level2Boundaries), mappingResult.codeToDisplayNameMap, localizationMap);
         
         // Set column widths and styling
         for (int i = 0; i < numCascadingColumns; i++) {
             sheet.setColumnWidth(lastSchemaCol + i, 50 * 256);
         }
-        sheet.setColumnWidth(codeColumnIndex, 25 * 256); // Boundary code column
         sheet.createFreezePane(0, 2); // Freeze header rows
-        
-        // Hide the boundary code column
-        sheet.setColumnHidden(codeColumnIndex, true);
         
         // Unlock cells for user input (exclude the boundary code column)
         CellStyle unlocked = workbook.createCellStyle();
@@ -178,297 +177,19 @@ public class HierarchicalBoundaryUtil {
     }
     
     /**
-     * Creates a hidden sheet with cascading boundary hierarchy
-     * Each column represents a boundary level with all its children listed below
-     * Handles name clashes by using "boundary (parent)" format
+     * Creates a hidden sheet with cascading boundary hierarchy using exact logic from example
+     * Single hidden lookup sheet with parent#child structure
      */
     private ParentChildrenMapping createCascadingBoundaryHierarchySheet(XSSFWorkbook workbook, 
             List<BoundaryUtil.BoundaryRowData> boundaries,
             List<String> levelTypes,
             Map<String, String> localizationMap) {
         
-        // Create or get the hidden hierarchy sheet
-        Sheet hierarchySheet = workbook.getSheet("_h_CascadingBoundaries_h_");
-        if (hierarchySheet == null) {
-            hierarchySheet = workbook.createSheet("_h_CascadingBoundaries_h_");
-            workbook.setSheetHidden(workbook.getSheetIndex("_h_CascadingBoundaries_h_"), true);
-        } else {
-            // Clear existing content
-            for (int i = hierarchySheet.getLastRowNum(); i >= 0; i--) {
-                Row row = hierarchySheet.getRow(i);
-                if (row != null) {
-                    hierarchySheet.removeRow(row);
-                }
-            }
-        }
-        
-        // Build parent-children mapping with disambiguation for name clashes
-        ParentChildrenMapping mappingResult = buildParentChildrenMappingWithDisambiguation(boundaries, levelTypes, localizationMap);
-        Map<String, Set<String>> parentChildrenMap = mappingResult.parentChildrenMap;
-        Map<String, String> codeToDisplayNameMap = mappingResult.codeToDisplayNameMap;
-        
-        // Create columns for each boundary starting from 2nd level
-        Map<String, Integer> boundaryColumnMap = new HashMap<>();
-        int colIndex = 0;
-        
-        // Process only boundaries that have children to create columns
-        for (Map.Entry<String, Set<String>> entry : parentChildrenMap.entrySet()) {
-            String parentCode = entry.getKey();
-            Set<String> children = entry.getValue();
-            String parentDisplayName = codeToDisplayNameMap.get(parentCode);
-            
-            // Only create column for boundaries that have children and aren't already processed
-            if (!children.isEmpty() && !boundaryColumnMap.containsKey(parentDisplayName)) {
-                boundaryColumnMap.put(parentDisplayName, colIndex);
-                
-                // Create header row with disambiguated boundary name
-                Row headerRow = hierarchySheet.getRow(0);
-                if (headerRow == null) {
-                    headerRow = hierarchySheet.createRow(0);
-                }
-                headerRow.createCell(colIndex).setCellValue(parentDisplayName);
-                
-                // Add children of this boundary (also use disambiguated names)
-                int rowIndex = 1;
-                for (String childDisplayName : children) {
-                    Row row = hierarchySheet.getRow(rowIndex);
-                    if (row == null) {
-                        row = hierarchySheet.createRow(rowIndex);
-                    }
-                    row.createCell(colIndex).setCellValue(childDisplayName);
-                    rowIndex++;
-                }
-                
-                // Create named range for this boundary's children
-                String sanitizedName = sanitizeName(parentDisplayName);
-                Name namedRange = workbook.getName(sanitizedName);
-                if (namedRange == null) {
-                    namedRange = workbook.createName();
-                    namedRange.setNameName(sanitizedName);
-                }
-                String colLetter = CellReference.convertNumToColString(colIndex);
-                namedRange.setRefersToFormula("_h_CascadingBoundaries_h_!$" + colLetter + "$2:$" + colLetter + "$" + (children.size() + 1));
-                
-                colIndex++;
-            }
-        }
-        
-        // Create Level2Boundaries named range for the first dropdown with disambiguation
-        createLevel2BoundariesRange(workbook, boundaries, codeToDisplayNameMap);
-        
-        log.info("Created cascading boundary hierarchy sheet with {} boundary columns", boundaryColumnMap.size());
-        
-        return mappingResult;
-    }
-    
-    /**
-     * Creates a named range for all 2nd level boundaries (for the first dropdown)
-     */
-    private void createLevel2BoundariesRange(XSSFWorkbook workbook, 
-            List<BoundaryUtil.BoundaryRowData> boundaries,
-            Map<String, String> codeToDisplayNameMap) {
-        
-        // Extract unique 2nd level boundaries using disambiguated names
-        Set<String> level2Boundaries = new TreeSet<>();
-        for (BoundaryUtil.BoundaryRowData boundary : boundaries) {
-            List<String> path = boundary.getBoundaryPath();
-            if (path.size() > 1 && path.get(1) != null) {
-                String boundaryCode = path.get(1);
-                String displayName = codeToDisplayNameMap.get(boundaryCode);
-                if (displayName != null) {
-                    level2Boundaries.add(displayName);
-                }
-            }
-        }
-        
-        // Create a dedicated sheet for Level 2 boundaries
-        Sheet level2Sheet = workbook.getSheet("_h_Level2Boundaries_h_");
-        if (level2Sheet == null) {
-            level2Sheet = workbook.createSheet("_h_Level2Boundaries_h_");
-            workbook.setSheetHidden(workbook.getSheetIndex("_h_Level2Boundaries_h_"), true);
-        } else {
-            // Clear existing content
-            for (int i = level2Sheet.getLastRowNum(); i >= 0; i--) {
-                Row row = level2Sheet.getRow(i);
-                if (row != null) {
-                    level2Sheet.removeRow(row);
-                }
-            }
-        }
-        
-        // Add level 2 boundaries to the sheet
-        int rowIndex = 0;
-        for (String boundaryName : level2Boundaries) {
-            Row row = level2Sheet.createRow(rowIndex++);
-            row.createCell(0).setCellValue(boundaryName);
-        }
-        
-        // Create named range
-        if (!level2Boundaries.isEmpty()) {
-            Name level2Range = workbook.getName("Level2Boundaries");
-            if (level2Range == null) {
-                level2Range = workbook.createName();
-                level2Range.setNameName("Level2Boundaries");
-            }
-            level2Range.setRefersToFormula("_h_Level2Boundaries_h_!$A$1:$A$" + level2Boundaries.size());
-        }
-    }
-    
-    /**
-     * Builds a mapping of parent boundary code to its children names with disambiguation
-     * Handles name clashes by using "boundary (parent)" format
-     */
-    private ParentChildrenMapping buildParentChildrenMappingWithDisambiguation(
-            List<BoundaryUtil.BoundaryRowData> boundaries,
-            List<String> levelTypes,
-            Map<String, String> localizationMap) {
-        
-        // First, collect all boundary codes with their paths for disambiguation
-        Map<String, List<String>> codeToPathMap = new HashMap<>();
-        for (BoundaryUtil.BoundaryRowData boundary : boundaries) {
-            List<String> path = boundary.getBoundaryPath();
-            for (int i = 0; i < path.size(); i++) {
-                if (path.get(i) != null) {
-                    codeToPathMap.put(path.get(i), path);
-                }
-            }
-        }
-        
-        // Create disambiguated display names
-        Map<String, String> codeToDisplayNameMap = createDisambiguatedDisplayNames(codeToPathMap, localizationMap);
-        
-        // Build parent-children mapping using disambiguated names
-        Map<String, Set<String>> parentChildrenMap = new HashMap<>();
-        
-        for (BoundaryUtil.BoundaryRowData boundary : boundaries) {
-            List<String> path = boundary.getBoundaryPath();
-            
-            // For each level, map parent to children
-            for (int level = 0; level < path.size() - 1; level++) {
-                if (path.get(level) != null && path.get(level + 1) != null) {
-                    String parentCode = path.get(level);
-                    String childCode = path.get(level + 1);
-                    String childDisplayName = codeToDisplayNameMap.get(childCode);
-                    
-                    parentChildrenMap.computeIfAbsent(parentCode, k -> new TreeSet<>()).add(childDisplayName);
-                }
-            }
-        }
-        
-        return new ParentChildrenMapping(parentChildrenMap, codeToDisplayNameMap);
-    }
-    
-    /**
-     * Creates disambiguated display names for boundaries to handle name clashes
-     */
-    private Map<String, String> createDisambiguatedDisplayNames(
-            Map<String, List<String>> codeToPathMap, 
-            Map<String, String> localizationMap) {
-        
-        Map<String, String> codeToDisplayNameMap = new HashMap<>();
-        Map<String, List<String>> nameToCodesMap = new HashMap<>();
-        
-        // Group boundary codes by their localized names
-        for (Map.Entry<String, List<String>> entry : codeToPathMap.entrySet()) {
-            String code = entry.getKey();
-            String localizedName = localizationMap.getOrDefault(code, code);
-            
-            nameToCodesMap.computeIfAbsent(localizedName, k -> new ArrayList<>()).add(code);
-        }
-        
-        // Create display names with disambiguation for duplicates
-        for (Map.Entry<String, List<String>> entry : nameToCodesMap.entrySet()) {
-            String localizedName = entry.getKey();
-            List<String> codes = entry.getValue();
-            
-            if (codes.size() == 1) {
-                // No clash, use simple name
-                codeToDisplayNameMap.put(codes.get(0), localizedName);
-            } else {
-                // Name clash, disambiguate using parent names
-                for (String code : codes) {
-                    List<String> path = codeToPathMap.get(code);
-                    String displayName = createDisambiguatedName(code, path, localizationMap);
-                    codeToDisplayNameMap.put(code, displayName);
-                }
-            }
-        }
-        
-        return codeToDisplayNameMap;
-    }
-    
-    /**
-     * Creates a disambiguated name using "boundary (parent)" format
-     */
-    private String createDisambiguatedName(String code, List<String> path, Map<String, String> localizationMap) {
-        String boundaryName = localizationMap.getOrDefault(code, code);
-        
-        // Find the index of this boundary in the path
-        int boundaryIndex = -1;
-        for (int i = 0; i < path.size(); i++) {
-            if (code.equals(path.get(i))) {
-                boundaryIndex = i;
-                break;
-            }
-        }
-        
-        // If we have a parent, use "boundary (parent)" format
-        if (boundaryIndex > 0) {
-            String parentCode = path.get(boundaryIndex - 1);
-            String parentName = localizationMap.getOrDefault(parentCode, parentCode);
-            return boundaryName + " (" + parentName + ")";
-        }
-        
-        // No parent, use simple name
-        return boundaryName;
-    }
-    
-    /**
-     * Helper class to hold parent-children mapping results
-     */
-    private static class ParentChildrenMapping {
-        final Map<String, Set<String>> parentChildrenMap;
-        final Map<String, String> codeToDisplayNameMap;
-        
-        ParentChildrenMapping(Map<String, Set<String>> parentChildrenMap, Map<String, String> codeToDisplayNameMap) {
-            this.parentChildrenMap = parentChildrenMap;
-            this.codeToDisplayNameMap = codeToDisplayNameMap;
-        }
-    }
-    
-    /**
-     * Sanitizes boundary name for use as Excel named range
-     * Must match Excel naming rules and be consistent with INDIRECT formula
-     */
-    private String sanitizeName(String name) {
-        // Replace spaces and special characters with underscores, ensure no consecutive underscores
-        String sanitized = name.replaceAll("[^a-zA-Z0-9]", "_").replaceAll("_{2,}", "_");
-        
-        // Remove leading/trailing underscores
-        sanitized = sanitized.replaceAll("^_+|_+$", "");
-        
-        // Ensure it starts with a letter (Excel requirement)
-        if (!sanitized.isEmpty() && !Character.isLetter(sanitized.charAt(0))) {
-            sanitized = "B_" + sanitized;
-        }
-        
-        // Ensure it's not empty
-        if (sanitized.isEmpty()) {
-            sanitized = "Boundary";
-        }
-        
-        return sanitized;
-    }
-    
-    /**
-     * Creates a lookup sheet that maps boundary display names to their sanitized named range names
-     */
-    private void createBoundaryNameLookupSheet(XSSFWorkbook workbook, Map<String, String> codeToDisplayNameMap) {
-        // Create hidden lookup sheet
-        Sheet lookupSheet = workbook.getSheet("_h_BoundaryLookup_h_");
+        // Create or get the hidden lookup sheet
+        Sheet lookupSheet = workbook.getSheet("_h_SimpleLookup_h_");
         if (lookupSheet == null) {
-            lookupSheet = workbook.createSheet("_h_BoundaryLookup_h_");
-            workbook.setSheetHidden(workbook.getSheetIndex("_h_BoundaryLookup_h_"), true);
+            lookupSheet = workbook.createSheet("_h_SimpleLookup_h_");
+            workbook.setSheetHidden(workbook.getSheetIndex("_h_SimpleLookup_h_"), true);
         } else {
             // Clear existing content
             for (int i = lookupSheet.getLastRowNum(); i >= 0; i--) {
@@ -479,88 +200,146 @@ public class HierarchicalBoundaryUtil {
             }
         }
         
-        // Create header
-        Row headerRow = lookupSheet.createRow(0);
-        headerRow.createCell(0).setCellValue("DisplayName");
-        headerRow.createCell(1).setCellValue("SanitizedName");
+        // Build parent-children mapping
+        Map<String, Set<String>> parentChildrenMap = new HashMap<>();
+        Map<String, String> codeToDisplayNameMap = new HashMap<>();
         
-        // Populate lookup data
-        int rowIndex = 1;
-        Set<String> uniqueDisplayNames = new HashSet<>(codeToDisplayNameMap.values());
-        for (String displayName : uniqueDisplayNames) {
-            String sanitizedName = sanitizeName(displayName);
-            Row row = lookupSheet.createRow(rowIndex++);
-            row.createCell(0).setCellValue(displayName);
-            row.createCell(1).setCellValue(sanitizedName);
-        }
-        
-        // Create named range for lookup
-        if (rowIndex > 1) {
-            Name lookupRange = workbook.getName("BoundaryLookup");
-            if (lookupRange == null) {
-                lookupRange = workbook.createName();
-                lookupRange.setNameName("BoundaryLookup");
+        // First pass: collect all boundary codes with their display names
+        for (BoundaryUtil.BoundaryRowData boundary : boundaries) {
+            List<String> path = boundary.getBoundaryPath();
+            for (String code : path) {
+                if (code != null) {
+                    String displayName = localizationMap.getOrDefault(code, code);
+                    codeToDisplayNameMap.put(code, displayName);
+                }
             }
-            lookupRange.setRefersToFormula("_h_BoundaryLookup_h_!$A$1:$B$" + (rowIndex - 1));
         }
+        
+        // Second pass: build parent-children relationships starting from level 1 (second level)
+        for (BoundaryUtil.BoundaryRowData boundary : boundaries) {
+            List<String> path = boundary.getBoundaryPath();
+            
+            // Build hierarchical keys for each level starting from level 1
+            for (int level = 1; level < path.size() - 1; level++) {
+                if (path.get(level) != null && path.get(level + 1) != null) {
+                    // Build key based on hierarchy path from level 1 onwards
+                    StringBuilder keyBuilder = new StringBuilder();
+                    for (int i = 1; i <= level; i++) {
+                        if (i > 1) keyBuilder.append("#");
+                        String displayName = codeToDisplayNameMap.get(path.get(i));
+                        keyBuilder.append(displayName);
+                    }
+                    String key = keyBuilder.toString();
+                    
+                    String childDisplayName = codeToDisplayNameMap.get(path.get(level + 1));
+                    parentChildrenMap.computeIfAbsent(key, k -> new LinkedHashSet<>()).add(childDisplayName);
+                }
+            }
+        }
+        
+        // Populate lookup sheet with parent#child structure
+        int rowNum = 0;
+        for (Map.Entry<String, Set<String>> entry : parentChildrenMap.entrySet()) {
+            String key = entry.getKey();
+            Set<String> children = entry.getValue();
+            
+            Row row = lookupSheet.createRow(rowNum);
+            // Key in column A
+            row.createCell(0).setCellValue(key);
+            
+            // Children in subsequent columns
+            int col = 1;
+            for (String child : children) {
+                row.createCell(col++).setCellValue(child);
+            }
+            
+            // Create named range for this key - sanitize all special characters
+            String rangeName = sanitizeNameForRange(key.replace("#", "_"));
+            
+            try {
+                // Check if named range already exists and delete it
+                Name existingRange = workbook.getName(rangeName);
+                if (existingRange != null) {
+                    workbook.removeName(existingRange);
+                }
+                
+                Name range = workbook.createName();
+                range.setNameName(rangeName);
+                // Use rowNum + 1 because Excel rows are 1-indexed
+                String formula = "_h_SimpleLookup_h_!$B$" + (rowNum + 1) + ":$" + 
+                                CellReference.convertNumToColString(col - 1) + "$" + (rowNum + 1);
+                range.setRefersToFormula(formula);
+                log.debug("Created named range: {} -> {}", rangeName, formula);
+            } catch (Exception e) {
+                log.error("Error creating named range for key: '{}', rangeName: '{}' - {}", key, rangeName, e.getMessage());
+            }
+            
+            rowNum++;
+        }
+        
+        log.info("Created cascading boundary lookup sheet with {} entries", parentChildrenMap.size());
+        
+        return new ParentChildrenMapping(parentChildrenMap, codeToDisplayNameMap);
     }
     
     /**
-     * Creates a mapping sheet for boundary name to code conversion
+     * Sanitizes boundary name for use in keys and lookups
      */
-    private void createBoundaryCodeMappingSheet(XSSFWorkbook workbook,
-            List<BoundaryUtil.BoundaryRowData> boundaries,
-            Map<String, String> codeToDisplayNameMap) {
-        
-        // Create code mapping sheet
-        Sheet codeMapSheet = workbook.getSheet("_h_BoundaryCodeMap_h_");
-        if (codeMapSheet == null) {
-            codeMapSheet = workbook.createSheet("_h_BoundaryCodeMap_h_");
-            workbook.setSheetHidden(workbook.getSheetIndex("_h_BoundaryCodeMap_h_"), true);
-        } else {
-            // Clear existing content
-            for (int i = codeMapSheet.getLastRowNum(); i >= 0; i--) {
-                Row row = codeMapSheet.getRow(i);
-                if (row != null) {
-                    codeMapSheet.removeRow(row);
-                }
-            }
+    private String sanitizeForKey(String name) {
+        if (name == null || name.isEmpty()) {
+            return "Empty";
         }
         
-        // Build mapping from disambiguated display name to code
-        Map<String, String> displayNameToCodeMap = new HashMap<>();
-        for (BoundaryUtil.BoundaryRowData boundary : boundaries) {
-            List<String> path = boundary.getBoundaryPath();
-            for (String boundaryCode : path) {
-                if (boundaryCode != null) {
-                    String displayName = codeToDisplayNameMap.get(boundaryCode);
-                    if (displayName != null) {
-                        displayNameToCodeMap.put(displayName, boundaryCode);
-                    }
-                }
-            }
+        // Replace spaces and special characters with underscores
+        return name.replaceAll("[^a-zA-Z0-9]", "_")
+                  .replaceAll("_+", "_")
+                  .replaceAll("^_+|_+$", "");
+    }
+    
+    /**
+     * Sanitizes name for use as Excel named range
+     */
+    private String sanitizeNameForRange(String name) {
+        if (name == null || name.isEmpty()) {
+            return "EmptyRange";
         }
         
-        // Add mapping data
-        Row headerRow = codeMapSheet.createRow(0);
-        headerRow.createCell(0).setCellValue("BoundaryName");
-        headerRow.createCell(1).setCellValue("BoundaryCode");
+        // Replace special characters with underscores
+        String sanitized = name.replaceAll("[^a-zA-Z0-9_]", "_");
         
-        int rowNum = 1;
-        for (Map.Entry<String, String> entry : displayNameToCodeMap.entrySet()) {
-            Row row = codeMapSheet.createRow(rowNum++);
-            row.createCell(0).setCellValue(entry.getKey());   // Disambiguated display name
-            row.createCell(1).setCellValue(entry.getValue()); // Code
+        // Remove multiple consecutive underscores
+        sanitized = sanitized.replaceAll("_+", "_");
+        
+        // Remove leading and trailing underscores
+        sanitized = sanitized.replaceAll("^_+|_+$", "");
+        
+        // Ensure it starts with a letter or underscore
+        if (sanitized.isEmpty() || Character.isDigit(sanitized.charAt(0))) {
+            sanitized = "L_" + sanitized;
         }
         
-        // Create named range for the mapping
-        if (!displayNameToCodeMap.isEmpty()) {
-            Name codeMapRange = workbook.getName("BoundaryCodeMap");
-            if (codeMapRange == null) {
-                codeMapRange = workbook.createName();
-                codeMapRange.setNameName("BoundaryCodeMap");
-            }
-            codeMapRange.setRefersToFormula("_h_BoundaryCodeMap_h_!$A$1:$B$" + (displayNameToCodeMap.size() + 1));
+        // Limit length to 255 characters (Excel limit)
+        if (sanitized.length() > 255) {
+            // Create a hash-based name to ensure uniqueness
+            sanitized = "Range_" + Math.abs(name.hashCode()) + "_" + sanitized.substring(0, Math.min(240, sanitized.length()));
+        }
+        
+        // Ensure it's not empty after all processing
+        if (sanitized.isEmpty()) {
+            sanitized = "DefaultRange";
+        }
+        
+        return sanitized;
+    }
+    
+    /**
+     * Helper class to hold parent-children mapping results
+     */
+    private static class ParentChildrenMapping {
+        final Map<String, String> codeToDisplayNameMap;
+        
+        ParentChildrenMapping(Map<String, Set<String>> parentChildrenMap, Map<String, String> codeToDisplayNameMap) {
+            this.codeToDisplayNameMap = codeToDisplayNameMap;
         }
     }
     
@@ -569,97 +348,50 @@ public class HierarchicalBoundaryUtil {
      */
     private void addCascadingBoundaryValidations(XSSFWorkbook workbook, Sheet sheet, 
             int startColumnIndex, int numColumns, 
-            List<BoundaryUtil.BoundaryRowData> boundaries,
+            List<String> level2Boundaries,
             Map<String, String> codeToDisplayNameMap, Map<String, String> localizationMap) {
         
         DataValidationHelper dvHelper = sheet.getDataValidationHelper();
         
-        // Create boundary code mapping sheet
-        createBoundaryCodeMappingSheet(workbook, boundaries, codeToDisplayNameMap);
+        // First column: hardcoded dropdown with level2 boundaries
+        String[] level2Array = level2Boundaries.toArray(new String[0]);
+        CellRangeAddressList level2Range = new CellRangeAddressList(2, config.getExcelRowLimit(), startColumnIndex, startColumnIndex);
+        DataValidationConstraint level2Constraint = dvHelper.createExplicitListConstraint(level2Array);
+        DataValidation level2Validation = dvHelper.createValidation(level2Constraint, level2Range);
+        level2Validation.setShowErrorBox(true);
+        sheet.addValidationData(level2Validation);
         
-        // Add data validation for each row
-        for (int rowIndex = 2; rowIndex <= config.getExcelRowLimit(); rowIndex++) {
-            
-            // Add cascading validations for each boundary column
-            for (int colIdx = 0; colIdx < numColumns; colIdx++) {
+        // Subsequent columns: cascading dropdowns using INDIRECT formula
+        for (int row = 2; row <= Math.min(1000, config.getExcelRowLimit()); row++) {
+            for (int colIdx = 1; colIdx < numColumns; colIdx++) {
                 int actualColIndex = startColumnIndex + colIdx;
+                CellRangeAddressList cascadeRange = new CellRangeAddressList(row, row, actualColIndex, actualColIndex);
                 
-                if (colIdx == 0) {
-                    // First column: get all 2nd level boundaries
-                    // Create a named range for all 2nd level boundaries
-                    String formula = "INDIRECT(\"Level2Boundaries\")";
-                    
-                    DataValidationConstraint constraint = dvHelper.createFormulaListConstraint(formula);
-                    CellRangeAddressList addr = new CellRangeAddressList(rowIndex, rowIndex, actualColIndex, actualColIndex);
-                    DataValidation validation = dvHelper.createValidation(constraint, addr);
-                    validation.setErrorStyle(DataValidation.ErrorStyle.STOP);
-                    validation.setShowErrorBox(true);
-                    validation.createErrorBox(
-                        getLocalizedMessage(localizationMap, "HCM_VALIDATION_INVALID_SELECTION", "Invalid Selection"),
-                        getLocalizedMessage(localizationMap, "HCM_VALIDATION_INVALID_SELECTION_MESSAGE", "Please select a valid boundary from the dropdown list.")
-                    );
-                    sheet.addValidationData(validation);
-                    
-                } else {
-                    // Subsequent columns: use INDIRECT to get children of previous selection
-                    String prevColRef = CellReference.convertNumToColString(actualColIndex - 1) + (rowIndex + 1);
-                    // Use VLOOKUP to get sanitized name from lookup table, then INDIRECT
-                    String formula = "IF(" + prevColRef + "=\"\",\"\",INDIRECT(VLOOKUP(" + prevColRef + ",BoundaryLookup,2,FALSE)))";
-                    
-                    DataValidationConstraint constraint = dvHelper.createFormulaListConstraint(formula);
-                    CellRangeAddressList addr = new CellRangeAddressList(rowIndex, rowIndex, actualColIndex, actualColIndex);
-                    DataValidation validation = dvHelper.createValidation(constraint, addr);
-                    validation.setErrorStyle(DataValidation.ErrorStyle.WARNING);
-                    validation.setShowErrorBox(true);
-                    validation.createErrorBox(
-                        getLocalizedMessage(localizationMap, "HCM_VALIDATION_INVALID_CHILD_SELECTION", "Invalid Selection"),
-                        getLocalizedMessage(localizationMap, "HCM_VALIDATION_INVALID_CHILD_SELECTION_MESSAGE", "Please select a valid child boundary.")
-                    );
-                    sheet.addValidationData(validation);
+                // Build formula with multiple character substitutions for common special characters
+                StringBuilder formulaBuilder = new StringBuilder("INDIRECT(SUBSTITUTE(SUBSTITUTE(SUBSTITUTE(SUBSTITUTE(SUBSTITUTE(SUBSTITUTE(CONCATENATE(");
+                
+                // Add all previous column values directly  
+                for (int i = 0; i <= colIdx - 1; i++) {
+                    if (i > 0) formulaBuilder.append(",\"_\",");
+                    String colRef = CellReference.convertNumToColString(startColumnIndex + i) + (row + 1);
+                    formulaBuilder.append(colRef);
+                }
+                formulaBuilder.append("),\" \",\"_\"),\"-\",\"_\"),\"(\",\"_\"),\")\",\"_\"),\"/\",\"_\"),\".\",\"_\"))");
+                
+                String formula = formulaBuilder.toString();
+                log.debug("Formula for column {} row {}: {} (length: {})", actualColIndex, row, formula, formula.length());
+                
+                try {
+                    DataValidationConstraint cascadeConstraint = dvHelper.createFormulaListConstraint(formula);
+                    DataValidation cascadeValidation = dvHelper.createValidation(cascadeConstraint, cascadeRange);
+                    cascadeValidation.setShowErrorBox(false);
+                    cascadeValidation.setEmptyCellAllowed(true);
+                    sheet.addValidationData(cascadeValidation);
+                } catch (IllegalArgumentException e) {
+                    log.error("Formula too long for column {} row {}: {} (length: {})", actualColIndex, row, formula, formula.length());
+                    throw e;
                 }
             }
-            
-            // Add formula to boundary code column for the last selected level
-            int codeColumnIndex = startColumnIndex + numColumns;
-            
-            // Build simple nested IF statements from rightmost to leftmost
-            // This checks the last column first, then works backwards
-            StringBuilder formula = new StringBuilder();
-            
-            for (int colIdx = numColumns - 1; colIdx >= 0; colIdx--) {
-                int actualColIndex = startColumnIndex + colIdx;
-                String colRef = CellReference.convertNumToColString(actualColIndex) + (rowIndex + 1);
-                
-                if (colIdx == numColumns - 1) {
-                    // Start with the rightmost column
-                    formula.append("IF(").append(colRef).append("<>\"\",VLOOKUP(").append(colRef).append(",BoundaryCodeMap,2,FALSE),");
-                } else if (colIdx == 0) {
-                    // End with the leftmost column and close all IFs
-                    formula.append("IF(").append(colRef).append("<>\"\",VLOOKUP(").append(colRef).append(",BoundaryCodeMap,2,FALSE),\"\")");
-                    // Close all the IF statements
-                    for (int j = 0; j < numColumns - 1; j++) {
-                        formula.append(")");
-                    }
-                } else {
-                    // Middle columns
-                    formula.append("IF(").append(colRef).append("<>\"\",VLOOKUP(").append(colRef).append(",BoundaryCodeMap,2,FALSE),");
-                }
-            }
-            
-            Row row = sheet.getRow(rowIndex);
-            if (row == null) row = sheet.createRow(rowIndex);
-            Cell boundaryCodeCell = row.createCell(codeColumnIndex);
-            boundaryCodeCell.setCellFormula(formula.toString());
         }
-    }
-
-    /**
-     * Get localized message from localization map, with fallback to default message
-     */
-    private String getLocalizedMessage(Map<String, String> localizationMap, String key, String defaultMessage) {
-        if (localizationMap != null && key != null && localizationMap.containsKey(key)) {
-            return localizationMap.get(key);
-        }
-        return defaultMessage;
     }
 }
