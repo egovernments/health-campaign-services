@@ -424,17 +424,18 @@ public class HierarchicalBoundaryUtil {
                 }
                 
                 // Handle more special characters including apostrophe, slash, period, comma, colon, semicolon
-                String formula = "INDIRECT(SUBSTITUTE(SUBSTITUTE(SUBSTITUTE(SUBSTITUTE(SUBSTITUTE(SUBSTITUTE(SUBSTITUTE(SUBSTITUTE(SUBSTITUTE(SUBSTITUTE(CONCATENATE(" 
-                    + keyBuilder + "),\" \",\"_\"),\"-\",\"_\"),\"(\",\"_\"),\")\",\"_\"),\"'\",\"_\"),\"/\",\"_\"),\".\",\"_\"),\",\",\"_\"),\":\",\"_\"),\"#\",\"_\") & \"_LIST\")";
+                // Wrap in IFERROR to show empty dropdown instead of #REF when lookup fails
+                String formula = "IFERROR(INDIRECT(SUBSTITUTE(SUBSTITUTE(SUBSTITUTE(SUBSTITUTE(SUBSTITUTE(SUBSTITUTE(SUBSTITUTE(SUBSTITUTE(SUBSTITUTE(SUBSTITUTE(CONCATENATE(" 
+                    + keyBuilder + "),\" \",\"_\"),\"-\",\"_\"),\"(\",\"_\"),\")\",\"_\"),\"'\",\"_\"),\"/\",\"_\"),\".\",\"_\"),\",\",\"_\"),\":\",\"_\"),\"#\",\"_\") & \"_LIST\"),\"\")";
                 
                 log.debug("Cascade formula for column {} row {}: length={}", actualColIndex, row, formula.length());
                 
                 try {
                     // Check formula length before creating constraint
                     if (formula.length() > 255) {
-                        // If formula is too long, use a simpler version with fewer substitutions
-                        formula = "INDIRECT(SUBSTITUTE(SUBSTITUTE(SUBSTITUTE(SUBSTITUTE(SUBSTITUTE(CONCATENATE(" 
-                            + keyBuilder + "),\" \",\"_\"),\"-\",\"_\"),\"'\",\"_\"),\"(\",\"_\"),\"#\",\"_\") & \"_LIST\")";
+                        // If formula is too long, use a simpler version with fewer substitutions but still wrap in IFERROR
+                        formula = "IFERROR(INDIRECT(SUBSTITUTE(SUBSTITUTE(SUBSTITUTE(SUBSTITUTE(SUBSTITUTE(CONCATENATE(" 
+                            + keyBuilder + "),\" \",\"_\"),\"-\",\"_\"),\"'\",\"_\"),\"(\",\"_\"),\"#\",\"_\") & \"_LIST\"),\"\")";
                         log.debug("Using simplified formula with length: {}", formula.length());
                     }
                     
