@@ -148,7 +148,7 @@ public class HierarchicalBoundaryUtil {
         
         // Add cascading data validations
         addCascadingBoundaryValidations(workbook, sheet, lastSchemaCol, numCascadingColumns, 
-                                       new ArrayList<>(level2Boundaries), mappingResult.codeToDisplayNameMap, localizationMap);
+                                       new ArrayList<>(level2Boundaries), mappingResult, localizationMap);
         
         // Set column widths and styling
         for (int i = 0; i < numCascadingColumns; i++) {
@@ -237,44 +237,19 @@ public class HierarchicalBoundaryUtil {
             }
         }
         
-        // Populate lookup sheet with parent#child structure
+        // Populate lookup sheet with key-value pairs (comma-separated children)
         int rowNum = 0;
         for (Map.Entry<String, Set<String>> entry : parentChildrenMap.entrySet()) {
             String key = entry.getKey();
             Set<String> children = entry.getValue();
             
-            Row row = lookupSheet.createRow(rowNum);
+            Row row = lookupSheet.createRow(rowNum++);
             // Key in column A
             row.createCell(0).setCellValue(key);
             
-            // Children in subsequent columns
-            int col = 1;
-            for (String child : children) {
-                row.createCell(col++).setCellValue(child);
-            }
-            
-            // Create named range for this key - sanitize all special characters
-            String rangeName = sanitizeNameForRange(key.replace("#", "_"));
-            
-            try {
-                // Check if named range already exists and delete it
-                Name existingRange = workbook.getName(rangeName);
-                if (existingRange != null) {
-                    workbook.removeName(existingRange);
-                }
-                
-                Name range = workbook.createName();
-                range.setNameName(rangeName);
-                // Use rowNum + 1 because Excel rows are 1-indexed
-                String formula = "_h_SimpleLookup_h_!$B$" + (rowNum + 1) + ":$" + 
-                                CellReference.convertNumToColString(col - 1) + "$" + (rowNum + 1);
-                range.setRefersToFormula(formula);
-                log.debug("Created named range: {} -> {}", rangeName, formula);
-            } catch (Exception e) {
-                log.error("Error creating named range for key: '{}', rangeName: '{}' - {}", key, rangeName, e.getMessage());
-            }
-            
-            rowNum++;
+            // All children in column B as comma-separated values
+            String childrenList = String.join(",", children);
+            row.createCell(1).setCellValue(childrenList);
         }
         
         log.info("Created cascading boundary lookup sheet with {} entries", parentChildrenMap.size());
@@ -284,28 +259,15 @@ public class HierarchicalBoundaryUtil {
     
     /**
      * Sanitizes boundary name for use in keys and lookups
+     * Replaces ALL non-alphanumeric characters with underscores
      */
     private String sanitizeForKey(String name) {
         if (name == null || name.isEmpty()) {
             return "Empty";
         }
         
-        // Replace spaces and special characters with underscores
-        return name.replaceAll("[^a-zA-Z0-9]", "_")
-                  .replaceAll("_+", "_")
-                  .replaceAll("^_+|_+$", "");
-    }
-    
-    /**
-     * Sanitizes name for use as Excel named range
-     */
-    private String sanitizeNameForRange(String name) {
-        if (name == null || name.isEmpty()) {
-            return "EmptyRange";
-        }
-        
-        // Replace special characters with underscores
-        String sanitized = name.replaceAll("[^a-zA-Z0-9_]", "_");
+        // Replace ALL non-alphanumeric characters with underscores
+        String sanitized = name.replaceAll("[^a-zA-Z0-9]", "_");
         
         // Remove multiple consecutive underscores
         sanitized = sanitized.replaceAll("_+", "_");
@@ -313,7 +275,29 @@ public class HierarchicalBoundaryUtil {
         // Remove leading and trailing underscores
         sanitized = sanitized.replaceAll("^_+|_+$", "");
         
-        // Ensure it starts with a letter or underscore
+        // Return sanitized name or "Empty" if result is empty
+        return sanitized.isEmpty() ? "Empty" : sanitized;
+    }
+    
+    /**
+     * Sanitizes name for use as Excel named range
+     * Replaces ALL non-alphanumeric characters with underscores to match formula behavior
+     */
+    private String sanitizeNameForRange(String name) {
+        if (name == null || name.isEmpty()) {
+            return "EmptyRange";
+        }
+        
+        // Replace ALL non-alphanumeric characters with underscores (same as sanitizeForKey)
+        String sanitized = name.replaceAll("[^a-zA-Z0-9]", "_");
+        
+        // Remove multiple consecutive underscores
+        sanitized = sanitized.replaceAll("_+", "_");
+        
+        // Remove leading and trailing underscores
+        sanitized = sanitized.replaceAll("^_+|_+$", "");
+        
+        // Ensure it starts with a letter or underscore (Excel requirement)
         if (sanitized.isEmpty() || Character.isDigit(sanitized.charAt(0))) {
             sanitized = "L_" + sanitized;
         }
@@ -349,7 +333,7 @@ public class HierarchicalBoundaryUtil {
     private void addCascadingBoundaryValidations(XSSFWorkbook workbook, Sheet sheet, 
             int startColumnIndex, int numColumns, 
             List<String> level2Boundaries,
-            Map<String, String> codeToDisplayNameMap, Map<String, String> localizationMap) {
+            ParentChildrenMapping mappingResult, Map<String, String> localizationMap) {
         
         DataValidationHelper dvHelper = sheet.getDataValidationHelper();
         
@@ -361,37 +345,112 @@ public class HierarchicalBoundaryUtil {
         level2Validation.setShowErrorBox(true);
         sheet.addValidationData(level2Validation);
         
-        // Subsequent columns: cascading dropdowns using INDIRECT formula
-        for (int row = 2; row <= Math.min(1000, config.getExcelRowLimit()); row++) {
+        // Get the lookup sheet and parent-children mapping
+        Sheet lookupSheet = workbook.getSheet("_h_SimpleLookup_h_");
+        if (lookupSheet == null) {
+            log.error("Lookup sheet not found, cannot create cascading validations");
+            return;
+        }
+        
+        // Find where to add helper area (after existing content)
+        int rowNum = lookupSheet.getLastRowNum() + 3; // Add some spacing
+        
+        // For each parent-children mapping, create individual columns for children  
+        Map<String, Integer> keyToHelperRowMap = new HashMap<>();
+        
+        // We need to rebuild the parentChildrenMap since it's not accessible from mappingResult
+        // Let's use a simplified approach by reading from the lookup sheet
+        Map<String, Set<String>> parentChildrenMap = new HashMap<>();
+        for (int i = 0; i <= lookupSheet.getLastRowNum(); i++) {
+            Row row = lookupSheet.getRow(i);
+            if (row != null && row.getCell(0) != null && row.getCell(1) != null) {
+                String key = row.getCell(0).getStringCellValue();
+                String childrenStr = row.getCell(1).getStringCellValue();
+                if (!key.isEmpty() && !childrenStr.isEmpty()) {
+                    Set<String> children = new LinkedHashSet<>(Arrays.asList(childrenStr.split(",")));
+                    parentChildrenMap.put(key, children);
+                }
+            }
+        }
+        
+        for (Map.Entry<String, Set<String>> entry : parentChildrenMap.entrySet()) {
+            String key = entry.getKey();
+            Set<String> children = entry.getValue();
+            
+            Row helperRow = lookupSheet.createRow(rowNum);
+            keyToHelperRowMap.put(key, rowNum + 1); // Excel row numbers are 1-based
+            
+            // Put the key in first column for reference
+            helperRow.createCell(0).setCellValue(key + "_HELPER");
+            
+            // Put each child in separate columns
+            int col = 1;
+            for (String child : children) {
+                helperRow.createCell(col++).setCellValue(child);
+            }
+            
+            // Create a named range for this key's children
+            String rangeName = sanitizeNameForRange(key.replace("#", "_") + "_LIST");
+            try {
+                Name childrenRange = workbook.getName(rangeName);
+                if (childrenRange != null) {
+                    workbook.removeName(childrenRange);
+                }
+                childrenRange = workbook.createName();
+                childrenRange.setNameName(rangeName);
+                String rangeFormula = "_h_SimpleLookup_h_!$B$" + (rowNum + 1) + ":$" + 
+                                     CellReference.convertNumToColString(col - 1) + "$" + (rowNum + 1);
+                childrenRange.setRefersToFormula(rangeFormula);
+                log.debug("Created children range: {} -> {}", rangeName, rangeFormula);
+            } catch (Exception e) {
+                log.error("Error creating children range for: {} - {}", key, e.getMessage());
+            }
+            
+            rowNum++;
+        }
+        
+        // Create validation for subsequent columns using simple INDIRECT
+        for (int row = 2; row <= Math.min(100, config.getExcelRowLimit()); row++) {
             for (int colIdx = 1; colIdx < numColumns; colIdx++) {
                 int actualColIndex = startColumnIndex + colIdx;
                 CellRangeAddressList cascadeRange = new CellRangeAddressList(row, row, actualColIndex, actualColIndex);
                 
-                // Build formula with multiple character substitutions for common special characters
-                StringBuilder formulaBuilder = new StringBuilder("INDIRECT(SUBSTITUTE(SUBSTITUTE(SUBSTITUTE(SUBSTITUTE(SUBSTITUTE(SUBSTITUTE(CONCATENATE(");
-                
-                // Add all previous column values directly  
+                // Build the key for lookup
+                StringBuilder keyBuilder = new StringBuilder();
                 for (int i = 0; i <= colIdx - 1; i++) {
-                    if (i > 0) formulaBuilder.append(",\"_\",");
+                    if (i > 0) keyBuilder.append(", \"#\", ");
                     String colRef = CellReference.convertNumToColString(startColumnIndex + i) + (row + 1);
-                    formulaBuilder.append(colRef);
+                    keyBuilder.append(colRef);
                 }
-                formulaBuilder.append("),\" \",\"_\"),\"-\",\"_\"),\"(\",\"_\"),\")\",\"_\"),\"/\",\"_\"),\".\",\"_\"))");
                 
-                String formula = formulaBuilder.toString();
-                log.debug("Formula for column {} row {}: {} (length: {})", actualColIndex, row, formula, formula.length());
+                // Handle more special characters including apostrophe, slash, period, comma, colon, semicolon
+                String formula = "INDIRECT(SUBSTITUTE(SUBSTITUTE(SUBSTITUTE(SUBSTITUTE(SUBSTITUTE(SUBSTITUTE(SUBSTITUTE(SUBSTITUTE(SUBSTITUTE(SUBSTITUTE(CONCATENATE(" 
+                    + keyBuilder + "),\" \",\"_\"),\"-\",\"_\"),\"(\",\"_\"),\")\",\"_\"),\"'\",\"_\"),\"/\",\"_\"),\".\",\"_\"),\",\",\"_\"),\":\",\"_\"),\"#\",\"_\") & \"_LIST\")";
+                
+                log.debug("Cascade formula for column {} row {}: length={}", actualColIndex, row, formula.length());
                 
                 try {
+                    // Check formula length before creating constraint
+                    if (formula.length() > 255) {
+                        // If formula is too long, use a simpler version with fewer substitutions
+                        formula = "INDIRECT(SUBSTITUTE(SUBSTITUTE(SUBSTITUTE(SUBSTITUTE(SUBSTITUTE(CONCATENATE(" 
+                            + keyBuilder + "),\" \",\"_\"),\"-\",\"_\"),\"'\",\"_\"),\"(\",\"_\"),\"#\",\"_\") & \"_LIST\")";
+                        log.debug("Using simplified formula with length: {}", formula.length());
+                    }
+                    
                     DataValidationConstraint cascadeConstraint = dvHelper.createFormulaListConstraint(formula);
                     DataValidation cascadeValidation = dvHelper.createValidation(cascadeConstraint, cascadeRange);
                     cascadeValidation.setShowErrorBox(false);
                     cascadeValidation.setEmptyCellAllowed(true);
                     sheet.addValidationData(cascadeValidation);
-                } catch (IllegalArgumentException e) {
-                    log.error("Formula too long for column {} row {}: {} (length: {})", actualColIndex, row, formula, formula.length());
-                    throw e;
+                } catch (Exception e) {
+                    log.error("Error creating cascade validation for column {} row {} with formula length {}: {}", 
+                             actualColIndex, row, formula.length(), e.getMessage());
                 }
             }
         }
+        
+        log.info("Created simplified cascading boundary validation with {} parent keys and {} helper rows", 
+                parentChildrenMap.size(), keyToHelperRowMap.size());
     }
 }
