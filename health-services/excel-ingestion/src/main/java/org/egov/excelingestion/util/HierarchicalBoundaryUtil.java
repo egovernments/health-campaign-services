@@ -131,15 +131,26 @@ public class HierarchicalBoundaryUtil {
             headerCell.setCellStyle(boundaryHeaderStyle);
         }
         
+        // Add the hidden boundary code column
+        int boundaryCodeColIndex = lastSchemaCol + numCascadingColumns;
+        hiddenRow.createCell(boundaryCodeColIndex).setCellValue("HCM_ADMIN_CONSOLE_BOUNDARY_CODE");
+        Cell boundaryCodeHeaderCell = visibleRow.createCell(boundaryCodeColIndex);
+        boundaryCodeHeaderCell.setCellValue("Boundary Code"); // Hidden column header
+        boundaryCodeHeaderCell.setCellStyle(boundaryHeaderStyle);
+        sheet.setColumnHidden(boundaryCodeColIndex, true); // Hide the column
+        
         
         // Get second level boundaries for hardcoded dropdown
         Set<String> level2Boundaries = new LinkedHashSet<>();
+        Map<String, String> level2DisplayToCodeMap = new HashMap<>();
         for (BoundaryUtil.BoundaryRowData boundary : filteredBoundaries) {
             List<String> path = boundary.getBoundaryPath();
             // Get level 2 boundaries (index 1)
             if (path.size() > 1 && path.get(1) != null) {
                 String displayName = localizationMap.getOrDefault(path.get(1), path.get(1));
+                String code = path.get(1);
                 level2Boundaries.add(displayName);
+                level2DisplayToCodeMap.put(displayName, code);
             }
         }
         
@@ -148,17 +159,24 @@ public class HierarchicalBoundaryUtil {
         
         // Add cascading data validations
         addCascadingBoundaryValidations(workbook, sheet, lastSchemaCol, numCascadingColumns, 
-                                       new ArrayList<>(level2Boundaries), mappingResult, localizationMap);
+                                       new ArrayList<>(level2Boundaries), mappingResult, localizationMap, level2DisplayToCodeMap);
         
         // Set column widths and styling
         for (int i = 0; i < numCascadingColumns; i++) {
             sheet.setColumnWidth(lastSchemaCol + i, 50 * 256);
         }
+        // Set width for the hidden boundary code column
+        sheet.setColumnWidth(boundaryCodeColIndex, 30 * 256);
         sheet.createFreezePane(0, 2); // Freeze header rows
         
-        // Unlock cells for user input (exclude the boundary code column)
+        // Unlock cells for user input
         CellStyle unlocked = workbook.createCellStyle();
         unlocked.setLocked(false);
+        
+        // Create formula-based style for the boundary code column
+        CellStyle formulaStyle = workbook.createCellStyle();
+        formulaStyle.setLocked(true); // Keep locked to prevent user editing
+        
         for (int r = 2; r <= config.getExcelRowLimit(); r++) {
             Row row = sheet.getRow(r);
             if (row == null)
@@ -171,9 +189,51 @@ public class HierarchicalBoundaryUtil {
                     cell = row.createCell(lastSchemaCol + i);
                 cell.setCellStyle(unlocked);
             }
+            
+            // Add formula to the boundary code column to show the selected boundary code
+            Cell boundaryCodeCell = row.getCell(boundaryCodeColIndex);
+            if (boundaryCodeCell == null)
+                boundaryCodeCell = row.createCell(boundaryCodeColIndex);
+            boundaryCodeCell.setCellStyle(formulaStyle);
+            
+            // Set formula to get the boundary code based on the last selected value
+            String boundaryCodeFormula = createBoundaryCodeFormula(r + 1, lastSchemaCol, numCascadingColumns);
+            boundaryCodeCell.setCellFormula(boundaryCodeFormula);
         }
         
         log.info("Added {} cascading boundary dropdown columns", numCascadingColumns);
+    }
+    
+    /**
+     * Creates a formula to get the boundary code based on the selected boundary values
+     * Uses a simple approach - checks from right to left and returns code for first non-empty value
+     */
+    private String createBoundaryCodeFormula(int rowNumber, int firstColumnIndex, int numColumns) {
+        StringBuilder formula = new StringBuilder();
+        
+        // Build nested IF statements from last column to first
+        for (int i = numColumns - 1; i >= 0; i--) {
+            String colRef = CellReference.convertNumToColString(firstColumnIndex + i) + rowNumber;
+            
+            formula.append("IF(").append(colRef).append("<>\"\",");
+            
+            // Use VLOOKUP to find the boundary code from the display name to code mapping in columns D:E
+            formula.append("IFERROR(VLOOKUP(").append(colRef).append(",_h_SimpleLookup_h_!$D:$E,2,0),\"\")");
+            
+            if (i > 0) {
+                formula.append(",");
+            }
+        }
+        
+        // Close all IF statements with empty string as final fallback
+        if (numColumns > 0) {
+            formula.append(",\"\"");
+            for (int i = 0; i < numColumns; i++) {
+                formula.append(")");
+            }
+        }
+        
+        return formula.toString();
     }
     
     /**
@@ -203,6 +263,7 @@ public class HierarchicalBoundaryUtil {
         // Build parent-children mapping
         Map<String, Set<String>> parentChildrenMap = new HashMap<>();
         Map<String, String> codeToDisplayNameMap = new HashMap<>();
+        Map<String, Set<String>> parentChildrenCodeMap = new HashMap<>();
         
         // First pass: collect all boundary codes with their display names
         for (BoundaryUtil.BoundaryRowData boundary : boundaries) {
@@ -232,16 +293,19 @@ public class HierarchicalBoundaryUtil {
                     String key = keyBuilder.toString();
                     
                     String childDisplayName = codeToDisplayNameMap.get(path.get(level + 1));
+                    String childCode = path.get(level + 1);
                     parentChildrenMap.computeIfAbsent(key, k -> new LinkedHashSet<>()).add(childDisplayName);
+                    parentChildrenCodeMap.computeIfAbsent(key, k -> new LinkedHashSet<>()).add(childCode);
                 }
             }
         }
         
-        // Populate lookup sheet with key-value pairs (comma-separated children)
+        // Populate lookup sheet with key-value pairs (comma-separated children and codes)
         int rowNum = 0;
         for (Map.Entry<String, Set<String>> entry : parentChildrenMap.entrySet()) {
             String key = entry.getKey();
             Set<String> children = entry.getValue();
+            Set<String> childrenCodes = parentChildrenCodeMap.get(key);
             
             Row row = lookupSheet.createRow(rowNum++);
             // Key in column A
@@ -250,11 +314,29 @@ public class HierarchicalBoundaryUtil {
             // All children in column B as comma-separated values
             String childrenList = String.join(",", children);
             row.createCell(1).setCellValue(childrenList);
+            
+            // All children codes in column C as comma-separated values
+            String childrenCodesList = String.join(",", childrenCodes);
+            row.createCell(2).setCellValue(childrenCodesList);
         }
         
-        log.info("Created cascading boundary lookup sheet with {} entries", parentChildrenMap.size());
+        // Add a simple display name to code mapping after the main lookup data
+        rowNum += 2; // Add some spacing
         
-        return new ParentChildrenMapping(parentChildrenMap, codeToDisplayNameMap);
+        // Create a simple mapping of all display names to their codes
+        for (Map.Entry<String, String> entry : codeToDisplayNameMap.entrySet()) {
+            String code = entry.getKey();
+            String displayName = entry.getValue();
+            
+            Row mappingRow = lookupSheet.createRow(rowNum++);
+            mappingRow.createCell(3).setCellValue(displayName); // Column D
+            mappingRow.createCell(4).setCellValue(code);        // Column E
+        }
+        
+        log.info("Created cascading boundary lookup sheet with {} entries and {} display-to-code mappings", 
+                parentChildrenMap.size(), codeToDisplayNameMap.size());
+        
+        return new ParentChildrenMapping(parentChildrenMap, codeToDisplayNameMap, parentChildrenCodeMap);
     }
     
     /**
@@ -321,9 +403,11 @@ public class HierarchicalBoundaryUtil {
      */
     private static class ParentChildrenMapping {
         final Map<String, String> codeToDisplayNameMap;
+        final Map<String, Set<String>> parentChildrenCodeMap;
         
-        ParentChildrenMapping(Map<String, Set<String>> parentChildrenMap, Map<String, String> codeToDisplayNameMap) {
+        ParentChildrenMapping(Map<String, Set<String>> parentChildrenMap, Map<String, String> codeToDisplayNameMap, Map<String, Set<String>> parentChildrenCodeMap) {
             this.codeToDisplayNameMap = codeToDisplayNameMap;
+            this.parentChildrenCodeMap = parentChildrenCodeMap;
         }
     }
     
@@ -333,7 +417,8 @@ public class HierarchicalBoundaryUtil {
     private void addCascadingBoundaryValidations(XSSFWorkbook workbook, Sheet sheet, 
             int startColumnIndex, int numColumns, 
             List<String> level2Boundaries,
-            ParentChildrenMapping mappingResult, Map<String, String> localizationMap) {
+            ParentChildrenMapping mappingResult, Map<String, String> localizationMap, 
+            Map<String, String> level2DisplayToCodeMap) {
         
         DataValidationHelper dvHelper = sheet.getDataValidationHelper();
         
