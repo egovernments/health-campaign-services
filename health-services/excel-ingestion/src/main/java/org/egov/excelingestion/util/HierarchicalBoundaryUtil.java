@@ -175,7 +175,8 @@ public class HierarchicalBoundaryUtil {
         int boundaryCodeColIndex = lastSchemaCol + numCascadingColumns;
         hiddenRow.createCell(boundaryCodeColIndex).setCellValue("HCM_ADMIN_CONSOLE_BOUNDARY_CODE");
         Cell boundaryCodeHeaderCell = visibleRow.createCell(boundaryCodeColIndex);
-        boundaryCodeHeaderCell.setCellValue("Boundary Code"); // Hidden column header
+        String boundaryCodeHeader = localizationMap.getOrDefault("HCM_ADMIN_CONSOLE_BOUNDARY_CODE", "HCM_ADMIN_CONSOLE_BOUNDARY_CODE");
+        boundaryCodeHeaderCell.setCellValue(boundaryCodeHeader);
         boundaryCodeHeaderCell.setCellStyle(boundaryHeaderStyle);
         sheet.setColumnHidden(boundaryCodeColIndex, true); // Hide the column
         

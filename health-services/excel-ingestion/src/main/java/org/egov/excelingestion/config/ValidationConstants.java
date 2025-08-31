@@ -17,6 +17,9 @@ public class ValidationConstants {
     public static final String HCM_VALIDATION_DUPLICATE_SELECTIONS = "HCM_VALIDATION_DUPLICATE_SELECTIONS";
     public static final String HCM_VALIDATION_REQUIRED_MULTI_SELECT = "HCM_VALIDATION_REQUIRED_MULTI_SELECT";
     
+    // Error message constants
+    public static final String HCM_VALIDATION_FAILED_NO_DETAILS = "HCM_VALIDATION_FAILED_NO_DETAILS";
+    
     private ValidationConstants() {
         // Private constructor to prevent instantiation
     }

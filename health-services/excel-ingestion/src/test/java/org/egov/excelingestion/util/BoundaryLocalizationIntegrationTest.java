@@ -54,8 +54,8 @@ public class BoundaryLocalizationIntegrationTest {
         levelValidation.setErrorStyle(DataValidation.ErrorStyle.STOP);
         levelValidation.setShowErrorBox(true);
         levelValidation.createErrorBox(
-            getLocalizedMessage(localizationMap, "HCM_VALIDATION_INVALID_LEVEL", "Invalid Level"),
-            getLocalizedMessage(localizationMap, "HCM_VALIDATION_INVALID_LEVEL_MESSAGE", "Please select a valid level from the dropdown list.")
+            LocalizationUtil.getLocalizedMessage(localizationMap, "HCM_VALIDATION_INVALID_LEVEL", "Invalid Level"),
+            LocalizationUtil.getLocalizedMessage(localizationMap, "HCM_VALIDATION_INVALID_LEVEL_MESSAGE", "Please select a valid level from the dropdown list.")
         );
         levelValidation.setShowPromptBox(false);
         sheet.addValidationData(levelValidation);
@@ -68,8 +68,8 @@ public class BoundaryLocalizationIntegrationTest {
         boundaryValidation.setErrorStyle(DataValidation.ErrorStyle.STOP);
         boundaryValidation.setShowErrorBox(true);
         boundaryValidation.createErrorBox(
-            getLocalizedMessage(localizationMap, "HCM_VALIDATION_INVALID_BOUNDARY", "Invalid Boundary"),
-            getLocalizedMessage(localizationMap, "HCM_VALIDATION_INVALID_BOUNDARY_MESSAGE", "Please select a valid boundary from the dropdown list.")
+            LocalizationUtil.getLocalizedMessage(localizationMap, "HCM_VALIDATION_INVALID_BOUNDARY", "Invalid Boundary"),
+            LocalizationUtil.getLocalizedMessage(localizationMap, "HCM_VALIDATION_INVALID_BOUNDARY_MESSAGE", "Please select a valid boundary from the dropdown list.")
         );
         boundaryValidation.setShowPromptBox(false);
         sheet.addValidationData(boundaryValidation);
@@ -114,8 +114,8 @@ public class BoundaryLocalizationIntegrationTest {
         validation1.setErrorStyle(DataValidation.ErrorStyle.STOP);
         validation1.setShowErrorBox(true);
         validation1.createErrorBox(
-            getLocalizedMessage(localizationMap, "HCM_VALIDATION_INVALID_SELECTION", "Invalid Selection"),
-            getLocalizedMessage(localizationMap, "HCM_VALIDATION_INVALID_SELECTION_MESSAGE", "Please select a valid boundary from the dropdown list.")
+            LocalizationUtil.getLocalizedMessage(localizationMap, "HCM_VALIDATION_INVALID_SELECTION", "Invalid Selection"),
+            LocalizationUtil.getLocalizedMessage(localizationMap, "HCM_VALIDATION_INVALID_SELECTION_MESSAGE", "Please select a valid boundary from the dropdown list.")
         );
         sheet.addValidationData(validation1);
         
@@ -127,8 +127,8 @@ public class BoundaryLocalizationIntegrationTest {
         validation2.setErrorStyle(DataValidation.ErrorStyle.WARNING);
         validation2.setShowErrorBox(true);
         validation2.createErrorBox(
-            getLocalizedMessage(localizationMap, "HCM_VALIDATION_INVALID_CHILD_SELECTION", "Invalid Selection"),
-            getLocalizedMessage(localizationMap, "HCM_VALIDATION_INVALID_CHILD_SELECTION_MESSAGE", "Please select a valid child boundary.")
+            LocalizationUtil.getLocalizedMessage(localizationMap, "HCM_VALIDATION_INVALID_CHILD_SELECTION", "Invalid Selection"),
+            LocalizationUtil.getLocalizedMessage(localizationMap, "HCM_VALIDATION_INVALID_CHILD_SELECTION_MESSAGE", "Please select a valid child boundary.")
         );
         sheet.addValidationData(validation2);
         
@@ -157,14 +157,14 @@ public class BoundaryLocalizationIntegrationTest {
         localizationMap.put("HCM_VALIDATION_NUMBER_MAX", "El valor debe ser como máximo %.0f");
         
         // Test text length between
-        String template = getLocalizedMessage(localizationMap, "HCM_VALIDATION_TEXT_LENGTH_BETWEEN", 
+        String template = LocalizationUtil.getLocalizedMessage(localizationMap, "HCM_VALIDATION_TEXT_LENGTH_BETWEEN", 
             "Text length must be between %d and %d characters");
         String formatted = String.format(template, 5, 50);
         assertEquals("La longitud del texto debe estar entre 5 y 50 caracteres", formatted,
             "Should format Spanish text length template");
         
         // Test number min
-        template = getLocalizedMessage(localizationMap, "HCM_VALIDATION_NUMBER_MIN",
+        template = LocalizationUtil.getLocalizedMessage(localizationMap, "HCM_VALIDATION_NUMBER_MIN",
             "Value must be at least %.0f");
         formatted = String.format(template, 100.0);
         assertEquals("El valor debe ser al menos 100", formatted,
@@ -180,10 +180,10 @@ public class BoundaryLocalizationIntegrationTest {
         partialLocalizationMap.put("HCM_VALIDATION_INVALID_LEVEL", "Niveau invalide"); // French
         // Missing: HCM_VALIDATION_INVALID_BOUNDARY
         
-        String level = getLocalizedMessage(partialLocalizationMap, "HCM_VALIDATION_INVALID_LEVEL", "Invalid Level");
+        String level = LocalizationUtil.getLocalizedMessage(partialLocalizationMap, "HCM_VALIDATION_INVALID_LEVEL", "Invalid Level");
         assertEquals("Niveau invalide", level, "Should use French when available");
         
-        String boundary = getLocalizedMessage(partialLocalizationMap, "HCM_VALIDATION_INVALID_BOUNDARY", "Invalid Boundary");
+        String boundary = LocalizationUtil.getLocalizedMessage(partialLocalizationMap, "HCM_VALIDATION_INVALID_BOUNDARY", "Invalid Boundary");
         assertEquals("Invalid Boundary", boundary, "Should fallback to English default when key missing");
         
         System.out.println("✅ Fallback to English defaults verified");
@@ -208,7 +208,7 @@ public class BoundaryLocalizationIntegrationTest {
         validation.setShowPromptBox(false); // Should always be false
         validation.setShowErrorBox(true);
         validation.createErrorBox(
-            getLocalizedMessage(arabicMap, "HCM_VALIDATION_INVALID_NUMBER", "Invalid Number"),
+            LocalizationUtil.getLocalizedMessage(arabicMap, "HCM_VALIDATION_INVALID_NUMBER", "Invalid Number"),
             "يجب أن تكون القيمة بين 0 و 100" // Arabic error message
         );
         
@@ -244,7 +244,7 @@ public class BoundaryLocalizationIntegrationTest {
         validation1.setErrorStyle(DataValidation.ErrorStyle.STOP);
         validation1.setShowErrorBox(true);
         validation1.createErrorBox(
-            getLocalizedMessage(localizationMap, "HCM_VALIDATION_ERROR_STOP", "Error"),
+            LocalizationUtil.getLocalizedMessage(localizationMap, "HCM_VALIDATION_ERROR_STOP", "Error"),
             "Invalid value entered"
         );
         validation1.setShowPromptBox(false);
@@ -257,7 +257,7 @@ public class BoundaryLocalizationIntegrationTest {
         validation2.setErrorStyle(DataValidation.ErrorStyle.WARNING);
         validation2.setShowErrorBox(true);
         validation2.createErrorBox(
-            getLocalizedMessage(localizationMap, "HCM_VALIDATION_ERROR_WARNING", "Warning"),
+            LocalizationUtil.getLocalizedMessage(localizationMap, "HCM_VALIDATION_ERROR_WARNING", "Warning"),
             "Please verify your input"
         );
         validation2.setShowPromptBox(false);
@@ -270,7 +270,7 @@ public class BoundaryLocalizationIntegrationTest {
         validation3.setErrorStyle(DataValidation.ErrorStyle.INFO);
         validation3.setShowErrorBox(true);
         validation3.createErrorBox(
-            getLocalizedMessage(localizationMap, "HCM_VALIDATION_ERROR_INFO", "Info"),
+            LocalizationUtil.getLocalizedMessage(localizationMap, "HCM_VALIDATION_ERROR_INFO", "Info"),
             "For your information"
         );
         validation3.setShowPromptBox(false);
@@ -283,13 +283,4 @@ public class BoundaryLocalizationIntegrationTest {
         System.out.println("✅ All error styles with localization verified");
     }
 
-    /**
-     * Helper method that mirrors the actual implementation
-     */
-    private String getLocalizedMessage(Map<String, String> localizationMap, String key, String defaultMessage) {
-        if (localizationMap != null && key != null && localizationMap.containsKey(key)) {
-            return localizationMap.get(key);
-        }
-        return defaultMessage;
-    }
 }

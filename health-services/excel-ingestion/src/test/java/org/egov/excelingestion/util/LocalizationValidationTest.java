@@ -79,7 +79,7 @@ public class LocalizationValidationTest {
         String key = "HCM_VALIDATION_INVALID_LEVEL";
         String defaultMessage = "Default Invalid Level";
         
-        String result = getLocalizedMessage(englishLocalizationMap, key, defaultMessage);
+        String result = LocalizationUtil.getLocalizedMessage(englishLocalizationMap, key, defaultMessage);
         
         assertEquals("Invalid Level", result, "Should return English localized message");
     }
@@ -89,7 +89,7 @@ public class LocalizationValidationTest {
         String key = "HCM_VALIDATION_INVALID_LEVEL";
         String defaultMessage = "Default Invalid Level";
         
-        String result = getLocalizedMessage(hindiLocalizationMap, key, defaultMessage);
+        String result = LocalizationUtil.getLocalizedMessage(hindiLocalizationMap, key, defaultMessage);
         
         assertEquals("अमान्य स्तर", result, "Should return Hindi localized message");
     }
@@ -99,7 +99,7 @@ public class LocalizationValidationTest {
         String key = "NON_EXISTENT_KEY";
         String defaultMessage = "Default Message";
         
-        String result = getLocalizedMessage(englishLocalizationMap, key, defaultMessage);
+        String result = LocalizationUtil.getLocalizedMessage(englishLocalizationMap, key, defaultMessage);
         
         assertEquals("Default Message", result, "Should fallback to default message when key not found");
     }
@@ -109,7 +109,7 @@ public class LocalizationValidationTest {
         String key = "HCM_VALIDATION_INVALID_LEVEL";
         String defaultMessage = "Default Invalid Level";
         
-        String result = getLocalizedMessage(null, key, defaultMessage);
+        String result = LocalizationUtil.getLocalizedMessage(null, key, defaultMessage);
         
         assertEquals("Default Invalid Level", result, "Should fallback to default when map is null");
     }
@@ -119,7 +119,7 @@ public class LocalizationValidationTest {
         String key = "HCM_VALIDATION_INVALID_LEVEL";
         String defaultMessage = "Default Invalid Level";
         
-        String result = getLocalizedMessage(emptyLocalizationMap, key, defaultMessage);
+        String result = LocalizationUtil.getLocalizedMessage(emptyLocalizationMap, key, defaultMessage);
         
         assertEquals("Default Invalid Level", result, "Should fallback to default when map is empty");
     }
@@ -191,9 +191,9 @@ public class LocalizationValidationTest {
         DataValidationHelper dvHelper = sheet.getDataValidationHelper();
         
         // Test creating validation with localized error messages
-        String errorTitle = getLocalizedMessage(englishLocalizationMap, 
+        String errorTitle = LocalizationUtil.getLocalizedMessage(englishLocalizationMap, 
             "HCM_VALIDATION_INVALID_NUMBER", "Invalid Number");
-        String errorMessage = getLocalizedMessage(englishLocalizationMap,
+        String errorMessage = LocalizationUtil.getLocalizedMessage(englishLocalizationMap,
             "HCM_VALIDATION_NUMBER_MIN", "Value must be at least %.0f");
         String formattedMessage = String.format(errorMessage, 10.0);
         
@@ -236,8 +236,8 @@ public class LocalizationValidationTest {
         validation.setShowPromptBox(false); // This should always be false
         validation.setShowErrorBox(true); // Errors should still be shown
         validation.createErrorBox(
-            getLocalizedMessage(englishLocalizationMap, "HCM_VALIDATION_INVALID_DROPDOWN_SELECTION", "Invalid Selection"),
-            getLocalizedMessage(englishLocalizationMap, "HCM_VALIDATION_INVALID_DROPDOWN_SELECTION_MESSAGE", "Please select a value from the dropdown list.")
+            LocalizationUtil.getLocalizedMessage(englishLocalizationMap, "HCM_VALIDATION_INVALID_DROPDOWN_SELECTION", "Invalid Selection"),
+            LocalizationUtil.getLocalizedMessage(englishLocalizationMap, "HCM_VALIDATION_INVALID_DROPDOWN_SELECTION_MESSAGE", "Please select a value from the dropdown list.")
         );
         
         sheet.addValidationData(validation);
@@ -258,25 +258,16 @@ public class LocalizationValidationTest {
         mixedMap.put("HCM_VALIDATION_INVALID_NUMBER", "无效号码"); // Chinese
         
         assertEquals("Invalid Level", 
-            getLocalizedMessage(mixedMap, "HCM_VALIDATION_INVALID_LEVEL", "Default"),
+            LocalizationUtil.getLocalizedMessage(mixedMap, "HCM_VALIDATION_INVALID_LEVEL", "Default"),
             "Should handle English");
         assertEquals("अमान्य सीमा", 
-            getLocalizedMessage(mixedMap, "HCM_VALIDATION_INVALID_BOUNDARY", "Default"),
+            LocalizationUtil.getLocalizedMessage(mixedMap, "HCM_VALIDATION_INVALID_BOUNDARY", "Default"),
             "Should handle Hindi");
         assertEquals("无效号码", 
-            getLocalizedMessage(mixedMap, "HCM_VALIDATION_INVALID_NUMBER", "Default"),
+            LocalizationUtil.getLocalizedMessage(mixedMap, "HCM_VALIDATION_INVALID_NUMBER", "Default"),
             "Should handle Chinese");
         
         System.out.println("✅ Mixed language support verified");
     }
 
-    /**
-     * Helper method that mirrors the actual implementation
-     */
-    private String getLocalizedMessage(Map<String, String> localizationMap, String key, String defaultMessage) {
-        if (localizationMap != null && key != null && localizationMap.containsKey(key)) {
-            return localizationMap.get(key);
-        }
-        return defaultMessage;
-    }
 }

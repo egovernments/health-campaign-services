@@ -3,6 +3,7 @@ package org.egov.excelingestion.service;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
 import org.egov.excelingestion.config.ValidationConstants;
+import org.egov.excelingestion.util.LocalizationUtil;
 import org.egov.excelingestion.web.models.ValidationError;
 import org.egov.excelingestion.web.models.ValidationColumnInfo;
 import org.springframework.stereotype.Service;
@@ -120,7 +121,7 @@ public class ValidationService {
     /**
      * Processes validation errors and adds them to the sheet
      */
-    public void processValidationErrors(Sheet sheet, List<ValidationError> errors, ValidationColumnInfo columnInfo) {
+    public void processValidationErrors(Sheet sheet, List<ValidationError> errors, ValidationColumnInfo columnInfo, Map<String, String> localizationMap) {
         if (errors == null || errors.isEmpty()) {
             return;
         }
@@ -183,12 +184,16 @@ public class ValidationService {
             } else if (ValidationConstants.STATUS_INVALID.equals(status) || 
                       ValidationConstants.STATUS_ERROR.equals(status)) {
                 // If status is invalid but no error details, provide a default message
-                errorCell.setCellValue("Validation failed - no specific error details available");
+                String defaultErrorMessage = LocalizationUtil.getLocalizedMessage(localizationMap, 
+                    ValidationConstants.HCM_VALIDATION_FAILED_NO_DETAILS, 
+                    "Validation failed - no specific error details available");
+                errorCell.setCellValue(defaultErrorMessage);
             } else {
                 errorCell.setCellValue("");
             }
         }
     }
+
 
     /**
      * Determines the overall status for a row based on its errors

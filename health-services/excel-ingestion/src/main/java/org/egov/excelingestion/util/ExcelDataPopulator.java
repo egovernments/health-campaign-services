@@ -8,6 +8,7 @@ import org.egov.excelingestion.config.ExcelIngestionConfig;
 import org.egov.excelingestion.web.models.excel.ColumnDef;
 import org.egov.excelingestion.web.models.excel.MultiSelectDetails;
 import org.springframework.stereotype.Component;
+import org.egov.excelingestion.util.LocalizationUtil;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -290,8 +291,8 @@ public class ExcelDataPopulator {
                 validation.setErrorStyle(DataValidation.ErrorStyle.STOP);
                 validation.setShowErrorBox(true);
                 validation.createErrorBox(
-                    getLocalizedMessage(localizationMap, "HCM_VALIDATION_INVALID_DROPDOWN_SELECTION", "Invalid Selection"),
-                    getLocalizedMessage(localizationMap, "HCM_VALIDATION_INVALID_DROPDOWN_SELECTION_MESSAGE", "Please select a value from the dropdown list.")
+                    LocalizationUtil.getLocalizedMessage(localizationMap, "HCM_VALIDATION_INVALID_DROPDOWN_SELECTION", "Invalid Selection"),
+                    LocalizationUtil.getLocalizedMessage(localizationMap, "HCM_VALIDATION_INVALID_DROPDOWN_SELECTION_MESSAGE", "Please select a value from the dropdown list.")
                 );
                 validation.setShowPromptBox(false); // No input prompt, only error on invalid data
                 sheet.addValidationData(validation);
@@ -347,9 +348,9 @@ public class ExcelDataPopulator {
                     );
                     // Use custom error message from MDMS if available, otherwise use dynamic message
                     if (column.getErrorMessage() != null && !column.getErrorMessage().isEmpty()) {
-                        errorMessage = getLocalizedMessage(localizationMap, column.getErrorMessage(), column.getErrorMessage());
+                        errorMessage = LocalizationUtil.getLocalizedMessage(localizationMap, column.getErrorMessage(), column.getErrorMessage());
                     } else {
-                        String template = getLocalizedMessage(localizationMap, "HCM_VALIDATION_TEXT_LENGTH_BETWEEN", "Text length must be between %d and %d characters");
+                        String template = LocalizationUtil.getLocalizedMessage(localizationMap, "HCM_VALIDATION_TEXT_LENGTH_BETWEEN", "Text length must be between %d and %d characters");
                         errorMessage = String.format(template, column.getMinLength(), column.getMaxLength());
                     }
                     
@@ -361,9 +362,9 @@ public class ExcelDataPopulator {
                         null
                     );
                     if (column.getErrorMessage() != null && !column.getErrorMessage().isEmpty()) {
-                        errorMessage = getLocalizedMessage(localizationMap, column.getErrorMessage(), column.getErrorMessage());
+                        errorMessage = LocalizationUtil.getLocalizedMessage(localizationMap, column.getErrorMessage(), column.getErrorMessage());
                     } else {
-                        String template = getLocalizedMessage(localizationMap, "HCM_VALIDATION_TEXT_MIN_LENGTH", "Text must be at least %d characters long");
+                        String template = LocalizationUtil.getLocalizedMessage(localizationMap, "HCM_VALIDATION_TEXT_MIN_LENGTH", "Text must be at least %d characters long");
                         errorMessage = String.format(template, column.getMinLength());
                     }
                     
@@ -375,9 +376,9 @@ public class ExcelDataPopulator {
                         null
                     );
                     if (column.getErrorMessage() != null && !column.getErrorMessage().isEmpty()) {
-                        errorMessage = getLocalizedMessage(localizationMap, column.getErrorMessage(), column.getErrorMessage());
+                        errorMessage = LocalizationUtil.getLocalizedMessage(localizationMap, column.getErrorMessage(), column.getErrorMessage());
                     } else {
-                        String template = getLocalizedMessage(localizationMap, "HCM_VALIDATION_TEXT_MAX_LENGTH", "Text must not exceed %d characters");
+                        String template = LocalizationUtil.getLocalizedMessage(localizationMap, "HCM_VALIDATION_TEXT_MAX_LENGTH", "Text must not exceed %d characters");
                         errorMessage = String.format(template, column.getMaxLength());
                     }
                 }
@@ -389,7 +390,7 @@ public class ExcelDataPopulator {
                     validation.setErrorStyle(DataValidation.ErrorStyle.STOP);
                     validation.setShowErrorBox(true);
                     validation.createErrorBox(
-                        getLocalizedMessage(localizationMap, "HCM_VALIDATION_INVALID_TEXT_LENGTH", "Invalid Text Length"),
+                        LocalizationUtil.getLocalizedMessage(localizationMap, "HCM_VALIDATION_INVALID_TEXT_LENGTH", "Invalid Text Length"),
                         errorMessage
                     );
                     validation.setShowPromptBox(false);
@@ -429,9 +430,9 @@ public class ExcelDataPopulator {
                     String.valueOf(column.getExclusiveMaximum().doubleValue() - 0.000001)  // Subtract small epsilon for "less than"
                 );
                 if (column.getErrorMessage() != null && !column.getErrorMessage().isEmpty()) {
-                    errorMessage = getLocalizedMessage(localizationMap, column.getErrorMessage(), column.getErrorMessage());
+                    errorMessage = LocalizationUtil.getLocalizedMessage(localizationMap, column.getErrorMessage(), column.getErrorMessage());
                 } else {
-                    String template = getLocalizedMessage(localizationMap, "HCM_VALIDATION_NUMBER_BETWEEN_EXCLUSIVE", "Value must be greater than %.0f and less than %.0f");
+                    String template = LocalizationUtil.getLocalizedMessage(localizationMap, "HCM_VALIDATION_NUMBER_BETWEEN_EXCLUSIVE", "Value must be greater than %.0f and less than %.0f");
                     errorMessage = String.format(template, column.getExclusiveMinimum().doubleValue(), column.getExclusiveMaximum().doubleValue());
                 }
                 
@@ -443,9 +444,9 @@ public class ExcelDataPopulator {
                     null
                 );
                 if (column.getErrorMessage() != null && !column.getErrorMessage().isEmpty()) {
-                    errorMessage = getLocalizedMessage(localizationMap, column.getErrorMessage(), column.getErrorMessage());
+                    errorMessage = LocalizationUtil.getLocalizedMessage(localizationMap, column.getErrorMessage(), column.getErrorMessage());
                 } else {
-                    String template = getLocalizedMessage(localizationMap, "HCM_VALIDATION_NUMBER_GREATER_THAN", "Value must be greater than %.0f");
+                    String template = LocalizationUtil.getLocalizedMessage(localizationMap, "HCM_VALIDATION_NUMBER_GREATER_THAN", "Value must be greater than %.0f");
                     errorMessage = String.format(template, column.getExclusiveMinimum().doubleValue());
                 }
                 
@@ -457,9 +458,9 @@ public class ExcelDataPopulator {
                     null
                 );
                 if (column.getErrorMessage() != null && !column.getErrorMessage().isEmpty()) {
-                    errorMessage = getLocalizedMessage(localizationMap, column.getErrorMessage(), column.getErrorMessage());
+                    errorMessage = LocalizationUtil.getLocalizedMessage(localizationMap, column.getErrorMessage(), column.getErrorMessage());
                 } else {
-                    String template = getLocalizedMessage(localizationMap, "HCM_VALIDATION_NUMBER_LESS_THAN", "Value must be less than %.0f");
+                    String template = LocalizationUtil.getLocalizedMessage(localizationMap, "HCM_VALIDATION_NUMBER_LESS_THAN", "Value must be less than %.0f");
                     errorMessage = String.format(template, column.getExclusiveMaximum().doubleValue());
                 }
                 
@@ -473,10 +474,10 @@ public class ExcelDataPopulator {
                 // Use custom error message from MDMS if available, otherwise use dynamic message
                 if (column.getErrorMessage() != null && !column.getErrorMessage().isEmpty()) {
                     // Try to localize the custom error message
-                    errorMessage = getLocalizedMessage(localizationMap, column.getErrorMessage(), column.getErrorMessage());
+                    errorMessage = LocalizationUtil.getLocalizedMessage(localizationMap, column.getErrorMessage(), column.getErrorMessage());
                 } else {
                     // Use dynamic message
-                    String template = getLocalizedMessage(localizationMap, "HCM_VALIDATION_NUMBER_BETWEEN", "Value must be between %.0f and %.0f");
+                    String template = LocalizationUtil.getLocalizedMessage(localizationMap, "HCM_VALIDATION_NUMBER_BETWEEN", "Value must be between %.0f and %.0f");
                     errorMessage = String.format(template, column.getMinimum().doubleValue(), column.getMaximum().doubleValue());
                 }
                     
@@ -490,10 +491,10 @@ public class ExcelDataPopulator {
                 // Use custom error message from MDMS if available, otherwise use dynamic message
                 if (column.getErrorMessage() != null && !column.getErrorMessage().isEmpty()) {
                     // Try to localize the custom error message
-                    errorMessage = getLocalizedMessage(localizationMap, column.getErrorMessage(), column.getErrorMessage());
+                    errorMessage = LocalizationUtil.getLocalizedMessage(localizationMap, column.getErrorMessage(), column.getErrorMessage());
                 } else {
                     // Use dynamic message
-                    String template = getLocalizedMessage(localizationMap, "HCM_VALIDATION_NUMBER_MIN", "Value must be at least %.0f");
+                    String template = LocalizationUtil.getLocalizedMessage(localizationMap, "HCM_VALIDATION_NUMBER_MIN", "Value must be at least %.0f");
                     errorMessage = String.format(template, column.getMinimum().doubleValue());
                 }
                 
@@ -507,10 +508,10 @@ public class ExcelDataPopulator {
                 // Use custom error message from MDMS if available, otherwise use dynamic message
                 if (column.getErrorMessage() != null && !column.getErrorMessage().isEmpty()) {
                     // Try to localize the custom error message
-                    errorMessage = getLocalizedMessage(localizationMap, column.getErrorMessage(), column.getErrorMessage());
+                    errorMessage = LocalizationUtil.getLocalizedMessage(localizationMap, column.getErrorMessage(), column.getErrorMessage());
                 } else {
                     // Use dynamic message
-                    String template = getLocalizedMessage(localizationMap, "HCM_VALIDATION_NUMBER_MAX", "Value must be at most %.0f");
+                    String template = LocalizationUtil.getLocalizedMessage(localizationMap, "HCM_VALIDATION_NUMBER_MAX", "Value must be at most %.0f");
                     errorMessage = String.format(template, column.getMaximum().doubleValue());
                 }
             }
@@ -523,7 +524,7 @@ public class ExcelDataPopulator {
                 validation.setErrorStyle(DataValidation.ErrorStyle.STOP);
                 validation.setShowErrorBox(true);
                 validation.createErrorBox(
-                    getLocalizedMessage(localizationMap, "HCM_VALIDATION_INVALID_NUMBER", "Invalid Number"),
+                    LocalizationUtil.getLocalizedMessage(localizationMap, "HCM_VALIDATION_INVALID_NUMBER", "Invalid Number"),
                     errorMessage
                 );
                 validation.setShowPromptBox(false); // No input prompt as requested
@@ -713,13 +714,4 @@ public class ExcelDataPopulator {
         return columnName.toString();
     }
     
-    /**
-     * Get localized message from localization map, with fallback to default message
-     */
-    private String getLocalizedMessage(Map<String, String> localizationMap, String key, String defaultMessage) {
-        if (localizationMap != null && key != null && localizationMap.containsKey(key)) {
-            return localizationMap.get(key);
-        }
-        return defaultMessage;
-    }
 }

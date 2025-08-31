@@ -138,7 +138,7 @@ public class ExcelProcessingService {
                         columnInfoMap.put(sheetName, columnInfo);
                         
                         // Process the validation errors
-                        validationService.processValidationErrors(sheet, sheetErrors, columnInfo);
+                        validationService.processValidationErrors(sheet, sheetErrors, columnInfo, mergedLocalizationMap);
                     }
                 }
                 
