@@ -130,6 +130,7 @@ if (validStatuses.contains(status)) {
 5. **Standard Patterns**: Use well-known design patterns, avoid custom complex solutions
 6. **Readability**: Write code that any developer can understand quickly
 7. **Error Handling**: Ensure proper error handling and validation
+8. **Localization**: Any prompt or error message originating from a sheet should be localizable.
 
 ## When Optimizing
 - **Profile first** - measure before optimizing
