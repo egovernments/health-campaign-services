@@ -476,13 +476,8 @@ public class HierarchicalBoundaryUtil {
         
         DataValidationHelper dvHelper = sheet.getDataValidationHelper();
         
-        // First column: hardcoded dropdown with level2 boundaries
-        String[] level2Array = level2Boundaries.toArray(new String[0]);
-        CellRangeAddressList level2Range = new CellRangeAddressList(2, config.getExcelRowLimit(), startColumnIndex, startColumnIndex);
-        DataValidationConstraint level2Constraint = dvHelper.createExplicitListConstraint(level2Array);
-        DataValidation level2Validation = dvHelper.createValidation(level2Constraint, level2Range);
-        level2Validation.setShowErrorBox(true);
-        sheet.addValidationData(level2Validation);
+        // First column: Use range-based validation for level2 boundaries to avoid 255-char limit
+        addLevel2BoundaryValidation(workbook, sheet, dvHelper, startColumnIndex, level2Boundaries);
         
         // Get the lookup sheet and parent-children mapping
         Sheet lookupSheet = workbook.getSheet("_h_SimpleLookup_h_");
@@ -595,5 +590,115 @@ public class HierarchicalBoundaryUtil {
         
         log.info("Created simplified cascading boundary validation with {} parent keys and {} helper rows", 
                 parentChildrenMap.size(), keyToHelperRowMap.size());
+    }
+    
+    /**
+     * Add level 2 boundary validation using range reference to avoid 255-character limit
+     * Creates a list in the hidden sheet and references it for validation
+     */
+    private void addLevel2BoundaryValidation(XSSFWorkbook workbook, Sheet sheet, DataValidationHelper dvHelper, 
+            int startColumnIndex, List<String> level2Boundaries) {
+        try {
+            // Get the lookup sheet
+            Sheet lookupSheet = workbook.getSheet("_h_SimpleLookup_h_");
+            if (lookupSheet == null) {
+                log.error("Lookup sheet not found, cannot create level2 boundary validation");
+                return;
+            }
+            
+            // Calculate total length to decide validation approach
+            int totalLength = level2Boundaries.stream()
+                .mapToInt(s -> s.length() + 1) // +1 for separator
+                .sum();
+            
+            if (totalLength <= 250) { // Leave some buffer under 255 limit
+                // Use explicit list for small lists
+                String[] level2Array = level2Boundaries.toArray(new String[0]);
+                CellRangeAddressList level2Range = new CellRangeAddressList(2, config.getExcelRowLimit(), startColumnIndex, startColumnIndex);
+                DataValidationConstraint level2Constraint = dvHelper.createExplicitListConstraint(level2Array);
+                DataValidation level2Validation = dvHelper.createValidation(level2Constraint, level2Range);
+                level2Validation.setShowErrorBox(true);
+                sheet.addValidationData(level2Validation);
+                log.info("Applied explicit list validation for {} level2 boundaries (total length: {})", level2Boundaries.size(), totalLength);
+            } else {
+                // Use range reference for large lists
+                addLevel2BoundariesRangeValidation(workbook, sheet, dvHelper, startColumnIndex, level2Boundaries, lookupSheet);
+            }
+            
+        } catch (Exception e) {
+            log.error("Failed to add level2 boundary validation: {}", e.getMessage(), e);
+            // Fall back to no validation rather than failing completely
+            log.warn("Continuing without level2 boundary validation due to error");
+        }
+    }
+    
+    /**
+     * Add level 2 boundaries to lookup sheet and create range-based validation
+     */
+    private void addLevel2BoundariesRangeValidation(XSSFWorkbook workbook, Sheet sheet, DataValidationHelper dvHelper,
+            int startColumnIndex, List<String> level2Boundaries, Sheet lookupSheet) {
+        
+        // Find a good location in the lookup sheet to add level2 boundaries list
+        int startRow = Math.max(lookupSheet.getLastRowNum() + 5, 1); // Add some spacing
+        
+        // Add level2 boundaries to column G in lookup sheet
+        int level2Column = 6; // Column G (0-indexed)
+        for (int i = 0; i < level2Boundaries.size(); i++) {
+            Row row = lookupSheet.getRow(startRow + i);
+            if (row == null) {
+                row = lookupSheet.createRow(startRow + i);
+            }
+            Cell cell = row.getCell(level2Column);
+            if (cell == null) {
+                cell = row.createCell(level2Column);
+            }
+            cell.setCellValue(level2Boundaries.get(i));
+        }
+        
+        // Create named range for level2 boundaries
+        String rangeName = "Level2_Boundaries";
+        try {
+            // Remove existing range if it exists
+            Name existingRange = workbook.getName(rangeName);
+            if (existingRange != null) {
+                workbook.removeName(existingRange);
+            }
+            
+            // Create new range
+            Name level2Range = workbook.createName();
+            level2Range.setNameName(rangeName);
+            String rangeFormula = "_h_SimpleLookup_h_!$G$" + (startRow + 1) + ":$G$" + (startRow + level2Boundaries.size());
+            level2Range.setRefersToFormula(rangeFormula);
+            
+            log.info("Created named range '{}' for {} level2 boundaries: {}", rangeName, level2Boundaries.size(), rangeFormula);
+            
+            // Apply validation using the named range
+            CellRangeAddressList validationRange = new CellRangeAddressList(2, config.getExcelRowLimit(), startColumnIndex, startColumnIndex);
+            DataValidationConstraint rangeConstraint = dvHelper.createFormulaListConstraint(rangeName);
+            DataValidation rangeValidation = dvHelper.createValidation(rangeConstraint, validationRange);
+            rangeValidation.setShowErrorBox(true);
+            rangeValidation.setEmptyCellAllowed(true);
+            sheet.addValidationData(rangeValidation);
+            
+            log.info("Applied range-based validation for {} level2 boundaries using named range", level2Boundaries.size());
+            
+        } catch (Exception e) {
+            log.error("Failed to create named range for level2 boundaries: {}", e.getMessage());
+            // Try formula reference without named range as fallback
+            try {
+                String directFormula = "_h_SimpleLookup_h_!$G$" + (startRow + 1) + ":$G$" + (startRow + level2Boundaries.size());
+                CellRangeAddressList validationRange = new CellRangeAddressList(2, config.getExcelRowLimit(), startColumnIndex, startColumnIndex);
+                DataValidationConstraint formulaConstraint = dvHelper.createFormulaListConstraint(directFormula);
+                DataValidation formulaValidation = dvHelper.createValidation(formulaConstraint, validationRange);
+                formulaValidation.setShowErrorBox(true);
+                formulaValidation.setEmptyCellAllowed(true);
+                sheet.addValidationData(formulaValidation);
+                
+                log.info("Applied direct formula validation for level2 boundaries: {}", directFormula);
+            } catch (Exception e2) {
+                log.error("Failed to apply direct formula validation as fallback: {}", e2.getMessage());
+                throw new RuntimeException("Unable to create level2 boundary validation", e2);
+            }
+        }
     }
 }

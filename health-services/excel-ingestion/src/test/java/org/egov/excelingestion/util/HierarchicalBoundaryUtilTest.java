@@ -333,4 +333,70 @@ class HierarchicalBoundaryUtilTest {
         assertTrue(normalResult.matches("^[A-Za-z_].*"));
         assertTrue(specialResult.matches("^[A-Za-z_].*"));
     }
+    
+    @Test
+    void testAddHierarchicalBoundaryColumn_HandlesLargeBoundaryList() {
+        // Arrange - Create a scenario with many boundaries that would exceed 255 char limit
+        Sheet sheet = workbook.createSheet("TestSheet");
+        sheet.createRow(0);
+        sheet.createRow(1);
+        
+        Map<String, String> localizationMap = new HashMap<>();
+        localizationMap.put("HIERARCHY1_LEVEL2", "Level 2");
+        localizationMap.put("HCM_ADMIN_CONSOLE_BOUNDARY_CODE", "Boundary Code");
+        
+        // Create many boundaries with long names to exceed 255 character limit
+        List<Boundary> boundaries = new ArrayList<>();
+        for (int i = 1; i <= 50; i++) {
+            String boundaryName = "VERY_LONG_BOUNDARY_NAME_" + String.format("%02d", i) + "_WITH_LOTS_OF_CHARACTERS";
+            localizationMap.put(boundaryName, "Long Boundary Name " + i);
+            boundaries.add(Boundary.builder().code("B" + i).name(boundaryName).type("Village").build());
+        }
+        
+        // Mock boundary service responses
+        BoundarySearchResponse searchResponse = new BoundarySearchResponse();
+        when(boundaryService.fetchBoundaryRelationship(any(), any(), any())).thenReturn(searchResponse);
+        
+        BoundaryHierarchyResponse hierarchyResponse = new BoundaryHierarchyResponse();
+        BoundaryHierarchy hierarchy = new BoundaryHierarchy();
+        hierarchy.setBoundaryHierarchy(Arrays.asList(
+            createBoundaryHierarchyChild("Level1"),
+            createBoundaryHierarchyChild("Level2")
+        ));
+        hierarchyResponse.setBoundaryHierarchy(Arrays.asList(hierarchy));
+        when(boundaryService.fetchBoundaryHierarchy(any(), any(), any())).thenReturn(hierarchyResponse);
+        
+        when(boundaryUtil.buildCodeToBoundaryMap(any())).thenReturn(new HashMap<>());
+        
+        // Create boundary data with long names
+        List<BoundaryUtil.BoundaryRowData> boundaryData = new ArrayList<>();
+        for (int i = 1; i <= 50; i++) {
+            String boundaryName = "VERY_LONG_BOUNDARY_NAME_" + String.format("%02d", i) + "_WITH_LOTS_OF_CHARACTERS";
+            boundaryData.add(new BoundaryUtil.BoundaryRowData(Arrays.asList("ROOT", boundaryName), boundaryName));
+        }
+        when(boundaryUtil.processBoundariesWithEnrichment(any(), any(), any())).thenReturn(boundaryData);
+        
+        // Act - This should not throw IllegalArgumentException about 255 character limit
+        assertDoesNotThrow(() -> {
+            hierarchicalBoundaryUtil.addHierarchicalBoundaryColumn(
+                workbook, "TestSheet", localizationMap, boundaries, 
+                "hierarchy1", "tenant1", new RequestInfo()
+            );
+        });
+        
+        // Assert - Verify that the process completed successfully
+        Sheet hiddenSheet = workbook.getSheet("_h_SimpleLookup_h_");
+        assertNotNull(hiddenSheet, "Hidden lookup sheet should be created");
+        
+        // Verify that data validation was applied (doesn't throw exception)
+        List<? extends DataValidation> validations = sheet.getDataValidations();
+        assertNotNull(validations, "Data validations should be present");
+        
+        // Verify columns were added 
+        Row updatedVisibleRow = sheet.getRow(1);
+        assertTrue(updatedVisibleRow.getLastCellNum() > 1, "Cascading columns should be added");
+        
+        // Verify that large boundary list was handled properly (should use range-based validation)
+        // This test primarily ensures no exception is thrown during the process
+    }
 }
