@@ -40,26 +40,34 @@
 ## Complete Flow Diagram
 
 ```mermaid
-flowchart TD
-    A[📄 Single Microplan Template<br/>Facility + User + Target] --> B[📤 Upload Combined Sheet]
-    B --> C[✅ Process API<br/>Validate All Data Together]
-    C --> D{Validation<br/>Success?}
-    D -->|❌ No| E[❌ Return Validation Errors]
-    D -->|✅ Yes| F[💾 Campaign Create API<br/>Store All Data]
-    F --> G[🔄 Start Sequential Processing]
-    G --> H[1️⃣ Facility Create]
-    H --> I[2️⃣ User Create]
-    I --> J[3️⃣ Target/Project Create]
-    J --> K[4️⃣ Facility Mapping]
-    K --> L[5️⃣ User Mapping]
-    L --> M[6️⃣ Resource Mapping]
-    M --> N[7️⃣ User Credential Generation]
-    N --> O[✅ Complete Microplan Campaign]
+sequenceDiagram
+    participant U as 👤 User
+    participant T as 📄 Template Generator
+    participant P as 🔍 Process API
+    participant C as 💾 Campaign API
+    participant SP as ⚙️ Sequential Processor
+    participant FS as 🏥 Facility Service
+    participant US as 👥 User Service
+    participant TS as 🎯 Target Service
     
-    style A fill:#e1f5fe
-    style C fill:#fff3e0
-    style F fill:#f3e5f5
-    style O fill:#e8f5e8
+    U->>T: Request Microplan Template
+    T->>U: 📄 Single Template (Facility + User + Target)
+    U->>P: 📤 Upload Combined Sheet
+    P->>P: ✅ Validate All Data Together
+    alt ❌ Validation Failed
+        P->>U: Return Validation Errors
+    else ✅ Validation Success
+        P->>C: 💾 Store All Data
+        C->>SP: 🔄 Start Sequential Processing
+        SP->>FS: 1️⃣ Facility Create
+        SP->>US: 2️⃣ User Create  
+        SP->>TS: 3️⃣ Target/Project Create
+        SP->>FS: 4️⃣ Facility Mapping
+        SP->>US: 5️⃣ User Mapping
+        SP->>TS: 6️⃣ Resource Mapping
+        SP->>US: 7️⃣ User Credential Generation
+        SP->>U: ✅ Complete Microplan Campaign
+    end
 ```
 
 ## Key Benefits
