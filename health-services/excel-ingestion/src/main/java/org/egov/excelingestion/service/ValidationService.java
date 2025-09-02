@@ -249,6 +249,7 @@ public class ValidationService {
     
     /**
      * Applies yellow header styling for validation column headers
+     * Uses project-factory standard color #ffff00 (bright yellow)
      */
     private void applyYellowHeaderStyle(Cell cell) {
         Workbook workbook = cell.getSheet().getWorkbook();
@@ -258,9 +259,18 @@ public class ValidationService {
         // Bold font for header
         font.setBold(true);
         
-        // Yellow background
-        style.setFillForegroundColor(IndexedColors.YELLOW.getIndex());
-        style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        // Bright yellow background (#ffff00) - matching project-factory standard
+        if (workbook instanceof org.apache.poi.xssf.usermodel.XSSFWorkbook) {
+            org.apache.poi.xssf.usermodel.XSSFCellStyle xssfStyle = (org.apache.poi.xssf.usermodel.XSSFCellStyle) style;
+            org.apache.poi.xssf.usermodel.XSSFColor yellowColor = new org.apache.poi.xssf.usermodel.XSSFColor(
+                new java.awt.Color(255, 255, 0), null); // RGB(255, 255, 0) = #ffff00
+            xssfStyle.setFillForegroundColor(yellowColor);
+            xssfStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        } else {
+            // Fallback to indexed color for non-XLSX formats
+            style.setFillForegroundColor(IndexedColors.YELLOW.getIndex());
+            style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        }
         
         style.setFont(font);
         cell.setCellStyle(style);

@@ -1,186 +1,144 @@
-# Draft Campaign Data Retrieval Design
+# Unified Microplan Workflow Design
 
-## Current Behavior
-- Project-Factory only retrieves `completed` data when generating templates
-- For draft campaigns, no data has `completed` status yet
-- This results in empty templates for draft campaigns
+## Current vs New Approach
 
-## Problem Statement
-When a campaign is in draft state:
-- No data has `completed` status
-- `getRelatedDataWithCampaign` with `dataRowStatuses.completed` returns empty results
-- Generated templates are empty even though data exists in the sheet data table
+| **Current** | **New Proposed** |
+|-------------|------------------|
+| Generate 3 separate sheets | Generate 1 combined microplan sheet |
+| Process each sheet individually | Process all data together |
 
-## Solution Options
+## New Workflow Architecture
 
-### Option 1: Modify Status Check Logic
-Instead of only retrieving `completed` data, retrieve all available data for draft campaigns.
+### Step 1: Single Template Generation
+**One Comprehensive Template containing:**
+- 🏥 **Facility Data Sheet**
+- 👥 **User Data Sheet** 
+- 🎯 **Target Data Sheet**
 
-#### Implementation:
-In generate flow classes, check campaign status and adjust query accordingly:
+### Step 2: Unified Validation & Processing
+- **Process API:** Single call validates entire sheet
+- **Upload:** All 3 data types in one submission
+- **Validation:** Combined validation for all sections
+
+### Step 3: Campaign Creation
+- **Campaign Create API:** Store all validated data
+- **Single Campaign:** All data types under one campaign
+- **Status Tracking:** Monitor processing progress
+
+### Step 4: Sequential Processing Pipeline (7 Operations)
+
+```
+1. 🏥 Facility Create
+2. 👥 User Create  
+3. 🎯 Target/Project Create
+4. 🔗 Facility Mapping
+5. 🔗 User Mapping
+6. 🔗 Resource Mapping
+7. 🔑 User Credential Generation
+```
+
+## Complete Flow Diagram
+
+```mermaid
+flowchart TD
+    A[📄 Single Microplan Template<br/>Facility + User + Target] --> B[📤 Upload Combined Sheet]
+    B --> C[✅ Process API<br/>Validate All Data Together]
+    C --> D{Validation<br/>Success?}
+    D -->|❌ No| E[❌ Return Validation Errors]
+    D -->|✅ Yes| F[💾 Campaign Create API<br/>Store All Data]
+    F --> G[🔄 Start Sequential Processing]
+    G --> H[1️⃣ Facility Create]
+    H --> I[2️⃣ User Create]
+    I --> J[3️⃣ Target/Project Create]
+    J --> K[4️⃣ Facility Mapping]
+    K --> L[5️⃣ User Mapping]
+    L --> M[6️⃣ Resource Mapping]
+    M --> N[7️⃣ User Credential Generation]
+    N --> O[✅ Complete Microplan Campaign]
+    
+    style A fill:#e1f5fe
+    style C fill:#fff3e0
+    style F fill:#f3e5f5
+    style O fill:#e8f5e8
+```
+
+## Key Benefits
+
+| **Benefit** | **Description** |
+|-------------|-----------------|
+| **Simplified UX** | Users upload one sheet instead of three separate sheets |
+| **Atomic Operation** | All data validated together, reducing inconsistencies |
+| **Better Error Handling** | Single validation point for all related data |
+| **Streamlined Process** | One unified workflow instead of three parallel ones |
+| **Data Consistency** | Cross-section validation (facility-user relationships) |
+| **Reduced Complexity** | Fewer API calls and fewer potential failure points |
+
+## Implementation Requirements
+
+### 1. Sheet Generator Updates
+- **Combined Template:** Generate unified microplan sheet
+- **Section Headers:** Clear separation of facility/user/target sections
+- **Cross-references:** Maintain relationships between sections
+
+### 2. Process API Enhancements
+- **Multi-type Parsing:** Handle facility + user + target data in single call
+- **Cross-section Validation:** Validate relationships across data types
+- **Unified Error Reporting:** Consolidated error feedback
+
+### 3. Campaign API Modifications
+- **Temporary Storage:** Store multi-type campaign data temporarily
+- **Data Structure:** Support combined facility/user/target storage
+- **Status Tracking:** Track processing progress across 7 operations
+
+### 4. Sequential Processor
+- **Pipeline Manager:** Execute 7 operations in correct order
+- **Failure Recovery:** Handle partial failures and rollback
+- **Progress Tracking:** Monitor and report processing status
+
+## Technical Implementation
+
+### API Flow Changes
+
+#### Before (3 Separate Flows):
 ```typescript
-// In facility-generateClass.ts
-const campaignStatus = campaignDetails.status;
-let facilitiesRow;
+// Facility Flow
+generateFacilitySheet() -> processFacilityData() -> createFacilityCampaign()
 
-if (campaignStatus === campaignStatuses.drafted) {
-    // For draft campaigns, get all data regardless of status
-    facilitiesRow = await getRelatedDataWithCampaign(
-        responseToSend.type, 
-        campaignDetails.campaignNumber, 
-        responseToSend?.tenantId
-    );
-} else {
-    // For other statuses, maintain current behavior
-    facilitiesRow = await getRelatedDataWithCampaign(
-        responseToSend.type, 
-        campaignDetails.campaignNumber, 
-        responseToSend?.tenantId, 
-        dataRowStatuses.completed
-    );
+// User Flow  
+generateUserSheet() -> processUserData() -> createUserCampaign()
+
+// Target Flow
+generateTargetSheet() -> processTargetData() -> createTargetCampaign()
+```
+
+#### After (Unified Flow):
+```typescript
+// Unified Microplan Flow
+generateMicroplanSheet() -> 
+processMicroplanData() -> 
+createCampaign() ->
+executeSequentialProcessing([
+  facilityCreate,
+  userCreate, 
+  targetCreate,
+  facilityMapping,
+  userMapping,
+  resourceMapping,
+  credentialGeneration
+])
+```
+
+## Data Structure
+
+```typescript
+interface MicroplanData {
+  facilities: FacilityData[];
+  users: UserData[];
+  targets: TargetData[];
+  campaignDetails: CampaignInfo;
+  relationships: {
+    facilityUserMappings: Mapping[];
+    facilityTargetMappings: Mapping[];
+  };
 }
 ```
-
-### Option 2: Microplan-Specific Logic
-Add specific logic for microplan campaigns that always retrieves all data.
-
-#### Implementation:
-```typescript
-// Check if this is a microplan campaign
-const isMicroplan = checkIfSourceIsMicroplan(campaignDetails);
-
-if (isMicroplan) {
-    // For microplan campaigns, always get all data
-    facilitiesRow = await getRelatedDataWithCampaign(
-        responseToSend.type, 
-        campaignDetails.campaignNumber, 
-        responseToSend?.tenantId
-    );
-} else {
-    // For regular campaigns, maintain current behavior
-    facilitiesRow = await getRelatedDataWithCampaign(
-        responseToSend.type, 
-        campaignDetails.campaignNumber, 
-        responseToSend?.tenantId, 
-        dataRowStatuses.completed
-    );
-}
-```
-
-### Option 3: Remove Status Filter Completely
-Always retrieve all data regardless of status.
-
-#### Implementation:
-```typescript
-// Always get all data regardless of campaign status
-const facilitiesRow = await getRelatedDataWithCampaign(
-    responseToSend.type, 
-    campaignDetails.campaignNumber, 
-    responseToSend?.tenantId
-);
-```
-
-## Recommended Approach
-
-### Option 2 (Microplan-Specific Logic) is Recommended
-
-**Reasons:**
-1. **Backward Compatibility**: Maintains existing behavior for non-microplan campaigns
-2. **Targeted Solution**: Only affects microplan campaigns where this behavior is needed
-3. **Logical Separation**: Microplan campaigns have different data flow requirements
-4. **Minimal Risk**: Changes are isolated to specific use cases
-
-## Implementation Plan
-
-### 1. Modify Generate Flow Classes
-
-#### facility-generateClass.ts
-```typescript
-// Before:
-const completedFacilitiesRow = await getRelatedDataWithCampaign(
-    responseToSend.type, 
-    campaignDetails.campaignNumber, 
-    responseToSend?.tenantId, 
-    dataRowStatuses.completed
-);
-
-// After:
-const isMicroplan = campaignDetails?.additionalDetails?.source === "microplan";
-let facilitiesRow;
-
-if (isMicroplan) {
-    // For microplan campaigns, get all data
-    facilitiesRow = await getRelatedDataWithCampaign(
-        responseToSend.type, 
-        campaignDetails.campaignNumber, 
-        responseToSend?.tenantId
-    );
-} else {
-    // For regular campaigns, get only completed data
-    facilitiesRow = await getRelatedDataWithCampaign(
-        responseToSend.type, 
-        campaignDetails.campaignNumber, 
-        responseToSend?.tenantId, 
-        dataRowStatuses.completed
-    );
-}
-```
-
-#### user-generateClass.ts
-```typescript
-// Before:
-const users = await getRelatedDataWithCampaign(
-    type, 
-    campaignNumber, 
-    tenantId, 
-    dataRowStatuses.completed
-);
-
-// After:
-const isMicroplan = campaignDetails?.additionalDetails?.source === "microplan";
-let users;
-
-if (isMicroplan) {
-    // For microplan campaigns, get all data
-    users = await getRelatedDataWithCampaign(
-        type, 
-        campaignNumber, 
-        tenantId
-    );
-} else {
-    // For regular campaigns, get only completed data
-    users = await getRelatedDataWithCampaign(
-        type, 
-        campaignNumber, 
-        tenantId, 
-        dataRowStatuses.completed
-    );
-}
-```
-
-### 2. Update Other Generate Classes
-Apply similar changes to:
-- boundary-generateClass.ts
-- userCredential-generateClass.ts
-- Any other relevant generate classes
-
-## Benefits of This Approach
-
-1. **Draft Campaign Support**: Users can generate pre-filled templates for draft microplan campaigns
-2. **Backward Compatibility**: Existing campaigns continue to work as before
-3. **Performance**: No performance impact on non-microplan campaigns
-4. **Maintainability**: Clear separation of logic based on campaign type
-
-## Testing Considerations
-
-1. **Draft Campaigns**: Verify that draft microplan campaigns generate pre-filled templates
-2. **Completed Campaigns**: Ensure completed regular campaigns still work correctly
-3. **Mixed Status Data**: Test campaigns with both completed and pending data
-4. **Non-Microplan Campaigns**: Confirm regular campaigns are unaffected
-
-## Rollout Strategy
-
-1. **Development**: Implement changes in generate flow classes
-2. **Testing**: Test with both draft and completed campaigns
-3. **Staging**: Deploy to staging environment for validation
-4. **Production**: Deploy with monitoring for any issues
