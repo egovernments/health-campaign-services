@@ -112,4 +112,16 @@ public interface Constants {
     String HOUSEHOLD_CLIENT_REFERENCE_ID = "householdClientReferenceId";
     String UNIQUE_BENEFICIARY_ID = "uniqueBeneficiaryId";
 
+    // User Action Constants
+    String USER_ACTION_DAILY_PLAN = "USER_ACTION_DAILY_PLAN";
+    String HCM_MODULE = "HCM";
+    String SUPERVISOR_ROLE_KEY = "SupervisorRole";
+    String SUB_BOUNDARY_TYPE_KEY = "SubBoundaryType";
+    String BOUNDARY_TYPE_KEY = "BoundaryType";
+    
+    // User Action Additional Details Keys
+    String SUPERVISOR_ROLE = "supervisorRole";
+    String SUB_BOUNDARY_TYPE = "subBoundaryType";
+    String BOUNDARY_TYPE = "boundaryType";
+
 }

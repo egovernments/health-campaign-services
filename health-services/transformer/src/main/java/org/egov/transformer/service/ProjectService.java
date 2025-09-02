@@ -486,7 +486,7 @@ public class ProjectService {
                                 .uuid("transformer-uuid")
                                 .build())
                         .build())
-                .projectStaff(ProjectStaffSearch.builder().staffId(userId).tenantId(tenantId).build())
+                .projectStaff(ProjectStaffSearch.builder().staffId(userId).build())
                 .build();
 
         try {

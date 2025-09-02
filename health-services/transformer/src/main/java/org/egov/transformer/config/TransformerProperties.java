@@ -236,4 +236,7 @@ public class TransformerProperties {
 
     @Value("${transformer.checklist.info.mdms.module}")
     private String transformerChecklistInfoMDMSModule;
+
+    @Value("${transformer.producer.user.action.index.v1.topic}")
+    private String transformerProducerUserActionIndexV1Topic;
 }

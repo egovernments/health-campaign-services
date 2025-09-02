@@ -35,6 +35,7 @@ public class MdmsService {
     private static Map<String, String> transformerElasticIndexLabelsMap = new HashMap<>();
     private static Map<String, HashMap<String, Integer>> mdmsProjectStaffRolesRankCache = new ConcurrentHashMap<>();
     private static final Map<String, JsonNode> checklistMdmsInfoCache = new ConcurrentHashMap<>();
+    private static Map<String, Map<String, String>> userActionDailyPlanCache = new ConcurrentHashMap<>();
 
     @Autowired
     public MdmsService(ServiceRequestClient restRepo,
@@ -214,5 +215,37 @@ public class MdmsService {
         return null;
     }
 
+    public Map<String, String> fetchUserActionDailyPlan(String tenantId) {
+        if (userActionDailyPlanCache.containsKey(tenantId)) {
+            log.info("Fetched UserActionDailyPlan from cache for tenantId: {}", tenantId);
+            return userActionDailyPlanCache.get(tenantId);
+        }
+
+        Map<String, String> userActionDailyPlanMap = new HashMap<>();
+        RequestInfo requestInfo = RequestInfo.builder()
+                .userInfo(User.builder().uuid("transformer-uuid").build())
+                .build();
+        
+        MdmsCriteriaReq mdmsCriteriaReq = getMdmsRequest(requestInfo, tenantId, USER_ACTION_DAILY_PLAN, HCM_MODULE, null);
+        
+        try {
+            MdmsResponse mdmsResponse = fetchConfig(mdmsCriteriaReq, MdmsResponse.class);
+            JSONArray userActionDailyPlanArray = mdmsResponse.getMdmsRes().get(HCM_MODULE).get(USER_ACTION_DAILY_PLAN);
+            
+            if (userActionDailyPlanArray != null && !userActionDailyPlanArray.isEmpty()) {
+                ObjectMapper mapper = new ObjectMapper();
+                for (Object obj : userActionDailyPlanArray) {
+                    Map<String, String> item = mapper.convertValue(obj, new TypeReference<Map<String, String>>() {});
+                    userActionDailyPlanMap.put(item.get("key"), item.get("value"));
+                }
+                userActionDailyPlanCache.put(tenantId, userActionDailyPlanMap);
+            }
+        } catch (Exception e) {
+            log.error("Error while fetching {} from MDMS for tenantId: {}, error: {}", 
+                     USER_ACTION_DAILY_PLAN, tenantId, ExceptionUtils.getStackTrace(e));
+        }
+        
+        return userActionDailyPlanMap;
+    }
 
 }
