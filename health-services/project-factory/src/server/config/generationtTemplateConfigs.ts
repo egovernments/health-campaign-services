@@ -18,7 +18,7 @@ export const generationtTemplateConfigs : any = {
             {
                 sheetName: "HCM_ADMIN_CONSOLE_BOUNDARY_DATA",
                 schemaName: "boundary-data",
-                lockWholeSheet: true
+                lockWholeSheet: false
             }
         ],
     },
@@ -45,7 +45,7 @@ export const generationtTemplateConfigs : any = {
             {
                 sheetName: "HCM_ADMIN_CONSOLE_BOUNDARY_DATA",
                 schemaName: "boundary-data",
-                lockWholeSheet: true
+                lockWholeSheet: false
             }
         ],
     },

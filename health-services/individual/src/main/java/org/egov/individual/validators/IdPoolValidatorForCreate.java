@@ -19,11 +19,14 @@ import org.egov.common.validator.Validator;
 import org.egov.individual.config.IndividualProperties;
 import org.egov.tracer.model.CustomException;
 import org.springframework.core.annotation.Order;
+import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 
+import static org.egov.common.utils.CommonUtils.isValidPattern;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
+import static org.egov.common.utils.ValidatorUtils.getErrorForUniqueSubEntity;
 import static org.egov.individual.Constants.*;
 
 @Component
@@ -32,7 +35,7 @@ import static org.egov.individual.Constants.*;
 @Order(value = 7)
 public class IdPoolValidatorForCreate implements Validator<IndividualBulkRequest, Individual> {
 
-    private final BeneficiaryIdGenService beneficiaryIdGenService;
+    private final @Nullable BeneficiaryIdGenService beneficiaryIdGenService;
     private final IndividualProperties individualProperties;
 
     /**
@@ -53,6 +56,8 @@ public class IdPoolValidatorForCreate implements Validator<IndividualBulkRequest
         log.info("Validating beneficiary ID for create");
 
         List<Individual> individuals = request.getIndividuals();
+
+        validateDuplicateIDs(errorDetailsMap, individuals);
 
         // Fetch ID records from IDGEN service
         Map<String, IdRecord> idRecordMap = getIdRecords(beneficiaryIdGenService, individuals, null, request.getRequestInfo());
@@ -143,6 +148,7 @@ public class IdPoolValidatorForCreate implements Validator<IndividualBulkRequest
                         .findFirst()
                         .stream())
                 .map(identifier -> String.valueOf(identifier.getIdentifierId()))
+                .filter(id -> !isMaskedId(id))
                 .toList();
 
         Map<String, IdRecord> idMap = new HashMap<>();
@@ -162,5 +168,26 @@ public class IdPoolValidatorForCreate implements Validator<IndividualBulkRequest
         // Convert response list to a map keyed by ID
         return idDispatchResponse.getIdResponses().stream()
                 .collect(Collectors.toMap(EgovModel::getId, d -> d));
+    }
+
+    public static void validateDuplicateIDs(Map<Individual, List<Error>> errorDetailsMap, List<Individual> individuals) {
+        Set<String> uniqueIds = new HashSet<>();
+        for (Individual individual: individuals) {
+            if (individual.getIdentifiers() == null) continue;
+            List<String> identifiers = individual.getIdentifiers().stream()
+                    .filter(id -> UNIQUE_BENEFICIARY_ID.equalsIgnoreCase(id.getIdentifierType()))
+                    .map(Identifier::getIdentifierId)
+                    .filter(identifierId -> !isMaskedId(identifierId))
+                    .toList();
+            if (!identifiers.isEmpty() && !identifiers.stream().allMatch(uniqueIds::add)) {
+                log.error("Duplicate beneficiary ID found in the bulk request for individual {}", individual.getClientReferenceId());
+                Error error = getErrorForUniqueSubEntity();
+                populateErrorDetails(individual, error, errorDetailsMap);
+            }
+        }
+    }
+
+    public static boolean isMaskedId(String beneficiaryId) {
+        return beneficiaryId.contains("*");
     }
 }
