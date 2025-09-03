@@ -42,13 +42,17 @@ public class CellProtectionManager {
         
         // Find the last row with data for data-aware protection features
         int lastDataRow = findLastDataRow(sheet);
-        log.debug("Last data row found at: {}", lastDataRow);
+        log.info("Last data row found at: {}", lastDataRow);
         
         // Apply protection logic to all data rows
         int protectedCells = 0;
         int unprotectedCells = 0;
         
-        for (int rowIdx = 2; rowIdx <= Math.max(sheet.getLastRowNum(), config.getExcelRowLimit()); rowIdx++) {
+        // Important: We need to apply styles to a reasonable number of rows
+        // to ensure protection works properly even for empty rows
+        int maxRowsToProtect = Math.min(config.getExcelRowLimit(), 10000);
+        
+        for (int rowIdx = 2; rowIdx <= maxRowsToProtect; rowIdx++) {
             Row row = sheet.getRow(rowIdx);
             if (row == null) {
                 row = sheet.createRow(rowIdx);
@@ -63,18 +67,22 @@ public class CellProtectionManager {
                 
                 boolean shouldLock = determineCellLockState(column, cell, rowIdx, lastDataRow);
                 
-                // Apply the appropriate style
-                cell.setCellStyle(shouldLock ? lockedStyle : unlockedStyle);
+                // Apply the appropriate style - this is crucial for protection to work
+                CellStyle styleToApply = shouldLock ? lockedStyle : unlockedStyle;
+                cell.setCellStyle(styleToApply);
                 
                 if (shouldLock) {
                     protectedCells++;
+                    log.trace("Locked cell at row {}, col {} ({})", rowIdx, colIdx, column.getName());
                 } else {
                     unprotectedCells++;
+                    log.trace("Unlocked cell at row {}, col {} ({})", rowIdx, colIdx, column.getName());
                 }
             }
         }
         
-        log.info("Cell protection applied - Protected: {}, Unprotected: {}", protectedCells, unprotectedCells);
+        log.info("Cell protection applied - Protected: {}, Unprotected: {}, LastDataRow: {}", 
+                protectedCells, unprotectedCells, lastDataRow);
         return workbook;
     }
 
@@ -90,10 +98,18 @@ public class CellProtectionManager {
     private boolean determineCellLockState(ColumnDef column, Cell cell, int rowIdx, int lastDataRow) {
         // Priority order for protection rules:
         
-        // 1. unFreezeColumnTillData - Highest priority (explicit unlock overrides other settings)
-        if (column.isUnFreezeColumnTillData() && rowIdx <= lastDataRow) {
-            log.debug("Cell unlocked by unFreezeColumnTillData at row {} for column {}", rowIdx, column.getName());
-            return false;
+        // 1. unFreezeColumnTillData - Highest priority
+        // Unlock cells till data exists, lock cells after last data row
+        if (column.isUnFreezeColumnTillData()) {
+            if (rowIdx <= lastDataRow) {
+                log.trace("Cell UNLOCKED by unFreezeColumnTillData at row {} for column {} (row <= lastDataRow {})", 
+                        rowIdx, column.getName(), lastDataRow);
+                return false; // Unlock where data exists
+            } else {
+                log.trace("Cell LOCKED by unFreezeColumnTillData at row {} for column {} (row > lastDataRow {})", 
+                        rowIdx, column.getName(), lastDataRow);
+                return true; // Lock empty rows after data
+            }
         }
         
         // 2. freezeColumn - Permanent column locking (second highest priority)

@@ -3,7 +3,6 @@ package org.egov.excelingestion.generator;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
-import org.egov.excelingestion.config.ErrorConstants;
 import org.egov.excelingestion.config.ProcessingConstants;
 import org.egov.excelingestion.exception.CustomExceptionHandler;
 import org.egov.excelingestion.service.BoundaryService;
@@ -12,7 +11,6 @@ import org.egov.excelingestion.util.BoundaryUtil;
 import org.egov.excelingestion.web.models.*;
 import org.egov.excelingestion.web.models.excel.ColumnDef;
 import org.egov.excelingestion.web.models.excel.MultiSelectDetails;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.*;
@@ -196,7 +194,9 @@ public class BoundaryHierarchySheetGenerator implements IExcelPopulatorSheetGene
                 .maxLength(node.path("maxLength").asInt(Integer.MAX_VALUE))
                 .freezeColumn(node.path("freezeColumn").asBoolean(false))
                 .adjustHeight(node.path("adjustHeight").asBoolean(false))
-                .width(node.path("width").asInt(50));
+                .width(node.path("width").asInt(50))
+                .unFreezeColumnTillData(node.path("unFreezeColumnTillData").asBoolean(false))
+                .freezeTillData(node.path("freezeTillData").asBoolean(false));
         
         // Handle enum values
         List<String> enumValues = null;
@@ -278,6 +278,8 @@ public class BoundaryHierarchySheetGenerator implements IExcelPopulatorSheetGene
                     .freezeColumn(schemaCol.isFreezeColumn())
                     .adjustHeight(schemaCol.isAdjustHeight())
                     .width(schemaCol.getWidth())
+                    .unFreezeColumnTillData(schemaCol.isUnFreezeColumnTillData())
+                    .freezeTillData(schemaCol.isFreezeTillData())
                     .enumValues(schemaCol.getEnumValues())
                     .multiSelectDetails(schemaCol.getMultiSelectDetails())
                     .build());
