@@ -125,9 +125,6 @@ public class BoundaryColumnUtil {
         boundaryCodeHeaderCell.setCellValue(localizationMap.getOrDefault("HCM_ADMIN_CONSOLE_BOUNDARY_CODE", "HCM_ADMIN_CONSOLE_BOUNDARY_CODE"));
         boundaryCodeHeaderCell.setCellStyle(boundaryHeaderStyle);
         
-        // Always auto-adjust header row height for better display
-        visibleRow.setHeight((short) -1); // -1 means auto-adjust height
-        
         // Create level and boundary dropdowns with "Boundary (Parent)" format to avoid duplicates
         createLevelAndBoundaryDropdowns(workbook, filteredBoundaries, levelTypes, hierarchyType, localizationMap);
         
@@ -263,11 +260,6 @@ public class BoundaryColumnUtil {
             colIndex++;
         }
         
-        // Always auto-adjust header row height for better display in hidden boundary sheet
-        if (header != null) {
-            header.setHeight((short) -1); // -1 means auto-adjust height
-        }
-        
         // Create named range "Levels" pointing to _h_Boundaries_h_ header row
         // Note: Previously used a separate _h_Levels_h_ sheet, but that was redundant 
         // since _h_Boundaries_h_ header row already contains the same level names
@@ -304,9 +296,6 @@ public class BoundaryColumnUtil {
         Row headerRow = boundaryCodeMapSheet.createRow(0);
         headerRow.createCell(0).setCellValue("BoundaryDisplay");
         headerRow.createCell(1).setCellValue("BoundaryCode");
-        
-        // Always auto-adjust header row height for better display in hidden boundary code map sheet
-        headerRow.setHeight((short) -1); // -1 means auto-adjust height
         
         // Build mapping from display name to boundary code
         Map<String, String> displayToCodeMap = new HashMap<>();

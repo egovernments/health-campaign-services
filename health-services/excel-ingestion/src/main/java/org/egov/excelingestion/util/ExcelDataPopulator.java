@@ -149,9 +149,6 @@ public class ExcelDataPopulator {
         // Hide first row and freeze panes - follow existing pattern
         sheet.createFreezePane(0, 2);
         hiddenRow.setZeroHeight(true);
-        
-        // Always auto-adjust header row height for better display
-        visibleRow.setHeight((short) -1); // -1 means auto-adjust height
     }
 
     /**
