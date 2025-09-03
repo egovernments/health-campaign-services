@@ -18,6 +18,7 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 
 @Slf4j
 @Controller
@@ -36,13 +37,15 @@ public class BeneficiaryDownsyncController {
 	}
 	
     @PostMapping(value = "/v1/_get")
-    public ResponseEntity<DownsyncResponse> getBeneficaryData (@ApiParam(value = "Capture details of Side Effect", required = true) @Valid @RequestBody DownsyncRequest request) {
+    public ResponseEntity<DownsyncResponse> getBeneficaryData (
+            @ApiParam(value = "Capture details of Side Effect", required = true) @Valid @RequestBody DownsyncRequest request,
+            @ApiParam(value = "Should use project ID for project beneficiary search", required = false) @RequestParam(value = "useProjectId", required = false, defaultValue = "true") Boolean useProjectId) {
 		log.info("UserUUID: {}", request.getRequestInfo().getUserInfo().getUuid());
 		log.info("Downsync RequestBody: {}", mapper.valueToTree(request).toString());
     	Downsync.builder().
     	downsyncCriteria(request.getDownsyncCriteria())
     	.build();
-    	Downsync downsync = downsyncService.prepareDownsyncData(request);
+    	Downsync downsync = downsyncService.prepareDownsyncData(request, useProjectId);
         DownsyncResponse response = DownsyncResponse.builder()
                 .downsync(downsync)
                 .responseInfo(ResponseInfoFactory
