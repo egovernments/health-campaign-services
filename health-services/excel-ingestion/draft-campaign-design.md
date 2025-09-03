@@ -1,152 +1,181 @@
 # Unified Microplan Workflow Design
 
-## Current vs New Approach
-
-| **Current** | **New Proposed** |
-|-------------|------------------|
-| Generate 3 separate sheets | Generate 1 combined microplan sheet |
-| Process each sheet individually | Process all data together |
-
-## New Workflow Architecture
-
-### Step 1: Single Template Generation
-**One Comprehensive Template containing:**
-- 🏥 **Facility Data Sheet**
-- 👥 **User Data Sheet** 
-- 🎯 **Target Data Sheet**
-
-### Step 2: Unified Validation & Processing
-- **Process API:** Single call validates entire sheet
-- **Upload:** All 3 data types in one submission
-- **Validation:** Combined validation for all sections
-
-### Step 3: Campaign Creation
-- **Campaign Create API:** Store all validated data
-- **Single Campaign:** All data types under one campaign
-- **Status Tracking:** Monitor processing progress
-
-### Step 4: Sequential Processing Pipeline (7 Operations)
-
-```
-1. 🏥 Facility Create
-2. 👥 User Create  
-3. 🎯 Target/Project Create
-4. 🔗 Facility Mapping
-5. 🔗 User Mapping
-6. 🔗 Resource Mapping
-7. 🔑 User Credential Generation
-```
-
-## Complete Flow Diagram
+## 1. Excel Template Generation
+**Type:** `microplan-template-generate`  
+**API:** `POST /v1/data/_generate` (Async - returns generateResourceId)
+**Download API:** `POST /v1/data/_download` (returns fileStoreId)
 
 ```mermaid
 sequenceDiagram
-    participant U as 👤 User
-    participant T as 📄 Template Generator
-    participant P as 🔍 Process API
-    participant C as 💾 Campaign API
-    participant SP as ⚙️ Sequential Processor
-    participant FS as 🏥 Facility Service
-    participant US as 👥 User Service
-    participant TS as 🎯 Target Service
+    participant Client
+    participant ExcelIngestionService
+    participant Database
+    participant boundary-service
+    participant localization-service
+    participant mdms-service
+    participant filestore-service
     
-    U->>T: Request Microplan Template
-    T->>U: 📄 Single Template (Facility + User + Target)
-    U->>P: 📤 Upload Combined Sheet
-    P->>P: ✅ Validate All Data Together
-    alt ❌ Validation Failed
-        P->>U: Return Validation Errors
-    else ✅ Validation Success
-        P->>C: 💾 Store All Data
-        C->>SP: 🔄 Start Sequential Processing
-        SP->>FS: 1️⃣ Facility Create
-        SP->>US: 2️⃣ User Create  
-        SP->>TS: 3️⃣ Target/Project Create
-        SP->>FS: 4️⃣ Facility Mapping
-        SP->>US: 5️⃣ User Mapping
-        SP->>TS: 6️⃣ Resource Mapping
-        SP->>US: 7️⃣ User Credential Generation
-        SP->>U: ✅ Complete Microplan Campaign
+    Client->>ExcelIngestionService: POST /v1/data/_generate<br/>(type: microplan-template-generate, referenceId (campaignId))
+    
+    ExcelIngestionService-->>Client: GenerateResourceResponse<br/>(with generateResourceId)
+    
+    Note over ExcelIngestionService: Background Processing Started
+    
+    ExcelIngestionService->>boundary-service: Fetch Boundary Hierarchy
+    boundary-service-->>ExcelIngestionService: Boundary Data
+    
+    ExcelIngestionService->>localization-service: Fetch Localized Labels
+    localization-service-->>ExcelIngestionService: Localized Messages
+    
+    ExcelIngestionService->>mdms-service: Fetch Master Data
+    mdms-service-->>ExcelIngestionService: MDMS Configuration
+    
+    Note over ExcelIngestionService: Generate Excel Template
+    Note over ExcelIngestionService: Sheet 1: ReadMe Instructions
+    Note over ExcelIngestionService: Sheet 2: Facility Data
+    Note over ExcelIngestionService: Sheet 3: User Data  
+    Note over ExcelIngestionService: Sheet 4: Target Data
+    
+    ExcelIngestionService->>filestore-service: Upload Excel Template
+    filestore-service-->>ExcelIngestionService: FileStore ID
+    
+    ExcelIngestionService->>Database: Save Template Record<br/>(generateResourceId, fileStoreId, status: COMPLETED)
+    
+    Note over ExcelIngestionService: Template Ready for Download
+```
+
+## 2. Validation Process
+**Type:** `microplan-ingestion-validate`  
+**API:** `POST /v1/data/_process` (Async - returns resourceId)
+**Search API:** `POST /v1/data/_search` (returns process status & fileStoreId if complete)
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant ExcelIngestionService
+    participant Database
+    participant filestore-service
+    participant mdms-service
+    
+    Client->>ExcelIngestionService: POST /v1/data/_process<br/>(type: microplan-ingestion-validate, referenceId (campaignId), fileStoreId)
+    
+    ExcelIngestionService-->>Client: ProcessResponse<br/>(with resourceId)
+    
+    Note over ExcelIngestionService: Background Processing Started
+    
+    ExcelIngestionService->>filestore-service: Download Excel File
+    filestore-service-->>ExcelIngestionService: Excel File Data
+    
+    Note over ExcelIngestionService: Parse Excel Sheets
+    Note over ExcelIngestionService: MDMS Schema Validation
+    Note over ExcelIngestionService: Manual Validation
+    Note over ExcelIngestionService: - User Existence Check
+    Note over ExcelIngestionService: - Boundary Code Existence
+    Note over ExcelIngestionService: - Boundary Code in Campaign Selected
+    
+    ExcelIngestionService->>filestore-service: Upload Processed File
+    filestore-service-->>ExcelIngestionService: Processed FileStore ID
+    
+    ExcelIngestionService->>Database: Save Process Record<br/>(resourceId, fileStoreId, status: COMPLETED)
+    
+    Note over ExcelIngestionService: Validation Complete - Ready for Search
+```
+
+## 3. Data Storage & Campaign Creation
+**Type:** `microplan-ingestion`  
+**API:** `POST /v1/data/_process` (Async - returns processId)  
+**Search API:** `POST /v1/data/_search` (returns process status & referenceId (campaignId) if complete)
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant ExcelIngestionService
+    participant Database
+    participant filestore-service
+    participant ProjectFactoryService
+    
+    Client->>ExcelIngestionService: POST /v1/data/_process<br/>(type: microplan-ingestion, referenceId (campaignId), fileStoreId)
+    
+    ExcelIngestionService-->>Client: ProcessResponse<br/>(with processId)
+    
+    Note over ExcelIngestionService: Background Processing Started
+    
+    ExcelIngestionService->>filestore-service: Download Excel File
+    filestore-service-->>ExcelIngestionService: Excel File Data
+    
+    Note over ExcelIngestionService: Run Above Validation Flow
+    
+    alt Validation Failed
+        Note over ExcelIngestionService: Process Marked as FAILED
+    else Validation Success
+    
+        Note over ExcelIngestionService: Parse All Sheet Data
+        
+        ExcelIngestionService->>Database: Insert Campaign Data (Temporary Storage)
+        Note over Database: CampaignDataTable:
+        Note over Database: - Facility Data Rows
+        Note over Database: - User Data Rows  
+        Note over Database: - Target Data Rows
+        Note over Database: Status: PENDING
+        
+        Note over ExcelIngestionService: Data Storage Complete
+        ExcelIngestionService->>Database: Update Process Record<br/>(resourceId, status: COMPLETED)
+        
+        ExcelIngestionService->>ProjectFactoryService: POST /campaign/_create<br/>(Campaign Data + Process Config + referenceId (campaignId))
+        
+        Note over ExcelIngestionService: Excel Ingestion Work Complete
+        
+        Note over ProjectFactoryService: Project Factory handles all creation
+        ProjectFactoryService->>Database: Create 7 Process Records
+        Note over Database: CampaignProcessTable:
+        Note over Database: 1. Facility Create - PENDING
+        Note over Database: 2. User Create - PENDING
+        Note over Database: 3. Project Create - PENDING
+        Note over Database: 4. Facility Mapping - PENDING
+        Note over Database: 5. User Mapping - PENDING
+        Note over Database: 6. Resource Mapping - PENDING
+        Note over Database: 7. Credential Generation - PENDING
+        
+        Note over ProjectFactoryService: - Facility Creation
+        Note over ProjectFactoryService: - User Creation  
+        Note over ProjectFactoryService: - Project Creation
+        Note over ProjectFactoryService: - All Mappings
+        Note over ProjectFactoryService: - Credential Generation
+        
+        ProjectFactoryService->>Database: Campaign Created in DB<br/>(Updates all process records to COMPLETED)
     end
 ```
 
-## Key Benefits
+## 4. Download API (For Template Generation)
+**API:** `POST /v1/data/_download`
 
-| **Benefit** | **Description** |
-|-------------|-----------------|
-| **Simplified UX** | Users upload one sheet instead of three separate sheets |
-| **Atomic Operation** | All data validated together, reducing inconsistencies |
-| **Better Error Handling** | Single validation point for all related data |
-| **Streamlined Process** | One unified workflow instead of three parallel ones |
-| **Data Consistency** | Cross-section validation (facility-user relationships) |
-| **Reduced Complexity** | Fewer API calls and fewer potential failure points |
-
-## Implementation Requirements
-
-### 1. Sheet Generator Updates
-- **Combined Template:** Generate unified microplan sheet
-- **Section Headers:** Clear separation of facility/user/target sections
-- **Cross-references:** Maintain relationships between sections
-
-### 2. Process API Enhancements
-- **Multi-type Parsing:** Handle facility + user + target data in single call
-- **Cross-section Validation:** Validate relationships across data types
-- **Unified Error Reporting:** Consolidated error feedback
-
-### 3. Campaign API Modifications
-- **Temporary Storage:** Store multi-type campaign data temporarily
-- **Data Structure:** Support combined facility/user/target storage
-- **Status Tracking:** Track processing progress across 7 operations
-
-### 4. Sequential Processor
-- **Pipeline Manager:** Execute 7 operations in correct order
-- **Failure Recovery:** Handle partial failures and rollback
-- **Progress Tracking:** Monitor and report processing status
-
-## Technical Implementation
-
-### API Flow Changes
-
-#### Before (3 Separate Flows):
-```typescript
-// Facility Flow
-generateFacilitySheet() -> processFacilityData() -> createFacilityCampaign()
-
-// User Flow  
-generateUserSheet() -> processUserData() -> createUserCampaign()
-
-// Target Flow
-generateTargetSheet() -> processTargetData() -> createTargetCampaign()
+```mermaid
+sequenceDiagram
+    participant Client
+    participant ExcelIngestionService
+    participant Database
+    
+    Client->>ExcelIngestionService: POST /v1/data/_download<br/>(generateResourceId, referenceId (campaignId))
+    
+    ExcelIngestionService->>Database: Search Template Record<br/>(generateResourceId, referenceId (campaignId))
+    Database-->>ExcelIngestionService: Template Record<br/>(fileStoreId, status)
+    
+    ExcelIngestionService-->>Client: DownloadResponse<br/>(fileStoreId or status)
 ```
 
-#### After (Unified Flow):
-```typescript
-// Unified Microplan Flow
-generateMicroplanSheet() -> 
-processMicroplanData() -> 
-createCampaign() ->
-executeSequentialProcessing([
-  facilityCreate,
-  userCreate, 
-  targetCreate,
-  facilityMapping,
-  userMapping,
-  resourceMapping,
-  credentialGeneration
-])
-```
+## 5. Search API (For Process Status)
+**API:** `POST /v1/data/_search`
 
-## Data Structure
-
-```typescript
-interface MicroplanData {
-  facilities: FacilityData[];
-  users: UserData[];
-  targets: TargetData[];
-  campaignDetails: CampaignInfo;
-  relationships: {
-    facilityUserMappings: Mapping[];
-    facilityTargetMappings: Mapping[];
-  };
-}
+```mermaid
+sequenceDiagram
+    participant Client
+    participant ExcelIngestionService
+    participant Database
+    
+    Client->>ExcelIngestionService: POST /v1/data/_search<br/>(resourceId, referenceId (campaignId))
+    
+    ExcelIngestionService->>Database: Search Process Record<br/>(resourceId, referenceId (campaignId))
+    Database-->>ExcelIngestionService: Process Record<br/>(status, fileStoreId, referenceId (campaignId))
+    
+    ExcelIngestionService-->>Client: SearchResponse<br/>(status, data based on type - referenceId (campaignId) for creation)
 ```
