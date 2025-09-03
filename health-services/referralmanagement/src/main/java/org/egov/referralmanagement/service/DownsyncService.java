@@ -78,7 +78,7 @@ public class DownsyncService {
      * @param downsyncRequest
      * @return Downsync
      */
-    public Downsync prepareDownsyncData(DownsyncRequest downsyncRequest) {
+    public Downsync prepareDownsyncData(DownsyncRequest downsyncRequest, boolean useProjectId) {
 
         Downsync downsync = new Downsync();
         DownsyncCriteria downsyncCriteria = downsyncRequest.getDownsyncCriteria();
@@ -131,7 +131,7 @@ public class DownsyncService {
 
         //fetch beneficiary in the db
         if (isSyncTimeAvailable || !CollectionUtils.isEmpty(beneficiaryClientRefIds)) {
-            beneficiaryClientRefIds = searchBeneficiaries(downsyncRequest, downsync, beneficiaryClientRefIds);
+            beneficiaryClientRefIds = searchBeneficiaries(downsyncRequest, downsync, beneficiaryClientRefIds, useProjectId);
         }
 
         /* search tasks using beneficiary uuids */
@@ -287,7 +287,7 @@ public class DownsyncService {
      * @return clientreferenceid of beneficiary object
      */
     private List<String> searchBeneficiaries(DownsyncRequest downsyncRequest, Downsync downsync,
-                                             List<String> beneficiaryClientRefIds) {
+                                             List<String> beneficiaryClientRefIds, boolean useProjectId) {
 
         DownsyncCriteria criteria = downsyncRequest.getDownsyncCriteria();
         RequestInfo requestInfo = downsyncRequest.getRequestInfo();
@@ -312,10 +312,12 @@ public class DownsyncService {
 
             url = appendUrlParams(url, criteria, 0, list.size(),false);
 
-            ProjectBeneficiarySearch search = ProjectBeneficiarySearch.builder()
-                    .id(list)
-                    .projectId(Collections.singletonList(downsyncRequest.getDownsyncCriteria().getProjectId()))
-                    .build();
+        ProjectBeneficiarySearch search = ProjectBeneficiarySearch.builder()
+                .id(list).build();
+
+        if (useProjectId) {
+            search.setProjectId(Collections.singletonList(downsyncRequest.getDownsyncCriteria().getProjectId()));
+        }
 
             BeneficiarySearchRequest searchRequest = BeneficiarySearchRequest.builder()
                     .projectBeneficiary(search)
