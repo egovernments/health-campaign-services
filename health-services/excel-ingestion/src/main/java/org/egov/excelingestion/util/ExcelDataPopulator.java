@@ -127,8 +127,8 @@ public class ExcelDataPopulator {
                 : def.getName();
             headerCell.setCellValue(displayName);
             
-            // Apply enhanced header styling - reuse existing method
-            headerCell.setCellStyle(excelStyleHelper.createCustomHeaderStyle(workbook, def.getColorHex(), def.isWrapText()));
+            // Apply enhanced header styling - always enable wrap text for headers so long text wraps to next line
+            headerCell.setCellStyle(excelStyleHelper.createCustomHeaderStyle(workbook, def.getColorHex(), true));
 
             // Set column width if specified - follow existing pattern with validation
             if (def.getWidth() != null && def.getWidth() > 0) {
@@ -149,6 +149,9 @@ public class ExcelDataPopulator {
         // Hide first row and freeze panes - follow existing pattern
         sheet.createFreezePane(0, 2);
         hiddenRow.setZeroHeight(true);
+        
+        // Always auto-adjust header row height for better display
+        visibleRow.setHeight((short) -1); // -1 means auto-adjust height
     }
 
     /**

@@ -76,6 +76,9 @@ public class CampaignConfigSheetCreator {
             headerCell.setCellValue(localizedHeaderInfo);
             headerCell.setCellStyle(createHeaderInfoStyle(workbook));
             
+            // Always auto-adjust header row height for better display
+            headerRow.setHeight((short) -1); // -1 means auto-adjust height
+            
             // Merge cells across 3 columns for header
             configSheet.addMergedRegion(new org.apache.poi.ss.util.CellRangeAddress(
                 currentRow - 1, currentRow - 1, 0, 2));
@@ -125,6 +128,9 @@ public class CampaignConfigSheetCreator {
             titleCell.setCellValue(localizedTitle);
             titleCell.setCellStyle(createSectionTitleStyle(workbook));
             
+            // Always auto-adjust title row height for better display
+            titleRow.setHeight((short) -1); // -1 means auto-adjust height
+            
             // Merge title across all columns
             sheet.addMergedRegion(new org.apache.poi.ss.util.CellRangeAddress(
                 currentRow - 1, currentRow - 1, 0, columns.size() - 1));
@@ -143,6 +149,9 @@ public class CampaignConfigSheetCreator {
             headerCell.setCellValue(localizedHeader);
             headerCell.setCellStyle(createColumnHeaderStyle(workbook));
         }
+        
+        // Always auto-adjust header row height for better display
+        headerRow.setHeight((short) -1); // -1 means auto-adjust height
         
         // Check if any column has areBoundaryLevels: true
         boolean hasBoundaryLevels = columns.stream()
@@ -220,6 +229,7 @@ public class CampaignConfigSheetCreator {
         
         style.setAlignment(HorizontalAlignment.CENTER);
         style.setVerticalAlignment(VerticalAlignment.CENTER);
+        style.setWrapText(true); // Enable text wrapping for long header info
         style.setLocked(true);
         
         return style;
@@ -236,6 +246,7 @@ public class CampaignConfigSheetCreator {
         
         style.setAlignment(HorizontalAlignment.LEFT);
         style.setVerticalAlignment(VerticalAlignment.CENTER);
+        style.setWrapText(true); // Enable text wrapping for long section titles
         style.setLocked(true);
         
         style.setBottomBorderColor(IndexedColors.GREY_40_PERCENT.getIndex());
@@ -259,6 +270,7 @@ public class CampaignConfigSheetCreator {
         
         style.setAlignment(HorizontalAlignment.CENTER);
         style.setVerticalAlignment(VerticalAlignment.CENTER);
+        style.setWrapText(true); // Enable text wrapping for long column headers
         
         // Add borders
         

@@ -39,6 +39,9 @@ public class ExcelStyleHelper {
         font.setBold(true);
         style.setFont(font);
         
+        // Enable text wrapping for headers so long text wraps to next line
+        style.setWrapText(true);
+        
         // Lock the cell
         style.setLocked(true);
         
@@ -71,6 +74,9 @@ public class ExcelStyleHelper {
         Font font = workbook.createFont();
         font.setBold(true);
         style.setFont(font);
+        
+        // Enable text wrapping for headers so long text wraps to next line
+        style.setWrapText(true);
         
         // Lock the cell
         style.setLocked(true);
