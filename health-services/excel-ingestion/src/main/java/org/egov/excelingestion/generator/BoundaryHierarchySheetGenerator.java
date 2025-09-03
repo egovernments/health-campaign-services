@@ -235,6 +235,7 @@ public class BoundaryHierarchySheetGenerator implements IExcelPopulatorSheetGene
         List<ColumnDef> columns = new ArrayList<>();
         
         // Create columns for each hierarchy level using exact project-factory pattern
+        // All boundary columns are fully locked (freezeColumn: true)
         for (int i = 0; i < hierarchyRelations.size(); i++) {
             String boundaryType = hierarchyRelations.get(i).getBoundaryType();
             String columnName = (hierarchyType + "_" + boundaryType).toUpperCase();
@@ -244,6 +245,7 @@ public class BoundaryHierarchySheetGenerator implements IExcelPopulatorSheetGene
                     .orderNumber(i + 1)
                     .width(50)
                     .colorHex("#93c47d")
+                    .freezeColumn(true) // Lock boundary columns completely
                     .build());
         }
         
