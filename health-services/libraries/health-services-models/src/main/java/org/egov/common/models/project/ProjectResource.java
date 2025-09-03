@@ -64,5 +64,6 @@ public class ProjectResource   {
     @JsonProperty("auditDetails")
     @Valid
     private AuditDetails auditDetails = null;
+
 }
 

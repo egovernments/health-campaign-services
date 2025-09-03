@@ -1,18 +1,21 @@
 package org.egov.common.models.stock;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import digit.models.coremodels.AuditDetails;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import org.springframework.validation.annotation.Validated;
-
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
+
+import org.springframework.validation.annotation.Validated;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+import digit.models.coremodels.AuditDetails;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Builder.Default;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 /**
  * Stock
@@ -26,85 +29,96 @@ import javax.validation.constraints.Size;
 @Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class Stock {
+	
     @JsonProperty("id")
     @Size(min=2, max=64)
-    private String id = null;
+    private String id;
 
     @JsonProperty("clientReferenceId")
     @Size(min=2, max=64)
-    private String clientReferenceId = null;
+    private String clientReferenceId;
 
     @JsonProperty("tenantId")
     @NotNull
     @Size(min=2, max=1000)
-    private String tenantId = null;
+    private String tenantId;
 
-    @JsonProperty("facilityId")
-    @NotNull
-    @Size(min=2, max=64)
-    private String facilityId = null;
-
+    /* product fields */
     @JsonProperty("productVariantId")
     @NotNull
     @Size(min=2, max=64)
-    private String productVariantId = null;
+    private String productVariantId;
 
     @JsonProperty("quantity")
     @NotNull
-    private Integer quantity = null;
+    private Integer quantity;
 
+    /* project id in-case of health */ 
     @JsonProperty("referenceId")
-    private String referenceId = null;
+    private String referenceId;
 
     @JsonProperty("referenceIdType")
     @Size(min=2, max=64)
-    private String referenceIdType = null;
+    private String referenceIdType;
 
+    // transaction fields 
     @JsonProperty("transactionType")
     @NotNull
     @Valid
-    private TransactionType transactionType = null;
+    private TransactionType transactionType;
 
     @JsonProperty("transactionReason")
     @Valid
-    private TransactionReason transactionReason = null;
+    private TransactionReason transactionReason;
 
-    @JsonProperty("transactingPartyId")
+    @JsonProperty("senderId")
     @NotNull
     @Size(min=2, max=64)
-    private String transactingPartyId = null;
+    private String senderId;
 
-    @JsonProperty("transactingPartyType")
+    @JsonProperty("senderType")
     @NotNull
     @Size(min=2, max=64)
-    private String transactingPartyType = null;
+    private String senderType;
+    
+    @JsonProperty("receiverId")
+    @NotNull
+    @Size(min=2, max=64)
+    private String receiverId;
 
-    @JsonProperty("waybillNumber")
-    @Size(max = 200)
-    private String wayBillNumber = null;
+    @JsonProperty("receiverType")
+    @NotNull
+    @Size(min=2, max=64)
+    private String receiverType;
+
+    @JsonProperty("wayBillNumber")
+    @Size(min = 2, max = 200)
+    private String wayBillNumber;
 
     @JsonProperty("additionalFields")
     @Valid
-    private AdditionalFields additionalFields = null;
+    private AdditionalFields additionalFields;
 
     @JsonProperty("isDeleted")
+    @Default
     private Boolean isDeleted = Boolean.FALSE;
 
     @JsonProperty("rowVersion")
-    private Integer rowVersion = null;
+    private Integer rowVersion;
 
     @JsonIgnore
+    @Default
     private Boolean hasErrors = Boolean.FALSE;
 
     @JsonProperty("auditDetails")
     @Valid
-    private AuditDetails auditDetails = null;
+    private AuditDetails auditDetails;
 
     @JsonProperty("dateOfEntry")
-    private Long dateOfEntry = null;
+    private Long dateOfEntry;
 
     @JsonProperty("clientAuditDetails")
     @Valid
-    private AuditDetails clientAuditDetails = null;
+    private AuditDetails clientAuditDetails;
 }
 

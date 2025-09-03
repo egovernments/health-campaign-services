@@ -31,7 +31,7 @@ public class Field   {
 
     @JsonProperty("value")
     @NotNull
-    @Size(max = 10000)
+    @Size(min = 2, max = 10000)
     private String value = null;
 }
 

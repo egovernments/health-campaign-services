@@ -67,6 +67,7 @@ public class Address   {
     
 
     @DecimalMin("0")
+    @DecimalMax("10000") 
 
     private Double locationAccuracy = null;
 

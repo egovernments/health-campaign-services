@@ -48,7 +48,7 @@ public class TaskResource   {
 
     @JsonProperty("quantity")
     @NotNull
-    private Double quantity = null;
+    private Long quantity = null;
 
     @JsonProperty("isDelivered")
     @NotNull
@@ -64,10 +64,6 @@ public class TaskResource   {
     @JsonProperty("auditDetails")
     @Valid
     private AuditDetails auditDetails = null;
-
-    @JsonProperty("additionalFields")
-    @Valid
-    private AdditionalFields additionalFields = null;
 
 }
 

@@ -76,12 +76,8 @@ public class ProductVariant {
     private Integer rowVersion = null;
 
     @JsonProperty("auditDetails")
-
     @Valid
-
-
     private AuditDetails auditDetails = null;
-
 
 }
 
