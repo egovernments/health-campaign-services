@@ -31,43 +31,32 @@ public class GeneratorConfigurationRegistry {
                 .protectionPassword(excelConfig.getExcelSheetPassword())
                 .zoomLevel(excelConfig.getExcelSheetZoom())
                 .sheets(Arrays.asList(
-                        // 1. Campaign Configuration Sheet (first sheet, directly generated)
+                        // 1. Facility Sheet (automatic schema-based with hierarchical boundary columns)
                         SheetGenerationConfig.builder()
-                                .sheetNameKey("HCM_CAMP_CONF_SHEETNAME")
-                                .schemaName(null) // No schema needed
-                                .boundaryColumnsClass(null) // No boundary columns needed
-                                .generationClass("org.egov.excelingestion.generator.CampaignConfigSheetGenerator")
-                                .isGenerationClassViaExcelPopulator(false) // Direct workbook generation
+                                .sheetNameKey("HCM_ADMIN_CONSOLE_FACILITIES_LIST")
+                                .schemaName("facility-microplan-ingestion")
+                                .boundaryColumnsClass("HierarchicalBoundaryUtil")
                                 .order(1)
                                 .visible(true)
                                 .build(),
                         
-                        // 2. Facility Sheet (automatic schema-based with hierarchical boundary columns)
+                        // 2. User Sheet (automatic schema-based with traditional boundary columns)
                         SheetGenerationConfig.builder()
-                                .sheetNameKey("HCM_ADMIN_CONSOLE_FACILITIES_LIST")
-                                .schemaName("facility-microplan-ingestion")
+                                .sheetNameKey("HCM_ADMIN_CONSOLE_USERS_LIST")
+                                .schemaName("user-microplan-ingestion")
                                 .boundaryColumnsClass("HierarchicalBoundaryUtil")
                                 .order(2)
                                 .visible(true)
                                 .build(),
                         
-                        // 3. User Sheet (automatic schema-based with traditional boundary columns)
-                        SheetGenerationConfig.builder()
-                                .sheetNameKey("HCM_ADMIN_CONSOLE_USERS_LIST")
-                                .schemaName("user-microplan-ingestion")
-                                .boundaryColumnsClass("HierarchicalBoundaryUtil")
-                                .order(3)
-                                .visible(true)
-                                .build(),
-                        
-                        // 4. Boundary Hierarchy Sheet (custom data generation)
+                        // 3. Boundary Hierarchy Sheet (custom data generation)
                         SheetGenerationConfig.builder()
                                 .sheetNameKey("HCM_CONSOLE_BOUNDARY_HIERARCHY")
                                 .schemaName(null) // No schema needed
                                 .boundaryColumnsClass(null) // No boundary columns needed
                                 .generationClass("org.egov.excelingestion.generator.BoundaryHierarchySheetGenerator")
                                 .isGenerationClassViaExcelPopulator(true) // Use ExcelPopulator
-                                .order(4)
+                                .order(3)
                                 .visible(true)
                                 .build()
                 ))

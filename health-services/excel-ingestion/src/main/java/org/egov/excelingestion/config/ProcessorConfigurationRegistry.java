@@ -24,7 +24,6 @@ public class ProcessorConfigurationRegistry {
     private void initializeConfigurations() {
         // Microplan processor configuration for processing/validation
         configs.put("microplan-ingestion", Arrays.asList(
-                new ProcessorSheetConfig("HCM_CAMP_CONF_SHEETNAME", null), // No schema validation needed
                 new ProcessorSheetConfig("HCM_ADMIN_CONSOLE_FACILITIES_LIST", "facility-microplan-ingestion"),
                 new ProcessorSheetConfig("HCM_ADMIN_CONSOLE_USERS_LIST", "user-microplan-ingestion"),
                 new ProcessorSheetConfig("HCM_CONSOLE_BOUNDARY_HIERARCHY", null) // No schema validation needed
