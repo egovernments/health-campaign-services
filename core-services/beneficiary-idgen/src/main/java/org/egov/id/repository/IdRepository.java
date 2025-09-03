@@ -1,9 +1,12 @@
 package org.egov.id.repository;
 
+import org.egov.common.ds.Tuple;
 import org.egov.common.models.idgen.IdRecord;
 import org.egov.common.models.idgen.IdStatus;
 import org.egov.common.models.idgen.IdTransactionLog;
+import org.egov.id.config.PropertiesManager;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.ObjectUtils;
@@ -26,6 +29,7 @@ public class IdRepository {
     private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
     private final IdRecordRowMapper idRecordRowMapper;
     private final IdTransactionLogRowMapper idTransactionLogRowMapper;
+    private final PropertiesManager propertiesManager;
 
     /**
      * Constructs a new IdRepository instance with required dependencies for database operations.
@@ -35,44 +39,54 @@ public class IdRepository {
      * @param idRecordRowMapper Custom row mapper for converting database rows to IdRecord objects
      * @param idTransactionLogRowMapper Custom row mapper for converting database rows to IdTransactionLog objects
      */
-    public IdRepository(JdbcTemplate jdbcTemplate, NamedParameterJdbcTemplate namedParameterJdbcTemplate, IdRecordRowMapper idRecordRowMapper, IdTransactionLogRowMapper idTransactionLogRowMapper) {
+    public IdRepository(JdbcTemplate jdbcTemplate, NamedParameterJdbcTemplate namedParameterJdbcTemplate, IdRecordRowMapper idRecordRowMapper, IdTransactionLogRowMapper idTransactionLogRowMapper, PropertiesManager propertiesManager) {
         this.jdbcTemplate = jdbcTemplate;
         this.namedParameterJdbcTemplate = namedParameterJdbcTemplate;
         this.idRecordRowMapper = idRecordRowMapper;
         this.idTransactionLogRowMapper = idTransactionLogRowMapper;
+        this.propertiesManager = propertiesManager;
     }
 
     /**
-     * Fetches up to `count` unassigned IDs for a given tenant.
-     * Orders them by creation time (oldest first).
+     * Fetches unassigned IDs from the ID pool table for a specific tenant and marks them as dispatched.
+     * The method updates the statuses of retrieved IDs to "DISPATCHED" and logs the modification details.
+     *
+     * @param tenantId The identifier of the tenant requesting the unassigned IDs.
+     * @param userUuid The unique identifier of the user requesting the operation.
+     * @param count The number of unassigned IDs to fetch.
+     * @return A list of {@link IdRecord} objects representing the fetched and updated IDs.
      */
-    public List<IdRecord> fetchUnassigned(String tenantId, int count) {
-        Map<String, Object> paramMap = new HashMap<>();
-        paramMap.put("tenantId", tenantId);
-        paramMap.put("status", IdStatus.UNASSIGNED.name());
-        paramMap.put("limit", count);
-
+    public List<IdRecord> fetchUnassigned(String tenantId, String userUuid, int count) {
+        /**
+         * This SQL query performs an atomic update operation to fetch and mark unassigned IDs as dispatched:
+         * 1. Uses FOR UPDATE SKIP LOCKED to prevent concurrent access to the same rows
+         * 2. Inner SELECT finds the oldest unassigned IDs for the tenant
+         * 3. UPDATE marks selected IDs as dispatched and updates audit fields
+         * 4. RETURNING clause fetches the complete updated records
+         * This approach ensures thread-safe ID allocation without deadlocks
+         */
         String query =
-                "SELECT * FROM id_pool " +
-                        "WHERE status = :status " +
-                        "AND tenantId = :tenantId " +
-                        "ORDER BY createdTime ASC " +
-                        "LIMIT :limit";
+                "UPDATE id_pool p SET status = :updatedStatus, rowVersion = rowVersion + 1, " +
+                        "lastModifiedBy = :lastModifiedBy, lastModifiedTime = :lastModifiedTime " +
+                        "WHERE p.id IN (SELECT id FROM id_pool WHERE status = :status AND tenantId = :tenantId " +
+                        "ORDER BY id ASC LIMIT :limit FOR UPDATE SKIP LOCKED) AND p.status = :status RETURNING p.*";
 
-        return namedParameterJdbcTemplate.query(query, paramMap, this.idRecordRowMapper);
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("tenantId", tenantId)
+                .addValue("status", IdStatus.UNASSIGNED.name())
+                .addValue("updatedStatus", IdStatus.DISPATCHED.name())
+                .addValue("lastModifiedBy", userUuid)
+                .addValue("lastModifiedTime", System.currentTimeMillis())
+                .addValue("limit", count);
+
+        return namedParameterJdbcTemplate.query(query, params, this.idRecordRowMapper);
     }
 
-    /**
-     * Fetches a list of dispatched IDs for a given tenant, user, and device.
-     * Filters only for today’s records and orders by recent creation time.
-     */
-    public List<IdTransactionLog> selectClientDispatchedIds(
-            String tenantId, String deviceUuid, String userUuid, IdStatus idStatus) {
-
-        StringBuilder queryBuilder = new StringBuilder("SELECT * FROM id_transaction_log");
+    public Tuple<String, Map<String, Object>> getIDsUserDeviceQuery(String tenantId, String deviceUuid, String userUuid, IdStatus idStatus, boolean restrictToday, Integer limit, Integer offset, boolean isCountQuery) {
+        StringBuilder queryBuilder = new StringBuilder(isCountQuery ? "SELECT count(*) " : "SELECT * ");
+        queryBuilder.append("FROM id_transaction_log");
         Map<String, Object> paramMap = new HashMap<>();
         List<String> conditions = new ArrayList<>();
-
         // Add optional filters based on device, user, tenant
         if (!ObjectUtils.isEmpty(deviceUuid)) {
             conditions.add("device_uuid = :deviceUuid");
@@ -94,8 +108,13 @@ public class IdRepository {
             paramMap.put("status", idStatus.name());
         }
 
-        // Restrict query to today's date (ignores time)
-        conditions.add("to_char(to_timestamp(createdTime / 1000), 'YYYY-MM-DD') = to_char(current_date, 'YYYY-MM-DD')");
+        if (restrictToday) {
+            String userTimeZone = propertiesManager.getUserTimeZone();  // e.g., "Asia/Kolkata"
+            String appTimeZone = propertiesManager.getAppTimeZone();
+            // Restrict query to today's date using timestamp range
+            conditions.add("createdTime >= (EXTRACT(EPOCH FROM timezone('" + appTimeZone + "', date_trunc('day', CURRENT_TIMESTAMP AT TIME ZONE '" + userTimeZone + "'))) * 1000)::bigint");
+            conditions.add("createdTime < (EXTRACT(EPOCH FROM timezone('" + appTimeZone + "', date_trunc('day', (CURRENT_TIMESTAMP AT TIME ZONE '" + userTimeZone + "') + interval '1 day'))) * 1000)::bigint");
+        }
 
         // Add WHERE clause only if filters exist
         if (!conditions.isEmpty()) {
@@ -104,9 +123,36 @@ public class IdRepository {
         }
 
         // Always order by latest createdTime
-        queryBuilder.append(" ORDER BY createdTime DESC");
+        if(!isCountQuery) {
+            queryBuilder.append(" ORDER BY createdTime DESC LIMIT :limit OFFSET :offset");
+            paramMap.put("limit", limit);
+            paramMap.put("offset", offset);
+        }
 
-        return namedParameterJdbcTemplate.query(queryBuilder.toString(), paramMap, this.idTransactionLogRowMapper);
+        return new Tuple<>(queryBuilder.toString(), paramMap);
+    }
+
+    /**
+     * Fetches a list of dispatched IDs for a given tenant, user, and device.
+     * Filters only for today’s records and orders by recent creation time.
+     */
+    public Tuple<List<IdTransactionLog>, Long> selectIDsForUserDevice(
+            String tenantId, String deviceUuid, String userUuid, IdStatus idStatus, Integer limit, Integer offset, boolean restrictToday) {
+
+        Tuple<String, Map<String, Object>> queryAndParams = getIDsUserDeviceQuery(tenantId, deviceUuid, userUuid, idStatus, restrictToday, limit, offset, false);
+        List<IdTransactionLog> idTransactionLogs = namedParameterJdbcTemplate.query(queryAndParams.getX(), queryAndParams.getY(), this.idTransactionLogRowMapper);
+
+        long totalCount = selectIDsForUserDeviceCount(tenantId, deviceUuid, userUuid, idStatus, limit, offset, restrictToday);
+
+        return new Tuple<>(idTransactionLogs, totalCount);
+    }
+
+    public long selectIDsForUserDeviceCount(
+            String tenantId, String deviceUuid, String userUuid, IdStatus idStatus, Integer limit, Integer offset, boolean restrictToday) {
+
+        Tuple<String, Map<String, Object>> queryAndParams = getIDsUserDeviceQuery(tenantId, deviceUuid, userUuid, idStatus, restrictToday, limit, offset, true);
+
+        return namedParameterJdbcTemplate.queryForObject(queryAndParams.getX(), queryAndParams.getY(), Long.class);
     }
 
     /**

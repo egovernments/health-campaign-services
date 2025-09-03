@@ -231,4 +231,7 @@ public class ProjectConfiguration {
 
     @Value("${project.cache.ttl.seconds:86400}") // Default 1 day
     private long projectCacheTtl;
+
+    @Value("${project.kafka.batch.size:100}") // Default 100 projects per batch
+    private int kafkaBatchSize;
 }

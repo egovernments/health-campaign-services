@@ -1238,7 +1238,7 @@ async function handeFacilityProcess(
 }
 
 function modifyFacilityAddress(newRequestBody: any) {
-  if (newRequestBody?.Facility?.address?.locality?.code) {
+  if (newRequestBody?.Facility?.address?.locality?.code && newRequestBody?.Facility?.address?.locality?.code != "undefined") {
     newRequestBody.Facility.address.locality.code = newRequestBody.Facility.address.locality.code?.split(",")[0]?.trim();
     newRequestBody.Facility.address.tenantId = newRequestBody.Facility.tenantId;
   }

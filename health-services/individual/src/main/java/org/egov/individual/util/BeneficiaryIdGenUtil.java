@@ -7,6 +7,7 @@ import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.models.idgen.IdRecord;
 import org.egov.common.models.idgen.IdStatus;
 import org.egov.common.service.BeneficiaryIdGenService;
+import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
 
@@ -27,7 +28,7 @@ public class BeneficiaryIdGenUtil {
      *
      * @param beneficiaryIdGenService Service used to interact with the ID generation system
      */
-    public BeneficiaryIdGenUtil(BeneficiaryIdGenService beneficiaryIdGenService) {
+    public BeneficiaryIdGenUtil(@Nullable BeneficiaryIdGenService beneficiaryIdGenService) {
         this.beneficiaryIdGenService = beneficiaryIdGenService;
     }
 
