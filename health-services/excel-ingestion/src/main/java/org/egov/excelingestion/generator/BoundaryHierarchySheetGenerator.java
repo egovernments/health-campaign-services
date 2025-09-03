@@ -1,10 +1,17 @@
 package org.egov.excelingestion.generator;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.egov.excelingestion.config.ErrorConstants;
+import org.egov.excelingestion.config.ProcessingConstants;
+import org.egov.excelingestion.exception.CustomExceptionHandler;
 import org.egov.excelingestion.service.BoundaryService;
+import org.egov.excelingestion.service.MDMSService;
 import org.egov.excelingestion.util.BoundaryUtil;
 import org.egov.excelingestion.web.models.*;
 import org.egov.excelingestion.web.models.excel.ColumnDef;
+import org.egov.excelingestion.web.models.excel.MultiSelectDetails;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -19,10 +26,15 @@ public class BoundaryHierarchySheetGenerator implements IExcelPopulatorSheetGene
 
     private final BoundaryService boundaryService;
     private final BoundaryUtil boundaryUtil;
+    private final MDMSService mdmsService;
+    private final CustomExceptionHandler exceptionHandler;
 
-    public BoundaryHierarchySheetGenerator(BoundaryService boundaryService, BoundaryUtil boundaryUtil) {
+    public BoundaryHierarchySheetGenerator(BoundaryService boundaryService, BoundaryUtil boundaryUtil,
+                                          MDMSService mdmsService, CustomExceptionHandler exceptionHandler) {
         this.boundaryService = boundaryService;
         this.boundaryUtil = boundaryUtil;
+        this.mdmsService = mdmsService;
+        this.exceptionHandler = exceptionHandler;
     }
 
     @Override
@@ -64,12 +76,25 @@ public class BoundaryHierarchySheetGenerator implements IExcelPopulatorSheetGene
             List<BoundaryUtil.BoundaryRowData> filteredBoundaries = boundaryUtil.processBoundariesWithEnrichment(
                     generateResource.getBoundaries(), codeToEnrichedBoundary, levelTypes);
             
+            // Extract projectType from additionalDetails if present
+            String projectType = null;
+            if (generateResource.getAdditionalDetails() != null 
+                && generateResource.getAdditionalDetails().containsKey("projectType")) {
+                projectType = (String) generateResource.getAdditionalDetails().get("projectType");
+            }
+            
+            // Fetch schema columns if projectType exists
+            List<ColumnDef> schemaColumns = new ArrayList<>();
+            if (projectType != null && !projectType.isEmpty()) {
+                schemaColumns = fetchSchemaColumns(projectType, generateResource.getTenantId(), requestInfo);
+            }
+            
             // Create column definitions
-            List<ColumnDef> boundaryColumns = createBoundaryHierarchyColumnDefs(hierarchyRelations, hierarchyType);
+            List<ColumnDef> boundaryColumns = createBoundaryHierarchyColumnDefs(hierarchyRelations, hierarchyType, schemaColumns);
             
             // Create data
             List<Map<String, Object>> boundaryData = getBoundaryHierarchyDataFromFiltered(
-                    filteredBoundaries, hierarchyRelations, hierarchyType, localizationMap);
+                    filteredBoundaries, hierarchyRelations, hierarchyType, localizationMap, schemaColumns);
             
             return SheetGenerationResult.builder()
                     .columnDefs(boundaryColumns)
@@ -82,7 +107,131 @@ public class BoundaryHierarchySheetGenerator implements IExcelPopulatorSheetGene
         }
     }
     
-    private List<ColumnDef> createBoundaryHierarchyColumnDefs(List<BoundaryHierarchyChild> hierarchyRelations, String hierarchyType) {
+    private List<ColumnDef> fetchSchemaColumns(String projectType, String tenantId, RequestInfo requestInfo) {
+        List<ColumnDef> columns = new ArrayList<>();
+        String schemaName = "target-" + projectType;
+        
+        try {
+            // Fetch schema from MDMS
+            Map<String, Object> filters = new HashMap<>();
+            filters.put("title", schemaName);
+            
+            List<Map<String, Object>> mdmsList = mdmsService.searchMDMS(
+                    requestInfo, tenantId, ProcessingConstants.MDMS_SCHEMA_CODE, filters, 1, 0);
+            
+            if (!mdmsList.isEmpty()) {
+                Map<String, Object> mdmsData = mdmsList.get(0);
+                Map<String, Object> data = (Map<String, Object>) mdmsData.get("data");
+                Map<String, Object> properties = (Map<String, Object>) data.get("properties");
+                
+                if (properties != null) {
+                    ObjectMapper mapper = new ObjectMapper();
+                    String schemaJson = mapper.writeValueAsString(properties);
+                    columns = convertSchemaToColumnDefs(schemaJson);
+                    log.info("Successfully fetched {} schema columns for projectType: {}", columns.size(), projectType);
+                }
+            } else {
+                log.warn("No schema found for: {}", schemaName);
+            }
+        } catch (Exception e) {
+            log.error("Error fetching schema for projectType {}: {}", projectType, e.getMessage());
+            // Don't throw exception, just return empty columns
+        }
+        
+        return columns;
+    }
+    
+    private List<ColumnDef> convertSchemaToColumnDefs(String schemaJson) {
+        List<ColumnDef> columns = new ArrayList<>();
+        
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            JsonNode root = mapper.readTree(schemaJson);
+            
+            // Process stringProperties
+            if (root.has("stringProperties")) {
+                for (JsonNode node : root.path("stringProperties")) {
+                    columns.add(parseJsonToColumnDef(node, "string"));
+                }
+            }
+            
+            // Process numberProperties
+            if (root.has("numberProperties")) {
+                for (JsonNode node : root.path("numberProperties")) {
+                    columns.add(parseJsonToColumnDef(node, "number"));
+                }
+            }
+            
+            // Process enumProperties
+            if (root.has("enumProperties")) {
+                for (JsonNode node : root.path("enumProperties")) {
+                    columns.add(parseJsonToColumnDef(node, "enum"));
+                }
+            }
+            
+            // Sort by orderNumber
+            columns.sort(Comparator.comparingInt(ColumnDef::getOrderNumber));
+            
+        } catch (Exception e) {
+            log.error("Error converting schema JSON to ColumnDefs: {}", e.getMessage());
+        }
+        
+        return columns;
+    }
+    
+    private ColumnDef parseJsonToColumnDef(JsonNode node, String type) {
+        ColumnDef.ColumnDefBuilder builder = ColumnDef.builder()
+                .name(node.path("name").asText())
+                .type(type)
+                .description(node.path("description").asText())
+                .colorHex(node.path("color").asText())
+                .orderNumber(node.path("orderNumber").asInt(9999))
+                .freezeColumnIfFilled(node.path("freezeColumnIfFilled").asBoolean(false))
+                .hideColumn(node.path("hideColumn").asBoolean(false))
+                .required(node.path("isRequired").asBoolean(false))
+                .pattern(node.path("pattern").asText(null))
+                .minimum(node.path("minimum").asLong(Long.MIN_VALUE))
+                .maximum(node.path("maximum").asLong(Long.MAX_VALUE))
+                .minLength(node.path("minLength").asInt(0))
+                .maxLength(node.path("maxLength").asInt(Integer.MAX_VALUE))
+                .freezeColumn(node.path("freezeColumn").asBoolean(false))
+                .adjustHeight(node.path("adjustHeight").asBoolean(false))
+                .width(node.path("width").asInt(50));
+        
+        // Handle enum values
+        List<String> enumValues = null;
+        if ("enum".equals(type) && node.has("enumValues")) {
+            enumValues = new ArrayList<>();
+            for (JsonNode enumValue : node.path("enumValues")) {
+                enumValues.add(enumValue.asText());
+            }
+            builder.enumValues(enumValues);
+        }
+        
+        // Handle multi-select details
+        if (node.has("multiSelectDetails")) {
+            JsonNode multiSelectNode = node.get("multiSelectDetails");
+            List<String> multiSelectEnumValues = null;
+            if (multiSelectNode.has("enumValues")) {
+                multiSelectEnumValues = new ArrayList<>();
+                for (JsonNode enumValue : multiSelectNode.path("enumValues")) {
+                    multiSelectEnumValues.add(enumValue.asText());
+                }
+            }
+            MultiSelectDetails multiSelectDetails = MultiSelectDetails.builder()
+                    .maxSelections(multiSelectNode.path("maxSelections").asInt(1))
+                    .minSelections(multiSelectNode.path("minSelections").asInt(0))
+                    .enumValues(multiSelectEnumValues != null ? multiSelectEnumValues : enumValues)
+                    .build();
+            builder.multiSelectDetails(multiSelectDetails);
+        }
+        
+        return builder.build();
+    }
+    
+    private List<ColumnDef> createBoundaryHierarchyColumnDefs(List<BoundaryHierarchyChild> hierarchyRelations, 
+                                                             String hierarchyType, 
+                                                             List<ColumnDef> schemaColumns) {
         List<ColumnDef> columns = new ArrayList<>();
         
         // Create columns for each hierarchy level using exact project-factory pattern
@@ -108,13 +257,40 @@ public class BoundaryHierarchySheetGenerator implements IExcelPopulatorSheetGene
                 .adjustHeight(true)
                 .build());
         
+        // Add schema columns after boundary columns
+        int currentOrderNumber = hierarchyRelations.size() + 2;
+        for (ColumnDef schemaCol : schemaColumns) {
+            // Create a new column with adjusted order number
+            columns.add(ColumnDef.builder()
+                    .name(schemaCol.getName())
+                    .type(schemaCol.getType())
+                    .description(schemaCol.getDescription())
+                    .colorHex(schemaCol.getColorHex())
+                    .orderNumber(currentOrderNumber++)
+                    .freezeColumnIfFilled(schemaCol.isFreezeColumnIfFilled())
+                    .hideColumn(schemaCol.isHideColumn())
+                    .required(schemaCol.isRequired())
+                    .pattern(schemaCol.getPattern())
+                    .minimum(schemaCol.getMinimum())
+                    .maximum(schemaCol.getMaximum())
+                    .minLength(schemaCol.getMinLength())
+                    .maxLength(schemaCol.getMaxLength())
+                    .freezeColumn(schemaCol.isFreezeColumn())
+                    .adjustHeight(schemaCol.isAdjustHeight())
+                    .width(schemaCol.getWidth())
+                    .enumValues(schemaCol.getEnumValues())
+                    .multiSelectDetails(schemaCol.getMultiSelectDetails())
+                    .build());
+        }
+        
         return columns;
     }
     
     private List<Map<String, Object>> getBoundaryHierarchyDataFromFiltered(List<BoundaryUtil.BoundaryRowData> filteredBoundaries,
                                                                           List<BoundaryHierarchyChild> hierarchyRelations,
                                                                           String hierarchyType,
-                                                                          Map<String, String> localizationMap) {
+                                                                          Map<String, String> localizationMap,
+                                                                          List<ColumnDef> schemaColumns) {
         List<Map<String, Object>> data = new ArrayList<>();
         
         int lastLevelIndex = hierarchyRelations.size() - 1;
@@ -146,6 +322,11 @@ public class BoundaryHierarchySheetGenerator implements IExcelPopulatorSheetGene
                 // Add the hidden boundary code column
                 String lastLevelBoundaryCode = boundaryPath.get(lastLevelIndex);
                 row.put("HCM_ADMIN_CONSOLE_BOUNDARY_CODE", lastLevelBoundaryCode);
+                
+                // Add schema columns with null/default values (to be filled by users)
+                for (ColumnDef schemaCol : schemaColumns) {
+                    row.put(schemaCol.getName(), null);
+                }
                 
                 data.add(row);
             }
