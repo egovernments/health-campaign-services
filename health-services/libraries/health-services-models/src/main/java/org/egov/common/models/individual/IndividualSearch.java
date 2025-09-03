@@ -11,6 +11,7 @@ import lombok.NoArgsConstructor;
 import org.springframework.validation.annotation.Validated;
 
 import javax.validation.Valid;
+import javax.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.util.Date;
 import java.util.List;
@@ -84,6 +85,7 @@ public class IndividualSearch   {
     private Long userId;
 
     @JsonProperty("userUuid")
+    @Size(min = 1)
     private List<String> userUuid;
 }
 

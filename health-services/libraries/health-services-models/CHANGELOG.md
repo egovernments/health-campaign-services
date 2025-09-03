@@ -1,8 +1,8 @@
 All notable changes to this module will be documented in this file.
 
 ## 1.0.19 - 2024-02-26
-- Project staff search staffId changed to a list
-- Stock senderid and receiver id is added.
+- Updated project staff search to accept a list of staffIds
+- Added senderId and receiverId fields to stock information.
 
 ## 1.0.18 - 2024-02-13
 - Adding user uuid in individual search
