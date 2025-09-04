@@ -2,13 +2,15 @@ package org.egov.excelingestion.util;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.ss.util.CellRangeAddressList;
+import org.apache.poi.xssf.usermodel.XSSFConditionalFormattingRule;
+import org.apache.poi.xssf.usermodel.XSSFSheetConditionalFormatting;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.egov.excelingestion.config.ExcelIngestionConfig;
 import org.egov.excelingestion.web.models.excel.ColumnDef;
 import org.egov.excelingestion.web.models.excel.MultiSelectDetails;
 import org.springframework.stereotype.Component;
-import org.egov.excelingestion.util.LocalizationUtil;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -282,7 +284,7 @@ public class ExcelDataPopulator {
                 continue;
             }
             
-            // Apply enum dropdown validation - reuse existing pattern
+            // Apply enum dropdown validation - keep as is (no changes for dropdowns)
             if (column.getEnumValues() != null && !column.getEnumValues().isEmpty()) {
                 String[] enumArray = column.getEnumValues().toArray(new String[0]);
                 DataValidationConstraint constraint = dvHelper.createExplicitListConstraint(enumArray);
@@ -298,33 +300,37 @@ public class ExcelDataPopulator {
                 sheet.addValidationData(validation);
             }
             
-            // Apply MDMS string validation based on minLength/maxLength/pattern properties
+            // Apply pure visual validation for string and number fields: conditional formatting + cell comments only
             else if ("string".equals(column.getType()) && hasStringValidation(column)) {
-                applyStringValidation(dvHelper, sheet, column, colIndex, localizationMap);
+                // Apply only visual formatting - no data validation to avoid vanishing entries
+                applyPureVisualValidation(workbook, sheet, column, colIndex, localizationMap);
             }
             
-            // Apply MDMS number validation based on minimum/maximum and additional properties
+            // Apply pure visual validation for number fields: conditional formatting + cell comments only  
             else if ("number".equals(column.getType()) && hasNumberValidation(column)) {
-                applyNumberValidation(dvHelper, sheet, column, colIndex, localizationMap);
+                // Apply only visual formatting - no data validation to avoid vanishing entries
+                applyPureVisualValidation(workbook, sheet, column, colIndex, localizationMap);
             }
         }
     }
     
     /**
-     * Check if column has string validation rules
+     * Check if column has string LENGTH validation rules (only minLength/maxLength)
      */
     private boolean hasStringValidation(ColumnDef column) {
-        return column.getMinLength() != null || column.getMaxLength() != null || 
-               (column.getPattern() != null && !column.getPattern().trim().isEmpty());
+        return column.getMinLength() != null || column.getMaxLength() != null;
+        // Removed pattern check - regex validation should not have in-sheet validation
     }
     
     /**
-     * Check if column has number validation rules
+     * Check if column has number validation rules (range constraints OR just numeric type validation)
      */
     private boolean hasNumberValidation(ColumnDef column) {
-        return column.getMinimum() != null || column.getMaximum() != null ||
-               column.getMultipleOf() != null || column.getExclusiveMinimum() != null ||
-               column.getExclusiveMaximum() != null;
+        // Always validate numeric fields (to catch non-numeric entries)
+        if ("number".equals(column.getType())) {
+            return true;
+        }
+        return false;
     }
     
     /**
@@ -387,8 +393,9 @@ public class ExcelDataPopulator {
                     CellRangeAddressList addressList = new CellRangeAddressList(2, config.getExcelRowLimit(), colIndex, colIndex);
                     DataValidation validation = dvHelper.createValidation(constraint, addressList);
                     
-                    validation.setErrorStyle(DataValidation.ErrorStyle.STOP);
-                    validation.setShowErrorBox(true);
+                    // Use WARNING style to allow invalid input but highlight it
+                    validation.setErrorStyle(DataValidation.ErrorStyle.WARNING);
+                    validation.setShowErrorBox(true); // Show error on hover
                     validation.createErrorBox(
                         LocalizationUtil.getLocalizedMessage(localizationMap, "HCM_VALIDATION_INVALID_TEXT_LENGTH", "Invalid Text Length"),
                         errorMessage
@@ -520,9 +527,9 @@ public class ExcelDataPopulator {
                 CellRangeAddressList addressList = new CellRangeAddressList(2, config.getExcelRowLimit(), colIndex, colIndex);
                 DataValidation validation = dvHelper.createValidation(constraint, addressList);
                 
-                // Configure validation behavior - no prompts, only error on invalid entry
-                validation.setErrorStyle(DataValidation.ErrorStyle.STOP);
-                validation.setShowErrorBox(true);
+                // Use WARNING style to allow invalid input but highlight it
+                validation.setErrorStyle(DataValidation.ErrorStyle.WARNING);
+                validation.setShowErrorBox(true); // Show error on hover
                 validation.createErrorBox(
                     LocalizationUtil.getLocalizedMessage(localizationMap, "HCM_VALIDATION_INVALID_NUMBER", "Invalid Number"),
                     errorMessage
@@ -712,6 +719,390 @@ public class ExcelDataPopulator {
             columnIndex /= 26;
         }
         return columnName.toString();
+    }
+    
+    /**
+     * Apply visual validation only - no data validation, just conditional formatting
+     * for rose/red coloring when invalid data is entered
+     */
+    private void applyVisualValidationOnly(Workbook workbook, Sheet sheet, ColumnDef column, int colIndex, Map<String, String> localizationMap) {
+        try {
+            // Build error message for tooltip
+            String errorMessage = buildErrorMessage(column, localizationMap);
+            
+            // Get column letter for formula
+            String columnLetter = getColumnLetter(colIndex + 1);
+            
+            // Build validation formula based on column type and constraints
+            String formula = buildConditionalFormula(column, columnLetter);
+            
+            if (formula != null) {
+                // Apply conditional formatting for invalid data (rose/red background)
+                XSSFSheetConditionalFormatting conditionalFormatting = (XSSFSheetConditionalFormatting) sheet.getSheetConditionalFormatting();
+                
+                // Define cell range for the column (data rows only, starting from row 3)
+                CellRangeAddress[] regions = {new CellRangeAddress(2, config.getExcelRowLimit(), colIndex, colIndex)};
+                
+                // Create conditional formatting rule
+                XSSFConditionalFormattingRule rule = conditionalFormatting.createConditionalFormattingRule(formula);
+                
+                // Set rose/red background for invalid cells
+                PatternFormatting fill = rule.createPatternFormatting();
+                fill.setFillBackgroundColor(IndexedColors.ROSE.getIndex());
+                fill.setFillPattern(PatternFormatting.SOLID_FOREGROUND);
+                
+                // Apply the rule
+                conditionalFormatting.addConditionalFormatting(regions, rule);
+                
+                // Add cell comments for error messages on hover
+                addCellComments(sheet, colIndex, errorMessage);
+                
+                log.info("Applied visual validation for column '{}': {}", column.getName(), errorMessage);
+            }
+        } catch (Exception e) {
+            log.warn("Failed to apply visual validation for column '{}': {}", column.getName(), e.getMessage());
+        }
+    }
+    
+    /**
+     * Apply hybrid validation: WARNING style data validation for hover tooltips + conditional formatting for rose/red coloring
+     */
+    private void applyHybridValidation(Workbook workbook, Sheet sheet, ColumnDef column, int colIndex, Map<String, String> localizationMap) {
+        try {
+            // First apply conditional formatting for rose/red color
+            applyVisualValidationOnly(workbook, sheet, column, colIndex, localizationMap);
+            
+            // Then add WARNING style data validation for hover tooltips
+            DataValidationHelper validationHelper = sheet.getDataValidationHelper();
+            String errorMessage = buildErrorMessage(column, localizationMap);
+            
+            CellRangeAddressList addressList = new CellRangeAddressList(2, config.getExcelRowLimit(), colIndex, colIndex);
+            DataValidationConstraint constraint = null;
+            
+            if ("string".equals(column.getType())) {
+                // Text length constraint
+                if (column.getMinLength() != null || column.getMaxLength() != null) {
+                    int minLength = column.getMinLength() != null ? column.getMinLength() : 0;
+                    int maxLength = column.getMaxLength() != null ? column.getMaxLength() : 255;
+                    constraint = validationHelper.createTextLengthConstraint(
+                        DataValidationConstraint.OperatorType.BETWEEN, 
+                        String.valueOf(minLength), 
+                        String.valueOf(maxLength)
+                    );
+                }
+            } else if ("number".equals(column.getType())) {
+                // Number range constraint
+                if (column.getMinimum() != null || column.getMaximum() != null) {
+                    Double minValue = column.getMinimum() != null ? column.getMinimum().doubleValue() : null;
+                    Double maxValue = column.getMaximum() != null ? column.getMaximum().doubleValue() : null;
+                    
+                    if (minValue != null && maxValue != null) {
+                        constraint = validationHelper.createDecimalConstraint(
+                            DataValidationConstraint.OperatorType.BETWEEN,
+                            String.valueOf(minValue),
+                            String.valueOf(maxValue)
+                        );
+                    } else if (minValue != null) {
+                        constraint = validationHelper.createDecimalConstraint(
+                            DataValidationConstraint.OperatorType.GREATER_OR_EQUAL,
+                            String.valueOf(minValue),
+                            null
+                        );
+                    } else if (maxValue != null) {
+                        constraint = validationHelper.createDecimalConstraint(
+                            DataValidationConstraint.OperatorType.LESS_OR_EQUAL,
+                            String.valueOf(maxValue),
+                            null
+                        );
+                    }
+                }
+            }
+            
+            if (constraint != null) {
+                DataValidation validation = validationHelper.createValidation(constraint, addressList);
+                
+                // Set to WARNING style - allows entry but shows tooltip on hover
+                validation.setErrorStyle(DataValidation.ErrorStyle.WARNING);
+                
+                // Configure error display - no popup during entry, but tooltip on hover
+                validation.setShowErrorBox(false); // No popup during data entry
+                validation.setShowPromptBox(false); // No input prompt
+                
+                // Set error message for tooltip
+                validation.createErrorBox("Validation Error", errorMessage);
+                
+                sheet.addValidationData(validation);
+                
+                log.info("Applied hybrid validation (WARNING + conditional formatting) for column '{}': {}", column.getName(), errorMessage);
+            }
+            
+        } catch (Exception e) {
+            log.warn("Failed to apply hybrid validation for column '{}': {}", column.getName(), e.getMessage());
+        }
+    }
+    
+    /**
+     * Apply pure visual validation: conditional formatting + unconditional cell comments
+     */
+    private void applyPureVisualValidation(Workbook workbook, Sheet sheet, ColumnDef column, int colIndex, Map<String, String> localizationMap) {
+        try {
+            // Build error message for tooltips
+            String errorMessage = buildErrorMessage(column, localizationMap);
+            
+            // Get column letter for formula
+            String columnLetter = getColumnLetter(colIndex + 1);
+            
+            // Build validation formula based on column type and constraints
+            String formula = buildConditionalFormula(column, columnLetter);
+            
+            if (formula != null) {
+                // 1. Apply conditional formatting for rose/red color
+                XSSFSheetConditionalFormatting conditionalFormatting = (XSSFSheetConditionalFormatting) sheet.getSheetConditionalFormatting();
+                
+                // Define cell range for the column (data rows only, starting from row 3)
+                CellRangeAddress[] regions = {new CellRangeAddress(2, config.getExcelRowLimit(), colIndex, colIndex)};
+                
+                // Create conditional formatting rule
+                XSSFConditionalFormattingRule rule = conditionalFormatting.createConditionalFormattingRule(formula);
+                
+                // Set rose/red background for invalid cells
+                PatternFormatting fill = rule.createPatternFormatting();
+                fill.setFillBackgroundColor(IndexedColors.ROSE.getIndex());
+                fill.setFillPattern(PatternFormatting.SOLID_FOREGROUND);
+                
+                // Apply the rule
+                conditionalFormatting.addConditionalFormatting(regions, rule);
+                
+                // 2. Add unconditional cell comments for hover tooltips on every cell
+                addUnconditionalCellComments(sheet, colIndex, errorMessage, localizationMap);
+                
+                log.info("Applied pure visual validation for column '{}': {}", column.getName(), errorMessage);
+            }
+        } catch (Exception e) {
+            log.warn("Failed to apply pure visual validation for column '{}': {}", column.getName(), e.getMessage());
+        }
+    }
+    
+    /**
+     * Add unconditional cell comments to all data cells for hover tooltips  
+     */
+    private void addUnconditionalCellComments(Sheet sheet, int colIndex, String errorMessage, Map<String, String> localizationMap) {
+        try {
+            Drawing<?> drawing = sheet.createDrawingPatriarch();
+            CreationHelper factory = sheet.getWorkbook().getCreationHelper();
+            
+            // Get localized author name - default to "Console Team" if not found
+            String authorName = localizationMap != null && localizationMap.containsKey("HCM_CONSOLE_TEAM") 
+                ? localizationMap.get("HCM_CONSOLE_TEAM") 
+                : "Console Team";
+            
+            // Add comments to first 50 data rows (row 3 to 52) - user can copy down if needed
+            for (int rowIndex = 2; rowIndex < Math.min(52, config.getExcelRowLimit() + 3); rowIndex++) {
+                Row row = sheet.getRow(rowIndex);
+                if (row == null) {
+                    row = sheet.createRow(rowIndex);
+                }
+                
+                Cell cell = row.getCell(colIndex);
+                if (cell == null) {
+                    cell = row.createCell(colIndex);
+                }
+                
+                // Create cell comment for hover tooltip
+                ClientAnchor anchor = factory.createClientAnchor();
+                anchor.setCol1(colIndex);
+                anchor.setCol2(colIndex + 3);
+                anchor.setRow1(rowIndex);
+                anchor.setRow2(rowIndex + 3);
+                
+                Comment comment = drawing.createCellComment(anchor);
+                RichTextString str = factory.createRichTextString(errorMessage);
+                comment.setString(str);
+                comment.setAuthor(authorName); // Set localized author name
+                comment.setVisible(false); // Hidden by default, shows on hover
+                
+                // LibreOffice compatibility - try alternative approaches
+                try {
+                    // Some Excel/LibreOffice versions may need this
+                    if (comment instanceof org.apache.poi.xssf.usermodel.XSSFComment) {
+                        ((org.apache.poi.xssf.usermodel.XSSFComment) comment).setAuthor(authorName);
+                    }
+                } catch (Exception e) {
+                    log.debug("Alternative setAuthor method failed: {}", e.getMessage());
+                }
+                
+                cell.setCellComment(comment);
+            }
+            
+            log.debug("Added unconditional cell comments for column {} on rows 3-52 with author: {}", colIndex, authorName);
+            
+        } catch (Exception e) {
+            log.debug("Could not add unconditional cell comments: {}", e.getMessage());
+        }
+    }
+    
+    /**
+     * Build error message based on column constraints
+     */
+    private String buildErrorMessage(ColumnDef column, Map<String, String> localizationMap) {
+        // Use custom error message if available
+        if (column.getErrorMessage() != null && !column.getErrorMessage().isEmpty()) {
+            return localizationMap != null && localizationMap.containsKey(column.getErrorMessage()) 
+                ? localizationMap.get(column.getErrorMessage()) 
+                : column.getErrorMessage();
+        }
+        
+        // Build dynamic message based on constraints
+        if ("string".equals(column.getType())) {
+            if (column.getMinLength() != null && column.getMaxLength() != null) {
+                String template = localizationMap != null && localizationMap.containsKey("HCM_VALIDATION_TEXT_LENGTH_BETWEEN") 
+                    ? localizationMap.get("HCM_VALIDATION_TEXT_LENGTH_BETWEEN") 
+                    : "Text length must be between %d and %d characters";
+                return String.format(template, column.getMinLength(), column.getMaxLength());
+            } else if (column.getMinLength() != null) {
+                String template = localizationMap != null && localizationMap.containsKey("HCM_VALIDATION_TEXT_MIN_LENGTH") 
+                    ? localizationMap.get("HCM_VALIDATION_TEXT_MIN_LENGTH") 
+                    : "Text must be at least %d characters long";
+                return String.format(template, column.getMinLength());
+            } else if (column.getMaxLength() != null) {
+                String template = localizationMap != null && localizationMap.containsKey("HCM_VALIDATION_TEXT_MAX_LENGTH") 
+                    ? localizationMap.get("HCM_VALIDATION_TEXT_MAX_LENGTH") 
+                    : "Text must not exceed %d characters";
+                return String.format(template, column.getMaxLength());
+            }
+        } else if ("number".equals(column.getType())) {
+            // Check if there are range constraints
+            boolean hasRangeConstraints = column.getMinimum() != null || column.getMaximum() != null || 
+                                         column.getExclusiveMinimum() != null || column.getExclusiveMaximum() != null;
+            
+            if (hasRangeConstraints) {
+                // Include both numeric and range validation in message
+                if (column.getMinimum() != null && column.getMaximum() != null) {
+                    String template = localizationMap != null && localizationMap.containsKey("HCM_VALIDATION_NUMBER_BETWEEN") 
+                        ? localizationMap.get("HCM_VALIDATION_NUMBER_BETWEEN") 
+                        : "Must be a number between %.0f and %.0f";
+                    return String.format(template, column.getMinimum().doubleValue(), column.getMaximum().doubleValue());
+                } else if (column.getMinimum() != null) {
+                    String template = localizationMap != null && localizationMap.containsKey("HCM_VALIDATION_NUMBER_MIN") 
+                        ? localizationMap.get("HCM_VALIDATION_NUMBER_MIN") 
+                        : "Must be a number at least %.0f";
+                    return String.format(template, column.getMinimum().doubleValue());
+                } else if (column.getMaximum() != null) {
+                    String template = localizationMap != null && localizationMap.containsKey("HCM_VALIDATION_NUMBER_MAX") 
+                        ? localizationMap.get("HCM_VALIDATION_NUMBER_MAX") 
+                        : "Must be a number at most %.0f";
+                    return String.format(template, column.getMaximum().doubleValue());
+                } else if (column.getExclusiveMinimum() != null) {
+                    String template = localizationMap != null && localizationMap.containsKey("HCM_VALIDATION_NUMBER_EXCLUSIVE_MIN") 
+                        ? localizationMap.get("HCM_VALIDATION_NUMBER_EXCLUSIVE_MIN") 
+                        : "Must be a number greater than %.0f";
+                    return String.format(template, column.getExclusiveMinimum().doubleValue());
+                } else if (column.getExclusiveMaximum() != null) {
+                    String template = localizationMap != null && localizationMap.containsKey("HCM_VALIDATION_NUMBER_EXCLUSIVE_MAX") 
+                        ? localizationMap.get("HCM_VALIDATION_NUMBER_EXCLUSIVE_MAX") 
+                        : "Must be a number less than %.0f";
+                    return String.format(template, column.getExclusiveMaximum().doubleValue());
+                }
+            } else {
+                // Pure numeric validation - no range constraints
+                String template = localizationMap != null && localizationMap.containsKey("HCM_VALIDATION_NUMBER_ONLY") 
+                    ? localizationMap.get("HCM_VALIDATION_NUMBER_ONLY") 
+                    : "Must be a number only";
+                return template;
+            }
+        }
+        
+        return "Invalid value";
+    }
+    
+    /**
+     * Build conditional formatting formula for validation
+     */
+    private String buildConditionalFormula(ColumnDef column, String columnLetter) {
+        StringBuilder formula = new StringBuilder();
+        
+        if ("string".equals(column.getType())) {
+            // Text length validation formula - using relative reference for current row
+            formula.append("AND(");
+            formula.append(columnLetter).append("3<>\"\","); // Cell is not empty (relative to first data row)
+            
+            if (column.getMinLength() != null && column.getMaxLength() != null) {
+                formula.append("OR(LEN(").append(columnLetter).append("3)<").append(column.getMinLength());
+                formula.append(",LEN(").append(columnLetter).append("3)>").append(column.getMaxLength()).append(")");
+            } else if (column.getMinLength() != null) {
+                formula.append("LEN(").append(columnLetter).append("3)<").append(column.getMinLength());
+            } else if (column.getMaxLength() != null) {
+                formula.append("LEN(").append(columnLetter).append("3)>").append(column.getMaxLength());
+            }
+            formula.append(")");
+            
+        } else if ("number".equals(column.getType())) {
+            // Number validation formula - check for non-numeric + range validation
+            formula.append("AND(");
+            formula.append(columnLetter).append("3<>\"\","); // Cell is not empty
+            
+            // Check if it's non-numeric OR out of range
+            formula.append("OR(");
+            formula.append("NOT(ISNUMBER(").append(columnLetter).append("3))"); // Non-numeric entries
+            
+            // Add range validation if constraints exist
+            boolean hasRangeConstraints = column.getMinimum() != null || column.getMaximum() != null || 
+                                         column.getExclusiveMinimum() != null || column.getExclusiveMaximum() != null;
+            
+            if (hasRangeConstraints) {
+                formula.append(",AND(ISNUMBER(").append(columnLetter).append("3),"); // Only check range if numeric
+                
+                if (column.getMinimum() != null && column.getMaximum() != null) {
+                    formula.append("OR(").append(columnLetter).append("3<").append(column.getMinimum().doubleValue());
+                    formula.append(",").append(columnLetter).append("3>").append(column.getMaximum().doubleValue()).append(")");
+                } else if (column.getMinimum() != null) {
+                    formula.append(columnLetter).append("3<").append(column.getMinimum().doubleValue());
+                } else if (column.getMaximum() != null) {
+                    formula.append(columnLetter).append("3>").append(column.getMaximum().doubleValue());
+                } else if (column.getExclusiveMinimum() != null) {
+                    formula.append(columnLetter).append("3<=").append(column.getExclusiveMinimum().doubleValue());
+                } else if (column.getExclusiveMaximum() != null) {
+                    formula.append(columnLetter).append("3>=").append(column.getExclusiveMaximum().doubleValue());
+                }
+                formula.append(")"); // Close AND(ISNUMBER...)
+            }
+            
+            formula.append(")"); // Close OR(NOT(ISNUMBER...)
+            formula.append(")"); // Close main AND
+        }
+        
+        return formula.length() > 0 ? formula.toString() : null;
+    }
+    
+    /**
+     * Add cell comments for error messages that appear on hover
+     */
+    private void addCellComments(Sheet sheet, int colIndex, String errorMessage) {
+        try {
+            Drawing<?> drawing = sheet.createDrawingPatriarch();
+            CreationHelper factory = sheet.getWorkbook().getCreationHelper();
+            
+            // Add comment to header cell with validation rules
+            Row headerRow = sheet.getRow(1);
+            if (headerRow != null) {
+                Cell headerCell = headerRow.getCell(colIndex);
+                if (headerCell != null) {
+                    ClientAnchor anchor = factory.createClientAnchor();
+                    anchor.setCol1(colIndex);
+                    anchor.setCol2(colIndex + 3);
+                    anchor.setRow1(1);
+                    anchor.setRow2(4);
+                    
+                    Comment comment = drawing.createCellComment(anchor);
+                    RichTextString str = factory.createRichTextString("Validation: " + errorMessage + "\n\nInvalid entries will be highlighted in rose/red color.");
+                    comment.setString(str);
+                    comment.setVisible(false); // Hidden by default, shows on hover
+                    headerCell.setCellComment(comment);
+                }
+            }
+        } catch (Exception e) {
+            log.debug("Could not add cell comments: {}", e.getMessage());
+        }
     }
     
 }
