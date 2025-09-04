@@ -241,11 +241,15 @@ public class ExcelParser implements FileParser {
 		excelWorkbook.forEach(excelWorkbookSheet -> {
 			//IMPORTANT: If readme file here skipped
 			if (outputEstimationGenerationUtil.isSheetAllowedToProcess(excelWorkbookSheet.getSheetName(), localeResponse, mdmsDataForCommonConstants)) {
+                // STATUS: EXECUTION_TO_BE_DONE
 				if (request.getPlanConfiguration().getStatus().equals(config.getPlanConfigTriggerCensusRecordsStatus())) {
 					// Check inputs
 					processRowsForCensusRecords(request, excelWorkbookSheet,
 							fileStoreId, attributeNameVsDataTypeMap, boundaryCodeList, campaignResponse.getCampaign().get(0).getHierarchyType());
-				} else if (request.getPlanConfiguration().getStatus().equals(config.getPlanConfigUpdatePlanEstimatesIntoOutputFileStatus())) {
+
+				}
+                // STATUS: RESOURCE_ESTIMATION_APPROVED
+                else if (request.getPlanConfiguration().getStatus().equals(config.getPlanConfigUpdatePlanEstimatesIntoOutputFileStatus())) {
 					enrichmentUtil.enrichsheetWithApprovedCensusRecords(excelWorkbookSheet, request, fileStoreId, mappedValues);
 					enrichmentUtil.enrichsheetWithApprovedPlanEstimates(excelWorkbookSheet, request, fileStoreId, mappedValues);
 				}
@@ -323,6 +327,7 @@ public class ExcelParser implements FileParser {
 							boundaryCodeToFixedPostMap.get(boundaryCode), planConfiguration, mixedStrategyOperationLogicList));
 
 			// Trigger plan estimate create based on the estimates calculated.
+            //IMPORTANT
 			planUtil.create(planConfigurationRequest, featureNode, resultMap, boundaryCodeToCensusAdditionalDetails);
 			log.info("Successfully created plan for {} boundary", boundaryCode);
 		}
