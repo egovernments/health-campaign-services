@@ -425,7 +425,11 @@ public class ParsingUtil {
                     return returnType.cast(node.asBoolean());
                 } else if (returnType == String.class && node.isTextual()) {
                     return returnType.cast(node.asText());
+                }else if (returnType == Object.class && node.isObject()) {
+                    return returnType.cast(objectMapper.convertValue(node, Map.class));
                 }
+
+
             }
             return null;
         } catch (Exception e) {
