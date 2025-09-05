@@ -428,8 +428,6 @@ public class ParsingUtil {
                 }else if (returnType == Object.class && node.isObject()) {
                     return returnType.cast(objectMapper.convertValue(node, Map.class));
                 }
-
-
             }
             return null;
         } catch (Exception e) {
