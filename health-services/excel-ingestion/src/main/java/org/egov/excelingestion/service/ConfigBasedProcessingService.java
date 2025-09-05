@@ -298,7 +298,7 @@ public class ConfigBasedProcessingService {
         } catch (ClassNotFoundException e) {
             log.error("Processor class not found: {}", processorClass, e);
             exceptionHandler.throwCustomException(ErrorConstants.PROCESSOR_CLASS_NOT_FOUND,
-                    "Processor class not found: " + processorClass);
+                    ErrorConstants.PROCESSOR_CLASS_NOT_FOUND_MESSAGE.replace("{0}", processorClass));
         } catch (org.egov.tracer.model.CustomException e) {
             // Re-throw CustomExceptions (like schema not found) without wrapping
             log.error("Custom exception from processor {}: {}", processorClass, e.getMessage());
@@ -306,7 +306,7 @@ public class ConfigBasedProcessingService {
         } catch (Exception e) {
             log.error("Error executing processor {}: {}", processorClass, e.getMessage(), e);
             exceptionHandler.throwCustomException(ErrorConstants.PROCESSOR_EXECUTION_ERROR,
-                    "Error executing processor: " + e.getMessage());
+                    ErrorConstants.PROCESSOR_EXECUTION_ERROR_MESSAGE.replace("{0}", e.getMessage()));
         }
         
         return workbook;

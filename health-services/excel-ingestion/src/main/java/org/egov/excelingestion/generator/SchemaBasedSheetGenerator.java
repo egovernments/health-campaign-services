@@ -133,7 +133,7 @@ public class SchemaBasedSheetGenerator implements IExcelPopulatorSheetGenerator 
         } catch (Exception e) {
             log.error("Error converting schema JSON to ColumnDefs: {}", e.getMessage(), e);
             exceptionHandler.throwCustomException(ErrorConstants.SCHEMA_CONVERSION_ERROR,
-                    "Error converting schema to column definitions", e);
+                    ErrorConstants.SCHEMA_CONVERSION_ERROR_MESSAGE, e);
         }
         
         return columns;
