@@ -91,11 +91,11 @@ export async function initializeProcessAndGetResponse(
             lastModifiedBy: userUuid,
         },
         processedFileStoreId: null,
-        action : "process"
+        action: "process"
     };
 
     const persistMessage: any = { ResourceDetails: newResourceDetails };
-    await produceModifiedMessages(persistMessage, config?.kafka?.KAFKA_CREATE_RESOURCE_DETAILS_TOPIC, ResourceDetails?.tenantId); 
+    await produceModifiedMessages(persistMessage, config?.kafka?.KAFKA_CREATE_RESOURCE_DETAILS_TOPIC, ResourceDetails?.tenantId);
     return newResourceDetails;
 }
 
@@ -141,7 +141,7 @@ export async function processResource(ResourceDetails: any, templateConfig: any)
         const fileUrl = await fetchFileFromFilestore(ResourceDetails?.fileStoreId, ResourceDetails?.tenantId);
         const workBook = await getExcelWorkbookFromFileURL(fileUrl);
         let locale = getLocaleFromWorkbook(workBook) || "";
-        if(!locale){
+        if (!locale) {
             throw new Error("Locale not found in the file metadata.");
         }
         const localizationMapHierarchy = ResourceDetails?.hierarchyType && await getLocalizedMessagesHandlerViaLocale(locale, ResourceDetails?.tenantId, getLocalisationModuleName(ResourceDetails?.hierarchyType), true);
@@ -153,7 +153,7 @@ export async function processResource(ResourceDetails: any, templateConfig: any)
         ResourceDetails.processedFileStoreId = fileResponse?.[0]?.fileStoreId;
         if (!ResourceDetails.processedFileStoreId) throw new Error("FileStoreId not created.");
         ResourceDetails.status = generatedResourceStatuses.completed;
-        await produceModifiedMessages({ ResourceDetails : ResourceDetails }, config?.kafka?.KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC, ResourceDetails?.tenantId);
+        await produceModifiedMessages({ ResourceDetails: ResourceDetails }, config?.kafka?.KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC, ResourceDetails?.tenantId);
     } catch (error) {
         console.log(error)
         await handleErrorDuringProcess(ResourceDetails, error);
@@ -188,14 +188,14 @@ export async function processRequest(ResourceDetails: any, workBook: any, templa
     for (const sheet of templateConfig?.sheets || []) {
         const sheetName = getLocalizedName(sheet?.sheetName, localizationMap);
         const worksheet = workBook.getWorksheet(sheetName);
-        if(!worksheet) {
+        if (!worksheet) {
             throwError("FILE", 400, "SHEET_MISSING_ERROR", `Sheet: '${sheetName}' not found in the uploaded file.`);
         }
         const sheetData = getSheetDataFromWorksheet(worksheet);
         const jsonData = getJsonDataWithUnlocalisedKey(sheetData, true);
         if (sheet?.validateRowsGap) checkAllRowsConsistency(jsonData);
         wholeSheetData[sheetName] = jsonData;
-        if(!sheet?.schemaName) continue;
+        if (!sheet?.schemaName) continue;
         const schema = await callMdmsSchema(ResourceDetails?.tenantId, sheet?.schemaName);
         sheet.schema = schema;
     }
@@ -244,7 +244,7 @@ export async function processRequest(ResourceDetails: any, workBook: any, templa
             await handledropdownthingsUnLocalised(worksheet, schema);
             updateFontNameToRoboto(worksheet);
         }
-        
+
         await lockSheetAccordingToConfig(workBook, templateConfig, localizationMap);
     } catch (error) {
         logger.error(`Error importing or calling process function from ${classFilePath}`);
@@ -272,7 +272,7 @@ async function lockSheetAccordingToConfig(workBook: any, templateConfig: any, lo
             // Protect sheet with full options
             await worksheet.protect('passwordhere', {
                 selectLockedCells: true,
-                selectUnlockedCells: true,
+                selectUnlockedCells: false,
                 formatCells: false,
                 formatColumns: false,
                 formatRows: false,
@@ -468,8 +468,8 @@ function mergeAndGetDynamicColumns(dynamicColumns: any, schema: any): any {
 
     const sortedArray: [string, any][] = Object.entries(dynamicColumns)
         .sort(([, a]: any, [, b]: any) => a.orderNumber - b.orderNumber);
-      
-    
+
+
     return sortedArray;
 }
 
@@ -544,7 +544,7 @@ function applyColumnProperties(row: ExcelJS.Row, cell: ExcelJS.Cell, columnProps
     // Apply column-level properties like width and hidden
     column.width = columnProps.width ?? 40; // Default width = 40
     if (columnProps.hideColumn !== undefined) column.hidden = columnProps.hideColumn;
-    if( isProcessedFile && columnProps.showInProcessed) {
+    if (isProcessedFile && columnProps.showInProcessed) {
         column.hidden = false
     }
 
@@ -574,7 +574,7 @@ function addDataToWorksheet(
         worksheet.spliceRows(i, 1);
     }
 
-    const headers : any[] = Object.keys(columnNameToIndexMap);
+    const headers: any[] = Object.keys(columnNameToIndexMap);
 
     const newRows = sheetData.data.map((rowData: any) =>
         headers.map(columnName => rowData[columnName] ?? '')
@@ -625,7 +625,7 @@ function applyCellFormatting(
 
         row.commit();
     }
-  }
+}
 
 
 function processBoldFormatting(cell: ExcelJS.Cell) {
@@ -684,26 +684,26 @@ function adjustRowHeightAndWrapIfNeeded(
     if (properties.wrapText) {
         cell.alignment = { ...(cell.alignment || {}), wrapText: true };
     }
-  }
-  
+}
 
-export async function enrichProcessTemplateConfig(ResourceDetails: any, processTemplateConfig: any){
-    if (processTemplateConfig?.enrichmentFunction){
+
+export async function enrichProcessTemplateConfig(ResourceDetails: any, processTemplateConfig: any) {
+    if (processTemplateConfig?.enrichmentFunction) {
         const util = new EnrichProcessConfigUtil();
         await util.execute(processTemplateConfig.enrichmentFunction, ResourceDetails, processTemplateConfig);
     }
 }
 
-export async function validateResourceDetailsBeforeProcess(validationProcessType : string, resourceDetails: any, localizationMap : any) {
+export async function validateResourceDetailsBeforeProcess(validationProcessType: string, resourceDetails: any, localizationMap: any) {
     logger.info("Validating resource details before process main function...");
     const processTemplateConfig = JSON.parse(JSON.stringify(processTemplateConfigs?.[String(validationProcessType)]));
     const validationResourceDetails = {
-        type : validationProcessType,
-        tenantId : resourceDetails?.tenantId,
-        additionalDetails : resourceDetails?.additionalDetails,
-        fileStoreId : resourceDetails?.fileStoreId,
-        campaignId : resourceDetails?.campaignId,
-        hierarchyType : resourceDetails?.hierarchyType
+        type: validationProcessType,
+        tenantId: resourceDetails?.tenantId,
+        additionalDetails: resourceDetails?.additionalDetails,
+        fileStoreId: resourceDetails?.fileStoreId,
+        campaignId: resourceDetails?.campaignId,
+        hierarchyType: resourceDetails?.hierarchyType
     }
     await enrichProcessTemplateConfig(validationResourceDetails, processTemplateConfig);
     const fileUrl = await fetchFileFromFilestore(validationResourceDetails?.fileStoreId, validationResourceDetails?.tenantId);
@@ -719,16 +719,9 @@ export async function validateResourceDetailsBeforeProcess(validationProcessType
     logger.info("Validated resource details before process main function...");
 }
 
-export function filterResourceDetailType(type : string){
+export function filterResourceDetailType(type: string) {
     const templateConfig = JSON.parse(JSON.stringify(processTemplateConfigs?.[String(type)]));
-    if(!templateConfig?.passFromController){
+    if (!templateConfig?.passFromController) {
         throwError("COMMON", 400, "VALIDATION_ERROR", `Type ${type} not found or invalid`);
     }
 }
-
-
-
-
-
-
-
