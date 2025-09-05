@@ -1,22 +1,32 @@
-# TODO - Processed File Validation Fix
+# TODO - Template File Validation Warning Optimization
 
 ## ✅ Issue Resolved
-Processed files (from process API) show validation warnings in cells + error columns. Should only show error columns.
+In template files (generated files), validation warning tooltips appeared on every invalid cell. These should only appear on column headers (row 2 - shown header row). Other validation features remain:
+- Keep conditional formatting (rose red color for invalid cells)
+- Keep all other visual validation indicators  
+- Only move warning tooltips from individual cells to column headers
 
 ## ✅ Tasks Completed
-- [x] Detect when processing files and clean up validation formatting
-- [x] Remove conditional formatting from processed files
-- [x] Remove cell comments from processed files  
-- [x] Lock processed file sheets for protection
-- [x] Keep error columns working
+- [x] Modify validation tooltip/comment generation
+- [x] Move cell comments from data cells to column headers (row 2)
+- [x] Keep all other validation formatting unchanged
+- [x] Test with template file generation
 
 ## ✅ Implementation
-Added `ValidationService.removeValidationFormatting()` method that:
-1. Removes all conditional formatting from sheets 
-2. Removes validation cell comments from data rows
-3. Locks the entire sheet with password "processed" for protection
-4. Called automatically when adding error columns during file processing
+Modified `ExcelDataPopulator.java`:
+1. **Updated `addCellComments()`** - Now adds comments to row 2 (shown header) instead of row 1
+2. **Removed `addUnconditionalCellComments()`** - Eliminated individual data cell comments completely
+3. **Updated pure visual validation** - Now calls `addCellComments()` for header-only tooltips
+4. **Made tooltip messages localizable** - Added localization support with keys:
+   - `HCM_VALIDATION_LABEL` (default: "Validation")
+   - `HCM_VALIDATION_HIGHLIGHT_MESSAGE` (default: "Invalid entries will be highlighted in rose/red color")
+5. **Preserved all other formatting** - Conditional formatting (rose red colors) remains unchanged
 
-## ✅ Result
-- Template files: validation warnings in cells ✅
+## Previous Work ✅
+- [x] Processed file validation fix completed
+- [x] Sheet protection and cleanup working
+- [x] Error columns functioning properly
+
+## ✅ Final Result  
+- Template files: validation colors + tooltips ONLY on column headers ✅
 - Processed files: clean cells, errors only in columns, fully locked ✅

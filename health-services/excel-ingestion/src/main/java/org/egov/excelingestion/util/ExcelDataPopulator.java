@@ -755,7 +755,7 @@ public class ExcelDataPopulator {
                 conditionalFormatting.addConditionalFormatting(regions, rule);
                 
                 // Add cell comments for error messages on hover
-                addCellComments(sheet, colIndex, errorMessage);
+                addCellComments(sheet, colIndex, errorMessage, localizationMap);
                 
                 log.info("Applied visual validation for column '{}': {}", column.getName(), errorMessage);
             }
@@ -873,8 +873,8 @@ public class ExcelDataPopulator {
                 // Apply the rule
                 conditionalFormatting.addConditionalFormatting(regions, rule);
                 
-                // 2. Add unconditional cell comments for hover tooltips on every cell
-                addUnconditionalCellComments(sheet, colIndex, errorMessage, localizationMap);
+                // 2. Add validation tooltip to column header only (not individual cells)
+                addCellComments(sheet, colIndex, errorMessage, localizationMap);
                 
                 log.info("Applied pure visual validation for column '{}': {}", column.getName(), errorMessage);
             }
@@ -883,63 +883,6 @@ public class ExcelDataPopulator {
         }
     }
     
-    /**
-     * Add unconditional cell comments to all data cells for hover tooltips  
-     */
-    private void addUnconditionalCellComments(Sheet sheet, int colIndex, String errorMessage, Map<String, String> localizationMap) {
-        try {
-            Drawing<?> drawing = sheet.createDrawingPatriarch();
-            CreationHelper factory = sheet.getWorkbook().getCreationHelper();
-            
-            // Get localized author name - default to "Console Team" if not found
-            String authorName = localizationMap != null && localizationMap.containsKey("HCM_CONSOLE_TEAM") 
-                ? localizationMap.get("HCM_CONSOLE_TEAM") 
-                : "Console Team";
-            
-            // Add comments to first 50 data rows (row 3 to 52) - user can copy down if needed
-            for (int rowIndex = 2; rowIndex < Math.min(52, config.getExcelRowLimit() + 3); rowIndex++) {
-                Row row = sheet.getRow(rowIndex);
-                if (row == null) {
-                    row = sheet.createRow(rowIndex);
-                }
-                
-                Cell cell = row.getCell(colIndex);
-                if (cell == null) {
-                    cell = row.createCell(colIndex);
-                }
-                
-                // Create cell comment for hover tooltip
-                ClientAnchor anchor = factory.createClientAnchor();
-                anchor.setCol1(colIndex);
-                anchor.setCol2(colIndex + 3);
-                anchor.setRow1(rowIndex);
-                anchor.setRow2(rowIndex + 3);
-                
-                Comment comment = drawing.createCellComment(anchor);
-                RichTextString str = factory.createRichTextString(errorMessage);
-                comment.setString(str);
-                comment.setAuthor(authorName); // Set localized author name
-                comment.setVisible(false); // Hidden by default, shows on hover
-                
-                // LibreOffice compatibility - try alternative approaches
-                try {
-                    // Some Excel/LibreOffice versions may need this
-                    if (comment instanceof org.apache.poi.xssf.usermodel.XSSFComment) {
-                        ((org.apache.poi.xssf.usermodel.XSSFComment) comment).setAuthor(authorName);
-                    }
-                } catch (Exception e) {
-                    log.debug("Alternative setAuthor method failed: {}", e.getMessage());
-                }
-                
-                cell.setCellComment(comment);
-            }
-            
-            log.debug("Added unconditional cell comments for column {} on rows 3-52 with author: {}", colIndex, authorName);
-            
-        } catch (Exception e) {
-            log.debug("Could not add unconditional cell comments: {}", e.getMessage());
-        }
-    }
     
     /**
      * Build error message based on column constraints
@@ -1077,16 +1020,16 @@ public class ExcelDataPopulator {
     /**
      * Add cell comments for error messages that appear on hover
      */
-    private void addCellComments(Sheet sheet, int colIndex, String errorMessage) {
+    private void addCellComments(Sheet sheet, int colIndex, String errorMessage, Map<String, String> localizationMap) {
         try {
             Drawing<?> drawing = sheet.createDrawingPatriarch();
             CreationHelper factory = sheet.getWorkbook().getCreationHelper();
             
-            // Add comment to header cell with validation rules
-            Row headerRow = sheet.getRow(1);
-            if (headerRow != null) {
-                Cell headerCell = headerRow.getCell(colIndex);
-                if (headerCell != null) {
+            // Add comment to shown header cell (row 2) with validation rules
+            Row shownHeaderRow = sheet.getRow(1);
+            if (shownHeaderRow != null) {
+                Cell shownHeaderCell = shownHeaderRow.getCell(colIndex);
+                if (shownHeaderCell != null) {
                     ClientAnchor anchor = factory.createClientAnchor();
                     anchor.setCol1(colIndex);
                     anchor.setCol2(colIndex + 3);
@@ -1094,15 +1037,32 @@ public class ExcelDataPopulator {
                     anchor.setRow2(4);
                     
                     Comment comment = drawing.createCellComment(anchor);
-                    RichTextString str = factory.createRichTextString("Validation: " + errorMessage + "\n\nInvalid entries will be highlighted in rose/red color.");
+                    
+                    // Get localized text for validation message components
+                    String validationLabel = getLocalizedText("HCM_VALIDATION_LABEL", "Validation", localizationMap);
+                    String highlightText = getLocalizedText("HCM_VALIDATION_HIGHLIGHT_MESSAGE", "Invalid entries will be highlighted in rose/red color", localizationMap);
+                    
+                    // Build localized tooltip message
+                    String tooltipMessage = validationLabel + ": " + errorMessage + "\n\n" + highlightText + ".";
+                    RichTextString str = factory.createRichTextString(tooltipMessage);
                     comment.setString(str);
                     comment.setVisible(false); // Hidden by default, shows on hover
-                    headerCell.setCellComment(comment);
+                    shownHeaderCell.setCellComment(comment);
                 }
             }
         } catch (Exception e) {
             log.debug("Could not add cell comments: {}", e.getMessage());
         }
+    }
+
+    /**
+     * Get localized text from map with fallback to default
+     */
+    private String getLocalizedText(String key, String defaultValue, Map<String, String> localizationMap) {
+        if (localizationMap != null && localizationMap.containsKey(key)) {
+            return localizationMap.get(key);
+        }
+        return defaultValue;
     }
     
 }
