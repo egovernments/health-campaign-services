@@ -6,9 +6,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
 import org.egov.excelingestion.config.ExcelIngestionConfig;
 import org.egov.excelingestion.generator.SchemaBasedSheetGenerator;
+import org.egov.excelingestion.util.ColumnDefMaker;
 import org.egov.excelingestion.web.models.excel.ColumnDef;
 import org.junit.jupiter.api.Test;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -117,17 +117,14 @@ public class MDMSSchemaParsingTest {
         log.info("✅ Complete MDMS schema parsing test passed");
     }
     
-    @SuppressWarnings("unchecked")
     private List<ColumnDef> parseStringProperties(SchemaBasedSheetGenerator generator, JsonNode schemaNode) {
-        // Use reflection to access private method
+        // The functionality has been moved to ColumnDefMaker, so test it directly
         try {
-            var method = generator.getClass().getDeclaredMethod("parseJsonToColumnDef", JsonNode.class, String.class);
-            method.setAccessible(true);
-            
+            ColumnDefMaker columnDefMaker = new ColumnDefMaker();
             List<ColumnDef> columns = new java.util.ArrayList<>();
             JsonNode stringProps = schemaNode.path("stringProperties");
             for (JsonNode node : stringProps) {
-                ColumnDef column = (ColumnDef) method.invoke(generator, node, "string");
+                ColumnDef column = columnDefMaker.createColumnDefFromJson(node, "string");
                 columns.add(column);
             }
             return columns;
@@ -136,16 +133,13 @@ public class MDMSSchemaParsingTest {
         }
     }
     
-    @SuppressWarnings("unchecked")
     private List<ColumnDef> parseNumberProperties(SchemaBasedSheetGenerator generator, JsonNode schemaNode) {
         try {
-            var method = generator.getClass().getDeclaredMethod("parseJsonToColumnDef", JsonNode.class, String.class);
-            method.setAccessible(true);
-            
+            ColumnDefMaker columnDefMaker = new ColumnDefMaker();
             List<ColumnDef> columns = new java.util.ArrayList<>();
             JsonNode numberProps = schemaNode.path("numberProperties");
             for (JsonNode node : numberProps) {
-                ColumnDef column = (ColumnDef) method.invoke(generator, node, "number");
+                ColumnDef column = columnDefMaker.createColumnDefFromJson(node, "number");
                 columns.add(column);
             }
             return columns;
@@ -154,16 +148,13 @@ public class MDMSSchemaParsingTest {
         }
     }
     
-    @SuppressWarnings("unchecked") 
     private List<ColumnDef> parseEnumProperties(SchemaBasedSheetGenerator generator, JsonNode schemaNode) {
         try {
-            var method = generator.getClass().getDeclaredMethod("parseJsonToColumnDef", JsonNode.class, String.class);
-            method.setAccessible(true);
-            
+            ColumnDefMaker columnDefMaker = new ColumnDefMaker();
             List<ColumnDef> columns = new java.util.ArrayList<>();
             JsonNode enumProps = schemaNode.path("enumProperties");
             for (JsonNode node : enumProps) {
-                ColumnDef column = (ColumnDef) method.invoke(generator, node, "enum");
+                ColumnDef column = columnDefMaker.createColumnDefFromJson(node, "enum");
                 columns.add(column);
             }
             return columns;
@@ -269,9 +260,10 @@ public class MDMSSchemaParsingTest {
         List<? extends DataValidation> validations = sheet.getDataValidations();
         
         log.info("📊 Total validations applied: {}", validations.size());
-        // Should have validations for: userName, email (string), age, salary, rating (number), category (enum)
-        // Expected: 2 string + 3 number + 1 enum = 6 validations
-        assert validations.size() == 6 : "Should have 6 validations total";
+        // With pure visual validation: only enum fields create DataValidation objects
+        // String/number fields use conditional formatting instead
+        // Expected: 1 enum validation (category only)
+        assert validations.size() == 1 : "Should have 1 validation total (enum only, string/number use pure visual validation)";
         
         workbook.close();
         log.info("✅ Excel generation with parsed columns verified");

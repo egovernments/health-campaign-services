@@ -49,33 +49,28 @@ class MDMSValidationIntegrationTest {
         // Generate Excel workbook
         Workbook workbook = populator.populateSheetWithData("TestSheet", columns, null);
         
-        // Verify validations were applied
+        // Verify that number fields use pure visual validation (no DataValidation objects)
         Sheet sheet = workbook.getSheetAt(0);
         List<? extends DataValidation> validations = sheet.getDataValidations();
         
-        log.info("✅ Excel sheet created with {} data validations", validations.size());
+        assertEquals(0, validations.size(), "Number fields should use pure visual validation, not DataValidation objects");
+        log.info("✅ Excel sheet created with {} data validations (expected 0 for pure visual validation)", validations.size());
         
-        // Log validation details
-        for (int i = 0; i < validations.size(); i++) {
-            DataValidation validation = validations.get(i);
-            log.info("Validation {}: Type={}, Formula={}, Error={}", 
-                i+1, 
-                validation.getValidationConstraint().getValidationType(),
-                validation.getValidationConstraint().getFormula1(),
-                validation.getErrorBoxText());
-        }
+        // Verify conditional formatting is applied for pure visual validation
+        assertTrue(sheet.getSheetConditionalFormatting().getNumConditionalFormattings() > 0,
+                "Number fields should use conditional formatting for validation feedback");
         
-        // Should have 3 validations (age, score, salary)
-        assertEquals(3, validations.size(), "Should have 3 number validations");
+        log.info("✅ Number fields use pure visual validation (conditional formatting) instead of DataValidation objects");
         
         // Save Excel file for manual verification
         try (FileOutputStream fos = new FileOutputStream("/tmp/mdms_validation_test.xlsx")) {
             workbook.write(fos);
             log.info("✅ Excel file saved to /tmp/mdms_validation_test.xlsx for manual testing");
             log.info("   Open the file and try entering values outside the ranges:");
-            log.info("   - Age: Should accept 18-65, reject 17 or 66");
-            log.info("   - Score: Should accept 0-100, reject 101");
-            log.info("   - Salary: Should accept 10000+, reject 9999");
+            log.info("   - Age: Enter 17 or 66 to see conditional formatting highlight with error comment");
+            log.info("   - Score: Enter 101 to see conditional formatting highlight with error comment");
+            log.info("   - Salary: Enter 9999 to see conditional formatting highlight with error comment");
+            log.info("   Note: Validation now uses pure visual approach (conditional formatting + comments) instead of blocking input");
         }
         
         workbook.close();

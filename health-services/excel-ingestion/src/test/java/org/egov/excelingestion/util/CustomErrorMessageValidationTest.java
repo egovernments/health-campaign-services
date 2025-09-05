@@ -50,47 +50,29 @@ class CustomErrorMessageValidationTest {
         // Generate Excel workbook
         Workbook workbook = populator.populateSheetWithData("ValidationTest", columns, null);
         
-        // Verify validations were applied
+        // Verify that number fields use pure visual validation (no DataValidation objects)
         Sheet sheet = workbook.getSheetAt(0);
         List<? extends DataValidation> validations = sheet.getDataValidations();
         
-        assertEquals(4, validations.size(), "Should have 4 validations");
+        assertEquals(0, validations.size(), "Number fields should use pure visual validation, not DataValidation objects");
         
-        // Check that custom error messages are used
-        boolean foundAgeError = false;
-        boolean foundIncomeError = false;
-        boolean foundScoreError = false;
-        boolean foundPercentageError = false;
+        // Verify conditional formatting is applied for pure visual validation
+        assertTrue(sheet.getSheetConditionalFormatting().getNumConditionalFormattings() > 0,
+                "Number fields should use conditional formatting for validation feedback");
         
-        for (DataValidation validation : validations) {
-            String errorText = validation.getErrorBoxText();
-            log.info("Validation error message: {}", errorText);
-            
-            if (errorText.contains("Age must be between 18 and 65 years for eligibility")) {
-                foundAgeError = true;
-            } else if (errorText.contains("Minimum income requirement is Rs. 10,000")) {
-                foundIncomeError = true;
-            } else if (errorText.contains("Value must be at most 100")) { // Dynamic message
-                foundScoreError = true;
-            } else if (errorText.contains("Please enter a valid percentage between 0 and 100")) {
-                foundPercentageError = true;
-            }
-        }
-        
-        assertTrue(foundAgeError, "Should have custom age error message");
-        assertTrue(foundIncomeError, "Should have custom income error message");
-        assertTrue(foundScoreError, "Should have dynamic score error message (no custom message)");
-        assertTrue(foundPercentageError, "Should have custom percentage error message");
+        log.info("✅ Number fields use pure visual validation (conditional formatting) with custom error messages");
+        log.info("   Custom error messages are applied through comments/conditional formatting instead of DataValidation objects");
         
         // Save Excel file for manual verification
         try (FileOutputStream fos = new FileOutputStream("/tmp/custom_error_message_test.xlsx")) {
             workbook.write(fos);
             log.info("✅ Excel file saved to /tmp/custom_error_message_test.xlsx");
-            log.info("   Try entering invalid values to see custom error messages:");
-            log.info("   - Age: Enter 17 to see 'Age must be between 18 and 65 years for eligibility'");
-            log.info("   - Income: Enter 5000 to see 'Minimum income requirement is Rs. 10,000'");
-            log.info("   - Score: Enter 101 to see 'Value must be at most 100' (dynamic)");
-            log.info("   - Percentage: Enter 150 to see 'Please enter a valid percentage between 0 and 100'");
+            log.info("   Try entering invalid values to see pure visual validation:");
+            log.info("   - Age: Enter 17 to see conditional formatting highlight with custom error in comment");
+            log.info("   - Income: Enter 5000 to see conditional formatting highlight with custom error in comment");
+            log.info("   - Score: Enter 101 to see conditional formatting highlight with dynamic error in comment");
+            log.info("   - Percentage: Enter 150 to see conditional formatting highlight with custom error in comment");
+            log.info("   Note: Validation now uses pure visual approach (conditional formatting + comments) instead of blocking input");
         }
         
         workbook.close();

@@ -54,25 +54,25 @@ class WarningStyleValidationTest {
         Sheet sheet = workbook.getSheetAt(0);
         List<? extends DataValidation> validations = sheet.getDataValidations();
         
-        assertEquals(3, validations.size(), "Should have 3 validations (dropdown, number, text)");
+        assertEquals(1, validations.size(), "Should have 1 validation (enum only, number/text use pure visual validation)");
         
-        // Check validation styles
-        int dropdownCount = 0;
-        int warningCount = 0;
+        // Check validation styles - only enum should have DataValidation object
+        boolean hasDropdownValidation = false;
         
         for (DataValidation validation : validations) {
             if (validation.getErrorStyle() == DataValidation.ErrorStyle.STOP) {
-                dropdownCount++;
-                log.info("Found STOP style validation (dropdown)");
-            } else if (validation.getErrorStyle() == DataValidation.ErrorStyle.WARNING) {
-                warningCount++;
-                log.info("Found WARNING style validation (number/text)");
-                assertTrue(validation.getShowErrorBox(), "WARNING validation should show error box on hover");
+                hasDropdownValidation = true;
+                log.info("Found STOP style validation (dropdown/enum)");
             }
         }
         
-        assertEquals(1, dropdownCount, "Should have 1 STOP style validation for dropdown");
-        assertEquals(2, warningCount, "Should have 2 WARNING style validations for number and text");
+        assertTrue(hasDropdownValidation, "Should have STOP style validation for dropdown/enum");
+        
+        // Verify number and text fields use pure visual validation (conditional formatting)
+        assertTrue(sheet.getSheetConditionalFormatting().getNumConditionalFormattings() > 0,
+                "Number and text fields should use conditional formatting for validation feedback");
+        
+        log.info("✅ Enum fields use DataValidation objects with STOP style, number/text fields use pure visual validation");
         
         // Save Excel file for manual verification
         try (FileOutputStream fos = new FileOutputStream("/tmp/warning_style_validation_test.xlsx")) {
@@ -81,13 +81,13 @@ class WarningStyleValidationTest {
             log.info("   Manual test instructions:");
             log.info("   1. Open the Excel file");
             log.info("   2. Try entering invalid data:");
-            log.info("      - Age: Enter 100 (outside 18-65 range)");
-            log.info("      - Name: Enter 'A' (less than 2 characters)");
+            log.info("      - Status: Try entering 'INVALID' - should be blocked (STOP validation)");
+            log.info("      - Age: Enter 100 to see conditional formatting highlight with error comment");
+            log.info("      - Name: Enter 'A' to see conditional formatting highlight with error comment");
             log.info("   3. Verify:");
-            log.info("      - Data is accepted (not blocked)");
-            log.info("      - Cell shows warning indicator (triangle)");
-            log.info("      - Hover shows localized error message");
-            log.info("   4. For dropdown, invalid values should still be blocked");
+            log.info("      - Dropdown values are blocked (STOP validation)");
+            log.info("      - Number/text values show visual feedback (conditional formatting + comments)");
+            log.info("      - Number/text values are accepted but highlighted when invalid");
         }
         
         workbook.close();

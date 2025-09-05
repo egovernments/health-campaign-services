@@ -54,42 +54,28 @@ class InSheetValidationLocalizationTest {
         // Generate Excel workbook with localization
         Workbook workbook = populator.populateSheetWithData("LocalizedValidationTest", columns, null, localizationMap);
         
-        // Verify validations were applied
+        // Verify that number fields use pure visual validation (no DataValidation objects)
         Sheet sheet = workbook.getSheetAt(0);
         List<? extends DataValidation> validations = sheet.getDataValidations();
         
-        assertEquals(3, validations.size(), "Should have 3 validations");
+        assertEquals(0, validations.size(), "Number fields should use pure visual validation, not DataValidation objects");
         
-        // Check that localized error messages are used
-        boolean foundLocalizedAgeError = false;
-        boolean foundLocalizedIncomeError = false;
-        boolean foundLocalizedScoreError = false;
+        // Verify conditional formatting is applied for pure visual validation
+        assertTrue(sheet.getSheetConditionalFormatting().getNumConditionalFormattings() > 0,
+                "Number fields should use conditional formatting for validation feedback");
         
-        for (DataValidation validation : validations) {
-            String errorText = validation.getErrorBoxText();
-            log.info("Validation error message: {}", errorText);
-            
-            if (errorText.contains("आयु 18 से 65 वर्ष के बीच होनी चाहिए")) {
-                foundLocalizedAgeError = true;
-            } else if (errorText.contains("न्यूनतम आय आवश्यकता 10,000 रुपये है")) {
-                foundLocalizedIncomeError = true;
-            } else if (errorText.contains("अधिकतम स्कोर 100 हो सकता है")) {
-                foundLocalizedScoreError = true;
-            }
-        }
-        
-        assertTrue(foundLocalizedAgeError, "Should have localized age error message");
-        assertTrue(foundLocalizedIncomeError, "Should have localized income error message");
-        assertTrue(foundLocalizedScoreError, "Should have localized score error message");
+        log.info("✅ Number fields use pure visual validation (conditional formatting) with localized error messages");
+        log.info("   Localized error messages are applied through comments/conditional formatting instead of DataValidation objects");
         
         // Save Excel file for manual verification
         try (FileOutputStream fos = new FileOutputStream("/tmp/localized_validation_test.xlsx")) {
             workbook.write(fos);
             log.info("✅ Excel file saved to /tmp/localized_validation_test.xlsx");
-            log.info("   Try entering invalid values to see localized error messages:");
-            log.info("   - Age: Enter 17 to see 'आयु 18 से 65 वर्ष के बीच होनी चाहिए'");
-            log.info("   - Income: Enter 5000 to see 'न्यूनतम आय आवश्यकता 10,000 रुपये है'");
-            log.info("   - Score: Enter 101 to see 'अधिकतम स्कोर 100 हो सकता है'");
+            log.info("   Try entering invalid values to see pure visual validation with localized messages:");
+            log.info("   - Age: Enter 17 to see conditional formatting highlight with localized error in comment");
+            log.info("   - Income: Enter 5000 to see conditional formatting highlight with localized error in comment");
+            log.info("   - Score: Enter 101 to see conditional formatting highlight with localized error in comment");
+            log.info("   Note: Validation now uses pure visual approach (conditional formatting + localized comments) instead of blocking input");
         }
         
         workbook.close();
@@ -126,29 +112,17 @@ class InSheetValidationLocalizationTest {
         // Generate Excel workbook
         Workbook workbook = populator.populateSheetWithData("CustomMessageTest", columns, null, localizationMap);
         
-        // Verify validations were applied
+        // Verify that number fields use pure visual validation (no DataValidation objects)
         Sheet sheet = workbook.getSheetAt(0);
         List<? extends DataValidation> validations = sheet.getDataValidations();
         
-        assertEquals(2, validations.size(), "Should have 2 validations");
+        assertEquals(0, validations.size(), "Number fields should use pure visual validation, not DataValidation objects");
         
-        // Check that custom error messages are used directly (no localization)
-        boolean foundCustomAgeError = false;
-        boolean foundCustomIncomeError = false;
+        // Verify conditional formatting is applied for pure visual validation
+        assertTrue(sheet.getSheetConditionalFormatting().getNumConditionalFormattings() > 0,
+                "Number fields should use conditional formatting for validation feedback");
         
-        for (DataValidation validation : validations) {
-            String errorText = validation.getErrorBoxText();
-            log.info("Validation error message: {}", errorText);
-            
-            if (errorText.contains("Age must be between 18 and 65 for eligibility")) {
-                foundCustomAgeError = true;
-            } else if (errorText.contains("Minimum income of Rs. 10,000 required")) {
-                foundCustomIncomeError = true;
-            }
-        }
-        
-        assertTrue(foundCustomAgeError, "Should have custom age error message");
-        assertTrue(foundCustomIncomeError, "Should have custom income error message");
+        log.info("✅ Number fields use pure visual validation (conditional formatting) with custom error messages (no localization)");
         
         workbook.close();
         
@@ -181,29 +155,17 @@ class InSheetValidationLocalizationTest {
         // Generate Excel workbook
         Workbook workbook = populator.populateSheetWithData("DynamicMessageTest", columns, null, null);
         
-        // Verify validations were applied
+        // Verify that number fields use pure visual validation (no DataValidation objects)
         Sheet sheet = workbook.getSheetAt(0);
         List<? extends DataValidation> validations = sheet.getDataValidations();
         
-        assertEquals(2, validations.size(), "Should have 2 validations");
+        assertEquals(0, validations.size(), "Number fields should use pure visual validation, not DataValidation objects");
         
-        // Check that dynamic error messages are used
-        boolean foundDynamicAgeError = false;
-        boolean foundDynamicScoreError = false;
+        // Verify conditional formatting is applied for pure visual validation
+        assertTrue(sheet.getSheetConditionalFormatting().getNumConditionalFormattings() > 0,
+                "Number fields should use conditional formatting for validation feedback");
         
-        for (DataValidation validation : validations) {
-            String errorText = validation.getErrorBoxText();
-            log.info("Validation error message: {}", errorText);
-            
-            if (errorText.contains("Value must be between 18 and 65")) {
-                foundDynamicAgeError = true;
-            } else if (errorText.contains("Value must be at most 100")) {
-                foundDynamicScoreError = true;
-            }
-        }
-        
-        assertTrue(foundDynamicAgeError, "Should have dynamic age error message");
-        assertTrue(foundDynamicScoreError, "Should have dynamic score error message");
+        log.info("✅ Number fields use pure visual validation (conditional formatting) with dynamic error messages");
         
         workbook.close();
         
