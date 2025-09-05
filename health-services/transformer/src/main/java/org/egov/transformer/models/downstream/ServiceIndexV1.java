@@ -19,7 +19,7 @@ import java.util.Map;
 @NoArgsConstructor
 @Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class ServiceIndexV1 {
+public class ServiceIndexV1 extends ProjectInfo {
     @JsonProperty("id")
     private String id;
     @JsonProperty("createdTime")
@@ -30,8 +30,6 @@ public class ServiceIndexV1 {
     private String supervisorLevel;
     @JsonProperty("checklistName")
     private String checklistName;
-    @JsonProperty("projectId")
-    private String projectId;
     @JsonProperty("serviceDefinitionId")
     private String serviceDefinitionId;
     @JsonProperty("userName")
@@ -44,6 +42,8 @@ public class ServiceIndexV1 {
     private String userAddress;
     @JsonProperty("boundaryHierarchy")
     private Map<String, String> boundaryHierarchy;
+    @JsonProperty("boundaryHierarchyCode")
+    private Map<String, String> boundaryHierarchyCode;
     @JsonProperty("tenantId")
     private String tenantId;
     @JsonProperty("userId")
@@ -60,4 +60,6 @@ public class ServiceIndexV1 {
     private String taskDates;
     @JsonProperty("additionalDetails")
     private ObjectNode additionalDetails;
+    @JsonProperty("geoPoint")
+    private List<Double> geoPoint;
 }

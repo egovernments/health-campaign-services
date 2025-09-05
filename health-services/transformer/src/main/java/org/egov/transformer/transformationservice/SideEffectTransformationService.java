@@ -6,6 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.project.*;
 import org.egov.common.models.referralmanagement.sideeffect.SideEffect;
 import org.egov.transformer.config.TransformerProperties;
+import org.egov.transformer.models.boundary.BoundaryHierarchyResult;
 import org.egov.transformer.models.downstream.SideEffectsIndexV1;
 import org.egov.transformer.producer.Producer;
 import org.egov.transformer.service.*;
@@ -29,9 +30,10 @@ public class SideEffectTransformationService {
     private final ObjectMapper objectMapper;
     private final SideEffectService sideEffectService;
     private final IndividualService individualService;
+    private final BoundaryService boundaryService;
     private static final List<String> TASK_ADDITIONAL_FIELDS_TO_PICK = new ArrayList<>(Arrays.asList(CYCLE_INDEX));
 
-    public SideEffectTransformationService(TransformerProperties transformerProperties, Producer producer, ProjectService projectService, UserService userService, CommonUtils commonUtils, ObjectMapper objectMapper, SideEffectService sideEffectService, IndividualService individualService) {
+    public SideEffectTransformationService(TransformerProperties transformerProperties, Producer producer, ProjectService projectService, UserService userService, CommonUtils commonUtils, ObjectMapper objectMapper, SideEffectService sideEffectService, IndividualService individualService, BoundaryService boundaryService) {
 
         this.transformerProperties = transformerProperties;
         this.producer = producer;
@@ -41,6 +43,7 @@ public class SideEffectTransformationService {
         this.objectMapper = objectMapper;
         this.sideEffectService = sideEffectService;
         this.individualService = individualService;
+        this.boundaryService = boundaryService;
     }
 
     public void transform(List<SideEffect> sideEffectsList) {
@@ -69,6 +72,7 @@ public class SideEffectTransformationService {
         String localityCode = null;
         Map<String, Object> individualDetails = new HashMap<>();
         Map<String, String> boundaryHierarchy = new HashMap<>();
+        Map<String, String> boundaryHierarchyCode = new HashMap<>();
         List<Task> taskList = sideEffectService.getTaskFromTaskClientReferenceId(sideEffect.getTaskClientReferenceId(), tenantId);
 
         if (!CollectionUtils.isEmpty(taskList)) {
@@ -78,8 +82,10 @@ public class SideEffectTransformationService {
                     task.getAddress().getLocality().getCode() != null) ?
                     task.getAddress().getLocality().getCode() :
                     null;
-            boundaryHierarchy = localityCode != null ? projectService.getBoundaryHierarchyWithLocalityCode(localityCode, tenantId) :
-                    projectService.getBoundaryHierarchyWithProjectId(task.getProjectId(), tenantId);
+            BoundaryHierarchyResult boundaryHierarchyResult = localityCode != null ? boundaryService.getBoundaryHierarchyWithLocalityCode(localityCode, tenantId) :
+                    boundaryService.getBoundaryHierarchyWithProjectId(task.getProjectId(), tenantId);
+            boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
+            boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
             List<ProjectBeneficiary> projectBeneficiaries = projectService
                     .searchBeneficiary(task.getProjectBeneficiaryClientReferenceId(), tenantId);
 
@@ -98,6 +104,7 @@ public class SideEffectTransformationService {
         SideEffectsIndexV1 sideEffectsIndexV1 = SideEffectsIndexV1.builder()
                 .sideEffect(sideEffect)
                 .boundaryHierarchy(boundaryHierarchy)
+                .boundaryHierarchyCode(boundaryHierarchyCode)
                 .localityCode(localityCode)
                 .dateOfBirth(individualDetails.containsKey(DATE_OF_BIRTH) ? (Long) individualDetails.get(DATE_OF_BIRTH) : null)
                 .age(individualDetails.containsKey(AGE) ? (Integer) individualDetails.get(AGE) : null)
@@ -112,6 +119,9 @@ public class SideEffectTransformationService {
                 .syncedDate(commonUtils.getDateFromEpoch(sideEffect.getAuditDetails().getLastModifiedTime()))
                 .additionalDetails(additionalDetails)
                 .build();
+        commonUtils.addProjectDetailsForUserIdAndTenantId(sideEffectsIndexV1,
+                sideEffect.getClientAuditDetails().getLastModifiedBy(),
+                sideEffect.getTenantId());
         return sideEffectsIndexV1;
     }
 

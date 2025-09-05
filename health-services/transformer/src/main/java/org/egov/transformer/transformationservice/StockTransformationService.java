@@ -1,26 +1,31 @@
 package org.egov.transformer.transformationservice;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.ObjectUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.egov.common.models.facility.Facility;
+import org.egov.common.models.project.ProjectStaff;
+import org.egov.common.models.stock.AdditionalFields;
 import org.egov.common.models.project.Project;
+import org.egov.common.models.stock.ReferenceIdType;
 import org.egov.common.models.stock.Stock;
 import org.egov.transformer.config.TransformerProperties;
+import org.egov.transformer.models.boundary.BoundaryHierarchyResult;
 import org.egov.transformer.models.downstream.StockIndexV1;
 import org.egov.transformer.producer.Producer;
-import org.egov.transformer.service.FacilityService;
-import org.egov.transformer.service.ProductService;
-import org.egov.transformer.service.ProjectService;
-import org.egov.transformer.service.UserService;
+import org.egov.transformer.service.*;
 import org.egov.transformer.utils.CommonUtils;
 import org.springframework.stereotype.Component;
-import org.egov.common.models.stock.TransactionType;
+import org.springframework.util.CollectionUtils;
 
 import java.util.*;
 import java.util.stream.Collectors;
 
 import static org.egov.transformer.Constants.*;
+import static org.egov.transformer.Constants.STAFF;
 
 @Slf4j
 @Component
@@ -32,9 +37,12 @@ public class StockTransformationService {
     private final ProjectService projectService;
     private final UserService userService;
     private final ObjectMapper objectMapper;
+    private final BoundaryService boundaryService;
     private final ProductService productService;
+    private final ProjectFactoryService projectFactoryService;
+    private static final Set<String> ADDITIONAL_DETAILS_DOUBLE_FIELDS = new HashSet<>(Arrays.asList(LAT, LNG));
 
-    public StockTransformationService(Producer producer, FacilityService facilityService, TransformerProperties transformerProperties, CommonUtils commonUtils, ProjectService projectService, UserService userService, ObjectMapper objectMapper, ProductService productService) {
+    public StockTransformationService(Producer producer, FacilityService facilityService, TransformerProperties transformerProperties, CommonUtils commonUtils, ProjectService projectService, UserService userService, ObjectMapper objectMapper, ProductService productService, BoundaryService boundaryService, ProjectFactoryService projectFactoryService) {
         this.producer = producer;
         this.facilityService = facilityService;
         this.transformerProperties = transformerProperties;
@@ -42,7 +50,9 @@ public class StockTransformationService {
         this.projectService = projectService;
         this.userService = userService;
         this.objectMapper = objectMapper;
+        this.boundaryService = boundaryService;
         this.productService = productService;
+        this.projectFactoryService = projectFactoryService;
     }
 
     public void transform(List<Stock> stocksList) {
@@ -60,45 +70,75 @@ public class StockTransformationService {
 
     private StockIndexV1 transform(Stock stock) {
         Map<String, String> boundaryHierarchy = new HashMap<>();
+        Map<String, String> boundaryHierarchyCode = new HashMap<>();
 
-        String transactingFacilityType = stock.getSenderType().toString();
-        String facilityType = stock.getReceiverType().toString();
-
+        String transactingFacilityType = getTransactingFacilityType(stock), facilityType = getFacilityType(stock);
+        String facilityId = getFacilityId(stock), transactingFacilityId = getTransactingFacilityId(stock);
+        String facilityLevel = null, transactingFacilityLevel = null;
+        Long facilityTarget = null;
+        String facilityName, transactingFacilityName;
         String tenantId = stock.getTenantId();
         String projectId = stock.getReferenceId();
         Project project = projectService.getProject(projectId, tenantId);
         String projectTypeId = project.getProjectTypeId();
 
-        String facilityId = fetchFacilityId(stock.getReceiverId(), stock.getSenderId(), stock.getTransactionType());
-        String transactingFacilityId = fetchTransactingFacilityId(stock.getReceiverId(), stock.getSenderId(), stock.getTransactionType());
-
-
-        Facility facility = facilityService.findFacilityById(facilityId, stock.getTenantId());
-        Facility transactingFacility = facilityService.findFacilityById(transactingFacilityId, stock.getTenantId());
-        if (facility != null && facility.getAddress() != null && facility.getAddress().getLocality() != null
-                && facility.getAddress().getLocality().getCode() != null) {
-            boundaryHierarchy = projectService.getBoundaryHierarchyWithLocalityCode(facility.getAddress().getLocality().getCode(), tenantId);
-        } else if (stock.getReferenceIdType().equals(PROJECT)) {
-            boundaryHierarchy = projectService.getBoundaryHierarchyWithProjectId(stock.getReferenceId(), tenantId);
+        if (!STAFF.equalsIgnoreCase(facilityType)) {
+            Facility facility = facilityService.findFacilityById(facilityId, stock.getTenantId());
+            if (facility != null && facility.getAddress() != null && facility.getAddress().getLocality() != null
+                    && facility.getAddress().getLocality().getCode() != null) {
+                BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(facility.getAddress().getLocality().getCode(), tenantId);
+                boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
+                boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
+            } else if (ReferenceIdType.PROJECT.equals(stock.getReferenceIdType())) {
+                BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithProjectId(stock.getReferenceId(), tenantId);
+                boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
+                boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
+            }
+            facilityLevel = facility != null ? facilityService.getFacilityLevel(facility) : null;
+            facilityType = facility != null ? facilityService.getType(facilityType, facility) : facilityType;
+            facilityTarget = facility != null ? facilityService.getFacilityTarget(facility) : null;
+            facilityName = facility != null ? facility.getName() : facilityId;
+        } else {
+            facilityName = userService.getUserInfo(tenantId, facilityId).get(USERNAME);
+            List<ProjectStaff> projectStaffList = projectService.searchProjectStaff(new ArrayList<>(Collections.singleton(facilityId)), tenantId);
+            if (projectStaffList != null) {
+                BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithProjectId(projectStaffList.get(0).getProjectId(), tenantId);
+                boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
+                boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
+            }
         }
 
-        String facilityLevel = facility != null ? facilityService.getFacilityLevel(facility) : null;
-        String transactingFacilityLevel = transactingFacility != null ? facilityService.getFacilityLevel(transactingFacility) : null;
-        Long facilityTarget = facility != null ? facilityService.getFacilityTarget(facility) : null;
+        if (!STAFF.equalsIgnoreCase(transactingFacilityType)) {
+            Facility transactingFacility = facilityService.findFacilityById(transactingFacilityId, stock.getTenantId());
+            transactingFacilityLevel = transactingFacility != null ? facilityService.getFacilityLevel(transactingFacility) : null;
+            transactingFacilityType = transactingFacility != null ? facilityService.getType(transactingFacilityType, transactingFacility) : transactingFacilityType;
+            transactingFacilityName = transactingFacility != null ? transactingFacility.getName() : transactingFacilityId;
 
-//        String facilityType = WAREHOUSE;
-//        String transactingFacilityType = WAREHOUSE;
+        } else {
+            transactingFacilityName = userService.getUserInfo(tenantId, transactingFacilityId).get(USERNAME);
+        }
 
-        facilityType = facility != null ? facilityService.getType(facilityType, facility) : facilityType;
-        transactingFacilityType = transactingFacility != null ? facilityService.getType(transactingFacilityType, transactingFacility) : transactingFacilityType;
-
+        if (boundaryHierarchy.isEmpty() && PROJECT.equalsIgnoreCase(stock.getReferenceIdType().toString())) {
+            boundaryHierarchy = projectService.getBoundaryHierarchyWithProjectId(stock.getReferenceId(), tenantId);
+        }
         String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(stock.getAuditDetails().getLastModifiedTime());
         List<String> variantList = new ArrayList<>(Collections.singleton(stock.getProductVariantId()));
         String productName = String.join(COMMA, productService.getProductVariantNames(variantList, tenantId));
         Map<String, String> userInfoMap = userService.getUserInfo(stock.getTenantId(), stock.getClientAuditDetails().getCreatedBy());
-        Integer cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectTypeId, stock.getAuditDetails());
+        String cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectId, stock.getAuditDetails());
         ObjectNode additionalDetails = objectMapper.createObjectNode();
         additionalDetails.put(CYCLE_INDEX, cycleIndex);
+
+        if (ObjectUtils.isNotEmpty(stock.getAdditionalFields()) && !CollectionUtils.isEmpty(stock.getAdditionalFields().getFields())) {
+            addAdditionalDetails(stock.getAdditionalFields(), additionalDetails);
+        }
+
+        String campaignId = null;
+        if (ObjectUtils.isNotEmpty(project) && StringUtils.isNotBlank(project.getReferenceID())) {
+            campaignId = projectFactoryService.getCampaignIdFromCampaignNumber(
+                    project.getTenantId(), true, project.getReferenceID()
+            );
+        }
 
         StockIndexV1 stockIndexV1 = StockIndexV1.builder()
                 .id(stock.getId())
@@ -107,12 +147,12 @@ public class StockTransformationService {
                 .productVariant(stock.getProductVariantId())
                 .productName(productName)
                 .facilityId(facilityId)
-                .facilityName(facility != null ? facility.getName() : facilityId)
+                .facilityName(facilityName)
                 .facilityType(facilityType)
                 .facilityLevel(facilityLevel)
                 .facilityTarget(facilityTarget)
                 .transactingFacilityId(transactingFacilityId)
-                .transactingFacilityName(transactingFacility != null ? transactingFacility.getName() : transactingFacilityId)
+                .transactingFacilityName(transactingFacilityName)
                 .transactingFacilityType(transactingFacilityType)
                 .transactingFacilityLevel(transactingFacilityLevel)
                 .userName(userInfoMap.get(USERNAME))
@@ -135,19 +175,52 @@ public class StockTransformationService {
                 .syncedDate(commonUtils.getDateFromEpoch(stock.getAuditDetails().getLastModifiedTime()))
                 .waybillNumber(stock.getWayBillNumber())
                 .boundaryHierarchy(boundaryHierarchy)
+                .boundaryHierarchyCode(boundaryHierarchyCode)
                 .additionalDetails(additionalDetails)
                 .build();
+        stockIndexV1.setProjectInfo(projectId, project.getProjectType(), projectTypeId, project.getName());
+        stockIndexV1.setCampaignNumber(project.getReferenceID());
+        stockIndexV1.setCampaignId(campaignId);
         return stockIndexV1;
     }
 
-    private String fetchFacilityId(String receiverId, String senderId, TransactionType transactionType) {
-        if (RECEIVED.equalsIgnoreCase(transactionType.toString())) {
-            return receiverId;
-        } else return senderId;
+    private String getFacilityId(Stock stock) {
+        return RECEIVED.equalsIgnoreCase(stock.getTransactionType().toString()) ?
+                stock.getReceiverId() :
+                stock.getSenderId();
     }
-    private String fetchTransactingFacilityId(String receiverId, String senderId, TransactionType transactionType) {
-        if (RECEIVED.equalsIgnoreCase(transactionType.toString())) {
-            return senderId;
-        } else return receiverId;
+
+    private String getTransactingFacilityId(Stock stock) {
+        return RECEIVED.equalsIgnoreCase(stock.getTransactionType().toString()) ?
+                stock.getSenderId() :
+                stock.getReceiverId();
+    }
+
+    private String getFacilityType(Stock stock) {
+        return RECEIVED.equalsIgnoreCase(stock.getTransactionType().toString()) ?
+                stock.getReceiverType().toString() :
+                stock.getSenderType().toString();
+    }
+
+    private String getTransactingFacilityType(Stock stock) {
+        return RECEIVED.equalsIgnoreCase(stock.getTransactionType().toString()) ?
+                stock.getSenderType().toString() :
+                stock.getReceiverType().toString();
+    }
+    private void addAdditionalDetails(AdditionalFields additionalFields, ObjectNode additionalDetails) {
+        additionalFields.getFields().forEach(field -> {
+            String key = field.getKey();
+            String value = field.getValue();
+            if (ADDITIONAL_DETAILS_DOUBLE_FIELDS.contains(key)) {
+                try {
+                    additionalDetails.put(key, Double.valueOf(value));
+                } catch (NumberFormatException e) {
+                    log.warn("Invalid number format for key '{}': value '{}'. Storing as null.", key, value);
+                    additionalDetails.put(key, (JsonNode) null);
+                }
+            } else {
+                additionalDetails.put(key, value);
+            }
+        });
     }
 }

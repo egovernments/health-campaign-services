@@ -6,9 +6,11 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import digit.models.coremodels.AuditDetails;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ObjectUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.egov.common.models.household.Household;
 import org.egov.common.models.project.*;
 import org.egov.transformer.config.TransformerProperties;
+import org.egov.transformer.models.boundary.BoundaryHierarchyResult;
 import org.egov.transformer.models.downstream.ProjectTaskIndexV1;
 import org.egov.transformer.producer.Producer;
 import org.egov.transformer.service.*;
@@ -33,10 +35,18 @@ public class ProjectTaskTransformationService {
     private final IndividualService individualService;
     private final HouseholdService householdService;
     private final UserService userService;
+    private final BoundaryService boundaryService;
+    private final ProjectFactoryService projectFactoryService;
     private static final Set<String> ADDITIONAL_DETAILS_DOUBLE_FIELDS = new HashSet<>(Arrays.asList(QUANTITY_WASTED));
+    private static final Set<String> ADDITIONAL_DETAILS_INTEGER_FIELDS = new HashSet<>(Arrays.asList(NO_OF_ROOMS_SPRAYED_KEY));
+    private static final Map<String, Class<?>> campaignSpecificFieldsTypeMap = new HashMap<>();
+    static {
+        campaignSpecificFieldsTypeMap.put(AGE, Integer.class);
+        campaignSpecificFieldsTypeMap.put(GENDER, String.class);
+    }
 
 
-    public ProjectTaskTransformationService(TransformerProperties transformerProperties, Producer producer, ObjectMapper objectMapper, CommonUtils commonUtils, ProjectService projectService, ProductService productService, IndividualService individualService, HouseholdService householdService, UserService userService) {
+    public ProjectTaskTransformationService(TransformerProperties transformerProperties, Producer producer, ObjectMapper objectMapper, CommonUtils commonUtils, ProjectService projectService, ProductService productService, IndividualService individualService, HouseholdService householdService, UserService userService, BoundaryService boundaryService, ProjectFactoryService projectFactoryService) {
         this.transformerProperties = transformerProperties;
         this.producer = producer;
         this.objectMapper = objectMapper;
@@ -46,6 +56,8 @@ public class ProjectTaskTransformationService {
         this.individualService = individualService;
         this.householdService = householdService;
         this.userService = userService;
+        this.boundaryService = boundaryService;
+        this.projectFactoryService = projectFactoryService;
     }
 
     public void transform(List<Task> taskList) {
@@ -65,18 +77,22 @@ public class ProjectTaskTransformationService {
     public List<ProjectTaskIndexV1> transform(Task task) {
 
         Map<String, String> boundaryHierarchy;
+        Map<String, String> boundaryHierarchyCode;
         String tenantId = task.getTenantId();
         String localityCode;
         if (task.getAddress() != null && task.getAddress().getLocality() != null && task.getAddress().getLocality().getCode() != null) {
             localityCode = task.getAddress().getLocality().getCode();
-            boundaryHierarchy = projectService.getBoundaryHierarchyWithLocalityCode(localityCode, task.getTenantId());
+            BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(localityCode, task.getTenantId());
+            boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
+            boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
         } else {
             localityCode = null;
-            boundaryHierarchy = projectService.getBoundaryHierarchyWithProjectId(task.getProjectId(), tenantId);
+            BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithProjectId(task.getProjectId(), tenantId);
+            boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
+            boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
         }
         Project project = projectService.getProject(task.getProjectId(), tenantId);
         String projectTypeId = project.getProjectTypeId();
-        String projectType = project.getProjectType();
 
         String projectBeneficiaryClientReferenceId = task.getProjectBeneficiaryClientReferenceId();
         String projectBeneficiaryType = projectService.getProjectBeneficiaryType(task.getTenantId(), projectTypeId);
@@ -85,16 +101,23 @@ public class ProjectTaskTransformationService {
         Task constructedTask = constructTaskResourceIfNull(task);
         Map<String, String> userInfoMap = userService.getUserInfo(task.getTenantId(), task.getClientAuditDetails().getCreatedBy());
         return constructedTask.getResources().stream().map(r ->
-                transformTaskToProjectTaskIndex(r, task, boundaryHierarchy, tenantId, beneficiaryInfo, projectBeneficiaryType, projectTypeId, projectType, userInfoMap, localityCode)
+                transformTaskToProjectTaskIndex(r, task, boundaryHierarchy, boundaryHierarchyCode, tenantId, beneficiaryInfo, projectBeneficiaryType, userInfoMap, localityCode, project)
         ).collect(Collectors.toList());
     }
 
-    private ProjectTaskIndexV1 transformTaskToProjectTaskIndex(TaskResource taskResource, Task task, Map<String, String> boundaryHierarchy, String tenantId,
-                                                               Map<String, Object> beneficiaryInfo, String projectBeneficiaryType, String projectTypeId, String projectType,
-                                                               Map<String, String> userInfoMap, String localityCode) {
+    private ProjectTaskIndexV1 transformTaskToProjectTaskIndex(TaskResource taskResource, Task task, Map<String, String> boundaryHierarchy, Map<String, String> boundaryHierarchyCode, String tenantId,
+                                                               Map<String, Object> beneficiaryInfo, String projectBeneficiaryType,
+                                                               Map<String, String> userInfoMap, String localityCode, Project project) {
         String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(task.getAuditDetails().getCreatedTime());
         List<String> variantList = new ArrayList<>(Collections.singleton(taskResource.getProductVariantId()));
         String productName = String.join(COMMA, productService.getProductVariantNames(variantList, tenantId));
+        String projectTypeId = project.getProjectTypeId();
+        String campaignId = null;
+        if (ObjectUtils.isNotEmpty(project) && StringUtils.isNotBlank(project.getReferenceID())) {
+            campaignId = projectFactoryService.getCampaignIdFromCampaignNumber(
+                    project.getTenantId(), true, project.getReferenceID()
+            );
+        }
 
         ProjectTaskIndexV1 projectTaskIndexV1 = ProjectTaskIndexV1.builder()
                 .id(taskResource.getId())
@@ -105,7 +128,6 @@ public class ProjectTaskTransformationService {
                 .taskType("DELIVERY")
                 .status(task.getStatus())
                 .localityCode(localityCode)
-                .projectId(task.getProjectId())
                 .userName(userInfoMap.get(USERNAME))
                 .nameOfUser(userInfoMap.get(NAME))
                 .role(userInfoMap.get(ROLE))
@@ -131,22 +153,23 @@ public class ProjectTaskTransformationService {
                 .geoPoint(commonUtils.getGeoPoint(task.getAddress()))
                 .administrationStatus(task.getStatus())
                 .boundaryHierarchy(boundaryHierarchy)
-                .projectType(projectType)
-                .projectTypeId(projectTypeId)
+                .boundaryHierarchyCode(boundaryHierarchyCode)
                 .householdId(beneficiaryInfo.containsKey(HOUSEHOLD_ID) ? (String) beneficiaryInfo.get(HOUSEHOLD_ID) : null)
                 .memberCount(beneficiaryInfo.containsKey(MEMBER_COUNT) ? (Integer) beneficiaryInfo.get(MEMBER_COUNT) : null)
                 .dateOfBirth(beneficiaryInfo.containsKey(DATE_OF_BIRTH) ? (Long) beneficiaryInfo.get(DATE_OF_BIRTH) : null)
-                .age(beneficiaryInfo.containsKey(AGE) ? (Integer) beneficiaryInfo.get(AGE) : null)
-                .gender(beneficiaryInfo.containsKey(GENDER) ? (String) beneficiaryInfo.get(GENDER) : null)
                 .individualId(beneficiaryInfo.containsKey(INDIVIDUAL_ID) ? (String) beneficiaryInfo.get(INDIVIDUAL_ID) : null)
                 .build();
+        projectTaskIndexV1.setProjectInfo(task.getId(), project.getProjectType(), projectTypeId, project.getName());
+        projectTaskIndexV1.setCampaignNumber(project.getReferenceID());
+        projectTaskIndexV1.setCampaignId(campaignId);
 
         //adding to additional details  from additionalFields in task and task resource
         ObjectNode additionalDetails = objectMapper.createObjectNode();
         if (task.getAdditionalFields() != null) {
             addAdditionalDetails(task.getAdditionalFields(), additionalDetails);
-            addCycleIndex(additionalDetails, task.getAuditDetails(), tenantId, projectTypeId);
+            addCycleIndex(additionalDetails, task.getAuditDetails(), tenantId, project.getId());
         }
+        enrichWithCampaignSpecificFields(additionalDetails, beneficiaryInfo);
         // TODO below code is commented because the additionalFields is removed from taskResource but his has to be added back
 //        if (taskResource.getAdditionalFields() != null) {
 //            addAdditionalDetails(taskResource.getAdditionalFields(), additionalDetails);
@@ -190,6 +213,13 @@ public class ProjectTaskTransformationService {
                     additionalDetails.put(key, (JsonNode) null);
                 }
 
+            } else if (ADDITIONAL_DETAILS_INTEGER_FIELDS.contains(key)) {
+                try {
+                    additionalDetails.put(key, Integer.valueOf(value));
+                } catch (NumberFormatException e) {
+                    log.warn("Invalid number format for key '{}': value '{}'. Storing as null.", key, value);
+                    additionalDetails.put(key, (JsonNode) null);
+                }
             } else {
                 additionalDetails.put(key, value);
             }
@@ -197,9 +227,9 @@ public class ProjectTaskTransformationService {
     }
 
     //This cycleIndex logic has to be changed if we send all required additionalDetails from app
-    private void addCycleIndex(ObjectNode additionalDetails, AuditDetails auditDetails, String tenantId, String projectTypeId) {
+    private void addCycleIndex(ObjectNode additionalDetails, AuditDetails auditDetails, String tenantId, String projectId) {
         if (!additionalDetails.has(CYCLE_INDEX)) {
-            Integer cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectTypeId, auditDetails);
+            String cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectId, auditDetails);
             additionalDetails.put(CYCLE_INDEX, cycleIndex);
         }
     }
@@ -276,5 +306,36 @@ public class ProjectTaskTransformationService {
             projectBenfInfoMap = individualService.getIndividualInfo(beneficiaryClientRefId, tenantId);
         }
         return projectBenfInfoMap;
+    }
+
+    private void enrichWithCampaignSpecificFields(ObjectNode additionalDetails, Map<String, Object> beneficiaryInfo){
+        for (Map.Entry<String, Object> entry : beneficiaryInfo.entrySet()) {
+            String key = entry.getKey();
+            Object value = entry.getValue();
+
+            if (campaignSpecificFieldsTypeMap.containsKey(key)) {
+                putValueBasedOnType(additionalDetails, key, value, campaignSpecificFieldsTypeMap.get(key));
+            }
+        }
+    }
+
+    private void putValueBasedOnType(ObjectNode additionalDetails, String key, Object value, Class<?> type) {
+        if (value == null) {
+            additionalDetails.putNull(key);
+            return;
+        }
+        if (type == Integer.class) {
+            additionalDetails.put(key, Integer.parseInt(value.toString()));
+        } else if (type == Long.class) {
+            additionalDetails.put(key, Long.parseLong(value.toString()));
+        } else if (type == Double.class) {
+            additionalDetails.put(key, Double.parseDouble(value.toString()));
+        } else if (type == Boolean.class) {
+            additionalDetails.put(key, Boolean.parseBoolean(value.toString()));
+        } else if (type == String.class) {
+            additionalDetails.put(key, value.toString());
+        } else {
+            additionalDetails.putPOJO(key, value);
+        }
     }
 }

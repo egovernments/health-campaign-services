@@ -14,6 +14,8 @@ import digit.models.coremodels.mdms.MdmsCriteria;
 import digit.models.coremodels.mdms.MdmsCriteriaReq;
 import digit.models.coremodels.mdms.ModuleDetail;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.ObjectUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.contract.request.User;
@@ -79,6 +81,7 @@ public class ProjectService {
         String locationCode = project.getAddress().getBoundary();
         return getBoundaryCodeToNameMap(locationCode, tenantId);
     }
+
 
     public Map<String, String> getBoundaryCodeToNameMap(String locationCode, String tenantId) {
         List<EnrichedBoundary> boundaries = new ArrayList<>();
@@ -363,25 +366,26 @@ public class ProjectService {
 
     }
 
-    public JsonNode fetchProjectTypes(String tenantId, String filter, String projectTypeId) {
-        List<JsonNode> projectTypes = new ArrayList<>();
-        RequestInfo requestInfo = RequestInfo.builder()
-                .userInfo(User.builder().uuid("transformer-uuid").build())
-                .build();
-        try {
-            JsonNode response = fetchMdmsResponse(requestInfo, tenantId, PROJECT_TYPES, transformerProperties.getMdmsModule(), filter);
-            projectTypes = convertToProjectTypeJsonNodeList(response);
-            JsonNode requiredProjectType = projectTypes.stream().filter(projectType -> projectType.get(Constants.ID).asText().equals(projectTypeId)).findFirst().get();
+
+    public JsonNode fetchProjectTypeFromProject(String tenantId, String projectId) {
+        JsonNode requiredProjectType = null;
+        if (StringUtils.isBlank(projectId)) {
             return requiredProjectType;
-        } catch (IOException e) {
-            throw new RuntimeException(e);
         }
+        Project project = getProject(projectId, tenantId);
+        if (ObjectUtils.isNotEmpty(project)) {
+            JsonNode additionalDetails = objectMapper.valueToTree(project.getAdditionalDetails());
+            if (additionalDetails != null && !additionalDetails.isEmpty() && additionalDetails.has(PROJECT_TYPE)) {
+                requiredProjectType = additionalDetails.get(PROJECT_TYPE);
+            }
+        }
+        return requiredProjectType;
     }
 
-    public JsonNode fetchProjectAdditionalDetails(String tenantId, String filter, String projectTypeId) {
+    public JsonNode fetchProjectAdditionalDetails(String tenantId, String projectId) {
 
         JsonNode additionalDetails = null;
-        JsonNode requiredProjectType = fetchProjectTypes(tenantId, filter, projectTypeId);
+        JsonNode requiredProjectType = fetchProjectTypeFromProject(tenantId, projectId);
         if (requiredProjectType.has(CYCLES) && !requiredProjectType.get(CYCLES).isEmpty()) {
             additionalDetails = extractProjectCycleAndDoseIndexes(requiredProjectType);
         }
@@ -413,7 +417,7 @@ public class ProjectService {
             result.set(CYCLE_INDEX, cycleIndex);
             return result;
         } catch (Exception e) {
-            log.info("Error while fetching cycle and dose indexes from MDMS: {}", ExceptionUtils.getStackTrace(e));
+            log.info("Error while extracting cycle and dose indexes from projectType: {}", ExceptionUtils.getStackTrace(e));
             return null;
         }
     }
@@ -446,36 +450,33 @@ public class ProjectService {
         mdmsCriteriaReq.setRequestInfo(requestInfo);
         return mdmsCriteriaReq;
     }
-    // TODO commented below code as staff model is changed and this search call is not being used as of now
-//    public ProjectStaff searchProjectStaff(String userId, String tenantId) {
-//
-//        ProjectStaffSearchRequest request = ProjectStaffSearchRequest.builder()
-//                .requestInfo(RequestInfo.builder()
-//                        .userInfo(User.builder()
-//                                .uuid("transformer-uuid")
-//                                .build())
-//                        .build())
-//                .projectStaff(ProjectStaffSearch.builder().staffId(userId).tenantId(tenantId).build())
-//                .build();
-//
-//        ProjectStaffBulkResponse response;
-//        try {
-//            StringBuilder uri = new StringBuilder();
-//            uri.append(transformerProperties.getProjectHost())
-//                    .append(transformerProperties.getProjectStaffSearchUrl())
-//                    .append("?limit=").append(transformerProperties.getSearchApiLimit())
-//                    .append("&offset=0")
-//                    .append("&tenantId=").append(tenantId);
-//            response = serviceRequestClient.fetchResult(uri,
-//                    request,
-//                    ProjectStaffBulkResponse.class);
-//        } catch (Exception e) {
-//            log.error("Error while fetching project staff list {}", ExceptionUtils.getStackTrace(e));
-//
-//            return null;
-//        }
-//        return !response.getProjectStaff().isEmpty() ? response.getProjectStaff().get(0) : null;
-//    }
+
+    public List<ProjectStaff> searchProjectStaff(List<String> userId, String tenantId) {
+        ProjectStaffSearchRequest request = ProjectStaffSearchRequest.builder()
+                .requestInfo(RequestInfo.builder()
+                        .userInfo(User.builder()
+                                .uuid("transformer-uuid")
+                                .build())
+                        .build())
+                .projectStaff(ProjectStaffSearch.builder().staffId(userId).tenantId(tenantId).build())
+                .build();
+
+        try {
+            StringBuilder uri = new StringBuilder();
+            uri.append(transformerProperties.getProjectHost())
+                    .append(transformerProperties.getProjectStaffSearchUrl())
+                    .append("?limit=").append(transformerProperties.getSearchApiLimit())
+                    .append("&offset=0")
+                    .append("&tenantId=").append(tenantId);
+            ProjectStaffBulkResponse response = serviceRequestClient.fetchResult(uri,
+                    request,
+                    ProjectStaffBulkResponse.class);
+            return !response.getProjectStaff().isEmpty() ? response.getProjectStaff() : null;
+        } catch (Exception e) {
+            log.error("Error while fetching project staff list {}", ExceptionUtils.getStackTrace(e));
+            return null;
+        }
+    }
 
     public Map<String, String> getBoundaryHierarchyWithLocalityCode(String localityCode, String tenantId) {
         if (localityCode == null) {
@@ -499,5 +500,6 @@ public class ProjectService {
         });
         return boundaryHierarchy;
     }
+
 
 }

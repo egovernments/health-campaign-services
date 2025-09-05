@@ -2,11 +2,15 @@ package org.egov.transformer.transformationservice;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.egov.common.models.project.Project;
 import org.egov.common.models.project.ProjectStaff;
 import org.egov.transformer.config.TransformerProperties;
+import org.egov.transformer.models.boundary.BoundaryHierarchyResult;
 import org.egov.transformer.models.downstream.ProjectStaffIndexV1;
 import org.egov.transformer.producer.Producer;
+import org.egov.transformer.service.BoundaryService;
+import org.egov.transformer.service.ProjectFactoryService;
 import org.egov.transformer.service.ProjectService;
 import org.egov.transformer.service.UserService;
 import org.egov.transformer.utils.CommonUtils;
@@ -27,13 +31,17 @@ public class ProjectStaffTransformationService {
     private final CommonUtils commonUtils;
     private final ProjectService projectService;
     private final UserService userService;
+    private final BoundaryService boundaryService;
+    private final ProjectFactoryService projectFactoryService;
 
-    public ProjectStaffTransformationService(TransformerProperties transformerProperties, Producer producer, CommonUtils commonUtils, ProjectService projectService, UserService userService) {
+    public ProjectStaffTransformationService(TransformerProperties transformerProperties, Producer producer, CommonUtils commonUtils, ProjectService projectService, UserService userService, BoundaryService boundaryService, ProjectFactoryService projectFactoryService) {
         this.transformerProperties = transformerProperties;
         this.producer = producer;
         this.commonUtils = commonUtils;
         this.projectService = projectService;
         this.userService = userService;
+        this.boundaryService = boundaryService;
+        this.projectFactoryService = projectFactoryService;
     }
 
     public void transform(List<ProjectStaff> projectStaffList) {
@@ -64,14 +72,17 @@ public class ProjectStaffTransformationService {
         } else {
             localityCode = null;
         }
-        Map<String, String> boundaryHierarchy = projectService.getBoundaryHierarchyWithProjectId(projectStaff.getProjectId(), tenantId);
+        String campaignId = null;
+        if (StringUtils.isNotBlank(project.getReferenceID())) {
+            campaignId = projectFactoryService.getCampaignIdFromCampaignNumber(
+                    project.getTenantId(), true, project.getReferenceID()
+            );
+        }
+        BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithProjectId(projectId, tenantId);
         Map<String, String> userInfoMap = userService.getUserInfo(projectStaff.getTenantId(), projectStaff.getUserId());
-        JsonNode additionalDetails = projectService.fetchProjectAdditionalDetails(tenantId, null, projectTypeId);
+        JsonNode additionalDetails = projectService.fetchProjectAdditionalDetails(tenantId, projectId);
         ProjectStaffIndexV1 projectStaffIndexV1 = ProjectStaffIndexV1.builder()
                 .id(projectStaff.getId())
-                .projectId(projectId)
-                .projectType(project.getProjectType())
-                .projectTypeId(projectTypeId)
                 .userId(projectStaff.getUserId())
                 .userName(userInfoMap.get(USERNAME))
                 .nameOfUser(userInfoMap.get(NAME))
@@ -81,10 +92,14 @@ public class ProjectStaffTransformationService {
                 .createdTime(projectStaff.getAuditDetails().getCreatedTime())
                 .createdBy(projectStaff.getAuditDetails().getCreatedBy())
                 .additionalDetails(additionalDetails)
-                .boundaryHierarchy(boundaryHierarchy)
+                .boundaryHierarchy(boundaryHierarchyResult.getBoundaryHierarchy())
+                .boundaryHierarchyCode(boundaryHierarchyResult.getBoundaryHierarchyCode())
                 .localityCode(localityCode)
                 .isDeleted(projectStaff.getIsDeleted())
                 .build();
+        projectStaffIndexV1.setProjectInfo(projectId, project.getProjectType(), projectTypeId, project.getName());
+        projectStaffIndexV1.setCampaignNumber(project.getReferenceID());
+        projectStaffIndexV1.setCampaignId(campaignId);
         return projectStaffIndexV1;
     }
 }
