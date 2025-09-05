@@ -20,6 +20,7 @@ Modified `ExcelDataPopulator.java`:
 4. **Made tooltip messages localizable** - Added localization support with keys:
    - `HCM_VALIDATION_LABEL` (default: "Validation")
    - `HCM_VALIDATION_HIGHLIGHT_MESSAGE` (default: "Invalid entries will be highlighted in rose/red color")
+   - `HCM_CONSOLE_TEAM` (default: "Console Team") - for comment author name
 5. **Preserved all other formatting** - Conditional formatting (rose red colors) remains unchanged
 
 ## Previous Work ✅

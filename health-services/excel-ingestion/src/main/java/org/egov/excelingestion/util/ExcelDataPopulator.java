@@ -1041,12 +1041,15 @@ public class ExcelDataPopulator {
                     // Get localized text for validation message components
                     String validationLabel = getLocalizedText("HCM_VALIDATION_LABEL", "Validation", localizationMap);
                     String highlightText = getLocalizedText("HCM_VALIDATION_HIGHLIGHT_MESSAGE", "Invalid entries will be highlighted in rose/red color", localizationMap);
+                    String authorName = getLocalizedText("HCM_CONSOLE_TEAM", "Console Team", localizationMap);
                     
                     // Build localized tooltip message
                     String tooltipMessage = validationLabel + ": " + errorMessage + "\n\n" + highlightText + ".";
                     RichTextString str = factory.createRichTextString(tooltipMessage);
                     comment.setString(str);
+                    comment.setAuthor(authorName); // Set localized author name
                     comment.setVisible(false); // Hidden by default, shows on hover
+                    
                     shownHeaderCell.setCellComment(comment);
                 }
             }
