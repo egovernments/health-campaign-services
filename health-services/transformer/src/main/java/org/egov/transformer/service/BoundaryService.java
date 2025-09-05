@@ -15,6 +15,7 @@ import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.tracer.model.CustomException;
 
 
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import java.util.*;
 
@@ -28,6 +29,9 @@ public class BoundaryService {
     private final ServiceRequestClient serviceRequestClient;
     private final MdmsService mdmsService;
     private final ProjectService projectService;
+    private static Map<String, String> boundaryCodeVsLocalizedName = new ConcurrentHashMap<>();
+
+    private static List<EnrichedBoundary> cachedEnrichedBoundaries = null;
 
     public BoundaryService(TransformerProperties transformerProperties, ServiceRequestClient serviceRequestClient, MdmsService mdmsService, ProjectService projectService) {
         this.transformerProperties = transformerProperties;
@@ -84,8 +88,60 @@ public class BoundaryService {
         return boundaryHierarchyResult;
     }
 
+    private List<EnrichedBoundary> getEnrichedBoundaryPath(List<EnrichedBoundary> enrichedBoundaries, String locationCode) {
+        for (EnrichedBoundary enrichedBoundary : enrichedBoundaries) {
+            List<EnrichedBoundary> path = getEnrichedBoundaryPath(enrichedBoundary, locationCode);
+            if (path != null) {
+                return path;
+            }
+        }
+        return Collections.emptyList();
+    }
+
+    private List<EnrichedBoundary> getEnrichedBoundaryPath(EnrichedBoundary enrichedBoundary, String locationCode) {
+        if (locationCode.equals(enrichedBoundary.getCode())) {
+            EnrichedBoundary matchedNode = new EnrichedBoundary();
+            matchedNode.setCode(enrichedBoundary.getCode());
+            matchedNode.setBoundaryType(enrichedBoundary.getBoundaryType());
+            matchedNode.setChildren(Collections.emptyList());
+            return Collections.singletonList(matchedNode);
+        }
+
+        if (enrichedBoundary.getChildren() != null && !enrichedBoundary.getChildren().isEmpty()) {
+            for (EnrichedBoundary child : enrichedBoundary.getChildren()) {
+                List<EnrichedBoundary> childPath = getEnrichedBoundaryPath(child, locationCode);
+                if (childPath != null) {
+                    EnrichedBoundary currentNode = new EnrichedBoundary();
+                    currentNode.setCode(enrichedBoundary.getCode());
+                    currentNode.setBoundaryType(enrichedBoundary.getBoundaryType());
+                    currentNode.setChildren(Collections.emptyList());
+
+                    List<EnrichedBoundary> fullPath = new ArrayList<>();
+                    fullPath.add(currentNode);
+                    fullPath.addAll(childPath);
+                    return fullPath;
+                }
+            }
+        }
+
+        return null;
+    }
+
+
     public List<EnrichedBoundary> fetchBoundaryData(String locationCode, String tenantId) {
-        List<EnrichedBoundary> boundaries = new ArrayList<>();
+        List<EnrichedBoundary> finalEnrichedBoundary;
+        if (cachedEnrichedBoundaries != null && !cachedEnrichedBoundaries.isEmpty()) {
+            log.info("Fetching boundary info from cached boundary for code: {}", locationCode);
+            finalEnrichedBoundary = getEnrichedBoundaryPath(cachedEnrichedBoundaries, locationCode);
+            if (finalEnrichedBoundary != null && !finalEnrichedBoundary.isEmpty()) {
+                return finalEnrichedBoundary;
+            }
+        }
+
+        log.info("Could not fetch boundary info from cached tree. Fetching from service for locationCode: {}", locationCode);
+
+
+        List<EnrichedBoundary> boundaries;
         RequestInfo requestInfo = RequestInfo.builder()
                 .authToken(transformerProperties.getBoundaryV2AuthToken())
                 .build();
@@ -93,7 +149,7 @@ public class BoundaryService {
                 .requestInfo(requestInfo).build();
         StringBuilder uri = new StringBuilder(transformerProperties.getBoundaryServiceHost()
                 + transformerProperties.getBoundaryRelationshipSearchUrl()
-                + "?includeParents=true&includeChildren=false&tenantId=" + tenantId
+                + "?includeParents=true&includeChildren=true&tenantId=" + tenantId
                 + "&hierarchyType=" + transformerProperties.getBoundaryHierarchyName()
                 + "&codes=" + locationCode);
         log.info("URI: {}, \n, requestBody: {}", uri, requestInfo);
@@ -111,8 +167,10 @@ public class BoundaryService {
                     .filter(hierarchyRelation -> !CollectionUtils.isEmpty(hierarchyRelation.getBoundary()))
                     .flatMap(hierarchyRelation -> hierarchyRelation.getBoundary().stream())
                     .collect(Collectors.toList());
-
-            getAllBoundaryCodes(enrichedBoundaries, boundaries);
+            cachedEnrichedBoundaries = enrichedBoundaries;
+            log.info("Cached boundary object");
+            boundaries = getEnrichedBoundaryPath(enrichedBoundaries, locationCode);
+//            getAllBoundaryCodes(enrichedBoundaries, boundaries);
 
         } catch (Exception e) {
             log.error("Exception while searching boundaries for tenantId: {}, {}", tenantId, ExceptionUtils.getStackTrace(e));
@@ -123,16 +181,37 @@ public class BoundaryService {
         return boundaries;
     }
 
-    private Map<String, String> getBoundaryCodeToLocalizedNameMap(List<EnrichedBoundary> boundaries, RequestInfo requestInfo, String tenantId) {
+    private Map<String, String> getBoundaryCodeToLocalizedNameMap(
+            List<EnrichedBoundary> boundaries, RequestInfo requestInfo, String tenantId) {
+
         Map<String, String> boundaryMap = new HashMap<>();
+
         for (EnrichedBoundary boundary : boundaries) {
-            String boundaryName = getBoundaryNameFromLocalisationService(boundary.getCode(), requestInfo, tenantId);
-            if (boundaryName == null) {
-                boundaryName = boundary.getCode().substring(boundary.getCode().lastIndexOf('_') + 1);
-            }
+            String boundaryCode = boundary.getCode();
+            String boundaryName = getLocalizedBoundaryName(boundaryCode, requestInfo, tenantId);
+
             boundaryMap.put(boundary.getBoundaryType(), boundaryName);
         }
         return boundaryMap;
+    }
+
+    private String getLocalizedBoundaryName(String boundaryCode, RequestInfo requestInfo, String tenantId) {
+        String cachedName = boundaryCodeVsLocalizedName.get(boundaryCode);
+
+        if (cachedName != null) {
+            log.info("Fetched localization for code: {} from cache", boundaryCode);
+            return cachedName;
+        }
+
+        String fetchedName = getBoundaryNameFromLocalisationService(boundaryCode, requestInfo, tenantId);
+        if (fetchedName == null) {
+            fetchedName = boundaryCode.substring(boundaryCode.lastIndexOf('_') + 1);
+        } else {
+            boundaryCodeVsLocalizedName.put(boundaryCode, fetchedName);
+            log.info("Fetched localization from service for code: {}, value: {}. Cached result.", boundaryCode, fetchedName);
+        }
+
+        return fetchedName;
     }
 
     private String getBoundaryNameFromLocalisationService(String boundaryCode, RequestInfo requestInfo, String tenantId) {
