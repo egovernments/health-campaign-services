@@ -1,9 +1,22 @@
-# Excel Ingestion Service - TODO Items
+# TODO - Processed File Validation Fix
 
-## Multi-Select Column Validations
-1. Add min selection and max selection validation in multi-select columns
-2. Add duplicate selection validation in multi-select columns
-3. If required property is set for enum values or string but multi-select values are empty, validate the required property
+## ✅ Issue Resolved
+Processed files (from process API) show validation warnings in cells + error columns. Should only show error columns.
 
-## Code Improvements
-4. Change `generationClass("org.egov.excelingestion.generator.BoundaryHierarchySheetGenerator")` to use class name only - it will find the class automatically
+## ✅ Tasks Completed
+- [x] Detect when processing files and clean up validation formatting
+- [x] Remove conditional formatting from processed files
+- [x] Remove cell comments from processed files  
+- [x] Lock processed file sheets for protection
+- [x] Keep error columns working
+
+## ✅ Implementation
+Added `ValidationService.removeValidationFormatting()` method that:
+1. Removes all conditional formatting from sheets 
+2. Removes validation cell comments from data rows
+3. Locks the entire sheet with password "processed" for protection
+4. Called automatically when adding error columns during file processing
+
+## ✅ Result
+- Template files: validation warnings in cells ✅
+- Processed files: clean cells, errors only in columns, fully locked ✅

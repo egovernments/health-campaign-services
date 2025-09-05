@@ -97,6 +97,9 @@ public class BoundaryHierarchyTargetProcessor implements IWorkbookProcessor {
             if (!validationErrors.isEmpty()) {
                 log.info("Found {} validation errors, adding error columns", validationErrors.size());
                 
+                // Clean up validation formatting from template and lock sheet (processed files should only show error columns)
+                validationService.removeValidationFormatting(sheet);
+                
                 // Use ValidationService to add error columns (same styling as facility/user sheets)
                 ValidationColumnInfo columnInfo = validationService.addValidationColumns(sheet, localizationMap);
                 

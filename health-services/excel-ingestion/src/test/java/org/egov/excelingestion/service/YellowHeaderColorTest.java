@@ -4,7 +4,10 @@ import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.apache.poi.xssf.usermodel.XSSFColor;
 import org.apache.poi.xssf.usermodel.XSSFCellStyle;
+import org.egov.excelingestion.config.ExcelIngestionConfig;
 import org.egov.excelingestion.config.ValidationConstants;
+import org.egov.excelingestion.util.CellProtectionManager;
+import org.egov.excelingestion.util.ExcelStyleHelper;
 import org.egov.excelingestion.web.models.ValidationColumnInfo;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.AfterEach;
@@ -14,6 +17,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
 /**
  * Test to verify that validation column headers use the correct yellow background color (#ffff00)
@@ -43,7 +47,9 @@ class YellowHeaderColorTest {
         hiddenRow.createCell(0).setCellValue("DUMMY_COLUMN");
         visibleRow.createCell(0).setCellValue("Dummy");
         
-        ValidationService validationService = new ValidationService();
+        ExcelIngestionConfig config = mock(ExcelIngestionConfig.class);
+        CellProtectionManager cellProtectionManager = mock(CellProtectionManager.class);
+        ValidationService validationService = new ValidationService(config, cellProtectionManager);
         Map<String, String> localizationMap = new HashMap<>();
         localizationMap.put(ValidationConstants.STATUS_COLUMN_NAME, "Row Status");
         localizationMap.put(ValidationConstants.ERROR_DETAILS_COLUMN_NAME, "Error Details");
@@ -144,7 +150,9 @@ class YellowHeaderColorTest {
         sheet.createRow(0); // Hidden header row
         sheet.createRow(1); // Visible header row
         
-        ValidationService validationService = new ValidationService();
+        ExcelIngestionConfig config = mock(ExcelIngestionConfig.class);
+        CellProtectionManager cellProtectionManager = mock(CellProtectionManager.class);
+        ValidationService validationService = new ValidationService(config, cellProtectionManager);
         
         // Act
         ValidationColumnInfo columnInfo = validationService.addValidationColumns(sheet, null);

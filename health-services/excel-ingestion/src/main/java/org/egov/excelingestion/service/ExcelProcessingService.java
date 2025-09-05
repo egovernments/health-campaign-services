@@ -132,6 +132,9 @@ public class ExcelProcessingService {
                     
                     // Only add validation columns if there are errors for this sheet
                     if (!sheetErrors.isEmpty()) {
+                        // Clean up validation formatting from template (processed files should only show error columns)
+                        validationService.removeValidationFormatting(sheet);
+                        
                         // Add validation columns with localization
                         ValidationColumnInfo columnInfo = validationService.addValidationColumns(sheet, mergedLocalizationMap);
                         columnInfoMap.put(sheetName, columnInfo);

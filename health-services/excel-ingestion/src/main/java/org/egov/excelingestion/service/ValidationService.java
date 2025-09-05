@@ -2,7 +2,9 @@ package org.egov.excelingestion.service;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
+import org.egov.excelingestion.config.ExcelIngestionConfig;
 import org.egov.excelingestion.config.ValidationConstants;
+import org.egov.excelingestion.util.CellProtectionManager;
 import org.egov.excelingestion.util.LocalizationUtil;
 import org.egov.excelingestion.web.models.ValidationError;
 import org.egov.excelingestion.web.models.ValidationColumnInfo;
@@ -14,6 +16,14 @@ import java.util.stream.Collectors;
 @Service
 @Slf4j
 public class ValidationService {
+
+    private final ExcelIngestionConfig config;
+    private final CellProtectionManager cellProtectionManager;
+
+    public ValidationService(ExcelIngestionConfig config, CellProtectionManager cellProtectionManager) {
+        this.config = config;
+        this.cellProtectionManager = cellProtectionManager;
+    }
 
     /**
      * Finds the last column with data in the header row
@@ -299,5 +309,73 @@ public class ValidationService {
         }
 
         return new ArrayList<>(errorMap.values());
+    }
+
+    /**
+     * Removes validation formatting (conditional formatting and cell comments) from processed files
+     * and locks the sheet for protection since processed files are meant for review only
+     * This should be called when adding validation columns to processed files to clean up 
+     * the original template's validation formatting since error columns now handle validation feedback
+     */
+    public void removeValidationFormatting(Sheet sheet) {
+        log.info("Cleaning processed file sheet and applying protection: {}", sheet.getSheetName());
+        
+        // Remove all conditional formatting from the sheet
+        if (sheet.getSheetConditionalFormatting() != null) {
+            // Clear all conditional formatting rules
+            for (int i = sheet.getSheetConditionalFormatting().getNumConditionalFormattings() - 1; i >= 0; i--) {
+                sheet.getSheetConditionalFormatting().removeConditionalFormatting(i);
+            }
+            log.debug("Removed conditional formatting rules from sheet: {}", sheet.getSheetName());
+        }
+        
+        // Remove cell comments from data cells (keeping header comments if any)
+        int lastRowNum = sheet.getLastRowNum();
+        for (int rowIndex = 2; rowIndex <= lastRowNum; rowIndex++) { // Start from row 2 (skip headers at 0,1)
+            Row row = sheet.getRow(rowIndex);
+            if (row != null) {
+                for (int colIndex = 0; colIndex < row.getLastCellNum(); colIndex++) {
+                    Cell cell = row.getCell(colIndex);
+                    if (cell != null && cell.getCellComment() != null) {
+                        // Remove validation-related cell comments
+                        cell.removeCellComment();
+                    }
+                }
+            }
+        }
+        
+        // Lock all cells first, then protect the sheet (processed files are read-only for review)
+        lockAllCells(sheet);
+        sheet.protectSheet(config.getExcelSheetPassword());
+        
+        log.info("Successfully cleaned validation formatting and locked processed file sheet: {}", sheet.getSheetName());
+    }
+
+    /**
+     * Locks all cells in the sheet by setting them as locked
+     */
+    private void lockAllCells(Sheet sheet) {
+        Workbook workbook = sheet.getWorkbook();
+        CellStyle lockedStyle = workbook.createCellStyle();
+        lockedStyle.setLocked(true);
+        
+        int lastRowNum = sheet.getLastRowNum();
+        for (int rowIndex = 0; rowIndex <= lastRowNum; rowIndex++) {
+            Row row = sheet.getRow(rowIndex);
+            if (row != null) {
+                for (int colIndex = 0; colIndex < row.getLastCellNum(); colIndex++) {
+                    Cell cell = row.getCell(colIndex);
+                    if (cell != null) {
+                        // Create a new style based on existing style but with locked=true
+                        CellStyle existingStyle = cell.getCellStyle();
+                        CellStyle newStyle = workbook.createCellStyle();
+                        newStyle.cloneStyleFrom(existingStyle);
+                        newStyle.setLocked(true);
+                        cell.setCellStyle(newStyle);
+                    }
+                }
+            }
+        }
+        log.debug("Locked all cells in sheet: {}", sheet.getSheetName());
     }
 }
