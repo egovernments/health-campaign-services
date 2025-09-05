@@ -1,0 +1,888 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>handlers: Go Coverage Report</title>
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				
+				<option value="file0">digit-abdm/internal/handlers/abha_handler.go (45.4%)</option>
+				
+				<option value="file1">digit-abdm/internal/handlers/test_utils.go (0.0%)</option>
+				
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+			
+				<span class="cov0">no coverage</span>
+				<span class="cov1">low coverage</span>
+				<span class="cov2">*</span>
+				<span class="cov3">*</span>
+				<span class="cov4">*</span>
+				<span class="cov5">*</span>
+				<span class="cov6">*</span>
+				<span class="cov7">*</span>
+				<span class="cov8">*</span>
+				<span class="cov9">*</span>
+				<span class="cov10">high coverage</span>
+			
+			</div>
+		</div>
+		<div id="content">
+		
+		<pre class="file" id="file0" style="display: none">package handlers
+
+import (
+        "encoding/json"
+        "log"
+        "net/http"
+        "regexp"
+        "strings"
+        "time"
+
+        "digit-abdm/configs"
+        "digit-abdm/internal/core/ports"
+        "digit-abdm/internal/utils"
+        "digit-abdm/pkg/dtos"
+
+        "github.com/gin-gonic/gin"
+)
+
+type ABHAHandler struct {
+        abhaService ports.ABHAService
+        cfg         *configs.Config
+}
+
+func NewABHAHandler(abhaService ports.ABHAService, cfg *configs.Config) *ABHAHandler <span class="cov10" title="38">{
+        return &amp;ABHAHandler{
+                abhaService: abhaService,
+                cfg:         cfg,
+        }
+}</span>
+
+// func (h *ABHAHandler) RequestOTP(w http.ResponseWriter, r *http.Request) {
+//         ctx := r.Context()
+
+//         var otpReq dtos.OTPRequest
+//         if err := json.NewDecoder(r.Body).Decode(&amp;otpReq); err != nil {
+//                 http.Error(w, "Invalid request body", http.StatusBadRequest)
+//                 return
+//         }
+
+//         pubKey, err := h.abhaService.FetchPublicKey(ctx)
+//         if err != nil {
+//                 http.Error(w, "Failed to fetch public key: "+err.Error(), http.StatusInternalServerError)
+//                 return
+//         }
+
+//         encryptedLoginID, err := h.abhaService.EncryptData(ctx, pubKey, otpReq.LoginId)
+//         if err != nil {
+//                 http.Error(w, "Failed to encrypt data: "+err.Error(), http.StatusInternalServerError)
+//                 return
+//         }
+//         otpReq.LoginId = encryptedLoginID
+
+//         token := r.Header.Get("Authorization")
+//         resp, err := h.abhaService.SendOTPRequest(ctx, otpReq, token)
+//         if err != nil {
+//                 http.Error(w, "OTP request failed: "+err.Error(), http.StatusInternalServerError)
+//                 return
+//         }
+
+//         w.Header().Set("Content-Type", "application/json")
+//         w.Write(resp)
+// }
+
+//////////////-------------------------------------------------------------
+
+// func (h *ABHAHandler) SendAadhaarOTP(c *gin.Context) {
+//         ctx := c.Request.Context()
+
+//         // Step 1: Accept Aadhaar number from user
+//         var req dtos.AadhaarRequest
+//         if err := c.ShouldBindJSON(&amp;req); err != nil {
+//                 c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
+//                 return
+//         }
+
+//         // Step 2: Fetch public key
+//         pubKey, err := h.abhaService.FetchPublicKey(ctx)
+//         if err != nil {
+//                 c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch public key", "details": err.Error()})
+//                 return
+//         }
+
+//         // Step 3: Encrypt Aadhaar number (as LoginId)
+//         encryptedLoginID, err := h.abhaService.EncryptData(ctx, pubKey, req.AadhaarNumber)
+//         if err != nil {
+//                 c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to encrypt Aadhaar number", "details": err.Error()})
+//                 return
+//         }
+
+//         // Step 4: Construct final OTPRequest
+//         otpRequest := dtos.OTPRequest{
+//                 Scope:     []string{"abha-enrol"},
+//                 LoginHint: "aadhaar",
+//                 LoginId:   encryptedLoginID,
+//                 OTPSystem: "aadhaar",
+//         }
+
+//         // Fetch token from util function
+//         token, err := utils.FetchABDMToken(ctx, h.cfg)
+//         if err != nil {
+//                 c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch auth token", "details": err.Error()})
+//                 return
+//         }
+
+//         // Send OTP request via service
+//         resp, err := h.abhaService.SendOTPRequest(ctx, otpRequest, token)
+//         if err != nil {
+//                 c.JSON(http.StatusInternalServerError, gin.H{"error": "OTP request failed", "details": err.Error()})
+//                 return
+//         }
+
+//         c.Data(http.StatusOK, "application/json", resp)
+// }
+
+func (h *ABHAHandler) SendAadhaarOTP(c *gin.Context) <span class="cov6" title="9">{
+        ctx := c.Request.Context()
+
+        var req dtos.AadhaarRequest
+        if err := c.ShouldBindJSON(&amp;req); err != nil </span><span class="cov2" title="2">{
+                c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
+                return
+        }</span>
+
+        // Fetch ABDM pubkey + encrypt Aadhaar for ABDM transport
+        <span class="cov5" title="7">pubKey, err := h.abhaService.FetchPublicKey(ctx)
+        if err != nil </span><span class="cov1" title="1">{
+                c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch public key", "details": err.Error()})
+                return
+        }</span>
+        <span class="cov5" title="6">encryptedLoginID, err := h.abhaService.EncryptData(ctx, pubKey, req.AadhaarNumber)
+        if err != nil </span><span class="cov1" title="1">{
+                c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to encrypt Aadhaar number", "details": err.Error()})
+                return
+        }</span>
+
+        <span class="cov4" title="5">otpRequest := dtos.OTPRequest{
+                Scope:     []string{"abha-enrol"},
+                LoginHint: "aadhaar",
+                LoginId:   encryptedLoginID,
+                OTPSystem: "aadhaar",
+        }
+
+        token, err := utils.FetchABDMToken(ctx, h.cfg)
+        if err != nil </span><span class="cov0" title="0">{
+                c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch auth token", "details": err.Error()})
+                return
+        }</span>
+
+        <span class="cov4" title="5">resp, err := h.abhaService.SendOTPRequest(ctx, otpRequest, token)
+        if err != nil </span><span class="cov1" title="1">{
+                c.JSON(http.StatusInternalServerError, gin.H{"error": "OTP request failed", "details": err.Error()})
+                return
+        }</span>
+
+        // Parse txnId and persist (idempotent for resend)
+        <span class="cov4" title="4">var out struct {
+                TxnId   string `json:"txnId"`
+                Message string `json:"message"`
+        }
+        _ = json.Unmarshal(resp, &amp;out) // best-effort; if it fails we still return ABDM response
+        if out.TxnId != "" </span><span class="cov4" title="4">{
+                tenantID := c.GetHeader("X-Tenant-Id")
+                if strings.TrimSpace(tenantID) == "" </span><span class="cov2" title="2">{
+                        tenantID = "default"
+                }</span>
+                <span class="cov4" title="4">if err := h.abhaService.RecordAadhaarTxnOnOtp(ctx, tenantID, req.AadhaarNumber, out.TxnId); err != nil </span><span class="cov1" title="1">{
+                        // Don't fail the user call on persistence errors; log for ops
+                        log.Printf("[SendAadhaarOTP] WARN: failed to persist txn: %v", err)
+                }</span>
+        }
+
+        <span class="cov4" title="4">c.Data(http.StatusOK, "application/json", resp)</span>
+}
+
+func (h *ABHAHandler) VerifyAndEnrolByAadhaarWithOTP(c *gin.Context) <span class="cov5" title="7">{
+        ctx := c.Request.Context()
+
+        // Step 1: Parse user input
+        var input dtos.VerifyOTPInput
+        if err := c.ShouldBindJSON(&amp;input); err != nil </span><span class="cov2" title="2">{
+                c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
+                return
+        }</span>
+
+        // Step 2: Fetch ABDM public key
+        <span class="cov4" title="5">pubKey, err := h.abhaService.FetchPublicKey(ctx)
+        if err != nil </span><span class="cov1" title="1">{
+                c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch public key", "details": err.Error()})
+                return
+        }</span>
+
+        // Step 3: Encrypt the OTP
+        <span class="cov4" title="4">encryptedOTP, err := h.abhaService.EncryptData(ctx, pubKey, input.Otp)
+        if err != nil </span><span class="cov1" title="1">{
+                c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to encrypt OTP", "details": err.Error()})
+                return
+        }</span>
+
+        // Step 4: Build the final request
+        <span class="cov3" title="3">enrolReq := dtos.EnrolByAadhaarWithOTPRequest{
+                Consent: struct {
+                        Code    string `json:"code"`
+                        Version string `json:"version"`
+                }{
+                        Code:    "abha-enrollment",
+                        Version: "1.4",
+                },
+        }
+
+        enrolReq.AuthData.AuthMethods = []string{"otp"}
+        enrolReq.AuthData.OTP.TimeStamp = time.Now().Format("2006-01-02 15:04:05") // correct format
+        enrolReq.AuthData.OTP.TxnId = input.TxnId
+        enrolReq.AuthData.OTP.OtpValue = encryptedOTP
+        enrolReq.AuthData.OTP.Mobile = input.Mobile
+
+        // Step 5: Get auth token
+        token, err := utils.FetchABDMToken(ctx, h.cfg)
+        if err != nil </span><span class="cov0" title="0">{
+                c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch auth token", "details": err.Error()})
+                return
+        }</span>
+
+        // Step 6: Call service
+        <span class="cov3" title="3">resp, err := h.abhaService.SendEnrolRequestWithOTP(ctx, enrolReq, token)
+        if err != nil </span><span class="cov1" title="1">{
+                c.JSON(http.StatusInternalServerError, gin.H{"error": "Enrolment request failed", "details": err.Error()})
+                return
+        }</span>
+
+        <span class="cov2" title="2">c.Data(http.StatusOK, "application/json", resp)</span>
+}
+
+func (h *ABHAHandler) GetAbhaCard(c *gin.Context) <span class="cov0" title="0">{
+        var req struct {
+                AbhaNumber string `json:"abha_number" binding:"required"`
+        }
+
+        if err := c.ShouldBindJSON(&amp;req); err != nil </span><span class="cov0" title="0">{
+                c.JSON(http.StatusBadRequest, gin.H{"error": "abha_number is required"})
+                return
+        }</span>
+
+        <span class="cov0" title="0">ctx := c.Request.Context()
+
+        imageData, err := h.abhaService.FetchAbhaCard(ctx, req.AbhaNumber)
+        if err != nil </span><span class="cov0" title="0">{
+                log.Printf("Failed to fetch ABHA card: %v", err)
+                c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch ABHA card"})
+                return
+        }</span>
+
+        // Return image as binary response
+        <span class="cov0" title="0">c.Data(http.StatusOK, "image/jpeg", imageData)</span>
+}
+
+func (h *ABHAHandler) GetABHACardUnified(c *gin.Context) <span class="cov5" title="7">{
+        var req dtos.AbhaCardRequest
+        if err := c.ShouldBindJSON(&amp;req); err != nil </span><span class="cov2" title="2">{
+                c.JSON(http.StatusBadRequest, gin.H{"error": "abha_number and card_type are required"})
+                return
+        }</span>
+
+        <span class="cov4" title="5">ctx := c.Request.Context()
+
+        imageData, contentType, err := h.abhaService.FetchAbhaCardByType(ctx, req.AbhaNumber, req.CardType)
+        if err != nil </span><span class="cov1" title="1">{
+                log.Printf("Failed to fetch ABHA card: %v", err)
+                c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch ABHA card"})
+                return
+        }</span>
+
+        <span class="cov4" title="4">log.Printf("[Handler] Final content-type: %s", contentType)
+
+        switch contentType </span>{
+        case "image/svg+xml":<span class="cov1" title="1">
+                c.Header("Content-Disposition", "inline; filename=abha.svg")</span>
+        case "image/jpeg":<span class="cov2" title="2">
+                c.Header("Content-Disposition", "inline; filename=abha.jpg")</span>
+        case "image/png":<span class="cov1" title="1">
+                c.Header("Content-Disposition", "inline; filename=abha.png")</span>
+        }
+        <span class="cov4" title="4">c.Data(http.StatusOK, contentType, imageData)</span>
+}
+
+func (h *ABHAHandler) GetABHAQRCode(c *gin.Context) <span class="cov0" title="0">{
+        var req dtos.AbhaQRCodeRequest
+        if err := c.ShouldBindJSON(&amp;req); err != nil </span><span class="cov0" title="0">{
+                c.JSON(http.StatusBadRequest, gin.H{"error": "abha_number is required"})
+                return
+        }</span>
+
+        <span class="cov0" title="0">ctx := c.Request.Context()
+
+        imageData, err := h.abhaService.FetchQRCodeByABHANumber(ctx, req.AbhaNumber)
+        if err != nil </span><span class="cov0" title="0">{
+                log.Printf("[Handler] Failed to fetch ABHA QR code: %v", err)
+                c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch ABHA QR code"})
+                return
+        }</span>
+
+        <span class="cov0" title="0">c.Header("Content-Disposition", "inline; filename=abha_qr.png")
+        c.Data(http.StatusOK, "image/png", imageData)</span>
+}
+
+func (h *ABHAHandler) RegisterRoutes(router *gin.RouterGroup) <span class="cov0" title="0">{
+        // ABHA Create Routes
+        createGroup := router.Group("/abha/create")
+        </span><span class="cov0" title="0">{
+                createGroup.POST("/send-aadhaar-otp", h.SendAadhaarOTP)                                   // Send Aadhaar OTP
+                createGroup.POST("/verify-and-enroll-with-aadhaar-otp", h.VerifyAndEnrolByAadhaarWithOTP) // Verify Aadhaar OTP and Create ABHA
+                // createGroup.POST("/link-mobile", h.LinkMobile)                   // Link Mobile via OTP
+                // createGroup.POST("/verify-mobile-otp", h.VerifyMobileOTP)        // Verify Mobile OTP
+                // createGroup.POST("/address-suggestion", h.AddressSuggestion)     // Fetch ABHA address suggestions
+                // createGroup.POST("/enrol-address", h.EnrolAddress)               // Enroll ABHA address
+                // ABHA Create (additional)
+                createGroup.POST("/link-mobile", h.LinkMobileNumber)
+                createGroup.POST("/verify-mobile-otp", h.VerifyMobileOTP)
+                createGroup.POST("/address-suggestion", h.AddressSuggestion)
+                createGroup.POST("/enrol-address", h.EnrolAddress)
+
+                createGroup.POST("/verify-aadhaar-otp-v2", h.VerifyAadhaarOtpAndCreateV2)
+        }</span>
+
+        // ABHA Card Fetch Route
+        <span class="cov0" title="0">cardGroup := router.Group("/abha/card")
+        </span><span class="cov0" title="0">{
+                cardGroup.POST("/fetch", h.GetABHACardUnified) // Handles getCard, getSvgCard, getPngCard
+        }</span>
+
+        <span class="cov0" title="0">qrGroup := router.Group("/abha/qr")
+        </span><span class="cov0" title="0">{
+                qrGroup.POST("", h.GetABHAQRCode)
+        }</span>
+
+        // ABHA Login
+        <span class="cov0" title="0">loginGroup := router.Group("/abha/login")
+        </span><span class="cov0" title="0">{
+                loginGroup.POST("/send-otp", h.LoginSendOTP)
+                loginGroup.POST("/verify-otp", h.LoginVerifyOTP)
+                loginGroup.POST("/check-auth-methods", h.CheckAuthMethods)
+
+                loginGroup.POST("/profile/request-otp", h.ProfileLoginRequestOTP)
+                loginGroup.POST("/profile/verify-otp", h.ProfileLoginVerifyOTP)
+
+        }</span>
+
+}
+
+//----------------------------------------------------------------------------
+
+func (h *ABHAHandler) LinkMobileNumber(c *gin.Context) <span class="cov0" title="0">{
+        var req dtos.LinkMobileRequest
+        if err := c.ShouldBindJSON(&amp;req); err != nil </span><span class="cov0" title="0">{
+                c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
+                return
+        }</span>
+
+        <span class="cov0" title="0">ctx := c.Request.Context()
+
+        // Step 2: Fetch ABDM public key
+        pubKey, err := h.abhaService.FetchPublicKey(ctx)
+        if err != nil </span><span class="cov0" title="0">{
+                c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch public key", "details": err.Error()})
+                return
+        }</span>
+
+        // Step 3: Encrypt the OTP
+        <span class="cov0" title="0">encryptedMobile, err := h.abhaService.EncryptData(ctx, pubKey, req.Mobile)
+        if err != nil </span><span class="cov0" title="0">{
+                c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to encrypt OTP", "details": err.Error()})
+                return
+        }</span>
+
+        <span class="cov0" title="0">req.Mobile = encryptedMobile
+
+        // fetch auth-token
+        token, err := utils.FetchABDMToken(ctx, h.cfg)
+        if err != nil </span><span class="cov0" title="0">{
+                c.JSON(http.StatusInternalServerError, gin.H{"error": "auth token error"})
+                return
+        }</span>
+
+        <span class="cov0" title="0">resp, err := h.abhaService.LinkMobileNumber(ctx, req, token)
+        if err != nil </span><span class="cov0" title="0">{
+                c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+                return
+        }</span>
+        <span class="cov0" title="0">c.Data(http.StatusOK, "application/json", resp)</span>
+}
+
+func (h *ABHAHandler) VerifyMobileOTP(c *gin.Context) <span class="cov0" title="0">{
+        var req dtos.VerifyMobileOTPRequest
+        if err := c.ShouldBindJSON(&amp;req); err != nil </span><span class="cov0" title="0">{
+                c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
+                return
+        }</span>
+
+        <span class="cov0" title="0">ctx := c.Request.Context()
+
+        // Step 2: Fetch ABDM public key
+        pubKey, err := h.abhaService.FetchPublicKey(ctx)
+        if err != nil </span><span class="cov0" title="0">{
+                c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch public key", "details": err.Error()})
+                return
+        }</span>
+
+        // Step 3: Encrypt the OTP
+        <span class="cov0" title="0">encryptedOTP, err := h.abhaService.EncryptData(ctx, pubKey, req.Otp)
+        if err != nil </span><span class="cov0" title="0">{
+                c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to encrypt OTP", "details": err.Error()})
+                return
+        }</span>
+        <span class="cov0" title="0">req.Otp = encryptedOTP
+
+        token, err := utils.FetchABDMToken(ctx, h.cfg)
+        if err != nil </span><span class="cov0" title="0">{
+                c.JSON(http.StatusInternalServerError, gin.H{"error": "auth token error"})
+                return
+        }</span>
+
+        <span class="cov0" title="0">resp, err := h.abhaService.VerifyMobileOTP(ctx, req, token)
+        if err != nil </span><span class="cov0" title="0">{
+                c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+                return
+        }</span>
+        <span class="cov0" title="0">c.Data(http.StatusOK, "application/json", resp)</span>
+}
+
+func (h *ABHAHandler) AddressSuggestion(c *gin.Context) <span class="cov0" title="0">{
+        var req dtos.AddressSuggestionRequest
+        if err := c.ShouldBindJSON(&amp;req); err != nil </span><span class="cov0" title="0">{
+                c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
+                return
+        }</span>
+
+        <span class="cov0" title="0">ctx := c.Request.Context()
+        token, err := utils.FetchABDMToken(ctx, h.cfg)
+        if err != nil </span><span class="cov0" title="0">{
+                c.JSON(http.StatusInternalServerError, gin.H{"error": "auth token error"})
+                return
+        }</span>
+
+        <span class="cov0" title="0">resp, err := h.abhaService.AddressSuggestion(ctx, req, token)
+        if err != nil </span><span class="cov0" title="0">{
+                c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+                return
+        }</span>
+        <span class="cov0" title="0">c.Data(http.StatusOK, "application/json", resp)</span>
+}
+
+func (h *ABHAHandler) EnrolAddress(c *gin.Context) <span class="cov0" title="0">{
+        var req dtos.EnrolAddressRequest
+        if err := c.ShouldBindJSON(&amp;req); err != nil </span><span class="cov0" title="0">{
+                c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
+                return
+        }</span>
+        <span class="cov0" title="0">ctx := c.Request.Context()
+
+        token, err := utils.FetchABDMToken(ctx, h.cfg)
+        if err != nil </span><span class="cov0" title="0">{
+                c.JSON(http.StatusInternalServerError, gin.H{"error": "auth token error"})
+                return
+        }</span>
+
+        <span class="cov0" title="0">resp, err := h.abhaService.EnrolAddress(ctx, req, token)
+        if err != nil </span><span class="cov0" title="0">{
+                c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+                return
+        }</span>
+        <span class="cov0" title="0">c.Data(http.StatusOK, "application/json", resp)</span>
+}
+
+func (h *ABHAHandler) LoginSendOTP(c *gin.Context) <span class="cov0" title="0">{
+        var req dtos.SendOtpRequest
+        if err := c.ShouldBindJSON(&amp;req); err != nil </span><span class="cov0" title="0">{
+                c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
+                return
+        }</span>
+
+        <span class="cov0" title="0">ctx := c.Request.Context()
+        token, err := utils.FetchABDMToken(ctx, h.cfg)
+        if err != nil </span><span class="cov0" title="0">{
+                c.JSON(http.StatusInternalServerError, gin.H{"error": "auth token error"})
+                return
+        }</span>
+
+        <span class="cov0" title="0">resp, err := h.abhaService.LoginSendOTP(ctx, req, token)
+        if err != nil </span><span class="cov0" title="0">{
+                c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+                return
+        }</span>
+        <span class="cov0" title="0">c.Data(http.StatusOK, "application/json", resp)</span>
+}
+
+func (h *ABHAHandler) LoginVerifyOTP(c *gin.Context) <span class="cov0" title="0">{
+        var req dtos.VerifyOtpRequest
+        if err := c.ShouldBindJSON(&amp;req); err != nil </span><span class="cov0" title="0">{
+                c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
+                return
+        }</span>
+        <span class="cov0" title="0">ctx := c.Request.Context()
+        token, err := utils.FetchABDMToken(ctx, h.cfg)
+        if err != nil </span><span class="cov0" title="0">{
+                c.JSON(http.StatusInternalServerError, gin.H{"error": "auth token error"})
+                return
+        }</span>
+
+        <span class="cov0" title="0">resp, err := h.abhaService.LoginVerifyOTP(ctx, req, token)
+        if err != nil </span><span class="cov0" title="0">{
+                c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+                return
+        }</span>
+        <span class="cov0" title="0">c.Data(http.StatusOK, "application/json", resp)</span>
+}
+
+func (h *ABHAHandler) CheckAuthMethods(c *gin.Context) <span class="cov0" title="0">{
+        var req dtos.CheckAuthMethodsRequest
+        if err := c.ShouldBindJSON(&amp;req); err != nil </span><span class="cov0" title="0">{
+                c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
+                return
+        }</span>
+
+        <span class="cov0" title="0">ctx := c.Request.Context()
+        token, err := utils.FetchABDMToken(ctx, h.cfg)
+        if err != nil </span><span class="cov0" title="0">{
+                c.JSON(http.StatusInternalServerError, gin.H{"error": "auth token error"})
+                return
+        }</span>
+
+        <span class="cov0" title="0">resp, err := h.abhaService.LoginCheckAuthMethods(ctx, req, token)
+        if err != nil </span><span class="cov0" title="0">{
+                c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+                return
+        }</span>
+        <span class="cov0" title="0">c.Data(http.StatusOK, "application/json", resp)</span>
+
+}
+
+//// -------------------------- profile handler
+
+// internal/handlers/abha_handler.go  (additions)
+
+// POST /abha/login/profile/request-otp
+// Body: { "loginHint":"aadhaar"|"mobile", "value":"&lt;aadhaar|mobile&gt;", "otpSystem":"aadhaar"|"abdm", "scope":[optional] }
+func (h *ABHAHandler) ProfileLoginRequestOTP(c *gin.Context) <span class="cov6" title="10">{
+        ctx := c.Request.Context()
+
+        var in dtos.ProfileLoginSendInput
+        if err := c.ShouldBindJSON(&amp;in); err != nil </span><span class="cov2" title="2">{
+                c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload", "details": err.Error()})
+                return
+        }</span>
+
+        // Default scopes if not provided
+        <span class="cov6" title="8">scope := in.Scope
+        if len(scope) == 0 </span><span class="cov5" title="7">{
+                scope = []string{"abha-login"}
+                if in.OtpSystem == "aadhaar" </span><span class="cov4" title="5">{
+                        scope = append(scope, "aadhaar-verify")
+                }</span> else<span class="cov2" title="2"> {
+                        scope = append(scope, "mobile-verify")
+                }</span>
+        }
+
+        <span class="cov6" title="8">loginId := in.Value
+        loginHint := in.LoginHint // "aadhaar" | "mobile" | "abha-number"
+        otpSystem := in.OtpSystem // "aadhaar" | "abdm"
+
+        // ABHA path -&gt; resolve to Aadhaar and proceed as Aadhaar login
+        if strings.EqualFold(loginHint, "abha-number") </span><span class="cov3" title="3">{
+                if !utils.ValidateABHANumber(in.Value) </span><span class="cov1" title="1">{
+                        c.JSON(http.StatusBadRequest, gin.H{
+                                "error":   "INVALID_ABHA_FORMAT",
+                                "details": "Expected 14 digits, optionally grouped like 91-XXXX-XXXX-XXXX",
+                        })
+                        return
+                }</span>
+
+                // Canonicalize to DB shape (XX-XXXX-XXXX-XXXX)
+                <span class="cov2" title="2">abhaCanon, _ := utils.CanonicalizeABHA(in.Value)
+
+                // Resolve linked Aadhaar (decrypt from DB)
+                aadhaarPlain, err := h.abhaService.ResolveAadhaarFromABHA(ctx, abhaCanon)
+                if err != nil </span><span class="cov1" title="1">{
+                        c.JSON(http.StatusNotFound, gin.H{
+                                "error":   "ABHA_RESOLUTION_FAILED",
+                                "details": err.Error(),
+                        })
+                        return
+                }</span>
+
+                // Encrypt Aadhaar for ABDM login
+                <span class="cov1" title="1">pub, err := h.abhaService.FetchPublicKey(ctx)
+                if err != nil </span><span class="cov0" title="0">{
+                        c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch public key", "details": err.Error()})
+                        return
+                }</span>
+                <span class="cov1" title="1">cipher, err := h.abhaService.EncryptData(ctx, pub, aadhaarPlain)
+                if err != nil </span><span class="cov0" title="0">{
+                        c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to encrypt aadhaar", "details": err.Error()})
+                        return
+                }</span>
+
+                <span class="cov1" title="1">loginId = cipher
+                loginHint = "aadhaar" // ABDM accepts aadhaar or mobile, not abha-number
+                otpSystem = "aadhaar"
+
+                // Ensure scopes contain aadhaar-verify
+                has := func(s string) bool </span><span class="cov1" title="1">{
+                        for _, v := range scope </span><span class="cov2" title="2">{
+                                if v == s </span><span class="cov1" title="1">{
+                                        return true
+                                }</span>
+                        }
+                        <span class="cov0" title="0">return false</span>
+                }
+                <span class="cov1" title="1">if !has("aadhaar-verify") </span><span class="cov0" title="0">{
+                        scope = append(scope, "aadhaar-verify")
+                }</span>
+        }
+
+        // Direct Aadhaar path (non-ABHA)
+        <span class="cov5" title="6">if strings.EqualFold(loginHint, "aadhaar") &amp;&amp; !strings.EqualFold(in.LoginHint, "abha-number") </span><span class="cov3" title="3">{
+                pub, err := h.abhaService.FetchPublicKey(ctx)
+                if err != nil </span><span class="cov1" title="1">{
+                        c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch public key", "details": err.Error()})
+                        return
+                }</span>
+                <span class="cov2" title="2">cipher, err := h.abhaService.EncryptData(ctx, pub, in.Value)
+                if err != nil </span><span class="cov1" title="1">{
+                        c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to encrypt aadhaar", "details": err.Error()})
+                        return
+                }</span>
+                <span class="cov1" title="1">loginId = cipher
+                otpSystem = "aadhaar"</span>
+        }
+
+        // Build ABDM request
+        <span class="cov4" title="4">req := dtos.ProfileLoginRequestOTP{
+                Scope:     scope,
+                LoginHint: loginHint, // "aadhaar" or "mobile"
+                LoginId:   loginId,   // encrypted Aadhaar or mobile
+                OTPSystem: otpSystem, // "aadhaar" or "abdm"
+        }
+
+        // ABDM client token
+        token, err := utils.FetchABDMToken(ctx, h.cfg)
+        if err != nil </span><span class="cov0" title="0">{
+                c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch auth token", "details": err.Error()})
+                return
+        }</span>
+
+        // Send
+        <span class="cov4" title="4">resp, err := h.abhaService.ProfileLoginRequestOTP(ctx, req, token)
+        if err != nil </span><span class="cov1" title="1">{
+                c.JSON(http.StatusBadGateway, gin.H{"error": "request-otp failed", "details": err.Error()})
+                return
+        }</span>
+        <span class="cov3" title="3">c.Data(http.StatusOK, "application/json", resp)</span>
+}
+
+// POST /abha/login/profile/verify-otp
+// Body: { "txnId":"...", "otpValue":"123456", "otpSystem":"aadhaar"|"abdm", "loginHint":"aadhaar"|"mobile", "scope":[optional] }
+func (h *ABHAHandler) ProfileLoginVerifyOTP(c *gin.Context) <span class="cov5" title="7">{
+        ctx := c.Request.Context()
+
+        var in dtos.ProfileLoginVerifyInput
+        if err := c.ShouldBindJSON(&amp;in); err != nil </span><span class="cov2" title="2">{
+                c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload", "details": err.Error()})
+                return
+        }</span>
+
+        // Default scopes if not provided
+        <span class="cov4" title="5">scope := in.Scope
+        if len(scope) == 0 </span><span class="cov4" title="4">{
+                scope = []string{"abha-login"}
+                if in.OtpSystem == "aadhaar" </span><span class="cov3" title="3">{
+                        scope = append(scope, "aadhaar-verify")
+                }</span> else<span class="cov1" title="1"> {
+                        scope = append(scope, "mobile-verify")
+                }</span>
+        }
+
+        <span class="cov4" title="5">otpValue := in.OtpValue
+        // Encrypt OTP (ABDM expects encrypted OTP for this profile flow)
+        pub, err := h.abhaService.FetchPublicKey(ctx)
+        if err != nil </span><span class="cov1" title="1">{
+                c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch public key", "details": err.Error()})
+                return
+        }</span>
+        <span class="cov4" title="4">cipherOTP, err := h.abhaService.EncryptData(ctx, pub, in.OtpValue)
+        if err != nil </span><span class="cov1" title="1">{
+                c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to encrypt otp", "details": err.Error()})
+                return
+        }</span>
+        <span class="cov3" title="3">otpValue = cipherOTP
+
+        var req dtos.ProfileLoginVerifyOTP
+        req.Scope = scope
+        req.AuthData.AuthMethods = []string{"otp"}
+        req.AuthData.OTP.TxnId = in.TxnId
+        req.AuthData.OTP.OtpValue = otpValue
+
+        token, err := utils.FetchABDMToken(ctx, h.cfg)
+        if err != nil </span><span class="cov0" title="0">{
+                c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch auth token", "details": err.Error()})
+                return
+        }</span>
+
+        <span class="cov3" title="3">resp, err := h.abhaService.ProfileLoginVerifyOTP(ctx, req, token)
+        if err != nil </span><span class="cov1" title="1">{
+                c.JSON(http.StatusBadGateway, gin.H{"error": "verify-otp failed", "details": err.Error()})
+                return
+        }</span>
+        <span class="cov2" title="2">c.Data(http.StatusOK, "application/json", resp)</span>
+}
+
+////  --- create v2
+
+// POST /abha/create/verify-aadhaar-otp-v2
+func (h *ABHAHandler) VerifyAadhaarOtpAndCreateV2(c *gin.Context) <span class="cov0" title="0">{
+        ctx := c.Request.Context()
+
+        var in dtos.VerifyAndCreateV2Input
+        if err := c.ShouldBindJSON(&amp;in); err != nil </span><span class="cov0" title="0">{
+                c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload", "details": err.Error()})
+                return
+        }</span>
+
+        // Lightweight pre-validation to fail fast before we call ABDM
+        <span class="cov0" title="0">if !regexp.MustCompile(`^\d{6}$`).MatchString(in.Otp) </span><span class="cov0" title="0">{
+                c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_OTP_FORMAT", "details": "otp must be 6 digits"})
+                return
+        }</span>
+        <span class="cov0" title="0">if in.Mobile != "" &amp;&amp; !regexp.MustCompile(`^\d{10}$`).MatchString(in.Mobile) </span><span class="cov0" title="0">{
+                c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_MOBILE_FORMAT", "details": "mobile must be 10 digits"})
+                return
+        }</span>
+
+        // Fetch ABDM client token (M2M)
+        // token, err := utils.FetchABDMToken(ctx, h.cfg)
+        // if err != nil {
+        //         c.JSON(http.StatusInternalServerError, gin.H{"error": "ABDM_TOKEN_FAILED", "details": err.Error()})
+        //         return
+        // }
+
+        // Delegate to service
+        <span class="cov0" title="0">resp, err := h.abhaService.VerifyAadhaarOtpAndCreateIndividualV2(ctx, in)
+        if err != nil </span><span class="cov0" title="0">{
+                c.JSON(http.StatusBadRequest, gin.H{"error": "VERIFY_AND_CREATE_FAILED", "details": err.Error()})
+                return
+        }</span>
+
+        <span class="cov0" title="0">c.Data(http.StatusOK, "application/json", resp)</span>
+}
+</pre>
+		
+		<pre class="file" id="file1" style="display: none">package handlers
+
+import (
+        "context"
+        
+        "digit-abdm/configs"
+)
+
+// MockFetchABDMToken is a test helper that can be used to mock utils.FetchABDMToken
+var MockFetchABDMToken func(ctx context.Context, cfg *configs.Config) (string, error)
+
+// TestTokenProvider returns a test token for mocking purposes
+func TestTokenProvider(ctx context.Context, cfg *configs.Config) (string, error) <span class="cov0" title="0">{
+        if MockFetchABDMToken != nil </span><span class="cov0" title="0">{
+                return MockFetchABDMToken(ctx, cfg)
+        }</span>
+        <span class="cov0" title="0">return "test-auth-token", nil</span>
+}</pre>
+		
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible;
+		files.addEventListener('change', onChange, false);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
+			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
+			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
+		}
+	})();
+	</script>
+</html>

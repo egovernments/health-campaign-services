@@ -129,21 +129,37 @@ type EnrolAddressRequest struct {
 //  ------------------------------------------
 //   ------------------------------------------
 
+//	type AadhaarRequest struct {
+//		AadhaarNumber string `json:"aadhaarNumber" binding:"required"`
+//	}
 type AadhaarRequest struct {
-	AadhaarNumber string `json:"aadhaarNumber" binding:"required"`
+	RequestInfo   RequestInfo `json:"RequestInfo" binding:"required"`   // required by gateway
+	AadhaarNumber string      `json:"aadhaarNumber" binding:"required"` // required field
 }
 
 type VerifyOTPInput struct {
-	TxnId  string `json:"txnId" binding:"required"`
-	Otp    string `json:"otp" binding:"required"`
-	Mobile string `json:"mobile" binding:"required"`
+	RequestInfo RequestInfo `json:"RequestInfo" binding:"required"` // required by gateway
+	TxnId       string      `json:"txnId" binding:"required"`
+	Otp         string      `json:"otp" binding:"required"`
+	Mobile      string      `json:"mobile" binding:"required"`
 }
 
 type AbhaCardRequest struct {
-	AbhaNumber string `json:"abha_number" binding:"required"`
-	CardType   string `json:"card_type" binding:"required"` // "getCard", "getSvgCard", "getPngCard"
+	RequestInfo RequestInfo `json:"RequestInfo" binding:"required"` // required by gateway
+	AbhaNumber  string      `json:"abha_number" binding:"required"`
+	CardType    string      `json:"card_type" binding:"required"` // "getCard", "getSvgCard", "getPngCard"
+}
+
+// v2 – accepts token(s) in request
+type AbhaCardRequestV2 struct {
+	RequestInfo  RequestInfo `json:"RequestInfo" binding:"required"` // required by gateway
+	AbhaNumber   string      `json:"abha_number" binding:"required"`
+	CardType     string      `json:"card_type" binding:"required"` // "getCard", "getSvgCard", "getPngCard"
+	Token        string      `json:"token"`                        // access token for X-Token
+	RefreshToken string      `json:"refresh_token"`                // optional fallback for X-Token
 }
 
 type AbhaQRCodeRequest struct {
-	AbhaNumber string `json:"abha_number" binding:"required"`
+	RequestInfo RequestInfo `json:"RequestInfo" binding:"required"` // required by gateway
+	AbhaNumber  string      `json:"abha_number" binding:"required"`
 }

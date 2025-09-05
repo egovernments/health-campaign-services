@@ -97,6 +97,119 @@
 
 //-------------------------------------------------------------
 
+// package main
+
+// import (
+// 	"context"
+// 	"database/sql"
+// 	"fmt"
+// 	"log"
+// 	"net/http"
+// 	"os"
+// 	"os/signal"
+// 	"syscall"
+// 	"time"
+
+// 	"digit-abdm/configs"
+// 	"digit-abdm/internal/core/services"
+// 	"digit-abdm/internal/handlers"
+// 	dbpostgres "digit-abdm/internal/repositories/postgres"
+
+// 	"github.com/gin-gonic/gin"
+// 	_ "github.com/lib/pq"
+// )
+
+// func main() {
+// 	// Load application configurations
+// 	cfg := configs.LoadConfig()
+
+// 	// --------------------------
+// 	// Database connection
+// 	// --------------------------
+// 	// NOTE: sslmode is now taken from env (DB_SSL_MODE), e.g. "disable", "require"
+// 	dsn := fmt.Sprintf(
+// 		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
+// 		cfg.DBHost, cfg.DBPort, cfg.DBUser, cfg.DBPassword, cfg.DBName, cfg.DBSSLMode,
+// 	)
+
+// 	db, err := sql.Open("postgres", dsn)
+// 	if err != nil {
+// 		log.Fatalf("could not open DB connection: %v", err)
+// 	}
+// 	// Reasonable defaults; tune as needed
+// 	db.SetMaxOpenConns(10)
+// 	db.SetMaxIdleConns(5)
+// 	db.SetConnMaxLifetime(30 * time.Minute)
+
+// 	// Ping with timeout to fail fast if DB is unreachable/policy mismatch (e.g., SSL)
+// 	{
+// 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+// 		defer cancel()
+// 		if err := db.PingContext(ctx); err != nil {
+// 			log.Fatalf("database ping failed: %v", err)
+// 		}
+// 	}
+
+// 	// --------------------------
+// 	// Migrations
+// 	// --------------------------
+// 	// IMPORTANT: Migrations are handled by a separate initContainer/image now.
+// 	// Do NOT run migrations here. This keeps app startup independent and robust.
+
+// 	// --------------------------
+// 	// Wire up services/handlers
+// 	// --------------------------
+// 	abhaRepo := dbpostgres.NewAbhaRepository(db)
+// 	abhaService := services.NewABHAService(cfg, abhaRepo)
+
+// 	router := gin.Default()
+
+// 	// Lightweight health endpoint (useful even if probes are disabled)
+// 	router.GET("/health", func(c *gin.Context) {
+// 		c.String(http.StatusOK, "ok")
+// 	})
+
+// 	api := router.Group("/api")
+// 	abhaHandler := handlers.NewABHAHandler(abhaService, cfg)
+// 	abhaHandler.RegisterRoutes(api)
+
+// 	// --------------------------
+// 	// HTTP server & graceful shutdown
+// 	// --------------------------
+// 	httpServer := &http.Server{
+// 		Addr:    fmt.Sprintf(":%d", cfg.RESTPort),
+// 		Handler: router,
+// 	}
+
+// 	go func() {
+// 		log.Printf("HTTP server listening on :%d", cfg.RESTPort)
+// 		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+// 			log.Fatalf("HTTP server failed: %v", err)
+// 		}
+// 	}()
+
+// 	// Wait for SIGINT/SIGTERM
+// 	quit := make(chan os.Signal, 1)
+// 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+// 	<-quit
+// 	log.Println("Shutting down servers...")
+
+// 	// Graceful shutdown with timeout
+// 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+// 	defer cancel()
+
+// 	if err := httpServer.Shutdown(ctx); err != nil {
+// 		log.Printf("HTTP server shutdown error: %v", err)
+// 	}
+
+// 	// Close DB
+// 	if err := db.Close(); err != nil {
+// 		log.Printf("DB close error: %v", err)
+// 	}
+
+// 	log.Println("Servers gracefully stopped")
+// }
+
 package main
 
 import (
@@ -126,7 +239,6 @@ func main() {
 	// --------------------------
 	// Database connection
 	// --------------------------
-	// NOTE: sslmode is now taken from env (DB_SSL_MODE), e.g. "disable", "require"
 	dsn := fmt.Sprintf(
 		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
 		cfg.DBHost, cfg.DBPort, cfg.DBUser, cfg.DBPassword, cfg.DBName, cfg.DBSSLMode,
@@ -136,12 +248,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("could not open DB connection: %v", err)
 	}
-	// Reasonable defaults; tune as needed
 	db.SetMaxOpenConns(10)
 	db.SetMaxIdleConns(5)
 	db.SetConnMaxLifetime(30 * time.Minute)
 
-	// Ping with timeout to fail fast if DB is unreachable/policy mismatch (e.g., SSL)
 	{
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
@@ -151,12 +261,6 @@ func main() {
 	}
 
 	// --------------------------
-	// Migrations
-	// --------------------------
-	// IMPORTANT: Migrations are handled by a separate initContainer/image now.
-	// Do NOT run migrations here. This keeps app startup independent and robust.
-
-	// --------------------------
 	// Wire up services/handlers
 	// --------------------------
 	abhaRepo := dbpostgres.NewAbhaRepository(db)
@@ -164,12 +268,17 @@ func main() {
 
 	router := gin.Default()
 
-	// Lightweight health endpoint (useful even if probes are disabled)
-	router.GET("/health", func(c *gin.Context) {
+	// Base context group (e.g., /hcm-abha)
+	base := router.Group(cfg.ContextPath)
+
+	// Health under context path
+	base.GET("/health", func(c *gin.Context) {
 		c.String(http.StatusOK, "ok")
 	})
 
-	api := router.Group("/api")
+	// API under context path -> /hcm-abha/api/...
+	api := base.Group("/api")
+
 	abhaHandler := handlers.NewABHAHandler(abhaService, cfg)
 	abhaHandler.RegisterRoutes(api)
 
@@ -182,19 +291,17 @@ func main() {
 	}
 
 	go func() {
-		log.Printf("HTTP server listening on :%d", cfg.RESTPort)
+		log.Printf("HTTP server listening on :%d (contextPath=%s)", cfg.RESTPort, cfg.ContextPath)
 		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("HTTP server failed: %v", err)
 		}
 	}()
 
-	// Wait for SIGINT/SIGTERM
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 	log.Println("Shutting down servers...")
 
-	// Graceful shutdown with timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -202,7 +309,6 @@ func main() {
 		log.Printf("HTTP server shutdown error: %v", err)
 	}
 
-	// Close DB
 	if err := db.Close(); err != nil {
 		log.Printf("DB close error: %v", err)
 	}

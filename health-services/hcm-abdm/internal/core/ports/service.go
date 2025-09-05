@@ -15,6 +15,10 @@ type ABHAService interface {
 	FetchAbhaCard(ctx context.Context, abhaNumber string) ([]byte, error)
 	FetchAbhaCardByType(ctx context.Context, abhaNumber, cardType string) ([]byte, string, error)
 	FetchQRCodeByABHANumber(ctx context.Context, abhaNumber string) ([]byte, error)
+	FetchAbhaCardByTypeV2(
+		ctx context.Context,
+		abhaNumber, cardType, token, refreshToken string,
+	) ([]byte, string, error)
 	// ----------------------
 
 	// SendAadhaarOTP(ctx context.Context, req dtos.SendAadhaarOTPRequest, token string) ([]byte, error)
@@ -25,4 +29,21 @@ type ABHAService interface {
 	// EnrolAddress(ctx context.Context, req dtos.EnrolAddressRequest, token string) ([]byte, error)
 	// SendLoginOTP(ctx context.Context, req dtos.SendLoginOTPRequest, token string) ([]byte, error)
 	// VerifyLoginOTP(ctx context.Context, req dtos.VerifyLoginOTPRequest, token string) ([]byte, error)
+
+	// ---------------- NEW --------------------
+	LinkMobileNumber(ctx context.Context, req dtos.LinkMobileRequest, token string) ([]byte, error)
+	VerifyMobileOTP(ctx context.Context, req dtos.VerifyMobileOTPRequest, token string) ([]byte, error)
+	AddressSuggestion(ctx context.Context, req dtos.AddressSuggestionRequest, token string) ([]byte, error)
+	EnrolAddress(ctx context.Context, req dtos.EnrolAddressRequest, token string) ([]byte, error)
+	LoginSendOTP(ctx context.Context, req dtos.SendOtpRequest, token string) ([]byte, error)
+	LoginVerifyOTP(ctx context.Context, req dtos.VerifyOtpRequest, token string) ([]byte, error)
+	LoginCheckAuthMethods(ctx context.Context, req dtos.CheckAuthMethodsRequest, token string) ([]byte, error)
+
+	ProfileLoginRequestOTP(ctx context.Context, req dtos.ProfileLoginRequestOTP, token string) ([]byte, error)
+	ProfileLoginVerifyOTP(ctx context.Context, req dtos.ProfileLoginVerifyOTP, token string) ([]byte, error)
+
+	VerifyAadhaarOtpAndCreateIndividualV2(ctx context.Context, in dtos.VerifyAndCreateV2Input) ([]byte, error)
+
+	RecordAadhaarTxnOnOtp(ctx context.Context, tenantID, aadhaarPlain, txnID string) error
+	ResolveAadhaarFromABHA(ctx context.Context, abha string) (string, error)
 }

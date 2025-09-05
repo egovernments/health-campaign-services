@@ -3,6 +3,7 @@ package configs
 import (
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -11,6 +12,8 @@ type Config struct {
 	// Server configuration
 	RESTPort int
 	GRPCPort int
+
+	ContextPath string
 
 	// Database configuration
 	DBHost     string
@@ -33,16 +36,34 @@ type Config struct {
 	CacheExpiration time.Duration
 
 	// ABDM configurations
-	PublicKeyURL           string
-	OTPRequestURL          string
-	EnrolByAadhaarURL      string
-	AbdmClientID           string
-	AbdmClientSecret       string
-	ABDM_URL               string
-	HEALTH_SERVICE_API_URL string
-	AbdmAuthURL            string
-	ABHACardEndpoints      ABHACardEndpointsConfig
-	QRCode                 string
+	PublicKeyURL               string
+	OTPRequestURL              string
+	EnrolByAadhaarURL          string
+	AbdmClientID               string
+	AbdmClientSecret           string
+	ABDM_URL                   string
+	INDIVIDUAL_SERVICE_API_URL string
+	AbdmAuthURL                string
+	ABHACardEndpoints          ABHACardEndpointsConfig
+	QRCode                     string
+
+	// New Create-flow URLs
+	LinkMobileURL        string
+	VerifyMobileURL      string
+	AddressSuggestionURL string
+	EnrolAddressURL      string
+
+	// New Login URLs
+	LoginSendOtpURL   string
+	LoginVerifyOtpURL string
+	LoginCheckAuthURL string
+
+	// add to Config struct
+	ProfileLoginRequestOTPURL string
+	ProfileLoginVerifyOTPURL  string
+
+	IndividualCreateURL string
+	HTTPClientTimeout   time.Duration
 }
 
 type ABHACardEndpointsConfig struct {
@@ -57,6 +78,8 @@ func LoadConfig() *Config {
 		// Server configuration
 		RESTPort: getEnvAsInt("REST_PORT", 8088),
 		GRPCPort: getEnvAsInt("GRPC_PORT", 8089),
+		// Context path (default: /hcm-abha)
+		ContextPath: normalizeContextPath(getEnv("CONTEXT_PATH", "/hcm-abha")),
 
 		// Database configuration
 		DBHost:     getEnv("DB_HOST", "localhost"),
@@ -81,8 +104,8 @@ func LoadConfig() *Config {
 		PublicKeyURL:      getEnv("PUBLIC_KEY_URL", "https://healthidsbx.abdm.gov.in/api/v1/auth/cert"),
 		OTPRequestURL:     getEnv("OTP_REQUEST_URL", "https://abhasbx.abdm.gov.in/abha/api/v3/enrollment/request/otp"),
 		EnrolByAadhaarURL: getEnv("ENROL_BY_AADHAAR_URL", "https://abhasbx.abdm.gov.in/abha/api/v3/enrollment/enrol/byAadhaar"),
-		AbdmClientID:      getEnv("ABDM_CLIENT_ID", "******"),
-		AbdmClientSecret:  getEnv("ABDM_CLIENT_SECRET", "******************"),
+		AbdmClientID:      getEnv("ABDM_CLIENT_ID", "SBX_******"),
+		AbdmClientSecret:  getEnv("ABDM_CLIENT_SECRET", "************************"),
 		AbdmAuthURL:       getEnv("ABDM_AUTH_URL", "https://dev.abdm.gov.in/gateway/v0.5/sessions"),
 
 		// New ABHA Card Endpoints
@@ -92,6 +115,31 @@ func LoadConfig() *Config {
 			GetPngCard: getEnv("ABHA_GET_PNG_CARD_URL", "https://healthidsbx.abdm.gov.in/api/v1/account/getPngCard"),
 		},
 		QRCode: getEnv("ABHA_QR_ENDPOINT", "https://healthidsbx.abdm.gov.in/api/v1/account/qrCode"),
+
+		// Create Flow URLs
+		LinkMobileURL:        getEnv("LINK_MOBILE_URL", "https://abhasbx.abdm.gov.in/abha/api/v3/enrollment/request/otp"),
+		VerifyMobileURL:      getEnv("VERIFY_MOBILE_URL", "https://abhasbx.abdm.gov.in/abha/api/v3/enrollment/auth/byAbdm"),
+		AddressSuggestionURL: getEnv("ADDRESS_SUGGESTION_URL", "https://abhasbx.abdm.gov.in/abha/api/v3/enrollment/enrol/suggestion"),
+		EnrolAddressURL:      getEnv("ENROL_ADDRESS_URL", "https://abhasbx.abdm.gov.in/abha/api/v3/enrollment/enrol/abha-address"),
+
+		// Login Flow URLs
+		LoginSendOtpURL:   getEnv("LOGIN_SEND_OTP_URL", "https://abhasbx.abdm.gov.in/abha/api/v3/profile/login/request/otp"),
+		LoginVerifyOtpURL: getEnv("LOGIN_VERIFY_OTP_URL", "https://abhasbx.abdm.gov.in/abha/api/v3/profile/login/verify"),
+		LoginCheckAuthURL: getEnv("LOGIN_CHECK_AUTH_URL", "https://abhasbx.abdm.gov.in/abha/api/v3/phr/web/login/abha/search"),
+
+		// profile login URLs
+		// in LoadConfig()
+		ProfileLoginRequestOTPURL: getEnv("PROFILE_LOGIN_REQUEST_OTP_URL", getEnv("LOGIN_SEND_OTP_URL", "https://abhasbx.abdm.gov.in/abha/api/v3/profile/login/request/otp")),
+		ProfileLoginVerifyOTPURL:  getEnv("PROFILE_LOGIN_VERIFY_OTP_URL", getEnv("LOGIN_VERIFY_OTP_URL", "https://abhasbx.abdm.gov.in/abha/api/v3/profile/login/verify")),
+
+		// NEW: outbound HTTP timeout (default 15s)
+		HTTPClientTimeout: getEnvAsDuration("HTTP_CLIENT_TIMEOUT", 15*time.Second),
+
+		// NEW: Individual create URL (defaults to HEALTH_SERVICE_API_URL + /health-individual/v1/_create)
+		IndividualCreateURL: getEnv(
+			"INDIVIDUAL_CREATE_URL",
+			trimRightSlash(getEnv("INDIVIDUAL_SERVICE_API_URL", "http://localhost:8080"))+"/health-individual/v1/_create",
+		),
 	}
 }
 
@@ -132,4 +180,27 @@ func getEnvAsDuration(key string, defaultValue time.Duration) time.Duration {
 	}
 
 	return value
+}
+
+func trimRightSlash(s string) string {
+	if len(s) > 0 && s[len(s)-1] == '/' {
+		return s[:len(s)-1]
+	}
+	return s
+}
+
+func normalizeContextPath(s string) string {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		s = "/hcm-abha"
+	}
+	// ensure leading slash
+	if !strings.HasPrefix(s, "/") {
+		s = "/" + s
+	}
+	// remove trailing slash except root
+	if len(s) > 1 && s[len(s)-1] == '/' {
+		s = s[:len(s)-1]
+	}
+	return s
 }
