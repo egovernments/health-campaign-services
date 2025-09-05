@@ -8,9 +8,9 @@ import org.egov.excelingestion.exception.CustomExceptionHandler;
 import org.egov.excelingestion.service.BoundaryService;
 import org.egov.excelingestion.service.MDMSService;
 import org.egov.excelingestion.util.BoundaryUtil;
+import org.egov.excelingestion.util.ColumnDefMaker;
 import org.egov.excelingestion.web.models.*;
 import org.egov.excelingestion.web.models.excel.ColumnDef;
-import org.egov.excelingestion.web.models.excel.MultiSelectDetails;
 import org.springframework.stereotype.Component;
 
 import java.util.*;
@@ -26,13 +26,16 @@ public class BoundaryHierarchySheetGenerator implements IExcelPopulatorSheetGene
     private final BoundaryUtil boundaryUtil;
     private final MDMSService mdmsService;
     private final CustomExceptionHandler exceptionHandler;
+    private final ColumnDefMaker columnDefMaker;
 
     public BoundaryHierarchySheetGenerator(BoundaryService boundaryService, BoundaryUtil boundaryUtil,
-                                          MDMSService mdmsService, CustomExceptionHandler exceptionHandler) {
+                                          MDMSService mdmsService, CustomExceptionHandler exceptionHandler,
+                                          ColumnDefMaker columnDefMaker) {
         this.boundaryService = boundaryService;
         this.boundaryUtil = boundaryUtil;
         this.mdmsService = mdmsService;
         this.exceptionHandler = exceptionHandler;
+        this.columnDefMaker = columnDefMaker;
     }
 
     @Override
@@ -149,21 +152,21 @@ public class BoundaryHierarchySheetGenerator implements IExcelPopulatorSheetGene
             // Process stringProperties
             if (root.has("stringProperties")) {
                 for (JsonNode node : root.path("stringProperties")) {
-                    columns.add(parseJsonToColumnDef(node, "string"));
+                    columns.add(columnDefMaker.createColumnDefFromJson(node, "string"));
                 }
             }
             
             // Process numberProperties
             if (root.has("numberProperties")) {
                 for (JsonNode node : root.path("numberProperties")) {
-                    columns.add(parseJsonToColumnDef(node, "number"));
+                    columns.add(columnDefMaker.createColumnDefFromJson(node, "number"));
                 }
             }
             
             // Process enumProperties
             if (root.has("enumProperties")) {
                 for (JsonNode node : root.path("enumProperties")) {
-                    columns.add(parseJsonToColumnDef(node, "enum"));
+                    columns.add(columnDefMaker.createColumnDefFromJson(node, "enum"));
                 }
             }
             
@@ -177,57 +180,6 @@ public class BoundaryHierarchySheetGenerator implements IExcelPopulatorSheetGene
         return columns;
     }
     
-    private ColumnDef parseJsonToColumnDef(JsonNode node, String type) {
-        ColumnDef.ColumnDefBuilder builder = ColumnDef.builder()
-                .name(node.path("name").asText())
-                .type(type)
-                .description(node.path("description").asText())
-                .colorHex(node.path("color").asText())
-                .orderNumber(node.path("orderNumber").asInt(9999))
-                .freezeColumnIfFilled(node.path("freezeColumnIfFilled").asBoolean(false))
-                .hideColumn(node.path("hideColumn").asBoolean(false))
-                .required(node.path("isRequired").asBoolean(false))
-                .pattern(node.path("pattern").asText(null))
-                .minimum(node.path("minimum").asLong(Long.MIN_VALUE))
-                .maximum(node.path("maximum").asLong(Long.MAX_VALUE))
-                .minLength(node.path("minLength").asInt(0))
-                .maxLength(node.path("maxLength").asInt(Integer.MAX_VALUE))
-                .freezeColumn(node.path("freezeColumn").asBoolean(false))
-                .adjustHeight(node.path("adjustHeight").asBoolean(false))
-                .width(node.path("width").asInt(50))
-                .unFreezeColumnTillData(node.path("unFreezeColumnTillData").asBoolean(false))
-                .freezeTillData(node.path("freezeTillData").asBoolean(false));
-        
-        // Handle enum values
-        List<String> enumValues = null;
-        if ("enum".equals(type) && node.has("enumValues")) {
-            enumValues = new ArrayList<>();
-            for (JsonNode enumValue : node.path("enumValues")) {
-                enumValues.add(enumValue.asText());
-            }
-            builder.enumValues(enumValues);
-        }
-        
-        // Handle multi-select details
-        if (node.has("multiSelectDetails")) {
-            JsonNode multiSelectNode = node.get("multiSelectDetails");
-            List<String> multiSelectEnumValues = null;
-            if (multiSelectNode.has("enumValues")) {
-                multiSelectEnumValues = new ArrayList<>();
-                for (JsonNode enumValue : multiSelectNode.path("enumValues")) {
-                    multiSelectEnumValues.add(enumValue.asText());
-                }
-            }
-            MultiSelectDetails multiSelectDetails = MultiSelectDetails.builder()
-                    .maxSelections(multiSelectNode.path("maxSelections").asInt(1))
-                    .minSelections(multiSelectNode.path("minSelections").asInt(0))
-                    .enumValues(multiSelectEnumValues != null ? multiSelectEnumValues : enumValues)
-                    .build();
-            builder.multiSelectDetails(multiSelectDetails);
-        }
-        
-        return builder.build();
-    }
     
     private List<ColumnDef> createBoundaryHierarchyColumnDefs(List<BoundaryHierarchyChild> hierarchyRelations, 
                                                              String hierarchyType, 
@@ -286,6 +238,7 @@ public class BoundaryHierarchySheetGenerator implements IExcelPopulatorSheetGene
                     .multiSelectDetails(schemaCol.getMultiSelectDetails())
                     .build());
         }
+        
         
         return columns;
     }

@@ -7,13 +7,12 @@ import org.egov.excelingestion.config.ErrorConstants;
 import org.egov.excelingestion.config.ProcessingConstants;
 import org.egov.excelingestion.exception.CustomExceptionHandler;
 import org.egov.excelingestion.service.MDMSService;
+import org.egov.excelingestion.util.ColumnDefMaker;
 import org.egov.excelingestion.web.models.GenerateResource;
 import org.egov.excelingestion.web.models.RequestInfo;
 import org.egov.excelingestion.web.models.SheetGenerationConfig;
 import org.egov.excelingestion.web.models.SheetGenerationResult;
 import org.egov.excelingestion.web.models.excel.ColumnDef;
-import org.egov.excelingestion.web.models.excel.MultiSelectDetails;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.*;
@@ -27,10 +26,13 @@ public class SchemaBasedSheetGenerator implements IExcelPopulatorSheetGenerator 
 
     private final MDMSService mdmsService;
     private final CustomExceptionHandler exceptionHandler;
+    private final ColumnDefMaker columnDefMaker;
 
-    public SchemaBasedSheetGenerator(MDMSService mdmsService, CustomExceptionHandler exceptionHandler) {
+    public SchemaBasedSheetGenerator(MDMSService mdmsService, CustomExceptionHandler exceptionHandler,
+                                   ColumnDefMaker columnDefMaker) {
         this.mdmsService = mdmsService;
         this.exceptionHandler = exceptionHandler;
+        this.columnDefMaker = columnDefMaker;
     }
 
     @Override
@@ -107,21 +109,21 @@ public class SchemaBasedSheetGenerator implements IExcelPopulatorSheetGenerator 
             // Process stringProperties
             if (root.has("stringProperties")) {
                 for (JsonNode node : root.path("stringProperties")) {
-                    columns.add(parseJsonToColumnDef(node, "string"));
+                    columns.add(columnDefMaker.createColumnDefFromJson(node, "string"));
                 }
             }
             
             // Process numberProperties
             if (root.has("numberProperties")) {
                 for (JsonNode node : root.path("numberProperties")) {
-                    columns.add(parseJsonToColumnDef(node, "number"));
+                    columns.add(columnDefMaker.createColumnDefFromJson(node, "number"));
                 }
             }
             
             // Process enumProperties
             if (root.has("enumProperties")) {
                 for (JsonNode node : root.path("enumProperties")) {
-                    columns.add(parseJsonToColumnDef(node, "enum"));
+                    columns.add(columnDefMaker.createColumnDefFromJson(node, "enum"));
                 }
             }
             
@@ -135,93 +137,5 @@ public class SchemaBasedSheetGenerator implements IExcelPopulatorSheetGenerator 
         }
         
         return columns;
-    }
-    
-    private ColumnDef parseJsonToColumnDef(JsonNode node, String type) {
-        ColumnDef.ColumnDefBuilder builder = ColumnDef.builder()
-                .name(node.path("name").asText())
-                .type(type)
-                .description(node.path("description").asText())
-                .colorHex(node.path("color").asText())
-                .orderNumber(node.path("orderNumber").asInt(9999))
-                .freezeColumnIfFilled(node.path("freezeColumnIfFilled").asBoolean(false))
-                .hideColumn(node.path("hideColumn").asBoolean(false))
-                .required(node.path("isRequired").asBoolean(false))
-                .width(node.has("width") ? node.path("width").asInt() : null)
-                .wrapText(node.path("wrapText").asBoolean(false))
-                .prefix(node.path("prefix").asText(null))
-                .adjustHeight(node.path("adjustHeight").asBoolean(false))
-                .showInProcessed(node.path("showInProcessed").asBoolean(true))
-                .freezeColumn(node.path("freezeColumn").asBoolean(false))
-                .freezeTillData(node.path("freezeTillData").asBoolean(false))
-                .unFreezeColumnTillData(node.path("unFreezeColumnTillData").asBoolean(false));
-        
-        // Handle MDMS validation properties for string fields
-        if ("string".equals(type)) {
-            if (node.has("minLength")) {
-                builder.minLength(node.path("minLength").asInt());
-            }
-            if (node.has("maxLength")) {
-                builder.maxLength(node.path("maxLength").asInt());
-            }
-            if (node.has("pattern")) {
-                builder.pattern(node.path("pattern").asText());
-            }
-            // Extract custom error message if provided in MDMS schema
-            if (node.has("errorMessage")) {
-                builder.errorMessage(node.path("errorMessage").asText());
-            }
-        }
-        
-        // Handle MDMS validation properties for number fields
-        if ("number".equals(type)) {
-            if (node.has("minimum")) {
-                builder.minimum(node.path("minimum").asDouble());
-            }
-            if (node.has("maximum")) {
-                builder.maximum(node.path("maximum").asDouble());
-            }
-            if (node.has("multipleOf")) {
-                builder.multipleOf(node.path("multipleOf").asDouble());
-            }
-            if (node.has("exclusiveMinimum")) {
-                builder.exclusiveMinimum(node.path("exclusiveMinimum").asDouble());
-            }
-            if (node.has("exclusiveMaximum")) {
-                builder.exclusiveMaximum(node.path("exclusiveMaximum").asDouble());
-            }
-            // Extract custom error message if provided in MDMS schema
-            if (node.has("errorMessage")) {
-                builder.errorMessage(node.path("errorMessage").asText());
-            }
-        }
-        
-        // Handle enum properties
-        if ("enum".equals(type) && node.has("enum")) {
-            List<String> enumValues = new ArrayList<>();
-            node.path("enum").forEach(enumNode -> enumValues.add(enumNode.asText()));
-            builder.enumValues(enumValues);
-            // Extract custom error message if provided in MDMS schema
-            if (node.has("errorMessage")) {
-                builder.errorMessage(node.path("errorMessage").asText());
-            }
-        }
-        
-        // Handle multiSelectDetails for string properties
-        if (node.has("multiSelectDetails")) {
-            JsonNode multiSelectNode = node.path("multiSelectDetails");
-            List<String> enumValues = new ArrayList<>();
-            multiSelectNode.path("enum").forEach(enumNode -> enumValues.add(enumNode.asText()));
-            
-            MultiSelectDetails details = MultiSelectDetails.builder()
-                    .maxSelections(multiSelectNode.path("maxSelections").asInt(1))
-                    .minSelections(multiSelectNode.path("minSelections").asInt(0))
-                    .enumValues(enumValues)
-                    .build();
-            
-            builder.multiSelectDetails(details);
-        }
-        
-        return builder.build();
     }
 }

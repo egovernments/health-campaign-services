@@ -26,7 +26,8 @@ public class ProcessorConfigurationRegistry {
         configs.put("microplan-ingestion", Arrays.asList(
                 new ProcessorSheetConfig("HCM_ADMIN_CONSOLE_FACILITIES_LIST", "facility-microplan-ingestion"),
                 new ProcessorSheetConfig("HCM_ADMIN_CONSOLE_USERS_LIST", "user-microplan-ingestion"),
-                new ProcessorSheetConfig("HCM_CONSOLE_BOUNDARY_HIERARCHY", null) // No schema validation needed
+                new ProcessorSheetConfig("HCM_CONSOLE_BOUNDARY_HIERARCHY", null, 
+                        "org.egov.excelingestion.processor.BoundaryHierarchyTargetProcessor") // Custom processor for target validation
         ));
         
         // Add more processor configurations here as needed
@@ -54,15 +55,21 @@ public class ProcessorConfigurationRegistry {
     }
     
     /**
-     * Simple config class for processing - only sheetName and schemaName
+     * Simple config class for processing - sheetName, schemaName and optional processor class
      */
     public static class ProcessorSheetConfig {
         private final String sheetNameKey;
         private final String schemaName;
+        private final String processorClass; // Optional processor class for custom processing
         
         public ProcessorSheetConfig(String sheetNameKey, String schemaName) {
+            this(sheetNameKey, schemaName, null);
+        }
+        
+        public ProcessorSheetConfig(String sheetNameKey, String schemaName, String processorClass) {
             this.sheetNameKey = sheetNameKey;
             this.schemaName = schemaName;
+            this.processorClass = processorClass;
         }
         
         public String getSheetNameKey() {
@@ -71,6 +78,10 @@ public class ProcessorConfigurationRegistry {
         
         public String getSchemaName() {
             return schemaName;
+        }
+        
+        public String getProcessorClass() {
+            return processorClass;
         }
     }
 }

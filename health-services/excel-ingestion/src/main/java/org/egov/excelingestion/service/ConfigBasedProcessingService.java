@@ -8,8 +8,11 @@ import org.egov.excelingestion.config.ProcessingConstants;
 import org.egov.excelingestion.config.ProcessorConfigurationRegistry;
 import org.egov.excelingestion.config.ProcessorConfigurationRegistry.ProcessorSheetConfig;
 import org.egov.excelingestion.exception.CustomExceptionHandler;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.egov.excelingestion.processor.IWorkbookProcessor;
 import org.egov.excelingestion.web.models.ProcessResource;
 import org.egov.excelingestion.web.models.RequestInfo;
+import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
@@ -27,13 +30,16 @@ public class ConfigBasedProcessingService {
     private final ProcessorConfigurationRegistry configRegistry;
     private final CustomExceptionHandler exceptionHandler;
     private final MDMSService mdmsService;
+    private final ApplicationContext applicationContext;
 
     public ConfigBasedProcessingService(ProcessorConfigurationRegistry configRegistry,
                                       CustomExceptionHandler exceptionHandler,
-                                      MDMSService mdmsService) {
+                                      MDMSService mdmsService,
+                                      ApplicationContext applicationContext) {
         this.configRegistry = configRegistry;
         this.exceptionHandler = exceptionHandler;
         this.mdmsService = mdmsService;
+        this.applicationContext = applicationContext;
     }
 
     /**
@@ -247,5 +253,58 @@ public class ConfigBasedProcessingService {
             log.error("Error fetching MDMS schema {}: {}", schemaName, e.getMessage(), e);
             return null;
         }
+    }
+
+    /**
+     * Process workbook using configured processor if available
+     * Returns processed workbook with error columns added, or original workbook if no processor configured
+     */
+    public Workbook processWorkbookWithProcessor(String sheetName,
+                                                Workbook workbook,
+                                                ProcessResource resource,
+                                                RequestInfo requestInfo,
+                                                Map<String, String> localizationMap) {
+        // Get processor configuration
+        java.util.List<ProcessorSheetConfig> config = getConfigByType(resource.getType());
+        if (config == null) {
+            return null;
+        }
+        
+        // Find processor for this sheet
+        String processorClass = null;
+        for (ProcessorSheetConfig sheetConfig : config) {
+            String configuredSheetName = getLocalizedSheetName(sheetConfig.getSheetNameKey(), localizationMap);
+            if (configuredSheetName.equals(sheetName) && sheetConfig.getProcessorClass() != null) {
+                processorClass = sheetConfig.getProcessorClass();
+                break;
+            }
+        }
+        
+        if (processorClass == null) {
+            return null; // No processor configured for this sheet
+        }
+        
+        // Load and execute processor
+        try {
+            log.info("Using processor {} for sheet {}", processorClass, sheetName);
+            
+            // Get processor bean from Spring context
+            Class<?> clazz = Class.forName(processorClass);
+            IWorkbookProcessor processor = (IWorkbookProcessor) applicationContext.getBean(clazz);
+            
+            // Process the workbook
+            return processor.processWorkbook(workbook, sheetName, resource, requestInfo, localizationMap);
+            
+        } catch (ClassNotFoundException e) {
+            log.error("Processor class not found: {}", processorClass, e);
+            exceptionHandler.throwCustomException(ErrorConstants.PROCESSOR_CLASS_NOT_FOUND,
+                    "Processor class not found: " + processorClass);
+        } catch (Exception e) {
+            log.error("Error executing processor {}: {}", processorClass, e.getMessage(), e);
+            exceptionHandler.throwCustomException(ErrorConstants.PROCESSOR_EXECUTION_ERROR,
+                    "Error executing processor: " + e.getMessage());
+        }
+        
+        return workbook;
     }
 }

@@ -126,7 +126,7 @@ public class ExcelProcessingService {
                         continue;
                     }
                     
-                    // Get errors for this sheet first
+                    // Step 1: Regular MDMS schema validation for all sheets (if errors exist)
                     List<ValidationError> sheetErrors = validationErrors.stream()
                             .filter(error -> sheetName.equals(error.getSheetName()))
                             .toList();
@@ -140,6 +140,10 @@ public class ExcelProcessingService {
                         // Process the validation errors
                         validationService.processValidationErrors(sheet, sheetErrors, columnInfo, mergedLocalizationMap);
                     }
+                    
+                    // Step 2: Check if there's a workbook processor configured for this sheet
+                    configBasedProcessingService.processWorkbookWithProcessor(
+                            sheetName, workbook, resource, request.getRequestInfo(), mergedLocalizationMap);
                 }
                 
                 // Upload the processed Excel file
@@ -286,6 +290,7 @@ public class ExcelProcessingService {
         
         return localizedName;
     }
+    
 
     /**
      * Converts sheet data to List of Maps for easier processing
@@ -433,4 +438,5 @@ public class ExcelProcessingService {
                 .auditDetails(auditDetails)
                 .build();
     }
+
 }

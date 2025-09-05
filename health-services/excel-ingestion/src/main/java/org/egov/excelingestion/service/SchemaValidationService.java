@@ -381,8 +381,8 @@ public class SchemaValidationService {
                 } else {
                     // Use dynamic message with localization
                     errorMessage = LocalizationUtil.getLocalizedMessage(localizationMap, "HCM_VALIDATION_MIN_NUMBER", 
-                            String.format("Field '%s' must be at least %s", rule.getFieldName(), rule.getMinimum()),
-                            rule.getFieldName(), rule.getMinimum().toString());
+                            String.format("Field '%s' must be at least %s", rule.getDisplayName(), rule.getMinimum()),
+                            rule.getDisplayName(), rule.getMinimum().toString());
                 }
                 errors.add(createValidationError(rowNumber, sheetName, rule.getFieldName(), errorMessage));
             }
@@ -395,8 +395,8 @@ public class SchemaValidationService {
                 } else {
                     // Use dynamic message with localization
                     errorMessage = LocalizationUtil.getLocalizedMessage(localizationMap, "HCM_VALIDATION_MAX_NUMBER", 
-                            String.format("Field '%s' must not exceed %s", rule.getFieldName(), rule.getMaximum()),
-                            rule.getFieldName(), rule.getMaximum().toString());
+                            String.format("Field '%s' must not exceed %s", rule.getDisplayName(), rule.getMaximum()),
+                            rule.getDisplayName(), rule.getMaximum().toString());
                 }
                 errors.add(createValidationError(rowNumber, sheetName, rule.getFieldName(), errorMessage));
             }
@@ -410,8 +410,8 @@ public class SchemaValidationService {
                 } else {
                     // Use dynamic message with localization
                     errorMessage = LocalizationUtil.getLocalizedMessage(localizationMap, "HCM_VALIDATION_EXCLUSIVE_MIN", 
-                            String.format("Field '%s' must be greater than %s", rule.getFieldName(), rule.getExclusiveMinimum()),
-                            rule.getFieldName(), rule.getExclusiveMinimum().toString());
+                            String.format("Field '%s' must be greater than %s", rule.getDisplayName(), rule.getExclusiveMinimum()),
+                            rule.getDisplayName(), rule.getExclusiveMinimum().toString());
                 }
                 errors.add(createValidationError(rowNumber, sheetName, rule.getFieldName(), errorMessage));
             }
@@ -425,8 +425,8 @@ public class SchemaValidationService {
                 } else {
                     // Use dynamic message with localization
                     errorMessage = LocalizationUtil.getLocalizedMessage(localizationMap, "HCM_VALIDATION_EXCLUSIVE_MAX", 
-                            String.format("Field '%s' must be less than %s", rule.getFieldName(), rule.getExclusiveMaximum()),
-                            rule.getFieldName(), rule.getExclusiveMaximum().toString());
+                            String.format("Field '%s' must be less than %s", rule.getDisplayName(), rule.getExclusiveMaximum()),
+                            rule.getDisplayName(), rule.getExclusiveMaximum().toString());
                 }
                 errors.add(createValidationError(rowNumber, sheetName, rule.getFieldName(), errorMessage));
             }
@@ -442,8 +442,8 @@ public class SchemaValidationService {
                     } else {
                         // Use dynamic message with localization
                         errorMessage = LocalizationUtil.getLocalizedMessage(localizationMap, "HCM_VALIDATION_MULTIPLE_OF", 
-                                String.format("Field '%s' must be a multiple of %s", rule.getFieldName(), rule.getMultipleOf()),
-                                rule.getFieldName(), rule.getMultipleOf().toString());
+                                String.format("Field '%s' must be a multiple of %s", rule.getDisplayName(), rule.getMultipleOf()),
+                                rule.getDisplayName(), rule.getMultipleOf().toString());
                     }
                     errors.add(createValidationError(rowNumber, sheetName, rule.getFieldName(), errorMessage));
                 }
@@ -457,7 +457,7 @@ public class SchemaValidationService {
             } else {
                 // Use dynamic message with localization
                 errorMessage = LocalizationUtil.getLocalizedMessage(localizationMap, "HCM_VALIDATION_INVALID_NUMBER", 
-                        String.format("Field '%s' must be a valid number", rule.getFieldName()), rule.getFieldName());
+                        String.format("Field '%s' must be a valid number", rule.getDisplayName()), rule.getDisplayName());
             }
             errors.add(createValidationError(rowNumber, sheetName, rule.getFieldName(), errorMessage));
         }
@@ -475,8 +475,8 @@ public class SchemaValidationService {
             } else {
                 // Use dynamic message with localization
                 errorMessage = LocalizationUtil.getLocalizedMessage(localizationMap, "HCM_VALIDATION_INVALID_ENUM", 
-                        String.format("Field '%s' contains invalid value '%s'", rule.getFieldName(), strValue),
-                        rule.getFieldName(), strValue);
+                        String.format("Field '%s' contains invalid value '%s'", rule.getDisplayName(), strValue),
+                        rule.getDisplayName(), strValue);
             }
             errors.add(createValidationError(rowNumber, sheetName, rule.getFieldName(), errorMessage));
         }
@@ -505,24 +505,24 @@ public class SchemaValidationService {
         Set<String> uniqueValues = new HashSet<>(trimmedValues);
         if (uniqueValues.size() < trimmedValues.size()) {
             String errorMessage = LocalizationUtil.getLocalizedMessage(localizationMap, ValidationConstants.HCM_VALIDATION_DUPLICATE_SELECTIONS, 
-                    String.format("Field '%s' contains duplicate selections", rule.getFieldName()),
-                    rule.getFieldName());
+                    String.format("Field '%s' contains duplicate selections", rule.getDisplayName()),
+                    rule.getDisplayName());
             errors.add(createValidationError(rowNumber, sheetName, rule.getFieldName(), errorMessage));
         }
         
         // Validate minimum selections
         if (multiSelect.getMinSelections() != null && trimmedValues.size() < multiSelect.getMinSelections()) {
             String errorMessage = LocalizationUtil.getLocalizedMessage(localizationMap, "HCM_VALIDATION_MIN_SELECTIONS", 
-                    String.format("Field '%s' must have at least %d selections", rule.getFieldName(), multiSelect.getMinSelections()),
-                    rule.getFieldName(), multiSelect.getMinSelections().toString());
+                    String.format("Field '%s' must have at least %d selections", rule.getDisplayName(), multiSelect.getMinSelections()),
+                    rule.getDisplayName(), multiSelect.getMinSelections().toString());
             errors.add(createValidationError(rowNumber, sheetName, rule.getFieldName(), errorMessage));
         }
         
         // Validate maximum selections
         if (multiSelect.getMaxSelections() != null && trimmedValues.size() > multiSelect.getMaxSelections()) {
             String errorMessage = LocalizationUtil.getLocalizedMessage(localizationMap, "HCM_VALIDATION_MAX_SELECTIONS", 
-                    String.format("Field '%s' must have at most %d selections", rule.getFieldName(), multiSelect.getMaxSelections()),
-                    rule.getFieldName(), multiSelect.getMaxSelections().toString());
+                    String.format("Field '%s' must have at most %d selections", rule.getDisplayName(), multiSelect.getMaxSelections()),
+                    rule.getDisplayName(), multiSelect.getMaxSelections().toString());
             errors.add(createValidationError(rowNumber, sheetName, rule.getFieldName(), errorMessage));
         }
         
@@ -531,8 +531,8 @@ public class SchemaValidationService {
             for (String selectedValue : trimmedValues) {
                 if (!multiSelect.getEnumValues().contains(selectedValue)) {
                     String errorMessage = LocalizationUtil.getLocalizedMessage(localizationMap, "HCM_VALIDATION_INVALID_MULTI_SELECT", 
-                            String.format("Field '%s' contains invalid value '%s'", rule.getFieldName(), selectedValue),
-                            rule.getFieldName(), selectedValue);
+                            String.format("Field '%s' contains invalid value '%s'", rule.getDisplayName(), selectedValue),
+                            rule.getDisplayName(), selectedValue);
                     errors.add(createValidationError(rowNumber, sheetName, rule.getFieldName(), errorMessage));
                     break; // Only show first invalid value to avoid too many errors
                 }

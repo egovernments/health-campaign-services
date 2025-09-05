@@ -113,4 +113,11 @@ public class ErrorConstants {
     
     public static final String EXTERNAL_SERVICE_ERROR = "EXTERNAL_SERVICE_ERROR";
     public static final String EXTERNAL_SERVICE_ERROR_MESSAGE = "External service error";
+    
+    // Processor Errors
+    public static final String PROCESSOR_CLASS_NOT_FOUND = "PROCESSOR_CLASS_NOT_FOUND";
+    public static final String PROCESSOR_CLASS_NOT_FOUND_MESSAGE = "Processor class not found: {0}";
+    
+    public static final String PROCESSOR_EXECUTION_ERROR = "PROCESSOR_EXECUTION_ERROR";
+    public static final String PROCESSOR_EXECUTION_ERROR_MESSAGE = "Error executing processor: {0}";
 }

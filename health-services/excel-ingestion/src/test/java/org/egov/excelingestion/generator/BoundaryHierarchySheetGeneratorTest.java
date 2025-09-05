@@ -44,7 +44,7 @@ class BoundaryHierarchySheetGeneratorTest {
     void setUp() {
         closeable = MockitoAnnotations.openMocks(this);
         generator = new BoundaryHierarchySheetGenerator(
-            boundaryService, boundaryUtil, mdmsService, exceptionHandler
+            boundaryService, boundaryUtil, mdmsService, exceptionHandler, new org.egov.excelingestion.util.ColumnDefMaker()
         );
     }
     
