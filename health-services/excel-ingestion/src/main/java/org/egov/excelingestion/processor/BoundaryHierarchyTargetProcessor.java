@@ -2,10 +2,13 @@ package org.egov.excelingestion.processor;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
+import org.egov.excelingestion.config.ErrorConstants;
 import org.egov.excelingestion.config.ProcessingConstants;
+import org.egov.excelingestion.exception.CustomExceptionHandler;
 import org.egov.excelingestion.service.MDMSService;
 import org.egov.excelingestion.service.SchemaValidationService;
 import org.egov.excelingestion.service.ValidationService;
+import org.egov.excelingestion.util.EnrichmentUtil;
 import org.egov.excelingestion.web.models.ProcessResource;
 import org.egov.excelingestion.web.models.RequestInfo;
 import org.egov.excelingestion.web.models.ValidationError;
@@ -24,13 +27,19 @@ public class BoundaryHierarchyTargetProcessor implements IWorkbookProcessor {
     private final MDMSService mdmsService;
     private final SchemaValidationService schemaValidationService;
     private final ValidationService validationService;
+    private final EnrichmentUtil enrichmentUtil;
+    private final CustomExceptionHandler exceptionHandler;
 
     public BoundaryHierarchyTargetProcessor(MDMSService mdmsService, 
                                           SchemaValidationService schemaValidationService,
-                                          ValidationService validationService) {
+                                          ValidationService validationService,
+                                          EnrichmentUtil enrichmentUtil,
+                                          CustomExceptionHandler exceptionHandler) {
         this.mdmsService = mdmsService;
         this.schemaValidationService = schemaValidationService;
         this.validationService = validationService;
+        this.enrichmentUtil = enrichmentUtil;
+        this.exceptionHandler = exceptionHandler;
     }
 
     /**
@@ -65,8 +74,11 @@ public class BoundaryHierarchyTargetProcessor implements IWorkbookProcessor {
             String schemaName = "target-" + projectType;
             Map<String, Object> schema = fetchTargetSchema(schemaName, resource.getTenantId(), requestInfo);
             if (schema == null) {
-                log.warn("No schema found for {}, skipping additional validation", schemaName);
-                return workbook;
+                log.error("Target schema '{}' not found in MDMS for tenant: {}", schemaName, resource.getTenantId());
+                exceptionHandler.throwCustomException(ErrorConstants.SCHEMA_NOT_FOUND_IN_MDMS,
+                        ErrorConstants.SCHEMA_NOT_FOUND_IN_MDMS_MESSAGE
+                                .replace("{0}", schemaName)
+                                .replace("{1}", resource.getTenantId()));
             }
 
             log.info("Validating target sheet data with schema: {}", schemaName);
@@ -90,12 +102,22 @@ public class BoundaryHierarchyTargetProcessor implements IWorkbookProcessor {
                 
                 // Process validation errors using ValidationService
                 validationService.processValidationErrors(sheet, validationErrors, columnInfo, localizationMap);
+                
+                // Enrich resource additionalDetails with error count and status
+                enrichmentUtil.enrichErrorAndStatusInAdditionalDetails(resource, validationErrors);
             } else {
                 log.info("No validation errors found, no error columns needed");
+                
+                // Still enrich with zero errors
+                enrichmentUtil.enrichErrorAndStatusInAdditionalDetails(resource, validationErrors);
             }
             
             return workbook;
 
+        } catch (org.egov.tracer.model.CustomException e) {
+            // Re-throw CustomExceptions (like schema not found) to stop processing
+            log.error("Custom exception in target sheet processing: {}", e.getMessage());
+            throw e;
         } catch (Exception e) {
             log.error("Error processing target sheet: {}", e.getMessage(), e);
             return workbook;

@@ -7,7 +7,6 @@ import org.egov.common.contract.models.AuditDetails;
 import org.egov.excelingestion.config.ErrorConstants;
 import org.egov.excelingestion.config.ExcelIngestionConfig;
 import org.egov.excelingestion.config.GeneratorConfigurationRegistry;
-import org.egov.excelingestion.config.ValidationConstants;
 import org.egov.excelingestion.config.ProcessingConstants;
 import org.egov.excelingestion.exception.CustomExceptionHandler;
 import org.egov.excelingestion.util.RequestInfoConverter;
@@ -141,6 +140,9 @@ public class ExcelProcessingService {
                         validationService.processValidationErrors(sheet, sheetErrors, columnInfo, mergedLocalizationMap);
                     }
                     
+                    // Enrich resource additionalDetails with error count and status for this sheet
+                    enrichmentUtil.enrichErrorAndStatusInAdditionalDetails(resource, sheetErrors);
+                    
                     // Step 2: Check if there's a workbook processor configured for this sheet
                     configBasedProcessingService.processWorkbookWithProcessor(
                             sheetName, workbook, resource, request.getRequestInfo(), mergedLocalizationMap);
@@ -149,8 +151,8 @@ public class ExcelProcessingService {
                 // Upload the processed Excel file
                 String processedFileStoreId = uploadProcessedExcel(workbook, resource);
                 
-                // Update resource with results
-                return updateResourceWithResults(resource, validationErrors, processedFileStoreId);
+                // Update resource with results (error counts already enriched during processing)
+                return updateResourceWithResults(resource, processedFileStoreId);
             }
         } catch (IOException e) {
             log.error("Error processing Excel file for ID: {}", resource.getId(), e);
@@ -394,28 +396,18 @@ public class ExcelProcessingService {
 
     /**
      * Updates resource with processing results
+     * Error counts and validation status are already enriched during processing
      */
-    private ProcessResource updateResourceWithResults(ProcessResource resource, 
-            List<ValidationError> errors, String processedFileStoreId) {
-        
-        // Count actual validation errors (excluding valid status entries)
-        long errorCount = errors.stream()
-                .filter(error -> ValidationConstants.STATUS_INVALID.equals(error.getStatus()) ||
-                               ValidationConstants.STATUS_ERROR.equals(error.getStatus()))
-                .count();
+    private ProcessResource updateResourceWithResults(ProcessResource resource, String processedFileStoreId) {
         
         // Processing is complete, so status is PROCESSED regardless of validation errors
         String processStatus = ProcessingConstants.STATUS_PROCESSED;
-        String validationStatus = errorCount > 0 ? ValidationConstants.STATUS_INVALID : ValidationConstants.STATUS_VALID;
         
-        // Update additional details
+        // Ensure additionalDetails exists (should already be populated by enrichment utility)
         Map<String, Object> additionalDetails = resource.getAdditionalDetails();
         if (additionalDetails == null) {
             additionalDetails = new HashMap<>();
         }
-        
-        additionalDetails.put("totalErrors", errorCount);
-        additionalDetails.put("validationStatus", validationStatus);
         
         // Update audit details
         AuditDetails auditDetails = resource.getAuditDetails();
