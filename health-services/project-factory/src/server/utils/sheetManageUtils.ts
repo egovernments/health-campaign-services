@@ -725,10 +725,3 @@ export function filterResourceDetailType(type : string){
         throwError("COMMON", 400, "VALIDATION_ERROR", `Type ${type} not found or invalid`);
     }
 }
-
-
-
-
-
-
-
