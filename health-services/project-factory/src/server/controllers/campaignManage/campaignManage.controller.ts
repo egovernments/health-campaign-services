@@ -184,6 +184,22 @@ class campaignManageController {
                 }, request, response, 400);
             }
 
+            // Check if campaign exists
+            const campaignSearchCriteria = {
+                tenantId,
+                campaignNumber
+            };
+            
+            const { responseData } = await searchProjectTypeCampaignService(campaignSearchCriteria, request);
+            
+            if (!responseData || responseData.length === 0) {
+                return errorResponder({ 
+                    message: "Campaign not found", 
+                    code: "CAMPAIGN_NOT_FOUND", 
+                    description: `Campaign with number ${campaignNumber} not found` 
+                }, request, response, 404);
+            }
+
             const statusResponse = await getCampaignStatusService(campaignNumber, tenantId, request);
             return sendResponse(response, { CampaignStatus: statusResponse }, request);
         } catch (e: any) {
