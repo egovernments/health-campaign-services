@@ -272,7 +272,7 @@ async function lockSheetAccordingToConfig(workBook: any, templateConfig: any, lo
             // Protect sheet with full options
             await worksheet.protect('passwordhere', {
                 selectLockedCells: true,
-                selectUnlockedCells: true,
+                selectUnlockedCells: false,
                 formatCells: false,
                 formatColumns: false,
                 formatRows: false,
@@ -725,10 +725,3 @@ export function filterResourceDetailType(type : string){
         throwError("COMMON", 400, "VALIDATION_ERROR", `Type ${type} not found or invalid`);
     }
 }
-
-
-
-
-
-
-

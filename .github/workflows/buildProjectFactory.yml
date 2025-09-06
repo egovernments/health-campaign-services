@@ -5,10 +5,6 @@ on:
     branches:
       - allValidations
       - master
-  pull_request:
-    branches:
-      - allValidations
-      - master
 
 env:
   DOCKER_USERNAME: ${{ vars.DOCKER_USERNAME }}
@@ -69,11 +65,7 @@ jobs:
         id: tag
         run: |
           set -euxo pipefail
-          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            BRANCH="${GITHUB_HEAD_REF}"
-          else
-            BRANCH="${GITHUB_REF##*/}"
-          fi
+          BRANCH="${GITHUB_REF##*/}"
           COMMIT_HASH=$(git rev-parse --short HEAD)
           SERVICE_NAME="project-factory"
           TOKEN=$(curl -s -X POST "https://hub.docker.com/v2/users/login/" \
