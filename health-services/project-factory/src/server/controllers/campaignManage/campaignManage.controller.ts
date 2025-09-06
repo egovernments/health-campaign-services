@@ -7,6 +7,7 @@ import {
   searchProjectTypeCampaignService,
   updateProjectTypeCampaignService
 } from "../../service/campaignManageService";
+import { getCampaignStatusService } from "../../service/campaignStatusService";
 import { logger } from "../../utils/logger";
 import { errorResponder, sendResponse } from "../../utils/genericUtils";
 import { validateSearchProjectCampaignRequest } from "../../validators/campaignValidators";
@@ -33,6 +34,7 @@ class campaignManageController {
         this.router.post(`${this.path}/createCampaign`, this.createCampaign);
         this.router.post(`${this.path}/fetch-from-microplan`, this.fetchFromMicroplan);
         this.router.post(`${this.path}/cancel-campaign`, this.cancelCampaign);
+        this.router.post(`${this.path}/status`, this.getCampaignStatus);
     }
     
     
@@ -156,6 +158,44 @@ class campaignManageController {
             return errorResponder({ message: String(e), code: e?.code, description: e?.description }, request, response, e?.status || 500);
         }
     }
+
+    getCampaignStatus = async (
+        request: express.Request,
+        response: express.Response
+    ) => {
+        try {
+            logger.info("RECEIVED A CAMPAIGN STATUS REQUEST");
+            const campaignNumber = request?.body?.CampaignDetails?.campaignNumber;
+            const tenantId = request?.body?.CampaignDetails?.tenantId;
+            
+            if (!campaignNumber) {
+                return errorResponder({ 
+                    message: "Campaign number is required", 
+                    code: "CAMPAIGN_NUMBER_REQUIRED", 
+                    description: "Please provide campaignNumber in request body" 
+                }, request, response, 400);
+            }
+
+            if (!tenantId) {
+                return errorResponder({ 
+                    message: "TenantId is required", 
+                    code: "TENANT_ID_REQUIRED", 
+                    description: "Please provide tenantId in request body" 
+                }, request, response, 400);
+            }
+
+            const statusResponse = await getCampaignStatusService(campaignNumber, tenantId, request);
+            return sendResponse(response, { CampaignStatus: statusResponse }, request);
+        } catch (e: any) {
+            console.log(e);
+            logger.error(String(e));
+            return errorResponder({ 
+                message: String(e), 
+                code: e?.code, 
+                description: e?.description 
+            }, request, response, e?.status || 500);
+        }
+    };
 
 };
 
