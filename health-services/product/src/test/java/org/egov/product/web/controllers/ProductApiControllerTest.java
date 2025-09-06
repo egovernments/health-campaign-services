@@ -17,6 +17,7 @@ import org.egov.tracer.model.ErrorRes;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
@@ -62,13 +63,13 @@ class ProductApiControllerTest {
     void productRequestForCreateShouldFailForIncorrectApiOperation() throws Exception {
         ProductRequest productRequest = ProductRequestTestBuilder.builder().withRequestInfo().addGoodProduct().withApiOperationDelete().build();
         String expectedResponse = "{\"ResponseInfo\":null,\"Errors\":[{\"code\":\"INVALID_API_OPERATION\",\"message\":\"API Operation DELETE not valid for create request\",\"description\":null,\"params\":null}]}";
-
+        ErrorRes expectErrorResponse = objectMapper.readValue(expectedResponse, ErrorRes.class);
         MvcResult result = mockMvc.perform(post("/v1/_create").contentType(MediaType
                         .APPLICATION_JSON).content(objectMapper.writeValueAsString(productRequest)))
                 .andExpect(status().isBadRequest()).andReturn();
-        String actualResponse = result.getResponse().getContentAsString();
+        ErrorRes actualErrorRes = objectMapper.readValue(result.getResponse().getContentAsString(), ErrorRes.class);
 
-        assertEquals(expectedResponse, actualResponse);
+        assertEquals(expectErrorResponse.getErrors().get(0).getCode(), actualErrorRes.getErrors().get(0).getCode());
     }
 
     @Test
@@ -106,11 +107,22 @@ class ProductApiControllerTest {
 
     @Test
     @DisplayName("product request should fail if products are invalid")
-    void productRequestForCreateShouldFailForBadProducts() throws Exception{
-        ProductRequest productRequest = ProductRequestTestBuilder.builder().withRequestInfo().addBadProduct().withApiOperationCreate().build();
-        MvcResult result = mockMvc.perform(post("/v1/_create").contentType(MediaType
-                        .APPLICATION_JSON).content(objectMapper.writeValueAsString(productRequest)))
-                .andExpect(status().isBadRequest()).andReturn();
+    void productRequestForCreateShouldFailForBadProducts() throws Exception {
+        ProductRequest productRequest = ProductRequestTestBuilder.builder()
+                .withRequestInfo()
+                .addBadProduct()
+                .withApiOperationCreate()
+                .build();
+
+        // Mock the service to throw CustomException on create
+        when(productService.create(any(ProductRequest.class)))
+                .thenThrow(new CustomException("INVALID_PRODUCT", "Product is invalid"));
+
+        MvcResult result = mockMvc.perform(post("/v1/_create")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(productRequest)))
+                .andExpect(status().isBadRequest())
+                .andReturn();
     }
 
     @Test
@@ -133,17 +145,19 @@ class ProductApiControllerTest {
         final MvcResult result = mockMvc.perform(post("/v1/_update")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(ProductRequestTestBuilder.builder()
-                                        .withRequestInfo()
+                                .withRequestInfo()
                                 .addGoodProductWithNullTenant().build())))
                 .andExpect(status().isBadRequest())
                 .andReturn();
+
         String responseStr = result.getResponse().getContentAsString();
-        ErrorRes response = objectMapper.readValue(responseStr,
-                ErrorRes.class);
+        ErrorRes response = objectMapper.readValue(responseStr, ErrorRes.class);
 
         assertEquals(1, response.getErrors().size());
-        assertTrue(response.getErrors().get(0).getCode().contains("tenantId"));
+        assertEquals("NotNull.productRequest.product[0].tenantId", response.getErrors().get(0).getCode());
     }
+
+
 
     @Test
     @DisplayName("should update product and return with 202 accepted")

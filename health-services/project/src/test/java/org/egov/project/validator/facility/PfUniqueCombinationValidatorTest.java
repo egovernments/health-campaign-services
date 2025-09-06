@@ -1,5 +1,6 @@
 package org.egov.project.validator.facility;
 
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.Error;
 import org.egov.common.models.project.ProjectFacility;
 import org.egov.common.models.project.ProjectFacilityBulkRequest;
@@ -33,8 +34,8 @@ class PfUniqueCombinationValidatorTest {
     ProjectFacilityRepository projectFacilityRepository;
 
     @BeforeEach
-    void setUp() {
-        when(projectFacilityRepository.findById(any(List.class), anyBoolean(), anyString()))
+    void setUp() throws InvalidTenantIdException {
+        when(projectFacilityRepository.findById(anyString(), any(List.class), anyBoolean(), anyString()))
                 .thenReturn(Collections.emptyList());
     }
 
