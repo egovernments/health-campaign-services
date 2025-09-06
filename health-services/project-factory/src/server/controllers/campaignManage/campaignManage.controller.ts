@@ -190,9 +190,9 @@ class campaignManageController {
                 campaignNumber
             };
             
-            const { responseData } = await searchProjectTypeCampaignService(campaignSearchCriteria, request);
-            
-            if (!responseData || responseData.length === 0) {
+            const responseData  = await searchProjectTypeCampaignService(campaignSearchCriteria, request);
+
+            if (!responseData || responseData?.CampaignDetails.length === 0) {
                 return errorResponder({ 
                     message: "Campaign not found", 
                     code: "CAMPAIGN_NOT_FOUND", 
