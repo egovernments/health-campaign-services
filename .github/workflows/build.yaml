@@ -59,6 +59,7 @@ on:
           - workbench-ui
           - microplan-ui
           - project-factory
+          - excel-ingestion
 
 env:
   DOCKER_USERNAME: ${{ vars.DOCKER_USERNAME }}
