@@ -347,7 +347,8 @@ func (h *ABHAHandler) RegisterRoutes(router *gin.RouterGroup) {
 		loginGroup.POST("/verify-otp", h.LoginVerifyOTP)
 		loginGroup.POST("/check-auth-methods", h.CheckAuthMethods)
 
-		loginGroup.POST("/profile/request-otp", h.ProfileLoginRequestOTP)
+		// loginGroup.POST("/profile/request-otp", h.ProfileLoginRequestOTP)
+		loginGroup.POST("/profile/request-otp", h.ProfileLoginRequestOTPv2)
 		loginGroup.POST("/profile/verify-otp", h.ProfileLoginVerifyOTP)
 
 	}
@@ -664,6 +665,84 @@ func (h *ABHAHandler) ProfileLoginRequestOTP(c *gin.Context) {
 		c.JSON(http.StatusBadGateway, gin.H{"error": "request-otp failed", "details": err.Error()})
 		return
 	}
+	c.Data(http.StatusOK, "application/json", resp)
+}
+
+func (h *ABHAHandler) ProfileLoginRequestOTPv2(c *gin.Context) {
+	ctx := c.Request.Context()
+
+	var in dtos.ProfileLoginSendInput
+	if err := c.ShouldBindJSON(&in); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload", "details": err.Error()})
+		return
+	}
+
+	// Validate/normalize loginHint
+	lh := strings.ToLower(strings.TrimSpace(in.LoginHint))
+	switch lh {
+	case "aadhaar", "mobile", "abha-number":
+	default:
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid loginHint", "details": "allowed: aadhaar | mobile | abha-number"})
+		return
+	}
+
+	// Validate/normalize otpSystem
+	otpSystem := strings.ToLower(strings.TrimSpace(in.OtpSystem))
+	if otpSystem != "aadhaar" && otpSystem != "abdm" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid otpSystem", "details": "allowed: aadhaar | abdm"})
+		return
+	}
+
+	// Derive default scopes if not provided
+	scope := in.Scope
+	if len(scope) == 0 {
+		scope = []string{"abha-login"}
+		if lh == "aadhaar" {
+			scope = append(scope, "aadhaar-verify")
+		} else {
+			// mobile and abha-number -> mobile-verify (ABDM OTP system)
+			scope = append(scope, "mobile-verify")
+		}
+	}
+
+	// Prepare loginId (encrypt for aadhaar and abha-number)
+	loginId := in.Value
+	if lh == "aadhaar" || lh == "abha-number" {
+		pub, err := h.abhaService.FetchPublicKey(ctx)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch public key", "details": err.Error()})
+			return
+		}
+		enc, err := h.abhaService.EncryptData(ctx, pub, in.Value)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to encrypt value", "details": err.Error()})
+			return
+		}
+		loginId = enc
+	}
+
+	// Build ABDM request body
+	req := dtos.ProfileLoginRequestOTP{
+		Scope:     scope,     // e.g., ["abha-login","aadhaar-verify"] or ["abha-login","mobile-verify"]
+		LoginHint: lh,        // "aadhaar" | "mobile" | "abha-number"
+		LoginId:   loginId,   // encrypted Aadhaar/ABHA-number, or plain mobile
+		OTPSystem: otpSystem, // "aadhaar" | "abdm"
+	}
+
+	// ABDM client token
+	token, err := utils.FetchABDMToken(ctx, h.cfg)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch auth token", "details": err.Error()})
+		return
+	}
+
+	// Call service (no extra header args)
+	resp, err := h.abhaService.ProfileLoginRequestOTP(ctx, req, token)
+	if err != nil {
+		c.JSON(http.StatusBadGateway, gin.H{"error": "request-otp failed", "details": err.Error()})
+		return
+	}
+
 	c.Data(http.StatusOK, "application/json", resp)
 }
 

@@ -33,8 +33,9 @@ type LinkMobileNumberRequest struct {
 }
 
 type VerifyMobileOtpRequest struct {
-	TransactionID string `json:"transaction_id"`
-	Otp           string `json:"otp"`
+	RequestInfo   RequestInfo `json:"RequestInfo" binding:"required"`
+	TransactionID string      `json:"transaction_id"`
+	Otp           string      `json:"otp"`
 }
 
 type AbhaAddressSuggestionRequest struct {
@@ -74,14 +75,16 @@ type LinkAbhaToPatientRequest struct {
 
 // --------- OTPRequest -------------------------- 25 July
 type OTPRequest struct {
-	Scope     []string `json:"scope"`
-	LoginHint string   `json:"loginHint"`
-	LoginId   string   `json:"loginId"`
-	OTPSystem string   `json:"otpSystem"`
+	RequestInfo RequestInfo `json:"RequestInfo" binding:"required"`
+	Scope       []string    `json:"scope"`
+	LoginHint   string      `json:"loginHint"`
+	LoginId     string      `json:"loginId"`
+	OTPSystem   string      `json:"otpSystem"`
 }
 
 type EnrolByAadhaarWithOTPRequest struct {
-	AuthData struct {
+	RequestInfo RequestInfo `json:"RequestInfo" binding:"required"`
+	AuthData    struct {
 		AuthMethods []string `json:"authMethods"`
 		OTP         struct {
 			TimeStamp string `json:"timeStamp"`
@@ -97,24 +100,28 @@ type EnrolByAadhaarWithOTPRequest struct {
 }
 
 type SendAadhaarOTPRequest struct {
-	Aadhaar       string `json:"aadhaar"`
-	TransactionID string `json:"transaction_id,omitempty"`
+	RequestInfo   RequestInfo `json:"RequestInfo" binding:"required"`
+	Aadhaar       string      `json:"aadhaar"`
+	TransactionID string      `json:"transaction_id,omitempty"`
 }
 
 type VerifyAadhaarOTPRequest struct {
-	TransactionID string `json:"transaction_id"`
-	Otp           string `json:"otp"`
-	Mobile        string `json:"mobile"`
+	RequestInfo   RequestInfo `json:"RequestInfo" binding:"required"`
+	TransactionID string      `json:"transaction_id"`
+	Otp           string      `json:"otp"`
+	Mobile        string      `json:"mobile"`
 }
 
 type LinkMobileRequest struct {
-	Mobile        string `json:"mobile"`
-	TransactionID string `json:"transaction_id"`
+	RequestInfo   RequestInfo `json:"RequestInfo" binding:"required"`
+	Mobile        string      `json:"mobile"`
+	TransactionID string      `json:"transaction_id"`
 }
 
 type VerifyMobileOTPRequest struct {
-	TransactionID string `json:"transaction_id"`
-	Otp           string `json:"otp"`
+	RequestInfo   RequestInfo `json:"RequestInfo" binding:"required"`
+	TransactionID string      `json:"transaction_id"`
+	Otp           string      `json:"otp"`
 }
 
 type AddressSuggestionRequest struct {
