@@ -347,5 +347,5 @@ config:
     build:
       - work-dir: "health-services/excel-ingestion"
         image-name: "excel-ingestion"
-        dockerfile: "build/17/maven/Dockerfile"
+        dockerfile: "build/maven-java17/Dockerfile"
 
