@@ -11,6 +11,7 @@ import lombok.Setter;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.List;
+import com.fasterxml.jackson.databind.JsonNode;
 
 import org.egov.common.contract.models.AuditDetails;
 import jakarta.validation.constraints.NotNull;
@@ -59,6 +60,21 @@ public class GenerateResource {
 
     @JsonProperty("fileStoreId")
     private String fileStoreId;
+
+    @JsonProperty("errorDetails")
+    private String errorDetails;
+    
+    @JsonProperty("createdBy")
+    private String createdBy;
+    
+    @JsonProperty("lastModifiedBy")
+    private String lastModifiedBy;
+    
+    @JsonProperty("createdTime")
+    private Long createdTime;
+    
+    @JsonProperty("lastModifiedTime")
+    private Long lastModifiedTime;
 
     // Getter for boundaries from additionalDetails
     @JsonIgnore
