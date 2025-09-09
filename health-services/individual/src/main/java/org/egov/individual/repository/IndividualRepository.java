@@ -364,6 +364,11 @@ public class IndividualRepository extends GenericRepository<Individual> {
             paramsMap.put("userUuid", searchObject.getUserUuid());
         }
 
+        if (searchObject.getBoundaryCode() != null) {
+            query = query + "AND boundaryCode = :boundaryCode ";
+            paramsMap.put("boundaryCode", searchObject.getBoundaryCode());
+        }
+
         query = query + "ORDER BY createdtime DESC LIMIT :limit OFFSET :offset";
       
         paramsMap.put("tenantId", tenantId);
