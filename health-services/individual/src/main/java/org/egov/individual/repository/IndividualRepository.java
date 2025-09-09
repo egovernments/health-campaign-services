@@ -51,7 +51,7 @@ public class IndividualRepository extends GenericRepository<Individual> {
     private final String cteQuery = "WITH cte_search_criteria_waypoint(s_latitude, s_longitude) AS (VALUES(:s_latitude, :s_longitude))";
     private final String calculateDistanceFromTwoWaypointsFormulaQuery = "( 6371.4 * acos ( LEAST ( GREATEST (cos ( radians(cte_scw.s_latitude) ) * cos( radians(a.latitude) ) * cos( radians(a.longitude) - radians(cte_scw.s_longitude) )+ sin ( radians(cte_scw.s_latitude) ) * sin( radians(a.latitude) ), -1), 1) ) ) AS distance ";
 
-    protected IndividualRepository(@Qualifier("individualProducer")  Producer producer,
+    protected IndividualRepository(@Qualifier("individualProducer") Producer producer,
                                    NamedParameterJdbcTemplate namedParameterJdbcTemplate,
                                    RedisTemplate<String, Object> redisTemplate,
                                    SelectQueryBuilder selectQueryBuilder,
@@ -66,14 +66,14 @@ public class IndividualRepository extends GenericRepository<Individual> {
      * @param tenantId       The tenant ID for which the search is being performed.
      * @param ids            The list of IDs to search for.
      * @param idColumn       The column name representing the ID in the database.
-     * @param includeDeleted  Flag indicating whether to include deleted records.
+     * @param includeDeleted Flag indicating whether to include deleted records.
      * @return SearchResponse<Individual> A response object containing the total count and the list of individuals found.
      */
     public SearchResponse<Individual> findById(String tenantId, List<String> ids, String idColumn, Boolean includeDeleted) throws InvalidTenantIdException {
         List<Individual> objFound = new ArrayList<>();
         // Check if the list of IDs is empty
         try {
-            objFound = findInCache( tenantId, ids);
+            objFound = findInCache(tenantId, ids);
             if (!includeDeleted) {
                 objFound = objFound.stream()
                         .filter(entity -> entity.getIsDeleted().equals(false))
@@ -88,14 +88,14 @@ public class IndividualRepository extends GenericRepository<Individual> {
                     return SearchResponse.<Individual>builder().totalCount(Long.valueOf(objFound.size())).response(objFound).build();
                 }
             }
-        }catch (Exception e){
+        } catch (Exception e) {
             log.info("Error occurred while reading from cache", ExceptionUtils.getStackTrace(e));
         }
 
         // If the list of IDs is not empty, proceed to fetch from the database
         // add the schema placeholder to the query
         String individualQuery = String.format(getQuery("SELECT * FROM %s.individual WHERE %s IN (:ids)",
-                includeDeleted), SCHEMA_REPLACE_STRING , idColumn);
+                includeDeleted), SCHEMA_REPLACE_STRING, idColumn);
         Map<String, Object> paramMap = new HashMap<>();
         paramMap.put("ids", ids);
 
@@ -113,25 +113,25 @@ public class IndividualRepository extends GenericRepository<Individual> {
     /**
      * This method fetches the list of individuals based on the search criteria provided.
      *
-     * @param searchObject    The criteria used to filter the individuals.
-     * @param limit           The maximum number of records to return.
-     * @param offset          The offset for pagination.
-     * @param tenantId        The tenant ID for which the search is being performed.
+     * @param searchObject     The criteria used to filter the individuals.
+     * @param limit            The maximum number of records to return.
+     * @param offset           The offset for pagination.
+     * @param tenantId         The tenant ID for which the search is being performed.
      * @param lastChangedSince Timestamp indicating when the records were last changed.
      * @param includeDeleted   Flag indicating whether to include deleted records.
      * @return SearchResponse<Individual> A response object containing the total count and the list of individuals found.
      */
-        public SearchResponse<Individual> find(IndividualSearch searchObject, Integer limit, Integer offset,
-                                               String tenantId, Long lastChangedSince, Boolean includeDeleted) throws InvalidTenantIdException {
-            Map<String, Object> paramsMap = new HashMap<>();
-            String query = getQueryForIndividual(searchObject, limit, offset, tenantId, lastChangedSince,
-                    includeDeleted, paramsMap);
-            if (isProximityBasedSearch(searchObject)) {
-                // If latitude, longitude and search radius are provided, call the findByRadius method
-                return findByRadius(tenantId, query, searchObject, includeDeleted, paramsMap);
-            }
-            if (searchObject.getIdentifier() == null) {
-                String queryWithoutLimit = query.replace("ORDER BY createdtime DESC LIMIT :limit OFFSET :offset", "");
+    public SearchResponse<Individual> find(IndividualSearch searchObject, Integer limit, Integer offset,
+                                           String tenantId, Long lastChangedSince, Boolean includeDeleted) throws InvalidTenantIdException {
+        Map<String, Object> paramsMap = new HashMap<>();
+        String query = getQueryForIndividual(searchObject, limit, offset, tenantId, lastChangedSince,
+                includeDeleted, paramsMap);
+        if (isProximityBasedSearch(searchObject)) {
+            // If latitude, longitude and search radius are provided, call the findByRadius method
+            return findByRadius(tenantId, query, searchObject, includeDeleted, paramsMap);
+        }
+        if (searchObject.getIdentifier() == null) {
+            String queryWithoutLimit = query.replace("ORDER BY createdtime DESC LIMIT :limit OFFSET :offset", "");
             Long totalCount = constructTotalCountCTEAndReturnResult(queryWithoutLimit, paramsMap, this.namedParameterJdbcTemplate);
             List<Individual> individuals = this.namedParameterJdbcTemplate.query(query, paramsMap, this.rowMapper);
             if (!individuals.isEmpty()) {
@@ -166,9 +166,9 @@ public class IndividualRepository extends GenericRepository<Individual> {
                         // Fetch the addresses for each individual
                         // catch the InvalidTenantIdException and throw a custom exception
                         try {
-                            addresses = getAddressForIndividual( tenantId, individual.getId(), includeDeleted);
+                            addresses = getAddressForIndividual(tenantId, individual.getId(), includeDeleted);
                         } catch (InvalidTenantIdException e) {
-                            throw new CustomException( INVALID_TENANT_ID , INVALID_TENANT_ID_MSG);
+                            throw new CustomException(INVALID_TENANT_ID, INVALID_TENANT_ID_MSG);
                         }
                         individual.setAddress(addresses);
                         Map<String, Object> indServerGenIdParamMap = new HashMap<>();
@@ -211,7 +211,7 @@ public class IndividualRepository extends GenericRepository<Individual> {
                 query = cteQuery + ", cte_individual AS (" + query + ")";
                 query = query + "SELECT * FROM (SELECT cte_i.*, " + calculateDistanceFromTwoWaypointsFormulaQuery
                         + String.format(" FROM cte_individual cte_i LEFT JOIN %s.individual_address ia ON ia.individualid = cte_i.id LEFT JOIN %s.address a ON ia.addressid = a.id , cte_search_criteria_waypoint cte_scw) rt ", SCHEMA_REPLACE_STRING, SCHEMA_REPLACE_STRING);
-                if(searchObject.getSearchRadius() != null) {
+                if (searchObject.getSearchRadius() != null) {
                     query = query + " WHERE rt.distance < :distance ";
                 }
                 query = query + " ORDER BY distance ASC ";
@@ -249,10 +249,10 @@ public class IndividualRepository extends GenericRepository<Individual> {
             }
         } else {
             query = cteQuery + ", cte_individual AS (" + query + ")";
-            query = query + "SELECT * FROM (SELECT cte_i.*, "+ calculateDistanceFromTwoWaypointsFormulaQuery
-                    +" FROM cte_individual cte_i LEFT JOIN %s.individual_address ia ON ia.individualid = cte_i.id LEFT JOIN %s.address a ON ia.addressid = a.id , cte_search_criteria_waypoint cte_scw) rt ";
+            query = query + "SELECT * FROM (SELECT cte_i.*, " + calculateDistanceFromTwoWaypointsFormulaQuery
+                    + " FROM cte_individual cte_i LEFT JOIN %s.individual_address ia ON ia.individualid = cte_i.id LEFT JOIN %s.address a ON ia.addressid = a.id , cte_search_criteria_waypoint cte_scw) rt ";
             query = String.format(query, SCHEMA_REPLACE_STRING, SCHEMA_REPLACE_STRING);
-            if(searchObject.getSearchRadius() != null) {
+            if (searchObject.getSearchRadius() != null) {
                 query = query + " WHERE rt.distance < :distance ";
             }
             query = query + " ORDER BY distance ASC ";
@@ -300,7 +300,7 @@ public class IndividualRepository extends GenericRepository<Individual> {
         }
         if (searchObject.getIndividualName() != null) {
             query = query + "AND givenname ILIKE :individualName ";
-            paramsMap.put("individualName", "%"+searchObject.getIndividualName()+"%");
+            paramsMap.put("individualName", "%" + searchObject.getIndividualName() + "%");
         }
         if (searchObject.getGender() != null) {
             query = query + "AND gender =:gender ";
@@ -358,7 +358,7 @@ public class IndividualRepository extends GenericRepository<Individual> {
                     .map(Object::toString)
                     .collect(Collectors.toList()));
         }
-      
+
         if (searchObject.getUserUuid() != null) {
             query = query + "AND userUuid in (:userUuid) ";
             paramsMap.put("userUuid", searchObject.getUserUuid());
@@ -370,7 +370,7 @@ public class IndividualRepository extends GenericRepository<Individual> {
         }
 
         query = query + "ORDER BY createdtime DESC LIMIT :limit OFFSET :offset";
-      
+
         paramsMap.put("tenantId", tenantId);
         paramsMap.put("isDeleted", includeDeleted);
         paramsMap.put("lastModifiedTime", lastChangedSince);
@@ -402,7 +402,7 @@ public class IndividualRepository extends GenericRepository<Individual> {
                 " ) AS ia" +
                 " JOIN %s.address AS a ON ia.addressId = a.id" +
                 " WHERE ia.rn = 1 ", includeDeleted, "ia");
-        addressQuery = String.format(addressQuery,SCHEMA_REPLACE_STRING, SCHEMA_REPLACE_STRING );
+        addressQuery = String.format(addressQuery, SCHEMA_REPLACE_STRING, SCHEMA_REPLACE_STRING);
         Map<String, Object> indServerGenIdParamMap = new HashMap<>();
         indServerGenIdParamMap.put("individualId", individualId);
         indServerGenIdParamMap.put("isDeleted", includeDeleted);
@@ -421,7 +421,7 @@ public class IndividualRepository extends GenericRepository<Individual> {
                 indServerGenIdParamMap.put("isDeleted", includeDeleted);
                 List<Address> addresses = null;
                 try {
-                    addresses = getAddressForIndividual( tenantId, individual.getId(), includeDeleted);
+                    addresses = getAddressForIndividual(tenantId, individual.getId(), includeDeleted);
                 } catch (InvalidTenantIdException e) {
                     throw new RuntimeException(e);
                 }
