@@ -6,6 +6,7 @@ import org.egov.excelingestion.service.ExcelWorkflowService;
 import org.egov.excelingestion.web.models.GenerateResource;
 import org.egov.excelingestion.web.models.GenerateResourceRequest;
 import org.egov.common.producer.Producer;
+import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -56,12 +57,53 @@ public class AsyncGenerationService {
         } catch (Exception e) {
             log.error("Error during async generation for id: {}", generateResource.getId(), e);
             
-            // Update status to FAILED with error details via Kafka
+            // Extract error code from exception
+            String errorCode = extractErrorCode(e);
+            
+            // Update status to FAILED with error code via Kafka
             generateResource.setStatus(GenerationConstants.STATUS_FAILED);
-            generateResource.setErrorDetails(e.getMessage());
+            generateResource.setErrorDetails(errorCode);
             generateResource.setFileStoreId(null);
             generateResource.setLastModifiedTime(System.currentTimeMillis());
             producer.push(generateResource.getTenantId(), updateGenerationTopic, generateResource);
         }
+    }
+
+    private String extractErrorCode(Exception exception) {
+        if (exception == null) {
+            return "GENERATION_FAILED";
+        }
+        
+        // Find the root CustomException in the exception chain
+        CustomException customException = findRootCustomException(exception);
+        if (customException != null) {
+            return customException.getCode() != null ? customException.getCode() : "GENERATION_FAILED";
+        }
+        
+        // For other exceptions, return a generic error code
+        return "GENERATION_FAILED";
+    }
+    
+    private CustomException findRootCustomException(Exception exception) {
+        if (exception == null) {
+            return null;
+        }
+        
+        // If it's already a CustomException, return it
+        if (exception instanceof CustomException) {
+            return (CustomException) exception;
+        }
+        
+        // Check if the cause is a CustomException
+        Throwable cause = exception.getCause();
+        while (cause != null) {
+            if (cause instanceof CustomException) {
+                return (CustomException) cause;
+            }
+            cause = cause.getCause();
+        }
+        
+        // No CustomException found in the exception chain
+        return null;
     }
 }

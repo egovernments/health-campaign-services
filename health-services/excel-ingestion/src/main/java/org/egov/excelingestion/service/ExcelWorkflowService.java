@@ -52,9 +52,10 @@ public class ExcelWorkflowService {
             log.error("Error generating Excel for type: {}, ID: {}", generateResource.getType(), generateResource.getId(), e);
             generateResource.setStatus(ProcessingConstants.STATUS_FAILED);
             
-            // If it's already a CustomException with specific error code, preserve it
-            if (e instanceof org.egov.tracer.model.CustomException) {
-                throw (org.egov.tracer.model.CustomException) e;
+            // Check if it's already a CustomException with specific error code, or find root CustomException
+            org.egov.tracer.model.CustomException customException = findRootCustomException(e);
+            if (customException != null) {
+                throw customException;
             }
             
             // Otherwise, treat as internal server error
@@ -80,9 +81,10 @@ public class ExcelWorkflowService {
             log.error("Error uploading Excel file to file store for type: {}, ID: {}", generateResource.getType(), generateResource.getId(), e);
             generateResource.setStatus(ProcessingConstants.STATUS_FAILED);
             
-            // If it's already a CustomException with specific error code, preserve it
-            if (e instanceof org.egov.tracer.model.CustomException) {
-                throw (org.egov.tracer.model.CustomException) e;
+            // Check if it's already a CustomException with specific error code, or find root CustomException
+            org.egov.tracer.model.CustomException customException = findRootCustomException(e);
+            if (customException != null) {
+                throw customException;
             }
             
             // Otherwise, treat as internal server error
@@ -92,5 +94,28 @@ public class ExcelWorkflowService {
         }
 
         return generateResource;
+    }
+    
+    private org.egov.tracer.model.CustomException findRootCustomException(Exception exception) {
+        if (exception == null) {
+            return null;
+        }
+        
+        // If it's already a CustomException, return it
+        if (exception instanceof org.egov.tracer.model.CustomException) {
+            return (org.egov.tracer.model.CustomException) exception;
+        }
+        
+        // Check if the cause is a CustomException
+        Throwable cause = exception.getCause();
+        while (cause != null) {
+            if (cause instanceof org.egov.tracer.model.CustomException) {
+                return (org.egov.tracer.model.CustomException) cause;
+            }
+            cause = cause.getCause();
+        }
+        
+        // No CustomException found in the exception chain
+        return null;
     }
 }
