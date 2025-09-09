@@ -354,13 +354,8 @@ public class DownsyncService {
 			RequestInfo requestInfo = downsyncRequest.getRequestInfo();
 
 			List<String> taskIds;
-			List<Integer> cycleIndicesForTaskDownload = masterDataService.getCycleIndicesForTask(projectType);
-			if (!CollectionUtils.isEmpty(cycleIndicesForTaskDownload))
-				taskIds = getPrimaryIds(beneficiaryClientRefIds, "projectBeneficiaryClientReferenceId", "PROJECT_TASK_CYCLE_INDEX_MATERIALIZED_VIEW",
-						criteria.getLastSyncedTime(), cycleIndicesForTaskDownload);
-			else
-				taskIds = getPrimaryIds(beneficiaryClientRefIds, "projectBeneficiaryClientReferenceId", "PROJECT_TASK",
-						criteria.getLastSyncedTime());
+            taskIds = getPrimaryIds(beneficiaryClientRefIds, "projectBeneficiaryClientReferenceId", "PROJECT_TASK",
+                    criteria.getLastSyncedTime());
 
 			if(CollectionUtils.isEmpty(taskIds))
 	        	return Collections.emptyList();
