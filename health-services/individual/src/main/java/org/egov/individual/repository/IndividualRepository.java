@@ -121,17 +121,17 @@ public class IndividualRepository extends GenericRepository<Individual> {
      * @param includeDeleted   Flag indicating whether to include deleted records.
      * @return SearchResponse<Individual> A response object containing the total count and the list of individuals found.
      */
-    public SearchResponse<Individual> find(IndividualSearch searchObject, Integer limit, Integer offset,
-                                           String tenantId, Long lastChangedSince, Boolean includeDeleted) throws InvalidTenantIdException {
-        Map<String, Object> paramsMap = new HashMap<>();
-        String query = getQueryForIndividual(searchObject, limit, offset, tenantId, lastChangedSince,
-                includeDeleted, paramsMap);
-        if (isProximityBasedSearch(searchObject)) {
-            // If latitude, longitude and search radius are provided, call the findByRadius method
-            return findByRadius(tenantId, query, searchObject, includeDeleted, paramsMap);
-        }
-        if (searchObject.getIdentifier() == null) {
-            String queryWithoutLimit = query.replace("ORDER BY createdtime DESC LIMIT :limit OFFSET :offset", "");
+        public SearchResponse<Individual> find(IndividualSearch searchObject, Integer limit, Integer offset,
+                                               String tenantId, Long lastChangedSince, Boolean includeDeleted) throws InvalidTenantIdException {
+            Map<String, Object> paramsMap = new HashMap<>();
+            String query = getQueryForIndividual(searchObject, limit, offset, tenantId, lastChangedSince,
+                    includeDeleted, paramsMap);
+            if (isProximityBasedSearch(searchObject)) {
+                // If latitude, longitude and search radius are provided, call the findByRadius method
+                return findByRadius(tenantId, query, searchObject, includeDeleted, paramsMap);
+            }
+            if (searchObject.getIdentifier() == null) {
+                String queryWithoutLimit = query.replace("ORDER BY createdtime DESC LIMIT :limit OFFSET :offset", "");
             Long totalCount = constructTotalCountCTEAndReturnResult(queryWithoutLimit, paramsMap, this.namedParameterJdbcTemplate);
             List<Individual> individuals = this.namedParameterJdbcTemplate.query(query, paramsMap, this.rowMapper);
             if (!individuals.isEmpty()) {
@@ -362,6 +362,11 @@ public class IndividualRepository extends GenericRepository<Individual> {
         if (searchObject.getUserUuid() != null) {
             query = query + "AND userUuid in (:userUuid) ";
             paramsMap.put("userUuid", searchObject.getUserUuid());
+        }
+
+        if (searchObject.getBoundaryCode() != null) {
+            query = query + "AND boundaryCode in (:boundaryCode) ";
+            paramsMap.put("boundaryCode", searchObject.getBoundaryCode());
         }
 
         query = query + "ORDER BY createdtime DESC LIMIT :limit OFFSET :offset";
