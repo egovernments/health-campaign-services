@@ -68,6 +68,9 @@ public class ErrorConstants {
     public static final String PROCESSING_TYPE_NOT_SUPPORTED = "PROCESSING_TYPE_NOT_SUPPORTED";
     public static final String PROCESSING_TYPE_NOT_SUPPORTED_MESSAGE = "Processing type '{0}' is not supported. Supported types: {1}";
     
+    public static final String GENERATION_TYPE_NOT_SUPPORTED = "GENERATION_TYPE_NOT_SUPPORTED";
+    public static final String GENERATION_TYPE_NOT_SUPPORTED_MESSAGE = "Generation type '{0}' is not supported. Supported types: {1}";
+    
     public static final String SHEET_NOT_CONFIGURED = "SHEET_NOT_CONFIGURED";
     public static final String SHEET_NOT_CONFIGURED_MESSAGE = "Unknown sheet name '{0}' for processing type '{1}'. Expected sheet names: {2}";
     
@@ -83,6 +86,9 @@ public class ErrorConstants {
     
     public static final String INVALID_TENANT_ID = "INVALID_TENANT_ID";
     public static final String INVALID_TENANT_ID_MESSAGE = "Invalid tenant ID provided: {0}";
+    
+    public static final String INVALID_HIERARCHY_TYPE = "INVALID_HIERARCHY_TYPE";
+    public static final String INVALID_HIERARCHY_TYPE_MESSAGE = "Invalid hierarchy type provided: {0}";
     
     public static final String INVALID_REQUEST = "INVALID_REQUEST";
     public static final String INVALID_REQUEST_MESSAGE = "Invalid request: {0}";

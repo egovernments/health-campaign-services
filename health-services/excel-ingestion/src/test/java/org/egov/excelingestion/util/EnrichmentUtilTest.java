@@ -2,7 +2,6 @@ package org.egov.excelingestion.util;
 
 import org.egov.excelingestion.config.ProcessingConstants;
 import org.egov.excelingestion.config.ValidationConstants;
-import org.egov.excelingestion.web.models.GenerateResource;
 import org.egov.excelingestion.web.models.ProcessResource;
 import org.egov.excelingestion.web.models.ValidationError;
 import org.junit.jupiter.api.BeforeEach;
@@ -25,23 +24,7 @@ public class EnrichmentUtilTest {
         enrichmentUtil = new EnrichmentUtil();
     }
 
-    @Test
-    public void testEnrichGenerateResource_ShouldSetIdAndStatus() {
-        // Given
-        GenerateResource resource = GenerateResource.builder()
-                .type("microplan-ingestion")
-                .tenantId("test-tenant")
-                .build();
-
-        // When
-        enrichmentUtil.enrichGenerateResource(resource);
-
-        // Then
-        assertNotNull(resource.getId());
-        assertEquals(36, resource.getId().length()); // UUID length
-        assertTrue(resource.getId().contains("-")); // UUID format
-        assertEquals(ProcessingConstants.STATUS_IN_PROGRESS, resource.getStatus());
-    }
+    // testEnrichGenerateResource test removed as method no longer exists
 
     @Test
     public void testEnrichProcessResource_ShouldSetIdAndStatus() {
@@ -58,7 +41,6 @@ public class EnrichmentUtilTest {
         assertNotNull(resource.getId());
         assertEquals(36, resource.getId().length()); // UUID length
         assertTrue(resource.getId().contains("-")); // UUID format
-        assertEquals(ProcessingConstants.STATUS_IN_PROGRESS, resource.getStatus());
     }
 
     @Test

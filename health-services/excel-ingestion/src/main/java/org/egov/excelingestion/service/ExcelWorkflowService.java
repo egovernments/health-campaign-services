@@ -4,7 +4,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.egov.excelingestion.config.ErrorConstants;
 import org.egov.excelingestion.config.ProcessingConstants;
 import org.egov.excelingestion.exception.CustomExceptionHandler;
-import org.egov.excelingestion.util.EnrichmentUtil;
 import org.egov.excelingestion.web.models.GenerateResource;
 import org.egov.excelingestion.web.models.GenerateResourceRequest;
 import org.springframework.stereotype.Service;
@@ -21,16 +20,13 @@ public class ExcelWorkflowService {
     private final ExcelGenerationService excelGenerationService;
     private final FileStoreService fileStoreService;
     private final CustomExceptionHandler exceptionHandler;
-    private final EnrichmentUtil enrichmentUtil;
 
     public ExcelWorkflowService(ExcelGenerationService excelGenerationService,
                                FileStoreService fileStoreService,
-                               CustomExceptionHandler exceptionHandler,
-                               EnrichmentUtil enrichmentUtil) {
+                               CustomExceptionHandler exceptionHandler) {
         this.excelGenerationService = excelGenerationService;
         this.fileStoreService = fileStoreService;
         this.exceptionHandler = exceptionHandler;
-        this.enrichmentUtil = enrichmentUtil;
     }
 
     /**
@@ -40,8 +36,8 @@ public class ExcelWorkflowService {
         GenerateResource generateResource = request.getGenerateResource();
         log.info("Starting Excel workflow for type: {}", generateResource.getType());
 
-        // Enrich resource with UUID and status
-        enrichmentUtil.enrichGenerateResource(generateResource);
+        // Note: ID and status are already set by GenerationService and AsyncGenerationService
+        log.info("Processing Excel generation for ID: {}, Status: {}", generateResource.getId(), generateResource.getStatus());
 
         byte[] excelBytes;
         try {

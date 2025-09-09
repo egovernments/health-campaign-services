@@ -22,20 +22,17 @@ import java.util.Map;
 public class ExcelGenerationService {
 
     private final GeneratorConfigurationRegistry configRegistry;
-    private final GenerationConfigValidationService validationService;
     private final ConfigBasedGenerationService generationService;
     private final LocalizationService localizationService;
     private final RequestInfoConverter requestInfoConverter;
     private final CustomExceptionHandler exceptionHandler;
 
     public ExcelGenerationService(GeneratorConfigurationRegistry configRegistry,
-                                GenerationConfigValidationService validationService,
                                 ConfigBasedGenerationService generationService,
                                 LocalizationService localizationService,
                                 RequestInfoConverter requestInfoConverter,
                                 CustomExceptionHandler exceptionHandler) {
         this.configRegistry = configRegistry;
-        this.validationService = validationService;
         this.generationService = generationService;
         this.localizationService = localizationService;
         this.requestInfoConverter = requestInfoConverter;
@@ -44,21 +41,19 @@ public class ExcelGenerationService {
 
     /**
      * Generate Excel based on processor type
+     * Note: Validations are already done in GenerationService before async process starts
      */
     public byte[] generateExcel(GenerateResource generateResource, RequestInfo requestInfo) throws IOException {
         String processorType = generateResource.getType();
         log.info("Starting Excel generation for processor type: {}", processorType);
 
-        // Step 1: Get configuration by type
+        // Step 1: Get configuration by type (already validated)
         ProcessorGenerationConfig config = getConfigByType(processorType);
 
-        // Step 2: Validate configuration (classes, schemas, etc.)
-        validationService.validateProcessorConfig(config);
-
-        // Step 3: Prepare localization maps
+        // Step 2: Prepare localization maps
         Map<String, String> localizationMap = prepareLocalizationMap(generateResource, requestInfo);
 
-        // Step 4: Generate Excel
+        // Step 3: Generate Excel
         return generationService.generateExcelWithConfig(config, generateResource, requestInfo, localizationMap);
     }
 

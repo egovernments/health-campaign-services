@@ -7,10 +7,10 @@ public class ValidationConstants {
     public static final String ERROR_DETAILS_COLUMN_NAME = "HCM_ADMIN_CONSOLE____ERROR_DETAILS";
     
     // Status values
-    public static final String STATUS_VALID = "VALID";
-    public static final String STATUS_INVALID = "INVALID";
-    public static final String STATUS_CREATED = "CREATED";
-    public static final String STATUS_ERROR = "ERROR";
+    public static final String STATUS_VALID = "valid";
+    public static final String STATUS_INVALID = "invalid";
+    public static final String STATUS_CREATED = "created";
+    public static final String STATUS_ERROR = "error";
     
     // Multi-select validation constants
     public static final String MULTI_SELECT_SEPARATOR = ",";

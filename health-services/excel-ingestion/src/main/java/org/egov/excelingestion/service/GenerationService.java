@@ -20,16 +20,19 @@ public class GenerationService {
     private final GeneratedFileRepository generatedFileRepository;
     private final Producer producer;
     private final AsyncGenerationService asyncGenerationService;
+    private final ExcelGenerationValidationService validationService;
     
     @Value("${excel.ingestion.generation.save.topic}")
     private String saveGenerationTopic;
 
     public GenerationService(GeneratedFileRepository generatedFileRepository, 
                            Producer producer,
-                           AsyncGenerationService asyncGenerationService) {
+                           AsyncGenerationService asyncGenerationService,
+                           ExcelGenerationValidationService validationService) {
         this.generatedFileRepository = generatedFileRepository;
         this.producer = producer;
         this.asyncGenerationService = asyncGenerationService;
+        this.validationService = validationService;
     }
 
     public String initiateGeneration(GenerateResourceRequest request) {
@@ -48,14 +51,23 @@ public class GenerationService {
         }
 
         try {
+            // Perform all validations before starting async process
+            log.info("Performing pre-generation validations for id: {}", generationId);
+            validationService.validate(generateResource, request.getRequestInfo());
+            log.info("Pre-generation validations completed successfully for id: {}", generationId);
+            
             // Save initial record to database via Kafka (for central instance support)
             producer.push(generateResource.getTenantId(), saveGenerationTopic, generateResource);
             
-            // Start async generation in background thread
-            asyncGenerationService.processGenerationAsync(generateResource);
+            // Start async generation in background thread (now with request info)
+            asyncGenerationService.processGenerationAsync(generateResource, request.getRequestInfo());
             
             log.info("Generation initiated with id: {} for tenantId: {}", generationId, generateResource.getTenantId());
             return generationId;
+        } catch (org.egov.tracer.model.CustomException e) {
+            // If validation fails with a CustomException, re-throw it directly
+            log.error("Validation failed for generation id: {} - Error: {}", generationId, e.getMessage());
+            throw e;
         } catch (Exception e) {
             log.error("Error initiating generation: {}", e.getMessage(), e);
             throw new RuntimeException("Failed to initiate generation", e);
