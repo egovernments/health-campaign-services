@@ -119,7 +119,7 @@ public class ConfigBasedGenerationService {
         }
         
         // Apply workbook settings
-        applyWorkbookSettings(workbook, processorConfig, firstVisibleSheetName);
+        applyWorkbookSettings(workbook, processorConfig, firstVisibleSheetName, localizationMap);
         
         // Convert to byte array
         ByteArrayOutputStream bos = new ByteArrayOutputStream();
@@ -213,7 +213,7 @@ public class ConfigBasedGenerationService {
         }
     }
     
-    private void applyWorkbookSettings(XSSFWorkbook workbook, ProcessorGenerationConfig processorConfig, String activeSheetName) {
+    private void applyWorkbookSettings(XSSFWorkbook workbook, ProcessorGenerationConfig processorConfig, String activeSheetName, Map<String, String> localizationMap) {
         // Set zoom level
         Integer zoomLevel = processorConfig.getZoomLevel() != null ? processorConfig.getZoomLevel() : config.getExcelSheetZoom();
         for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
@@ -229,7 +229,7 @@ public class ConfigBasedGenerationService {
             // Find the sheet config to check visibility  
             boolean isVisible = processorConfig.getSheets().stream()
                     .anyMatch(sheetConfig -> {
-                        String localizedName = getLocalizedSheetName(sheetConfig.getSheetNameKey(), new java.util.HashMap<>());
+                        String localizedName = getLocalizedSheetName(sheetConfig.getSheetNameKey(), localizationMap);
                         String actualName = truncateSheetName(localizedName);
                         return actualName.equals(sheetName) && sheetConfig.isVisible();
                     });
