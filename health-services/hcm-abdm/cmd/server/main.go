@@ -225,6 +225,7 @@ import (
 
 	"digit-abdm/configs"
 	"digit-abdm/internal/core/services"
+	errorsx "digit-abdm/internal/errorsx"
 	"digit-abdm/internal/handlers"
 	dbpostgres "digit-abdm/internal/repositories/postgres"
 
@@ -266,7 +267,10 @@ func main() {
 	abhaRepo := dbpostgres.NewAbhaRepository(db)
 	abhaService := services.NewABHAService(cfg, abhaRepo)
 
-	router := gin.Default()
+	// router := gin.Default()
+	router := gin.New()
+	router.Use(gin.Logger())
+	router.Use(errorsx.Recovery())
 
 	// Base context group (e.g., /hcm-abha)
 	base := router.Group(cfg.ContextPath)
