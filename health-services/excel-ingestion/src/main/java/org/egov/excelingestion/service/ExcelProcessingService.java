@@ -382,19 +382,68 @@ public class ExcelProcessingService {
      * Uploads the processed Excel file to file store
      */
     private String uploadProcessedExcel(Workbook workbook, ProcessResource resource) throws IOException {
-        try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+        log.info("Starting optimized workbook write for resource: {}", resource.getId());
+        long startTime = System.currentTimeMillis();
+        
+        // Use streaming approach with larger buffer for big files
+        try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream(8 * 1024 * 1024)) { // Pre-allocate 8MB for large Excel files
+            
+            // Optimize workbook before writing
+            optimizeWorkbookForWriting(workbook);
+            
+            log.info("Writing workbook to stream for resource: {}", resource.getId());
             workbook.write(outputStream);
+            
+            long writeTime = System.currentTimeMillis() - startTime;
+            log.info("Workbook write completed in {}ms for resource: {}", writeTime, resource.getId());
+            
             byte[] excelBytes = outputStream.toByteArray();
+            log.info("Generated Excel file size: {}KB for resource: {}", excelBytes.length / 1024, resource.getId());
             
             String fileName = String.format("processed_%s_%s_%d.xlsx", 
                     resource.getType(), 
                     resource.getReferenceId(),
                     System.currentTimeMillis());
             
+            long totalTime = System.currentTimeMillis() - startTime;
+            log.info("Total upload preparation time: {}ms for resource: {}", totalTime, resource.getId());
+            
             return fileStoreService.uploadFile(excelBytes, resource.getTenantId(), fileName);
         }
     }
 
+    /**
+     * Optimize workbook settings for faster write operations
+     */
+    private void optimizeWorkbookForWriting(Workbook workbook) {
+        try {
+            // Force calculation mode to manual to speed up write
+            if (workbook instanceof org.apache.poi.xssf.usermodel.XSSFWorkbook) {
+                org.apache.poi.xssf.usermodel.XSSFWorkbook xssfWorkbook = (org.apache.poi.xssf.usermodel.XSSFWorkbook) workbook;
+                
+                // Safe approach: Only set if CalcPr exists
+                if (xssfWorkbook.getCTWorkbook().getCalcPr() != null) {
+                    xssfWorkbook.getCTWorkbook().getCalcPr().setCalcMode(org.openxmlformats.schemas.spreadsheetml.x2006.main.STCalcMode.MANUAL);
+                    log.debug("Set workbook calculation mode to manual");
+                }
+            }
+            
+            // Simplified optimization - just force recalculation off where possible
+            for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
+                org.apache.poi.ss.usermodel.Sheet sheet = workbook.getSheetAt(i);
+                try {
+                    sheet.setForceFormulaRecalculation(false);
+                } catch (Exception e) {
+                    // Ignore individual sheet optimization failures
+                }
+            }
+            
+            log.debug("Workbook optimized for writing with {} sheets", workbook.getNumberOfSheets());
+        } catch (Exception e) {
+            log.warn("Failed to optimize workbook for writing, continuing with default settings: {}", e.getMessage());
+        }
+    }
+    
     /**
      * Updates resource with processing results
      * Error counts and validation status are already enriched during processing
