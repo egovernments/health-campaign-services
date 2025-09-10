@@ -65,18 +65,16 @@ public class CellProtectionManager {
                     cell = row.createCell(colIdx);
                 }
                 
-                boolean shouldLock = determineCellLockState(column, cell, rowIdx, lastDataRow);
+                // Simplified locking - only check freezeColumn
+                boolean shouldLock = column.isFreezeColumn();
                 
-                // Apply the appropriate style - this is crucial for protection to work
                 CellStyle styleToApply = shouldLock ? lockedStyle : unlockedStyle;
                 cell.setCellStyle(styleToApply);
                 
                 if (shouldLock) {
                     protectedCells++;
-                    log.trace("Locked cell at row {}, col {} ({})", rowIdx, colIdx, column.getName());
                 } else {
                     unprotectedCells++;
-                    log.trace("Unlocked cell at row {}, col {} ({})", rowIdx, colIdx, column.getName());
                 }
             }
         }
