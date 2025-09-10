@@ -105,6 +105,7 @@ public class IngestionController {
                 .referenceId(request.getResourceDetails().getReferenceId())
                 .fileStoreId(request.getResourceDetails().getFileStoreId())
                 .status(ProcessingConstants.STATUS_PENDING)
+                .additionalDetails(request.getResourceDetails().getAdditionalDetails())
                 .build();
         
         ProcessResourceResponse response = ProcessResourceResponse.builder()
