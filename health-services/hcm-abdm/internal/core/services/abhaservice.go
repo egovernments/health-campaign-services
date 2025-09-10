@@ -1673,6 +1673,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -1710,50 +1711,96 @@ func NewABHAService(cfg *configs.Config, repo ports.AbhaRepository) ports.ABHASe
 // top-level `code`/`message`), uses those as the final ErrorCode/ErrorMessage.
 // AdditionalDetails always carries the parsed upstream payload.
 // The cause is "upstream status <status>" so your envelope can surface it as description.
+// func (s *abhaService) wrapUpstream(status int, body []byte, codePrefix string) *errorsx.Error {
+// 	var parsed map[string]any
+// 	_ = json.Unmarshal(body, &parsed)
+
+// 	upCode, upMsg := "", ""
+
+// 	if len(parsed) > 0 {
+// 		// Prefer nested { "error": { "code": "...", "message": "..." } }
+// 		if em, ok := parsed["error"].(map[string]any); ok {
+// 			if c, ok := em["code"].(string); ok && strings.TrimSpace(c) != "" {
+// 				upCode = c
+// 			}
+// 			if m, ok := em["message"].(string); ok && strings.TrimSpace(m) != "" {
+// 				upMsg = m
+// 			}
+// 		}
+// 		// Fallback to top-level code / message if present
+// 		if upCode == "" {
+// 			if c, ok := parsed["code"].(string); ok && strings.TrimSpace(c) != "" {
+// 				upCode = c
+// 			}
+// 		}
+// 		if upMsg == "" {
+// 			if m, ok := parsed["message"].(string); ok && strings.TrimSpace(m) != "" {
+// 				upMsg = m
+// 			}
+// 		}
+// 	}
+
+// 	// Construct cause text for description in your final envelope
+// 	cause := fmt.Errorf("upstream status %d", status)
+
+// 	// If we extracted upstream code/message, surface them directly
+// 	if upCode != "" || upMsg != "" {
+// 		// Use upstream code / message
+// 		return errorsx.UpstreamFailed(upCode, upMsg, status, parsed, cause)
+// 	}
+
+// 	// Otherwise, keep your existing prefix behavior, but still pass parsed map if available
+// 	msg := http.StatusText(status)
+// 	if len(parsed) > 0 {
+// 		return errorsx.UpstreamFailed(codePrefix+"_UPSTREAM", msg, status, parsed, cause)
+// 	}
+// 	return errorsx.UpstreamFailed(codePrefix+"_UPSTREAM", msg, status, string(body), cause)
+// }
+
+// ----------------------------- common upstream error wrapper -----------------------------
+// ----------------------------- common upstream error wrapper -----------------------------
 func (s *abhaService) wrapUpstream(status int, body []byte, codePrefix string) *errorsx.Error {
 	var parsed map[string]any
-	_ = json.Unmarshal(body, &parsed)
+	_ = json.Unmarshal(body, &parsed) // best-effort; OK if it fails
+	cause := fmt.Errorf("upstream status %d", status)
 
-	upCode, upMsg := "", ""
-
-	if len(parsed) > 0 {
-		// Prefer nested { "error": { "code": "...", "message": "..." } }
-		if em, ok := parsed["error"].(map[string]any); ok {
-			if c, ok := em["code"].(string); ok && strings.TrimSpace(c) != "" {
-				upCode = c
-			}
-			if m, ok := em["message"].(string); ok && strings.TrimSpace(m) != "" {
-				upMsg = m
-			}
-		}
-		// Fallback to top-level code / message if present
-		if upCode == "" {
-			if c, ok := parsed["code"].(string); ok && strings.TrimSpace(c) != "" {
-				upCode = c
-			}
-		}
-		if upMsg == "" {
-			if m, ok := parsed["message"].(string); ok && strings.TrimSpace(m) != "" {
-				upMsg = m
-			}
+	// eGov/HCM shape: { "Errors": [ { code, message, description?, params? }, ... ] }
+	if arr, ok := parsed["Errors"].([]any); ok && len(arr) > 0 {
+		if first, ok := arr[0].(map[string]any); ok {
+			code, _ := first["code"].(string)
+			msg, _ := first["message"].(string)
+			// Keep the full parsed body in AdditionalDetails so it becomes `params` in your eGov wrapper
+			return errorsx.UpstreamFailed(code, msg, status, parsed, cause)
 		}
 	}
 
-	// Construct cause text for description in your final envelope
-	cause := fmt.Errorf("upstream status %d", status)
+	// ABDM shape: { "error": { "code": "...", "message": "..." } }
+	if em, ok := parsed["error"].(map[string]any); ok {
+		upCode, _ := em["code"].(string)
+		upMsg, _ := em["message"].(string)
+		if strings.TrimSpace(upCode) != "" || strings.TrimSpace(upMsg) != "" {
+			return errorsx.UpstreamFailed(upCode, upMsg, status, parsed, cause)
+		}
+	}
 
-	// If we extracted upstream code/message, surface them directly
-	if upCode != "" || upMsg != "" {
-		// Use upstream code / message
+	// Generic top-level code/message: { "code": "...", "message": "..." }
+	if upCode, ok := parsed["code"].(string); ok && strings.TrimSpace(upCode) != "" {
+		upMsg, _ := parsed["message"].(string)
 		return errorsx.UpstreamFailed(upCode, upMsg, status, parsed, cause)
 	}
 
-	// Otherwise, keep your existing prefix behavior, but still pass parsed map if available
-	msg := http.StatusText(status)
-	if len(parsed) > 0 {
-		return errorsx.UpstreamFailed(codePrefix+"_UPSTREAM", msg, status, parsed, cause)
+	// Field-level 400s like: { "loginId": "Invalid LoginId", ... }
+	if status == http.StatusBadRequest {
+		if msg, ok := parsed["loginId"].(string); ok && strings.TrimSpace(msg) != "" {
+			return errorsx.BadRequest("INVALID_LOGIN_ID", msg, parsed, cause)
+		}
 	}
-	return errorsx.UpstreamFailed(codePrefix+"_UPSTREAM", msg, status, string(body), cause)
+
+	// Fallback: still pass through the parsed body so it shows under additionalDetails/params
+	if len(parsed) > 0 {
+		return errorsx.UpstreamFailed(codePrefix+"_UPSTREAM", http.StatusText(status), status, parsed, cause)
+	}
+	return errorsx.UpstreamFailed(codePrefix+"_UPSTREAM", http.StatusText(status), status, string(body), cause)
 }
 
 // ----------------------------------------------------------------------------------------
@@ -2540,13 +2587,55 @@ func (s *abhaService) ProfileLoginRequestOTP(ctx context.Context, req dtos.Profi
 	return s.sendRequestWithABDMHeaders(ctx, s.cfg.ProfileLoginRequestOTPURL, req, token)
 }
 
+// services/abha_service.go
+
 func (s *abhaService) ProfileLoginVerifyOTP(ctx context.Context, req dtos.ProfileLoginVerifyOTP, token string) ([]byte, error) {
 	respBytes, err := s.sendRequestWithABDMHeaders(ctx, s.cfg.ProfileLoginVerifyOTPURL, req, token)
 	if err != nil {
+		// Non-2xx already handled (wrapUpstream / FromUpstream, etc.)
 		return nil, err
 	}
 
-	// Try to persist tokens if present
+	// --- Handle 200-but-failed logical responses from ABDM
+	// Example:
+	// {
+	//   "txnId":"...",
+	//   "authResult":"failed",
+	//   "message":"OTP expired, please try again",
+	//   "accounts":[]
+	// }
+	type authProbe struct {
+		AuthResult string `json:"authResult"`
+		Message    string `json:"message"`
+		TxnId      string `json:"txnId"`
+	}
+	var probe authProbe
+	if json.Unmarshal(respBytes, &probe) == nil && strings.TrimSpace(probe.AuthResult) != "" {
+		if !strings.EqualFold(probe.AuthResult, "success") {
+			// Build a clean, recoverable error
+			msg := strings.TrimSpace(probe.Message)
+			if msg == "" {
+				msg = "authentication failed"
+			}
+			code := "ABDM_AUTH_FAILED"
+			httpStatus := http.StatusUnauthorized
+
+			// Special-case: OTP expired → clearer code + 400
+			lm := strings.ToLower(msg)
+			if strings.Contains(lm, "expired") {
+				code = "ABDM_OTP_EXPIRED"
+				httpStatus = http.StatusBadRequest
+			}
+
+			// Preserve entire upstream body as details so it lands in `params`
+			var details any
+			_ = json.Unmarshal(respBytes, &details)
+
+			return nil, errorsx.RecoverableErr(code, msg, httpStatus, details, fmt.Errorf("upstream logical failure (200)"))
+		}
+	}
+
+	// --- Persist tokens if present (success case)
 	var out dtos.ProfileLoginVerifyResponse
 	if json.Unmarshal(respBytes, &out) == nil && (out.Token != "" || out.RefreshToken != "") {
 		abha := &domain.AbhaNumber{
@@ -2556,14 +2645,12 @@ func (s *abhaService) ProfileLoginVerifyOTP(ctx context.Context, req dtos.Profil
 			RefreshToken:     out.RefreshToken,
 			LastModifiedDate: time.Now().UTC(),
 		}
-
 		mask := func(s string) string {
 			if len(s) <= 6 {
 				return "****"
 			}
 			return s[:3] + "****" + s[len(s)-3:]
 		}
-
 		log.Printf("ABHA created: number=%s healthID=%s accessToken=%s refreshToken=%s lastModified=%s",
 			abha.ABHANumber,
 			abha.HealthID,
@@ -2571,8 +2658,9 @@ func (s *abhaService) ProfileLoginVerifyOTP(ctx context.Context, req dtos.Profil
 			mask(abha.RefreshToken),
 			abha.LastModifiedDate.Format(time.RFC3339),
 		)
-		// _ = s.abhaRepo.SaveAbhaProfile(ctx, abha)
+		// _ = s.abhaRepo.SaveAbhaProfile(ctx, abha) // keep as-is per your current logic
 	}
+
 	return respBytes, nil
 }
 
@@ -2655,9 +2743,18 @@ func (s *abhaService) VerifyAadhaarOtpAndCreateIndividualV2(ctx context.Context,
 	}
 	verifyRespBytes, err := s.sendRequest(ctx, s.cfg.EnrolByAadhaarURL, verifyReq, abdmToken)
 	if err != nil {
-		if strings.Contains(err.Error(), "INVALID_OTP") {
-			return nil, errorsx.BadRequest("ABDM_INVALID_OTP", "invalid otp", nil, err)
+		// If sendRequest already parsed upstream, prefer passing it through unchanged.
+		var ae *errorsx.Error
+		if errors.As(err, &ae) {
+			// Specialize invalid OTP if needed
+			upCodeU := strings.ToUpper(ae.ErrorCode)
+			upMsgU := strings.ToUpper(ae.ErrorMessage)
+			if strings.Contains(upCodeU, "INVALID_OTP") || strings.Contains(upMsgU, "INVALID OTP") {
+				return nil, errorsx.BadRequest("ABDM_INVALID_OTP", "invalid otp", ae.AdditionalDetails, ae)
+			}
+			return nil, ae
 		}
+		// Generic fallback
 		return nil, errorsx.UpstreamFailed("ABDM_VERIFY_ERROR", "ABDM verify call failed", http.StatusBadGateway, nil, err)
 	}
 
@@ -2819,6 +2916,7 @@ func (s *abhaService) VerifyAadhaarOtpAndCreateIndividualV2(ctx context.Context,
 		return nil, errorsx.Internal("INDIVIDUAL_RESP_READ_FAILED", "failed to read individual response", nil, err)
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		// Map eGov Errors[] -> your unified error (code/message taken from first item; details carry full payload)
 		return nil, s.wrapUpstream(resp.StatusCode, respBody, "INDIVIDUAL_CREATE_FAILED")
 	}
 
