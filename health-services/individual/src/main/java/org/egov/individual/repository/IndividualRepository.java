@@ -364,6 +364,34 @@ public class IndividualRepository extends GenericRepository<Individual> {
             paramsMap.put("userUuid", searchObject.getUserUuid());
         }
 
+
+        // ---- NEW: DB-level boundary/ward filter using ADDRESS.localityCode / ADDRESS.wardCode ----
+        if (searchObject.getBoundaryCode() != null || searchObject.getWardCode() != null) {
+            StringBuilder addrExists = new StringBuilder();
+            addrExists.append(" AND EXISTS ( ");
+            addrExists.append("   SELECT 1 ");
+            addrExists.append("   FROM ").append(SCHEMA_REPLACE_STRING).append(".individual_address ia ");
+            addrExists.append("   JOIN ").append(SCHEMA_REPLACE_STRING).append(".address a ON a.id = ia.addressId ");
+            addrExists.append("   WHERE ia.individualId = individual.id ");
+
+            // Only constrain IA deletion when includeDeleted == false
+            if (Boolean.FALSE.equals(includeDeleted)) {
+                addrExists.append("     AND ia.isDeleted = false ");
+            }
+
+            if (searchObject.getBoundaryCode() != null) {
+                addrExists.append("     AND a.localityCode = :boundaryCode ");
+                paramsMap.put("boundaryCode", searchObject.getBoundaryCode());
+            }
+            if (searchObject.getWardCode() != null) {
+                addrExists.append("     AND a.wardCode = :wardCode ");
+                paramsMap.put("wardCode", searchObject.getWardCode());
+            }
+            addrExists.append(" ) ");
+
+            query = query + addrExists.toString();
+        }
+        // --
         query = query + "ORDER BY createdtime DESC LIMIT :limit OFFSET :offset";
       
         paramsMap.put("tenantId", tenantId);
