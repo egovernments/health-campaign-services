@@ -50,7 +50,7 @@ public class CellProtectionManager {
         
         // Important: We need to apply styles to a reasonable number of rows
         // to ensure protection works properly even for empty rows
-        int maxRowsToProtect = Math.min(config.getExcelRowLimit(), 10000);
+        int maxRowsToProtect = Math.min(config.getExcelRowLimit(), 6000);
         
         for (int rowIdx = 2; rowIdx <= maxRowsToProtect; rowIdx++) {
             Row row = sheet.getRow(rowIdx);
