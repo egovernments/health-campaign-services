@@ -20,6 +20,10 @@ public class ValidationConstants {
     // Error message constants
     public static final String HCM_VALIDATION_FAILED_NO_DETAILS = "HCM_VALIDATION_FAILED_NO_DETAILS";
     
+    // Search validation constants
+    public static final String INGEST_INVALID_LIMIT = "INGEST_INVALID_LIMIT";
+    public static final String INGEST_INVALID_OFFSET = "INGEST_INVALID_OFFSET";
+    
     private ValidationConstants() {
         // Private constructor to prevent instantiation
     }

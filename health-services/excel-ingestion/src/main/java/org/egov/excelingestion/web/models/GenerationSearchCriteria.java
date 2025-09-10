@@ -7,6 +7,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Min;
+import org.egov.excelingestion.config.ValidationConstants;
 import java.util.List;
 
 @Getter
@@ -33,8 +35,10 @@ public class GenerationSearchCriteria {
     private List<String> statuses;
 
     @JsonProperty("limit")
+    @Min(value = 0, message = ValidationConstants.INGEST_INVALID_LIMIT)
     private Integer limit;
 
     @JsonProperty("offset")
+    @Min(value = 0, message = ValidationConstants.INGEST_INVALID_OFFSET)
     private Integer offset;
 }

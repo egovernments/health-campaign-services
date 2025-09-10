@@ -20,7 +20,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.egov.common.utils.CommonUtils.constructTotalCountCTEAndReturnResult;
 import static org.egov.common.utils.MultiStateInstanceUtil.SCHEMA_REPLACE_STRING;
 
 @Repository
@@ -41,25 +40,27 @@ public class GeneratedFileRepository {
 
     public List<GenerateResource> search(GenerationSearchCriteria criteria) throws InvalidTenantIdException {
         Map<String, Object> preparedStmtList = new HashMap<>();
-        StringBuilder query = new StringBuilder(String.format("SELECT * FROM %s." + GenerationConstants.TABLE_NAME + " WHERE tenantId = :tenantId", SCHEMA_REPLACE_STRING));
         
-        preparedStmtList.put("tenantId", criteria.getTenantId());
+        // Build base query without SELECT columns and pagination
+        StringBuilder baseQuery = buildBaseQuery(criteria, preparedStmtList);
         
-        addCriteria(query, criteria, preparedStmtList);
-        
-        query.append(" ORDER BY createdTime DESC");
+        // Create data query with SELECT * and pagination
+        StringBuilder dataQuery = new StringBuilder("SELECT * FROM (");
+        dataQuery.append(baseQuery);
+        dataQuery.append(") AS base_result");
+        dataQuery.append(" ORDER BY createdTime DESC");
         
         if (criteria.getLimit() != null) {
-            query.append(" LIMIT :limit");
+            dataQuery.append(" LIMIT :limit");
             preparedStmtList.put("limit", criteria.getLimit());
         }
         
         if (criteria.getOffset() != null) {
-            query.append(" OFFSET :offset");
+            dataQuery.append(" OFFSET :offset");
             preparedStmtList.put("offset", criteria.getOffset());
         }
         
-        String finalQuery = multiStateInstanceUtil.replaceSchemaPlaceholder(query.toString(), criteria.getTenantId());
+        String finalQuery = multiStateInstanceUtil.replaceSchemaPlaceholder(dataQuery.toString(), criteria.getTenantId());
         
         try {
             return namedParameterJdbcTemplate.query(finalQuery, preparedStmtList, new GeneratedFileRowMapper());
@@ -71,19 +72,32 @@ public class GeneratedFileRepository {
 
     public Long getCount(GenerationSearchCriteria criteria) throws InvalidTenantIdException {
         Map<String, Object> preparedStmtList = new HashMap<>();
-        StringBuilder query = new StringBuilder(String.format("SELECT COUNT(*) FROM %s." + GenerationConstants.TABLE_NAME + " WHERE tenantId = :tenantId", SCHEMA_REPLACE_STRING));
         
-        preparedStmtList.put("tenantId", criteria.getTenantId());
-        addCriteria(query, criteria, preparedStmtList);
+        // Build base query without SELECT columns and pagination
+        StringBuilder baseQuery = buildBaseQuery(criteria, preparedStmtList);
         
-        String finalQuery = multiStateInstanceUtil.replaceSchemaPlaceholder(query.toString(), criteria.getTenantId());
+        // Create count query using the base query
+        StringBuilder countQuery = new StringBuilder("SELECT COUNT(*) FROM (");
+        countQuery.append(baseQuery);
+        countQuery.append(") AS base_result");
+        
+        String finalQuery = multiStateInstanceUtil.replaceSchemaPlaceholder(countQuery.toString(), criteria.getTenantId());
         
         try {
-            return constructTotalCountCTEAndReturnResult(finalQuery, preparedStmtList, namedParameterJdbcTemplate);
+            return namedParameterJdbcTemplate.queryForObject(finalQuery, preparedStmtList, Long.class);
         } catch (Exception e) {
             log.error("Error getting count of generated files: {}", e.getMessage(), e);
             throw new RuntimeException("Failed to get count of generated files", e);
         }
+    }
+    
+    private StringBuilder buildBaseQuery(GenerationSearchCriteria criteria, Map<String, Object> preparedStmtList) {
+        StringBuilder query = new StringBuilder(String.format("SELECT * FROM %s." + GenerationConstants.TABLE_NAME + " WHERE tenantId = :tenantId", SCHEMA_REPLACE_STRING));
+        
+        preparedStmtList.put("tenantId", criteria.getTenantId());
+        addCriteria(query, criteria, preparedStmtList);
+        
+        return query;
     }
 
     private void addCriteria(StringBuilder query, GenerationSearchCriteria criteria, Map<String, Object> preparedStmtList) {
