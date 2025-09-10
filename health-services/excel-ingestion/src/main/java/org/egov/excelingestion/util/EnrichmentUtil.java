@@ -10,7 +10,6 @@ import org.springframework.stereotype.Component;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 /**
  * Utility class for enriching GenerateResource objects
@@ -19,21 +18,6 @@ import java.util.UUID;
 @Slf4j
 public class EnrichmentUtil {
 
-    // enrichGenerateResource method removed as ID and status are now set by GenerationService
-
-    /**
-     * Enriches ProcessResource with UUID v4 ID and sets status to in_progress
-     *
-     * @param processResource The resource to enrich
-     */
-    public void enrichProcessResource(ProcessResource processResource) {
-        // Generate and set UUID v4 for the resource ID
-        String resourceId = UUID.randomUUID().toString();
-        processResource.setId(resourceId);
-        
-        log.info("Data processing started for type: {}, ID: {}, status set to in_progress", 
-                processResource.getType(), resourceId);
-    }
 
     /**
      * Enrich ProcessResource additionalDetails with error count and validation status

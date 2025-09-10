@@ -77,8 +77,6 @@ public class ExcelProcessingService {
 
         ProcessResource resource = request.getResourceDetails();
         
-        // Enrich resource with UUID and status
-        enrichmentUtil.enrichProcessResource(resource);
         
         try {
             // Extract locale and create localization maps

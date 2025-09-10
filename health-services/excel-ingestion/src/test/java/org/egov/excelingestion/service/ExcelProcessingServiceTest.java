@@ -210,8 +210,7 @@ class ExcelProcessingServiceTest {
             excelProcessingService.processExcelFile(request);
         });
 
-        // Then - Verify enrichment service was called
-        verify(enrichmentUtil).enrichProcessResource(resource);
+        // Then - Verify processing completed (enrichProcessResource no longer called)
     }
 
     @Test

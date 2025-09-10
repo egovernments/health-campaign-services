@@ -34,13 +34,9 @@ public class EnrichmentUtilTest {
                 .tenantId("test-tenant")
                 .build();
 
-        // When
-        enrichmentUtil.enrichProcessResource(resource);
-
-        // Then
-        assertNotNull(resource.getId());
-        assertEquals(36, resource.getId().length()); // UUID length
-        assertTrue(resource.getId().contains("-")); // UUID format
+        // When & Then
+        // enrichProcessResource method removed - ID is now set by ProcessingService
+        // This test is no longer relevant as enrichment doesn't handle ID generation
     }
 
     @Test

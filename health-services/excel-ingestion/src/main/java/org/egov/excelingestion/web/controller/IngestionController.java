@@ -5,6 +5,8 @@ import org.egov.excelingestion.constants.GenerationConstants;
 import org.egov.excelingestion.service.ExcelWorkflowService;
 import org.egov.excelingestion.service.ExcelProcessingService;
 import org.egov.excelingestion.service.GenerationService;
+import org.egov.excelingestion.service.ProcessingService;
+import org.egov.excelingestion.config.ProcessingConstants;
 import org.egov.excelingestion.web.models.GenerateResource;
 import org.egov.excelingestion.web.models.GenerateResourceRequest;
 import org.egov.excelingestion.web.models.GenerateResourceResponse;
@@ -14,6 +16,8 @@ import org.egov.excelingestion.web.models.ProcessResourceResponse;
 import org.egov.excelingestion.web.models.RequestInfo;
 import org.egov.excelingestion.web.models.GenerationSearchRequest;
 import org.egov.excelingestion.web.models.GenerationSearchResponse;
+import org.egov.excelingestion.web.models.ProcessingSearchRequest;
+import org.egov.excelingestion.web.models.ProcessingSearchResponse;
 import org.egov.common.contract.response.ResponseInfo;
 import org.egov.common.exception.InvalidTenantIdException;
 import org.springframework.http.HttpStatus;
@@ -30,15 +34,18 @@ import jakarta.validation.Valid;
 public class IngestionController {
 
     private final ExcelWorkflowService excelWorkflowService;
-    private final ExcelProcessingService processingService;
+    private final ExcelProcessingService excelProcessingService;
     private final GenerationService generationService;
+    private final ProcessingService processingService;
 
     public IngestionController(ExcelWorkflowService excelWorkflowService,
-                              ExcelProcessingService processingService,
-                              GenerationService generationService) {
+                              ExcelProcessingService excelProcessingService,
+                              GenerationService generationService,
+                              ProcessingService processingService) {
         this.excelWorkflowService = excelWorkflowService;
-        this.processingService = processingService;
+        this.excelProcessingService = excelProcessingService;
         this.generationService = generationService;
+        this.processingService = processingService;
     }
 
     @PostMapping("/_generate")
@@ -87,7 +94,18 @@ public class IngestionController {
                 request.getResourceDetails().getTenantId());
         
         RequestInfo requestInfo = request.getRequestInfo();
-        ProcessResource processedResource = processingService.processExcelFile(request);
+        String processingId = processingService.initiateProcessing(request);
+        
+        // Return the resource with pending status and processing ID
+        ProcessResource responseResource = ProcessResource.builder()
+                .id(processingId)
+                .tenantId(request.getResourceDetails().getTenantId())
+                .type(request.getResourceDetails().getType())
+                .hierarchyType(request.getResourceDetails().getHierarchyType())
+                .referenceId(request.getResourceDetails().getReferenceId())
+                .fileStoreId(request.getResourceDetails().getFileStoreId())
+                .status(ProcessingConstants.STATUS_PENDING)
+                .build();
         
         ProcessResourceResponse response = ProcessResourceResponse.builder()
                 .responseInfo(org.egov.common.contract.response.ResponseInfo.builder()
@@ -96,13 +114,13 @@ public class IngestionController {
                         .ts(requestInfo.getTs())
                         .status("successful")
                         .build())
-                .processResource(processedResource)
+                .processResource(responseResource)
                 .build();
         
-        return new ResponseEntity<>(response, HttpStatus.OK);
+        return new ResponseEntity<>(response, HttpStatus.ACCEPTED);
     }
 
-    @PostMapping("/_search")
+    @PostMapping("/_generationSearch")
     public ResponseEntity<GenerationSearchResponse> searchGenerations(
             @Valid @RequestBody GenerationSearchRequest request) throws InvalidTenantIdException {
         
@@ -110,6 +128,18 @@ public class IngestionController {
                 request.getGenerationSearchCriteria().getTenantId());
         
         GenerationSearchResponse response = generationService.searchGenerations(request);
+        
+        return new ResponseEntity<>(response, HttpStatus.OK);
+    }
+
+    @PostMapping("/_processSearch")
+    public ResponseEntity<ProcessingSearchResponse> searchProcessing(
+            @Valid @RequestBody ProcessingSearchRequest request) throws InvalidTenantIdException {
+        
+        log.info("Received processing search request for tenantId: {}", 
+                request.getProcessingSearchCriteria().getTenantId());
+        
+        ProcessingSearchResponse response = processingService.searchProcessing(request);
         
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
