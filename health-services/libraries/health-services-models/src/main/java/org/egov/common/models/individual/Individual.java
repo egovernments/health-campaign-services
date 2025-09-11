@@ -43,63 +43,61 @@ public class Individual extends EgovOfflineModel {
     private String userUuid = null;
 
     @JsonProperty("name")
-    @NotNull
-    @Valid
-    private Name name = null;
+    @NotNull @Valid
+    private Name name;
 
     @JsonProperty("dateOfBirth")
-    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "dd/MM/yyyy")
-    private Date dateOfBirth = null;
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "dd/MM/yyyy") // keep; convert from ABHA "dd-MM-yyyy" before set
+    private Date dateOfBirth;
 
     @JsonProperty("gender")
     @Valid
-    private Gender gender = null;
+    private Gender gender;
 
     @JsonProperty("bloodGroup")
     @Valid
-    private BloodGroup bloodGroup = null;
+    private BloodGroup bloodGroup;
 
     @JsonProperty("mobileNumber")
-    @Size(max = 20)
-    private String mobileNumber = null;
+    @Size(max = 20)                    // keep len; do NOT force 10 digits here (ABHA is India, but HCM may be multi-tenant)
+    private String mobileNumber;
 
     @JsonProperty("altContactNumber")
-    @Size(max = 16)
-    private String altContactNumber = null;
+    @Size(max = 20)                    // was 16 → align with mobileNumber cap
+    private String altContactNumber;
 
     @JsonProperty("email")
-    @Size(min = 5, max = 200)
-    private String email = null;
+    @Size(min = 3, max = 200)         // was 5 → allow short aliases if needed; still optional
+    private String email;
 
     @JsonProperty("address")
     @Valid
     @Size(max = 3)
-    private List<Address> address = null;
+    private List<Address> address;
 
     @JsonProperty("fatherName")
     @Size(max = 100)
-    private String fatherName = null;
+    private String fatherName;
 
     @JsonProperty("husbandName")
     @Size(max = 100)
-    private String husbandName = null;
+    private String husbandName;
 
     @JsonProperty("relationship")
     @Size(max = 100, min = 1)
-    private String relationship = null;
+    private String relationship;
 
     @JsonProperty("identifiers")
     @Valid
-    private List<Identifier> identifiers = null;
+    private List<Identifier> identifiers;
 
     @JsonProperty("skills")
     @Valid
-    private List<Skill> skills = null;
+    private List<Skill> skills;
 
     @JsonProperty("photo")
-    private String photo = null;
+    private String photo;
 
-    //TODO remove
     @JsonProperty("isDeleted")
     private Boolean isDeleted = Boolean.FALSE;
 

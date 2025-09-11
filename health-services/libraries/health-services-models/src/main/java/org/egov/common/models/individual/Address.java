@@ -17,7 +17,7 @@ import org.egov.common.models.core.Boundary;
 import org.springframework.validation.annotation.Validated;
 
 /**
-* Representation of a address. Individual APIs may choose to extend from this using allOf if more details needed to be added in their case. 
+* Representation of a address. Individual APIs may choose to extend from this using allOf if more details needed to be added in their case.
 */
     @ApiModel(description = "Representation of a address. Individual APIs may choose to extend from this using allOf if more details needed to be added in their case. ")
 @Validated
@@ -28,11 +28,9 @@ import org.springframework.validation.annotation.Validated;
 @Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
 @Deprecated
-public class Address   {
-        @JsonProperty("id")
-    
-
-    @Size(min=2,max=64)
+public class Address {
+    @JsonProperty("id")
+    @Size(min = 2, max = 64)
     private String id = null;
 
     @JsonProperty("clientReferenceId")
@@ -40,127 +38,73 @@ public class Address   {
     private String clientReferenceId = null;
 
     @JsonProperty("individualId")
-
-
-    @Size(min=2,max=64)
+    @Size(min = 2, max = 64)
     private String individualId = null;
 
-        @JsonProperty("tenantId")
-
+    @JsonProperty("tenantId")
     private String tenantId = null;
 
-        @JsonProperty("doorNo")
-    
-
-    @Size(min=2,max=64) 
-
+    @JsonProperty("doorNo")
+    @Size(min = 0, max = 64)      // allow empty
     private String doorNo = null;
 
-        @JsonProperty("latitude")
-    
-
-    @DecimalMin("-90")
-    @DecimalMax("90") 
-
+    @JsonProperty("latitude")
+    @DecimalMin("-90") @DecimalMax("90")
     private Double latitude = null;
 
-        @JsonProperty("longitude")
-    
-
-    @DecimalMin("-180")
-    @DecimalMax("180") 
-
+    @JsonProperty("longitude")
+    @DecimalMin("-180") @DecimalMax("180")
     private Double longitude = null;
 
-        @JsonProperty("locationAccuracy")
-    
-
+    @JsonProperty("locationAccuracy")
     @DecimalMin("0")
-
     private Double locationAccuracy = null;
 
-        @JsonProperty("type")
-
-        @NotNull
-
+    @JsonProperty("type")
+    @NotNull
     private AddressType type = null;
 
-        @JsonProperty("addressLine1")
-    
-
-    @Size(min=2,max=256) 
-
+    @JsonProperty("addressLine1")
+    @Size(min = 0, max = 256)     // was 2 → allow single-character tokens
     private String addressLine1 = null;
 
-        @JsonProperty("addressLine2")
-    
-
-    @Size(min=2,max=256) 
-
+    @JsonProperty("addressLine2")
+    @Size(min = 0, max = 256)     // allow empty
     private String addressLine2 = null;
 
-        @JsonProperty("landmark")
-    
-
-    @Size(min=2,max=256) 
-
+    @JsonProperty("landmark")
+    @Size(min = 0, max = 256)
     private String landmark = null;
 
-        @JsonProperty("city")
-    
-
-    @Size(min=2,max=256) 
-
+    @JsonProperty("city")
+    @Size(min = 0, max = 256)
     private String city = null;
 
-        @JsonProperty("pincode")
-    
-
-    @Size(min=2,max=64) 
-
+    @JsonProperty("pincode")
+    @Size(min = 0, max = 64)
     private String pincode = null;
 
-        @JsonProperty("buildingName")
-    
-
-    @Size(min=2,max=256) 
-
+    @JsonProperty("buildingName")
+    @Size(min = 0, max = 256)
     private String buildingName = null;
 
-        @JsonProperty("street")
-    
-
-    @Size(min=2,max=256) 
-
+    @JsonProperty("street")
+    @Size(min = 0, max = 256)
     private String street = null;
 
-        @JsonProperty("locality")
-    
-  @Valid
-
-
+    @JsonProperty("locality")
+    @Valid
     private Boundary locality = null;
 
     @JsonProperty("ward")
-
     @Valid
-
-
     private Boundary ward = null;
 
     @JsonProperty("isDeleted")
-
-
-
     private Boolean isDeleted = Boolean.FALSE;
 
     @JsonProperty("auditDetails")
-
     @Valid
-
-
     private AuditDetails auditDetails = null;
-
-
 }
 

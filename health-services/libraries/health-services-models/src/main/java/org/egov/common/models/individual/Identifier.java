@@ -27,7 +27,7 @@ import org.springframework.validation.annotation.Validated;
 public class Identifier {
 
     @JsonProperty("id")
-    @Size(min = 2, max = 64)
+    @Size(min = 1, max = 64)
     private String id = null;
 
     @JsonProperty("clientReferenceId")
