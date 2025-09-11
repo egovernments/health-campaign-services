@@ -46,6 +46,9 @@ public class ExcelIngestionConfig {
     @Value("${egov.excel.sheet.zoom:60}")
     private int excelSheetZoom;
 
+    @Value("${egov.excel.validation.error.color:#ff0000}")
+    private String validationErrorColor;
+
     private String defaultHeaderColor = "#93c47d";
 
     public String getHierarchySearchUrl() {

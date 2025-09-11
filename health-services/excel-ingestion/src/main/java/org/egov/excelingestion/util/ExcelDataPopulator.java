@@ -723,7 +723,7 @@ public class ExcelDataPopulator {
     
     /**
      * Apply visual validation only - no data validation, just conditional formatting
-     * for rose/red coloring when invalid data is entered
+     * for error coloring when invalid data is entered
      */
     private void applyVisualValidationOnly(Workbook workbook, Sheet sheet, ColumnDef column, int colIndex, Map<String, String> localizationMap) {
         try {
@@ -746,9 +746,9 @@ public class ExcelDataPopulator {
                 // Create conditional formatting rule
                 XSSFConditionalFormattingRule rule = conditionalFormatting.createConditionalFormattingRule(formula);
                 
-                // Set rose/red background for invalid cells
+                // Set validation error color for invalid cells
                 PatternFormatting fill = rule.createPatternFormatting();
-                fill.setFillBackgroundColor(IndexedColors.ROSE.getIndex());
+                setValidationErrorColor(fill);
                 fill.setFillPattern(PatternFormatting.SOLID_FOREGROUND);
                 
                 // Apply the rule
@@ -765,11 +765,11 @@ public class ExcelDataPopulator {
     }
     
     /**
-     * Apply hybrid validation: WARNING style data validation for hover tooltips + conditional formatting for rose/red coloring
+     * Apply hybrid validation: WARNING style data validation for hover tooltips + conditional formatting for error coloring
      */
     private void applyHybridValidation(Workbook workbook, Sheet sheet, ColumnDef column, int colIndex, Map<String, String> localizationMap) {
         try {
-            // First apply conditional formatting for rose/red color
+            // First apply conditional formatting for error color
             applyVisualValidationOnly(workbook, sheet, column, colIndex, localizationMap);
             
             // Then add WARNING style data validation for hover tooltips
@@ -856,7 +856,7 @@ public class ExcelDataPopulator {
             String formula = buildConditionalFormula(column, columnLetter);
             
             if (formula != null) {
-                // 1. Apply conditional formatting for rose/red color
+                // 1. Apply conditional formatting for error color
                 XSSFSheetConditionalFormatting conditionalFormatting = (XSSFSheetConditionalFormatting) sheet.getSheetConditionalFormatting();
                 
                 // Define cell range for the column (data rows only, starting from row 3)
@@ -865,9 +865,9 @@ public class ExcelDataPopulator {
                 // Create conditional formatting rule
                 XSSFConditionalFormattingRule rule = conditionalFormatting.createConditionalFormattingRule(formula);
                 
-                // Set rose/red background for invalid cells
+                // Set validation error color for invalid cells
                 PatternFormatting fill = rule.createPatternFormatting();
-                fill.setFillBackgroundColor(IndexedColors.ROSE.getIndex());
+                setValidationErrorColor(fill);
                 fill.setFillPattern(PatternFormatting.SOLID_FOREGROUND);
                 
                 // Apply the rule
@@ -1040,7 +1040,7 @@ public class ExcelDataPopulator {
                     
                     // Get localized text for validation message components
                     String validationLabel = getLocalizedText("HCM_VALIDATION_LABEL", "Validation", localizationMap);
-                    String highlightText = getLocalizedText("HCM_VALIDATION_HIGHLIGHT_MESSAGE", "Invalid entries will be highlighted in rose/red color", localizationMap);
+                    String highlightText = getLocalizedText("HCM_VALIDATION_HIGHLIGHT_MESSAGE", "Invalid entries will be highlighted in red color", localizationMap);
                     String authorName = getLocalizedText("HCM_CONSOLE_TEAM", "Console Team", localizationMap);
                     
                     // Build localized tooltip message
@@ -1066,6 +1066,49 @@ public class ExcelDataPopulator {
             return localizationMap.get(key);
         }
         return defaultValue;
+    }
+    
+    /**
+     * Set validation error color from configuration
+     */
+    private void setValidationErrorColor(PatternFormatting fill) {
+        try {
+            // Use custom color from configuration
+            if (fill instanceof org.apache.poi.xssf.usermodel.XSSFPatternFormatting) {
+                org.apache.poi.xssf.usermodel.XSSFPatternFormatting xssfFill = (org.apache.poi.xssf.usermodel.XSSFPatternFormatting) fill;
+                java.awt.Color color = hexToColor(config.getValidationErrorColor());
+                org.apache.poi.xssf.usermodel.XSSFColor validationColor = new org.apache.poi.xssf.usermodel.XSSFColor(color, null);
+                xssfFill.setFillBackgroundColor(validationColor);
+            } else {
+                // Fallback to closest indexed color for non-XLSX formats
+                fill.setFillBackgroundColor(IndexedColors.RED.getIndex());
+            }
+        } catch (Exception e) {
+            log.warn("Failed to set custom validation error color, using fallback: {}", e.getMessage());
+            fill.setFillBackgroundColor(IndexedColors.RED.getIndex());
+        }
+    }
+    
+    /**
+     * Convert hex color string to Color object
+     */
+    private java.awt.Color hexToColor(String hex) {
+        if (hex == null || hex.trim().isEmpty()) {
+            return new java.awt.Color(196, 4, 4); // Default #ff0000
+        }
+        
+        // Remove # if present
+        if (hex.startsWith("#")) {
+            hex = hex.substring(1);
+        }
+        
+        try {
+            int rgb = Integer.parseInt(hex, 16);
+            return new java.awt.Color(rgb);
+        } catch (NumberFormatException e) {
+            log.warn("Invalid hex color format '{}', using default", hex);
+            return new java.awt.Color(196, 4, 4); // Default #ff0000
+        }
     }
     
 }

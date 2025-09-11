@@ -20,7 +20,7 @@ public class ProcessingSearchResponse {
     @JsonProperty("ResponseInfo")
     private ResponseInfo responseInfo;
 
-    @JsonProperty("processingDetails")
+    @JsonProperty("ProcessingDetails")
     private List<ProcessResource> processingDetails;
 
     @JsonProperty("totalCount")
