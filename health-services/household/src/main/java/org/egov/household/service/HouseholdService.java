@@ -57,6 +57,7 @@ public class HouseholdService {
             validator.getClass().equals(HBoundaryValidator.class)
                     || validator.getClass().equals(HExistentEntityValidator.class)
                     || validator.getClass().equals(HCommunityValidator.class)
+                    || validator.getClass().equals(HMemberCountValidator.class)
                     || validator.getClass().equals(HCommunityTypeValidator.class);
 
     private final Predicate<Validator<HouseholdBulkRequest, Household>> isApplicableForUpdate = validator ->
