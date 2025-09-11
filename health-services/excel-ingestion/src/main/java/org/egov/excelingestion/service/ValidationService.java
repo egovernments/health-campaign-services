@@ -356,24 +356,14 @@ public class ValidationService {
      */
     private void lockAllCells(Sheet sheet) {
         Workbook workbook = sheet.getWorkbook();
-        CellStyle lockedStyle = workbook.createCellStyle();
-        lockedStyle.setLocked(true);
-        
-        int lastRowNum = sheet.getLastRowNum();
-        for (int rowIndex = 0; rowIndex <= lastRowNum; rowIndex++) {
-            Row row = sheet.getRow(rowIndex);
-            if (row != null) {
-                for (int colIndex = 0; colIndex < row.getLastCellNum(); colIndex++) {
-                    Cell cell = row.getCell(colIndex);
-                    if (cell != null) {
-                        // Create a new style based on existing style but with locked=true
-                        CellStyle existingStyle = cell.getCellStyle();
-                        CellStyle newStyle = workbook.createCellStyle();
-                        newStyle.cloneStyleFrom(existingStyle);
-                        newStyle.setLocked(true);
-                        cell.setCellStyle(newStyle);
-                    }
+        for (Row row : sheet) {
+            for (Cell cell : row) {
+                CellStyle style = cell.getCellStyle();
+                if (style == null) {
+                    style = workbook.createCellStyle();
                 }
+                style.setLocked(true); // lock this cell
+                cell.setCellStyle(style);
             }
         }
         log.debug("Locked all cells in sheet: {}", sheet.getSheetName());
