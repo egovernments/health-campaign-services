@@ -63,15 +63,18 @@ public class IdGenerationController {
 	 */
 
 	@RequestMapping(method = RequestMethod.POST, path = "id_pool/_dispatch")
-	public IdDispatchResponse dispatchIds(@RequestBody @Valid IdDispatchRequest request)  throws Exception {
-			IdDispatchResponse response = idDispatchService.dispatchIds( request);
-			return response;
+	public IdDispatchResponse dispatchIds(@RequestBody @Valid IdDispatchRequest request
+			, @ApiParam(value = "Limit for the dispatched ids to retrieve", defaultValue = "10") @Valid @RequestParam(value = "limit", required = false, defaultValue = "10") Integer limit
+			, @ApiParam(value = "Offset for the dispatched ids to retrieve", defaultValue = "0") @Valid @RequestParam(value = "offset", required = false, defaultValue = "0") Integer offset
+	)  throws Exception {
+		IdDispatchResponse response = idDispatchService.dispatchIds(request, limit, offset);
+		return response;
 	}
 
 	/**
 	 * description: generate unique ID for property
 	 *
-	 * @param IdPoolSearchRequest
+	 * @param request
 	 * @return IdDispatchResponse
 	 * @throws Exception
 	 */
@@ -84,7 +87,7 @@ public class IdGenerationController {
 	/**
 	 * description: generate unique ID for property
 	 *
-	 * @param IdRecordBulkRequest
+	 * @param request
 	 * @return  ResponseEntity
 	 * @throws Exception
 	 */

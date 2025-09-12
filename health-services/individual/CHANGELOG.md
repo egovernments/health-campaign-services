@@ -1,5 +1,11 @@
 All notable changes to this module will be documented in this file.
 
+## 1.2.1 - 2025-08-11
+
+- Added configurability for beneficiary ID size
+- Fixed validation for duplicate beneficiary IDs
+- Added beneficiary idgen update for individual update
+
 ## 1.2.0 - 2025-03-15
 
 - Enabled multi-schema support using dynamic schema replacement in SQL queries.

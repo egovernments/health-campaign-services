@@ -8,6 +8,7 @@ WORKDIR /app
 ARG BRANCH_NAME
 ARG ACTION_NUMBER
 ARG COMMIT_ID
+ARG WORK_DIR
 
 # Set environment variables based on build arguments
 ENV BRANCH_NAME=$BRANCH_NAME

@@ -1282,10 +1282,10 @@ async function makeParentInactiveOrActive(parentCampaign: any, userUuid: string,
   };
   parentCampaign.auditDetails.lastModifiedTime = Date.now();
   parentCampaign.auditDetails.lastModifiedBy = userUuid;
-  const RequestInfo = JSON.parse(JSON.stringify(defaultRequestInfo || {}));
-  RequestInfo.userInfo.uuid = userUuid;
+  const requestInfoObject = JSON.parse(JSON.stringify(defaultRequestInfo || {}));
+  requestInfoObject.RequestInfo.userInfo.uuid = userUuid;
   const produceMessage: any = {
-    RequestInfo,
+    RequestInfo: requestInfoObject.RequestInfo,
     CampaignDetails: parentCampaign,
   };
   await produceModifiedMessages(

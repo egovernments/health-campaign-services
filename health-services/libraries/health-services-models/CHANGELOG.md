@@ -1,5 +1,9 @@
 All notable changes to this module will be documented in this file.
 
+## 1.0.28 - 2025-07-23
+
+- updated generated beneficiary id model
+
 ## 1.0.27 - 2025-04-08
 - Added Service request models
 - Added Relationship model and added for HouseholdMember
