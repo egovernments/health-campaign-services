@@ -120,6 +120,11 @@ public class GeneratedFileRepository {
             query.append(" AND status IN (:statuses)");
             preparedStmtList.put("statuses", criteria.getStatuses());
         }
+
+        if (criteria.getLocale() != null && !criteria.getLocale().trim().isEmpty()) {
+            query.append(" AND locale = :locale");
+            preparedStmtList.put("locale", criteria.getLocale());
+        }
     }
 
     private class GeneratedFileRowMapper implements RowMapper<GenerateResource> {
@@ -140,6 +145,7 @@ public class GeneratedFileRepository {
                     .fileStoreId(rs.getString("fileStoreId"))
                     .status(rs.getString("status"))
                     .errorDetails(rs.getString("errorDetails"))
+                    .locale(rs.getString("locale"))
                     .additionalDetails(additionalDetails != null ? objectMapper.convertValue(additionalDetails, java.util.Map.class) : null)
                     .createdBy(rs.getString("createdBy"))
                     .lastModifiedBy(rs.getString("lastModifiedBy"))

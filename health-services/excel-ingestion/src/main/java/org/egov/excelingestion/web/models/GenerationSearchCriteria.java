@@ -34,6 +34,9 @@ public class GenerationSearchCriteria {
     @JsonProperty("statuses")
     private List<String> statuses;
 
+    @JsonProperty("locale")
+    private String locale;
+
     @JsonProperty("limit")
     @Min(value = 1, message = ValidationConstants.INGEST_INVALID_LIMIT)
     private Integer limit;

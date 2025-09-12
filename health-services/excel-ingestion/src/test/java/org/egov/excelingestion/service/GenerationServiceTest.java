@@ -27,7 +27,7 @@ class GenerationServiceTest {
 
     @BeforeEach
     void setUp() {
-        generationService = new GenerationService(generatedFileRepository, null, null, null);
+        generationService = new GenerationService(generatedFileRepository, null, null, null, null);
     }
 
     @Test

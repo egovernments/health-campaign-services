@@ -3,6 +3,7 @@ package org.egov.excelingestion.service;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.excelingestion.constants.GenerationConstants;
 import org.egov.excelingestion.repository.GeneratedFileRepository;
+import org.egov.excelingestion.util.RequestInfoConverter;
 import org.egov.excelingestion.web.models.*;
 import org.egov.common.contract.response.ResponseInfo;
 import org.egov.common.producer.Producer;
@@ -21,6 +22,7 @@ public class GenerationService {
     private final Producer producer;
     private final AsyncGenerationService asyncGenerationService;
     private final ExcelGenerationValidationService validationService;
+    private final RequestInfoConverter requestInfoConverter;
     
     @Value("${excel.ingestion.generation.save.topic}")
     private String saveGenerationTopic;
@@ -28,11 +30,13 @@ public class GenerationService {
     public GenerationService(GeneratedFileRepository generatedFileRepository, 
                            Producer producer,
                            AsyncGenerationService asyncGenerationService,
-                           ExcelGenerationValidationService validationService) {
+                           ExcelGenerationValidationService validationService,
+                           RequestInfoConverter requestInfoConverter) {
         this.generatedFileRepository = generatedFileRepository;
         this.producer = producer;
         this.asyncGenerationService = asyncGenerationService;
         this.validationService = validationService;
+        this.requestInfoConverter = requestInfoConverter;
     }
 
     public String initiateGeneration(GenerateResourceRequest request) {
@@ -48,6 +52,12 @@ public class GenerationService {
             String userUuid = request.getRequestInfo().getUserInfo().getUuid();
             generateResource.setCreatedBy(userUuid);
             generateResource.setLastModifiedBy(userUuid);
+        }
+        
+        // Extract and set locale from RequestInfo
+        if (request.getRequestInfo() != null) {
+            String locale = requestInfoConverter.extractLocale(request.getRequestInfo());
+            generateResource.setLocale(locale);
         }
 
         try {

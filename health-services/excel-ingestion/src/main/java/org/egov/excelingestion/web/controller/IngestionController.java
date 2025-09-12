@@ -7,6 +7,7 @@ import org.egov.excelingestion.service.ExcelProcessingService;
 import org.egov.excelingestion.service.GenerationService;
 import org.egov.excelingestion.service.ProcessingService;
 import org.egov.excelingestion.service.SheetDataService;
+import org.egov.excelingestion.util.RequestInfoConverter;
 import org.egov.excelingestion.config.ProcessingConstants;
 import org.egov.excelingestion.web.models.GenerateResource;
 import org.egov.excelingestion.web.models.GenerateResourceRequest;
@@ -47,17 +48,20 @@ public class IngestionController {
     private final GenerationService generationService;
     private final ProcessingService processingService;
     private final SheetDataService sheetDataService;
+    private final RequestInfoConverter requestInfoConverter;
 
     public IngestionController(ExcelWorkflowService excelWorkflowService,
                               ExcelProcessingService excelProcessingService,
                               GenerationService generationService,
                               ProcessingService processingService,
-                              SheetDataService sheetDataService) {
+                              SheetDataService sheetDataService,
+                              RequestInfoConverter requestInfoConverter) {
         this.excelWorkflowService = excelWorkflowService;
         this.excelProcessingService = excelProcessingService;
         this.generationService = generationService;
         this.processingService = processingService;
         this.sheetDataService = sheetDataService;
+        this.requestInfoConverter = requestInfoConverter;
     }
 
     @PostMapping("/_generate")
@@ -70,6 +74,10 @@ public class IngestionController {
 
         // Return complete resource details with generated ID and PENDING status
         GenerateResource inputResource = request.getGenerateResource();
+        
+        // Extract locale from RequestInfo using RequestInfoConverter
+        String locale = requestInfoConverter.extractLocale(request.getRequestInfo());
+        
         GenerateResource responseResource = GenerateResource.builder()
                 .id(generationId)
                 .tenantId(inputResource.getTenantId())
@@ -77,6 +85,7 @@ public class IngestionController {
                 .hierarchyType(inputResource.getHierarchyType())
                 .referenceId(inputResource.getReferenceId())
                 .status(GenerationConstants.STATUS_PENDING)
+                .locale(locale)
                 .additionalDetails(inputResource.getAdditionalDetails())
                 .createdTime(System.currentTimeMillis())
                 .lastModifiedTime(System.currentTimeMillis())

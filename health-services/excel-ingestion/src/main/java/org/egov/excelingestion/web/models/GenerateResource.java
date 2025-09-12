@@ -52,6 +52,9 @@ public class GenerateResource {
     @JsonProperty("status")
     private String status;
 
+    @JsonProperty("locale")
+    private String locale;
+
     @JsonProperty("additionalDetails")
     private Map<String, Object> additionalDetails;
 
