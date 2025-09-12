@@ -3,6 +3,7 @@ package org.egov.transformer.transformationservice;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.databind.node.TextNode;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.core.Field;
 import org.egov.common.models.project.Project;
@@ -134,7 +135,7 @@ public class UserActionTransformationService {
         if (userAction.getAdditionalFields() != null && !CollectionUtils.isEmpty(userAction.getAdditionalFields().getFields())) {
             for (Field field : userAction.getAdditionalFields().getFields()) {
                 if (field.getKey() != null && field.getValue() != null) {
-                    combinedDetails.put(field.getKey(), field.getValue());
+                    combinedDetails.set(field.getKey(), convertToJsonNode(field.getValue()));
                 }
             }
         }
@@ -158,6 +159,17 @@ public class UserActionTransformationService {
         } catch (Exception e) {
             log.error("Error fetching user action daily plan from MDMS for tenantId: {}", tenantId, e);
             return Collections.emptyMap();
+        }
+    }
+
+    public JsonNode convertToJsonNode(String value) {
+        if (value == null) return null;
+        try {
+            // Try parsing string into JSON
+            return objectMapper.readTree(value);
+        } catch (Exception e) {
+            // If parsing fails, treat it as plain string
+            return TextNode.valueOf(value);
         }
     }
 }
