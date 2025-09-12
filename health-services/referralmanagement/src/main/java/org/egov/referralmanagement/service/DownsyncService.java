@@ -137,7 +137,7 @@ public class DownsyncService {
         /* search tasks using beneficiary uuids */
         if (isSyncTimeAvailable || !CollectionUtils.isEmpty(beneficiaryClientRefIds)) {
 
-            taskClientRefIds = searchTasks(downsyncRequest, downsync, beneficiaryClientRefIds, projectType);
+            taskClientRefIds = searchTasks(downsyncRequest, downsync, beneficiaryClientRefIds, projectType, useProjectId);
 
             /* ref search */
             referralSearch(downsyncRequest, downsync, beneficiaryClientRefIds);
@@ -347,7 +347,7 @@ public class DownsyncService {
      * @return
      */
     private List<String> searchTasks(DownsyncRequest downsyncRequest, Downsync downsync,
-                                     List<String> beneficiaryClientRefIds, LinkedHashMap<String, Object> projectType) {
+                                     List<String> beneficiaryClientRefIds, LinkedHashMap<String, Object> projectType, boolean useProjectId) {
 
         DownsyncCriteria criteria = downsyncRequest.getDownsyncCriteria();
         RequestInfo requestInfo = downsyncRequest.getRequestInfo();
@@ -366,15 +366,19 @@ public class DownsyncService {
 
             url = appendUrlParams(url, criteria, 0, list.size(), false);
 
-            TaskSearch search = TaskSearch.builder()
-                    .id(list)
-                    .projectId(Collections.singletonList(downsyncRequest.getDownsyncCriteria().getProjectId()))
-                    .build();
+        TaskSearch search = TaskSearch.builder()
+                .id(list)
+                .build();
 
-            TaskSearchRequest searchRequest = TaskSearchRequest.builder()
-                    .task(search)
-                    .requestInfo(requestInfo)
-                    .build();
+        if(useProjectId) {
+            search.setProjectId(
+                    Collections.singletonList(downsyncRequest.getDownsyncCriteria().getProjectId()));
+        }
+
+        TaskSearchRequest searchRequest = TaskSearchRequest.builder()
+                .task(search)
+                .requestInfo(requestInfo)
+                .build();
 
             List<Task> tasksSublist = restClient.fetchResult(url, searchRequest, TaskBulkResponse.class).getTasks();
             tasks.addAll(tasksSublist);
