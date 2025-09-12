@@ -141,19 +141,34 @@ public class ExcelProcessingService {
                         validationService.processValidationErrors(sheet, sheetErrors, columnInfo, mergedLocalizationMap);
                     }
                     
+                    // Convert sheet data to get row count
+                    List<Map<String, Object>> sheetData = convertSheetToMapList(sheet);
+                    
                     // Enrich resource additionalDetails with error count and status for this sheet
                     enrichmentUtil.enrichErrorAndStatusInAdditionalDetails(resource, sheetErrors);
+                    
+                    // Enrich resource additionalDetails with row count for this sheet
+                    enrichmentUtil.enrichRowCountInAdditionalDetails(resource, sheetData.size());
                     
                     // Step 2: Check if there's a workbook processor configured for this sheet
                     configBasedProcessingService.processWorkbookWithProcessor(
                             sheetName, workbook, resource, request.getRequestInfo(), mergedLocalizationMap);
+                    
+                    // Step 3: Handle post-processing (persistence and event publishing)
+                    configBasedProcessingService.handlePostProcessing(
+                            sheetName, sheetData.size(), resource, mergedLocalizationMap, sheetData);
                 }
                 
                 // Upload the processed Excel file
                 String processedFileStoreId = uploadProcessedExcel(workbook, resource);
                 
                 // Update resource with results (error counts already enriched during processing)
-                return updateResourceWithResults(resource, processedFileStoreId);
+                ProcessResource updatedResource = updateResourceWithResults(resource, processedFileStoreId);
+                
+                // Send processing result to configured topic (if any)
+                configBasedProcessingService.sendProcessingResult(updatedResource);
+                
+                return updatedResource;
             }
         } catch (IOException e) {
             log.error("Error processing Excel file for ID: {}", resource.getId(), e);

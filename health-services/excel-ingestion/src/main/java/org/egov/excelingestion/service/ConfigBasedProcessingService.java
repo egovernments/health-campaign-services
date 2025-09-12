@@ -351,20 +351,7 @@ public class ConfigBasedProcessingService {
             log.info("Skipping persistence for sheet: {} (persistParsings = false)", sheetName);
         }
         
-        // Handle event publishing
-        String topic = sheetConfig.getTriggerParsingCompleteTopic();
-        if (topic != null && !topic.trim().isEmpty()) {
-            ParsingCompleteEvent event = ParsingCompleteEvent.builder()
-                    .filestoreId(resource.getFileStoreId())
-                    .referenceId(resource.getReferenceId())
-                    .sheetName(sheetName)
-                    .recordCount(recordCount)
-                    .build();
-            
-            producer.push(resource.getTenantId(), topic, event);
-            log.info("Published parsing complete event to topic: {} for sheet: {}, records: {}", 
-                    topic, sheetName, recordCount);
-        }
+        // Note: Per-sheet event publishing removed - now handled at processing type level
     }
     
     /**
@@ -398,22 +385,21 @@ public class ConfigBasedProcessingService {
     }
     
     /**
-     * Get parsing complete topic for sheet
+     * Send processing result to configured topic after all sheets are processed
      */
-    public String getParsingCompleteTopic(String sheetName,
-                                        String processorType,
-                                        Map<String, String> localizationMap) {
-        java.util.List<ProcessorSheetConfig> config = getConfigByType(processorType);
-        if (config == null) {
-            return null;
+    public void sendProcessingResult(ProcessResource resource) {
+        String topic = configRegistry.getProcessingResultTopic(resource.getType());
+        if (topic != null && !topic.trim().isEmpty()) {
+            producer.push(resource.getTenantId(), topic, resource);
+            log.info("Published processing result to topic: {} for processing type: {}, resource ID: {}", 
+                    topic, resource.getType(), resource.getId());
+        } else {
+            log.debug("No processing result topic configured for processing type: {}", resource.getType());
         }
-        
-        ProcessorSheetConfig sheetConfig = getSheetConfig(sheetName, config, localizationMap);
-        return sheetConfig != null ? sheetConfig.getTriggerParsingCompleteTopic() : null;
     }
     
     /**
-     * Save sheet data to temporary table via producer push
+     * Save sheet data to temporary table via producer push in chunks of 200 records
      */
     private void saveSheetDataToTemp(String sheetName, 
                                    List<Map<String, Object>> parsedData, 
@@ -427,33 +413,48 @@ public class ConfigBasedProcessingService {
         long currentTime = System.currentTimeMillis();
         long deleteTime = currentTime + 86400000L; // 1 day later
         
-        List<SheetDataTemp> sheetDataList = new ArrayList<>();
+        final int CHUNK_SIZE = 200;
+        int totalRecords = parsedData.size();
+        int totalChunks = (int) Math.ceil((double) totalRecords / CHUNK_SIZE);
         
-        for (int i = 0; i < parsedData.size(); i++) {
-            Map<String, Object> rowData = parsedData.get(i);
+        log.info("Processing {} records in {} chunks for sheet: {}", 
+                totalRecords, totalChunks, sheetName);
+        
+        for (int chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
+            int startIndex = chunkIndex * CHUNK_SIZE;
+            int endIndex = Math.min(startIndex + CHUNK_SIZE, totalRecords);
             
-            SheetDataTemp sheetDataTemp = SheetDataTemp.builder()
-                    .referenceId(resource.getReferenceId())
-                    .fileStoreId(resource.getFileStoreId())
-                    .sheetName(sheetName)
-                    .rowNumber(i + 1) // 1-based row number
-                    .rowJson(rowData)
-                    .createdBy("system") // TODO: Get from request context
-                    .createdTime(currentTime)
-                    .deleteTime(deleteTime)
-                    .build();
-                    
-            sheetDataList.add(sheetDataTemp);
+            List<SheetDataTemp> chunkDataList = new ArrayList<>();
+            
+            for (int i = startIndex; i < endIndex; i++) {
+                Map<String, Object> rowData = parsedData.get(i);
+                
+                SheetDataTemp sheetDataTemp = SheetDataTemp.builder()
+                        .referenceId(resource.getReferenceId())
+                        .fileStoreId(resource.getFileStoreId())
+                        .sheetName(sheetName)
+                        .rowNumber(i + 1) // 1-based row number
+                        .rowJson(rowData)
+                        .createdBy("system") // TODO: Get from request context
+                        .createdTime(currentTime)
+                        .deleteTime(deleteTime)
+                        .build();
+                        
+                chunkDataList.add(sheetDataTemp);
+            }
+            
+            // Create message payload for persister
+            Map<String, Object> message = new HashMap<>();
+            message.put("sheetData", chunkDataList);
+            
+            // Push chunk to save-sheet-data-temp topic
+            producer.push(resource.getTenantId(), "save-sheet-data-temp", message);
+            
+            log.info("Published chunk {}/{} with {} records to save-sheet-data-temp topic for sheet: {}", 
+                    chunkIndex + 1, totalChunks, chunkDataList.size(), sheetName);
         }
         
-        // Create message payload for persister
-        Map<String, Object> message = new HashMap<>();
-        message.put("sheetData", sheetDataList);
-        
-        // Push to save-sheet-data-temp topic
-        producer.push(resource.getTenantId(), "save-sheet-data-temp", message);
-        
-        log.info("Published {} sheet data records to save-sheet-data-temp topic for sheet: {}", 
-                sheetDataList.size(), sheetName);
+        log.info("Successfully published all {} records in {} chunks to save-sheet-data-temp topic for sheet: {}", 
+                totalRecords, totalChunks, sheetName);
     }
 }

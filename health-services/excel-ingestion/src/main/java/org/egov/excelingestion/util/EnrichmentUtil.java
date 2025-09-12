@@ -20,6 +20,42 @@ public class EnrichmentUtil {
 
 
     /**
+     * Enrich ProcessResource additionalDetails with row count
+     * If existing row counts exist, add to them; if not, create new entries
+     * 
+     * @param resource The ProcessResource to enrich
+     * @param rowCount Number of rows processed in current sheet
+     */
+    public void enrichRowCountInAdditionalDetails(ProcessResource resource, int rowCount) {
+        try {
+            if (resource.getAdditionalDetails() == null) {
+                resource.setAdditionalDetails(new HashMap<>());
+            }
+            
+            Map<String, Object> additionalDetails = resource.getAdditionalDetails();
+            
+            // Get existing row count, if any
+            Long existingRowCount = 0L;
+            if (additionalDetails.containsKey("totalRowsProcessed")) {
+                Object existing = additionalDetails.get("totalRowsProcessed");
+                if (existing instanceof Number) {
+                    existingRowCount = ((Number) existing).longValue();
+                }
+            }
+            
+            // Add current rows to existing rows
+            Long totalRowCount = existingRowCount + rowCount;
+            additionalDetails.put("totalRowsProcessed", totalRowCount);
+            
+            log.info("Enriched additionalDetails for resource {}: existing rows={}, current rows={}, total rows={}", 
+                    resource.getId(), existingRowCount, rowCount, totalRowCount);
+            
+        } catch (Exception e) {
+            log.error("Error enriching additionalDetails with row count: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
      * Enrich ProcessResource additionalDetails with error count and validation status
      * If existing error counts exist, add to them; if not, create new entries
      * 
