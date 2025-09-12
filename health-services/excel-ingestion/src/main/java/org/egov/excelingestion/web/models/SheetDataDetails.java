@@ -6,23 +6,23 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.egov.common.contract.response.ResponseInfo;
 
 import java.util.List;
+import java.util.Map;
 
 @Getter
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class ProcessingSearchResponse {
+public class SheetDataDetails {
 
-    @JsonProperty("ResponseInfo")
-    private ResponseInfo responseInfo;
-
-    @JsonProperty("ProcessingDetails")
-    private List<ProcessResource> processingDetails;
+    @JsonProperty("Data")
+    private List<Map<String, Object>> data;
 
     @JsonProperty("TotalCount")
     private Integer totalCount;
+
+    @JsonProperty("SheetWiseCounts")
+    private List<Map<String, Object>> sheetWiseCounts;
 }

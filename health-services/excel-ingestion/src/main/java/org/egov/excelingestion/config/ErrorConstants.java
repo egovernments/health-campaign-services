@@ -141,6 +141,9 @@ public class ErrorConstants {
     public static final String SHEET_DATA_DELETE_ERROR = "SHEET_DATA_DELETE_ERROR";
     public static final String SHEET_DATA_DELETE_ERROR_MESSAGE = "Error deleting sheet data: {0}";
     
+    public static final String SHEET_DATA_DELETE_SUCCESS = "SHEET_DATA_DELETE_SUCCESS";
+    public static final String SHEET_DATA_DELETE_SUCCESS_MESSAGE = "Delete request submitted successfully";
+    
     public static final String SHEET_DATA_INVALID_TENANT = "SHEET_DATA_INVALID_TENANT";
     public static final String SHEET_DATA_INVALID_TENANT_MESSAGE = "Tenant ID is required and cannot be empty";
     

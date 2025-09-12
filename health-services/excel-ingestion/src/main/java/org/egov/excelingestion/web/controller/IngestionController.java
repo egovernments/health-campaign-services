@@ -21,6 +21,9 @@ import org.egov.excelingestion.web.models.ProcessingSearchRequest;
 import org.egov.excelingestion.web.models.ProcessingSearchResponse;
 import org.egov.excelingestion.web.models.SheetDataSearchRequest;
 import org.egov.excelingestion.web.models.SheetDataDeleteRequest;
+import org.egov.excelingestion.web.models.SheetDataSearchResponse;
+import org.egov.excelingestion.web.models.SheetDataDeleteResponse;
+import org.egov.excelingestion.web.models.DeleteDetails;
 import org.egov.common.contract.response.ResponseInfo;
 import org.egov.common.exception.InvalidTenantIdException;
 import org.springframework.http.HttpStatus;
@@ -158,11 +161,11 @@ public class IngestionController {
      * Search sheet data temp records
      */
     @PostMapping("/sheet/_search")
-    public ResponseEntity<Map<String, Object>> searchSheetData(@Valid @RequestBody SheetDataSearchRequest request) {
+    public ResponseEntity<SheetDataSearchResponse> searchSheetData(@Valid @RequestBody SheetDataSearchRequest request) {
         log.info("Received sheet data search request for tenant: {}", 
                 request.getSheetDataSearchCriteria().getTenantId());
         
-        Map<String, Object> result = sheetDataService.searchSheetData(request);
+        SheetDataSearchResponse result = sheetDataService.searchSheetData(request);
         
         return new ResponseEntity<>(result, HttpStatus.OK);
     }
@@ -170,8 +173,8 @@ public class IngestionController {
     /**
      * Delete sheet data using URL parameters
      */
-    @DeleteMapping("/sheet/_delete")
-    public ResponseEntity<Map<String, Object>> deleteSheetData(
+    @PostMapping("/sheet/_delete")
+    public ResponseEntity<SheetDataDeleteResponse> deleteSheetData(
             @RequestParam @NotBlank(message = "SHEET_DATA_INVALID_TENANT") String tenantId,
             @RequestParam @NotBlank(message = "SHEET_DATA_DELETE_MISSING_PARAMS") String referenceId,
             @RequestParam @NotBlank(message = "SHEET_DATA_DELETE_MISSING_PARAMS") String fileStoreId,
@@ -190,10 +193,26 @@ public class IngestionController {
         
         sheetDataService.deleteSheetData(deleteRequest);
         
-        Map<String, Object> response = new HashMap<>();
-        response.put("message", "Delete request submitted successfully");
-        response.put("referenceId", referenceId);
-        response.put("fileStoreId", fileStoreId);
+        // Create response info
+        ResponseInfo responseInfo = ResponseInfo.builder()
+                .apiId(requestInfo.getApiId())
+                .ver(requestInfo.getVer())
+                .ts(requestInfo.getTs())
+                .status("successful")
+                .build();
+        
+        // Create delete details
+        DeleteDetails deleteDetails = DeleteDetails.builder()
+                .message(org.egov.excelingestion.config.ErrorConstants.SHEET_DATA_DELETE_SUCCESS_MESSAGE)
+                .referenceId(referenceId)
+                .fileStoreId(fileStoreId)
+                .build();
+        
+        // Create final response
+        SheetDataDeleteResponse response = SheetDataDeleteResponse.builder()
+                .responseInfo(responseInfo)
+                .deleteDetails(deleteDetails)
+                .build();
         
         return new ResponseEntity<>(response, HttpStatus.ACCEPTED);
     }

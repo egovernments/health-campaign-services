@@ -429,11 +429,17 @@ public class ConfigBasedProcessingService {
             for (int i = startIndex; i < endIndex; i++) {
                 Map<String, Object> rowData = parsedData.get(i);
                 
+                // Extract actual row number
+                Integer actualRowNumber = (Integer) rowData.get("__actualRowNumber__");
+                
+                // Remove __actualRowNumber__ from rowData
+                rowData.remove("__actualRowNumber__");
+                
                 SheetDataTemp sheetDataTemp = SheetDataTemp.builder()
                         .referenceId(resource.getReferenceId())
                         .fileStoreId(resource.getFileStoreId())
                         .sheetName(sheetName)
-                        .rowNumber(i + 1) // 1-based row number
+                        .rowNumber(actualRowNumber)
                         .rowJson(rowData)
                         .createdBy("system") // TODO: Get from request context
                         .createdTime(currentTime)

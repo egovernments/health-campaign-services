@@ -8,21 +8,16 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.egov.common.contract.response.ResponseInfo;
 
-import java.util.List;
-
 @Getter
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class ProcessingSearchResponse {
+public class SheetDataDeleteResponse {
 
     @JsonProperty("ResponseInfo")
     private ResponseInfo responseInfo;
 
-    @JsonProperty("ProcessingDetails")
-    private List<ProcessResource> processingDetails;
-
-    @JsonProperty("TotalCount")
-    private Integer totalCount;
+    @JsonProperty("DeleteDetails")
+    private DeleteDetails deleteDetails;
 }

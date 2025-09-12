@@ -7,6 +7,9 @@ import org.egov.excelingestion.exception.CustomExceptionHandler;
 import org.egov.excelingestion.repository.SheetDataTempRepository;
 import org.egov.excelingestion.web.models.SheetDataSearchRequest;
 import org.egov.excelingestion.web.models.SheetDataDeleteRequest;
+import org.egov.excelingestion.web.models.SheetDataSearchResponse;
+import org.egov.excelingestion.web.models.SheetDataDetails;
+import org.egov.common.contract.response.ResponseInfo;
 import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
@@ -35,7 +38,7 @@ public class SheetDataService {
     /**
      * Search sheet data based on criteria
      */
-    public Map<String, Object> searchSheetData(SheetDataSearchRequest request) {
+    public SheetDataSearchResponse searchSheetData(SheetDataSearchRequest request) {
         try {
             String tenantId = request.getSheetDataSearchCriteria().getTenantId();
             String referenceId = request.getSheetDataSearchCriteria().getReferenceId();
@@ -65,12 +68,26 @@ public class SheetDataService {
                 sheetWiseCounts = repository.getSheetWiseCount(tenantId, referenceId, fileStoreId);
             }
 
-            Map<String, Object> response = new HashMap<>();
-            response.put("data", data);
-            response.put("totalCount", totalCount);
-            if (sheetWiseCounts != null) {
-                response.put("sheetWiseCounts", sheetWiseCounts);
-            }
+            // Create response info
+            ResponseInfo responseInfo = ResponseInfo.builder()
+                    .apiId(request.getRequestInfo().getApiId())
+                    .ver(request.getRequestInfo().getVer())
+                    .ts(request.getRequestInfo().getTs())
+                    .status("successful")
+                    .build();
+
+            // Create sheet data details
+            SheetDataDetails sheetDataDetails = SheetDataDetails.builder()
+                    .data(data)
+                    .totalCount(totalCount)
+                    .sheetWiseCounts(sheetWiseCounts)
+                    .build();
+
+            // Create final response
+            SheetDataSearchResponse response = SheetDataSearchResponse.builder()
+                    .responseInfo(responseInfo)
+                    .sheetDataDetails(sheetDataDetails)
+                    .build();
 
             log.info("Sheet data search successful. Found {} records out of {} total", 
                     data.size(), totalCount);
@@ -96,15 +113,6 @@ public class SheetDataService {
             String tenantId = request.getTenantId();
             String referenceId = request.getReferenceId();
             String fileStoreId = request.getFileStoreId();
-
-            // Validate required fields (already validated by annotations, but double-check)
-            if (referenceId == null || referenceId.trim().isEmpty() || 
-                fileStoreId == null || fileStoreId.trim().isEmpty()) {
-                exceptionHandler.throwCustomException(
-                    ErrorConstants.SHEET_DATA_DELETE_MISSING_PARAMS,
-                    ErrorConstants.SHEET_DATA_DELETE_MISSING_PARAMS_MESSAGE
-                );
-            }
 
             // Create delete message
             Map<String, Object> deleteMessage = new HashMap<>();
