@@ -123,11 +123,11 @@ class SearchValidationTest {
     }
 
     @Test
-    void shouldPassValidationForZeroLimitAndOffset() {
+    void shouldPassValidationForValidLimitAndOffset() {
         // Given
         ProcessingSearchCriteria criteria = ProcessingSearchCriteria.builder()
                 .tenantId("dev")
-                .limit(0) // Zero should be valid
+                .limit(1) // One should be valid (minimum is now 1)
                 .offset(0) // Zero should be valid
                 .build();
 
@@ -135,7 +135,7 @@ class SearchValidationTest {
         Set<ConstraintViolation<ProcessingSearchCriteria>> violations = validator.validate(criteria);
 
         // Then
-        assertTrue(violations.isEmpty(), "Zero values should be valid");
+        assertTrue(violations.isEmpty(), "Valid limit and offset should be valid");
     }
 
     @Test
