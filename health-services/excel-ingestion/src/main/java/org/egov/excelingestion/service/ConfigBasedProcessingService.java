@@ -114,7 +114,7 @@ public class ConfigBasedProcessingService {
     /**
      * Get processor configuration by type with validation
      */
-    private java.util.List<ProcessorConfigurationRegistry.ProcessorSheetConfig> getConfigByType(String processorType) {
+    public java.util.List<ProcessorConfigurationRegistry.ProcessorSheetConfig> getConfigByType(String processorType) {
         if (!configRegistry.isProcessorTypeSupported(processorType)) {
             log.error("Processor type '{}' is not supported. Supported types: {}", 
                     processorType, String.join(", ", configRegistry.getSupportedProcessorTypes()));
@@ -289,7 +289,12 @@ public class ConfigBasedProcessingService {
             log.info("Using processor {} for sheet {}", processorClass, sheetName);
             
             // Get processor bean from Spring context
-            Class<?> clazz = Class.forName(processorClass);
+            // If no package specified, assume it's in processor package
+            String fullProcessorClass = processorClass;
+            if (!processorClass.contains(".")) {
+                fullProcessorClass = "org.egov.excelingestion.processor." + processorClass;
+            }
+            Class<?> clazz = Class.forName(fullProcessorClass);
             IWorkbookProcessor processor = (IWorkbookProcessor) applicationContext.getBean(clazz);
             
             // Process the workbook

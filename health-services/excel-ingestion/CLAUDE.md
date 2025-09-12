@@ -1,5 +1,10 @@
 # Claude Development Guidelines for Excel Ingestion Service
 
+## 🚨 TOP PRIORITIES
+1. **SIMPLICITY FIRST** - Simple designs, simple code, simple solutions
+2. **TIME COMPLEXITY** - Always optimize for O(n), avoid O(n²) at all costs  
+3. **SPACE COMPLEXITY** - Minimal memory usage, efficient data structures
+
 ## Dependency Injection
 - **NEVER use @Autowired** for dependency injection
 - **ALWAYS use constructor injection** instead
@@ -54,11 +59,13 @@ if (status.equals(ProcessingConstants.STATUS_COMPLETED)) {
 
 ## Code Design Principles
 
-### Keep It Simple
-- **ALWAYS write simple, readable code** - avoid over-engineering
-- **Use standard design patterns** - don't invent complex custom solutions
+### 🎯 SIMPLICITY IS MANDATORY
+- **ALWAYS write simple, readable code** - complexity is forbidden
+- **Use standard design patterns** - NEVER invent custom complex solutions
 - **Prefer clear, explicit code** over clever, compact code
 - **Write code that any developer can understand** in 5 minutes
+- **Simple design beats complex optimization** - readable code is maintainable code
+- **One responsibility per method/class** - do one thing well
 
 ### Examples:
 ```java
@@ -81,11 +88,12 @@ public class DataProcessor {
 
 ## Performance & Time Complexity
 
-### Fast is Priority
-- **ALWAYS consider time complexity** when writing algorithms
-- **Prefer O(n) over O(n²)** - avoid nested loops when possible
-- **Use appropriate data structures** - HashMap for lookups, ArrayList for iteration
-- **Keep it simple AND fast** - don't sacrifice simplicity for micro-optimizations
+### ⚡ PERFORMANCE IS CRITICAL
+- **ALWAYS analyze time complexity FIRST** - before writing any algorithm
+- **O(n²) is FORBIDDEN** - always find O(n) or O(log n) solutions
+- **Use correct data structures** - HashMap for lookups, ArrayList for iteration
+- **Space complexity matters** - minimize memory allocation and usage
+- **Profile before optimizing** - but design for performance from start
 
 ### Performance Guidelines:
 ```java
@@ -116,24 +124,29 @@ if (validStatuses.contains(status)) {
 }
 ```
 
-### Data Structure Choices:
-- **ArrayList**: For iteration, indexed access - O(1) get, O(n) search
-- **HashMap**: For key-based lookups - O(1) average get/put
-- **HashSet**: For membership testing - O(1) contains
-- **LinkedList**: Rarely needed - only when frequent insert/delete in middle
+### 🏗️ SPACE-EFFICIENT Data Structure Choices:
+- **ArrayList**: For iteration, indexed access - O(1) get, O(n) search, LOW memory overhead
+- **HashMap**: For key-based lookups - O(1) average get/put, reasonable memory usage
+- **HashSet**: For membership testing - O(1) contains, efficient for unique checks
+- **LinkedList**: AVOID - high memory overhead, poor cache locality
+- **Primitive arrays**: Use when size is known - minimal memory footprint
+- **StringBuilder**: For string concatenation - avoid String + operations
 
-## Code Quality Rules
-1. **Dependency Injection**: Use constructor injection for all dependencies
-2. **Constants**: Create constants for repeated string values  
-3. **Simplicity**: Keep code simple, readable, and maintainable
-4. **Performance**: Consider time complexity, prefer O(n) over O(n²)
-5. **Standard Patterns**: Use well-known design patterns, avoid custom complex solutions
-6. **Readability**: Write code that any developer can understand quickly
-7. **Error Handling**: Ensure proper error handling and validation
-8. **Localization**: Any prompt or error message originating from a sheet should be localizable.
+## 🎯 MANDATORY Code Quality Rules (In Priority Order)
+1. **SIMPLICITY FIRST**: Simple designs, simple code - complexity is the enemy
+2. **TIME COMPLEXITY**: O(n²) is forbidden, always optimize for O(n) or better
+3. **SPACE COMPLEXITY**: Minimize memory usage, choose efficient data structures
+4. **Dependency Injection**: Use constructor injection for all dependencies
+5. **Constants**: Create constants for repeated string values  
+6. **Standard Patterns**: Use well-known design patterns, avoid custom complex solutions
+7. **Readability**: Write code that any developer can understand in 5 minutes
+8. **Error Handling**: Ensure proper error handling and validation
+9. **Localization**: Any prompt or error message originating from a sheet should be localizable
 
-## When Optimizing
-- **Profile first** - measure before optimizing
-- **Optimize hot paths** - focus on code that runs frequently
-- **Simple solutions first** - try simple approaches before complex ones
-- **Readability wins** - don't sacrifice readability for small performance gains
+## ⚠️ Performance vs Simplicity Balance
+- **Design for performance from start** - don't wait to optimize
+- **Simple O(n) beats complex O(log n)** - readability matters
+- **Profile critical paths** - measure before micro-optimizing
+- **NEVER sacrifice O(n) for readability** - time complexity comes first
+- **Space-time tradeoffs** - consider both memory and speed
+- **Simplicity wins** - unless performance is critically impacted

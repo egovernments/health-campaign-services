@@ -21,16 +21,19 @@ public class ProcessingService {
     private final ProcessingRepository processingRepository;
     private final Producer producer;
     private final AsyncProcessingService asyncProcessingService;
+    private final ConfigBasedProcessingService configBasedProcessingService;
     
     @Value("${excel.ingestion.processing.save.topic}")
     private String saveProcessingTopic;
 
     public ProcessingService(ProcessingRepository processingRepository, 
                            Producer producer,
-                           AsyncProcessingService asyncProcessingService) {
+                           AsyncProcessingService asyncProcessingService,
+                           ConfigBasedProcessingService configBasedProcessingService) {
         this.processingRepository = processingRepository;
         this.producer = producer;
         this.asyncProcessingService = asyncProcessingService;
+        this.configBasedProcessingService = configBasedProcessingService;
     }
 
     public String initiateProcessing(ProcessResourceRequest request) {
@@ -55,6 +58,9 @@ public class ProcessingService {
         processResource.setAuditDetails(auditDetails);
 
         try {
+            // Validate processor classes exist before starting async processing
+            validateProcessorClasses(processResource.getType());
+            
             // Save initial record to database via Kafka (for central instance support)
             producer.push(processResource.getTenantId(), saveProcessingTopic, processResource);
             
@@ -103,6 +109,43 @@ public class ProcessingService {
         } catch (Exception e) {
             log.error("Error searching processing records: {}", e.getMessage(), e);
             throw new RuntimeException("Failed to search processing records", e);
+        }
+    }
+    
+    private void validateProcessorClasses(String processorType) {
+        try {
+            // Get processor configuration
+            java.util.List<org.egov.excelingestion.config.ProcessorConfigurationRegistry.ProcessorSheetConfig> config = 
+                    configBasedProcessingService.getConfigByType(processorType);
+            
+            if (config == null) {
+                return; // No processor configuration, validation not needed
+            }
+            
+            // Validate each processor class exists
+            for (org.egov.excelingestion.config.ProcessorConfigurationRegistry.ProcessorSheetConfig sheetConfig : config) {
+                String processorClass = sheetConfig.getProcessorClass();
+                if (processorClass != null && !processorClass.trim().isEmpty()) {
+                    // If no package specified, assume it's in processor package
+                    String fullProcessorClass = processorClass;
+                    if (!processorClass.contains(".")) {
+                        fullProcessorClass = "org.egov.excelingestion.processor." + processorClass;
+                    }
+                    
+                    // Try to load the class
+                    try {
+                        Class.forName(fullProcessorClass);
+                        log.info("Validated processor class exists: {}", fullProcessorClass);
+                    } catch (ClassNotFoundException e) {
+                        log.error("Processor class validation failed: {}", fullProcessorClass);
+                        throw new RuntimeException("Processor class not found: " + processorClass + ". Ensure the class exists in the processor package.", e);
+                    }
+                }
+            }
+            
+        } catch (Exception e) {
+            log.error("Error validating processor classes for type {}: {}", processorType, e.getMessage());
+            throw new RuntimeException("Failed to validate processor configuration: " + e.getMessage(), e);
         }
     }
 }

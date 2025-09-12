@@ -266,6 +266,10 @@ public class ConfigBasedGenerationService {
     
     private IExcelPopulatorSheetGenerator getExcelPopulatorGenerator(String className) {
         try {
+            // If no package specified, assume it's in generator package
+            if (!className.contains(".")) {
+                className = "org.egov.excelingestion.generator." + className;
+            }
             Class<?> clazz = Class.forName(className);
             return (IExcelPopulatorSheetGenerator) applicationContext.getBean(clazz);
         } catch (Exception e) {
@@ -276,6 +280,10 @@ public class ConfigBasedGenerationService {
     
     private ISheetGenerator getDirectSheetGenerator(String className) {
         try {
+            // If no package specified, assume it's in generator package
+            if (!className.contains(".")) {
+                className = "org.egov.excelingestion.generator." + className;
+            }
             Class<?> clazz = Class.forName(className);
             return (ISheetGenerator) applicationContext.getBean(clazz);
         } catch (Exception e) {

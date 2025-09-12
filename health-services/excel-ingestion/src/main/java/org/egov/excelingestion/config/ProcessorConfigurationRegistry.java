@@ -27,7 +27,7 @@ public class ProcessorConfigurationRegistry {
                 new ProcessorSheetConfig("HCM_ADMIN_CONSOLE_FACILITIES_LIST", "facility-microplan-ingestion"),
                 new ProcessorSheetConfig("HCM_ADMIN_CONSOLE_USERS_LIST", "user-microplan-ingestion"),
                 new ProcessorSheetConfig("HCM_CONSOLE_BOUNDARY_HIERARCHY", null, 
-                        "org.egov.excelingestion.processor.BoundaryHierarchyTargetProcessor") // Custom processor for target validation
+                        "BoundaryHierarchyTargetProcessor") // Custom processor for target validation
         ));
         
         // Add more processor configurations here as needed

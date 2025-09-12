@@ -134,12 +134,17 @@ public class GenerationConfigValidationService {
             // Validate custom generation classes
             if (StringUtils.hasText(sheetConfig.getGenerationClass())) {
                 try {
-                    Class<?> clazz = Class.forName(sheetConfig.getGenerationClass());
+                    String className = sheetConfig.getGenerationClass();
+                    // If no package specified, assume it's in generator package
+                    if (!className.contains(".")) {
+                        className = "org.egov.excelingestion.generator." + className;
+                    }
+                    Class<?> clazz = Class.forName(className);
                     
                     // Check if the class is a Spring bean
                     if (applicationContext.getBeanNamesForType(clazz).length == 0) {
                         log.warn("Generation class {} is not registered as a Spring bean", 
-                                sheetConfig.getGenerationClass());
+                                className);
                     }
                     
                     // Validate that the class implements the correct interface
@@ -147,13 +152,13 @@ public class GenerationConfigValidationService {
                         if (!org.egov.excelingestion.generator.IExcelPopulatorSheetGenerator.class.isAssignableFrom(clazz)) {
                             exceptionHandler.throwCustomException(ErrorConstants.VALIDATION_ERROR,
                                     "ExcelPopulator generation class must implement IExcelPopulatorSheetGenerator", 
-                                    new IllegalArgumentException("Invalid interface for class: " + sheetConfig.getGenerationClass()));
+                                    new IllegalArgumentException("Invalid interface for class: " + className));
                         }
                     } else {
                         if (!org.egov.excelingestion.generator.ISheetGenerator.class.isAssignableFrom(clazz)) {
                             exceptionHandler.throwCustomException(ErrorConstants.VALIDATION_ERROR,
                                     "Direct generation class must implement ISheetGenerator", 
-                                    new IllegalArgumentException("Invalid interface for class: " + sheetConfig.getGenerationClass()));
+                                    new IllegalArgumentException("Invalid interface for class: " + className));
                         }
                     }
                     

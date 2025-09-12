@@ -54,7 +54,7 @@ public class GeneratorConfigurationRegistry {
                                 .sheetNameKey("HCM_CONSOLE_BOUNDARY_HIERARCHY")
                                 .schemaName(null) // No schema needed
                                 .boundaryColumnsClass(null) // No boundary columns needed
-                                .generationClass("org.egov.excelingestion.generator.BoundaryHierarchySheetGenerator")
+                                .generationClass("BoundaryHierarchySheetGenerator")
                                 .isGenerationClassViaExcelPopulator(true) // Use ExcelPopulator
                                 .order(3)
                                 .visible(true)
