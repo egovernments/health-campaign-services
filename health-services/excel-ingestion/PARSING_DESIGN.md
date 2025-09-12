@@ -1,216 +1,142 @@
 # Excel Ingestion Parsing Design Document
 
 ## Overview
-Enhancement to existing `ProcessorSheetConfig` to support configurable parsing persistence and completion notification on a per-sheet basis.
+This document outlines the architectural design for configurable parsing persistence and completion notification system. The design enables granular control over sheet processing behavior through configuration-driven approach, supporting both validation-only and persistent workflows with optional event publishing.
 
-## Current Structure
-The existing `ProcessorConfigurationRegistry.ProcessorSheetConfig` currently has:
-```java
-public static class ProcessorSheetConfig {
-    private final String sheetNameKey;
-    private final String schemaName;
-    private final String processorClass;
+## Design Principles
+
+### 1. Configuration-Driven Architecture
+- **Declarative Configuration**: Define behavior through configuration rather than code
+- **Sheet-Level Granularity**: Each sheet can have independent persistence and notification settings
+- **Backward Compatibility**: Existing configurations continue to work without changes
+
+### 2. Separation of Concerns
+- **Parsing Logic**: Extract and validate data from sheets
+- **Persistence Layer**: Conditionally store data based on configuration
+- **Event Publishing**: Asynchronously notify downstream systems
+- **Error Handling**: Isolate failures to individual sheets
+
+### 3. Extensibility Patterns
+- **Plugin Architecture**: Support custom processors per sheet type
+- **Event-Driven Design**: Loosely coupled integration through Kafka topics
+- **Configuration Registry**: Centralized configuration management
+
+## System Architecture
+
+### Configuration Layer
+```
+ProcessorConfigurationRegistry
+├── Sheet Configuration Mapping
+│   ├── sheetNameKey (Sheet Identifier)
+│   ├── schemaName (Validation Schema)
+│   ├── processorClass (Custom Processing Logic)
+│   ├── persistParsings (Storage Behavior Flag)
+│   └── triggerParsingCompleteTopic (Event Publishing Target)
+└── Default Behavior Definition
+```
+
+### Processing Flow Architecture
+```
+Request Input
+    ↓
+Configuration Resolution
+    ↓
+Sheet Processing Pipeline
+    ├── Parse & Validate Data
+    ├── Apply Custom Processors (Optional)
+    ├── Conditional Persistence
+    └── Event Publishing (Optional)
+    ↓
+Response Generation
+```
+
+## Configuration Behavior Patterns
+
+### Persistence Control Pattern
+- **Full Persistence Mode**: `persistParsings = true`
+  - Parse → Validate → Store → Complete
+  - Used for production data ingestion workflows
+  
+- **Validation-Only Mode**: `persistParsings = false`
+  - Parse → Validate → Discard → Complete
+  - Used for data quality checks and preview scenarios
+
+### Event Publishing Patterns
+- **Silent Processing**: `triggerParsingCompleteTopic = null`
+  - No downstream notifications
+  - Self-contained processing workflow
+  
+- **Event-Driven Integration**: `triggerParsingCompleteTopic = "topic.name"`
+  - Publishes completion events to Kafka topic
+  - Enables workflow orchestration and monitoring
+
+## Event Message Design
+
+### Message Structure Philosophy
+- **Minimal Payload**: Contains only essential identifiers for downstream processing
+- **Stateless Design**: No processing state or business data in messages
+- **Correlation Support**: Enables request tracking and workflow correlation
+
+### Event Schema Pattern
+```
+ParsingCompleteEvent {
+    filestoreId: String     // File reference for data retrieval
+    referenceId: String     // Request correlation identifier  
+    sheetName: String       // Specific sheet identifier
+    recordCount: Integer    // Number of rows processed
 }
 ```
 
-## Enhanced Configuration Structure
+### Integration Patterns
+- **Fire-and-Forget**: Async publishing without delivery guarantees
+- **Topic-Based Routing**: Different sheets can publish to different topics
+- **Consumer Flexibility**: Downstream services choose their subscription model
 
-### Enhanced ProcessorSheetConfig
-Add two new fields to the existing `ProcessorSheetConfig`:
+## Component Architecture
 
-```java
-public static class ProcessorSheetConfig {
-    private final String sheetNameKey;
-    private final String schemaName;
-    private final String processorClass;
-    private final boolean persistParsings;           // NEW FIELD
-    private final String triggerParsingCompleteTopic; // NEW FIELD
-    
-    // Enhanced constructors
-    public ProcessorSheetConfig(String sheetNameKey, String schemaName) {
-        this(sheetNameKey, schemaName, null, true, null);
-    }
-    
-    public ProcessorSheetConfig(String sheetNameKey, String schemaName, String processorClass) {
-        this(sheetNameKey, schemaName, processorClass, true, null);
-    }
-    
-    public ProcessorSheetConfig(String sheetNameKey, String schemaName, 
-                              String processorClass, boolean persistParsings, 
-                              String triggerParsingCompleteTopic) {
-        this.sheetNameKey = sheetNameKey;
-        this.schemaName = schemaName;
-        this.processorClass = processorClass;
-        this.persistParsings = persistParsings;
-        this.triggerParsingCompleteTopic = triggerParsingCompleteTopic;
-    }
-}
+### 1. Configuration Management Layer
+- **ProcessorConfigurationRegistry**: Central configuration repository
+- **Configuration Validation**: Ensures valid sheet and topic configurations
+- **Default Value Management**: Provides backward compatibility
+
+### 2. Processing Orchestration Layer
+- **ConfigBasedProcessingService**: Coordinates sheet processing workflow
+- **Conditional Logic**: Applies persistence and event publishing based on configuration
+- **Error Isolation**: Prevents individual sheet failures from affecting others
+
+### 3. Event Publishing Layer
+- **ParsingEventPublisher**: Handles Kafka message publishing
+- **Topic Management**: Routes events to configured destinations
+- **Async Processing**: Non-blocking event delivery
+
+## Processing Flow Patterns
+
+### Standard Processing Workflow
 ```
-
-### Example Configuration Usage
-```java
-private void initializeConfigurations() {
-    // Microplan processor configuration
-    configs.put("microplan-ingestion", Arrays.asList(
-        new ProcessorSheetConfig("HCM_ADMIN_CONSOLE_FACILITIES_LIST", 
-                                "facility-microplan-ingestion", 
-                                null, 
-                                true,  // persist parsings
-                                "facility.parsing.complete"), // trigger topic
-                                
-        new ProcessorSheetConfig("HCM_ADMIN_CONSOLE_USERS_LIST", 
-                                "user-microplan-ingestion",
-                                null,
-                                false, // don't persist - validation only
-                                "user.parsing.complete"),
-                                
-        new ProcessorSheetConfig("HCM_CONSOLE_BOUNDARY_HIERARCHY", 
-                                null, 
-                                "org.egov.excelingestion.processor.BoundaryHierarchyTargetProcessor",
-                                true,  // persist parsings
-                                null)  // no topic notification
-    ));
-}
-```
-
-## Configuration Parameters
-
-### `persistParsings` (boolean)
-- **Default**: `true` (maintains backward compatibility)
-- **Purpose**: Controls whether parsed sheet data is persisted to database
-- **Usage**:
-  - `true`: Save parsed data to database
-  - `false`: Parse and validate only, don't persist
-
-### `triggerParsingCompleteTopic` (String, nullable)
-- **Default**: `null` (maintains backward compatibility)
-- **Purpose**: Kafka topic name for publishing parsing completion events
-- **Usage**:
-  - If topic specified: Publish completion message after sheet processing
-  - If `null`: No message published
-
-## Message Structure
-
-### Parsing Complete Event
-```java
-public class ParsingCompleteEvent {
-    private String filestoreId;
-    private String referenceId;
-    private String sheetName;
-}
-```
-
-### JSON Message Format
-```json
-{
-  "filestoreId": "uuid-of-uploaded-file",
-  "referenceId": "reference-id-from-request", 
-  "sheetName": "HCM_ADMIN_CONSOLE_FACILITIES_LIST"
-}
-```
-
-## Implementation Components
-
-### 1. Message Publisher Service
-```java
-@Component
-public class ParsingEventPublisher {
-    private final KafkaTemplate<String, Object> kafkaTemplate;
-    
-    public ParsingEventPublisher(KafkaTemplate<String, Object> kafkaTemplate) {
-        this.kafkaTemplate = kafkaTemplate;
-    }
-    
-    public void publishParsingComplete(String topic, ParsingCompleteEvent event) {
-        if (topic != null && !topic.trim().isEmpty()) {
-            kafkaTemplate.send(topic, event);
-            log.info("Published parsing complete event to topic: {}", topic);
-        }
-    }
-}
-```
-
-### 2. Enhanced ConfigBasedProcessingService
-Modify existing methods to handle new configuration:
-
-```java
-public void processSheetWithConfig(ProcessorSheetConfig config, 
-                                 Sheet sheet, 
-                                 ProcessResource resource, 
-                                 RequestInfo requestInfo) {
-    // Parse sheet data
-    List<Object> parsedData = parseSheetData(sheet);
-    
-    // Persist if configured
-    if (config.isPersistParsings()) {
-        persistDataToDatabase(parsedData);
-    }
-    
-    // Publish completion event if configured
-    if (config.getTriggerParsingCompleteTopic() != null) {
-        ParsingCompleteEvent event = createCompletionEvent(
-            resource.getFilestoreId(),
-            resource.getReferenceId(), 
-            sheet.getSheetName()
-        );
-        parsingEventPublisher.publishParsingComplete(
-            config.getTriggerParsingCompleteTopic(), 
-            event
-        );
-    }
-}
-```
-
-## Processing Flow
-
-### Sheet Processing Logic
-```
+Excel File Input
+    ↓
+Configuration Lookup (by processor type)
+    ↓
 For Each Sheet:
-  1. Parse sheet data
-  2. If config.persistParsings == true → Save to database
-  3. If config.triggerParsingCompleteTopic != null → Publish event
-  4. Continue to next sheet
+    ├── Resolve Sheet Configuration
+    ├── Parse & Validate Data
+    ├── Apply Custom Processor (if configured)
+    ├── Conditional Persistence Decision
+    │   ├── [TRUE] → Persist to Database
+    │   └── [FALSE] → Skip Persistence
+    ├── Event Publishing Decision
+    │   ├── [Topic Configured] → Publish Event
+    │   └── [No Topic] → Skip Publishing
+    └── Continue to Next Sheet
+    ↓
+Complete Processing
 ```
 
-### Error Handling
+### Error Handling Flow
 ```
-Parse Error Occurred:
-  1. If triggerParsingCompleteTopic configured → Publish completion event
-  2. Continue processing (don't fail entire batch)
+Processing Error Encountered
+    ↓
+Log Error Details
+    ↓
+Update Process Status (for processSearch polling)
 ```
-
-## Benefits
-
-### 1. Granular Control
-- Configure each sheet independently for persistence and notifications
-- Mix validation-only and persistence sheets in same workbook
-
-### 2. Backward Compatibility  
-- All existing configurations work unchanged
-- Default values maintain current behavior
-
-### 3. Integration Flexibility
-- Downstream services can subscribe to specific sheet completion events
-- Enable workflow triggers based on sheet processing
-
-### 4. Performance Optimization
-- Skip database writes for validation-only sheets
-- Reduce processing time and database load
-
-## Migration Path
-
-### Phase 1: Add New Fields
-- Extend `ProcessorSheetConfig` with new optional fields
-- Add default constructors maintaining backward compatibility
-
-### Phase 2: Implement Publisher
-- Create `ParsingEventPublisher` service
-- Add Kafka template configuration
-
-### Phase 3: Update Processing Logic
-- Modify `ConfigBasedProcessingService` to use new configuration
-- Add conditional persistence and publishing logic
-
-### Phase 4: Update Configurations
-- Update specific processor configurations to use new features
-- Test with validation-only and topic publishing scenarios
