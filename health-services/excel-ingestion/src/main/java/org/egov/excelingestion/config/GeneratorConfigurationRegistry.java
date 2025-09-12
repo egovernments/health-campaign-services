@@ -65,10 +65,10 @@ public class GeneratorConfigurationRegistry {
     }
     
     /**
-     * Get processor configuration by type
+     * Get generation configuration by type
      */
-    public ProcessorGenerationConfig getConfigByType(String processorType) {
-        return configs.get(processorType);
+    public ProcessorGenerationConfig getConfigByType(String generationType) {
+        return configs.get(generationType);
     }
     
     /**

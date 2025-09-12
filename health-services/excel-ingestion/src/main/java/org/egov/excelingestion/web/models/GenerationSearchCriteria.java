@@ -35,7 +35,7 @@ public class GenerationSearchCriteria {
     private List<String> statuses;
 
     @JsonProperty("limit")
-    @Min(value = 0, message = ValidationConstants.INGEST_INVALID_LIMIT)
+    @Min(value = 1, message = ValidationConstants.INGEST_INVALID_LIMIT)
     private Integer limit;
 
     @JsonProperty("offset")

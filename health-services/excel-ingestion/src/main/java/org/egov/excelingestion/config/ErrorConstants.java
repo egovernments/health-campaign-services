@@ -133,4 +133,29 @@ public class ErrorConstants {
     
     public static final String GENERATOR_EXECUTION_ERROR = "GENERATOR_EXECUTION_ERROR";
     public static final String GENERATOR_EXECUTION_ERROR_MESSAGE = "Error executing generator: {0}";
+    
+    // Sheet Data Temp Operations Errors
+    public static final String SHEET_DATA_SEARCH_ERROR = "SHEET_DATA_SEARCH_ERROR";
+    public static final String SHEET_DATA_SEARCH_ERROR_MESSAGE = "Error searching sheet data: {0}";
+    
+    public static final String SHEET_DATA_DELETE_ERROR = "SHEET_DATA_DELETE_ERROR";
+    public static final String SHEET_DATA_DELETE_ERROR_MESSAGE = "Error deleting sheet data: {0}";
+    
+    public static final String SHEET_DATA_INVALID_TENANT = "SHEET_DATA_INVALID_TENANT";
+    public static final String SHEET_DATA_INVALID_TENANT_MESSAGE = "Tenant ID is required and cannot be empty";
+    
+    public static final String SHEET_DATA_NO_CRITERIA = "SHEET_DATA_NO_CRITERIA";
+    public static final String SHEET_DATA_NO_CRITERIA_MESSAGE = "At least one search criteria (referenceId, fileStoreId, or sheetName) must be provided";
+    
+    public static final String SHEET_DATA_INVALID_LIMIT = "SHEET_DATA_INVALID_LIMIT";
+    public static final String SHEET_DATA_INVALID_LIMIT_MESSAGE = "Limit must be between 1 and 1000";
+    
+    public static final String SHEET_DATA_INVALID_OFFSET = "SHEET_DATA_INVALID_OFFSET";
+    public static final String SHEET_DATA_INVALID_OFFSET_MESSAGE = "Offset cannot be negative";
+    
+    public static final String SHEET_DATA_DELETE_MISSING_PARAMS = "SHEET_DATA_DELETE_MISSING_PARAMS";
+    public static final String SHEET_DATA_DELETE_MISSING_PARAMS_MESSAGE = "Both referenceId and fileStoreId are required for deletion";
+    
+    public static final String SHEET_DATA_NOT_FOUND = "SHEET_DATA_NOT_FOUND";
+    public static final String SHEET_DATA_NOT_FOUND_MESSAGE = "No sheet data found for the given criteria";
 }

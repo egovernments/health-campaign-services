@@ -6,6 +6,7 @@ import org.egov.excelingestion.service.ExcelWorkflowService;
 import org.egov.excelingestion.service.ExcelProcessingService;
 import org.egov.excelingestion.service.GenerationService;
 import org.egov.excelingestion.service.ProcessingService;
+import org.egov.excelingestion.service.SheetDataService;
 import org.egov.excelingestion.config.ProcessingConstants;
 import org.egov.excelingestion.web.models.GenerateResource;
 import org.egov.excelingestion.web.models.GenerateResourceRequest;
@@ -18,6 +19,8 @@ import org.egov.excelingestion.web.models.GenerationSearchRequest;
 import org.egov.excelingestion.web.models.GenerationSearchResponse;
 import org.egov.excelingestion.web.models.ProcessingSearchRequest;
 import org.egov.excelingestion.web.models.ProcessingSearchResponse;
+import org.egov.excelingestion.web.models.SheetDataSearchRequest;
+import org.egov.excelingestion.web.models.SheetDataDeleteRequest;
 import org.egov.common.contract.response.ResponseInfo;
 import org.egov.common.exception.InvalidTenantIdException;
 import org.springframework.http.HttpStatus;
@@ -26,6 +29,9 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.validation.annotation.Validated;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import java.util.HashMap;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/v1/data")
@@ -37,15 +43,18 @@ public class IngestionController {
     private final ExcelProcessingService excelProcessingService;
     private final GenerationService generationService;
     private final ProcessingService processingService;
+    private final SheetDataService sheetDataService;
 
     public IngestionController(ExcelWorkflowService excelWorkflowService,
                               ExcelProcessingService excelProcessingService,
                               GenerationService generationService,
-                              ProcessingService processingService) {
+                              ProcessingService processingService,
+                              SheetDataService sheetDataService) {
         this.excelWorkflowService = excelWorkflowService;
         this.excelProcessingService = excelProcessingService;
         this.generationService = generationService;
         this.processingService = processingService;
+        this.sheetDataService = sheetDataService;
     }
 
     @PostMapping("/_generate")
@@ -143,5 +152,49 @@ public class IngestionController {
         ProcessingSearchResponse response = processingService.searchProcessing(request);
         
         return new ResponseEntity<>(response, HttpStatus.OK);
+    }
+
+    /**
+     * Search sheet data temp records
+     */
+    @PostMapping("/sheet/_search")
+    public ResponseEntity<Map<String, Object>> searchSheetData(@Valid @RequestBody SheetDataSearchRequest request) {
+        log.info("Received sheet data search request for tenant: {}", 
+                request.getSheetDataSearchCriteria().getTenantId());
+        
+        Map<String, Object> result = sheetDataService.searchSheetData(request);
+        
+        return new ResponseEntity<>(result, HttpStatus.OK);
+    }
+
+    /**
+     * Delete sheet data using URL parameters
+     */
+    @DeleteMapping("/sheet/_delete")
+    public ResponseEntity<Map<String, Object>> deleteSheetData(
+            @RequestParam @NotBlank(message = "SHEET_DATA_INVALID_TENANT") String tenantId,
+            @RequestParam @NotBlank(message = "SHEET_DATA_DELETE_MISSING_PARAMS") String referenceId,
+            @RequestParam @NotBlank(message = "SHEET_DATA_DELETE_MISSING_PARAMS") String fileStoreId,
+            @RequestBody @Valid RequestInfo requestInfo) {
+        
+        log.info("Received sheet data delete request for tenant: {}, referenceId: {}, fileStoreId: {}", 
+                tenantId, referenceId, fileStoreId);
+        
+        // Create delete request object for service
+        SheetDataDeleteRequest deleteRequest = SheetDataDeleteRequest.builder()
+                .requestInfo(requestInfo)
+                .tenantId(tenantId)
+                .referenceId(referenceId)
+                .fileStoreId(fileStoreId)
+                .build();
+        
+        sheetDataService.deleteSheetData(deleteRequest);
+        
+        Map<String, Object> response = new HashMap<>();
+        response.put("message", "Delete request submitted successfully");
+        response.put("referenceId", referenceId);
+        response.put("fileStoreId", fileStoreId);
+        
+        return new ResponseEntity<>(response, HttpStatus.ACCEPTED);
     }
 }
