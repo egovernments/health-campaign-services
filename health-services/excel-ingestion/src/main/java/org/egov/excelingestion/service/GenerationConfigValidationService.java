@@ -163,8 +163,8 @@ public class GenerationConfigValidationService {
                     }
                     
                 } catch (ClassNotFoundException e) {
-                    exceptionHandler.throwCustomException(ErrorConstants.VALIDATION_ERROR,
-                            "Generation class not found: " + sheetConfig.getGenerationClass(), e);
+                    exceptionHandler.throwCustomException(ErrorConstants.GENERATOR_CLASS_NOT_FOUND,
+                            ErrorConstants.GENERATOR_CLASS_NOT_FOUND_MESSAGE.replace("{0}", sheetConfig.getGenerationClass()), e);
                 }
             }
         }

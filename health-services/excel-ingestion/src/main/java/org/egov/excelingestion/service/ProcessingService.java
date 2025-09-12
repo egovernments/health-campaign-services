@@ -2,6 +2,8 @@ package org.egov.excelingestion.service;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.excelingestion.config.ProcessingConstants;
+import org.egov.excelingestion.config.ErrorConstants;
+import org.egov.excelingestion.exception.CustomExceptionHandler;
 import org.egov.excelingestion.repository.ProcessingRepository;
 import org.egov.excelingestion.web.models.*;
 import org.egov.common.contract.response.ResponseInfo;
@@ -22,6 +24,7 @@ public class ProcessingService {
     private final Producer producer;
     private final AsyncProcessingService asyncProcessingService;
     private final ConfigBasedProcessingService configBasedProcessingService;
+    private final CustomExceptionHandler exceptionHandler;
     
     @Value("${excel.ingestion.processing.save.topic}")
     private String saveProcessingTopic;
@@ -29,11 +32,13 @@ public class ProcessingService {
     public ProcessingService(ProcessingRepository processingRepository, 
                            Producer producer,
                            AsyncProcessingService asyncProcessingService,
-                           ConfigBasedProcessingService configBasedProcessingService) {
+                           ConfigBasedProcessingService configBasedProcessingService,
+                           CustomExceptionHandler exceptionHandler) {
         this.processingRepository = processingRepository;
         this.producer = producer;
         this.asyncProcessingService = asyncProcessingService;
         this.configBasedProcessingService = configBasedProcessingService;
+        this.exceptionHandler = exceptionHandler;
     }
 
     public String initiateProcessing(ProcessResourceRequest request) {
@@ -69,6 +74,10 @@ public class ProcessingService {
             
             log.info("Processing initiated with id: {} for tenantId: {}", processingId, processResource.getTenantId());
             return processingId;
+        } catch (org.egov.tracer.model.CustomException e) {
+            log.error("Error initiating processing: {}", e.getMessage(), e);
+            // Re-throw CustomExceptions without wrapping
+            throw e;
         } catch (Exception e) {
             log.error("Error initiating processing: {}", e.getMessage(), e);
             throw new RuntimeException("Failed to initiate processing", e);
@@ -138,11 +147,17 @@ public class ProcessingService {
                         log.info("Validated processor class exists: {}", fullProcessorClass);
                     } catch (ClassNotFoundException e) {
                         log.error("Processor class validation failed: {}", fullProcessorClass);
-                        throw new RuntimeException("Processor class not found: " + processorClass + ". Ensure the class exists in the processor package.", e);
+                        exceptionHandler.throwCustomException(
+                                ErrorConstants.PROCESSOR_CLASS_NOT_FOUND,
+                                ErrorConstants.PROCESSOR_CLASS_NOT_FOUND_MESSAGE.replace("{0}", processorClass),
+                                e);
                     }
                 }
             }
             
+        } catch (org.egov.tracer.model.CustomException e) {
+            // Re-throw CustomExceptions without wrapping
+            throw e;
         } catch (Exception e) {
             log.error("Error validating processor classes for type {}: {}", processorType, e.getMessage());
             throw new RuntimeException("Failed to validate processor configuration: " + e.getMessage(), e);

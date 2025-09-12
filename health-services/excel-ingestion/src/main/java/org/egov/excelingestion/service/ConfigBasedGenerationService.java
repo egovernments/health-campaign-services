@@ -5,6 +5,7 @@ import org.apache.poi.poifs.crypt.HashAlgorithm;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.egov.excelingestion.config.ExcelIngestionConfig;
+import org.egov.excelingestion.config.ErrorConstants;
 import org.egov.excelingestion.exception.CustomExceptionHandler;
 import org.egov.excelingestion.generator.IExcelPopulatorSheetGenerator;
 import org.egov.excelingestion.generator.ISheetGenerator;
@@ -272,9 +273,20 @@ public class ConfigBasedGenerationService {
             }
             Class<?> clazz = Class.forName(className);
             return (IExcelPopulatorSheetGenerator) applicationContext.getBean(clazz);
+        } catch (ClassNotFoundException e) {
+            log.error("ExcelPopulator generator class not found: {}", className);
+            exceptionHandler.throwCustomException(
+                    ErrorConstants.GENERATOR_CLASS_NOT_FOUND,
+                    ErrorConstants.GENERATOR_CLASS_NOT_FOUND_MESSAGE.replace("{0}", className),
+                    e);
+            return null; // Never reached
         } catch (Exception e) {
             log.error("Error getting ExcelPopulator generator bean for class {}: {}", className, e.getMessage(), e);
-            throw new RuntimeException("Failed to get ExcelPopulator generator: " + className, e);
+            exceptionHandler.throwCustomException(
+                    ErrorConstants.GENERATOR_EXECUTION_ERROR,
+                    ErrorConstants.GENERATOR_EXECUTION_ERROR_MESSAGE.replace("{0}", e.getMessage()),
+                    e);
+            return null; // Never reached
         }
     }
     
@@ -286,9 +298,20 @@ public class ConfigBasedGenerationService {
             }
             Class<?> clazz = Class.forName(className);
             return (ISheetGenerator) applicationContext.getBean(clazz);
+        } catch (ClassNotFoundException e) {
+            log.error("Direct sheet generator class not found: {}", className);
+            exceptionHandler.throwCustomException(
+                    ErrorConstants.GENERATOR_CLASS_NOT_FOUND,
+                    ErrorConstants.GENERATOR_CLASS_NOT_FOUND_MESSAGE.replace("{0}", className),
+                    e);
+            return null; // Never reached
         } catch (Exception e) {
             log.error("Error getting direct sheet generator bean for class {}: {}", className, e.getMessage(), e);
-            throw new RuntimeException("Failed to get direct sheet generator: " + className, e);
+            exceptionHandler.throwCustomException(
+                    ErrorConstants.GENERATOR_EXECUTION_ERROR,
+                    ErrorConstants.GENERATOR_EXECUTION_ERROR_MESSAGE.replace("{0}", e.getMessage()),
+                    e);
+            return null; // Never reached
         }
     }
     

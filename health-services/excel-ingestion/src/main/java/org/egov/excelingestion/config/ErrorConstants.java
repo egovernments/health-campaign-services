@@ -126,4 +126,11 @@ public class ErrorConstants {
     
     public static final String PROCESSOR_EXECUTION_ERROR = "PROCESSOR_EXECUTION_ERROR";
     public static final String PROCESSOR_EXECUTION_ERROR_MESSAGE = "Error executing processor: {0}";
+    
+    // Generator Class Errors
+    public static final String GENERATOR_CLASS_NOT_FOUND = "GENERATOR_CLASS_NOT_FOUND";
+    public static final String GENERATOR_CLASS_NOT_FOUND_MESSAGE = "Generator class not found: {0}";
+    
+    public static final String GENERATOR_EXECUTION_ERROR = "GENERATOR_EXECUTION_ERROR";
+    public static final String GENERATOR_EXECUTION_ERROR_MESSAGE = "Error executing generator: {0}";
 }

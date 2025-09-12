@@ -1,6 +1,8 @@
 package org.egov.excelingestion.service;
 
 import org.egov.common.exception.InvalidTenantIdException;
+import org.egov.common.producer.Producer;
+import org.egov.excelingestion.exception.CustomExceptionHandler;
 import org.egov.excelingestion.repository.ProcessingRepository;
 import org.egov.excelingestion.web.models.*;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,12 +24,30 @@ class ProcessingServiceTest {
 
     @Mock
     private ProcessingRepository processingRepository;
+    
+    @Mock
+    private Producer producer;
+    
+    @Mock
+    private AsyncProcessingService asyncProcessingService;
+    
+    @Mock
+    private ConfigBasedProcessingService configBasedProcessingService;
+    
+    @Mock
+    private CustomExceptionHandler exceptionHandler;
 
     private ProcessingService processingService;
 
     @BeforeEach
     void setUp() {
-        processingService = new ProcessingService(processingRepository, null, null);
+        processingService = new ProcessingService(
+            processingRepository, 
+            producer, 
+            asyncProcessingService, 
+            configBasedProcessingService,
+            exceptionHandler
+        );
     }
 
     @Test
