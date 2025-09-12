@@ -19,6 +19,7 @@ import org.egov.common.validator.Validator;
 import org.egov.stock.config.StockConfiguration;
 import org.egov.stock.repository.StockRepository;
 import org.egov.stock.service.enrichment.StockEnrichmentService;
+import org.egov.stock.validator.stock.SCountValidator;
 import org.egov.stock.validator.stock.SExistentEntityValidator;
 import org.egov.stock.validator.stock.SIsDeletedValidator;
 import org.egov.stock.validator.stock.SNonExistentValidator;
@@ -63,6 +64,7 @@ public class StockService {
                     || validator.getClass().equals(SExistentEntityValidator.class)
                     || validator.getClass().equals(SSenderIdReceiverIdEqualsValidator.class)
                     || validator.getClass().equals(SStockTransferPartiesValidator.class)
+                    || validator.getClass().equals(SCountValidator.class)
                     || validator.getClass().equals(SReferenceIdValidator.class);
 
     private final Predicate<Validator<StockBulkRequest, Stock>> isApplicableForUpdate =

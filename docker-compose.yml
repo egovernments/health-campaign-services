@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   postgres:
     image: postgres:14
@@ -69,7 +67,7 @@ services:
 
     volumes:
       # Mount local persister config file
-      - ./health-services/household/src/main/resources/household-persister.yml:/work-dir/config/persister-config.yml:ro
+      - ./health-services/stock/src/main/resources/stock-persister.yml:/work-dir/config/persister-config.yml:ro
 
 volumes:
   pgdata:
