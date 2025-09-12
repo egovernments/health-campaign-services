@@ -22,8 +22,8 @@ public class ProcessorConfigurationRegistry {
     }
     
     private void initializeConfigurations() {
-        // Microplan processor configuration for processing/validation
-        configs.put("microplan-ingestion", Arrays.asList(
+        // Unified console validation processor configuration for processing/validation
+        configs.put("unified-console-validation", Arrays.asList(
                 new ProcessorSheetConfig("HCM_ADMIN_CONSOLE_FACILITIES_LIST", "facility-microplan-ingestion"),
                 new ProcessorSheetConfig("HCM_ADMIN_CONSOLE_USERS_LIST", "user-microplan-ingestion"),
                 new ProcessorSheetConfig("HCM_CONSOLE_BOUNDARY_HIERARCHY", null, 
@@ -55,21 +55,30 @@ public class ProcessorConfigurationRegistry {
     }
     
     /**
-     * Simple config class for processing - sheetName, schemaName and optional processor class
+     * Config class for processing - includes persistence and event publishing options
      */
     public static class ProcessorSheetConfig {
         private final String sheetNameKey;
         private final String schemaName;
-        private final String processorClass; // Optional processor class for custom processing
+        private final String processorClass;
+        private final boolean persistParsings;
+        private final String triggerParsingCompleteTopic;
         
         public ProcessorSheetConfig(String sheetNameKey, String schemaName) {
-            this(sheetNameKey, schemaName, null);
+            this(sheetNameKey, schemaName, null, true, null);
         }
         
         public ProcessorSheetConfig(String sheetNameKey, String schemaName, String processorClass) {
+            this(sheetNameKey, schemaName, processorClass, true, null);
+        }
+        
+        public ProcessorSheetConfig(String sheetNameKey, String schemaName, String processorClass, 
+                                  boolean persistParsings, String triggerParsingCompleteTopic) {
             this.sheetNameKey = sheetNameKey;
             this.schemaName = schemaName;
             this.processorClass = processorClass;
+            this.persistParsings = persistParsings;
+            this.triggerParsingCompleteTopic = triggerParsingCompleteTopic;
         }
         
         public String getSheetNameKey() {
@@ -82,6 +91,14 @@ public class ProcessorConfigurationRegistry {
         
         public String getProcessorClass() {
             return processorClass;
+        }
+        
+        public boolean isPersistParsings() {
+            return persistParsings;
+        }
+        
+        public String getTriggerParsingCompleteTopic() {
+            return triggerParsingCompleteTopic;
         }
     }
 }

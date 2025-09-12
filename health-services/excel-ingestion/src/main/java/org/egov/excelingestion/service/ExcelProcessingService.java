@@ -7,15 +7,14 @@ import org.apache.poi.xssf.streaming.SXSSFWorkbook;
 import org.egov.common.contract.models.AuditDetails;
 import org.egov.excelingestion.config.ErrorConstants;
 import org.egov.excelingestion.config.ExcelIngestionConfig;
-import org.egov.excelingestion.config.GeneratorConfigurationRegistry;
 import org.egov.excelingestion.config.ProcessingConstants;
+import org.egov.excelingestion.config.ProcessorConfigurationRegistry;
+import org.egov.excelingestion.config.ProcessorConfigurationRegistry.ProcessorSheetConfig;
 import org.egov.excelingestion.exception.CustomExceptionHandler;
 import org.egov.excelingestion.util.RequestInfoConverter;
 import org.egov.excelingestion.util.EnrichmentUtil;
 import org.egov.excelingestion.web.models.ProcessResource;
 import org.egov.excelingestion.web.models.ProcessResourceRequest;
-import org.egov.excelingestion.web.models.ProcessorGenerationConfig;
-import org.egov.excelingestion.web.models.SheetGenerationConfig;
 import org.egov.excelingestion.web.models.ValidationError;
 import org.egov.excelingestion.web.models.ValidationColumnInfo;
 import org.egov.excelingestion.web.models.filestore.FileStoreResponse;
@@ -44,7 +43,7 @@ public class ExcelProcessingService {
     private final CustomExceptionHandler exceptionHandler;
     private final ExcelIngestionConfig config;
     private final EnrichmentUtil enrichmentUtil;
-    private final GeneratorConfigurationRegistry configRegistry;
+    private final ProcessorConfigurationRegistry configRegistry;
     
     public ExcelProcessingService(ValidationService validationService,
                                 SchemaValidationService schemaValidationService,
@@ -56,7 +55,7 @@ public class ExcelProcessingService {
                                 CustomExceptionHandler exceptionHandler,
                                 ExcelIngestionConfig config,
                                 EnrichmentUtil enrichmentUtil,
-                                GeneratorConfigurationRegistry configRegistry) {
+                                ProcessorConfigurationRegistry configRegistry) {
         this.validationService = validationService;
         this.schemaValidationService = schemaValidationService;
         this.configBasedProcessingService = configBasedProcessingService;
@@ -254,13 +253,13 @@ public class ExcelProcessingService {
                                                  Map<String, Map<String, Object>> preValidatedSchemas) {
         try {
             // Get processor configuration
-            ProcessorGenerationConfig config = configRegistry.getConfigByType(type);
-            if (config == null) {
+            List<ProcessorSheetConfig> configs = configRegistry.getConfigByType(type);
+            if (configs == null) {
                 return null;
             }
             
             // Find the schema name for this sheet
-            for (SheetGenerationConfig sheetConfig : config.getSheets()) {
+            for (ProcessorSheetConfig sheetConfig : configs) {
                 String localizedName = getLocalizedSheetName(sheetConfig.getSheetNameKey(), localizationMap);
                 if (localizedName.equals(sheetName)) {
                     String schemaName = sheetConfig.getSchemaName();

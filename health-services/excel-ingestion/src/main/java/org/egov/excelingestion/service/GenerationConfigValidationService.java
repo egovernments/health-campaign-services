@@ -5,7 +5,6 @@ import org.egov.excelingestion.config.ErrorConstants;
 import org.egov.excelingestion.exception.CustomExceptionHandler;
 import org.egov.excelingestion.web.models.ProcessorGenerationConfig;
 import org.egov.excelingestion.web.models.SheetGenerationConfig;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -32,8 +31,8 @@ public class GenerationConfigValidationService {
     /**
      * Validate processor generation configuration
      */
-    public void validateProcessorConfig(ProcessorGenerationConfig config) {
-        log.info("Validating processor generation config for: {}", config.getProcessorType());
+    public void validateProcessorConfig(ProcessorGenerationConfig config, String processorType) {
+        log.info("Validating processor generation config for: {}", processorType);
         
         // Validate basic config
         validateBasicConfig(config);
@@ -48,11 +47,6 @@ public class GenerationConfigValidationService {
     }
     
     private void validateBasicConfig(ProcessorGenerationConfig config) {
-        if (!StringUtils.hasText(config.getProcessorType())) {
-            exceptionHandler.throwCustomException(ErrorConstants.VALIDATION_ERROR,
-                    "Processor type is required", 
-                    new IllegalArgumentException("Processor type cannot be null or empty"));
-        }
         
         if (config.getSheets() == null || config.getSheets().isEmpty()) {
             exceptionHandler.throwCustomException(ErrorConstants.VALIDATION_ERROR,

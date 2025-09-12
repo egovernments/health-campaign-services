@@ -3,9 +3,7 @@ package org.egov.excelingestion.service;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.egov.excelingestion.config.ExcelIngestionConfig;
-import org.egov.excelingestion.config.GeneratorConfigurationRegistry;
-import org.egov.excelingestion.config.ProcessingConstants;
-import org.egov.excelingestion.config.ValidationConstants;
+import org.egov.excelingestion.config.ProcessorConfigurationRegistry;
 import org.egov.excelingestion.exception.CustomExceptionHandler;
 import org.egov.excelingestion.util.EnrichmentUtil;
 import org.egov.excelingestion.util.RequestInfoConverter;
@@ -21,8 +19,6 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -64,7 +60,7 @@ class ExcelProcessingServiceTest {
     private EnrichmentUtil enrichmentUtil;
 
     @Mock
-    private GeneratorConfigurationRegistry configRegistry;
+    private ProcessorConfigurationRegistry configRegistry;
 
     private ExcelProcessingService excelProcessingService;
 

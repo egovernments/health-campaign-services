@@ -61,10 +61,10 @@ public class ConfigBasedGenerationService {
                                         RequestInfo requestInfo,
                                         Map<String, String> localizationMap) throws IOException {
         
-        log.info("Starting config-based Excel generation for processor: {}", processorConfig.getProcessorType());
+        log.info("Starting config-based Excel generation for processor: {}", generateResource.getType());
         
         // Validate configuration
-        validationService.validateProcessorConfig(processorConfig);
+        validationService.validateProcessorConfig(processorConfig, generateResource.getType());
         
         XSSFWorkbook workbook = new XSSFWorkbook();
         String firstVisibleSheetName = null;

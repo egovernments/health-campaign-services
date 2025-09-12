@@ -52,7 +52,6 @@ class GeneratorClassNotFoundTest {
             .build();
 
         ProcessorGenerationConfig config = ProcessorGenerationConfig.builder()
-            .processorType("microplan-ingestion")
             .sheets(Arrays.asList(sheetConfig))
             .build();
 
@@ -68,7 +67,7 @@ class GeneratorClassNotFoundTest {
 
         // Act & Assert
         CustomException exception = assertThrows(CustomException.class, () -> {
-            validationService.validateProcessorConfig(config);
+            validationService.validateProcessorConfig(config, "unified-console");
         });
 
         // Verify correct error code and message
@@ -96,7 +95,6 @@ class GeneratorClassNotFoundTest {
             .build();
 
         ProcessorGenerationConfig config = ProcessorGenerationConfig.builder()
-            .processorType("microplan-ingestion")
             .sheets(Arrays.asList(sheetConfig))
             .build();
 
@@ -105,7 +103,7 @@ class GeneratorClassNotFoundTest {
 
         // Act & Assert - should not throw exception for existing class
         assertDoesNotThrow(() -> {
-            validationService.validateProcessorConfig(config);
+            validationService.validateProcessorConfig(config, "unified-console");
         });
 
         // Verify no exception was thrown
@@ -124,7 +122,6 @@ class GeneratorClassNotFoundTest {
             .build();
 
         ProcessorGenerationConfig config = ProcessorGenerationConfig.builder()
-            .processorType("microplan-ingestion")
             .sheets(Arrays.asList(sheetConfig))
             .build();
 
@@ -133,7 +130,7 @@ class GeneratorClassNotFoundTest {
 
         // Act & Assert - should not validate custom generators for schema-based sheets
         assertDoesNotThrow(() -> {
-            validationService.validateProcessorConfig(config);
+            validationService.validateProcessorConfig(config, "unified-console");
         });
 
         // Verify no class validation was performed for custom generators
@@ -160,7 +157,6 @@ class GeneratorClassNotFoundTest {
             .build();
 
         ProcessorGenerationConfig config = ProcessorGenerationConfig.builder()
-            .processorType("microplan-ingestion")
             .sheets(Arrays.asList(validSheet, invalidSheet))
             .build();
 
@@ -179,7 +175,7 @@ class GeneratorClassNotFoundTest {
 
         // Act & Assert
         CustomException exception = assertThrows(CustomException.class, () -> {
-            validationService.validateProcessorConfig(config);
+            validationService.validateProcessorConfig(config, "unified-console");
         });
 
         // Verify it fails on the invalid generator

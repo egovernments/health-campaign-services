@@ -24,9 +24,8 @@ public class GeneratorConfigurationRegistry {
     }
     
     private void initializeConfigurations() {
-        // Microplan processor configuration
-        configs.put("microplan-ingestion", ProcessorGenerationConfig.builder()
-                .processorType("microplan-ingestion")
+        // Unified console processor configuration
+        configs.put("unified-console", ProcessorGenerationConfig.builder()
                 .applyWorkbookProtection(true)
                 .protectionPassword(excelConfig.getExcelSheetPassword())
                 .zoomLevel(excelConfig.getExcelSheetZoom())

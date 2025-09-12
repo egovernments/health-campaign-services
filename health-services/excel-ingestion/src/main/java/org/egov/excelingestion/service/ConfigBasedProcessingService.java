@@ -12,11 +12,16 @@ import org.apache.poi.ss.usermodel.Workbook;
 import org.egov.excelingestion.processor.IWorkbookProcessor;
 import org.egov.excelingestion.web.models.ProcessResource;
 import org.egov.excelingestion.web.models.RequestInfo;
+import org.egov.excelingestion.web.models.ParsingCompleteEvent;
+import org.egov.excelingestion.web.models.SheetDataTemp;
+import org.egov.common.producer.Producer;
 import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -31,15 +36,18 @@ public class ConfigBasedProcessingService {
     private final CustomExceptionHandler exceptionHandler;
     private final MDMSService mdmsService;
     private final ApplicationContext applicationContext;
+    private final Producer producer;
 
     public ConfigBasedProcessingService(ProcessorConfigurationRegistry configRegistry,
                                       CustomExceptionHandler exceptionHandler,
                                       MDMSService mdmsService,
-                                      ApplicationContext applicationContext) {
+                                      ApplicationContext applicationContext,
+                                      Producer producer) {
         this.configRegistry = configRegistry;
         this.exceptionHandler = exceptionHandler;
         this.mdmsService = mdmsService;
         this.applicationContext = applicationContext;
+        this.producer = producer;
     }
 
     /**
@@ -315,5 +323,137 @@ public class ConfigBasedProcessingService {
         }
         
         return workbook;
+    }
+
+    /**
+     * Handle conditional persistence and event publishing for a sheet
+     */
+    public void handlePostProcessing(String sheetName,
+                                   int recordCount,
+                                   ProcessResource resource,
+                                   Map<String, String> localizationMap,
+                                   java.util.List<Map<String, Object>> parsedData) {
+        java.util.List<ProcessorSheetConfig> config = getConfigByType(resource.getType());
+        if (config == null) {
+            return;
+        }
+        
+        ProcessorSheetConfig sheetConfig = getSheetConfig(sheetName, config, localizationMap);
+        if (sheetConfig == null) {
+            return;
+        }
+        
+        // Handle conditional persistence
+        if (sheetConfig.isPersistParsings()) {
+            log.info("Persisting {} records for sheet: {}", recordCount, sheetName);
+            saveSheetDataToTemp(sheetName, parsedData, resource, localizationMap);
+        } else {
+            log.info("Skipping persistence for sheet: {} (persistParsings = false)", sheetName);
+        }
+        
+        // Handle event publishing
+        String topic = sheetConfig.getTriggerParsingCompleteTopic();
+        if (topic != null && !topic.trim().isEmpty()) {
+            ParsingCompleteEvent event = ParsingCompleteEvent.builder()
+                    .filestoreId(resource.getFileStoreId())
+                    .referenceId(resource.getReferenceId())
+                    .sheetName(sheetName)
+                    .recordCount(recordCount)
+                    .build();
+            
+            producer.push(resource.getTenantId(), topic, event);
+            log.info("Published parsing complete event to topic: {} for sheet: {}, records: {}", 
+                    topic, sheetName, recordCount);
+        }
+    }
+    
+    /**
+     * Get sheet configuration by name
+     */
+    private ProcessorSheetConfig getSheetConfig(String sheetName,
+                                              java.util.List<ProcessorSheetConfig> config,
+                                              Map<String, String> localizationMap) {
+        for (ProcessorSheetConfig sheetConfig : config) {
+            String localizedName = getLocalizedSheetName(sheetConfig.getSheetNameKey(), localizationMap);
+            if (localizedName.equals(sheetName)) {
+                return sheetConfig;
+            }
+        }
+        return null;
+    }
+    
+    /**
+     * Check if sheet should be persisted based on configuration
+     */
+    public boolean shouldPersistSheet(String sheetName,
+                                    String processorType,
+                                    Map<String, String> localizationMap) {
+        java.util.List<ProcessorSheetConfig> config = getConfigByType(processorType);
+        if (config == null) {
+            return true; // Default behavior
+        }
+        
+        ProcessorSheetConfig sheetConfig = getSheetConfig(sheetName, config, localizationMap);
+        return sheetConfig != null ? sheetConfig.isPersistParsings() : true;
+    }
+    
+    /**
+     * Get parsing complete topic for sheet
+     */
+    public String getParsingCompleteTopic(String sheetName,
+                                        String processorType,
+                                        Map<String, String> localizationMap) {
+        java.util.List<ProcessorSheetConfig> config = getConfigByType(processorType);
+        if (config == null) {
+            return null;
+        }
+        
+        ProcessorSheetConfig sheetConfig = getSheetConfig(sheetName, config, localizationMap);
+        return sheetConfig != null ? sheetConfig.getTriggerParsingCompleteTopic() : null;
+    }
+    
+    /**
+     * Save sheet data to temporary table via producer push
+     */
+    private void saveSheetDataToTemp(String sheetName, 
+                                   List<Map<String, Object>> parsedData, 
+                                   ProcessResource resource, 
+                                   Map<String, String> localizationMap) {
+        if (parsedData == null || parsedData.isEmpty()) {
+            log.info("No data to save for sheet: {}", sheetName);
+            return;
+        }
+        
+        long currentTime = System.currentTimeMillis();
+        long deleteTime = currentTime + 86400000L; // 1 day later
+        
+        List<SheetDataTemp> sheetDataList = new ArrayList<>();
+        
+        for (int i = 0; i < parsedData.size(); i++) {
+            Map<String, Object> rowData = parsedData.get(i);
+            
+            SheetDataTemp sheetDataTemp = SheetDataTemp.builder()
+                    .referenceId(resource.getReferenceId())
+                    .fileStoreId(resource.getFileStoreId())
+                    .sheetName(sheetName)
+                    .rowNumber(i + 1) // 1-based row number
+                    .rowJson(rowData)
+                    .createdBy("system") // TODO: Get from request context
+                    .createdTime(currentTime)
+                    .deleteTime(deleteTime)
+                    .build();
+                    
+            sheetDataList.add(sheetDataTemp);
+        }
+        
+        // Create message payload for persister
+        Map<String, Object> message = new HashMap<>();
+        message.put("sheetData", sheetDataList);
+        
+        // Push to save-sheet-data-temp topic
+        producer.push(resource.getTenantId(), "save-sheet-data-temp", message);
+        
+        log.info("Published {} sheet data records to save-sheet-data-temp topic for sheet: {}", 
+                sheetDataList.size(), sheetName);
     }
 }

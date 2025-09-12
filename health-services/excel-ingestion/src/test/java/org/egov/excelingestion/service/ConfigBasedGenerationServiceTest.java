@@ -79,7 +79,6 @@ class ConfigBasedGenerationServiceTest {
 
     private ProcessorGenerationConfig createSampleConfig() {
         return ProcessorGenerationConfig.builder()
-                .processorType("test-processor")
                 .applyWorkbookProtection(true)
                 .protectionPassword("password")
                 .zoomLevel(60)

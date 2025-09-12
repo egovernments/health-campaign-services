@@ -51,7 +51,7 @@ public class ExcelGenerationValidationService {
         ProcessorGenerationConfig config = getConfigByGenerateType(generateType);
 
         // Step 3: Validate configuration (classes, schemas, etc.)
-        validationService.validateProcessorConfig(config);
+        validationService.validateProcessorConfig(config, generateType);
 
         // Step 4: Prepare localization maps
         prepareLocalizationMap(generateResource, requestInfo);

@@ -17,11 +17,6 @@ import java.util.List;
 public class ProcessorGenerationConfig {
     
     /**
-     * Processor type (e.g., "microplan-ingestion")
-     */
-    private String processorType;
-    
-    /**
      * List of sheets to generate for this processor
      */
     private List<SheetGenerationConfig> sheets;
