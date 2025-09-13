@@ -19,6 +19,9 @@ public class SheetDataTemp {
     @JsonProperty("referenceId")
     private String referenceId;
 
+    @JsonProperty("tenantId")
+    private String tenantId;
+
     @JsonProperty("fileStoreId")
     private String fileStoreId;
 

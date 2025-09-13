@@ -44,6 +44,7 @@ CREATE INDEX idx_eg_ex_in_excel_processing_id ON eg_ex_in_excel_processing(id);
 -- Create temporary table for parsed sheet data storage
 CREATE TABLE eg_ex_in_sheet_data_temp (
     referenceId         VARCHAR(100)    NOT NULL,
+    tenantId            VARCHAR(100)    NOT NULL,
     fileStoreId         VARCHAR(100)    NOT NULL,
     sheetName           VARCHAR(100)    NOT NULL,
     rowNumber           INTEGER         NOT NULL,

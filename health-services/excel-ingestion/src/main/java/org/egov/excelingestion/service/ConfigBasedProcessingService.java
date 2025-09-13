@@ -437,6 +437,7 @@ public class ConfigBasedProcessingService {
                 
                 SheetDataTemp sheetDataTemp = SheetDataTemp.builder()
                         .referenceId(resource.getReferenceId())
+                        .tenantId(resource.getTenantId())
                         .fileStoreId(resource.getFileStoreId())
                         .sheetName(sheetName)
                         .rowNumber(actualRowNumber)

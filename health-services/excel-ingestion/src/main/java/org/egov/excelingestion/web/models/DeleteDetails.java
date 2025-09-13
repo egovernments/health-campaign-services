@@ -17,6 +17,9 @@ public class DeleteDetails {
     @JsonProperty("Message")
     private String message;
 
+    @JsonProperty("TenantId")
+    private String tenantId;
+
     @JsonProperty("ReferenceId")
     private String referenceId;
 

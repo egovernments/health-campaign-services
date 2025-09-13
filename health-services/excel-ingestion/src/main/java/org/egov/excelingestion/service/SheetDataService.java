@@ -116,14 +116,15 @@ public class SheetDataService {
 
             // Create delete message
             Map<String, Object> deleteMessage = new HashMap<>();
+            deleteMessage.put("tenantId", tenantId);
             deleteMessage.put("referenceId", referenceId);
             deleteMessage.put("fileStoreId", fileStoreId);
 
             // Push to delete topic
             producer.push(tenantId, "delete-sheet-data-temp", deleteMessage);
             
-            log.info("Delete request pushed to topic for referenceId: {}, fileStoreId: {}", 
-                    referenceId, fileStoreId);
+            log.info("Delete request pushed to topic for tenantId: {}, referenceId: {}, fileStoreId: {}", 
+                    tenantId, referenceId, fileStoreId);
             
         } catch (Exception e) {
             log.error("Error deleting sheet data: {}", e.getMessage(), e);

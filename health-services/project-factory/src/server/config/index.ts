@@ -69,6 +69,7 @@ const config = {
     KAFKA_START_ADMIN_CONSOLE_TASK_TOPIC: process.env.KAFKA_START_TASK_TOPIC || "start-admin-console-task",
     KAFKA_START_ADMIN_CONSOLE_MAPPING_TASK_TOPIC: process.env.KAFKA_START_MAPPING_TASK_TOPIC || "start-admin-console-mapping-task",
     KAFKA_TEST_TOPIC: "test-topic-project-factory",
+    KAFKA_HCM_PROCESSING_RESULT_TOPIC: process.env.KAFKA_HCM_PROCESSING_RESULT_TOPIC || "hcm-processing-result",
     KAFKA_NOTIFICATION_EMAIL_TOPIC: process.env.KAFKA_NOTIFICATION_EMAIL_TOPIC || "egov.core.notification.email",
   },
 

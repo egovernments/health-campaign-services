@@ -212,7 +212,8 @@ public class IngestionController {
         
         // Create delete details
         DeleteDetails deleteDetails = DeleteDetails.builder()
-                .message(org.egov.excelingestion.config.ErrorConstants.SHEET_DATA_DELETE_SUCCESS_MESSAGE)
+                .message(org.egov.excelingestion.config.ErrorConstants.SHEET_DATA_DELETE_SUCCESS)
+                .tenantId(tenantId)
                 .referenceId(referenceId)
                 .fileStoreId(fileStoreId)
                 .build();

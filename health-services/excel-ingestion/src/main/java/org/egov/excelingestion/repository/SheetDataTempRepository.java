@@ -44,6 +44,12 @@ public class SheetDataTempRepository {
         
         StringBuilder query = new StringBuilder(String.format("SELECT * FROM %s." + TABLE_NAME + " WHERE 1=1", SCHEMA_REPLACE_STRING));
 
+        // Add tenantId filter
+        if (tenantId != null) {
+            query.append(" AND tenantId = :tenantId");
+            params.put("tenantId", tenantId);
+        }
+
         if (referenceId != null) {
             query.append(" AND referenceId = :referenceId");
             params.put("referenceId", referenceId);
@@ -100,6 +106,12 @@ public class SheetDataTempRepository {
         Map<String, Object> params = new HashMap<>();
         
         StringBuilder query = new StringBuilder(String.format("SELECT COUNT(*) FROM %s." + TABLE_NAME + " WHERE 1=1", SCHEMA_REPLACE_STRING));
+
+        // Add tenantId filter
+        if (tenantId != null) {
+            query.append(" AND tenantId = :tenantId");
+            params.put("tenantId", tenantId);
+        }
 
         if (referenceId != null) {
             query.append(" AND referenceId = :referenceId");
