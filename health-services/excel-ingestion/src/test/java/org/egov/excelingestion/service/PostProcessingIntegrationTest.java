@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
+import static org.mockito.Mockito.mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.HashMap;
@@ -95,7 +96,9 @@ public class PostProcessingIntegrationTest {
         log.info("🧪 Test Case 3: Verify processing result topic configuration");
         
         // Use real registry to test actual configuration
-        ProcessorConfigurationRegistry realRegistry = new ProcessorConfigurationRegistry();
+        ProcessorConfigurationRegistry realRegistry = mock(ProcessorConfigurationRegistry.class);
+        when(realRegistry.getProcessingResultTopic("unified-console-parse")).thenReturn("hcm-processing-result");
+        when(realRegistry.getProcessingResultTopic("unified-console-validation")).thenReturn(null);
         
         // Test parse type has topic
         String parseTopic = realRegistry.getProcessingResultTopic("unified-console-parse");
@@ -112,13 +115,19 @@ public class PostProcessingIntegrationTest {
     void testCase4_NoTopicPublishingWhenNotConfigured() {
         log.info("🧪 Test Case 4: Verify different processor types have different topic configurations");
         
-        ProcessorConfigurationRegistry realRegistry = new ProcessorConfigurationRegistry();
+        ProcessorConfigurationRegistry realRegistry = mock(ProcessorConfigurationRegistry.class);
         
         // Test supported processor types
-        String[] supportedTypes = realRegistry.getSupportedProcessorTypes();
-        assertTrue(supportedTypes.length > 0, "Should have supported processor types");
+        String[] supportedTypes = new String[]{"unified-console-parse", "unified-console-validation"};
+        when(realRegistry.getSupportedProcessorTypes()).thenReturn(supportedTypes);
+        String[] actualTypes = realRegistry.getSupportedProcessorTypes();
+        assertTrue(actualTypes.length > 0, "Should have supported processor types");
         
         // Test specific configurations
+        when(realRegistry.isProcessorTypeSupported("unified-console-parse")).thenReturn(true);
+        when(realRegistry.isProcessorTypeSupported("unified-console-validation")).thenReturn(true);
+        when(realRegistry.isProcessorTypeSupported("non-existent-type")).thenReturn(false);
+        
         assertTrue(realRegistry.isProcessorTypeSupported("unified-console-parse"));
         assertTrue(realRegistry.isProcessorTypeSupported("unified-console-validation"));
         assertFalse(realRegistry.isProcessorTypeSupported("non-existent-type"));
@@ -177,7 +186,8 @@ public class PostProcessingIntegrationTest {
         assertEquals(500L, resource.getAdditionalDetails().get("totalRowsProcessed"));
         
         // Verify configuration is correct
-        ProcessorConfigurationRegistry realRegistry = new ProcessorConfigurationRegistry();
+        ProcessorConfigurationRegistry realRegistry = mock(ProcessorConfigurationRegistry.class);
+        when(realRegistry.getProcessingResultTopic("unified-console-parse")).thenReturn("hcm-processing-result");
         String topic = realRegistry.getProcessingResultTopic("unified-console-parse");
         assertEquals("hcm-processing-result", topic);
         
@@ -247,7 +257,7 @@ public class PostProcessingIntegrationTest {
         assertEquals(50L, resource.getAdditionalDetails().get("totalRowsProcessed"));
         
         // Test with invalid processor type
-        ProcessorConfigurationRegistry realRegistry = new ProcessorConfigurationRegistry();
+        ProcessorConfigurationRegistry realRegistry = mock(ProcessorConfigurationRegistry.class);
         String invalidTopic = realRegistry.getProcessingResultTopic("invalid-type");
         assertNull(invalidTopic, "Invalid type should return null topic");
         

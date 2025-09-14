@@ -3,6 +3,7 @@ package org.egov.excelingestion.service;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.excelingestion.config.ProcessingConstants;
 import org.egov.excelingestion.config.ErrorConstants;
+import org.egov.excelingestion.config.KafkaTopicConfig;
 import org.egov.excelingestion.exception.CustomExceptionHandler;
 import org.egov.excelingestion.repository.ProcessingRepository;
 import org.egov.excelingestion.web.models.*;
@@ -25,20 +26,20 @@ public class ProcessingService {
     private final AsyncProcessingService asyncProcessingService;
     private final ConfigBasedProcessingService configBasedProcessingService;
     private final CustomExceptionHandler exceptionHandler;
-    
-    @Value("${excel.ingestion.processing.save.topic}")
-    private String saveProcessingTopic;
+    private final KafkaTopicConfig kafkaTopicConfig;
 
     public ProcessingService(ProcessingRepository processingRepository, 
                            Producer producer,
                            AsyncProcessingService asyncProcessingService,
                            ConfigBasedProcessingService configBasedProcessingService,
-                           CustomExceptionHandler exceptionHandler) {
+                           CustomExceptionHandler exceptionHandler,
+                           KafkaTopicConfig kafkaTopicConfig) {
         this.processingRepository = processingRepository;
         this.producer = producer;
         this.asyncProcessingService = asyncProcessingService;
         this.configBasedProcessingService = configBasedProcessingService;
         this.exceptionHandler = exceptionHandler;
+        this.kafkaTopicConfig = kafkaTopicConfig;
     }
 
     public String initiateProcessing(ProcessResourceRequest request) {
@@ -67,7 +68,7 @@ public class ProcessingService {
             validateProcessorClasses(processResource.getType());
             
             // Save initial record to database via Kafka (for central instance support)
-            producer.push(processResource.getTenantId(), saveProcessingTopic, processResource);
+            producer.push(processResource.getTenantId(), kafkaTopicConfig.getProcessingSaveTopic(), processResource);
             
             // Start async processing in background thread
             asyncProcessingService.processExcelAsync(processResource, request.getRequestInfo());

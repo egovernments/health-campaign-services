@@ -1,6 +1,7 @@
 package org.egov.excelingestion.service;
 
 import org.egov.common.producer.Producer;
+import org.egov.excelingestion.config.KafkaTopicConfig;
 import org.egov.excelingestion.constants.GenerationConstants;
 import org.egov.excelingestion.web.models.*;
 import org.junit.jupiter.api.BeforeEach;
@@ -8,7 +9,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -26,13 +26,16 @@ class AsyncGenerationServiceTest {
     @Mock
     private Producer producer;
 
+    @Mock
+    private KafkaTopicConfig kafkaTopicConfig;
+
     private AsyncGenerationService asyncGenerationService;
 
     @BeforeEach
     void setUp() {
-        asyncGenerationService = new AsyncGenerationService(excelWorkflowService, producer);
-        // Set the topic value that would normally be injected by @Value
-        ReflectionTestUtils.setField(asyncGenerationService, "updateGenerationTopic", "test-update-topic");
+        // Setup mock KafkaTopicConfig
+        when(kafkaTopicConfig.getGenerationUpdateTopic()).thenReturn("test-update-topic");
+        asyncGenerationService = new AsyncGenerationService(excelWorkflowService, producer, kafkaTopicConfig);
     }
 
     @Test

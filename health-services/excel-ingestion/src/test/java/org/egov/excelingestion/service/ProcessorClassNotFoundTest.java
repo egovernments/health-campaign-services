@@ -4,6 +4,7 @@ import org.egov.excelingestion.web.models.RequestInfo;
 import org.egov.excelingestion.web.models.UserInfo;
 import org.egov.common.producer.Producer;
 import org.egov.excelingestion.config.ErrorConstants;
+import org.egov.excelingestion.config.KafkaTopicConfig;
 import org.egov.excelingestion.config.ProcessorConfigurationRegistry;
 import org.egov.excelingestion.exception.CustomExceptionHandler;
 import org.egov.excelingestion.repository.ProcessingRepository;
@@ -42,6 +43,9 @@ class ProcessorClassNotFoundTest {
     @Mock
     private CustomExceptionHandler exceptionHandler;
 
+    @Mock
+    private KafkaTopicConfig kafkaTopicConfig;
+
     private ProcessingService processingService;
 
     @BeforeEach
@@ -51,7 +55,8 @@ class ProcessorClassNotFoundTest {
             producer, 
             asyncProcessingService, 
             configBasedProcessingService,
-            exceptionHandler
+            exceptionHandler,
+            kafkaTopicConfig
         );
     }
 

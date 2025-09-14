@@ -1,6 +1,7 @@
 package org.egov.excelingestion.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.excelingestion.config.KafkaTopicConfig;
 import org.egov.excelingestion.config.ProcessingConstants;
 import org.egov.excelingestion.web.models.ProcessResource;
 import org.egov.excelingestion.web.models.ProcessResourceRequest;
@@ -17,14 +18,14 @@ public class AsyncProcessingService {
 
     private final ExcelProcessingService excelProcessingService;
     private final Producer producer;
-    
-    @Value("${excel.ingestion.processing.update.topic}")
-    private String updateProcessingTopic;
+    private final KafkaTopicConfig kafkaTopicConfig;
 
     public AsyncProcessingService(ExcelProcessingService excelProcessingService,
-                                Producer producer) {
+                                Producer producer,
+                                KafkaTopicConfig kafkaTopicConfig) {
         this.excelProcessingService = excelProcessingService;
         this.producer = producer;
+        this.kafkaTopicConfig = kafkaTopicConfig;
     }
 
     @Async("taskExecutor")
@@ -56,7 +57,7 @@ public class AsyncProcessingService {
             
             log.info("Pushing COMPLETED update to Kafka - ID: {}, Status: {}", 
                     processResource.getId(), processResource.getStatus());
-            producer.push(processResource.getTenantId(), updateProcessingTopic, processResource);
+            producer.push(processResource.getTenantId(), kafkaTopicConfig.getProcessingUpdateTopic(), processResource);
             
             log.info("Async processing completed successfully for id: {}", processResource.getId());
             
@@ -87,7 +88,7 @@ public class AsyncProcessingService {
             
             log.info("Pushing FAILED update to Kafka - ID: {}, Status: {}", 
                     processResource.getId(), processResource.getStatus());
-            producer.push(processResource.getTenantId(), updateProcessingTopic, processResource);
+            producer.push(processResource.getTenantId(), kafkaTopicConfig.getProcessingUpdateTopic(), processResource);
         }
     }
 

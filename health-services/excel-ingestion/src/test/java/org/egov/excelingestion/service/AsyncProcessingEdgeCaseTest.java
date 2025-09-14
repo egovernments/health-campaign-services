@@ -1,6 +1,7 @@
 package org.egov.excelingestion.service;
 
 import org.egov.common.producer.Producer;
+import org.egov.excelingestion.config.KafkaTopicConfig;
 import org.egov.excelingestion.config.ProcessingConstants;
 import org.egov.excelingestion.web.models.*;
 import org.egov.common.contract.models.AuditDetails;
@@ -9,7 +10,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -27,12 +27,16 @@ class AsyncProcessingEdgeCaseTest {
     @Mock
     private Producer producer;
 
+    @Mock
+    private KafkaTopicConfig kafkaTopicConfig;
+
     private AsyncProcessingService asyncProcessingService;
 
     @BeforeEach
     void setUp() {
-        asyncProcessingService = new AsyncProcessingService(excelProcessingService, producer);
-        ReflectionTestUtils.setField(asyncProcessingService, "updateProcessingTopic", "test-topic");
+        // Setup mock KafkaTopicConfig
+        when(kafkaTopicConfig.getProcessingUpdateTopic()).thenReturn("test-topic");
+        asyncProcessingService = new AsyncProcessingService(excelProcessingService, producer, kafkaTopicConfig);
     }
 
     @Test

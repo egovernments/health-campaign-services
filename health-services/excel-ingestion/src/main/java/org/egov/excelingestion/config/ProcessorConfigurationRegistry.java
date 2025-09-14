@@ -15,8 +15,10 @@ import java.util.Map;
 public class ProcessorConfigurationRegistry {
     
     private final Map<String, ProcessorTypeConfig> configs;
+    private final KafkaTopicConfig kafkaTopicConfig;
     
-    public ProcessorConfigurationRegistry() {
+    public ProcessorConfigurationRegistry(KafkaTopicConfig kafkaTopicConfig) {
+        this.kafkaTopicConfig = kafkaTopicConfig;
         this.configs = new HashMap<>();
         initializeConfigurations();
     }
@@ -35,7 +37,7 @@ public class ProcessorConfigurationRegistry {
 
         // Unified console parse processor configuration for processing/validation
         configs.put("unified-console-parse", new ProcessorTypeConfig(
-                "hcm-processing-result", // Processing result topic for completed processing
+                kafkaTopicConfig.getProcessingResultTopic(), // Processing result topic for completed processing
                 Arrays.asList(
                         new ProcessorSheetConfig("HCM_ADMIN_CONSOLE_FACILITIES_LIST", "facility-microplan-ingestion", null, true),
                         new ProcessorSheetConfig("HCM_ADMIN_CONSOLE_USERS_LIST", "user-microplan-ingestion", null, true),

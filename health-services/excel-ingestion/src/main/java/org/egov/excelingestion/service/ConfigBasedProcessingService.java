@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.egov.excelingestion.config.ErrorConstants;
+import org.egov.excelingestion.config.KafkaTopicConfig;
 import org.egov.excelingestion.config.ProcessingConstants;
 import org.egov.excelingestion.config.ProcessorConfigurationRegistry;
 import org.egov.excelingestion.config.ProcessorConfigurationRegistry.ProcessorSheetConfig;
@@ -37,17 +38,20 @@ public class ConfigBasedProcessingService {
     private final MDMSService mdmsService;
     private final ApplicationContext applicationContext;
     private final Producer producer;
+    private final KafkaTopicConfig kafkaTopicConfig;
 
     public ConfigBasedProcessingService(ProcessorConfigurationRegistry configRegistry,
                                       CustomExceptionHandler exceptionHandler,
                                       MDMSService mdmsService,
                                       ApplicationContext applicationContext,
-                                      Producer producer) {
+                                      Producer producer,
+                                      KafkaTopicConfig kafkaTopicConfig) {
         this.configRegistry = configRegistry;
         this.exceptionHandler = exceptionHandler;
         this.mdmsService = mdmsService;
         this.applicationContext = applicationContext;
         this.producer = producer;
+        this.kafkaTopicConfig = kafkaTopicConfig;
     }
 
     /**
@@ -455,7 +459,7 @@ public class ConfigBasedProcessingService {
             message.put("sheetData", chunkDataList);
             
             // Push chunk to save-sheet-data-temp topic
-            producer.push(resource.getTenantId(), "save-sheet-data-temp", message);
+            producer.push(resource.getTenantId(), kafkaTopicConfig.getSheetDataSaveTopic(), message);
             
             log.info("Published chunk {}/{} with {} records to save-sheet-data-temp topic for sheet: {}", 
                     chunkIndex + 1, totalChunks, chunkDataList.size(), sheetName);

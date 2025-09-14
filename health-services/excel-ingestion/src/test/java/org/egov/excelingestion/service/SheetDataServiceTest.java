@@ -2,6 +2,7 @@ package org.egov.excelingestion.service;
 
 import org.egov.common.producer.Producer;
 import org.egov.excelingestion.config.ErrorConstants;
+import org.egov.excelingestion.config.KafkaTopicConfig;
 import org.egov.excelingestion.exception.CustomExceptionHandler;
 import org.egov.excelingestion.repository.SheetDataTempRepository;
 import org.egov.excelingestion.web.models.RequestInfo;
@@ -24,6 +25,7 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.lenient;
 
 /**
  * Test cases for SheetDataService covering search and delete functionality
@@ -40,11 +42,16 @@ class SheetDataServiceTest {
     @Mock
     private CustomExceptionHandler exceptionHandler;
 
+    @Mock
+    private KafkaTopicConfig kafkaTopicConfig;
+
     private SheetDataService sheetDataService;
 
     @BeforeEach
     void setUp() {
-        sheetDataService = new SheetDataService(repository, producer, exceptionHandler);
+        // Setup mock KafkaTopicConfig - use lenient to avoid unnecessary stubbing errors
+        lenient().when(kafkaTopicConfig.getSheetDataDeleteTopic()).thenReturn("delete-sheet-data-temp");
+        sheetDataService = new SheetDataService(repository, producer, exceptionHandler, kafkaTopicConfig);
     }
 
     @Test

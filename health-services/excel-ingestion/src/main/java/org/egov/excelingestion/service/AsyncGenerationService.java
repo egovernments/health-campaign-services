@@ -1,6 +1,7 @@
 package org.egov.excelingestion.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.excelingestion.config.KafkaTopicConfig;
 import org.egov.excelingestion.constants.GenerationConstants;
 import org.egov.excelingestion.web.models.GenerateResource;
 import org.egov.excelingestion.web.models.GenerateResourceRequest;
@@ -17,14 +18,14 @@ public class AsyncGenerationService {
 
     private final ExcelWorkflowService excelWorkflowService;
     private final Producer producer;
-    
-    @Value("${excel.ingestion.generation.update.topic}")
-    private String updateGenerationTopic;
+    private final KafkaTopicConfig kafkaTopicConfig;
 
     public AsyncGenerationService(ExcelWorkflowService excelWorkflowService,
-                                Producer producer) {
+                                Producer producer,
+                                KafkaTopicConfig kafkaTopicConfig) {
         this.excelWorkflowService = excelWorkflowService;
         this.producer = producer;
+        this.kafkaTopicConfig = kafkaTopicConfig;
     }
 
     @Async("taskExecutor")
@@ -54,7 +55,7 @@ public class AsyncGenerationService {
             }
             log.info("Pushing COMPLETED update to Kafka - ID: {}, Status: {}, LastModifiedBy: {}", 
                     generateResource.getId(), generateResource.getStatus(), generateResource.getLastModifiedBy());
-            producer.push(generateResource.getTenantId(), updateGenerationTopic, generateResource);
+            producer.push(generateResource.getTenantId(), kafkaTopicConfig.getGenerationUpdateTopic(), generateResource);
             
             log.info("Async generation completed successfully for id: {}", generateResource.getId());
             
@@ -74,7 +75,7 @@ public class AsyncGenerationService {
             }
             log.info("Pushing FAILED update to Kafka - ID: {}, Status: {}, LastModifiedBy: {}", 
                     generateResource.getId(), generateResource.getStatus(), generateResource.getLastModifiedBy());
-            producer.push(generateResource.getTenantId(), updateGenerationTopic, generateResource);
+            producer.push(generateResource.getTenantId(), kafkaTopicConfig.getGenerationUpdateTopic(), generateResource);
         }
     }
 

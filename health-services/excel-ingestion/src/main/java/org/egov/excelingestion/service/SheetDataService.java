@@ -3,6 +3,7 @@ package org.egov.excelingestion.service;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.producer.Producer;
 import org.egov.excelingestion.config.ErrorConstants;
+import org.egov.excelingestion.config.KafkaTopicConfig;
 import org.egov.excelingestion.exception.CustomExceptionHandler;
 import org.egov.excelingestion.repository.SheetDataTempRepository;
 import org.egov.excelingestion.web.models.SheetDataSearchRequest;
@@ -26,13 +27,16 @@ public class SheetDataService {
     private final SheetDataTempRepository repository;
     private final Producer producer;
     private final CustomExceptionHandler exceptionHandler;
+    private final KafkaTopicConfig kafkaTopicConfig;
 
     public SheetDataService(SheetDataTempRepository repository, 
                           Producer producer,
-                          CustomExceptionHandler exceptionHandler) {
+                          CustomExceptionHandler exceptionHandler,
+                          KafkaTopicConfig kafkaTopicConfig) {
         this.repository = repository;
         this.producer = producer;
         this.exceptionHandler = exceptionHandler;
+        this.kafkaTopicConfig = kafkaTopicConfig;
     }
 
     /**
@@ -121,7 +125,7 @@ public class SheetDataService {
             deleteMessage.put("fileStoreId", fileStoreId);
 
             // Push to delete topic
-            producer.push(tenantId, "delete-sheet-data-temp", deleteMessage);
+            producer.push(tenantId, kafkaTopicConfig.getSheetDataDeleteTopic(), deleteMessage);
             
             log.info("Delete request pushed to topic for tenantId: {}, referenceId: {}, fileStoreId: {}", 
                     tenantId, referenceId, fileStoreId);

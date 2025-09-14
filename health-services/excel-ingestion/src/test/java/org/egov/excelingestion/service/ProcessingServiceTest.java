@@ -2,6 +2,7 @@ package org.egov.excelingestion.service;
 
 import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.producer.Producer;
+import org.egov.excelingestion.config.KafkaTopicConfig;
 import org.egov.excelingestion.exception.CustomExceptionHandler;
 import org.egov.excelingestion.repository.ProcessingRepository;
 import org.egov.excelingestion.web.models.*;
@@ -37,6 +38,9 @@ class ProcessingServiceTest {
     @Mock
     private CustomExceptionHandler exceptionHandler;
 
+    @Mock
+    private KafkaTopicConfig kafkaTopicConfig;
+
     private ProcessingService processingService;
 
     @BeforeEach
@@ -46,7 +50,8 @@ class ProcessingServiceTest {
             producer, 
             asyncProcessingService, 
             configBasedProcessingService,
-            exceptionHandler
+            exceptionHandler,
+            kafkaTopicConfig
         );
     }
 
