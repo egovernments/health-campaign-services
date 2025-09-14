@@ -72,4 +72,8 @@ public class EmployeeResponse {
 	@JsonProperty("Count")
 	private Integer count;
 
+	@JsonProperty("TotalCount")
+	@Builder.Default
+	private Long totalCount = 0L;
+
 }

@@ -22,39 +22,41 @@ import javax.validation.constraints.Size;
 @ToString
 @Builder
 public class EmployeeSearchCriteria {
-	
-	public List<String> codes;
-	
-	public List<String> names;
-	
-	public List<String> departments;
-	
-	public List<String> designations;
-	
-	public Long asOnDate;
 
-	public List<String> roles;
-	
-	public List<Long> ids;
-	
-	public List<String> employeestatuses;
-	
-	public List<String> employeetypes;
-	
-	public List<String> uuids;
-	
-	public List<Long> positions;
-	
-	public Boolean isActive;
+	private List<String> codes;
+
+	private List<String> names;
+
+	private List<String> departments;
+
+	private List<String> designations;
+
+	private Long asOnDate;
+
+	private List<String> roles;
+
+	private List<Long> ids;
+
+	private List<String> employeestatuses;
+
+	private List<String> employeetypes;
+
+	private List<String> uuids;
+
+	private List<String> userServiceUuids;
+
+	private List<Long> positions;
+
+	private Boolean isActive;
 
 	@Size(max = 250)
-	public String tenantId;
-	
-	public String phone;
+	private String tenantId;
 
-	public Integer offset;
-	
-	public Integer limit;
+	private String phone;
+
+	private Integer offset;
+
+	private Integer limit;
 
 	private Boolean includeUnassigned = false;
 	
