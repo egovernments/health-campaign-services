@@ -2,7 +2,7 @@ package org.egov.hrms.utils;
 
 import java.security.SecureRandom;
 import java.util.List;
-import java.util.Random;
+import java.util.concurrent.ThreadLocalRandom;
 
 import org.egov.hrms.web.contract.EmployeeSearchCriteria;
 import org.springframework.beans.factory.annotation.Value;
@@ -17,7 +17,13 @@ public class HRMSUtils {
 
 	@Value("${egov.pwd.allowed.special.characters}")
 	private String allowedPasswordSpecialCharacters;
-	
+
+	@Value("${egov.hrms.min.mobile.number}")
+	private String minMobileNumber;
+
+	@Value("${egov.hrms.max.mobile.number}")
+	private String maxMobileNumber;
+
 	/**
 	 * Generates random password for the user to login. Process:
 	 * 1. Takes a list of parameters for password
@@ -63,10 +69,9 @@ public class HRMSUtils {
 	}
 
 	public String generateMobileNumber() {
-		Random random = new Random();
-		int min = 100000000;
-		int max = 999999999;
-		int mobileNumber = random.nextInt(max - min + 1) + min;
-		return Integer.toString(mobileNumber);
+		long min = Long.parseLong(minMobileNumber);
+		long max = Long.parseLong(maxMobileNumber);
+		long mobileNumber = ThreadLocalRandom.current().nextLong(min, max + 1);
+		return Long.toString(mobileNumber);
 	}
 }
