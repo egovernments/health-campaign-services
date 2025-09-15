@@ -124,6 +124,7 @@ const config = {
     idGenHost: process.env.EGOV_IDGEN_HOST || "https://unified-dev.digit.org/",
     facilityHost: process.env.EGOV_FACILITY_HOST || "https://unified-dev.digit.org/",
     boundaryHost: process.env.EGOV_BOUNDARY_HOST || "https://unified-dev.digit.org/",
+    excelIngestionHost: process.env.EXCEL_INGESTION_HOST || "https://unified-dev.digit.org/",
     projectHost: process.env.EGOV_PROJECT_HOST || "https://unified-dev.digit.org/",
     userHost: process.env.EGOV_USER_HOST || "https://unified-dev.digit.org/",
     productHost: process.env.EGOV_PRODUCT_HOST || "https://unified-dev.digit.org/",
@@ -171,7 +172,8 @@ const config = {
     planFacilitySearch: process.env.EGOV_PLAN_FACILITY_SEARCH || "plan-service/plan/facility/_search",
     planConfigSearch: process.env.EGOV_PLAN_FACILITY_CONFIG_SEARCH || "plan-service/config/_search",
     planSearch: process.env.EGOV_PLAN_SEARCH || "plan-service/plan/_search",
-    censusSearch: process.env.EGOV_CENSUS_SEARCH || "census-service/_search"
+    censusSearch: process.env.EGOV_CENSUS_SEARCH || "census-service/_search",
+    excelIngestionSheetSearch: process.env.EXCEL_INGESTION_SHEET_SEARCH || "excel-ingestion/v1/data/sheet/_search"
   },
   // Values configuration
   values: {

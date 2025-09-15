@@ -33,7 +33,7 @@ public class SheetDataSearchCriteria {
 
     @JsonProperty("limit")
     @Min(value = 1, message = "SHEET_DATA_INVALID_LIMIT")
-    @Max(value = 1000, message = "SHEET_DATA_INVALID_LIMIT")
+    @Max(value = 100000, message = "SHEET_DATA_INVALID_LIMIT")
     private Integer limit;
 
     @JsonProperty("offset")
