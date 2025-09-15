@@ -27,9 +27,9 @@ public class ExcelIngestionApplication {
 
     @Bean
     public CacheManager cacheManager() {
-        CaffeineCacheManager cacheManager = new CaffeineCacheManager("localizationMessages", "boundaryHierarchy", "boundaryRelationship");
+        CaffeineCacheManager cacheManager = new CaffeineCacheManager("localizationMessages", "boundaryHierarchy", "boundaryRelationship", "campaignCache");
         cacheManager.setCaffeine(Caffeine.newBuilder()
-                .expireAfterWrite(1, TimeUnit.HOURS)
+                .expireAfterWrite(15, TimeUnit.MINUTES)  // Campaign cache expires in 15 minutes
                 .maximumSize(100));
         return cacheManager;
     }

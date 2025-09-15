@@ -22,6 +22,16 @@ public class ErrorConstants {
     public static final String BOUNDARY_HIERARCHY_NOT_FOUND = "BOUNDARY_HIERARCHY_NOT_FOUND";
     public static final String BOUNDARY_HIERARCHY_NOT_FOUND_MESSAGE = "Boundary hierarchy not found for type: {0}";
     
+    // Campaign Service Errors
+    public static final String CAMPAIGN_SERVICE_ERROR = "CAMPAIGN_SERVICE_ERROR";
+    public static final String CAMPAIGN_SERVICE_ERROR_MESSAGE = "Error while fetching campaign data";
+    
+    public static final String CAMPAIGN_NOT_FOUND = "CAMPAIGN_NOT_FOUND";
+    public static final String CAMPAIGN_NOT_FOUND_MESSAGE = "Campaign not found with ID: {0} in tenant: {1}";
+    
+    public static final String CAMPAIGN_DATA_INCOMPLETE = "CAMPAIGN_DATA_INCOMPLETE";
+    public static final String CAMPAIGN_DATA_INCOMPLETE_MESSAGE = "Campaign found but required data (projectType/boundaries) is missing for campaign ID: {0}";
+    
     // Localization Service Errors
     public static final String LOCALIZATION_SERVICE_ERROR = "LOCALIZATION_SERVICE_ERROR";
     public static final String LOCALIZATION_SERVICE_ERROR_MESSAGE = "Error while fetching localization data";

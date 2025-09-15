@@ -34,6 +34,9 @@ public class ExcelIngestionConfig {
     @Value("${egov.mdms.search.path}")
     private String mdmsSearchPath;
 
+    @Value("${egov.campaign.host}")
+    private String campaignHost;
+
     @Value("${excel.row.limit:5000}")
     private int excelRowLimit;
 

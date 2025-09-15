@@ -36,6 +36,32 @@ public class ApiPayloadBuilder {
     }
 
     /**
+     * Creates campaign search API payload.
+     */
+    public Map<String, Object> createCampaignSearchPayload(RequestInfo requestInfo,
+                                                           String tenantId,
+                                                           String[] ids,
+                                                           Boolean isActive,
+                                                           Integer limit,
+                                                           Integer offset) {
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("RequestInfo", requestInfo);
+
+        Map<String, Object> searchCriteria = new HashMap<>();
+        searchCriteria.put("tenantId", tenantId);
+        if (ids != null) searchCriteria.put("ids", ids);
+        if (isActive != null) searchCriteria.put("isActive", isActive);
+
+        Map<String, Object> pagination = new HashMap<>();
+        if (limit != null) pagination.put("limit", limit);
+        if (offset != null) pagination.put("offset", offset);
+        if (!pagination.isEmpty()) searchCriteria.put("pagination", pagination);
+
+        payload.put("CampaignDetails", searchCriteria);
+        return payload;
+    }
+
+    /**
      * Creates relationship search API payload.
      *
      * @param requestInfo The RequestInfo object
