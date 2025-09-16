@@ -12,6 +12,7 @@ import { enrichProjectDetailsFromCampaignDetails } from './transforms/projectTyp
 import { confirmProjectParentCreation } from '../api/campaignApis';
 import { httpRequest } from './request';
 import { fetchProjectsWithBoundaryCodeAndReferenceId } from './onGoingCampaignUpdateUtils';
+import { v4 as uuidv4 } from 'uuid';
 import config from '../config';
 
 /**
@@ -1671,10 +1672,14 @@ async function createFacilitiesFromFacilityData(campaignDetails: any, tenantId: 
             
             logger.info(`Sending facility batch ${batchNumber}/${totalBatches} to Kafka: ${batch.length} facilities`);
             
+            // Use random UUID as partition key for load balancing across consumers
+            const partitionKey = uuidv4();
+            
             await produceModifiedMessages(
                 batchMessage, 
                 config.kafka.KAFKA_FACILITY_CREATE_BATCH_TOPIC, 
-                tenantId
+                tenantId,
+                partitionKey
             );
         }
         
