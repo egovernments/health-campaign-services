@@ -5,6 +5,7 @@ import { shutdownGracefully } from '../utils/genericUtils';
 import { handleCampaignMapping, handleMappingTaskForCampaign } from '../utils/campaignMappingUtils';
 import { handleTaskForCampaign } from '../utils/taskUtils';
 import { handleProcessingResult } from '../utils/processingResultHandler';
+import { handleFacilityBatch } from '../utils/facilityBatchHandler';
 
 
 const kafka = new Kafka({
@@ -21,7 +22,8 @@ const topicNames = [
     config.kafka.KAFKA_START_ADMIN_CONSOLE_TASK_TOPIC,
     config.kafka.KAFKA_START_ADMIN_CONSOLE_MAPPING_TASK_TOPIC,
     config.kafka.KAFKA_TEST_TOPIC,
-    config.kafka.KAFKA_HCM_PROCESSING_RESULT_TOPIC
+    config.kafka.KAFKA_HCM_PROCESSING_RESULT_TOPIC,
+    config.kafka.KAFKA_FACILITY_CREATE_BATCH_TOPIC
 ];
 
 
@@ -102,6 +104,9 @@ async function processMessageKJS(topic: string, message: { value: Buffer | null 
                 break;
             case config.kafka.KAFKA_HCM_PROCESSING_RESULT_TOPIC:
                 handleProcessingResult(messageObject);
+                break;
+            case config.kafka.KAFKA_FACILITY_CREATE_BATCH_TOPIC:
+                handleFacilityBatch(messageObject);
                 break;
             default:
                 logger.warn(`Unhandled topic: ${topic}`);

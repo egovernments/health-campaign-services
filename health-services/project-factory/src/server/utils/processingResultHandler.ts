@@ -12,8 +12,6 @@ import { enrichProjectDetailsFromCampaignDetails } from './transforms/projectTyp
 import { confirmProjectParentCreation } from '../api/campaignApis';
 import { httpRequest } from './request';
 import { fetchProjectsWithBoundaryCodeAndReferenceId } from './onGoingCampaignUpdateUtils';
-import { DataTransformer } from './transFormUtil';
-import { transformConfigs } from '../config/transformConfigs';
 import config from '../config';
 
 /**
@@ -1054,13 +1052,12 @@ async function triggerBackgroundResourceCreationFlow(
             try {
                 logger.info('=== BACKGROUND RESOURCE CREATION FLOW STARTED ===');
                 
-                // Create Projects from boundary data
-                logger.info('Creating projects from boundary data...');
-                await createProjectsFromBoundaryData(campaignDetails, tenantId);
-
-                // Create Facilities from facility data
-                logger.info('Creating facilities from facility data...');
-                await createFacilitiesFromFacilityData(campaignDetails, tenantId);
+                // Create Projects and Facilities in parallel
+                logger.info('Creating projects and facilities in parallel...');
+                await Promise.all([
+                    createProjectsFromBoundaryData(campaignDetails, tenantId),
+                    createFacilitiesFromFacilityData(campaignDetails, tenantId)
+                ]);
                 
                 
                 logger.info('=== BACKGROUND RESOURCE CREATION FLOW COMPLETED SUCCESSFULLY ===');
@@ -1612,14 +1609,16 @@ async function processProjectUpdateInOrder(
 }
 
 /**
- * Create facilities from facility data following facility-processClass pattern
+ * Create facilities via Kafka batch processing
  */
 async function createFacilitiesFromFacilityData(campaignDetails: any, tenantId: string): Promise<void> {
     try {
         const campaignNumber = campaignDetails.campaignNumber;
+        const campaignId = campaignDetails.id;
+        const parentCampaignId = campaignDetails.parentId;
         const userUuid = campaignDetails?.auditDetails?.createdBy;
         
-        logger.info(`Creating facilities for campaign: ${campaignNumber}`);
+        logger.info(`Creating facilities for campaign: ${campaignNumber} via Kafka batches`);
         
         // Get all existing facilities for this campaign from campaign data table
         const allCurrentFacilities = await getRelatedDataWithCampaign("facility", campaignNumber, tenantId);
@@ -1631,15 +1630,6 @@ async function createFacilitiesFromFacilityData(campaignDetails: any, tenantId: 
         
         logger.info(`Found ${allCurrentFacilities.length} facility records in campaign data`);
         
-        // Map facility unique identifiers to existing data
-        const uniqueKeyAndFacilityMap: Record<string, any> = {};
-        for (const facility of allCurrentFacilities) {
-            const uniqueKey = facility?.uniqueIdentifier;
-            if (uniqueKey) {
-                uniqueKeyAndFacilityMap[uniqueKey] = facility;
-            }
-        }
-        
         // Filter facilities that need creation (pending or failed status)
         const facilitiesToCreate = allCurrentFacilities.filter(
             (f: any) => f?.status === dataRowStatuses.pending || f?.status === dataRowStatuses.failed
@@ -1650,148 +1640,49 @@ async function createFacilitiesFromFacilityData(campaignDetails: any, tenantId: 
             return;
         }
         
-        logger.info(`${facilitiesToCreate.length} facilities to create`);
+        logger.info(`${facilitiesToCreate.length} facilities to create via Kafka batches`);
         
-        // Transform facility data for API calls
-        const facilityRowDatas = facilitiesToCreate.map((facility: any) => facility?.data);
+        // Send facility batches to Kafka topic for processing
+        const BATCH_SIZE = 30;
+        const totalBatches = Math.ceil(facilitiesToCreate.length / BATCH_SIZE);
         
-        // Get transformer config for facilities
-        const transformConfig = transformConfigs?.["FacilityUnified"];
-        if (!transformConfig) {
-            throw new Error('Facility transform configuration not found');
-        }
-        
-        transformConfig.metadata.tenantId = tenantId;
-        transformConfig.metadata.hierarchy = campaignDetails.hierarchyType;
-        
-        const transformer = new DataTransformer(transformConfig);
-        
-        logger.info("Transforming facilities...");
-        const transformedFacilities = await transformer.transform(facilityRowDatas);
-        logger.info(`${transformedFacilities?.length} transformed facilities`);
-        
-        // Create facilities in batches
-        const BATCH_SIZE = 30; 
-        const successfullyCreatedFacilities: any[] = [];
-        
-        for (let i = 0; i < transformedFacilities.length; i += BATCH_SIZE) {
-            const batch = transformedFacilities.slice(i, i + BATCH_SIZE);
+        for (let i = 0; i < facilitiesToCreate.length; i += BATCH_SIZE) {
+            const batch = facilitiesToCreate.slice(i, i + BATCH_SIZE);
             const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
-            const totalBatches = Math.ceil(transformedFacilities.length / BATCH_SIZE);
             
-            logger.info(`Processing facility batch ${batchNumber}/${totalBatches}: ${batch.length} facilities`);
-            
-            // Create promises for parallel execution
-            const facilityPromises = batch.map((facilityItem : any) =>
-                createSingleFacility(
-                    facilityItem?.Facility,
-                    uniqueKeyAndFacilityMap,
-                    userUuid
-                )
-            );
-            
-            // Execute batch in parallel
-            const batchResults = await Promise.allSettled(facilityPromises);
-            
-            // Process results
-            let successCount = 0;
-            let failureCount = 0;
-            
-            batchResults.forEach((result, index) => {
-                if (result.status === 'fulfilled' && result.value) {
-                    successfullyCreatedFacilities.push(result.value);
-                    successCount++;
-                } else {
-                    failureCount++;
-                    const facilityName = batch[index]?.Facility?.name;
-                    logger.error(`Failed to create facility ${facilityName}:`, result.status === 'rejected' ? result.reason : 'Unknown error');
-                }
+            // Create facility data map for this batch
+            const facilityData: Record<string, any> = {};
+            batch.forEach(facility => {
+                const uniqueIdentifier = facility.uniqueIdentifier;
+                facilityData[uniqueIdentifier] = facility; // campaignRecord
             });
             
-            logger.info(`Facility batch ${batchNumber}/${totalBatches} completed: ${successCount} success, ${failureCount} failed`);
+            // Send batch to Kafka
+            const batchMessage = {
+                tenantId,
+                campaignNumber,
+                campaignId,
+                parentCampaignId,
+                useruuid: userUuid,
+                facilityData,
+                batchNumber,
+                totalBatches
+            };
             
-            // Update successful facilities in database
-            if (successfullyCreatedFacilities.length > 0) {
-                await persistDataInBatches(successfullyCreatedFacilities, config.kafka.KAFKA_UPDATE_SHEET_DATA_TOPIC, tenantId);
-                // Clear array for next batch
-                successfullyCreatedFacilities.length = 0;
-            }
+            logger.info(`Sending facility batch ${batchNumber}/${totalBatches} to Kafka: ${batch.length} facilities`);
             
-            // Small delay between batches
-            if (i + BATCH_SIZE < transformedFacilities.length) {
-                await new Promise(resolve => setTimeout(resolve, 100));
-            }
+            await produceModifiedMessages(
+                batchMessage, 
+                config.kafka.KAFKA_FACILITY_CREATE_BATCH_TOPIC, 
+                tenantId
+            );
         }
         
-        logger.info('Facility creation from facility data completed successfully');
+        logger.info(`All ${totalBatches} facility batches sent to Kafka for processing`);
         
     } catch (error) {
-        logger.error('Error creating facilities from facility data:', error);
+        logger.error('Error sending facilities to Kafka:', error);
         throw error;
     }
 }
 
-/**
- * Create a single facility following facility-processClass createFacilitiesOneByOne pattern
- */
-async function createSingleFacility(
-    facilityData: any,
-    uniqueKeyAndFacilityMap: Record<string, any>,
-    userUuid: string
-): Promise<any | null> {
-    try {
-        const facilityName = facilityData?.name;
-        
-        if (!facilityName) {
-            logger.warn('No facility name found for facility creation');
-            return null;
-        }
-        
-        // Create facility via API
-        const response = await createFacilityOneByOne(facilityData, userUuid);
-        const createdFacility = response?.Facility;
-        
-        if (createdFacility) {
-            // Update the existing facility record with created facility ID
-            if (uniqueKeyAndFacilityMap[facilityName]) {
-                const existingFacility = uniqueKeyAndFacilityMap[facilityName];
-                existingFacility.status = dataRowStatuses.completed;
-                existingFacility.data = {
-                    ...existingFacility.data,
-                    HCM_ADMIN_CONSOLE_FACILITY_CODE: createdFacility?.id
-                };
-                existingFacility.uniqueIdAfterProcess = createdFacility?.id;
-                
-                logger.info(`✅ Facility created: ${facilityName} with ID: ${createdFacility.id}`);
-                return existingFacility;
-            }
-        }
-        
-        return null;
-        
-    } catch (error) {
-        logger.error(`Error creating single facility:`, error);
-        throw error;
-    }
-}
-
-/**
- * Create facility via API call following facility-processClass pattern
- */
-async function createFacilityOneByOne(facility: any, userUuid: string): Promise<any> {
-    const url = config.host.facilityHost + config.paths.facilityCreate;
-    
-    const requestBody = {
-        RequestInfo: JSON.parse(JSON.stringify(defaultRequestInfo?.RequestInfo)),
-        Facility: facility
-    };
-    requestBody.RequestInfo.userInfo.uuid = userUuid;
-    
-    try {
-        const response = await httpRequest(url, requestBody);
-        return response;
-    } catch (error: any) {
-        logger.error("Facility creation failed:", error);
-        throw new Error(error);
-    }
-}
