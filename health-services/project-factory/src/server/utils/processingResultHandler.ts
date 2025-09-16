@@ -1298,7 +1298,7 @@ function topologicallySortBoundaries(currentBoundaryData: any[], boundaryMap: Re
 }
 
 /**
- * Process project creation in topological order (parents first)
+ * Process project creation level-wise with batching for performance
  */
 async function processProjectCreationInOrder(
     sortedBoundaryData: any[],
@@ -1310,81 +1310,230 @@ async function processProjectCreationInOrder(
     boundaryMap: Record<string, { type: string; parent: string | null; projectId?: string }>,
     useruuid: string
 ) {
-    logger.info("Processing project creation in order");
-    for (const boundaryData of sortedBoundaryData) {
-        const data = boundaryData?.data;
-        const boundaryCode = data?.["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"];
-        try {
-            Projects[0].address = {
+    logger.info("Processing project creation level-wise with batching");
+    
+    // Group boundaries by hierarchy level
+    const boundariesByLevel = groupBoundariesByLevel(sortedBoundaryData, boundaryMap);
+    
+    logger.info(`Grouped boundaries into ${boundariesByLevel.length} levels`);
+    
+    // Process each level sequentially, but within each level process in batches with Promise.all
+    for (let levelIndex = 0; levelIndex < boundariesByLevel.length; levelIndex++) {
+        const levelBoundaries = boundariesByLevel[levelIndex];
+        logger.info(`Processing level ${levelIndex + 1}: ${levelBoundaries.length} boundaries`);
+        
+        // Process this level in batches of 20 using Promise.all
+        await processLevelInBatches(
+            levelBoundaries, 
+            tenantId, 
+            campaignNumber, 
+            targetConfig, 
+            projectCreateBody, 
+            Projects, 
+            boundaryMap, 
+            useruuid,
+            levelIndex + 1
+        );
+        
+        logger.info(`✅ Level ${levelIndex + 1} completed`);
+    }
+    
+    logger.info("All levels project creation completed");
+}
+
+/**
+ * Group boundaries by hierarchy level for parallel processing
+ */
+function groupBoundariesByLevel(
+    sortedBoundaryData: any[], 
+    boundaryMap: Record<string, { type: string; parent: string | null; projectId?: string }>
+): any[][] {
+    const boundariesByLevel: any[][] = [];
+    const processedCodes = new Set<string>();
+    
+    // Process boundaries level by level
+    let currentLevelBoundaries = sortedBoundaryData.filter(bd => {
+        const code = bd?.data?.["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"];
+        const parent = boundaryMap?.[code]?.parent;
+        return !parent; // Root level (no parent)
+    });
+    
+    while (currentLevelBoundaries.length > 0) {
+        boundariesByLevel.push([...currentLevelBoundaries]);
+        
+        // Mark these as processed
+        currentLevelBoundaries.forEach(bd => {
+            const code = bd?.data?.["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"];
+            processedCodes.add(code);
+        });
+        
+        // Find next level boundaries (whose parents are now processed)
+        currentLevelBoundaries = sortedBoundaryData.filter(bd => {
+            const code = bd?.data?.["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"];
+            const parent = boundaryMap?.[code]?.parent;
+            
+            return !processedCodes.has(code) && parent && processedCodes.has(parent);
+        });
+    }
+    
+    return boundariesByLevel;
+}
+
+/**
+ * Process a level of boundaries in batches using Promise.all
+ */
+async function processLevelInBatches(
+    levelBoundaries: any[],
+    tenantId: string,
+    campaignNumber: string,
+    targetConfig: any,
+    projectCreateBody: any,
+    Projects: any,
+    boundaryMap: Record<string, { type: string; parent: string | null; projectId?: string }>,
+    useruuid: string,
+    levelNumber: number
+) {
+    const BATCH_SIZE = 20;
+    
+    for (let i = 0; i < levelBoundaries.length; i += BATCH_SIZE) {
+        const batch = levelBoundaries.slice(i, i + BATCH_SIZE);
+        const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
+        const totalBatches = Math.ceil(levelBoundaries.length / BATCH_SIZE);
+        
+        logger.info(`Processing level ${levelNumber} batch ${batchNumber}/${totalBatches}: ${batch.length} projects`);
+        
+        // Create promises for parallel execution
+        const batchPromises = batch.map(boundaryData => 
+            createSingleProject(
+                boundaryData,
                 tenantId,
-                boundary: boundaryCode,
-                boundaryType: boundaryMap[boundaryCode]?.type,
-            };
-
-            const parent = boundaryMap?.[boundaryCode]?.parent;
-            if (parent && boundaryMap?.[parent]?.projectId) {
-                const parentProjectId = boundaryMap?.[parent]?.projectId;
-                Projects[0].parent = parentProjectId;
-                if(!config.values.skipParentProjectConfirmation) {
-                    await confirmProjectParentCreation(tenantId, useruuid, parentProjectId);
-                }
-            }
-            else if (parent && !boundaryMap?.[parent]?.projectId) {
-                throw new Error(`Parent ${parent} of boundary ${boundaryCode} not found in boundaryMap`);
-            }
-            else {
-                Projects[0].parent = null;
-            }
-
-            Projects[0].referenceID = campaignNumber;
-            const targetMap: Record<string, number> = {};
-
-            for (const beneficiary of targetConfig.beneficiaries) {
-                for (const col of beneficiary.columns) {
-                    const value = data[col];
-                    if (value == 0 || value) {
-                        targetMap[beneficiary.beneficiaryType] = (targetMap[beneficiary.beneficiaryType] || 0) + value;
-                    } else {
-                        logger.warn(`Target missing for beneficiary ${beneficiary.beneficiaryType}, column ${col}, boundary ${boundaryCode}`);
-                    }
-                }
-            }
-
-            Projects[0].targets = Object.entries(targetMap).map(([key, val]) => ({
-                beneficiaryType: key,
-                targetNo: val
-            }));
-
-            const response = await httpRequest(
-                config.host.projectHost + config.paths.projectCreate,
+                campaignNumber,
+                targetConfig,
                 projectCreateBody,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                true
-            );
-
-            const createdProjectId = response?.Project?.[0]?.id;
-            if (createdProjectId) {
-                logger.info(`✅ Project created: ${response?.Project[0]?.name} for boundary ${boundaryCode}`);
-                boundaryMap[boundaryCode].projectId = createdProjectId;
-                boundaryData.uniqueIdAfterProcess = createdProjectId;
-                boundaryData.status = dataRowStatuses.completed;
-                await produceModifiedMessages({ datas: [boundaryData] }, config.kafka.KAFKA_UPDATE_SHEET_DATA_TOPIC, tenantId);
+                Projects,
+                boundaryMap,
+                useruuid
+            )
+        );
+        
+        // Execute batch in parallel
+        const batchResults = await Promise.allSettled(batchPromises);
+        
+        // Process results
+        let successCount = 0;
+        let failureCount = 0;
+        
+        batchResults.forEach((result, index) => {
+            if (result.status === 'fulfilled') {
+                successCount++;
+            } else {
+                failureCount++;
+                const boundaryCode = batch[index]?.data?.["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"];
+                logger.error(`Failed to create project for boundary ${boundaryCode}:`, result.reason);
             }
-            else {
-                throw new Error(`Failed to create project for boundary ${boundaryCode}`);
-            }
-        } catch (error) {
-            console.error(`Error creating project for boundary ${boundaryCode}: ${error}`);
-            boundaryData.status = dataRowStatuses.failed;
-            await produceModifiedMessages({ datas: [boundaryData] }, config.kafka.KAFKA_UPDATE_SHEET_DATA_TOPIC, tenantId);
-            throw error;
+        });
+        
+        logger.info(`Level ${levelNumber} batch ${batchNumber}/${totalBatches} completed: ${successCount} success, ${failureCount} failed`);
+        
+        // Small delay between batches to avoid overwhelming the system
+        if (i + BATCH_SIZE < levelBoundaries.length) {
+            await new Promise(resolve => setTimeout(resolve, 100));
         }
     }
-    logger.info("Project creation completed");
+}
+
+/**
+ * Create a single project (extracted from the original loop)
+ */
+async function createSingleProject(
+    boundaryData: any,
+    tenantId: string,
+    campaignNumber: string,
+    targetConfig: any,
+    projectCreateBody: any,
+    Projects: any,
+    boundaryMap: Record<string, { type: string; parent: string | null; projectId?: string }>,
+    useruuid: string
+): Promise<void> {
+    const data = boundaryData?.data;
+    const boundaryCode = data?.["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"];
+    
+    try {
+        // Clone project template for this boundary
+        const projectTemplate = JSON.parse(JSON.stringify(Projects[0]));
+        
+        projectTemplate.address = {
+            tenantId,
+            boundary: boundaryCode,
+            boundaryType: boundaryMap[boundaryCode]?.type,
+        };
+
+        const parent = boundaryMap?.[boundaryCode]?.parent;
+        if (parent && boundaryMap?.[parent]?.projectId) {
+            const parentProjectId = boundaryMap?.[parent]?.projectId;
+            projectTemplate.parent = parentProjectId;
+            if(!config.values.skipParentProjectConfirmation) {
+                await confirmProjectParentCreation(tenantId, useruuid, parentProjectId);
+            }
+        }
+        else if (parent && !boundaryMap?.[parent]?.projectId) {
+            throw new Error(`Parent ${parent} of boundary ${boundaryCode} not found in boundaryMap`);
+        }
+        else {
+            projectTemplate.parent = null;
+        }
+
+        projectTemplate.referenceID = campaignNumber;
+        const targetMap: Record<string, number> = {};
+
+        for (const beneficiary of targetConfig.beneficiaries) {
+            for (const col of beneficiary.columns) {
+                const value = data[col];
+                if (value == 0 || value) {
+                    targetMap[beneficiary.beneficiaryType] = (targetMap[beneficiary.beneficiaryType] || 0) + value;
+                } else {
+                    logger.warn(`Target missing for beneficiary ${beneficiary.beneficiaryType}, column ${col}, boundary ${boundaryCode}`);
+                }
+            }
+        }
+
+        projectTemplate.targets = Object.entries(targetMap).map(([key, val]) => ({
+            beneficiaryType: key,
+            targetNo: val
+        }));
+
+        // Clone request body for this project
+        const requestBody = JSON.parse(JSON.stringify(projectCreateBody));
+        requestBody.Projects = [projectTemplate];
+
+        const response = await httpRequest(
+            config.host.projectHost + config.paths.projectCreate,
+            requestBody,
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            true
+        );
+
+        const createdProjectId = response?.Project?.[0]?.id;
+        if (createdProjectId) {
+            logger.info(`✅ Project created: ${response?.Project[0]?.name} for boundary ${boundaryCode}`);
+            boundaryMap[boundaryCode].projectId = createdProjectId;
+            boundaryData.uniqueIdAfterProcess = createdProjectId;
+            boundaryData.status = dataRowStatuses.completed;
+            await produceModifiedMessages({ datas: [boundaryData] }, config.kafka.KAFKA_UPDATE_SHEET_DATA_TOPIC, tenantId);
+        }
+        else {
+            throw new Error(`Failed to create project for boundary ${boundaryCode}`);
+        }
+    } catch (error) {
+        logger.error(`Error creating project for boundary ${boundaryCode}:`, error);
+        boundaryData.status = dataRowStatuses.failed;
+        await produceModifiedMessages({ datas: [boundaryData] }, config.kafka.KAFKA_UPDATE_SHEET_DATA_TOPIC, tenantId);
+        throw error;
+    }
 }
 
 /**
