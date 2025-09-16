@@ -2537,7 +2537,7 @@ export async function processAfterPersistNew(request: any, actionInUrl: any) {
           await createAllMappings(campaignDetails, request?.body?.parentCampaign || null, useruuid);
           await userCredGeneration(campaignDetails, useruuid, locale);
           await enrichAndPersistCampaignForCreateViaFlow2(campaignDetails, request?.body?.RequestInfo, request?.body?.parentCampaign || null, useruuid);
-          triggerUserCredentialEmailFlow(request); // not awaited = background
+          triggerUserCredentialEmailFlow(request?.body); // not awaited = background
         } catch (e) {
           console.log(e);
           logger.error("Async Background Flow Error:", e);
@@ -4643,5 +4643,8 @@ export {
   processFetchMicroPlan,
   updateCampaignAfterSearch,
   processBoundary,
-  getLocalizedNameOnlyIfMessagePresent
+  getLocalizedNameOnlyIfMessagePresent,
+  createAllResources,
+  createAllMappings,
+  userCredGeneration
 };

@@ -1,13 +1,17 @@
 import { logger } from './logger';
 import { searchSheetData } from './excelIngestionUtils';
 import { searchProjectTypeCampaignService } from '../service/campaignManageService';
-import { getRelatedDataWithCampaign, getMappingDataRelatedToCampaign } from './genericUtils';
+import { getRelatedDataWithCampaign, getMappingDataRelatedToCampaign, prepareProcessesInDb } from './genericUtils';
 import { produceModifiedMessages } from '../kafka/Producer';
 import { dataRowStatuses, mappingStatuses, usageColumnStatus } from '../config/constants';
-import { searchMDMSDataViaV2Api, searchBoundaryRelationshipData } from '../api/coreApis';
-import { populateBoundariesRecursively, getLocalizedName } from './campaignUtils';
+import { searchMDMSDataViaV2Api, searchBoundaryRelationshipData, defaultRequestInfo } from '../api/coreApis';
+import { populateBoundariesRecursively, getLocalizedName, enrichAndPersistCampaignWithError } from './campaignUtils';
 import { getLocalisationModuleName } from './localisationUtils';
 import Localisation from '../controllers/localisationController/localisation.controller';
+import { enrichProjectDetailsFromCampaignDetails } from './transforms/projectTypeUtils';
+import { confirmProjectParentCreation } from '../api/campaignApis';
+import { httpRequest } from './request';
+import { fetchProjectsWithBoundaryCodeAndReferenceId } from './onGoingCampaignUpdateUtils';
 import config from '../config';
 
 /**
@@ -151,14 +155,50 @@ export async function handleProcessingResult(messageObject: any) {
             return;
         }
         
-        // Fetch localization data first
+        // Fetch campaign details first
+        logger.info('=== FETCHING CAMPAIGN DETAILS ===');
+        const campaignSearchCriteria = {
+            tenantId: messageObject.tenantId,
+            ids: [messageObject.referenceId]
+        };
+        const campaignResponse = await searchProjectTypeCampaignService(campaignSearchCriteria);
+        const campaignDetails = campaignResponse?.CampaignDetails?.[0];
+        
+        if (!campaignDetails) {
+            logger.error(`No campaign found with campaignId: ${messageObject.referenceId}`);
+            return;
+        }
+        
+        logger.info(`Found campaign: ${campaignDetails.campaignName} (${campaignDetails.id})`);
+        
+        // Fetch parent campaign if exists
+        let parentCampaign = null;
+        if (campaignDetails.parentId) {
+            logger.info(`Fetching parent campaign with ID: ${campaignDetails.parentId}`);
+            try {
+                const parentCampaignResponse = await searchProjectTypeCampaignService({
+                    tenantId: messageObject.tenantId,
+                    ids: [campaignDetails.parentId]
+                });
+                parentCampaign = parentCampaignResponse?.CampaignDetails?.[0];
+                if (parentCampaign) {
+                    logger.info(`Found parent campaign: ${parentCampaign.campaignName}`);
+                } else {
+                    logger.warn(`Parent campaign not found for ID: ${campaignDetails.parentId}`);
+                }
+            } catch (error) {
+                logger.error(`Error fetching parent campaign: ${error}`);
+            }
+        }
+        
+        // Fetch localization data
         logger.info('=== FETCHING LOCALIZATION DATA ===');
         const locale = 'en_IN'; // Default locale
         const localizationMap = await fetchLocalizationData(messageObject.tenantId, messageObject.referenceId, locale);
         logger.info(`Localization data fetched with ${Object.keys(localizationMap).length} keys`);
         
-        // Search temp data and process campaign boundaries
-        logger.info('=== SEARCHING TEMP DATA AND PROCESSING CAMPAIGN BOUNDARIES ===');
+        // Search temp data and process campaign data
+        logger.info('=== SEARCHING TEMP DATA AND PROCESSING CAMPAIGN DATA ===');
         
         if (messageObject.referenceId && messageObject.fileStoreId && messageObject.tenantId) {
             const tempData = await searchSheetData(
@@ -175,24 +215,28 @@ export async function handleProcessingResult(messageObject: any) {
                 await Promise.all([
                     processCampaignBoundariesFromExcelData(
                         messageObject.tenantId,
-                        messageObject.referenceId,
                         messageObject.fileStoreId,
-                        localizationMap
+                        localizationMap,
+                        campaignDetails
                     ),
                     processCampaignFacilitiesFromExcelData(
                         messageObject.tenantId,
-                        messageObject.referenceId,
                         messageObject.fileStoreId,
-                        localizationMap
+                        localizationMap,
+                        campaignDetails
                     ),
                     processCampaignUsersFromExcelData(
                         messageObject.tenantId,
-                        messageObject.referenceId,
                         messageObject.fileStoreId,
-                        localizationMap
+                        localizationMap,
+                        campaignDetails
                     )
                 ]);
                 logger.info('=== ALL CAMPAIGN DATA PROCESSING COMPLETED ===');
+                
+                // Trigger background resource creation and mapping flow
+                logger.info('=== TRIGGERING BACKGROUND RESOURCE CREATION FLOW ===');
+                await triggerBackgroundResourceCreationFlow(messageObject.tenantId, campaignDetails, parentCampaign, locale);
             } else {
                 logger.warn('No temp data found for the given referenceId and fileStoreId');
             }
@@ -213,28 +257,15 @@ export async function handleProcessingResult(messageObject: any) {
  */
 async function processCampaignBoundariesFromExcelData(
     tenantId: string,
-    campaignId: string,
     fileStoreId: string,
-    localizationMap: Record<string, string>
+    localizationMap: Record<string, string>,
+    campaignDetails: any
 ): Promise<void> {
     try {
         logger.info('=== PROCESSING CAMPAIGN BOUNDARIES FROM EXCEL DATA ===');
         
-        // Step 1: Search campaign details using referenceId as campaignNumber
-        const campaignSearchCriteria = {
-            tenantId,
-            ids: [campaignId]
-        };
-
-        const campaignResponse = await searchProjectTypeCampaignService(campaignSearchCriteria);
-        const campaignDetails = campaignResponse?.CampaignDetails?.[0];
-
-        if (!campaignDetails) {
-            logger.error(`No campaign found with campaignId: ${campaignId}`);
-            return;
-        }
         const campaignNumber = campaignDetails.campaignNumber;
-        logger.info(`Found campaign: ${campaignDetails.campaignName} (${campaignDetails.id})`);
+        const campaignId = campaignDetails.id;
 
         // Step 2: Get target configuration from MDMS 
         const MdmsCriteria = {
@@ -303,16 +334,23 @@ async function processCampaignBoundariesFromExcelData(
 
         logger.info(`Found ${boundarySheetData.length} records in boundary hierarchy sheet`);
 
-        // Step 5: Extract boundary data from boundary hierarchy sheet
-        const boundaryDataList = extractBoundaryDataFromBoundarySheet(boundarySheetData, targetColumns);
+        // Step 5: Extract target data from sheet (only lowest level boundaries have targets)
+        const sheetTargetData = extractTargetDataFromBoundarySheet(boundarySheetData, targetColumns);
 
-        if (boundaryDataList.length === 0) {
-            logger.warn('No boundary hierarchy data found in sheets');
+        if (sheetTargetData.length === 0) {
+            logger.warn('No boundary target data found in sheets');
             return;
         }
 
-        // Step 5: Process boundary data and update eg_cm_campaign_data
-        await processBoundaryDataInCampaignTable(campaignNumber, tenantId, boundaryDataList, targetColumns);
+        logger.info(`Extracted target data for ${sheetTargetData.length} boundaries from sheet`);
+
+        // Step 6: Map targets to all enriched boundaries (cascade from children to parents)
+        const allBoundaryDataWithTargets = mapTargetsToEnrichedBoundaries(boundaries, sheetTargetData, targetColumns);
+
+        logger.info(`Mapped targets to ${allBoundaryDataWithTargets.length} total boundaries (all hierarchy levels)`);
+
+        // Step 7: Process all boundary data (with cascaded targets) and update eg_cm_campaign_data
+        await processBoundaryDataInCampaignTable(campaignNumber, tenantId, allBoundaryDataWithTargets, targetColumns);
 
         logger.info('=== CAMPAIGN BOUNDARY PROCESSING COMPLETED ===');
 
@@ -323,9 +361,9 @@ async function processCampaignBoundariesFromExcelData(
 }
 
 /**
- * Extract boundary data from boundary hierarchy sheet records
+ * Extract target data from boundary hierarchy sheet records (only lowest level boundaries)
  */
-function extractBoundaryDataFromBoundarySheet(sheetData: any[], targetColumns: string[]): any[] {
+function extractTargetDataFromBoundarySheet(sheetData: any[], targetColumns: string[]): any[] {
     const boundaryDataList: any[] = [];
     const BOUNDARY_CODE_COLUMN = 'HCM_ADMIN_CONSOLE_BOUNDARY_CODE';
     
@@ -358,6 +396,104 @@ function extractBoundaryDataFromBoundarySheet(sheetData: any[], targetColumns: s
 
     logger.info(`Extracted ${boundaryDataList.length} boundary records with targets from boundary hierarchy sheet`);
     return boundaryDataList;
+}
+
+/**
+ * Map targets to all enriched boundaries with cascading logic
+ * Following boundary-processClass enrichDatasForParents pattern
+ */
+function mapTargetsToEnrichedBoundaries(enrichedBoundaries: any[], sheetTargetData: any[], targetColumns: string[]): any[] {
+    const BOUNDARY_CODE_COLUMN = 'HCM_ADMIN_CONSOLE_BOUNDARY_CODE';
+    
+    // Step 1: Create target data array from sheet data (lowest level)
+    const datas: any[] = [];
+    sheetTargetData.forEach(({ boundaryCode, data }) => {
+        const targetData: any = { [BOUNDARY_CODE_COLUMN]: boundaryCode };
+        
+        targetColumns.forEach(col => {
+            targetData[col] = data[col] || 0;
+        });
+        
+        datas.push(targetData);
+    });
+    
+    // Step 2: Enrich datas for parent boundaries (cascade targets upward)
+    enrichDatasForParents(enrichedBoundaries, datas, targetColumns);
+    
+    // Step 3: Convert enriched data array to boundary data format
+    const allBoundaryDataWithTargets: any[] = [];
+    
+    datas.forEach(data => {
+        const boundaryCode = data[BOUNDARY_CODE_COLUMN];
+        allBoundaryDataWithTargets.push({
+            boundaryCode,
+            data
+        });
+    });
+    
+    return allBoundaryDataWithTargets;
+}
+
+/**
+ * Enrich data for parent boundaries by cascading targets from children
+ * Following boundary-processClass enrichDatasForParents logic
+ */
+function enrichDatasForParents(boundaries: any[], datas: any[], targetColumns: string[]) {
+    const BOUNDARY_CODE_COLUMN = 'HCM_ADMIN_CONSOLE_BOUNDARY_CODE';
+    const codeToChildren: Record<string, string[]> = {};
+    const codeToTarget: Record<string, Record<string, number>> = {};
+    const rootBoundaryCode = boundaries.find((b: any) => !b.parent)?.code;
+
+    // Step 1: Build parent → children map
+    for (const b of boundaries) {
+        if(!b.parent) continue;
+        if (!codeToChildren[b.parent]) codeToChildren[b.parent] = [];
+        codeToChildren[b.parent].push(b.code);
+    }
+
+    // Step 2: Initialize data for leaf nodes (from sheet)
+    for (const d of datas) {
+        const code = d[BOUNDARY_CODE_COLUMN];
+        codeToTarget[code] = {};
+
+        for (const key in d) {
+            if (key === BOUNDARY_CODE_COLUMN) continue;
+            const val = Number(d[key]);
+            if (!isNaN(val)) codeToTarget[code][key] = val;
+        }
+    }
+
+    // Step 3: DFS function to aggregate children's data
+    const dfs = (code: string): Record<string, number> => {
+        const result: Record<string, number> = { ...(codeToTarget[code] || {}) };
+
+        for (const child of codeToChildren[code] || []) {
+            const childData = dfs(child);
+            for (const key in childData) {
+                result[key] = (result[key] || 0) + childData[key];
+            }
+        }
+
+        codeToTarget[code] = result;
+        return result;
+    };
+
+    // Step 4: DFS traversal starting from root
+    if (rootBoundaryCode) {
+        dfs(rootBoundaryCode);
+    }
+
+    // Step 5: Convert aggregated map back to datas array (add parent boundaries)
+    for (const code in codeToTarget) {
+        if (!datas.find(d => d[BOUNDARY_CODE_COLUMN] === code)) {
+            datas.push({
+                [BOUNDARY_CODE_COLUMN]: code,
+                ...codeToTarget[code],
+            });
+        }
+    }
+    
+    logger.info(`Enriched data with cascaded targets for ${Object.keys(codeToTarget).length} total boundaries`);
 }
 
 /**
@@ -471,28 +607,15 @@ async function persistDataInBatches(dataList: any[], topic: string, tenantId: st
  */
 async function processCampaignFacilitiesFromExcelData(
     tenantId: string,
-    campaignId: string,
     fileStoreId: string,
-    localizationMap: Record<string, string>
+    localizationMap: Record<string, string>,
+    campaignDetails: any
 ): Promise<void> {
     try {
         logger.info('=== PROCESSING CAMPAIGN FACILITIES FROM EXCEL DATA ===');
         
-        // Search campaign details
-        const campaignSearchCriteria = {
-            tenantId,
-            ids: [campaignId]
-        };
-
-        const campaignResponse = await searchProjectTypeCampaignService(campaignSearchCriteria);
-        const campaignDetails = campaignResponse?.CampaignDetails?.[0];
-
-        if (!campaignDetails) {
-            logger.error(`No campaign found with campaignId: ${campaignId}`);
-            return;
-        }
-        
         const campaignNumber = campaignDetails.campaignNumber;
+        const campaignId = campaignDetails.id;
         logger.info(`Processing facilities for campaign: ${campaignDetails.campaignName}`);
 
         // Search facilities sheet data
@@ -704,28 +827,15 @@ async function processFacilityBoundaryMappings(
  */
 async function processCampaignUsersFromExcelData(
     tenantId: string,
-    campaignId: string,
     fileStoreId: string,
-    localizationMap: Record<string, string>
+    localizationMap: Record<string, string>,
+    campaignDetails: any
 ): Promise<void> {
     try {
         logger.info('=== PROCESSING CAMPAIGN USERS FROM EXCEL DATA ===');
         
-        // Search campaign details
-        const campaignSearchCriteria = {
-            tenantId,
-            ids: [campaignId]
-        };
-
-        const campaignResponse = await searchProjectTypeCampaignService(campaignSearchCriteria);
-        const campaignDetails = campaignResponse?.CampaignDetails?.[0];
-
-        if (!campaignDetails) {
-            logger.error(`No campaign found with campaignId: ${campaignId}`);
-            return;
-        }
-        
         const campaignNumber = campaignDetails.campaignNumber;
+        const campaignId = campaignDetails.id;
         logger.info(`Processing users for campaign: ${campaignDetails.campaignName}`);
 
         // Search users sheet data
@@ -933,4 +1043,433 @@ async function processUserBoundaryMappings(
         logger.info(`Marking ${toBeDemapped.length} user-boundary mappings for demapping`);
         await persistDataInBatches(toBeDemapped, config.kafka.KAFKA_UPDATE_MAPPING_DATA_TOPIC, tenantId);
     }
+}
+
+/**
+ * Trigger background resource creation flow after data processing
+ */
+async function triggerBackgroundResourceCreationFlow(
+    tenantId: string,
+    campaignDetails: any,
+    parentCampaign: any,
+    locale: string
+): Promise<void> {
+    try {
+        const useruuid = campaignDetails?.auditDetails?.createdBy;
+        const campaignNumber = campaignDetails.campaignNumber;
+        
+        logger.info(`Triggering background resource creation for campaign: ${campaignDetails.campaignName} (${campaignNumber})`);
+        if (parentCampaign) {
+            logger.info(`With parent campaign: ${parentCampaign.campaignName}`);
+        }
+
+        // Prepare DB setup synchronously
+        await prepareProcessesInDb(campaignNumber, tenantId);
+        
+        // Use setImmediate to run resource creation in background without blocking
+        setImmediate(async () => {
+            try {
+                logger.info('=== BACKGROUND RESOURCE CREATION FLOW STARTED ===');
+                
+                // Create Projects from boundary data
+                logger.info('Creating projects from boundary data...');
+                await createProjectsFromBoundaryData(campaignDetails, tenantId);
+                
+                logger.info('=== BACKGROUND RESOURCE CREATION FLOW COMPLETED SUCCESSFULLY ===');
+                
+            } catch (error) {
+                logger.error('Error in background resource creation flow:', error);
+                try {
+                    const mockRequestBody = {
+                        CampaignDetails: [campaignDetails],
+                        RequestInfo: { userInfo: { uuid: useruuid } },
+                        parentCampaign: parentCampaign
+                    };
+                    await enrichAndPersistCampaignWithError(mockRequestBody, error);
+                } catch (errorHandlingError) {
+                    logger.error('Error in error handling:', errorHandlingError);
+                }
+            }
+        });
+        
+        logger.info('Background resource creation flow triggered successfully');
+        
+    } catch (error) {
+        logger.error('Error triggering background resource creation flow:', error);
+    }
+}
+
+/**
+ * Create projects from boundary data following the same pattern as boundary-processClass
+ */
+async function createProjectsFromBoundaryData(campaignDetails: any, tenantId: string): Promise<void> {
+    try {
+        const campaignNumber = campaignDetails.campaignNumber;
+        
+        // Get target configuration from MDMS 
+        const MdmsCriteria = {
+            MdmsCriteria: {
+                tenantId,
+                schemaCode: "HCM-ADMIN-CONSOLE.targetConfigs",
+                uniqueIdentifiers: [campaignDetails.projectType]
+            }
+        };
+        
+        const response = await searchMDMSDataViaV2Api(MdmsCriteria, true);
+        if (!response?.mdms?.[0]?.data) {
+            logger.error(`Target Config not found for ${campaignDetails.projectType}`);
+            return;
+        }
+        const targetConfig = response.mdms[0].data;
+        
+        // Get enriched boundaries
+        const boundaryRelationshipResponse: any = await searchBoundaryRelationshipData(
+            tenantId, campaignDetails.hierarchyType, true, true, false
+        );
+        const boundaries = campaignDetails?.boundaries || [];
+        const boundaryChildren: Record<string, boolean> = boundaries.reduce((acc: any, boundary: any) => {
+            acc[boundary.code] = boundary.includeAllChildren;
+            return acc;
+        }, {});
+        const boundaryCodes: any = new Set(boundaries.map((b: any) => b.code));
+        await populateBoundariesRecursively(
+            boundaryRelationshipResponse?.TenantBoundary?.[0]?.boundary?.[0],
+            boundaries,
+            boundaryChildren[boundaryRelationshipResponse?.TenantBoundary?.[0]?.boundary?.[0]?.code],
+            boundaryCodes,
+            boundaryChildren
+        );
+        
+        // Get current boundary data using the same pattern as process classes
+        const currentBoundaryData = await getRelatedDataWithCampaign('boundary', campaignNumber, tenantId);
+        logger.info(`Found ${currentBoundaryData.length} boundary records for project creation`);
+        
+        if (currentBoundaryData.length === 0) {
+            logger.warn('No boundary data found for project creation');
+            return;
+        }
+        
+        // Create and update projects using the boundary data
+        await createAndUpdateProjects(currentBoundaryData, campaignDetails, boundaries, targetConfig);
+        
+        logger.info('Project creation from boundary data completed successfully');
+        
+    } catch (error) {
+        logger.error('Error creating projects from boundary data:', error);
+        throw error;
+    }
+}
+
+/**
+ * Create and update projects following boundary-processClass pattern
+ */
+async function createAndUpdateProjects(currentBoundaryData: any[], campaignDetails: any, boundaries: any, targetConfig: any): Promise<void> {
+    try {
+        logger.info('Creating and updating projects...');
+        
+        // Get boundary children to type and parent map
+        const boundaryChildrenToTypeAndParentMap: any = getBoundaryChildrenToTypeAndParentMap(boundaries, currentBoundaryData);
+        
+        // Prepare project creation context
+        const { projectCreateBody, Projects } = await prepareProjectCreationContext(campaignDetails);
+        
+        // Topologically sort boundaries to ensure parent projects are created first
+        const sortedBoundaryData = topologicallySortBoundaries(currentBoundaryData, boundaryChildrenToTypeAndParentMap);
+        
+        // Filter for creation (no uniqueIdAfterProcess) and updates (has uniqueIdAfterProcess)
+        const sortedBoundaryDataForCreate = sortedBoundaryData.filter((d: any) => !d?.uniqueIdAfterProcess && (d?.status == dataRowStatuses.pending || d?.status == dataRowStatuses.failed));
+        const sortedBoundaryDataForUpdate = sortedBoundaryData.filter((d: any) => d?.uniqueIdAfterProcess && (d?.status == dataRowStatuses.pending || d?.status == dataRowStatuses.failed));
+        
+        const useruuid = campaignDetails?.auditDetails?.createdBy;
+        
+        logger.info(`Processing ${sortedBoundaryDataForCreate.length} boundaries for project creation`);
+        logger.info(`Processing ${sortedBoundaryDataForUpdate.length} boundaries for project updates`);
+        
+        // Process project creation in topological order (parents first)
+        await processProjectCreationInOrder(sortedBoundaryDataForCreate, campaignDetails?.tenantId, campaignDetails?.campaignNumber, targetConfig, projectCreateBody, Projects, boundaryChildrenToTypeAndParentMap, useruuid);
+        
+        // Process project updates
+        await processProjectUpdateInOrder(sortedBoundaryDataForUpdate, campaignDetails?.tenantId, campaignDetails?.campaignNumber, targetConfig, useruuid);
+        
+        logger.info('Project creation and updates completed successfully');
+        
+    } catch (error) {
+        logger.error('Error in createAndUpdateProjects:', error);
+        throw error;
+    }
+}
+
+/**
+ * Get boundary children to type and parent map from boundaries and current data
+ */
+function getBoundaryChildrenToTypeAndParentMap(boundaries: any[], currentBoundaryData: any[]) {
+    const boundaryToProjectId = currentBoundaryData.reduce((acc: Record<string, string>, boundary: any) => {
+        const code = boundary?.data?.["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"];
+        const id = boundary?.uniqueIdAfterProcess;
+
+        if (code && id) {
+            acc[code] = id;
+        }
+
+        return acc;
+    }, {});
+    
+    const boundaryChildrenToTypeAndParentMap = boundaries.reduce(
+        (acc: any, boundary: any) => {
+            const code = boundary?.code;
+            if (code) {
+                acc[code] = {
+                    type: boundary?.type || "",
+                    parent: boundary?.parent || null,
+                    projectId: boundaryToProjectId[code] || null
+                };
+            }
+            return acc;
+        },
+        {}
+    );
+    return boundaryChildrenToTypeAndParentMap;
+}
+
+/**
+ * Prepare project creation context with enriched project details
+ */
+async function prepareProjectCreationContext(campaignDetails: any) {
+    const MdmsCriteria : any = {
+        tenantId: campaignDetails?.tenantId,
+        schemaCode: "HCM-PROJECT-TYPES.projectTypes",
+        filters: {
+            code: campaignDetails?.projectType
+        }
+    };
+
+    const mdmsResponse = await searchMDMSDataViaV2Api(MdmsCriteria, true);
+    if (!mdmsResponse?.mdms?.[0]?.data) {
+        throw new Error(`Error in fetching project types from mdms`);
+    }
+
+    const Projects = enrichProjectDetailsFromCampaignDetails(campaignDetails, mdmsResponse?.mdms?.[0]?.data);
+    const projectCreateBody = {
+        RequestInfo: { ...defaultRequestInfo?.RequestInfo, userInfo: { uuid: campaignDetails?.auditDetails?.createdBy } },
+        Projects
+    };
+
+    return { projectCreateBody, Projects };
+}
+
+/**
+ * Topologically sort boundaries to ensure parent projects are created before child projects
+ */
+function topologicallySortBoundaries(currentBoundaryData: any[], boundaryMap: Record<string, { parent: string | null }>) {
+    const graph: Record<string, string[]> = {};
+    const inDegree: Record<string, number> = {};
+
+    for (const bd of currentBoundaryData) {
+        const code = bd?.data?.["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"];
+        const parent : any = boundaryMap?.[code]?.parent;
+
+        if (!graph[parent]) graph[parent] = [];
+        graph[parent].push(code);
+
+        inDegree[code] = (inDegree[code] || 0) + 1;
+        if (!(parent in inDegree)) inDegree[parent] = 0;
+    }
+
+    const queue = Object.entries(inDegree)
+        .filter(([_, deg]) => deg === 0)
+        .map(([code]) => code);
+
+    const sortedCodes: string[] = [];
+    while (queue.length) {
+        const current = queue.shift();
+        if (!current || current === "undefined") continue;
+        sortedCodes.push(current);
+        for (const neighbor of graph[current] || []) {
+            inDegree[neighbor]--;
+            if (inDegree[neighbor] === 0) queue.push(neighbor);
+        }
+    }
+
+    const codeToDataMap = Object.fromEntries(
+        currentBoundaryData.map(bd => [bd?.data?.["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"], bd])
+    );
+
+    return sortedCodes.map(code => codeToDataMap[code]).filter(Boolean);
+}
+
+/**
+ * Process project creation in topological order (parents first)
+ */
+async function processProjectCreationInOrder(
+    sortedBoundaryData: any[],
+    tenantId: string,
+    campaignNumber: string,
+    targetConfig: any,
+    projectCreateBody: any,
+    Projects: any,
+    boundaryMap: Record<string, { type: string; parent: string | null; projectId?: string }>,
+    useruuid: string
+) {
+    logger.info("Processing project creation in order");
+    for (const boundaryData of sortedBoundaryData) {
+        const data = boundaryData?.data;
+        const boundaryCode = data?.["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"];
+        try {
+            Projects[0].address = {
+                tenantId,
+                boundary: boundaryCode,
+                boundaryType: boundaryMap[boundaryCode]?.type,
+            };
+
+            const parent = boundaryMap?.[boundaryCode]?.parent;
+            if (parent && boundaryMap?.[parent]?.projectId) {
+                const parentProjectId = boundaryMap?.[parent]?.projectId;
+                Projects[0].parent = parentProjectId;
+                if(!config.values.skipParentProjectConfirmation) {
+                    await confirmProjectParentCreation(tenantId, useruuid, parentProjectId);
+                }
+            }
+            else if (parent && !boundaryMap?.[parent]?.projectId) {
+                throw new Error(`Parent ${parent} of boundary ${boundaryCode} not found in boundaryMap`);
+            }
+            else {
+                Projects[0].parent = null;
+            }
+
+            Projects[0].referenceID = campaignNumber;
+            const targetMap: Record<string, number> = {};
+
+            for (const beneficiary of targetConfig.beneficiaries) {
+                for (const col of beneficiary.columns) {
+                    const value = data[col];
+                    if (value == 0 || value) {
+                        targetMap[beneficiary.beneficiaryType] = (targetMap[beneficiary.beneficiaryType] || 0) + value;
+                    } else {
+                        logger.warn(`Target missing for beneficiary ${beneficiary.beneficiaryType}, column ${col}, boundary ${boundaryCode}`);
+                    }
+                }
+            }
+
+            Projects[0].targets = Object.entries(targetMap).map(([key, val]) => ({
+                beneficiaryType: key,
+                targetNo: val
+            }));
+
+            const response = await httpRequest(
+                config.host.projectHost + config.paths.projectCreate,
+                projectCreateBody,
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+                true
+            );
+
+            const createdProjectId = response?.Project?.[0]?.id;
+            if (createdProjectId) {
+                logger.info(`✅ Project created: ${response?.Project[0]?.name} for boundary ${boundaryCode}`);
+                boundaryMap[boundaryCode].projectId = createdProjectId;
+                boundaryData.uniqueIdAfterProcess = createdProjectId;
+                boundaryData.status = dataRowStatuses.completed;
+                await produceModifiedMessages({ datas: [boundaryData] }, config.kafka.KAFKA_UPDATE_SHEET_DATA_TOPIC, tenantId);
+            }
+            else {
+                throw new Error(`Failed to create project for boundary ${boundaryCode}`);
+            }
+        } catch (error) {
+            console.error(`Error creating project for boundary ${boundaryCode}: ${error}`);
+            boundaryData.status = dataRowStatuses.failed;
+            await produceModifiedMessages({ datas: [boundaryData] }, config.kafka.KAFKA_UPDATE_SHEET_DATA_TOPIC, tenantId);
+            throw error;
+        }
+    }
+    logger.info("Project creation completed");
+}
+
+/**
+ * Process project updates in order
+ */
+async function processProjectUpdateInOrder(
+    sortedBoundaryData: any[],
+    tenantId: string,
+    campaignNumber: string,
+    targetConfig: any,
+    useruuid: string
+) {
+    logger.info("Processing project update in order");
+    for (const boundaryData of sortedBoundaryData) {
+        const data = boundaryData?.data;
+        const boundaryCode = data?.["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"];
+        const RequestInfo = JSON.parse(JSON.stringify(defaultRequestInfo?.RequestInfo));
+        RequestInfo.userInfo.uuid = useruuid;
+        try {
+            const projectSearchResponse =
+                await fetchProjectsWithBoundaryCodeAndReferenceId(
+                    boundaryCode,
+                    tenantId,
+                    campaignNumber,
+                    RequestInfo
+                );
+            const projectToUpdate = projectSearchResponse?.Project?.[0];
+            const targetMap: Record<string, number> = {};
+
+            for (const beneficiary of targetConfig.beneficiaries) {
+                for (const col of beneficiary.columns) {
+                    const value = data[col];
+                    if (value == 0 || value) {
+                        targetMap[beneficiary.beneficiaryType] = (targetMap[beneficiary.beneficiaryType] || 0) + value;
+                    } else {
+                        logger.warn(`Target missing for beneficiary ${beneficiary.beneficiaryType}, column ${col}, boundary ${boundaryCode}`);
+                    }
+                }
+            }
+            if(projectToUpdate?.targets?.length > 0) {
+                for (const target of projectToUpdate?.targets) {
+                    const beneficiaryType = target?.beneficiaryType;
+                    if(targetMap[beneficiaryType]) {
+                        target.targetNo = targetMap[beneficiaryType];
+                    }
+                }
+            }
+
+            for(const key in targetMap) {
+                if(!projectToUpdate?.targets?.find((target: any) => target.beneficiaryType === key)) {
+                    projectToUpdate.targets.push({
+                        beneficiaryType: key,
+                        targetNo: targetMap[key]
+                    });
+                }
+            }
+            const response = await httpRequest(
+                config.host.projectHost + config.paths.projectUpdate,
+                {
+                    RequestInfo,
+                    Projects: [projectToUpdate]
+                },
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+                true
+            );
+
+            const updatedProjectId = response?.Project?.[0]?.id;
+            if (updatedProjectId) {
+                logger.info(`Project updated successfully for boundary ${boundaryCode}`);
+                boundaryData.status = dataRowStatuses.completed;
+                await produceModifiedMessages({ datas: [boundaryData] }, config.kafka.KAFKA_UPDATE_SHEET_DATA_TOPIC, tenantId);
+            }
+            else {
+                throw new Error(`Failed to update project for boundary ${boundaryCode}`);
+            }
+        } catch (error) {
+            console.error(`Error while updating project for boundary ${boundaryCode}: ${error}`);
+            boundaryData.status = dataRowStatuses.failed;
+            await produceModifiedMessages({ datas: [boundaryData] }, config.kafka.KAFKA_UPDATE_SHEET_DATA_TOPIC, tenantId);
+            throw error;
+        }
+    }
+    logger.info("Project update in order completed");
 }
