@@ -378,8 +378,43 @@ public class ExcelProcessingService {
                 return numericValue;
             case BOOLEAN:
                 return cell.getBooleanCellValue();
+            case FORMULA:
+                // Evaluate formula to get the actual value
+                try {
+                    FormulaEvaluator evaluator = cell.getSheet().getWorkbook().getCreationHelper().createFormulaEvaluator();
+                    CellValue cellValue = evaluator.evaluate(cell);
+                    
+                    switch (cellValue.getCellType()) {
+                        case STRING:
+                            return cellValue.getStringValue();
+                        case NUMERIC:
+                            double formulaNumericValue = cellValue.getNumberValue();
+                            if (formulaNumericValue == Math.floor(formulaNumericValue)) {
+                                return (long) formulaNumericValue;
+                            }
+                            return formulaNumericValue;
+                        case BOOLEAN:
+                            return cellValue.getBooleanValue();
+                        case BLANK:
+                            return "";
+                        case ERROR:
+                            log.warn("Formula evaluation resulted in error for cell at row {}, col {}: {}", 
+                                    cell.getRowIndex(), cell.getColumnIndex(), cellValue.getErrorValue());
+                            return null;
+                        default:
+                            return null;
+                    }
+                } catch (Exception e) {
+                    log.warn("Failed to evaluate formula for cell at row {}, col {}: {}", 
+                            cell.getRowIndex(), cell.getColumnIndex(), e.getMessage());
+                    return null;
+                }
             case BLANK:
                 return "";
+            case ERROR:
+                log.warn("Cell contains error value at row {}, col {}: {}", 
+                        cell.getRowIndex(), cell.getColumnIndex(), cell.getErrorCellValue());
+                return null;
             default:
                 return null;
         }
