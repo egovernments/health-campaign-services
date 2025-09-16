@@ -135,6 +135,56 @@ export const transformConfigs: any = {
             }
         ],
         transFormBulk: "transformBulkFacility"
+    },
+    FacilityUnified: {
+        metadata: {
+            tenantId: "dev",
+            hierarchy: "MICROPLAN"
+        },
+        fields: [
+            {
+                path: "$.Facility.id",
+                source: { header: "HCM_ADMIN_CONSOLE_FACILITY_CODE" }
+            },
+            {
+                path: "$.Facility.tenantId",
+                value: "${metadata.tenantId}"
+            },
+            {
+                path: "$.Facility.name",
+                source: { header: "HCM_ADMIN_CONSOLE_FACILITY_NAME" }
+            },
+            {
+                path: "$.Facility.isPermanent",
+                source: {
+                    header: "HCM_ADMIN_CONSOLE_FACILITY_STATUS",
+                    transform: {
+                        mapping: {
+                            Permanent: "true",
+                            Temporary: "false",
+                            "%default%": "false"
+                        }
+                    }
+                }
+            },
+            {
+                path: "$.Facility.usage",
+                source: { header: "HCM_ADMIN_CONSOLE_FACILITY_TYPE" }
+            },
+            {
+                path: "$.Facility.storageCapacity",
+                source: { header: "HCM_ADMIN_CONSOLE_FACILITY_CAPACITY" }
+            },
+            {
+                path: "$.Facility.address.locality.code",
+                source: { header: "HCM_ADMIN_CONSOLE_BOUNDARY_CODE" }
+            },
+            {
+                path: "$.Facility.address.tenantId",
+                value: "${metadata.tenantId}"
+            }
+        ],
+        transFormBulk: "transformBulkFacility"
     }
 };
   

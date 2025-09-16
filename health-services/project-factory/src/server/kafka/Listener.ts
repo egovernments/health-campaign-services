@@ -92,13 +92,13 @@ async function processMessageKJS(topic: string, message: { value: Buffer | null 
 
         switch (topic) {
             case config.kafka.KAFKA_START_CAMPAIGN_MAPPING_TOPIC:
-                await handleCampaignMapping(messageObject);
+                handleCampaignMapping(messageObject);
                 break;
             case config.kafka.KAFKA_START_ADMIN_CONSOLE_TASK_TOPIC:
-                await handleTaskForCampaign(messageObject);
+                handleTaskForCampaign(messageObject);
                 break;
             case config.kafka.KAFKA_START_ADMIN_CONSOLE_MAPPING_TASK_TOPIC:
-                await handleMappingTaskForCampaign(messageObject);
+                handleMappingTaskForCampaign(messageObject);
                 break;
             case config.kafka.KAFKA_HCM_PROCESSING_RESULT_TOPIC:
                 handleProcessingResult(messageObject);
