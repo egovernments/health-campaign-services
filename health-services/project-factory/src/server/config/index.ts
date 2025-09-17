@@ -70,7 +70,8 @@ const config = {
     KAFKA_START_ADMIN_CONSOLE_MAPPING_TASK_TOPIC: process.env.KAFKA_START_MAPPING_TASK_TOPIC || "start-admin-console-mapping-task",
     KAFKA_TEST_TOPIC: "test-topic-project-factory",
     KAFKA_HCM_PROCESSING_RESULT_TOPIC: process.env.KAFKA_HCM_PROCESSING_RESULT_TOPIC || "hcm-processing-result",
-    KAFKA_FACILITY_CREATE_BATCH_TOPIC: process.env.KAFKA_FACILITY_CREATE_BATCH_TOPIC || "facility-create-batch",
+    KAFKA_FACILITY_CREATE_BATCH_TOPIC: process.env.KAFKA_FACILITY_CREATE_BATCH_TOPIC || "hcm-facility-create-batch",
+    KAFKA_USER_CREATE_BATCH_TOPIC: process.env.KAFKA_USER_CREATE_BATCH_TOPIC || "hcm-user-create-batch",
     KAFKA_NOTIFICATION_EMAIL_TOPIC: process.env.KAFKA_NOTIFICATION_EMAIL_TOPIC || "egov.core.notification.email",
   },
 
