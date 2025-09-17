@@ -261,16 +261,23 @@ public class UserValidationProcessor implements ISheetDataProcessor {
         Set<String> existingInCampaign = new HashSet<>();
         
         try {
-            List<Map<String, Object>> campaignUsers = campaignService.searchCampaignDataByUniqueIdentifiers(
-                allPhoneNumbers, "user", "completed", null, tenantId, requestInfo);
-            
-            for (Map<String, Object> campaignUser : campaignUsers) {
-                String uniqueIdentifier = (String) campaignUser.get("uniqueIdentifier");
-                if (uniqueIdentifier != null) {
-                    existingInCampaign.add(uniqueIdentifier);
-                    String existingCampaignNumber = (String) campaignUser.get("campaignNumber");
-                    log.debug("Phone number {} already exists in campaign {} with completed status", 
-                            uniqueIdentifier, existingCampaignNumber);
+            // Search in batches to avoid large array operations
+            final int SEARCH_BATCH_SIZE = 500;
+            for (int i = 0; i < allPhoneNumbers.size(); i += SEARCH_BATCH_SIZE) {
+                int endIndex = Math.min(i + SEARCH_BATCH_SIZE, allPhoneNumbers.size());
+                List<String> batch = allPhoneNumbers.subList(i, endIndex);
+                
+                List<Map<String, Object>> campaignUsers = campaignService.searchCampaignDataByUniqueIdentifiers(
+                    batch, "user", "completed", null, tenantId, requestInfo);
+                
+                for (Map<String, Object> campaignUser : campaignUsers) {
+                    String uniqueIdentifier = (String) campaignUser.get("uniqueIdentifier");
+                    if (uniqueIdentifier != null) {
+                        existingInCampaign.add(uniqueIdentifier);
+                        String existingCampaignNumber = (String) campaignUser.get("campaignNumber");
+                        log.debug("Phone number {} already exists in campaign {} with completed status", 
+                                uniqueIdentifier, existingCampaignNumber);
+                    }
                 }
             }
             
