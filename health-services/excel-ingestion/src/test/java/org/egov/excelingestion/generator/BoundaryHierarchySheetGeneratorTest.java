@@ -43,8 +43,10 @@ class BoundaryHierarchySheetGeneratorTest {
     @BeforeEach
     void setUp() {
         closeable = MockitoAnnotations.openMocks(this);
+        org.egov.excelingestion.util.ColumnDefMaker columnDefMaker = new org.egov.excelingestion.util.ColumnDefMaker();
+        org.egov.excelingestion.util.SchemaColumnDefUtil schemaColumnDefUtil = new org.egov.excelingestion.util.SchemaColumnDefUtil(columnDefMaker, exceptionHandler);
         generator = new BoundaryHierarchySheetGenerator(
-            boundaryService, boundaryUtil, mdmsService, exceptionHandler, new org.egov.excelingestion.util.ColumnDefMaker()
+            boundaryService, boundaryUtil, mdmsService, exceptionHandler, schemaColumnDefUtil
         );
     }
     

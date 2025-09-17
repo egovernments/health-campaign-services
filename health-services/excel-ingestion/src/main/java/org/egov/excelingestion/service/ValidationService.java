@@ -65,8 +65,8 @@ public class ValidationService {
         }
 
         // Check if status and error columns already exist
-        int statusColumnIndex = findColumnByName(headerRow, "#status#");
-        int errorColumnIndex = findColumnByName(headerRow, "#errorDetails#");
+        int statusColumnIndex = findColumnByName(headerRow, ValidationConstants.STATUS_COLUMN_NAME);
+        int errorColumnIndex = findColumnByName(headerRow, ValidationConstants.ERROR_DETAILS_COLUMN_NAME);
 
         // If columns don't exist, add them at the end
         if (statusColumnIndex == -1) {

@@ -11,10 +11,13 @@ import org.egov.excelingestion.config.ProcessorConfigurationRegistry.ProcessorSh
 import org.egov.excelingestion.exception.CustomExceptionHandler;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.egov.excelingestion.processor.IWorkbookProcessor;
+import org.egov.excelingestion.processor.ISheetDataProcessor;
 import org.egov.excelingestion.web.models.ProcessResource;
 import org.egov.excelingestion.web.models.RequestInfo;
 import org.egov.excelingestion.web.models.ParsingCompleteEvent;
 import org.egov.excelingestion.web.models.SheetDataTemp;
+import org.egov.excelingestion.web.models.SheetGenerationResult;
+import org.egov.excelingestion.util.ExcelDataPopulator;
 import org.egov.common.producer.Producer;
 import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Service;
@@ -271,62 +274,181 @@ public class ConfigBasedProcessingService {
      * Process workbook using configured processor if available
      * Returns processed workbook with error columns added, or original workbook if no processor configured
      */
-    public Workbook processWorkbookWithProcessor(String sheetName,
-                                                Workbook workbook,
+    public Workbook processWorkbookWithProcessor(Workbook workbook,
                                                 ProcessResource resource,
                                                 RequestInfo requestInfo,
                                                 Map<String, String> localizationMap) {
         // Get processor configuration
         java.util.List<ProcessorSheetConfig> config = getConfigByType(resource.getType());
         if (config == null) {
-            return null;
+            return workbook;
         }
         
-        // Find processor for this sheet
-        String processorClass = null;
+        // Process all sheets that have processors configured
         for (ProcessorSheetConfig sheetConfig : config) {
+            String processorClass = sheetConfig.getProcessorClass();
+            if (processorClass == null) {
+                continue; // No processor configured for this sheet
+            }
+            
             String configuredSheetName = getLocalizedSheetName(sheetConfig.getSheetNameKey(), localizationMap);
-            if (configuredSheetName.equals(sheetName) && sheetConfig.getProcessorClass() != null) {
-                processorClass = sheetConfig.getProcessorClass();
-                break;
+            
+            // Load and execute processor
+            try {
+                log.info("Using processor {} for sheet {}", processorClass, configuredSheetName);
+                
+                // Get processor bean from Spring context
+                // If no package specified, assume it's in processor package
+                String fullProcessorClass = processorClass;
+                if (!processorClass.contains(".")) {
+                    fullProcessorClass = "org.egov.excelingestion.processor." + processorClass;
+                }
+                Class<?> clazz = Class.forName(fullProcessorClass);
+                Object processorBean = applicationContext.getBean(clazz);
+                
+                // Check which interface the processor implements
+                if (processorBean instanceof IWorkbookProcessor) {
+                    IWorkbookProcessor processor = (IWorkbookProcessor) processorBean;
+                    workbook = processor.processWorkbook(workbook, configuredSheetName, resource, requestInfo, localizationMap);
+                } else if (processorBean instanceof ISheetDataProcessor) {
+                    ISheetDataProcessor processor = (ISheetDataProcessor) processorBean;
+                    
+                    // Convert workbook sheet to data
+                    List<Map<String, Object>> sheetData = extractSheetDataFromWorkbook(workbook, configuredSheetName);
+                    
+                    // Process the data
+                    SheetGenerationResult result = processor.processSheetData(sheetData, resource, requestInfo, localizationMap);
+                    
+                    // Apply the results back to the workbook using ExcelDataPopulator
+                    if (result != null) {
+                        ExcelDataPopulator populator = applicationContext.getBean(ExcelDataPopulator.class);
+                        populator.populateSheetWithData(workbook, configuredSheetName, result.getColumnDefs(), result.getData(), localizationMap);
+                    }
+                } else {
+                    throw new IllegalArgumentException("Processor " + processorClass + " must implement either IWorkbookProcessor or ISheetDataProcessor");
+                }
+                
+            } catch (ClassNotFoundException e) {
+                log.error("Processor class not found: {}", processorClass, e);
+                exceptionHandler.throwCustomException(ErrorConstants.PROCESSOR_CLASS_NOT_FOUND,
+                        ErrorConstants.PROCESSOR_CLASS_NOT_FOUND_MESSAGE.replace("{0}", processorClass));
+            } catch (org.egov.tracer.model.CustomException e) {
+                // Re-throw CustomExceptions (like schema not found) without wrapping
+                log.error("Custom exception from processor {}: {}", processorClass, e.getMessage());
+                throw e;
+            } catch (Exception e) {
+                log.error("Error executing processor {}: {}", processorClass, e.getMessage(), e);
+                exceptionHandler.throwCustomException(ErrorConstants.PROCESSOR_EXECUTION_ERROR,
+                        ErrorConstants.PROCESSOR_EXECUTION_ERROR_MESSAGE.replace("{0}", e.getMessage()));
             }
-        }
-        
-        if (processorClass == null) {
-            return null; // No processor configured for this sheet
-        }
-        
-        // Load and execute processor
-        try {
-            log.info("Using processor {} for sheet {}", processorClass, sheetName);
-            
-            // Get processor bean from Spring context
-            // If no package specified, assume it's in processor package
-            String fullProcessorClass = processorClass;
-            if (!processorClass.contains(".")) {
-                fullProcessorClass = "org.egov.excelingestion.processor." + processorClass;
-            }
-            Class<?> clazz = Class.forName(fullProcessorClass);
-            IWorkbookProcessor processor = (IWorkbookProcessor) applicationContext.getBean(clazz);
-            
-            // Process the workbook
-            return processor.processWorkbook(workbook, sheetName, resource, requestInfo, localizationMap);
-            
-        } catch (ClassNotFoundException e) {
-            log.error("Processor class not found: {}", processorClass, e);
-            exceptionHandler.throwCustomException(ErrorConstants.PROCESSOR_CLASS_NOT_FOUND,
-                    ErrorConstants.PROCESSOR_CLASS_NOT_FOUND_MESSAGE.replace("{0}", processorClass));
-        } catch (org.egov.tracer.model.CustomException e) {
-            // Re-throw CustomExceptions (like schema not found) without wrapping
-            log.error("Custom exception from processor {}: {}", processorClass, e.getMessage());
-            throw e;
-        } catch (Exception e) {
-            log.error("Error executing processor {}: {}", processorClass, e.getMessage(), e);
-            exceptionHandler.throwCustomException(ErrorConstants.PROCESSOR_EXECUTION_ERROR,
-                    ErrorConstants.PROCESSOR_EXECUTION_ERROR_MESSAGE.replace("{0}", e.getMessage()));
         }
         
         return workbook;
+    }
+
+    /**
+     * Extract sheet data from workbook for ISheetDataProcessor
+     */
+    private List<Map<String, Object>> extractSheetDataFromWorkbook(Workbook workbook, String sheetName) {
+        List<Map<String, Object>> data = new ArrayList<>();
+        
+        Sheet sheet = workbook.getSheet(sheetName);
+        if (sheet == null) {
+            log.warn("Sheet not found: {}", sheetName);
+            return data;
+        }
+        
+        if (sheet.getLastRowNum() < 2) {
+            return data; // No data rows
+        }
+        
+        // Get header row (row 0 - technical names)
+        org.apache.poi.ss.usermodel.Row headerRow = sheet.getRow(0);
+        if (headerRow == null) {
+            return data;
+        }
+        
+        List<String> headers = new ArrayList<>();
+        for (int i = 0; i < headerRow.getLastCellNum(); i++) {
+            org.apache.poi.ss.usermodel.Cell cell = headerRow.getCell(i);
+            headers.add(cell != null ? cell.getStringCellValue().trim() : "");
+        }
+        
+        // Process data rows (starting from row 2, skip row 1 which is localized headers)
+        for (int rowIndex = 2; rowIndex <= sheet.getLastRowNum(); rowIndex++) {
+            org.apache.poi.ss.usermodel.Row row = sheet.getRow(rowIndex);
+            if (row == null) continue;
+            
+            Map<String, Object> rowData = new HashMap<>();
+            boolean hasData = false; // Track if row has any non-empty data
+            
+            for (int colIndex = 0; colIndex < headers.size() && colIndex < row.getLastCellNum(); colIndex++) {
+                org.apache.poi.ss.usermodel.Cell cell = row.getCell(colIndex);
+                String header = headers.get(colIndex);
+                
+                if (!header.isEmpty()) {
+                    String cellValue = getCellValueAsString(cell);
+                    rowData.put(header, cellValue);
+                    
+                    // Check if this cell has actual data (not null, not empty, not just whitespace)
+                    if (cellValue != null && !cellValue.trim().isEmpty()) {
+                        hasData = true;
+                    }
+                }
+            }
+            
+            // Only add the row if it contains actual data
+            if (hasData) {
+                data.add(rowData);
+            }
+        }
+        
+        log.debug("Extracted {} rows with actual data from sheet: {}", data.size(), sheetName);
+        return data;
+    }
+    
+    /**
+     * Get cell value as string for data extraction
+     */
+    private String getCellValueAsString(org.apache.poi.ss.usermodel.Cell cell) {
+        if (cell == null) return "";
+        
+        switch (cell.getCellType()) {
+            case STRING:
+                return cell.getStringCellValue().trim();
+            case NUMERIC:
+                if (org.apache.poi.ss.usermodel.DateUtil.isCellDateFormatted(cell)) {
+                    return cell.getDateCellValue().toString();
+                } else {
+                    // Handle numeric values - format as integer if it's a whole number
+                    double numValue = cell.getNumericCellValue();
+                    if (numValue == Math.floor(numValue)) {
+                        return String.valueOf((long) numValue);
+                    }
+                    return String.valueOf(numValue);
+                }
+            case BOOLEAN:
+                return String.valueOf(cell.getBooleanCellValue());
+            case FORMULA:
+                org.apache.poi.ss.usermodel.FormulaEvaluator evaluator = cell.getSheet().getWorkbook().getCreationHelper().createFormulaEvaluator();
+                org.apache.poi.ss.usermodel.CellValue cellValue = evaluator.evaluate(cell);
+                switch (cellValue.getCellType()) {
+                    case STRING:
+                        return cellValue.getStringValue().trim();
+                    case NUMERIC:
+                        double numVal = cellValue.getNumberValue();
+                        if (numVal == Math.floor(numVal)) {
+                            return String.valueOf((long) numVal);
+                        }
+                        return String.valueOf(numVal);
+                    case BOOLEAN:
+                        return String.valueOf(cellValue.getBooleanValue());
+                    default:
+                        return "";
+                }
+            default:
+                return "";
+        }
     }
 
     /**

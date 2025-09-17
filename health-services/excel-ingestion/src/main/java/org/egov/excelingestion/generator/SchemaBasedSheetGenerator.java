@@ -1,13 +1,12 @@
 package org.egov.excelingestion.generator;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.excelingestion.config.ErrorConstants;
 import org.egov.excelingestion.config.ProcessingConstants;
 import org.egov.excelingestion.exception.CustomExceptionHandler;
 import org.egov.excelingestion.service.MDMSService;
-import org.egov.excelingestion.util.ColumnDefMaker;
+import org.egov.excelingestion.util.SchemaColumnDefUtil;
 import org.egov.excelingestion.web.models.GenerateResource;
 import org.egov.excelingestion.web.models.RequestInfo;
 import org.egov.excelingestion.web.models.SheetGenerationConfig;
@@ -26,13 +25,13 @@ public class SchemaBasedSheetGenerator implements IExcelPopulatorSheetGenerator 
 
     private final MDMSService mdmsService;
     private final CustomExceptionHandler exceptionHandler;
-    private final ColumnDefMaker columnDefMaker;
+    private final SchemaColumnDefUtil schemaColumnDefUtil;
 
     public SchemaBasedSheetGenerator(MDMSService mdmsService, CustomExceptionHandler exceptionHandler,
-                                   ColumnDefMaker columnDefMaker) {
+                                   SchemaColumnDefUtil schemaColumnDefUtil) {
         this.mdmsService = mdmsService;
         this.exceptionHandler = exceptionHandler;
-        this.columnDefMaker = columnDefMaker;
+        this.schemaColumnDefUtil = schemaColumnDefUtil;
     }
 
     @Override
@@ -54,7 +53,7 @@ public class SchemaBasedSheetGenerator implements IExcelPopulatorSheetGenerator 
             String schemaJson = extractSchemaFromMDMSResponse(mdmsList, config.getSchemaName());
             
             if (schemaJson != null && !schemaJson.isEmpty()) {
-                List<ColumnDef> columns = convertSchemaToColumnDefs(schemaJson);
+                List<ColumnDef> columns = schemaColumnDefUtil.convertSchemaToColumnDefs(schemaJson);
                 
                 return SheetGenerationResult.builder()
                         .columnDefs(columns)
@@ -99,43 +98,4 @@ public class SchemaBasedSheetGenerator implements IExcelPopulatorSheetGenerator 
         return null;
     }
     
-    private List<ColumnDef> convertSchemaToColumnDefs(String schemaJson) {
-        List<ColumnDef> columns = new ArrayList<>();
-        
-        try {
-            ObjectMapper mapper = new ObjectMapper();
-            JsonNode root = mapper.readTree(schemaJson);
-            
-            // Process stringProperties
-            if (root.has("stringProperties")) {
-                for (JsonNode node : root.path("stringProperties")) {
-                    columns.add(columnDefMaker.createColumnDefFromJson(node, "string"));
-                }
-            }
-            
-            // Process numberProperties
-            if (root.has("numberProperties")) {
-                for (JsonNode node : root.path("numberProperties")) {
-                    columns.add(columnDefMaker.createColumnDefFromJson(node, "number"));
-                }
-            }
-            
-            // Process enumProperties
-            if (root.has("enumProperties")) {
-                for (JsonNode node : root.path("enumProperties")) {
-                    columns.add(columnDefMaker.createColumnDefFromJson(node, "enum"));
-                }
-            }
-            
-            // Sort by orderNumber
-            columns.sort(Comparator.comparingInt(ColumnDef::getOrderNumber));
-            
-        } catch (Exception e) {
-            log.error("Error converting schema JSON to ColumnDefs: {}", e.getMessage(), e);
-            exceptionHandler.throwCustomException(ErrorConstants.SCHEMA_CONVERSION_ERROR,
-                    ErrorConstants.SCHEMA_CONVERSION_ERROR_MESSAGE, e);
-        }
-        
-        return columns;
-    }
 }

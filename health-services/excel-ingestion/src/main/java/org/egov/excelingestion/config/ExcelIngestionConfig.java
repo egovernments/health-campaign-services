@@ -52,6 +52,12 @@ public class ExcelIngestionConfig {
     @Value("${egov.excel.validation.error.color:#ff0000}")
     private String validationErrorColor;
 
+    @Value("${egov.health.individual.host}")
+    private String healthIndividualHost;
+
+    @Value("${egov.health.individual.search.path}")
+    private String healthIndividualSearchPath;
+
     private String defaultHeaderColor = "#93c47d";
 
     public String getHierarchySearchUrl() {

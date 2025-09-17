@@ -93,7 +93,7 @@ public class ConfigBasedProcessingServiceWorkbookTest {
                 .thenReturn(processedWorkbook);
 
         // When
-        Workbook result = service.processWorkbookWithProcessor("Target Sheet", workbook, resource, requestInfo, localizationMap);
+        Workbook result = service.processWorkbookWithProcessor(workbook, resource, requestInfo, localizationMap);
 
         // Then
         assertNotNull(result);
@@ -102,7 +102,7 @@ public class ConfigBasedProcessingServiceWorkbookTest {
     }
 
     @Test
-    public void testProcessWorkbookWithProcessor_NoProcessorConfigured_ShouldReturnNull() {
+    public void testProcessWorkbookWithProcessor_NoProcessorConfigured_ShouldReturnWorkbook() {
         // Given
         List<ProcessorConfigurationRegistry.ProcessorSheetConfig> configWithoutProcessor = Arrays.asList(
             new ProcessorConfigurationRegistry.ProcessorSheetConfig(
@@ -116,25 +116,33 @@ public class ConfigBasedProcessingServiceWorkbookTest {
         when(configRegistry.getConfigByType("microplan-ingestion")).thenReturn(configWithoutProcessor);
 
         // When
-        Workbook result = service.processWorkbookWithProcessor("Target Sheet", workbook, resource, requestInfo, localizationMap);
+        Workbook result = service.processWorkbookWithProcessor(workbook, resource, requestInfo, localizationMap);
 
         // Then
-        assertNull(result);
+        assertNotNull(result); // Method now returns workbook instead of null
         verifyNoInteractions(applicationContext);
         verifyNoInteractions(mockProcessor);
     }
 
     @Test
-    public void testProcessWorkbookWithProcessor_SheetNotConfigured_ShouldReturnNull() {
-        // Given
+    public void testProcessWorkbookWithProcessor_NoProcessorInConfig_ShouldReturnWorkbook() {
+        // Given - Create config with no processors
+        List<ProcessorConfigurationRegistry.ProcessorSheetConfig> configWithoutProcessors = Arrays.asList(
+            new ProcessorConfigurationRegistry.ProcessorSheetConfig(
+                "HCM_CONSOLE_BOUNDARY_HIERARCHY",
+                "some-schema",
+                null // No processor class
+            )
+        );
+        
         when(configRegistry.isProcessorTypeSupported("microplan-ingestion")).thenReturn(true);
-        when(configRegistry.getConfigByType("microplan-ingestion")).thenReturn(config);
+        when(configRegistry.getConfigByType("microplan-ingestion")).thenReturn(configWithoutProcessors);
 
         // When
-        Workbook result = service.processWorkbookWithProcessor("UnknownSheet", workbook, resource, requestInfo, localizationMap);
+        Workbook result = service.processWorkbookWithProcessor(workbook, resource, requestInfo, localizationMap);
 
         // Then
-        assertNull(result);
+        assertNotNull(result); // Method now returns workbook instead of null
         verifyNoInteractions(applicationContext);
         verifyNoInteractions(mockProcessor);
     }
@@ -149,7 +157,7 @@ public class ConfigBasedProcessingServiceWorkbookTest {
 
         // When & Then
         assertThrows(CustomException.class, () -> {
-            service.processWorkbookWithProcessor("Target Sheet", workbook, 
+            service.processWorkbookWithProcessor(workbook, 
                     ProcessResource.builder().type("unknown-type").build(), requestInfo, localizationMap);
         });
     }
@@ -166,7 +174,7 @@ public class ConfigBasedProcessingServiceWorkbookTest {
 
         // When & Then
         assertThrows(CustomException.class, () -> {
-            service.processWorkbookWithProcessor("Target Sheet", workbook, resource, requestInfo, localizationMap);
+            service.processWorkbookWithProcessor(workbook, resource, requestInfo, localizationMap);
         });
         
         verify(exceptionHandler).throwCustomException(
@@ -189,7 +197,7 @@ public class ConfigBasedProcessingServiceWorkbookTest {
 
         // When & Then
         CustomException thrownException = assertThrows(CustomException.class, () -> {
-            service.processWorkbookWithProcessor("Target Sheet", workbook, resource, requestInfo, localizationMap);
+            service.processWorkbookWithProcessor(workbook, resource, requestInfo, localizationMap);
         });
         
         assertEquals(customException, thrownException);
@@ -212,7 +220,7 @@ public class ConfigBasedProcessingServiceWorkbookTest {
 
         // When & Then
         assertThrows(CustomException.class, () -> {
-            service.processWorkbookWithProcessor("Target Sheet", workbook, resource, requestInfo, localizationMap);
+            service.processWorkbookWithProcessor(workbook, resource, requestInfo, localizationMap);
         });
         
         verify(exceptionHandler).throwCustomException(
@@ -234,7 +242,7 @@ public class ConfigBasedProcessingServiceWorkbookTest {
                 .thenReturn(processedWorkbook);
 
         // When
-        Workbook result = service.processWorkbookWithProcessor("Target Sheet", workbook, resource, requestInfo, localizationMap);
+        Workbook result = service.processWorkbookWithProcessor(workbook, resource, requestInfo, localizationMap);
 
         // Then
         assertNotNull(result);
@@ -261,7 +269,7 @@ public class ConfigBasedProcessingServiceWorkbookTest {
                 .thenReturn(processedWorkbook);
 
         // When
-        Workbook result = service.processWorkbookWithProcessor("Target Sheet", workbook, resource, requestInfo, localizationMap);
+        Workbook result = service.processWorkbookWithProcessor(workbook, resource, requestInfo, localizationMap);
 
         // Then
         assertNotNull(result);

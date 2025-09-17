@@ -150,14 +150,14 @@ public class ExcelProcessingService {
                     // Enrich resource additionalDetails with row count for this sheet
                     enrichmentUtil.enrichRowCountInAdditionalDetails(resource, sheetData.size());
                     
-                    // Step 2: Check if there's a workbook processor configured for this sheet
-                    configBasedProcessingService.processWorkbookWithProcessor(
-                            sheetName, workbook, resource, request.getRequestInfo(), mergedLocalizationMap);
-                    
                     // Step 3: Handle post-processing (persistence and event publishing)
                     configBasedProcessingService.handlePostProcessing(
                             sheetName, sheetData.size(), resource, mergedLocalizationMap, sheetData);
                 }
+                
+                // Step 2: Process workbook with configured processors (once per workbook, not per sheet)
+                configBasedProcessingService.processWorkbookWithProcessor(
+                        workbook, resource, request.getRequestInfo(), mergedLocalizationMap);
                 
                 // Upload the processed Excel file
                 String processedFileStoreId = uploadProcessedExcel(workbook, resource);

@@ -29,7 +29,8 @@ public class ProcessorConfigurationRegistry {
                 null, // No processing result topic for validation-only
                 Arrays.asList(
                         new ProcessorSheetConfig("HCM_ADMIN_CONSOLE_FACILITIES_LIST", "facility-microplan-ingestion"),
-                        new ProcessorSheetConfig("HCM_ADMIN_CONSOLE_USERS_LIST", "user-microplan-ingestion"),
+                        new ProcessorSheetConfig("HCM_ADMIN_CONSOLE_USERS_LIST", "user-microplan-ingestion", 
+                                "UserValidationProcessor"), // Custom processor for user validation
                         new ProcessorSheetConfig("HCM_CONSOLE_BOUNDARY_HIERARCHY", null, 
                                 "BoundaryHierarchyTargetProcessor") // Custom processor for target validation
                 )
@@ -40,7 +41,8 @@ public class ProcessorConfigurationRegistry {
                 kafkaTopicConfig.getProcessingResultTopic(), // Processing result topic for completed processing
                 Arrays.asList(
                         new ProcessorSheetConfig("HCM_ADMIN_CONSOLE_FACILITIES_LIST", "facility-microplan-ingestion", null, true),
-                        new ProcessorSheetConfig("HCM_ADMIN_CONSOLE_USERS_LIST", "user-microplan-ingestion", null, true),
+                        new ProcessorSheetConfig("HCM_ADMIN_CONSOLE_USERS_LIST", "user-microplan-ingestion", 
+                                "UserValidationProcessor", true), // Custom processor for user validation
                         new ProcessorSheetConfig("HCM_CONSOLE_BOUNDARY_HIERARCHY", null,
                                 "BoundaryHierarchyTargetProcessor", true) // Custom processor for target validation
                 )

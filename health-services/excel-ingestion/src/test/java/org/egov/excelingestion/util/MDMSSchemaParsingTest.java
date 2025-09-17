@@ -88,7 +88,10 @@ public class MDMSSchemaParsingTest {
         JsonNode schemaNode = objectMapper.readTree(mockSchema);
         
         // Create SchemaBasedSheetGenerator instance
-        SchemaBasedSheetGenerator generator = new SchemaBasedSheetGenerator(null, null, new org.egov.excelingestion.util.ColumnDefMaker());
+        org.egov.excelingestion.util.ColumnDefMaker columnDefMaker = new org.egov.excelingestion.util.ColumnDefMaker();
+        org.egov.excelingestion.exception.CustomExceptionHandler exceptionHandler = org.mockito.Mockito.mock(org.egov.excelingestion.exception.CustomExceptionHandler.class);
+        org.egov.excelingestion.util.SchemaColumnDefUtil schemaColumnDefUtil = new org.egov.excelingestion.util.SchemaColumnDefUtil(columnDefMaker, exceptionHandler);
+        SchemaBasedSheetGenerator generator = new SchemaBasedSheetGenerator(null, null, schemaColumnDefUtil);
         
         // Parse string properties
         List<ColumnDef> stringColumns = parseStringProperties(generator, schemaNode);
