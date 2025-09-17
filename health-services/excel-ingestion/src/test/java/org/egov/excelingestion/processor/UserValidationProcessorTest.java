@@ -4,6 +4,7 @@ import org.egov.excelingestion.config.ExcelIngestionConfig;
 import org.egov.excelingestion.config.ValidationConstants;
 import org.egov.excelingestion.service.MDMSService;
 import org.egov.excelingestion.service.ValidationService;
+import org.egov.excelingestion.service.CampaignService;
 import org.egov.excelingestion.util.EnrichmentUtil;
 import org.egov.excelingestion.util.ErrorColumnUtil;
 import org.egov.excelingestion.util.SchemaColumnDefUtil;
@@ -43,6 +44,8 @@ class UserValidationProcessorTest {
     private SchemaColumnDefUtil schemaColumnDefUtil;
     @Mock
     private ErrorColumnUtil errorColumnUtil;
+    @Mock
+    private CampaignService campaignService;
 
     private UserValidationProcessor userValidationProcessor;
     private ProcessResource resource;
@@ -54,7 +57,7 @@ class UserValidationProcessorTest {
         MockitoAnnotations.openMocks(this);
         userValidationProcessor = new UserValidationProcessor(
                 validationService, restTemplate, config, enrichmentUtil,
-                mdmsService, schemaColumnDefUtil, errorColumnUtil
+                mdmsService, schemaColumnDefUtil, errorColumnUtil, campaignService
         );
 
         resource = ProcessResource.builder()

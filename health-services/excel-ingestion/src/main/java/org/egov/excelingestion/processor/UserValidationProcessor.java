@@ -256,44 +256,30 @@ public class UserValidationProcessor implements ISheetDataProcessor {
             return new HashSet<>();
         }
         
-        // Get campaign details to fetch campaign number
-        String campaignId = resource.getReferenceId();
+        // Check campaign data for existing users with completed status (any campaign)
         String tenantId = resource.getTenantId();
-        String campaignNumber = null;
+        Set<String> existingInCampaign = new HashSet<>();
         
         try {
-            var campaignDetail = campaignService.searchCampaignById(campaignId, tenantId, requestInfo);
-            if (campaignDetail != null) {
-                campaignNumber = campaignDetail.getCampaignNumber();
-                log.info("Found campaign number: {} for campaign ID: {}", campaignNumber, campaignId);
+            List<Map<String, Object>> campaignUsers = campaignService.searchCampaignDataByUniqueIdentifiers(
+                allPhoneNumbers, "user", "completed", null, tenantId, requestInfo);
+            
+            for (Map<String, Object> campaignUser : campaignUsers) {
+                String uniqueIdentifier = (String) campaignUser.get("uniqueIdentifier");
+                if (uniqueIdentifier != null) {
+                    existingInCampaign.add(uniqueIdentifier);
+                    String existingCampaignNumber = (String) campaignUser.get("campaignNumber");
+                    log.debug("Phone number {} already exists in campaign {} with completed status", 
+                            uniqueIdentifier, existingCampaignNumber);
+                }
+            }
+            
+            if (!existingInCampaign.isEmpty()) {
+                log.info("Found {} users already existing in any campaign with completed status - will skip validation for these", 
+                        existingInCampaign.size());
             }
         } catch (Exception e) {
-            log.error("Error fetching campaign details for campaign ID: {}", campaignId, e);
-        }
-        
-        // First, check campaign data for existing users with completed status
-        Set<String> existingInCampaign = new HashSet<>();
-        if (campaignNumber != null) {
-            try {
-                List<Map<String, Object>> campaignUsers = campaignService.searchCampaignDataByPhoneNumbers(
-                    allPhoneNumbers, campaignNumber, tenantId, requestInfo);
-                
-                for (Map<String, Object> campaignUser : campaignUsers) {
-                    String uniqueIdentifier = (String) campaignUser.get("uniqueIdentifier");
-                    if (uniqueIdentifier != null) {
-                        existingInCampaign.add(uniqueIdentifier);
-                        log.debug("Phone number {} already exists in campaign {} with completed status", 
-                                uniqueIdentifier, campaignNumber);
-                    }
-                }
-                
-                if (!existingInCampaign.isEmpty()) {
-                    log.info("Found {} users already existing in campaign {} with completed status - will skip validation for these", 
-                            existingInCampaign.size(), campaignNumber);
-                }
-            } catch (Exception e) {
-                log.error("Error searching campaign data: {}", e.getMessage(), e);
-            }
+            log.error("Error searching campaign data: {}", e.getMessage(), e);
         }
         
         // Filter out phone numbers that already exist in campaign with completed status

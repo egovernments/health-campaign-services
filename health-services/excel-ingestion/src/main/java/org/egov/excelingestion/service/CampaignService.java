@@ -11,6 +11,7 @@ import org.egov.excelingestion.web.models.UserInfo;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -126,27 +127,50 @@ public class CampaignService {
     }
 
     /**
-     * Search campaign data for existing users by phone numbers
-     * Returns List of campaign data records that match the phone numbers with status "completed"
+     * Generic method to search campaign data by unique identifiers
+     * Returns List of campaign data records that match the criteria
+     * 
+     * @param uniqueIdentifiers List of unique identifiers to search for
+     * @param type Type of data (e.g., "user", "facility", "boundary")
+     * @param status Status to filter by (e.g., "completed", "pending", "failed") - optional
+     * @param campaignNumber Campaign number to filter by - optional (null for all campaigns)
+     * @param tenantId Tenant ID
+     * @param requestInfo Request info
+     * @return List of matching campaign data records
      */
-    public java.util.List<Map<String, Object>> searchCampaignDataByPhoneNumbers(
-            java.util.List<String> phoneNumbers, String campaignNumber, String tenantId, RequestInfo requestInfo) {
+    public java.util.List<Map<String, Object>> searchCampaignDataByUniqueIdentifiers(
+            java.util.List<String> uniqueIdentifiers, String type, String status, 
+            String campaignNumber, String tenantId, RequestInfo requestInfo) {
         
         RequestInfo sanitizedRequestInfo = ensureTenantInRequestInfo(requestInfo, tenantId);
-        log.info("Searching campaign data for {} phone numbers in campaign: {} tenant: {}", 
-                phoneNumbers.size(), campaignNumber, tenantId);
+        
+        if (campaignNumber != null) {
+            log.info("Searching campaign data for {} {} identifiers in campaign: {} with status: {} in tenant: {}", 
+                    uniqueIdentifiers.size(), type, campaignNumber, status, tenantId);
+        } else {
+            log.info("Searching campaign data for {} {} identifiers across all campaigns with status: {} in tenant: {}", 
+                    uniqueIdentifiers.size(), type, status, tenantId);
+        }
         
         try {
+            // Build search criteria
+            Map<String, Object> searchCriteria = new HashMap<>();
+            searchCriteria.put("tenantId", tenantId);
+            searchCriteria.put("type", type);
+            searchCriteria.put("uniqueIdentifiers", uniqueIdentifiers);
+            
+            // Add optional criteria
+            if (status != null && !status.trim().isEmpty()) {
+                searchCriteria.put("status", status);
+            }
+            if (campaignNumber != null && !campaignNumber.trim().isEmpty()) {
+                searchCriteria.put("campaignNumber", campaignNumber);
+            }
+            
             // Build payload for campaign data search
             Map<String, Object> payload = Map.of(
                 "RequestInfo", sanitizedRequestInfo,
-                "SearchCriteria", Map.of(
-                    "tenantId", tenantId,
-                    "type", "user",
-                    "campaignNumber", campaignNumber,
-                    "status", "completed",
-                    "uniqueIdentifiers", phoneNumbers
-                )
+                "SearchCriteria", searchCriteria
             );
             
             String url = config.getCampaignDataSearchUrl();
@@ -161,15 +185,15 @@ public class CampaignService {
                 java.util.List<Map<String, Object>> campaignData = 
                     (java.util.List<Map<String, Object>>) response.get("CampaignData");
                 
-                log.info("Found {} existing users in campaign data with completed status", campaignData.size());
+                log.info("Found {} existing {} records in campaign data", campaignData.size(), type);
                 return campaignData;
             } else {
-                log.info("No existing users found in campaign data");
+                log.info("No existing {} records found in campaign data", type);
                 return new java.util.ArrayList<>();
             }
             
         } catch (Exception e) {
-            log.error("Error searching campaign data for phone numbers: {}", e.getMessage(), e);
+            log.error("Error searching campaign data for {} identifiers: {}", type, e.getMessage(), e);
             // Return empty list instead of throwing exception to allow processing to continue
             return new java.util.ArrayList<>();
         }
