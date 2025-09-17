@@ -85,7 +85,92 @@ export const transformConfigs: any = {
         transFormSingle: "transformEmployee",
         transFormBulk: "transformBulkEmployee"
     },
-
+    employeeHrmsUnified: {
+        metadata: {
+            tenantId: "dev",
+            hierarchy: "MICROPLAN"
+        },
+        fields: [
+            {
+                path: "$.user.name",
+                source: { header: "HCM_ADMIN_CONSOLE_USER_NAME" }
+            },
+            {
+                path: "$.user.mobileNumber",
+                source: { header: "HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER" }
+            },
+            {
+                path: "$.user.roles[*].name",
+                source: { header: "HCM_ADMIN_CONSOLE_USER_ROLE", splitBy: "," }
+            },
+            {
+                path: "$.user.roles[*].code",
+                source: { header: "HCM_ADMIN_CONSOLE_USER_ROLE", splitBy: "," }
+            },
+            {
+                path: "$.user.roles[*].tenantId",
+                value: "${metadata.tenantId}"
+            },
+            {
+                path: "$.user.userName",
+                source: { header: "UserName" }
+            },
+            {
+                path: "$.user.password",
+                source: { header: "Password" }
+            },
+            {
+                path: "$.user.tenantId",
+                value: "${metadata.tenantId}"
+            },
+            {
+                path: "$.user.dob",
+                value: 0
+            },
+            {
+                path: "$.employeeType",
+                source: {
+                    header: "HCM_ADMIN_CONSOLE_USER_EMPLOYMENT_TYPE",
+                    transform: {
+                        mapping: {
+                            Permanent: "PERMANENT",
+                            Temporary: "TEMPORARY",
+                            "%default%": "TEMPORARY"
+                        }
+                    }
+                }
+            },
+            {
+                path: "$.jurisdictions[*].boundary",
+                source: {
+                    header: "HCM_ADMIN_CONSOLE_BOUNDARY_CODE",
+                    splitBy: ","
+                }
+            },
+            {
+                path: "$.jurisdictions[*].tenantId",
+                value: "${metadata.tenantId}"
+            },
+            {
+                path: "$.jurisdictions[*].hierarchy",
+                value: "${metadata.hierarchy}"
+            },
+            {
+                path: "$.jurisdictions[*].boundaryType",
+                value: "${metadata.hierarchy}"
+            },
+            {
+                path: "$.tenantId",
+                value: "${metadata.tenantId}"
+            },
+            {
+                path: "$.code",
+                source: { header: "UserName" }
+            }
+        ],
+        transFormSingle: "transformEmployee",
+        transFormBulk: "transformBulkEmployee"
+    },
     Facility: {
         metadata: {
             tenantId: "dev",

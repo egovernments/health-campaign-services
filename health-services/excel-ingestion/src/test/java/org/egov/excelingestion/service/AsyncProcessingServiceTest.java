@@ -30,13 +30,16 @@ class AsyncProcessingServiceTest {
     @Mock
     private KafkaTopicConfig kafkaTopicConfig;
 
+    @Mock
+    private ConfigBasedProcessingService configBasedProcessingService;
+
     private AsyncProcessingService asyncProcessingService;
 
     @BeforeEach
     void setUp() {
         // Setup mock KafkaTopicConfig
         when(kafkaTopicConfig.getProcessingUpdateTopic()).thenReturn("test-update-processing-topic");
-        asyncProcessingService = new AsyncProcessingService(excelProcessingService, producer, kafkaTopicConfig);
+        asyncProcessingService = new AsyncProcessingService(excelProcessingService, producer, kafkaTopicConfig, configBasedProcessingService);
     }
 
     @Test

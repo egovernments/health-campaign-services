@@ -165,9 +165,6 @@ public class ExcelProcessingService {
                 // Update resource with results (error counts already enriched during processing)
                 ProcessResource updatedResource = updateResourceWithResults(resource, processedFileStoreId);
                 
-                // Send processing result to configured topic (if any)
-                configBasedProcessingService.sendProcessingResult(updatedResource);
-                
                 return updatedResource;
             }
         } catch (IOException e) {

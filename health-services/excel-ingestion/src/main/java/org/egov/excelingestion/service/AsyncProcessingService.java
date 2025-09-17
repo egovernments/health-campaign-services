@@ -19,13 +19,16 @@ public class AsyncProcessingService {
     private final ExcelProcessingService excelProcessingService;
     private final Producer producer;
     private final KafkaTopicConfig kafkaTopicConfig;
+    private final ConfigBasedProcessingService configBasedProcessingService;
 
     public AsyncProcessingService(ExcelProcessingService excelProcessingService,
                                 Producer producer,
-                                KafkaTopicConfig kafkaTopicConfig) {
+                                KafkaTopicConfig kafkaTopicConfig,
+                                ConfigBasedProcessingService configBasedProcessingService) {
         this.excelProcessingService = excelProcessingService;
         this.producer = producer;
         this.kafkaTopicConfig = kafkaTopicConfig;
+        this.configBasedProcessingService = configBasedProcessingService;
     }
 
     @Async("taskExecutor")
@@ -89,6 +92,16 @@ public class AsyncProcessingService {
             log.info("Pushing FAILED update to Kafka - ID: {}, Status: {}", 
                     processResource.getId(), processResource.getStatus());
             producer.push(processResource.getTenantId(), kafkaTopicConfig.getProcessingUpdateTopic(), processResource);
+        } finally {
+            // Always send processing result to configured topic, even on errors
+            if (processResource != null) {
+                try {
+                    configBasedProcessingService.sendProcessingResult(processResource);
+                    log.info("Processing result sent to topic for resource: {}", processResource.getId());
+                } catch (Exception e) {
+                    log.error("Failed to send processing result to topic for resource: {}", processResource.getId(), e);
+                }
+            }
         }
     }
 

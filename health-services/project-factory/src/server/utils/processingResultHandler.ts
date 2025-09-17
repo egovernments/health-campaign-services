@@ -95,49 +95,21 @@ export async function handleProcessingResult(messageObject: any) {
         logger.info(`Status: ${messageObject.status}`);
         
         // Log additional details (includes error information if failed)
-        if (messageObject.additionalDetails) {
-            
-            // Check validation status first
-            const validationStatus = messageObject?.additionalDetails?.validationStatus;
-            const totalRowsProcessed = messageObject?.additionalDetails?.totalRowsProcessed || 0;
-            const totalErrors = messageObject?.additionalDetails?.totalErrors || 0;
-            
-            logger.info(`Validation Status: ${validationStatus}`);
-            logger.info(`Total Rows Processed: ${totalRowsProcessed}`);
-            logger.info(`Total Errors: ${totalErrors}`);
-            
-            // Only proceed if validation status is valid
-            if (validationStatus !== 'valid') {
-                logger.warn('=== VALIDATION STATUS IS NOT VALID - STOPPING PROCESSING ===');
-                logger.warn(`Validation Status: ${validationStatus}, cannot proceed with campaign data processing`);
-                return;
-            }
-            
-            // Add timing delay based on totalRowsProcessed 
-            // Minimum 5 seconds, or 8ms per row processed
-            const delayMs = Math.max(5000, totalRowsProcessed * 8);
-            logger.info(`=== WAITING ${delayMs}ms BEFORE PROCESSING (${totalRowsProcessed} rows * 8ms, min 5s) ===`);
-            await new Promise(resolve => setTimeout(resolve, delayMs));
-            
-            // Check for errors
-            if (messageObject.additionalDetails.errorCode) {
-                logger.error(`Error Code: ${messageObject.additionalDetails.errorCode}`);
-                logger.error(`Error Message: ${messageObject.additionalDetails.errorMessage}`);
-            }
-            
-            // Check for sheet error counts
-            if (messageObject.additionalDetails.sheetErrorCounts) {
-                logger.info('Sheet Error Counts:');
-                Object.entries(messageObject.additionalDetails.sheetErrorCounts).forEach(([sheet, count]) => {
-                    logger.info(`  ${sheet}: ${count} errors`);
-                });
-            }
-        } else {
+        if (!messageObject.additionalDetails) {
             logger.warn('No additional details found in message object - cannot validate processing status');
             return;
         }
         
-        // Fetch campaign details first
+        // Check validation status first
+        const validationStatus = messageObject?.additionalDetails?.validationStatus;
+        const totalRowsProcessed = messageObject?.additionalDetails?.totalRowsProcessed || 0;
+        const totalErrors = messageObject?.additionalDetails?.totalErrors || 0;
+        
+        logger.info(`Validation Status: ${validationStatus}`);
+        logger.info(`Total Rows Processed: ${totalRowsProcessed}`);
+        logger.info(`Total Errors: ${totalErrors}`);
+        
+        // Fetch campaign details first (needed for validation failure handling)
         logger.info('=== FETCHING CAMPAIGN DETAILS ===');
         const campaignSearchCriteria = {
             tenantId: messageObject.tenantId,
@@ -171,6 +143,44 @@ export async function handleProcessingResult(messageObject: any) {
             } catch (error) {
                 logger.error(`Error fetching parent campaign: ${error}`);
             }
+        }
+        
+        // Only proceed if validation status is valid
+        if (validationStatus !== 'valid' || messageObject.status !== 'completed') {
+            logger.warn('=== VALIDATION STATUS IS NOT VALID - STOPPING PROCESSING ===');
+            logger.warn(`Validation Status: ${validationStatus}, cannot proceed with campaign data processing`);
+            
+            // Mark campaign as failed and parent campaign as active if parent campaign exists
+            const useruuid = campaignDetails?.auditDetails?.createdBy;
+            const mockRequestBody = {
+                CampaignDetails: campaignDetails,
+                RequestInfo: { userInfo: { uuid: useruuid } },
+                parentCampaign: parentCampaign
+            };
+            const validationError = new Error(`Validation failed: ${validationStatus}, Status: ${messageObject.status}`);
+            await enrichAndPersistCampaignWithError(mockRequestBody, validationError);
+            logger.info('Campaign marked as failed due to validation failure');
+            return;
+        }
+        
+        // Add timing delay based on totalRowsProcessed 
+        // Minimum 5 seconds, or 8ms per row processed
+        const delayMs = Math.max(5000, totalRowsProcessed * 8);
+        logger.info(`=== WAITING ${delayMs}ms BEFORE PROCESSING (${totalRowsProcessed} rows * 8ms, min 5s) ===`);
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+        
+        // Check for errors
+        if (messageObject.additionalDetails.errorCode) {
+            logger.error(`Error Code: ${messageObject.additionalDetails.errorCode}`);
+            logger.error(`Error Message: ${messageObject.additionalDetails.errorMessage}`);
+        }
+        
+        // Check for sheet error counts
+        if (messageObject.additionalDetails.sheetErrorCounts) {
+            logger.info('Sheet Error Counts:');
+            Object.entries(messageObject.additionalDetails.sheetErrorCounts).forEach(([sheet, count]) => {
+                logger.info(`  ${sheet}: ${count} errors`);
+            });
         }
         
         // Fetch localization data
@@ -1053,11 +1063,12 @@ async function triggerBackgroundResourceCreationFlow(
             try {
                 logger.info('=== BACKGROUND RESOURCE CREATION FLOW STARTED ===');
                 
-                // Create Projects and Facilities in parallel
-                logger.info('Creating projects and facilities in parallel...');
+                // Create Projects, Facilities, and Users in parallel
+                logger.info('Creating projects, facilities, and users in parallel...');
                 await Promise.all([
                     createProjectsFromBoundaryData(campaignDetails, tenantId),
-                    createFacilitiesFromFacilityData(campaignDetails, tenantId)
+                    createFacilitiesFromFacilityData(campaignDetails, tenantId),
+                    createUsersFromUserData(campaignDetails, tenantId)
                 ]);
                 
                 
@@ -1687,6 +1698,88 @@ async function createFacilitiesFromFacilityData(campaignDetails: any, tenantId: 
         
     } catch (error) {
         logger.error('Error sending facilities to Kafka:', error);
+        throw error;
+    }
+}
+
+/**
+ * Create users via Kafka batch processing
+ */
+async function createUsersFromUserData(campaignDetails: any, tenantId: string): Promise<void> {
+    try {
+        const campaignNumber = campaignDetails.campaignNumber;
+        const campaignId = campaignDetails.id;
+        const parentCampaignId = campaignDetails.parentId;
+        const userUuid = campaignDetails?.auditDetails?.createdBy;
+        
+        logger.info(`Creating users for campaign: ${campaignNumber} via Kafka batches`);
+        
+        // Get all existing users for this campaign from campaign data table
+        const allCurrentUsers = await getRelatedDataWithCampaign("user", campaignNumber, tenantId);
+        
+        if (allCurrentUsers.length === 0) {
+            logger.info('No user data found for user creation');
+            return;
+        }
+        
+        logger.info(`Found ${allCurrentUsers.length} user records in campaign data`);
+        
+        // Filter users that need creation (pending or failed status)
+        const usersToCreate = allCurrentUsers.filter(
+            (u: any) => u?.status === dataRowStatuses.pending || u?.status === dataRowStatuses.failed
+        );
+        
+        if (usersToCreate.length === 0) {
+            logger.info('No users require creation');
+            return;
+        }
+        
+        logger.info(`${usersToCreate.length} users to create via Kafka batches`);
+        
+        // Send user batches to Kafka topic for processing
+        const BATCH_SIZE = 30;
+        const totalBatches = Math.ceil(usersToCreate.length / BATCH_SIZE);
+        
+        for (let i = 0; i < usersToCreate.length; i += BATCH_SIZE) {
+            const batch = usersToCreate.slice(i, i + BATCH_SIZE);
+            const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
+            
+            // Create user data map for this batch
+            const userData: Record<string, any> = {};
+            batch.forEach(user => {
+                const uniqueIdentifier = user.uniqueIdentifier;
+                userData[uniqueIdentifier] = user; // campaignRecord
+            });
+            
+            // Send batch to Kafka
+            const batchMessage = {
+                tenantId,
+                campaignNumber,
+                campaignId,
+                parentCampaignId,
+                useruuid: userUuid,
+                userData,
+                batchNumber,
+                totalBatches
+            };
+            
+            logger.info(`Sending user batch ${batchNumber}/${totalBatches} to Kafka: ${batch.length} users`);
+            
+            // Use random UUID as partition key for load balancing across consumers
+            const partitionKey = uuidv4();
+            
+            await produceModifiedMessages(
+                batchMessage, 
+                config.kafka.KAFKA_USER_CREATE_BATCH_TOPIC, 
+                tenantId,
+                partitionKey
+            );
+        }
+        
+        logger.info(`All ${totalBatches} user batches sent to Kafka for processing`);
+        
+    } catch (error) {
+        logger.error('Error sending users to Kafka:', error);
         throw error;
     }
 }
