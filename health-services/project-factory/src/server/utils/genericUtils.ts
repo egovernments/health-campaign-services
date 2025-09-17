@@ -1793,6 +1793,247 @@ export async function prepareProcessesInDb(campaignNumber: any, tenantId: string
   await new Promise(resolve => setTimeout(resolve, 10000));
 }
 
+/**
+ * Build base query for campaign data with WHERE conditions
+ */
+function buildCampaignDataBaseQuery(searchParams: {
+  tenantId: string;
+  type?: string;
+  campaignNumber?: string;
+  status?: string;
+  uniqueIdentifiers?: string[];
+}) {
+  const { tenantId, type, campaignNumber, status, uniqueIdentifiers } = searchParams;
+
+  const tableName = getTableName(config?.DB_CONFIG?.DB_CAMPAIGN_DATA_TABLE_NAME, tenantId);
+
+  let whereClause = `FROM ${tableName} WHERE 1=1`;
+  const queryParams: any[] = [];
+  let paramIndex = 1;
+
+  if (type) {
+    whereClause += ` AND type = $${paramIndex}`;
+    queryParams.push(type);
+    paramIndex++;
+  }
+
+  if (campaignNumber) {
+    whereClause += ` AND campaignNumber = $${paramIndex}`;
+    queryParams.push(campaignNumber);
+    paramIndex++;
+  }
+
+  if (status) {
+    whereClause += ` AND status = $${paramIndex}`;
+    queryParams.push(status);
+    paramIndex++;
+  }
+
+  if (uniqueIdentifiers && uniqueIdentifiers.length > 0) {
+    whereClause += ` AND uniqueIdentifier = ANY($${paramIndex})`;
+    queryParams.push(uniqueIdentifiers);
+    paramIndex++;
+  }
+
+  return { whereClause, queryParams, paramIndex };
+}
+
+/**
+ * Build base query for mapping data with WHERE conditions
+ */
+function buildMappingDataBaseQuery(searchParams: {
+  tenantId: string;
+  type?: string;
+  campaignNumber?: string;
+  status?: string;
+  boundaryCode?: string;
+  uniqueIdentifierForData?: string;
+}) {
+  const { tenantId, type, campaignNumber, status, boundaryCode, uniqueIdentifierForData } = searchParams;
+
+  const tableName = getTableName(config?.DB_CONFIG?.DB_CAMPAIGN_MAPPING_DATA_TABLE_NAME, tenantId);
+
+  let whereClause = `FROM ${tableName} WHERE 1=1`;
+  const queryParams: any[] = [];
+  let paramIndex = 1;
+
+  if (type) {
+    whereClause += ` AND type = $${paramIndex}`;
+    queryParams.push(type);
+    paramIndex++;
+  }
+
+  if (campaignNumber) {
+    whereClause += ` AND campaignNumber = $${paramIndex}`;
+    queryParams.push(campaignNumber);
+    paramIndex++;
+  }
+
+  if (status) {
+    whereClause += ` AND status = $${paramIndex}`;
+    queryParams.push(status);
+    paramIndex++;
+  }
+
+  if (boundaryCode) {
+    whereClause += ` AND boundaryCode = $${paramIndex}`;
+    queryParams.push(boundaryCode);
+    paramIndex++;
+  }
+
+  if (uniqueIdentifierForData) {
+    whereClause += ` AND uniqueIdentifierForData = $${paramIndex}`;
+    queryParams.push(uniqueIdentifierForData);
+    paramIndex++;
+  }
+
+  return { whereClause, queryParams, paramIndex };
+}
+
+/**
+ * Search campaign data with optional pagination
+ */
+export async function searchCampaignData(searchParams: {
+  tenantId: string;
+  type?: string;
+  campaignNumber?: string;
+  status?: string;
+  uniqueIdentifiers?: string[];
+  offset?: number;
+  limit?: number;
+}) {
+  const { offset, limit } = searchParams;
+
+  // Build base query
+  const { whereClause, queryParams, paramIndex } = buildCampaignDataBaseQuery(searchParams);
+
+  // Build data query with ordering
+  let dataQuery = `SELECT * ${whereClause}`;
+  let finalParams = [...queryParams];
+
+  // Add pagination if provided
+  if (offset !== undefined && limit !== undefined) {
+    dataQuery += ` LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+    finalParams.push(limit, offset);
+  }
+
+  // Build count query
+  const countQuery = `SELECT COUNT(*) ${whereClause}`;
+
+  // Execute both queries
+  const [dataResult, countResult] = await Promise.all([
+    executeQuery(dataQuery, finalParams),
+    executeQuery(countQuery, queryParams)
+  ]);
+
+  const totalCount = parseInt(countResult?.rows?.[0]?.count || '0');
+
+  // Transform results
+  const rows = dataResult?.rows?.map((row: any) => ({
+    id: row?.id,
+    campaignNumber: row?.campaignnumber,
+    type: row?.type,
+    data: row?.data,
+    uniqueIdentifier: row?.uniqueidentifier,
+    status: row?.status,
+    uniqueIdAfterProcess: row?.uniqueidafterprocess,
+    createdBy: row?.createdby,
+    createdTime: row?.createdtime,
+    lastModifiedBy: row?.lastmodifiedby,
+    lastModifiedTime: row?.lastmodifiedtime
+  })) || [];
+
+  const result: any = {
+    data: rows,
+    totalCount
+  };
+
+  // Add pagination info if pagination was used
+  if (offset !== undefined && limit !== undefined) {
+    result.pagination = {
+      offset,
+      limit,
+      totalPages: Math.ceil(totalCount / limit),
+      currentPage: Math.floor(offset / limit) + 1
+    };
+  }
+
+  return result;
+}
+
+/**
+ * Search mapping data with optional pagination
+ */
+export async function searchMappingData(searchParams: {
+  tenantId: string;
+  type?: string;
+  campaignNumber?: string;
+  status?: string;
+  boundaryCode?: string;
+  uniqueIdentifierForData?: string;
+  offset?: number;
+  limit?: number;
+}) {
+  const { offset, limit } = searchParams;
+
+  // Build base query
+  const { whereClause, queryParams, paramIndex } = buildMappingDataBaseQuery(searchParams);
+
+  // Build data query with ordering
+  let dataQuery = `SELECT * ${whereClause}`;
+  let finalParams = [...queryParams];
+
+  // Add pagination if provided
+  if (offset !== undefined && limit !== undefined) {
+    dataQuery += ` LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+    finalParams.push(limit, offset);
+  }
+
+  // Build count query
+  const countQuery = `SELECT COUNT(*) ${whereClause}`;
+
+  // Execute both queries
+  const [dataResult, countResult] = await Promise.all([
+    executeQuery(dataQuery, finalParams),
+    executeQuery(countQuery, queryParams)
+  ]);
+
+  const totalCount = parseInt(countResult?.rows?.[0]?.count || '0');
+
+  // Transform results
+  const rows = dataResult?.rows?.map((row: any) => ({
+    id: row?.id,
+    campaignNumber: row?.campaignnumber,
+    type: row?.type,
+    boundaryCode: row?.boundarycode,
+    uniqueIdentifierForData: row?.uniqueidentifierfordata,
+    status: row?.status,
+    mappingId: row?.mappingid,
+    createdBy: row?.createdby,
+    createdTime: row?.createdtime,
+    lastModifiedBy: row?.lastmodifiedby,
+    lastModifiedTime: row?.lastmodifiedtime
+  })) || [];
+
+  const result: any = {
+    data: rows,
+    totalCount
+  };
+
+  // Add pagination info if pagination was used
+  if (offset !== undefined && limit !== undefined) {
+    result.pagination = {
+      offset,
+      limit,
+      totalPages: Math.ceil(totalCount / limit),
+      currentPage: Math.floor(offset / limit) + 1
+    };
+  }
+
+  return result;
+}
+
+
 
 export {
   errorResponder,

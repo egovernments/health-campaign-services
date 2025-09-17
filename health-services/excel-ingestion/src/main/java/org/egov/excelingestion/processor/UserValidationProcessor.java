@@ -12,6 +12,7 @@ import org.egov.excelingestion.util.EnrichmentUtil;
 import org.egov.excelingestion.util.SchemaColumnDefUtil;
 import org.egov.excelingestion.util.ErrorColumnUtil;
 import org.egov.excelingestion.service.MDMSService;
+import org.egov.excelingestion.service.CampaignService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.egov.excelingestion.config.ProcessingConstants;
 import org.springframework.http.HttpEntity;
@@ -23,6 +24,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Component
 @Slf4j
@@ -35,6 +37,7 @@ public class UserValidationProcessor implements ISheetDataProcessor {
     private final MDMSService mdmsService;
     private final SchemaColumnDefUtil schemaColumnDefUtil;
     private final ErrorColumnUtil errorColumnUtil;
+    private final CampaignService campaignService;
 
     public UserValidationProcessor(ValidationService validationService, 
                                  RestTemplate restTemplate, 
@@ -42,7 +45,8 @@ public class UserValidationProcessor implements ISheetDataProcessor {
                                  EnrichmentUtil enrichmentUtil,
                                  MDMSService mdmsService,
                                  SchemaColumnDefUtil schemaColumnDefUtil,
-                                 ErrorColumnUtil errorColumnUtil) {
+                                 ErrorColumnUtil errorColumnUtil,
+                                 CampaignService campaignService) {
         this.validationService = validationService;
         this.restTemplate = restTemplate;
         this.config = config;
@@ -50,6 +54,7 @@ public class UserValidationProcessor implements ISheetDataProcessor {
         this.mdmsService = mdmsService;
         this.schemaColumnDefUtil = schemaColumnDefUtil;
         this.errorColumnUtil = errorColumnUtil;
+        this.campaignService = campaignService;
     }
 
     @Override
@@ -66,9 +71,11 @@ public class UserValidationProcessor implements ISheetDataProcessor {
             // Add row numbers to data for error reporting
             List<Map<String, Object>> dataWithRowNumbers = addRowNumbers(originalData);
             
-            // Validate phone numbers and usernames
-            validatePhoneNumbers(dataWithRowNumbers, resource.getTenantId(), requestInfo, errors, localizationMap);
-            validateUserNames(dataWithRowNumbers, resource.getTenantId(), requestInfo, errors, localizationMap);
+            // Validate phone numbers and get list of existing ones in campaign
+            Set<String> existingPhonesInCampaign = validatePhoneNumbers(dataWithRowNumbers, resource, requestInfo, errors, localizationMap);
+            
+            // Validate usernames but skip those with phones already in campaign
+            validateUserNames(dataWithRowNumbers, resource.getTenantId(), requestInfo, errors, localizationMap, existingPhonesInCampaign);
             
             // Process data and add error information
             processedData = addErrorInformationToData(dataWithRowNumbers, errors, localizationMap);
@@ -224,7 +231,7 @@ public class UserValidationProcessor implements ISheetDataProcessor {
     }
 
 
-    private void validatePhoneNumbers(List<Map<String, Object>> sheetData, String tenantId, 
+    private Set<String> validatePhoneNumbers(List<Map<String, Object>> sheetData, ProcessResource resource, 
                                     RequestInfo requestInfo, List<ValidationError> errors,
                                     Map<String, String> localizationMap) {
         log.info("Validating phone numbers for {} records", sheetData.size());
@@ -246,14 +253,67 @@ public class UserValidationProcessor implements ISheetDataProcessor {
         
         if (allPhoneNumbers.isEmpty()) {
             log.info("No phone numbers to validate");
-            return;
+            return new HashSet<>();
         }
         
-        // Search in batches of 50
+        // Get campaign details to fetch campaign number
+        String campaignId = resource.getReferenceId();
+        String tenantId = resource.getTenantId();
+        String campaignNumber = null;
+        
+        try {
+            var campaignDetail = campaignService.searchCampaignById(campaignId, tenantId, requestInfo);
+            if (campaignDetail != null) {
+                campaignNumber = campaignDetail.getCampaignNumber();
+                log.info("Found campaign number: {} for campaign ID: {}", campaignNumber, campaignId);
+            }
+        } catch (Exception e) {
+            log.error("Error fetching campaign details for campaign ID: {}", campaignId, e);
+        }
+        
+        // First, check campaign data for existing users with completed status
+        Set<String> existingInCampaign = new HashSet<>();
+        if (campaignNumber != null) {
+            try {
+                List<Map<String, Object>> campaignUsers = campaignService.searchCampaignDataByPhoneNumbers(
+                    allPhoneNumbers, campaignNumber, tenantId, requestInfo);
+                
+                for (Map<String, Object> campaignUser : campaignUsers) {
+                    String uniqueIdentifier = (String) campaignUser.get("uniqueIdentifier");
+                    if (uniqueIdentifier != null) {
+                        existingInCampaign.add(uniqueIdentifier);
+                        log.debug("Phone number {} already exists in campaign {} with completed status", 
+                                uniqueIdentifier, campaignNumber);
+                    }
+                }
+                
+                if (!existingInCampaign.isEmpty()) {
+                    log.info("Found {} users already existing in campaign {} with completed status - will skip validation for these", 
+                            existingInCampaign.size(), campaignNumber);
+                }
+            } catch (Exception e) {
+                log.error("Error searching campaign data: {}", e.getMessage(), e);
+            }
+        }
+        
+        // Filter out phone numbers that already exist in campaign with completed status
+        List<String> phoneNumbersToValidate = allPhoneNumbers.stream()
+                .filter(phone -> !existingInCampaign.contains(phone))
+                .collect(Collectors.toList());
+        
+        if (phoneNumbersToValidate.isEmpty()) {
+            log.info("All phone numbers already exist in campaign with completed status - skipping individual validation");
+            return existingInCampaign;
+        }
+        
+        log.info("Validating {} phone numbers (skipped {} already in campaign)", 
+                phoneNumbersToValidate.size(), existingInCampaign.size());
+        
+        // Search in batches of 50 for remaining phone numbers
         final int BATCH_SIZE = 50;
-        for (int i = 0; i < allPhoneNumbers.size(); i += BATCH_SIZE) {
-            int endIndex = Math.min(i + BATCH_SIZE, allPhoneNumbers.size());
-            List<String> batch = allPhoneNumbers.subList(i, endIndex);
+        for (int i = 0; i < phoneNumbersToValidate.size(); i += BATCH_SIZE) {
+            int endIndex = Math.min(i + BATCH_SIZE, phoneNumbersToValidate.size());
+            List<String> batch = phoneNumbersToValidate.subList(i, endIndex);
             
             try {
                 List<Map<String, Object>> existingUsers = searchIndividualsByMobileNumber(batch, tenantId, requestInfo);
@@ -265,7 +325,7 @@ public class UserValidationProcessor implements ISheetDataProcessor {
                         error.setRowNumber(phoneNumberToRowMap.get(mobileNumber));
                         error.setErrorDetails(LocalizationUtil.getLocalizedMessage(localizationMap, 
                             "HCM_USER_PHONE_NUMBER_EXISTS", 
-                            "User with this phone number already exists"));
+                            "User with this phone number already exists, and is not suitable for this campaign"));
                         error.setStatus(ValidationConstants.STATUS_INVALID);
                         errors.add(error);
                     }
@@ -287,12 +347,14 @@ public class UserValidationProcessor implements ISheetDataProcessor {
         }
         
         log.info("Phone number validation completed");
+        return existingInCampaign;
     }
     
     private void validateUserNames(List<Map<String, Object>> sheetData, String tenantId, 
                                  RequestInfo requestInfo, List<ValidationError> errors,
-                                 Map<String, String> localizationMap) {
-        log.info("Validating usernames for {} records", sheetData.size());
+                                 Map<String, String> localizationMap, Set<String> existingPhonesInCampaign) {
+        log.info("Validating usernames for {} records (will skip {} phones already in campaign)", 
+                sheetData.size(), existingPhonesInCampaign.size());
         
         // Map usernames to their row numbers  
         Map<String, Integer> userNameToRowMap = new HashMap<>();
@@ -302,6 +364,12 @@ public class UserValidationProcessor implements ISheetDataProcessor {
             String userName = (String) rowData.get("UserName");
             String phoneNumber = (String) rowData.get("HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER");
             String userServiceUuids = (String) rowData.get("UserService Uuids");
+            
+            // Skip username validation if phone number already exists in campaign with completed status
+            if (phoneNumber != null && existingPhonesInCampaign.contains(phoneNumber.trim())) {
+                log.debug("Skipping username validation for phone {} - already exists in campaign", phoneNumber.trim());
+                continue;
+            }
             
             // Only validate username if phone number doesn't already exist and no service UUIDs provided
             if (userName != null && !userName.trim().isEmpty() && 

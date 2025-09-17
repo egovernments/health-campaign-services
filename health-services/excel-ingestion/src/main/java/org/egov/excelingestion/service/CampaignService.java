@@ -126,6 +126,56 @@ public class CampaignService {
     }
 
     /**
+     * Search campaign data for existing users by phone numbers
+     * Returns List of campaign data records that match the phone numbers with status "completed"
+     */
+    public java.util.List<Map<String, Object>> searchCampaignDataByPhoneNumbers(
+            java.util.List<String> phoneNumbers, String campaignNumber, String tenantId, RequestInfo requestInfo) {
+        
+        RequestInfo sanitizedRequestInfo = ensureTenantInRequestInfo(requestInfo, tenantId);
+        log.info("Searching campaign data for {} phone numbers in campaign: {} tenant: {}", 
+                phoneNumbers.size(), campaignNumber, tenantId);
+        
+        try {
+            // Build payload for campaign data search
+            Map<String, Object> payload = Map.of(
+                "RequestInfo", sanitizedRequestInfo,
+                "SearchCriteria", Map.of(
+                    "tenantId", tenantId,
+                    "type", "user",
+                    "campaignNumber", campaignNumber,
+                    "status", "completed",
+                    "uniqueIdentifiers", phoneNumbers
+                )
+            );
+            
+            String url = config.getCampaignDataSearchUrl();
+            log.debug("Calling Campaign Data Search API: {}", url);
+            
+            @SuppressWarnings("unchecked")
+            Map<String, Object> response = serviceRequestRepository.fetchResult(
+                    new StringBuilder(url), payload, Map.class);
+            
+            if (response != null && response.get("CampaignData") != null) {
+                @SuppressWarnings("unchecked")
+                java.util.List<Map<String, Object>> campaignData = 
+                    (java.util.List<Map<String, Object>>) response.get("CampaignData");
+                
+                log.info("Found {} existing users in campaign data with completed status", campaignData.size());
+                return campaignData;
+            } else {
+                log.info("No existing users found in campaign data");
+                return new java.util.ArrayList<>();
+            }
+            
+        } catch (Exception e) {
+            log.error("Error searching campaign data for phone numbers: {}", e.getMessage(), e);
+            // Return empty list instead of throwing exception to allow processing to continue
+            return new java.util.ArrayList<>();
+        }
+    }
+
+    /**
      * Build campaign search URL from configuration
      */
     private String buildCampaignSearchUrl() {

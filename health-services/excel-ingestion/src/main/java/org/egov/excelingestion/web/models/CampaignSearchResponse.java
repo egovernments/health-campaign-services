@@ -37,6 +37,7 @@ public class CampaignSearchResponse {
         private String projectType;
         private String hierarchyType;
         private String boundaryCode;
+        private String campaignNumber;
         private List<BoundaryDetail> boundaries;
     }
     
