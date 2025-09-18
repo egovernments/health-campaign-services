@@ -7,6 +7,8 @@ import { handleTaskForCampaign } from '../utils/taskUtils';
 import { handleProcessingResult } from '../utils/processingResultHandler';
 import { handleFacilityBatch } from '../utils/facilityBatchHandler';
 import { handleUserBatch } from '../utils/userBatchHandler';
+import { handleMappingBatch } from '../utils/mappingBatchHandler';
+import { handleCampaignFailure } from '../utils/campaignFailureHandler';
 
 
 const kafka = new Kafka({
@@ -25,7 +27,9 @@ const topicNames = [
     config.kafka.KAFKA_TEST_TOPIC,
     config.kafka.KAFKA_HCM_PROCESSING_RESULT_TOPIC,
     config.kafka.KAFKA_FACILITY_CREATE_BATCH_TOPIC,
-    config.kafka.KAFKA_USER_CREATE_BATCH_TOPIC
+    config.kafka.KAFKA_USER_CREATE_BATCH_TOPIC,
+    config.kafka.KAFKA_MAPPING_BATCH_TOPIC,
+    config.kafka.KAFKA_CAMPAIGN_MARK_FAILED_TOPIC
 ];
 
 
@@ -112,6 +116,12 @@ async function processMessageKJS(topic: string, message: { value: Buffer | null 
                 break;
             case config.kafka.KAFKA_USER_CREATE_BATCH_TOPIC:
                 handleUserBatch(messageObject);
+                break;
+            case config.kafka.KAFKA_MAPPING_BATCH_TOPIC:
+                handleMappingBatch(messageObject);
+                break;
+            case config.kafka.KAFKA_CAMPAIGN_MARK_FAILED_TOPIC:
+                handleCampaignFailure(messageObject);
                 break;
             default:
                 logger.warn(`Unhandled topic: ${topic}`);

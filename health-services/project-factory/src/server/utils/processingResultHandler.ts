@@ -150,12 +150,11 @@ export async function handleProcessingResult(messageObject: any) {
             logger.warn('=== VALIDATION STATUS IS NOT VALID - STOPPING PROCESSING ===');
             logger.warn(`Validation Status: ${validationStatus}, cannot proceed with campaign data processing`);
             
-            // Mark campaign as failed and parent campaign as active if parent campaign exists
+            // Mark campaign as failed
             const useruuid = campaignDetails?.auditDetails?.createdBy;
             const mockRequestBody = {
                 CampaignDetails: campaignDetails,
-                RequestInfo: { userInfo: { uuid: useruuid } },
-                parentCampaign: parentCampaign
+                RequestInfo: { userInfo: { uuid: useruuid } }
             };
             const validationError = new Error(`Validation failed: ${validationStatus}, Status: ${messageObject.status}`);
             await enrichAndPersistCampaignWithError(mockRequestBody, validationError);
@@ -240,7 +239,6 @@ export async function handleProcessingResult(messageObject: any) {
         
     } catch (error) {
         logger.error('Error handling HCM processing result:', error);
-        throw error;
     }
 }
 
@@ -338,11 +336,13 @@ async function processCampaignBoundariesFromExcelData(
 
         // Step 6: Map targets to all enriched boundaries (cascade from children to parents)
         const allBoundaryDataWithTargets = mapTargetsToEnrichedBoundaries(boundaries, sheetTargetData, targetColumns);
-
         logger.info(`Mapped targets to ${allBoundaryDataWithTargets.length} total boundaries (all hierarchy levels)`);
 
-        // Step 7: Process all boundary data (with cascaded targets) and update eg_cm_campaign_data
+        // Step 8: Process all boundary data (with cascaded targets) and update eg_cm_campaign_data
         await processBoundaryDataInCampaignTable(campaignNumber, tenantId, allBoundaryDataWithTargets, targetColumns);
+
+        // Step 9: Process resource-boundary mappings for campaign resources
+        await processResourceBoundaryMappings(campaignNumber, tenantId, boundaries, campaignDetails);
 
         logger.info('=== CAMPAIGN BOUNDARY PROCESSING COMPLETED ===');
 
@@ -570,6 +570,124 @@ async function processBoundaryDataInCampaignTable(
         logger.info('No boundary data changes detected');
     } else {
         logger.info(`Campaign data table updated: ${newEntries.length} new, ${updatedEntries.length} updated`);
+    }
+}
+
+/**
+ * Process resource-boundary mappings for all campaign resources
+ */
+async function processResourceBoundaryMappings(
+    campaignNumber: string,
+    tenantId: string,
+    boundaries: any[],
+    campaignDetails: any
+): Promise<void> {
+    try {
+        logger.info('=== PROCESSING RESOURCE-BOUNDARY MAPPINGS ===');
+        
+        // Step 1: Extract pvar IDs from campaign delivery rules (same logic as campaignMappingUtils.getPvarIds)
+        const pvarIds = extractPvarIdsFromCampaign(campaignDetails);
+        
+        if (!pvarIds || pvarIds.length === 0) {
+            logger.info('No pvar IDs found in campaign delivery rules, skipping resource mapping');
+            return;
+        }
+        
+        logger.info(`Found ${pvarIds.length} unique pvar IDs for resource mapping: ${pvarIds.join(', ')}`);
+        
+        // Step 2: Create resource-boundary mappings for each boundary and each pvar ID
+        const resourceBoundaryMappings: any[] = [];
+        
+        // Get all boundary codes from enriched boundaries
+        const boundaryCodes = boundaries.map(boundary => boundary.code).filter(Boolean);
+        
+        // Create mappings: each pvar ID maps to each boundary
+        boundaryCodes.forEach(boundaryCode => {
+            pvarIds.forEach(pvarId => {
+                resourceBoundaryMappings.push({
+                    pvarId,
+                    boundaryCode,
+                    active: true
+                });
+            });
+        });
+        
+        logger.info(`Created ${resourceBoundaryMappings.length} resource-boundary mapping entries`);
+        
+        // Step 3: Process resource-boundary mappings (only create new ones, no demapping)
+        if (resourceBoundaryMappings.length > 0) {
+            await handleResourceBoundaryMappings(campaignNumber, tenantId, resourceBoundaryMappings);
+        }
+        
+        logger.info('=== RESOURCE-BOUNDARY MAPPINGS PROCESSING COMPLETED ===');
+        
+    } catch (error) {
+        logger.error('Error processing resource-boundary mappings:', error);
+        throw error;
+    }
+}
+
+/**
+ * Extract pvar IDs from campaign delivery rules (following campaignMappingUtils.getPvarIds pattern)
+ */
+function extractPvarIdsFromCampaign(campaignDetails: any): string[] {
+    const deliveryRules = campaignDetails?.deliveryRules;
+    const uniquePvarIds = new Set<string>(); // Create a Set to store unique pvar IDs
+    
+    if (deliveryRules) {
+        for (const deliveryRule of deliveryRules) {
+            const products = deliveryRule?.resources;
+            if (products) {
+                for (const product of products) {
+                    if (product?.productVariantId) {
+                        uniquePvarIds.add(product.productVariantId); // Add pvar ID to the Set
+                    }
+                }
+            }
+        }
+    }
+    
+    return Array.from(uniquePvarIds); // Convert Set to array before returning
+}
+
+/**
+ * Handle resource-boundary mappings - only create new mappings (no demapping)
+ */
+async function handleResourceBoundaryMappings(
+    campaignNumber: string,
+    tenantId: string,
+    newMappings: any[]
+): Promise<void> {
+    // Get existing resource mappings for this campaign
+    const existingMappings = await getMappingDataRelatedToCampaign('resource', campaignNumber, tenantId);
+    const existingMappingSet = new Set(
+        existingMappings.map((m: any) => `${m.uniqueIdentifierForData}#${m.boundaryCode}`)
+    );
+    
+    // Prepare new mappings to be created (only create, no demap)
+    const mappingsToCreate: any[] = [];
+    
+    newMappings.forEach(mapping => {
+        const key = `${mapping.pvarId}#${mapping.boundaryCode}`;
+        
+        if (!existingMappingSet.has(key)) {
+            mappingsToCreate.push({
+                campaignNumber,
+                type: 'resource',
+                uniqueIdentifierForData: mapping.pvarId,
+                boundaryCode: mapping.boundaryCode,
+                mappingId: null,
+                status: mappingStatuses.toBeMapped
+            });
+        }
+    });
+    
+    // Persist only new mapping creations
+    if (mappingsToCreate.length > 0) {
+        logger.info(`Creating ${mappingsToCreate.length} new resource-boundary mappings`);
+        await persistDataInBatches(mappingsToCreate, config.kafka.KAFKA_SAVE_MAPPING_DATA_TOPIC, tenantId);
+    } else {
+        logger.info('No new resource-boundary mappings to create - all mappings already exist');
     }
 }
 
@@ -1080,6 +1198,13 @@ async function triggerBackgroundResourceCreationFlow(
                     createUsersFromUserData(campaignDetails, tenantId)
                 ]);
                 
+                // Wait 10 seconds before starting mapping process
+                logger.info('=== WAITING 10 SECONDS BEFORE STARTING MAPPING PROCESS ===');
+                await new Promise(resolve => setTimeout(resolve, 10000));
+                
+                // Start mapping process for all types in batches
+                logger.info('=== STARTING MAPPING PROCESS IN BATCHES ===');
+                await startAllMappingsInBatches(campaignDetails, useruuid, tenantId);
                 
                 logger.info('=== BACKGROUND RESOURCE CREATION FLOW COMPLETED SUCCESSFULLY ===');
                 
@@ -1088,8 +1213,7 @@ async function triggerBackgroundResourceCreationFlow(
                 try {
                     const mockRequestBody = {
                         CampaignDetails: [campaignDetails],
-                        RequestInfo: { userInfo: { uuid: useruuid } },
-                        parentCampaign: parentCampaign
+                        RequestInfo: { userInfo: { uuid: useruuid } }
                     };
                     await enrichAndPersistCampaignWithError(mockRequestBody, error);
                 } catch (errorHandlingError) {
@@ -1707,6 +1831,84 @@ async function createFacilitiesFromFacilityData(campaignDetails: any, tenantId: 
         
     } catch (error) {
         logger.error('Error sending facilities to Kafka:', error);
+        throw error;
+    }
+}
+
+/**
+ * Start all mappings (resource, facility, user) in batches via Kafka
+ */
+async function startAllMappingsInBatches(
+    campaignDetails: any,
+    useruuid: string,
+    tenantId: string
+): Promise<void> {
+    try {
+        const campaignNumber = campaignDetails.campaignNumber;
+        logger.info(`Starting all mappings for campaign: ${campaignNumber}`);
+        
+        // Get all mappings for all types - both toBeMapped and toBeDeMapped
+        const allMappings: any[] = [];
+        
+        // Resource mappings
+        const resourceToBeMapped = await getMappingDataRelatedToCampaign('resource', campaignNumber, tenantId, mappingStatuses.toBeMapped);
+        const resourceToBeDeMapped = await getMappingDataRelatedToCampaign('resource', campaignNumber, tenantId, mappingStatuses.toBeDeMapped);
+        allMappings.push(...resourceToBeMapped, ...resourceToBeDeMapped);
+        
+        // Facility mappings
+        const facilityToBeMapped = await getMappingDataRelatedToCampaign('facility', campaignNumber, tenantId, mappingStatuses.toBeMapped);
+        const facilityToBeDeMapped = await getMappingDataRelatedToCampaign('facility', campaignNumber, tenantId, mappingStatuses.toBeDeMapped);
+        allMappings.push(...facilityToBeMapped, ...facilityToBeDeMapped);
+        
+        // User mappings
+        const userToBeMapped = await getMappingDataRelatedToCampaign('user', campaignNumber, tenantId, mappingStatuses.toBeMapped);
+        const userToBeDeMapped = await getMappingDataRelatedToCampaign('user', campaignNumber, tenantId, mappingStatuses.toBeDeMapped);
+        allMappings.push(...userToBeMapped, ...userToBeDeMapped);
+        
+        if (allMappings.length === 0) {
+            logger.info('No mappings found to process');
+            return;
+        }
+        
+        logger.info(`Found ${allMappings.length} total mappings to process`);
+        logger.info(`Resource: ${resourceToBeMapped.length + resourceToBeDeMapped.length}, Facility: ${facilityToBeMapped.length + facilityToBeDeMapped.length}, User: ${userToBeMapped.length + userToBeDeMapped.length}`);
+        
+        // Send mappings in batches of 30
+        const BATCH_SIZE = 30;
+        const totalBatches = Math.ceil(allMappings.length / BATCH_SIZE);
+        
+        for (let i = 0; i < allMappings.length; i += BATCH_SIZE) {
+            const batch = allMappings.slice(i, i + BATCH_SIZE);
+            const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
+            
+            // Send batch to Kafka
+            const batchMessage = {
+                tenantId,
+                campaignNumber,
+                campaignId: campaignDetails.id,
+                useruuid,
+                mappings: batch,
+                batchNumber,
+                totalBatches
+            };
+            
+            logger.info(`Sending mapping batch ${batchNumber}/${totalBatches} to Kafka: ${batch.length} mappings`);
+            
+            // Use random UUID as partition key for load balancing
+            const partitionKey = uuidv4();
+            
+            await produceModifiedMessages(
+                batchMessage,
+                config.kafka.KAFKA_MAPPING_BATCH_TOPIC,
+                tenantId,
+                partitionKey
+            );
+        }
+        
+        logger.info(`All ${totalBatches} mapping batches sent to Kafka for processing`);
+        
+    } catch (error) {
+        logger.error('Error starting mappings in batches:', error);
         throw error;
     }
 }

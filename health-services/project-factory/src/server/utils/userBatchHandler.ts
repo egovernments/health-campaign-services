@@ -3,7 +3,7 @@ import { httpRequest } from './request';
 import { produceModifiedMessages } from '../kafka/Producer';
 import { dataRowStatuses } from '../config/constants';
 import { defaultRequestInfo } from '../api/coreApis';
-import { enrichAndPersistCampaignWithError } from './campaignUtils';
+import { sendCampaignFailureMessage } from './campaignFailureHandler';
 import { searchProjectTypeCampaignService } from '../service/campaignManageService';
 import { DataTransformer } from './transFormUtil';
 import { transformConfigs } from '../config/transformConfigs';
@@ -33,7 +33,6 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
             tenantId, 
             campaignNumber, 
             campaignId,
-            parentCampaignId,
             useruuid, 
             userData,
             batchNumber, 
@@ -128,13 +127,11 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
             logger.info(`Updated ${updatedUsers.length} users in campaign data via persister`);
         }
         
-        // If any users failed, mark campaign as failed
+        // If any users failed, send campaign failure message
         if (failureCount > 0) {
-            logger.error(`User batch processing had ${failureCount} failures. Marking campaign as failed.`);
-            await markCampaignAsFailed(tenantId, campaignId, parentCampaignId, useruuid, {
-                message: `User creation failed`,
-                description: `${failureCount} out of ${uniqueIdentifiers.length} users failed to create in batch ${batchNumber}/${totalBatches}`
-            });
+            logger.error(`User batch processing had ${failureCount} failures. Sending campaign failure message.`);
+            const batchError = new Error(`User creation failed: ${failureCount} out of ${uniqueIdentifiers.length} users failed to create in batch ${batchNumber}/${totalBatches}`);
+            await sendCampaignFailureMessage(campaignId, tenantId, batchError);
         }
         
         logger.info(`=== USER BATCH PROCESSING COMPLETED ===`);
@@ -142,19 +139,13 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
     } catch (error) {
         logger.error('Error in handleUserBatch:', error);
         
-        // Mark campaign as failed due to batch processing error
-        await markCampaignAsFailed(
+        // Send campaign failure message due to batch processing error
+        const batchError = new Error(`User batch processing error: ${error instanceof Error ? error.message : String(error)}`);
+        await sendCampaignFailureMessage(
+            messageObject.campaignId,
             messageObject.tenantId,
-            messageObject.campaignId, 
-            messageObject.parentCampaignId,
-            messageObject.useruuid, 
-            {
-                message: `User batch processing error`,
-                description: error instanceof Error ? error.message : String(error)
-            }
+            batchError
         );
-        
-        throw error;
     }
 }
 
@@ -202,52 +193,5 @@ async function createUsersViaHrmsApi(
     } catch (error: any) {
         logger.error("HRMS employee creation failed:", error);
         throw new Error(`HRMS API failed: ${error.message || error}`);
-    }
-}
-
-/**
- * Mark campaign as failed with error details
- */
-async function markCampaignAsFailed(
-    tenantId: string,
-    campaignId: string, 
-    parentCampaignId: string | undefined, 
-    useruuid: string, 
-    error: { message: string; description: string }
-): Promise<void> {
-    try {
-        // Fetch campaign details
-        const campaignResponse = await searchProjectTypeCampaignService({
-            tenantId,
-            ids: [campaignId]
-        });
-        const campaignDetails = campaignResponse?.CampaignDetails?.[0];
-        
-        if (!campaignDetails) {
-            logger.error(`Campaign not found for ID: ${campaignId}`);
-            return;
-        }
-        
-        // Fetch parent campaign if exists
-        let parentCampaign = null;
-        if (parentCampaignId) {
-            const parentResponse = await searchProjectTypeCampaignService({
-                tenantId,
-                ids: [parentCampaignId]
-            });
-            parentCampaign = parentResponse?.CampaignDetails?.[0];
-        }
-        
-        const mockRequestBody = {
-            CampaignDetails: [campaignDetails],
-            RequestInfo: { userInfo: { uuid: useruuid } },
-            parentCampaign: parentCampaign
-        };
-        
-        logger.info(`Marking campaign ${campaignDetails.campaignNumber} as failed due to user creation errors`);
-        await enrichAndPersistCampaignWithError(mockRequestBody, error);
-        
-    } catch (markingError) {
-        logger.error('Error marking campaign as failed:', markingError);
     }
 }

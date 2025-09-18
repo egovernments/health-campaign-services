@@ -72,6 +72,8 @@ const config = {
     KAFKA_HCM_PROCESSING_RESULT_TOPIC: process.env.KAFKA_HCM_PROCESSING_RESULT_TOPIC || "hcm-processing-result",
     KAFKA_FACILITY_CREATE_BATCH_TOPIC: process.env.KAFKA_FACILITY_CREATE_BATCH_TOPIC || "hcm-facility-create-batch",
     KAFKA_USER_CREATE_BATCH_TOPIC: process.env.KAFKA_USER_CREATE_BATCH_TOPIC || "hcm-user-create-batch",
+    KAFKA_MAPPING_BATCH_TOPIC: process.env.KAFKA_MAPPING_BATCH_TOPIC || "hcm-mapping-batch",
+    KAFKA_CAMPAIGN_MARK_FAILED_TOPIC: process.env.KAFKA_CAMPAIGN_MARK_FAILED_TOPIC || "hcm-campaign-mark-failed",
     KAFKA_NOTIFICATION_EMAIL_TOPIC: process.env.KAFKA_NOTIFICATION_EMAIL_TOPIC || "egov.core.notification.email",
   },
 

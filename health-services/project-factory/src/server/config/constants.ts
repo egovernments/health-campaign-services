@@ -150,7 +150,8 @@ export const mappingStatuses = {
     toBeMapped : "toBeMapped",
     mapped : "mapped",
     toBeDeMapped : "toBeDeMapped",
-    deMapped : "deMapped"
+    deMapped : "deMapped",
+    failed : "failed"
 }
 
 export const processStatuses = {
