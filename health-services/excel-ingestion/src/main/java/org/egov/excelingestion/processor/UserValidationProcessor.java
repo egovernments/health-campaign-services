@@ -1,20 +1,15 @@
 package org.egov.excelingestion.processor;
 
 import lombok.extern.slf4j.Slf4j;
-
+import org.apache.poi.ss.usermodel.*;
 import org.egov.excelingestion.config.ExcelIngestionConfig;
 import org.egov.excelingestion.config.ValidationConstants;
 import org.egov.excelingestion.service.ValidationService;
 import org.egov.excelingestion.web.models.*;
-import org.egov.excelingestion.web.models.excel.ColumnDef;
 import org.egov.excelingestion.util.LocalizationUtil;
 import org.egov.excelingestion.util.EnrichmentUtil;
-import org.egov.excelingestion.util.SchemaColumnDefUtil;
-import org.egov.excelingestion.util.ErrorColumnUtil;
 import org.egov.excelingestion.service.MDMSService;
 import org.egov.excelingestion.service.CampaignService;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.egov.excelingestion.config.ProcessingConstants;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -28,46 +23,52 @@ import java.util.stream.Collectors;
 
 @Component
 @Slf4j
-public class UserValidationProcessor implements ISheetDataProcessor {
+public class UserValidationProcessor implements IWorkbookProcessor {
 
     private final ValidationService validationService;
     private final RestTemplate restTemplate;
     private final ExcelIngestionConfig config;
     private final EnrichmentUtil enrichmentUtil;
-    private final MDMSService mdmsService;
-    private final SchemaColumnDefUtil schemaColumnDefUtil;
-    private final ErrorColumnUtil errorColumnUtil;
     private final CampaignService campaignService;
 
     public UserValidationProcessor(ValidationService validationService, 
                                  RestTemplate restTemplate, 
                                  ExcelIngestionConfig config,
                                  EnrichmentUtil enrichmentUtil,
-                                 MDMSService mdmsService,
-                                 SchemaColumnDefUtil schemaColumnDefUtil,
-                                 ErrorColumnUtil errorColumnUtil,
                                  CampaignService campaignService) {
         this.validationService = validationService;
         this.restTemplate = restTemplate;
         this.config = config;
         this.enrichmentUtil = enrichmentUtil;
-        this.mdmsService = mdmsService;
-        this.schemaColumnDefUtil = schemaColumnDefUtil;
-        this.errorColumnUtil = errorColumnUtil;
         this.campaignService = campaignService;
     }
 
     @Override
-    public SheetGenerationResult processSheetData(List<Map<String, Object>> originalData,
-                                                ProcessResource resource,
-                                                RequestInfo requestInfo,
-                                                Map<String, String> localizationMap) {
-        log.info("Starting user validation for {} records", originalData.size());
-        
-        List<ValidationError> errors = new ArrayList<>();
-        List<Map<String, Object>> processedData = new ArrayList<>();
-        
+    public Workbook processWorkbook(Workbook workbook, 
+                                  String sheetName,
+                                  ProcessResource resource,
+                                  RequestInfo requestInfo,
+                                  Map<String, String> localizationMap) {
         try {
+            // Find the user sheet
+            Sheet sheet = workbook.getSheet(sheetName);
+            if (sheet == null) {
+                log.warn("Sheet {} not found in workbook", sheetName);
+                return workbook;
+            }
+
+            log.info("Starting user validation for sheet: {}", sheetName);
+
+            // Convert sheet data to map list
+            List<Map<String, Object>> originalData = convertSheetToMapList(sheet);
+            
+            if (originalData.isEmpty()) {
+                log.info("No data found in sheet, skipping validation");
+                return workbook;
+            }
+
+            List<ValidationError> errors = new ArrayList<>();
+            
             // Add row numbers to data for error reporting
             List<Map<String, Object>> dataWithRowNumbers = addRowNumbers(originalData);
             
@@ -77,34 +78,30 @@ public class UserValidationProcessor implements ISheetDataProcessor {
             // Validate usernames but skip those with phones already in campaign
             validateUserNames(dataWithRowNumbers, resource.getTenantId(), requestInfo, errors, localizationMap, existingPhonesInCampaign);
             
-            // Process data and add error information
-            processedData = addErrorInformationToData(dataWithRowNumbers, errors, localizationMap);
-            
             log.info("User validation completed with {} errors", errors.size());
-            
-        } catch (Exception e) {
-            log.error("Error during user validation: {}", e.getMessage(), e);
-            // Create general error for all rows
-            for (int i = 0; i < originalData.size(); i++) {
-                ValidationError error = new ValidationError();
-                error.setRowNumber(i + 3); // Assuming headers at rows 0,1 and data starts at row 2
-                error.setErrorDetails("User validation failed: " + e.getMessage());
-                error.setStatus(ValidationConstants.STATUS_ERROR);
-                errors.add(error);
+
+            // Only add error columns if there are validation errors
+            if (!errors.isEmpty()) {
+                log.info("Found {} validation errors, adding error columns", errors.size());
+                
+                // Check if error columns already exist
+                ValidationColumnInfo columnInfo = checkAndAddErrorColumns(sheet, localizationMap);
+                
+                // Process validation errors - enrich existing or add new error details
+                processValidationErrors(sheet, errors, columnInfo, localizationMap);
+            } else {
+                log.info("No validation errors found, no error columns needed");
             }
-            processedData = addErrorInformationToData(addRowNumbers(originalData), errors, localizationMap);
+            
+            // Enrich resource additional details with error information
+            enrichmentUtil.enrichErrorAndStatusInAdditionalDetails(resource, errors);
+            
+            return workbook;
+
+        } catch (Exception e) {
+            log.error("Error processing user validation sheet: {}", e.getMessage(), e);
+            return workbook;
         }
-        
-        // Enrich resource additional details with error information
-        enrichmentUtil.enrichErrorAndStatusInAdditionalDetails(resource, errors);
-        
-        // Generate column definitions from schema
-        List<ColumnDef> columnDefs = generateColumnDefinitionsFromSchema(resource, requestInfo, localizationMap);
-        
-        return SheetGenerationResult.builder()
-                .columnDefs(columnDefs)
-                .data(processedData)
-                .build();
     }
 
     private List<Map<String, Object>> addRowNumbers(List<Map<String, Object>> originalData) {
@@ -119,39 +116,137 @@ public class UserValidationProcessor implements ISheetDataProcessor {
         return dataWithRowNumbers;
     }
 
-    private List<Map<String, Object>> addErrorInformationToData(List<Map<String, Object>> dataWithRowNumbers,
-                                                               List<ValidationError> errors,
-                                                               Map<String, String> localizationMap) {
-        List<Map<String, Object>> processedData = new ArrayList<>();
+    /**
+     * Convert sheet to list of maps
+     */
+    private List<Map<String, Object>> convertSheetToMapList(Sheet sheet) {
+        List<Map<String, Object>> data = new ArrayList<>();
         
+        Row headerRow = sheet.getRow(0);
+        if (headerRow == null) {
+            return data;
+        }
+        
+        // Get header names
+        List<String> headers = new ArrayList<>();
+        for (Cell cell : headerRow) {
+            headers.add(getCellValueAsString(cell));
+        }
+        
+        // Process data rows (skip header)
+        for (int i = 1; i <= sheet.getLastRowNum(); i++) {
+            Row row = sheet.getRow(i);
+            if (row == null) continue;
+            
+            Map<String, Object> rowData = new HashMap<>();
+            for (int j = 0; j < headers.size(); j++) {
+                Cell cell = row.getCell(j);
+                String value = getCellValueAsString(cell);
+                rowData.put(headers.get(j), value);
+            }
+            data.add(rowData);
+        }
+        
+        return data;
+    }
+    
+    /**
+     * Get cell value as string
+     */
+    private String getCellValueAsString(Cell cell) {
+        if (cell == null) return "";
+        
+        switch (cell.getCellType()) {
+            case STRING:
+                return cell.getStringCellValue();
+            case NUMERIC:
+                if (DateUtil.isCellDateFormatted(cell)) {
+                    return cell.getDateCellValue().toString();
+                } else {
+                    return String.valueOf((long) cell.getNumericCellValue());
+                }
+            case BOOLEAN:
+                return String.valueOf(cell.getBooleanCellValue());
+            case FORMULA:
+                return cell.getCellFormula();
+            default:
+                return "";
+        }
+    }
+    
+    /**
+     * Check if error columns exist and add them if needed
+     */
+    private ValidationColumnInfo checkAndAddErrorColumns(Sheet sheet, Map<String, String> localizationMap) {
+        Row headerRow = sheet.getRow(0);
+        if (headerRow == null) {
+            return validationService.addValidationColumns(sheet, localizationMap);
+        }
+        
+        // Check if error columns already exist
+        boolean hasErrorColumn = false;
+        boolean hasStatusColumn = false;
+        int errorColumnIndex = -1;
+        int statusColumnIndex = -1;
+        
+        for (Cell cell : headerRow) {
+            String headerValue = getCellValueAsString(cell);
+            if (ValidationConstants.ERROR_DETAILS_COLUMN_NAME.equals(headerValue)) {
+                hasErrorColumn = true;
+                errorColumnIndex = cell.getColumnIndex();
+            } else if (ValidationConstants.STATUS_COLUMN_NAME.equals(headerValue)) {
+                hasStatusColumn = true;
+                statusColumnIndex = cell.getColumnIndex();
+            }
+        }
+        
+        // If both columns exist, return their positions
+        if (hasErrorColumn && hasStatusColumn) {
+            ValidationColumnInfo columnInfo = new ValidationColumnInfo();
+            columnInfo.setErrorColumnIndex(errorColumnIndex);
+            columnInfo.setStatusColumnIndex(statusColumnIndex);
+            return columnInfo;
+        }
+        
+        // If columns don't exist, add them
+        return validationService.addValidationColumns(sheet, localizationMap);
+    }
+    
+    /**
+     * Process validation errors and enrich existing error data with semicolon separation
+     */
+    private void processValidationErrors(Sheet sheet, List<ValidationError> errors, 
+                                       ValidationColumnInfo columnInfo, Map<String, String> localizationMap) {
         // Create a map of row number to errors for quick lookup
         Map<Integer, List<ValidationError>> errorsByRow = new HashMap<>();
         for (ValidationError error : errors) {
             errorsByRow.computeIfAbsent(error.getRowNumber(), k -> new ArrayList<>()).add(error);
         }
         
-        for (Map<String, Object> rowData : dataWithRowNumbers) {
-            Map<String, Object> processedRow = new HashMap<>(rowData);
-            Integer rowNumber = (Integer) rowData.get("__rowNumber__");
+        // Process each data row (skip header row)
+        for (int i = 1; i <= sheet.getLastRowNum(); i++) {
+            Row row = sheet.getRow(i);
+            if (row == null) continue;
             
-            // Remove internal row number field
-            processedRow.remove("__rowNumber__");
+            int actualRowNumber = i + 1; // Convert to 1-based row number
+            List<ValidationError> rowErrors = errorsByRow.get(actualRowNumber);
             
-            // Check for existing error information
-            String existingErrors = (String) processedRow.get(ValidationConstants.ERROR_DETAILS_COLUMN_NAME);
-            String existingStatus = (String) processedRow.get(ValidationConstants.STATUS_COLUMN_NAME);
-            
-            // Add error information if there are errors for this row
-            if (errorsByRow.containsKey(rowNumber)) {
-                List<ValidationError> rowErrors = errorsByRow.get(rowNumber);
-                StringBuilder errorMessages = new StringBuilder();
+            if (rowErrors != null && !rowErrors.isEmpty()) {
+                // Get existing error and status values
+                Cell errorCell = row.getCell(columnInfo.getErrorColumnIndex());
+                Cell statusCell = row.getCell(columnInfo.getStatusColumnIndex());
                 
-                // Start with existing errors if any
+                String existingErrors = errorCell != null ? getCellValueAsString(errorCell) : "";
+                String existingStatus = statusCell != null ? getCellValueAsString(statusCell) : "";
+                
+                // Build new error message
+                StringBuilder errorMessages = new StringBuilder();
                 if (existingErrors != null && !existingErrors.trim().isEmpty()) {
                     errorMessages.append(existingErrors);
                 }
                 
-                String status = existingStatus != null ? existingStatus : ValidationConstants.STATUS_VALID;
+                String status = existingStatus != null && !existingStatus.isEmpty() ? 
+                    existingStatus : ValidationConstants.STATUS_VALID;
                 
                 for (ValidationError error : rowErrors) {
                     if (errorMessages.length() > 0) {
@@ -168,66 +263,19 @@ public class UserValidationProcessor implements ISheetDataProcessor {
                     }
                 }
                 
-                processedRow.put(ValidationConstants.ERROR_DETAILS_COLUMN_NAME, errorMessages.toString());
-                processedRow.put(ValidationConstants.STATUS_COLUMN_NAME, status);
-            } else {
-                // If no new errors but no existing data, set defaults
-                if (existingErrors == null) {
-                    processedRow.put(ValidationConstants.ERROR_DETAILS_COLUMN_NAME, "");
+                // Create cells if they don't exist
+                if (errorCell == null) {
+                    errorCell = row.createCell(columnInfo.getErrorColumnIndex());
                 }
-                if (existingStatus == null) {
-                    processedRow.put(ValidationConstants.STATUS_COLUMN_NAME, ""); // Leave blank instead of "valid"
+                if (statusCell == null) {
+                    statusCell = row.createCell(columnInfo.getStatusColumnIndex());
                 }
-            }
-            
-            processedData.add(processedRow);
-        }
-        
-        return processedData;
-    }
-
-    private List<ColumnDef> generateColumnDefinitionsFromSchema(ProcessResource resource,
-                                                               RequestInfo requestInfo,
-                                                               Map<String, String> localizationMap) {
-        List<ColumnDef> columnDefs = new ArrayList<>();
-        
-        try {
-            // Fetch user schema from MDMS
-            Map<String, Object> filters = new HashMap<>();
-            filters.put("title", "user-microplan-ingestion");
-            
-            List<Map<String, Object>> mdmsList = mdmsService.searchMDMS(
-                    requestInfo, resource.getTenantId(), ProcessingConstants.MDMS_SCHEMA_CODE, filters, 1, 0);
-            
-            if (!mdmsList.isEmpty()) {
-                Map<String, Object> mdmsData = mdmsList.get(0);
-                Map<String, Object> data = (Map<String, Object>) mdmsData.get("data");
-                Map<String, Object> properties = (Map<String, Object>) data.get("properties");
                 
-                if (properties != null) {
-                    ObjectMapper mapper = new ObjectMapper();
-                    String schemaJson = mapper.writeValueAsString(properties);
-                    // Use the shared utility to convert schema to column defs
-                    columnDefs = schemaColumnDefUtil.convertSchemaToColumnDefs(schemaJson);
-                    
-                    // Set technical names from the name field if not already set
-                    for (ColumnDef columnDef : columnDefs) {
-                        if (columnDef.getTechnicalName() == null || columnDef.getTechnicalName().isEmpty()) {
-                            columnDef.setTechnicalName(columnDef.getName());
-                        }
-                    }
-                }
+                // Set the enriched values
+                errorCell.setCellValue(errorMessages.toString());
+                statusCell.setCellValue(status);
             }
-        } catch (Exception e) {
-            log.error("Error fetching schema-based column definitions: {}", e.getMessage(), e);
-            // Fall back to basic column definitions if schema fetch fails
         }
-        
-        // Add error columns using the ErrorColumnUtil for consistent styling
-        List<ColumnDef> errorColumns = errorColumnUtil.createErrorColumnDefs(localizationMap);
-        columnDefs.addAll(errorColumns);
-        
-        return columnDefs;
     }
 
 

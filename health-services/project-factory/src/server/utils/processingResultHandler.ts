@@ -1,7 +1,7 @@
 import { logger } from './logger';
 import { searchSheetData } from './excelIngestionUtils';
 import { searchProjectTypeCampaignService } from '../service/campaignManageService';
-import { getRelatedDataWithCampaign, getMappingDataRelatedToCampaign, prepareProcessesInDb } from './genericUtils';
+import { getRelatedDataWithCampaign, getMappingDataRelatedToCampaign, prepareProcessesInDb, getRelatedDataWithUniqueIdentifiers } from './genericUtils';
 import { produceModifiedMessages } from '../kafka/Producer';
 import { dataRowStatuses, mappingStatuses, usageColumnStatus } from '../config/constants';
 import { searchMDMSDataViaV2Api, searchBoundaryRelationshipData, defaultRequestInfo } from '../api/coreApis';
@@ -723,7 +723,7 @@ async function processFacilityDataAndMappings(
         }
         
         // Prepare boundary mappings for active facilities
-        if (usage === 'Active' && boundaryCodes) {
+        if (usage === usageColumnStatus.active && boundaryCodes) {
             const boundaryList = boundaryCodes.split(',').map((b: string) => b.trim()).filter(Boolean);
             boundaryList.forEach((boundaryCode: string) => {
                 facilityBoundaryMappings.push({
@@ -831,7 +831,7 @@ async function processCampaignUsersFromExcelData(
         logger.info(`Processing users for campaign: ${campaignDetails.campaignName}`);
 
         // Search users sheet data
-        const userSheetName = getLocalizedSheetName('HCM_ADMIN_CONSOLE_USER_LIST', localizationMap);
+        const userSheetName = getLocalizedSheetName('HCM_ADMIN_CONSOLE_USERS_LIST', localizationMap);
         logger.info(`Searching ${userSheetName} sheet data...`);
         const userSheetData = await searchSheetData(
             tenantId, 
@@ -848,8 +848,24 @@ async function processCampaignUsersFromExcelData(
 
         logger.info(`Found ${userSheetData.length} records in users sheet`);
 
-        // Process users and their mappings
-        await processUserDataAndMappings(campaignNumber, tenantId, userSheetData);
+        // Extract phone numbers from sheet data
+        const phoneNumbers = userSheetData
+            .map((row: any) => {
+                const rowJson = row?.rowjson || {};
+                const phone = rowJson["HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER"];
+                return phone ? String(phone).trim() : null;
+            })
+            .filter((phone: string | null) => phone && phone !== "");
+
+        if (phoneNumbers.length === 0) {
+            logger.info('No phone numbers found in user sheet data');
+            return;
+        }
+
+        logger.info(`Processing ${phoneNumbers.length} unique phone numbers`);
+
+        // Simple user processing logic
+        await processUsersSimple(userSheetData, phoneNumbers, campaignNumber, tenantId);
 
         logger.info('=== CAMPAIGN USERS PROCESSING COMPLETED ===');
 
@@ -860,49 +876,78 @@ async function processCampaignUsersFromExcelData(
 }
 
 /**
- * Process user data and update campaign data and mapping tables
+ * Simple user processing - handles both data persistence and mappings
  */
-async function processUserDataAndMappings(
+async function processUsersSimple(
+    userSheetData: any[],
+    phoneNumbers: any[],
     campaignNumber: string,
-    tenantId: string,
-    sheetData: any[]
+    tenantId: string
 ): Promise<void> {
     const PHONE_KEY = 'HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER';
     const BOUNDARY_KEY = 'HCM_ADMIN_CONSOLE_BOUNDARY_CODE';
     const USAGE_KEY = 'HCM_ADMIN_CONSOLE_USER_USAGE';
-    const USERNAME_KEY = 'UserName';
-    const PASSWORD_KEY = 'Password';
     
-    // Get existing user data
-    const existingUsers = await getRelatedDataWithCampaign('user', campaignNumber, tenantId);
-    logger.info(`Found ${existingUsers.length} existing user records in eg_cm_campaign_data`);
-    
-    // Create map for existing users
-    const existingUserMap = new Map(
-        existingUsers.map((u: any) => [String(u?.data?.[PHONE_KEY]), u])
+    // Step 1: Get existing users from current campaign
+    const currentCampaignUsers = await getRelatedDataWithCampaign("user", campaignNumber, tenantId);
+    const currentUserMap = new Map(
+        currentCampaignUsers.map((u: any) => [String(u?.data?.[PHONE_KEY]), u])
     );
     
-    // Process users from sheet
-    const newUsers: any[] = [];
-    const updatedUsers: any[] = [];
+    // Step 2: Get completed users from other campaigns to reuse
+    const otherCampaignUsers = await getRelatedDataWithUniqueIdentifiers(
+        "user", phoneNumbers, tenantId, dataRowStatuses.completed
+    );
+    const otherUserMap = new Map(
+        otherCampaignUsers
+            .filter((u: any) => u.campaignNumber !== campaignNumber)
+            .map((u: any) => [String(u?.data?.[PHONE_KEY]), u])
+    );
+    
+    // Step 3: Process each user from sheet
+    const usersToSave: any[] = [];
+    const usersToUpdate: any[] = [];
     const userBoundaryMappings: any[] = [];
     
-    sheetData.forEach(record => {
-        const rowJson = record.rowjson || record.rowJson || {};
-        const phoneNumber = String(rowJson[PHONE_KEY]);
-        const boundaryCodes = rowJson[BOUNDARY_KEY];
+    userSheetData.forEach(record => {
+        const rowJson = record.rowjson || {};
+        const phoneNumber = String(rowJson[PHONE_KEY]).trim();
+        const boundaryCode = rowJson[BOUNDARY_KEY];
         const usage = rowJson[USAGE_KEY];
         
-        if (!phoneNumber || phoneNumber === 'undefined') {
-            logger.warn('No phone number found in row');
-            return;
-        }
+        if (!phoneNumber || phoneNumber === 'undefined') return;
         
-        const existingEntry = existingUserMap.get(phoneNumber);
+        const currentUser = currentUserMap.get(phoneNumber);
+        const otherUser = otherUserMap.get(phoneNumber);
         
-        if (!existingEntry) {
-            // New user
-            newUsers.push({
+        if (currentUser) {
+            // User exists in current campaign - check if boundary and usage need to be updated
+            const existingBoundary = currentUser.data[BOUNDARY_KEY];
+            const existingUsage = currentUser.data[USAGE_KEY];
+            if (boundaryCode !== existingBoundary || usage !== existingUsage) {
+                const updatedData = { ...currentUser.data, [BOUNDARY_KEY]: boundaryCode, [USAGE_KEY]: usage };
+                usersToUpdate.push({
+                    ...currentUser,
+                    data: updatedData,
+                });
+                logger.info(`Updated boundary for user ${phoneNumber}: ${existingBoundary} -> ${boundaryCode}`);
+            }
+        } else if (otherUser) {
+            // User exists in other campaign - reuse with all fields preserved except boundary and usage
+            const reusedData = { ...otherUser.data, [BOUNDARY_KEY]: boundaryCode, [USAGE_KEY]: usage };
+            
+            usersToSave.push({
+                campaignNumber,
+                data: reusedData,
+                type: 'user',
+                uniqueIdentifier: phoneNumber,
+                uniqueIdAfterProcess: otherUser.uniqueIdAfterProcess,
+                status: dataRowStatuses.completed
+            });
+            logger.info(`Reused user ${phoneNumber} from other campaign with new boundary: ${boundaryCode}`);
+        } else {
+            // Completely new user
+            usersToSave.push({
                 campaignNumber,
                 data: rowJson,
                 type: 'user',
@@ -910,96 +955,63 @@ async function processUserDataAndMappings(
                 uniqueIdAfterProcess: null,
                 status: dataRowStatuses.pending
             });
-            logger.info(`New user entry: ${phoneNumber}`);
-        } else {
-            // Check if data has changed
-            let hasChanges = false;
-            const existingData = existingEntry.data;
-            
-            // Update boundary codes if different
-            if (boundaryCodes !== existingData[BOUNDARY_KEY]) {
-                existingData[BOUNDARY_KEY] = boundaryCodes;
-                hasChanges = true;
-            }
-            
-            // Update usage if different
-            if (usage !== existingData[USAGE_KEY]) {
-                existingData[USAGE_KEY] = usage;
-                hasChanges = true;
-            }
-            
-            // Update username/password if provided and different
-            if (rowJson[USERNAME_KEY] && rowJson[USERNAME_KEY] !== existingData[USERNAME_KEY]) {
-                existingData[USERNAME_KEY] = rowJson[USERNAME_KEY];
-                hasChanges = true;
-            }
-            
-            if (rowJson[PASSWORD_KEY] && rowJson[PASSWORD_KEY] !== existingData[PASSWORD_KEY]) {
-                existingData[PASSWORD_KEY] = rowJson[PASSWORD_KEY];
-                hasChanges = true;
-            }
-            
-            if (hasChanges) {
-                updatedUsers.push(existingEntry);
-                logger.info(`Updated user entry: ${phoneNumber}`);
-            }
+            logger.info(`Added new user ${phoneNumber}`);
         }
         
         // Prepare boundary mappings for active users
-        if (usage === usageColumnStatus.active && boundaryCodes) {
-            const boundaryList = boundaryCodes.split(',').map((b: string) => b.trim()).filter(Boolean);
-            boundaryList.forEach((boundaryCode: string) => {
+        if (usage === usageColumnStatus.active && boundaryCode) {
+            const boundaries = boundaryCode.split(',').map((b: string) => b.trim()).filter(Boolean);
+            boundaries.forEach((boundary : String ) => {
                 userBoundaryMappings.push({
                     phoneNumber,
-                    boundaryCode,
+                    boundaryCode: boundary,
                     active: true
                 });
             });
         }
     });
     
-    // Persist user data changes
-    if (newUsers.length > 0) {
-        logger.info(`Persisting ${newUsers.length} new user entries`);
-        await persistDataInBatches(newUsers, config.kafka.KAFKA_SAVE_SHEET_DATA_TOPIC, tenantId);
+    // Step 4: Persist user data
+    if (usersToSave.length > 0) {
+        logger.info(`Persisting ${usersToSave.length} user records`);
+        await persistDataInBatches(usersToSave, config.kafka.KAFKA_SAVE_SHEET_DATA_TOPIC, tenantId);
     }
     
-    if (updatedUsers.length > 0) {
-        logger.info(`Updating ${updatedUsers.length} existing user entries`);
-        await persistDataInBatches(updatedUsers, config.kafka.KAFKA_UPDATE_SHEET_DATA_TOPIC, tenantId);
+    if (usersToUpdate.length > 0) {
+        logger.info(`Updating ${usersToUpdate.length} user records`);
+        await persistDataInBatches(usersToUpdate, config.kafka.KAFKA_UPDATE_SHEET_DATA_TOPIC, tenantId);
     }
     
-    // Process user-boundary mappings
-    if (userBoundaryMappings.length > 0) {
-        await processUserBoundaryMappings(campaignNumber, tenantId, userBoundaryMappings);
-    }
+    // Step 5: Handle boundary mappings
+    await handleUserBoundaryMappings(campaignNumber, tenantId, userBoundaryMappings);
     
-    logger.info(`User processing completed: ${newUsers.length} new, ${updatedUsers.length} updated`);
+    logger.info(`User processing completed: ${usersToSave.length} saved, ${usersToUpdate.length} updated, ${userBoundaryMappings.length} mappings processed`);
 }
 
 /**
- * Process user-boundary mappings
+ * Handle user boundary mappings - active users get mapped, inactive get demapped
  */
-async function processUserBoundaryMappings(
+async function handleUserBoundaryMappings(
     campaignNumber: string,
     tenantId: string,
-    mappings: any[]
+    newMappings: any[]
 ): Promise<void> {
-    // Get existing mappings
+    // Get existing mappings for this campaign
     const existingMappings = await getMappingDataRelatedToCampaign('user', campaignNumber, tenantId);
     const existingMappingSet = new Set(
         existingMappings.map((m: any) => `${m.uniqueIdentifierForData}#${m.boundaryCode}`)
     );
     
-    // Identify new mappings
-    const newMappings: any[] = [];
-    const toBeDemapped: any[] = [];
+    // Prepare new mappings to be created
+    const mappingsToCreate: any[] = [];
+    const newMappingSet = new Set();
     
-    // Check for new mappings from sheet
-    mappings.forEach(mapping => {
+    newMappings.forEach(mapping => {
         const key = `${mapping.phoneNumber}#${mapping.boundaryCode}`;
+        newMappingSet.add(key);
+        
         if (!existingMappingSet.has(key)) {
-            newMappings.push({
+            mappingsToCreate.push({
                 campaignNumber,
                 type: 'user',
                 uniqueIdentifierForData: mapping.phoneNumber,
@@ -1010,15 +1022,12 @@ async function processUserBoundaryMappings(
         }
     });
     
-    // Check for mappings to be demapped (exist in DB but not in sheet)
-    const sheetMappingSet = new Set(
-        mappings.map(m => `${m.phoneNumber}#${m.boundaryCode}`)
-    );
-    
+    // Prepare mappings to be demapped (exist in DB but not in new mappings)
+    const mappingsToDemap: any[] = [];
     existingMappings.forEach((existing: any) => {
         const key = `${existing.uniqueIdentifierForData}#${existing.boundaryCode}`;
-        if (!sheetMappingSet.has(key) && existing.status !== mappingStatuses.toBeDeMapped) {
-            toBeDemapped.push({
+        if (!newMappingSet.has(key) && existing.status !== mappingStatuses.toBeDeMapped) {
+            mappingsToDemap.push({
                 ...existing,
                 status: mappingStatuses.toBeDeMapped
             });
@@ -1026,14 +1035,14 @@ async function processUserBoundaryMappings(
     });
     
     // Persist mapping changes
-    if (newMappings.length > 0) {
-        logger.info(`Creating ${newMappings.length} new user-boundary mappings`);
-        await persistDataInBatches(newMappings, config.kafka.KAFKA_SAVE_MAPPING_DATA_TOPIC, tenantId);
+    if (mappingsToCreate.length > 0) {
+        logger.info(`Creating ${mappingsToCreate.length} new user-boundary mappings`);
+        await persistDataInBatches(mappingsToCreate, config.kafka.KAFKA_SAVE_MAPPING_DATA_TOPIC, tenantId);
     }
     
-    if (toBeDemapped.length > 0) {
-        logger.info(`Marking ${toBeDemapped.length} user-boundary mappings for demapping`);
-        await persistDataInBatches(toBeDemapped, config.kafka.KAFKA_UPDATE_MAPPING_DATA_TOPIC, tenantId);
+    if (mappingsToDemap.length > 0) {
+        logger.info(`Demapping ${mappingsToDemap.length} user-boundary mappings`);
+        await persistDataInBatches(mappingsToDemap, config.kafka.KAFKA_UPDATE_MAPPING_DATA_TOPIC, tenantId);
     }
 }
 

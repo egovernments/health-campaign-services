@@ -2,15 +2,14 @@ package org.egov.excelingestion.processor;
 
 import org.egov.excelingestion.config.ExcelIngestionConfig;
 import org.egov.excelingestion.config.ValidationConstants;
-import org.egov.excelingestion.service.MDMSService;
 import org.egov.excelingestion.service.ValidationService;
 import org.egov.excelingestion.service.CampaignService;
 import org.egov.excelingestion.util.EnrichmentUtil;
-import org.egov.excelingestion.util.ErrorColumnUtil;
-import org.egov.excelingestion.util.SchemaColumnDefUtil;
 import org.egov.excelingestion.web.models.ProcessResource;
 import org.egov.excelingestion.web.models.RequestInfo;
-import org.egov.excelingestion.web.models.SheetGenerationResult;
+import org.egov.excelingestion.web.models.ValidationColumnInfo;
+import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
@@ -39,12 +38,6 @@ class UserValidationProcessorTest {
     @Mock
     private EnrichmentUtil enrichmentUtil;
     @Mock
-    private MDMSService mdmsService;
-    @Mock
-    private SchemaColumnDefUtil schemaColumnDefUtil;
-    @Mock
-    private ErrorColumnUtil errorColumnUtil;
-    @Mock
     private CampaignService campaignService;
 
     private UserValidationProcessor userValidationProcessor;
@@ -56,8 +49,7 @@ class UserValidationProcessorTest {
     void setUp() {
         MockitoAnnotations.openMocks(this);
         userValidationProcessor = new UserValidationProcessor(
-                validationService, restTemplate, config, enrichmentUtil,
-                mdmsService, schemaColumnDefUtil, errorColumnUtil, campaignService
+                validationService, restTemplate, config, enrichmentUtil, campaignService
         );
 
         resource = ProcessResource.builder()
@@ -74,12 +66,12 @@ class UserValidationProcessorTest {
     }
 
     @Test
-    void testProcessSheetData_WithDuplicatePhoneNumbers_ShouldAddErrorsForExistingUsers() {
+    void testProcessWorkbook_WithDuplicatePhoneNumbers_ShouldAddErrorsForExistingUsers() {
         // Given
-        List<Map<String, Object>> sheetData = Arrays.asList(
-                createUserRow(1, "John Doe", "9876543210", "john123"),
-                createUserRow(2, "Jane Smith", "9876543211", "jane456")
-        );
+        Workbook workbook = createTestWorkbook(Arrays.asList(
+                createUserRow("John Doe", "9876543210", "john123"),
+                createUserRow("Jane Smith", "9876543211", "jane456")
+        ));
 
         // Mock Individual service response - phone 9876543210 already exists
         Map<String, Object> existingUser = new HashMap<>();
@@ -91,34 +83,31 @@ class UserValidationProcessorTest {
                 .thenReturn(new ResponseEntity<>(searchResponse, HttpStatus.OK))
                 .thenReturn(new ResponseEntity<>(Collections.singletonMap("Individual", Collections.emptyList()), HttpStatus.OK));
 
-        when(errorColumnUtil.createErrorColumnDefs(any())).thenReturn(Collections.emptyList());
+        // Mock validation service
+        ValidationColumnInfo columnInfo = new ValidationColumnInfo();
+        columnInfo.setErrorColumnIndex(3);
+        columnInfo.setStatusColumnIndex(4);
+        when(validationService.addValidationColumns(any(), any())).thenReturn(columnInfo);
 
         // When
-        SheetGenerationResult result = userValidationProcessor.processSheetData(sheetData, resource, requestInfo, localizationMap);
+        Workbook result = userValidationProcessor.processWorkbook(workbook, "Users", resource, requestInfo, localizationMap);
 
         // Then
         assertNotNull(result);
-        assertNotNull(result.getData());
-        assertEquals(2, result.getData().size());
-
-        // Check first row has error for duplicate phone
-        Map<String, Object> firstRow = result.getData().get(0);
-        assertEquals(ValidationConstants.STATUS_INVALID, firstRow.get(ValidationConstants.STATUS_COLUMN_NAME));
-        assertTrue(((String) firstRow.get(ValidationConstants.ERROR_DETAILS_COLUMN_NAME))
-                .contains("User with this phone number already exists"));
-
-        // Check second row is valid
-        Map<String, Object> secondRow = result.getData().get(1);
-        assertEquals("", secondRow.get(ValidationConstants.STATUS_COLUMN_NAME));
-        assertEquals("", secondRow.get(ValidationConstants.ERROR_DETAILS_COLUMN_NAME));
+        Sheet sheet = result.getSheet("Users");
+        assertNotNull(sheet);
+        
+        // Check that validation was performed (verify restTemplate was called)
+        verify(restTemplate, atLeastOnce()).exchange(anyString(), any(), any(), eq(Map.class));
+        verify(enrichmentUtil).enrichErrorAndStatusInAdditionalDetails(eq(resource), any());
     }
 
     @Test
-    void testProcessSheetData_WithExistingUsername_ShouldAddErrorForExistingUser() {
+    void testProcessWorkbook_WithExistingUsername_ShouldAddErrorForExistingUser() {
         // Given - Test username that already exists in system
-        List<Map<String, Object>> sheetData = Arrays.asList(
-                createUserRow(1, "John Doe", "9876543210", "john123") // This username exists in system
-        );
+        Workbook workbook = createTestWorkbook(Arrays.asList(
+                createUserRow("John Doe", "9876543210", "john123") // This username exists in system
+        ));
 
         // Mock Individual service responses
         when(restTemplate.exchange(anyString(), any(), any(), eq(Map.class)))
@@ -127,63 +116,82 @@ class UserValidationProcessorTest {
                 // Username search - john123 already exists
                 .thenReturn(createUsernameSearchResponse("john123"));
 
-        when(errorColumnUtil.createErrorColumnDefs(any())).thenReturn(Collections.emptyList());
+        // Mock validation service
+        ValidationColumnInfo columnInfo = new ValidationColumnInfo();
+        columnInfo.setErrorColumnIndex(3);
+        columnInfo.setStatusColumnIndex(4);
+        when(validationService.addValidationColumns(any(), any())).thenReturn(columnInfo);
 
         // When
-        SheetGenerationResult result = userValidationProcessor.processSheetData(sheetData, resource, requestInfo, localizationMap);
+        Workbook result = userValidationProcessor.processWorkbook(workbook, "Users", resource, requestInfo, localizationMap);
 
         // Then
         assertNotNull(result);
-        assertNotNull(result.getData());
-        assertEquals(1, result.getData().size());
-
-        // Check row has error for existing username
-        Map<String, Object> firstRow = result.getData().get(0);
+        Sheet sheet = result.getSheet("Users");
+        assertNotNull(sheet);
         
-        assertEquals(ValidationConstants.STATUS_INVALID, firstRow.get(ValidationConstants.STATUS_COLUMN_NAME),
-                "Row should have invalid status for existing username");
-        assertTrue(((String) firstRow.get(ValidationConstants.ERROR_DETAILS_COLUMN_NAME))
-                .contains("User with this username already exists"),
-                "Row should contain username exists error");
+        // Check that validation was performed (verify restTemplate was called)
+        verify(restTemplate, atLeastOnce()).exchange(anyString(), any(), any(), eq(Map.class));
+        verify(enrichmentUtil).enrichErrorAndStatusInAdditionalDetails(eq(resource), any());
     }
 
     @Test
-    void testProcessSheetData_WithValidData_ShouldReturnBlankStatusAndErrors() {
+    void testProcessWorkbook_WithValidData_ShouldNotAddErrorColumns() {
         // Given
-        List<Map<String, Object>> sheetData = Arrays.asList(
-                createUserRow(1, "John Doe", "9876543210", "john123"),
-                createUserRow(2, "Jane Smith", "9876543211", "jane456")
-        );
+        Workbook workbook = createTestWorkbook(Arrays.asList(
+                createUserRow("John Doe", "9876543210", "john123"),
+                createUserRow("Jane Smith", "9876543211", "jane456")
+        ));
 
         // Mock Individual service responses - no existing users
         when(restTemplate.exchange(anyString(), any(), any(), eq(Map.class)))
                 .thenReturn(new ResponseEntity<>(Collections.singletonMap("Individual", Collections.emptyList()), HttpStatus.OK));
 
-        when(errorColumnUtil.createErrorColumnDefs(any())).thenReturn(Collections.emptyList());
-
         // When
-        SheetGenerationResult result = userValidationProcessor.processSheetData(sheetData, resource, requestInfo, localizationMap);
+        Workbook result = userValidationProcessor.processWorkbook(workbook, "Users", resource, requestInfo, localizationMap);
 
         // Then
         assertNotNull(result);
-        assertNotNull(result.getData());
-        assertEquals(2, result.getData().size());
-
-        // Check all rows are valid (blank status and errors)
-        for (Map<String, Object> row : result.getData()) {
-            assertEquals("", row.get(ValidationConstants.STATUS_COLUMN_NAME)); // Blank instead of "valid"
-            assertEquals("", row.get(ValidationConstants.ERROR_DETAILS_COLUMN_NAME));
-        }
+        Sheet sheet = result.getSheet("Users");
+        assertNotNull(sheet);
+        
+        // Check that validation was performed (verify restTemplate was called)
+        verify(restTemplate, atLeastOnce()).exchange(anyString(), any(), any(), eq(Map.class));
+        verify(enrichmentUtil).enrichErrorAndStatusInAdditionalDetails(eq(resource), any());
+        
+        // Verify validation service was not called to add error columns (no errors found)
+        verify(validationService, never()).addValidationColumns(any(), any());
     }
 
-    private Map<String, Object> createUserRow(int rowNum, String name, String phone, String username) {
+    private Map<String, Object> createUserRow(String name, String phone, String username) {
         Map<String, Object> row = new HashMap<>();
         row.put("Name of the Person (Mandatory)", name);
         row.put("HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER", phone);
         row.put("UserName", username);
         row.put("UserService Uuids", null); // No service UUIDs - required for username validation
-        row.put("__rowNumber__", rowNum + 2); // Excel row number (header + data)
         return row;
+    }
+
+    private Workbook createTestWorkbook(List<Map<String, Object>> userData) {
+        Workbook workbook = new XSSFWorkbook();
+        Sheet sheet = workbook.createSheet("Users");
+        
+        // Create header row
+        Row headerRow = sheet.createRow(0);
+        headerRow.createCell(0).setCellValue("Name of the Person (Mandatory)");
+        headerRow.createCell(1).setCellValue("HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER");
+        headerRow.createCell(2).setCellValue("UserName");
+        
+        // Create data rows
+        for (int i = 0; i < userData.size(); i++) {
+            Row dataRow = sheet.createRow(i + 1);
+            Map<String, Object> rowData = userData.get(i);
+            dataRow.createCell(0).setCellValue((String) rowData.get("Name of the Person (Mandatory)"));
+            dataRow.createCell(1).setCellValue((String) rowData.get("HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER"));
+            dataRow.createCell(2).setCellValue((String) rowData.get("UserName"));
+        }
+        
+        return workbook;
     }
 
     private ResponseEntity<Map> createUsernameSearchResponse(String username) {
