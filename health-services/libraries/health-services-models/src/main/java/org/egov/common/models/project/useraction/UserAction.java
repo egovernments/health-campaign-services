@@ -98,6 +98,9 @@ public class UserAction extends EgovOfflineModel {
     @Size(min = 2, max = 64)
     private String resourceTag;
 
+    @JsonProperty("isSync")
+    private  Boolean isSync;
+
     /**
      * A flag indicating whether the user action has been deleted.
      * The default value is false.

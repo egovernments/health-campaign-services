@@ -35,6 +35,13 @@ public enum TaskStatus {
     BENEFICIARY_REFUSED("BENEFICIARY_REFUSED"),
 
     /**
+     * Indicates that the beneficiary has refused the task.
+     * This status means that the individual or entity for whom the task
+     * was intended has declined to participate or accept it.
+     */
+    BENEFICIARY_ABSENT("BENEFICIARY_ABSENT"),
+
+    /**
      * Indicates that the household associated with the task has been closed.
      * This status implies that the household is no longer active or
      * relevant to the task, possibly due to its closure or other reasons.
@@ -53,7 +60,28 @@ public enum TaskStatus {
      * This status signifies that the task has not been processed or
      * handled yet.
      */
-    NOT_ADMINISTERED("NOT_ADMINISTERED");
+    NOT_ADMINISTERED("NOT_ADMINISTERED"),
+
+    /**
+     * Indicates that the beneficiary is ineligible.
+     * This status means that the individual or entity for whom the task
+     * was intended is ineligible
+     */
+    BENEFICIARY_INELIGIBLE("BENEFICIARY_INELIGIBLE"),
+
+    /**
+     * Indicates that the beneficiary is ineligible.
+     * This status means that the individual or entity for whom the task
+     * was intended was referred to some institution
+     */
+    BENEFICIARY_REFERRED("BENEFICIARY_REFERRED"),
+
+    /**
+     * Indicates that the redose is administered.
+     * This status means that the individual or entity for whom the task
+     * was intended was given a re dose
+     */
+    VISITED("VISITED");
 
     // The string value associated with the task status.
     private String value;
