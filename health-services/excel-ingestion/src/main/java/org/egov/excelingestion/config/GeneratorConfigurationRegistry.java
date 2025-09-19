@@ -30,20 +30,22 @@ public class GeneratorConfigurationRegistry {
                 .protectionPassword(excelConfig.getExcelSheetPassword())
                 .zoomLevel(excelConfig.getExcelSheetZoom())
                 .sheets(Arrays.asList(
-                        // 1. Facility Sheet (automatic schema-based with hierarchical boundary columns)
+                        // 1. Facility Sheet (custom generator with boundary columns and existing data support)
                         SheetGenerationConfig.builder()
                                 .sheetNameKey("HCM_ADMIN_CONSOLE_FACILITIES_LIST")
                                 .schemaName("facility-microplan-ingestion")
-                                .boundaryColumnsClass("HierarchicalBoundaryUtil")
+                                .generationClass("FacilitySheetGenerator")
+                                .isGenerationClassViaExcelPopulator(false)
                                 .order(1)
                                 .visible(true)
                                 .build(),
                         
-                        // 2. User Sheet (automatic schema-based with traditional boundary columns)
+                        // 2. User Sheet (custom generator with boundary columns and existing data support)
                         SheetGenerationConfig.builder()
                                 .sheetNameKey("HCM_ADMIN_CONSOLE_USERS_LIST")
                                 .schemaName("user-microplan-ingestion")
-                                .boundaryColumnsClass("HierarchicalBoundaryUtil")
+                                .generationClass("UserSheetGenerator")
+                                .isGenerationClassViaExcelPopulator(false)
                                 .order(2)
                                 .visible(true)
                                 .build(),

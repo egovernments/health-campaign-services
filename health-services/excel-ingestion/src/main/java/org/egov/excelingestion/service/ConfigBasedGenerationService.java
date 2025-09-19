@@ -2,6 +2,8 @@ package org.egov.excelingestion.service;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.poifs.crypt.HashAlgorithm;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.egov.excelingestion.config.ExcelIngestionConfig;
@@ -19,7 +21,10 @@ import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @Service
@@ -93,12 +98,6 @@ public class ConfigBasedGenerationService {
                     // Use direct workbook generation approach
                     generateSheetDirectly(workbook, actualSheetName, sheetConfig, 
                                         generateResource, requestInfo, localizationMap);
-                }
-                
-                // Add boundary columns if configured
-                if (sheetConfig.getBoundaryColumnsClass() != null && !sheetConfig.getBoundaryColumnsClass().trim().isEmpty()) {
-                    addBoundaryColumns(workbook, actualSheetName, sheetConfig.getBoundaryColumnsClass(), 
-                            localizationMap, generateResource, requestInfo);
                 }
                 
                 // Track first visible sheet for setting as active
@@ -331,35 +330,122 @@ public class ConfigBasedGenerationService {
         return sheetName;
     }
     
-    /**
-     * Add boundary columns based on the specified boundary columns class
-     */
-    private void addBoundaryColumns(XSSFWorkbook workbook, String sheetName, String boundaryColumnsClass,
-                                  Map<String, String> localizationMap, GenerateResource generateResource, RequestInfo requestInfo) {
+    private boolean shouldAddBoundaryDropdowns(SheetGenerationConfig sheetConfig, GenerateResource generateResource) {
+        // Add dropdowns for custom generators that handle facility/user data
+        return (sheetConfig.getGenerationClass() != null && 
+                (sheetConfig.getGenerationClass().equals("FacilitySheetGenerator") || 
+                 sheetConfig.getGenerationClass().equals("UserSheetGenerator")) &&
+                generateResource.getBoundaries() != null && !generateResource.getBoundaries().isEmpty());
+    }
+    
+    private void addBoundaryDropdowns(XSSFWorkbook workbook, String sheetName, GenerateResource generateResource, 
+                                     RequestInfo requestInfo, Map<String, String> localizationMap) {
         try {
-            switch (boundaryColumnsClass) {
-                case "BoundaryColumnUtil":
-                    boundaryColumnUtil.addBoundaryColumnsToSheet(workbook, sheetName, localizationMap,
-                            generateResource.getBoundaries(), generateResource.getHierarchyType(),
-                            generateResource.getTenantId(), requestInfo);
-                    break;
-                    
-                case "HierarchicalBoundaryUtil":
-                    hierarchicalBoundaryUtil.addHierarchicalBoundaryColumn(workbook, sheetName, localizationMap,
-                            generateResource.getBoundaries(), generateResource.getHierarchyType(),
-                            generateResource.getTenantId(), requestInfo);
-                    break;
-                    
-                default:
-                    log.warn("Unknown boundary columns class: {}", boundaryColumnsClass);
-                    throw new IllegalArgumentException("Unknown boundary columns class: " + boundaryColumnsClass);
-            }
+            // Extract existing data from sheet to pass to HierarchicalBoundaryUtil
+            List<Map<String, Object>> existingSheetData = extractExistingDataFromSheet(workbook, sheetName);
             
-            log.info("Added boundary columns using {} for sheet {}", boundaryColumnsClass, sheetName);
+            // Use HierarchicalBoundaryUtil to add dropdowns with existing data
+            hierarchicalBoundaryUtil.addHierarchicalBoundaryColumnWithData(
+                    workbook, sheetName, localizationMap,
+                    generateResource.getBoundaries(), generateResource.getHierarchyType(),
+                    generateResource.getTenantId(), requestInfo, existingSheetData);
+                    
+            log.info("Added boundary dropdowns for sheet: {}", sheetName);
             
         } catch (Exception e) {
-            log.error("Error adding boundary columns using {} for sheet {}: {}", boundaryColumnsClass, sheetName, e.getMessage(), e);
-            throw new RuntimeException("Failed to add boundary columns using " + boundaryColumnsClass, e);
+            log.error("Error adding boundary dropdowns for sheet {}: {}", sheetName, e.getMessage(), e);
         }
     }
+    
+    private List<Map<String, Object>> extractExistingDataFromSheet(XSSFWorkbook workbook, String sheetName) {
+        List<Map<String, Object>> existingData = new ArrayList<>();
+        
+        try {
+            Sheet sheet = workbook.getSheet(sheetName);
+            if (sheet == null) {
+                return existingData;
+            }
+            
+            // Get header row to map column names
+            Row headerRow = sheet.getRow(1); // Row 2 (index 1) contains headers
+            if (headerRow == null) {
+                return existingData;
+            }
+            
+            // Build column name mapping
+            Map<Integer, String> columnMapping = new HashMap<>();
+            for (int i = 0; i < headerRow.getLastCellNum(); i++) {
+                Cell cell = headerRow.getCell(i);
+                if (cell != null) {
+                    String columnName = cell.getStringCellValue();
+                    if (columnName != null && !columnName.trim().isEmpty()) {
+                        columnMapping.put(i, columnName.trim());
+                    }
+                }
+            }
+            
+            // Extract data rows (starting from row 3, index 2)
+            for (int rowIdx = 2; rowIdx <= sheet.getLastRowNum(); rowIdx++) {
+                Row row = sheet.getRow(rowIdx);
+                if (row == null) continue;
+                
+                Map<String, Object> rowData = new HashMap<>();
+                boolean hasData = false;
+                
+                for (Map.Entry<Integer, String> entry : columnMapping.entrySet()) {
+                    int colIdx = entry.getKey();
+                    String columnName = entry.getValue();
+                    
+                    Cell cell = row.getCell(colIdx);
+                    if (cell != null) {
+                        Object value = getCellValue(cell);
+                        if (value != null && !value.toString().trim().isEmpty()) {
+                            rowData.put(columnName, value);
+                            hasData = true;
+                        }
+                    }
+                }
+                
+                // Only add rows that have at least some data
+                if (hasData) {
+                    existingData.add(rowData);
+                }
+            }
+            
+        } catch (Exception e) {
+            log.error("Error extracting existing data from sheet '{}': {}", sheetName, e.getMessage());
+        }
+        
+        return existingData;
+    }
+    
+    private Object getCellValue(Cell cell) {
+        if (cell == null) return null;
+        
+        switch (cell.getCellType()) {
+            case STRING:
+                return cell.getStringCellValue();
+            case NUMERIC:
+                if (org.apache.poi.ss.usermodel.DateUtil.isCellDateFormatted(cell)) {
+                    return cell.getDateCellValue();
+                } else {
+                    return cell.getNumericCellValue();
+                }
+            case BOOLEAN:
+                return cell.getBooleanCellValue();
+            case FORMULA:
+                try {
+                    return cell.getStringCellValue();
+                } catch (Exception e) {
+                    try {
+                        return cell.getNumericCellValue();
+                    } catch (Exception e2) {
+                        return null;
+                    }
+                }
+            default:
+                return null;
+        }
+    }
+    
 }

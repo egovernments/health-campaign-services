@@ -89,6 +89,27 @@ public class HierarchicalBoundaryUtil {
     public void addHierarchicalBoundaryColumn(XSSFWorkbook workbook, String sheetName, Map<String, String> localizationMap,
                                              List<Boundary> configuredBoundaries, String hierarchyType, 
                                              String tenantId, RequestInfo requestInfo) {
+        addHierarchicalBoundaryColumnWithData(workbook, sheetName, localizationMap, configuredBoundaries, 
+                                             hierarchyType, tenantId, requestInfo, null);
+    }
+    
+    /**
+     * Adds cascading boundary dropdown columns to an existing sheet with existing data population
+     * Creates multiple columns starting from 2nd level with cascading dropdowns
+     * If existingData is provided, populates the first rows with that data
+     * 
+     * @param workbook Excel workbook
+     * @param sheetName Name of the sheet to add columns to
+     * @param localizationMap Localization map for headers and values
+     * @param configuredBoundaries List of configured boundaries from additionalDetails
+     * @param hierarchyType Boundary hierarchy type
+     * @param tenantId Tenant ID
+     * @param requestInfo Request info for API calls
+     * @param existingData Existing data to populate in the first rows
+     */
+    public void addHierarchicalBoundaryColumnWithData(XSSFWorkbook workbook, String sheetName, Map<String, String> localizationMap,
+                                                     List<Boundary> configuredBoundaries, String hierarchyType, 
+                                                     String tenantId, RequestInfo requestInfo, List<Map<String, Object>> existingData) {
         Sheet sheet = workbook.getSheet(sheetName);
         if (sheet == null) {
             log.warn("Sheet '{}' not found, cannot add hierarchical boundary column", sheetName);
@@ -218,7 +239,16 @@ public class HierarchicalBoundaryUtil {
         CellStyle formulaStyle = workbook.createCellStyle();
         formulaStyle.setLocked(true); // Keep locked to prevent user editing
         
-        for (int r = 2; r <= config.getExcelRowLimit(); r++) {
+        // Populate existing data first, then empty rows with dropdowns
+        int dataRowsPopulated = 0;
+        if (existingData != null && !existingData.isEmpty()) {
+            dataRowsPopulated = populateExistingDataWithBoundaries(sheet, existingData, lastSchemaCol, 
+                    numCascadingColumns, boundaryCodeColIndex, levelTypes, hierarchyType, 
+                    filteredBoundaries, localizationMap, unlocked, formulaStyle);
+        }
+        
+        // Create remaining empty rows with dropdowns
+        for (int r = 2 + dataRowsPopulated; r <= config.getExcelRowLimit(); r++) {
             Row row = sheet.getRow(r);
             if (row == null)
                 row = sheet.createRow(r);
@@ -700,5 +730,120 @@ public class HierarchicalBoundaryUtil {
                 throw new RuntimeException("Unable to create level2 boundary validation", e2);
             }
         }
+    }
+    
+    /**
+     * Populates existing data rows with boundary information and sets up dropdowns
+     * 
+     * @param sheet The sheet to populate
+     * @param existingData List of existing data records
+     * @param lastSchemaCol Index of last schema column
+     * @param numCascadingColumns Number of cascading boundary columns
+     * @param boundaryCodeColIndex Index of boundary code column
+     * @param levelTypes List of boundary level types
+     * @param hierarchyType Boundary hierarchy type
+     * @param filteredBoundaries List of filtered boundary row data
+     * @param localizationMap Localization map
+     * @param unlocked Cell style for unlocked cells
+     * @param formulaStyle Cell style for formula cells
+     * @return Number of data rows populated
+     */
+    private int populateExistingDataWithBoundaries(Sheet sheet, List<Map<String, Object>> existingData,
+                                                   int lastSchemaCol, int numCascadingColumns, int boundaryCodeColIndex,
+                                                   List<String> levelTypes, String hierarchyType,
+                                                   List<BoundaryUtil.BoundaryRowData> filteredBoundaries,
+                                                   Map<String, String> localizationMap,
+                                                   CellStyle unlocked, CellStyle formulaStyle) {
+        
+        int rowsPopulated = 0;
+        
+        for (int i = 0; i < existingData.size() && i < (config.getExcelRowLimit() - 2); i++) {
+            Map<String, Object> dataRow = existingData.get(i);
+            int excelRowIndex = 2 + i; // Start from row 3 (index 2)
+            
+            Row row = sheet.getRow(excelRowIndex);
+            if (row == null) {
+                row = sheet.createRow(excelRowIndex);
+            }
+            
+            // Get boundary information for this data row
+            String boundaryCode = extractBoundaryCodeFromData(dataRow);
+            List<String> boundaryPath = null;
+            
+            if (boundaryCode != null && !boundaryCode.isEmpty()) {
+                // Find boundary path from filtered boundaries data
+                for (BoundaryUtil.BoundaryRowData boundaryRowData : filteredBoundaries) {
+                    if (boundaryCode.equals(boundaryRowData.getLastLevelCode())) {
+                        boundaryPath = boundaryRowData.getBoundaryPath();
+                        break;
+                    }
+                }
+            }
+            
+            // Populate cascading boundary columns
+            for (int j = 0; j < numCascadingColumns; j++) {
+                Cell cell = row.getCell(lastSchemaCol + j);
+                if (cell == null) {
+                    cell = row.createCell(lastSchemaCol + j);
+                }
+                cell.setCellStyle(unlocked);
+                
+                // Fill boundary value if available (skip first level, start from 2nd level)
+                int boundaryLevelIndex = j + 1; // Skip first level
+                if (boundaryPath != null && boundaryLevelIndex < boundaryPath.size()) {
+                    String boundaryCodeAtLevel = boundaryPath.get(boundaryLevelIndex);
+                    if (boundaryCodeAtLevel != null && !boundaryCodeAtLevel.isEmpty()) {
+                        // Get localized display name
+                        String displayName = localizationMap.getOrDefault(boundaryCodeAtLevel, boundaryCodeAtLevel);
+                        cell.setCellValue(displayName);
+                    }
+                }
+            }
+            
+            // Set boundary code in hidden column
+            Cell boundaryCodeCell = row.getCell(boundaryCodeColIndex);
+            if (boundaryCodeCell == null) {
+                boundaryCodeCell = row.createCell(boundaryCodeColIndex);
+            }
+            boundaryCodeCell.setCellStyle(formulaStyle);
+            
+            if (boundaryCode != null && !boundaryCode.isEmpty()) {
+                // For existing data, directly set the boundary code value
+                boundaryCodeCell.setCellValue(boundaryCode);
+            } else {
+                // Set formula for empty boundary code
+                String boundaryCodeFormula = createBoundaryCodeFormula(excelRowIndex + 1, lastSchemaCol, numCascadingColumns);
+                boundaryCodeCell.setCellFormula(boundaryCodeFormula);
+            }
+            
+            rowsPopulated++;
+        }
+        
+        log.info("Populated {} existing data rows with boundary information", rowsPopulated);
+        return rowsPopulated;
+    }
+    
+    /**
+     * Extracts boundary code from existing data row
+     * Looks for common boundary code field names
+     */
+    private String extractBoundaryCodeFromData(Map<String, Object> dataRow) {
+        // Try common boundary code field names
+        String[] possibleFields = {
+            "HCM_ADMIN_CONSOLE_BOUNDARY_CODE",
+            "boundaryCode", 
+            "boundary_code",
+            "BOUNDARY_CODE",
+            "administrativeUnit"
+        };
+        
+        for (String field : possibleFields) {
+            Object value = dataRow.get(field);
+            if (value != null && !value.toString().isEmpty()) {
+                return value.toString();
+            }
+        }
+        
+        return null;
     }
 }

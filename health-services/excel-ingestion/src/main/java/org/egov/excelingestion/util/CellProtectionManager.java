@@ -65,8 +65,8 @@ public class CellProtectionManager {
                     cell = row.createCell(colIdx);
                 }
                 
-                // Simplified locking - only check freezeColumn
-                boolean shouldLock = column.isFreezeColumn();
+                // Use comprehensive protection logic
+                boolean shouldLock = determineCellLockState(column, cell, rowIdx, lastDataRow);
                 
                 CellStyle styleToApply = shouldLock ? lockedStyle : unlockedStyle;
                 cell.setCellStyle(styleToApply);

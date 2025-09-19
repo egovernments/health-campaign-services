@@ -5,10 +5,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.egov.excelingestion.config.ProcessingConstants;
 import org.egov.excelingestion.exception.CustomExceptionHandler;
 import org.egov.excelingestion.service.BoundaryService;
+import org.egov.excelingestion.service.CampaignService;
 import org.egov.excelingestion.service.MDMSService;
 import org.egov.excelingestion.util.BoundaryUtil;
 import org.egov.excelingestion.util.SchemaColumnDefUtil;
 import org.egov.excelingestion.web.models.*;
+import org.egov.excelingestion.web.models.CampaignSearchResponse;
 import org.egov.excelingestion.web.models.excel.ColumnDef;
 import org.springframework.stereotype.Component;
 
@@ -24,15 +26,18 @@ public class BoundaryHierarchySheetGenerator implements IExcelPopulatorSheetGene
     private final BoundaryService boundaryService;
     private final BoundaryUtil boundaryUtil;
     private final MDMSService mdmsService;
+    private final CampaignService campaignService;
     private final CustomExceptionHandler exceptionHandler;
     private final SchemaColumnDefUtil schemaColumnDefUtil;
 
     public BoundaryHierarchySheetGenerator(BoundaryService boundaryService, BoundaryUtil boundaryUtil,
-                                          MDMSService mdmsService, CustomExceptionHandler exceptionHandler,
+                                          MDMSService mdmsService, CampaignService campaignService,
+                                          CustomExceptionHandler exceptionHandler,
                                           SchemaColumnDefUtil schemaColumnDefUtil) {
         this.boundaryService = boundaryService;
         this.boundaryUtil = boundaryUtil;
         this.mdmsService = mdmsService;
+        this.campaignService = campaignService;
         this.exceptionHandler = exceptionHandler;
         this.schemaColumnDefUtil = schemaColumnDefUtil;
     }
@@ -95,6 +100,16 @@ public class BoundaryHierarchySheetGenerator implements IExcelPopulatorSheetGene
             // Create data
             List<Map<String, Object>> boundaryData = getBoundaryHierarchyDataFromFiltered(
                     filteredBoundaries, hierarchyRelations, hierarchyType, localizationMap, schemaColumns);
+            
+            // Fetch and merge existing campaign data for targets if reference ID is provided
+            String referenceId = generateResource.getReferenceId();
+            if (referenceId != null && !referenceId.isEmpty()) {
+                String campaignNumber = getCampaignNumberFromReferenceId(referenceId, generateResource.getTenantId(), requestInfo);
+                if (campaignNumber != null && !campaignNumber.isEmpty()) {
+                    boundaryData = mergeExistingCampaignData(boundaryData, campaignNumber, 
+                            generateResource.getTenantId(), requestInfo, schemaColumns);
+                }
+            }
             
             return SheetGenerationResult.builder()
                     .columnDefs(boundaryColumns)
@@ -252,5 +267,100 @@ public class BoundaryHierarchySheetGenerator implements IExcelPopulatorSheetGene
         }
         
         return data;
+    }
+    
+    private String getCampaignNumberFromReferenceId(String referenceId, String tenantId, RequestInfo requestInfo) {
+        try {
+            log.info("Searching campaign by reference ID: {}", referenceId);
+            CampaignSearchResponse.CampaignDetail campaign = campaignService.searchCampaignById(referenceId, tenantId, requestInfo);
+            
+            if (campaign != null) {
+                String campaignNumber = campaign.getCampaignNumber();
+                log.info("Found campaign number: {} for reference ID: {}", campaignNumber, referenceId);
+                return campaignNumber;
+            } else {
+                log.warn("No campaign found for reference ID: {}", referenceId);
+                return null;
+            }
+        } catch (Exception e) {
+            log.error("Error fetching campaign for reference ID {}: {}", referenceId, e.getMessage());
+            return null;
+        }
+    }
+    
+    private List<Map<String, Object>> mergeExistingCampaignData(List<Map<String, Object>> boundaryData, 
+                                                               String campaignNumber, String tenantId, 
+                                                               RequestInfo requestInfo, List<ColumnDef> schemaColumns) {
+        try {
+            log.info("Fetching existing campaign data for boundary/target type, campaign: {}", campaignNumber);
+            
+            // Search for existing boundary/target campaign data
+            // Get all boundary codes to search for
+            List<String> boundaryCodes = new ArrayList<>(); 
+            for (Map<String, Object> row : boundaryData) {
+                String boundaryCode = (String) row.get("HCM_ADMIN_CONSOLE_BOUNDARY_CODE");
+                if (boundaryCode != null && !boundaryCode.isEmpty()) {
+                    boundaryCodes.add(boundaryCode);
+                }
+            }
+            
+            List<Map<String, Object>> campaignDataResponse = campaignService.searchCampaignDataByUniqueIdentifiers(
+                    boundaryCodes, "boundary", null, campaignNumber, tenantId, requestInfo);
+            
+            if (campaignDataResponse == null || campaignDataResponse.isEmpty()) {
+                log.info("No existing boundary/target data found for campaign: {}", campaignNumber);
+                return boundaryData;
+            }
+            
+            // Extract the actual data object from campaign data records
+            List<Map<String, Object>> existingData = new ArrayList<>();
+            for (Map<String, Object> record : campaignDataResponse) {
+                if (record.get("data") != null) {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> dataObject = (Map<String, Object>) record.get("data");
+                    if (dataObject != null) {
+                        existingData.add(dataObject);
+                    }
+                }
+            }
+            
+            if (existingData.isEmpty()) {
+                log.info("No existing boundary/target data found in campaign data records");
+                return boundaryData;
+            }
+            
+            // Create a map of boundary code to existing data for fast lookup
+            Map<String, Map<String, Object>> existingDataMap = new HashMap<>();
+            for (Map<String, Object> data : existingData) {
+                String boundaryCode = (String) data.get("HCM_ADMIN_CONSOLE_BOUNDARY_CODE");
+                if (boundaryCode != null && !boundaryCode.isEmpty()) {
+                    existingDataMap.put(boundaryCode, data);
+                }
+            }
+            
+            // Merge existing data with boundary data
+            for (Map<String, Object> row : boundaryData) {
+                String boundaryCode = (String) row.get("HCM_ADMIN_CONSOLE_BOUNDARY_CODE");
+                if (boundaryCode != null && existingDataMap.containsKey(boundaryCode)) {
+                    Map<String, Object> existingRow = existingDataMap.get(boundaryCode);
+                    
+                    // Merge schema column values from existing data
+                    for (ColumnDef schemaCol : schemaColumns) {
+                        String columnName = schemaCol.getName();
+                        if (existingRow.containsKey(columnName)) {
+                            row.put(columnName, existingRow.get(columnName));
+                        }
+                    }
+                }
+            }
+            
+            log.info("Successfully merged existing campaign data for {} boundary rows", boundaryData.size());
+            return boundaryData;
+            
+        } catch (Exception e) {
+            log.error("Error merging existing campaign data for campaign {}: {}", campaignNumber, e.getMessage());
+            // Return original data if merge fails
+            return boundaryData;
+        }
     }
 }
