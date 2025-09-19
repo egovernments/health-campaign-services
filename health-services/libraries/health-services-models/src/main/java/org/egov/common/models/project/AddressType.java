@@ -30,6 +30,6 @@ public enum AddressType {
                 return b;
             }
         }
-        return null;
+        return AddressType.OTHER;
     }
 }

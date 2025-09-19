@@ -59,7 +59,6 @@ import org.springframework.validation.annotation.Validated;
     private Double locationAccuracy = null;
 
     @JsonProperty("type")
-    @NotNull
     private AddressType type = null;
 
     @JsonProperty("addressLine1")
