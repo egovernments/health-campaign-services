@@ -3,6 +3,7 @@ package org.egov.excelingestion.generator;
 import org.egov.excelingestion.config.ProcessingConstants;
 import org.egov.excelingestion.exception.CustomExceptionHandler;
 import org.egov.excelingestion.service.BoundaryService;
+import org.egov.excelingestion.service.CampaignService;
 import org.egov.excelingestion.service.MDMSService;
 import org.egov.excelingestion.util.BoundaryUtil;
 import org.egov.excelingestion.web.models.*;
@@ -35,6 +36,9 @@ class BoundaryHierarchySheetGeneratorTest {
     private MDMSService mdmsService;
     
     @Mock
+    private CampaignService campaignService;
+    
+    @Mock
     private CustomExceptionHandler exceptionHandler;
     
     private BoundaryHierarchySheetGenerator generator;
@@ -46,7 +50,7 @@ class BoundaryHierarchySheetGeneratorTest {
         org.egov.excelingestion.util.ColumnDefMaker columnDefMaker = new org.egov.excelingestion.util.ColumnDefMaker();
         org.egov.excelingestion.util.SchemaColumnDefUtil schemaColumnDefUtil = new org.egov.excelingestion.util.SchemaColumnDefUtil(columnDefMaker, exceptionHandler);
         generator = new BoundaryHierarchySheetGenerator(
-            boundaryService, boundaryUtil, mdmsService, exceptionHandler, schemaColumnDefUtil
+            boundaryService, boundaryUtil, mdmsService, campaignService, exceptionHandler, schemaColumnDefUtil
         );
     }
     
