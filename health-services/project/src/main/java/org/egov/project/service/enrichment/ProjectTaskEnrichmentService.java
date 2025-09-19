@@ -1,11 +1,14 @@
 package org.egov.project.service.enrichment;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.egov.common.contract.models.AuditDetails;
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.models.core.AdditionalFields;
+import org.egov.common.models.core.Field;
 import org.egov.common.models.project.Address;
 import org.egov.common.models.project.Task;
 import org.egov.common.models.project.TaskBulkRequest;
@@ -14,6 +17,7 @@ import org.egov.common.service.IdGenService;
 import org.egov.project.config.ProjectConfiguration;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
+import org.springframework.util.ObjectUtils;
 
 import static org.egov.common.utils.CommonUtils.enrichForCreate;
 import static org.egov.common.utils.CommonUtils.enrichForUpdate;
@@ -46,6 +50,8 @@ public class ProjectTaskEnrichmentService {
                 projectConfiguration.getProjectTaskIdFormat(),
                 "", request.getTasks().size());
         log.info("enriching tasks");
+        String tenantId = getTenantId(request.getTasks());
+        enrichNullValues(tenantId, validTasks);
         enrichForCreate(validTasks, taskIdList, request.getRequestInfo());
         enrichAddressesForCreate(validTasks);
         enrichResourcesForCreate(request, validTasks);
@@ -55,6 +61,8 @@ public class ProjectTaskEnrichmentService {
     public void update(List<Task> validTasks, TaskBulkRequest request) throws Exception {
         log.info("generating id for tasks");
         log.info("enriching tasks for update");
+        String tenantId = getTenantId(request.getTasks());
+        enrichNullValues(tenantId, validTasks);
         enrichAddressesForUpdate(validTasks);
         enrichResourcesForUpdate(request, validTasks);
         Map<String, Task> iMap = getIdToObjMap(validTasks);
@@ -161,5 +169,39 @@ public class ProjectTaskEnrichmentService {
         List<String> ids = uuidSupplier().apply(resources.size());
         enrichForCreate(resources, ids, request.getRequestInfo(), false);
         resources.forEach(taskResource -> taskResource.setTaskId(taskId));
+    }
+
+    private void enrichNullValues(String tenantId, List<Task> validTasks) {
+        if(CollectionUtils.isEmpty(validTasks)) return;
+        validTasks.forEach(task -> {
+            List<TaskResource> taskResources = task.getResources();
+            if(!CollectionUtils.isEmpty(taskResources)) {
+                taskResources.forEach(taskResource -> {
+                    AdditionalFields additionalFields = taskResource.getAdditionalFields();
+                    if(ObjectUtils.isEmpty(additionalFields)) {
+                        additionalFields =  new AdditionalFields();
+                        additionalFields.setFields(new ArrayList<>());
+                        additionalFields.setVersion(1);
+                    }
+                    if(CollectionUtils.isEmpty(additionalFields.getFields())) {
+                        additionalFields.setFields(new ArrayList<>());
+                    }
+                    List<Field> fields = new ArrayList<>(additionalFields.getFields());
+                    if(taskResource.getQuantity() == null) {
+                        taskResource.setQuantity(1d);
+                        fields.add(new Field("nullQuantity", "true"));
+                    }
+
+                    if(taskResource.getProductVariantId() == null) {
+                        String defaultProductVariant = projectConfiguration.getTenantDefaultProductVariants()
+                                .getOrDefault(tenantId, "default");
+                        taskResource.setProductVariantId(defaultProductVariant);
+                        fields.add(new Field("nullProductVariantId", "true"));
+                    }
+                    additionalFields.setFields(fields);
+                    taskResource.setAdditionalFields(additionalFields);
+                });
+            }
+        });
     }
 }

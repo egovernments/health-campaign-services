@@ -46,7 +46,7 @@ public class TaskResource   {
     private String productVariantId = null ;
 
     @JsonProperty("quantity")
-    private Double quantity = 1d;
+    private Double quantity = null;
 
     @JsonProperty("isDelivered")
     @NotNull

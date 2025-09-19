@@ -1,6 +1,7 @@
 package org.egov.project.config;
 
 import java.util.List;
+import java.util.Map;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -225,4 +226,7 @@ public class ProjectConfiguration {
 
     @Value("${project.attendance.feature.enabled:true}")
     private Boolean isAttendanceFeatureEnabled;
+
+    @Value("#{${project.task.tenant.default.product.variant}}")
+    private Map<String, String> tenantDefaultProductVariants;
 }
