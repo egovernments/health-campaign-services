@@ -190,7 +190,7 @@ public class ProjectTaskEnrichmentService {
                     if(taskResource.getQuantity() == null) {
                         taskResource.setQuantity(1d);
                         fields.add(new Field("nullQuantity", "true"));
-                        log.error("Enriching null quantity for task resource {} tenant: {}", taskResource.getId(), tenantId);
+                        log.error("Enriching null quantity for task resource cref {} tenant: {}", taskResource.getClientReferenceId(), tenantId);
                     }
 
                     if(taskResource.getProductVariantId() == null) {
@@ -198,7 +198,7 @@ public class ProjectTaskEnrichmentService {
                                 .getOrDefault(tenantId, "default");
                         taskResource.setProductVariantId(defaultProductVariant);
                         fields.add(new Field("nullProductVariantId", "true"));
-                        log.error("Enriching null productVariant with {} for task resource {} tenant: {}", defaultProductVariant, taskResource.getId(), tenantId);
+                        log.error("Enriching null productVariant with {} for task resource cref {} tenant: {}", defaultProductVariant, taskResource.getClientReferenceId(), tenantId);
                     }
                     if(!CollectionUtils.isEmpty(fields)) {
                         additionalFields.setFields(fields);
