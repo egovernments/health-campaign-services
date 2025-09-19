@@ -857,43 +857,14 @@ async function validateBoundaryOfResouces(CampaignDetails: any, request: any, lo
     }
 }
 
-
-// async function validateResources(resources: any, request: any) {
-//     for (const resource of resources) {
-//         if (resource?.resourceId) {
-//             // var searchBody = {
-//             //     RequestInfo: request?.body?.RequestInfo,
-//             //     SearchCriteria: {
-//             //         id: [resource?.resourceId],
-//             //         tenantId: request?.body?.CampaignDetails?.tenantId
-//             //     }
-//             // }
-//             // const req: any = replicateRequest(request, searchBody);
-//             // const res: any = await searchDataService(req);
-//             // if (res?.[0]) {
-//             //     if (!(res?.[0]?.status == resourceDataStatuses.completed && res?.[0]?.action == "validate")) {
-//             //         logger.error(`Error during validation of type ${resource.type}, validation is not successful or not completed. Resource id : ${resource?.resourceId}`);
-//             //         throwError("COMMON", 400, "VALIDATION_ERROR", `Error during validation of type ${resource.type}, validation is not successful or not completed.`);
-//             //     }
-//             //     if (res?.[0]?.fileStoreId != resource?.filestoreId) {
-//             //         logger.error(`fileStoreId doesn't match for resource with Id ${resource?.resourceId}. Expected fileStoreId ${resource?.filestoreId} but received ${res?.[0]?.fileStoreId}`);
-//             //         throwError("COMMON", 400, "VALIDATION_ERROR", `Uploaded file doesn't match for resource of type ${resource.type}.`)
-//             //     }
-//             // }
-//             // else {
-//             //     logger.error(`No resource data found for resource with Id ${resource?.resourceId}`);
-//             //     throwError("COMMON", 400, "VALIDATION_ERROR", `No resource data found for validation of resource type ${resource.type}.`);
-//             // }
-//         }
-//     }
-// }
-
 async function validateProjectCampaignResources(resources: any, request: any) {
     const requiredTypes = ["user", "facility", "boundary"];
+    const allowedTypes = [...requiredTypes, "unified-console-resources"];
     const typeCounts: any = {
         "user": 0,
         "facility": 0,
-        "boundary": 0
+        "boundary": 0,
+        "unified-console-resources": 0
     };
 
     const missingTypes: string[] = [];
@@ -902,19 +873,29 @@ async function validateProjectCampaignResources(resources: any, request: any) {
         throwError("COMMON", 400, "VALIDATION_ERROR", "resources should be a non-empty array");
     }
 
+    // Check if this is a unified template campaign
+    const hasUnifiedResource = resources.some((resource: any) => resource?.type === "unified-console-resources");
+
     for (const resource of resources) {
         const { type } = resource;
-        if (!type || !requiredTypes.includes(type)) {
+        if (!type || !allowedTypes.includes(type)) {
             throwError(
                 "COMMON",
                 400,
                 "VALIDATION_ERROR",
-                `Invalid resource type. Allowed types are: ${requiredTypes.join(', ')}`
+                `Invalid resource type. Allowed types are: ${allowedTypes.join(', ')}`
             );
         }
         typeCounts[type]++;
     }
 
+    // If unified-console-resources is present, it's valid on its own
+    if (hasUnifiedResource) {
+        logger.info("Unified template campaign detected - skipping traditional resource validation");
+        return;
+    }
+
+    // For regular campaigns, check for required types
     for (const type of requiredTypes) {
         if (typeCounts[type] === 0) {
             missingTypes.push(type);
@@ -945,11 +926,6 @@ async function validateProjectCampaignResources(resources: any, request: any) {
             }
         }
     }
-
-    // if (request?.body?.CampaignDetails?.action === "create" && request?.body?.CampaignDetails?.resources) {
-    //     logger.info(`skipResourceCheckValidationBeforeCreateForLocalTesting flag is ${config.values.skipResourceCheckValidationBeforeCreateForLocalTesting }`);
-    //     // !config.values.skipResourceCheckValidationBeforeCreateForLocalTesting && await validateResources(request.body.CampaignDetails.resources, request);
-    // }
 }
 
 
@@ -1231,7 +1207,7 @@ async function validateForRetry(request: any) {
             request.body.CampaignDetails.status = campaignStatuses?.drafted;
             request.body.CampaignDetails.parentId = request?.body?.CampaignDetails?.parentId || null;
             var updatedInnerCampaignDetails = {}
-            enrichInnerCampaignDetails(request, updatedInnerCampaignDetails)
+            enrichInnerCampaignDetails(request?.body, updatedInnerCampaignDetails)
             request.body.CampaignDetails.campaignDetails = updatedInnerCampaignDetails;
             const producerMessage: any = {
                 RequestInfo: request?.body?.RequestInfo,

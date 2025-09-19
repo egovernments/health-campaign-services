@@ -177,7 +177,8 @@ const config = {
     planConfigSearch: process.env.EGOV_PLAN_FACILITY_CONFIG_SEARCH || "plan-service/config/_search",
     planSearch: process.env.EGOV_PLAN_SEARCH || "plan-service/plan/_search",
     censusSearch: process.env.EGOV_CENSUS_SEARCH || "census-service/_search",
-    excelIngestionSheetSearch: process.env.EXCEL_INGESTION_SHEET_SEARCH || "excel-ingestion/v1/data/sheet/_search"
+    excelIngestionSheetSearch: process.env.EXCEL_INGESTION_SHEET_SEARCH || "excel-ingestion/v1/data/sheet/_search",
+    excelIngestionProcess: process.env.EXCEL_INGESTION_PROCESS || "excel-ingestion/v1/data/_process"
   },
   // Values configuration
   values: {

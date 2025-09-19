@@ -1,7 +1,7 @@
 import { NextFunction, Request, Response } from "express";
 import { httpRequest, defaultheader } from "./request";
 import config from "../config/index";
-import { getErrorCodes } from "../config/constants";
+import { getErrorCodes, mappingStatuses } from "../config/constants";
 import { v4 as uuidv4 } from 'uuid';
 import { produceModifiedMessages } from "../kafka/Producer";
 import { generateHierarchyList, getAllFacilities, getCampaignSearchResponse, getHierarchy } from "../api/campaignApis";
@@ -2034,6 +2034,114 @@ export async function searchMappingData(searchParams: {
 }
 
 
+
+/**
+ * Fast check for campaign data completion status
+ * Returns: { allCompleted: boolean, anyFailed: boolean, totalRows: number, completedRows: number, failedRows: number }
+ */
+export async function checkCampaignDataCompletionStatus(campaignNumber: string, tenantId: string) {
+  try {
+    const tableName = getTableName(config?.DB_CONFIG?.DB_CAMPAIGN_DATA_TABLE_NAME, tenantId);
+    
+    // Fast query to get status counts - only select minimal fields for performance
+    const queryString = `
+      SELECT 
+        status,
+        COUNT(*) as count
+      FROM ${tableName} 
+      WHERE campaignNumber = $1 
+      GROUP BY status
+    `;
+    
+    const result = await executeQuery(queryString, [campaignNumber]);
+    
+    let totalRows = 0;
+    let completedRows = 0;
+    let failedRows = 0;
+    
+    // Process the grouped results using constants
+    result?.rows?.forEach((row: any) => {
+      const count = parseInt(row.count);
+      totalRows += count;
+      
+      if (row.status === resourceDataStatuses.completed) {
+        completedRows = count;
+      } else if (row.status === resourceDataStatuses.failed) {
+        failedRows = count;
+      }
+    });
+    
+    const allCompleted = totalRows > 0 && completedRows === totalRows;
+    const anyFailed = failedRows > 0;
+    
+    return {
+      allCompleted,
+      anyFailed,
+      totalRows,
+      completedRows,
+      failedRows,
+      pendingRows: totalRows - completedRows - failedRows
+    };
+    
+  } catch (error) {
+    logger.error('Error checking campaign data completion status:', error);
+    throw error;
+  }
+}
+
+/**
+ * Fast check for campaign mapping completion status
+ * Returns: { allCompleted: boolean, anyFailed: boolean, totalMappings: number, completedMappings: number, failedMappings: number }
+ */
+export async function checkCampaignMappingCompletionStatus(campaignNumber: string, tenantId: string) {
+  try {
+    const tableName = getTableName(config?.DB_CONFIG?.DB_CAMPAIGN_MAPPING_DATA_TABLE_NAME, tenantId);
+    
+    // Fast query to get mapping status counts - only select minimal fields for performance
+    const queryString = `
+      SELECT 
+        status,
+        COUNT(*) as count
+      FROM ${tableName} 
+      WHERE campaignNumber = $1 
+      GROUP BY status
+    `;
+    
+    const result = await executeQuery(queryString, [campaignNumber]);
+    
+    let totalMappings = 0;
+    let completedMappings = 0;
+    let failedMappings = 0;
+    
+    // Process the grouped results using constants
+    result.rows.forEach((row: any) => {
+      const count = parseInt(row.count);
+      totalMappings += count;
+      
+      if (row.status === mappingStatuses.mapped || row.status === mappingStatuses.deMapped) {
+        completedMappings += count;
+      } else if (row.status === mappingStatuses.failed) {
+        failedMappings += count;
+      }
+    });
+    
+    const allCompleted = totalMappings > 0 && completedMappings === totalMappings;
+    const anyFailed = failedMappings > 0;
+    
+    return {
+      allCompleted,
+      anyFailed,
+      totalMappings,
+      completedMappings,
+      failedMappings,
+      pendingMappings: totalMappings - completedMappings - failedMappings
+    };
+    
+  } catch (error) {
+    logger.error('Error checking campaign mapping completion status:', error);
+    throw error;
+  }
+}
 
 export {
   errorResponder,

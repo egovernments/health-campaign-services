@@ -1176,6 +1176,10 @@ export async function enrichAndPersistCampaignForCreateViaFlow2(
 
   campaignDetails.status =
     campaignDetails.action == "create" ? campaignStatuses.inprogress : campaignStatuses.started;
+  
+  campaignDetails.auditDetails.lastModifiedTime = Date.now();
+  campaignDetails.auditDetails.lastModifiedBy = useruuid;
+  
   const topic = config?.kafka?.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC;
   const produceMessage: any = {
     RequestInfo,
@@ -1196,15 +1200,15 @@ async function getRootProjectIdViaCampaignNumber(campaignNumber: string, boundar
 }
 
 function enrichInnerCampaignDetails(
-  request: any,
+  requestBody: any,
   updatedInnerCampaignDetails: any
 ) {
   updatedInnerCampaignDetails.resources =
-    request?.body?.CampaignDetails?.resources || [];
+    requestBody?.CampaignDetails?.resources || [];
   updatedInnerCampaignDetails.deliveryRules =
-    request?.body?.CampaignDetails?.deliveryRules || [];
+    requestBody?.CampaignDetails?.deliveryRules || [];
   updatedInnerCampaignDetails.boundaries =
-    request?.body?.CampaignDetails?.boundaries || [];
+    requestBody?.CampaignDetails?.boundaries || [];
 }
 
 async function enrichAndPersistCampaignForUpdate(
@@ -1222,7 +1226,7 @@ async function enrichAndPersistCampaignForUpdate(
   // }
   const ExistingCampaignDetails = request?.body?.ExistingCampaignDetails;
   var updatedInnerCampaignDetails = {};
-  enrichInnerCampaignDetails(request, updatedInnerCampaignDetails);
+  enrichInnerCampaignDetails(request?.body, updatedInnerCampaignDetails);
   request.body.CampaignDetails.campaignNumber =
     ExistingCampaignDetails?.campaignNumber;
   request.body.CampaignDetails.campaignDetails = updatedInnerCampaignDetails;
@@ -1345,7 +1349,7 @@ async function persistForCampaignProjectMapping(
     requestBody.CampaignDetails = request?.body?.CampaignDetails;
     requestBody.parentCampaign = request?.body?.parentCampaign;
     var updatedInnerCampaignDetails = {};
-    enrichInnerCampaignDetails(request, updatedInnerCampaignDetails);
+    enrichInnerCampaignDetails(request?.body, updatedInnerCampaignDetails);
     requestBody.CampaignDetails = request?.body?.CampaignDetails;
     requestBody.CampaignDetails.campaignDetails = updatedInnerCampaignDetails;
     // requestBody.localizationMap = localizationMap
@@ -2515,38 +2519,127 @@ async function getCodesTarget(request: any, localizationMap?: any) {
   } else return null;
 }
 
+/**
+ * Check if campaign is a unified template campaign
+ * Unified campaigns have resources with type "unified-console-resources"
+ */
+function isUnfiedTemplateCamapign(campaignDetails: any): boolean {
+  if (!campaignDetails?.resources || !Array.isArray(campaignDetails.resources)) {
+    throw new Error('Campaign resources not found or invalid');
+  }
+  
+  // Check if any resource has type "unified-console-resources"
+  return campaignDetails.resources.some((resource: any) => 
+    resource?.type === "unified-console-resources"
+  );
+}
+
+/**
+ * Process unified template campaign by calling excel-ingestion process API
+ */
+async function processUnifiedTemplateCampaign(request: any): Promise<void> {
+  // For unified template campaigns, call excel-ingestion process API
+  const campaignDetails = request?.body?.CampaignDetails;
+  const useruuid = request?.body?.RequestInfo?.userInfo?.uuid || campaignDetails?.auditDetails?.createdBy;
+  
+  // Find the unified-console-resources resource to get filestoreId
+  const unifiedResource = campaignDetails.resources.find((resource: any) => 
+    resource?.type === "unified-console-resources"
+  );
+  
+  if (!unifiedResource?.filestoreId) {
+    throw new Error('FileStoreId not found for unified-console-resources');
+  }
+  
+  logger.info(`Calling excel-ingestion process API for unified campaign: ${campaignDetails.campaignNumber}`);
+  
+  // Call excel-ingestion process API
+  const processRequestBody = {
+    RequestInfo: {
+      apiId: "project-factory",
+      ver: "1.0",
+      ts: Date.now(),
+      action: "process",
+      msgId: `pf-${Date.now()}`,
+      correlationId: `pf-correlation-${Date.now()}`,
+      userInfo: { uuid: useruuid }
+    },
+    ResourceDetails: {
+      type: "unified-console-parse",
+      tenantId: campaignDetails.tenantId,
+      referenceId: campaignDetails.id,
+      fileStoreId: unifiedResource.filestoreId,
+      campaignId: campaignDetails.id,
+      hierarchyType: campaignDetails.hierarchyType,
+      additionalDetails: {
+        projectType: campaignDetails.projectType
+      }
+    }
+  };
+  
+  const processUrl = `${config.host.excelIngestionHost}${config.paths.excelIngestionProcess}`;
+  
+  try {
+    await httpRequest(
+      processUrl,
+      processRequestBody,
+      {},
+      'post',
+      '',
+      {
+        'Content-Type': 'application/json'
+      }
+    );
+    logger.info(`Excel-ingestion process API called successfully for campaign: ${campaignDetails.campaignNumber}`);
+  } catch (error) {
+    logger.error(`Error calling excel-ingestion process API for campaign: ${campaignDetails.campaignNumber}`, error);
+    throw error;
+  }
+}
+
+/**
+ * Process regular campaign with background resource creation flow
+ */
+async function processRegularCampaign(request: any): Promise<void> {
+  const locale = getLocaleFromRequest(request);
+  const campaignDetails = request?.body?.CampaignDetails;
+  const campaignNumber = campaignDetails?.campaignNumber;
+  const tenantId = campaignDetails?.tenantId;
+  const useruuid =
+    request?.body?.RequestInfo?.userInfo?.uuid ||
+    campaignDetails?.auditDetails?.createdBy;
+
+  // Prepare DB setup synchronously
+  await prepareProcessesInDb(campaignNumber, tenantId);
+
+  // ✅ Offload the long chain into background (non-blocking)
+  setImmediate(async () => {
+    try {
+      await createAllResources(campaignDetails, request?.body?.parentCampaign || null, useruuid);
+      await createAllMappings(campaignDetails, request?.body?.parentCampaign || null, useruuid);
+      await userCredGeneration(campaignDetails, useruuid, locale);
+      await enrichAndPersistCampaignForCreateViaFlow2(campaignDetails, request?.body?.RequestInfo, request?.body?.parentCampaign || null, useruuid);
+      triggerUserCredentialEmailFlow(request?.body); // not awaited = background
+    } catch (e) {
+      console.log(e);
+      logger.error("Async Background Flow Error:", e);
+      await enrichAndPersistCampaignWithError(request?.body, e);
+    }
+  });
+
+  // ✅ Immediately return so main thread isn't blocked
+  logger.info(`Started async background flow for campaign: ${campaignNumber}`);
+}
 
 export async function processAfterPersistNew(request: any, actionInUrl: any) {
   try {
     if (request?.body?.CampaignDetails?.action == "create") {
-      const locale = getLocaleFromRequest(request);
-      const campaignDetails = request?.body?.CampaignDetails;
-      const campaignNumber = campaignDetails?.campaignNumber;
-      const tenantId = campaignDetails?.tenantId;
-      const useruuid =
-        request?.body?.RequestInfo?.userInfo?.uuid ||
-        campaignDetails?.auditDetails?.createdBy;
-
-      // Prepare DB setup synchronously
-      await prepareProcessesInDb(campaignNumber, tenantId);
-
-      // ✅ Offload the long chain into background (non-blocking)
-      setImmediate(async () => {
-        try {
-          await createAllResources(campaignDetails, request?.body?.parentCampaign || null, useruuid);
-          await createAllMappings(campaignDetails, request?.body?.parentCampaign || null, useruuid);
-          await userCredGeneration(campaignDetails, useruuid, locale);
-          await enrichAndPersistCampaignForCreateViaFlow2(campaignDetails, request?.body?.RequestInfo, request?.body?.parentCampaign || null, useruuid);
-          triggerUserCredentialEmailFlow(request?.body); // not awaited = background
-        } catch (e) {
-          console.log(e);
-          logger.error("Async Background Flow Error:", e);
-          await enrichAndPersistCampaignWithError(request?.body, e);
-        }
-      });
-
-      // ✅ Immediately return so main thread isn't blocked
-      logger.info(`Started async background flow for campaign: ${campaignNumber}`);
+      if(isUnfiedTemplateCamapign(request?.body?.CampaignDetails)){
+        await processUnifiedTemplateCampaign(request);
+      }
+      else{
+        await processRegularCampaign(request);
+      }
     } else {
       let localizationMap;
       try {
@@ -2566,7 +2659,6 @@ export async function processAfterPersistNew(request: any, actionInUrl: any) {
         localizationMap
       );
     }
-
     delete request.body?.boundariesCombined;
   } catch (error: any) {
     console.log(error);

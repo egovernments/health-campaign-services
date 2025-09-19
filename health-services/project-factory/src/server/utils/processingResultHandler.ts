@@ -1,11 +1,11 @@
 import { logger } from './logger';
 import { searchSheetData } from './excelIngestionUtils';
 import { searchProjectTypeCampaignService } from '../service/campaignManageService';
-import { getRelatedDataWithCampaign, getMappingDataRelatedToCampaign, prepareProcessesInDb, getRelatedDataWithUniqueIdentifiers } from './genericUtils';
+import { getRelatedDataWithCampaign, getMappingDataRelatedToCampaign, prepareProcessesInDb, getRelatedDataWithUniqueIdentifiers, checkCampaignDataCompletionStatus, checkCampaignMappingCompletionStatus } from './genericUtils';
 import { produceModifiedMessages } from '../kafka/Producer';
-import { dataRowStatuses, mappingStatuses, usageColumnStatus } from '../config/constants';
+import { dataRowStatuses, mappingStatuses, usageColumnStatus, campaignStatuses } from '../config/constants';
 import { searchMDMSDataViaV2Api, searchBoundaryRelationshipData, defaultRequestInfo } from '../api/coreApis';
-import { populateBoundariesRecursively, getLocalizedName, enrichAndPersistCampaignWithError } from './campaignUtils';
+import { populateBoundariesRecursively, getLocalizedName, enrichAndPersistCampaignWithError, enrichAndPersistCampaignForCreateViaFlow2, userCredGeneration } from './campaignUtils';
 import { getLocalisationModuleName } from './localisationUtils';
 import Localisation from '../controllers/localisationController/localisation.controller';
 import { enrichProjectDetailsFromCampaignDetails } from './transforms/projectTypeUtils';
@@ -14,6 +14,8 @@ import { httpRequest } from './request';
 import { fetchProjectsWithBoundaryCodeAndReferenceId } from './onGoingCampaignUpdateUtils';
 import { v4 as uuidv4 } from 'uuid';
 import config from '../config';
+import { sendCampaignFailureMessage } from './campaignFailureHandler';
+import { triggerUserCredentialEmailFlow } from './mailUtils';
 
 /**
  * Helper function to get localized sheet name and trim to 31 characters
@@ -75,7 +77,7 @@ async function fetchLocalizationData(tenantId: string, campaignId: string, local
         
     } catch (error) {
         logger.error('Error fetching localization data:', error);
-        return {};
+        throw error;
     }
 }
 
@@ -124,6 +126,10 @@ export async function handleProcessingResult(messageObject: any) {
         }
         
         logger.info(`Found campaign: ${campaignDetails.campaignName} (${campaignDetails.id})`);
+        if(campaignDetails.status === campaignStatuses.failed){
+            logger.warn('Campaign is already marked as failed, skipping further processing');
+            return;
+        }
         
         // Fetch parent campaign if exists
         let parentCampaign = null;
@@ -138,10 +144,11 @@ export async function handleProcessingResult(messageObject: any) {
                 if (parentCampaign) {
                     logger.info(`Found parent campaign: ${parentCampaign.campaignName}`);
                 } else {
-                    logger.warn(`Parent campaign not found for ID: ${campaignDetails.parentId}`);
+                    throw new Error(`Parent campaign not found with ID: ${campaignDetails.parentId}`);
                 }
             } catch (error) {
                 logger.error(`Error fetching parent campaign: ${error}`);
+                throw error;
             }
         }
         
@@ -229,16 +236,27 @@ export async function handleProcessingResult(messageObject: any) {
                 logger.info('=== TRIGGERING BACKGROUND RESOURCE CREATION FLOW ===');
                 await triggerBackgroundResourceCreationFlow(messageObject.tenantId, campaignDetails, parentCampaign, locale);
             } else {
-                logger.warn('No temp data found for the given referenceId and fileStoreId');
+                throw new Error('No temp data found to process for campaign');
             }
         } else {
-            logger.error('Missing required fields (referenceId, fileStoreId, tenantId) to search temp data');
+            throw new Error('Missing referenceId, fileStoreId, or tenantId in message object');
         }
         
         logger.info('=== END OF HCM PROCESSING RESULT ===');
         
     } catch (error) {
         logger.error('Error handling HCM processing result:', error);
+        
+        // Mark campaign as failed if we have referenceId and tenantId
+        if (messageObject?.referenceId && messageObject?.tenantId) {
+            try {
+                const processingError = new Error(`HCM processing result handling failed: ${error instanceof Error ? error.message : String(error)}`);
+                await sendCampaignFailureMessage(messageObject.referenceId, messageObject.tenantId, processingError);
+                logger.info(`Campaign ${messageObject.referenceId} marked as failed due to processing error`);
+            } catch (failureError) {
+                logger.error('Error marking campaign as failed:', failureError);
+            }
+        }
     }
 }
 
@@ -688,6 +706,197 @@ async function handleResourceBoundaryMappings(
         await persistDataInBatches(mappingsToCreate, config.kafka.KAFKA_SAVE_MAPPING_DATA_TOPIC, tenantId);
     } else {
         logger.info('No new resource-boundary mappings to create - all mappings already exist');
+    }
+}
+
+/**
+ * Monitor campaign data completion status with polling
+ */
+async function monitorCampaignDataCompletion(
+    campaignNumber: string,
+    tenantId: string,
+    campaignId: string,
+    campaignAlreadyFailed: { value: boolean }
+): Promise<void> {
+    try {
+        logger.info(`Starting data completion monitoring for campaign: ${campaignNumber}`);
+        
+        const maxAttempts = config.resourceCreationConfig.maxAttemptsForResourceCreationOrMapping;
+        const waitTimeMs = config.resourceCreationConfig.waitTimeOfEachAttemptOfResourceCreationOrMappping;
+        
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+            // Check if campaign itself is failed
+            try {
+                const campaignResponse = await searchProjectTypeCampaignService({
+                    tenantId: tenantId,
+                    ids: [campaignId]
+                });
+                const campaign = campaignResponse?.CampaignDetails?.[0];
+                
+                if (campaign?.status === campaignStatuses.failed) {
+                    logger.info(`Campaign ${campaignNumber} is already marked as failed. Stopping data monitoring.`);
+                    campaignAlreadyFailed.value = true;
+                    return;
+                }
+            } catch (campaignCheckError) {
+                logger.warn(`Could not check campaign status, continuing with data monitoring: ${campaignCheckError}`);
+            }
+            
+            const status = await checkCampaignDataCompletionStatus(campaignNumber, tenantId);
+            
+            logger.info(`Campaign ${campaignNumber} polling attempt ${attempt}/${maxAttempts}: ${status.completedRows}/${status.totalRows} completed, ${status.failedRows} failed, ${status.pendingRows} pending`);
+            
+            if (status.anyFailed) {
+                logger.error(`Campaign ${campaignNumber} has failed data entries. Marking campaign as failed.`);
+                const failureError = new Error(`Data creation failed: ${status.failedRows} out of ${status.totalRows} data entries failed`);
+                await sendCampaignFailureMessage(campaignId, tenantId, failureError);
+                throw failureError;
+            }
+            
+            if (status.allCompleted && status.totalRows > 0) {
+                logger.info(`Campaign ${campaignNumber} data creation completed successfully. All ${status.totalRows} entries are completed.`);
+                return;
+            }
+            
+            // If not the last attempt, wait before next poll
+            if (attempt < maxAttempts) {
+                await new Promise(resolve => setTimeout(resolve, waitTimeMs));
+            }
+        }
+        
+        // Max attempts reached
+        logger.error(`Campaign ${campaignNumber} data creation timed out after ${maxAttempts} attempts`);
+        const timeoutError = new Error(`Data creation timed out: polling exceeded ${maxAttempts} attempts`);
+        await sendCampaignFailureMessage(campaignId, tenantId, timeoutError);
+        throw timeoutError;
+        
+    } catch (error) {
+        logger.error(`Error monitoring campaign ${campaignNumber} data completion:`, error);
+        throw error;
+    }
+}
+
+/**
+ * Monitor campaign mapping completion status with polling
+ */
+async function monitorCampaignMappingCompletion(
+    campaignNumber: string,
+    tenantId: string,
+    campaignId: string,
+    campaignAlreadyFailed: { value: boolean }
+): Promise<void> {
+    try {
+        logger.info(`Starting mapping completion monitoring for campaign: ${campaignNumber}`);
+        
+        const maxAttempts = config.resourceCreationConfig.maxAttemptsForResourceCreationOrMapping;
+        const waitTimeMs = config.resourceCreationConfig.waitTimeOfEachAttemptOfResourceCreationOrMappping;
+        
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+            // Check if campaign itself is failed
+            try {
+                const campaignResponse = await searchProjectTypeCampaignService({
+                    tenantId: tenantId,
+                    ids: [campaignId]
+                });
+                const campaign = campaignResponse?.CampaignDetails?.[0];
+                
+                if (campaign?.status === campaignStatuses.failed) {
+                    logger.info(`Campaign ${campaignNumber} is already marked as failed. Stopping mapping monitoring.`);
+                    campaignAlreadyFailed.value = true;
+                    return;
+                }
+            } catch (campaignCheckError) {
+                logger.warn(`Could not check campaign status, continuing with mapping monitoring: ${campaignCheckError}`);
+            }
+            
+            const status = await checkCampaignMappingCompletionStatus(campaignNumber, tenantId);
+            
+            logger.info(`Campaign ${campaignNumber} mapping attempt ${attempt}/${maxAttempts}: ${status.completedMappings}/${status.totalMappings} completed, ${status.failedMappings} failed, ${status.pendingMappings} pending`);
+            
+            if (status.anyFailed) {
+                logger.error(`Campaign ${campaignNumber} has failed mappings. Marking campaign as failed.`);
+                const failureError = new Error(`Mapping failed: ${status.failedMappings} out of ${status.totalMappings} mappings failed`);
+                await sendCampaignFailureMessage(campaignId, tenantId, failureError);
+                throw failureError;
+            }
+            
+            if (status.allCompleted && status.totalMappings > 0) {
+                logger.info(`Campaign ${campaignNumber} mapping completed successfully. All ${status.totalMappings} mappings are completed.`);
+                return;
+            }
+            
+            // If not the last attempt, wait before next poll
+            if (attempt < maxAttempts) {
+                await new Promise(resolve => setTimeout(resolve, waitTimeMs));
+            }
+        }
+        
+        // Max attempts reached
+        logger.error(`Campaign ${campaignNumber} mapping timed out after ${maxAttempts} attempts`);
+        const timeoutError = new Error(`Mapping timed out: polling exceeded ${maxAttempts} attempts`);
+        await sendCampaignFailureMessage(campaignId, tenantId, timeoutError);
+        throw timeoutError;
+        
+    } catch (error) {
+        logger.error(`Error monitoring campaign ${campaignNumber} mapping completion:`, error);
+        throw error;
+    }
+}
+
+/**
+ * Mark campaign as completed conditionally (only if not failed) using existing function
+ */
+async function markCampaignCompletedConditionally(
+    campaignDetails: any,
+    parentCampaign: any,
+    useruuid: string,
+    tenantId: string
+): Promise<void> {
+    try {
+        logger.info(`Checking campaign status before marking as completed: ${campaignDetails.id}`);
+        
+        // Search for latest campaign details to check current status
+        const campaignResponse = await searchProjectTypeCampaignService({
+            tenantId: tenantId,
+            ids: [campaignDetails.id]
+        });
+        const latestCampaign = campaignResponse?.CampaignDetails?.[0];
+        
+        if (!latestCampaign) {
+            logger.error(`Campaign not found for completion marking: ${campaignDetails.id}`);
+            return;
+        }
+        
+        if (latestCampaign.status === campaignStatuses.failed) {
+            logger.info(`Campaign ${campaignDetails.id} is already marked as failed. Skipping completion marking.`);
+            return;
+        }
+        
+        logger.info(`Campaign ${campaignDetails.id} is not failed. Marking as completed using existing function.`);
+        
+        // Use existing function to mark campaign as completed and handle parent
+        const RequestInfo = { 
+            userInfo: { uuid: useruuid || campaignDetails?.auditDetails?.createdBy }
+        };
+        
+        // Set status as inprogress (completed) and send to persister
+        latestCampaign.status = campaignStatuses.inprogress;
+        
+        await enrichAndPersistCampaignForCreateViaFlow2(
+            latestCampaign,
+            RequestInfo,
+            parentCampaign,
+            useruuid
+        );
+        
+        logger.info(`Campaign ${campaignDetails.id} marked as completed successfully`);
+        if (parentCampaign) {
+            logger.info(`Parent campaign ${parentCampaign.id} marked as inactive successfully`);
+        }
+        
+    } catch (error) {
+        logger.error(`Error marking campaign ${campaignDetails.id} as completed:`, error);
+        throw error;
     }
 }
 
@@ -1190,29 +1399,70 @@ async function triggerBackgroundResourceCreationFlow(
             try {
                 logger.info('=== BACKGROUND RESOURCE CREATION FLOW STARTED ===');
                 
-                // Create Projects, Facilities, and Users in parallel
-                logger.info('Creating projects, facilities, and users in parallel...');
+                // Initialize campaign failure tracking variable
+                const campaignAlreadyFailed = { value: false };
+                
+                // Create Projects, Facilities, and Users in parallel along with data completion polling
+                logger.info('Creating projects, facilities, and users in parallel with data completion monitoring...');
                 await Promise.all([
                     createProjectsFromBoundaryData(campaignDetails, tenantId),
                     createFacilitiesFromFacilityData(campaignDetails, tenantId),
-                    createUsersFromUserData(campaignDetails, tenantId)
+                    createUsersFromUserData(campaignDetails, tenantId),
+                    monitorCampaignDataCompletion(campaignDetails.campaignNumber, tenantId, campaignDetails.id, campaignAlreadyFailed)
                 ]);
+                
+                // Check if campaign failed during data creation
+                if (campaignAlreadyFailed.value) {
+                    logger.info('Campaign already failed during data creation. Stopping background flow.');
+                    return;
+                }
                 
                 // Wait 10 seconds before starting mapping process
                 logger.info('=== WAITING 10 SECONDS BEFORE STARTING MAPPING PROCESS ===');
                 await new Promise(resolve => setTimeout(resolve, 10000));
                 
-                // Start mapping process for all types in batches
-                logger.info('=== STARTING MAPPING PROCESS IN BATCHES ===');
-                await startAllMappingsInBatches(campaignDetails, useruuid, tenantId);
+                // Start mapping process for all types in batches with monitoring
+                logger.info('=== STARTING MAPPING PROCESS IN BATCHES WITH MONITORING ===');
+                await Promise.all([
+                    startAllMappingsInBatches(campaignDetails, useruuid, tenantId),
+                    monitorCampaignMappingCompletion(campaignDetails.campaignNumber, tenantId, campaignDetails.id, campaignAlreadyFailed)
+                ]);
+                
+                // Check if campaign failed during mapping
+                if (campaignAlreadyFailed.value) {
+                    logger.info('Campaign already failed during mapping. Stopping background flow.');
+                    return;
+                }
+                
+                // Generate user credentials and trigger email flow
+                logger.info('=== STARTING USER CREDENTIAL GENERATION ===');
+                await userCredGeneration(campaignDetails, useruuid, locale);
+                
+                // Check if campaign failed during credential generation
+                if (campaignAlreadyFailed.value) {
+                    logger.info('Campaign already failed during credential generation. Stopping background flow.');
+                    return;
+                }
+                
+                logger.info('=== TRIGGERING USER CREDENTIAL EMAIL FLOW ===');
+                const requestInfoObject = JSON.parse(JSON.stringify(defaultRequestInfo || {}));
+                requestInfoObject.RequestInfo.userInfo.uuid = useruuid;
+                triggerUserCredentialEmailFlow({
+                    RequestInfo: requestInfoObject.RequestInfo,
+                    CampaignDetails: campaignDetails,
+                    parentCampaign: parentCampaign
+                });
                 
                 logger.info('=== BACKGROUND RESOURCE CREATION FLOW COMPLETED SUCCESSFULLY ===');
+                
+                // Mark campaign as completed if not failed
+                await markCampaignCompletedConditionally(campaignDetails, parentCampaign, useruuid, tenantId);
                 
             } catch (error) {
                 logger.error('Error in background resource creation flow:', error);
                 try {
                     const mockRequestBody = {
-                        CampaignDetails: [campaignDetails],
+                        CampaignDetails: campaignDetails,
                         RequestInfo: { userInfo: { uuid: useruuid } }
                     };
                     await enrichAndPersistCampaignWithError(mockRequestBody, error);
@@ -1226,6 +1476,7 @@ async function triggerBackgroundResourceCreationFlow(
         
     } catch (error) {
         logger.error('Error triggering background resource creation flow:', error);
+        throw error;
     }
 }
 

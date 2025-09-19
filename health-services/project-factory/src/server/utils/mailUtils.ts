@@ -154,7 +154,9 @@ export async function getUserCredentialFileMap(requestBody: any): Promise<Record
 
 export async function triggerUserCredentialEmailFlow(requestBody: any): Promise<void> {
   logger.info("triggerUserCredentialEmailFlow: Email flow started...");
-  
+  // waiting for 3 seconds to ensure that user credentials are ready
+  logger.info("triggerUserCredentialEmailFlow: Waiting for 3 seconds before proceeding with email flow...");
+  await new Promise(resolve => setTimeout(resolve, 3000));
   try {
     const userCredentialFileMap = await getUserCredentialFileMap(requestBody);
     await sendNotificationEmail(userCredentialFileMap, requestBody);

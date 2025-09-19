@@ -18,12 +18,12 @@ import jakarta.validation.constraints.NotNull;
 public class ProcessResourceRequest {
     
     @JsonProperty("RequestInfo")
-    @NotNull
+    @NotNull(message = "INGESTION_REQUEST_INFO_MANDATORY")
     @Valid
     private RequestInfo requestInfo;
     
     @JsonProperty("ResourceDetails")
-    @NotNull
+    @NotNull(message = "INGESTION_RESOURCE_DETAILS_MANDATORY")
     @Valid
     private ProcessResource resourceDetails;
 }
