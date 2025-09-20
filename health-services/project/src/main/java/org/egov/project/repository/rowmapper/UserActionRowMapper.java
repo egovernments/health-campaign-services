@@ -78,6 +78,7 @@ public class UserActionRowMapper implements RowMapper<UserAction> {
                     .resourceTag(resultSet.getString("resourceTag"))
                     .rowVersion(resultSet.getInt("rowVersion"))
                     .auditDetails(auditDetails)
+                    .isSync(true)
                     .clientAuditDetails(clientAuditDetails)
                     .additionalFields(resultSet.getString("additionalDetails") == null ? null : objectMapper
                             .readValue(resultSet.getString("additionalDetails"), AdditionalFields.class))
