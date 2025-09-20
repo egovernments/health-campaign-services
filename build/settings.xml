@@ -1,0 +1,49 @@
+<settings>
+    <mirrors>
+        <!-- Central: all public libs -->
+        <mirror>
+            <id>central</id>
+            <url>https://repo.maven.apache.org/maven2</url>
+            <mirrorOf>central</mirrorOf>
+        </mirror>
+
+        <!-- Company Nexus: only org.egov.* dependencies -->
+        <mirror>
+            <id>company-nexus</id>
+            <url>https://nexus-repo.digit.org/nexus/content/repositories/snapshots</url>
+            <mirrorOf>org.egov.*</mirrorOf>
+        </mirror>
+    </mirrors>
+
+    <profiles>
+        <profile>
+            <id>company-nexus</id>
+            <repositories>
+                <repository>
+                    <id>company-nexus-snapshots</id>
+                    <url>https://nexus-repo.digit.org/nexus/content/repositories/snapshots</url>
+                    <releases>
+                        <enabled>false</enabled>
+                    </releases>
+                    <snapshots>
+                        <enabled>true</enabled>
+                    </snapshots>
+                </repository>
+                <repository>
+                    <id>company-nexus-releases</id>
+                    <url>https://nexus-repo.digit.org/nexus/content/repositories/releases</url>
+                    <releases>
+                        <enabled>true</enabled>
+                    </releases>
+                    <snapshots>
+                        <enabled>false</enabled>
+                    </snapshots>
+                </repository>
+            </repositories>
+        </profile>
+    </profiles>
+
+    <activeProfiles>
+        <activeProfile>company-nexus</activeProfile>
+    </activeProfiles>
+</settings>

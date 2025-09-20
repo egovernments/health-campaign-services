@@ -2,6 +2,8 @@ FROM maven:3.9.6-amazoncorretto-17 AS build
 ARG WORK_DIR
 WORKDIR /app
 
+COPY build/settings.xml /root/.m2/settings.xml
+
 # Copy project files
 COPY ${WORK_DIR}/pom.xml ./pom.xml
 COPY build/maven/start.sh ./start.sh
