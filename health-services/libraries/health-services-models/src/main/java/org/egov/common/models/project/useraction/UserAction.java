@@ -101,6 +101,12 @@ public class UserAction extends EgovOfflineModel {
     @JsonProperty("isSync")
     private  Boolean isSync = true;
 
+    @JsonProperty("timestamp")
+    private  Long timestamp;
+
+    @JsonProperty("nonRecoverableError")
+    private Boolean nonRecoverableError;
+
     /**
      * A flag indicating whether the user action has been deleted.
      * The default value is false.

@@ -79,6 +79,7 @@ public class UserActionRowMapper implements RowMapper<UserAction> {
                     .rowVersion(resultSet.getInt("rowVersion"))
                     .auditDetails(auditDetails)
                     .isSync(true)
+                    .timestamp(clientAuditDetails.getCreatedTime())
                     .clientAuditDetails(clientAuditDetails)
                     .additionalFields(resultSet.getString("additionalDetails") == null ? null : objectMapper
                             .readValue(resultSet.getString("additionalDetails"), AdditionalFields.class))
