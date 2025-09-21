@@ -9,6 +9,7 @@ import org.egov.excelingestion.service.MDMSService;
 import org.egov.excelingestion.service.SchemaValidationService;
 import org.egov.excelingestion.service.ValidationService;
 import org.egov.excelingestion.util.EnrichmentUtil;
+import org.egov.excelingestion.util.ExcelUtil;
 import org.egov.excelingestion.web.models.ProcessResource;
 import org.egov.excelingestion.web.models.RequestInfo;
 import org.egov.excelingestion.web.models.ValidationError;
@@ -179,7 +180,7 @@ public class BoundaryHierarchyTargetProcessor implements IWorkbookProcessor {
         // Get header names
         List<String> headers = new ArrayList<>();
         for (Cell cell : headerRow) {
-            headers.add(getCellValueAsString(cell));
+            headers.add(ExcelUtil.getCellValueAsString(cell));
         }
         
         // Process data rows (skip row 1 as it's second header row, start from row 2)
@@ -193,7 +194,7 @@ public class BoundaryHierarchyTargetProcessor implements IWorkbookProcessor {
             for (int colNum = 0; colNum < headers.size(); colNum++) {
                 Cell cell = row.getCell(colNum);
                 String header = headers.get(colNum);
-                Object value = getCellValue(cell);
+                Object value = ExcelUtil.getCellValue(cell);
                 
                 if (value != null && !value.toString().trim().isEmpty()) {
                     hasData = true;
@@ -210,51 +211,5 @@ public class BoundaryHierarchyTargetProcessor implements IWorkbookProcessor {
         return data;
     }
 
-    /**
-     * Get cell value as string
-     */
-    private String getCellValueAsString(Cell cell) {
-        if (cell == null) return "";
-        
-        switch (cell.getCellType()) {
-            case STRING:
-                return cell.getStringCellValue();
-            case NUMERIC:
-                if (DateUtil.isCellDateFormatted(cell)) {
-                    return cell.getDateCellValue().toString();
-                } else {
-                    return String.valueOf(cell.getNumericCellValue());
-                }
-            case BOOLEAN:
-                return String.valueOf(cell.getBooleanCellValue());
-            case FORMULA:
-                return cell.getCellFormula();
-            default:
-                return "";
-        }
-    }
 
-    /**
-     * Get cell value as appropriate type
-     */
-    private Object getCellValue(Cell cell) {
-        if (cell == null) return null;
-        
-        switch (cell.getCellType()) {
-            case STRING:
-                return cell.getStringCellValue();
-            case NUMERIC:
-                if (DateUtil.isCellDateFormatted(cell)) {
-                    return cell.getDateCellValue();
-                } else {
-                    return cell.getNumericCellValue();
-                }
-            case BOOLEAN:
-                return cell.getBooleanCellValue();
-            case FORMULA:
-                return cell.getCellFormula();
-            default:
-                return null;
-        }
-    }
 }

@@ -8,6 +8,7 @@ import org.egov.excelingestion.service.ValidationService;
 import org.egov.excelingestion.web.models.*;
 import org.egov.excelingestion.util.LocalizationUtil;
 import org.egov.excelingestion.util.EnrichmentUtil;
+import org.egov.excelingestion.util.ExcelUtil;
 import org.egov.excelingestion.service.MDMSService;
 import org.egov.excelingestion.service.CampaignService;
 import org.springframework.http.HttpEntity;
@@ -78,6 +79,9 @@ public class UserValidationProcessor implements IWorkbookProcessor {
             // Validate usernames but skip those with phones already in campaign
             validateUserNames(dataWithRowNumbers, resource.getTenantId(), requestInfo, errors, localizationMap, existingPhonesInCampaign);
             
+            // Validate boundary keys for active users
+            validateBoundaryKeys(dataWithRowNumbers, errors, localizationMap);
+            
             log.info("User validation completed with {} errors", errors.size());
 
             // Only add error columns if there are validation errors
@@ -109,7 +113,7 @@ public class UserValidationProcessor implements IWorkbookProcessor {
         
         for (int i = 0; i < originalData.size(); i++) {
             Map<String, Object> rowData = new HashMap<>(originalData.get(i));
-            rowData.put("__rowNumber__", i + 3); // Assuming headers at rows 0,1 and data starts at row 2 (1-based)
+            rowData.put("__rowNumber__", i + 2); // Headers at row 0, data starts at row 1 (1-based)
             dataWithRowNumbers.add(rowData);
         }
         
@@ -130,7 +134,7 @@ public class UserValidationProcessor implements IWorkbookProcessor {
         // Get header names
         List<String> headers = new ArrayList<>();
         for (Cell cell : headerRow) {
-            headers.add(getCellValueAsString(cell));
+            headers.add(ExcelUtil.getCellValueAsString(cell));
         }
         
         // Process data rows (skip header)
@@ -141,7 +145,7 @@ public class UserValidationProcessor implements IWorkbookProcessor {
             Map<String, Object> rowData = new HashMap<>();
             for (int j = 0; j < headers.size(); j++) {
                 Cell cell = row.getCell(j);
-                String value = getCellValueAsString(cell);
+                String value = ExcelUtil.getCellValueAsString(cell);
                 rowData.put(headers.get(j), value);
             }
             data.add(rowData);
@@ -150,29 +154,6 @@ public class UserValidationProcessor implements IWorkbookProcessor {
         return data;
     }
     
-    /**
-     * Get cell value as string
-     */
-    private String getCellValueAsString(Cell cell) {
-        if (cell == null) return "";
-        
-        switch (cell.getCellType()) {
-            case STRING:
-                return cell.getStringCellValue();
-            case NUMERIC:
-                if (DateUtil.isCellDateFormatted(cell)) {
-                    return cell.getDateCellValue().toString();
-                } else {
-                    return String.valueOf((long) cell.getNumericCellValue());
-                }
-            case BOOLEAN:
-                return String.valueOf(cell.getBooleanCellValue());
-            case FORMULA:
-                return cell.getCellFormula();
-            default:
-                return "";
-        }
-    }
     
     /**
      * Check if error columns exist and add them if needed
@@ -190,7 +171,7 @@ public class UserValidationProcessor implements IWorkbookProcessor {
         int statusColumnIndex = -1;
         
         for (Cell cell : headerRow) {
-            String headerValue = getCellValueAsString(cell);
+            String headerValue = ExcelUtil.getCellValueAsString(cell);
             if (ValidationConstants.ERROR_DETAILS_COLUMN_NAME.equals(headerValue)) {
                 hasErrorColumn = true;
                 errorColumnIndex = cell.getColumnIndex();
@@ -236,8 +217,8 @@ public class UserValidationProcessor implements IWorkbookProcessor {
                 Cell errorCell = row.getCell(columnInfo.getErrorColumnIndex());
                 Cell statusCell = row.getCell(columnInfo.getStatusColumnIndex());
                 
-                String existingErrors = errorCell != null ? getCellValueAsString(errorCell) : "";
-                String existingStatus = statusCell != null ? getCellValueAsString(statusCell) : "";
+                String existingErrors = errorCell != null ? ExcelUtil.getCellValueAsString(errorCell) : "";
+                String existingStatus = statusCell != null ? ExcelUtil.getCellValueAsString(statusCell) : "";
                 
                 // Build new error message
                 StringBuilder errorMessages = new StringBuilder();
@@ -554,5 +535,34 @@ public class UserValidationProcessor implements IWorkbookProcessor {
         }
         
         return new ArrayList<>();
+    }
+    
+    /**
+     * Validate boundary keys for active users
+     */
+    private void validateBoundaryKeys(List<Map<String, Object>> sheetData, List<ValidationError> errors,
+                                    Map<String, String> localizationMap) {
+        log.info("Validating boundary keys for {} records", sheetData.size());
+        
+        for (Map<String, Object> rowData : sheetData) {
+            String usage = (String) rowData.get("HCM_ADMIN_CONSOLE_USER_USAGE");
+            String boundaryCode = (String) rowData.get("HCM_ADMIN_CONSOLE_BOUNDARY_CODE");
+            Integer rowNumber = (Integer) rowData.get("__rowNumber__");
+            
+            // Only validate boundary key if usage is "active" 
+            if ("Active".equals(usage)) {
+                if (boundaryCode == null || boundaryCode.trim().isEmpty()) {
+                    ValidationError error = new ValidationError();
+                    error.setRowNumber(rowNumber);
+                    error.setErrorDetails(LocalizationUtil.getLocalizedMessage(localizationMap, 
+                        "HCM_USER_BOUNDARY_CODE_REQUIRED_FOR_ACTIVE_USAGE", 
+                        "Boundary selection is required if usage is active"));
+                    error.setStatus(ValidationConstants.STATUS_INVALID);
+                    errors.add(error);
+                }
+            }
+        }
+        
+        log.info("Boundary key validation completed");
     }
 }

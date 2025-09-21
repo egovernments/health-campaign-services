@@ -59,7 +59,7 @@ public class PostProcessingIntegrationTest {
         
         // When & Then - Verify method can be called without exception
         assertDoesNotThrow(() -> {
-            configBasedProcessingService.handlePostProcessing("TEST_SHEET", 150, resource, localizationMap, testData);
+            configBasedProcessingService.handlePostProcessing("TEST_SHEET", 150, resource, localizationMap, testData, null);
         });
         
         log.info("✅ handlePostProcessing method callable");

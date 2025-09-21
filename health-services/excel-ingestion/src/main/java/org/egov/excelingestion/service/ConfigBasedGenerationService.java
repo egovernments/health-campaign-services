@@ -15,6 +15,7 @@ import org.egov.excelingestion.util.BoundaryColumnUtil;
 import org.egov.excelingestion.util.CellProtectionManager;
 import org.egov.excelingestion.util.ExcelDataPopulator;
 import org.egov.excelingestion.util.HierarchicalBoundaryUtil;
+import org.egov.excelingestion.util.ExcelUtil;
 import org.egov.excelingestion.web.models.*;
 import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Service;
@@ -398,7 +399,7 @@ public class ConfigBasedGenerationService {
                     
                     Cell cell = row.getCell(colIdx);
                     if (cell != null) {
-                        Object value = getCellValue(cell);
+                        Object value = ExcelUtil.getCellValue(cell);
                         if (value != null && !value.toString().trim().isEmpty()) {
                             rowData.put(columnName, value);
                             hasData = true;
@@ -419,33 +420,5 @@ public class ConfigBasedGenerationService {
         return existingData;
     }
     
-    private Object getCellValue(Cell cell) {
-        if (cell == null) return null;
-        
-        switch (cell.getCellType()) {
-            case STRING:
-                return cell.getStringCellValue();
-            case NUMERIC:
-                if (org.apache.poi.ss.usermodel.DateUtil.isCellDateFormatted(cell)) {
-                    return cell.getDateCellValue();
-                } else {
-                    return cell.getNumericCellValue();
-                }
-            case BOOLEAN:
-                return cell.getBooleanCellValue();
-            case FORMULA:
-                try {
-                    return cell.getStringCellValue();
-                } catch (Exception e) {
-                    try {
-                        return cell.getNumericCellValue();
-                    } catch (Exception e2) {
-                        return null;
-                    }
-                }
-            default:
-                return null;
-        }
-    }
     
 }

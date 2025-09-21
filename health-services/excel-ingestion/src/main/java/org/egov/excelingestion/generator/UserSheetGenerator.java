@@ -8,6 +8,7 @@ import org.egov.excelingestion.exception.CustomExceptionHandler;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.egov.excelingestion.service.BoundaryService;
 import org.egov.excelingestion.service.CampaignService;
+import org.egov.excelingestion.service.CryptoService;
 import org.egov.excelingestion.service.MDMSService;
 import org.egov.excelingestion.util.BoundaryUtil;
 import org.egov.excelingestion.util.HierarchicalBoundaryUtil;
@@ -34,13 +35,15 @@ public class UserSheetGenerator implements ISheetGenerator {
     private final SchemaColumnDefUtil schemaColumnDefUtil;
     private final ExcelDataPopulator excelDataPopulator;
     private final HierarchicalBoundaryUtil hierarchicalBoundaryUtil;
+    private final CryptoService cryptoService;
 
     public UserSheetGenerator(MDMSService mdmsService, CampaignService campaignService,
                              BoundaryService boundaryService, BoundaryUtil boundaryUtil,
                              CustomExceptionHandler exceptionHandler,
                              SchemaColumnDefUtil schemaColumnDefUtil,
                              ExcelDataPopulator excelDataPopulator,
-                             HierarchicalBoundaryUtil hierarchicalBoundaryUtil) {
+                             HierarchicalBoundaryUtil hierarchicalBoundaryUtil,
+                             CryptoService cryptoService) {
         this.mdmsService = mdmsService;
         this.campaignService = campaignService;
         this.boundaryService = boundaryService;
@@ -49,6 +52,7 @@ public class UserSheetGenerator implements ISheetGenerator {
         this.schemaColumnDefUtil = schemaColumnDefUtil;
         this.excelDataPopulator = excelDataPopulator;
         this.hierarchicalBoundaryUtil = hierarchicalBoundaryUtil;
+        this.cryptoService = cryptoService;
     }
 
     @Override
@@ -165,7 +169,10 @@ public class UserSheetGenerator implements ISheetGenerator {
                 if (!existingData.isEmpty()) {
                     log.info("Found {} existing user records for campaign: {}", 
                             existingData.size(), campaignNumber);
-                    return existingData;
+                    
+                    // Decrypt passwords and usernames
+                    List<Map<String, Object>> decryptedData = decryptUserCredentials(existingData, requestInfo);
+                    return decryptedData;
                 }
             }
             
@@ -195,5 +202,99 @@ public class UserSheetGenerator implements ISheetGenerator {
             log.error("Error fetching campaign for reference ID {}: {}", referenceId, e.getMessage());
             return null;
         }
+    }
+    
+    /**
+     * Decrypt passwords and usernames in user data using CryptoService (handles 500 limit)
+     */
+    private List<Map<String, Object>> decryptUserCredentials(List<Map<String, Object>> userData, RequestInfo requestInfo) {
+        if (userData == null || userData.isEmpty()) {
+            return userData;
+        }
+        
+        try {
+            // Collect all encrypted strings for bulk decryption
+            List<String> allEncryptedStrings = new ArrayList<>();
+            List<Map<String, Object>> processedData = new ArrayList<>();
+            
+            // Track which fields are encrypted for each row
+            List<Map<String, Boolean>> encryptionTracker = new ArrayList<>();
+            
+            for (Map<String, Object> dataRow : userData) {
+                Map<String, Object> rowCopy = new HashMap<>(dataRow);
+                Map<String, Boolean> rowTracker = new HashMap<>();
+                
+                // Check Password field
+                Object password = dataRow.get("Password");
+                if (password != null && isEncryptedString(password.toString())) {
+                    allEncryptedStrings.add(password.toString());
+                    rowTracker.put("Password", true);
+                } else {
+                    rowTracker.put("Password", false);
+                }
+                
+                // Check UserName field
+                Object username = dataRow.get("UserName");
+                if (username != null && isEncryptedString(username.toString())) {
+                    allEncryptedStrings.add(username.toString());
+                    rowTracker.put("UserName", true);
+                } else {
+                    rowTracker.put("UserName", false);
+                }
+                
+                processedData.add(rowCopy);
+                encryptionTracker.add(rowTracker);
+            }
+            
+            if (allEncryptedStrings.isEmpty()) {
+                log.info("No encrypted credentials found in user data");
+                return userData;
+            }
+            
+            log.info("Found {} encrypted strings to decrypt", allEncryptedStrings.size());
+            
+            // Decrypt in chunks of 500
+            List<String> allDecryptedStrings = new ArrayList<>();
+            for (int i = 0; i < allEncryptedStrings.size(); i += 500) {
+                int endIndex = Math.min(i + 500, allEncryptedStrings.size());
+                List<String> chunk = allEncryptedStrings.subList(i, endIndex);
+                
+                log.info("Decrypting chunk {}-{} ({} strings)", i + 1, endIndex, chunk.size());
+                List<String> decryptedChunk = cryptoService.bulkDecrypt(chunk, requestInfo);
+                allDecryptedStrings.addAll(decryptedChunk);
+            }
+            
+            // Map decrypted strings back to fields
+            int decryptedIndex = 0;
+            for (int i = 0; i < processedData.size(); i++) {
+                Map<String, Object> dataRow = processedData.get(i);
+                Map<String, Boolean> tracker = encryptionTracker.get(i);
+                
+                // Replace Password if it was encrypted
+                if (tracker.get("Password")) {
+                    dataRow.put("Password", allDecryptedStrings.get(decryptedIndex++));
+                }
+                
+                // Replace UserName if it was encrypted
+                if (tracker.get("UserName")) {
+                    dataRow.put("UserName", allDecryptedStrings.get(decryptedIndex++));
+                }
+            }
+            
+            log.info("Successfully decrypted credentials for {} user records", userData.size());
+            return processedData;
+            
+        } catch (Exception e) {
+            log.error("Error decrypting user credentials: {}", e.getMessage(), e);
+            log.warn("Returning original encrypted data due to decryption failure");
+            return userData;
+        }
+    }
+    
+    /**
+     * Check if a string is encrypted (old format with colons)
+     */
+    private boolean isEncryptedString(String value) {
+        return value != null && value.contains(":") && value.split(":").length >= 2;
     }
 }

@@ -13,6 +13,7 @@ import org.egov.excelingestion.config.ProcessorConfigurationRegistry.ProcessorSh
 import org.egov.excelingestion.exception.CustomExceptionHandler;
 import org.egov.excelingestion.util.RequestInfoConverter;
 import org.egov.excelingestion.util.EnrichmentUtil;
+import org.egov.excelingestion.util.ExcelUtil;
 import org.egov.excelingestion.web.models.ProcessResource;
 import org.egov.excelingestion.web.models.ProcessResourceRequest;
 import org.egov.excelingestion.web.models.ValidationError;
@@ -152,7 +153,7 @@ public class ExcelProcessingService {
                     
                     // Step 3: Handle post-processing (persistence and event publishing)
                     configBasedProcessingService.handlePostProcessing(
-                            sheetName, sheetData.size(), resource, mergedLocalizationMap, sheetData);
+                            sheetName, sheetData.size(), resource, mergedLocalizationMap, sheetData, request.getRequestInfo());
                 }
                 
                 // Step 2: Process workbook with configured processors (once per workbook, not per sheet)
@@ -321,7 +322,7 @@ public class ExcelProcessingService {
         // Get header names
         List<String> headers = new ArrayList<>();
         for (Cell cell : headerRow) {
-            headers.add(getCellValueAsString(cell));
+            headers.add(ExcelUtil.getCellValueAsString(cell));
         }
         
         // Process data rows (skip row 1 as it's second header row, start from row 2)
@@ -335,7 +336,7 @@ public class ExcelProcessingService {
             for (int colNum = 0; colNum < headers.size(); colNum++) {
                 Cell cell = row.getCell(colNum);
                 String header = headers.get(colNum);
-                Object value = getCellValue(cell);
+                Object value = ExcelUtil.getCellValue(cell);
                 
                 if (value != null && !value.toString().trim().isEmpty()) {
                     hasData = true;
@@ -354,76 +355,6 @@ public class ExcelProcessingService {
         return data;
     }
 
-    /**
-     * Gets cell value as appropriate type
-     */
-    private Object getCellValue(Cell cell) {
-        if (cell == null) return null;
-        
-        switch (cell.getCellType()) {
-            case STRING:
-                return cell.getStringCellValue();
-            case NUMERIC:
-                if (DateUtil.isCellDateFormatted(cell)) {
-                    return cell.getDateCellValue();
-                }
-                double numericValue = cell.getNumericCellValue();
-                // If it's a whole number, return as integer to avoid .0 display
-                if (numericValue == Math.floor(numericValue)) {
-                    return (long) numericValue;
-                }
-                return numericValue;
-            case BOOLEAN:
-                return cell.getBooleanCellValue();
-            case FORMULA:
-                // Evaluate formula to get the actual value
-                try {
-                    FormulaEvaluator evaluator = cell.getSheet().getWorkbook().getCreationHelper().createFormulaEvaluator();
-                    CellValue cellValue = evaluator.evaluate(cell);
-                    
-                    switch (cellValue.getCellType()) {
-                        case STRING:
-                            return cellValue.getStringValue();
-                        case NUMERIC:
-                            double formulaNumericValue = cellValue.getNumberValue();
-                            if (formulaNumericValue == Math.floor(formulaNumericValue)) {
-                                return (long) formulaNumericValue;
-                            }
-                            return formulaNumericValue;
-                        case BOOLEAN:
-                            return cellValue.getBooleanValue();
-                        case BLANK:
-                            return "";
-                        case ERROR:
-                            log.warn("Formula evaluation resulted in error for cell at row {}, col {}: {}", 
-                                    cell.getRowIndex(), cell.getColumnIndex(), cellValue.getErrorValue());
-                            return null;
-                        default:
-                            return null;
-                    }
-                } catch (Exception e) {
-                    log.warn("Failed to evaluate formula for cell at row {}, col {}: {}", 
-                            cell.getRowIndex(), cell.getColumnIndex(), e.getMessage());
-                    return null;
-                }
-            case BLANK:
-                return "";
-            case ERROR:
-                log.warn("Cell contains error value at row {}, col {}: {}", 
-                        cell.getRowIndex(), cell.getColumnIndex(), cell.getErrorCellValue());
-                return null;
-            default:
-                return null;
-        }
-    }
-
-    /**
-     * Gets cell value as string
-     */
-    private String getCellValueAsString(Cell cell) {
-        Object value = getCellValue(cell);
-        return value != null ? value.toString() : "";
-    }
 
     /**
      * Uploads the processed Excel file to file store

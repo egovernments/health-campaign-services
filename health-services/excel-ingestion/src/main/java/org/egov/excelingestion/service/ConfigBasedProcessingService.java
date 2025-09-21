@@ -18,6 +18,7 @@ import org.egov.excelingestion.web.models.ParsingCompleteEvent;
 import org.egov.excelingestion.web.models.SheetDataTemp;
 import org.egov.excelingestion.web.models.SheetGenerationResult;
 import org.egov.excelingestion.util.ExcelDataPopulator;
+import org.egov.excelingestion.util.ExcelUtil;
 import org.egov.common.producer.Producer;
 import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Service;
@@ -387,7 +388,7 @@ public class ConfigBasedProcessingService {
                 String header = headers.get(colIndex);
                 
                 if (!header.isEmpty()) {
-                    String cellValue = getCellValueAsString(cell);
+                    String cellValue = ExcelUtil.getCellValueAsString(cell);
                     rowData.put(header, cellValue);
                     
                     // Check if this cell has actual data (not null, not empty, not just whitespace)
@@ -407,49 +408,6 @@ public class ConfigBasedProcessingService {
         return data;
     }
     
-    /**
-     * Get cell value as string for data extraction
-     */
-    private String getCellValueAsString(org.apache.poi.ss.usermodel.Cell cell) {
-        if (cell == null) return "";
-        
-        switch (cell.getCellType()) {
-            case STRING:
-                return cell.getStringCellValue().trim();
-            case NUMERIC:
-                if (org.apache.poi.ss.usermodel.DateUtil.isCellDateFormatted(cell)) {
-                    return cell.getDateCellValue().toString();
-                } else {
-                    // Handle numeric values - format as integer if it's a whole number
-                    double numValue = cell.getNumericCellValue();
-                    if (numValue == Math.floor(numValue)) {
-                        return String.valueOf((long) numValue);
-                    }
-                    return String.valueOf(numValue);
-                }
-            case BOOLEAN:
-                return String.valueOf(cell.getBooleanCellValue());
-            case FORMULA:
-                org.apache.poi.ss.usermodel.FormulaEvaluator evaluator = cell.getSheet().getWorkbook().getCreationHelper().createFormulaEvaluator();
-                org.apache.poi.ss.usermodel.CellValue cellValue = evaluator.evaluate(cell);
-                switch (cellValue.getCellType()) {
-                    case STRING:
-                        return cellValue.getStringValue().trim();
-                    case NUMERIC:
-                        double numVal = cellValue.getNumberValue();
-                        if (numVal == Math.floor(numVal)) {
-                            return String.valueOf((long) numVal);
-                        }
-                        return String.valueOf(numVal);
-                    case BOOLEAN:
-                        return String.valueOf(cellValue.getBooleanValue());
-                    default:
-                        return "";
-                }
-            default:
-                return "";
-        }
-    }
 
     /**
      * Handle conditional persistence and event publishing for a sheet
@@ -458,7 +416,8 @@ public class ConfigBasedProcessingService {
                                    int recordCount,
                                    ProcessResource resource,
                                    Map<String, String> localizationMap,
-                                   java.util.List<Map<String, Object>> parsedData) {
+                                   java.util.List<Map<String, Object>> parsedData,
+                                   RequestInfo requestInfo) {
         java.util.List<ProcessorSheetConfig> config = getConfigByType(resource.getType());
         if (config == null) {
             return;
@@ -472,12 +431,28 @@ public class ConfigBasedProcessingService {
         // Handle conditional persistence
         if (sheetConfig.isPersistParsings()) {
             log.info("Persisting {} records for sheet: {}", recordCount, sheetName);
-            saveSheetDataToTemp(sheetName, parsedData, resource, localizationMap);
+            saveSheetDataToTemp(sheetName, parsedData, resource, localizationMap, requestInfo);
         } else {
             log.info("Skipping persistence for sheet: {} (persistParsings = false)", sheetName);
         }
         
         // Note: Per-sheet event publishing removed - now handled at processing type level
+    }
+    
+    /**
+     * Extract createdBy from RequestInfo userInfo
+     */
+    private String extractCreatedByFromRequestInfo(RequestInfo requestInfo) {
+        if (requestInfo != null && requestInfo.getUserInfo() != null && 
+            requestInfo.getUserInfo().getUuid() != null && !requestInfo.getUserInfo().getUuid().trim().isEmpty()) {
+            return requestInfo.getUserInfo().getUuid();
+        }
+        
+        // Throw custom exception if user info is not available
+        exceptionHandler.throwCustomException(ErrorConstants.USER_INFO_NOT_FOUND,
+                ErrorConstants.USER_INFO_NOT_FOUND_MESSAGE,
+                new RuntimeException("RequestInfo or UserInfo or UUID not provided"));
+        return null; // This line will never be reached due to exception above
     }
     
     /**
@@ -530,7 +505,8 @@ public class ConfigBasedProcessingService {
     private void saveSheetDataToTemp(String sheetName, 
                                    List<Map<String, Object>> parsedData, 
                                    ProcessResource resource, 
-                                   Map<String, String> localizationMap) {
+                                   Map<String, String> localizationMap,
+                                   RequestInfo requestInfo) {
         if (parsedData == null || parsedData.isEmpty()) {
             log.info("No data to save for sheet: {}", sheetName);
             return;
@@ -568,7 +544,7 @@ public class ConfigBasedProcessingService {
                         .sheetName(sheetName)
                         .rowNumber(actualRowNumber)
                         .rowJson(rowData)
-                        .createdBy("system") // TODO: Get from request context
+                        .createdBy(extractCreatedByFromRequestInfo(requestInfo))
                         .createdTime(currentTime)
                         .deleteTime(deleteTime)
                         .build();

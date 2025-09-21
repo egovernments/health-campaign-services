@@ -171,4 +171,8 @@ public class ErrorConstants {
     
     public static final String SHEET_DATA_NOT_FOUND = "SHEET_DATA_NOT_FOUND";
     public static final String SHEET_DATA_NOT_FOUND_MESSAGE = "No sheet data found for the given criteria";
+    
+    // User Info Errors
+    public static final String USER_INFO_NOT_FOUND = "USER_INFO_NOT_FOUND";
+    public static final String USER_INFO_NOT_FOUND_MESSAGE = "User information is required but not provided in request context";
 }

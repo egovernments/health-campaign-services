@@ -28,7 +28,8 @@ public class ProcessorConfigurationRegistry {
         configs.put("unified-console-validation", new ProcessorTypeConfig(
                 null, // No processing result topic for validation-only
                 Arrays.asList(
-                        new ProcessorSheetConfig("HCM_ADMIN_CONSOLE_FACILITIES_LIST", "facility-microplan-ingestion"),
+                        new ProcessorSheetConfig("HCM_ADMIN_CONSOLE_FACILITIES_LIST", "facility-microplan-ingestion",
+                        "FacilityValidationProcessor"),
                         new ProcessorSheetConfig("HCM_ADMIN_CONSOLE_USERS_LIST", "user-microplan-ingestion", 
                                 "UserValidationProcessor"), // Custom processor for user validation
                         new ProcessorSheetConfig("HCM_CONSOLE_BOUNDARY_HIERARCHY", null, 
