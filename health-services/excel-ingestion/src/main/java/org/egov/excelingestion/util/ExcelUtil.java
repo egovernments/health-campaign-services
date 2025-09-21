@@ -74,7 +74,7 @@ public class ExcelUtil {
                 if (DateUtil.isCellDateFormatted(cell)) {
                     return cell.getDateCellValue();
                 } else {
-                    return cell.getNumericCellValue();
+                    return (long) cell.getNumericCellValue();
                 }
             case BOOLEAN:
                 return cell.getBooleanCellValue();
@@ -88,7 +88,7 @@ public class ExcelUtil {
                         case STRING:
                             return cellValue.getStringValue();
                         case NUMERIC:
-                            return cellValue.getNumberValue();
+                            return (long) cellValue.getNumberValue();
                         case BOOLEAN:
                             return cellValue.getBooleanValue();
                         default:

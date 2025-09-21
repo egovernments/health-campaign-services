@@ -27,10 +27,35 @@ public class ExcelIngestionApplication {
 
     @Bean
     public CacheManager cacheManager() {
-        CaffeineCacheManager cacheManager = new CaffeineCacheManager("localizationMessages", "boundaryHierarchy", "boundaryRelationship", "campaignCache");
-        cacheManager.setCaffeine(Caffeine.newBuilder()
-                .expireAfterWrite(15, TimeUnit.MINUTES)  // Campaign cache expires in 15 minutes
-                .maximumSize(100));
+        CaffeineCacheManager cacheManager = new CaffeineCacheManager();
+        
+        // Create individual caches with different expiration times
+        com.github.benmanes.caffeine.cache.Cache<Object, Object> localizationCache = Caffeine.newBuilder()
+                .expireAfterWrite(1, TimeUnit.HOURS)
+                .maximumSize(100)
+                .build();
+        
+        com.github.benmanes.caffeine.cache.Cache<Object, Object> boundaryHierarchyCache = Caffeine.newBuilder()
+                .expireAfterWrite(1, TimeUnit.HOURS)
+                .maximumSize(100)
+                .build();
+        
+        com.github.benmanes.caffeine.cache.Cache<Object, Object> boundaryRelationshipCache = Caffeine.newBuilder()
+                .expireAfterWrite(1, TimeUnit.HOURS)
+                .maximumSize(100)
+                .build();
+        
+        com.github.benmanes.caffeine.cache.Cache<Object, Object> campaignCache = Caffeine.newBuilder()
+                .expireAfterWrite(30, TimeUnit.SECONDS)
+                .maximumSize(100)
+                .build();
+        
+        // Register individual caches
+        cacheManager.registerCustomCache("localizationMessages", localizationCache);
+        cacheManager.registerCustomCache("boundaryHierarchy", boundaryHierarchyCache);
+        cacheManager.registerCustomCache("boundaryRelationship", boundaryRelationshipCache);
+        cacheManager.registerCustomCache("campaignCache", campaignCache);
+        
         return cacheManager;
     }
 
