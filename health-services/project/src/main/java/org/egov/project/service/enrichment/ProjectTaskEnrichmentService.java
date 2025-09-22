@@ -50,8 +50,6 @@ public class ProjectTaskEnrichmentService {
                 projectConfiguration.getProjectTaskIdFormat(),
                 "", request.getTasks().size());
         log.info("enriching tasks");
-        String tenantId = getTenantId(request.getTasks());
-        enrichNullValues(tenantId, validTasks);
         enrichForCreate(validTasks, taskIdList, request.getRequestInfo());
         enrichAddressesForCreate(validTasks);
         enrichResourcesForCreate(request, validTasks);
@@ -61,8 +59,6 @@ public class ProjectTaskEnrichmentService {
     public void update(List<Task> validTasks, TaskBulkRequest request) throws Exception {
         log.info("generating id for tasks");
         log.info("enriching tasks for update");
-        String tenantId = getTenantId(request.getTasks());
-        enrichNullValues(tenantId, validTasks);
         enrichAddressesForUpdate(validTasks);
         enrichResourcesForUpdate(request, validTasks);
         Map<String, Task> iMap = getIdToObjMap(validTasks);
@@ -98,24 +94,25 @@ public class ProjectTaskEnrichmentService {
         log.info("enrichment done");
     }
 
-    private static void updateAuditDetailsForTask(TaskBulkRequest request, Task task) {
+    private void updateAuditDetailsForTask(TaskBulkRequest request, Task task) {
         AuditDetails existingAuditDetails = task.getAuditDetails();
         AuditDetails auditDetails = getAuditDetailsForUpdate(existingAuditDetails,
                 request.getRequestInfo().getUserInfo().getUuid());
         task.setAuditDetails(auditDetails);
     }
 
-    private static void updateAuditDetailsForResource(TaskBulkRequest request, TaskResource resource) {
+    private void updateAuditDetailsForResource(TaskBulkRequest request, TaskResource resource) {
         AuditDetails existingAuditDetails = resource.getAuditDetails();
         AuditDetails auditDetails = getAuditDetailsForUpdate(existingAuditDetails,
                 request.getRequestInfo().getUserInfo().getUuid());
         resource.setAuditDetails(auditDetails);
     }
 
-    private static void enrichResourcesForUpdate(TaskBulkRequest request, List<Task> tasks) {
+    private void enrichResourcesForUpdate(TaskBulkRequest request, List<Task> tasks) {
         log.info("enriching resources");
         for (Task task : tasks) {
             if(CollectionUtils.isEmpty(task.getResources())) continue;
+            String tenantId = getTenantId(request.getTasks());
             List<TaskResource> resourcesToCreate = task.getResources().stream()
                     .filter(r -> r.getId() == null).collect(Collectors.toList());
             List<TaskResource> resourcesToUpdate = task.getResources().stream()
@@ -127,6 +124,7 @@ public class ProjectTaskEnrichmentService {
             for (TaskResource resource : resourcesToUpdate) {
                 updateAuditDetailsForResource(request, resource);
             }
+            enrichNullValues(tenantId, task.getResources());
         }
     }
 
@@ -171,40 +169,37 @@ public class ProjectTaskEnrichmentService {
         resources.forEach(taskResource -> taskResource.setTaskId(taskId));
     }
 
-    private void enrichNullValues(String tenantId, List<Task> validTasks) {
-        if(CollectionUtils.isEmpty(validTasks)) return;
-        validTasks.forEach(task -> {
-            List<TaskResource> taskResources = task.getResources();
-            if(!CollectionUtils.isEmpty(taskResources)) {
-                taskResources.forEach(taskResource -> {
-                    AdditionalFields additionalFields = taskResource.getAdditionalFields();
-                    if(ObjectUtils.isEmpty(additionalFields)) {
-                        additionalFields =  new AdditionalFields();
-                        additionalFields.setFields(new ArrayList<>());
-                        additionalFields.setVersion(1);
-                    }
-                    if(CollectionUtils.isEmpty(additionalFields.getFields())) {
-                        additionalFields.setFields(new ArrayList<>());
-                    }
-                    List<Field> fields = new ArrayList<>(additionalFields.getFields());
-                    if(taskResource.getQuantity() == null) {
-                        taskResource.setQuantity(1d);
-                        fields.add(new Field("nullQuantity", "true"));
-                        log.error("Enriching null quantity for task resource cref {} tenant: {}", taskResource.getClientReferenceId(), tenantId);
-                    }
+    private void enrichNullValues(String tenantId, List<TaskResource> taskResources) {
+        if(CollectionUtils.isEmpty(taskResources)) return;
+        taskResources.forEach(taskResource -> {
+            AdditionalFields additionalFields = taskResource.getAdditionalFields();
+            if(ObjectUtils.isEmpty(additionalFields)) {
+                additionalFields =  new AdditionalFields();
+                additionalFields.setFields(new ArrayList<>());
+                additionalFields.setVersion(1);
+                additionalFields.setSchema("TaskResource");
+            }
+            if(CollectionUtils.isEmpty(additionalFields.getFields())) {
+                additionalFields.setFields(new ArrayList<>());
+            }
+            List<Field> fields = new ArrayList<>(additionalFields.getFields());
+            log.debug("Enrich TaskResource for null values for tenant {}: {} with quantity '{}' of product variant id: '{}'", tenantId, taskResource.getClientReferenceId(), taskResource.getQuantity(), taskResource.getProductVariantId());
+            if(taskResource.getQuantity() == null) {
+                taskResource.setQuantity(1d);
+                fields.add(new Field("nullQuantity", "true"));
+                log.error("Enriching null quantity for task resource cref {} tenant: {}", taskResource.getClientReferenceId(), tenantId);
+            }
 
-                    if(taskResource.getProductVariantId() == null) {
-                        String defaultProductVariant = projectConfiguration.getTenantDefaultProductVariants()
-                                .getOrDefault(tenantId, "default");
-                        taskResource.setProductVariantId(defaultProductVariant);
-                        fields.add(new Field("nullProductVariantId", "true"));
-                        log.error("Enriching null productVariant with {} for task resource cref {} tenant: {}", defaultProductVariant, taskResource.getClientReferenceId(), tenantId);
-                    }
-                    if(!CollectionUtils.isEmpty(fields)) {
-                        additionalFields.setFields(fields);
-                        taskResource.setAdditionalFields(additionalFields);
-                    }
-                });
+            if(taskResource.getProductVariantId() == null) {
+                String defaultProductVariant = projectConfiguration.getTenantDefaultProductVariants()
+                        .getOrDefault(tenantId, "default");
+                taskResource.setProductVariantId(defaultProductVariant);
+                fields.add(new Field("nullProductVariantId", "true"));
+                log.error("Enriching null productVariant with {} for task resource cref {} tenant: {}", defaultProductVariant, taskResource.getClientReferenceId(), tenantId);
+            }
+            if(!CollectionUtils.isEmpty(fields)) {
+                additionalFields.setFields(fields);
+                taskResource.setAdditionalFields(additionalFields);
             }
         });
     }
