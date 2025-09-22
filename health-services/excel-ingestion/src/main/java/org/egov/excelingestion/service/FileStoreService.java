@@ -16,15 +16,22 @@ import org.egov.excelingestion.web.models.filestore.FileStoreResponse;
 import org.egov.excelingestion.web.models.filestore.FileInfo;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.net.URL;
 import java.util.List;
 import java.util.Map;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 @Service
 @Slf4j
 public class FileStoreService {
 
+    private static final int MAX_RETRY_ATTEMPTS = 3;
+    private static final long RETRY_DELAY_MS = 5000; // 5 second delay between retries
+    
     private final RestTemplate restTemplate; // Keep for multipart file upload
-    private final ExcelIngestionConfig config;
+    private final ExcelIngestionConfig config;  
     private final ObjectMapper objectMapper;
     private final CustomExceptionHandler exceptionHandler;
 
@@ -37,20 +44,19 @@ public class FileStoreService {
     }
 
     public String uploadFile(byte[] fileBytes, String tenantId, String fileName) throws IOException {
-        String url = config.getFilestoreHost() + config.getFilestoreUploadEndpoint();
-        log.info("Uploading file to filestore: {}", url);
+        return executeWithRetry("FileStore upload for file: " + fileName, () -> {
+            String url = config.getFilestoreHost() + config.getFilestoreUploadEndpoint();
+            log.info("Uploading file to filestore: {}", url);
 
-        MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
-        body.add("file", new ByteArrayResource(fileBytes) {
-            @Override
-            public String getFilename() {
-                return fileName;
-            }
-        });
-        body.add("tenantId", tenantId);
-        body.add("module", "excel-ingestion");
-
-        try {
+            MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+            body.add("file", new ByteArrayResource(fileBytes) {
+                @Override
+                public String getFilename() {
+                    return fileName;
+                }
+            });
+            body.add("tenantId", tenantId);
+            body.add("module", "excel-ingestion");
             // Use a simpler approach - create custom RestTemplate with no message converters for response
             RestTemplate customRestTemplate = new RestTemplate();
             
@@ -62,8 +68,6 @@ public class FileStoreService {
             
             HttpHeaders requestHeaders = new HttpHeaders();
             requestHeaders.setContentType(MediaType.MULTIPART_FORM_DATA);
-            
-            HttpEntity<MultiValueMap<String, Object>> request = new HttpEntity<>(body, requestHeaders);
             
             // Use execute method with ResponseExtractor to get raw response
             String responseBody = customRestTemplate.execute(url, HttpMethod.POST, 
@@ -136,12 +140,7 @@ public class FileStoreService {
                     ErrorConstants.FILE_STORE_SERVICE_ERROR_MESSAGE, 
                     new RuntimeException("FileStore API returned unsuccessful response"));
             return null;
-        } catch (Exception e) {
-            log.error("Error uploading file to filestore: {}", e.getMessage(), e);
-            exceptionHandler.throwCustomException(ErrorConstants.FILE_STORE_SERVICE_ERROR, 
-                    ErrorConstants.FILE_STORE_SERVICE_ERROR_MESSAGE, e);
-            return null;
-        }
+        });
     }
     
     /**
@@ -197,5 +196,85 @@ public class FileStoreService {
         }
         
         return null;
+    }
+
+    /**
+     * Downloads Excel file from file store
+     */
+    public Workbook downloadExcelFromFileStore(String fileStoreId, String tenantId) {
+        return executeWithRetry("FileStore download for fileStoreId: " + fileStoreId, () -> {
+            String fileStoreUrl = config.getFilestoreHost() + config.getFilestoreUrlEndpoint();
+            
+            // Build URL with query parameters
+            String url = String.format("%s?tenantId=%s&fileStoreIds=%s", fileStoreUrl, tenantId, fileStoreId);
+            
+            ResponseEntity<FileStoreResponse> response = restTemplate.exchange(
+                    url, HttpMethod.GET, null, FileStoreResponse.class);
+            
+            FileStoreResponse responseBody = response.getBody();
+            if (responseBody != null) {
+                String fileUrl = null;
+                
+                // Try to get URL from fileStoreIds array first
+                if (responseBody.getFiles() != null && !responseBody.getFiles().isEmpty()) {
+                    fileUrl = responseBody.getFiles().get(0).getUrl();
+                }
+                
+                // If not found in array, try the file ID to URL mapping
+                if (fileUrl == null && responseBody.getFileIdToUrlMap() != null) {
+                    fileUrl = responseBody.getFileIdToUrlMap().get(fileStoreId);
+                }
+                
+                if (fileUrl != null) {
+                    try (InputStream inputStream = new URL(fileUrl).openStream()) {
+                        return new XSSFWorkbook(inputStream);
+                    }
+                }
+            }
+            
+            exceptionHandler.throwCustomException(ErrorConstants.FILE_URL_RETRIEVAL_ERROR, 
+                    ErrorConstants.FILE_URL_RETRIEVAL_ERROR_MESSAGE);
+            return null; // This should never be reached due to exceptions above
+        });
+    }
+
+    /**
+     * Generic retry mechanism for FileStore API calls
+     */
+    private <T> T executeWithRetry(String operationName, RetryableOperation<T> operation) {
+        Exception lastException = null;
+        
+        for (int attempt = 1; attempt <= MAX_RETRY_ATTEMPTS; attempt++) {
+            try {
+                log.info("Attempting {} (attempt {} of {})", operationName, attempt, MAX_RETRY_ATTEMPTS);
+                return operation.execute();
+            } catch (Exception e) {
+                lastException = e;
+                log.warn("Failed {} on attempt {} of {}: {}", operationName, attempt, MAX_RETRY_ATTEMPTS, e.getMessage());
+                
+                if (attempt < MAX_RETRY_ATTEMPTS) {
+                    try {
+                        Thread.sleep(RETRY_DELAY_MS);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        log.error("Retry sleep interrupted for {}", operationName);
+                        break;
+                    }
+                }
+            }
+        }
+        
+        log.error("All {} attempts failed for {}", MAX_RETRY_ATTEMPTS, operationName);
+        
+        // Throw custom exception for FileStore failures
+        exceptionHandler.throwCustomException(ErrorConstants.FILE_STORE_SERVICE_ERROR, 
+                ErrorConstants.FILE_STORE_SERVICE_ERROR_MESSAGE + " after " + MAX_RETRY_ATTEMPTS + " attempts", 
+                lastException);
+        return null; // This should never be reached due to exception above
+    }
+
+    @FunctionalInterface
+    private interface RetryableOperation<T> {
+        T execute() throws Exception;
     }
 }

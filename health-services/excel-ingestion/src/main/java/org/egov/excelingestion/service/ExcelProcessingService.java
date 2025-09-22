@@ -102,7 +102,7 @@ public class ExcelProcessingService {
             mergedLocalizationMap.putAll(schemaLocalizationMap);
             
             // Download and validate the Excel file
-            try (Workbook workbook = downloadExcelFromFileStore(resource.getFileStoreId(), resource.getTenantId())) {
+            try (Workbook workbook = fileStoreService.downloadExcelFromFileStore(resource.getFileStoreId(), resource.getTenantId())) {
                 
                 // Pre-validate schemas and fetch them before data validation using config-based approach
                 Map<String, Map<String, Object>> preValidatedSchemas = configBasedProcessingService.preValidateAndFetchSchemas(
@@ -177,50 +177,6 @@ public class ExcelProcessingService {
         return null; // This should never be reached due to exception above
     }
 
-    /**
-     * Downloads Excel file from file store
-     */
-    private Workbook downloadExcelFromFileStore(String fileStoreId, String tenantId) {
-        String fileStoreUrl = config.getFilestoreHost() + config.getFilestoreUrlEndpoint();
-        
-        try {
-            // Build URL with query parameters
-            String url = String.format("%s?tenantId=%s&fileStoreIds=%s", fileStoreUrl, tenantId, fileStoreId);
-            
-            ResponseEntity<FileStoreResponse> response = restTemplate.exchange(
-                    url, HttpMethod.GET, null, FileStoreResponse.class);
-            
-            FileStoreResponse responseBody = response.getBody();
-            if (responseBody != null) {
-                String fileUrl = null;
-                
-                // Try to get URL from fileStoreIds array first
-                if (responseBody.getFiles() != null && !responseBody.getFiles().isEmpty()) {
-                    fileUrl = responseBody.getFiles().get(0).getUrl();
-                }
-                
-                // If not found in array, try the file ID to URL mapping
-                if (fileUrl == null && responseBody.getFileIdToUrlMap() != null) {
-                    fileUrl = responseBody.getFileIdToUrlMap().get(fileStoreId);
-                }
-                
-                if (fileUrl != null) {
-                    try (InputStream inputStream = new URL(fileUrl).openStream()) {
-                        return new XSSFWorkbook(inputStream);
-                    }
-                }
-            }
-            
-            exceptionHandler.throwCustomException(ErrorConstants.FILE_URL_RETRIEVAL_ERROR, 
-                    ErrorConstants.FILE_URL_RETRIEVAL_ERROR_MESSAGE);
-            
-        } catch (Exception e) {
-            log.error("Error downloading file from file store: {}", e.getMessage());
-            exceptionHandler.throwCustomException(ErrorConstants.FILE_DOWNLOAD_ERROR, 
-                    ErrorConstants.FILE_DOWNLOAD_ERROR_MESSAGE, e);
-        }
-        return null; // This should never be reached due to exceptions above
-    }
 
     /**
      * Validates data in all sheets of the workbook using pre-fetched schemas
