@@ -102,59 +102,52 @@ class ExcelProcessingServiceTest {
 
     @Test
     void testProcessExcelFile_FileDownloadError() {
-        // Given
-        when(restTemplate.exchange(anyString(), eq(HttpMethod.GET), isNull(), eq(FileStoreResponse.class)))
+        // Given - FileStoreService throws exception during download
+        when(fileStoreService.downloadExcelFromFileStore(anyString(), anyString()))
                 .thenThrow(new RuntimeException("File download failed"));
-        doThrow(new RuntimeException("Processing failed"))
-                .when(exceptionHandler).throwCustomException(any(), any(), any(Exception.class));
 
         // When & Then
         assertThrows(RuntimeException.class, () -> {
             excelProcessingService.processExcelFile(request);
         });
         
-        verify(exceptionHandler).throwCustomException(any(), any(), any(Exception.class));
+        verify(fileStoreService).downloadExcelFromFileStore(eq("test-file-store-id"), eq("pb.amritsar"));
     }
 
     @Test
     void testProcessExcelFile_InvalidFileStoreResponse() {
-        // Given - FileStore returns null response
-        when(restTemplate.exchange(anyString(), eq(HttpMethod.GET), isNull(), eq(FileStoreResponse.class)))
-                .thenReturn(ResponseEntity.ok(null));
-        doThrow(new RuntimeException("File URL retrieval error"))
-                .when(exceptionHandler).throwCustomException(any(), any());
+        // Given - FileStoreService throws exception for invalid response
+        when(fileStoreService.downloadExcelFromFileStore(anyString(), anyString()))
+                .thenThrow(new RuntimeException("File URL retrieval error"));
 
         // When & Then
         assertThrows(RuntimeException.class, () -> {
             excelProcessingService.processExcelFile(request);
         });
         
-        verify(exceptionHandler).throwCustomException(any(), any());
+        verify(fileStoreService).downloadExcelFromFileStore(eq("test-file-store-id"), eq("pb.amritsar"));
     }
 
     @Test
     void testProcessExcelFile_EmptyFileStoreResponse() {
-        // Given - FileStore returns empty files list
-        FileStoreResponse emptyResponse = new FileStoreResponse();
-        emptyResponse.setFiles(Collections.emptyList());
-        
-        when(restTemplate.exchange(anyString(), eq(HttpMethod.GET), isNull(), eq(FileStoreResponse.class)))
-                .thenReturn(ResponseEntity.ok(emptyResponse));
-        doThrow(new RuntimeException("File URL retrieval error"))
-                .when(exceptionHandler).throwCustomException(any(), any());
+        // Given - FileStoreService throws exception for empty response
+        when(fileStoreService.downloadExcelFromFileStore(anyString(), anyString()))
+                .thenThrow(new RuntimeException("File URL retrieval error"));
 
         // When & Then
         assertThrows(RuntimeException.class, () -> {
             excelProcessingService.processExcelFile(request);
         });
         
-        verify(exceptionHandler).throwCustomException(any(), any());
+        verify(fileStoreService).downloadExcelFromFileStore(eq("test-file-store-id"), eq("pb.amritsar"));
     }
 
     @Test
     void testProcessExcelFile_LocalizationServiceCalled() {
         // Given
-        setupFileDownloadToFail(); // Will fail at file download but should call localization first
+        // Setup FileStoreService to fail
+        when(fileStoreService.downloadExcelFromFileStore(anyString(), anyString()))
+                .thenThrow(new RuntimeException("File download failed"));
         
         // When
         assertThrows(RuntimeException.class, () -> {
@@ -182,7 +175,9 @@ class ExcelProcessingServiceTest {
                 .resourceDetails(resource)
                 .build();
         
-        setupFileDownloadToFail(); // Will fail at file download but should call localization first
+        // Setup FileStoreService to fail
+        when(fileStoreService.downloadExcelFromFileStore(anyString(), anyString()))
+                .thenThrow(new RuntimeException("File download failed"));
         
         // When
         assertThrows(RuntimeException.class, () -> {
@@ -199,7 +194,9 @@ class ExcelProcessingServiceTest {
     @Test
     void testProcessExcelFile_EnrichmentServiceCalled() {
         // Given
-        setupFileDownloadToFail(); // Will fail at file download but should call enrichment first
+        // Setup FileStoreService to fail
+        when(fileStoreService.downloadExcelFromFileStore(anyString(), anyString()))
+                .thenThrow(new RuntimeException("File download failed"));
         
         // When
         assertThrows(RuntimeException.class, () -> {
@@ -211,48 +208,43 @@ class ExcelProcessingServiceTest {
 
     @Test
     void testProcessExcelFile_ConfigBasedProcessingCalled() {
-        // Given - Setup successful initial calls but fail at file download
-        FileStoreResponse fileStoreResponse = new FileStoreResponse();
-        FileInfo fileInfo = new FileInfo();
-        fileInfo.setUrl("http://invalid-url.com/test-file.xlsx"); 
-        fileStoreResponse.setFiles(List.of(fileInfo));
-        
-        when(restTemplate.exchange(anyString(), eq(HttpMethod.GET), isNull(), eq(FileStoreResponse.class)))
-                .thenReturn(ResponseEntity.ok(fileStoreResponse));
+        // Given - Setup FileStoreService to succeed but config processing to fail
+        when(fileStoreService.downloadExcelFromFileStore(anyString(), anyString()))
+                .thenReturn(createTestWorkbook());
+        when(configBasedProcessingService.preValidateAndFetchSchemas(any(), any(), any(), any()))
+                .thenThrow(new RuntimeException("Config processing failed"));
         
         // When
         assertThrows(RuntimeException.class, () -> {
             excelProcessingService.processExcelFile(request);
         });
 
-        // Then - Verify config-based processing was called before file download
+        // Then - Verify config-based processing was called after file download
         verify(configBasedProcessingService).preValidateAndFetchSchemas(
                 any(), eq(resource), eq(requestInfo), any());
     }
 
     @Test
     void testProcessExcelFile_FileStoreUrlConstruction() {
-        // Given
-        when(config.getFilestoreHost()).thenReturn("http://localhost:8080");
-        when(config.getFilestoreUrlEndpoint()).thenReturn("/filestore/v1/files/url");
-        
-        setupFileDownloadToFail();
+        // Given - FileStoreService should be called for download
+        when(fileStoreService.downloadExcelFromFileStore(anyString(), anyString()))
+                .thenThrow(new RuntimeException("File download failed"));
         
         // When
         assertThrows(RuntimeException.class, () -> {
             excelProcessingService.processExcelFile(request);
         });
 
-        // Then - Verify RestTemplate was called with correct URL format
-        verify(restTemplate).exchange(
-                contains("http://localhost:8080/filestore/v1/files/url"),
-                eq(HttpMethod.GET), isNull(), eq(FileStoreResponse.class));
+        // Then - Verify FileStoreService was called with correct parameters
+        verify(fileStoreService).downloadExcelFromFileStore(eq("test-file-store-id"), eq("pb.amritsar"));
     }
 
     @Test
     void testProcessExcelFile_RequestInfoConverterCalled() {
         // Given
-        setupFileDownloadToFail();
+        // Setup FileStoreService to fail
+        when(fileStoreService.downloadExcelFromFileStore(anyString(), anyString()))
+                .thenThrow(new RuntimeException("File download failed"));
         
         // When
         assertThrows(RuntimeException.class, () -> {
@@ -268,14 +260,11 @@ class ExcelProcessingServiceTest {
         // Test that validation service methods would be called in success case
         // This test verifies the service setup and integration points
         
-        // Given - Setup successful initial calls but fail at file download
-        FileStoreResponse fileStoreResponse = new FileStoreResponse();
-        FileInfo fileInfo = new FileInfo();
-        fileInfo.setUrl("http://invalid-url.com/test-file.xlsx"); 
-        fileStoreResponse.setFiles(List.of(fileInfo));
-        
-        when(restTemplate.exchange(anyString(), eq(HttpMethod.GET), isNull(), eq(FileStoreResponse.class)))
-                .thenReturn(ResponseEntity.ok(fileStoreResponse));
+        // Given - Setup FileStoreService to succeed but config processing to fail
+        when(fileStoreService.downloadExcelFromFileStore(anyString(), anyString()))
+                .thenReturn(createTestWorkbook());
+        when(configBasedProcessingService.preValidateAndFetchSchemas(any(), any(), any(), any()))
+                .thenThrow(new RuntimeException("Config processing failed"));
         
         // When
         assertThrows(RuntimeException.class, () -> {
@@ -283,24 +272,11 @@ class ExcelProcessingServiceTest {
         });
 
         // Then - Verify that we got to the point where services are initialized
-        // These should be called before the file download fails
+        // These should be called after successful file download
         verify(localizationService, atLeastOnce()).getLocalizedMessages(any(), any(), any(), any());
         verify(configBasedProcessingService).preValidateAndFetchSchemas(any(), any(), any(), any());
     }
 
-    private void setupFileDownloadToFail() {
-        FileStoreResponse fileStoreResponse = new FileStoreResponse();
-        FileInfo fileInfo = new FileInfo();
-        fileInfo.setUrl("http://invalid-url.com/test-file.xlsx"); // This will fail to download
-        fileStoreResponse.setFiles(List.of(fileInfo));
-        
-        when(restTemplate.exchange(anyString(), eq(HttpMethod.GET), isNull(), eq(FileStoreResponse.class)))
-                .thenReturn(ResponseEntity.ok(fileStoreResponse));
-        
-        // The service will fail when trying to download from the URL, which is expected
-        doThrow(new RuntimeException("File download error"))
-                .when(exceptionHandler).throwCustomException(any(), any(), any(Exception.class));
-    }
 
     private Workbook createTestWorkbook() {
         Workbook workbook = new XSSFWorkbook();

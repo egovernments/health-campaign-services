@@ -23,6 +23,9 @@ import java.util.Objects;
 @Slf4j
 public class LocalizationService {
 
+    private static final int MAX_RETRY_ATTEMPTS = 3;
+    private static final long RETRY_DELAY_MS = 20000; // 20 second delay between retries
+
     private final ServiceRequestRepository serviceRequestRepository;
     private final CustomExceptionHandler exceptionHandler;
 
@@ -40,14 +43,14 @@ public class LocalizationService {
 
     @Cacheable(value = "localizationMessages", key = "#tenantId + #module + #locale")
     public Map<String, String> getLocalizedMessages(String tenantId, String module, String locale, RequestInfo requestInfo) {
-        // Build URL with query params
-        String url = UriComponentsBuilder.fromHttpUrl(localizationHost + localizationSearchPath)
-                .queryParam("tenantId", tenantId)
-                .queryParam("module", module)
-                .queryParam("locale", locale)
-                .toUriString();
+        return executeWithRetry("Localization service call for tenantId: " + tenantId + ", module: " + module + ", locale: " + locale, () -> {
+            // Build URL with query params
+            String url = UriComponentsBuilder.fromHttpUrl(localizationHost + localizationSearchPath)
+                    .queryParam("tenantId", tenantId)
+                    .queryParam("module", module)
+                    .queryParam("locale", locale)
+                    .toUriString();
 
-        try {
             // Post only RequestInfo in body (assuming API accepts it)
             StringBuilder uri = new StringBuilder(url);
             log.info("Fetching localized messages from: {}", uri);
@@ -60,10 +63,48 @@ public class LocalizationService {
                         localizedMessages.size(), tenantId, module, locale);
                 return localizedMessages;
             }
-        } catch (Exception e) {
-            // ServiceRequestRepository already handles the error with actual message
-            throw e;
+            
+            return Collections.emptyMap();
+        });
+    }
+
+    /**
+     * Generic retry mechanism for Localization service calls
+     */
+    private <T> T executeWithRetry(String operationName, RetryableOperation<T> operation) {
+        Exception lastException = null;
+        
+        for (int attempt = 1; attempt <= MAX_RETRY_ATTEMPTS; attempt++) {
+            try {
+                log.info("Attempting {} (attempt {} of {})", operationName, attempt, MAX_RETRY_ATTEMPTS);
+                return operation.execute();
+            } catch (Exception e) {
+                lastException = e;
+                log.warn("Failed {} on attempt {} of {}: {}", operationName, attempt, MAX_RETRY_ATTEMPTS, e.getMessage());
+                
+                if (attempt < MAX_RETRY_ATTEMPTS) {
+                    try {
+                        Thread.sleep(RETRY_DELAY_MS);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        log.error("Retry sleep interrupted for {}", operationName);
+                        break;
+                    }
+                }
+            }
         }
-        return Collections.emptyMap();
+        
+        log.error("All {} attempts failed for {}", MAX_RETRY_ATTEMPTS, operationName);
+        
+        // Throw custom exception for Localization service failures
+        exceptionHandler.throwCustomException(ErrorConstants.LOCALIZATION_SERVICE_ERROR, 
+                ErrorConstants.LOCALIZATION_SERVICE_ERROR_MESSAGE + " after " + MAX_RETRY_ATTEMPTS + " attempts", 
+                lastException);
+        return null; // This should never be reached due to exception above
+    }
+
+    @FunctionalInterface
+    private interface RetryableOperation<T> {
+        T execute() throws Exception;
     }
 }
