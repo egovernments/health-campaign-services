@@ -3,6 +3,7 @@ package org.egov.excelingestion.service;
 import org.egov.common.producer.Producer;
 import org.egov.excelingestion.config.KafkaTopicConfig;
 import org.egov.excelingestion.constants.GenerationConstants;
+import org.egov.excelingestion.util.EnrichmentUtil;
 import org.egov.excelingestion.web.models.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -29,13 +30,16 @@ class AsyncGenerationServiceTest {
     @Mock
     private KafkaTopicConfig kafkaTopicConfig;
 
+    @Mock
+    private EnrichmentUtil enrichmentUtil;
+
     private AsyncGenerationService asyncGenerationService;
 
     @BeforeEach
     void setUp() {
         // Setup mock KafkaTopicConfig
         when(kafkaTopicConfig.getGenerationUpdateTopic()).thenReturn("test-update-topic");
-        asyncGenerationService = new AsyncGenerationService(excelWorkflowService, producer, kafkaTopicConfig);
+        asyncGenerationService = new AsyncGenerationService(excelWorkflowService, producer, kafkaTopicConfig, enrichmentUtil);
     }
 
     @Test
@@ -90,11 +94,10 @@ class AsyncGenerationServiceTest {
         future.get(5, TimeUnit.SECONDS);
 
         // Then
+        verify(enrichmentUtil, timeout(5000)).enrichErrorDetailsInAdditionalDetails(any(GenerateResource.class), any(Exception.class));
         verify(producer, timeout(5000)).push(eq("dev"), eq("test-update-topic"), argThat(resource -> {
             GenerateResource gr = (GenerateResource) resource;
-            return GenerationConstants.STATUS_FAILED.equals(gr.getStatus()) &&
-                   gr.getErrorDetails() != null &&
-                   gr.getErrorDetails().contains("GENERATION_FAILED");
+            return GenerationConstants.STATUS_FAILED.equals(gr.getStatus());
         }));
     }
 

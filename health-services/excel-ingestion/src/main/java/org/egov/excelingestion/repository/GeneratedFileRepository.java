@@ -144,7 +144,6 @@ public class GeneratedFileRepository {
                     .type(rs.getString("type"))
                     .fileStoreId(rs.getString("fileStoreId"))
                     .status(rs.getString("status"))
-                    .errorDetails(rs.getString("errorDetails"))
                     .locale(rs.getString("locale"))
                     .additionalDetails(additionalDetails != null ? objectMapper.convertValue(additionalDetails, java.util.Map.class) : null)
                     .createdBy(rs.getString("createdBy"))

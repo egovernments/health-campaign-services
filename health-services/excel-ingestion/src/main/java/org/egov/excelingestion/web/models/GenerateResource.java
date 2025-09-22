@@ -63,9 +63,6 @@ public class GenerateResource {
 
     @JsonProperty("fileStoreId")
     private String fileStoreId;
-
-    @JsonProperty("errorDetails")
-    private String errorDetails;
     
     @JsonProperty("createdBy")
     private String createdBy;

@@ -4,7 +4,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.egov.excelingestion.config.ProcessingConstants;
 import org.egov.excelingestion.config.ValidationConstants;
 import org.egov.excelingestion.web.models.ProcessResource;
+import org.egov.excelingestion.web.models.GenerateResource;
 import org.egov.excelingestion.web.models.ValidationError;
+import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Component;
 
 import java.util.HashMap;
@@ -111,5 +113,89 @@ public class EnrichmentUtil {
         } catch (Exception e) {
             log.error("Error enriching additionalDetails with error count and status: {}", e.getMessage(), e);
         }
+    }
+
+    /**
+     * Enrich GenerateResource additionalDetails with error code and error message
+     * This standardizes generate API error handling to match process API pattern
+     * 
+     * @param resource The GenerateResource to enrich
+     * @param exception The exception that occurred during generation
+     */
+    public void enrichErrorDetailsInAdditionalDetails(GenerateResource resource, Exception exception) {
+        try {
+            if (resource.getAdditionalDetails() == null) {
+                resource.setAdditionalDetails(new HashMap<>());
+            }
+            
+            Map<String, Object> additionalDetails = resource.getAdditionalDetails();
+            
+            // Extract error code and message from exception
+            String errorCode = extractErrorCode(exception);
+            String errorMessage = extractErrorMessage(exception);
+            
+            // Add error details to additionalDetails (similar to process API pattern)
+            additionalDetails.put("errorCode", errorCode);
+            additionalDetails.put("errorMessage", errorMessage);
+            
+            log.info("Enriched additionalDetails for generate resource {}: errorCode={}, errorMessage={}", 
+                    resource.getId(), errorCode, errorMessage);
+            
+        } catch (Exception e) {
+            log.error("Error enriching additionalDetails with error details: {}", e.getMessage(), e);
+        }
+    }
+
+    private String extractErrorCode(Exception exception) {
+        if (exception == null) {
+            return "GENERATION_FAILED";
+        }
+        
+        // Find the root CustomException in the exception chain
+        CustomException customException = findRootCustomException(exception);
+        if (customException != null) {
+            return customException.getCode() != null ? customException.getCode() : "GENERATION_FAILED";
+        }
+        
+        // For other exceptions, return a generic error code
+        return "GENERATION_FAILED";
+    }
+
+    private String extractErrorMessage(Exception exception) {
+        if (exception == null) {
+            return "Generation process failed due to unknown error";
+        }
+        
+        // Find the root CustomException in the exception chain
+        CustomException customException = findRootCustomException(exception);
+        if (customException != null) {
+            return customException.getMessage() != null ? customException.getMessage() : "Generation process failed";
+        }
+        
+        // For other exceptions, return the exception message
+        return exception.getMessage() != null ? exception.getMessage() : "Generation process failed";
+    }
+    
+    private CustomException findRootCustomException(Exception exception) {
+        if (exception == null) {
+            return null;
+        }
+        
+        // If it's already a CustomException, return it
+        if (exception instanceof CustomException) {
+            return (CustomException) exception;
+        }
+        
+        // Check if the cause is a CustomException
+        Throwable cause = exception.getCause();
+        while (cause != null) {
+            if (cause instanceof CustomException) {
+                return (CustomException) cause;
+            }
+            cause = cause.getCause();
+        }
+        
+        // No CustomException found in the exception chain
+        return null;
     }
 }

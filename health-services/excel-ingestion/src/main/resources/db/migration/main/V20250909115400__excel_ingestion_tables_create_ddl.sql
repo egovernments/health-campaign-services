@@ -8,7 +8,6 @@ CREATE TABLE eg_ex_in_generated_files
     hierarchyType     VARCHAR(100),
     fileStoreId       VARCHAR(200),
     status            VARCHAR(20) NOT NULL,
-    errorDetails      TEXT,
     additionalDetails JSONB,
     locale            VARCHAR(64),
     createdBy         VARCHAR(100),

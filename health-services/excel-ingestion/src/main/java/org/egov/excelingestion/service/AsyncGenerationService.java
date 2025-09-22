@@ -3,6 +3,7 @@ package org.egov.excelingestion.service;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.excelingestion.config.KafkaTopicConfig;
 import org.egov.excelingestion.constants.GenerationConstants;
+import org.egov.excelingestion.util.EnrichmentUtil;
 import org.egov.excelingestion.web.models.GenerateResource;
 import org.egov.excelingestion.web.models.GenerateResourceRequest;
 import org.egov.excelingestion.web.models.RequestInfo;
@@ -19,13 +20,16 @@ public class AsyncGenerationService {
     private final ExcelWorkflowService excelWorkflowService;
     private final Producer producer;
     private final KafkaTopicConfig kafkaTopicConfig;
+    private final EnrichmentUtil enrichmentUtil;
 
     public AsyncGenerationService(ExcelWorkflowService excelWorkflowService,
                                 Producer producer,
-                                KafkaTopicConfig kafkaTopicConfig) {
+                                KafkaTopicConfig kafkaTopicConfig,
+                                EnrichmentUtil enrichmentUtil) {
         this.excelWorkflowService = excelWorkflowService;
         this.producer = producer;
         this.kafkaTopicConfig = kafkaTopicConfig;
+        this.enrichmentUtil = enrichmentUtil;
     }
 
     @Async("taskExecutor")
@@ -48,7 +52,13 @@ public class AsyncGenerationService {
             // Update with success status and fileStoreId via Kafka
             generateResource.setStatus(GenerationConstants.STATUS_COMPLETED);
             generateResource.setFileStoreId(processedResource.getFileStoreId());
-            generateResource.setErrorDetails(null);
+            
+            // Clear any error details from additionalDetails on success
+            if (generateResource.getAdditionalDetails() != null) {
+                generateResource.getAdditionalDetails().remove("errorCode");
+                generateResource.getAdditionalDetails().remove("errorMessage");
+            }
+            
             generateResource.setLastModifiedTime(System.currentTimeMillis());
             if (requestInfo != null && requestInfo.getUserInfo() != null) {
                 generateResource.setLastModifiedBy(requestInfo.getUserInfo().getUuid());
@@ -62,12 +72,11 @@ public class AsyncGenerationService {
         } catch (Exception e) {
             log.error("Error during async generation for id: {}", generateResource.getId(), e);
             
-            // Extract error code from exception
-            String errorCode = extractErrorCode(e);
+            // Enrich additionalDetails with error code and error message (standardized approach)
+            enrichmentUtil.enrichErrorDetailsInAdditionalDetails(generateResource, e);
             
-            // Update status to FAILED with error code via Kafka
+            // Update status to FAILED via Kafka
             generateResource.setStatus(GenerationConstants.STATUS_FAILED);
-            generateResource.setErrorDetails(errorCode);
             generateResource.setFileStoreId(null);
             generateResource.setLastModifiedTime(System.currentTimeMillis());
             if (requestInfo != null && requestInfo.getUserInfo() != null) {
@@ -79,41 +88,4 @@ public class AsyncGenerationService {
         }
     }
 
-    private String extractErrorCode(Exception exception) {
-        if (exception == null) {
-            return "GENERATION_FAILED";
-        }
-        
-        // Find the root CustomException in the exception chain
-        CustomException customException = findRootCustomException(exception);
-        if (customException != null) {
-            return customException.getCode() != null ? customException.getCode() : "GENERATION_FAILED";
-        }
-        
-        // For other exceptions, return a generic error code
-        return "GENERATION_FAILED";
-    }
-    
-    private CustomException findRootCustomException(Exception exception) {
-        if (exception == null) {
-            return null;
-        }
-        
-        // If it's already a CustomException, return it
-        if (exception instanceof CustomException) {
-            return (CustomException) exception;
-        }
-        
-        // Check if the cause is a CustomException
-        Throwable cause = exception.getCause();
-        while (cause != null) {
-            if (cause instanceof CustomException) {
-                return (CustomException) cause;
-            }
-            cause = cause.getCause();
-        }
-        
-        // No CustomException found in the exception chain
-        return null;
-    }
 }

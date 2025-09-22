@@ -53,9 +53,6 @@ public class ExcelGenerationValidationService {
         // Step 3: Validate configuration (classes, schemas, etc.)
         validationService.validateProcessorConfig(config, generateType);
 
-        // Step 4: Prepare localization maps
-        prepareLocalizationMap(generateResource, requestInfo);
-
         log.info("Pre-async validation successful for generate type: {}", generateType);
     }
 
@@ -98,26 +95,5 @@ public class ExcelGenerationValidationService {
 
         return config;
     }
-
-    private void prepareLocalizationMap(GenerateResource generateResource, RequestInfo requestInfo) {
-        String tenantId = generateResource.getTenantId();
-        String hierarchyType = generateResource.getHierarchyType();
-        String locale = requestInfoConverter.extractLocale(requestInfo);
-
-        Map<String, String> mergedLocalizationMap = new HashMap<>();
-
-        // Boundary localization
-        String boundaryLocalizationModule = "hcm-boundary-" + hierarchyType.toLowerCase();
-        Map<String, String> boundaryLocalizationMap = localizationService.getLocalizedMessages(
-                tenantId, boundaryLocalizationModule, locale, requestInfo);
-        mergedLocalizationMap.putAll(boundaryLocalizationMap);
-
-        // Schema localization
-        String schemaLocalizationModule = "hcm-admin-schemas";
-        Map<String, String> schemaLocalizationMap = localizationService.getLocalizedMessages(
-                tenantId, schemaLocalizationModule, locale, requestInfo);
-        mergedLocalizationMap.putAll(schemaLocalizationMap);
-
-        log.info("Prepared localization map with {} entries for validation", mergedLocalizationMap.size());
-    }
+    
 }
