@@ -28,7 +28,6 @@ public class Field {
     private String key = null;
 
     @JsonProperty("value")
-    @NotNull
     @Size(max = 10000)
     private String value = null;
 
