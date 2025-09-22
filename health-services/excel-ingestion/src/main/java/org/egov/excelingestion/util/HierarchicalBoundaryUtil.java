@@ -819,14 +819,10 @@ public class HierarchicalBoundaryUtil {
             }
             boundaryCodeCell.setCellStyle(formulaStyle);
             
-            if (boundaryCode != null && !boundaryCode.isEmpty()) {
-                // For existing data, directly set the boundary code value
-                boundaryCodeCell.setCellValue(boundaryCode);
-            } else {
-                // Set formula for empty boundary code
-                String boundaryCodeFormula = createBoundaryCodeFormula(excelRowIndex + 1, lastSchemaCol, numCascadingColumns);
-                boundaryCodeCell.setCellFormula(boundaryCodeFormula);
-            }
+            // ALWAYS use formula for boundary code column to enable cascading updates
+            // This ensures that when users change boundary selections, the hidden code updates automatically
+            String boundaryCodeFormula = createBoundaryCodeFormula(excelRowIndex + 1, lastSchemaCol, numCascadingColumns);
+            boundaryCodeCell.setCellFormula(boundaryCodeFormula);
             
             rowsPopulated++;
         }

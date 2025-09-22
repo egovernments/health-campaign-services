@@ -61,6 +61,12 @@ public class ExcelIngestionConfig {
     @Value("${egov.health.individual.search.path}")
     private String healthIndividualSearchPath;
 
+    @Value("${egov.facility.host}")
+    private String facilityHost;
+
+    @Value("${egov.facility.search.path}")
+    private String facilitySearchPath;
+
     private String defaultHeaderColor = "#93c47d";
 
     public String getHierarchySearchUrl() {
@@ -77,5 +83,9 @@ public class ExcelIngestionConfig {
 
     public String getCampaignDataSearchUrl() {
         return campaignHost + campaignDataSearchPath;
+    }
+
+    public String getFacilitySearchUrl() {
+        return facilityHost + facilitySearchPath;
     }
 }

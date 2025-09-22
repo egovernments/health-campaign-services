@@ -9,6 +9,8 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.egov.excelingestion.service.BoundaryService;
 import org.egov.excelingestion.service.CampaignService;
 import org.egov.excelingestion.service.MDMSService;
+import org.egov.excelingestion.service.FacilityService;
+import org.egov.excelingestion.util.CellProtectionManager;
 import org.egov.excelingestion.util.BoundaryUtil;
 import org.egov.excelingestion.util.HierarchicalBoundaryUtil;
 import org.egov.excelingestion.util.SchemaColumnDefUtil;
@@ -18,6 +20,7 @@ import org.egov.excelingestion.web.models.excel.ColumnDef;
 import org.springframework.stereotype.Component;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * Generator for facility sheet with existing campaign data support
@@ -28,19 +31,28 @@ public class FacilitySheetGenerator implements ISheetGenerator {
 
     private final MDMSService mdmsService;
     private final CampaignService campaignService;
+    private final FacilityService facilityService;
+    private final BoundaryService boundaryService;
+    private final BoundaryUtil boundaryUtil;
+    private final CellProtectionManager cellProtectionManager;
     private final CustomExceptionHandler exceptionHandler;
     private final SchemaColumnDefUtil schemaColumnDefUtil;
     private final ExcelDataPopulator excelDataPopulator;
     private final HierarchicalBoundaryUtil hierarchicalBoundaryUtil;
 
     public FacilitySheetGenerator(MDMSService mdmsService, CampaignService campaignService,
-                                 BoundaryService boundaryService, BoundaryUtil boundaryUtil,
+                                 FacilityService facilityService, BoundaryService boundaryService, 
+                                 BoundaryUtil boundaryUtil, CellProtectionManager cellProtectionManager,
                                  CustomExceptionHandler exceptionHandler,
                                  SchemaColumnDefUtil schemaColumnDefUtil,
                                  ExcelDataPopulator excelDataPopulator,
                                  HierarchicalBoundaryUtil hierarchicalBoundaryUtil) {
         this.mdmsService = mdmsService;
         this.campaignService = campaignService;
+        this.facilityService = facilityService;
+        this.boundaryService = boundaryService;
+        this.boundaryUtil = boundaryUtil;
+        this.cellProtectionManager = cellProtectionManager;
         this.exceptionHandler = exceptionHandler;
         this.schemaColumnDefUtil = schemaColumnDefUtil;
         this.excelDataPopulator = excelDataPopulator;
@@ -73,6 +85,11 @@ public class FacilitySheetGenerator implements ISheetGenerator {
                 // Generate data with existing campaign data if reference ID is provided
                 List<Map<String, Object>> data = fetchExistingFacilityData(generateResource, requestInfo);
                 
+                // Enrich facilities with boundary paths to populate boundary columns
+                if (data != null && !data.isEmpty()) {
+                    enrichFacilitiesWithBoundaryPaths(data, generateResource, requestInfo, localizationMap);
+                }
+                
                 // Create sheet with schema columns and data using ExcelDataPopulator
                 workbook = (XSSFWorkbook) excelDataPopulator.populateSheetWithData(workbook, sheetName, columns, data, localizationMap);
                 
@@ -82,6 +99,10 @@ public class FacilitySheetGenerator implements ISheetGenerator {
                             workbook, sheetName, localizationMap, generateResource.getBoundaries(),
                             generateResource.getHierarchyType(), generateResource.getTenantId(), requestInfo, data);
                 }
+                
+                // Re-apply cell protection for freezeColumnIfFilled after all data is populated
+                // This ensures that facility columns with existing data are properly frozen
+                cellProtectionManager.applyCellProtection(workbook, workbook.getSheet(sheetName), columns);
             }
             
         } catch (Exception e) {
@@ -141,9 +162,273 @@ public class FacilitySheetGenerator implements ISheetGenerator {
                 return null; // Headers-only sheet
             }
             
+            // Step 1: Fetch all permanent facilities from facility API
+            log.info("Fetching permanent facilities for tenant: {}", generateResource.getTenantId());
+            List<Map<String, Object>> allPermanentFacilities = facilityService.fetchAllPermanentFacilities(
+                    generateResource.getTenantId(), requestInfo);
+            
+            // Step 2: Get enriched boundary codes including children using existing boundary util
+            Set<String> enrichedBoundaryCodes = getEnrichedBoundaryCodes(generateResource, requestInfo);
+            log.info("Enriched boundary codes for filtering: {}", enrichedBoundaryCodes);
+            
+            // Step 3: Transform permanent facilities to sheet format and filter by enriched boundaries
+            List<Map<String, Object>> transformedPermanentFacilities = transformAndFilterPermanentFacilities(
+                    allPermanentFacilities, enrichedBoundaryCodes);
+            
+            // Step 4: Fetch existing campaign data for this campaign
+            List<Map<String, Object>> existingCampaignData = fetchExistingCampaignData(
+                    campaignNumber, generateResource.getTenantId(), requestInfo);
+            
+            // Step 5: Merge permanent facilities with existing campaign data (remove duplicates by name, keep first)
+            List<Map<String, Object>> mergedData = mergeAndDeduplicateFacilities(
+                    transformedPermanentFacilities, existingCampaignData);
+            
+            log.info("Final facility data count: {} (permanent: {}, campaign: {})", 
+                    mergedData.size(), transformedPermanentFacilities.size(), existingCampaignData.size());
+            
+            return mergedData;
+            
+        } catch (Exception e) {
+            log.error("Error fetching facility data: {}", e.getMessage(), e);
+            return null; // Headers-only sheet on error
+        }
+    }
+    
+    private Set<String> getEnrichedBoundaryCodes(GenerateResource generateResource, RequestInfo requestInfo) {
+        try {
+            // Get boundary relationship data for enrichment
+            BoundarySearchResponse relationshipData = boundaryService.fetchBoundaryRelationship(
+                    generateResource.getTenantId(), generateResource.getHierarchyType(), requestInfo);
+            
+            // Build code to enriched boundary map
+            Map<String, EnrichedBoundary> codeToEnrichedBoundary = 
+                    boundaryUtil.buildCodeToBoundaryMap(relationshipData);
+            
+            // Get level types for hierarchy
+            List<String> levelTypes = extractLevelTypes(relationshipData);
+            
+            // Process boundaries with enrichment using existing boundary util logic
+            List<BoundaryUtil.BoundaryRowData> processedBoundaries = 
+                    boundaryUtil.processBoundariesWithEnrichment(
+                            generateResource.getBoundaries(), codeToEnrichedBoundary, levelTypes);
+            
+            // Extract all boundary codes from processed data
+            Set<String> enrichedCodes = processedBoundaries.stream()
+                    .map(BoundaryUtil.BoundaryRowData::getLastLevelCode)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toSet());
+            
+            log.info("Enriched {} boundary codes from {} configured boundaries", 
+                    enrichedCodes.size(), generateResource.getBoundaries().size());
+            
+            return enrichedCodes;
+            
+        } catch (Exception e) {
+            log.error("Error enriching boundary codes: {}", e.getMessage(), e);
+            // Fallback to simple boundary codes if enrichment fails
+            return generateResource.getBoundaries().stream()
+                    .map(Boundary::getCode)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toSet());
+        }
+    }
+    
+    private List<String> extractLevelTypes(BoundarySearchResponse relationshipData) {
+        List<String> levelTypes = new ArrayList<>();
+        
+        if (relationshipData != null && relationshipData.getTenantBoundary() != null 
+                && !relationshipData.getTenantBoundary().isEmpty()) {
+            HierarchyRelation hr = relationshipData.getTenantBoundary().get(0);
+            if (hr.getBoundary() != null && !hr.getBoundary().isEmpty()) {
+                extractLevelTypesRecursive(hr.getBoundary().get(0), levelTypes);
+            }
+        }
+        
+        return levelTypes;
+    }
+    
+    private void extractLevelTypesRecursive(EnrichedBoundary boundary, List<String> levelTypes) {
+        if (boundary.getBoundaryType() != null && !levelTypes.contains(boundary.getBoundaryType())) {
+            levelTypes.add(boundary.getBoundaryType());
+        }
+        
+        if (boundary.getChildren() != null) {
+            for (EnrichedBoundary child : boundary.getChildren()) {
+                extractLevelTypesRecursive(child, levelTypes);
+            }
+        }
+    }
+    
+    private List<Map<String, Object>> transformAndFilterPermanentFacilities(
+            List<Map<String, Object>> permanentFacilities, Set<String> enrichedBoundaryCodes) {
+        
+        List<Map<String, Object>> transformedFacilities = new ArrayList<>();
+        
+        for (Map<String, Object> facility : permanentFacilities) {
+            try {
+                // Transform permanent facility to sheet format using same pattern as project-factory
+                Map<String, Object> transformedFacility = transformPermanentFacilityToSheetFormat(facility);
+                
+                // Filter by enriched boundary codes - only include facilities within campaign boundaries
+                String facilityBoundaryCode = getFacilityBoundaryCode(facility);
+                if (facilityBoundaryCode != null && enrichedBoundaryCodes.contains(facilityBoundaryCode)) {
+                    transformedFacilities.add(transformedFacility);
+                    log.debug("Included facility {} with boundary code {}", 
+                            transformedFacility.get("HCM_ADMIN_CONSOLE_FACILITY_NAME"), facilityBoundaryCode);
+                } else {
+                    log.debug("Filtered out facility {} with boundary code {} (not in enriched campaign boundaries)", 
+                            facility.get("name"), facilityBoundaryCode);
+                }
+                
+            } catch (Exception e) {
+                log.warn("Error transforming facility {}: {}", facility.get("id"), e.getMessage());
+            }
+        }
+        
+        return transformedFacilities;
+    }
+    
+    private String getFacilityBoundaryCode(Map<String, Object> facility) {
+        // Extract boundary code from facility address following project-factory pattern
+        try {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> address = (Map<String, Object>) facility.get("address");
+            if (address != null) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> locality = (Map<String, Object>) address.get("locality");
+                if (locality != null) {
+                    return (String) locality.get("code");
+                }
+            }
+        } catch (Exception e) {
+            log.debug("Error extracting boundary code from facility {}: {}", facility.get("id"), e.getMessage());
+        }
+        return null;
+    }
+    
+    private Map<String, Object> transformPermanentFacilityToSheetFormat(Map<String, Object> facility) {
+        // Transform facility using the same pattern as project-factory transform configs
+        Map<String, Object> transformed = new HashMap<>();
+        
+        // Following the Facility transform config pattern from project-factory
+        transformed.put("HCM_ADMIN_CONSOLE_FACILITY_CODE", facility.get("id"));
+        transformed.put("HCM_ADMIN_CONSOLE_FACILITY_NAME", facility.get("name"));
+        
+        // Transform isPermanent to status
+        Boolean isPermanent = (Boolean) facility.get("isPermanent");
+        transformed.put("HCM_ADMIN_CONSOLE_FACILITY_STATUS", 
+                (isPermanent != null && isPermanent) ? "Permanent" : "Temporary");
+        
+        // Map facility usage and type
+        transformed.put("HCM_ADMIN_CONSOLE_FACILITY_TYPE", facility.get("usage"));
+        transformed.put("HCM_ADMIN_CONSOLE_FACILITY_CAPACITY", facility.get("storageCapacity"));
+        
+        // Set default usage as "Inactive" if not specified (following project-factory pattern)
+        transformed.put("HCM_ADMIN_CONSOLE_FACILITY_USAGE", "Inactive");
+        
+        // Extract and map boundary code
+        String boundaryCode = getFacilityBoundaryCode(facility);
+        if (boundaryCode != null) {
+            transformed.put("HCM_ADMIN_CONSOLE_BOUNDARY_CODE", boundaryCode);
+        }
+        
+        return transformed;
+    }
+    
+    private void enrichFacilitiesWithBoundaryPaths(List<Map<String, Object>> facilities, 
+                                                   GenerateResource generateResource, RequestInfo requestInfo,
+                                                   Map<String, String> localizationMap) {
+        try {
+            // Get boundary hierarchy for column mapping
+            BoundaryHierarchyResponse hierarchyData = boundaryService.fetchBoundaryHierarchy(
+                    generateResource.getTenantId(), generateResource.getHierarchyType(), requestInfo);
+            List<BoundaryHierarchyChild> hierarchyRelations = hierarchyData.getBoundaryHierarchy().get(0).getBoundaryHierarchy();
+            
+            // Get boundary relationship data for path building
+            BoundarySearchResponse relationshipData = boundaryService.fetchBoundaryRelationship(
+                    generateResource.getTenantId(), generateResource.getHierarchyType(), requestInfo);
+            Map<String, EnrichedBoundary> codeToEnrichedBoundary = boundaryUtil.buildCodeToBoundaryMap(relationshipData);
+            
+            // For each facility, find its boundary path and populate boundary columns
+            for (Map<String, Object> facility : facilities) {
+                String localityCode = (String) facility.get("HCM_ADMIN_CONSOLE_BOUNDARY_CODE");
+                if (localityCode != null && !localityCode.isEmpty()) {
+                    List<String> boundaryPath = findBoundaryPathFromLocalityCode(localityCode, codeToEnrichedBoundary);
+                    populateBoundaryColumnsFromPath(facility, boundaryPath, hierarchyRelations, 
+                            generateResource.getHierarchyType(), localizationMap);
+                }
+            }
+            
+        } catch (Exception e) {
+            log.error("Error enriching facilities with boundary paths: {}", e.getMessage(), e);
+        }
+    }
+    
+    private List<String> findBoundaryPathFromLocalityCode(String localityCode, 
+                                                          Map<String, EnrichedBoundary> codeToEnrichedBoundary) {
+        List<String> path = new ArrayList<>();
+        
+        // Find the boundary with the given locality code
+        EnrichedBoundary currentBoundary = codeToEnrichedBoundary.get(localityCode);
+        if (currentBoundary == null) {
+            log.warn("No boundary found for locality code: {}", localityCode);
+            return path;
+        }
+        
+        // Build path from locality up to root
+        List<String> reversePath = new ArrayList<>();
+        while (currentBoundary != null) {
+            reversePath.add(currentBoundary.getCode());
+            // Find parent boundary
+            currentBoundary = findParentBoundary(currentBoundary, codeToEnrichedBoundary);
+        }
+        
+        // Reverse the path to go from root to locality
+        Collections.reverse(reversePath);
+        return reversePath;
+    }
+    
+    private EnrichedBoundary findParentBoundary(EnrichedBoundary boundary, 
+                                               Map<String, EnrichedBoundary> codeToEnrichedBoundary) {
+        // Find parent by searching through all boundaries
+        for (EnrichedBoundary candidate : codeToEnrichedBoundary.values()) {
+            if (candidate.getChildren() != null) {
+                for (EnrichedBoundary child : candidate.getChildren()) {
+                    if (child.getCode().equals(boundary.getCode())) {
+                        return candidate;
+                    }
+                }
+            }
+        }
+        return null;
+    }
+    
+    private void populateBoundaryColumnsFromPath(Map<String, Object> facility, 
+                                               List<String> boundaryPath,
+                                               List<BoundaryHierarchyChild> hierarchyRelations,
+                                               String hierarchyType,
+                                               Map<String, String> localizationMap) {
+        // Fill columns based on hierarchy levels
+        for (int i = 0; i < hierarchyRelations.size() && i < boundaryPath.size(); i++) {
+            BoundaryHierarchyChild hierarchyRelation = hierarchyRelations.get(i);
+            String boundaryType = hierarchyRelation.getBoundaryType();
+            String columnKey = hierarchyType.toUpperCase() + "_" + boundaryType.toUpperCase();
+            
+            String boundaryCode = boundaryPath.get(i);
+            if (boundaryCode != null) {
+                // Get localized value for the boundary code
+                String localizedValue = localizationMap.getOrDefault(boundaryCode, boundaryCode);
+                facility.put(columnKey, localizedValue);
+            }
+        }
+    }
+    
+    private List<Map<String, Object>> fetchExistingCampaignData(String campaignNumber, 
+                                                               String tenantId, RequestInfo requestInfo) {
+        try {
             // Search for all facility data for this campaign
             List<Map<String, Object>> campaignDataResponse = campaignService.searchCampaignDataByUniqueIdentifiers(
-                    new ArrayList<>(), "facility", null, campaignNumber, generateResource.getTenantId(), requestInfo);
+                    new ArrayList<>(), "facility", null, campaignNumber, tenantId, requestInfo);
             
             if (campaignDataResponse != null && !campaignDataResponse.isEmpty()) {
                 // Extract the actual data object from each campaign data record
@@ -158,20 +443,102 @@ public class FacilitySheetGenerator implements ISheetGenerator {
                     }
                 }
                 
-                if (!existingData.isEmpty()) {
-                    log.info("Found {} existing facility records for campaign: {}", 
-                            existingData.size(), campaignNumber);
-                    return existingData;
-                }
+                log.info("Found {} existing campaign facility records", existingData.size());
+                return existingData;
             }
             
-            log.info("No existing facility data found for campaign: {}", campaignNumber);
-            return null; // Headers-only sheet
+            log.info("No existing campaign facility data found");
+            return new ArrayList<>();
             
         } catch (Exception e) {
-            log.error("Error fetching existing facility data: {}", e.getMessage());
-            return null; // Headers-only sheet on error
+            log.error("Error fetching existing campaign data: {}", e.getMessage());
+            return new ArrayList<>();
         }
+    }
+    
+    private List<Map<String, Object>> mergeAndDeduplicateFacilities(
+            List<Map<String, Object>> permanentFacilities, 
+            List<Map<String, Object>> campaignFacilities) {
+        
+        // Use LinkedHashMap to preserve insertion order following project-factory pattern
+        Map<String, Map<String, Object>> facilityMap = new LinkedHashMap<>();
+        
+        // Step 1: Add permanent facilities first (by facility ID)
+        for (Map<String, Object> facility : permanentFacilities) {
+            String facilityId = (String) facility.get("HCM_ADMIN_CONSOLE_FACILITY_CODE");
+            if (facilityId != null && !facilityId.trim().isEmpty()) {
+                facilityMap.put(facilityId, facility);
+                log.debug("Added permanent facility with ID: {}", facilityId);
+            }
+        }
+        
+        // Step 2: Add campaign facilities only if facility ID doesn't already exist
+        for (Map<String, Object> facility : campaignFacilities) {
+            String facilityId = (String) facility.get("HCM_ADMIN_CONSOLE_FACILITY_CODE");
+            
+            if (facilityId != null && !facilityId.trim().isEmpty()) {
+                // Facility has ID - check if already exists (from permanent facilities)
+                if (!facilityMap.containsKey(facilityId)) {
+                    facilityMap.put(facilityId, facility);
+                    log.debug("Added existing campaign facility with ID: {}", facilityId);
+                } else {
+                    log.debug("Skipped duplicate facility with ID: {} (permanent facility takes precedence)", facilityId);
+                }
+            } else {
+                // New facility without ID - use name as key for deduplication
+                String facilityName = (String) facility.get("HCM_ADMIN_CONSOLE_FACILITY_NAME");
+                if (facilityName != null && !facilityName.trim().isEmpty()) {
+                    String nameKey = "NEW_" + facilityName; // Prefix to avoid collision with IDs
+                    if (!facilityMap.containsKey(nameKey)) {
+                        facilityMap.put(nameKey, facility);
+                        log.debug("Added new facility without ID: {}", facilityName);
+                    }
+                }
+            }
+        }
+        
+        // Step 3: Final name-based deduplication - campaign facilities take priority over API permanent facilities
+        Map<String, Map<String, Object>> finalMap = new LinkedHashMap<>();
+        Map<String, String> nameToKeyMap = new HashMap<>(); // Track name -> key mapping
+        
+        for (Map.Entry<String, Map<String, Object>> entry : facilityMap.entrySet()) {
+            String key = entry.getKey();
+            Map<String, Object> facility = entry.getValue();
+            String facilityName = (String) facility.get("HCM_ADMIN_CONSOLE_FACILITY_NAME");
+            
+            if (facilityName != null && !facilityName.trim().isEmpty()) {
+                String existingKey = nameToKeyMap.get(facilityName);
+                
+                if (existingKey == null) {
+                    // First occurrence of this name
+                    finalMap.put(key, facility);
+                    nameToKeyMap.put(facilityName, key);
+                } else {
+                    // Duplicate name found - check which one is campaign-related
+                    boolean isCurrentFromCampaign = key.startsWith("NEW_"); // Campaign data (new facilities)
+                    boolean isExistingFromCampaign = existingKey.startsWith("NEW_"); // Existing campaign data
+                    
+                    if (isCurrentFromCampaign && !isExistingFromCampaign) {
+                        // Current is from campaign, existing is from API - replace API with campaign
+                        finalMap.remove(existingKey);
+                        finalMap.put(key, facility);
+                        nameToKeyMap.put(facilityName, key);
+                        log.debug("Replaced API permanent facility with campaign facility for name: {}", facilityName);
+                    } else if (!isCurrentFromCampaign && isExistingFromCampaign) {
+                        // Current is from API, existing is from campaign - keep campaign, skip API
+                        log.debug("Skipped API permanent facility, keeping campaign facility for name: {}", facilityName);
+                    } else {
+                        // Both are same type (both API or both campaign) - keep first occurrence
+                        log.debug("Skipped duplicate facility with name: {} (keeping first occurrence)", facilityName);
+                    }
+                }
+            }
+        }
+        
+        List<Map<String, Object>> result = new ArrayList<>(finalMap.values());
+        log.info("Final merged facilities: {} unique facilities (after name-based deduplication)", result.size());
+        
+        return result;
     }
     
     private String getCampaignNumberFromReferenceId(String referenceId, String tenantId, RequestInfo requestInfo) {
