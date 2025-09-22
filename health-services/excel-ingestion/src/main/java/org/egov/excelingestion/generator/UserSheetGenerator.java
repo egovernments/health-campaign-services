@@ -81,15 +81,21 @@ public class UserSheetGenerator implements ISheetGenerator {
                 // Generate data with existing campaign data if reference ID is provided
                 List<Map<String, Object>> data = fetchExistingUserData(generateResource, requestInfo);
                 
-                // Create sheet with schema columns and data using ExcelDataPopulator
-                workbook = (XSSFWorkbook) excelDataPopulator.populateSheetWithData(workbook, sheetName, columns, data, localizationMap);
+                // Create empty sheet first
+                if (workbook.getSheetIndex(sheetName) >= 0) {
+                    workbook.removeSheetAt(workbook.getSheetIndex(sheetName));
+                }
+                workbook.createSheet(sheetName);
                 
-                // Add boundary dropdowns using HierarchicalBoundaryUtil
+                // Add boundary dropdowns first using HierarchicalBoundaryUtil
                 if (shouldAddBoundaryDropdowns(generateResource)) {
                     hierarchicalBoundaryUtil.addHierarchicalBoundaryColumnWithData(
                             workbook, sheetName, localizationMap, generateResource.getBoundaries(),
                             generateResource.getHierarchyType(), generateResource.getTenantId(), requestInfo, data);
                 }
+                
+                // Then add schema columns and data using ExcelDataPopulator
+                workbook = (XSSFWorkbook) excelDataPopulator.populateSheetWithData(workbook, sheetName, columns, data, localizationMap);
             }
             
         } catch (Exception e) {

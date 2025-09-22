@@ -90,15 +90,21 @@ public class FacilitySheetGenerator implements ISheetGenerator {
                     enrichFacilitiesWithBoundaryPaths(data, generateResource, requestInfo, localizationMap);
                 }
                 
-                // Create sheet with schema columns and data using ExcelDataPopulator
-                workbook = (XSSFWorkbook) excelDataPopulator.populateSheetWithData(workbook, sheetName, columns, data, localizationMap);
+                // Create empty sheet first
+                if (workbook.getSheetIndex(sheetName) >= 0) {
+                    workbook.removeSheetAt(workbook.getSheetIndex(sheetName));
+                }
+                workbook.createSheet(sheetName);
                 
-                // Add boundary dropdowns using HierarchicalBoundaryUtil
+                // Add boundary dropdowns first using HierarchicalBoundaryUtil
                 if (shouldAddBoundaryDropdowns(generateResource)) {
                     hierarchicalBoundaryUtil.addHierarchicalBoundaryColumnWithData(
                             workbook, sheetName, localizationMap, generateResource.getBoundaries(),
                             generateResource.getHierarchyType(), generateResource.getTenantId(), requestInfo, data);
                 }
+                
+                // Then add schema columns and data using ExcelDataPopulator
+                workbook = (XSSFWorkbook) excelDataPopulator.populateSheetWithData(workbook, sheetName, columns, data, localizationMap);
                 
                 // Re-apply cell protection for freezeColumnIfFilled after all data is populated
                 // This ensures that facility columns with existing data are properly frozen
@@ -472,18 +478,18 @@ public class FacilitySheetGenerator implements ISheetGenerator {
             }
         }
         
-        // Step 2: Add campaign facilities only if facility ID doesn't already exist
+        // Step 2: Add campaign facilities - CAMPAIGN TAKES PRIORITY in ID collisions
         for (Map<String, Object> facility : campaignFacilities) {
             String facilityId = (String) facility.get("HCM_ADMIN_CONSOLE_FACILITY_CODE");
             
             if (facilityId != null && !facilityId.trim().isEmpty()) {
-                // Facility has ID - check if already exists (from permanent facilities)
-                if (!facilityMap.containsKey(facilityId)) {
-                    facilityMap.put(facilityId, facility);
-                    log.debug("Added existing campaign facility with ID: {}", facilityId);
+                // Facility has ID - ALWAYS add campaign facility (replaces permanent if exists)
+                if (facilityMap.containsKey(facilityId)) {
+                    log.debug("Replaced permanent facility with campaign facility for ID: {} (campaign takes precedence)", facilityId);
                 } else {
-                    log.debug("Skipped duplicate facility with ID: {} (permanent facility takes precedence)", facilityId);
+                    log.debug("Added existing campaign facility with ID: {}", facilityId);
                 }
+                facilityMap.put(facilityId, facility); // Campaign facility replaces or adds
             } else {
                 // New facility without ID - use name as key for deduplication
                 String facilityName = (String) facility.get("HCM_ADMIN_CONSOLE_FACILITY_NAME");

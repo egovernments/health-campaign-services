@@ -73,11 +73,11 @@ public class ExcelDataPopulator {
         log.info("Adding sheet: {} with {} data rows to workbook", sheetName, 
                 dataRows != null ? dataRows.size() : 0);
 
-        // 2. Create/Replace Sheet - Remove if exists, create new
-        if (workbook.getSheetIndex(sheetName) >= 0) {
-            workbook.removeSheetAt(workbook.getSheetIndex(sheetName));
+        // 2. Get or Create Sheet - Use existing sheet if present, otherwise create new
+        Sheet sheet = workbook.getSheet(sheetName);
+        if (sheet == null) {
+            sheet = workbook.createSheet(sheetName);
         }
-        Sheet sheet = workbook.createSheet(sheetName);
 
         // 3. Expand multi-select columns like ExcelSchemaSheetCreator does
         List<ColumnDef> expandedColumns = expandMultiSelectColumns(columnProperties);
@@ -109,21 +109,40 @@ public class ExcelDataPopulator {
     /**
      * Create header rows following ExcelSchemaSheetCreator pattern
      * Row 0: technical names (hidden), Row 1: localized names
+     * Appends to existing columns if sheet already has content
      */
     private void createHeaderRows(Workbook workbook, Sheet sheet, List<ColumnDef> columnProperties, Map<String, String> localizationMap) {
-        // Create Row 0 (hidden technical names) and Row 1 (localized visible headers)
-        Row hiddenRow = sheet.createRow(0);
-        Row visibleRow = sheet.createRow(1);
+        // Get or create Row 0 (hidden technical names) and Row 1 (localized visible headers)
+        Row hiddenRow = sheet.getRow(0);
+        Row visibleRow = sheet.getRow(1);
+        
+        if (hiddenRow == null) {
+            hiddenRow = sheet.createRow(0);
+        }
+        if (visibleRow == null) {
+            visibleRow = sheet.createRow(1);
+        }
+        
+        // Find starting column index (append after existing columns)
+        int startCol = visibleRow.getLastCellNum();
+        if (startCol < 0) startCol = 0;
 
-        for (int col = 0; col < columnProperties.size(); col++) {
-            ColumnDef def = columnProperties.get(col);
+        for (int i = 0; i < columnProperties.size(); i++) {
+            int col = startCol + i;
+            ColumnDef def = columnProperties.get(i);
 
             // Row 0: technical name
-            Cell techCell = hiddenRow.createCell(col);
+            Cell techCell = hiddenRow.getCell(col);
+            if (techCell == null) {
+                techCell = hiddenRow.createCell(col);
+            }
             techCell.setCellValue(def.getName());
 
             // Row 1: localized display name
-            Cell headerCell = visibleRow.createCell(col);
+            Cell headerCell = visibleRow.getCell(col);
+            if (headerCell == null) {
+                headerCell = visibleRow.createCell(col);
+            }
             String displayName = localizationMap != null && localizationMap.containsKey(def.getName()) 
                 ? localizationMap.get(def.getName()) 
                 : def.getName();
@@ -155,19 +174,32 @@ public class ExcelDataPopulator {
 
     /**
      * Fill data rows using simple loop as specified in design
+     * Appends to existing columns if sheet already has content
      */
     private void fillDataRows(Workbook workbook, Sheet sheet, List<ColumnDef> columnProperties, 
                              List<Map<String, Object>> dataRows) {
         log.debug("Filling {} data rows", dataRows.size());
 
+        // Find starting column index (same as headers)
+        Row visibleRow = sheet.getRow(1);
+        int totalExistingCols = visibleRow != null ? visibleRow.getLastCellNum() : 0;
+        int startCol = Math.max(0, totalExistingCols - columnProperties.size());
+
         // Simple loop: for each dataRow → create Excel row → fill cells
         for (int rowIdx = 0; rowIdx < dataRows.size(); rowIdx++) {
             Map<String, Object> dataRow = dataRows.get(rowIdx);
-            Row excelRow = sheet.createRow(rowIdx + 2); // Start from row 2 (0-indexed), after headers
+            Row excelRow = sheet.getRow(rowIdx + 2); // Start from row 2 (0-indexed), after headers
+            if (excelRow == null) {
+                excelRow = sheet.createRow(rowIdx + 2);
+            }
 
-            for (int colIdx = 0; colIdx < columnProperties.size(); colIdx++) {
-                ColumnDef column = columnProperties.get(colIdx);
-                Cell cell = excelRow.createCell(colIdx);
+            for (int i = 0; i < columnProperties.size(); i++) {
+                int colIdx = startCol + i;
+                ColumnDef column = columnProperties.get(i);
+                Cell cell = excelRow.getCell(colIdx);
+                if (cell == null) {
+                    cell = excelRow.createCell(colIdx);
+                }
 
                 // Get value from data map using column name
                 Object value = dataRow.get(column.getName());
@@ -220,6 +252,11 @@ public class ExcelDataPopulator {
         CellStyle wrapTextStyle = excelStyleHelper.createDataCellStyle(workbook, true);
         CellStyle normalStyle = excelStyleHelper.createDataCellStyle(workbook, false);
         
+        // Find starting column index (same as headers)
+        Row visibleRow = sheet.getRow(1);
+        int totalExistingCols = visibleRow != null ? visibleRow.getLastCellNum() : 0;
+        int startCol = Math.max(0, totalExistingCols - columns.size());
+        
         // Apply styling to data rows
         for (int rowIdx = 2; rowIdx <= sheet.getLastRowNum(); rowIdx++) {
             Row row = sheet.getRow(rowIdx);
@@ -229,8 +266,9 @@ public class ExcelDataPopulator {
             
             boolean needsAutoHeight = false;
             
-            for (int colIdx = 0; colIdx < columns.size(); colIdx++) {
-                ColumnDef column = columns.get(colIdx);
+            for (int i = 0; i < columns.size(); i++) {
+                int colIdx = startCol + i;
+                ColumnDef column = columns.get(i);
                 Cell cell = row.getCell(colIdx);
                 if (cell == null) {
                     continue;
@@ -247,8 +285,8 @@ public class ExcelDataPopulator {
             
             // Auto-adjust row height if any column in this row requires it
             if (needsAutoHeight) {
-                for (int colIdx = 0; colIdx < columns.size(); colIdx++) {
-                    if (columns.get(colIdx).isAdjustHeight()) {
+                for (int i = 0; i < columns.size(); i++) {
+                    if (columns.get(i).isAdjustHeight()) {
                         row.setHeight((short) -1); // Auto-size height
                         break;
                     }
@@ -276,8 +314,14 @@ public class ExcelDataPopulator {
     private void applyValidations(Workbook workbook, Sheet sheet, List<ColumnDef> columns, Map<String, String> localizationMap) {
         DataValidationHelper dvHelper = sheet.getDataValidationHelper();
         
-        for (int colIndex = 0; colIndex < columns.size(); colIndex++) {
-            ColumnDef column = columns.get(colIndex);
+        // Find starting column index (same as headers)
+        Row visibleRow = sheet.getRow(1);
+        int totalExistingCols = visibleRow != null ? visibleRow.getLastCellNum() : 0;
+        int startCol = Math.max(0, totalExistingCols - columns.size());
+        
+        for (int i = 0; i < columns.size(); i++) {
+            int colIndex = startCol + i;
+            ColumnDef column = columns.get(i);
             
             // Skip multi-select hidden columns from validation
             if ("multiselect_hidden".equals(column.getType())) {
@@ -428,13 +472,18 @@ public class ExcelDataPopulator {
         Map<String, List<Integer>> multiSelectGroups = new HashMap<>();
         Map<String, Integer> hiddenColumnIndexes = new HashMap<>();
         
+        // Find starting column index (same as headers)
+        Row visibleRow = sheet.getRow(1);
+        int totalExistingCols = visibleRow != null ? visibleRow.getLastCellNum() : 0;
+        int startCol = Math.max(0, totalExistingCols - columns.size());
+        
         // Group columns by parent and find hidden column indexes
         for (int i = 0; i < columns.size(); i++) {
             ColumnDef column = columns.get(i);
             if ("multiselect_item".equals(column.getType())) {
-                multiSelectGroups.computeIfAbsent(column.getParentColumn(), k -> new ArrayList<>()).add(i);
+                multiSelectGroups.computeIfAbsent(column.getParentColumn(), k -> new ArrayList<>()).add(startCol + i);
             } else if ("multiselect_hidden".equals(column.getType())) {
-                hiddenColumnIndexes.put(column.getParentColumn(), i);
+                hiddenColumnIndexes.put(column.getParentColumn(), startCol + i);
             }
         }
         

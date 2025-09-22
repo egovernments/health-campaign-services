@@ -44,6 +44,10 @@ public class CellProtectionManager {
         int lastDataRow = findLastDataRow(sheet);
         log.info("Last data row found at: {}", lastDataRow);
         
+        // Find starting column index for data columns (after boundary columns)
+        int startCol = findDataColumnStartIndex(sheet, columns);
+        log.info("Data columns start at index: {}", startCol);
+        
         // Apply protection logic to all data rows
         int protectedCells = 0;
         int unprotectedCells = 0;
@@ -58,8 +62,9 @@ public class CellProtectionManager {
                 row = sheet.createRow(rowIdx);
             }
             
-            for (int colIdx = 0; colIdx < columns.size(); colIdx++) {
-                ColumnDef column = columns.get(colIdx);
+            for (int i = 0; i < columns.size(); i++) {
+                int colIdx = startCol + i; // Use correct column index
+                ColumnDef column = columns.get(i);
                 Cell cell = row.getCell(colIdx);
                 if (cell == null) {
                     cell = row.createCell(colIdx);
@@ -213,6 +218,28 @@ public class CellProtectionManager {
     }
 
     /**
+     * Find the starting column index for data columns (after boundary columns)
+     * This handles the case where boundary columns are added first, then data columns
+     */
+    private int findDataColumnStartIndex(Sheet sheet, List<ColumnDef> columns) {
+        Row visibleRow = sheet.getRow(1);
+        if (visibleRow == null) {
+            return 0; // No headers, start from beginning
+        }
+        
+        int totalExistingCols = visibleRow.getLastCellNum();
+        if (totalExistingCols <= 0) {
+            return 0; // No existing columns
+        }
+        
+        // Data columns start after boundary columns
+        // If we have N total columns and M data column definitions,
+        // then data columns start at position (N - M)
+        int startCol = Math.max(0, totalExistingCols - columns.size());
+        return startCol;
+    }
+    
+    /**
      * Find the last row that contains data in any cell
      */
     private int findLastDataRow(Sheet sheet) {
@@ -264,13 +291,15 @@ public class CellProtectionManager {
         int totalCells = 0;
         int protectedCells = 0;
         int lastDataRow = findLastDataRow(sheet);
+        int startCol = findDataColumnStartIndex(sheet, columns);
         
         for (int rowIdx = 2; rowIdx <= Math.min(sheet.getLastRowNum(), config.getExcelRowLimit()); rowIdx++) {
             Row row = sheet.getRow(rowIdx);
             if (row != null) {
-                for (int colIdx = 0; colIdx < columns.size(); colIdx++) {
+                for (int i = 0; i < columns.size(); i++) {
+                    int colIdx = startCol + i; // Use correct column index
                     totalCells++;
-                    ColumnDef column = columns.get(colIdx);
+                    ColumnDef column = columns.get(i);
                     Cell cell = row.getCell(colIdx);
                     if (cell != null && determineCellLockState(column, cell, rowIdx, lastDataRow)) {
                         protectedCells++;
