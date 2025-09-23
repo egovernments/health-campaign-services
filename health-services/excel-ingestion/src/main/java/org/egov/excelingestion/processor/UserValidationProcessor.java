@@ -74,13 +74,11 @@ public class UserValidationProcessor implements IWorkbookProcessor {
             // Convert sheet data to map list - CACHED VERSION
             List<Map<String, Object>> sheetData = excelUtil.convertSheetToMapListCached(
                     resource.getFileStoreId(), sheetName, sheet);
-            
-            if (sheetData.isEmpty()) {
-                log.info("No data found in sheet, skipping validation");
-                return workbook;
-            }
 
             List<ValidationError> errors = new ArrayList<>();
+
+            // Validate that at least one active user exists
+            validateAtLeastOneActiveUser(sheetData, errors, localizationMap);
             
             // Validate phone numbers and get list of existing ones in campaign
             Set<String> existingPhonesInCampaign = validatePhoneNumbers(sheetData, resource, requestInfo, errors, localizationMap);
@@ -603,5 +601,43 @@ public class UserValidationProcessor implements IWorkbookProcessor {
         }
         
         log.info("Campaign boundary validation completed");
+    }
+
+    /**
+     * Validate that at least one active user exists in the sheet
+     */
+    private void validateAtLeastOneActiveUser(List<Map<String, Object>> sheetData, 
+                                            List<ValidationError> errors, 
+                                            Map<String, String> localizationMap) {
+        try {
+            // Count active users
+            long activeUserCount = sheetData.stream()
+                .filter(rowData -> {
+                    String usage = ExcelUtil.getValueAsString(rowData.get("HCM_ADMIN_CONSOLE_USER_USAGE"));
+                    return "Active".equals(usage);
+                })
+                .count();
+            
+            if (activeUserCount == 0) {
+                String errorMessage = localizationMap.getOrDefault(
+                    "HCM_USER_ATLEAST_ONE_ACTIVE_REQUIRED", 
+                    "At least one active user is required in the sheet.");
+                
+                ValidationError error = new ValidationError();
+                error.setRowNumber(3); // First data row after headers (1-indexed: 1=hidden, 2=visible header, 3=first data)
+                error.setColumnName("HCM_ADMIN_CONSOLE_USER_USAGE");
+                error.setStatus(ValidationConstants.STATUS_INVALID);
+                error.setErrorDetails(errorMessage);
+                errors.add(error);
+                
+                log.info("No active users found in sheet, added validation error");
+            } else {
+                log.info("Found {} active users in sheet", activeUserCount);
+            }
+            
+        } catch (Exception e) {
+            log.error("Error validating active user count: {}", e.getMessage(), e);
+            // Don't add errors for technical failures - just log and continue
+        }
     }
 }

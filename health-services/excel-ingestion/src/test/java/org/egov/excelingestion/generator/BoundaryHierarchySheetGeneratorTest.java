@@ -74,6 +74,7 @@ class BoundaryHierarchySheetGeneratorTest {
         setupBoundaryServiceMocks();
         setupMDMSServiceMocks();
         setupBoundaryUtilMocks();
+        setupCampaignServiceMocks();
         
         // Act
         SheetGenerationResult result = generator.generateSheetData(config, generateResource, requestInfo, localizationMap);
@@ -166,6 +167,9 @@ class BoundaryHierarchySheetGeneratorTest {
         setupBoundaryServiceMocks();
         setupBoundaryUtilMocks();
         
+        // Mock campaignService to return null (no project type)
+        when(campaignService.getProjectTypeFromCampaign(any(), any(), any())).thenReturn(null);
+        
         // Act
         SheetGenerationResult result = generator.generateSheetData(config, generateResource, requestInfo, localizationMap);
         
@@ -195,6 +199,9 @@ class BoundaryHierarchySheetGeneratorTest {
         
         setupBoundaryServiceMocks();
         setupBoundaryUtilMocks();
+        
+        // Mock campaignService to return invalid project type
+        when(campaignService.getProjectTypeFromCampaign(any(), any(), any())).thenReturn("INVALID_TYPE");
         
         // Mock MDMS to return empty list for invalid project type
         when(mdmsService.searchMDMS(any(), any(), eq(ProcessingConstants.MDMS_SCHEMA_CODE), any(), anyInt(), anyInt()))
@@ -256,6 +263,7 @@ class BoundaryHierarchySheetGeneratorTest {
         setupBoundaryServiceMocks();
         setupMDMSServiceMocks();
         setupBoundaryUtilMocks();
+        setupCampaignServiceMocks();
         
         // Act
         SheetGenerationResult result = generator.generateSheetData(config, generateResource, requestInfo, localizationMap);
@@ -288,6 +296,7 @@ class BoundaryHierarchySheetGeneratorTest {
         setupBoundaryServiceMocks();
         setupMDMSServiceMocks();
         setupBoundaryUtilMocks();
+        setupCampaignServiceMocks();
         
         // Act
         SheetGenerationResult result = generator.generateSheetData(config, generateResource, requestInfo, localizationMap);
@@ -487,6 +496,12 @@ class BoundaryHierarchySheetGeneratorTest {
         List<Map<String, Object>> mdmsList = createMockMDMSResponse();
         when(mdmsService.searchMDMS(any(), any(), eq(ProcessingConstants.MDMS_SCHEMA_CODE), any(), anyInt(), anyInt()))
             .thenReturn(mdmsList);
+    }
+    
+    private void setupCampaignServiceMocks() {
+        // Mock getProjectTypeFromCampaign to return "HCM" for tests with project type
+        when(campaignService.getProjectTypeFromCampaign(any(), any(), any()))
+            .thenReturn("HCM");
     }
     
     private void setupMDMSServiceWithMultiSelect() {

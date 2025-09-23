@@ -4,9 +4,11 @@ import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.egov.excelingestion.config.ErrorConstants;
 import org.egov.excelingestion.exception.CustomExceptionHandler;
+import org.egov.excelingestion.service.CampaignService;
 import org.egov.excelingestion.service.MDMSService;
 import org.egov.excelingestion.service.SchemaValidationService;
 import org.egov.excelingestion.service.ValidationService;
+import org.egov.excelingestion.util.BoundaryUtil;
 import org.egov.excelingestion.util.EnrichmentUtil;
 import org.egov.excelingestion.web.models.ProcessResource;
 import org.egov.excelingestion.web.models.RequestInfo;
@@ -55,6 +57,12 @@ public class BoundaryHierarchyTargetProcessorTest {
     @Mock
     private ExcelUtil excelUtil;
     
+    @Mock
+    private CampaignService campaignService;
+    
+    @Mock
+    private BoundaryUtil boundaryUtil;
+    
     @InjectMocks
     private BoundaryHierarchyTargetProcessor processor;
     
@@ -66,15 +74,15 @@ public class BoundaryHierarchyTargetProcessorTest {
 
     @BeforeEach
     public void setUp() {
-        // Setup ProcessResource with projectType
+        // Setup ProcessResource with referenceId and hierarchyType for boundary validation
         resource = ProcessResource.builder()
                 .id("test-id")
                 .tenantId("test-tenant")
                 .type("microplan-ingestion")
+                .referenceId("campaign-123")
+                .hierarchyType("ADMIN")
                 .additionalDetails(new HashMap<>())
                 .build();
-        
-        resource.getAdditionalDetails().put("projectType", "LLIN");
         
         requestInfo = new RequestInfo();
         localizationMap = new HashMap<>();
@@ -94,6 +102,14 @@ public class BoundaryHierarchyTargetProcessorTest {
         dataRow.createCell(0).setCellValue("B001");
         dataRow.createCell(1).setCellValue("100");
 
+        // Mock campaignService to return projectType
+        lenient().when(campaignService.getProjectTypeFromCampaign(any(), any(), any())).thenReturn("LLIN");
+        
+        // Mock boundaryUtil to return valid boundary codes
+        Set<String> validBoundaryCodes = new HashSet<>(Arrays.asList("B001", "B002", "B003"));
+        lenient().when(boundaryUtil.getEnrichedBoundaryCodesFromCampaign(any(), any(), any(), any(), any()))
+                .thenReturn(validBoundaryCodes);
+        
         lenient().when(excelUtil.convertSheetToMapListCached(any(), any(), any())).thenAnswer(invocation -> {
             Sheet sheet = invocation.getArgument(2);
             // Basic implementation to convert sheet to map list for testing
@@ -149,7 +165,7 @@ public class BoundaryHierarchyTargetProcessorTest {
     @Test
     public void testProcessWorkbook_NoProjectType_ShouldSkipValidation() {
         // Given
-        resource.getAdditionalDetails().remove("projectType");
+        when(campaignService.getProjectTypeFromCampaign(any(), any(), any())).thenReturn(null);
         
         // When
         Workbook result = processor.processWorkbook(workbook, "Target Sheet", resource, requestInfo, localizationMap);
@@ -164,7 +180,7 @@ public class BoundaryHierarchyTargetProcessorTest {
     @Test
     public void testProcessWorkbook_SchemaNotFound_ShouldThrowException() {
         // Given
-        when(mdmsService.searchMDMS(any(), eq("test-tenant"), eq("schema"), any(), anyInt(), anyInt()))
+        when(mdmsService.searchMDMS(any(), eq("test-tenant"), eq("HCM-ADMIN-CONSOLE.schemas"), any(), anyInt(), anyInt()))
                 .thenReturn(Collections.emptyList());
         doThrow(new CustomException("SCHEMA_NOT_FOUND", "Schema not found"))
                 .when(exceptionHandler).throwCustomException(eq(ErrorConstants.SCHEMA_NOT_FOUND_IN_MDMS), anyString());
@@ -214,7 +230,12 @@ public class BoundaryHierarchyTargetProcessorTest {
 
     @Test
     public void testExtractProjectType_ValidAdditionalDetails_ShouldReturnProjectType() {
-        // Given - already set in setUp()
+        // Given
+        Map<String, Object> schema = createMockSchema();
+        when(mdmsService.searchMDMS(any(), eq("test-tenant"), eq("HCM-ADMIN-CONSOLE.schemas"), any(), eq(1), eq(0)))
+                .thenReturn(Arrays.asList(createMdmsResponse(schema)));
+        when(schemaValidationService.validateDataWithPreFetchedSchema(any(), any(), any(), any()))
+                .thenReturn(Collections.emptyList());
         
         // When
         Workbook result = processor.processWorkbook(workbook, "Target Sheet", resource, requestInfo, localizationMap);
