@@ -4,6 +4,9 @@ import org.egov.excelingestion.config.ExcelIngestionConfig;
 import org.egov.excelingestion.config.ValidationConstants;
 import org.egov.excelingestion.service.ValidationService;
 import org.egov.excelingestion.service.CampaignService;
+import org.egov.excelingestion.service.BoundaryService;
+import org.egov.excelingestion.util.BoundaryUtil;
+import org.egov.excelingestion.util.ExcelUtil;
 import org.egov.excelingestion.util.EnrichmentUtil;
 import org.egov.excelingestion.web.models.ProcessResource;
 import org.egov.excelingestion.web.models.RequestInfo;
@@ -40,6 +43,15 @@ class UserValidationProcessorTest {
     @Mock
     private CampaignService campaignService;
 
+    @Mock
+    private BoundaryService boundaryService;
+
+    @Mock
+    private BoundaryUtil boundaryUtil;
+
+    @Mock
+    private ExcelUtil excelUtil;
+
     private UserValidationProcessor userValidationProcessor;
     private ProcessResource resource;
     private RequestInfo requestInfo;
@@ -49,7 +61,7 @@ class UserValidationProcessorTest {
     void setUp() {
         MockitoAnnotations.openMocks(this);
         userValidationProcessor = new UserValidationProcessor(
-                validationService, restTemplate, config, enrichmentUtil, campaignService
+                validationService, restTemplate, config, enrichmentUtil, campaignService, boundaryService, boundaryUtil, excelUtil
         );
 
         resource = ProcessResource.builder()
@@ -63,6 +75,25 @@ class UserValidationProcessorTest {
         // Mock config values
         when(config.getHealthIndividualHost()).thenReturn("http://localhost:8087/");
         when(config.getHealthIndividualSearchPath()).thenReturn("health-individual/v1/_search");
+
+        when(excelUtil.convertSheetToMapListCached(any(), any(), any())).thenAnswer(invocation -> {
+            Sheet sheet = invocation.getArgument(2);
+            // Basic implementation to convert sheet to map list for testing
+            List<Map<String, Object>> data = new ArrayList<>();
+            Row header = sheet.getRow(0);
+            for (int i = 1; i <= sheet.getLastRowNum(); i++) {
+                Row row = sheet.getRow(i);
+                if (row == null) continue;
+                Map<String, Object> rowData = new HashMap<>();
+                for (int j = 0; j < header.getLastCellNum(); j++) {
+                    Cell cell = row.getCell(j);
+                    rowData.put(header.getCell(j).getStringCellValue(), org.egov.excelingestion.util.ExcelUtil.getCellValueAsString(cell));
+                }
+                rowData.put("__actualRowNumber__", i + 1);
+                data.add(rowData);
+            }
+            return data;
+        });
     }
 
     @Test

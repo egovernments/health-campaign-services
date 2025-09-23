@@ -45,6 +45,7 @@ public class ExcelProcessingService {
     private final ExcelIngestionConfig config;
     private final EnrichmentUtil enrichmentUtil;
     private final ProcessorConfigurationRegistry configRegistry;
+    private final ExcelUtil excelUtil;
     
     public ExcelProcessingService(ValidationService validationService,
                                 SchemaValidationService schemaValidationService,
@@ -56,7 +57,8 @@ public class ExcelProcessingService {
                                 CustomExceptionHandler exceptionHandler,
                                 ExcelIngestionConfig config,
                                 EnrichmentUtil enrichmentUtil,
-                                ProcessorConfigurationRegistry configRegistry) {
+                                ProcessorConfigurationRegistry configRegistry,
+                                ExcelUtil excelUtil) {
         this.validationService = validationService;
         this.schemaValidationService = schemaValidationService;
         this.configBasedProcessingService = configBasedProcessingService;
@@ -68,6 +70,7 @@ public class ExcelProcessingService {
         this.config = config;
         this.enrichmentUtil = enrichmentUtil;
         this.configRegistry = configRegistry;
+        this.excelUtil = excelUtil;
     }
 
     /**
@@ -142,23 +145,37 @@ public class ExcelProcessingService {
                         validationService.processValidationErrors(sheet, sheetErrors, columnInfo, mergedLocalizationMap);
                     }
                     
-                    // Convert sheet data to get row count
-                    List<Map<String, Object>> sheetData = convertSheetToMapList(sheet);
+                    // Convert sheet data to get row count - CACHED VERSION
+                    List<Map<String, Object>> sheetData = excelUtil.convertSheetToMapListCached(
+                            resource.getFileStoreId(), sheetName, sheet);
                     
                     // Enrich resource additionalDetails with error count and status for this sheet
                     enrichmentUtil.enrichErrorAndStatusInAdditionalDetails(resource, sheetErrors);
                     
                     // Enrich resource additionalDetails with row count for this sheet
                     enrichmentUtil.enrichRowCountInAdditionalDetails(resource, sheetData.size());
-                    
-                    // Step 3: Handle post-processing (persistence and event publishing)
-                    configBasedProcessingService.handlePostProcessing(
-                            sheetName, sheetData.size(), resource, mergedLocalizationMap, sheetData, request.getRequestInfo());
                 }
                 
                 // Step 2: Process workbook with configured processors (once per workbook, not per sheet)
                 configBasedProcessingService.processWorkbookWithProcessor(
                         workbook, resource, request.getRequestInfo(), mergedLocalizationMap);
+                
+                // Step 3: Handle post-processing (persistence and event publishing) - MOVED AFTER PROCESSORS
+                for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
+                    Sheet sheet = workbook.getSheetAt(i);
+                    String sheetName = sheet.getSheetName();
+                    
+                    if (configBasedProcessingService.isHiddenSheet(sheetName)) {
+                        continue; // Skip hidden sheets
+                    }
+                    
+                    // Convert sheet data again for post-processing (after processors have run) - CACHED VERSION
+                    List<Map<String, Object>> sheetData = excelUtil.convertSheetToMapListCached(
+                            resource.getFileStoreId(), sheetName, sheet);
+                    
+                    configBasedProcessingService.handlePostProcessing(
+                            sheetName, sheetData.size(), resource, mergedLocalizationMap, sheetData, request.getRequestInfo());
+                }
                 
                 // Upload the processed Excel file
                 String processedFileStoreId = uploadProcessedExcel(workbook, resource);
@@ -198,8 +215,9 @@ public class ExcelProcessingService {
             
             log.info("Validating sheet: {}", sheetName);
             
-            // Convert sheet data to List<Map> format for schema validation
-            List<Map<String, Object>> sheetData = convertSheetToMapList(sheet);
+            // Convert sheet data to List<Map> format for schema validation - CACHED VERSION
+            List<Map<String, Object>> sheetData = excelUtil.convertSheetToMapListCached(
+                    resource.getFileStoreId(), sheetName, sheet);
             
             // Get schema for this sheet from pre-validated schemas
             Map<String, Object> schema = getSchemaForSheet(sheetName, resource.getType(), localizationMap, preValidatedSchemas);
@@ -263,54 +281,6 @@ public class ExcelProcessingService {
         return localizedName;
     }
     
-
-    /**
-     * Converts sheet data to List of Maps for easier processing
-     */
-    private List<Map<String, Object>> convertSheetToMapList(Sheet sheet) {
-        List<Map<String, Object>> data = new ArrayList<>();
-        
-        Row headerRow = sheet.getRow(0);
-        if (headerRow == null) {
-            return data;
-        }
-        
-        // Get header names
-        List<String> headers = new ArrayList<>();
-        for (Cell cell : headerRow) {
-            headers.add(ExcelUtil.getCellValueAsString(cell));
-        }
-        
-        // Process data rows (skip row 1 as it's second header row, start from row 2)
-        for (int rowNum = 2; rowNum <= sheet.getLastRowNum(); rowNum++) {
-            Row row = sheet.getRow(rowNum);
-            if (row == null) continue;
-            
-            Map<String, Object> rowData = new HashMap<>();
-            boolean hasData = false;
-            
-            for (int colNum = 0; colNum < headers.size(); colNum++) {
-                Cell cell = row.getCell(colNum);
-                String header = headers.get(colNum);
-                Object value = ExcelUtil.getCellValue(cell);
-                
-                if (value != null && !value.toString().trim().isEmpty()) {
-                    hasData = true;
-                }
-                
-                rowData.put(header, value);
-            }
-            
-            if (hasData) {
-                // Add actual Excel row number for error reporting (Excel rows are 1-indexed, +1 to match Excel display)
-                rowData.put("__actualRowNumber__", rowNum + 1);
-                data.add(rowData);
-            }
-        }
-        
-        return data;
-    }
-
 
     /**
      * Uploads the processed Excel file to file store

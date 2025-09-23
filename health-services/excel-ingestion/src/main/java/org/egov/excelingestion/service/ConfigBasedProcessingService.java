@@ -216,7 +216,7 @@ public class ConfigBasedProcessingService {
     /**
      * Check if a sheet is a hidden sheet
      */
-    private boolean isHiddenSheet(String sheetName) {
+    public boolean isHiddenSheet(String sheetName) {
         return sheetName != null && sheetName.startsWith("_h_") && sheetName.endsWith("_h_");
     }
 

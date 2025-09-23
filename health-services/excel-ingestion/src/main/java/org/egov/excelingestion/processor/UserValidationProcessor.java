@@ -7,10 +7,12 @@ import org.egov.excelingestion.config.ValidationConstants;
 import org.egov.excelingestion.service.ValidationService;
 import org.egov.excelingestion.web.models.*;
 import org.egov.excelingestion.util.LocalizationUtil;
+import org.egov.excelingestion.util.BoundaryUtil;
 import org.egov.excelingestion.util.EnrichmentUtil;
 import org.egov.excelingestion.util.ExcelUtil;
 import org.egov.excelingestion.service.MDMSService;
 import org.egov.excelingestion.service.CampaignService;
+import org.egov.excelingestion.service.BoundaryService;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -31,17 +33,26 @@ public class UserValidationProcessor implements IWorkbookProcessor {
     private final ExcelIngestionConfig config;
     private final EnrichmentUtil enrichmentUtil;
     private final CampaignService campaignService;
+    private final BoundaryService boundaryService;
+    private final BoundaryUtil boundaryUtil;
+    private final ExcelUtil excelUtil;
 
     public UserValidationProcessor(ValidationService validationService, 
                                  RestTemplate restTemplate, 
                                  ExcelIngestionConfig config,
                                  EnrichmentUtil enrichmentUtil,
-                                 CampaignService campaignService) {
+                                 CampaignService campaignService,
+                                 BoundaryService boundaryService,
+                                 BoundaryUtil boundaryUtil,
+                                 ExcelUtil excelUtil) {
         this.validationService = validationService;
         this.restTemplate = restTemplate;
         this.config = config;
         this.enrichmentUtil = enrichmentUtil;
         this.campaignService = campaignService;
+        this.boundaryService = boundaryService;
+        this.boundaryUtil = boundaryUtil;
+        this.excelUtil = excelUtil;
     }
 
     @Override
@@ -60,27 +71,28 @@ public class UserValidationProcessor implements IWorkbookProcessor {
 
             log.info("Starting user validation for sheet: {}", sheetName);
 
-            // Convert sheet data to map list
-            List<Map<String, Object>> originalData = convertSheetToMapList(sheet);
+            // Convert sheet data to map list - CACHED VERSION
+            List<Map<String, Object>> sheetData = excelUtil.convertSheetToMapListCached(
+                    resource.getFileStoreId(), sheetName, sheet);
             
-            if (originalData.isEmpty()) {
+            if (sheetData.isEmpty()) {
                 log.info("No data found in sheet, skipping validation");
                 return workbook;
             }
 
             List<ValidationError> errors = new ArrayList<>();
             
-            // Add row numbers to data for error reporting
-            List<Map<String, Object>> dataWithRowNumbers = addRowNumbers(originalData);
-            
             // Validate phone numbers and get list of existing ones in campaign
-            Set<String> existingPhonesInCampaign = validatePhoneNumbers(dataWithRowNumbers, resource, requestInfo, errors, localizationMap);
+            Set<String> existingPhonesInCampaign = validatePhoneNumbers(sheetData, resource, requestInfo, errors, localizationMap);
             
             // Validate usernames but skip those with phones already in campaign
-            validateUserNames(dataWithRowNumbers, resource.getTenantId(), requestInfo, errors, localizationMap, existingPhonesInCampaign);
+            validateUserNames(sheetData, resource.getTenantId(), requestInfo, errors, localizationMap, existingPhonesInCampaign);
             
             // Validate boundary keys for active users
-            validateBoundaryKeys(dataWithRowNumbers, errors, localizationMap);
+            validateBoundaryKeys(sheetData, errors, localizationMap);
+            
+            // Validate boundary codes against campaign boundaries
+            validateCampaignBoundaries(sheetData, resource, requestInfo, errors, localizationMap);
             
             log.info("User validation completed with {} errors", errors.size());
 
@@ -108,53 +120,6 @@ public class UserValidationProcessor implements IWorkbookProcessor {
         }
     }
 
-    private List<Map<String, Object>> addRowNumbers(List<Map<String, Object>> originalData) {
-        List<Map<String, Object>> dataWithRowNumbers = new ArrayList<>();
-        
-        for (int i = 0; i < originalData.size(); i++) {
-            Map<String, Object> rowData = new HashMap<>(originalData.get(i));
-            rowData.put("__rowNumber__", i + 2); // Headers at row 0, data starts at row 1 (1-based)
-            dataWithRowNumbers.add(rowData);
-        }
-        
-        return dataWithRowNumbers;
-    }
-
-    /**
-     * Convert sheet to list of maps
-     */
-    private List<Map<String, Object>> convertSheetToMapList(Sheet sheet) {
-        List<Map<String, Object>> data = new ArrayList<>();
-        
-        Row headerRow = sheet.getRow(0);
-        if (headerRow == null) {
-            return data;
-        }
-        
-        // Get header names
-        List<String> headers = new ArrayList<>();
-        for (Cell cell : headerRow) {
-            headers.add(ExcelUtil.getCellValueAsString(cell));
-        }
-        
-        // Process data rows (skip header)
-        for (int i = 1; i <= sheet.getLastRowNum(); i++) {
-            Row row = sheet.getRow(i);
-            if (row == null) continue;
-            
-            Map<String, Object> rowData = new HashMap<>();
-            for (int j = 0; j < headers.size(); j++) {
-                Cell cell = row.getCell(j);
-                String value = ExcelUtil.getCellValueAsString(cell);
-                rowData.put(headers.get(j), value);
-            }
-            data.add(rowData);
-        }
-        
-        return data;
-    }
-    
-    
     /**
      * Check if error columns exist and add them if needed
      */
@@ -270,10 +235,10 @@ public class UserValidationProcessor implements IWorkbookProcessor {
         List<String> allPhoneNumbers = new ArrayList<>();
         
         for (Map<String, Object> rowData : sheetData) {
-            String phoneNumber = (String) rowData.get("HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER");
+            String phoneNumber = ExcelUtil.getValueAsString(rowData.get("HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER"));
             if (phoneNumber != null && !phoneNumber.trim().isEmpty()) {
                 phoneNumber = phoneNumber.trim();
-                phoneNumberToRowMap.put(phoneNumber, (Integer) rowData.get("__rowNumber__"));
+                phoneNumberToRowMap.put(phoneNumber, (Integer) rowData.get("__actualRowNumber__"));
                 if (!allPhoneNumbers.contains(phoneNumber)) {
                     allPhoneNumbers.add(phoneNumber);
                 }
@@ -383,9 +348,9 @@ public class UserValidationProcessor implements IWorkbookProcessor {
         List<String> allUserNames = new ArrayList<>();
         
         for (Map<String, Object> rowData : sheetData) {
-            String userName = (String) rowData.get("UserName");
-            String phoneNumber = (String) rowData.get("HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER");
-            String userServiceUuids = (String) rowData.get("UserService Uuids");
+            String userName = ExcelUtil.getValueAsString(rowData.get("UserName"));
+            String phoneNumber = ExcelUtil.getValueAsString(rowData.get("HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER"));
+            String userServiceUuids = ExcelUtil.getValueAsString(rowData.get("UserService Uuids"));
             
             // Skip username validation if phone number already exists in campaign with completed status
             if (phoneNumber != null && existingPhonesInCampaign.contains(phoneNumber.trim())) {
@@ -399,7 +364,7 @@ public class UserValidationProcessor implements IWorkbookProcessor {
                 (userServiceUuids == null || userServiceUuids.trim().isEmpty())) {
                 
                 userName = userName.trim();
-                userNameToRowMap.put(userName, (Integer) rowData.get("__rowNumber__"));
+                userNameToRowMap.put(userName, (Integer) rowData.get("__actualRowNumber__"));
                 if (!allUserNames.contains(userName)) {
                     allUserNames.add(userName);
                 }
@@ -545,8 +510,8 @@ public class UserValidationProcessor implements IWorkbookProcessor {
         log.info("Validating boundary keys for {} records", sheetData.size());
         
         for (Map<String, Object> rowData : sheetData) {
-            String usage = (String) rowData.get("HCM_ADMIN_CONSOLE_USER_USAGE");
-            String boundaryCode = (String) rowData.get("HCM_ADMIN_CONSOLE_BOUNDARY_CODE");
+            String usage = ExcelUtil.getValueAsString(rowData.get("HCM_ADMIN_CONSOLE_USER_USAGE"));
+            String boundaryCode = ExcelUtil.getValueAsString(rowData.get("HCM_ADMIN_CONSOLE_BOUNDARY_CODE"));
             Integer rowNumber = (Integer) rowData.get("__rowNumber__");
             
             // Only validate boundary key if usage is "active" 
@@ -564,5 +529,79 @@ public class UserValidationProcessor implements IWorkbookProcessor {
         }
         
         log.info("Boundary key validation completed");
+    }
+
+    /**
+     * Validate boundary codes against campaign boundaries
+     * Get campaign boundaries, enrich them with children, and check if all HCM_ADMIN_CONSOLE_BOUNDARY_CODE values exist
+     */
+    private void validateCampaignBoundaries(List<Map<String, Object>> sheetData, ProcessResource resource,
+                                          RequestInfo requestInfo, List<ValidationError> errors,
+                                          Map<String, String> localizationMap) {
+        log.info("Validating boundary codes against campaign boundaries for {} records", sheetData.size());
+        
+        try {
+            // Get campaign boundaries
+            String referenceId = resource.getReferenceId(); // This should be campaignId
+            java.util.List<CampaignSearchResponse.BoundaryDetail> campaignBoundaries = 
+                    campaignService.getBoundariesFromCampaign(referenceId, resource.getTenantId(), requestInfo);
+            
+            if (campaignBoundaries == null || campaignBoundaries.isEmpty()) {
+                log.warn("No boundaries found for campaign ID: {}, skipping boundary validation", referenceId);
+                return;
+            }
+            
+            // Get hierarchy type from resource (should be available from generation context)
+            String hierarchyType = resource.getHierarchyType();
+            if (hierarchyType == null) {
+                log.warn("No hierarchy type available, skipping boundary validation");
+                return;
+            }
+            
+            // Fetch boundary relationships with includeChildren=true to get all boundary codes
+            BoundarySearchResponse boundaryResponse = boundaryService.fetchBoundaryRelationship(
+                    resource.getTenantId(), hierarchyType, requestInfo);
+            
+            if (boundaryResponse == null) {
+                log.warn("Could not fetch boundary relationships, skipping boundary validation");
+                return;
+            }
+            
+            // Use BoundaryUtil to get enriched boundary codes
+            Set<String> validBoundaryCodes = boundaryUtil.getEnrichedBoundaryCodesFromCampaign(
+                    campaignBoundaries, boundaryResponse);
+            
+            log.info("Found {} valid boundary codes for campaign from {} configured boundaries", 
+                    validBoundaryCodes.size(), campaignBoundaries.size());
+            
+            // Validate each row's boundary code
+            for (Map<String, Object> rowData : sheetData) {
+                String boundaryCode = ExcelUtil.getValueAsString(rowData.get("HCM_ADMIN_CONSOLE_BOUNDARY_CODE"));
+                Integer rowNumber = (Integer) rowData.get("__actualRowNumber__");
+                
+                if (boundaryCode != null && !boundaryCode.trim().isEmpty()) {
+                    boundaryCode = boundaryCode.trim();
+                    
+                    if (!validBoundaryCodes.contains(boundaryCode)) {
+                        ValidationError error = new ValidationError();
+                        error.setRowNumber(rowNumber);
+                        error.setErrorDetails(LocalizationUtil.getLocalizedMessage(localizationMap, 
+                            "HCM_BOUNDARY_CODE_NOT_IN_CAMPAIGN", 
+                            "Boundary code is not within campaign boundaries"));
+                        error.setStatus(ValidationConstants.STATUS_INVALID);
+                        errors.add(error);
+                        
+                        log.debug("Invalid boundary code {} at row {} - not in campaign boundaries", 
+                                boundaryCode, rowNumber);
+                    }
+                }
+            }
+            
+        } catch (Exception e) {
+            log.error("Error validating campaign boundaries: {}", e.getMessage(), e);
+            // Don't fail the entire process for boundary validation errors
+        }
+        
+        log.info("Campaign boundary validation completed");
     }
 }

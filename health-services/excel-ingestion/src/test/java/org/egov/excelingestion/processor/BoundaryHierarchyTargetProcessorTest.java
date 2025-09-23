@@ -22,9 +22,13 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.*;
 
+import org.egov.excelingestion.util.ExcelUtil;
+
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
+
+import org.egov.excelingestion.util.ExcelUtil;
 
 /**
  * Test class for BoundaryHierarchyTargetProcessor
@@ -47,6 +51,9 @@ public class BoundaryHierarchyTargetProcessorTest {
     
     @Mock
     private CustomExceptionHandler exceptionHandler;
+
+    @Mock
+    private ExcelUtil excelUtil;
     
     @InjectMocks
     private BoundaryHierarchyTargetProcessor processor;
@@ -86,6 +93,25 @@ public class BoundaryHierarchyTargetProcessorTest {
         Row dataRow = sheet.createRow(2);
         dataRow.createCell(0).setCellValue("B001");
         dataRow.createCell(1).setCellValue("100");
+
+        lenient().when(excelUtil.convertSheetToMapListCached(any(), any(), any())).thenAnswer(invocation -> {
+            Sheet sheet = invocation.getArgument(2);
+            // Basic implementation to convert sheet to map list for testing
+            List<Map<String, Object>> data = new ArrayList<>();
+            Row header = sheet.getRow(0);
+            for (int i = 1; i <= sheet.getLastRowNum(); i++) {
+                Row row = sheet.getRow(i);
+                if (row == null) continue;
+                Map<String, Object> rowData = new HashMap<>();
+                for (int j = 0; j < header.getLastCellNum(); j++) {
+                    Cell cell = row.getCell(j);
+                    rowData.put(header.getCell(j).getStringCellValue(), org.egov.excelingestion.util.ExcelUtil.getCellValueAsString(cell));
+                }
+                rowData.put("__actualRowNumber__", i + 1);
+                data.add(rowData);
+            }
+            return data;
+        });
     }
 
     @Test

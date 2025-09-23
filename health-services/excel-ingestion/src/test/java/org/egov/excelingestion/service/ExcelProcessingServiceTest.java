@@ -6,6 +6,7 @@ import org.egov.excelingestion.config.ExcelIngestionConfig;
 import org.egov.excelingestion.config.ProcessorConfigurationRegistry;
 import org.egov.excelingestion.exception.CustomExceptionHandler;
 import org.egov.excelingestion.util.EnrichmentUtil;
+import org.egov.excelingestion.util.ExcelUtil;
 import org.egov.excelingestion.util.RequestInfoConverter;
 import org.egov.excelingestion.web.models.*;
 import org.egov.excelingestion.web.models.filestore.FileStoreResponse;
@@ -62,6 +63,9 @@ class ExcelProcessingServiceTest {
     @Mock
     private ProcessorConfigurationRegistry configRegistry;
 
+    @Mock
+    private ExcelUtil excelUtil;
+
     private ExcelProcessingService excelProcessingService;
 
     private ProcessResourceRequest request;
@@ -74,7 +78,7 @@ class ExcelProcessingServiceTest {
         excelProcessingService = new ExcelProcessingService(
             validationService, schemaValidationService, configBasedProcessingService,
             fileStoreService, localizationService, requestInfoConverter,
-            restTemplate, exceptionHandler, config, enrichmentUtil, configRegistry
+            restTemplate, exceptionHandler, config, enrichmentUtil, configRegistry, excelUtil
         );
 
         requestInfo = RequestInfo.builder().build();

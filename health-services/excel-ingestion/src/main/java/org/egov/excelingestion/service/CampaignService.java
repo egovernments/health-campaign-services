@@ -40,9 +40,7 @@ public class CampaignService {
 
     /**
      * Search campaign by ID with caching
-     * Cache key is based on campaignId and tenantId for 15 minutes
      */
-    @Cacheable(value = "campaignCache", key = "#campaignId + '_' + #tenantId", unless = "#result == null")
     public CampaignSearchResponse.CampaignDetail searchCampaignById(String campaignId, String tenantId, RequestInfo requestInfo) {
         // Ensure RequestInfo contains userInfo.tenantId expected by downstream services
         RequestInfo sanitizedRequestInfo = ensureTenantInRequestInfo(requestInfo, tenantId);

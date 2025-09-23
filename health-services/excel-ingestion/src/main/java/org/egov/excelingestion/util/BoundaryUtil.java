@@ -246,4 +246,83 @@ public class BoundaryUtil {
             return boundaryPath.size() > lastLevelIndex && boundaryPath.get(lastLevelIndex) != null;
         }
     }
+
+    /**
+     * Get all enriched boundary codes from campaign boundaries including all children
+     * @param campaignBoundaries List of campaign boundaries
+     * @param boundaryResponse Boundary response with hierarchical data
+     * @return Set of all valid boundary codes (campaign boundaries + their children)
+     */
+    public Set<String> getEnrichedBoundaryCodesFromCampaign(java.util.List<CampaignSearchResponse.BoundaryDetail> campaignBoundaries,
+                                                           BoundarySearchResponse boundaryResponse) {
+        Set<String> enrichedCodes = new HashSet<>();
+        
+        if (campaignBoundaries == null || campaignBoundaries.isEmpty()) {
+            log.warn("No campaign boundaries provided");
+            return enrichedCodes;
+        }
+        
+        // Add all campaign boundary codes directly
+        for (CampaignSearchResponse.BoundaryDetail campaignBoundary : campaignBoundaries) {
+            if (campaignBoundary.getCode() != null) {
+                enrichedCodes.add(campaignBoundary.getCode());
+            }
+        }
+        
+        // Build a map of boundary code to boundary for quick lookup
+        Map<String, EnrichedBoundary> codeToNode = new HashMap<>();
+        if (boundaryResponse != null && boundaryResponse.getTenantBoundary() != null) {
+            for (HierarchyRelation hr : boundaryResponse.getTenantBoundary()) {
+                if (hr.getBoundary() != null) {
+                    for (EnrichedBoundary boundary : hr.getBoundary()) {
+                        mapBoundaryNodesFromEnriched(boundary, codeToNode);
+                    }
+                }
+            }
+        }
+        
+        // For each campaign boundary, find all its children and add their codes
+        for (CampaignSearchResponse.BoundaryDetail campaignBoundary : campaignBoundaries) {
+            String campaignBoundaryCode = campaignBoundary.getCode();
+            if (campaignBoundaryCode != null && codeToNode.containsKey(campaignBoundaryCode)) {
+                EnrichedBoundary boundaryNode = codeToNode.get(campaignBoundaryCode);
+                addAllChildCodesFromEnrichedBoundary(boundaryNode, enrichedCodes);
+            }
+        }
+        
+        log.info("Enriched {} campaign boundaries to {} total boundary codes including children", 
+                campaignBoundaries.size(), enrichedCodes.size());
+        
+        return enrichedCodes;
+    }
+
+    /**
+     * Recursively map all boundary nodes to their codes
+     */
+    private void mapBoundaryNodesFromEnriched(EnrichedBoundary boundary, Map<String, EnrichedBoundary> codeToNode) {
+        if (boundary.getCode() != null) {
+            codeToNode.put(boundary.getCode(), boundary);
+        }
+        
+        if (boundary.getChildren() != null) {
+            for (EnrichedBoundary child : boundary.getChildren()) {
+                mapBoundaryNodesFromEnriched(child, codeToNode);
+            }
+        }
+    }
+
+    /**
+     * Recursively add all child boundary codes from EnrichedBoundary
+     */
+    private void addAllChildCodesFromEnrichedBoundary(EnrichedBoundary boundary, Set<String> codes) {
+        if (boundary.getCode() != null) {
+            codes.add(boundary.getCode());
+        }
+        
+        if (boundary.getChildren() != null) {
+            for (EnrichedBoundary child : boundary.getChildren()) {
+                addAllChildCodesFromEnrichedBoundary(child, codes);
+            }
+        }
+    }
 }

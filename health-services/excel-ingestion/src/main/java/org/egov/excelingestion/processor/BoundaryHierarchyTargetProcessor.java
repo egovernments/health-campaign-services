@@ -30,17 +30,20 @@ public class BoundaryHierarchyTargetProcessor implements IWorkbookProcessor {
     private final ValidationService validationService;
     private final EnrichmentUtil enrichmentUtil;
     private final CustomExceptionHandler exceptionHandler;
+    private final ExcelUtil excelUtil;
 
     public BoundaryHierarchyTargetProcessor(MDMSService mdmsService, 
                                           SchemaValidationService schemaValidationService,
                                           ValidationService validationService,
                                           EnrichmentUtil enrichmentUtil,
-                                          CustomExceptionHandler exceptionHandler) {
+                                          CustomExceptionHandler exceptionHandler,
+                                          ExcelUtil excelUtil) {
         this.mdmsService = mdmsService;
         this.schemaValidationService = schemaValidationService;
         this.validationService = validationService;
         this.enrichmentUtil = enrichmentUtil;
         this.exceptionHandler = exceptionHandler;
+        this.excelUtil = excelUtil;
     }
 
     /**
@@ -61,8 +64,9 @@ public class BoundaryHierarchyTargetProcessor implements IWorkbookProcessor {
                 return workbook;
             }
 
-            // Convert sheet data to map list
-            List<Map<String, Object>> originalData = convertSheetToMapList(sheet);
+            // Convert sheet data to map list - CACHED VERSION
+            List<Map<String, Object>> originalData = excelUtil.convertSheetToMapListCached(
+                    resource.getFileStoreId(), sheetName, sheet);
             
             // Extract projectType from additionalDetails
             String projectType = extractProjectType(resource);
@@ -165,51 +169,5 @@ public class BoundaryHierarchyTargetProcessor implements IWorkbookProcessor {
         }
         return null;
     }
-
-    /**
-     * Convert sheet to list of maps
-     */
-    private List<Map<String, Object>> convertSheetToMapList(Sheet sheet) {
-        List<Map<String, Object>> data = new ArrayList<>();
-        
-        Row headerRow = sheet.getRow(0);
-        if (headerRow == null) {
-            return data;
-        }
-        
-        // Get header names
-        List<String> headers = new ArrayList<>();
-        for (Cell cell : headerRow) {
-            headers.add(ExcelUtil.getCellValueAsString(cell));
-        }
-        
-        // Process data rows (skip row 1 as it's second header row, start from row 2)
-        for (int rowNum = 2; rowNum <= sheet.getLastRowNum(); rowNum++) {
-            Row row = sheet.getRow(rowNum);
-            if (row == null) continue;
-            
-            Map<String, Object> rowData = new HashMap<>();
-            boolean hasData = false;
-            
-            for (int colNum = 0; colNum < headers.size(); colNum++) {
-                Cell cell = row.getCell(colNum);
-                String header = headers.get(colNum);
-                Object value = ExcelUtil.getCellValue(cell);
-                
-                if (value != null && !value.toString().trim().isEmpty()) {
-                    hasData = true;
-                }
-                
-                rowData.put(header, value);
-            }
-            
-            if (hasData) {
-                data.add(rowData);
-            }
-        }
-        
-        return data;
-    }
-
 
 }

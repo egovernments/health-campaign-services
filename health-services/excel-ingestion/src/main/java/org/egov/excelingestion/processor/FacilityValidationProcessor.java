@@ -10,6 +10,8 @@ import org.egov.excelingestion.util.LocalizationUtil;
 import org.egov.excelingestion.util.EnrichmentUtil;
 import org.egov.excelingestion.util.ExcelUtil;
 import org.egov.excelingestion.service.CampaignService;
+import org.egov.excelingestion.service.BoundaryService;
+import org.egov.excelingestion.util.BoundaryUtil;
 import org.springframework.stereotype.Component;
 
 import java.util.*;
@@ -22,15 +24,24 @@ public class FacilityValidationProcessor implements IWorkbookProcessor {
     private final ExcelIngestionConfig config;
     private final EnrichmentUtil enrichmentUtil;
     private final CampaignService campaignService;
+    private final BoundaryService boundaryService;
+    private final BoundaryUtil boundaryUtil;
+    private final ExcelUtil excelUtil;
 
     public FacilityValidationProcessor(ValidationService validationService, 
                                      ExcelIngestionConfig config,
                                      EnrichmentUtil enrichmentUtil,
-                                     CampaignService campaignService) {
+                                     CampaignService campaignService,
+                                     BoundaryService boundaryService,
+                                     BoundaryUtil boundaryUtil,
+                                     ExcelUtil excelUtil) {
         this.validationService = validationService;
         this.config = config;
         this.enrichmentUtil = enrichmentUtil;
         this.campaignService = campaignService;
+        this.boundaryService = boundaryService;
+        this.boundaryUtil = boundaryUtil;
+        this.excelUtil = excelUtil;
     }
 
     @Override
@@ -49,24 +60,22 @@ public class FacilityValidationProcessor implements IWorkbookProcessor {
 
             log.info("Starting facility validation for sheet: {}", sheetName);
 
-            // Convert sheet data to map list
-            List<Map<String, Object>> originalData = convertSheetToMapList(sheet);
+            // Convert sheet data to map list - CACHED VERSION
+            List<Map<String, Object>> sheetData = excelUtil.convertSheetToMapListCached(
+                    resource.getFileStoreId(), sheetName, sheet);
             
-            if (originalData.isEmpty()) {
+            if (sheetData.isEmpty()) {
                 log.info("No data found in sheet, skipping validation");
                 return workbook;
             }
 
             List<ValidationError> errors = new ArrayList<>();
             
-            // Add row numbers to data for error reporting
-            List<Map<String, Object>> dataWithRowNumbers = addRowNumbers(originalData);
-            
-            // Validate facility data
-            validateFacilityData(dataWithRowNumbers, resource, requestInfo, errors, localizationMap);
-            
             // Validate boundary keys for active facilities
-            validateBoundaryKeys(dataWithRowNumbers, errors, localizationMap);
+            validateBoundaryKeys(sheetData, errors, localizationMap);
+            
+            // Validate campaign boundaries
+            validateCampaignBoundaries(sheetData, resource, requestInfo, errors, localizationMap);
             
             log.info("Facility validation completed with {} errors", errors.size());
 
@@ -94,53 +103,6 @@ public class FacilityValidationProcessor implements IWorkbookProcessor {
         }
     }
 
-    private List<Map<String, Object>> addRowNumbers(List<Map<String, Object>> originalData) {
-        List<Map<String, Object>> dataWithRowNumbers = new ArrayList<>();
-        
-        for (int i = 0; i < originalData.size(); i++) {
-            Map<String, Object> rowData = new HashMap<>(originalData.get(i));
-            rowData.put("__rowNumber__", i + 2); // Headers at row 0, data starts at row 1 (1-based)
-            dataWithRowNumbers.add(rowData);
-        }
-        
-        return dataWithRowNumbers;
-    }
-
-    /**
-     * Convert sheet to list of maps
-     */
-    private List<Map<String, Object>> convertSheetToMapList(Sheet sheet) {
-        List<Map<String, Object>> data = new ArrayList<>();
-        
-        Row headerRow = sheet.getRow(0);
-        if (headerRow == null) {
-            return data;
-        }
-        
-        // Get header names
-        List<String> headers = new ArrayList<>();
-        for (Cell cell : headerRow) {
-            headers.add(ExcelUtil.getCellValueAsString(cell));
-        }
-        
-        // Process data rows (skip header)
-        for (int i = 1; i <= sheet.getLastRowNum(); i++) {
-            Row row = sheet.getRow(i);
-            if (row == null) continue;
-            
-            Map<String, Object> rowData = new HashMap<>();
-            for (int j = 0; j < headers.size(); j++) {
-                Cell cell = row.getCell(j);
-                String value = ExcelUtil.getCellValueAsString(cell);
-                rowData.put(headers.get(j), value);
-            }
-            data.add(rowData);
-        }
-        
-        return data;
-    }
-    
-    
     /**
      * Check if error columns exist and add them if needed
      */
@@ -244,47 +206,6 @@ public class FacilityValidationProcessor implements IWorkbookProcessor {
             }
         }
     }
-
-    /**
-     * Validate facility-specific data
-     */
-    private void validateFacilityData(List<Map<String, Object>> sheetData, ProcessResource resource, 
-                                    RequestInfo requestInfo, List<ValidationError> errors,
-                                    Map<String, String> localizationMap) {
-        log.info("Validating facility data for {} records", sheetData.size());
-        
-        // Add facility-specific validations here
-        // For now, just basic data presence validation
-        for (Map<String, Object> rowData : sheetData) {
-            String facilityName = (String) rowData.get("Facility Name");
-            String facilityType = (String) rowData.get("Facility Type");
-            Integer rowNumber = (Integer) rowData.get("__rowNumber__");
-            
-            // Validate facility name
-            if (facilityName == null || facilityName.trim().isEmpty()) {
-                ValidationError error = new ValidationError();
-                error.setRowNumber(rowNumber);
-                error.setErrorDetails(LocalizationUtil.getLocalizedMessage(localizationMap, 
-                    "HCM_FACILITY_NAME_REQUIRED", 
-                    "Facility name is required"));
-                error.setStatus(ValidationConstants.STATUS_INVALID);
-                errors.add(error);
-            }
-            
-            // Validate facility type
-            if (facilityType == null || facilityType.trim().isEmpty()) {
-                ValidationError error = new ValidationError();
-                error.setRowNumber(rowNumber);
-                error.setErrorDetails(LocalizationUtil.getLocalizedMessage(localizationMap, 
-                    "HCM_FACILITY_TYPE_REQUIRED", 
-                    "Facility type is required"));
-                error.setStatus(ValidationConstants.STATUS_INVALID);
-                errors.add(error);
-            }
-        }
-        
-        log.info("Facility data validation completed");
-    }
     
     /**
      * Validate boundary keys for active facilities
@@ -294,9 +215,9 @@ public class FacilityValidationProcessor implements IWorkbookProcessor {
         log.info("Validating boundary keys for {} records", sheetData.size());
         
         for (Map<String, Object> rowData : sheetData) {
-            String usage = (String) rowData.get("HCM_ADMIN_CONSOLE_FACILITY_USAGE");
-            String boundaryCode = (String) rowData.get("HCM_ADMIN_CONSOLE_BOUNDARY_CODE");
-            Integer rowNumber = (Integer) rowData.get("__rowNumber__");
+            String usage = ExcelUtil.getValueAsString(rowData.get("HCM_ADMIN_CONSOLE_FACILITY_USAGE"));
+            String boundaryCode = ExcelUtil.getValueAsString(rowData.get("HCM_ADMIN_CONSOLE_BOUNDARY_CODE"));
+            Integer rowNumber = (Integer) rowData.get("__actualRowNumber__");
             
             // Only validate boundary key if usage is "active" 
             if ("Active".equals(usage)) {
@@ -313,5 +234,73 @@ public class FacilityValidationProcessor implements IWorkbookProcessor {
         }
         
         log.info("Boundary key validation completed");
+    }
+    
+    /**
+     * Validate that boundary codes exist within campaign boundaries
+     */
+    private void validateCampaignBoundaries(List<Map<String, Object>> sheetData, ProcessResource resource,
+                                          RequestInfo requestInfo, List<ValidationError> errors,
+                                          Map<String, String> localizationMap) {
+        log.info("Validating campaign boundaries for {} records", sheetData.size());
+        
+        try {
+            // Get campaign boundaries from campaign service
+            List<CampaignSearchResponse.BoundaryDetail> campaignBoundaries = 
+                campaignService.getBoundariesFromCampaign(resource.getReferenceId(), resource.getTenantId(), requestInfo);
+            
+            if (campaignBoundaries == null || campaignBoundaries.isEmpty()) {
+                log.warn("No campaign boundaries found for campaign: {}", resource.getReferenceId());
+                return;
+            }
+            
+            // Fetch boundary relationships with includeChildren=true
+            BoundarySearchResponse boundaryResponse = boundaryService.fetchBoundaryRelationship(
+                resource.getTenantId(), resource.getHierarchyType(), requestInfo);
+            
+            // Get enriched boundary codes using BoundaryUtil
+            Set<String> validBoundaryCodes = boundaryUtil.getEnrichedBoundaryCodesFromCampaign(
+                campaignBoundaries, boundaryResponse);
+            
+            log.info("Found {} valid boundary codes from campaign boundaries", validBoundaryCodes.size());
+            
+            // Validate each row's boundary code
+            for (Map<String, Object> rowData : sheetData) {
+                String boundaryCode = ExcelUtil.getValueAsString(rowData.get("HCM_ADMIN_CONSOLE_BOUNDARY_CODE"));
+                Integer rowNumber = (Integer) rowData.get("__actualRowNumber__");
+                
+                // Skip validation if boundary code is null or empty
+                if (boundaryCode == null || boundaryCode.trim().isEmpty()) {
+                    continue;
+                }
+                
+                // Check if boundary code exists in valid campaign boundaries
+                if (!validBoundaryCodes.contains(boundaryCode.trim())) {
+                    ValidationError error = new ValidationError();
+                    error.setRowNumber(rowNumber);
+                    error.setErrorDetails(LocalizationUtil.getLocalizedMessage(localizationMap, 
+                        "HCM_BOUNDARY_CODE_NOT_IN_CAMPAIGN", 
+                        "Boundary code is not part of campaign boundaries"));
+                    error.setStatus(ValidationConstants.STATUS_INVALID);
+                    errors.add(error);
+                }
+            }
+            
+            log.info("Campaign boundary validation completed");
+            
+        } catch (Exception e) {
+            log.error("Error during campaign boundary validation: {}", e.getMessage(), e);
+            // Add a general error for all rows if boundary validation fails
+            for (Map<String, Object> rowData : sheetData) {
+                Integer rowNumber = (Integer) rowData.get("__actualRowNumber__");
+                ValidationError error = new ValidationError();
+                error.setRowNumber(rowNumber);
+                error.setErrorDetails(LocalizationUtil.getLocalizedMessage(localizationMap, 
+                    "HCM_BOUNDARY_VALIDATION_FAILED", 
+                    "Boundary validation failed due to system error"));
+                error.setStatus(ValidationConstants.STATUS_ERROR);
+                errors.add(error);
+            }
+        }
     }
 }
