@@ -50,7 +50,7 @@
         <dependency>
             <groupId>org.egov.common</groupId>
             <artifactId>health-services-models</artifactId>
-            <version>1.0.26-mozirs.stock-SNAPSHOT</version>
+            <version>1.0.26-mozirs1.stock-SNAPSHOT</version>
         </dependency>
 
         <dependency>
