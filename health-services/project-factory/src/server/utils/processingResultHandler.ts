@@ -191,7 +191,7 @@ export async function handleProcessingResult(messageObject: any) {
         
         // Fetch localization data
         logger.info('=== FETCHING LOCALIZATION DATA ===');
-        const locale = 'en_IN'; // Default locale
+        const locale = messageObject.locale || config.localisation.defaultLocale;
         const localizationMap = await fetchLocalizationData(messageObject.tenantId, messageObject.referenceId, locale);
         logger.info(`Localization data fetched with ${Object.keys(localizationMap).length} keys`);
         
@@ -1446,7 +1446,11 @@ async function triggerBackgroundResourceCreationFlow(
                 
                 logger.info('=== TRIGGERING USER CREDENTIAL EMAIL FLOW ===');
                 const requestInfoObject = JSON.parse(JSON.stringify(defaultRequestInfo || {}));
+                requestInfoObject.RequestInfo.userInfo.tenantId = tenantId;
                 requestInfoObject.RequestInfo.userInfo.uuid = useruuid;
+                const msgId = `${new Date().getTime()}|${locale || config?.localisation?.defaultLocale}`;
+                requestInfoObject.RequestInfo.msgId = msgId;
+
                 triggerUserCredentialEmailFlow({
                     RequestInfo: requestInfoObject.RequestInfo,
                     CampaignDetails: campaignDetails,

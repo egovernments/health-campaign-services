@@ -228,7 +228,7 @@ public class ExcelUtil {
      * Find actual last row with meaningful data (not just formulas)
      * This prevents processing thousands of empty formula rows
      */
-    private static int findActualLastRowWithData(Sheet sheet, int maxRowNum) {
+    public static int findActualLastRowWithData(Sheet sheet, int maxRowNum) {
         // Start from the end and work backwards to find last row with actual data
         for (int rowNum = maxRowNum; rowNum >= 2; rowNum--) {
             Row row = sheet.getRow(rowNum);

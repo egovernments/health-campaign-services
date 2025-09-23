@@ -3,6 +3,7 @@ package org.egov.excelingestion.service;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.excelingestion.config.KafkaTopicConfig;
 import org.egov.excelingestion.config.ProcessingConstants;
+import org.egov.excelingestion.util.RequestInfoConverter;
 import org.egov.excelingestion.web.models.ProcessResource;
 import org.egov.excelingestion.web.models.ProcessResourceRequest;
 import org.egov.excelingestion.web.models.RequestInfo;
@@ -20,15 +21,18 @@ public class AsyncProcessingService {
     private final Producer producer;
     private final KafkaTopicConfig kafkaTopicConfig;
     private final ConfigBasedProcessingService configBasedProcessingService;
+    private final RequestInfoConverter requestInfoConverter;
 
     public AsyncProcessingService(ExcelProcessingService excelProcessingService,
                                 Producer producer,
                                 KafkaTopicConfig kafkaTopicConfig,
-                                ConfigBasedProcessingService configBasedProcessingService) {
+                                ConfigBasedProcessingService configBasedProcessingService,
+                                RequestInfoConverter requestInfoConverter) {
         this.excelProcessingService = excelProcessingService;
         this.producer = producer;
         this.kafkaTopicConfig = kafkaTopicConfig;
         this.configBasedProcessingService = configBasedProcessingService;
+        this.requestInfoConverter = requestInfoConverter;
     }
 
     @Async("taskExecutor")
@@ -49,6 +53,9 @@ public class AsyncProcessingService {
             processResource.setStatus(ProcessingConstants.STATUS_COMPLETED);
             processResource.setProcessedFileStoreId(processedResource.getProcessedFileStoreId());
             processResource.setAdditionalDetails(processedResource.getAdditionalDetails());
+            // Set locale from RequestInfo
+            String locale = requestInfoConverter.extractLocale(requestInfo);
+            processResource.setLocale(locale);
             
             // Update audit details
             if (processResource.getAuditDetails() != null) {
@@ -80,6 +87,10 @@ public class AsyncProcessingService {
             }
             processResource.getAdditionalDetails().put("errorCode", errorCode);
             processResource.getAdditionalDetails().put("errorMessage", e.getMessage());
+            
+            // Set locale from RequestInfo
+            String locale = requestInfoConverter.extractLocale(requestInfo);
+            processResource.setLocale(locale);
             
             // Update audit details
             if (processResource.getAuditDetails() != null) {

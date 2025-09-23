@@ -48,7 +48,7 @@ export async function callExcelIngestionService(requestBody: any) {
             type: 'unified-console',
             hierarchyType: hierarchyType,
             referenceId: campaignId,
-            additionalDetails: campaignDetails?.additionalDetails || {}
+            additionalDetails: {}
         };
 
         const requestBodyToCallGenerate = {

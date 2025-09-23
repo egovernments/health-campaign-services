@@ -41,7 +41,7 @@ public class CellProtectionManager {
         CellStyle unlockedStyle = excelStyleHelper.createUnlockedCellStyle(workbook);
         
         // Find the last row with data for data-aware protection features
-        int lastDataRow = findLastDataRow(sheet);
+        int lastDataRow = ExcelUtil.findActualLastRowWithData(sheet, sheet.getLastRowNum());
         log.info("Last data row found at: {}", lastDataRow);
         
         // Find starting column index for data columns (after boundary columns)
@@ -239,26 +239,6 @@ public class CellProtectionManager {
         return startCol;
     }
     
-    /**
-     * Find the last row that contains data in any cell
-     */
-    private int findLastDataRow(Sheet sheet) {
-        int lastDataRow = 1; // Start from row 2 (index 1), as rows 0-1 are headers
-        
-        for (int rowIdx = 2; rowIdx <= sheet.getLastRowNum(); rowIdx++) {
-            Row row = sheet.getRow(rowIdx);
-            if (row != null) {
-                for (Cell cell : row) {
-                    if (cellHasValue(cell)) {
-                        lastDataRow = rowIdx;
-                        break;
-                    }
-                }
-            }
-        }
-        
-        return lastDataRow;
-    }
     
     /**
      * Check if a cell has a value (not blank and not empty string)
@@ -290,7 +270,7 @@ public class CellProtectionManager {
     public String getProtectionStatistics(Sheet sheet, List<ColumnDef> columns) {
         int totalCells = 0;
         int protectedCells = 0;
-        int lastDataRow = findLastDataRow(sheet);
+        int lastDataRow = ExcelUtil.findActualLastRowWithData(sheet, sheet.getLastRowNum());
         int startCol = findDataColumnStartIndex(sheet, columns);
         
         for (int rowIdx = 2; rowIdx <= Math.min(sheet.getLastRowNum(), config.getExcelRowLimit()); rowIdx++) {

@@ -103,6 +103,12 @@ public class GenerationService {
                 criteria.setOffset(0);
             }
 
+            // Set locale from RequestInfo if not already set
+            if (request.getRequestInfo() != null && criteria.getLocale() == null) {
+                String locale = requestInfoConverter.extractLocale(request.getRequestInfo());
+                criteria.setLocale(locale);
+            }
+
             List<GenerateResource> generationDetails = generatedFileRepository.search(criteria);
             Long totalCount = generatedFileRepository.getCount(criteria);
 

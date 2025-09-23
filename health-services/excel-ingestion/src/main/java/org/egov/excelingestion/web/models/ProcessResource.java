@@ -9,6 +9,7 @@ import lombok.Setter;
 
 import java.util.Map;
 
+import org.apache.kafka.common.protocol.types.Field.Str;
 import org.egov.common.contract.models.AuditDetails;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.NotBlank;
@@ -59,4 +60,7 @@ public class ProcessResource {
 
     @JsonProperty("auditDetails")
     private AuditDetails auditDetails;
+
+    @JsonProperty("locale")
+    private String locale;
 }
