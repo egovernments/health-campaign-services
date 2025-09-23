@@ -254,13 +254,9 @@ public class FacilityValidationProcessor implements IWorkbookProcessor {
                 return;
             }
             
-            // Fetch boundary relationships with includeChildren=true
-            BoundarySearchResponse boundaryResponse = boundaryService.fetchBoundaryRelationship(
-                resource.getTenantId(), resource.getHierarchyType(), requestInfo);
-            
-            // Get enriched boundary codes using BoundaryUtil
+            // Get enriched boundary codes using BoundaryUtil with caching
             Set<String> validBoundaryCodes = boundaryUtil.getEnrichedBoundaryCodesFromCampaign(
-                campaignBoundaries, boundaryResponse);
+                resource.getId(), resource.getReferenceId(), resource.getTenantId(), resource.getHierarchyType(), requestInfo);
             
             log.info("Found {} valid boundary codes from campaign boundaries", validBoundaryCodes.size());
             

@@ -1,7 +1,10 @@
 package org.egov.excelingestion.util;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.excelingestion.service.BoundaryService;
+import org.egov.excelingestion.service.CampaignService;
 import org.egov.excelingestion.web.models.*;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Component;
 
 import java.util.*;
@@ -14,6 +17,14 @@ import java.util.stream.Collectors;
 @Slf4j
 @Component
 public class BoundaryUtil {
+
+    private final CampaignService campaignService;
+    private final BoundaryService boundaryService;
+
+    public BoundaryUtil(CampaignService campaignService, BoundaryService boundaryService) {
+        this.campaignService = campaignService;
+        this.boundaryService = boundaryService;
+    }
 
     /**
      * Processes and enriches boundary data based on the includeAllChildren flag.
@@ -249,49 +260,26 @@ public class BoundaryUtil {
 
     /**
      * Get all enriched boundary codes from campaign boundaries including all children
-     * @param campaignBoundaries List of campaign boundaries
-     * @param boundaryResponse Boundary response with hierarchical data
+     * @param processId Process ID or generation ID for cache key
+     * @param referenceId Reference ID for cache key
+     * @param tenantId Tenant ID
+     * @param hierarchyType Hierarchy type
+     * @param requestInfo Request info
      * @return Set of all valid boundary codes (campaign boundaries + their children)
      */
-    public Set<String> getEnrichedBoundaryCodesFromCampaign(java.util.List<CampaignSearchResponse.BoundaryDetail> campaignBoundaries,
-                                                           BoundarySearchResponse boundaryResponse) {
-        Set<String> enrichedCodes = new HashSet<>();
+    @Cacheable(value = "enrichedBoundaryCodes", key = "#processId + '_' + #referenceId")
+    public Set<String> getEnrichedBoundaryCodesFromCampaign(String processId, String referenceId, 
+                                                           String tenantId, String hierarchyType, RequestInfo requestInfo) {
+        // Use the enriched boundaries function to get full boundary objects
+        List<Boundary> enrichedBoundaries = getEnrichedBoundariesFromCampaign(processId, referenceId, tenantId, hierarchyType, requestInfo);
         
-        if (campaignBoundaries == null || campaignBoundaries.isEmpty()) {
-            log.warn("No campaign boundaries provided");
-            return enrichedCodes;
-        }
+        // Extract codes from boundary objects
+        Set<String> enrichedCodes = enrichedBoundaries.stream()
+                .map(Boundary::getCode)
+                .filter(code -> code != null)
+                .collect(Collectors.toSet());
         
-        // Add all campaign boundary codes directly
-        for (CampaignSearchResponse.BoundaryDetail campaignBoundary : campaignBoundaries) {
-            if (campaignBoundary.getCode() != null) {
-                enrichedCodes.add(campaignBoundary.getCode());
-            }
-        }
-        
-        // Build a map of boundary code to boundary for quick lookup
-        Map<String, EnrichedBoundary> codeToNode = new HashMap<>();
-        if (boundaryResponse != null && boundaryResponse.getTenantBoundary() != null) {
-            for (HierarchyRelation hr : boundaryResponse.getTenantBoundary()) {
-                if (hr.getBoundary() != null) {
-                    for (EnrichedBoundary boundary : hr.getBoundary()) {
-                        mapBoundaryNodesFromEnriched(boundary, codeToNode);
-                    }
-                }
-            }
-        }
-        
-        // For each campaign boundary, find all its children and add their codes
-        for (CampaignSearchResponse.BoundaryDetail campaignBoundary : campaignBoundaries) {
-            String campaignBoundaryCode = campaignBoundary.getCode();
-            if (campaignBoundaryCode != null && codeToNode.containsKey(campaignBoundaryCode)) {
-                EnrichedBoundary boundaryNode = codeToNode.get(campaignBoundaryCode);
-                addAllChildCodesFromEnrichedBoundary(boundaryNode, enrichedCodes);
-            }
-        }
-        
-        log.info("Enriched {} campaign boundaries to {} total boundary codes including children", 
-                campaignBoundaries.size(), enrichedCodes.size());
+        log.info("Extracted {} boundary codes from enriched boundaries", enrichedCodes.size());
         
         return enrichedCodes;
     }
@@ -322,6 +310,99 @@ public class BoundaryUtil {
         if (boundary.getChildren() != null) {
             for (EnrichedBoundary child : boundary.getChildren()) {
                 addAllChildCodesFromEnrichedBoundary(child, codes);
+            }
+        }
+    }
+
+    /**
+     * Get all enriched boundaries from campaign boundaries including all children as full boundary objects
+     * @param processId Process ID or generation ID for cache key
+     * @param referenceId Reference ID for cache key
+     * @param tenantId Tenant ID
+     * @param hierarchyType Hierarchy type
+     * @param requestInfo Request info
+     * @return List of all enriched boundary objects (campaign boundaries + their children)
+     */
+    @Cacheable(value = "enrichedBoundaryObjects", key = "#processId + '_' + #referenceId")
+    public List<Boundary> getEnrichedBoundariesFromCampaign(String processId, String referenceId,
+                                                           String tenantId, String hierarchyType, RequestInfo requestInfo) {
+        List<Boundary> enrichedBoundaries = new ArrayList<>();
+        
+        // Fetch campaign boundaries from campaign service
+        List<CampaignSearchResponse.BoundaryDetail> campaignBoundaries = 
+            campaignService.getBoundariesFromCampaign(referenceId, tenantId, requestInfo);
+        
+        if (campaignBoundaries == null || campaignBoundaries.isEmpty()) {
+            log.warn("No campaign boundaries found for referenceId: {}", referenceId);
+            return enrichedBoundaries;
+        }
+        
+        // Fetch boundary response from boundary service
+        BoundarySearchResponse boundaryResponse = boundaryService.fetchBoundaryRelationship(
+            tenantId, hierarchyType, requestInfo);
+        
+        // Build a map of boundary code to EnrichedBoundary for quick lookup
+        Map<String, EnrichedBoundary> codeToNode = new HashMap<>();
+        if (boundaryResponse != null && boundaryResponse.getTenantBoundary() != null) {
+            for (HierarchyRelation hr : boundaryResponse.getTenantBoundary()) {
+                if (hr.getBoundary() != null) {
+                    for (EnrichedBoundary boundary : hr.getBoundary()) {
+                        mapBoundaryNodesFromEnriched(boundary, codeToNode);
+                    }
+                }
+            }
+        }
+        
+        Set<String> processedCodes = new HashSet<>();
+        
+        // For each campaign boundary, find all its children based on includeAllChildren flag
+        for (CampaignSearchResponse.BoundaryDetail campaignBoundary : campaignBoundaries) {
+            String campaignBoundaryCode = campaignBoundary.getCode();
+            if (campaignBoundaryCode != null && codeToNode.containsKey(campaignBoundaryCode)) {
+                EnrichedBoundary boundaryNode = codeToNode.get(campaignBoundaryCode);
+                
+                // Set includeAllChildren flag from campaign boundary
+                boolean includeChildren = campaignBoundary.getIncludeAllChildren() != null ? 
+                    campaignBoundary.getIncludeAllChildren() : false;
+                
+                collectAllBoundariesFromEnriched(boundaryNode, enrichedBoundaries, processedCodes, includeChildren, 
+                        campaignBoundary.getParent());
+            }
+        }
+        
+        log.info("Enriched {} campaign boundaries to {} total boundary objects including children", 
+                campaignBoundaries.size(), enrichedBoundaries.size());
+        
+        return enrichedBoundaries;
+    }
+
+    /**
+     * Recursively collect all boundary objects from EnrichedBoundary hierarchy based on includeAllChildren flag
+     */
+    private void collectAllBoundariesFromEnriched(EnrichedBoundary enrichedBoundary, List<Boundary> boundaries, 
+                                                 Set<String> processedCodes, boolean includeAllChildren, String parentCode) {
+        if (enrichedBoundary.getCode() == null || processedCodes.contains(enrichedBoundary.getCode())) {
+            return;
+        }
+        
+        processedCodes.add(enrichedBoundary.getCode());
+        
+        // Convert EnrichedBoundary to Boundary
+        Boundary boundary = new Boundary();
+        boundary.setCode(enrichedBoundary.getCode());
+        boundary.setName(enrichedBoundary.getCode());
+        boundary.setType(enrichedBoundary.getBoundaryType());
+        boundary.setIsRoot(parentCode == null);
+        // Set parent from recursive call parameter
+        boundary.setParent(parentCode);
+        boundary.setIncludeAllChildren(includeAllChildren);
+        
+        boundaries.add(boundary);
+        
+        // If includeAllChildren is true, recursively process all children in the entire branch
+        if (includeAllChildren && enrichedBoundary.getChildren() != null) {
+            for (EnrichedBoundary child : enrichedBoundary.getChildren()) {
+                collectAllBoundariesFromEnriched(child, boundaries, processedCodes, true, enrichedBoundary.getCode()); // Pass current boundary as parent
             }
         }
     }

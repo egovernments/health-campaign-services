@@ -68,25 +68,31 @@ public class BoundaryHierarchySheetGenerator implements IExcelPopulatorSheetGene
                 levelTypes.add(hierarchyRelation.getBoundaryType());
             }
             
-            // Check if boundaries are configured in additionalDetails
-            if (generateResource.getBoundaries() == null || generateResource.getBoundaries().isEmpty()) {
-                log.info("No boundaries configured in additionalDetails for boundary hierarchy sheet, returning empty result");
+            // Get campaign boundaries from campaign service instead of additionalDetails
+            List<CampaignSearchResponse.BoundaryDetail> campaignBoundaries = 
+                campaignService.getBoundariesFromCampaign(generateResource.getReferenceId(), 
+                    generateResource.getTenantId(), requestInfo);
+            
+            if (campaignBoundaries == null || campaignBoundaries.isEmpty()) {
+                log.info("No campaign boundaries found for campaign: {}, returning empty result", generateResource.getReferenceId());
                 return SheetGenerationResult.builder()
                         .columnDefs(new ArrayList<>())
                         .data(new ArrayList<>())
                         .build();
             }
             
-            // Filter boundaries based on additionalDetails configuration
-            List<BoundaryUtil.BoundaryRowData> filteredBoundaries = boundaryUtil.processBoundariesWithEnrichment(
-                    generateResource.getBoundaries(), codeToEnrichedBoundary, levelTypes);
+            // Get enriched boundaries using cached function
+            List<Boundary> enrichedBoundaries = boundaryUtil.getEnrichedBoundariesFromCampaign(
+                generateResource.getId(), generateResource.getReferenceId(), 
+                generateResource.getTenantId(), generateResource.getHierarchyType(), requestInfo);
             
-            // Extract projectType from additionalDetails if present
-            String projectType = null;
-            if (generateResource.getAdditionalDetails() != null 
-                && generateResource.getAdditionalDetails().containsKey("projectType")) {
-                projectType = (String) generateResource.getAdditionalDetails().get("projectType");
-            }
+            // Filter boundaries based on campaign configuration
+            List<BoundaryUtil.BoundaryRowData> filteredBoundaries = boundaryUtil.processBoundariesWithEnrichment(
+                    enrichedBoundaries, codeToEnrichedBoundary, levelTypes);
+            
+            // Get projectType from campaign service instead of additionalDetails
+            String projectType = campaignService.getProjectTypeFromCampaign(
+                generateResource.getReferenceId(), generateResource.getTenantId(), requestInfo);
             
             // Fetch schema columns if projectType exists
             List<ColumnDef> schemaColumns = new ArrayList<>();

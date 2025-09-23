@@ -5,6 +5,7 @@ import org.apache.poi.ss.usermodel.*;
 import org.egov.excelingestion.config.ErrorConstants;
 import org.egov.excelingestion.config.ProcessingConstants;
 import org.egov.excelingestion.exception.CustomExceptionHandler;
+import org.egov.excelingestion.service.CampaignService;
 import org.egov.excelingestion.service.MDMSService;
 import org.egov.excelingestion.service.SchemaValidationService;
 import org.egov.excelingestion.service.ValidationService;
@@ -31,19 +32,22 @@ public class BoundaryHierarchyTargetProcessor implements IWorkbookProcessor {
     private final EnrichmentUtil enrichmentUtil;
     private final CustomExceptionHandler exceptionHandler;
     private final ExcelUtil excelUtil;
+    private final CampaignService campaignService;
 
     public BoundaryHierarchyTargetProcessor(MDMSService mdmsService, 
                                           SchemaValidationService schemaValidationService,
                                           ValidationService validationService,
                                           EnrichmentUtil enrichmentUtil,
                                           CustomExceptionHandler exceptionHandler,
-                                          ExcelUtil excelUtil) {
+                                          ExcelUtil excelUtil,
+                                          CampaignService campaignService) {
         this.mdmsService = mdmsService;
         this.schemaValidationService = schemaValidationService;
         this.validationService = validationService;
         this.enrichmentUtil = enrichmentUtil;
         this.exceptionHandler = exceptionHandler;
         this.excelUtil = excelUtil;
+        this.campaignService = campaignService;
     }
 
     /**
@@ -68,10 +72,11 @@ public class BoundaryHierarchyTargetProcessor implements IWorkbookProcessor {
             List<Map<String, Object>> originalData = excelUtil.convertSheetToMapListCached(
                     resource.getFileStoreId(), sheetName, sheet);
             
-            // Extract projectType from additionalDetails
-            String projectType = extractProjectType(resource);
+            // Get projectType from campaign service instead of additionalDetails
+            String projectType = campaignService.getProjectTypeFromCampaign(
+                resource.getReferenceId(), resource.getTenantId(), requestInfo);
             if (projectType == null || projectType.isEmpty()) {
-                log.info("No projectType found in additionalDetails, skipping additional validation");
+                log.info("No projectType found in campaign, skipping additional validation");
                 return workbook;
             }
 
@@ -132,22 +137,6 @@ public class BoundaryHierarchyTargetProcessor implements IWorkbookProcessor {
         }
     }
 
-    /**
-     * Extract projectType from ProcessResource additionalDetails
-     */
-    private String extractProjectType(ProcessResource resource) {
-        try {
-            if (resource != null && resource.getAdditionalDetails() != null) {
-                Object projectTypeObj = resource.getAdditionalDetails().get("projectType");
-                if (projectTypeObj instanceof String) {
-                    return (String) projectTypeObj;
-                }
-            }
-        } catch (Exception e) {
-            log.warn("Error extracting projectType: {}", e.getMessage());
-        }
-        return null;
-    }
 
     /**
      * Fetch target schema from MDMS

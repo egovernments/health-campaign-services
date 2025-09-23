@@ -567,9 +567,9 @@ public class UserValidationProcessor implements IWorkbookProcessor {
                 return;
             }
             
-            // Use BoundaryUtil to get enriched boundary codes
+            // Use BoundaryUtil to get enriched boundary codes with caching
             Set<String> validBoundaryCodes = boundaryUtil.getEnrichedBoundaryCodesFromCampaign(
-                    campaignBoundaries, boundaryResponse);
+                    resource.getId(), referenceId, resource.getTenantId(), resource.getHierarchyType(), requestInfo);
             
             log.info("Found {} valid boundary codes for campaign from {} configured boundaries", 
                     validBoundaryCodes.size(), campaignBoundaries.size());

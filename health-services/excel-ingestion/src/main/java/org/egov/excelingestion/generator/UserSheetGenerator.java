@@ -89,9 +89,22 @@ public class UserSheetGenerator implements ISheetGenerator {
                 
                 // Add boundary dropdowns first using HierarchicalBoundaryUtil
                 if (shouldAddBoundaryDropdowns(generateResource)) {
-                    hierarchicalBoundaryUtil.addHierarchicalBoundaryColumnWithData(
-                            workbook, sheetName, localizationMap, generateResource.getBoundaries(),
-                            generateResource.getHierarchyType(), generateResource.getTenantId(), requestInfo, data);
+                    // Get enriched boundaries from campaign service using cached function
+                    List<CampaignSearchResponse.BoundaryDetail> campaignBoundaries = 
+                        campaignService.getBoundariesFromCampaign(generateResource.getReferenceId(), 
+                            generateResource.getTenantId(), requestInfo);
+                    
+                    if (campaignBoundaries != null && !campaignBoundaries.isEmpty()) {
+                        
+                        // Get enriched boundaries using cached function
+                        List<Boundary> enrichedBoundaries = boundaryUtil.getEnrichedBoundariesFromCampaign(
+                            generateResource.getId(), generateResource.getReferenceId(), 
+                            generateResource.getTenantId(), generateResource.getHierarchyType(), requestInfo);
+                        
+                        hierarchicalBoundaryUtil.addHierarchicalBoundaryColumnWithData(
+                                workbook, sheetName, localizationMap, enrichedBoundaries,
+                                generateResource.getHierarchyType(), generateResource.getTenantId(), requestInfo, data);
+                    }
                 }
                 
                 // Then add schema columns and data using ExcelDataPopulator
@@ -107,7 +120,7 @@ public class UserSheetGenerator implements ISheetGenerator {
     }
     
     private boolean shouldAddBoundaryDropdowns(GenerateResource generateResource) {
-        return generateResource.getBoundaries() != null && !generateResource.getBoundaries().isEmpty() 
+        return generateResource.getReferenceId() != null && !generateResource.getReferenceId().isEmpty()
                && generateResource.getHierarchyType() != null && !generateResource.getHierarchyType().isEmpty();
     }
     

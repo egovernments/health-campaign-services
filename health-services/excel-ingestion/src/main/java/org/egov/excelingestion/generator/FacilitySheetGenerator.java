@@ -98,9 +98,22 @@ public class FacilitySheetGenerator implements ISheetGenerator {
                 
                 // Add boundary dropdowns first using HierarchicalBoundaryUtil
                 if (shouldAddBoundaryDropdowns(generateResource)) {
-                    hierarchicalBoundaryUtil.addHierarchicalBoundaryColumnWithData(
-                            workbook, sheetName, localizationMap, generateResource.getBoundaries(),
-                            generateResource.getHierarchyType(), generateResource.getTenantId(), requestInfo, data);
+                    // Get enriched boundaries from campaign service using cached function
+                    List<CampaignSearchResponse.BoundaryDetail> campaignBoundaries = 
+                        campaignService.getBoundariesFromCampaign(generateResource.getReferenceId(), 
+                            generateResource.getTenantId(), requestInfo);
+                    
+                    if (campaignBoundaries != null && !campaignBoundaries.isEmpty()) {
+                        
+                        // Get enriched boundaries using cached function
+                        List<Boundary> enrichedBoundaries = boundaryUtil.getEnrichedBoundariesFromCampaign(
+                            generateResource.getId(), generateResource.getReferenceId(), 
+                            generateResource.getTenantId(), generateResource.getHierarchyType(), requestInfo);
+                        
+                        hierarchicalBoundaryUtil.addHierarchicalBoundaryColumnWithData(
+                                workbook, sheetName, localizationMap, enrichedBoundaries,
+                                generateResource.getHierarchyType(), generateResource.getTenantId(), requestInfo, data);
+                    }
                 }
                 
                 // Then add schema columns and data using ExcelDataPopulator
@@ -120,7 +133,7 @@ public class FacilitySheetGenerator implements ISheetGenerator {
     }
     
     private boolean shouldAddBoundaryDropdowns(GenerateResource generateResource) {
-        return generateResource.getBoundaries() != null && !generateResource.getBoundaries().isEmpty() 
+        return generateResource.getReferenceId() != null && !generateResource.getReferenceId().isEmpty()
                && generateResource.getHierarchyType() != null && !generateResource.getHierarchyType().isEmpty();
     }
     
@@ -174,7 +187,8 @@ public class FacilitySheetGenerator implements ISheetGenerator {
                     generateResource.getTenantId(), requestInfo);
             
             // Step 2: Get enriched boundary codes including children using existing boundary util
-            Set<String> enrichedBoundaryCodes = getEnrichedBoundaryCodes(generateResource, requestInfo);
+            Set<String> enrichedBoundaryCodes = boundaryUtil.getEnrichedBoundaryCodesFromCampaign(generateResource.getId(), referenceId, 
+                    generateResource.getTenantId(), generateResource.getHierarchyType(), requestInfo);
             log.info("Enriched boundary codes for filtering: {}", enrichedBoundaryCodes);
             
             // Step 3: Transform permanent facilities to sheet format and filter by enriched boundaries
@@ -197,71 +211,6 @@ public class FacilitySheetGenerator implements ISheetGenerator {
         } catch (Exception e) {
             log.error("Error fetching facility data: {}", e.getMessage(), e);
             return null; // Headers-only sheet on error
-        }
-    }
-    
-    private Set<String> getEnrichedBoundaryCodes(GenerateResource generateResource, RequestInfo requestInfo) {
-        try {
-            // Get boundary relationship data for enrichment
-            BoundarySearchResponse relationshipData = boundaryService.fetchBoundaryRelationship(
-                    generateResource.getTenantId(), generateResource.getHierarchyType(), requestInfo);
-            
-            // Build code to enriched boundary map
-            Map<String, EnrichedBoundary> codeToEnrichedBoundary = 
-                    boundaryUtil.buildCodeToBoundaryMap(relationshipData);
-            
-            // Get level types for hierarchy
-            List<String> levelTypes = extractLevelTypes(relationshipData);
-            
-            // Process boundaries with enrichment using existing boundary util logic
-            List<BoundaryUtil.BoundaryRowData> processedBoundaries = 
-                    boundaryUtil.processBoundariesWithEnrichment(
-                            generateResource.getBoundaries(), codeToEnrichedBoundary, levelTypes);
-            
-            // Extract all boundary codes from processed data
-            Set<String> enrichedCodes = processedBoundaries.stream()
-                    .map(BoundaryUtil.BoundaryRowData::getLastLevelCode)
-                    .filter(Objects::nonNull)
-                    .collect(Collectors.toSet());
-            
-            log.info("Enriched {} boundary codes from {} configured boundaries", 
-                    enrichedCodes.size(), generateResource.getBoundaries().size());
-            
-            return enrichedCodes;
-            
-        } catch (Exception e) {
-            log.error("Error enriching boundary codes: {}", e.getMessage(), e);
-            // Fallback to simple boundary codes if enrichment fails
-            return generateResource.getBoundaries().stream()
-                    .map(Boundary::getCode)
-                    .filter(Objects::nonNull)
-                    .collect(Collectors.toSet());
-        }
-    }
-    
-    private List<String> extractLevelTypes(BoundarySearchResponse relationshipData) {
-        List<String> levelTypes = new ArrayList<>();
-        
-        if (relationshipData != null && relationshipData.getTenantBoundary() != null 
-                && !relationshipData.getTenantBoundary().isEmpty()) {
-            HierarchyRelation hr = relationshipData.getTenantBoundary().get(0);
-            if (hr.getBoundary() != null && !hr.getBoundary().isEmpty()) {
-                extractLevelTypesRecursive(hr.getBoundary().get(0), levelTypes);
-            }
-        }
-        
-        return levelTypes;
-    }
-    
-    private void extractLevelTypesRecursive(EnrichedBoundary boundary, List<String> levelTypes) {
-        if (boundary.getBoundaryType() != null && !levelTypes.contains(boundary.getBoundaryType())) {
-            levelTypes.add(boundary.getBoundaryType());
-        }
-        
-        if (boundary.getChildren() != null) {
-            for (EnrichedBoundary child : boundary.getChildren()) {
-                extractLevelTypesRecursive(child, levelTypes);
-            }
         }
     }
     

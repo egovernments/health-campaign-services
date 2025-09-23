@@ -117,7 +117,7 @@ public class HierarchicalBoundaryUtil {
         }
         
         if (configuredBoundaries == null || configuredBoundaries.isEmpty()) {
-            log.info("No boundaries configured in additionalDetails for sheet '{}', skipping boundary column creation", sheetName);
+            log.info("No boundaries configured for sheet '{}', skipping boundary column creation", sheetName);
             return;
         }
         
@@ -143,7 +143,7 @@ public class HierarchicalBoundaryUtil {
             return;
         }
         
-        // Process boundaries to get all data
+        // Process enriched boundaries to get all data (using already enriched boundaries from campaign)
         List<BoundaryUtil.BoundaryRowData> filteredBoundaries = boundaryUtil.processBoundariesWithEnrichment(
                 configuredBoundaries, codeToEnrichedBoundary, levelTypes);
         

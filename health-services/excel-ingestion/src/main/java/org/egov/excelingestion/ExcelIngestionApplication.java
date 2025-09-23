@@ -50,11 +50,23 @@ public class ExcelIngestionApplication {
                 .maximumSize(100)
                 .build();
         
+        com.github.benmanes.caffeine.cache.Cache<Object, Object> enrichedBoundaryCodesCache = Caffeine.newBuilder()
+                .expireAfterWrite(5, TimeUnit.MINUTES)
+                .maximumSize(100)
+                .build();
+        
+        com.github.benmanes.caffeine.cache.Cache<Object, Object> enrichedBoundaryObjectsCache = Caffeine.newBuilder()
+                .expireAfterWrite(5, TimeUnit.MINUTES)
+                .maximumSize(100)
+                .build();
+        
         // Register individual caches
         cacheManager.registerCustomCache("localizationMessages", localizationCache);
         cacheManager.registerCustomCache("boundaryHierarchy", boundaryHierarchyCache);
         cacheManager.registerCustomCache("boundaryRelationship", boundaryRelationshipCache);
         cacheManager.registerCustomCache("excelSheetData", excelSheetDataCache);
+        cacheManager.registerCustomCache("enrichedBoundaryCodes", enrichedBoundaryCodesCache);
+        cacheManager.registerCustomCache("enrichedBoundaryObjects", enrichedBoundaryObjectsCache);
         
         return cacheManager;
     }
