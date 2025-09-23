@@ -100,28 +100,28 @@ async function processMessageKJS(topic: string, message: { value: Buffer | null 
 
         switch (topic) {
             case config.kafka.KAFKA_START_CAMPAIGN_MAPPING_TOPIC:
-                handleCampaignMapping(messageObject);
+                await handleCampaignMapping(messageObject);
                 break;
             case config.kafka.KAFKA_START_ADMIN_CONSOLE_TASK_TOPIC:
-                handleTaskForCampaign(messageObject);
+                await handleTaskForCampaign(messageObject);
                 break;
             case config.kafka.KAFKA_START_ADMIN_CONSOLE_MAPPING_TASK_TOPIC:
-                handleMappingTaskForCampaign(messageObject);
+                await handleMappingTaskForCampaign(messageObject);
                 break;
             case config.kafka.KAFKA_HCM_PROCESSING_RESULT_TOPIC:
-                handleProcessingResult(messageObject);
+                await handleProcessingResult(messageObject);
                 break;
             case config.kafka.KAFKA_FACILITY_CREATE_BATCH_TOPIC:
-                handleFacilityBatch(messageObject);
+                await handleFacilityBatch(messageObject);
                 break;
             case config.kafka.KAFKA_USER_CREATE_BATCH_TOPIC:
-                handleUserBatch(messageObject);
+                await handleUserBatch(messageObject);
                 break;
             case config.kafka.KAFKA_MAPPING_BATCH_TOPIC:
-                handleMappingBatch(messageObject);
+                await handleMappingBatch(messageObject);
                 break;
             case config.kafka.KAFKA_CAMPAIGN_MARK_FAILED_TOPIC:
-                handleCampaignFailure(messageObject);
+                await handleCampaignFailure(messageObject);
                 break;
             default:
                 logger.warn(`Unhandled topic: ${topic}`);

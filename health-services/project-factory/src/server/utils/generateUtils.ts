@@ -6,6 +6,7 @@ import config from "../config";
 import { getLocaleFromRequestInfo, getLocalisationModuleName } from "./localisationUtils";
 import { getBoundarySheetData } from "../api/genericApis";
 import { checkIfSourceIsMicroplan } from "./campaignUtils";
+import { httpRequest } from "./request";
 
 // Now you can use Lodash functions with the "_" prefix, e.g., _.isEqual(), _.sortBy(), etc.
 function extractProperties(obj: any) {
@@ -34,6 +35,41 @@ function isCampaignTypeSame(request: any) {
     return _.isEqual(existingCampaignType, currentCampaignType);
 }
 
+export async function callExcelIngestionService(requestBody: any) {
+    try {
+        const campaignDetails = requestBody?.CampaignDetails;
+        const tenantId = campaignDetails?.tenantId;
+        const campaignId = campaignDetails?.id;
+        const hierarchyType = campaignDetails?.hierarchyType;
+        const excelIngestionUrl = config.host.excelIngestionHost + 'excel-ingestion/v1/data/_generate';
+
+        const generateResource = {
+            tenantId: tenantId,
+            type: 'unified-console',
+            hierarchyType: hierarchyType,
+            referenceId: campaignId,
+            additionalDetails: campaignDetails?.additionalDetails || {}
+        };
+
+        const requestBodyToCallGenerate = {
+            RequestInfo: requestBody?.RequestInfo,
+            GenerateResource: generateResource
+        };
+
+        await httpRequest(
+            excelIngestionUrl,
+            requestBodyToCallGenerate,
+            undefined,
+            'post',
+            undefined
+        );
+        logger.info(`Successfully called excel-ingestion generate API for campaign ${campaignId}`);
+    } catch (error: any) {
+        logger.error(`Error calling excel-ingestion generate API: ${error.message}`);
+        // Decide if we want to throw the error or just log it
+    }
+}
+
 async function callGenerateIfBoundariesOrCampaignTypeDiffer(request: any) {
     try {
         // Apply 2-second timeout after the condition check
@@ -46,6 +82,11 @@ async function callGenerateIfBoundariesOrCampaignTypeDiffer(request: any) {
         const locale = getLocaleFromRequestInfo(request?.body?.RequestInfo);
 
         const isMicroplan = checkIfSourceIsMicroplan(campaignDetails);
+        const isUnifiedCampaign = campaignDetails?.additionalDetails?.isUnifiedCampaign;
+        if(isUnifiedCampaign){
+            await callExcelIngestionService(request?.body);
+            return;
+        }
 
         if (isMicroplan) {
             // For microplan, trigger all three types
