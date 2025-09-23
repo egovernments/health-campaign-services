@@ -19,6 +19,7 @@ import org.egov.excelingestion.web.models.excel.ColumnDef;
 import org.springframework.stereotype.Component;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * Generator for user sheet with existing campaign data support
@@ -173,6 +174,13 @@ public class UserSheetGenerator implements ISheetGenerator {
                     new ArrayList<>(), "user", null, campaignNumber, generateResource.getTenantId(), requestInfo);
             
             if (campaignDataResponse != null && !campaignDataResponse.isEmpty()) {
+                // Get enriched boundary codes from campaign
+                Set<String> validBoundaryCodes = boundaryUtil.getEnrichedBoundaryCodesFromCampaign(
+                    generateResource.getId(), referenceId, generateResource.getTenantId(), 
+                    generateResource.getHierarchyType(), requestInfo);
+                
+                log.info("Found {} valid boundary codes from campaign enriched boundaries", validBoundaryCodes.size());
+                
                 // Extract the actual data object from each campaign data record
                 List<Map<String, Object>> existingData = new ArrayList<>();
                 for (Map<String, Object> record : campaignDataResponse) {
@@ -180,18 +188,28 @@ public class UserSheetGenerator implements ISheetGenerator {
                         @SuppressWarnings("unchecked")
                         Map<String, Object> dataObject = (Map<String, Object>) record.get("data");
                         if (dataObject != null) {
-                            existingData.add(dataObject);
+                            // Check if user's boundary code is in the enriched boundaries
+                            String userBoundaryCode = (String) dataObject.get("HCM_ADMIN_CONSOLE_BOUNDARY_CODE");
+                            if (userBoundaryCode != null && validBoundaryCodes.contains(userBoundaryCode)) {
+                                existingData.add(dataObject);
+                            } else {
+                                log.debug("Skipping user with boundary code '{}' as it's not in campaign enriched boundaries", 
+                                         userBoundaryCode);
+                            }
                         }
                     }
                 }
                 
                 if (!existingData.isEmpty()) {
-                    log.info("Found {} existing user records for campaign: {}", 
-                            existingData.size(), campaignNumber);
+                    log.info("Found {} existing user records for campaign after filtering by enriched boundaries (original count was {})", 
+                            existingData.size(), campaignDataResponse.size());
                     
                     // Decrypt passwords and usernames
                     List<Map<String, Object>> decryptedData = decryptUserCredentials(existingData, requestInfo);
                     return decryptedData;
+                } else {
+                    log.info("No users found with boundary codes matching campaign enriched boundaries");
+                    return null; // Headers-only sheet
                 }
             }
             
