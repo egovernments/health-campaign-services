@@ -587,7 +587,7 @@ public class UserValidationProcessor implements IWorkbookProcessor {
                         error.setRowNumber(rowNumber);
                         error.setErrorDetails(LocalizationUtil.getLocalizedMessage(localizationMap, 
                             "HCM_BOUNDARY_CODE_NOT_IN_CAMPAIGN", 
-                            "Boundary code is not within campaign boundaries"));
+                            "This boundary does not exist in the campaign's boundary"));
                         error.setStatus(ValidationConstants.STATUS_INVALID);
                         errors.add(error);
                         

@@ -4,11 +4,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
 import org.egov.excelingestion.config.ErrorConstants;
 import org.egov.excelingestion.config.ProcessingConstants;
+import org.egov.excelingestion.config.ValidationConstants;
 import org.egov.excelingestion.exception.CustomExceptionHandler;
 import org.egov.excelingestion.service.CampaignService;
 import org.egov.excelingestion.service.MDMSService;
 import org.egov.excelingestion.service.SchemaValidationService;
 import org.egov.excelingestion.service.ValidationService;
+import org.egov.excelingestion.util.BoundaryUtil;
 import org.egov.excelingestion.util.EnrichmentUtil;
 import org.egov.excelingestion.util.ExcelUtil;
 import org.egov.excelingestion.web.models.ProcessResource;
@@ -33,6 +35,7 @@ public class BoundaryHierarchyTargetProcessor implements IWorkbookProcessor {
     private final CustomExceptionHandler exceptionHandler;
     private final ExcelUtil excelUtil;
     private final CampaignService campaignService;
+    private final BoundaryUtil boundaryUtil;
 
     public BoundaryHierarchyTargetProcessor(MDMSService mdmsService, 
                                           SchemaValidationService schemaValidationService,
@@ -40,7 +43,8 @@ public class BoundaryHierarchyTargetProcessor implements IWorkbookProcessor {
                                           EnrichmentUtil enrichmentUtil,
                                           CustomExceptionHandler exceptionHandler,
                                           ExcelUtil excelUtil,
-                                          CampaignService campaignService) {
+                                          CampaignService campaignService,
+                                          BoundaryUtil boundaryUtil) {
         this.mdmsService = mdmsService;
         this.schemaValidationService = schemaValidationService;
         this.validationService = validationService;
@@ -48,6 +52,7 @@ public class BoundaryHierarchyTargetProcessor implements IWorkbookProcessor {
         this.exceptionHandler = exceptionHandler;
         this.excelUtil = excelUtil;
         this.campaignService = campaignService;
+        this.boundaryUtil = boundaryUtil;
     }
 
     /**
@@ -100,8 +105,17 @@ public class BoundaryHierarchyTargetProcessor implements IWorkbookProcessor {
                 return workbook;
             }
             
-            List<ValidationError> validationErrors = schemaValidationService.validateDataWithPreFetchedSchema(
+            // First validate boundary codes against campaign enriched boundaries
+            List<ValidationError> boundaryValidationErrors = validateCampaignBoundaries(originalData, resource, requestInfo, localizationMap);
+            
+            // Then perform schema validation
+            List<ValidationError> schemaValidationErrors = schemaValidationService.validateDataWithPreFetchedSchema(
                     originalData, "HCM_CONSOLE_BOUNDARY_HIERARCHY", schemaProperties, localizationMap);
+            
+            // Combine all validation errors
+            List<ValidationError> validationErrors = new ArrayList<>();
+            validationErrors.addAll(boundaryValidationErrors);
+            validationErrors.addAll(schemaValidationErrors);
 
             // Only add error columns if there are validation errors
             if (!validationErrors.isEmpty()) {
@@ -157,6 +171,61 @@ public class BoundaryHierarchyTargetProcessor implements IWorkbookProcessor {
             log.error("Error fetching schema {}: {}", schemaName, e.getMessage());
         }
         return null;
+    }
+
+    /**
+     * Validate boundary codes against campaign enriched boundaries
+     */
+    private List<ValidationError> validateCampaignBoundaries(List<Map<String, Object>> sheetData, 
+                                                           ProcessResource resource, RequestInfo requestInfo,
+                                                           Map<String, String> localizationMap) {
+        List<ValidationError> errors = new ArrayList<>();
+        
+        try {
+            // Get enriched boundary codes from campaign using cached function
+            Set<String> validBoundaryCodes = boundaryUtil.getEnrichedBoundaryCodesFromCampaign(
+                resource.getId(), resource.getReferenceId(), resource.getTenantId(), 
+                resource.getHierarchyType(), requestInfo);
+            
+            log.info("Found {} valid boundary codes from campaign enriched boundaries", validBoundaryCodes.size());
+            
+            // Validate each row's boundary code
+            for (Map<String, Object> rowData : sheetData) {
+                String boundaryCode = ExcelUtil.getValueAsString(rowData.get("HCM_ADMIN_CONSOLE_BOUNDARY_CODE"));
+                Integer rowNumber = (Integer) rowData.get("__actualRowNumber__");
+                
+                if (boundaryCode == null || boundaryCode.trim().isEmpty()) {
+                    continue; // Skip empty boundary codes - schema validation will handle required field validation
+                }
+                
+                if (!validBoundaryCodes.contains(boundaryCode.trim())) {
+                    String errorMessage = localizationMap.getOrDefault(
+                        "HCM_BOUNDARY_CODE_NOT_IN_CAMPAIGN_BOUNDARIES", 
+                        "This boundary does not exist in the campaign's boundary.");
+                    
+                    ValidationError error = ValidationError.builder()
+                        .rowNumber(rowNumber != null ? rowNumber : 0)
+                        .columnName("HCM_ADMIN_CONSOLE_BOUNDARY_CODE")
+                        .status(ValidationConstants.STATUS_INVALID)
+                        .errorDetails(errorMessage)
+                        .build();
+                    errors.add(error);
+                    
+                    log.debug("Boundary code '{}' at row {} not found in campaign enriched boundaries", 
+                             boundaryCode, rowNumber);
+                }
+            }
+            
+            if (!errors.isEmpty()) {
+                log.info("Found {} target records with boundary codes not in campaign enriched boundaries", errors.size());
+            }
+            
+        } catch (Exception e) {
+            log.error("Error validating campaign boundaries for target sheet: {}", e.getMessage(), e);
+            // Don't add errors for technical failures - just log and continue
+        }
+        
+        return errors;
     }
 
 }
