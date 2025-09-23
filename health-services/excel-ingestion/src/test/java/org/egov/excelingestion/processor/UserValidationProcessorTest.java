@@ -75,6 +75,11 @@ class UserValidationProcessorTest {
         // Mock config values
         when(config.getHealthIndividualHost()).thenReturn("http://localhost:8087/");
         when(config.getHealthIndividualSearchPath()).thenReturn("health-individual/v1/_search");
+        
+        // Mock boundary validation - return valid boundary codes
+        Set<String> validBoundaryCodes = Set.of("BOUNDARY_001", "BOUNDARY_002", "BOUNDARY_003");
+        when(boundaryUtil.getEnrichedBoundaryCodesFromCampaign(any(), any(), any(), any(), any()))
+            .thenReturn(validBoundaryCodes);
 
         when(excelUtil.convertSheetToMapListCached(any(), any(), any())).thenAnswer(invocation -> {
             Sheet sheet = invocation.getArgument(2);
@@ -199,6 +204,8 @@ class UserValidationProcessorTest {
         row.put("Name of the Person (Mandatory)", name);
         row.put("HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER", phone);
         row.put("UserName", username);
+        row.put("HCM_ADMIN_CONSOLE_USER_USAGE", "Active"); // Add usage field to pass active user validation
+        row.put("HCM_ADMIN_CONSOLE_BOUNDARY_CODE", "BOUNDARY_001"); // Add valid boundary code
         row.put("UserService Uuids", null); // No service UUIDs - required for username validation
         return row;
     }
@@ -212,6 +219,8 @@ class UserValidationProcessorTest {
         headerRow.createCell(0).setCellValue("Name of the Person (Mandatory)");
         headerRow.createCell(1).setCellValue("HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER");
         headerRow.createCell(2).setCellValue("UserName");
+        headerRow.createCell(3).setCellValue("HCM_ADMIN_CONSOLE_USER_USAGE");
+        headerRow.createCell(4).setCellValue("HCM_ADMIN_CONSOLE_BOUNDARY_CODE");
         
         // Create data rows
         for (int i = 0; i < userData.size(); i++) {
@@ -220,6 +229,8 @@ class UserValidationProcessorTest {
             dataRow.createCell(0).setCellValue((String) rowData.get("Name of the Person (Mandatory)"));
             dataRow.createCell(1).setCellValue((String) rowData.get("HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER"));
             dataRow.createCell(2).setCellValue((String) rowData.get("UserName"));
+            dataRow.createCell(3).setCellValue((String) rowData.get("HCM_ADMIN_CONSOLE_USER_USAGE"));
+            dataRow.createCell(4).setCellValue((String) rowData.get("HCM_ADMIN_CONSOLE_BOUNDARY_CODE"));
         }
         
         return workbook;

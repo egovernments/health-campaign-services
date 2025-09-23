@@ -1,7 +1,9 @@
 package org.egov.excelingestion.service;
 
 import org.egov.common.exception.InvalidTenantIdException;
+import org.egov.common.producer.Producer;
 import org.egov.excelingestion.repository.GeneratedFileRepository;
+import org.egov.excelingestion.util.RequestInfoConverter;
 import org.egov.excelingestion.web.models.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -22,12 +24,33 @@ class GenerationServiceTest {
 
     @Mock
     private GeneratedFileRepository generatedFileRepository;
+    
+    @Mock
+    private Producer producer;
+    
+    @Mock
+    private AsyncGenerationService asyncGenerationService;
+    
+    @Mock
+    private ExcelGenerationValidationService validationService;
+    
+    @Mock
+    private RequestInfoConverter requestInfoConverter;
 
     private GenerationService generationService;
 
     @BeforeEach
     void setUp() {
-        generationService = new GenerationService(generatedFileRepository, null, null, null, null);
+        // Mock the RequestInfoConverter to return a default locale
+        when(requestInfoConverter.extractLocale(any())).thenReturn("en_IN");
+        
+        generationService = new GenerationService(
+            generatedFileRepository, 
+            producer, 
+            asyncGenerationService, 
+            validationService, 
+            requestInfoConverter
+        );
     }
 
     @Test

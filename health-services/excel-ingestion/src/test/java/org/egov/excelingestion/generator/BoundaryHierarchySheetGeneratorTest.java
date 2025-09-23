@@ -132,6 +132,7 @@ class BoundaryHierarchySheetGeneratorTest {
         setupBoundaryServiceMocks();
         setupMDMSServiceWithMultiSelect();
         setupBoundaryUtilMocks();
+        setupCampaignServiceMocks();
         
         // Act
         SheetGenerationResult result = generator.generateSheetData(config, generateResource, requestInfo, localizationMap);
@@ -167,8 +168,17 @@ class BoundaryHierarchySheetGeneratorTest {
         setupBoundaryServiceMocks();
         setupBoundaryUtilMocks();
         
-        // Mock campaignService to return null (no project type)
+        // Mock campaignService to return null (no project type) but still provide boundaries
         when(campaignService.getProjectTypeFromCampaign(any(), any(), any())).thenReturn(null);
+        List<CampaignSearchResponse.BoundaryDetail> campaignBoundaries = Arrays.asList(
+            CampaignSearchResponse.BoundaryDetail.builder()
+                .code("MICROPLAN_MO_07_JWPARA")
+                .isRoot(false)
+                .includeAllChildren(false)
+                .build()
+        );
+        when(campaignService.getBoundariesFromCampaign(any(), any(), any()))
+            .thenReturn(campaignBoundaries);
         
         // Act
         SheetGenerationResult result = generator.generateSheetData(config, generateResource, requestInfo, localizationMap);
@@ -200,8 +210,17 @@ class BoundaryHierarchySheetGeneratorTest {
         setupBoundaryServiceMocks();
         setupBoundaryUtilMocks();
         
-        // Mock campaignService to return invalid project type
+        // Mock campaignService to return invalid project type but still provide boundaries
         when(campaignService.getProjectTypeFromCampaign(any(), any(), any())).thenReturn("INVALID_TYPE");
+        List<CampaignSearchResponse.BoundaryDetail> campaignBoundaries = Arrays.asList(
+            CampaignSearchResponse.BoundaryDetail.builder()
+                .code("MICROPLAN_MO_07_JWPARA")
+                .isRoot(false)
+                .includeAllChildren(false)
+                .build()
+        );
+        when(campaignService.getBoundariesFromCampaign(any(), any(), any()))
+            .thenReturn(campaignBoundaries);
         
         // Mock MDMS to return empty list for invalid project type
         when(mdmsService.searchMDMS(any(), any(), eq(ProcessingConstants.MDMS_SCHEMA_CODE), any(), anyInt(), anyInt()))
@@ -232,6 +251,7 @@ class BoundaryHierarchySheetGeneratorTest {
         setupBoundaryServiceMocks();
         setupMDMSServiceWithOrderNumbers();
         setupBoundaryUtilMocks();
+        setupCampaignServiceMocks();
         
         // Act
         SheetGenerationResult result = generator.generateSheetData(config, generateResource, requestInfo, localizationMap);
@@ -502,6 +522,22 @@ class BoundaryHierarchySheetGeneratorTest {
         // Mock getProjectTypeFromCampaign to return "HCM" for tests with project type
         when(campaignService.getProjectTypeFromCampaign(any(), any(), any()))
             .thenReturn("HCM");
+            
+        // Mock getBoundariesFromCampaign to return campaign boundaries
+        List<CampaignSearchResponse.BoundaryDetail> campaignBoundaries = Arrays.asList(
+            CampaignSearchResponse.BoundaryDetail.builder()
+                .code("MICROPLAN_MO_07_JWPARA")
+                .isRoot(false)
+                .includeAllChildren(false)
+                .build(),
+            CampaignSearchResponse.BoundaryDetail.builder()
+                .code("MICROPLAN_MO_08_BUDIKHAMARI")
+                .isRoot(false)
+                .includeAllChildren(false)
+                .build()
+        );
+        when(campaignService.getBoundariesFromCampaign(any(), any(), any()))
+            .thenReturn(campaignBoundaries);
     }
     
     private void setupMDMSServiceWithMultiSelect() {

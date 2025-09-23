@@ -3,6 +3,7 @@ package org.egov.excelingestion.service;
 import org.egov.common.producer.Producer;
 import org.egov.excelingestion.config.KafkaTopicConfig;
 import org.egov.excelingestion.config.ProcessingConstants;
+import org.egov.excelingestion.util.RequestInfoConverter;
 import org.egov.excelingestion.web.models.*;
 import org.egov.common.contract.models.AuditDetails;
 import org.junit.jupiter.api.BeforeEach;
@@ -33,13 +34,20 @@ class AsyncProcessingServiceTest {
     @Mock
     private ConfigBasedProcessingService configBasedProcessingService;
 
+    @Mock
+    private RequestInfoConverter requestInfoConverter;
+
     private AsyncProcessingService asyncProcessingService;
 
     @BeforeEach
     void setUp() {
         // Setup mock KafkaTopicConfig
         when(kafkaTopicConfig.getProcessingUpdateTopic()).thenReturn("test-update-processing-topic");
-        asyncProcessingService = new AsyncProcessingService(excelProcessingService, producer, kafkaTopicConfig, configBasedProcessingService);
+        
+        // Setup mock RequestInfoConverter
+        when(requestInfoConverter.extractLocale(any())).thenReturn("en_IN");
+        
+        asyncProcessingService = new AsyncProcessingService(excelProcessingService, producer, kafkaTopicConfig, configBasedProcessingService, requestInfoConverter);
     }
 
     @Test
