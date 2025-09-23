@@ -300,21 +300,6 @@ public class BoundaryUtil {
     }
 
     /**
-     * Recursively add all child boundary codes from EnrichedBoundary
-     */
-    private void addAllChildCodesFromEnrichedBoundary(EnrichedBoundary boundary, Set<String> codes) {
-        if (boundary.getCode() != null) {
-            codes.add(boundary.getCode());
-        }
-        
-        if (boundary.getChildren() != null) {
-            for (EnrichedBoundary child : boundary.getChildren()) {
-                addAllChildCodesFromEnrichedBoundary(child, codes);
-            }
-        }
-    }
-
-    /**
      * Get all enriched boundaries from campaign boundaries including all children as full boundary objects
      * @param processId Process ID or generation ID for cache key
      * @param referenceId Reference ID for cache key
