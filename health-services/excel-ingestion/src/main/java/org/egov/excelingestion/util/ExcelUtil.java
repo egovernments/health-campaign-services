@@ -296,25 +296,46 @@ public class ExcelUtil {
                 boolean foundData = false;
                 int offset = 0;
 
-                // Exponential jump from curr
+                // Phase 1: Exponential jump from curr, with window scanning
                 for (int jump = 1; jump <= 512; jump *= 4) {
-                    int rowNum = curr + offset;
-                    if (rowNum > maxRowNum)
+                    int windowStart = curr + offset;
+                    if (windowStart > maxRowNum)
                         break;
 
-                    Row row = sheet.getRow(rowNum);
-                    if (row != null && row.getPhysicalNumberOfCells() > 0 && rowHasData(row, evaluator)) {
-                        actualLast = rowNum; // data found
-                        foundData = true;
+                    // Scan a window of 16 rows at each jump point
+                    int windowEnd = Math.min(windowStart + 15, maxRowNum);
+                    for (int i = windowStart; i <= windowEnd; i++) {
+                        Row row = sheet.getRow(i);
+                        if (row != null && row.getPhysicalNumberOfCells() > 0 && rowHasData(row, evaluator)) {
+                            if (i > actualLast) {
+                                actualLast = i; // Keep track of the highest row with data found
+                            }
+                            foundData = true;
+                        }
                     }
 
-                    offset = jump; // next jump
+                    // If data was found in this window, we can stop jumping from this 'curr'
+                    // and let the binary search continue in the upper half.
+                    if (foundData) {
+                        break;
+                    }
+
+                    offset = jump; // next exponential jump
                 }
 
                 if (foundData) {
                     start = curr + 1; // check higher half
                 } else {
                     end = curr - 1; // check lower half
+                }
+            }
+
+            // Patch: Explicitly check the physical last row as a fallback.
+            int physicalLastRowNum = sheet.getLastRowNum();
+            if (physicalLastRowNum > actualLast) {
+                Row lastRow = sheet.getRow(physicalLastRowNum);
+                if (lastRow != null && lastRow.getPhysicalNumberOfCells() > 0 && rowHasData(lastRow, evaluator)) {
+                    actualLast = physicalLastRowNum;
                 }
             }
 

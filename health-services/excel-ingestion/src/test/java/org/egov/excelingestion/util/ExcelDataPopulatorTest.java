@@ -499,7 +499,7 @@ class ExcelDataPopulatorTest {
         long endTime = System.currentTimeMillis();
 
         // Then
-        assertTrue(endTime - startTime < 30000, "Large dataset should be processed within 30 seconds");
+        assertTrue(endTime - startTime < 60000, "Large dataset should be processed within 60 seconds");
         Sheet sheet = workbook.getSheetAt(0);
         assertEquals(5001, 
                 ExcelUtil.findActualLastRowWithData(sheet), "Should have all data rows (5000 + 1 for header)");

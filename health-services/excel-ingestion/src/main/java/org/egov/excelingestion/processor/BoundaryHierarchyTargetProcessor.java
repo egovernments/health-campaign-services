@@ -189,6 +189,63 @@ public class BoundaryHierarchyTargetProcessor implements IWorkbookProcessor {
             
             log.info("Found {} valid boundary codes from campaign enriched boundaries", validBoundaryCodes.size());
             
+            // Get lowest level boundaries from campaign
+            Set<String> lowestLevelBoundaries = boundaryUtil.getLowestLevelBoundaryCodesFromCampaign(
+                resource.getId(), resource.getReferenceId(), resource.getTenantId(), 
+                resource.getHierarchyType(), requestInfo);
+            
+            log.info("Found {} lowest level boundary codes from campaign", lowestLevelBoundaries.size());
+            
+            // Extract boundary codes from target sheet
+            Set<String> targetBoundaryCodes = new HashSet<>();
+            for (Map<String, Object> rowData : sheetData) {
+                String boundaryCode = ExcelUtil.getValueAsString(rowData.get("HCM_ADMIN_CONSOLE_BOUNDARY_CODE"));
+                if (boundaryCode != null && !boundaryCode.trim().isEmpty()) {
+                    targetBoundaryCodes.add(boundaryCode.trim());
+                }
+            }
+            
+            // Check if all lowest level boundaries are present in target sheet
+            Set<String> missingBoundaries = new HashSet<>(lowestLevelBoundaries);
+            missingBoundaries.removeAll(targetBoundaryCodes);
+            
+            if (!missingBoundaries.isEmpty()) {
+                log.info("Found {} missing lowest level boundaries in target sheet", missingBoundaries.size());
+                
+                // Create error message with max 3 boundary names
+                List<String> missingList = new ArrayList<>(missingBoundaries);
+                String messagePrefix = localizationMap.getOrDefault(
+                    "HCM_TARGET_LOWEST_LEVEL_BOUNDARIES_MISSING", 
+                    "Lowest level boundaries missing in this sheet are: ");
+                StringBuilder errorMessage = new StringBuilder(messagePrefix);
+                
+                int displayCount = Math.min(3, missingList.size());
+                for (int i = 0; i < displayCount; i++) {
+                    errorMessage.append(localizationMap.getOrDefault(missingList.get(i), missingList.get(i)));
+                    if (i < displayCount - 1) {
+                        errorMessage.append(", ");
+                    }
+                }
+                
+                if (missingList.size() > 3) {
+                    errorMessage.append("...");
+                }
+                
+                // Add error to first data row (after headers)
+                Integer firstDataRowNumber = null;
+                if (!sheetData.isEmpty()) {
+                    firstDataRowNumber = (Integer) sheetData.get(0).get("__actualRowNumber__");
+                }
+                
+                ValidationError error = ValidationError.builder()
+                    .rowNumber(firstDataRowNumber != null ? firstDataRowNumber : 3)
+                    .columnName("HCM_ADMIN_CONSOLE_BOUNDARY_CODE")
+                    .status(ValidationConstants.STATUS_INVALID)
+                    .errorDetails(errorMessage.toString())
+                    .build();
+                errors.add(error);
+            }
+            
             // Validate each row's boundary code
             for (Map<String, Object> rowData : sheetData) {
                 String boundaryCode = ExcelUtil.getValueAsString(rowData.get("HCM_ADMIN_CONSOLE_BOUNDARY_CODE"));
@@ -217,7 +274,7 @@ public class BoundaryHierarchyTargetProcessor implements IWorkbookProcessor {
             }
             
             if (!errors.isEmpty()) {
-                log.info("Found {} target records with boundary codes not in campaign enriched boundaries", errors.size());
+                log.info("Found {} total boundary validation errors in target sheet", errors.size());
             }
             
         } catch (Exception e) {

@@ -286,4 +286,243 @@ class SkippedRowsExcelProcessingTest {
 
         return workbook;
     }
+
+    @Test
+    void testWithGapsAtStart() throws Exception {
+        log.info("🧪 Testing with a large gap at the beginning");
+        Workbook workbook = createWorkbookWithGapsAtStart();
+        Sheet sheet = workbook.getSheetAt(0);
+        List<Map<String, Object>> result = excelUtil.convertSheetToMapListCached("fileId", "sheetName", sheet);
+        assertEquals(2, result.size(), "Should extract 2 rows from a sheet with a large initial gap");
+        assertEquals(101, result.get(0).get("__actualRowNumber__"));
+        assertEquals(102, result.get(1).get("__actualRowNumber__"));
+        workbook.close();
+    }
+
+    @Test
+    void testWithGapsAtEnd() throws Exception {
+        log.info("🧪 Testing with a large gap at the end");
+        Workbook workbook = createWorkbookWithGapsAtEnd();
+        Sheet sheet = workbook.getSheetAt(0);
+        List<Map<String, Object>> result = excelUtil.convertSheetToMapListCached("fileId", "sheetName", sheet);
+        assertEquals(2, result.size(), "Should extract 2 rows from a sheet with a large trailing gap");
+        assertEquals(3, result.get(0).get("__actualRowNumber__"));
+        assertEquals(4, result.get(1).get("__actualRowNumber__"));
+        workbook.close();
+    }
+
+    @Test
+    void testWithMultipleSmallGaps() throws Exception {
+        log.info("🧪 Testing with multiple small gaps");
+        Workbook workbook = createWorkbookWithMultipleSmallGaps();
+        Sheet sheet = workbook.getSheetAt(0);
+        List<Map<String, Object>> result = excelUtil.convertSheetToMapListCached("fileId", "sheetName", sheet);
+        assertEquals(4, result.size(), "Should extract 4 rows from a sheet with multiple small gaps");
+        assertEquals(3, result.get(0).get("__actualRowNumber__"));
+        assertEquals(6, result.get(1).get("__actualRowNumber__"));
+        assertEquals(9, result.get(2).get("__actualRowNumber__"));
+        assertEquals(12, result.get(3).get("__actualRowNumber__"));
+        workbook.close();
+    }
+
+    @Test
+    void testWithVeryLargeGap() throws Exception {
+        log.info("🧪 Testing with a single very large gap");
+        Workbook workbook = createWorkbookWithVeryLargeGap();
+        Sheet sheet = workbook.getSheetAt(0);
+        List<Map<String, Object>> result = excelUtil.convertSheetToMapListCached("fileId", "sheetName", sheet);
+        assertEquals(2, result.size(), "Should extract 2 rows from a sheet with a very large gap");
+        assertEquals(5, result.get(0).get("__actualRowNumber__"));
+        assertEquals(205, result.get(1).get("__actualRowNumber__"));
+        workbook.close();
+    }
+
+    @Test
+    void testWithAlternatingDataAndGaps() throws Exception {
+        log.info("🧪 Testing with alternating data and gaps");
+        Workbook workbook = createWorkbookWithAlternatingDataAndGaps();
+        Sheet sheet = workbook.getSheetAt(0);
+        List<Map<String, Object>> result = excelUtil.convertSheetToMapListCached("fileId", "sheetName", sheet);
+        assertEquals(5, result.size(), "Should extract 5 rows from a sheet with alternating data and gaps");
+        assertEquals(3, result.get(0).get("__actualRowNumber__"));
+        assertEquals(5, result.get(1).get("__actualRowNumber__"));
+        assertEquals(7, result.get(2).get("__actualRowNumber__"));
+        assertEquals(9, result.get(3).get("__actualRowNumber__"));
+        assertEquals(11, result.get(4).get("__actualRowNumber__"));
+        workbook.close();
+    }
+
+    @Test
+    void testWithSingleRowAtEnd() throws Exception {
+        log.info("🧪 Testing with a single row at the very end of a large sheet");
+        Workbook workbook = createWorkbookWithSingleRowAtEnd();
+        Sheet sheet = workbook.getSheetAt(0);
+        List<Map<String, Object>> result = excelUtil.convertSheetToMapListCached("fileId", "sheetName", sheet);
+        assertEquals(1, result.size(), "Should extract 1 row from the end of a large sheet");
+        assertEquals(301, result.get(0).get("__actualRowNumber__"));
+        workbook.close();
+    }
+
+    @Test
+    void testWithContiguousBlockAfterGap() throws Exception {
+        log.info("🧪 Testing with a contiguous block of data after a large gap");
+        Workbook workbook = createWorkbookWithContiguousBlockAfterGap();
+        Sheet sheet = workbook.getSheetAt(0);
+        List<Map<String, Object>> result = excelUtil.convertSheetToMapListCached("fileId", "sheetName", sheet);
+        assertEquals(3, result.size(), "Should extract a block of 3 rows after a large gap");
+        assertEquals(51, result.get(0).get("__actualRowNumber__"));
+        assertEquals(52, result.get(1).get("__actualRowNumber__"));
+        assertEquals(53, result.get(2).get("__actualRowNumber__"));
+        workbook.close();
+    }
+
+    @Test
+    void testWithRandomGaps() throws Exception {
+        log.info("🧪 Testing with randomly distributed gaps");
+        Workbook workbook = createWorkbookWithRandomGaps();
+        Sheet sheet = workbook.getSheetAt(0);
+        List<Map<String, Object>> result = excelUtil.convertSheetToMapListCached("fileId", "sheetName", sheet);
+        assertEquals(5, result.size(), "Should extract 5 rows from a sheet with random gaps");
+        assertEquals(8, result.get(0).get("__actualRowNumber__"));
+        assertEquals(19, result.get(1).get("__actualRowNumber__"));
+        assertEquals(23, result.get(2).get("__actualRowNumber__"));
+        assertEquals(38, result.get(3).get("__actualRowNumber__"));
+        assertEquals(50, result.get(4).get("__actualRowNumber__"));
+        workbook.close();
+    }
+
+    // Helper methods for the new tests
+
+    private Workbook createWorkbookWithGapsAtStart() {
+        Workbook workbook = new XSSFWorkbook();
+        Sheet sheet = workbook.createSheet("TestSheet");
+        // Headers at row 0, 1
+        Row headerRow = sheet.createRow(0);
+        headerRow.createCell(0).setCellValue("name");
+        headerRow.createCell(1).setCellValue("age");
+        Row header2Row = sheet.createRow(1);
+        header2Row.createCell(0).setCellValue("Name");
+        header2Row.createCell(1).setCellValue("Age");
+
+        // Data starts at row 101 (index 100)
+        Row row101 = sheet.createRow(100);
+        row101.createCell(0).setCellValue("First");
+        row101.createCell(1).setCellValue(10);
+        Row row102 = sheet.createRow(101);
+        row102.createCell(0).setCellValue("Second");
+        row102.createCell(1).setCellValue(20);
+        return workbook;
+    }
+
+    private Workbook createWorkbookWithGapsAtEnd() {
+        Workbook workbook = new XSSFWorkbook();
+        Sheet sheet = workbook.createSheet("TestSheet");
+        Row headerRow = sheet.createRow(0);
+        headerRow.createCell(0).setCellValue("name");
+        headerRow.createCell(1).setCellValue("age");
+        Row header2Row = sheet.createRow(1);
+        header2Row.createCell(0).setCellValue("Name");
+        header2Row.createCell(1).setCellValue("Age");
+
+        // Data at row 3 and 4
+        Row row3 = sheet.createRow(2);
+        row3.createCell(0).setCellValue("A");
+        row3.createCell(1).setCellValue(1);
+        Row row4 = sheet.createRow(3);
+        row4.createCell(0).setCellValue("B");
+        row4.createCell(1).setCellValue(2);
+        
+        // Create a row far away to set the last row number, but leave it empty
+        sheet.createRow(200);
+        
+        return workbook;
+    }
+
+    private Workbook createWorkbookWithMultipleSmallGaps() {
+        Workbook workbook = new XSSFWorkbook();
+        Sheet sheet = workbook.createSheet("TestSheet");
+        Row headerRow = sheet.createRow(0);
+        headerRow.createCell(0).setCellValue("name");
+        Row header2Row = sheet.createRow(1);
+        header2Row.createCell(0).setCellValue("Name");
+
+        // Data at 3, 6, 9, 12
+        sheet.createRow(2).createCell(0).setCellValue("R3");
+        sheet.createRow(5).createCell(0).setCellValue("R6");
+        sheet.createRow(8).createCell(0).setCellValue("R9");
+        sheet.createRow(11).createCell(0).setCellValue("R12");
+        return workbook;
+    }
+
+    private Workbook createWorkbookWithVeryLargeGap() {
+        Workbook workbook = new XSSFWorkbook();
+        Sheet sheet = workbook.createSheet("TestSheet");
+        Row headerRow = sheet.createRow(0);
+        headerRow.createCell(0).setCellValue("name");
+        Row header2Row = sheet.createRow(1);
+        header2Row.createCell(0).setCellValue("Name");
+
+        // Data at row 5 and 205
+        sheet.createRow(4).createCell(0).setCellValue("Start");
+        sheet.createRow(204).createCell(0).setCellValue("End");
+        return workbook;
+    }
+
+    private Workbook createWorkbookWithAlternatingDataAndGaps() {
+        Workbook workbook = new XSSFWorkbook();
+        Sheet sheet = workbook.createSheet("TestSheet");
+        Row headerRow = sheet.createRow(0);
+        headerRow.createCell(0).setCellValue("name");
+        Row header2Row = sheet.createRow(1);
+        header2Row.createCell(0).setCellValue("Name");
+
+        for (int i = 2; i < 12; i += 2) {
+            sheet.createRow(i).createCell(0).setCellValue("Row " + (i + 1));
+        }
+        return workbook;
+    }
+
+    private Workbook createWorkbookWithSingleRowAtEnd() {
+        Workbook workbook = new XSSFWorkbook();
+        Sheet sheet = workbook.createSheet("TestSheet");
+        Row headerRow = sheet.createRow(0);
+        headerRow.createCell(0).setCellValue("name");
+        Row header2Row = sheet.createRow(1);
+        header2Row.createCell(0).setCellValue("Name");
+
+        // Single data row at 301
+        sheet.createRow(300).createCell(0).setCellValue("Final Row");
+        return workbook;
+    }
+
+    private Workbook createWorkbookWithContiguousBlockAfterGap() {
+        Workbook workbook = new XSSFWorkbook();
+        Sheet sheet = workbook.createSheet("TestSheet");
+        Row headerRow = sheet.createRow(0);
+        headerRow.createCell(0).setCellValue("name");
+        Row header2Row = sheet.createRow(1);
+        header2Row.createCell(0).setCellValue("Name");
+
+        // Block of data after a gap
+        sheet.createRow(50).createCell(0).setCellValue("Block 1");
+        sheet.createRow(51).createCell(0).setCellValue("Block 2");
+        sheet.createRow(52).createCell(0).setCellValue("Block 3");
+        return workbook;
+    }
+
+    private Workbook createWorkbookWithRandomGaps() {
+        Workbook workbook = new XSSFWorkbook();
+        Sheet sheet = workbook.createSheet("TestSheet");
+        Row headerRow = sheet.createRow(0);
+        headerRow.createCell(0).setCellValue("name");
+        Row header2Row = sheet.createRow(1);
+        header2Row.createCell(0).setCellValue("Name");
+
+        sheet.createRow(7).createCell(0).setCellValue("D1");
+        sheet.createRow(18).createCell(0).setCellValue("D2");
+        sheet.createRow(22).createCell(0).setCellValue("D3");
+        sheet.createRow(37).createCell(0).setCellValue("D4");
+        sheet.createRow(49).createCell(0).setCellValue("D5");
+        return workbook;
+    }
 }
