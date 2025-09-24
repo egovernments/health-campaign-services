@@ -359,7 +359,7 @@ public class ConfigBasedProcessingService {
             return data;
         }
         
-        if (sheet.getLastRowNum() < 2) {
+        if (ExcelUtil.findActualLastRowWithData(sheet) < 2) {
             return data; // No data rows
         }
         
@@ -376,7 +376,7 @@ public class ConfigBasedProcessingService {
         }
         
         // Process data rows (starting from row 2, skip row 1 which is localized headers)
-        for (int rowIndex = 2; rowIndex <= sheet.getLastRowNum(); rowIndex++) {
+        for (int rowIndex = 2; rowIndex <= ExcelUtil.findActualLastRowWithData(sheet); rowIndex++) {
             org.apache.poi.ss.usermodel.Row row = sheet.getRow(rowIndex);
             if (row == null) continue;
             

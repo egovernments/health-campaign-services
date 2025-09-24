@@ -273,7 +273,8 @@ public class CellProtectionManager {
         int lastDataRow = ExcelUtil.findActualLastRowWithData(sheet);
         int startCol = findDataColumnStartIndex(sheet, columns);
         
-        for (int rowIdx = 2; rowIdx <= Math.min(sheet.getLastRowNum(), config.getExcelRowLimit()); rowIdx++) {
+        for (int rowIdx = 2; rowIdx <= Math.min(
+                ExcelUtil.findActualLastRowWithData(sheet), config.getExcelRowLimit()); rowIdx++) {
             Row row = sheet.getRow(rowIdx);
             if (row != null) {
                 for (int i = 0; i < columns.size(); i++) {

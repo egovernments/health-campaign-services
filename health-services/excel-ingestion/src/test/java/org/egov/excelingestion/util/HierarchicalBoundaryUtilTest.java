@@ -90,7 +90,7 @@ class HierarchicalBoundaryUtilTest {
         
         // Assert
         verify(boundaryService, never()).fetchBoundaryRelationship(any(), any(), any());
-        assertTrue(sheet.getLastRowNum() <= 0);
+        assertTrue(ExcelUtil.findActualLastRowWithData(sheet) <= 0);
     }
     
     @Test
@@ -108,7 +108,7 @@ class HierarchicalBoundaryUtilTest {
         
         // Assert
         verify(boundaryService, never()).fetchBoundaryRelationship(any(), any(), any());
-        assertTrue(sheet.getLastRowNum() <= 0);
+        assertTrue(ExcelUtil.findActualLastRowWithData(sheet) <= 0);
     }
     
     @Test
@@ -141,7 +141,7 @@ class HierarchicalBoundaryUtilTest {
         );
         
         // Assert - Should log warning and return early
-        assertTrue(sheet.getLastRowNum() <= 0);
+        assertTrue(ExcelUtil.findActualLastRowWithData(sheet) <= 0);
     }
     
     @Test

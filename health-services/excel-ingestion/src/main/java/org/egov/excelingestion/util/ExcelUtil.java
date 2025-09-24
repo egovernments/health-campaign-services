@@ -157,7 +157,7 @@ public class ExcelUtil {
             headers[i] = cell != null ? getCellValueAsString(cell) : "";
         }
 
-        final int lastRowNum = sheet.getLastRowNum();
+        final int lastRowNum = ExcelUtil.findActualLastRowWithData(sheet);
         if (lastRowNum < 2) { // No data rows
             return Collections.emptyList();
         }
