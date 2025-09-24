@@ -111,11 +111,8 @@ public class ProjectTransformationService {
                     }
 
                     List<String> productVariants = projectService.getProducts(tenantId, project.getProjectTypeId());
-                    String productVariantName = String.join(COMMA, productService.getProductVariantNames(productVariants, project.getTenantId()));
-                    String productVariant = null;
-                    if (productVariants != null && !productVariants.isEmpty()) {
-                        productVariant = String.join(COMMA, productVariants);
-                    }
+                    List<String> productVariantsName = productService.getProductVariantNames(productVariants, project.getTenantId());
+
                     if (r.getId() == null) {
                         r.setId(project.getId() + HYPHEN + r.getBeneficiaryType());
                     }
@@ -129,8 +126,8 @@ public class ProjectTransformationService {
                             .campaignDurationInDays(campaignDurationInDays)
                             .startDate(project.getStartDate())
                             .endDate(project.getEndDate())
-                            .productVariant(productVariant)
-                            .productName(productVariantName)
+                            .productVariant(productVariants)
+                            .productName(productVariantsName)
                             .targetType(r.getBeneficiaryType())
                             .tenantId(tenantId)
                             .taskDates(commonUtils.getProjectDatesList(project.getStartDate(), project.getEndDate()))

@@ -34,9 +34,9 @@ public class ProjectIndexV1 {
     @JsonProperty("endDate")
     private Long endDate;
     @JsonProperty("productVariant")
-    private String productVariant;
+    private List<String> productVariant;
     @JsonProperty("productName")
-    private String productName;
+    private List<String> productName;
     @JsonProperty("targetType")
     private String targetType;
     @JsonProperty("boundaryHierarchy")
