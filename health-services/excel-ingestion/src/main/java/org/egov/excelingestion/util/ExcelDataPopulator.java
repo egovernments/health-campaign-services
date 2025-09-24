@@ -258,7 +258,7 @@ public class ExcelDataPopulator {
         int startCol = Math.max(0, totalExistingCols - columns.size());
         
         // Apply styling to data rows
-        for (int rowIdx = 2; rowIdx <= sheet.getLastRowNum(); rowIdx++) {
+        for (int rowIdx = 2; rowIdx <= ExcelUtil.findActualLastRowWithData(sheet); rowIdx++) {
             Row row = sheet.getRow(rowIdx);
             if (row == null) {
                 continue;
@@ -333,8 +333,8 @@ public class ExcelDataPopulator {
                 String[] enumArray = column.getEnumValues().toArray(new String[0]);
                 DataValidationConstraint constraint = dvHelper.createExplicitListConstraint(enumArray);
                 // Use actual data row count or config limit, whichever is larger to cover all rows
-                // getLastRowNum() is 0-based, so add 1 to get actual count, then compare with limit
-                int actualDataRows = sheet.getLastRowNum() + 1;
+                // ExcelUtil.findActualLastRowWithData(sheet) is 0-based, so add 1 to get actual count, then compare with limit
+                int actualDataRows = ExcelUtil.findActualLastRowWithData(sheet) + 1;
                 int maxRow = Math.max(actualDataRows, config.getExcelRowLimit());
                 CellRangeAddressList addressList = new CellRangeAddressList(2, maxRow, colIndex, colIndex);
                 DataValidation validation = dvHelper.createValidation(constraint, addressList);
@@ -574,7 +574,7 @@ public class ExcelDataPopulator {
                 
                 // Define cell range for the column (data rows only, starting from row 3)
                 // Use actual data row count or config limit, whichever is larger to cover all rows
-                int actualDataRows = sheet.getLastRowNum() + 1;
+                int actualDataRows = ExcelUtil.findActualLastRowWithData(sheet) + 1;
                 int maxRow = Math.max(actualDataRows, config.getExcelRowLimit());
                 CellRangeAddress[] regions = {new CellRangeAddress(2, maxRow, colIndex, colIndex)};
                 

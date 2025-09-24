@@ -323,7 +323,7 @@ public class HierarchicalBoundaryUtil {
             workbook.setSheetHidden(workbook.getSheetIndex("_h_SimpleLookup_h_"), true);
         } else {
             // Clear existing content
-            for (int i = lookupSheet.getLastRowNum(); i >= 0; i--) {
+            for (int i = ExcelUtil.findActualLastRowWithData(lookupSheet); i >= 0; i--) {
                 Row row = lookupSheet.getRow(i);
                 if (row != null) {
                     lookupSheet.removeRow(row);
@@ -517,7 +517,7 @@ public class HierarchicalBoundaryUtil {
         }
         
         // Find where to add helper area (after existing content)
-        int rowNum = lookupSheet.getLastRowNum() + 3; // Add some spacing
+        int rowNum = ExcelUtil.findActualLastRowWithData(lookupSheet) + 3; // Add some spacing
         
         // For each parent-children mapping, create individual columns for children  
         Map<String, Integer> keyToHelperRowMap = new HashMap<>();
@@ -526,7 +526,7 @@ public class HierarchicalBoundaryUtil {
         // We need to rebuild the parentChildrenMap since it's not accessible from mappingResult
         // Let's use a simplified approach by reading from the lookup sheet
         Map<String, Set<String>> parentChildrenMap = new HashMap<>();
-        for (int i = 0; i <= lookupSheet.getLastRowNum(); i++) {
+        for (int i = 0; i <= ExcelUtil.findActualLastRowWithData(lookupSheet); i++) {
             Row row = lookupSheet.getRow(i);
             if (row != null && row.getCell(0) != null && row.getCell(1) != null) {
                 String hashedKey = row.getCell(0).getStringCellValue();
@@ -645,8 +645,8 @@ public class HierarchicalBoundaryUtil {
                 // Use explicit list for small lists
                 String[] level2Array = level2Boundaries.toArray(new String[0]);
                 // Use actual data row count or config limit, whichever is larger to cover all rows
-                // getLastRowNum() is 0-based, so add 1 to get actual count, then compare with limit
-                int actualDataRows = sheet.getLastRowNum() + 1;
+                // ExcelUtil.findActualLastRowWithData(sheet) is 0-based, so add 1 to get actual count, then compare with limit
+                int actualDataRows = ExcelUtil.findActualLastRowWithData(sheet) + 1;
                 int maxRow = Math.max(actualDataRows, config.getExcelRowLimit());
                 CellRangeAddressList level2Range = new CellRangeAddressList(2, maxRow, startColumnIndex, startColumnIndex);
                 DataValidationConstraint level2Constraint = dvHelper.createExplicitListConstraint(level2Array);
@@ -673,7 +673,7 @@ public class HierarchicalBoundaryUtil {
             int startColumnIndex, List<String> level2Boundaries, Sheet lookupSheet) {
         
         // Find a good location in the lookup sheet to add level2 boundaries list
-        int startRow = Math.max(lookupSheet.getLastRowNum() + 5, 1); // Add some spacing
+        int startRow = Math.max(ExcelUtil.findActualLastRowWithData(sheet) + 5, 1); // Add some spacing
         
         // Add level2 boundaries to column G in lookup sheet
         int level2Column = 6; // Column G (0-indexed)
@@ -708,8 +708,8 @@ public class HierarchicalBoundaryUtil {
             
             // Apply validation using the named range
             // Use actual data row count or config limit, whichever is larger to cover all rows
-            // getLastRowNum() is 0-based, so add 1 to get actual count, then compare with limit
-            int actualDataRows = sheet.getLastRowNum() + 1;
+            // ExcelUtil.findActualLastRowWithData(sheet) is 0-based, so add 1 to get actual count, then compare with limit
+            int actualDataRows = ExcelUtil.findActualLastRowWithData(sheet) + 1;
             int maxRow = Math.max(actualDataRows, config.getExcelRowLimit());
             CellRangeAddressList validationRange = new CellRangeAddressList(2, maxRow, startColumnIndex, startColumnIndex);
             DataValidationConstraint rangeConstraint = dvHelper.createFormulaListConstraint(rangeName);
@@ -726,8 +726,8 @@ public class HierarchicalBoundaryUtil {
             try {
                 String directFormula = "_h_SimpleLookup_h_!$G$" + (startRow + 1) + ":$G$" + (startRow + level2Boundaries.size());
                 // Use actual data row count or config limit, whichever is larger to cover all rows
-            // getLastRowNum() is 0-based, so add 1 to get actual count, then compare with limit
-            int actualDataRows = sheet.getLastRowNum() + 1;
+            // ExcelUtil.findActualLastRowWithData(sheet) is 0-based, so add 1 to get actual count, then compare with limit
+            int actualDataRows = ExcelUtil.findActualLastRowWithData(sheet) + 1;
             int maxRow = Math.max(actualDataRows, config.getExcelRowLimit());
             CellRangeAddressList validationRange = new CellRangeAddressList(2, maxRow, startColumnIndex, startColumnIndex);
                 DataValidationConstraint formulaConstraint = dvHelper.createFormulaListConstraint(directFormula);

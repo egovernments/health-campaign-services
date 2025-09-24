@@ -18,7 +18,6 @@ import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
-import static org.mockito.Mockito.lenient;
 
 @ExtendWith(MockitoExtension.class)
 class ExcelDataPopulatorTest {
@@ -69,7 +68,7 @@ class ExcelDataPopulatorTest {
         assertNotNull(sheet.getRow(1), "Display header row should exist");
         
         // Verify data rows
-        assertTrue(sheet.getLastRowNum() >= 3, "Should have data rows after headers");
+        assertTrue(ExcelUtil.findActualLastRowWithData(sheet) >= 3, "Should have data rows after headers");
         
         workbook.close();
     }
@@ -89,7 +88,8 @@ class ExcelDataPopulatorTest {
         
         // Should have headers but no data rows (conditional formatting may extend sheet rows)
         // With pure visual validation, number fields create conditional formatting that extends the sheet
-        assertTrue(sheet.getLastRowNum() >= 1, "Should have at least header rows, may have more due to conditional formatting");
+        assertTrue(ExcelUtil.findActualLastRowWithData(
+                sheet) >= 1, "Should have at least header rows, may have more due to conditional formatting");
         
         workbook.close();
     }
@@ -108,7 +108,8 @@ class ExcelDataPopulatorTest {
         
         // Should have headers but no data rows (conditional formatting may extend sheet rows)
         // With pure visual validation, number fields create conditional formatting that extends the sheet
-        assertTrue(sheet.getLastRowNum() >= 1, "Should have at least header rows, may have more due to conditional formatting");
+        assertTrue(ExcelUtil.findActualLastRowWithData(
+                sheet) >= 1, "Should have at least header rows, may have more due to conditional formatting");
         
         workbook.close();
     }
@@ -474,7 +475,7 @@ class ExcelDataPopulatorTest {
         
         // Verify it's a new sheet with our data
         Sheet sheet = workbook.getSheetAt(0);
-        assertTrue(sheet.getLastRowNum() > 1, "New sheet should have data rows");
+        assertTrue(ExcelUtil.findActualLastRowWithData(sheet) > 1, "New sheet should have data rows");
         
         workbook.close();
     }
@@ -500,7 +501,8 @@ class ExcelDataPopulatorTest {
         // Then
         assertTrue(endTime - startTime < 30000, "Large dataset should be processed within 30 seconds");
         Sheet sheet = workbook.getSheetAt(0);
-        assertEquals(5001, sheet.getLastRowNum(), "Should have all data rows (5000 + 1 for header)");
+        assertEquals(5001, 
+                ExcelUtil.findActualLastRowWithData(sheet), "Should have all data rows (5000 + 1 for header)");
         
         workbook.close();
     }

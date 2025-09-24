@@ -151,7 +151,7 @@ public class FacilityValidationProcessor implements IWorkbookProcessor {
         }
         
         // Process each data row (skip header row)
-        for (int i = 1; i <= sheet.getLastRowNum(); i++) {
+        for (int i = 1; i <= ExcelUtil.findActualLastRowWithData(sheet); i++) {
             Row row = sheet.getRow(i);
             if (row == null) continue;
             

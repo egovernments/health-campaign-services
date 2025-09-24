@@ -5,6 +5,7 @@ import org.apache.poi.ss.usermodel.*;
 import org.egov.excelingestion.config.ExcelIngestionConfig;
 import org.egov.excelingestion.config.ValidationConstants;
 import org.egov.excelingestion.util.CellProtectionManager;
+import org.egov.excelingestion.util.ExcelUtil;
 import org.egov.excelingestion.util.LocalizationUtil;
 import org.egov.excelingestion.web.models.ValidationError;
 import org.egov.excelingestion.web.models.ValidationColumnInfo;
@@ -330,7 +331,7 @@ public class ValidationService {
         }
         
         // Remove cell comments from data cells (keeping header comments if any)
-        int lastRowNum = sheet.getLastRowNum();
+        int lastRowNum = ExcelUtil.findActualLastRowWithData(sheet);
         for (int rowIndex = 2; rowIndex <= lastRowNum; rowIndex++) { // Start from row 2 (skip headers at 0,1)
             Row row = sheet.getRow(rowIndex);
             if (row != null) {

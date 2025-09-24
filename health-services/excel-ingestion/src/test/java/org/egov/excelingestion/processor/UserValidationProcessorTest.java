@@ -86,7 +86,7 @@ class UserValidationProcessorTest {
             // Basic implementation to convert sheet to map list for testing
             List<Map<String, Object>> data = new ArrayList<>();
             Row header = sheet.getRow(0);
-            for (int i = 1; i <= sheet.getLastRowNum(); i++) {
+            for (int i = 1; i <= ExcelUtil.findActualLastRowWithData(sheet); i++) {
                 Row row = sheet.getRow(i);
                 if (row == null) continue;
                 Map<String, Object> rowData = new HashMap<>();

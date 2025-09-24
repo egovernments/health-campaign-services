@@ -41,7 +41,7 @@ public class CellProtectionManager {
         CellStyle unlockedStyle = excelStyleHelper.createUnlockedCellStyle(workbook);
         
         // Find the last row with data for data-aware protection features
-        int lastDataRow = ExcelUtil.findActualLastRowWithData(sheet, sheet.getLastRowNum());
+        int lastDataRow = ExcelUtil.findActualLastRowWithData(sheet);
         log.info("Last data row found at: {}", lastDataRow);
         
         // Find starting column index for data columns (after boundary columns)
@@ -270,10 +270,11 @@ public class CellProtectionManager {
     public String getProtectionStatistics(Sheet sheet, List<ColumnDef> columns) {
         int totalCells = 0;
         int protectedCells = 0;
-        int lastDataRow = ExcelUtil.findActualLastRowWithData(sheet, sheet.getLastRowNum());
+        int lastDataRow = ExcelUtil.findActualLastRowWithData(sheet);
         int startCol = findDataColumnStartIndex(sheet, columns);
         
-        for (int rowIdx = 2; rowIdx <= Math.min(sheet.getLastRowNum(), config.getExcelRowLimit()); rowIdx++) {
+        for (int rowIdx = 2; rowIdx <= Math.min(
+                ExcelUtil.findActualLastRowWithData(sheet), config.getExcelRowLimit()); rowIdx++) {
             Row row = sheet.getRow(rowIdx);
             if (row != null) {
                 for (int i = 0; i < columns.size(); i++) {

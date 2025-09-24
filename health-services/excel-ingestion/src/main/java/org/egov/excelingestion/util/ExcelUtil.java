@@ -4,10 +4,15 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Component;
+
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 
 /**
  * Centralized utility for Excel operations
@@ -155,13 +160,13 @@ public class ExcelUtil {
             headers[i] = cell != null ? getCellValueAsString(cell) : "";
         }
 
-        final int lastRowNum = sheet.getLastRowNum();
+        final int lastRowNum = ExcelUtil.findActualLastRowWithData(sheet);
         if (lastRowNum < 2) { // No data rows
             return Collections.emptyList();
         }
         
         // Find actual last row with data (ignore formula-only rows) - SMART OPTIMIZATION
-        int actualLastRow = findActualLastRowWithData(sheet, lastRowNum);
+        int actualLastRow = findActualLastRowWithData(sheet);
         if (actualLastRow < 2) {
             return Collections.emptyList();
         }
@@ -224,52 +229,72 @@ public class ExcelUtil {
         return data;
     }
 
+    // Static cache with expiry (5 minutes example)
+    private static final Cache<String, Integer> lastRowCache = Caffeine.newBuilder()
+            .expireAfterWrite(5, TimeUnit.MINUTES)  // entry 5 min baad expire ho jayegi
+            .maximumSize(1000)                      // max 1000 entries rakhega
+            .build();
+
+    public static String buildCacheKey(Sheet sheet) {
+        int workbookId = System.identityHashCode(sheet.getWorkbook());
+        String sheetName = sheet.getSheetName();
+        return workbookId + "::" + sheetName;
+    }
+
     /**
      * Find actual last row with meaningful data (not just formulas)
      * This prevents processing thousands of empty formula rows
      */
-    public static int findActualLastRowWithData(Sheet sheet, int maxRowNum) {
-        // Start from the end and work backwards to find last row with actual data
-        for (int rowNum = maxRowNum; rowNum >= 2; rowNum--) {
-            Row row = sheet.getRow(rowNum);
-            if (row == null) continue;
-            
-            // Check if row has any meaningful data (not just formulas that return empty)
-            for (int colNum = 0; colNum < row.getLastCellNum(); colNum++) {
-                Cell cell = row.getCell(colNum);
-                if (cell != null) {
-                    CellType cellType = cell.getCellType();
-                    
-                    // Skip blank cells
-                    if (cellType == CellType.BLANK) continue;
-                    
-                    // Check for actual content
-                    if (cellType == CellType.STRING) {
-                        String strVal = cell.getStringCellValue();
-                        if (strVal != null && !strVal.trim().isEmpty()) {
-                            return rowNum; // Found data!
-                        }
-                    } else if (cellType == CellType.NUMERIC) {
-                        return rowNum; // Numeric data found
-                    } else if (cellType == CellType.BOOLEAN) {
-                        return rowNum; // Boolean data found
-                    } else if (cellType == CellType.FORMULA) {
-                        // Check if formula actually produces meaningful output
-                        try {
-                            String formulaResult = getCellValueAsString(cell);
-                            if (formulaResult != null && !formulaResult.trim().isEmpty()) {
-                                return rowNum; // Formula with result found
+    public static int findActualLastRowWithData(Sheet sheet) {
+        String key = buildCacheKey(sheet);
+
+        // Caffeine cache get or compute
+        return lastRowCache.get(key, k -> {
+            log.info("Cache MISS - Finding actual last row with data for sheet: {}", sheet.getSheetName());
+            int maxRowNum = sheet.getLastRowNum();
+
+            // If sheet is empty
+            if (maxRowNum < 0) {
+                return -1;
+            }
+
+            // Start from the end and work backwards to find last row with actual data
+            for (int rowNum = maxRowNum; rowNum >= 2; rowNum--) {
+                Row row = sheet.getRow(rowNum);
+                if (row == null)
+                    continue;
+
+                for (int colNum = 0; colNum < row.getLastCellNum(); colNum++) {
+                    Cell cell = row.getCell(colNum);
+                    if (cell != null) {
+                        CellType cellType = cell.getCellType();
+
+                        if (cellType == CellType.BLANK)
+                            continue;
+
+                        if (cellType == CellType.STRING) {
+                            String strVal = cell.getStringCellValue();
+                            if (strVal != null && !strVal.trim().isEmpty()) {
+                                return rowNum; // Found data
                             }
-                        } catch (Exception e) {
-                            // Ignore formula evaluation errors
+                        } else if (cellType == CellType.NUMERIC || cellType == CellType.BOOLEAN) {
+                            return rowNum; // Numeric/Boolean data found
+                        } else if (cellType == CellType.FORMULA) {
+                            try {
+                                String formulaResult = getCellValueAsString(cell);
+                                if (formulaResult != null && !formulaResult.trim().isEmpty()) {
+                                    return rowNum; // Formula with result
+                                }
+                            } catch (Exception ignore) {
+                            }
                         }
                     }
                 }
             }
-        }
-        
-        // No meaningful data found, return minimum row
-        return 1;
+
+            // No meaningful data found, return 1 if sheet has at least header
+            return 1;
+        });
     }
 
     /**
