@@ -403,6 +403,7 @@ public class ExcelDataPopulator {
                             .enumValues(details.getEnumValues())
                             .parentColumn(column.getName())
                             .multiSelectIndex(i)
+                            .freezeTillData(column.isFreezeTillData())
                             .freezeColumnIfFilled(column.isFreezeColumnIfFilled())
                             .width(column.getWidth())
                             .wrapText(column.isWrapText())

@@ -4,10 +4,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
 
 import java.util.*;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
+import java.util.concurrent.TimeUnit;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Component;
+
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 
 /**
  * Centralized utility for Excel operations
@@ -161,7 +163,7 @@ public class ExcelUtil {
         }
         
         // Find actual last row with data (ignore formula-only rows) - SMART OPTIMIZATION
-        int actualLastRow = findActualLastRowWithData(sheet, lastRowNum);
+        int actualLastRow = findActualLastRowWithData(sheet);
         if (actualLastRow < 2) {
             return Collections.emptyList();
         }
@@ -224,54 +226,143 @@ public class ExcelUtil {
         return data;
     }
 
+    private static final Cache<String, Integer> lastRowCache = Caffeine.newBuilder()
+            .expireAfterWrite(5, TimeUnit.MINUTES) // entry 5 min baad expire ho jayegi
+            .maximumSize(1000) // max 1000 entries rakhega
+            .build();
+
+    public static String buildCacheKey(Sheet sheet) {
+        int workbookId = System.identityHashCode(sheet.getWorkbook());
+        String sheetName = sheet.getSheetName();
+        int sheetHash = sheetHash(sheet); // simple hash of content
+        return workbookId + "::" + sheetName + "::" + sheetHash;
+    }
+
+    private static int sheetHash(Sheet sheet) {
+        int hash = 1;
+        for (Row row : sheet) {
+            if (row == null)
+                continue;
+            for (Cell cell : row) {
+                if (cell == null)
+                    continue;
+                switch (cell.getCellType()) {
+                    case STRING:
+                        hash = 31 * hash + cell.getStringCellValue().hashCode();
+                        break;
+                    case NUMERIC:
+                        long bits = Double.doubleToLongBits(cell.getNumericCellValue());
+                        hash = 31 * hash + (int) (bits ^ (bits >>> 32));
+                        break;
+                    case BOOLEAN:
+                        hash = 31 * hash + Boolean.hashCode(cell.getBooleanCellValue());
+                        break;
+                    case FORMULA:
+                        // Use formula string directly, avoid evaluating every formula
+                        hash = 31 * hash + cell.getCellFormula().hashCode();
+                        break;
+                    default:
+                        break;
+                }
+            }
+        }
+        return hash;
+    }
+
     /**
      * Find actual last row with meaningful data (not just formulas)
      * This prevents processing thousands of empty formula rows
      */
-    public static int findActualLastRowWithData(Sheet sheet, int maxRowNum) {
-        // Start from the end and work backwards to find last row with actual data
-        for (int rowNum = maxRowNum; rowNum >= 2; rowNum--) {
-            Row row = sheet.getRow(rowNum);
-            if (row == null) continue;
-            
-            // Check if row has any meaningful data (not just formulas that return empty)
-            for (int colNum = 0; colNum < row.getLastCellNum(); colNum++) {
-                Cell cell = row.getCell(colNum);
-                if (cell != null) {
-                    CellType cellType = cell.getCellType();
-                    
-                    // Skip blank cells
-                    if (cellType == CellType.BLANK) continue;
-                    
-                    // Check for actual content
-                    if (cellType == CellType.STRING) {
-                        String strVal = cell.getStringCellValue();
-                        if (strVal != null && !strVal.trim().isEmpty()) {
-                            return rowNum; // Found data!
-                        }
-                    } else if (cellType == CellType.NUMERIC) {
-                        return rowNum; // Numeric data found
-                    } else if (cellType == CellType.BOOLEAN) {
-                        return rowNum; // Boolean data found
-                    } else if (cellType == CellType.FORMULA) {
-                        // Check if formula actually produces meaningful output
-                        try {
-                            String formulaResult = getCellValueAsString(cell);
-                            if (formulaResult != null && !formulaResult.trim().isEmpty()) {
-                                return rowNum; // Formula with result found
-                            }
-                        } catch (Exception e) {
-                            // Ignore formula evaluation errors
-                        }
+    public static int findActualLastRowWithData(Sheet sheet) {
+        log.info("Finding actual last row with data for sheet: {}", sheet.getSheetName());
+        String key = buildCacheKey(sheet);
+
+        return lastRowCache.get(key, k -> {
+            log.info("Cache MISS - Finding actual last row with data for sheet: {}", sheet.getSheetName());
+            int maxRowNum = sheet.getLastRowNum();
+            if (maxRowNum < 0)
+                return -1;
+
+            FormulaEvaluator evaluator = sheet.getWorkbook().getCreationHelper().createFormulaEvaluator();
+
+            int start = 0;
+            int end = maxRowNum;
+            int actualLast = 0;
+
+            while (start <= end) {
+                int curr = start + (end - start) / 2;
+                log.info("Checking row {}", curr);
+
+                boolean foundData = false;
+                int offset = 0;
+
+                // Exponential jump from curr
+                for (int jump = 1; jump <= 512; jump *= 4) {
+                    int rowNum = curr + offset;
+                    if (rowNum > maxRowNum)
+                        break;
+
+                    Row row = sheet.getRow(rowNum);
+                    if (row != null && row.getPhysicalNumberOfCells() > 0 && rowHasData(row, evaluator)) {
+                        actualLast = rowNum; // data found
+                        foundData = true;
                     }
+
+                    offset = jump; // next jump
+                }
+
+                if (foundData) {
+                    start = curr + 1; // check higher half
+                } else {
+                    end = curr - 1; // check lower half
                 }
             }
-        }
-        
-        // No meaningful data found, return minimum row
-        return 1;
+
+            return actualLast > 0 ? actualLast : 1; // at least header
+        });
     }
 
+    private static boolean rowHasData(Row row, FormulaEvaluator evaluator) {
+        int lastCell = row.getLastCellNum();
+        for (int col = 0; col < lastCell; col++) {
+            Cell cell = row.getCell(col);
+            if (cell == null)
+                continue;
+            CellType type = cell.getCellType();
+
+            switch (type) {
+                case STRING:
+                    if (!cell.getStringCellValue().trim().isEmpty())
+                        return true;
+                    break;
+                case NUMERIC:
+                case BOOLEAN:
+                    return true;
+                case FORMULA:
+                    try {
+                        CellValue value = evaluator.evaluate(cell);
+                        if (value != null) {
+                            switch (value.getCellType()) {
+                                case STRING:
+                                    if (!value.getStringValue().trim().isEmpty())
+                                        return true;
+                                    break;
+                                case NUMERIC:
+                                case BOOLEAN:
+                                    return true;
+                                default:
+                                    break;
+                            }
+                        }
+                    } catch (Exception ignore) {
+                    }
+                    break;
+                default:
+                    break;
+            }
+        }
+        return false;
+    }
     /**
      * Safely convert any object value to string
      * @param value Object value from sheet data
