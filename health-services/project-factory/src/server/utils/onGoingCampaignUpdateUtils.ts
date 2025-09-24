@@ -216,7 +216,8 @@ export async function validateMissingBoundaryFromParent(requestBody : any) {
         const boundaryResource = CampaignDetails.resources?.find(
           (r: any) => r.type === 'boundary' && r.filestoreId
         );
-        if (!boundaryResource) {
+        const isUnifiedCampaign = CampaignDetails?.additionalDetails?.isUnifiedCampaign || false;
+        if (!boundaryResource && !isUnifiedCampaign) {
           throwError("COMMON", 400, "VALIDATION_ERROR_MISSING_TARGET_FILE", "A new boundary file must be provided when changing boundaries from the parent campaign.");
         }
       }

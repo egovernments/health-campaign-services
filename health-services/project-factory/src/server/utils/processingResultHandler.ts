@@ -1736,11 +1736,18 @@ function groupBoundariesByLevel(
     const boundariesByLevel: any[][] = [];
     const processedCodes = new Set<string>();
     
+    // Get all boundary codes from current data
+    const boundaryCodesInData = new Set(
+        sortedBoundaryData.map(bd => bd?.data?.["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"]).filter(Boolean)
+    );
+    
     // Process boundaries level by level
+    // Find current level boundaries (top level in your current data set)
     let currentLevelBoundaries = sortedBoundaryData.filter(bd => {
         const code = bd?.data?.["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"];
         const parent = boundaryMap?.[code]?.parent;
-        return !parent; // Root level (no parent)
+        // This is current level if parent doesn't exist OR parent is not in current data set
+        return !parent || !boundaryCodesInData.has(parent);
     });
     
     while (currentLevelBoundaries.length > 0) {
