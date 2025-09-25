@@ -61,7 +61,8 @@ class UserValidationProcessorTest {
     void setUp() {
         MockitoAnnotations.openMocks(this);
         userValidationProcessor = new UserValidationProcessor(
-                validationService, restTemplate, config, enrichmentUtil, campaignService, boundaryService, boundaryUtil, excelUtil
+                validationService, restTemplate, config, enrichmentUtil, campaignService, boundaryService, boundaryUtil, excelUtil, 
+                null
         );
 
         resource = ProcessResource.builder()

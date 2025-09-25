@@ -56,12 +56,14 @@ class ActiveUserFacilityValidationTest {
     void setUp() throws Exception {
         userValidationProcessor = new UserValidationProcessor(
             validationService, restTemplate, config, enrichmentUtil, 
-            campaignService, boundaryService, boundaryUtil, excelUtil
+            campaignService, boundaryService, boundaryUtil, excelUtil, 
+            null
         );
         
         facilityValidationProcessor = new FacilityValidationProcessor(
             validationService, config, enrichmentUtil, campaignService, 
-            boundaryService, boundaryUtil, excelUtil
+            boundaryService, boundaryUtil, excelUtil, 
+            null
         );
         
         // Get private methods for testing
