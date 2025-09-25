@@ -36,7 +36,9 @@ export class TemplateClass {
             localizedData["#status#"] = sheetDataRowStatuses.CREATED;
             localizedData["UserName"] = decrypt(rawData["UserName"]);
             localizedData["Password"] = decrypt(rawData["Password"]);
-
+            if (!localizedData["HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY"]){
+                localizedData["HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY"] = localizedData["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"];
+            }
             return localizedData;
         }));
 
