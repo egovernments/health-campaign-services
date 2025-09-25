@@ -125,3 +125,11 @@ const getMessage = (key: any) => {
     // Return 'unknownError' if the error key is not found
     return unknownError;
 }
+
+export const resourceDataStatuses: any = {
+    failed: "failed",
+    completed: "completed",
+    invalid: "invalid",
+    started: "validation-started",
+    accepted: "data-accepted"
+}

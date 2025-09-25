@@ -4,6 +4,9 @@ import { getLocaleFromRequest } from "./localisationUtils";
 import Localisation from "../controllers/localisationController/localisation.controller";
 import config from "../config/index";
 import { getErrorCodes} from "../config/constants";
+import { v4 as uuidv4 } from 'uuid';
+import { resourceDataStatuses } from "../config/constants";
+import { produceModifiedMessages } from "../kafka/Producer";
 const NodeCache = require("node-cache");
 
 
@@ -176,4 +179,37 @@ function getLocalizedHeaders(headers: any, localizationMap?: { [key: string]: st
   return messages;
 }
 
-export { errorResponder ,appCache,errorLogger,invalidPathHandler,sendResponse,getLocalizedMessagesHandler,throwErrorViaRequest,throwError,getLocalizedHeaders };
+/**
+ * Enrich the resource details with uuid, processed file store id, status, audit details, type and campaignId.
+ * 
+ * @param {any} request - The request object containing the resource details to be enriched.
+ * 
+ * @returns {Promise<any>} - A promise containing the enriched resource details.
+ */
+async function enrichResourceDetails(request: any) {
+  request.body.ResourceDetails.id = uuidv4();
+  request.body.ResourceDetails.processedFileStoreId = null;
+  if (request?.body?.ResourceDetails?.action == "create") {
+    request.body.ResourceDetails.status = resourceDataStatuses.accepted
+  }
+  else {
+    request.body.ResourceDetails.status = resourceDataStatuses.started
+  }
+
+  request.body.ResourceDetails.auditDetails = {
+    createdBy: request?.body?.RequestInfo?.userInfo?.uuid,
+    createdTime: Date.now(),
+    lastModifiedBy: request?.body?.RequestInfo?.userInfo?.uuid,
+    lastModifiedTime: Date.now()
+  }
+
+  const persistMessage: any = { ResourceDetails: request.body.ResourceDetails };
+  await produceModifiedMessages(persistMessage, config?.kafka?.KAFKA_PROCESS_RESOURCE_DETAILS_TOPIC, request?.body?.ResourceDetails?.tenantId);
+}
+function shutdownGracefully() {
+  logger.info('Shutting down gracefully...');
+  // Perform any cleanup tasks here, like closing database connections
+  process.exit(1); // Exit with a non-zero code to indicate an error
+}
+
+export { errorResponder ,appCache,errorLogger,invalidPathHandler,sendResponse,getLocalizedMessagesHandler,throwErrorViaRequest,throwError,getLocalizedHeaders ,enrichResourceDetails,shutdownGracefully};
