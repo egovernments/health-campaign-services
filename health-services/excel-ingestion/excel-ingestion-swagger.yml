@@ -166,9 +166,12 @@ paths:
               GenerationSearchCriteria:
                 tenantId: "pg.citya"
                 ids: ["550e8400-e29b-41d4-a716-446655440000"]
-                referenceId: "REF-2023-001"
-                type: "boundary"
-                status: "COMPLETED"
+                referenceIds: ["REF-2023-001"]
+                types: ["boundary"]
+                statuses: ["COMPLETED"]
+                locale: "en_IN"
+                limit: 10
+                offset: 0
       responses:
         '200':
           description: Generation records retrieved successfully
@@ -215,9 +218,11 @@ paths:
               ProcessingSearchCriteria:
                 tenantId: "pg.citya"
                 ids: ["550e8400-e29b-41d4-a716-446655440001"]
-                referenceId: "REF-2023-001"
-                type: "boundary"
-                status: "COMPLETED"
+                referenceIds: ["REF-2023-001"]
+                types: ["boundary"]
+                statuses: ["COMPLETED"]
+                limit: 10
+                offset: 0
       responses:
         '200':
           description: Processing records retrieved successfully
@@ -726,15 +731,24 @@ components:
           items:
             type: string
           description: List of generation IDs to search
-        referenceId:
+        referenceIds:
+          type: array
+          items:
+            type: string
+          description: List of reference IDs to search
+        types:
+          type: array
+          items:
+            type: string
+          description: List of resource types to search
+        statuses:
+          type: array
+          items:
+            type: string
+          description: List of statuses to search
+        locale:
           type: string
-          description: Reference ID to search
-        type:
-          type: string
-          description: Resource type to search
-        status:
-          type: string
-          description: Status to search
+          description: Locale for search
         createdFrom:
           type: integer
           format: int64
@@ -786,15 +800,21 @@ components:
           items:
             type: string
           description: List of processing IDs to search
-        referenceId:
-          type: string
-          description: Reference ID to search
-        type:
-          type: string
-          description: Resource type to search
-        status:
-          type: string
-          description: Status to search
+        referenceIds:
+          type: array
+          items:
+            type: string
+          description: List of reference IDs to search
+        types:
+          type: array
+          items:
+            type: string
+          description: List of resource types to search
+        statuses:
+          type: array
+          items:
+            type: string
+          description: List of statuses to search
         createdFrom:
           type: integer
           format: int64
