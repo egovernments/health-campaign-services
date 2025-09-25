@@ -147,7 +147,9 @@ public class BoundaryHierarchyTargetProcessor implements IWorkbookProcessor {
             throw e;
         } catch (Exception e) {
             log.error("Error processing target sheet: {}", e.getMessage(), e);
-            return workbook;
+            exceptionHandler.throwCustomException(ErrorConstants.TARGET_PROCESSING_FAILED, 
+                ErrorConstants.TARGET_PROCESSING_FAILED_MESSAGE + ": " + e.getMessage(), e);
+            return workbook; // never reached
         }
     }
 
@@ -261,7 +263,7 @@ public class BoundaryHierarchyTargetProcessor implements IWorkbookProcessor {
                         "This boundary does not exist in the campaign's boundary.");
                     
                     ValidationError error = ValidationError.builder()
-                        .rowNumber(rowNumber != null ? rowNumber : 0)
+                        .rowNumber(rowNumber)
                         .columnName("HCM_ADMIN_CONSOLE_BOUNDARY_CODE")
                         .status(ValidationConstants.STATUS_INVALID)
                         .errorDetails(errorMessage)

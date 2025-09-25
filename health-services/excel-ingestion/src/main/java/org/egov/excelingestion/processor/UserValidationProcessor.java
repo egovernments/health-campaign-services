@@ -4,7 +4,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
 import org.egov.excelingestion.config.ExcelIngestionConfig;
 import org.egov.excelingestion.config.ValidationConstants;
+import org.egov.excelingestion.config.ErrorConstants;
 import org.egov.excelingestion.service.ValidationService;
+import org.egov.excelingestion.exception.CustomExceptionHandler;
 import org.egov.excelingestion.web.models.*;
 import org.egov.excelingestion.util.LocalizationUtil;
 import org.egov.excelingestion.util.BoundaryUtil;
@@ -36,6 +38,7 @@ public class UserValidationProcessor implements IWorkbookProcessor {
     private final BoundaryService boundaryService;
     private final BoundaryUtil boundaryUtil;
     private final ExcelUtil excelUtil;
+    private final CustomExceptionHandler exceptionHandler;
 
     public UserValidationProcessor(ValidationService validationService, 
                                  RestTemplate restTemplate, 
@@ -44,7 +47,8 @@ public class UserValidationProcessor implements IWorkbookProcessor {
                                  CampaignService campaignService,
                                  BoundaryService boundaryService,
                                  BoundaryUtil boundaryUtil,
-                                 ExcelUtil excelUtil) {
+                                 ExcelUtil excelUtil,
+                                 CustomExceptionHandler exceptionHandler) {
         this.validationService = validationService;
         this.restTemplate = restTemplate;
         this.config = config;
@@ -53,6 +57,7 @@ public class UserValidationProcessor implements IWorkbookProcessor {
         this.boundaryService = boundaryService;
         this.boundaryUtil = boundaryUtil;
         this.excelUtil = excelUtil;
+        this.exceptionHandler = exceptionHandler;
     }
 
     @Override
@@ -114,7 +119,9 @@ public class UserValidationProcessor implements IWorkbookProcessor {
 
         } catch (Exception e) {
             log.error("Error processing user validation sheet: {}", e.getMessage(), e);
-            return workbook;
+            exceptionHandler.throwCustomException(ErrorConstants.USER_VALIDATION_FAILED, 
+                ErrorConstants.USER_VALIDATION_FAILED_MESSAGE + ": " + e.getMessage(), e);
+            return workbook; // never reached
         }
     }
 
@@ -279,6 +286,9 @@ public class UserValidationProcessor implements IWorkbookProcessor {
             }
         } catch (Exception e) {
             log.error("Error searching campaign data: {}", e.getMessage(), e);
+            exceptionHandler.throwCustomException( 
+                    ErrorConstants.CAMPAIGN_DATA_SEARCH_ERROR, 
+                    ErrorConstants.CAMPAIGN_DATA_SEARCH_ERROR_MESSAGE, e);
         }
         
         // Filter out phone numbers that already exist in campaign with completed status
@@ -318,16 +328,8 @@ public class UserValidationProcessor implements IWorkbookProcessor {
                 
             } catch (Exception e) {
                 log.error("Error validating phone number batch: {}", e.getMessage(), e);
-                // Add error for all phone numbers in this batch
-                for (String phoneNumber : batch) {
-                    if (phoneNumberToRowMap.containsKey(phoneNumber)) {
-                        ValidationError error = new ValidationError();
-                        error.setRowNumber(phoneNumberToRowMap.get(phoneNumber));
-                        error.setErrorDetails("Phone number validation failed: " + e.getMessage());
-                        error.setStatus(ValidationConstants.STATUS_ERROR);
-                        errors.add(error);
-                    }
-                }
+                exceptionHandler.throwCustomException(ErrorConstants.PHONE_VALIDATION_FAILED, 
+                    ErrorConstants.PHONE_VALIDATION_FAILED_MESSAGE, e);
             }
         }
         
@@ -401,16 +403,8 @@ public class UserValidationProcessor implements IWorkbookProcessor {
                 
             } catch (Exception e) {
                 log.error("Error validating username batch: {}", e.getMessage(), e);
-                // Add error for all usernames in this batch
-                for (String userName : batch) {
-                    if (userNameToRowMap.containsKey(userName)) {
-                        ValidationError error = new ValidationError();
-                        error.setRowNumber(userNameToRowMap.get(userName));
-                        error.setErrorDetails("Username validation failed: " + e.getMessage());
-                        error.setStatus(ValidationConstants.STATUS_ERROR);
-                        errors.add(error);
-                    }
-                }
+                exceptionHandler.throwCustomException(ErrorConstants.USERNAME_VALIDATION_FAILED, 
+                    ErrorConstants.USERNAME_VALIDATION_FAILED_MESSAGE, e);
             }
         }
         
@@ -510,7 +504,7 @@ public class UserValidationProcessor implements IWorkbookProcessor {
         for (Map<String, Object> rowData : sheetData) {
             String usage = ExcelUtil.getValueAsString(rowData.get("HCM_ADMIN_CONSOLE_USER_USAGE"));
             String boundaryCode = ExcelUtil.getValueAsString(rowData.get("HCM_ADMIN_CONSOLE_BOUNDARY_CODE"));
-            Integer rowNumber = (Integer) rowData.get("__rowNumber__");
+            Integer rowNumber = (Integer) rowData.get("__actualRowNumber__");
             
             // Only validate boundary key if usage is "active" 
             if ("Active".equals(usage)) {

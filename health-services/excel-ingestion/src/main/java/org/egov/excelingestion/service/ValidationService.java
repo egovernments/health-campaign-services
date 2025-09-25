@@ -147,6 +147,12 @@ public class ValidationService {
             int rowNumber = entry.getKey();
             List<ValidationError> rowErrors = entry.getValue();
 
+            // Ensure valid row number (must be >= 1 for 1-based Excel row numbers)
+            if (rowNumber < 1) {
+                log.warn("Invalid row number {} found in validation error, skipping", rowNumber);
+                continue;
+            }
+            
             Row row = sheet.getRow(rowNumber - 1); // Convert to 0-based index
             if (row == null) {
                 row = sheet.createRow(rowNumber - 1);

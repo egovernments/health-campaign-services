@@ -4,7 +4,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
 import org.egov.excelingestion.config.ExcelIngestionConfig;
 import org.egov.excelingestion.config.ValidationConstants;
+import org.egov.excelingestion.config.ErrorConstants;
 import org.egov.excelingestion.service.ValidationService;
+import org.egov.excelingestion.exception.CustomExceptionHandler;
 import org.egov.excelingestion.web.models.*;
 import org.egov.excelingestion.util.LocalizationUtil;
 import org.egov.excelingestion.util.EnrichmentUtil;
@@ -27,6 +29,7 @@ public class FacilityValidationProcessor implements IWorkbookProcessor {
     private final BoundaryService boundaryService;
     private final BoundaryUtil boundaryUtil;
     private final ExcelUtil excelUtil;
+    private final CustomExceptionHandler exceptionHandler;
 
     public FacilityValidationProcessor(ValidationService validationService, 
                                      ExcelIngestionConfig config,
@@ -34,7 +37,8 @@ public class FacilityValidationProcessor implements IWorkbookProcessor {
                                      CampaignService campaignService,
                                      BoundaryService boundaryService,
                                      BoundaryUtil boundaryUtil,
-                                     ExcelUtil excelUtil) {
+                                     ExcelUtil excelUtil,
+                                     CustomExceptionHandler exceptionHandler) {
         this.validationService = validationService;
         this.config = config;
         this.enrichmentUtil = enrichmentUtil;
@@ -42,6 +46,7 @@ public class FacilityValidationProcessor implements IWorkbookProcessor {
         this.boundaryService = boundaryService;
         this.boundaryUtil = boundaryUtil;
         this.excelUtil = excelUtil;
+        this.exceptionHandler = exceptionHandler;
     }
 
     @Override
@@ -97,7 +102,9 @@ public class FacilityValidationProcessor implements IWorkbookProcessor {
 
         } catch (Exception e) {
             log.error("Error processing facility validation sheet: {}", e.getMessage(), e);
-            return workbook;
+            exceptionHandler.throwCustomException(ErrorConstants.FACILITY_VALIDATION_FAILED, 
+                ErrorConstants.FACILITY_VALIDATION_FAILED_MESSAGE + ": " + e.getMessage(), e);
+            return workbook; // never reached
         }
     }
 

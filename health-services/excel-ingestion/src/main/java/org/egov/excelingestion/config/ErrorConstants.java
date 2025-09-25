@@ -32,6 +32,9 @@ public class ErrorConstants {
     public static final String CAMPAIGN_DATA_INCOMPLETE = "CAMPAIGN_DATA_INCOMPLETE";
     public static final String CAMPAIGN_DATA_INCOMPLETE_MESSAGE = "Campaign found but required data (projectType/boundaries) is missing for campaign ID: {0}";
     
+    public static final String CAMPAIGN_DATA_SEARCH_ERROR = "CAMPAIGN_DATA_SEARCH_ERROR";
+    public static final String CAMPAIGN_DATA_SEARCH_ERROR_MESSAGE = "Error searching campaign data for identifiers";
+    
     // Localization Service Errors
     public static final String LOCALIZATION_SERVICE_ERROR = "LOCALIZATION_SERVICE_ERROR";
     public static final String LOCALIZATION_SERVICE_ERROR_MESSAGE = "Error while fetching localization data";
@@ -175,4 +178,20 @@ public class ErrorConstants {
     // User Info Errors
     public static final String USER_INFO_NOT_FOUND = "USER_INFO_NOT_FOUND";
     public static final String USER_INFO_NOT_FOUND_MESSAGE = "User information is required but not provided in request context";
+    
+    // User Validation Errors
+    public static final String PHONE_VALIDATION_FAILED = "PHONE_VALIDATION_FAILED";
+    public static final String PHONE_VALIDATION_FAILED_MESSAGE = "Phone number validation processing failed for batch";
+    
+    public static final String USERNAME_VALIDATION_FAILED = "USERNAME_VALIDATION_FAILED";
+    public static final String USERNAME_VALIDATION_FAILED_MESSAGE = "Username validation processing failed for batch";
+    
+    public static final String USER_VALIDATION_FAILED = "USER_VALIDATION_FAILED";
+    public static final String USER_VALIDATION_FAILED_MESSAGE = "User validation processing failed";
+    
+    public static final String FACILITY_VALIDATION_FAILED = "FACILITY_VALIDATION_FAILED";
+    public static final String FACILITY_VALIDATION_FAILED_MESSAGE = "Failed to process facility validation sheet";
+    
+    public static final String TARGET_PROCESSING_FAILED = "TARGET_PROCESSING_FAILED";
+    public static final String TARGET_PROCESSING_FAILED_MESSAGE = "Error processing target sheet";
 }

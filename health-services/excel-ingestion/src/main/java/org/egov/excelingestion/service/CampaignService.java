@@ -192,8 +192,10 @@ public class CampaignService {
             
         } catch (Exception e) {
             log.error("Error searching campaign data for {} identifiers: {}", type, e.getMessage(), e);
-            // Return empty list instead of throwing exception to allow processing to continue
-            return new java.util.ArrayList<>();
+            exceptionHandler.throwCustomException(
+                    ErrorConstants.CAMPAIGN_DATA_SEARCH_ERROR,
+                    ErrorConstants.CAMPAIGN_DATA_SEARCH_ERROR_MESSAGE + ": " + e.getMessage(), e);
+            return null; // never reached
         }
     }
 
