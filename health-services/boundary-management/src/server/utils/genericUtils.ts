@@ -1,5 +1,9 @@
 import { NextFunction, Request, Response } from "express";
 import { logger } from "./logger";
+import { getLocaleFromRequest } from "./localisationUtils";
+import Localisation from "../controllers/localisationController/localisation.controller";
+import config from "../config/index";
+import { getErrorCodes} from "../config/constants";
 const NodeCache = require("node-cache");
 
 
@@ -128,5 +132,48 @@ const getResponseInfo = (code: Number) => ({
   },
 });
 
+async function getLocalizedMessagesHandler(request: any, tenantId: any, module = config.localisation.localizationModule, overrideCache = false, locale?: string) {
+  const localisationcontroller = Localisation.getInstance();
+  if (!locale) {
+    locale = getLocaleFromRequest(request);
+  }
+  const localizationResponse = await localisationcontroller.getLocalisedData(module, locale, tenantId, overrideCache);
+  return localizationResponse;
+}
 
-export { errorResponder ,appCache,errorLogger,invalidPathHandler,sendResponse};
+/* 
+Send The Error Response back to client with proper response code 
+*/
+const throwErrorViaRequest = (message: any = "Internal Server Error") => {
+  if (message?.message || message?.code) {
+    let error: any = new Error(message?.message || message?.code);
+    error = Object.assign(error, { status: message?.status || 500 });
+    logger.error("Error : " + error + " " + (message?.description || ""));
+    throw error;
+  }
+  else {
+    let error: any = new Error(message);
+    error = Object.assign(error, { status: 500 });
+    logger.error("Error : " + error);
+    throw error;
+  }
+};
+function capitalizeFirstLetter(str: string | undefined) {
+  if (!str) return str;
+  return str.charAt(0).toUpperCase() + str.slice(1);
+}
+const throwError = (module = "COMMON", status = 500, code = "UNKNOWN_ERROR", description: any = null) => {
+  const errorResult: any = getErrorCodes(module, code);
+  status = errorResult?.code == "UNKNOWN_ERROR" ? 500 : status;
+  let error: any = new Error(capitalizeFirstLetter(errorResult?.message));
+  error = Object.assign(error, { status, code: errorResult?.code, description: capitalizeFirstLetter(description) });
+  logger.error(error);
+  throw error;
+};
+
+function getLocalizedHeaders(headers: any, localizationMap?: { [key: string]: string }) {
+  const messages = headers.map((header: any) => (localizationMap ? localizationMap[header] || header : header));
+  return messages;
+}
+
+export { errorResponder ,appCache,errorLogger,invalidPathHandler,sendResponse,getLocalizedMessagesHandler,throwErrorViaRequest,throwError,getLocalizedHeaders };

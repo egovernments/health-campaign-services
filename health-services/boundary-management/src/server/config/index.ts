@@ -13,7 +13,7 @@ const config = {
   cacheTime: 300,
   retryUntilResourceCreationComplete: process.env.RETRY_TILL_RESOURCE_CREATION_COMPLETES || 100,
   isProduction: process.env ? true : false,
-  token: "", // add default token if core services are not port forwarded
+  token: "b4840543-170e-4056-b56b-a584ac099595", // add default token if core services are not port forwarded
   enableDynamicTemplateFor: process.env.ENABLE_DYNAMIC_TEMPLATE_FOR || "",
   // isCallGenerateWhenDeliveryConditionsDiffer: (process.env.IS_CALL_GENERATE_WHEN_DELIVERY_CONDITIONS_DIFFER === "true") || false,
   prefixForMicroplanCampaigns: "MP",
@@ -126,7 +126,7 @@ const config = {
     projectFactoryBff: "http://localhost:8080/",
     idGenHost: process.env.EGOV_IDGEN_HOST || "https://unified-dev.digit.org/",
     facilityHost: process.env.EGOV_FACILITY_HOST || "https://unified-dev.digit.org/",
-    boundaryHost: process.env.EGOV_BOUNDARY_HOST || "https://unified-dev.digit.org/",
+    boundaryHost: process.env.EGOV_BOUNDARY_HOST || "http://localhost:7033/",
     excelIngestionHost: process.env.EXCEL_INGESTION_HOST || "https://unified-dev.digit.org/",
     projectHost: process.env.EGOV_PROJECT_HOST || "https://unified-dev.digit.org/",
     userHost: process.env.EGOV_USER_HOST || "https://unified-dev.digit.org/",
