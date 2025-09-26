@@ -43,12 +43,10 @@ public class Identifier {
     private String individualClientReferenceId = null;
 
     @JsonProperty("identifierType")
-    @NotNull
     @Size(min = 2, max = 64)
-    private String identifierType = null;
+    private String identifierType = "DEFAULT";
 
     @JsonProperty("identifierId")
-    @NotNull
     @Size(min = 2, max = 64)
     private String identifierId = null;
 
