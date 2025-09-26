@@ -10,9 +10,9 @@ const KEY = crypto.createHash('sha256').update(BASE_SECRET).digest();
 
 export function encrypt(plainText: string): string {
     const iv = crypto.randomBytes(IV_LENGTH);
-    const cipher = crypto.createCipheriv(ALGORITHM, KEY, iv);
+    const cipher = crypto.createCipheriv(ALGORITHM, KEY as Uint8Array, iv as Uint8Array);
     
-    const encrypted = Buffer.concat([cipher.update(plainText, 'utf8'), cipher.final()]);
+    const encrypted = Buffer.concat([cipher.update(plainText, 'utf8'), cipher.final()] as Uint8Array[]);
     
     // Format: iv:encrypted (both base64)
     return iv.toString('base64') + ':' + encrypted.toString('base64');
@@ -24,8 +24,8 @@ export function decrypt(encryptedText: string): string {
     const iv = Buffer.from(ivB64, 'base64');
     const encrypted = Buffer.from(encryptedB64, 'base64');
     
-    const decipher = crypto.createDecipheriv(ALGORITHM, KEY, iv);
-    const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
+    const decipher = crypto.createDecipheriv(ALGORITHM, KEY as Uint8Array, iv as Uint8Array);
+    const decrypted = Buffer.concat([decipher.update(encrypted as Uint8Array), decipher.final()] as Uint8Array[] );
     
     return decrypted.toString('utf8');
 }
