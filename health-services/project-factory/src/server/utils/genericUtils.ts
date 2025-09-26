@@ -483,20 +483,6 @@ function correctParentValues(campaignDetails: any) {
   return campaignDetails;
 }
 
-// function setDropdownFromSchema(request: any, schema: any, localizationMap?: { [key: string]: string }) {
-//   const dropdowns = Object.entries(schema.properties)
-//     .filter(([key, value]: any) => Array.isArray(value.enum) && value.enum.length > 0)
-//     .reduce((result: any, [key, value]: any) => {
-//       // Transform the key using localisedValue function
-//       const newKey: any = getLocalizedName(key, localizationMap);
-//       result[newKey] = value.enum;
-//       return result;
-//     }, {});
-//   logger.info(`dropdowns to set ${JSON.stringify(dropdowns)}`)
-//   request.body.dropdowns = dropdowns;
-//   return dropdowns;
-// }
-
 function setHiddenColumns(request: any, schema: any, localizationMap?: { [key: string]: string }) {
   // from schema.properties find the key whose value have value.hideColumn == true
   const hiddenColumns = Object.entries(schema.properties).filter(([key, value]: any) => value.hideColumn == true).map(([key, value]: any) => getLocalizedName(key, localizationMap));

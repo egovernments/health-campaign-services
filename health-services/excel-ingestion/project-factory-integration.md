@@ -184,19 +184,45 @@ graph TD
 ## 6. Complete Integration Flow
 
 ```mermaid
-graph TD
-    A[Boundary Change] --> B[Project Factory triggers generation]
-    B --> C[Excel Ingestion generates template]
-    C --> D[User downloads & fills Excel]
-    D --> E[User uploads filled Excel]
-    E --> F[Project Factory calls process API]
-    F --> G[Excel Ingestion validates data]
-    G --> H[Stores in temp table]
-    H --> I[Produces to Kafka]
-    I --> J[Project Factory consumes result]
-    J --> K[Fetches parsed data]
-    K --> L[Creates campaign entities]
-    L --> M[Campaign Created Successfully]
+sequenceDiagram
+    participant Client
+    participant PF as Project Factory
+    participant EI as Excel Ingestion
+    participant FS as FileStore
+    participant DB as Database
+    participant K as Kafka
+    participant Email as Email Service
+    
+    Note over Client,Email: 1. Excel Generation Flow
+    Client->>PF: Boundary change detected
+    PF->>EI: POST /v1/data/_generate
+    EI-->>PF: Generation ID (async)
+    Note over EI: Generate Excel template
+    EI->>FS: Upload Excel template
+    PF-->>Client: Template ready for download
+    
+    Note over Client,Email: 2. Excel Processing Flow
+    Client->>Client: Download & fill Excel
+    Client->>PF: Create Campaign (upload filled Excel)
+    PF->>EI: POST /v1/data/_process
+    EI-->>PF: Processing ID (async)
+    Note over EI: Validate & parse Excel data
+    EI->>DB: Store in eg_sheetdata_temp
+    EI->>K: Produce to hcm-processing-result
+    
+    Note over Client,Email: 3. Campaign Creation Flow
+    K->>PF: Processing result notification
+    PF->>EI: POST /v1/data/sheet/_search
+    EI-->>PF: Return parsed sheet data
+    PF->>PF: Create campaign entities
+    Note over PF: - Create Project<br/>- Create Staff<br/>- Create Facilities<br/>- Create Mappings
+    
+    Note over Client,Email: 4. User Credential Generation & Notification
+    PF->>PF: Generate user credentials for staff
+    Note over PF: Auto-generate usernames<br/>and passwords for new users
+    PF->>Email: Send email notifications
+    Note over Email: Email credentials to<br/>users with login details
+    PF-->>Client: Campaign Created Successfully
 ```
 
 ---
