@@ -447,20 +447,6 @@ async function fullProcessFlowForNewEntry(newEntryResponse: any, generatedResour
   }
 }
 
-function generateAuditDetails(request: any) {
-  const createdBy = request?.body?.RequestInfo?.userInfo?.uuid;
-  const lastModifiedBy = request?.body?.RequestInfo?.userInfo?.uuid;
-  const auditDetails = {
-    createdBy: createdBy,
-    lastModifiedBy: lastModifiedBy,
-    createdTime: Date.now(),
-    lastModifiedTime: Date.now()
-  }
-  return auditDetails;
-}
-
-
-
 function sortCampaignDetails(campaignDetails: any) {
   campaignDetails.sort((a: any, b: any) => {
     // If a is a child of b, a should come after b
@@ -1349,18 +1335,6 @@ async function getDataFromSheet(request: any, fileStoreId: any, tenantId: any, c
   }
 }
 
-// async function getBoundaryRelationshipData(request: any, params: any) {
-//   logger.info("Boundary relationship search initiated");
-//   const url = `${config.host.boundaryHost}${config.paths.boundaryRelationship}`;
-//   const header = {
-//     ...defaultheader,
-//     // cachekey: `boundaryRelationShipSearch${params?.hierarchyType}${params?.tenantId}${params.codes || ''}${params?.includeChildren || ''}`,
-//   }
-//   const boundaryRelationshipResponse = await httpRequest(url, request.body, params, undefined, undefined, header);
-//   logger.info("Boundary relationship search response received");
-//   return boundaryRelationshipResponse?.TenantBoundary?.[0]?.boundary;
-// }
-
 async function getDataSheetReady(boundaryData: any, request: any, localizationMap?: { [key: string]: string }) {
   const type = request?.query?.type;
   const boundaryType = boundaryData?.[0].boundaryType;
@@ -2152,7 +2126,6 @@ export {
   throwErrorViaRequest,
   sendResponse,
   appCache,
-  generateAuditDetails,
   searchGeneratedResources,
   generateNewRequestObject,
   updateExistingResourceExpired,
