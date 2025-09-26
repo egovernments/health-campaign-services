@@ -9,7 +9,6 @@ import org.egov.excelingestion.config.ExcelIngestionConfig;
 import org.egov.excelingestion.service.BoundaryService;
 import org.egov.excelingestion.web.models.*;
 import org.springframework.stereotype.Component;
-import org.egov.excelingestion.util.LocalizationUtil;
 
 import java.util.*;
 
