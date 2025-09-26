@@ -30,6 +30,7 @@ public class BoundaryService {
     private final MdmsService mdmsService;
     private final ProjectService projectService;
     private static Map<String, String> boundaryCodeVsLocalizedName = new ConcurrentHashMap<>();
+    private static Map<String, String> projectIdVsBoundaryCodeCache = new ConcurrentHashMap<>();
 
     private static List<EnrichedBoundary> cachedEnrichedBoundaries = null;
 
@@ -281,5 +282,84 @@ public class BoundaryService {
                 .build();
     }
 
+    public String boundaryCodeFromProjectId(String projectId, String tenantId) {
+
+        if (projectIdVsBoundaryCodeCache.containsKey(projectId)) {
+            log.info("Fetched boundary code from projectId cache: {}", projectId);
+            return projectIdVsBoundaryCodeCache.get(projectId);
+        }
+
+        Project project = projectService.getProject(projectId, tenantId);
+        if (project != null) {
+            return project.getAddress().getBoundary();
+        }
+
+        log.warn("Boundary code not found for projectId: {}, tenantId: {}", projectId, tenantId);
+        return null;
+    };
+
+    private int countLeafChildren(EnrichedBoundary node) {
+        if (node == null) return 0;
+
+        if (node.getChildren() == null || node.getChildren().isEmpty()) {
+            // Leaf node
+            return 1;
+        }
+
+        int total = 0;
+        for (EnrichedBoundary child : node.getChildren()) {
+            total += countLeafChildren(child);
+        }
+        return total;
+    }
+
+    private EnrichedBoundary findBoundaryNode(List<EnrichedBoundary> boundaries, String locationCode) {
+        for (EnrichedBoundary boundary : boundaries) {
+            if (locationCode.equals(boundary.getCode())) {
+                return boundary;
+            }
+            if (boundary.getChildren() != null && !boundary.getChildren().isEmpty()) {
+                EnrichedBoundary result = findBoundaryNode(boundary.getChildren(), locationCode);
+                if (result != null) {
+                    return result;
+                }
+            }
+        }
+        return null;
+    }
+
+
+    public Long fetchLowestChildCount(String projectId, String tenantId) {
+        String boundaryCode = boundaryCodeFromProjectId(projectId, tenantId);
+        if (boundaryCode == null) {
+            log.warn("No boundaryCode found for projectId: {}, tenantId: {}", projectId, tenantId);
+            return 0L;
+        }
+
+        Long count = countLeafChildrenFromSource(cachedEnrichedBoundaries, boundaryCode);
+        if (count != null) {
+            return count;
+        }
+
+        List<EnrichedBoundary> fetched = fetchBoundaryData(boundaryCode, tenantId);
+        count = countLeafChildrenFromSource(fetched, boundaryCode);
+        if (count != null) {
+            return count;
+        }
+
+        log.warn("Boundary code {} not found even after fetching from service", boundaryCode);
+        return 0L;
+    }
+
+    private Long countLeafChildrenFromSource(List<EnrichedBoundary> boundaries, String boundaryCode) {
+        if (boundaries == null || boundaries.isEmpty()) {
+            return null;
+        }
+        EnrichedBoundary node = findBoundaryNode(boundaries, boundaryCode);
+        if (node == null) {
+            return null;
+        }
+        return (long) countLeafChildren(node);
+    }
 
 }

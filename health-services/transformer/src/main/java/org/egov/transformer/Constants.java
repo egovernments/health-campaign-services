@@ -124,4 +124,7 @@ public interface Constants {
     String SUB_BOUNDARY_TYPE = "subBoundaryType";
     String BOUNDARY_TYPE = "boundaryType";
 
+    String DAY_OF_VISIT = "dayOfVisit";
+    String VISITED_BOUNDARIES_SUFFIX = "_visited_boundaries";
+
 }

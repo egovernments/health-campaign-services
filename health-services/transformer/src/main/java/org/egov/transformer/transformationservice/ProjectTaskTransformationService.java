@@ -38,10 +38,10 @@ public class ProjectTaskTransformationService {
     private static final Set<String> ADDITIONAL_DETAILS_DOUBLE_FIELDS = new HashSet<>(Arrays.asList(QUANTITY_WASTED));
     private static final Set<String> ADDITIONAL_DETAILS_INTEGER_FIELDS = new HashSet<>(Arrays.asList(NO_OF_ROOMS_SPRAYED_KEY, RE_DOSE_QUANTITY_KEY));
     private static final Set<String> BENEFICIARY_INFO_STRING_KEYS = new HashSet<>(Arrays.asList(
-            INDIVIDUAL_CLIENT_REFERENCE_ID, GENDER, HOUSEHOLD_CLIENT_REFERENCE_ID, UNIQUE_BENEFICIARY_ID
+            INDIVIDUAL_CLIENT_REFERENCE_ID, GENDER, HOUSEHOLD_CLIENT_REFERENCE_ID, UNIQUE_BENEFICIARY_ID, DISABILITY_TYPE
     ));
     private static final Set<String> BENEFICIARY_INFO_INTEGER_KEYS = new HashSet<>(Arrays.asList(
-            AGE, MEMBER_COUNT
+            AGE, MEMBER_COUNT, HEIGHT
     ));
 
     public ProjectTaskTransformationService(TransformerProperties transformerProperties, Producer producer, ObjectMapper objectMapper, CommonUtils commonUtils, ProjectService projectService, ProductService productService, IndividualService individualService, HouseholdService householdService, UserService userService, BoundaryService boundaryService) {
@@ -212,10 +212,10 @@ public class ProjectTaskTransformationService {
 //            addAdditionalDetails(taskResource.getAdditionalFields(), additionalDetails);
 //            addCycleIndex(additionalDetails, taskResource.getAuditDetails(), tenantId, projectTypeId);
 //        }
-        if (beneficiaryInfo.containsKey(HEIGHT) && beneficiaryInfo.containsKey(DISABILITY_TYPE)) {
-            additionalDetails.put(HEIGHT, (Integer) beneficiaryInfo.get(HEIGHT));
-            additionalDetails.put(DISABILITY_TYPE, (String) beneficiaryInfo.get(DISABILITY_TYPE));
-        }
+//        if (beneficiaryInfo.containsKey(HEIGHT) && beneficiaryInfo.containsKey(DISABILITY_TYPE)) {
+//            additionalDetails.put(HEIGHT, (Integer) beneficiaryInfo.get(HEIGHT));
+//            additionalDetails.put(DISABILITY_TYPE, (String) beneficiaryInfo.get(DISABILITY_TYPE));
+//        }
 
         if (beneficiaryInfo.containsKey("additionalFields")) {
             try {
