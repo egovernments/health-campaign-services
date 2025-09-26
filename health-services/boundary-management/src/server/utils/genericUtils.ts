@@ -7,6 +7,7 @@ import { getErrorCodes} from "../config/constants";
 import { v4 as uuidv4 } from 'uuid';
 import { resourceDataStatuses } from "../config/constants";
 import { produceModifiedMessages } from "../kafka/Producer";
+import {getLocalizedName} from "../utils/boundaryUtils";
 const NodeCache = require("node-cache");
 
 
@@ -212,4 +213,123 @@ function shutdownGracefully() {
   process.exit(1); // Exit with a non-zero code to indicate an error
 }
 
-export { errorResponder ,appCache,errorLogger,invalidPathHandler,sendResponse,getLocalizedMessagesHandler,throwErrorViaRequest,throwError,getLocalizedHeaders ,enrichResourceDetails,shutdownGracefully};
+function createHeaderToHierarchyMap(
+  sheetHeaders: string[],
+  hierarchy: string[]
+): { [key: string]: string } {
+  const map: { [key: string]: string } = {};
+  let hierarchyIndex = 0;
+
+  for (const header of sheetHeaders) {
+    if (hierarchyIndex < hierarchy.length) {
+      map[header] = hierarchy[hierarchyIndex++];
+    }
+  }
+
+  return map;
+}
+
+function modifyBoundaryDataHeadersWithMap(
+  boundaryData: any[],
+  headerToHierarchyMap: { [originalHeader: string]: string }
+) {
+  return boundaryData.map((row) => {
+    const updatedRow: { [key: string]: any } = {};
+
+    for (const key in row) {
+      if (Object.prototype.hasOwnProperty.call(row, key)) {
+        const newKey = headerToHierarchyMap[key];
+        updatedRow[newKey || key] = row[key];
+      }
+    }
+
+    return updatedRow;
+  });
+}
+
+function modifyBoundaryData(boundaryData: any[], localizationMap?: any) {
+  // Initialize arrays to store data
+  const withBoundaryCode: { key: string, value: string }[][] = [];
+  const withoutBoundaryCode: { key: string, value: string }[][] = [];
+
+  // Get the key for the boundary code
+  const boundaryCodeKey = getLocalizedName(config?.boundary?.boundaryCode, localizationMap);
+
+  // Process each object in boundaryData
+  boundaryData.forEach((obj: any) => {
+    // Convert object entries to an array of {key, value} objects
+    const row: any = Object.entries(obj)
+      .filter(([key, value]: [string, any]) => value !== null && value !== undefined) // Filter out null or undefined values
+      .map(([key, value]: [string, any]) => {
+        // Check if the current key is the "Boundary Code" key
+        if (key === boundaryCodeKey) {
+          // Keep the "Boundary Code" value as is without transformation
+          return { key, value: value.toString() };
+        } else {
+          // Transform other values
+          return { key, value: value.toString().replace(/_/g, ' ').trim() };
+        }
+      });
+
+    // Determine whether the object has a boundary code property
+    const hasBoundaryCode = obj.hasOwnProperty(boundaryCodeKey);
+
+    // Push the row to the appropriate array based on whether it has a boundary code property
+    if (hasBoundaryCode) {
+      withBoundaryCode.push(row);
+    } else {
+      withoutBoundaryCode.push(row);
+    }
+  });
+
+  // Return the arrays
+  return [withBoundaryCode, withoutBoundaryCode];
+}
+
+function findMapValue(map: Map<any, any>, key: any): any | null {
+  let foundValue = null;
+  map.forEach((value, mapKey) => {
+    if (mapKey.key === key.key && mapKey.value === key.value) {
+      foundValue = value;
+    }
+  });
+  return foundValue;
+}
+
+function extractFrenchOrPortugeseLocalizationMap(
+  boundaryData: any[][],
+  isFrench: boolean,
+  isPortugese: boolean,
+  localizationMap: any
+): Map<{ key: string; value: string }, string> {
+  const resultMap = new Map<{ key: string; value: string }, string>();
+
+  boundaryData.forEach(row => {
+    const boundaryCodeObj = row.find(obj => obj.key === getLocalizedName(config?.boundary?.boundaryCode, localizationMap));
+    const boundaryCode = boundaryCodeObj?.value;
+
+    if (!boundaryCode) return;
+
+    if (isFrench) {
+      const frenchMessageObj = row.find(obj => obj.key === getLocalizedName("HCM_ADMIN_CONSOLE_FRENCH_LOCALIZATION_MESSAGE", localizationMap));
+      resultMap.set({
+        key: "french",
+        value: frenchMessageObj?.value || ""
+      }, boundaryCode);
+    } else if (isPortugese) {
+      const portugeseMessageObj = row.find(obj => obj.key === getLocalizedName("HCM_ADMIN_CONSOLE_PORTUGESE_LOCALIZATION_MESSAGE", localizationMap));
+      resultMap.set({
+        key: "portugese",
+        value: portugeseMessageObj?.value || ""
+      }, boundaryCode);
+    }
+  });
+
+  return resultMap;
+}
+
+export { errorResponder ,appCache,errorLogger,invalidPathHandler
+  ,sendResponse,getLocalizedMessagesHandler,throwErrorViaRequest,throwError
+  ,getLocalizedHeaders ,enrichResourceDetails,shutdownGracefully,createHeaderToHierarchyMap
+  ,modifyBoundaryDataHeadersWithMap,modifyBoundaryData,findMapValue,extractFrenchOrPortugeseLocalizationMap
+};

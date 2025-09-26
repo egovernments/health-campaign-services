@@ -1,6 +1,13 @@
-import{getLocalizedName} from "../utils/boundaryUtils"
-import {getExcelWorkbookFromFileURL} from "../utils/excelUtils";
-
+import{getLocalizedName,extractCodesFromBoundaryRelationshipResponse} from "../utils/boundaryUtils"
+import {getExcelWorkbookFromFileURL,enrichTemplateMetaData} from "../utils/excelUtils";
+import { logger,getFormattedStringForDebug } from  "../utils/logger";
+import {findMapValue} from "../utils/genericUtils";
+import config from "../config/index";
+import { httpRequest,defaultheader } from "../utils/request";
+import { throwError } from "../utils/genericUtils";
+import {getLocaleFromRequestInfo} from "../utils/localisationUtils";
+import FormData from "form-data"; 
+const _ = require('lodash'); // Import lodash library
 
 
 // Function to retrieve data from a specific sheet in an Excel file
@@ -25,6 +32,122 @@ const getSheetData = async (
   const jsonData = getJsonData(sheetData, getRow);
   return jsonData;
 };
+
+/**
+ * Asynchronously creates boundary relationships based on the provided request, boundary type map, and modified child-parent map.
+ * @param request The HTTP request object.
+ * @param boundaryTypeMap Map of boundary codes to types.
+ * @param modifiedChildParentMap Modified child-parent map.
+ */
+async function createBoundaryRelationship(request: any, boundaryMap: Map<{ key: string, value: string }, string>, modifiedChildParentMap: Map<string, string | null>) {
+  try {
+
+    const updatedBoundaryMap: Array<{ key: string, value: string }> = Array.from(boundaryMap).map(([key, value]) => ({ key: value, value: key.key }));
+
+    let activityMessage: any[] = [];
+    const requestBody = { "RequestInfo": request.body.RequestInfo } as { RequestInfo: any; BoundaryRelationship?: any };
+    const url = `${config.host.boundaryHost}${config.paths.boundaryRelationship}`;
+    const params = {
+      "type": "boundaryManagement",
+      "tenantId": request?.body?.ResourceDetails?.tenantId,
+      "boundaryType": null,
+      "codes": null,
+      "includeChildren": true,
+      "hierarchyType": request?.body?.ResourceDetails?.hierarchyType
+    };
+    const header = {
+      ...defaultheader,
+      // cachekey: `boundaryRelationShipSearch${params?.hierarchyType}${params?.tenantId}${params.codes || ''}${params?.includeChildren || ''}`,
+    }
+
+    const boundaryRelationshipResponse = await httpRequest(url, request.body, params, undefined, undefined, header);
+    const boundaryData = boundaryRelationshipResponse?.TenantBoundary?.[0]?.boundary;
+    const allCodes = extractCodesFromBoundaryRelationshipResponse(boundaryData);
+
+    let flag = 1;
+
+    for (const { key: boundaryCode, value: boundaryType } of updatedBoundaryMap) {
+      if (!allCodes.has(boundaryCode)) {
+        const boundary = {
+          tenantId: request?.body?.ResourceDetails?.tenantId,
+          boundaryType: boundaryType,
+          code: boundaryCode,
+          hierarchyType: request?.body?.ResourceDetails?.hierarchyType,
+          parent: modifiedChildParentMap.get(boundaryCode) || null
+        };
+
+        flag = 0;
+        requestBody.BoundaryRelationship = boundary;
+        await confirmBoundaryParentCreation(request, modifiedChildParentMap.get(boundaryCode) || null);
+        try {
+          const response = await httpRequest(`${config.host.boundaryHost}${config.paths.boundaryRelationshipCreate}`, requestBody, {}, 'POST', undefined, undefined, true);
+
+          if (!response.TenantBoundary || !Array.isArray(response.TenantBoundary) || response.TenantBoundary.length === 0) {
+            throwError("BOUNDARY", 500, "BOUNDARY_RELATIONSHIP_CREATE_ERROR");
+          }
+          logger.info(`Boundary relationship created for boundaryType :: ${boundaryType} & boundaryCode :: ${boundaryCode} `);
+        } catch (error) {
+          // Log the error and rethrow to be caught by the outer try...catch block
+          logger.error(`Error creating boundary relationship for boundaryType :: ${boundaryType} & boundaryCode :: ${boundaryCode} :: `, error);
+          throw error;
+        }
+      }
+    };
+
+    if (flag === 1) {
+      throwError("COMMON", 400, "VALIDATION_ERROR", "Boundary already present in the system");
+    }
+
+    request.body = {
+      ...request.body,
+      Activities: activityMessage
+    };
+  } catch (error: any) {
+    const errorCode = error.code || "INTERNAL_SERVER_ERROR";
+    const errorMessage = error.description || "Error while boundary relationship create";
+    logger.error(`Error in createBoundaryRelationship: ${errorMessage}`, error);
+    throwError("COMMON", 500, errorCode, errorMessage);
+  }
+}
+
+async function confirmBoundaryParentCreation(request: any, code: any) {
+  if (code) {
+    const searchBody = {
+      RequestInfo: request.body.RequestInfo,
+    }
+    const params: any = {
+      hierarchyType: request?.body?.ResourceDetails?.hierarchyType,
+      tenantId: request?.body?.ResourceDetails?.tenantId,
+      codes: code
+    }
+    var retry = 6;
+    var boundaryFound = false;
+    const header = {
+      ...defaultheader,
+      // cachekey: `boundaryRelationShipSearch${params?.hierarchyType}${params?.tenantId}${params.codes.replace(/’/g, '') || ''}${params?.includeChildren || ''}`,
+    }
+    while (!boundaryFound && retry >= 0) {
+      const response = await httpRequest(config.host.boundaryHost + config.paths.boundaryRelationship, searchBody, params, undefined, undefined, header);
+      if (response?.TenantBoundary?.[0].boundary?.[0]) {
+        boundaryFound = true;
+      }
+      else {
+        logger.info("Boundary not found. Waiting for 1 seconds");
+        retry = retry - 1
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    }
+    if (!boundaryFound) {
+      throwError("BOUNDARY", 500, "INTERNAL_SERVER_ERROR", "Boundary creation failed, for the boundary with code " + code);
+    }
+  }
+}
+
+// Function to create an Excel sheet
+async function createExcelSheet(data: any, headers: any) {
+  var rows = [headers, ...data];
+  return rows;
+}
 
 function getSheetDataFromWorksheet(worksheet: any) {
   var sheetData: any[][] = [];
@@ -83,6 +206,218 @@ function getRawCellValue(cell: any) {
   return cell.value; // Return raw value for plain strings, numbers, etc.
 }
 
+// Function to handle getting boundary codes
+async function getAutoGeneratedBoundaryCodesHandler(boundaryList: any, childParentMap: Map<{ key: string; value: string; }, { key: string; value: string; } | null>, elementCodesMap: any, countMap: any, request: any,hierarchy?:any) {
+  try {
+    // Get updated element codes map
+    logger.info("Auto Generation of Boundary code begins for the user uploaded sheet")
+    const updatedelementCodesMap = await getAutoGeneratedBoundaryCodes(boundaryList, childParentMap, elementCodesMap, countMap, request,hierarchy);
+    return updatedelementCodesMap; // Return the updated element codes map
+  } catch (error) {
+    // Log and propagate the error
+    console.error("Error in getBoundaryCodesHandler:", error);
+    throw error;
+  }
+}
+/**
+ * Function to generate auto-generated boundary codes based on boundary list, child-parent mapping,
+ * element codes map, count map, and request information.
+ * @param boundaryList List of boundary data
+ * @param childParentMap Map of child-parent relationships
+ * @param elementCodesMap Map of element codes
+ * @param countMap Map of counts for each element
+ * @param request HTTP request object
+ * @returns Updated element codes map
+ */
+async function getAutoGeneratedBoundaryCodes(boundaryList: any, childParentMap: any, elementCodesMap: any, countMap: any, request: any,hierarchy?:any) {
+  // Initialize an array to store column data
+  const columnsData: { key: string, value: string }[][] = [];
+  // Extract unique elements from each column
+  for (const row of boundaryList) {
+    const rowMap = new Map<string, any>();
+  row.forEach((obj:any) => rowMap.set(obj.key, obj.value));
+
+  // Step 2: Find last present hierarchy index
+  let lastPresentHierarchyIndex = -1;
+  for (let i = 0; i < hierarchy.length; i++) {
+    const level = hierarchy[i];
+    if (rowMap.get(level)) {
+      lastPresentHierarchyIndex = i;
+    }
+  }
+  for (let i = 0; i <= lastPresentHierarchyIndex; i++) {
+    const level = hierarchy[i];
+    const element = row.find((obj:any) => obj.key === level);
+
+    if (!columnsData[i]) {
+      columnsData[i] = [];
+    }
+    const existingElement = columnsData[i].find((existing: any) => _.isEqual(existing, element));
+    if (!existingElement) {
+      columnsData[i].push(element);
+    }
+    };
+  }
+
+  // Iterate over columns to generate boundary codes
+  for (let i = 0; i < columnsData.length; i++) {
+    const column = columnsData[i] || [];
+    for (const element of column) {
+      if (!findMapValue(elementCodesMap, element) && element.value !== '') {
+        const parentElement = findMapValue(childParentMap, element);
+        if (parentElement !== undefined && parentElement !== null) {
+          const parentBoundaryCode = findMapValue(elementCodesMap, parentElement);
+          const currentCount = (findMapValue(countMap, parentElement) || 0) + 1;
+          countMap.set(parentElement, currentCount);
+
+          const code = generateElementCode(
+            currentCount,
+            parentElement,
+            parentBoundaryCode,
+            element.value,
+            config.excludeBoundaryNameAtLastFromBoundaryCodes,
+            childParentMap,
+            elementCodesMap
+          );
+
+          elementCodesMap.set(element, code); // Store the code of the element in the map
+        } else {
+          // Generate default code if parent code is not found
+          const prefix = config?.excludeHierarchyTypeFromBoundaryCodes
+            ? element.value.toString().substring(0, 2).toUpperCase()
+            : `${(request?.body?.ResourceDetails?.hierarchyType + "_").toUpperCase()}${element.value.toString().substring(0, 2).toUpperCase()}`;
+
+          elementCodesMap.set(element, prefix);
+        }
+      }
+    }
+  }
+  modifyElementCodesMap(elementCodesMap); // Modify the element codes map
+  return elementCodesMap; // Return the updated element codes map
+}
+
+/**
+ * Asynchronously creates boundary entities based on the provided request and boundary map.
+ * @param request The HTTP request object.
+ * @param boundaryMap Map of boundary names to codes.
+ */
+async function createBoundaryEntities(request: any, boundaryMap: Map<any, any>) {
+  try {
+    const updatedBoundaryMap: Array<{ key: string, value: string }> = Array.from(boundaryMap).map(([key, value]) => ({ key: key.value, value: value }));
+    // Create boundary entities
+    const requestBody = { "RequestInfo": request.body.RequestInfo } as { RequestInfo: any; Boundary?: any };
+    const boundaries: any[] = [];
+    const codesFromResponse: any = [];
+    const boundaryCodes: any[] = [];
+    Array.from(boundaryMap.entries()).forEach(([, boundaryCode]) => {
+      boundaryCodes.push(boundaryCode);
+    });
+    const boundaryEntitiesCreated: any[] = [];
+    const boundaryEntityCreateChunkSize = 200;
+    const chunkSize = 20;
+    const boundaryCodeChunks = [];
+    for (let i = 0; i < boundaryCodes.length; i += chunkSize) {
+      boundaryCodeChunks.push(boundaryCodes.slice(i, i + chunkSize));
+    }
+
+    for (const chunk of boundaryCodeChunks) {
+      const string = chunk.join(', ');
+      const boundaryEntityResponse = await httpRequest(config.host.boundaryHost + config.paths.boundaryServiceSearch, request.body, { tenantId: request?.body?.ResourceDetails?.tenantId, codes: string });
+      const boundaryCodesFromResponse = boundaryEntityResponse.Boundary.flatMap((boundary: any) => boundary.code.toString());
+      codesFromResponse.push(...boundaryCodesFromResponse);
+    }
+
+    const codeSet = new Set(codesFromResponse);// Creating a set and filling it with the codes from the response
+    for (const { key: boundaryName, value: boundaryCode } of updatedBoundaryMap) {
+      if (!codeSet.has(boundaryCode.toString())) {
+        const boundary = {
+          tenantId: request?.body?.ResourceDetails?.tenantId,
+          code: boundaryCode,
+          geometry: null,
+          additionalDetails: {
+            name: boundaryName
+          }
+        };
+        boundaries.push(boundary);
+      }
+    };
+    if (!(boundaries.length === 0)) {
+      for (let i = 0; i < boundaries.length; i += boundaryEntityCreateChunkSize) {
+        requestBody.Boundary = boundaries.slice(i, i + boundaryEntityCreateChunkSize);
+        const response = await httpRequest(`${config.host.boundaryHost}boundary-service/boundary/_create`, requestBody, {}, 'POST',);
+        boundaryEntitiesCreated.push(response)
+      }
+      logger.info('Boundary entities created');
+      logger.debug('Boundary entities response: ' + getFormattedStringForDebug(boundaryEntitiesCreated));
+    }
+    else {
+      // throwError("COMMON", 400, "VALIDATION_ERROR", "Boundary entity already present in the system");
+      logger.info("Boundary Entities are already in the system")
+    }
+  } catch (error) {
+    throwError("COMMMON", 500, "INTERNAL_SERVER_ERROR", "Error while Boundary Entity Creation")
+  }
+}
+
+function modifyElementCodesMap(elementCodesMap: any) {
+  const set = new Set<string>();
+  const specialCharsRegex = /[^\w]/g; // Replace any non-word character
+  const maxLength = 59; // Max length allowed for unique values
+
+  elementCodesMap.forEach((value: any, key: any) => {
+    let modifiedValue = value.replace(specialCharsRegex, '_').trim(); // Replace special characters and trim
+    if (modifiedValue.length > maxLength) {
+      logger.info(`Length of ${modifiedValue} is greater than max length ${maxLength}, so it will be truncated to ${maxLength} characters.`);
+    }
+    modifiedValue = modifiedValue.substring(0, maxLength); // Ensure length is at most 59
+    let modifiedTempValue = modifiedValue; // Store the base modified value
+    let count = 1;
+
+    // Ensure uniqueness and valid length
+    while (set.has(modifiedValue)) {
+      let suffix = `_${count}`;
+      let allowedLength = maxLength - suffix.length;
+      modifiedValue = modifiedTempValue.substring(0, allowedLength) + suffix;
+      count++;
+    }
+
+    set.add(modifiedValue); // Store the unique value
+    elementCodesMap.set(key, modifiedValue); // Update the map
+  });
+}
+
+/**
+ * Function to generate an element code based on sequence, parent code, and element.
+ * @param sequence Sequence number
+ * @param parentElement Parent element
+ * @param parentBoundaryCode Parent boundary code
+ * @param element Element
+ * @param excludeBoundaryNameAtLastFromBoundaryCodes Whether to exclude boundary name at last
+ * @param childParentMap Map of child to parent elements
+ * @param elementCodesMap Map of elements to their codes
+ * @returns Generated element code
+ */
+function generateElementCode(sequence: any, parentElement: any, parentBoundaryCode: any, element: any, excludeBoundaryNameAtLastFromBoundaryCodes?: any, childParentMap?: any, elementCodesMap?: any) {
+  // Pad single-digit numbers with leading zero
+  const paddedSequence = sequence.toString().padStart(2, "0");
+  let code;
+
+  if (excludeBoundaryNameAtLastFromBoundaryCodes) {
+    code = `${parentBoundaryCode.toUpperCase()}_${paddedSequence}`;
+  } else {
+    const grandParentElement = findMapValue(childParentMap, parentElement);
+    if (grandParentElement != null && grandParentElement != undefined) {
+      const lastUnderscoreIndex = parentBoundaryCode ? parentBoundaryCode.lastIndexOf('_') : -1;
+      const parentBoundaryCodeTrimmed = lastUnderscoreIndex !== -1 ? parentBoundaryCode.substring(0, lastUnderscoreIndex) : parentBoundaryCode;
+      code = `${parentBoundaryCodeTrimmed.toUpperCase()}_${paddedSequence}_${element.toString().toUpperCase()}`;
+    } else {
+      code = `${parentBoundaryCode.toUpperCase()}_${paddedSequence}_${element.toString().toUpperCase()}`;
+    }
+  }
+
+  return code.trim();
+}
+
 export function getJsonData(sheetData: any, getRow = false, getSheetName = false, sheetName = "sheet1") {
   const jsonData: any[] = [];
   const headers = sheetData[0]; // Extract the headers from the first row
@@ -108,6 +443,61 @@ export function getJsonData(sheetData: any, getRow = false, getSheetName = false
   return jsonData;
 }
 
+// Function to create Excel sheet and upload it
+async function createAndUploadFile(
+  updatedWorkbook: any,
+  request: any,
+  tenantId?: any
+) {
+  let retries: any = 3;
+  // Enrich metadatas
+  if (request?.body?.RequestInfo && request?.query?.campaignId) {
+    enrichTemplateMetaData(updatedWorkbook, getLocaleFromRequestInfo(request?.body?.RequestInfo), request?.query?.campaignId);
+  }
+  while (retries--) {
+    try {
+      // Write the updated workbook to a buffer
+      const buffer = await updatedWorkbook.xlsx.writeBuffer();
+
+      // Create form data for file upload
+      const formData = new FormData();
+      formData.append("file", buffer, "filename.xlsx");
+      formData.append(
+        "tenantId",
+        tenantId ? tenantId : request?.body?.RequestInfo?.userInfo?.tenantId
+      );
+      formData.append("module", "HCM-ADMIN-CONSOLE-SERVER");
+
+      // Make HTTP request to upload file
+      var fileCreationResult = await httpRequest(
+        config.host.filestore + config.paths.filestore,
+        formData,
+        undefined,
+        undefined,
+        undefined,
+        {
+          "Content-Type": "multipart/form-data",
+          "auth-token": request?.body?.RequestInfo?.authToken || request?.RequestInfo?.authToken,
+        }
+      );
+
+      // Extract response data
+      const responseData = fileCreationResult?.files;
+      if (responseData) {
+        return responseData;
+      }
+    }
+    catch (error: any) {
+      console.error(`Attempt failed:`, error.message);
+
+      // Add a delay before the next retry (2 seconds)
+      await new Promise((resolve) => setTimeout(resolve, 5000));
+    }
+  }
+  throw new Error("Error while uploading excel file: INTERNAL_SERVER_ERROR");
+}
 
 
-export{getSheetData};
+export{getSheetData,getAutoGeneratedBoundaryCodesHandler,createBoundaryEntities,createBoundaryRelationship
+    ,createExcelSheet , createAndUploadFile
+};

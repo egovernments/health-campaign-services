@@ -3,6 +3,7 @@ import {getLocalizedMessagesHandler,enrichResourceDetails} from "../utils/generi
 import { getLocalisationModuleName } from "../utils/localisationUtils";
 import { logger } from "../utils/logger";
 import { validateProcessRequest } from "../validators/boundaryValidators";
+import { processRequest } from "../api/boundaryApis";
 
 const processBoundaryService = async (request: any) => {
   const hierarchyType = request?.body?.ResourceDetails?.hierarchyType;
@@ -17,6 +18,10 @@ const processBoundaryService = async (request: any) => {
 
     // Enrich resource details
     await enrichResourceDetails(request);
+
+    // Process the generic request
+    await processRequest(request, localizationMap);
+    return request?.body?.ResourceDetails;
   
 
 };

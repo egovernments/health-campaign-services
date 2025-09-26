@@ -3,8 +3,7 @@ import { processRequestSchema } from "../config/models/processRequestSchema";
 import { validateBodyViaSchema,validateHierarchyType} from "./genericValidator";
 import config from "../config";
 import { httpRequest } from "../utils/request";
-import { getLocaleFromRequest } from "../utils/localisationUtils";
-import { validateFileMetaDataViaFileUrl } from "../utils/excelUtils";
+// import { validateFileMetaDataViaFileUrl } from "../utils/excelUtils";
 import {getLocalizedName,getBoundaryTabName,getHeadersOfBoundarySheet,getHierarchy,validateHeaders} from "../utils/boundaryUtils";
 import {getSheetData} from "../api/genericApis";
 
@@ -30,7 +29,7 @@ async function validateProcessRequest(request: any, localizationMap?: any) {
             throwError("COMMON", 400, "VALIDATION_ERROR", "tenantId is not matching with userInfo");
         }
         const fileUrl = await validateFile(request);
-        await validateFileMetaDataViaFileUrl(fileUrl, getLocaleFromRequest(request), request?.body?.ResourceDetails?.campaignId, request?.body?.ResourceDetails?.action);
+        // await validateFileMetaDataViaFileUrl(fileUrl, getLocaleFromRequest(request), request?.body?.ResourceDetails?.campaignId, request?.body?.ResourceDetails?.action);
 
         await validateBoundarySheetData(request, fileUrl, localizationMap);
 
@@ -106,4 +105,34 @@ function validateForDuplicateRows(boundaryData: any[]) {
     }
 }
 
-export { validateProcessRequest };
+function validateBoundarySheetDataInCreateFlow(boundarySheetData: any, localizedHeadersOfBoundarySheet: any) {
+    const firstColumnValues = new Set();
+    const firstColumn = localizedHeadersOfBoundarySheet[0];
+
+    boundarySheetData.forEach((obj: any, index: number) => {
+        let firstEmptyFound = false;
+        // Collect value from the first column
+        if (obj[firstColumn]) {
+            firstColumnValues.add(obj[firstColumn]);
+        }
+        if (firstColumnValues.size > 1) {
+            throwError("BOUNDARY", 400, "BOUNDARY_SHEET_FIRST_COLUMN_INVALID_ERROR",
+                `Data is invalid: The "${firstColumn}" column must contain only one unique value across all rows.`);
+        }
+
+        for (const header of localizedHeadersOfBoundarySheet) {
+            const value = obj[header];
+
+            if (!value) {
+                // Mark that an empty value has been found for the first time
+                firstEmptyFound = true;
+            } else if (firstEmptyFound) {
+                // If a non-empty value is found after an empty value in the expected order, throw an error
+                throwError("BOUNDARY", 400, "BOUNDARY_SHEET_UPLOADED_INVALID_ERROR",
+                    `Data is invalid in object at index ${index + 2}: Non-empty value for key "${header}" found after an empty value in the left.`);
+            }
+        }
+    });
+}
+
+export { validateProcessRequest ,validateBoundarySheetDataInCreateFlow};
