@@ -2,7 +2,7 @@ import { Kafka, logLevel, EachMessagePayload } from 'kafkajs';
 import config from '../config';
 import { getFormattedStringForDebug, logger } from '../utils/logger';
 import { shutdownGracefully } from '../utils/genericUtils';
-import { handleCampaignMapping, handleMappingTaskForCampaign } from '../utils/campaignMappingUtils';
+import { handleMappingTaskForCampaign } from '../utils/campaignMappingUtils';
 import { handleTaskForCampaign } from '../utils/taskUtils';
 import { handleProcessingResult } from '../utils/processingResultHandler';
 import { handleFacilityBatch } from '../utils/facilityBatchHandler';
@@ -21,7 +21,6 @@ const groupId = 'project-factory';
 
 
 const topicNames = [
-    config.kafka.KAFKA_START_CAMPAIGN_MAPPING_TOPIC,
     config.kafka.KAFKA_START_ADMIN_CONSOLE_TASK_TOPIC,
     config.kafka.KAFKA_START_ADMIN_CONSOLE_MAPPING_TASK_TOPIC,
     config.kafka.KAFKA_TEST_TOPIC,
@@ -99,9 +98,6 @@ async function processMessageKJS(topic: string, message: { value: Buffer | null 
         const messageObject = JSON.parse(message.value?.toString() || '{}');
 
         switch (topic) {
-            case config.kafka.KAFKA_START_CAMPAIGN_MAPPING_TOPIC:
-                await handleCampaignMapping(messageObject);
-                break;
             case config.kafka.KAFKA_START_ADMIN_CONSOLE_TASK_TOPIC:
                 await handleTaskForCampaign(messageObject);
                 break;

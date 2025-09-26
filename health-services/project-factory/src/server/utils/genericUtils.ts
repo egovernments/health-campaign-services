@@ -1433,13 +1433,6 @@ async function getLocalizedMessagesHandler(request: any, tenantId: any, module =
   return localizationResponse;
 }
 
-async function getLocalizedMessagesHandlerViaRequestInfo(RequestInfo: any, tenantId: any, module = config.localisation.localizationModule) {
-  const localisationcontroller = Localisation.getInstance();
-  const locale = getLocaleFromRequestInfo(RequestInfo);
-  const localizationResponse = await localisationcontroller.getLocalisedData(module, locale, tenantId);
-  return localizationResponse;
-}
-
 async function getLocalizedMessagesHandlerViaLocale(locale: string, tenantId: any, module = config.localisation.localizationModule, overrideCache = false) {
   const localisationcontroller = Localisation.getInstance();
   const localizationResponse = await localisationcontroller.getLocalisedData(module, locale, tenantId, overrideCache);
@@ -2155,7 +2148,6 @@ export {
   getMdmsDataBasedOnCampaignType,
   shutdownGracefully,
   appendProjectTypeToCapacity,
-  getLocalizedMessagesHandlerViaRequestInfo,
   createFacilityAndBoundaryFile,
   hideUniqueIdentifierColumn,
   createHeaderToHierarchyMap,
