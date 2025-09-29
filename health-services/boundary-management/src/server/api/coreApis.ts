@@ -2,7 +2,6 @@
 import { BoundaryModels, MDMSModels } from "../models";
 import config from "../config";
 import { defaultheader, httpRequest } from "../utils/request";
-import { logger } from "../utils/logger";
 
 // Default request information for MDMS API requests
 export const defaultRequestInfo: any = {
