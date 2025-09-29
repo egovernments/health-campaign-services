@@ -1,11 +1,11 @@
-import{getLocalizedName,extractCodesFromBoundaryRelationshipResponse} from "../utils/boundaryUtils"
+import{getLocalizedName,extractCodesFromBoundaryRelationshipResponse,getHierarchy} from "../utils/boundaryUtils"
 import {getExcelWorkbookFromFileURL,enrichTemplateMetaData} from "../utils/excelUtils";
 import { logger,getFormattedStringForDebug } from  "../utils/logger";
-import {findMapValue} from "../utils/genericUtils";
+import {findMapValue,getLocalizedHeaders,throwError,getDataSheetReady} from "../utils/genericUtils";
 import config from "../config/index";
 import { httpRequest,defaultheader } from "../utils/request";
-import { throwError } from "../utils/genericUtils";
 import {getLocaleFromRequestInfo} from "../utils/localisationUtils";
+import {searchBoundaryRelationshipData,defaultRequestInfo} from "./coreApis";
 import FormData from "form-data"; 
 const _ = require('lodash'); // Import lodash library
 
@@ -205,6 +205,253 @@ function getRawCellValue(cell: any) {
   }
   return cell.value; // Return raw value for plain strings, numbers, etc.
 }
+
+/**
+ * Retrieves boundary sheet data based on the request parameters.
+ * @param {any} request The HTTP request object.
+ * @param {{[key: string]: string}} localizationMap The localization map.
+ * @param {boolean} useCache Whether to use cache or not.
+ * @returns {Promise<any>} The boundary sheet data.
+ */
+async function getBoundarySheetData(
+  request: any,
+  localizationMap?: { [key: string]: string },
+  useCache?:boolean
+) {
+  // Retrieve boundary data based on the request parameters
+  // const params = {
+  //   ...request?.query,
+  //   includeChildren: true,
+  // };
+  const hierarchyType = request?.query?.hierarchyType;
+  const tenantId = request?.query?.tenantId;
+  logger.info(
+    `processing boundary data generation for hierarchyType : ${hierarchyType}`
+  );
+  // const boundaryData = await getBoundaryRelationshipData(request, params);
+  const boundaryRelationshipResponse: any = await searchBoundaryRelationshipData(tenantId, hierarchyType, true, true,useCache);
+  const boundaryData = boundaryRelationshipResponse?.TenantBoundary?.[0]?.boundary;
+  if (!boundaryData || boundaryData.length === 0) {
+    logger.info(`boundary data not found for hierarchyType : ${hierarchyType}`);
+    const hierarchy = await getHierarchy(
+      request?.query?.tenantId,
+      hierarchyType
+    );
+    const modifiedHierarchy = hierarchy.map((ele) =>
+      `${hierarchyType}_${ele}`.toUpperCase()
+    );
+    const localizedHeadersUptoHierarchy = getLocalizedHeaders(
+      modifiedHierarchy,
+      localizationMap
+    );
+    var headerColumnsAfterHierarchy;
+
+    headerColumnsAfterHierarchy = await getConfigurableColumnHeadersBasedOnCampaignTypeForBoundaryManagement(request, localizationMap);
+    const headers = [...localizedHeadersUptoHierarchy, ...headerColumnsAfterHierarchy];
+    // create empty sheet if no boundary present in system
+    // const localizedBoundaryTab = getLocalizedName(
+    //   getBoundaryTabName(),
+    //   localizationMap
+    // );
+    logger.info(`generated a empty template for boundary`);
+    return await createExcelSheet(
+      boundaryData,
+      headers
+    );
+  } 
+  else {
+    return await getDataSheetReady(boundaryData, request, localizationMap);
+  }
+}
+
+async function getConfigurableColumnHeadersBasedOnCampaignTypeForBoundaryManagement(request: any, localizationMap?: { [key: string]: string }) {
+  try {
+    const mdmsResponse = await callMdmsTypeSchema(
+      request?.query?.tenantId || request?.body?.ResourceDetails?.tenantId,
+      false,
+      "boundaryManagement",
+      "all"
+    );
+    if (!mdmsResponse || mdmsResponse?.columns.length === 0) {
+      logger.error(
+        `Campaign Type all has not any columns configured in schema`
+      );
+      throwError(
+        "COMMON",
+        400,
+        "SCHEMA_ERROR",
+        `Campaign Type all has not any columns configured in schema`
+      );
+    }
+    // Extract columns from the response
+    const columnsForGivenCampaignId = mdmsResponse?.columns;
+
+    // Get localized headers based on the column names
+    const headerColumnsAfterHierarchy = getLocalizedHeaders(
+      columnsForGivenCampaignId,
+      localizationMap
+    );
+    if (
+      !headerColumnsAfterHierarchy.includes(
+        getLocalizedName(config.boundary.boundaryCode, localizationMap)
+      )
+    ) {
+      logger.error(
+        `Column Headers of generated Boundary Template does not have ${getLocalizedName(
+          config.boundary.boundaryCode,
+          localizationMap
+        )} column`
+      );
+      throwError(
+        "COMMON",
+        400,
+        "VALIDATION_ERROR",
+        `Column Headers of generated Boundary Template does not have ${getLocalizedName(
+          config.boundary.boundaryCode,
+          localizationMap
+        )} column`
+      );
+    }
+    return headerColumnsAfterHierarchy;
+  } catch (error: any) {
+    console.log(error);
+    throwError(
+      "FILE",
+      400,
+      "FETCHING_COLUMN_ERROR",
+      "Error fetching column Headers From Schema (either boundary code column not found or given  Campaign Type not found in schema) Check logs"
+    );
+  }
+}
+async function callMdmsTypeSchema(
+  tenantId: string,
+  isUpdate: boolean,
+  type: any,
+  campaignType = "all"
+) {
+  const RequestInfo = defaultRequestInfo?.RequestInfo;
+  const requestBody = {
+    RequestInfo,
+    MdmsCriteria: {
+      tenantId: tenantId,
+      uniqueIdentifiers: [
+        `${type}.${campaignType}`
+      ],
+      schemaCode: "HCM-ADMIN-CONSOLE.adminSchema"
+    }
+  };
+  const url = config.host.mdmsV2 + config.paths.mdms_v2_search;
+  const header = {
+    ...defaultheader,
+    cachekey: `mdmsv2Seacrh${requestBody?.MdmsCriteria?.tenantId}${campaignType}${type}.${campaignType}${requestBody?.MdmsCriteria?.schemaCode}`
+  }
+  const response = await httpRequest(url, requestBody, undefined, undefined, undefined, header);
+  if (!response?.mdms?.[0]?.data) {
+    throwError("COMMON", 500, "INTERNAL_SERVER_ERROR", "Error occured during schema search");
+  }
+  return convertIntoSchema(response?.mdms?.[0]?.data, isUpdate);
+}
+
+
+function convertIntoSchema(data: any, isUpdate: boolean) {
+  const properties: any = {};
+  const errorMessage: any = {};
+  const required: any[] = [];
+  let columns: any[] = [];
+  const unique: any[] = [];
+  const columnsNotToBeFreezed: any[] = [];
+  const columnsToBeFreezed: any[] = [];
+  const columnsToHide: any[] = [];
+
+  for (const propType of ['enumProperties', 'numberProperties', 'stringProperties']) {
+    if (data.properties[propType] && Array.isArray(data.properties[propType]) && data.properties[propType]?.length > 0) {
+      for (const property of data.properties[propType]) {
+        properties[property?.name] = {
+          ...property,
+          type: propType === 'stringProperties' ? 'string' : propType === 'numberProperties' ? 'number' : undefined
+        };
+        if (property?.errorMessage)
+          errorMessage[property?.name] = property?.errorMessage;
+
+        if (property?.isRequired && required.indexOf(property?.name) === -1) {
+          required.push({ name: property?.name, orderNumber: property?.orderNumber });
+        }
+        if (property?.isUnique && unique.indexOf(property?.name) === -1) {
+          unique.push(property?.name);
+        }
+        if (!property?.freezeColumn || property?.freezeColumn == false) {
+          columnsNotToBeFreezed.push(property?.name);
+        }
+        if (property?.freezeColumn) {
+          columnsToBeFreezed.push(property?.name);
+        }
+        if (property?.hideColumn) {
+          columnsToHide.push(property?.name);
+        }
+
+        // If orderNumber is missing, default to a very high number
+        if (isUpdate) {
+          columns.push({ name: property?.name, orderNumber: property?.orderNumber || 9999999999 });
+        }
+        else {
+          if (!property?.isUpdate) {
+            columns.push({ name: property?.name, orderNumber: property?.orderNumber || 9999999999 });
+          }
+        }
+      }
+    }
+  }
+
+  const descriptionToFieldMap: Record<string, string> = {};
+
+  for (const [key, field] of Object.entries(properties)) {
+    // Cast field to `any` since it is of type `unknown`
+    const typedField = field as any;
+  
+    if (typedField.isRequired) {
+      descriptionToFieldMap[typedField.description] = key;
+    }
+  }
+  data.descriptionToFieldMap = descriptionToFieldMap;
+  
+  
+  enrichSchema(data, properties, required, columns, unique, columnsNotToBeFreezed, columnsToBeFreezed, columnsToHide, errorMessage);
+  return data;
+}
+
+function enrichSchema(data: any, properties: any, required: any, columns: any, unique: any, columnsNotToBeFreezed: any, columnsToBeFreezed: any, columnsToHide: any, errorMessage: any) {
+
+  // Sort columns based on orderNumber, using name as tie-breaker if orderNumbers are equal
+  columns.sort((a: any, b: any) => {
+    if (a.orderNumber === b.orderNumber) {
+      return a.name.localeCompare(b.name);
+    }
+    return a.orderNumber - b.orderNumber;
+  });
+
+  required.sort((a: any, b: any) => {
+    if (a.orderNumber === b.orderNumber) {
+      return a.name.localeCompare(b.name);
+    }
+    return a.orderNumber - b.orderNumber;
+  });
+
+  const sortedRequiredColumns = required.map((column: any) => column.name);
+
+  // Extract sorted property names
+  const sortedPropertyNames = columns.map((column: any) => column.name);
+
+  // Update data with new properties and required fields
+  data.properties = properties;
+  data.required = sortedRequiredColumns;
+  data.columns = sortedPropertyNames;
+  data.unique = unique;
+  data.errorMessage = errorMessage;
+  data.columnsNotToBeFreezed = columnsNotToBeFreezed;
+  data.columnsToBeFreezed = columnsToBeFreezed;
+  data.columnsToHide = columnsToHide;
+}
+
 
 // Function to handle getting boundary codes
 async function getAutoGeneratedBoundaryCodesHandler(boundaryList: any, childParentMap: Map<{ key: string; value: string; }, { key: string; value: string; } | null>, elementCodesMap: any, countMap: any, request: any,hierarchy?:any) {
@@ -499,5 +746,5 @@ async function createAndUploadFile(
 
 
 export{getSheetData,getAutoGeneratedBoundaryCodesHandler,createBoundaryEntities,createBoundaryRelationship
-    ,createExcelSheet , createAndUploadFile
+    ,createExcelSheet , createAndUploadFile ,getBoundarySheetData ,getConfigurableColumnHeadersBasedOnCampaignTypeForBoundaryManagement
 };

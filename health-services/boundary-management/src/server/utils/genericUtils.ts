@@ -1,14 +1,21 @@
 import { NextFunction, Request, Response } from "express";
 import { logger } from "./logger";
-import { getLocaleFromRequest } from "./localisationUtils";
+import { getLocaleFromRequest , getLocaleFromRequestInfo ,getLocalisationModuleName} from "./localisationUtils";
 import Localisation from "../controllers/localisationController/localisation.controller";
 import config from "../config/index";
-import { getErrorCodes} from "../config/constants";
+import { getErrorCodes ,generatedResourceStatuses} from "../config/constants";
 import { v4 as uuidv4 } from 'uuid';
 import { resourceDataStatuses } from "../config/constants";
 import { produceModifiedMessages } from "../kafka/Producer";
-import {getLocalizedName} from "../utils/boundaryUtils";
+import {generateHierarchyList} from "../api/boundaryApis";
+import {getLocalizedName,getHierarchy , getLocalizedNameOnlyIfMessagePresent,getLatLongMapForBoundaryCodes} from "../utils/boundaryUtils";
+import { generatedResourceTransformer } from "./transforms/searchResponseConstructor";
+import {getBoundaryDataService} from "../services/boundaryManagementService";
+import {getConfigurableColumnHeadersBasedOnCampaignTypeForBoundaryManagement , createExcelSheet} from "../api/genericApis";
+import {getTableName,executeQuery} from "../utils/db";
 const NodeCache = require("node-cache");
+const updateGeneratedResourceTopic = config?.kafka?.KAFKA_UPDATE_GENERATED_RESOURCE_DETAILS_TOPIC;
+const createGeneratedResourceTopic = config?.kafka?.KAFKA_CREATE_GENERATED_RESOURCE_DETAILS_TOPIC;
 
 
 
@@ -27,7 +34,7 @@ const appCache = new NodeCache({ stdTTL: 1800000, checkperiod: 300 });
 /*
 Error handling Middleware function reads the error message and sends back a response in JSON format
 */
-const errorResponder = (
+export const errorResponder = (
   error: any,
   request: any,
   response: Response,
@@ -328,8 +335,289 @@ function extractFrenchOrPortugeseLocalizationMap(
   return resultMap;
 }
 
-export { errorResponder ,appCache,errorLogger,invalidPathHandler
+/**
+ * Process generate request
+ * 1. Fetch existing data from db
+ * 2. Modify existing data with audit details
+ * 3. Generate new random id and make filestore id null
+ * 4. Update existing data with expired status
+ * 5. Generate new data
+ * 6. Update and persist generate request
+ * 
+ * @param request - request object
+ * @param enableCaching - whether to enable caching or not
+ * @param filteredBoundary - optional parameter to filter out boundaries
+ */
+
+async function processGenerate(request: any, enableCaching = false, filteredBoundary?: any) {
+  // fetch the data from db  to check any request already exists
+  const responseData = await searchGeneratedResources(request?.query, getLocaleFromRequestInfo(request?.body?.RequestInfo));
+  // modify response from db 
+  const modifiedResponse = await enrichAuditDetails(responseData);
+  // generate new random id and make filestore id null
+  const newEntryResponse = await generateNewRequestObject(request);
+  // make old data status as expired
+  const oldEntryResponse = await updateExistingResourceExpired(modifiedResponse, request);
+  // generate data 
+  await updateAndPersistGenerateRequest(newEntryResponse, oldEntryResponse, responseData, request, enableCaching, filteredBoundary);
+}
+
+async function updateExistingResourceExpired(modifiedResponse: any[], request: any) {
+  return modifiedResponse.map((item: any) => {
+    const newItem = { ...item };
+    newItem.status = generatedResourceStatuses.expired;
+    newItem.auditDetails.lastModifiedTime = Date.now();
+    newItem.auditDetails.lastModifiedBy = request?.body?.RequestInfo?.userInfo?.uuid;
+    return newItem;
+  });
+}
+
+async function enrichAuditDetails(responseData: any) {
+  return responseData.map((item: any) => {
+    return {
+      ...item,
+      count: parseInt(item.count),
+      auditDetails: {
+        ...item.auditDetails,
+        lastModifiedTime: parseInt(item.auditDetails.lastModifiedTime),
+        createdTime: parseInt(item.auditDetails.createdTime)
+      }
+    };
+  });
+}
+
+async function updateAndPersistGenerateRequest(newEntryResponse: any, oldEntryResponse: any, responseData: any, request: any, enableCaching = false, filteredBoundary?: any) {
+  const { forceUpdate } = request.query;
+  const forceUpdateBool: boolean = forceUpdate === 'true';
+  let generatedResource: any;
+  if (forceUpdateBool && responseData.length > 0) {
+    generatedResource = { generatedResource: oldEntryResponse };
+    // send message to update topic 
+    await produceModifiedMessages(generatedResource, updateGeneratedResourceTopic, request?.query?.tenantId);
+    request.body.generatedResource = oldEntryResponse;
+  }
+  if (responseData.length === 0 || forceUpdateBool) {
+    processGenerateForNew(request, generatedResource, newEntryResponse, enableCaching, filteredBoundary)
+  }
+  else {
+    request.body.generatedResource = responseData
+  }
+}
+
+async function processGenerateForNew(request: any, generatedResource: any, newEntryResponse: any, enableCaching = false, filteredBoundary?: any) {
+  request.body.generatedResource = newEntryResponse;
+  logger.info("Generate flow :: processing new request");
+  await fullProcessFlowForNewEntry(newEntryResponse, generatedResource, request, enableCaching, filteredBoundary);
+  return request.body.generatedResource;
+}
+
+async function fullProcessFlowForNewEntry(newEntryResponse: any, generatedResource: any, request: any, enableCaching = false, filteredBoundary?: any) {
+  const tenantId = request?.query?.tenantId;
+  try {
+    const { hierarchyType } = request?.query;
+    generatedResource = { generatedResource: newEntryResponse }
+    // send message to create toppic
+    logger.info(`processing the generate request for type ${hierarchyType}`)
+    await produceModifiedMessages(generatedResource, createGeneratedResourceTopic, request?.query?.tenantId);
+
+      // get boundary data from boundary relationship search api
+      logger.info("Generating Boundary Data")
+      const boundaryDataSheetGeneratedBeforeDifferentTabSeparation = await getBoundaryDataService(request, false);
+      logger.info(`Boundary data generated successfully: ${JSON.stringify(boundaryDataSheetGeneratedBeforeDifferentTabSeparation)}`);
+      // get boundary sheet data after being generated
+      const finalResponse = await getFinalUpdatedResponse(boundaryDataSheetGeneratedBeforeDifferentTabSeparation, newEntryResponse, request);
+      const generatedResourceNew: any = { generatedResource: finalResponse }
+      // send to update topic
+      await produceModifiedMessages(generatedResourceNew, updateGeneratedResourceTopic, request?.query?.tenantId);
+      request.body.generatedResource = finalResponse;
+      logger.info("generation completed for boundary management create flow")
+  }
+  catch (error: any) {
+    console.log(error)
+    await handleGenerateError(newEntryResponse, generatedResource, error, tenantId);
+  }
+}
+
+async function handleGenerateError(newEntryResponse: any, generatedResource: any, error: any, tenantId: string) {
+  newEntryResponse.map((item: any) => {
+    item.status = generatedResourceStatuses.failed, item.additionalDetails = {
+      ...item.additionalDetails,
+      error: {
+        status: error.status,
+        code: error.code,
+        description: error.description,
+        message: error.message
+      }
+    }
+  })
+  generatedResource = { generatedResource: newEntryResponse };
+  logger.error(String(error));
+  await produceModifiedMessages(generatedResource, updateGeneratedResourceTopic, tenantId);
+}
+
+async function generateNewRequestObject(request: any) {
+  const { type } = request.query;
+  const additionalDetails = type === 'boundary'
+    ? { Filters: request?.body?.Filters ?? null }
+    : {};
+  const newEntry = {
+    id: uuidv4(),
+    fileStoreid: null,
+    type: type,
+    status: generatedResourceStatuses.inprogress,
+    hierarchyType: request?.query?.hierarchyType,
+    tenantId: request?.query?.tenantId,
+    auditDetails: {
+      lastModifiedTime: Date.now(),
+      createdTime: Date.now(),
+      createdBy: request?.body?.RequestInfo?.userInfo.uuid,
+      lastModifiedBy: request?.body?.RequestInfo?.userInfo.uuid,
+    },
+    additionalDetails: additionalDetails,
+    count: null,
+    campaignId: request?.query?.campaignId,
+    locale: request?.body?.RequestInfo?.msgId?.split('|')[1] || null
+  };
+  return [newEntry];
+}
+
+async function getFinalUpdatedResponse(result: any, responseData: any, request: any) {
+  return responseData.map((item: any) => {
+    return {
+      ...item,
+      tenantId: request?.query?.tenantId,
+      count: parseInt(request?.body?.generatedResourceCount || null),
+      auditDetails: {
+        ...item.auditDetails,
+        lastModifiedTime: Date.now(),
+        createdTime: Date.now(),
+        lastModifiedBy: request?.body?.RequestInfo?.userInfo?.uuid
+      },
+      fileStoreid: result?.[0]?.fileStoreId,
+      status: resourceDataStatuses.completed
+    };
+  });
+}
+
+/* Fetches data from the database */
+async function searchGeneratedResources(searchQuery: any, locale: any) {
+  try {
+    const { tenantId, hierarchyType, id, status } = searchQuery;
+    const tableName = getTableName(config?.DB_CONFIG.DB_GENERATED_TEMPLATE_TABLE_NAME, tenantId);
+    let queryString = `SELECT * FROM ${tableName} WHERE `;
+    let queryConditions: string[] = [];
+    let queryValues: any[] = [];
+    if (id) {
+      queryConditions.push(`id = $${queryValues.length + 1}`);
+      queryValues.push(id);
+    }
+    // if (type) {
+    //   queryConditions.push(`type = $${queryValues.length + 1}`);
+    //   queryValues.push(type);
+    // }
+
+    if (hierarchyType) {
+      queryConditions.push(`hierarchyType = $${queryValues.length + 1}`);
+      queryValues.push(hierarchyType);
+    }
+
+    if (tenantId) {
+      queryConditions.push(`tenantId = $${queryValues.length + 1}`);
+      queryValues.push(tenantId);
+    } // ✅ closed tenantId block
+
+    if (status) {
+      const statusArray = status.split(',').map((s: any) => s.trim());
+      const statusConditions = statusArray.map((_: any, index: any) => `status = $${queryValues.length + index + 1}`);
+      queryConditions.push(`(${statusConditions.join(' OR ')})`);
+      queryValues.push(...statusArray);
+    }
+
+    if (locale) {
+      queryConditions.push(`locale = $${queryValues.length + 1}`);
+      queryValues.push(locale);
+    }
+
+    queryString += queryConditions.join(" AND ");
+
+    // Add sorting and limiting
+    queryString += " ORDER BY createdTime DESC OFFSET 0 LIMIT 1";
+
+    const queryResult = await executeQuery(queryString, queryValues);
+    return generatedResourceTransformer(queryResult?.rows);
+  } catch (error: any) {
+    console.log(error);
+    logger.error(`Error fetching data from the database: ${error.message}`);
+    throwError("COMMON", 500, "INTERNAL_SERVER_ERROR", error?.message);
+    return null; // Return null in case of an error
+  }
+}
+
+
+async function getDataSheetReady(boundaryData: any, request: any, localizationMap?: { [key: string]: string }) {
+  const boundaryType = boundaryData?.[0].boundaryType;
+  const boundaryList = generateHierarchyList(boundaryData)
+  const locale = getLocaleFromRequest(request);
+  const region = locale.split('_')[1];
+  const frenchMessagesMap: any = await getLocalizedMessagesHandler(request, request?.query?.tenantId, getLocalisationModuleName(request?.query?.hierarchyType), true, `fr_${region}`);
+  const portugeseMessagesMap: any = await getLocalizedMessagesHandler(request, request?.query?.tenantId, getLocalisationModuleName(request?.query?.hierarchyType), true, `pt_${region}`);
+  if (!Array.isArray(boundaryList) || boundaryList.length === 0) {
+    throwError("COMMON", 400, "VALIDATION_ERROR", "Boundary list is empty or not an array.");
+  }
+
+  const hierarchy = await getHierarchy(request?.query?.tenantId, request?.query?.hierarchyType);
+  const startIndex = boundaryType ? hierarchy.indexOf(boundaryType) : -1;
+  const reducedHierarchy = startIndex !== -1 ? hierarchy.slice(startIndex) : hierarchy;
+  const modifiedReducedHierarchy = getLocalizedHeaders(reducedHierarchy.map(ele => `${request?.query?.hierarchyType}_${ele}`.toUpperCase()), localizationMap);
+  // get Campaign Details from Campaign Search Api
+  var configurableColumnHeadersBasedOnCampaignType: any[] = []
+  configurableColumnHeadersBasedOnCampaignType = await getConfigurableColumnHeadersBasedOnCampaignTypeForBoundaryManagement(request, localizationMap);
+  const headers = [
+  ...modifiedReducedHierarchy,
+  ...configurableColumnHeadersBasedOnCampaignType
+  ];
+
+  const localizedHeaders = getLocalizedHeaders(headers, localizationMap);
+  var boundaryCodeList: any[] = [];
+  var data = boundaryList.map(boundary => {
+    const boundaryParts = boundary.split(',');
+    const boundaryCode = boundaryParts[boundaryParts.length - 1];
+    boundaryCodeList.push(boundaryCode);
+    const rowData = boundaryParts.concat(Array(Math.max(0, reducedHierarchy.length - boundaryParts.length)).fill(''));
+    // localize the boundary codes
+    const mappedRowData = rowData.map((cell: any, index: number) =>
+      index === reducedHierarchy.length ? '' : cell !== '' ? getLocalizedName(cell, localizationMap) : ''
+    );
+    const boundaryCodeIndex = reducedHierarchy.length;
+    mappedRowData[boundaryCodeIndex] = boundaryCode;
+      const frenchTranslation = getLocalizedNameOnlyIfMessagePresent(boundaryCode, frenchMessagesMap) || '';
+      const portugeseTranslation = getLocalizedNameOnlyIfMessagePresent(boundaryCode, portugeseMessagesMap) || '';
+      mappedRowData.push(frenchTranslation);
+      mappedRowData.push(portugeseTranslation);
+    return mappedRowData;
+  });
+    logger.info("Processing data for boundaryManagement type")
+    const latLongBoundaryMap = await getLatLongMapForBoundaryCodes(request, boundaryCodeList);
+    for (let d of data) {
+      const boundaryCode = d[d.length - 1];  // Assume last element is the boundary code
+
+      if (latLongBoundaryMap[boundaryCode]) {
+        const [latitude = null, longitude = null] = latLongBoundaryMap[boundaryCode];  // Destructure lat/long
+        d.push(latitude);   // Append latitude
+        d.push(longitude);  // Append longitude
+      }
+    }
+  const sheetRowCount = data.length;
+  request.body.generatedResourceCount = sheetRowCount;
+  return await createExcelSheet(data, localizedHeaders);
+}
+
+
+
+
+export {  appCache,errorLogger,invalidPathHandler
   ,sendResponse,getLocalizedMessagesHandler,throwErrorViaRequest,throwError
   ,getLocalizedHeaders ,enrichResourceDetails,shutdownGracefully,createHeaderToHierarchyMap
   ,modifyBoundaryDataHeadersWithMap,modifyBoundaryData,findMapValue,extractFrenchOrPortugeseLocalizationMap
+  ,processGenerate ,getDataSheetReady
 };

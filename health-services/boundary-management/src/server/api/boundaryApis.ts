@@ -90,4 +90,24 @@ async function handleResouceDetailsError(request: any, error: any) {
 }
 
 
-export { processRequest ,handleResouceDetailsError};
+function generateHierarchyList(data: any[], parentChain: any = []) {
+  let result: any[] = [];
+
+  // Iterate over each boundary in the current level
+  for (let boundary of data) {
+    let currentChain = [...parentChain, boundary.code];
+
+    // Add the current chain to the result
+    result.push(currentChain.join(","));
+
+    // If there are children, recursively call the function
+    if (boundary.children && boundary.children.length > 0) {
+      let childResults = generateHierarchyList(boundary.children, currentChain);
+      result = result.concat(childResults);
+    }
+  }
+  return result;
+}
+
+
+export { processRequest ,handleResouceDetailsError,generateHierarchyList};

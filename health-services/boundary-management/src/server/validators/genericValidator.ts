@@ -1,8 +1,10 @@
 import Ajv from "ajv";
+import * as express from "express";
 import { throwError } from "../utils/genericUtils";
 import { BoundaryModels } from "../models";
 import { logger } from "../utils/logger";
 import { searchBoundaryRelationshipDefinition } from "../api/coreApis";
+import { generateRequestSchema } from "../config/models/generateRequestSchema";
 
 /**
  * Validates a given object against a provided schema.
@@ -67,4 +69,17 @@ async function validateHierarchyType(request: any, hierarchyType: any, tenantId:
     }
 }
 
-export { validateBodyViaSchema ,validateHierarchyType};
+// Function to validate the generation request
+async function validateGenerateRequest(request: express.Request) {
+    const { tenantId, hierarchyType, forceUpdate } = request.query;
+    validateBodyViaSchema(generateRequestSchema, request.query);
+    if (tenantId != request?.body?.RequestInfo?.userInfo?.tenantId) {
+        throwError("COMMON", 400, "VALIDATION_ERROR", "tenantId in userInfo and query should be the same");
+    }
+    if (!forceUpdate) {
+        request.query.forceUpdate = "false";
+    }
+    await validateHierarchyType(request, hierarchyType, tenantId);
+}
+
+export { validateBodyViaSchema ,validateHierarchyType,validateGenerateRequest};

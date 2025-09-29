@@ -1,11 +1,11 @@
 import * as express from "express";
 import { errorResponder, sendResponse } from "../../utils/genericUtils";
-import { processBoundaryService } from "../../services/boundaryManagementService";
+import { processBoundaryService ,generateDataService} from "../../services/boundaryManagementService";
 import { logger } from "../../utils/logger";
 
 class boundaryManagementController {
   //define class properties
-  public path = "/v1/data";
+  public path = "/v1";
   public router = express.Router();
 
   //constructor to initialize routes
@@ -61,7 +61,7 @@ generateBoundary = async (
       logger.info(
         `RECEIVED A DATA GENERATE REQUEST FOR HIERARCHY TYPE :: ${request?.body?.ResourceDetails?.hierarchyType}`
       );
-      const ResourceDetails = await processBoundaryService(request);
+      const ResourceDetails = await generateDataService(request);
       // Send response with resource details
       return sendResponse(response, { ResourceDetails }, request);
     } catch (e: any) {

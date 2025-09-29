@@ -133,3 +133,9 @@ export const resourceDataStatuses: any = {
     started: "validation-started",
     accepted: "data-accepted"
 }
+export const generatedResourceStatuses: any = {
+    inprogress: "inprogress",
+    failed: "failed",
+    completed: "completed",
+    expired: "expired"
+}
