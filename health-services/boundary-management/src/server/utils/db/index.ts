@@ -17,7 +17,7 @@ export const getTableName = (tableName: string, tenantId: string): string => {
 };
 
 const getDBSchemaName = (dbSchema = "") => {
-  return "health";
+  // return "health";
   return dbSchema ? (dbSchema == "egov" ? "public" : dbSchema) : "public";
 }
 
