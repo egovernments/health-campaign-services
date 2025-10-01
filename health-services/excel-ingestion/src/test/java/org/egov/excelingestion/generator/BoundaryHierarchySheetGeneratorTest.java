@@ -397,7 +397,7 @@ class BoundaryHierarchySheetGeneratorTest {
     
     private SheetGenerationConfig createMockConfig() {
         return SheetGenerationConfig.builder()
-            .sheetNameKey("HCM_BOUNDARY_HIERARCHY")
+            .sheetName("HCM_BOUNDARY_HIERARCHY")
             .schemaName("target-hcm")
             .order(1)
             .visible(true)

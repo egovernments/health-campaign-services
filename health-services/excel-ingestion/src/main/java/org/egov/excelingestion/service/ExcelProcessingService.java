@@ -8,8 +8,9 @@ import org.egov.common.contract.models.AuditDetails;
 import org.egov.excelingestion.config.ErrorConstants;
 import org.egov.excelingestion.config.ExcelIngestionConfig;
 import org.egov.excelingestion.config.ProcessingConstants;
-import org.egov.excelingestion.config.ProcessorConfigurationRegistry;
-import org.egov.excelingestion.config.ProcessorConfigurationRegistry.ProcessorSheetConfig;
+import org.egov.excelingestion.web.models.mdms.ExcelIngestionProcessData;
+import org.egov.excelingestion.web.models.mdms.ProcessSheetData;
+import org.egov.excelingestion.web.models.ProcessorSheetConfig;
 import org.egov.excelingestion.exception.CustomExceptionHandler;
 import org.egov.excelingestion.util.RequestInfoConverter;
 import org.egov.excelingestion.util.EnrichmentUtil;
@@ -44,7 +45,7 @@ public class ExcelProcessingService {
     private final CustomExceptionHandler exceptionHandler;
     private final ExcelIngestionConfig config;
     private final EnrichmentUtil enrichmentUtil;
-    private final ProcessorConfigurationRegistry configRegistry;
+    private final MDMSConfigService mdmsConfigService;
     private final ExcelUtil excelUtil;
     
     public ExcelProcessingService(ValidationService validationService,
@@ -57,7 +58,7 @@ public class ExcelProcessingService {
                                 CustomExceptionHandler exceptionHandler,
                                 ExcelIngestionConfig config,
                                 EnrichmentUtil enrichmentUtil,
-                                ProcessorConfigurationRegistry configRegistry,
+                                MDMSConfigService mdmsConfigService,
                                 ExcelUtil excelUtil) {
         this.validationService = validationService;
         this.schemaValidationService = schemaValidationService;
@@ -69,7 +70,7 @@ public class ExcelProcessingService {
         this.exceptionHandler = exceptionHandler;
         this.config = config;
         this.enrichmentUtil = enrichmentUtil;
-        this.configRegistry = configRegistry;
+        this.mdmsConfigService = mdmsConfigService;
         this.excelUtil = excelUtil;
     }
 
@@ -220,7 +221,7 @@ public class ExcelProcessingService {
                     resource.getFileStoreId(), sheetName, sheet);
             
             // Get schema for this sheet from pre-validated schemas
-            Map<String, Object> schema = getSchemaForSheet(sheetName, resource.getType(), localizationMap, preValidatedSchemas);
+            Map<String, Object> schema = getSchemaForSheet(sheetName, resource.getType(), localizationMap, preValidatedSchemas, requestInfo, resource.getTenantId());
             
             // Perform schema validation with pre-fetched schema
             List<ValidationError> schemaErrors = schemaValidationService.validateDataWithPreFetchedSchema(
@@ -237,12 +238,24 @@ public class ExcelProcessingService {
      */
     private Map<String, Object> getSchemaForSheet(String sheetName, String type, 
                                                  Map<String, String> localizationMap,
-                                                 Map<String, Map<String, Object>> preValidatedSchemas) {
+                                                 Map<String, Map<String, Object>> preValidatedSchemas,
+                                                 org.egov.excelingestion.web.models.RequestInfo requestInfo,
+                                                 String tenantId) {
         try {
             // Get processor configuration
-            List<ProcessorSheetConfig> configs = configRegistry.getConfigByType(type);
-            if (configs == null) {
+            ExcelIngestionProcessData processData = mdmsConfigService.getExcelIngestionProcessConfig(requestInfo, tenantId, type);
+            if (processData == null || processData.getSheets() == null) {
                 return null;
+            }
+            
+            List<ProcessorSheetConfig> configs = new ArrayList<>();
+            for (ProcessSheetData sheetData : processData.getSheets()) {
+                configs.add(new ProcessorSheetConfig(
+                    sheetData.getSheetName(), 
+                    sheetData.getSchemaName(), 
+                    sheetData.getProcessorClass(), 
+                    sheetData.getParseEnabled() != null ? sheetData.getParseEnabled() : true
+                ));
             }
             
             // Find the schema name for this sheet

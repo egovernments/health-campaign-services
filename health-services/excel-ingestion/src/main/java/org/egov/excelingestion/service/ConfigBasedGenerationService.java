@@ -80,7 +80,7 @@ public class ConfigBasedGenerationService {
         
         // Generate each sheet
         for (SheetGenerationConfig sheetConfig : processorConfig.getSheets()) {
-            String localizedSheetName = getLocalizedSheetName(sheetConfig.getSheetNameKey(), localizationMap);
+            String localizedSheetName = getLocalizedSheetName(sheetConfig.getSheetName(), localizationMap);
             String actualSheetName = truncateSheetName(localizedSheetName);
             
             log.info("Generating sheet: {} (order: {})", actualSheetName, sheetConfig.getOrder());
@@ -91,7 +91,7 @@ public class ConfigBasedGenerationService {
                     // Use schema-based ExcelPopulator approach (automatic)
                     generateSheetViaSchemaBasedGeneration(workbook, actualSheetName, sheetConfig, 
                                                         generateResource, requestInfo, localizationMap);
-                } else if (sheetConfig.isGenerationClassViaExcelPopulator()) {
+                } else if (sheetConfig.getIsGenerationClassViaExcelPopulator()) {
                     // Use custom ExcelPopulator approach
                     generateSheetViaExcelPopulator(workbook, actualSheetName, sheetConfig, 
                                                  generateResource, requestInfo, localizationMap);
@@ -102,7 +102,7 @@ public class ConfigBasedGenerationService {
                 }
                 
                 // Track first visible sheet for setting as active
-                if (sheetConfig.isVisible() && firstVisibleSheetName == null) {
+                if (sheetConfig.getVisible() && firstVisibleSheetName == null) {
                     firstVisibleSheetName = actualSheetName;
                 }
                 
@@ -230,9 +230,9 @@ public class ConfigBasedGenerationService {
             // Find the sheet config to check visibility  
             boolean isVisible = processorConfig.getSheets().stream()
                     .anyMatch(sheetConfig -> {
-                        String localizedName = getLocalizedSheetName(sheetConfig.getSheetNameKey(), localizationMap);
+                        String localizedName = getLocalizedSheetName(sheetConfig.getSheetName(), localizationMap);
                         String actualName = truncateSheetName(localizedName);
-                        return actualName.equals(sheetName) && sheetConfig.isVisible();
+                        return actualName.equals(sheetName) && sheetConfig.getVisible();
                     });
             
             // Hide sheets that start with "_h_" (helper sheets) or are configured as hidden

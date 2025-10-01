@@ -43,7 +43,7 @@ class GeneratorClassNotFoundTest {
     void testGeneratorClassNotFound_ThrowsCorrectErrorCode() {
         // Arrange
         SheetGenerationConfig sheetConfig = SheetGenerationConfig.builder()
-            .sheetNameKey("HCM_CONSOLE_BOUNDARY_HIERARCHY")
+            .sheetName("HCM_CONSOLE_BOUNDARY_HIERARCHY")
             .schemaName(null)
             .generationClass("NonExistentGenerator")
             .isGenerationClassViaExcelPopulator(true)
@@ -86,7 +86,7 @@ class GeneratorClassNotFoundTest {
     void testExistingGeneratorClass_DoesNotThrowException() {
         // Arrange
         SheetGenerationConfig sheetConfig = SheetGenerationConfig.builder()
-            .sheetNameKey("HCM_CONSOLE_BOUNDARY_HIERARCHY")
+            .sheetName("HCM_CONSOLE_BOUNDARY_HIERARCHY")
             .schemaName(null)
             .generationClass("BoundaryHierarchySheetGenerator") // This exists
             .isGenerationClassViaExcelPopulator(true)
@@ -114,7 +114,7 @@ class GeneratorClassNotFoundTest {
     void testSchemaBasedGeneration_SkipsClassValidation() {
         // Arrange - sheet with schema but no generation class (schema-based)
         SheetGenerationConfig sheetConfig = SheetGenerationConfig.builder()
-            .sheetNameKey("HCM_ADMIN_CONSOLE_FACILITIES_LIST")
+            .sheetName("HCM_ADMIN_CONSOLE_FACILITIES_LIST")
             .schemaName("facility-microplan-ingestion")
             .generationClass(null) // No custom generator
             .order(1)
@@ -141,7 +141,7 @@ class GeneratorClassNotFoundTest {
     void testMultipleSheets_ValidatesAllGeneratorClasses() {
         // Arrange
         SheetGenerationConfig validSheet = SheetGenerationConfig.builder()
-            .sheetNameKey("VALID_SHEET")
+            .sheetName("VALID_SHEET")
             .generationClass("BoundaryHierarchySheetGenerator")
             .isGenerationClassViaExcelPopulator(true)
             .order(1)
@@ -149,7 +149,7 @@ class GeneratorClassNotFoundTest {
             .build();
 
         SheetGenerationConfig invalidSheet = SheetGenerationConfig.builder()
-            .sheetNameKey("INVALID_SHEET")  
+            .sheetName("INVALID_SHEET")  
             .generationClass("NonExistentGenerator")
             .isGenerationClassViaExcelPopulator(true)
             .order(2)

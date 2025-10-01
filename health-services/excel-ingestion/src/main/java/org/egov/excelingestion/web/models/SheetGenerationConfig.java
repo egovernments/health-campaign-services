@@ -3,6 +3,7 @@ package org.egov.excelingestion.web.models;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.util.List;
@@ -13,24 +14,20 @@ import java.util.List;
 @Data
 @Builder
 @NoArgsConstructor
+@Getter
 @AllArgsConstructor
 public class SheetGenerationConfig {
     
     /**
      * Unlocalised sheet name key (e.g., "HCM_ADMIN_CONSOLE_FACILITIES_LIST")
      */
-    private String sheetNameKey;
+    private String sheetName;
     
     /**
      * Schema name to fetch from MDMS (e.g., "facility-microplan-ingestion")
      */
     private String schemaName;
     
-    /**
-     * Boundary column handler class name (e.g., "BoundaryColumnUtil", "HierarchicalBoundaryUtil")
-     * If null or empty, no boundary columns will be added to this sheet
-     */
-    private String boundaryColumnsClass;
     
     /**
      * Fully qualified class name for sheet generation (e.g., "org.egov.excelingestion.generator.FacilitySheetGenerator")
@@ -41,15 +38,15 @@ public class SheetGenerationConfig {
      * If true: class returns ExcelPopulator input (columnDefs, data)
      * If false: class generates workbook directly for the sheet
      */
-    private boolean isGenerationClassViaExcelPopulator;
+    private Boolean isGenerationClassViaExcelPopulator;
     
     /**
      * Order in which this sheet should be created (lower numbers first)
      */
-    private int order;
+    private Integer order;
     
     /**
      * Whether this sheet should be visible or hidden
      */
-    private boolean visible;
+    private Boolean visible;
 }

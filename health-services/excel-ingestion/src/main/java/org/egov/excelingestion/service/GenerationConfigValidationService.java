@@ -69,9 +69,9 @@ public class GenerationConfigValidationService {
             validateSheetConfig(sheetConfig);
             
             // Check for duplicate sheet name keys
-            if (!sheetNameKeys.add(sheetConfig.getSheetNameKey())) {
+            if (!sheetNameKeys.add(sheetConfig.getSheetName())) {
                 exceptionHandler.throwCustomException(ErrorConstants.VALIDATION_ERROR,
-                        "Duplicate sheet name key: " + sheetConfig.getSheetNameKey(), 
+                        "Duplicate sheet name key: " + sheetConfig.getSheetName(), 
                         new IllegalArgumentException("Sheet name keys must be unique"));
             }
             
@@ -85,7 +85,7 @@ public class GenerationConfigValidationService {
     }
     
     private void validateSheetConfig(SheetGenerationConfig sheetConfig) {
-        if (!StringUtils.hasText(sheetConfig.getSheetNameKey())) {
+        if (!StringUtils.hasText(sheetConfig.getSheetName())) {
             exceptionHandler.throwCustomException(ErrorConstants.VALIDATION_ERROR,
                     "Sheet name key is required", 
                     new IllegalArgumentException("Sheet name key cannot be null or empty"));
@@ -95,7 +95,7 @@ public class GenerationConfigValidationService {
         if (!StringUtils.hasText(sheetConfig.getGenerationClass()) && 
             !StringUtils.hasText(sheetConfig.getSchemaName())) {
             exceptionHandler.throwCustomException(ErrorConstants.VALIDATION_ERROR,
-                    "Either generation class or schema name is required for sheet: " + sheetConfig.getSheetNameKey(), 
+                    "Either generation class or schema name is required for sheet: " + sheetConfig.getSheetName(), 
                     new IllegalArgumentException("Sheet must have either generationClass or schemaName"));
         }
         
@@ -142,7 +142,7 @@ public class GenerationConfigValidationService {
                     }
                     
                     // Validate that the class implements the correct interface
-                    if (sheetConfig.isGenerationClassViaExcelPopulator()) {
+                    if (sheetConfig.getIsGenerationClassViaExcelPopulator()) {
                         if (!org.egov.excelingestion.generator.IExcelPopulatorSheetGenerator.class.isAssignableFrom(clazz)) {
                             exceptionHandler.throwCustomException(ErrorConstants.VALIDATION_ERROR,
                                     "ExcelPopulator generation class must implement IExcelPopulatorSheetGenerator", 

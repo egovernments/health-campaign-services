@@ -5,7 +5,7 @@ import org.egov.excelingestion.web.models.UserInfo;
 import org.egov.common.producer.Producer;
 import org.egov.excelingestion.config.ErrorConstants;
 import org.egov.excelingestion.config.KafkaTopicConfig;
-import org.egov.excelingestion.config.ProcessorConfigurationRegistry;
+import org.egov.excelingestion.web.models.ProcessorSheetConfig;
 import org.egov.excelingestion.exception.CustomExceptionHandler;
 import org.egov.excelingestion.repository.ProcessingRepository;
 import org.egov.excelingestion.web.models.ProcessResource;
@@ -66,14 +66,14 @@ class ProcessorClassNotFoundTest {
         ProcessResourceRequest request = createProcessResourceRequest();
         
         // Mock config with non-existent processor class
-        ProcessorConfigurationRegistry.ProcessorSheetConfig sheetConfig = 
-            new ProcessorConfigurationRegistry.ProcessorSheetConfig(
+        ProcessorSheetConfig sheetConfig = 
+            new ProcessorSheetConfig(
                 "HCM_CONSOLE_BOUNDARY_HIERARCHY", 
                 null, 
                 "NonExistentProcessor"
             );
         
-        when(configBasedProcessingService.getConfigByType("microplan-ingestion"))
+        when(configBasedProcessingService.getConfigByType(eq("microplan-ingestion"), any(RequestInfo.class), eq("dev")))
             .thenReturn(Arrays.asList(sheetConfig));
         
         // Mock the exception handler to throw the expected CustomException
@@ -96,7 +96,7 @@ class ProcessorClassNotFoundTest {
         assertTrue(exception.getMessage().contains("NonExistentProcessor"));
         
         // Verify validation was called
-        verify(configBasedProcessingService).getConfigByType("microplan-ingestion");
+        verify(configBasedProcessingService).getConfigByType(eq("microplan-ingestion"), any(RequestInfo.class), eq("dev"));
         verify(exceptionHandler).throwCustomException(
             eq(ErrorConstants.PROCESSOR_CLASS_NOT_FOUND),
             anyString(),
@@ -110,14 +110,14 @@ class ProcessorClassNotFoundTest {
         ProcessResourceRequest request = createProcessResourceRequest();
         
         // Mock config with existing processor class
-        ProcessorConfigurationRegistry.ProcessorSheetConfig sheetConfig = 
-            new ProcessorConfigurationRegistry.ProcessorSheetConfig(
+        ProcessorSheetConfig sheetConfig = 
+            new ProcessorSheetConfig(
                 "HCM_CONSOLE_BOUNDARY_HIERARCHY", 
                 null, 
                 "BoundaryHierarchyTargetProcessor"  // This exists
             );
         
-        when(configBasedProcessingService.getConfigByType("microplan-ingestion"))
+        when(configBasedProcessingService.getConfigByType(eq("microplan-ingestion"), any(RequestInfo.class), eq("dev")))
             .thenReturn(Arrays.asList(sheetConfig));
 
         // Act & Assert
@@ -126,7 +126,7 @@ class ProcessorClassNotFoundTest {
         });
 
         // Verify validation was called but no exception thrown
-        verify(configBasedProcessingService).getConfigByType("microplan-ingestion");
+        verify(configBasedProcessingService).getConfigByType(eq("microplan-ingestion"), any(RequestInfo.class), eq("dev"));
         verify(asyncProcessingService).processExcelAsync(any(), any());
         verifyNoInteractions(exceptionHandler);
     }

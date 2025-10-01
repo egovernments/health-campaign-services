@@ -84,9 +84,8 @@ class ConfigBasedGenerationServiceTest {
                 .zoomLevel(60)
                 .sheets(Arrays.asList(
                         SheetGenerationConfig.builder()
-                                .sheetNameKey("TEST_SHEET")
+                                .sheetName("TEST_SHEET")
                                 .schemaName("test-schema")
-                                .boundaryColumnsClass(null)
                                 .generationClass("org.test.TestGenerator")
                                 .isGenerationClassViaExcelPopulator(true)
                                 .order(1)

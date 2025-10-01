@@ -6,8 +6,9 @@ import org.apache.poi.ss.usermodel.Workbook;
 import org.egov.excelingestion.config.ErrorConstants;
 import org.egov.excelingestion.config.KafkaTopicConfig;
 import org.egov.excelingestion.config.ProcessingConstants;
-import org.egov.excelingestion.config.ProcessorConfigurationRegistry;
-import org.egov.excelingestion.config.ProcessorConfigurationRegistry.ProcessorSheetConfig;
+import org.egov.excelingestion.web.models.mdms.ExcelIngestionProcessData;
+import org.egov.excelingestion.web.models.mdms.ProcessSheetData;
+import org.egov.excelingestion.web.models.ProcessorSheetConfig;
 import org.egov.excelingestion.exception.CustomExceptionHandler;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.egov.excelingestion.processor.IWorkbookProcessor;
@@ -37,20 +38,20 @@ import java.util.Set;
 @Slf4j
 public class ConfigBasedProcessingService {
 
-    private final ProcessorConfigurationRegistry configRegistry;
+    private final MDMSConfigService mdmsConfigService;
     private final CustomExceptionHandler exceptionHandler;
     private final MDMSService mdmsService;
     private final ApplicationContext applicationContext;
     private final Producer producer;
     private final KafkaTopicConfig kafkaTopicConfig;
 
-    public ConfigBasedProcessingService(ProcessorConfigurationRegistry configRegistry,
+    public ConfigBasedProcessingService(MDMSConfigService mdmsConfigService,
                                       CustomExceptionHandler exceptionHandler,
                                       MDMSService mdmsService,
                                       ApplicationContext applicationContext,
                                       Producer producer,
                                       KafkaTopicConfig kafkaTopicConfig) {
-        this.configRegistry = configRegistry;
+        this.mdmsConfigService = mdmsConfigService;
         this.exceptionHandler = exceptionHandler;
         this.mdmsService = mdmsService;
         this.applicationContext = applicationContext;
@@ -70,7 +71,7 @@ public class ConfigBasedProcessingService {
         Map<String, Map<String, Object>> schemas = new HashMap<>();
 
         // Step 1: Get processor configuration by type
-        java.util.List<ProcessorSheetConfig> config = getConfigByType(resource.getType());
+        java.util.List<ProcessorSheetConfig> config = getConfigByType(resource.getType(), requestInfo, resource.getTenantId());
 
         // Step 2: Check if all required sheets are present in the workbook
         checkRequiredSheetsPresent(workbook, config, localizationMap);
@@ -130,27 +131,37 @@ public class ConfigBasedProcessingService {
     /**
      * Get processor configuration by type with validation
      */
-    public java.util.List<ProcessorConfigurationRegistry.ProcessorSheetConfig> getConfigByType(String processorType) {
-        if (!configRegistry.isProcessorTypeSupported(processorType)) {
-            log.error("Processor type '{}' is not supported. Supported types: {}", 
-                    processorType, String.join(", ", configRegistry.getSupportedProcessorTypes()));
+    public java.util.List<ProcessorSheetConfig> getConfigByType(String processorType, RequestInfo requestInfo, String tenantId) {
+        ExcelIngestionProcessData processData = mdmsConfigService.getExcelIngestionProcessConfig(requestInfo, tenantId, processorType);
+        if (processData == null || processData.getSheets() == null || processData.getSheets().isEmpty()) {
+            log.error("Processor type '{}' is not supported for tenant: {}", processorType, tenantId);
             
             exceptionHandler.throwCustomException(
                     ErrorConstants.PROCESSING_TYPE_NOT_SUPPORTED,
                     ErrorConstants.PROCESSING_TYPE_NOT_SUPPORTED_MESSAGE
                             .replace("{0}", processorType)
-                            .replace("{1}", String.join(", ", configRegistry.getSupportedProcessorTypes())),
+                            .replace("{1}", "Check MDMS configuration"),
                     new IllegalArgumentException("Unsupported processor type: " + processorType)
             );
         }
 
-        return configRegistry.getConfigByType(processorType);
+        List<ProcessorSheetConfig> configs = new ArrayList<>();
+        for (ProcessSheetData sheetData : processData.getSheets()) {
+            configs.add(new ProcessorSheetConfig(
+                sheetData.getSheetName(), 
+                sheetData.getSchemaName(), 
+                sheetData.getProcessorClass(), 
+                sheetData.getParseEnabled() != null ? sheetData.getParseEnabled() : true
+            ));
+        }
+        
+        return configs;
     }
 
     /**
      * Check if all required sheets are present in the workbook
      */
-    private void checkRequiredSheetsPresent(Workbook workbook, java.util.List<ProcessorConfigurationRegistry.ProcessorSheetConfig> config, Map<String, String> localizationMap) {
+    private void checkRequiredSheetsPresent(Workbook workbook, java.util.List<ProcessorSheetConfig> config, Map<String, String> localizationMap) {
         // Get all non-hidden sheet names from workbook
         Set<String> workbookSheets = new HashSet<>();
         for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
@@ -160,8 +171,7 @@ public class ConfigBasedProcessingService {
             }
         }
         
-        // Check for all configured sheets
-        for (ProcessorConfigurationRegistry.ProcessorSheetConfig sheetConfig : config) {
+        for (ProcessorSheetConfig sheetConfig : config) {
             String localizedName = getLocalizedSheetName(sheetConfig.getSheetNameKey(), localizationMap);
             if (!workbookSheets.contains(localizedName)) {
                 Set<String> expectedSheets = getConfiguredSheetNames(config, localizationMap);
@@ -178,8 +188,8 @@ public class ConfigBasedProcessingService {
     /**
      * Get schema name for a sheet from configuration
      */
-    private String getSchemaNameForSheet(String actualSheetName, java.util.List<ProcessorConfigurationRegistry.ProcessorSheetConfig> config, Map<String, String> localizationMap) {
-        for (ProcessorConfigurationRegistry.ProcessorSheetConfig sheetConfig : config) {
+    private String getSchemaNameForSheet(String actualSheetName, java.util.List<ProcessorSheetConfig> config, Map<String, String> localizationMap) {
+        for (ProcessorSheetConfig sheetConfig : config) {
             String localizedName = getLocalizedSheetName(sheetConfig.getSheetNameKey(), localizationMap);
             if (localizedName.equals(actualSheetName)) {
                 return sheetConfig.getSchemaName();
@@ -191,8 +201,8 @@ public class ConfigBasedProcessingService {
     /**
      * Check if a sheet is configured
      */
-    private boolean isSheetConfigured(String actualSheetName, java.util.List<ProcessorConfigurationRegistry.ProcessorSheetConfig> config, Map<String, String> localizationMap) {
-        for (ProcessorConfigurationRegistry.ProcessorSheetConfig sheetConfig : config) {
+    private boolean isSheetConfigured(String actualSheetName, java.util.List<ProcessorSheetConfig> config, Map<String, String> localizationMap) {
+        for (ProcessorSheetConfig sheetConfig : config) {
             String localizedName = getLocalizedSheetName(sheetConfig.getSheetNameKey(), localizationMap);
             if (localizedName.equals(actualSheetName)) {
                 return true;
@@ -204,9 +214,9 @@ public class ConfigBasedProcessingService {
     /**
      * Get all configured sheet names
      */
-    private Set<String> getConfiguredSheetNames(java.util.List<ProcessorConfigurationRegistry.ProcessorSheetConfig> config, Map<String, String> localizationMap) {
+    private Set<String> getConfiguredSheetNames(java.util.List<ProcessorSheetConfig> config, Map<String, String> localizationMap) {
         Set<String> sheetNames = new HashSet<>();
-        for (ProcessorConfigurationRegistry.ProcessorSheetConfig sheetConfig : config) {
+        for (ProcessorSheetConfig sheetConfig : config) {
             String localizedName = getLocalizedSheetName(sheetConfig.getSheetNameKey(), localizationMap);
             sheetNames.add(localizedName);
         }
@@ -280,7 +290,7 @@ public class ConfigBasedProcessingService {
                                                 RequestInfo requestInfo,
                                                 Map<String, String> localizationMap) {
         // Get processor configuration
-        java.util.List<ProcessorSheetConfig> config = getConfigByType(resource.getType());
+        java.util.List<ProcessorSheetConfig> config = getConfigByType(resource.getType(), requestInfo, resource.getTenantId());
         if (config == null) {
             return workbook;
         }
@@ -418,7 +428,7 @@ public class ConfigBasedProcessingService {
                                    Map<String, String> localizationMap,
                                    java.util.List<Map<String, Object>> parsedData,
                                    RequestInfo requestInfo) {
-        java.util.List<ProcessorSheetConfig> config = getConfigByType(resource.getType());
+        java.util.List<ProcessorSheetConfig> config = getConfigByType(resource.getType(), requestInfo, resource.getTenantId());
         if (config == null) {
             return;
         }
@@ -475,8 +485,10 @@ public class ConfigBasedProcessingService {
      */
     public boolean shouldPersistSheet(String sheetName,
                                     String processorType,
-                                    Map<String, String> localizationMap) {
-        java.util.List<ProcessorSheetConfig> config = getConfigByType(processorType);
+                                    Map<String, String> localizationMap,
+                                    RequestInfo requestInfo,
+                                    String tenantId) {
+        java.util.List<ProcessorSheetConfig> config = getConfigByType(processorType, requestInfo, tenantId);
         if (config == null) {
             return true; // Default behavior
         }
@@ -488,8 +500,9 @@ public class ConfigBasedProcessingService {
     /**
      * Send processing result to configured topic after all sheets are processed
      */
-    public void sendProcessingResult(ProcessResource resource) {
-        String topic = configRegistry.getProcessingResultTopic(resource.getType());
+    public void sendProcessingResult(ProcessResource resource, RequestInfo requestInfo) {
+        ExcelIngestionProcessData processData = mdmsConfigService.getExcelIngestionProcessConfig(requestInfo, resource.getTenantId(), resource.getType());
+        String topic = processData.getProcessingResultTopic(); // Assuming this method exists
         if (topic != null && !topic.trim().isEmpty()) {
             producer.push(resource.getTenantId(), topic, resource);
             log.info("Published processing result to topic: {} for processing type: {}, resource ID: {}", 

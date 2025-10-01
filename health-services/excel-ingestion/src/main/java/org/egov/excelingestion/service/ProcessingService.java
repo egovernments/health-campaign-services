@@ -65,7 +65,7 @@ public class ProcessingService {
 
         try {
             // Validate processor classes exist before starting async processing
-            validateProcessorClasses(processResource.getType());
+            validateProcessorClasses(processResource.getType(), request.getRequestInfo(), processResource.getTenantId());
             
             // Save initial record to database via Kafka (for central instance support)
             producer.push(processResource.getTenantId(), kafkaTopicConfig.getProcessingSaveTopic(), processResource);
@@ -122,18 +122,18 @@ public class ProcessingService {
         }
     }
     
-    private void validateProcessorClasses(String processorType) {
+    private void validateProcessorClasses(String processorType, RequestInfo requestInfo, String tenantId) {
         try {
             // Get processor configuration
-            java.util.List<org.egov.excelingestion.config.ProcessorConfigurationRegistry.ProcessorSheetConfig> config = 
-                    configBasedProcessingService.getConfigByType(processorType);
+            java.util.List<org.egov.excelingestion.web.models.ProcessorSheetConfig> config = 
+                    configBasedProcessingService.getConfigByType(processorType, requestInfo, tenantId);
             
             if (config == null) {
                 return; // No processor configuration, validation not needed
             }
             
             // Validate each processor class exists
-            for (org.egov.excelingestion.config.ProcessorConfigurationRegistry.ProcessorSheetConfig sheetConfig : config) {
+            for (org.egov.excelingestion.web.models.ProcessorSheetConfig sheetConfig : config) {
                 String processorClass = sheetConfig.getProcessorClass();
                 if (processorClass != null && !processorClass.trim().isEmpty()) {
                     // If no package specified, assume it's in processor package

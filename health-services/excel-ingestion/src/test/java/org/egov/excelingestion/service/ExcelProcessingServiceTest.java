@@ -3,7 +3,7 @@ package org.egov.excelingestion.service;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.egov.excelingestion.config.ExcelIngestionConfig;
-import org.egov.excelingestion.config.ProcessorConfigurationRegistry;
+import org.egov.excelingestion.service.MDMSConfigService;
 import org.egov.excelingestion.exception.CustomExceptionHandler;
 import org.egov.excelingestion.util.EnrichmentUtil;
 import org.egov.excelingestion.util.ExcelUtil;
@@ -61,7 +61,7 @@ class ExcelProcessingServiceTest {
     private EnrichmentUtil enrichmentUtil;
 
     @Mock
-    private ProcessorConfigurationRegistry configRegistry;
+    private MDMSConfigService mdmsConfigService;
 
     @Mock
     private ExcelUtil excelUtil;
@@ -78,7 +78,7 @@ class ExcelProcessingServiceTest {
         excelProcessingService = new ExcelProcessingService(
             validationService, schemaValidationService, configBasedProcessingService,
             fileStoreService, localizationService, requestInfoConverter,
-            restTemplate, exceptionHandler, config, enrichmentUtil, configRegistry, excelUtil
+            restTemplate, exceptionHandler, config, enrichmentUtil, mdmsConfigService, excelUtil
         );
 
         requestInfo = RequestInfo.builder().build();
