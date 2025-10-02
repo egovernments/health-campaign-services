@@ -466,14 +466,10 @@ async function handleGenerateError(newEntryResponse: any, generatedResource: any
 }
 
 async function generateNewRequestObject(request: any) {
-  const { type } = request.query;
-  const additionalDetails = type === 'boundary'
-    ? { Filters: request?.body?.Filters ?? null }
-    : {};
+  const additionalDetails = {};
   const newEntry = {
     id: uuidv4(),
     fileStoreid: null,
-    type: type,
     status: generatedResourceStatuses.inprogress,
     hierarchyType: request?.query?.hierarchyType,
     tenantId: request?.query?.tenantId,
@@ -485,7 +481,7 @@ async function generateNewRequestObject(request: any) {
     },
     additionalDetails: additionalDetails,
     count: null,
-    campaignId: request?.query?.campaignId,
+    referenceId : request?.query?.referenceId ? request.query.referenceId : null,
     locale: request?.body?.RequestInfo?.msgId?.split('|')[1] || null
   };
   return [newEntry];
