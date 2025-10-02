@@ -60,7 +60,7 @@ async function handleResouceDetailsError(request: any, error: any) {
     }
     await produceModifiedMessages(
       persistMessage,
-      config?.kafka?.KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC,
+      config?.kafka?.KAFKA_UPDATE_PROCESSED_BOUNDARY_MANAGEMENT_TOPIC,
       request?.body?.ResourceDetails?.tenantId
     );
   }

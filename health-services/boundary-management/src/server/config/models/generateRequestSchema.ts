@@ -18,7 +18,10 @@ export const generateRequestSchema = {
     },
     "source": {
       "type": "string",
-    }
+    },
+    "referenceId": {
+      "type": "string"
+    },
   },
   "required": ["tenantId", "hierarchyType"],
   "additionalProperties": false

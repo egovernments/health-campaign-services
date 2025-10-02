@@ -14,8 +14,9 @@ import {getBoundaryDataService} from "../services/boundaryManagementService";
 import {getConfigurableColumnHeadersBasedOnCampaignTypeForBoundaryManagement , createExcelSheet} from "../api/genericApis";
 import {getTableName,executeQuery} from "../utils/db";
 const NodeCache = require("node-cache");
-const updateGeneratedResourceTopic = config?.kafka?.KAFKA_UPDATE_GENERATED_RESOURCE_DETAILS_TOPIC;
-const createGeneratedResourceTopic = config?.kafka?.KAFKA_CREATE_GENERATED_RESOURCE_DETAILS_TOPIC;
+import _ from "lodash";
+const updateGeneratedResourceTopic = config?.kafka?.KAFKA_UPDATE_GENERATED_BOUNDARY_MANAGEMENT_TOPIC;
+const createGeneratedResourceTopic = config?.kafka?.KAFKA_CREATE_GENERATED_BOUNDARY_MANAGEMENT_TOPIC;
 
 
 
@@ -212,7 +213,7 @@ async function enrichResourceDetails(request: any) {
   }
 
   const persistMessage: any = { ResourceDetails: request.body.ResourceDetails };
-  await produceModifiedMessages(persistMessage, config?.kafka?.KAFKA_PROCESS_RESOURCE_DETAILS_TOPIC, request?.body?.ResourceDetails?.tenantId);
+  await produceModifiedMessages(persistMessage, config?.kafka?.KAFKA_CREATE_PROCESSED_BOUNDARY_MANAGEMENT_TOPIC, request?.body?.ResourceDetails?.tenantId);
 }
 function shutdownGracefully() {
   logger.info('Shutting down gracefully...');
@@ -372,6 +373,15 @@ async function updateExistingResourceExpired(modifiedResponse: any[], request: a
   });
 }
 
+const replicateRequest = (originalRequest: Request, requestBody: any, requestQuery?: any) => {
+  const newRequest = {
+    ...originalRequest,
+    body: _.cloneDeep(requestBody), // Deep clone using lodash
+    query: requestQuery ? _.cloneDeep(requestQuery) : _.cloneDeep(originalRequest.query)
+  };
+  return newRequest;
+};
+
 async function enrichAuditDetails(responseData: any) {
   return responseData.map((item: any) => {
     return {
@@ -502,7 +512,7 @@ async function getFinalUpdatedResponse(result: any, responseData: any, request: 
 /* Fetches data from the database */
 async function searchGeneratedResources(searchQuery: any, locale: any) {
   try {
-    const { tenantId, hierarchyType, id, status } = searchQuery;
+    const { tenantId, hierarchyType, id, status , referenceId} = searchQuery;
     const tableName = getTableName(config?.DB_CONFIG.DB_GENERATED_TEMPLATE_TABLE_NAME, tenantId);
     let queryString = `SELECT * FROM ${tableName} WHERE `;
     let queryConditions: string[] = [];
@@ -536,6 +546,11 @@ async function searchGeneratedResources(searchQuery: any, locale: any) {
     if (locale) {
       queryConditions.push(`locale = $${queryValues.length + 1}`);
       queryValues.push(locale);
+    }
+
+    if (referenceId) {
+      queryConditions.push(`referenceId = $${queryValues.length + 1}`);
+      queryValues.push(referenceId);
     }
 
     queryString += queryConditions.join(" AND ");
@@ -612,6 +627,11 @@ async function getDataSheetReady(boundaryData: any, request: any, localizationMa
   return await createExcelSheet(data, localizedHeaders);
 }
 
+export async function callGenerate(request: any, type: any, enableCaching = false) {
+    logger.info(`calling generate api for type ${type}`);
+        await processGenerate(request, enableCaching);
+}
+
 
 
 
@@ -619,5 +639,5 @@ export {  appCache,errorLogger,invalidPathHandler
   ,sendResponse,getLocalizedMessagesHandler,throwErrorViaRequest,throwError
   ,getLocalizedHeaders ,enrichResourceDetails,shutdownGracefully,createHeaderToHierarchyMap
   ,modifyBoundaryDataHeadersWithMap,modifyBoundaryData,findMapValue,extractFrenchOrPortugeseLocalizationMap
-  ,processGenerate ,getDataSheetReady
+  ,processGenerate ,getDataSheetReady , replicateRequest
 };
