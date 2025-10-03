@@ -88,6 +88,6 @@ Ref: eg_cm_campaign_details.id > eg_cm_generated_resource_details.campaignid
 Ref: eg_cm_campaign_details.id > eg_cm_resource_details.campaignid
 ```
 
-Run above dbml code in https://dbdiagram.io/ to get db
+Run above dbml code in https://dbdiagram.io/ to get db diagram.
 
-![alt text](db-diagram.png)
+<img width="729" height="696" alt="image" src="https://github.com/user-attachments/assets/8c8c7877-787c-4e85-b44c-e77b04922715" />
