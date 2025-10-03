@@ -5,11 +5,11 @@ import { logger ,getFormattedStringForDebug} from "../utils/logger";
 import config from "../config/index";
 import { getNewExcelWorkbook, addDataToSheet } from "../utils/excelUtils";
 import { redis, checkRedisConnection } from "../utils/redisUtils"; // Importing checkRedisConnection function
-import { validateProcessRequest,validateDownloadRequest } from "../validators/boundaryValidators";
+import { validateProcessRequest,validateDownloadRequest,validateSearchRequest } from "../validators/boundaryValidators";
 import { processRequest } from "../api/boundaryApis";
 import {validateGenerateRequest} from "../validators/genericValidator";
 import {getBoundarySheetData,createAndUploadFile} from "../api/genericApis";
-import {getLocalizedName,getBoundaryTabName,buildGenerateRequest} from "../utils/boundaryUtils";
+import {getLocalizedName,getBoundaryTabName,buildGenerateRequest,processDataSearchRequest} from "../utils/boundaryUtils";
 import {generatedResourceStatuses} from "../config/constants";
 
 
@@ -129,4 +129,15 @@ const downloadDataService = async (request: express.Request) => {
         return responseData;
     }
 
-export { processBoundaryService,generateDataService ,getBoundaryDataService,downloadDataService};
+
+const searchDataService = async (request: any) => {
+    // Validate the search request
+    await validateSearchRequest(request);
+    logger.info("VALIDATED THE DATA GENERATE REQUEST");
+    // Process the data search request
+    await processDataSearchRequest(request);
+    // Send response with resource details
+    return request?.body?.ResourceDetails;
+}
+
+export { processBoundaryService,generateDataService ,getBoundaryDataService,downloadDataService,searchDataService};

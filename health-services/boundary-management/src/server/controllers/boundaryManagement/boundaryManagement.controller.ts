@@ -1,6 +1,6 @@
 import * as express from "express";
 import { errorResponder, sendResponse } from "../../utils/genericUtils";
-import { processBoundaryService ,generateDataService,downloadDataService} from "../../services/boundaryManagementService";
+import { processBoundaryService ,generateDataService,downloadDataService,searchDataService} from "../../services/boundaryManagementService";
 import { logger } from "../../utils/logger";
 
 class boundaryManagementController {
@@ -81,7 +81,7 @@ generateBoundary = async (
 
  generateBoundarySearch = async (request: express.Request, response: express.Response) => {
         try {
-            logger.info(`RECEIVED A DATA DOWNLOAD REQUEST FOR TYPE :: ${request?.query?.type}`);
+            logger.info(`RECEIVED A DATA DOWNLOAD REQUEST FOR TENANT ID :: ${request?.query?.tenantId}`);
             const GeneratedResource = await downloadDataService(request);
             return sendResponse(response, { GeneratedResource }, request);
         } catch (e: any) {
@@ -93,16 +93,16 @@ generateBoundary = async (
 
 
   processBoundarySearch = async (request: any, response: any) => {
-        // try {
-        //     logger.info(`RECEIVED A DATA SEARCH REQUEST FOR TYPE :: ${request?.body?.SearchCriteria?.type}`);
-        //     const ResourceDetails = await searchDataService(request)
-        //     return sendResponse(response, { ResourceDetails }, request);
-        // } catch (e: any) {
-        //     console.log(e)
-        //     logger.error(String(e))
-        //     // Handle errors and send error response
-        //     return errorResponder({ message: String(e), code: e?.code, description: e?.description }, request, response, e?.status || 500);
-        // }
+        try {
+            logger.info(`RECEIVED A DATA SEARCH REQUEST FOR TENANT ID :: ${request?.query?.tenantId}`);
+            const ResourceDetails = await searchDataService(request)
+            return sendResponse(response, { ResourceDetails }, request);
+        } catch (e: any) {
+            console.log(e)
+            logger.error(String(e))
+            // Handle errors and send error response
+            return errorResponder({ message: String(e), code: e?.code, description: e?.description }, request, response, e?.status || 500);
+        }
     }
   };
 

@@ -7,6 +7,7 @@ import { httpRequest } from "../utils/request";
 import {getLocalizedName,getBoundaryTabName,getHeadersOfBoundarySheet,getHierarchy,validateHeaders} from "../utils/boundaryUtils";
 import {getSheetData} from "../api/genericApis";
 import { downloadRequestSchema } from "../config/models/downloadRequestSchema";
+import {searchCriteriaSchema} from "../config/models/SearchCriteria";
 
 
 
@@ -145,5 +146,13 @@ async function validateDownloadRequest(request: any) {
     await validateHierarchyType(request, hierarchyType, tenantId);
 }
 
+async function validateSearchRequest(request: any) {
+    const { SearchCriteria } = request.body;
+    if (!SearchCriteria) {
+        throwError("COMMON", 400, "VALIDATION_ERROR", "SearchCriteria is required");
+    }
+    validateBodyViaSchema(searchCriteriaSchema, SearchCriteria);
+}
 
-export { validateProcessRequest ,validateBoundarySheetDataInCreateFlow,validateDownloadRequest};
+
+export { validateProcessRequest ,validateBoundarySheetDataInCreateFlow,validateDownloadRequest,validateSearchRequest};
