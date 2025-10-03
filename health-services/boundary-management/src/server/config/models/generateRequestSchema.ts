@@ -20,7 +20,9 @@ export const generateRequestSchema = {
       "type": "string",
     },
     "referenceId": {
-      "type": "string"
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
     },
   },
   "required": ["tenantId", "hierarchyType"],

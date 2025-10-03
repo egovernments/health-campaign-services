@@ -23,6 +23,8 @@ export const processRequestSchema = {
         },
         "referenceId": {
             "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
          },
         "additionalDetails": {
             "type": "object"
