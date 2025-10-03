@@ -50,7 +50,9 @@ const config = {
     DB_PASSWORD: process.env.DB_PASSWORD || "postgres",
     DB_PORT: process.env.DB_PORT || "5432",
     DB_GENERATED_TEMPLATE_TABLE_NAME: "eg_bm_generated_template",
-    DB_PROCESSED_TEMPLATE_TABLE_NAME: "eg_bm_processed_template"
+    DB_PROCESSED_TEMPLATE_TABLE_NAME: "eg_bm_processed_template",
+    DB_GENERATED_RESOURCE_DETAILS_TABLE_NAME: "eg_bm_generated_template",
+    DB_RESOURCE_DETAILS_TABLE_NAME: "eg_bm_processed_template"
   },
   // Application configuration
   app: {
