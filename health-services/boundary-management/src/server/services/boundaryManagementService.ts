@@ -1,15 +1,16 @@
 import express from "express";
-import {getLocalizedMessagesHandler,enrichResourceDetails,processGenerate} from "../utils/genericUtils";
-import { getLocalisationModuleName } from "../utils/localisationUtils";
+import {getLocalizedMessagesHandler,enrichResourceDetails,processGenerate,searchGeneratedBoundaryResources,callGenerate} from "../utils/genericUtils";
+import { getLocalisationModuleName ,getLocaleFromRequestInfo} from "../utils/localisationUtils";
 import { logger ,getFormattedStringForDebug} from "../utils/logger";
 import config from "../config/index";
 import { getNewExcelWorkbook, addDataToSheet } from "../utils/excelUtils";
 import { redis, checkRedisConnection } from "../utils/redisUtils"; // Importing checkRedisConnection function
-import { validateProcessRequest } from "../validators/boundaryValidators";
+import { validateProcessRequest,validateDownloadRequest } from "../validators/boundaryValidators";
 import { processRequest } from "../api/boundaryApis";
 import {validateGenerateRequest} from "../validators/genericValidator";
 import {getBoundarySheetData,createAndUploadFile} from "../api/genericApis";
-import {getLocalizedName,getBoundaryTabName} from "../utils/boundaryUtils";
+import {getLocalizedName,getBoundaryTabName,buildGenerateRequest} from "../utils/boundaryUtils";
+import {generatedResourceStatuses} from "../config/constants";
 
 
 const processBoundaryService = async (request: any) => {
@@ -99,4 +100,33 @@ const getBoundaryDataService = async (
     }
 };
 
-export { processBoundaryService,generateDataService ,getBoundaryDataService};
+const downloadDataService = async (request: express.Request) => {
+    await validateDownloadRequest(request);
+    logger.info("VALIDATED THE DATA DOWNLOAD REQUEST");
+    // Get response data from the database
+    const responseData = await searchGeneratedBoundaryResources(request?.query, getLocaleFromRequestInfo(request?.body?.RequestInfo));
+    const hierarchyType = String(request?.query?.hierarchyType);
+
+    // Check if response data is available
+    if (
+        !responseData ||
+        (responseData.length === 0 && !request?.query?.id) ||
+        responseData?.[0]?.status === generatedResourceStatuses.failed
+    ) {
+        logger.error(`No data of hierarchyType ${hierarchyType} - found with status 'Completed' or the provided ID is present in the database.`)
+        // Throw error if data is not found
+        // const newRequestToGenerate = buildGenerateRequest(request);
+
+        // Added auto generate since no previous generate request found
+        logger.info(`Triggering auto generate since no resources got generated for the given Campaign Id ${request?.query?.campaignId} & type ${request?.query?.type}`)
+
+
+            const newRequestToGenerate = buildGenerateRequest(request);
+            callGenerate(newRequestToGenerate, request?.query?.type);
+    }
+
+
+        return responseData;
+    }
+
+export { processBoundaryService,generateDataService ,getBoundaryDataService,downloadDataService};

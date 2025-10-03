@@ -1,6 +1,6 @@
 import * as express from "express";
 import { errorResponder, sendResponse } from "../../utils/genericUtils";
-import { processBoundaryService ,generateDataService} from "../../services/boundaryManagementService";
+import { processBoundaryService ,generateDataService,downloadDataService} from "../../services/boundaryManagementService";
 import { logger } from "../../utils/logger";
 
 class boundaryManagementController {
@@ -16,7 +16,9 @@ class boundaryManagementController {
   public intializeRoutes() {
     this.router.post(`${this.path}/_process`, this.processBoundary);
     this.router.post(`${this.path}/_generate`, this.generateBoundary);
-  }
+    this.router.post(`${this.path}/_generate-search`, this.generateBoundarySearch);
+    this.router.post(`${this.path}/_process-search`,this.processBoundarySearch);
+}
 
   /**
    * Handles incoming requests to process boundary data based on the specified hierarchy type.
@@ -77,5 +79,33 @@ generateBoundary = async (
     }
   };
 
-}
+ generateBoundarySearch = async (request: express.Request, response: express.Response) => {
+        try {
+            logger.info(`RECEIVED A DATA DOWNLOAD REQUEST FOR TYPE :: ${request?.query?.type}`);
+            const GeneratedResource = await downloadDataService(request);
+            return sendResponse(response, { GeneratedResource }, request);
+        } catch (e: any) {
+            console.log(e)
+            logger.error(String(e));
+            return errorResponder({ message: String(e), code: e?.code, description: e?.description }, request, response, e?.status || 500);
+        }
+    }
+
+
+  processBoundarySearch = async (request: any, response: any) => {
+        // try {
+        //     logger.info(`RECEIVED A DATA SEARCH REQUEST FOR TYPE :: ${request?.body?.SearchCriteria?.type}`);
+        //     const ResourceDetails = await searchDataService(request)
+        //     return sendResponse(response, { ResourceDetails }, request);
+        // } catch (e: any) {
+        //     console.log(e)
+        //     logger.error(String(e))
+        //     // Handle errors and send error response
+        //     return errorResponder({ message: String(e), code: e?.code, description: e?.description }, request, response, e?.status || 500);
+        // }
+    }
+  };
+
+
+
 export default boundaryManagementController;

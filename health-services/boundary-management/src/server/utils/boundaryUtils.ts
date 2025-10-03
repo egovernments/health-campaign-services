@@ -689,8 +689,23 @@ export async function getLatLongMapForBoundaryCodes(request:any, boundaryCodeLis
   return boundaryCodeLatLongMap;  
 }
 
+const buildGenerateRequest = (request: any) => {
+    const newRequestBody = {
+        RequestInfo: request?.body?.RequestInfo
+    };
+
+    const params = {
+        tenantId: request?.query?.tenantId,
+        forceUpdate: 'true',
+        hierarchyType: request?.query?.hierarchyType,
+        referenceId: request?.query?.referenceId
+    };
+
+    return replicateRequest(request, newRequestBody, params);
+};
+
 
 export {getHeadersOfBoundarySheet ,getLocalizedName,getHierarchy,validateHeaders,boundaryBulkUpload
-  ,extractCodesFromBoundaryRelationshipResponse ,getLocalizedNameOnlyIfMessagePresent
+  ,extractCodesFromBoundaryRelationshipResponse ,getLocalizedNameOnlyIfMessagePresent ,buildGenerateRequest
 };
 ;

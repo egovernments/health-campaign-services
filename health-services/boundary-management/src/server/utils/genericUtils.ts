@@ -629,11 +629,64 @@ export async function callGenerate(request: any, type: any, enableCaching = fals
 }
 
 
+/* Fetches data from the database */
+async function searchGeneratedBoundaryResources(searchQuery : any, locale : any) {
+  try {
+    const {tenantId, hierarchyType, id, status, referenceId } = searchQuery;
+    const tableName = getTableName(config?.DB_CONFIG.DB_GENERATED_RESOURCE_DETAILS_TABLE_NAME, tenantId);
+    let queryString = `SELECT * FROM ${tableName} WHERE `;
+    let queryConditions: string[] = [];
+    let queryValues: any[] = [];
+    if (id) {
+      queryConditions.push(`id = $${queryValues.length + 1}`);
+      queryValues.push(id);
+    }
+
+    if (hierarchyType) {
+      queryConditions.push(`hierarchyType = $${queryValues.length + 1}`);
+      queryValues.push(hierarchyType);
+    }
+    if (tenantId) {
+      queryConditions.push(`tenantId = $${queryValues.length + 1}`);
+      queryValues.push(tenantId);
+    }
+    if (referenceId) {
+      queryConditions.push(`referenceId = $${queryValues.length + 1}`);
+      queryValues.push(referenceId);
+    }
+    if (status) {
+      const statusArray = status.split(',').map((s: any) => s.trim());
+      const statusConditions = statusArray.map((_: any, index: any) => `status = $${queryValues.length + index + 1}`);
+      queryConditions.push(`(${statusConditions.join(' OR ')})`);
+      queryValues.push(...statusArray);
+    }
+    if (locale) {
+      queryConditions.push(`locale = $${queryValues.length + 1}`);
+      queryValues.push(locale);
+    }
+
+    queryString += queryConditions.join(" AND ");
+
+    // Add sorting and limiting
+    queryString += " ORDER BY createdTime DESC OFFSET 0 LIMIT 1";
+
+    const queryResult = await executeQuery(queryString, queryValues);
+    return generatedResourceTransformer(queryResult?.rows);
+  } catch (error: any) {
+    console.log(error)
+    logger.error(`Error fetching data from the database: ${error.message}`);
+    throwError("COMMON", 500, "INTERNAL_SERVER_ERROR", error?.message);
+    return null; // Return null in case of an error
+  }
+}
+
+
+
 
 
 export {  appCache,errorLogger,invalidPathHandler
   ,sendResponse,getLocalizedMessagesHandler,throwErrorViaRequest,throwError
   ,getLocalizedHeaders ,enrichResourceDetails,shutdownGracefully,createHeaderToHierarchyMap
   ,modifyBoundaryDataHeadersWithMap,modifyBoundaryData,findMapValue,extractFrenchOrPortugeseLocalizationMap
-  ,processGenerate ,getDataSheetReady , replicateRequest
+  ,processGenerate ,getDataSheetReady , replicateRequest ,searchGeneratedBoundaryResources
 };

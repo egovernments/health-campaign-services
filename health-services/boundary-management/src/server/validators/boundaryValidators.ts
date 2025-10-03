@@ -6,6 +6,7 @@ import { httpRequest } from "../utils/request";
 // import { validateFileMetaDataViaFileUrl } from "../utils/excelUtils";
 import {getLocalizedName,getBoundaryTabName,getHeadersOfBoundarySheet,getHierarchy,validateHeaders} from "../utils/boundaryUtils";
 import {getSheetData} from "../api/genericApis";
+import { downloadRequestSchema } from "../config/models/downloadRequestSchema";
 
 
 
@@ -135,4 +136,14 @@ function validateBoundarySheetDataInCreateFlow(boundarySheetData: any, localized
     });
 }
 
-export { validateProcessRequest ,validateBoundarySheetDataInCreateFlow};
+async function validateDownloadRequest(request: any) {
+    const { tenantId, hierarchyType } = request.query;
+    validateBodyViaSchema(downloadRequestSchema, request.query);
+    if (tenantId != request?.body?.RequestInfo?.userInfo?.tenantId) {
+        throwError("COMMON", 400, "VALIDATION_ERROR", "tenantId in userInfo and query should be the same");
+    }
+    await validateHierarchyType(request, hierarchyType, tenantId);
+}
+
+
+export { validateProcessRequest ,validateBoundarySheetDataInCreateFlow,validateDownloadRequest};
