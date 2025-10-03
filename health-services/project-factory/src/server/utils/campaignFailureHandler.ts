@@ -72,7 +72,7 @@ export async function handleCampaignFailure(messageObject: any) {
         };
         
         // Use the existing error handling function to mark campaign as failed
-        const campaignError = new Error(`Batch processing failed: ${error}`);
+        const campaignError = new Error(`${error}`);
         await enrichAndPersistCampaignWithError(mockRequestBody, campaignError);
         
         logger.info(`Campaign ${campaignId} marked as failed successfully`);

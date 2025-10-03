@@ -358,6 +358,50 @@ class FacilitySheetGeneratorMergeTest {
         assertEquals("Fifth Facility", result.get(4).get("HCM_ADMIN_CONSOLE_FACILITY_NAME"));
     }
 
+    @Test
+    void testTransformAndFilterPermanentFacilities_ShouldExcludeRootBoundaryFacilities() throws Exception {
+        // Given: Mock permanent facilities with mixed boundary codes (API format)
+        List<Map<String, Object>> rawPermanentFacilities = Arrays.asList(
+            createRawFacilityWithBoundary("FACILITY_001", "Health Center 1", "DISTRICT_001"), // Non-root - should be included
+            createRawFacilityWithBoundary("FACILITY_002", "Health Center 2", "STATE_ROOT"), // Root boundary - should be excluded
+            createRawFacilityWithBoundary("FACILITY_003", "Health Center 3", "BLOCK_001"), // Non-root - should be included
+            createRawFacilityWithBoundary("FACILITY_004", "Health Center 4", "COUNTRY_ROOT") // Root boundary - should be excluded
+        );
+        
+        // Boundary codes that exclude root boundaries (returned by boundaryUtil)
+        Set<String> nonRootBoundaryCodes = Set.of("DISTRICT_001", "BLOCK_001", "VILLAGE_001");
+
+        // When: Call the transformAndFilterPermanentFacilities method using reflection
+        Method transformAndFilterMethod = FacilitySheetGenerator.class
+            .getDeclaredMethod("transformAndFilterPermanentFacilities", List.class, Set.class);
+        transformAndFilterMethod.setAccessible(true);
+        
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> result = (List<Map<String, Object>>) 
+            transformAndFilterMethod.invoke(facilitySheetGenerator, rawPermanentFacilities, nonRootBoundaryCodes);
+
+        // Then: Only facilities with non-root boundary codes should be included
+        assertEquals(2, result.size(), "Only facilities with non-root boundary codes should be included");
+        
+        // Verify that root boundary facilities are excluded
+        assertTrue(result.stream().noneMatch(facility -> 
+            "FACILITY_002".equals(facility.get("HCM_ADMIN_CONSOLE_FACILITY_CODE"))), 
+            "Facility with root boundary STATE_ROOT should be excluded");
+            
+        assertTrue(result.stream().noneMatch(facility -> 
+            "FACILITY_004".equals(facility.get("HCM_ADMIN_CONSOLE_FACILITY_CODE"))), 
+            "Facility with root boundary COUNTRY_ROOT should be excluded");
+        
+        // Verify that non-root boundary facilities are included
+        assertTrue(result.stream().anyMatch(facility -> 
+            "FACILITY_001".equals(facility.get("HCM_ADMIN_CONSOLE_FACILITY_CODE"))), 
+            "Facility with non-root boundary DISTRICT_001 should be included");
+            
+        assertTrue(result.stream().anyMatch(facility -> 
+            "FACILITY_003".equals(facility.get("HCM_ADMIN_CONSOLE_FACILITY_CODE"))), 
+            "Facility with non-root boundary BLOCK_001 should be included");
+    }
+
     // Helper methods
     private Map<String, Object> createFacility(String code, String name, String status, String usage) {
         Map<String, Object> facility = new HashMap<>();
@@ -366,6 +410,41 @@ class FacilitySheetGeneratorMergeTest {
         facility.put("HCM_ADMIN_CONSOLE_FACILITY_STATUS", status);
         facility.put("HCM_ADMIN_CONSOLE_FACILITY_USAGE", usage);
         return facility;
+    }
+    
+    private Map<String, Object> createFacilityWithBoundary(String code, String name, String localityCode) {
+        Map<String, Object> facility = new HashMap<>();
+        facility.put("HCM_ADMIN_CONSOLE_FACILITY_CODE", code);
+        facility.put("HCM_ADMIN_CONSOLE_FACILITY_NAME", name);
+        facility.put("HCM_ADMIN_CONSOLE_FACILITY_STATUS", "Permanent");
+        facility.put("HCM_ADMIN_CONSOLE_FACILITY_USAGE", "Active");
+        facility.put("localityCode", localityCode); // Boundary code for filtering
+        return facility;
+    }
+    
+    private Map<String, Object> createRawFacilityWithBoundary(String id, String name, String localityCode) {
+        Map<String, Object> facility = new HashMap<>();
+        facility.put("id", id);
+        facility.put("name", name);
+        facility.put("isPermanent", true);
+        facility.put("status", "ACTIVE");
+        
+        // Create address with locality structure as expected by the code
+        Map<String, Object> locality = new HashMap<>();
+        locality.put("code", localityCode);
+        
+        Map<String, Object> address = new HashMap<>();
+        address.put("locality", locality);
+        
+        facility.put("address", address); // Raw API format with proper structure
+        return facility;
+    }
+    
+    private org.egov.excelingestion.web.models.CampaignSearchResponse.CampaignDetail createMockCampaignDetail(String campaignNumber) {
+        return org.egov.excelingestion.web.models.CampaignSearchResponse.CampaignDetail.builder()
+            .campaignNumber(campaignNumber)
+            .tenantId("tenant-01")
+            .build();
     }
     
     private Map<String, Object> findFacilityByCode(List<Map<String, Object>> facilities, String code) {

@@ -1,7 +1,7 @@
 import { logger } from './logger';
 import { searchSheetData } from './excelIngestionUtils';
 import { searchProjectTypeCampaignService } from '../service/campaignManageService';
-import { getRelatedDataWithCampaign, getMappingDataRelatedToCampaign, prepareProcessesInDb, getRelatedDataWithUniqueIdentifiers, checkCampaignDataCompletionStatus, checkCampaignMappingCompletionStatus } from './genericUtils';
+import { getRelatedDataWithCampaign, getMappingDataRelatedToCampaign, prepareProcessesInDb, getRelatedDataWithUniqueIdentifiers, checkCampaignDataCompletionStatus, checkCampaignMappingCompletionStatus, throwError } from './genericUtils';
 import { produceModifiedMessages } from '../kafka/Producer';
 import { dataRowStatuses, mappingStatuses, usageColumnStatus, campaignStatuses } from '../config/constants';
 import { searchMDMSDataViaV2Api, searchBoundaryRelationshipData, defaultRequestInfo } from '../api/coreApis';
@@ -158,13 +158,9 @@ export async function handleProcessingResult(messageObject: any) {
             logger.warn(`Validation Status: ${validationStatus}, cannot proceed with campaign data processing`);
             
             // Mark campaign as failed
-            const useruuid = campaignDetails?.auditDetails?.createdBy;
-            const mockRequestBody = {
-                CampaignDetails: campaignDetails,
-                RequestInfo: { userInfo: { uuid: useruuid } }
-            };
-            const validationError = new Error(`Validation failed: ${validationStatus}, Status: ${messageObject.status}`);
-            await enrichAndPersistCampaignWithError(mockRequestBody, validationError);
+
+            // const validationError = new Error(`Validation failed: ${validationStatus}, Status: ${messageObject.status}`);
+            throwError('COMMON', 400, 'VALIDATION_ERROR_UNIFIED_CONSOLE_TEMPLATE', "Unified console template is not valid. Please correct the errors and try again.");
             logger.info('Campaign marked as failed due to validation failure');
             return;
         }
@@ -250,8 +246,7 @@ export async function handleProcessingResult(messageObject: any) {
         // Mark campaign as failed if we have referenceId and tenantId
         if (messageObject?.referenceId && messageObject?.tenantId) {
             try {
-                const processingError = new Error(`HCM processing result handling failed: ${error instanceof Error ? error.message : String(error)}`);
-                await sendCampaignFailureMessage(messageObject.referenceId, messageObject.tenantId, processingError);
+                await sendCampaignFailureMessage(messageObject.referenceId, messageObject.tenantId, error);
                 logger.info(`Campaign ${messageObject.referenceId} marked as failed due to processing error`);
             } catch (failureError) {
                 logger.error('Error marking campaign as failed:', failureError);
