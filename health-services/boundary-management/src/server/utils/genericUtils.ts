@@ -552,7 +552,7 @@ async function searchGeneratedResources(searchQuery: any, locale: any) {
     queryString += queryConditions.join(" AND ");
 
     // Add sorting and limiting
-    queryString += " ORDER BY createdTime DESC OFFSET 0 LIMIT 1";
+    queryString += " ORDER BY createdTime DESC";
 
     const queryResult = await executeQuery(queryString, queryValues);
     return generatedResourceTransformer(queryResult?.rows);
