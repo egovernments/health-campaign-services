@@ -82,6 +82,7 @@ public class DownsyncService {
 
         Downsync downsync = new Downsync();
         DownsyncCriteria downsyncCriteria = downsyncRequest.getDownsyncCriteria();
+        downsyncCriteria.setLastSyncedTime(null);
         String syncedTimeKey = Optional.ofNullable(downsyncCriteria.getLastSyncedTime()).orElse(0L).toString();
         long startTime = System.currentTimeMillis();
 
@@ -109,12 +110,16 @@ public class DownsyncService {
         long t0 = System.currentTimeMillis();
 
         //Project project = getProjectType(downsyncRequest);
-        String beneficiaryType = masterDataService.getProjectType(downsyncRequest);
+        // TODO: Remove this if campaign type is not individual
+//        String beneficiaryType = masterDataService.getProjectType(downsyncRequest);
+        String beneficiaryType = "INDIVIDUAL";
         long t1 = System.currentTimeMillis();
 
+        householdClientRefIds = getHouseholdIds(downsyncCriteria.getLocality(), downsyncCriteria.getOffset(), downsyncCriteria.getLimit());
+
         /* search household */
-        households = searchHouseholds(downsyncRequest, downsync);
-        householdClientRefIds = households.stream().map(Household::getClientReferenceId).collect(Collectors.toList());
+        households = searchHouseholds(downsyncRequest, downsync, householdClientRefIds);
+//        householdClientRefIds = households.stream().map(Household::getClientReferenceId).collect(Collectors.toList());
 
         long t2 = System.currentTimeMillis();
 
@@ -188,7 +193,7 @@ public class DownsyncService {
      * @param downsync
      * @return
      */
-    private List<Household> searchHouseholds(DownsyncRequest downsyncRequest, Downsync downsync) {
+    private List<Household> searchHouseholds(DownsyncRequest downsyncRequest, Downsync downsync, List<String> householdClientRefIds) {
 
         DownsyncCriteria criteria = downsyncRequest.getDownsyncCriteria();
         List<Household> households = null;
@@ -205,7 +210,7 @@ public class DownsyncService {
             householdUrl = appendUrlParams(householdUrl, criteria, null, null, true);
 
             HouseholdSearch householdSearch = HouseholdSearch.builder()
-                    .localityCode(criteria.getLocality())
+                    .clientReferenceId(householdClientRefIds)
                     .build();
 
             HouseholdSearchRequest searchRequest = HouseholdSearchRequest.builder()
@@ -529,6 +534,27 @@ public class DownsyncService {
         /* FIXME SHOULD BE REMOVED AND SEARCH SHOULD BE enhanced with list of household ids*/
         List<String> memberids = jdbcTemplate.queryForList(finalQuery, paramMap, String.class);
         return memberids;
+    }
+
+    private List<String> getHouseholdIds(String localityCode, Integer limit, Integer offset) {
+        String query = "select distinct hhm.householdclientreferenceid " +
+                "from household_member hhm " +
+                "join project_beneficiary pb " +
+                "  on pb.beneficiaryclientreferenceid = hhm.individualclientreferenceid " +
+                "join project_task pt " +
+                "  on pt.projectbeneficiaryclientreferenceid = pb.clientreferenceid " +
+                "join address a " +
+                "  on pt.addressid = a.id " +
+                "where pt.status in ('BENEFICIARY_ABSENT', 'ADMINISTRATION_FAILED') " +
+                "  and a.localitycode = :localityCode " +
+                "order by hhm.householdclientreferenceid  " +
+                "limit :limit " +
+                "offset :offset";
+        Map<String, Object> paramMap = new HashMap<>();
+        paramMap.put("localityCode", localityCode);
+        paramMap.put("limit", limit);
+        paramMap.put("offset", offset);
+        return jdbcTemplate.queryForList(query, paramMap, String.class);
     }
 
     /**
