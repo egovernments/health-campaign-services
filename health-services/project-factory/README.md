@@ -4,8 +4,7 @@ The **ProjectFactory Service** is responsible for managing project-type campaign
 
 ## DB UML Diagram
 
-![DB UML Diagram](https://github.com/egovernments/DIGIT-Frontend/assets/137176738/8c43998d-742b-4629-ae90-63ab2b18772b)
-![DB UML Diagram](https://github.com/egovernments/DIGIT-Frontend/assets/137176738/3ff9609d-771a-4c6e-a769-54766e7111f7)
+![alt text](db-diagram.png)
 
 ## Service Dependencies
 
