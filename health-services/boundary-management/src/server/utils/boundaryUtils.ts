@@ -1,7 +1,7 @@
 import { getExcelWorkbookFromFileURL,getNewExcelWorkbook ,addDataToSheet} from "../utils/excelUtils";
 import config from "../config";
 import { httpRequest } from "./request";
-import { logger,getFormattedStringForDebug } from "./logger";
+import { logger } from "./logger";
 import { throwError,getLocalizedHeaders,createHeaderToHierarchyMap,
   modifyBoundaryDataHeadersWithMap,modifyBoundaryData,findMapValue,extractFrenchOrPortugeseLocalizationMap,replicateRequest,callGenerate}
  from "../utils/genericUtils";
@@ -388,26 +388,6 @@ async function generateProcessedFileAndPersist(
   logger.info(
     `ResourceDetails to persist : ${request.body.ResourceDetails.hierarchyType}`
   );
-  if (
-    request?.body?.Activities &&
-    Array.isArray(request?.body?.Activities) &&
-    request?.body?.Activities.length > 0
-  ) {
-    logger.info("Activities to persist : ");
-    logger.debug(getFormattedStringForDebug(request?.body?.Activities));
-    logger.info(`Waiting for 2 seconds`);
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    const activities = request?.body?.Activities;
-    for (let i = 0; i < activities.length; i += 10) {
-      const chunk = activities.slice(i, Math.min(i + 10, activities.length));
-      const activityObject: any = { Activities: chunk };
-      await produceModifiedMessages(
-        activityObject,
-        config.kafka.KAFKA_CREATE_RESOURCE_ACTIVITY_TOPIC,
-        activityObject?.Activities?.[0]?.tenantId
-      );
-    }
-  }
 }
 
 function updateActivityResourceId(request: any) {

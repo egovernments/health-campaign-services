@@ -64,29 +64,6 @@ async function handleResouceDetailsError(request: any, error: any) {
       request?.body?.ResourceDetails?.tenantId
     );
   }
-  if (
-    request?.body?.Activities &&
-    Array.isArray(request?.body?.Activities) &&
-    request?.body?.Activities.length > 0
-  ) {
-    logger.info("Waiting for 2 seconds");
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-
-    const activities = request?.body?.Activities;
-    const chunkPromises = [];
-    for (let i = 0; i < activities.length; i += 10) {
-      const chunk = activities.slice(i, Math.min(i + 10, activities.length));
-      const activityObject: any = { Activities: chunk };
-      chunkPromises.push(
-        await produceModifiedMessages(
-          activityObject,
-          config?.kafka?.KAFKA_CREATE_RESOURCE_ACTIVITY_TOPIC,
-          activities?.tenantId || config.app.defaultTenantId
-        )
-      );
-    }
-    await Promise.all(chunkPromises);
-  }
 }
 
 

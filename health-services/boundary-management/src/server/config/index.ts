@@ -35,7 +35,6 @@ const config = {
     // Kafka topics
     KAFKA_CREATE_PROCESSED_BOUNDARY_MANAGEMENT_TOPIC: process.env.KAFKA_CREATE_PROCESSED_BOUNDARY_MANAGEMENT_TOPIC || "create-processed-boundary-management",
     KAFKA_UPDATE_PROCESSED_BOUNDARY_MANAGEMENT_TOPIC: process.env.KAFKA_UPDATE_PROCESSED_BOUNDARY_MANAGEMENT_TOPIC || "update-processed-boundary-management",
-    KAFKA_CREATE_RESOURCE_ACTIVITY_TOPIC: process.env.KAFKA_CREATE_RESOURCE_ACTIVITY_TOPIC || "create-resource-activity",
     KAFKA_UPDATE_GENERATED_BOUNDARY_MANAGEMENT_TOPIC: process.env.KAFKA_UPDATE_GENERATED_BOUNDARY_MANAGEMENT_TOPIC || "update-generated-boundary-management",
     KAFKA_CREATE_GENERATED_BOUNDARY_MANAGEMENT_TOPIC: process.env.KAFKA_CREATE_GENERATED_BOUNDARY_MANAGEMENT_TOPIC || "create-generated-boundary-management",
     KAFKA_TEST_TOPIC: "test-topic-project-factory",
