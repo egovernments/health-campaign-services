@@ -205,6 +205,10 @@ public class DownsyncService {
         } else {
             RequestInfo requestInfo = downsyncRequest.getRequestInfo();
 
+            if (CollectionUtils.isEmpty(householdClientRefIds)) {
+                return Collections.emptyList();
+            }
+
             StringBuilder householdUrl = new StringBuilder(configs.getHouseholdHost())
                     .append(configs.getHouseholdSearchUrl());
             householdUrl = appendUrlParams(householdUrl, criteria, null, null, true);
