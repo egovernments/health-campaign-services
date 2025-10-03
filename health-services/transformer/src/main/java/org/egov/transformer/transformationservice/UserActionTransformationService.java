@@ -2,6 +2,8 @@ package org.egov.transformer.transformationservice;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.node.TextNode;
 import lombok.extern.slf4j.Slf4j;
@@ -26,6 +28,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 import static org.egov.transformer.Constants.*;
 
@@ -68,11 +71,17 @@ public class UserActionTransformationService {
                 .map(this::transform)
                 .collect(Collectors.toList());
         
+
         log.info("Transformation success for USER ACTION ids: {}", userActionIndexList.stream()
                 .map(UserActionIndexV1::getId)
                 .collect(Collectors.toList()));
-        
-        producer.push(topic, userActionIndexList);
+        producer.push(getTopicName(userActionList.get(0), topic), userActionIndexList);
+    }
+
+    private String getTopicName(UserAction userAction, String topic) {
+        if (userAction.getAction() == null)
+            return topic;
+        return topic + "-" + userAction.getAction().name().toLowerCase().replace("\\_", "-");
     }
 
     private UserActionIndexV1 transform(UserAction userAction) {
@@ -151,24 +160,16 @@ public class UserActionTransformationService {
                         .orElse(null);
 
                 if (field != null && field.getValue() != null) {
-                    List<String> items = Collections.emptyList();
+                    ArrayNode arrayNode = JsonNodeFactory.instance.arrayNode();
                     try {
-                        items = objectMapper.readValue(field.getValue(), List.class);
+                        arrayNode = objectMapper.readValue(field.getValue(), ArrayNode.class);
                     } catch (Exception e) {
                         log.error("Failed to parse field value into list for userAction: {}", userAction.getId(), e);
                     }
 
-                    List<JsonNode> nodes = new ArrayList<>();
-                    for (String item : items) {
-                        try {
-                            nodes.add(objectMapper.readTree(item));
-                        } catch (Exception e) {
-                            log.error("Failed to parse inner JSON string: {}", item, e);
-                        }
-                    }
 
                     try {
-                        Map<String, List<String>> grouped = nodes.stream()
+                        Map<String, List<String>> grouped = StreamSupport.stream(arrayNode.spliterator(), false)
                                 .filter(node -> node.hasNonNull(DAY_OF_VISIT) && node.hasNonNull(BOUNDARY_CODE_KEY))
                                 .collect(Collectors.groupingBy(
                                         node -> node.get(DAY_OF_VISIT).asText(),
@@ -182,6 +183,7 @@ public class UserActionTransformationService {
                             String visitedBoundaries = day + VISITED_BOUNDARIES_SUFFIX;
                             combinedDetails.set(visitedBoundaries, objectMapper.valueToTree(boundaries));
                             combinedDetails.put(day, boundaries.size());
+                            combinedDetails.set("data", arrayNode);
 
                         }
                     } catch (Exception e) {

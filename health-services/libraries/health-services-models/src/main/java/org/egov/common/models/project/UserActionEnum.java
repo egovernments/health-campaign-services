@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonValue;
 
 public enum UserActionEnum {
     CLOSED_HOUSEHOLD("CLOSED_HOUSEHOLD"),
+    NON_COMPLIANCE("NON_COMPLIANCE"),
     LOCATION_CAPTURE("LOCATION_CAPTURE"),
     TRANSIT("TRANSIT"),
     FIXED("FIXED"),

@@ -71,7 +71,7 @@ public class ServiceTaskTransformationService {
                 .map(ServiceIndexV1::getId)
                 .collect(Collectors.toList()));
         producer.push(topic, serviceIndexV1List);
-        filterChecklistsForExtraTransformation(serviceIndexV1List);
+//        filterChecklistsForExtraTransformation(serviceIndexV1List);
     }
 
     private ServiceIndexV1 transform(Service service) {
