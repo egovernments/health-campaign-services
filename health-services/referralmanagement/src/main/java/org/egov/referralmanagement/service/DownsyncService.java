@@ -82,8 +82,10 @@ public class DownsyncService {
 
         Downsync downsync = new Downsync();
         DownsyncCriteria downsyncCriteria = downsyncRequest.getDownsyncCriteria();
+        String syncedTimeKey = Optional.ofNullable(downsyncCriteria.getLastSyncedTime()).orElse(0L).toString();
+        long startTime = System.currentTimeMillis();
 
-        String key = downsyncCriteria.getLocality() + downsyncCriteria.getOffset() + downsyncCriteria.getLimit();
+        String key = downsyncCriteria.getLocality() + downsyncCriteria.getOffset() + downsyncCriteria.getLimit() + syncedTimeKey;
 
         Object obj = getFromCache(key);
         if (null != obj) {
@@ -104,21 +106,30 @@ public class DownsyncService {
         }
         boolean isSyncTimeAvailable = null != downsyncCriteria.getLastSyncedTime();
 
+        long t0 = System.currentTimeMillis();
+
         //Project project = getProjectType(downsyncRequest);
         String beneficiaryType = masterDataService.getProjectType(downsyncRequest);
+        long t1 = System.currentTimeMillis();
 
         /* search household */
         households = searchHouseholds(downsyncRequest, downsync);
         householdClientRefIds = households.stream().map(Household::getClientReferenceId).collect(Collectors.toList());
 
+        long t2 = System.currentTimeMillis();
+
         if (!CollectionUtils.isEmpty(householdClientRefIds))
             /* search household member using household client ref ids */
             individualClientRefIds = searchMembers(downsyncRequest, downsync, householdClientRefIds);
+
+        long t3 = System.currentTimeMillis();
 
         /* search individuals using individual ids */
         if (isSyncTimeAvailable || !CollectionUtils.isEmpty(individualClientRefIds) ) {
             individualClientRefIds = searchIndividuals(downsyncRequest, downsync, individualClientRefIds);
         }
+
+        long t4 = System.currentTimeMillis();
 
         /* search beneficiary using individual ids OR household ids */
 
@@ -127,18 +138,29 @@ public class DownsyncService {
         if("HOUSEHOLD".equalsIgnoreCase(beneficiaryType))
             beneficiaryClientRefIds = downsync.getHouseholds().stream().map(Household::getClientReferenceId).collect(Collectors.toList());
 
+        long t5 = System.currentTimeMillis();
+
         //fetch beneficiary in the db
         if (isSyncTimeAvailable || !CollectionUtils.isEmpty(beneficiaryClientRefIds)) {
             beneficiaryClientRefIds = searchBeneficiaries(downsyncRequest, downsync, beneficiaryClientRefIds, useProjectId);
         }
+
+        long t6 = System.currentTimeMillis();
+
+        long t7 = System.currentTimeMillis();
+        long t8 = System.currentTimeMillis();
 
         /* search tasks using beneficiary uuids */
         if (isSyncTimeAvailable || !CollectionUtils.isEmpty(beneficiaryClientRefIds)) {
 
             taskClientRefIds = searchTasks(downsyncRequest, downsync, beneficiaryClientRefIds, useProjectId);
 
+            t7 = System.currentTimeMillis();
+
             /* ref search */
             referralSearch(downsyncRequest, downsync, beneficiaryClientRefIds);
+
+            t8 = System.currentTimeMillis();
         }
 
 
@@ -146,7 +168,15 @@ public class DownsyncService {
             searchSideEffect(downsyncRequest, downsync, taskClientRefIds);
         }
 
+        long t9 = System.currentTimeMillis();
+
         cacheByKey(downsync, key);
+
+        long t10 = System.currentTimeMillis();
+
+        log.info("Downsync process finished in {} ms, {} ms, {} ms, {} ms, {} ms, {} ms, {} ms, {} ms, {} ms, {} ms, {} ms",
+                startTime - t0, t1 - t0, t2 - t1,  t3 - t2, t4 - t3, t5 - t4, t6 - t5, t7 - t6,  t8 - t7, t9 - t8, t10 - t9);
+
 
         return downsync;
     }
