@@ -157,8 +157,15 @@ public class FacilityValidationProcessor implements IWorkbookProcessor {
             errorsByRow.computeIfAbsent(error.getRowNumber(), k -> new ArrayList<>()).add(error);
         }
         
-        // Process each data row (skip header row)
-        for (int i = 1; i <= ExcelUtil.findActualLastRowWithData(sheet); i++) {
+        // Find the maximum error row number
+        int maxErrorRowNumber = errors.stream()
+            .mapToInt(ValidationError::getRowNumber)
+            .max()
+            .orElse(0);
+        
+        // Process each data row (skip header row) - loop up to max of actual data rows or max error row
+        int maxRowToProcess = Math.max(ExcelUtil.findActualLastRowWithData(sheet), maxErrorRowNumber - 1);
+        for (int i = 1; i <= maxRowToProcess; i++) {
             Row row = sheet.getRow(i);
             if (row == null) continue;
             

@@ -60,6 +60,11 @@ public class ExcelIngestionApplication {
                 .maximumSize(100)
                 .build();
         
+        com.github.benmanes.caffeine.cache.Cache<Object, Object> enrichedBoundaryCodesWithoutRootCache = Caffeine.newBuilder()
+                .expireAfterWrite(5, TimeUnit.MINUTES)
+                .maximumSize(100)
+                .build();
+        
         com.github.benmanes.caffeine.cache.Cache<Object, Object> mdmsExcelIngestionProcessCache = Caffeine.newBuilder()
                 .expireAfterWrite(5, TimeUnit.MINUTES)
                 .maximumSize(50)
@@ -77,6 +82,7 @@ public class ExcelIngestionApplication {
         cacheManager.registerCustomCache("excelSheetData", excelSheetDataCache);
         cacheManager.registerCustomCache("enrichedBoundaryCodes", enrichedBoundaryCodesCache);
         cacheManager.registerCustomCache("enrichedBoundaryObjects", enrichedBoundaryObjectsCache);
+        cacheManager.registerCustomCache("enrichedBoundaryCodesWithoutRoot", enrichedBoundaryCodesWithoutRootCache);
         cacheManager.registerCustomCache("mdmsExcelIngestionProcess", mdmsExcelIngestionProcessCache);
         cacheManager.registerCustomCache("mdmsExcelIngestionGenerate", mdmsExcelIngestionGenerateCache);
         

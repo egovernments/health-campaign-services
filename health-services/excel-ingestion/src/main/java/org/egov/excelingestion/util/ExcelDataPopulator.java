@@ -173,38 +173,60 @@ public class ExcelDataPopulator {
     }
 
     /**
-     * Fill data rows using simple loop as specified in design
-     * Appends to existing columns if sheet already has content
+     * Fill data rows using header-to-column mapping approach
+     * Maps data keys to existing header columns in the sheet
      */
     private void fillDataRows(Workbook workbook, Sheet sheet, List<ColumnDef> columnProperties, 
                              List<Map<String, Object>> dataRows) {
         log.debug("Filling {} data rows", dataRows.size());
 
-        // Find starting column index (same as headers)
-        Row visibleRow = sheet.getRow(1);
-        int totalExistingCols = visibleRow != null ? visibleRow.getLastCellNum() : 0;
-        int startCol = Math.max(0, totalExistingCols - columnProperties.size());
+        // Get header row (row 1, which is visible)
+        Row headerRow = sheet.getRow(0);
+        if (headerRow == null) {
+            log.warn("No header row found in sheet, cannot fill data");
+            return;
+        }
 
-        // Simple loop: for each dataRow → create Excel row → fill cells
+        // Create mapping from header name to column index
+        Map<String, Integer> headerToColumnMap = new HashMap<>();
+        for (int colIdx = 0; colIdx < headerRow.getLastCellNum(); colIdx++) {
+            Cell headerCell = headerRow.getCell(colIdx);
+            if (headerCell != null && headerCell.getCellType() == CellType.STRING) {
+                String headerName = headerCell.getStringCellValue();
+                headerToColumnMap.put(headerName, colIdx);
+            }
+        }
+
+        // Fill data rows using header mapping
         for (int rowIdx = 0; rowIdx < dataRows.size(); rowIdx++) {
             Map<String, Object> dataRow = dataRows.get(rowIdx);
-            Row excelRow = sheet.getRow(rowIdx + 2); // Start from row 2 (0-indexed), after headers
+            Row excelRow = sheet.getRow(rowIdx + 2); // Start from row 2 (after headers)
             if (excelRow == null) {
                 excelRow = sheet.createRow(rowIdx + 2);
             }
 
-            for (int i = 0; i < columnProperties.size(); i++) {
-                int colIdx = startCol + i;
-                ColumnDef column = columnProperties.get(i);
-                Cell cell = excelRow.getCell(colIdx);
-                if (cell == null) {
-                    cell = excelRow.createCell(colIdx);
-                }
-
-                // Get value from data map using column name
-                Object value = dataRow.get(column.getName());
-                if (value != null) {
-                    setCellValue(cell, value, column);
+            // For each data key-value pair, find matching header column and fill data
+            for (Map.Entry<String, Object> entry : dataRow.entrySet()) {
+                String dataKey = entry.getKey();
+                Object value = entry.getValue();
+                
+                // Find column index for this data key from header mapping
+                Integer colIdx = headerToColumnMap.get(dataKey);
+                if (colIdx != null && value != null) {
+                    Cell cell = excelRow.getCell(colIdx);
+                    if (cell == null) {
+                        cell = excelRow.createCell(colIdx);
+                    }
+                    
+                    // Find corresponding ColumnDef for validation/formatting
+                    ColumnDef columnDef = columnProperties.stream()
+                        .filter(col -> col.getName().equals(dataKey))
+                        .findFirst()
+                        .orElse(null);
+                    
+                    setCellValue(cell, value, columnDef);
+                } else if (colIdx == null) {
+                    log.debug("No header column found for data key: {}", dataKey);
                 }
             }
         }
@@ -222,7 +244,7 @@ public class ExcelDataPopulator {
         if (value instanceof String) {
             String stringValue = (String) value;
             // Apply prefix if specified
-            if (column.getPrefix() != null && !column.getPrefix().isEmpty()) {
+            if (column != null && column.getPrefix() != null && !column.getPrefix().isEmpty()) {
                 stringValue = column.getPrefix() + stringValue;
             }
             cell.setCellValue(stringValue);
