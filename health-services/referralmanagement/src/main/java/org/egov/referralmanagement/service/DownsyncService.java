@@ -540,7 +540,7 @@ public class DownsyncService {
         return memberids;
     }
 
-    private List<String> getHouseholdIds(String localityCode, Integer limit, Integer offset) {
+    private List<String> getHouseholdIds(String localityCode, Integer offset, Integer limit) {
         String query = "select distinct hhm.householdclientreferenceid " +
                 "from household_member hhm " +
                 "join project_beneficiary pb " +
