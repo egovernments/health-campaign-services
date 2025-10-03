@@ -105,7 +105,7 @@ public class DownsyncService {
         boolean isSyncTimeAvailable = null != downsyncCriteria.getLastSyncedTime();
 
         //Project project = getProjectType(downsyncRequest);
-        LinkedHashMap<String, Object> projectType = masterDataService.getProjectType(downsyncRequest);
+        String beneficiaryType = masterDataService.getProjectType(downsyncRequest);
 
         /* search household */
         households = searchHouseholds(downsyncRequest, downsync);
@@ -122,8 +122,6 @@ public class DownsyncService {
 
         /* search beneficiary using individual ids OR household ids */
 
-        String beneficiaryType = (String) projectType.get("beneficiaryType");
-
         beneficiaryClientRefIds = individualClientRefIds;
 
         if("HOUSEHOLD".equalsIgnoreCase(beneficiaryType))
@@ -137,7 +135,7 @@ public class DownsyncService {
         /* search tasks using beneficiary uuids */
         if (isSyncTimeAvailable || !CollectionUtils.isEmpty(beneficiaryClientRefIds)) {
 
-            taskClientRefIds = searchTasks(downsyncRequest, downsync, beneficiaryClientRefIds, projectType, useProjectId);
+            taskClientRefIds = searchTasks(downsyncRequest, downsync, beneficiaryClientRefIds, useProjectId);
 
             /* ref search */
             referralSearch(downsyncRequest, downsync, beneficiaryClientRefIds);
@@ -348,11 +346,10 @@ public class DownsyncService {
      * @param downsyncRequest
      * @param downsync
      * @param beneficiaryClientRefIds
-     * @param projectType
      * @return
      */
     private List<String> searchTasks(DownsyncRequest downsyncRequest, Downsync downsync,
-                                     List<String> beneficiaryClientRefIds, LinkedHashMap<String, Object> projectType, boolean useProjectId) {
+                                     List<String> beneficiaryClientRefIds, boolean useProjectId) {
 
         DownsyncCriteria criteria = downsyncRequest.getDownsyncCriteria();
         RequestInfo requestInfo = downsyncRequest.getRequestInfo();
@@ -448,7 +445,6 @@ public class DownsyncService {
             search.setProjectBeneficiaryClientReferenceId(beneficiaryClientRefIds);
             limit = null;
         }
-
         ReferralSearchRequest searchRequest = ReferralSearchRequest.builder()
                 .referral(search)
                 .requestInfo(requestInfo)

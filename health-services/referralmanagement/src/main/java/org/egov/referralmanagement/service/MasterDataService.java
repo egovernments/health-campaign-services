@@ -19,6 +19,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static org.egov.referralmanagement.Constants.*;
 
@@ -30,18 +31,21 @@ public class MasterDataService {
 
 	private ReferralManagementConfiguration configs;
 
+    private ConcurrentHashMap<String, String> projectCodeBeneficiaryIds;
+
 	@Autowired
 	public MasterDataService(ServiceRequestClient serviceRequestClient,
 			ReferralManagementConfiguration referralManagementConfiguration) {
 
 		this.restClient = serviceRequestClient;
 		this.configs = referralManagementConfiguration;
+        this.projectCodeBeneficiaryIds = new ConcurrentHashMap<>();
 
 	}
 
 
 	@SuppressWarnings("unchecked")
-	public LinkedHashMap<String, Object> getProjectType(DownsyncRequest downsyncRequest) {
+	public String getProjectType(DownsyncRequest downsyncRequest) {
 
 		DownsyncCriteria downsyncCriteria = downsyncRequest.getDownsyncCriteria();
 		RequestInfo info = downsyncRequest.getRequestInfo();
@@ -51,6 +55,10 @@ public class MasterDataService {
 		Project project = getProject(downsyncCriteria, info, projectId);
 
 		String projectCode = project.getProjectType(); // FIXME
+
+        if(projectCodeBeneficiaryIds.containsKey(projectCode)){
+            return projectCodeBeneficiaryIds.get(projectCode);
+        }
 
 		/*
 		 * TODO FIXME code should get upgraded when next version of project is created with execution plan (project type master) in the additional details
@@ -90,8 +98,10 @@ public class MasterDataService {
 			throw new CustomException("JSONPATH_ERROR", "Failed to parse mdms response");
 		}
 
-		return (LinkedHashMap<String, Object>) projectTypeRes.get(0);
-
+        LinkedHashMap<String, Object> projectType = (LinkedHashMap<String, Object>) projectTypeRes.get(0);
+        String beneficiaryType = (String) projectType.get("beneficiaryType");
+        projectCodeBeneficiaryIds.put(projectCode, beneficiaryType);
+        return beneficiaryType;
 	}
 
 
@@ -100,7 +110,7 @@ public class MasterDataService {
 		StringBuilder url = new StringBuilder(configs.getProjectHost())
 				.append(configs.getProjectSearchUrl())
 				.append("?offset=0")
-				.append("&limit=100")
+				.append("&limit=1")
 				.append("&tenantId=").append(downsyncCriteria.getTenantId());
 
 		Project project = Project.builder()
