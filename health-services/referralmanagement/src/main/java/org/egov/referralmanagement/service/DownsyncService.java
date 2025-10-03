@@ -115,6 +115,12 @@ public class DownsyncService {
         String beneficiaryType = "INDIVIDUAL";
         long t1 = System.currentTimeMillis();
 
+        if(downsyncCriteria.getOffset() == 0 && downsyncCriteria.getLimit() == 0) {
+            Long totalHouseholds = getHouseholdsCount(downsyncRequest.getDownsyncCriteria().getLocality());
+            downsync.getDownsyncCriteria().setTotalCount(totalHouseholds);
+            return downsync;
+        }
+
         householdClientRefIds = getHouseholdIds(downsyncCriteria.getLocality(), downsyncCriteria.getOffset(), downsyncCriteria.getLimit());
 
         /* search household */
@@ -541,8 +547,23 @@ public class DownsyncService {
     }
 
     private List<String> getHouseholdIds(String localityCode, Integer offset, Integer limit) {
-        String query = "select distinct hhm.householdclientreferenceid " +
-                "from household_member hhm " +
+        String query = getHouseholdQuery(false);
+        Map<String, Object> paramMap = new HashMap<>();
+        paramMap.put("localityCode", localityCode);
+        paramMap.put("limit", limit);
+        paramMap.put("offset", offset);
+        return jdbcTemplate.queryForList(query, paramMap, String.class);
+    }
+
+    private Long getHouseholdsCount(String localityCode) {
+        String query = getHouseholdQuery(true);
+        Map<String, Object> paramMap = new HashMap<>();
+        paramMap.put("localityCode", localityCode);
+        return jdbcTemplate.queryForObject(query, paramMap, Long.class);
+    }
+
+    private String getHouseholdQuery(boolean isCountQuery) {
+        String query = "from household_member hhm " +
                 "join project_beneficiary pb " +
                 "  on pb.beneficiaryclientreferenceid = hhm.individualclientreferenceid " +
                 "join project_task pt " +
@@ -550,15 +571,16 @@ public class DownsyncService {
                 "join address a " +
                 "  on pt.addressid = a.id " +
                 "where pt.status in ('BENEFICIARY_ABSENT', 'ADMINISTRATION_FAILED') " +
-                "  and a.localitycode = :localityCode " +
-                "order by hhm.householdclientreferenceid  " +
-                "limit :limit " +
-                "offset :offset";
-        Map<String, Object> paramMap = new HashMap<>();
-        paramMap.put("localityCode", localityCode);
-        paramMap.put("limit", limit);
-        paramMap.put("offset", offset);
-        return jdbcTemplate.queryForList(query, paramMap, String.class);
+                "  and a.localitycode = :localityCode ";
+        if(isCountQuery) {
+            query = "select count(distinct hhm.householdclientreferenceid) " + query;
+        } else {
+            query = "select distinct hhm.householdclientreferenceid " + query;
+        }
+        if(!isCountQuery) {
+            query += " order by hhm.householdclientreferenceid limit :limit offset :offset";
+        }
+        return query;
     }
 
     /**
