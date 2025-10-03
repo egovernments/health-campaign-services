@@ -91,10 +91,10 @@ public class DownsyncService {
         }
 
         List<Household> households = null;
-        List<String> householdClientRefIds = null;
-        List<String> individualClientRefIds = null;
-        List<String> beneficiaryClientRefIds = null;
-        List<String> taskClientRefIds = null;
+        List<String> householdClientRefIds = new ArrayList<>();
+        List<String> individualClientRefIds = new ArrayList<>();
+        List<String> beneficiaryClientRefIds = new ArrayList<>();
+        List<String> taskClientRefIds = new ArrayList<>();
 
 
         downsync.setDownsyncCriteria(downsyncCriteria);
@@ -211,7 +211,10 @@ public class DownsyncService {
         RequestInfo requestInfo = downsyncRequest.getRequestInfo();
 
         List<Individual> individuals = new ArrayList<>();
-        List<List<String>> subLists = splitList(individualClientRefIds, SEARCH_MAX_COUNT);
+        if(CollectionUtils.isEmpty(individualClientRefIds)) return  Collections.emptyList();
+
+        Integer searchLimit = configs.getDownsyncSearchLimits().getOrDefault("individual", SEARCH_MAX_COUNT);
+        List<List<String>> subLists = splitList(individualClientRefIds, searchLimit);
 
         for (List<String> list : subLists) {
             StringBuilder url = new StringBuilder(configs.getIndividualHost())
@@ -253,7 +256,8 @@ public class DownsyncService {
         if (CollectionUtils.isEmpty(memberids))
             return Collections.emptyList();
 
-        List<List<String>> subLists = splitList(memberids, SEARCH_MAX_COUNT);
+        Integer searchLimit = configs.getDownsyncSearchLimits().getOrDefault("member", SEARCH_MAX_COUNT);
+        List<List<String>> subLists = splitList(memberids, searchLimit);
         List<HouseholdMember> members = new ArrayList<>();
         for (List<String> list : subLists) {
             StringBuilder memberUrl = new StringBuilder(configs.getHouseholdHost())
@@ -303,7 +307,8 @@ public class DownsyncService {
         if(CollectionUtils.isEmpty(beneficiaryIds))
             return Collections.emptyList();
 
-        List<List<String>> subLists = splitList(beneficiaryIds, SEARCH_MAX_COUNT);
+        Integer searchLimit = configs.getDownsyncSearchLimits().getOrDefault("beneficiary", SEARCH_MAX_COUNT);
+        List<List<String>> subLists = splitList(beneficiaryIds, searchLimit);
         List<ProjectBeneficiary> beneficiaries = new ArrayList<>();
 
         for (List<String> list : subLists) {
@@ -312,12 +317,12 @@ public class DownsyncService {
 
             url = appendUrlParams(url, criteria, 0, list.size(),false);
 
-        ProjectBeneficiarySearch search = ProjectBeneficiarySearch.builder()
-                .id(list).build();
+            ProjectBeneficiarySearch search = ProjectBeneficiarySearch.builder()
+                    .id(list).build();
 
-        if (useProjectId) {
-            search.setProjectId(Collections.singletonList(downsyncRequest.getDownsyncCriteria().getProjectId()));
-        }
+            if (useProjectId) {
+                search.setProjectId(Collections.singletonList(downsyncRequest.getDownsyncCriteria().getProjectId()));
+            }
 
             BeneficiarySearchRequest searchRequest = BeneficiarySearchRequest.builder()
                     .projectBeneficiary(search)
@@ -357,7 +362,8 @@ public class DownsyncService {
         if(CollectionUtils.isEmpty(taskIds))
             return Collections.emptyList();
 
-        List<List<String>> subLists = splitList(taskIds, SEARCH_MAX_COUNT);
+        Integer searchLimit = configs.getDownsyncSearchLimits().getOrDefault("task", SEARCH_MAX_COUNT);
+        List<List<String>> subLists = splitList(taskIds, searchLimit);
         List<Task> tasks = new ArrayList<>();
 
         for (List<String> list : subLists) {
@@ -366,16 +372,16 @@ public class DownsyncService {
 
             url = appendUrlParams(url, criteria, 0, list.size(), false);
 
-        TaskSearch search = TaskSearch.builder()
-                .id(list)
-                .build();
+            TaskSearch search = TaskSearch.builder()
+                    .id(list)
+                    .build();
 
-        if(useProjectId) {
-            search.setProjectId(
-                    Collections.singletonList(downsyncRequest.getDownsyncCriteria().getProjectId()));
-        }
+            if(useProjectId) {
+                search.setProjectId(
+                        Collections.singletonList(downsyncRequest.getDownsyncCriteria().getProjectId()));
+            }
 
-        TaskSearchRequest searchRequest = TaskSearchRequest.builder()
+            TaskSearchRequest searchRequest = TaskSearchRequest.builder()
                 .task(search)
                 .requestInfo(requestInfo)
                 .build();
@@ -537,6 +543,7 @@ public class DownsyncService {
 
     private <T> List<List<T>> splitList(List<T> list, int size) {
         List<List<T>> subLists = new ArrayList<>();
+        if(CollectionUtils.isEmpty(list)) return subLists;
         for (int i = 0; i < list.size(); i += size) {
             subLists.add(list.subList(i, Math.min(i + size, list.size())));
         }

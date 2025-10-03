@@ -1,5 +1,6 @@
 package org.egov.referralmanagement.config;
 
+import java.util.Map;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -117,5 +118,8 @@ public class ReferralManagementConfiguration {
 
     @Value("${egov.enable.matview.search}")
     private boolean enableMatviewSearch;
+
+    @Value("#{${egov.downsync.search.limits}}")
+    private Map<String, Integer> downsyncSearchLimits;
 
 }
