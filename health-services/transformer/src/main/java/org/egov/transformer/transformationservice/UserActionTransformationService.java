@@ -81,7 +81,7 @@ public class UserActionTransformationService {
     private String getTopicName(UserAction userAction, String topic) {
         if (userAction.getAction() == null)
             return topic;
-        return topic + "-" + userAction.getAction().name().toLowerCase().replace("\\_", "-");
+        return topic + "-" + userAction.getAction().name().toLowerCase().replace("_", "-");
     }
 
     private UserActionIndexV1 transform(UserAction userAction) {
@@ -169,7 +169,20 @@ public class UserActionTransformationService {
 
 
                     try {
-                        Map<String, List<String>> grouped = StreamSupport.stream(arrayNode.spliterator(), false)
+                        List<JsonNode> parsedNodes = new ArrayList<>();
+                        for (JsonNode node : arrayNode) {
+                            if (node.isTextual()) {
+                                try {
+                                    parsedNodes.add(objectMapper.readTree(node.asText()));
+                                } catch (Exception e) {
+                                    log.error("Failed to parse inner JSON element for userAction: {}", userAction.getId(), e);
+                                }
+                            } else {
+                                parsedNodes.add(node);
+                            }
+                        }
+
+                        Map<String, List<String>> grouped = parsedNodes.stream()
                                 .filter(node -> node.hasNonNull(DAY_OF_VISIT) && node.hasNonNull(BOUNDARY_CODE_KEY))
                                 .collect(Collectors.groupingBy(
                                         node -> node.get(DAY_OF_VISIT).asText(),
