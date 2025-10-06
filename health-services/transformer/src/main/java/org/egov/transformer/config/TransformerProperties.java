@@ -239,4 +239,10 @@ public class TransformerProperties {
 
     @Value("${transformer.producer.user.action.index.v1.topic}")
     private String transformerProducerUserActionIndexV1Topic;
+
+    @Value("${transformer.consumer.custom.factory.topic.size}")
+    private Integer transformerConsumerCustomFactoryTopicSize;
+
+    @Value("${transformer.consumer.custom.factory.topic.concurrency}")
+    private Integer transformerConsumerCustomFactoryTopicConcurrency;
 }

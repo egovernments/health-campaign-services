@@ -29,7 +29,7 @@ public class ProjectTaskConsumer {
     }
 
     @KafkaListener(topics = { "${transformer.consumer.bulk.create.project.task.topic}",
-            "${transformer.consumer.bulk.update.project.task.topic}"})
+            "${transformer.consumer.bulk.update.project.task.topic}"}, containerFactory = "kafkaListenerContainerFactoryLow")
     public void consumeTask(ConsumerRecord<String, Object> payload,
                            @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
