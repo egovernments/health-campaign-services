@@ -34,6 +34,20 @@ POST /v1/data/_download    // Download generated Excel
 User Request → Validate → Generate Excel → Return File
 ```
 
+### **MDMS Schema Usage (V1):**
+```javascript
+// V1 uses callMdmsTypeSchema for fetching schemas
+async function callMdmsTypeSchema(tenantId, isUpdate, type, campaignType = "all") {
+    const requestBody = {
+        MdmsCriteria: {
+            tenantId: tenantId,
+            uniqueIdentifiers: [`${type}.${campaignType}`], // e.g., "user.all", "facility.all"
+            schemaCode: "HCM-ADMIN-CONSOLE.adminSchema"  // V1 uses adminSchema
+        }
+    };
+}
+```
+
 ---
 
 ## 🟢 V2 Generation (SheetManagement Controller)
@@ -89,6 +103,23 @@ export const generationtTemplateConfigs: any = {
 User Request → Load Hardcoded Config → Call Generation Class → Generate Excel → Return File
 ```
 
+### **MDMS Schema Usage (V2):**
+```javascript
+// V2 uses callMdmsSchema for fetching schemas
+async function callMdmsSchema(tenantId, type) {
+    const MdmsCriteria = {
+        MdmsCriteria: {
+            tenantId: tenantId,
+            schemaCode: "HCM-ADMIN-CONSOLE.schemas",  // V2 uses schemas (NOT adminSchema)
+            uniqueIdentifiers: [`${type}`]  // e.g., "user", "facility", "boundary"
+        }
+    };
+}
+
+// Called in sheetManageUtils.ts during generation:
+const schema = await callMdmsSchema(tenantId, schemaName);
+```
+
 ### **Key Features:**
 - ✅ **File class-based generation** - Each type has its own class
 - ✅ Template-based approach
@@ -126,28 +157,65 @@ User Request → Load Hardcoded Config → Call Generation Class → Generate Ex
 ### **MDMS Config Example:**
 ```json
 {
-  "excelIngestionGenerate": {
-    "microplan-ingestion": {
-      "sheets": [
-        {
-          "sheetName": "HCM_ADMIN_CONSOLE_USER_LIST",
-          "schemaName": "user-microplan-ingestion",
-          "generationClass": "UserSheetGenerator"
-        },
-        {
-          "sheetName": "HCM_ADMIN_CONSOLE_FACILITIES_LIST",
-          "schemaName": "facility-microplan-ingestion",
-          "generationClass": "FacilitySheetGenerator"
-        },
-        {
-          "sheetName": "HCM_ADMIN_CONSOLE_BOUNDARY_HIERARCHY",
-          "schemaName": "boundary-microplan-ingestion",
-          "generationClass": "BoundarySheetGenerator"
+  "tenantId": "pb",
+  "moduleDetails": [{
+    "moduleName": "HCM-ADMIN-CONSOLE",
+    "masterDetails": [
+      {
+        "name": "schemas",  // Excel Ingestion uses HCM-ADMIN-CONSOLE.schemas
+        "data": {
+          "user-microplan-ingestion": {
+            "properties": {
+              "HCM_ADMIN_CONSOLE_USER_NAME": { "type": "string" },
+              "HCM_ADMIN_CONSOLE_USER_ROLE": { "type": "string" },
+              "HCM_ADMIN_CONSOLE_USER_MOBILE": { "type": "string" }
+            }
+          },
+          "facility-microplan-ingestion": {
+            "properties": {
+              "HCM_ADMIN_CONSOLE_FACILITY_NAME": { "type": "string" },
+              "HCM_ADMIN_CONSOLE_FACILITY_TYPE": { "enum": ["Warehouse", "Health Facility"] }
+            }
+          }
         }
-      ]
-    }
-  }
+      },
+      {
+        "name": "processorConfig",
+        "data": {
+          "microplan-ingestion": {
+            "sheets": [
+              {
+                "sheetName": "HCM_ADMIN_CONSOLE_USER_LIST",
+                "schemaName": "user-microplan-ingestion",
+                "generationClass": "UserSheetGenerator"  // Simple class name, package auto-added
+              },
+              {
+                "sheetName": "HCM_ADMIN_CONSOLE_FACILITIES_LIST",
+                "schemaName": "facility-microplan-ingestion",
+                "generationClass": "FacilitySheetGenerator"  // Simple class name, package auto-added
+              }
+            ]
+          }
+        }
+      }
+    ]
+  }]
 }
+```
+
+### **MDMS Schema Usage (Excel Ingestion):**
+```java
+// Excel Ingestion also uses HCM-ADMIN-CONSOLE.schemas (like V2)
+// But configuration and class names come from MDMS
+MDMSClient.fetchConfig("HCM-ADMIN-CONSOLE.schemas", "user-microplan-ingestion");
+MDMSClient.fetchConfig("HCM-ADMIN-CONSOLE.processorConfig", "microplan-ingestion");
+
+// Java automatically adds package prefix if not provided:
+String fullClassName = className;
+if (!className.contains(".")) {
+    fullClassName = "org.egov.excelingestion.generator." + className;
+}
+// So "UserSheetGenerator" becomes "org.egov.excelingestion.generator.UserSheetGenerator"
 ```
 
 ### **How it works:**
@@ -170,7 +238,8 @@ User Request → Fetch MDMS Config → Generate Multiple Sheets → Add Cascadin
 | Feature | V1 | V2 | Excel Ingestion |
 |---------|----|----|-----------------|
 | **Generation Type** | Simple | Class-based | Class-based + MDMS |
-| **Configuration** | None | Hardcoded in code | MDMS (Dynamic) |
+| **Configuration** | createAndSearchConfig | generationtTemplateConfigs (hardcoded) | MDMS (Dynamic) |
+| **MDMS Schema** | HCM-ADMIN-CONSOLE.adminSchema | HCM-ADMIN-CONSOLE.schemas | HCM-ADMIN-CONSOLE.schemas |
 | **All-in-One Unified Excel** | ❌ No | ❌ No | ✅ Yes (All sheets in single file) |
 | **Cascading Dropdowns** | ❌ No | ❌ No | ✅ Yes |
 | **Config Changes** | Code change | Code change | MDMS update (No deployment) |
@@ -199,14 +268,23 @@ User Request → Fetch MDMS Config → Generate Multiple Sheets → Add Cascadin
 
 ## 💡 Key Takeaways
 
-1. **V1 → V2 Evolution**: Added class-based generation but configs still hardcoded
+1. **V1 → V2 Evolution**: 
+   - Added class-based generation but configs still hardcoded
+   - Changed from `HCM-ADMIN-CONSOLE.adminSchema` to `HCM-ADMIN-CONSOLE.schemas`
+   
 2. **V2 → Excel Ingestion Evolution**: 
    - Moved configs from code to MDMS
    - Added cascading dropdowns
    - Support for multiple sheets
    - No deployment needed for config changes
+   - Still uses `HCM-ADMIN-CONSOLE.schemas` (same as V2)
 
-3. **Main Benefits of Excel Ingestion**:
+3. **MDMS Schema Summary**:
+   - **V1**: Uses `HCM-ADMIN-CONSOLE.adminSchema`
+   - **V2**: Uses `HCM-ADMIN-CONSOLE.schemas` 
+   - **Excel Ingestion**: Uses `HCM-ADMIN-CONSOLE.schemas`
+
+4. **Main Benefits of Excel Ingestion**:
    - **Dynamic**: Change configs without touching code
    - **Smart**: Cascading dropdowns for better UX
    - **Unified**: All sheets in one Excel file
