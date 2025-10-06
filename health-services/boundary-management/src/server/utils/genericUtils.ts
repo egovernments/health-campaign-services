@@ -198,6 +198,7 @@ function getLocalizedHeaders(headers: any, localizationMap?: { [key: string]: st
 async function enrichResourceDetails(request: any) {
   request.body.ResourceDetails.id = uuidv4();
   request.body.ResourceDetails.processedFileStoreId = null;
+  request.body.ResourceDetails.referenceId = request?.body?.ResourceDetails?.referenceId || null;
   if (request?.body?.ResourceDetails?.action == "create") {
     request.body.ResourceDetails.status = resourceDataStatuses.accepted
   }
@@ -368,6 +369,7 @@ async function updateExistingResourceExpired(modifiedResponse: any[], request: a
     const newItem = { ...item };
     newItem.status = generatedResourceStatuses.expired;
     newItem.auditDetails.lastModifiedTime = Date.now();
+    newItem.referenceId = newItem?.referenceId || null;
     newItem.auditDetails.lastModifiedBy = request?.body?.RequestInfo?.userInfo?.uuid;
     return newItem;
   });

@@ -46,6 +46,7 @@ async function handleResouceDetailsError(request: any, error: any) {
   if (request?.body?.ResourceDetails) {
     request.body.ResourceDetails.status = "failed";
     request.body.ResourceDetails.processedFileStoreId = request?.body?.ResourceDetails?.processedFileStoreId || null;
+    request.body.ResourceDetails.referenceId = request?.body?.ResourceDetails?.referenceId || null;
     request.body.ResourceDetails.additionalDetails = {
       ...request?.body?.ResourceDetails?.additionalDetails,
       error: stringifiedError,
