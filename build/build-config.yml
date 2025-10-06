@@ -343,3 +343,12 @@ config:
         image-name: "project-factory-db"
         dockerfile: "health-services/project-factory/migration/Dockerfile"
 
+  - name: "builds/health-campaign-services/health-services/boundary-management"
+    build:
+      - work-dir: "health-services/boundary-management"
+        image-name: "boundary-management"
+        dockerfile: "health-services/boundary-management/Dockerfile"
+      - work-dir: "health-services/boundary-management/migration"
+        image-name: "boundary-management-db"
+        dockerfile: "health-services/boundary-management/migration/Dockerfile"
+
