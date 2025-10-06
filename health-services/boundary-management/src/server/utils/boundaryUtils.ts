@@ -355,7 +355,7 @@ async function generateProcessedFileAndPersist(
       tenantId: request?.body?.ResourceDetails?.tenantId,
       forceUpdate: "true",
       hierarchyType: request?.body?.ResourceDetails?.hierarchyType,
-      referenceId : request?.body?.ResourceDetails?.referenceId
+      referenceId : request?.query?.referenceId ? request.query.referenceId : null,
     };
     const newRequestBoundary = replicateRequest(
       request,
