@@ -3,7 +3,7 @@ name: Auto Trigger for boundary-management Multi-Arch Build
 on:
   push:
     branches:
-      - bounsary-management-service
+      - boundary_management_service
       - master
 
 env:
