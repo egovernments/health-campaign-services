@@ -56,7 +56,7 @@ const getBoundaryDataService = async (
     try {
         const { hierarchyType } = request?.query;
         const cacheTTL = config?.cacheTime; // TTL in seconds (5 minutes)
-        const cacheKey = `${hierarchyType}`;
+        const cacheKey = `boundary-management-cacheKey-${hierarchyType}`;
         let isRedisConnected = false;
         let cachedData: any = null;
         if (cacheKey && enableCaching) {
