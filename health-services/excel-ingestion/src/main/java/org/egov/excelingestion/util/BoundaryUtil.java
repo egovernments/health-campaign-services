@@ -284,35 +284,7 @@ public class BoundaryUtil {
         return enrichedCodes;
     }
 
-    /**
-     * Get enriched boundary codes from campaign excluding root boundaries.
-     * This is specifically used for facility filtering where root boundaries should be excluded.
-     * 
-     * @param processId Process ID or generation ID for cache key
-     * @param referenceId Reference ID for cache key  
-     * @param tenantId Tenant ID
-     * @param hierarchyType Hierarchy type
-     * @param requestInfo Request info
-     * @return Set of boundary codes excluding root boundaries
-     */
-    @Cacheable(value = "enrichedBoundaryCodesWithoutRoot", key = "#processId + '_' + #referenceId")
-    public Set<String> getEnrichedBoundaryCodesFromCampaignExcludingRoot(String processId, String referenceId, 
-                                                           String tenantId, String hierarchyType, RequestInfo requestInfo) {
-        // Use the enriched boundaries function to get full boundary objects
-        List<Boundary> enrichedBoundaries = getEnrichedBoundariesFromCampaign(processId, referenceId, tenantId, hierarchyType, requestInfo);
-        
-        // Extract codes from boundary objects, excluding root boundaries
-        Set<String> enrichedCodes = enrichedBoundaries.stream()
-                .filter(boundary -> !Boolean.TRUE.equals(boundary.getIsRoot())) // Exclude root boundaries
-                .map(Boundary::getCode)
-                .filter(code -> code != null)
-                .collect(Collectors.toSet());
-        
-        log.info("Extracted {} boundary codes from enriched boundaries (excluding root boundaries)", enrichedCodes.size());
-        
-        return enrichedCodes;
-    }
-
+    
     /**
      * Recursively map all boundary nodes to their codes
      */

@@ -17,7 +17,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * Utility for creating cascading boundary dropdowns starting from 2nd level
+ * Utility for creating cascading boundary dropdowns starting from 1st level
  * Creates a hidden sheet with boundary hierarchy and cascading dropdowns
  */
 @Component
@@ -76,7 +76,7 @@ public class HierarchicalBoundaryUtil {
 
     /**
      * Adds cascading boundary dropdown columns to an existing sheet
-     * Creates multiple columns starting from 2nd level with cascading dropdowns
+     * Creates multiple columns starting from 1st level with cascading dropdowns
      * 
      * @param workbook Excel workbook
      * @param sheetName Name of the sheet to add columns to
@@ -95,7 +95,7 @@ public class HierarchicalBoundaryUtil {
     
     /**
      * Adds cascading boundary dropdown columns to an existing sheet with existing data population
-     * Creates multiple columns starting from 2nd level with cascading dropdowns
+     * Creates multiple columns starting from 1st level with cascading dropdowns
      * If existingData is provided, populates the first rows with that data
      * 
      * @param workbook Excel workbook
@@ -152,8 +152,8 @@ public class HierarchicalBoundaryUtil {
             return;
         }
         
-        // Calculate number of cascading columns (from 2nd level to last level)
-        int numCascadingColumns = levelTypes.size() - 1; // Exclude 1st level
+        // Calculate number of cascading columns (from 1st level to last level)
+        int numCascadingColumns = levelTypes.size(); // Include all levels
         
         // Add boundary column after schema columns
         Row hiddenRow = sheet.getRow(0);
@@ -172,9 +172,9 @@ public class HierarchicalBoundaryUtil {
         // Create header style
         CellStyle boundaryHeaderStyle = excelStyleHelper.createLeftAlignedHeaderStyle(workbook, config.getDefaultHeaderColor());
         
-        // Add cascading boundary columns (from 2nd level to last level)
+        // Add cascading boundary columns (from 1st level to last level)
         for (int i = 0; i < numCascadingColumns; i++) {
-            int levelIndex = i + 1; // Start from 2nd level (index 1)
+            int levelIndex = i; // Start from 1st level (index 0)
             int colIndex = lastSchemaCol + i;
             
             // Get boundary type for this level from hierarchyRelations
@@ -202,17 +202,17 @@ public class HierarchicalBoundaryUtil {
         sheet.setColumnHidden(boundaryCodeColIndex, true); // Hide the column
         
         
-        // Get second level boundaries for hardcoded dropdown
-        Set<String> level2Boundaries = new LinkedHashSet<>();
-        Map<String, String> level2DisplayToCodeMap = new HashMap<>();
+        // Get first level boundaries for hardcoded dropdown
+        Set<String> level1Boundaries = new LinkedHashSet<>();
+        Map<String, String> level1DisplayToCodeMap = new HashMap<>();
         for (BoundaryUtil.BoundaryRowData boundary : filteredBoundaries) {
             List<String> path = boundary.getBoundaryPath();
-            // Get level 2 boundaries (index 1)
-            if (path.size() > 1 && path.get(1) != null) {
-                String displayName = localizationMap.getOrDefault(path.get(1), path.get(1));
-                String code = path.get(1);
-                level2Boundaries.add(displayName);
-                level2DisplayToCodeMap.put(displayName, code);
+            // Get level 1 boundaries (index 0)
+            if (path.size() > 0 && path.get(0) != null) {
+                String displayName = localizationMap.getOrDefault(path.get(0), path.get(0));
+                String code = path.get(0);
+                level1Boundaries.add(displayName);
+                level1DisplayToCodeMap.put(displayName, code);
             }
         }
         
@@ -221,7 +221,7 @@ public class HierarchicalBoundaryUtil {
         
         // Add cascading data validations
         addCascadingBoundaryValidations(workbook, sheet, lastSchemaCol, numCascadingColumns, 
-                                       new ArrayList<>(level2Boundaries), mappingResult, localizationMap, level2DisplayToCodeMap);
+                                       new ArrayList<>(level1Boundaries), mappingResult, localizationMap, level1DisplayToCodeMap);
         
         // Set column widths and styling
         for (int i = 0; i < numCascadingColumns; i++) {
@@ -348,17 +348,17 @@ public class HierarchicalBoundaryUtil {
             }
         }
         
-        // Second pass: build parent-children relationships starting from level 1 (second level)
+        // Second pass: build parent-children relationships starting from level 0 (first level)
         for (BoundaryUtil.BoundaryRowData boundary : boundaries) {
             List<String> path = boundary.getBoundaryPath();
             
-            // Build hierarchical keys for each level starting from level 1
-            for (int level = 1; level < path.size() - 1; level++) {
+            // Build hierarchical keys for each level starting from level 0
+            for (int level = 0; level < path.size() - 1; level++) {
                 if (path.get(level) != null && path.get(level + 1) != null) {
-                    // Build key based on hierarchy path from level 1 onwards
+                    // Build key based on hierarchy path from level 0 onwards
                     StringBuilder keyBuilder = new StringBuilder();
-                    for (int i = 1; i <= level; i++) {
-                        if (i > 1) keyBuilder.append(BOUNDARY_SEPARATOR);
+                    for (int i = 0; i <= level; i++) {
+                        if (i > 0) keyBuilder.append(BOUNDARY_SEPARATOR);
                         String displayName = codeToDisplayNameMap.get(path.get(i));
                         keyBuilder.append(displayName);
                     }
@@ -500,14 +500,14 @@ public class HierarchicalBoundaryUtil {
      */
     private void addCascadingBoundaryValidations(XSSFWorkbook workbook, Sheet sheet, 
             int startColumnIndex, int numColumns, 
-            List<String> level2Boundaries,
+            List<String> level1Boundaries,
             ParentChildrenMapping mappingResult, Map<String, String> localizationMap, 
-            Map<String, String> level2DisplayToCodeMap) {
+            Map<String, String> level1DisplayToCodeMap) {
         
         DataValidationHelper dvHelper = sheet.getDataValidationHelper();
         
-        // First column: Use range-based validation for level2 boundaries to avoid 255-char limit
-        addLevel2BoundaryValidation(workbook, sheet, dvHelper, startColumnIndex, level2Boundaries);
+        // First column: Use range-based validation for level1 boundaries to avoid 255-char limit
+        addLevel1BoundaryValidation(workbook, sheet, dvHelper, startColumnIndex, level1Boundaries);
         
         // Get the lookup sheet and parent-children mapping
         Sheet lookupSheet = workbook.getSheet("_h_SimpleLookup_h_");
@@ -623,74 +623,74 @@ public class HierarchicalBoundaryUtil {
     }
     
     /**
-     * Add level 2 boundary validation using range reference to avoid 255-character limit
+     * Add level 1 boundary validation using range reference to avoid 255-character limit
      * Creates a list in the hidden sheet and references it for validation
      */
-    private void addLevel2BoundaryValidation(XSSFWorkbook workbook, Sheet sheet, DataValidationHelper dvHelper, 
-            int startColumnIndex, List<String> level2Boundaries) {
+    private void addLevel1BoundaryValidation(XSSFWorkbook workbook, Sheet sheet, DataValidationHelper dvHelper, 
+            int startColumnIndex, List<String> level1Boundaries) {
         try {
             // Get the lookup sheet
             Sheet lookupSheet = workbook.getSheet("_h_SimpleLookup_h_");
             if (lookupSheet == null) {
-                log.error("Lookup sheet not found, cannot create level2 boundary validation");
+                log.error("Lookup sheet not found, cannot create level1 boundary validation");
                 return;
             }
             
             // Calculate total length to decide validation approach
-            int totalLength = level2Boundaries.stream()
+            int totalLength = level1Boundaries.stream()
                 .mapToInt(s -> s.length() + 1) // +1 for separator
                 .sum();
             
             if (totalLength <= 250) { // Leave some buffer under 255 limit
                 // Use explicit list for small lists
-                String[] level2Array = level2Boundaries.toArray(new String[0]);
+                String[] level1Array = level1Boundaries.toArray(new String[0]);
                 // Use actual data row count or config limit, whichever is larger to cover all rows
                 // ExcelUtil.findActualLastRowWithData(sheet) is 0-based, so add 1 to get actual count, then compare with limit
                 int actualDataRows = ExcelUtil.findActualLastRowWithData(sheet) + 1;
                 int maxRow = Math.max(actualDataRows, config.getExcelRowLimit());
-                CellRangeAddressList level2Range = new CellRangeAddressList(2, maxRow, startColumnIndex, startColumnIndex);
-                DataValidationConstraint level2Constraint = dvHelper.createExplicitListConstraint(level2Array);
-                DataValidation level2Validation = dvHelper.createValidation(level2Constraint, level2Range);
-                level2Validation.setShowErrorBox(true);
-                sheet.addValidationData(level2Validation);
-                log.info("Applied explicit list validation for {} level2 boundaries (total length: {})", level2Boundaries.size(), totalLength);
+                CellRangeAddressList level1Range = new CellRangeAddressList(2, maxRow, startColumnIndex, startColumnIndex);
+                DataValidationConstraint level1Constraint = dvHelper.createExplicitListConstraint(level1Array);
+                DataValidation level1Validation = dvHelper.createValidation(level1Constraint, level1Range);
+                level1Validation.setShowErrorBox(true);
+                sheet.addValidationData(level1Validation);
+                log.info("Applied explicit list validation for {} level1 boundaries (total length: {})", level1Boundaries.size(), totalLength);
             } else {
                 // Use range reference for large lists
-                addLevel2BoundariesRangeValidation(workbook, sheet, dvHelper, startColumnIndex, level2Boundaries, lookupSheet);
+                addLevel1BoundariesRangeValidation(workbook, sheet, dvHelper, startColumnIndex, level1Boundaries, lookupSheet);
             }
             
         } catch (Exception e) {
-            log.error("Failed to add level2 boundary validation: {}", e.getMessage(), e);
+            log.error("Failed to add level1 boundary validation: {}", e.getMessage(), e);
             // Fall back to no validation rather than failing completely
-            log.warn("Continuing without level2 boundary validation due to error");
+            log.warn("Continuing without level1 boundary validation due to error");
         }
     }
     
     /**
-     * Add level 2 boundaries to lookup sheet and create range-based validation
+     * Add level 1 boundaries to lookup sheet and create range-based validation
      */
-    private void addLevel2BoundariesRangeValidation(XSSFWorkbook workbook, Sheet sheet, DataValidationHelper dvHelper,
-            int startColumnIndex, List<String> level2Boundaries, Sheet lookupSheet) {
+    private void addLevel1BoundariesRangeValidation(XSSFWorkbook workbook, Sheet sheet, DataValidationHelper dvHelper,
+            int startColumnIndex, List<String> level1Boundaries, Sheet lookupSheet) {
         
-        // Find a good location in the lookup sheet to add level2 boundaries list
+        // Find a good location in the lookup sheet to add level1 boundaries list
         int startRow = Math.max(ExcelUtil.findActualLastRowWithData(sheet) + 5, 1); // Add some spacing
         
-        // Add level2 boundaries to column G in lookup sheet
-        int level2Column = 6; // Column G (0-indexed)
-        for (int i = 0; i < level2Boundaries.size(); i++) {
+        // Add level1 boundaries to column G in lookup sheet
+        int level1Column = 6; // Column G (0-indexed)
+        for (int i = 0; i < level1Boundaries.size(); i++) {
             Row row = lookupSheet.getRow(startRow + i);
             if (row == null) {
                 row = lookupSheet.createRow(startRow + i);
             }
-            Cell cell = row.getCell(level2Column);
+            Cell cell = row.getCell(level1Column);
             if (cell == null) {
-                cell = row.createCell(level2Column);
+                cell = row.createCell(level1Column);
             }
-            cell.setCellValue(level2Boundaries.get(i));
+            cell.setCellValue(level1Boundaries.get(i));
         }
         
-        // Create named range for level2 boundaries
-        String rangeName = "Level2_Boundaries";
+        // Create named range for level1 boundaries
+        String rangeName = "Level1_Boundaries";
         try {
             // Remove existing range if it exists
             Name existingRange = workbook.getName(rangeName);
@@ -699,12 +699,12 @@ public class HierarchicalBoundaryUtil {
             }
             
             // Create new range
-            Name level2Range = workbook.createName();
-            level2Range.setNameName(rangeName);
-            String rangeFormula = "_h_SimpleLookup_h_!$G$" + (startRow + 1) + ":$G$" + (startRow + level2Boundaries.size());
-            level2Range.setRefersToFormula(rangeFormula);
+            Name level1Range = workbook.createName();
+            level1Range.setNameName(rangeName);
+            String rangeFormula = "_h_SimpleLookup_h_!$G$" + (startRow + 1) + ":$G$" + (startRow + level1Boundaries.size());
+            level1Range.setRefersToFormula(rangeFormula);
             
-            log.info("Created named range '{}' for {} level2 boundaries: {}", rangeName, level2Boundaries.size(), rangeFormula);
+            log.info("Created named range '{}' for {} level1 boundaries: {}", rangeName, level1Boundaries.size(), rangeFormula);
             
             // Apply validation using the named range
             // Use actual data row count or config limit, whichever is larger to cover all rows
@@ -718,13 +718,13 @@ public class HierarchicalBoundaryUtil {
             rangeValidation.setEmptyCellAllowed(true);
             sheet.addValidationData(rangeValidation);
             
-            log.info("Applied range-based validation for {} level2 boundaries using named range", level2Boundaries.size());
+            log.info("Applied range-based validation for {} level1 boundaries using named range", level1Boundaries.size());
             
         } catch (Exception e) {
-            log.error("Failed to create named range for level2 boundaries: {}", e.getMessage());
+            log.error("Failed to create named range for level1 boundaries: {}", e.getMessage());
             // Try formula reference without named range as fallback
             try {
-                String directFormula = "_h_SimpleLookup_h_!$G$" + (startRow + 1) + ":$G$" + (startRow + level2Boundaries.size());
+                String directFormula = "_h_SimpleLookup_h_!$G$" + (startRow + 1) + ":$G$" + (startRow + level1Boundaries.size());
                 // Use actual data row count or config limit, whichever is larger to cover all rows
             // ExcelUtil.findActualLastRowWithData(sheet) is 0-based, so add 1 to get actual count, then compare with limit
             int actualDataRows = ExcelUtil.findActualLastRowWithData(sheet) + 1;
@@ -736,10 +736,10 @@ public class HierarchicalBoundaryUtil {
                 formulaValidation.setEmptyCellAllowed(true);
                 sheet.addValidationData(formulaValidation);
                 
-                log.info("Applied direct formula validation for level2 boundaries: {}", directFormula);
+                log.info("Applied direct formula validation for level1 boundaries: {}", directFormula);
             } catch (Exception e2) {
                 log.error("Failed to apply direct formula validation as fallback: {}", e2.getMessage());
-                throw new RuntimeException("Unable to create level2 boundary validation", e2);
+                throw new RuntimeException("Unable to create level1 boundary validation", e2);
             }
         }
     }
@@ -800,8 +800,8 @@ public class HierarchicalBoundaryUtil {
                 }
                 cell.setCellStyle(unlocked);
                 
-                // Fill boundary value if available (skip first level, start from 2nd level)
-                int boundaryLevelIndex = j + 1; // Skip first level
+                // Fill boundary value if available (include all levels starting from first level)
+                int boundaryLevelIndex = j; // Include first level
                 if (boundaryPath != null && boundaryLevelIndex < boundaryPath.size()) {
                     String boundaryCodeAtLevel = boundaryPath.get(boundaryLevelIndex);
                     if (boundaryCodeAtLevel != null && !boundaryCodeAtLevel.isEmpty()) {

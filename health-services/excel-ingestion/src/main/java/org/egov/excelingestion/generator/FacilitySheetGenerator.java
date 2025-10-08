@@ -187,11 +187,10 @@ public class FacilitySheetGenerator implements ISheetGenerator {
                     generateResource.getTenantId(), requestInfo);
             
             // Step 2: Get enriched boundary codes including children using existing boundary util
-            // Use the new method that excludes root boundaries for facility filtering
-            Set<String> enrichedBoundaryCodes = boundaryUtil.getEnrichedBoundaryCodesFromCampaignExcludingRoot(generateResource.getId(), referenceId, 
-                    generateResource.getTenantId(), generateResource.getHierarchyType(), requestInfo);
-            log.info("Enriched boundary codes for filtering (excluding root boundaries): {}", enrichedBoundaryCodes);
-            
+                        // Use the method that includes all boundary codes for facility filtering
+                        Set<String> enrichedBoundaryCodes = boundaryUtil.getEnrichedBoundaryCodesFromCampaign(generateResource.getId(), referenceId,
+                                generateResource.getTenantId(), generateResource.getHierarchyType(), requestInfo);
+                        log.info("Enriched boundary codes for filtering (including all boundaries): {}", enrichedBoundaryCodes);            
             // Step 3: Transform permanent facilities to sheet format and filter by enriched boundaries
             List<Map<String, Object>> transformedPermanentFacilities = transformAndFilterPermanentFacilities(
                     allPermanentFacilities, enrichedBoundaryCodes);
