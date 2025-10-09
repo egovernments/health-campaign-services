@@ -144,10 +144,26 @@ export async function handleMappingTaskForCampaign(messageObject: any) {
             await startUserMappingAndDemapping(CampaignDetails, useruuid);
         }
         task.status = processStatuses.completed;
+        // Add audit details for update
+        const currentTime = Date.now();
+        task.auditDetails = {
+            createdBy: task.auditDetails?.createdBy || useruuid,
+            createdTime: task.auditDetails?.createdTime || currentTime,
+            lastModifiedBy: useruuid,
+            lastModifiedTime: currentTime
+        };
         await produceModifiedMessages({ processes: [task] }, config?.kafka?.KAFKA_UPDATE_PROCESS_DATA_TOPIC, CampaignDetails?.tenantId);
     } catch (error) {
         let task = messageObject?.task;
         task.status = processStatuses.failed;
+        // Add audit details for failed status update
+        const currentTime = Date.now();
+        task.auditDetails = {
+            createdBy: task.auditDetails?.createdBy || messageObject?.useruuid,
+            createdTime: task.auditDetails?.createdTime || currentTime,
+            lastModifiedBy: messageObject?.useruuid,
+            lastModifiedTime: currentTime
+        };
         await produceModifiedMessages({ processes: [task] }, config?.kafka?.KAFKA_UPDATE_PROCESS_DATA_TOPIC, messageObject?.CampaignDetails?.tenantId);
         logger.error(`Error in campaign mapping: ${error}`);
         await enrichAndPersistCampaignWithErrorProcessingTask(messageObject?.CampaignDetails, messageObject?.parentCampaign, messageObject?.useruuid, error);

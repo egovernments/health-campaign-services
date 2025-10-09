@@ -17,7 +17,8 @@ export const CONSTANTS: any = {
             VALIDATION_ERROR_CHILD_EXIST:"A child campaign is already active for this parent",
             VALIDATION_ERROR_PRODUCT_VARIANT: "Invalid product variant",
             VALIDATION_ERROR_MISSING_TARGET_FILE: "A new boundary file must be provided when changing boundaries from the parent campaign.",
-            VALIDATION_ERROR_UNIFIED_CONSOLE_TEMPLATE: "Unified console template is not valid. Please correct the errors and try again."
+            VALIDATION_ERROR_UNIFIED_CONSOLE_TEMPLATE: "Unified console template is not valid. Please correct the errors and try again.",
+            PROCESS_UPDATE_ERROR: "Error updating the process status",
         },
         FILE: {
             SHEET_MISSING_ERROR: "Some sheet or empty in Uploaded file, please check the file",

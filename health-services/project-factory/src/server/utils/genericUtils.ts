@@ -1691,7 +1691,13 @@ export async function getCurrentProcesses(campaignNumber: string, tenantId: stri
     rows.push({
       campaignNumber: relatedData?.rows[i]?.campaignnumber,
       processName : relatedData?.rows[i]?.processname,
-      status: relatedData?.rows[i]?.status
+      status: relatedData?.rows[i]?.status,
+      auditDetails: {
+        createdBy: relatedData?.rows[i]?.createdby,
+        lastModifiedBy: relatedData?.rows[i]?.lastmodifiedby,
+        createdTime: relatedData?.rows[i]?.createdtime,
+        lastModifiedTime: relatedData?.rows[i]?.lastmodifiedtime
+      }
     })
   }
   return rows;
@@ -1721,13 +1727,25 @@ export async function getCampaignDataRowsWithUniqueIdentifiers(type: string, uni
 }
 
 
-export async function prepareProcessesInDb(campaignNumber: any, tenantId: string) {
+export async function prepareProcessesInDb(campaignNumber: any, tenantId: string, userUuid?: string) {
   logger.info("Preparing processes in DB...");
   let allCurrentProcesses = await getCurrentProcesses(campaignNumber, tenantId);
+  
+  const currentTime = Date.now();
+  
+  // Add audit details to existing processes being updated
   for (let i = 0; i < allCurrentProcesses?.length; i++) {
       allCurrentProcesses[i].status = processStatuses.pending;
+      allCurrentProcesses[i].auditDetails = {
+        createdBy: allCurrentProcesses[i].auditDetails?.createdBy || userUuid,
+        createdTime: allCurrentProcesses[i].auditDetails?.createdTime || currentTime,
+        lastModifiedBy: userUuid,
+        lastModifiedTime: currentTime
+      };
   }
+  
   produceModifiedMessages({ processes: allCurrentProcesses }, config.kafka.KAFKA_UPDATE_PROCESS_DATA_TOPIC, tenantId);
+  
   let allProcessesJson: any = JSON.parse(JSON.stringify(allProcesses))
   let newProcesses = [];
   for (let processKey in allProcesses) {
@@ -1736,10 +1754,17 @@ export async function prepareProcessesInDb(campaignNumber: any, tenantId: string
       newProcesses.push({
         campaignNumber: campaignNumber,
         processName: allProcessesJson[processKey],
-        status: processStatuses.pending
+        status: processStatuses.pending,
+        auditDetails: {
+          createdBy: userUuid,
+          createdTime: currentTime,
+          lastModifiedBy: userUuid,
+          lastModifiedTime: currentTime
+        }
       })
     }
   }
+  
   produceModifiedMessages({ processes: newProcesses }, config.kafka.KAFKA_SAVE_PROCESS_DATA_TOPIC, tenantId);
   // wait for 2 second
   logger.info("Waiting for 10 seconds for processes to get updated...");

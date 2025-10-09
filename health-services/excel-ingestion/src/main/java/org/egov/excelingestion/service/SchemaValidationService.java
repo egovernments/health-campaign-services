@@ -262,7 +262,7 @@ public class SchemaValidationService {
             String fieldName = rule.getFieldName();
             Object value = rowData.get(fieldName);
             
-            validateField(fieldName, value, rule, rowNumber, sheetName, errors, localizationMap);
+            validateField(fieldName, value, rule, rowNumber, sheetName, errors, localizationMap, rowData);
         }
         
         // Second, validate multi-select field groups (collect values from _MULTISELECT_* columns)
@@ -302,7 +302,7 @@ public class SchemaValidationService {
     }
 
     private void validateStringField(Object value, ValidationRule rule, int rowNumber, 
-            String sheetName, List<ValidationError> errors, Map<String, String> localizationMap) {
+            String sheetName, List<ValidationError> errors, Map<String, String> localizationMap, Map<String, Object> rowData) {
         
         String strValue = value.toString();
         
@@ -361,8 +361,9 @@ public class SchemaValidationService {
             }
         }
         
-        // Multi-select validation
-        if (rule.getMultiSelectDetails() != null) {
+        // Multi-select validation - only for fields that don't use _MULTISELECT_ pattern
+        // Fields using _MULTISELECT_ pattern are validated by validateCollectedMultiSelectValues
+        if (rule.getMultiSelectDetails() != null && !hasMultiSelectColumns(rowData, rule.getFieldName())) {
             validateMultiSelectField(strValue, rule, rowNumber, sheetName, errors, localizationMap);
         }
     }
@@ -747,7 +748,7 @@ public class SchemaValidationService {
      * Validate a single field with its rule
      */
     private void validateField(String fieldName, Object value, ValidationRule rule, int rowNumber, 
-                              String sheetName, List<ValidationError> errors, Map<String, String> localizationMap) {
+                              String sheetName, List<ValidationError> errors, Map<String, String> localizationMap, Map<String, Object> rowData) {
         // Check required fields - special handling for multi-select fields
         if (rule.isRequired()) {
             boolean isEmpty = false;
@@ -805,7 +806,7 @@ public class SchemaValidationService {
         // Type-specific validation
         switch (rule.getType()) {
             case "string":
-                validateStringField(value, rule, rowNumber, sheetName, errors, localizationMap);
+                validateStringField(value, rule, rowNumber, sheetName, errors, localizationMap, rowData);
                 break;
             case "number":
                 validateNumberField(value, rule, rowNumber, sheetName, errors, localizationMap);
@@ -917,6 +918,20 @@ public class SchemaValidationService {
         
         // Check if field contains _MULTISELECT_ pattern
         return fieldName.contains("_MULTISELECT_");
+    }
+    
+    /**
+     * Check if a parent field has corresponding _MULTISELECT_ columns in the row data
+     */
+    private boolean hasMultiSelectColumns(Map<String, Object> rowData, String parentFieldName) {
+        if (rowData == null || parentFieldName == null) {
+            return false;
+        }
+        
+        // Check if there are any fields that match pattern: parentFieldName_MULTISELECT_*
+        String multiSelectPrefix = parentFieldName + "_MULTISELECT_";
+        return rowData.keySet().stream()
+            .anyMatch(fieldName -> fieldName.startsWith(multiSelectPrefix));
     }
     
     /**

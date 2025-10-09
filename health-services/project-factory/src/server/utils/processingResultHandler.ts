@@ -1,9 +1,9 @@
 import { logger } from './logger';
 import { searchSheetData } from './excelIngestionUtils';
 import { searchProjectTypeCampaignService } from '../service/campaignManageService';
-import { getRelatedDataWithCampaign, getMappingDataRelatedToCampaign, prepareProcessesInDb, getRelatedDataWithUniqueIdentifiers, checkCampaignDataCompletionStatus, checkCampaignMappingCompletionStatus, throwError } from './genericUtils';
+import { getRelatedDataWithCampaign, getMappingDataRelatedToCampaign, prepareProcessesInDb, getRelatedDataWithUniqueIdentifiers, checkCampaignDataCompletionStatus, checkCampaignMappingCompletionStatus, throwError, getCurrentProcesses } from './genericUtils';
 import { produceModifiedMessages } from '../kafka/Producer';
-import { dataRowStatuses, mappingStatuses, usageColumnStatus, campaignStatuses } from '../config/constants';
+import { dataRowStatuses, mappingStatuses, usageColumnStatus, campaignStatuses, allProcesses, processStatuses } from '../config/constants';
 import { searchMDMSDataViaV2Api, searchBoundaryRelationshipData, defaultRequestInfo } from '../api/coreApis';
 import { populateBoundariesRecursively, getLocalizedName, enrichAndPersistCampaignWithError, enrichAndPersistCampaignForCreateViaFlow2, userCredGeneration } from './campaignUtils';
 import { getLocalisationModuleName } from './localisationUtils';
@@ -705,13 +705,74 @@ async function handleResourceBoundaryMappings(
 }
 
 /**
+ * Mark all creation processes as completed
+ */
+async function markCreationProcessesAsCompleted(
+    campaignNumber: string,
+    tenantId: string,
+    userUuid: string
+): Promise<void> {
+    try {
+        logger.info(`Marking creation processes as completed for campaign: ${campaignNumber}`);
+        
+        // Use imported constants and functions
+        
+        // Get all creation processes
+        const creationProcessTypes = [
+            allProcesses.facilityCreation,
+            allProcesses.userCreation,
+            allProcesses.projectCreation
+        ];
+        
+        const processesToUpdate = [];
+        const currentTime = Date.now();
+        
+        // Check each creation process type
+        for (const processType of creationProcessTypes) {
+            const processes = await getCurrentProcesses(campaignNumber, tenantId, processType);
+            
+            for (const process of processes) {
+                // Only update if not already completed
+                if (process.status !== processStatuses.completed) {
+                    process.status = processStatuses.completed;
+                    process.auditDetails = {
+                        createdBy: process.auditDetails?.createdBy || userUuid,
+                        createdTime: process.auditDetails?.createdTime || currentTime,
+                        lastModifiedBy: userUuid,
+                        lastModifiedTime: currentTime
+                    };
+                    processesToUpdate.push(process);
+                }
+            }
+        }
+        
+        // Update processes via Kafka if any need updating
+        if (processesToUpdate.length > 0) {
+            logger.info(`Updating ${processesToUpdate.length} creation processes to completed status`);
+            await produceModifiedMessages(
+                { processes: processesToUpdate }, 
+                config.kafka.KAFKA_UPDATE_PROCESS_DATA_TOPIC, 
+                tenantId
+            );
+        } else {
+            logger.info('All creation processes are already completed');
+        }
+        
+    } catch (error) {
+        logger.error(`Error marking creation processes as completed: ${error}`);
+        throwError('COMMON', 500, 'PROCESS_UPDATE_ERROR', 'Error updating the statuses of creation processes');
+    }
+}
+
+/**
  * Monitor campaign data completion status with polling
  */
 async function monitorCampaignDataCompletion(
     campaignNumber: string,
     tenantId: string,
     campaignId: string,
-    campaignAlreadyFailed: { value: boolean }
+    campaignAlreadyFailed: { value: boolean },
+    userUuid: string
 ): Promise<void> {
     try {
         logger.info(`Starting data completion monitoring for campaign: ${campaignNumber}`);
@@ -750,6 +811,8 @@ async function monitorCampaignDataCompletion(
             
             if (status.allCompleted && status.totalRows > 0) {
                 logger.info(`Campaign ${campaignNumber} data creation completed successfully. All ${status.totalRows} entries are completed.`);
+                // Mark all creation processes as completed
+                await markCreationProcessesAsCompleted(campaignNumber, tenantId, userUuid);
                 return;
             }
             
@@ -772,13 +835,72 @@ async function monitorCampaignDataCompletion(
 }
 
 /**
+ * Mark all mapping processes as completed
+ */
+async function markMappingProcessesAsCompleted(
+    campaignNumber: string,
+    tenantId: string,
+    userUuid: string
+): Promise<void> {
+    try {
+        logger.info(`Marking mapping processes as completed for campaign: ${campaignNumber}`);
+        
+        // Get all mapping processes
+        const mappingProcessTypes = [
+            allProcesses.facilityMapping,
+            allProcesses.userMapping,
+            allProcesses.resourceMapping
+        ];
+        
+        const processesToUpdate = [];
+        const currentTime = Date.now();
+        
+        // Check each mapping process type
+        for (const processType of mappingProcessTypes) {
+            const processes = await getCurrentProcesses(campaignNumber, tenantId, processType);
+            
+            for (const process of processes) {
+                // Only update if not already completed
+                if (process.status !== processStatuses.completed) {
+                    process.status = processStatuses.completed;
+                    process.auditDetails = {
+                        createdBy: process.auditDetails?.createdBy || userUuid,
+                        createdTime: process.auditDetails?.createdTime || currentTime,
+                        lastModifiedBy: userUuid,
+                        lastModifiedTime: currentTime
+                    };
+                    processesToUpdate.push(process);
+                }
+            }
+        }
+        
+        // Update processes via Kafka if any need updating
+        if (processesToUpdate.length > 0) {
+            logger.info(`Updating ${processesToUpdate.length} mapping processes to completed status`);
+            await produceModifiedMessages(
+                { processes: processesToUpdate }, 
+                config.kafka.KAFKA_UPDATE_PROCESS_DATA_TOPIC, 
+                tenantId
+            );
+        } else {
+            logger.info('All mapping processes are already completed');
+        }
+        
+    } catch (error) {
+        logger.error(`Error marking mapping processes as completed: ${error}`);
+        throwError('COMMON', 500, 'PROCESS_UPDATE_ERROR', 'Error updating the statuses of mapping processes');
+    }
+}
+
+/**
  * Monitor campaign mapping completion status with polling
  */
 async function monitorCampaignMappingCompletion(
     campaignNumber: string,
     tenantId: string,
     campaignId: string,
-    campaignAlreadyFailed: { value: boolean }
+    campaignAlreadyFailed: { value: boolean },
+    userUuid: string
 ): Promise<void> {
     try {
         logger.info(`Starting mapping completion monitoring for campaign: ${campaignNumber}`);
@@ -817,6 +939,8 @@ async function monitorCampaignMappingCompletion(
             
             if (status.allCompleted && status.totalMappings > 0) {
                 logger.info(`Campaign ${campaignNumber} mapping completed successfully. All ${status.totalMappings} mappings are completed.`);
+                // Mark all mapping processes as completed
+                await markMappingProcessesAsCompleted(campaignNumber, tenantId, userUuid);
                 return;
             }
             
@@ -1387,7 +1511,7 @@ async function triggerBackgroundResourceCreationFlow(
         }
 
         // Prepare DB setup synchronously
-        await prepareProcessesInDb(campaignNumber, tenantId);
+        await prepareProcessesInDb(campaignNumber, tenantId, useruuid);
         
         // Use setImmediate to run resource creation in background without blocking
         setImmediate(async () => {
@@ -1403,7 +1527,7 @@ async function triggerBackgroundResourceCreationFlow(
                     createProjectsFromBoundaryData(campaignDetails, tenantId),
                     createFacilitiesFromFacilityData(campaignDetails, tenantId),
                     createUsersFromUserData(campaignDetails, tenantId),
-                    monitorCampaignDataCompletion(campaignDetails.campaignNumber, tenantId, campaignDetails.id, campaignAlreadyFailed)
+                    monitorCampaignDataCompletion(campaignDetails.campaignNumber, tenantId, campaignDetails.id, campaignAlreadyFailed, useruuid)
                 ]);
                 
                 // Check if campaign failed during data creation
@@ -1420,7 +1544,7 @@ async function triggerBackgroundResourceCreationFlow(
                 logger.info('=== STARTING MAPPING PROCESS IN BATCHES WITH MONITORING ===');
                 await Promise.all([
                     startAllMappingsInBatches(campaignDetails, useruuid, tenantId),
-                    monitorCampaignMappingCompletion(campaignDetails.campaignNumber, tenantId, campaignDetails.id, campaignAlreadyFailed)
+                    monitorCampaignMappingCompletion(campaignDetails.campaignNumber, tenantId, campaignDetails.id, campaignAlreadyFailed, useruuid)
                 ]);
                 
                 // Check if campaign failed during mapping

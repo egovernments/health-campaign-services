@@ -507,6 +507,7 @@ public class ConfigBasedProcessingService {
             producer.push(resource.getTenantId(), topic, resource);
             log.info("Published processing result to topic: {} for processing type: {}, resource ID: {}", 
                     topic, resource.getType(), resource.getId());
+            log.info("Processing result sent to topic for resource: {}", resource.getId());
         } else {
             log.debug("No processing result topic configured for processing type: {}", resource.getType());
         }

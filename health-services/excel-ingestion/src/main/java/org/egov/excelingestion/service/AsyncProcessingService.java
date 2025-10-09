@@ -108,7 +108,6 @@ public class AsyncProcessingService {
             if (processResource != null) {
                 try {
                     configBasedProcessingService.sendProcessingResult(processResource, requestInfo);
-                    log.info("Processing result sent to topic for resource: {}", processResource.getId());
                 } catch (Exception e) {
                     log.error("Failed to send processing result to topic for resource: {}", processResource.getId(), e);
                 }

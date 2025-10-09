@@ -2578,7 +2578,7 @@ async function processRegularCampaign(request: any): Promise<void> {
     campaignDetails?.auditDetails?.createdBy;
 
   // Prepare DB setup synchronously
-  await prepareProcessesInDb(campaignNumber, tenantId);
+  await prepareProcessesInDb(campaignNumber, tenantId, useruuid);
 
   // ✅ Offload the long chain into background (non-blocking)
   setImmediate(async () => {
@@ -2623,7 +2623,7 @@ async function userCredGeneration(campaignDetails: any, useruuid: string, locale
   let userCredGenerationProcess = allProcesses.userCredGeneration;
   let allCurrentProcesses = await getCurrentProcesses(campaignDetails?.campaignNumber, campaignDetails?.tenantId);
   let task = allCurrentProcesses.find((process: any) => process?.processName == userCredGenerationProcess);
-  if (task && task?.status == processStatuses.pending) {
+  if (task && task?.status == processStatuses.pending || task?.status == processStatuses.failed) {
     const generateTemplateQuery: GenerateTemplateQuery = {
       type: "userCredential",
       campaignId: campaignDetails?.id,
@@ -2662,6 +2662,19 @@ async function userCredGeneration(campaignDetails: any, useruuid: string, locale
           throwError("COMMON", 400, "USER_CREDENTIAL_GENERATION_ERROR", "Campaign creation failed during user credential generation");
         }
         attempts++;
+      }
+      if (status == generatedResourceStatuses.completed) {
+        logger.info(`User credential generation completed successfully.`);
+        // Mark process as completed in DB
+        const currentTime = Date.now();
+        task.status = processStatuses.completed;
+        task.auditDetails = {
+          createdBy: task.auditDetails?.createdBy || useruuid,
+          createdTime: task.auditDetails?.createdTime || currentTime,
+          lastModifiedBy: useruuid,
+          lastModifiedTime: currentTime
+        };
+        await produceModifiedMessages({ processes: [task] }, config?.kafka?.KAFKA_UPDATE_PROCESS_DATA_TOPIC, campaignDetails?.tenantId);
       }
       if (status != generatedResourceStatuses.completed) {
         throwError("COMMON", 400, "USER_CREDENTIAL_GENERATION_ERROR", "User credential generation failed");
