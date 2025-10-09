@@ -240,28 +240,39 @@ public class ExcelUtil {
 
     private static int sheetHash(Sheet sheet) {
         int hash = 1;
+        final int prime = 31;
+
         for (Row row : sheet) {
             if (row == null)
                 continue;
-            for (Cell cell : row) {
+
+            for (int cn = row.getFirstCellNum(), last = row.getLastCellNum(); cn < last; cn++) {
+                Cell cell = row.getCell(cn, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
                 if (cell == null)
                     continue;
+
                 switch (cell.getCellType()) {
                     case STRING:
-                        hash = 31 * hash + cell.getStringCellValue().hashCode();
+                        String s = cell.getStringCellValue();
+                        hash = prime * hash + (s != null ? s.hashCode() : 0);
                         break;
+
                     case NUMERIC:
-                        long bits = Double.doubleToLongBits(cell.getNumericCellValue());
-                        hash = 31 * hash + (int) (bits ^ (bits >>> 32));
+                        long bits = Double.doubleToRawLongBits(cell.getNumericCellValue());
+                        hash = prime * hash + (int) (bits ^ (bits >>> 32));
                         break;
+
                     case BOOLEAN:
-                        hash = 31 * hash + Boolean.hashCode(cell.getBooleanCellValue());
+                        hash = prime * hash + (cell.getBooleanCellValue() ? 1231 : 1237);
                         break;
+
                     case FORMULA:
-                        // Use formula string directly, avoid evaluating every formula
-                        hash = 31 * hash + cell.getCellFormula().hashCode();
+                        String f = cell.getCellFormula();
+                        hash = prime * hash + (f != null ? f.hashCode() : 0);
                         break;
+
                     default:
+                        // skip BLANK, ERROR, etc.
                         break;
                 }
             }

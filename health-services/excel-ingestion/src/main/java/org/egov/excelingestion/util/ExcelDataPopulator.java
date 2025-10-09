@@ -280,7 +280,8 @@ public class ExcelDataPopulator {
         int startCol = Math.max(0, totalExistingCols - columns.size());
         
         // Apply styling to data rows
-        for (int rowIdx = 2; rowIdx <= ExcelUtil.findActualLastRowWithData(sheet); rowIdx++) {
+        int actualLastRow = ExcelUtil.findActualLastRowWithData(sheet);
+        for (int rowIdx = 2; rowIdx <= actualLastRow; rowIdx++) {
             Row row = sheet.getRow(rowIdx);
             if (row == null) {
                 continue;

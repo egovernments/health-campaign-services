@@ -386,7 +386,8 @@ public class ConfigBasedProcessingService {
         }
         
         // Process data rows (starting from row 2, skip row 1 which is localized headers)
-        for (int rowIndex = 2; rowIndex <= ExcelUtil.findActualLastRowWithData(sheet); rowIndex++) {
+        int actualLastRow = ExcelUtil.findActualLastRowWithData(sheet);
+        for (int rowIndex = 2; rowIndex <= actualLastRow; rowIndex++) {
             org.apache.poi.ss.usermodel.Row row = sheet.getRow(rowIndex);
             if (row == null) continue;
             

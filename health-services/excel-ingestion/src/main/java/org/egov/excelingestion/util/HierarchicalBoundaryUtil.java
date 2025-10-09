@@ -322,8 +322,9 @@ public class HierarchicalBoundaryUtil {
             lookupSheet = workbook.createSheet("_h_SimpleLookup_h_");
             workbook.setSheetHidden(workbook.getSheetIndex("_h_SimpleLookup_h_"), true);
         } else {
+            int actualLastRow = ExcelUtil.findActualLastRowWithData(lookupSheet);
             // Clear existing content
-            for (int i = ExcelUtil.findActualLastRowWithData(lookupSheet); i >= 0; i--) {
+            for (int i = actualLastRow; i >= 0; i--) {
                 Row row = lookupSheet.getRow(i);
                 if (row != null) {
                     lookupSheet.removeRow(row);
@@ -526,7 +527,8 @@ public class HierarchicalBoundaryUtil {
         // We need to rebuild the parentChildrenMap since it's not accessible from mappingResult
         // Let's use a simplified approach by reading from the lookup sheet
         Map<String, Set<String>> parentChildrenMap = new HashMap<>();
-        for (int i = 0; i <= ExcelUtil.findActualLastRowWithData(lookupSheet); i++) {
+        int actualLastRow = ExcelUtil.findActualLastRowWithData(lookupSheet);
+        for (int i = 0; i <= actualLastRow; i++) {
             Row row = lookupSheet.getRow(i);
             if (row != null && row.getCell(0) != null && row.getCell(1) != null) {
                 String hashedKey = row.getCell(0).getStringCellValue();

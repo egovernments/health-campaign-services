@@ -215,8 +215,9 @@ public class BoundaryColumnUtil {
             workbook.setSheetHidden(workbook.getSheetIndex("_h_Boundaries_h_"), true);
         } else {
             // Clear existing content
-            if (ExcelUtil.findActualLastRowWithData(boundarySheet) >= 0) {
-                for (int i = ExcelUtil.findActualLastRowWithData(boundarySheet); i >= 0; i--) {
+            int actualLastRow = ExcelUtil.findActualLastRowWithData(boundarySheet);
+            if (actualLastRow >= 0) {
+                for (int i = actualLastRow; i >= 0; i--) {
                     Row row = boundarySheet.getRow(i);
                     if (row != null) {
                         boundarySheet.removeRow(row);
