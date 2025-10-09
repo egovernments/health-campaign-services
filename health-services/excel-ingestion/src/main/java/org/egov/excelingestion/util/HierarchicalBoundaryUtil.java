@@ -586,7 +586,7 @@ public class HierarchicalBoundaryUtil {
         }
         
         // Create validation for subsequent columns using hashed key lookup
-        for (int row = 2; row <= Math.min(100, config.getExcelRowLimit()); row++) {
+        for (int row = 2; row <= config.getExcelRowLimit(); row++) {
             for (int colIdx = 1; colIdx < numColumns; colIdx++) {
                 int actualColIndex = startColumnIndex + colIdx;
                 CellRangeAddressList cascadeRange = new CellRangeAddressList(row, row, actualColIndex, actualColIndex);
