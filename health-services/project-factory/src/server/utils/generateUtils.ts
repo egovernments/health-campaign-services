@@ -41,7 +41,7 @@ export async function callExcelIngestionService(requestBody: any) {
         const tenantId = campaignDetails?.tenantId;
         const campaignId = campaignDetails?.id;
         const hierarchyType = campaignDetails?.hierarchyType;
-        const excelIngestionUrl = config.host.excelIngestionHost + 'excel-ingestion/v1/data/_generate';
+        const excelIngestionUrl = config.host.excelIngestionHost + config.paths.excelIngestionGenerate;
 
         const generateResource = {
             tenantId: tenantId,
