@@ -62,28 +62,21 @@ const downloadDataService = async (request: express.Request) => {
         } catch (e) {
             throwError("COMMON", 500, "INTERNAL_SERVER_ERROR", "Error checking if campaign id is of microplan");
         }
-
-        if(type !== 'boundaryManagement'){
-            if (isMicroplan) {
-                const newRequestToGenerate = {
-                    ...request,
-                    query: {
-                        ...request.query,
-                        type,
-                        tenantId,
-                        hierarchyType,
-                        campaignId,
-                        forceUpdate: 'true'
-                    }
-                };
-                await callGenerate(newRequestToGenerate, type);
-            } else {
-                triggerGenerate(type, tenantId, hierarchyType, campaignId, request?.body?.RequestInfo?.userInfo?.uuid || "null", locale);
-            }
-        }
-        else{
-            const newRequestToGenerate = buildGenerateRequest(request);
-            callGenerate(newRequestToGenerate, request?.query?.type);
+        if (isMicroplan) {
+            const newRequestToGenerate = {
+                ...request,
+                query: {
+                    ...request.query,
+                    type,
+                    tenantId,
+                    hierarchyType,
+                    campaignId,
+                    forceUpdate: 'true'
+                }
+            };
+            await callGenerate(newRequestToGenerate, type);
+        } else {
+            triggerGenerate(type, tenantId, hierarchyType, campaignId, request?.body?.RequestInfo?.userInfo?.uuid || "null", locale);
         }
     }
 

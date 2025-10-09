@@ -20,7 +20,6 @@ import {
 } from "../validators/campaignValidators";
 import { getCampaignNumber } from "./genericApis";
 import {
-  boundaryBulkUpload,
   convertToTypeData,
   generateHierarchy,
   generateProcessedFileAndPersist,
@@ -30,7 +29,6 @@ import {
   checkIfSourceIsMicroplan,
   createIdRequests,
   createUniqueUserNameViaIdGen,
-  boundaryGeometryManagement,
   getBoundaryCodeAndBoundaryTypeMapping,
   getSchema,
   validateUsernamesFormat,
@@ -1460,8 +1458,7 @@ async function processGenericRequest(
 ) {
   // Process generic requests
   if (
-    request?.body?.ResourceDetails?.type != "boundary" &&
-    request?.body?.ResourceDetails?.type != "boundaryManagement"
+    request?.body?.ResourceDetails?.type != "boundary"
   ) {
     const responseFromCampaignSearch = await getCampaignSearchResponse(request);
     const campaignObject = responseFromCampaignSearch?.CampaignDetails?.[0];
@@ -1637,11 +1634,10 @@ async function performAndSaveResourceActivityByChangingBody(
 async function processCreate(request: any, localizationMap?: any) {
   // Process creation of resources
   const type: string = request.body.ResourceDetails.type;
-  if (type == "boundary" || type == "boundaryManagement") {
-    boundaryBulkUpload(request, localizationMap);
-  } else if (type == "boundaryGeometryManagement") {
-    await boundaryGeometryManagement(request, localizationMap);
-  } else {
+  if (type == "boundary") {
+    // boundaryBulkUpload(request, localizationMap);
+  }  
+  else {
     // console.log(`Source is MICROPLAN -->`, source);
     let createAndSearchConfig: any;
     createAndSearchConfig = createAndSearch[type];
