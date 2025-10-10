@@ -55,7 +55,10 @@ async function fetchBoundariesFromCampaignDetails(request: any) {
         cachekey: `boundaryRelationShipSearch${params?.hierarchyType}${params?.tenantId}${params.codes || ''}${params?.includeChildren || ''}`,
     }
     const responseBoundaries: any[] = [];
-    var response = await httpRequest(config.host.boundaryHost + config.paths.boundaryRelationship, request.body, params, undefined, undefined, header);
+    const requestBody: any = {
+        RequestInfo: request?.body?.RequestInfo
+    }
+    var response = await httpRequest(config.host.boundaryHost + config.paths.boundaryRelationship, requestBody, params, undefined, undefined, header);
     const TenantBoundary = response.TenantBoundary;
     TenantBoundary.forEach((tenantBoundary: any) => {
         const { boundary } = tenantBoundary;
