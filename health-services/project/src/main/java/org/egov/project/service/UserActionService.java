@@ -1,8 +1,10 @@
 package org.egov.project.service;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -34,6 +36,7 @@ import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ReflectionUtils;
+import org.springframework.util.StringUtils;
 
 import static org.egov.common.utils.CommonUtils.getIdFieldName;
 import static org.egov.common.utils.CommonUtils.getIdMethod;
@@ -92,6 +95,20 @@ public class UserActionService {
     // Method to handle the creation of user actions
     public List<UserAction> create(UserActionBulkRequest request, boolean isBulk) {
         log.info("Received request to create bulk closed household userActions");
+
+
+        List<UserAction> uniqueEntities = request.getUserActions().stream()
+                .collect(Collectors.collectingAndThen(
+                        Collectors.toMap(
+                                UserAction::getClientReferenceId,  // key to check uniqueness
+                                Function.identity(),
+                                (existing, replacement) -> existing  // keep first occurrence
+                        ),
+                        m -> new ArrayList<>(m.values())
+                ));
+
+
+        request.setUserActions(uniqueEntities);
 
         // Validate the request and get valid user actions along with error details
         Tuple<List<UserAction>, Map<UserAction, ErrorDetails>> tuple = validate(validators, isApplicableForCreate, request, isBulk);
