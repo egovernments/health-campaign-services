@@ -17,6 +17,7 @@ import org.egov.transformer.utils.CommonUtils;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -69,7 +70,8 @@ public class HouseholdMemberTransformationService {
         ObjectNode additionalDetails = objectMapper.createObjectNode();
         List<Double> geoPoint = null;
         String individualClientReferenceId = householdMember.getIndividualClientReferenceId();
-        Map<String, Object> individualDetails = individualService.getIndividualInfo(individualClientReferenceId, householdMember.getTenantId());
+        Map<String, Object> individualDetails = new HashMap<>();
+//        Map<String, Object> individualDetails = individualService.getIndividualInfo(individualClientReferenceId, householdMember.getTenantId());
 
         List<Household> households = householdService.searchHousehold(householdMember.getHouseholdClientReferenceId(), householdMember.getTenantId());
         String localityCode = null;
