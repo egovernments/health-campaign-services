@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.node.TextNode;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.egov.common.models.core.Field;
 import org.egov.common.models.project.Project;
 import org.egov.common.models.project.UserActionEnum;
@@ -89,9 +90,21 @@ public class UserActionTransformationService {
         
         String tenantId = userAction.getTenantId();
         String projectId = userAction.getProjectId();
-        
-        Project project = projectService.getProject(projectId, tenantId);
-        String projectTypeId = project.getProjectTypeId();
+
+//        Project project = projectService.getProject(projectId, tenantId);
+        String projectTypeIdAndType = projectService.getProjectTypeInfoByProjectId(projectId, tenantId);
+
+        String projectTypeId;
+        String projectType;
+        if (!StringUtils.isEmpty(projectTypeIdAndType)) {
+            String[] parts = projectTypeIdAndType.split(COLON);
+            projectTypeId = parts[0];
+            projectType = (parts.length > 1) ? parts[1] : "";
+        } else {
+            projectTypeId = "";
+            projectType = "";
+        }
+
         
         BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(userAction.getBoundaryCode(), tenantId);
         JsonNode projectAdditionalDetails = projectService.fetchProjectAdditionalDetails(tenantId, null, projectTypeId);
@@ -111,7 +124,7 @@ public class UserActionTransformationService {
                 .userAction(userAction)
                 .id(userAction.getId())
                 .projectId(projectId)
-                .projectType(project.getProjectType())
+                .projectType(projectType)
                 .projectTypeId(projectTypeId)
                 .additionalDetails(combinedAdditionalDetails)
                 .boundaryHierarchy(boundaryHierarchyResult.getBoundaryHierarchy())
