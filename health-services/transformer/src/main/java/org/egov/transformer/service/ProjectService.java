@@ -14,6 +14,7 @@ import digit.models.coremodels.mdms.MdmsCriteria;
 import digit.models.coremodels.mdms.MdmsCriteriaReq;
 import digit.models.coremodels.mdms.ModuleDetail;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.contract.request.User;
@@ -28,6 +29,7 @@ import org.springframework.util.CollectionUtils;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 import static org.egov.transformer.Constants.*;
@@ -45,6 +47,7 @@ public class ProjectService {
     private final MdmsService mdmsService;
 
     private static Map<String, String> projectTypeIdVsProjectBeneficiaryCache = new HashMap<>();
+    private static Map<String, Map<String, String>> projectIdVsProjectInfo = new ConcurrentHashMap<>();
 
 
     public ProjectService(TransformerProperties transformerProperties,
@@ -212,6 +215,7 @@ public class ProjectService {
             throw new CustomException("PROJECT_FETCH_ERROR",
                     "error while fetching project details for name: " + projectName);
         }
+        addValueToProjectIdMap(response.getProject());
         return response.getProject();
     }
 
@@ -241,6 +245,7 @@ public class ProjectService {
             log.error("error while fetching project list for ID {}, Exception: {}", projectId, ExceptionUtils.getStackTrace(e));
             return null;
         }
+        addValueToProjectIdMap(response.getProject());
         return response.getProject();
     }
 
@@ -504,5 +509,33 @@ public class ProjectService {
         return boundaryHierarchy;
     }
 
+    private void addValueToProjectIdMap(Project project){
+        if (ObjectUtils.isNotEmpty(project) && !projectIdVsProjectInfo.containsKey(project.getId())) {
+            Map<String, String> map = new ConcurrentHashMap<>();
+            map.put(PROJECT_TYPE_ID, project.getProjectTypeId());
+            map.put(PROJECT_NAME, project.getName());
+            projectIdVsProjectInfo.put(project.getId(), map);
+        }
+    }
 
+    private void addValueToProjectIdMap(List<Project> projectList){
+        if (!CollectionUtils.isEmpty(projectList)) {
+            for (Project project : projectList){
+                addValueToProjectIdMap(project);
+            }
+        }
+    }
+
+    public Map<String, String> getProjectTypeIdFromProjectId(String projectId, String tenantId){
+        //the map gets updated inside searchProject() method which is called inside getProject()
+        //so we don't need to update it here
+        if (projectIdVsProjectInfo.containsKey(projectId)) {
+            return projectIdVsProjectInfo.get(projectId);
+        }
+        Project project = getProject(projectId, tenantId);
+        if (ObjectUtils.isEmpty(project)) {
+            return Collections.emptyMap();
+        }
+        return projectIdVsProjectInfo.get(projectId);
+    }
 }

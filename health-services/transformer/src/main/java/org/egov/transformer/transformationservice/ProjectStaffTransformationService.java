@@ -59,6 +59,7 @@ public class ProjectStaffTransformationService {
         Project project = projectService.getProject(projectId, tenantId);
         String projectTypeId = project.getProjectTypeId();
         String localityCode;
+        String dpName = null;
         if (project.getAddress() != null) {
             localityCode = project.getAddress().getBoundary() != null ?
                     project.getAddress().getBoundary() :
@@ -67,6 +68,10 @@ public class ProjectStaffTransformationService {
                             null;
         } else {
             localityCode = null;
+        }
+        if(localityCode != null){
+            String dpCode = localityCode + "_DP";
+            dpName = boundaryService.getLocalizedBoundaryName(dpCode, null, tenantId);
         }
         BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithProjectId(projectId, tenantId);
         Map<String, String> userInfoMap = userService.getUserInfo(projectStaff.getTenantId(), projectStaff.getUserId());
@@ -80,7 +85,7 @@ public class ProjectStaffTransformationService {
                 .userName(userInfoMap.get(USERNAME))
                 .nameOfUser(userInfoMap.get(NAME))
                 .role(userInfoMap.get(ROLE))
-                .userAddress(userInfoMap.get(CITY))
+                .userAddress(dpName)
                 .taskDates(commonUtils.getProjectDatesList(project.getStartDate(), project.getEndDate()))
                 .createdTime(projectStaff.getAuditDetails().getCreatedTime())
                 .createdBy(projectStaff.getAuditDetails().getCreatedBy())

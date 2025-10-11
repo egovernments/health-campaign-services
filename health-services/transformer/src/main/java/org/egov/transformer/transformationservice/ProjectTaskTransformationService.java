@@ -2,6 +2,7 @@ package org.egov.transformer.transformationservice;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import digit.models.coremodels.AuditDetails;
 import lombok.extern.slf4j.Slf4j;
@@ -72,13 +73,17 @@ public class ProjectTaskTransformationService {
         Map<String, String> boundaryHierarchyCode;
         String tenantId = task.getTenantId();
         String localityCode;
+        String dpName;
         if (task.getAddress() != null && task.getAddress().getLocality() != null && task.getAddress().getLocality().getCode() != null) {
             localityCode = task.getAddress().getLocality().getCode();
+            String dp_Code = localityCode + "_DP";
+            dpName = boundaryService.getLocalizedBoundaryName(dp_Code, null, tenantId);
             BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(localityCode, task.getTenantId());
             boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
             boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
         } else {
             localityCode = null;
+            dpName = null;
             BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithProjectId(task.getProjectId(), tenantId);
             boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
             boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
@@ -94,13 +99,13 @@ public class ProjectTaskTransformationService {
         Task constructedTask = constructTaskResourceIfNull(task);
         Map<String, String> userInfoMap = userService.getUserInfo(task.getTenantId(), task.getClientAuditDetails().getCreatedBy());
         return constructedTask.getResources().stream().map(r ->
-                transformTaskToProjectTaskIndex(r, task, boundaryHierarchy, boundaryHierarchyCode, tenantId, beneficiaryInfo, projectBeneficiaryType, projectTypeId, projectType, userInfoMap, localityCode)
+                transformTaskToProjectTaskIndex(r, task, boundaryHierarchy, boundaryHierarchyCode, tenantId, beneficiaryInfo, projectBeneficiaryType, projectTypeId, projectType, userInfoMap, localityCode,dpName)
         ).collect(Collectors.toList());
     }
 
     private ProjectTaskIndexV1 transformTaskToProjectTaskIndex(TaskResource taskResource, Task task, Map<String, String> boundaryHierarchy, Map<String, String> boundaryHierarchyCode, String tenantId,
                                                                Map<String, Object> beneficiaryInfo, String projectBeneficiaryType, String projectTypeId, String projectType,
-                                                               Map<String, String> userInfoMap, String localityCode) {
+                                                               Map<String, String> userInfoMap, String localityCode, String dpName) {
         String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(task.getAuditDetails().getCreatedTime());
         List<String> variantList = Optional.ofNullable(taskResource.getProductVariantId())
                 .map(Collections::singletonList)
@@ -122,7 +127,7 @@ public class ProjectTaskTransformationService {
                 .userName(userInfoMap.get(USERNAME))
                 .nameOfUser(userInfoMap.get(NAME))
                 .role(userInfoMap.get(ROLE))
-                .userAddress(userInfoMap.get(CITY))
+                .userAddress(dpName)
                 .productVariant(taskResource.getProductVariantId())
                 .productName(productName)
                 .isDelivered(taskResource.getIsDelivered())
@@ -168,14 +173,14 @@ public class ProjectTaskTransformationService {
         }
         if (beneficiaryInfo.containsKey(HEIGHT) && beneficiaryInfo.containsKey(DISABILITY_TYPE)) {
             additionalDetails.put(HEIGHT, (Integer) beneficiaryInfo.get(HEIGHT));
-            additionalDetails.put(DISABILITY_TYPE,(String) beneficiaryInfo.get(DISABILITY_TYPE));
+            additionalDetails.put(DISABILITY_TYPE, (String) beneficiaryInfo.get(DISABILITY_TYPE));
         }
 
         if (beneficiaryInfo.containsKey("additionalFields")) {
             try {
                 householdService.additionalFieldsToDetails(additionalDetails, beneficiaryInfo.get("additionalFields"));
             } catch (IllegalArgumentException e) {
-                log.error("Error in projectTask transformation while addition of additionalFields to additionDetails {}" , e.getMessage());
+                log.error("Error in projectTask transformation while addition of additionalFields to additionDetails {}", e.getMessage());
             }
         }
 
@@ -193,28 +198,50 @@ public class ProjectTaskTransformationService {
     }
 
     private void addAdditionalDetails(AdditionalFields additionalFields, ObjectNode additionalDetails) {
-        additionalFields.getFields().forEach(field -> {
+        long manualCodeScans = 0;
+        long actualCodeScans = 0;
+//        List<String> manualCodesScanned = new ArrayList<>();
+//        List<String> actualCodesScanned = new ArrayList<>();
+
+        ArrayNode manualCodesScanned = objectMapper.createArrayNode();
+        ArrayNode actualCodesScanned = objectMapper.createArrayNode();
+
+        String scanKey = transformerProperties.getTaskBednetScanningKey();
+        String manualScanKey = MANUAL_SCAN + scanKey;
+
+        for (Field field : additionalFields.getFields()) {
             String key = field.getKey();
             String value = field.getValue();
+
             if (ADDITIONAL_DETAILS_DOUBLE_FIELDS.contains(key)) {
                 try {
-                    additionalDetails.put(key, Double.valueOf(value));
+                    additionalDetails.put(key, Double.parseDouble(value));
                 } catch (NumberFormatException e) {
                     log.warn("Invalid number format for key '{}': value '{}'. Storing as null.", key, value);
-                    additionalDetails.put(key, (JsonNode) null);
+                    additionalDetails.putNull(key);
                 }
-
             } else if (ADDITIONAL_DETAILS_INTEGER_FIELDS.contains(key)) {
                 try {
-                    additionalDetails.put(key, Integer.valueOf(value));
+                    additionalDetails.put(key, Integer.parseInt(value));
                 } catch (NumberFormatException e) {
                     log.warn("Invalid number format for key '{}': value '{}'. Storing as null.", key, value);
-                    additionalDetails.put(key, (JsonNode) null);
+                    additionalDetails.putNull(key);
                 }
+            } else if (scanKey.equalsIgnoreCase(key)) {
+                actualCodeScans++;
+                actualCodesScanned.add(value);
+            } else if (manualScanKey.equalsIgnoreCase(key)) {
+                manualCodeScans++;
+                manualCodesScanned.add(value);
             } else {
                 additionalDetails.put(key, value);
             }
-        });
+        }
+
+        additionalDetails.put("manualCodeScans", manualCodeScans);
+        additionalDetails.put("actualCodeScans", actualCodeScans);
+        additionalDetails.set("manualCodesScanned", manualCodesScanned);
+        additionalDetails.set("actualCodesScanned", actualCodesScanned);
     }
 
     //This cycleIndex logic has to be changed if we send all required additionalDetails from app

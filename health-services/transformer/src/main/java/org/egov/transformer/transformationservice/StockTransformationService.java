@@ -9,6 +9,7 @@ import org.egov.common.models.facility.Facility;
 import org.egov.common.models.project.ProjectStaff;
 import org.egov.common.models.stock.AdditionalFields;
 import org.egov.common.models.project.Project;
+import org.egov.common.models.stock.Field;
 import org.egov.common.models.stock.Stock;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.models.boundary.BoundaryHierarchyResult;
@@ -77,7 +78,7 @@ public class StockTransformationService {
         String projectId = stock.getReferenceId();
         Project project = projectService.getProject(projectId, tenantId);
         String projectTypeId = project.getProjectTypeId();
-
+        String dpName = null;
         if (!STAFF.equalsIgnoreCase(facilityType)) {
             Facility facility = facilityService.findFacilityById(facilityId, stock.getTenantId());
             if (facility != null && facility.getAddress() != null && facility.getAddress().getLocality() != null
@@ -85,6 +86,8 @@ public class StockTransformationService {
                 BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(facility.getAddress().getLocality().getCode(), tenantId);
                 boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
                 boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
+                dpName = boundaryService.getLocalizedBoundaryName((facility.getAddress().getLocality().getCode() + "_DP"),
+                        null, tenantId);
             } else if (stock.getReferenceIdType().equals(PROJECT)) {
                 BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithProjectId(stock.getReferenceId(), tenantId);
                 boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
@@ -150,7 +153,7 @@ public class StockTransformationService {
                 .userName(userInfoMap.get(USERNAME))
                 .nameOfUser(userInfoMap.get(NAME))
                 .role(userInfoMap.get(ROLE))
-                .userAddress(userInfoMap.get(CITY))
+                .userAddress(dpName)
                 .physicalCount(stock.getQuantity())
                 .eventType(stock.getTransactionType())
                 .reason(stock.getTransactionReason())
@@ -196,20 +199,42 @@ public class StockTransformationService {
                 stock.getSenderType().toString() :
                 stock.getReceiverType().toString();
     }
+
     private void addAdditionalDetails(AdditionalFields additionalFields, ObjectNode additionalDetails) {
-        additionalFields.getFields().forEach(field -> {
+        int manualScans = 0;
+        int actualBailScans = 0;
+
+        for (Field field : additionalFields.getFields()) {
             String key = field.getKey();
             String value = field.getValue();
+
             if (ADDITIONAL_DETAILS_DOUBLE_FIELDS.contains(key)) {
                 try {
                     additionalDetails.put(key, Double.valueOf(value));
                 } catch (NumberFormatException e) {
-                    log.warn("Invalid number format for key '{}': value '{}'. Storing as null.", key, value);
+                    log.warn("Invalid Double number format for key '{}': value '{}'. Storing as null.", key, value);
                     additionalDetails.put(key, (JsonNode) null);
                 }
-            } else {
+            } else if (BALES_INTEGER_FIELDS.contains(key)) {
+                try {
+                    additionalDetails.put(key, Integer.valueOf(value));
+                } catch (NumberFormatException e) {
+                    log.warn("Invalid Integer number format for key '{}': value '{}'. Storing as null.", key, value);
+                    additionalDetails.put(key, (JsonNode) null);
+                }
+            } else if (BALES_STRING_FIELDS.contains(key)) {
                 additionalDetails.put(key, value);
+            } else {
+                if (key.startsWith(MANUAL_SCAN)) {
+                    manualScans++;
+                } else {
+                    actualBailScans++;
+                }
             }
-        });
+        }
+
+        additionalDetails.put(MANUAL_SCANS_INDEX_KEY, manualScans);
+        additionalDetails.put(ACTUAL_BALE_SCANS_INDEX_KEY, actualBailScans);
     }
+
 }
