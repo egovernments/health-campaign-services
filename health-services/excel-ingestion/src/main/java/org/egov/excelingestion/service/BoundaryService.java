@@ -1,0 +1,72 @@
+package org.egov.excelingestion.service;
+
+import lombok.extern.slf4j.Slf4j;
+import org.egov.excelingestion.config.ErrorConstants;
+import org.egov.excelingestion.config.ExcelIngestionConfig;
+import org.egov.excelingestion.web.models.*;
+import org.egov.excelingestion.repository.ServiceRequestRepository;
+import org.egov.excelingestion.exception.CustomExceptionHandler;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.stereotype.Service;
+
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.Map;
+
+@Service
+@Slf4j
+public class BoundaryService {
+
+    private final ServiceRequestRepository serviceRequestRepository;
+    private final ExcelIngestionConfig config;
+    private final ApiPayloadBuilder apiPayloadBuilder;
+    private final CustomExceptionHandler exceptionHandler;
+
+    public BoundaryService(ServiceRequestRepository serviceRequestRepository, ExcelIngestionConfig config,
+            ApiPayloadBuilder apiPayloadBuilder, CustomExceptionHandler exceptionHandler) {
+        this.serviceRequestRepository = serviceRequestRepository;
+        this.config = config;
+        this.apiPayloadBuilder = apiPayloadBuilder;
+        this.exceptionHandler = exceptionHandler;
+    }
+
+    @Cacheable(value = "boundaryHierarchy", key = "#tenantId + '_' + #hierarchyType")
+    public BoundaryHierarchyResponse fetchBoundaryHierarchy(String tenantId, String hierarchyType, RequestInfo requestInfo) {
+        String hierarchyUrl = config.getHierarchySearchUrl();
+        Map<String, Object> hierarchyPayload = apiPayloadBuilder.createHierarchyPayload(requestInfo, tenantId, hierarchyType);
+        
+        log.info("Calling Boundary Hierarchy API: {} with tenantId: {}, hierarchyType: {}", hierarchyUrl, tenantId, hierarchyType);
+        
+        try {
+            StringBuilder uri = new StringBuilder(hierarchyUrl);
+            BoundaryHierarchyResponse result = serviceRequestRepository.fetchResult(uri, hierarchyPayload, BoundaryHierarchyResponse.class);
+            log.info("Successfully fetched boundary hierarchy data");
+            return result;
+        } catch (Exception e) {
+            // ServiceRequestRepository already handles the error with actual message
+            throw e;
+        }
+    }
+
+    @Cacheable(value = "boundaryRelationship", key = "#tenantId + '_' + #hierarchyType")
+    public BoundarySearchResponse fetchBoundaryRelationship(String tenantId, String hierarchyType, RequestInfo requestInfo) {
+        StringBuilder url = new StringBuilder(config.getRelationshipSearchUrl());
+        url.append("?includeChildren=true")
+                .append("&tenantId=").append(URLEncoder.encode(tenantId, StandardCharsets.UTF_8))
+                .append("&hierarchyType=").append(URLEncoder.encode(hierarchyType, StandardCharsets.UTF_8));
+
+        Map<String, Object> relationshipPayload = apiPayloadBuilder.createRelationshipPayload(requestInfo);
+        
+        log.info("Calling Boundary Relationship API: {} with tenantId: {}, hierarchyType: {}", url.toString(), tenantId, hierarchyType);
+        
+        try {
+            BoundarySearchResponse result = serviceRequestRepository.fetchResult(url, relationshipPayload, BoundarySearchResponse.class);
+            log.info("Successfully fetched boundary relationship data");
+            return result;
+        } catch (Exception e) {
+            // ServiceRequestRepository already handles the error with actual message
+            throw e;
+        }
+    }
+}

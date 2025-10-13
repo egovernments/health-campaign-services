@@ -1,0 +1,334 @@
+package org.egov.excelingestion.service;
+
+import lombok.extern.slf4j.Slf4j;
+import org.apache.poi.poifs.crypt.HashAlgorithm;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.egov.excelingestion.config.ExcelIngestionConfig;
+import org.egov.excelingestion.config.ErrorConstants;
+import org.egov.excelingestion.exception.CustomExceptionHandler;
+import org.egov.excelingestion.generator.IExcelPopulatorSheetGenerator;
+import org.egov.excelingestion.generator.ISheetGenerator;
+import org.egov.excelingestion.util.BoundaryColumnUtil;
+import org.egov.excelingestion.util.CellProtectionManager;
+import org.egov.excelingestion.util.ExcelDataPopulator;
+import org.egov.excelingestion.util.HierarchicalBoundaryUtil;
+import org.egov.excelingestion.util.ExcelUtil;
+import org.egov.excelingestion.web.models.*;
+import org.springframework.context.ApplicationContext;
+import org.springframework.stereotype.Service;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+@Service
+@Slf4j
+public class ConfigBasedGenerationService {
+
+    private final ApplicationContext applicationContext;
+    private final ExcelDataPopulator excelDataPopulator;
+    private final BoundaryColumnUtil boundaryColumnUtil;
+    private final HierarchicalBoundaryUtil hierarchicalBoundaryUtil;
+    private final CellProtectionManager cellProtectionManager;
+    private final ExcelIngestionConfig config;
+    private final CustomExceptionHandler exceptionHandler;
+    private final GenerationConfigValidationService validationService;
+
+    public ConfigBasedGenerationService(ApplicationContext applicationContext,
+                                      ExcelDataPopulator excelDataPopulator,
+                                      BoundaryColumnUtil boundaryColumnUtil,
+                                      HierarchicalBoundaryUtil hierarchicalBoundaryUtil,
+                                      CellProtectionManager cellProtectionManager,
+                                      ExcelIngestionConfig config,
+                                      CustomExceptionHandler exceptionHandler,
+                                      GenerationConfigValidationService validationService) {
+        this.applicationContext = applicationContext;
+        this.excelDataPopulator = excelDataPopulator;
+        this.boundaryColumnUtil = boundaryColumnUtil;
+        this.hierarchicalBoundaryUtil = hierarchicalBoundaryUtil;
+        this.cellProtectionManager = cellProtectionManager;
+        this.config = config;
+        this.exceptionHandler = exceptionHandler;
+        this.validationService = validationService;
+    }
+
+    /**
+     * Generate Excel workbook based on processor configuration
+     */
+    public byte[] generateExcelWithConfig(ProcessorGenerationConfig processorConfig,
+                                        GenerateResource generateResource,
+                                        RequestInfo requestInfo,
+                                        Map<String, String> localizationMap) throws IOException {
+        
+        log.info("Starting config-based Excel generation for processor: {}", generateResource.getType());
+        
+        // Validate configuration
+        validationService.validateProcessorConfig(processorConfig, generateResource.getType());
+        
+        XSSFWorkbook workbook = new XSSFWorkbook();
+        String firstVisibleSheetName = null;
+        
+        // Sort sheets by order
+        processorConfig.getSheets().sort(Comparator.comparingInt(SheetGenerationConfig::getOrder));
+        
+        // Generate each sheet
+        for (SheetGenerationConfig sheetConfig : processorConfig.getSheets()) {
+            String localizedSheetName = getLocalizedSheetName(sheetConfig.getSheetName(), localizationMap);
+            String actualSheetName = truncateSheetName(localizedSheetName);
+            
+            log.info("Generating sheet: {} (order: {})", actualSheetName, sheetConfig.getOrder());
+            
+            try {
+                // Auto-detect generation approach
+                if (shouldUseSchemaBasedGeneration(sheetConfig)) {
+                    // Use schema-based ExcelPopulator approach (automatic)
+                    generateSheetViaSchemaBasedGeneration(workbook, actualSheetName, sheetConfig, 
+                                                        generateResource, requestInfo, localizationMap);
+                } else if (sheetConfig.getIsGenerationClassViaExcelPopulator()) {
+                    // Use custom ExcelPopulator approach
+                    generateSheetViaExcelPopulator(workbook, actualSheetName, sheetConfig, 
+                                                 generateResource, requestInfo, localizationMap);
+                } else {
+                    // Use direct workbook generation approach
+                    generateSheetDirectly(workbook, actualSheetName, sheetConfig, 
+                                        generateResource, requestInfo, localizationMap);
+                }
+                
+                // Track first visible sheet for setting as active
+                if (sheetConfig.getVisible() && firstVisibleSheetName == null) {
+                    firstVisibleSheetName = actualSheetName;
+                }
+                
+            } catch (Exception e) {
+                log.error("Error generating sheet {}: {}", actualSheetName, e.getMessage(), e);
+                
+                // If it's already a CustomException with specific error code, preserve it
+                if (e instanceof org.egov.tracer.model.CustomException) {
+                    throw (org.egov.tracer.model.CustomException) e;
+                }
+                
+                // Otherwise, wrap in RuntimeException
+                throw new RuntimeException("Failed to generate sheet: " + actualSheetName, e);
+            }
+        }
+        
+        // Apply workbook settings
+        applyWorkbookSettings(workbook, processorConfig, firstVisibleSheetName, localizationMap);
+        
+        // Convert to byte array
+        ByteArrayOutputStream bos = new ByteArrayOutputStream();
+        try {
+            workbook.write(bos);
+        } finally {
+            workbook.close();
+        }
+        
+        log.info("Config-based Excel generation completed successfully");
+        return bos.toByteArray();
+    }
+    
+    /**
+     * Check if sheet should use automatic schema-based generation
+     */
+    private boolean shouldUseSchemaBasedGeneration(SheetGenerationConfig config) {
+        return (config.getGenerationClass() == null || config.getGenerationClass().isEmpty()) &&
+               (config.getSchemaName() != null && !config.getSchemaName().isEmpty());
+    }
+    
+    /**
+     * Generate sheet using automatic schema-based approach
+     */
+    private void generateSheetViaSchemaBasedGeneration(XSSFWorkbook workbook, String sheetName,
+                                                     SheetGenerationConfig config,
+                                                     GenerateResource generateResource,
+                                                     RequestInfo requestInfo,
+                                                     Map<String, String> localizationMap) {
+        try {
+            // Get the schema-based generator automatically
+            IExcelPopulatorSheetGenerator generator = getExcelPopulatorGenerator("org.egov.excelingestion.generator.SchemaBasedSheetGenerator");
+            
+            // Generate sheet data
+            SheetGenerationResult result = generator.generateSheetData(config, generateResource, requestInfo, localizationMap);
+            
+            // Use ExcelDataPopulator to create the sheet
+            excelDataPopulator.populateSheetWithData(workbook, sheetName, 
+                                                    result.getColumnDefs(), result.getData(), localizationMap);
+            
+        } catch (Exception e) {
+            log.error("Error in automatic schema-based sheet generation for {}: {}", sheetName, e.getMessage(), e);
+            throw new RuntimeException("Failed to generate schema-based sheet: " + sheetName, e);
+        }
+    }
+
+    private void generateSheetViaExcelPopulator(XSSFWorkbook workbook, String sheetName,
+                                              SheetGenerationConfig config,
+                                              GenerateResource generateResource,
+                                              RequestInfo requestInfo,
+                                              Map<String, String> localizationMap) {
+        try {
+            // Get the sheet generator bean
+            IExcelPopulatorSheetGenerator generator = getExcelPopulatorGenerator(config.getGenerationClass());
+            
+            // Generate sheet data
+            SheetGenerationResult result = generator.generateSheetData(config, generateResource, requestInfo, localizationMap);
+            
+            // Use ExcelDataPopulator to create the sheet
+            excelDataPopulator.populateSheetWithData(workbook, sheetName, 
+                                                    result.getColumnDefs(), result.getData(), localizationMap);
+            
+        } catch (Exception e) {
+            log.error("Error in ExcelPopulator sheet generation for {}: {}", sheetName, e.getMessage(), e);
+            throw new RuntimeException("Failed to generate sheet via ExcelPopulator: " + sheetName, e);
+        }
+    }
+    
+    private void generateSheetDirectly(XSSFWorkbook workbook, String sheetName,
+                                     SheetGenerationConfig config,
+                                     GenerateResource generateResource,
+                                     RequestInfo requestInfo,
+                                     Map<String, String> localizationMap) {
+        try {
+            // Get the sheet generator bean
+            ISheetGenerator generator = getDirectSheetGenerator(config.getGenerationClass());
+            
+            // Generate sheet directly
+            workbook = generator.generateSheet(workbook, sheetName, config, generateResource, requestInfo, localizationMap);
+            
+        } catch (Exception e) {
+            log.error("Error in direct sheet generation for {}: {}", sheetName, e.getMessage(), e);
+            
+            // If it's already a CustomException with specific error code, preserve it
+            if (e instanceof org.egov.tracer.model.CustomException) {
+                throw (org.egov.tracer.model.CustomException) e;
+            }
+            
+            // Otherwise, wrap in RuntimeException
+            throw new RuntimeException("Failed to generate sheet directly: " + sheetName, e);
+        }
+    }
+    
+    private void applyWorkbookSettings(XSSFWorkbook workbook, ProcessorGenerationConfig processorConfig, String activeSheetName, Map<String, String> localizationMap) {
+        // Set zoom level
+        Integer zoomLevel = processorConfig.getZoomLevel() != null ? processorConfig.getZoomLevel() : config.getExcelSheetZoom();
+        for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
+            Sheet sheet = workbook.getSheetAt(i);
+            sheet.setZoom(zoomLevel);
+        }
+        
+        // Hide non-visible sheets
+        for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
+            Sheet sheet = workbook.getSheetAt(i);
+            String sheetName = sheet.getSheetName();
+            
+            // Find the sheet config to check visibility  
+            boolean isVisible = processorConfig.getSheets().stream()
+                    .anyMatch(sheetConfig -> {
+                        String localizedName = getLocalizedSheetName(sheetConfig.getSheetName(), localizationMap);
+                        String actualName = truncateSheetName(localizedName);
+                        return actualName.equals(sheetName) && sheetConfig.getVisible();
+                    });
+            
+            // Hide sheets that start with "_h_" (helper sheets) or are configured as hidden
+            if (sheetName.startsWith("_h_") || !isVisible) {
+                workbook.setSheetHidden(i, true);
+            }
+        }
+        
+        // Set active sheet
+        if (activeSheetName != null && workbook.getSheet(activeSheetName) != null) {
+            workbook.setActiveSheet(workbook.getSheetIndex(activeSheetName));
+        }
+        
+        // Apply protection if configured
+        if (processorConfig.isApplyWorkbookProtection()) {
+            String password = processorConfig.getProtectionPassword() != null ? 
+                            processorConfig.getProtectionPassword() : config.getExcelSheetPassword();
+            
+            // Protect visible sheets
+            for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
+                Sheet sheet = workbook.getSheetAt(i);
+                if (!workbook.isSheetHidden(i)) {
+                    cellProtectionManager.applySheetProtection(workbook, sheet, password);
+                }
+            }
+            
+            // Apply workbook-level protection
+            cellProtectionManager.applyWorkbookProtection(workbook, password);
+            workbook.setWorkbookPassword(password, HashAlgorithm.sha512);
+        }
+    }
+    
+    private IExcelPopulatorSheetGenerator getExcelPopulatorGenerator(String className) {
+        try {
+            // If no package specified, assume it's in generator package
+            if (!className.contains(".")) {
+                className = "org.egov.excelingestion.generator." + className;
+            }
+            Class<?> clazz = Class.forName(className);
+            return (IExcelPopulatorSheetGenerator) applicationContext.getBean(clazz);
+        } catch (ClassNotFoundException e) {
+            log.error("ExcelPopulator generator class not found: {}", className);
+            exceptionHandler.throwCustomException(
+                    ErrorConstants.GENERATOR_CLASS_NOT_FOUND,
+                    ErrorConstants.GENERATOR_CLASS_NOT_FOUND_MESSAGE.replace("{0}", className),
+                    e);
+            return null; // Never reached
+        } catch (Exception e) {
+            log.error("Error getting ExcelPopulator generator bean for class {}: {}", className, e.getMessage(), e);
+            exceptionHandler.throwCustomException(
+                    ErrorConstants.GENERATOR_EXECUTION_ERROR,
+                    ErrorConstants.GENERATOR_EXECUTION_ERROR_MESSAGE.replace("{0}", e.getMessage()),
+                    e);
+            return null; // Never reached
+        }
+    }
+    
+    private ISheetGenerator getDirectSheetGenerator(String className) {
+        try {
+            // If no package specified, assume it's in generator package
+            if (!className.contains(".")) {
+                className = "org.egov.excelingestion.generator." + className;
+            }
+            Class<?> clazz = Class.forName(className);
+            return (ISheetGenerator) applicationContext.getBean(clazz);
+        } catch (ClassNotFoundException e) {
+            log.error("Direct sheet generator class not found: {}", className);
+            exceptionHandler.throwCustomException(
+                    ErrorConstants.GENERATOR_CLASS_NOT_FOUND,
+                    ErrorConstants.GENERATOR_CLASS_NOT_FOUND_MESSAGE.replace("{0}", className),
+                    e);
+            return null; // Never reached
+        } catch (Exception e) {
+            log.error("Error getting direct sheet generator bean for class {}: {}", className, e.getMessage(), e);
+            exceptionHandler.throwCustomException(
+                    ErrorConstants.GENERATOR_EXECUTION_ERROR,
+                    ErrorConstants.GENERATOR_EXECUTION_ERROR_MESSAGE.replace("{0}", e.getMessage()),
+                    e);
+            return null; // Never reached
+        }
+    }
+    
+    private String getLocalizedSheetName(String sheetNameKey, Map<String, String> localizationMap) {
+        if (localizationMap != null) {
+            return localizationMap.getOrDefault(sheetNameKey, sheetNameKey);
+        }
+        return sheetNameKey;
+    }
+    
+    private String truncateSheetName(String sheetName) {
+        if (sheetName.length() > 31) {
+            String truncated = sheetName.substring(0, 31);
+            log.warn("Sheet name '{}' exceeds 31 character limit, trimming to '{}'", sheetName, truncated);
+            return truncated;
+        }
+        return sheetName;
+    }
+    
+}
