@@ -17,8 +17,6 @@ export const downloadRequestSchema = {
                 "boundary",
                 "facilityWithBoundary",
                 "userWithBoundary",
-                "boundaryManagement",
-                "boundaryGeometryManagement",
                 "userCredential"
             ]
         },
