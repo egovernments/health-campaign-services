@@ -1,7 +1,6 @@
 import * as express from "express";
 import {
   cancelCampaignService,
-  createCampaignService,
   createProjectTypeCampaignService,
   fetchFromMicroplanService,
   searchProjectTypeCampaignService,
@@ -31,7 +30,6 @@ class campaignManageController {
         this.router.post(`${this.path}/create`, this.createProjectTypeCampaign);
         this.router.post(`${this.path}/update`, this.updateProjectTypeCampaign);
         this.router.post(`${this.path}/search`, this.searchProjectTypeCampaign);
-        this.router.post(`${this.path}/createCampaign`, this.createCampaign);
         this.router.post(`${this.path}/fetch-from-microplan`, this.fetchFromMicroplan);
         this.router.post(`${this.path}/cancel-campaign`, this.cancelCampaign);
         this.router.post(`${this.path}/status`, this.getCampaignStatus);
@@ -97,29 +95,6 @@ class campaignManageController {
             // Send response with campaign details and total count
             return sendResponse(response, responseBody, request);
         } catch (e: any) {
-            console.log(e)
-            logger.error(String(e))
-            // Handle errors and send error response
-            return errorResponder({ message: String(e), code: e?.code, description: e?.description }, request, response, e?.status || 500);
-        }
-    };
-
-    /**
-     * Handles the creation of a campaign.
-     * @param request The Express request object.
-     * @param response The Express response object.
-     */
-    createCampaign = async (
-        request: express.Request,
-        response: express.Response
-    ) => {
-        try {
-            logger.info("RECEIVED A CAMPAIGN CREATE REQUEST");
-            const Campaign = await createCampaignService(request?.body);
-            // Send response with campaign details
-            return sendResponse(response, { Campaign }, request);
-        }
-        catch (e: any) {
             console.log(e)
             logger.error(String(e))
             // Handle errors and send error response

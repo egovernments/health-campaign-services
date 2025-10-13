@@ -2,7 +2,7 @@ import express from "express";
 import { processGenericRequest } from "../api/campaignApis";
 import { createAndUploadFile, getBoundarySheetData } from "../api/genericApis";
 import { getLocalizedName, getResourceDetails, processDataSearchRequest } from "../utils/campaignUtils";
-import { addDataToSheet, enrichResourceDetails, getLocalizedMessagesHandler, searchGeneratedResources, processGenerate, throwError } from "../utils/genericUtils";
+import { addDataToSheet, enrichResourceDetails, getLocalizedMessagesHandler, searchGeneratedResources, processGenerate, throwError, searchCampaignData, searchMappingData } from "../utils/genericUtils";
 import { getFormattedStringForDebug, logger } from "../utils/logger";
 import { validateCreateRequest, validateDownloadRequest, validateSearchRequest } from "../validators/campaignValidators";
 import { validateGenerateRequest } from "../validators/genericValidator";
@@ -179,10 +179,136 @@ const searchDataService = async (request: any) => {
     return request?.body?.ResourceDetails;
 }
 
+/**
+ * Search campaign data service with proper validation
+ */
+const searchCampaignDataService = async (request: any) => {
+    try {
+        const searchCriteria = request?.body?.SearchCriteria;
+        const pagination = request?.body?.Pagination;
+        
+        // Validate required fields
+        if (!searchCriteria) {
+            throwError("COMMON", 400, "VALIDATION_ERROR", "SearchCriteria is required");
+        }
+        
+        if (!searchCriteria.tenantId) {
+            throwError("COMMON", 400, "VALIDATION_ERROR", "tenantId is required in SearchCriteria");
+        }
+        
+        // Validate uniqueIdentifiers is array if provided
+        if (searchCriteria.uniqueIdentifiers && !Array.isArray(searchCriteria.uniqueIdentifiers)) {
+            throwError("COMMON", 400, "VALIDATION_ERROR", "uniqueIdentifiers must be an array");
+        }
+        
+        // Build search parameters
+        const searchParams: any = {
+            tenantId: searchCriteria.tenantId,
+            type: searchCriteria.type,
+            campaignNumber: searchCriteria.campaignNumber,
+            status: searchCriteria.status,
+            uniqueIdentifiers: searchCriteria.uniqueIdentifiers
+        };
+        
+        // Add pagination if provided
+        if (pagination) {
+            searchParams.offset = pagination.offset || 0;
+            searchParams.limit = pagination.limit || 100;
+            
+            // Validate pagination values
+            if (searchParams.limit > 1000) {
+                throwError("COMMON", 400, "VALIDATION_ERROR", "limit cannot exceed 1000");
+            }
+            if (searchParams.offset < 0) {
+                throwError("COMMON", 400, "VALIDATION_ERROR", "offset cannot be negative");
+            }
+        }
+        
+        logger.info(`Searching campaign data: ${getFormattedStringForDebug(searchParams)}`);
+        
+        // Execute search
+        const result = await searchCampaignData(searchParams);
+        
+        logger.info(`Campaign data search completed: ${result.totalCount} total records found`);
+        
+        return {
+            CampaignData: result.data,
+            TotalCount: result.totalCount,
+            ...(result.pagination && { Pagination: result.pagination })
+        };
+        
+    } catch (error: any) {
+        logger.error("Error in searchCampaignDataService:", error);
+        throw error;
+    }
+}
+
+/**
+ * Search mapping data service with proper validation
+ */
+const searchMappingDataService = async (request: any) => {
+    try {
+        const searchCriteria = request?.body?.SearchCriteria;
+        const pagination = request?.body?.Pagination;
+        
+        // Validate required fields
+        if (!searchCriteria) {
+            throwError("COMMON", 400, "VALIDATION_ERROR", "SearchCriteria is required");
+        }
+        
+        if (!searchCriteria.tenantId) {
+            throwError("COMMON", 400, "VALIDATION_ERROR", "tenantId is required in SearchCriteria");
+        }
+        
+        // Build search parameters
+        const searchParams: any = {
+            tenantId: searchCriteria.tenantId,
+            type: searchCriteria.type,
+            campaignNumber: searchCriteria.campaignNumber,
+            status: searchCriteria.status,
+            boundaryCode: searchCriteria.boundaryCode,
+            uniqueIdentifierForData: searchCriteria.uniqueIdentifierForData
+        };
+        
+        // Add pagination if provided
+        if (pagination) {
+            searchParams.offset = pagination.offset || 0;
+            searchParams.limit = pagination.limit || 100;
+            
+            // Validate pagination values
+            if (searchParams.limit > 1000) {
+                throwError("COMMON", 400, "VALIDATION_ERROR", "limit cannot exceed 1000");
+            }
+            if (searchParams.offset < 0) {
+                throwError("COMMON", 400, "VALIDATION_ERROR", "offset cannot be negative");
+            }
+        }
+        
+        logger.info(`Searching mapping data: ${getFormattedStringForDebug(searchParams)}`);
+        
+        // Execute search
+        const result = await searchMappingData(searchParams);
+        
+        logger.info(`Mapping data search completed: ${result.totalCount} total records found`);
+        
+        return {
+            MappingData: result.data,
+            TotalCount: result.totalCount,
+            ...(result.pagination && { Pagination: result.pagination })
+        };
+        
+    } catch (error: any) {
+        logger.error("Error in searchMappingDataService:", error);
+        throw error;
+    }
+}
+
 export {
     generateDataService,
     downloadDataService,
     getBoundaryDataService,
     createDataService,
-    searchDataService
+    searchDataService,
+    searchCampaignDataService,
+    searchMappingDataService
 }

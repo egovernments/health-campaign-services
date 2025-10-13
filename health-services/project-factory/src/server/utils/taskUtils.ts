@@ -54,10 +54,26 @@ export async function handleTaskForCampaign(messageObject: any) {
         }
         logger.info(`Process resource for campaign ${CampaignDetails?.id} : ${processName} completed..`);
         task.status = processStatuses.completed;
+        // Add audit details for update
+        const currentTime = Date.now();
+        task.auditDetails = {
+            createdBy: task.auditDetails?.createdBy || messageObject?.useruuid,
+            createdTime: task.auditDetails?.createdTime || currentTime,
+            lastModifiedBy: messageObject?.useruuid,
+            lastModifiedTime: currentTime
+        };
         await produceModifiedMessages({ processes: [task] }, config?.kafka?.KAFKA_UPDATE_PROCESS_DATA_TOPIC, CampaignDetails?.tenantId);
     } catch (error) {
         let task = messageObject?.task;
         task.status = processStatuses.failed;
+        // Add audit details for failed status update
+        const currentTime = Date.now();
+        task.auditDetails = {
+            createdBy: task.auditDetails?.createdBy || messageObject?.useruuid,
+            createdTime: task.auditDetails?.createdTime || currentTime,
+            lastModifiedBy: messageObject?.useruuid,
+            lastModifiedTime: currentTime
+        };
         await produceModifiedMessages({ processes: [task] }, config?.kafka?.KAFKA_UPDATE_PROCESS_DATA_TOPIC, messageObject?.CampaignDetails?.tenantId);
         logger.error(`Error in campaign creation process : ${error}`);
         await enrichAndPersistCampaignWithErrorProcessingTask(messageObject?.CampaignDetails, messageObject?.parentCampaign, messageObject?.useruuid, error);

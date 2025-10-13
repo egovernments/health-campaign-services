@@ -1,0 +1,940 @@
+openapi: 3.0.1
+info:
+  title: Excel Ingestion Service
+  description: Service for Excel template generation, processing, and sheet data management for DIGIT Health Campaign platform
+  version: 1.0.0
+
+servers:
+  - url: https://api.example.com
+    description: Production server
+  - url: https://staging.example.com
+    description: Staging server
+
+paths:
+  /excel-ingestion/v1/data/_generate:
+    post:
+      summary: Generate Excel template
+      description: Generates an Excel template based on hierarchy type and boundaries, then uploads it to filestore
+      operationId: generateExcelTemplate
+      tags:
+        - Excel Generation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenerateResourceRequest'
+            example:
+              RequestInfo:
+                apiId: "excel-ingestion"
+                ver: "1.0"
+                ts: 1690371438000
+                msgId: "1234567890"
+                userInfo:
+                  uuid: "11b0e02b-0145-4de2-bc42-c97b96264807"
+                  userName: "testuser"
+                  tenantId: "pg.citya"
+              GenerateResource:
+                tenantId: "pg.citya"
+                type: "boundary"
+                hierarchyType: "ADMIN"
+                referenceId: "REF-2023-001"
+                additionalDetails: {}
+      responses:
+        '202':
+          description: Excel template generation initiated successfully (async processing)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenerateResourceResponse'
+              example:
+                ResponseInfo:
+                  apiId: "egov-bff"
+                  ver: "0.0.1"
+                  ts: 1690371438000
+                  status: "successful"
+                GenerateResource:
+                  id: "550e8400-e29b-41d4-a716-446655440000"
+                  tenantId: "pg.citya"
+                  type: "boundary"
+                  hierarchyType: "ADMIN"
+                  referenceId: "REF-2023-001"
+                  status: "PENDING"
+                  fileStoreId: "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+                  additionalDetails: {}
+        '400':
+          description: Bad Request - Invalid input parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /excel-ingestion/v1/data/_process:
+    post:
+      summary: Process Excel file
+      description: Processes an uploaded Excel file and validates data according to configured rules
+      operationId: processExcel
+      tags:
+        - Excel Processing
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProcessResourceRequest'
+            example:
+              RequestInfo:
+                apiId: "excel-ingestion"
+                ver: "1.0"
+                ts: 1690371438000
+                msgId: "1234567890"
+                userInfo:
+                  uuid: "11b0e02b-0145-4de2-bc42-c97b96264807"
+                  userName: "testuser"
+                  tenantId: "pg.citya"
+              ResourceDetails:
+                tenantId: "pg.citya"
+                type: "boundary"
+                hierarchyType: "ADMIN"
+                referenceId: "REF-2023-001"
+                fileStoreId: "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+                additionalDetails: {}
+      responses:
+        '202':
+          description: Excel processing initiated successfully (async processing)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProcessResourceResponse'
+              example:
+                ResponseInfo:
+                  apiId: "excel-ingestion"
+                  ver: "1.0"
+                  ts: 1690371438000
+                  status: "successful"
+                ProcessResource:
+                  id: "550e8400-e29b-41d4-a716-446655440001"
+                  tenantId: "pg.citya"
+                  type: "boundary"
+                  hierarchyType: "ADMIN"
+                  referenceId: "REF-2023-001"
+                  fileStoreId: "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+                  status: "PENDING"
+                  additionalDetails: {}
+        '400':
+          description: Bad Request - Invalid input parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /excel-ingestion/v1/data/_generationSearch:
+    post:
+      summary: Search generation records
+      description: Search for Excel generation records based on criteria
+      operationId: searchGenerations
+      tags:
+        - Excel Generation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenerationSearchRequest'
+            example:
+              RequestInfo:
+                apiId: "excel-ingestion"
+                ver: "1.0"
+                ts: 1690371438000
+                msgId: "1234567890"
+                userInfo:
+                  uuid: "11b0e02b-0145-4de2-bc42-c97b96264807"
+                  userName: "testuser"
+                  tenantId: "pg.citya"
+              GenerationSearchCriteria:
+                tenantId: "pg.citya"
+                ids: ["550e8400-e29b-41d4-a716-446655440000"]
+                referenceIds: ["REF-2023-001"]
+                types: ["boundary"]
+                statuses: ["COMPLETED"]
+                locale: "en_IN"
+                limit: 10
+                offset: 0
+      responses:
+        '200':
+          description: Generation records retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenerationSearchResponse'
+        '400':
+          description: Bad Request - Invalid search criteria
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /excel-ingestion/v1/data/_processSearch:
+    post:
+      summary: Search processing records
+      description: Search for Excel processing records based on criteria
+      operationId: searchProcessing
+      tags:
+        - Excel Processing
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProcessingSearchRequest'
+            example:
+              RequestInfo:
+                apiId: "excel-ingestion"
+                ver: "1.0"
+                ts: 1690371438000
+                msgId: "1234567890"
+                userInfo:
+                  uuid: "11b0e02b-0145-4de2-bc42-c97b96264807"
+                  userName: "testuser"
+                  tenantId: "pg.citya"
+              ProcessingSearchCriteria:
+                tenantId: "pg.citya"
+                ids: ["550e8400-e29b-41d4-a716-446655440001"]
+                referenceIds: ["REF-2023-001"]
+                types: ["boundary"]
+                statuses: ["COMPLETED"]
+                limit: 10
+                offset: 0
+      responses:
+        '200':
+          description: Processing records retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProcessingSearchResponse'
+        '400':
+          description: Bad Request - Invalid search criteria
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /excel-ingestion/v1/data/sheet/_search:
+    post:
+      summary: Search sheet data
+      description: Search temporary sheet data records based on criteria
+      operationId: searchSheetData
+      tags:
+        - Sheet Data Management
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SheetDataSearchRequest'
+            example:
+              RequestInfo:
+                apiId: "excel-ingestion"
+                ver: "1.0"
+                ts: 1690371438000
+                msgId: "1234567890"
+                userInfo:
+                  uuid: "11b0e02b-0145-4de2-bc42-c97b96264807"
+                  userName: "testuser"
+                  tenantId: "pg.citya"
+              SheetDataSearchCriteria:
+                tenantId: "pg.citya"
+                referenceId: "REF-2023-001"
+                fileStoreId: "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+                sheetName: "Boundary Data"
+                limit: 100
+                offset: 0
+      responses:
+        '200':
+          description: Sheet data retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SheetDataSearchResponse'
+        '400':
+          description: Bad Request - Invalid search criteria
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /excel-ingestion/v1/data/sheet/_delete:
+    post:
+      summary: Delete sheet data
+      description: Delete temporary sheet data records for a specific reference
+      operationId: deleteSheetData
+      tags:
+        - Sheet Data Management
+      parameters:
+        - name: tenantId
+          in: query
+          required: true
+          description: Tenant identifier
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 50
+        - name: referenceId
+          in: query
+          required: true
+          description: Reference identifier
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 255
+        - name: fileStoreId
+          in: query
+          required: true
+          description: File store identifier
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequestInfo'
+            example:
+              apiId: "excel-ingestion"
+              ver: "1.0"
+              ts: 1690371438000
+              msgId: "1234567890"
+              userInfo:
+                uuid: "11b0e02b-0145-4de2-bc42-c97b96264807"
+                userName: "testuser"
+                tenantId: "pg.citya"
+      responses:
+        '202':
+          description: Sheet data deletion initiated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SheetDataDeleteResponse'
+              example:
+                ResponseInfo:
+                  apiId: "excel-ingestion"
+                  ver: "1.0"
+                  ts: 1690371438000
+                  status: "successful"
+                DeleteDetails:
+                  message: "Sheet data deleted successfully"
+                  tenantId: "pg.citya"
+                  referenceId: "REF-2023-001"
+                  fileStoreId: "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+        '400':
+          description: Bad Request - Invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    GenerateResourceRequest:
+      type: object
+      required:
+        - RequestInfo
+        - GenerateResource
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        GenerateResource:
+          $ref: '#/components/schemas/GenerateResource'
+
+    GenerateResourceResponse:
+      type: object
+      properties:
+        ResponseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        GenerateResource:
+          $ref: '#/components/schemas/GenerateResource'
+
+    GenerateResource:
+      type: object
+      required:
+        - tenantId
+        - type
+        - hierarchyType
+        - referenceId
+      properties:
+        id:
+          type: string
+          description: Unique identifier of the resource
+          readOnly: true
+        tenantId:
+          type: string
+          description: Tenant identifier
+          minLength: 2
+          maxLength: 50
+        type:
+          type: string
+          description: Type of resource to generate
+          minLength: 2
+          maxLength: 100
+        hierarchyType:
+          type: string
+          description: Type of hierarchy (e.g., ADMIN, WORKBENCH)
+          minLength: 2
+          maxLength: 100
+        referenceId:
+          type: string
+          description: Reference identifier for tracking
+          minLength: 1
+          maxLength: 255
+        status:
+          type: string
+          description: Processing status
+          readOnly: true
+        fileStoreId:
+          type: string
+          description: File store reference ID for the generated Excel file
+          readOnly: true
+        locale:
+          type: string
+          description: Locale for generation
+        additionalDetails:
+          type: object
+          description: Additional metadata for the generation request
+        auditDetails:
+          $ref: '#/components/schemas/AuditDetails'
+          readOnly: true
+        createdTime:
+          type: integer
+          format: int64
+          description: Created timestamp
+          readOnly: true
+        lastModifiedTime:
+          type: integer
+          format: int64
+          description: Last modified timestamp
+          readOnly: true
+
+    Boundary:
+      type: object
+      required:
+        - code
+        - name
+        - type
+      properties:
+        code:
+          type: string
+          description: Unique code for the boundary
+        name:
+          type: string
+          description: Name of the boundary
+        type:
+          type: string
+          description: Type of boundary (e.g., City, Ward, Zone)
+        isRoot:
+          type: boolean
+          description: Indicates if this is a root boundary
+          default: false
+        parent:
+          type: string
+          description: Parent boundary code
+        includeAllChildren:
+          type: boolean
+          description: Include all child boundaries in the hierarchy
+          default: false
+
+    RequestInfo:
+      type: object
+      properties:
+        apiId:
+          type: string
+          description: API ID
+        ver:
+          type: string
+          description: API version
+        ts:
+          type: integer
+          format: int64
+          description: Request timestamp
+        action:
+          type: string
+          description: API action
+        did:
+          type: string
+          description: Device ID
+        key:
+          type: string
+          description: API key
+        msgId:
+          type: string
+          description: Message ID
+        requesterId:
+          type: string
+          description: Requester ID
+        authToken:
+          type: string
+          description: Authentication token
+        userInfo:
+          $ref: '#/components/schemas/UserInfo'
+        correlationId:
+          type: string
+          description: Correlation ID for tracking
+
+    UserInfo:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: User ID
+        uuid:
+          type: string
+          description: User UUID
+        userName:
+          type: string
+          description: Username
+        name:
+          type: string
+          description: Full name
+        mobileNumber:
+          type: string
+          description: Mobile number
+        emailId:
+          type: string
+          description: Email address
+        locale:
+          type: string
+          description: User locale
+        type:
+          type: string
+          description: User type
+        tenantId:
+          type: string
+          description: Tenant ID
+
+    ResponseInfo:
+      type: object
+      properties:
+        apiId:
+          type: string
+          description: API ID
+        ver:
+          type: string
+          description: API version
+        ts:
+          type: integer
+          format: int64
+          description: Response timestamp
+        resMsgId:
+          type: string
+          description: Response message ID
+        msgId:
+          type: string
+          description: Original message ID
+        status:
+          type: string
+          description: Response status
+
+    AuditDetails:
+      type: object
+      properties:
+        createdBy:
+          type: string
+          description: User ID who created the record
+        lastModifiedBy:
+          type: string
+          description: User ID who last modified the record
+        createdTime:
+          type: integer
+          format: int64
+          description: Created timestamp
+        lastModifiedTime:
+          type: integer
+          format: int64
+          description: Last modified timestamp
+
+    ErrorResponse:
+      type: object
+      properties:
+        ResponseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        Errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/Error'
+
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+          description: Error code
+        message:
+          type: string
+          description: Error message
+        description:
+          type: string
+          description: Detailed error description
+        params:
+          type: array
+          items:
+            type: string
+          description: Error parameters
+
+    # Processing related schemas
+    ProcessResourceRequest:
+      type: object
+      required:
+        - RequestInfo
+        - ResourceDetails
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        ResourceDetails:
+          $ref: '#/components/schemas/ProcessResource'
+
+    ProcessResourceResponse:
+      type: object
+      properties:
+        ResponseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        ProcessResource:
+          $ref: '#/components/schemas/ProcessResource'
+
+    ProcessResource:
+      type: object
+      required:
+        - tenantId
+        - type
+        - hierarchyType
+        - referenceId
+        - fileStoreId
+      properties:
+        id:
+          type: string
+          description: Unique identifier of the processing resource
+          readOnly: true
+        tenantId:
+          type: string
+          description: Tenant identifier
+          minLength: 2
+          maxLength: 50
+        type:
+          type: string
+          description: Type of resource to process
+          minLength: 2
+          maxLength: 100
+        hierarchyType:
+          type: string
+          description: Type of hierarchy (e.g., ADMIN, WORKBENCH)
+          minLength: 2
+          maxLength: 100
+        referenceId:
+          type: string
+          description: Reference identifier for tracking
+          minLength: 1
+          maxLength: 255
+        fileStoreId:
+          type: string
+          description: File store ID of the Excel file to process
+        status:
+          type: string
+          description: Processing status
+          readOnly: true
+        locale:
+          type: string
+          description: Locale for processing
+        additionalDetails:
+          type: object
+          description: Additional metadata for processing
+        auditDetails:
+          $ref: '#/components/schemas/AuditDetails'
+          readOnly: true
+        createdTime:
+          type: integer
+          format: int64
+          description: Created timestamp
+          readOnly: true
+        lastModifiedTime:
+          type: integer
+          format: int64
+          description: Last modified timestamp
+          readOnly: true
+
+    # Search related schemas
+    GenerationSearchRequest:
+      type: object
+      required:
+        - RequestInfo
+        - GenerationSearchCriteria
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        GenerationSearchCriteria:
+          $ref: '#/components/schemas/GenerationSearchCriteria'
+
+    GenerationSearchResponse:
+      type: object
+      properties:
+        ResponseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        GenerateResources:
+          type: array
+          items:
+            $ref: '#/components/schemas/GenerateResource'
+
+    GenerationSearchCriteria:
+      type: object
+      required:
+        - tenantId
+      properties:
+        tenantId:
+          type: string
+          description: Tenant identifier
+        ids:
+          type: array
+          items:
+            type: string
+          description: List of generation IDs to search
+        referenceIds:
+          type: array
+          items:
+            type: string
+          description: List of reference IDs to search
+        types:
+          type: array
+          items:
+            type: string
+          description: List of resource types to search
+        statuses:
+          type: array
+          items:
+            type: string
+          description: List of statuses to search
+        locale:
+          type: string
+          description: Locale for search
+        createdFrom:
+          type: integer
+          format: int64
+          description: Search from created timestamp
+        createdTo:
+          type: integer
+          format: int64
+          description: Search to created timestamp
+        limit:
+          type: integer
+          description: Maximum number of records to return
+          default: 100
+        offset:
+          type: integer
+          description: Number of records to skip
+          default: 0
+
+    ProcessingSearchRequest:
+      type: object
+      required:
+        - RequestInfo
+        - ProcessingSearchCriteria
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        ProcessingSearchCriteria:
+          $ref: '#/components/schemas/ProcessingSearchCriteria'
+
+    ProcessingSearchResponse:
+      type: object
+      properties:
+        ResponseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        ProcessResources:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProcessResource'
+
+    ProcessingSearchCriteria:
+      type: object
+      required:
+        - tenantId
+      properties:
+        tenantId:
+          type: string
+          description: Tenant identifier
+        ids:
+          type: array
+          items:
+            type: string
+          description: List of processing IDs to search
+        referenceIds:
+          type: array
+          items:
+            type: string
+          description: List of reference IDs to search
+        types:
+          type: array
+          items:
+            type: string
+          description: List of resource types to search
+        statuses:
+          type: array
+          items:
+            type: string
+          description: List of statuses to search
+        createdFrom:
+          type: integer
+          format: int64
+          description: Search from created timestamp
+        createdTo:
+          type: integer
+          format: int64
+          description: Search to created timestamp
+        limit:
+          type: integer
+          description: Maximum number of records to return
+          default: 100
+        offset:
+          type: integer
+          description: Number of records to skip
+          default: 0
+
+    # Sheet data related schemas
+    SheetDataSearchRequest:
+      type: object
+      required:
+        - RequestInfo
+        - SheetDataSearchCriteria
+      properties:
+        RequestInfo:
+          $ref: '#/components/schemas/RequestInfo'
+        SheetDataSearchCriteria:
+          $ref: '#/components/schemas/SheetDataSearchCriteria'
+
+    SheetDataSearchResponse:
+      type: object
+      properties:
+        ResponseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        SheetDataDetails:
+          type: array
+          items:
+            $ref: '#/components/schemas/SheetDataDetails'
+
+    SheetDataSearchCriteria:
+      type: object
+      required:
+        - tenantId
+      properties:
+        tenantId:
+          type: string
+          description: Tenant identifier
+        referenceId:
+          type: string
+          description: Reference ID to search
+        fileStoreId:
+          type: string
+          description: File store ID to search
+        sheetName:
+          type: string
+          description: Sheet name to search
+        limit:
+          type: integer
+          description: Maximum number of records to return
+          default: 100
+        offset:
+          type: integer
+          description: Number of records to skip
+          default: 0
+
+    SheetDataDetails:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique identifier
+        tenantId:
+          type: string
+          description: Tenant identifier
+        referenceId:
+          type: string
+          description: Reference identifier
+        fileStoreId:
+          type: string
+          description: File store identifier
+        sheetName:
+          type: string
+          description: Name of the sheet
+        rowNumber:
+          type: integer
+          description: Row number in the sheet
+        rowJson:
+          type: object
+          description: Row data in JSON format
+        auditDetails:
+          $ref: '#/components/schemas/AuditDetails'
+
+    SheetDataDeleteResponse:
+      type: object
+      properties:
+        ResponseInfo:
+          $ref: '#/components/schemas/ResponseInfo'
+        DeleteDetails:
+          $ref: '#/components/schemas/DeleteDetails'
+
+    DeleteDetails:
+      type: object
+      properties:
+        message:
+          type: string
+          description: Deletion success message
+        tenantId:
+          type: string
+          description: Tenant identifier
+        referenceId:
+          type: string
+          description: Reference identifier
+        fileStoreId:
+          type: string
+          description: File store identifier
+
+tags:
+  - name: Excel Generation
+    description: API for generating Excel templates based on boundary hierarchy
+  - name: Excel Processing
+    description: API for processing Excel files and validating data
+  - name: Sheet Data Management
+    description: API for managing temporary sheet data

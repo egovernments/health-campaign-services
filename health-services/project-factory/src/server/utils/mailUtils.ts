@@ -9,11 +9,11 @@ import { getFileUrl } from "./onGoingCampaignUpdateUtils";
 import { logger } from "./logger"; // if you use a custom logger
 
 export async function sendNotificationEmail(
-    fileStoreIdMap: Record<string, string>, request: any
+    fileStoreIdMap: Record<string, string>, requestBody: any
 ): Promise<void> {
 
     try {
-        const requestInfo = request?.body?.RequestInfo;
+        const requestInfo = requestBody?.RequestInfo;
         logger.info("Step 1: Starting sendNotificationEmail");
 
         const locale = requestInfo?.msgId?.split("|")?.[1] || "en-IN";
@@ -58,7 +58,7 @@ export async function sendNotificationEmail(
 
 
         // Step 3: Prepare replacements
-        const campaignName = request?.body?.CampaignDetails?.campaignName || "";
+        const campaignName = requestBody?.CampaignDetails?.campaignName || "";
         const campaignManagerName = requestInfo?.userInfo?.userName || "Campaign Manager";
 
         // Extracting download link (use only the first file ID)
@@ -122,16 +122,16 @@ function replacePlaceholders(template: string, replacements: Record<string, stri
   return template.replace(/\{(.*?)\}/g, (_, key) => replacements[key.trim()] ?? '');
 }
 
-export async function getUserCredentialFileMap(request: any): Promise<Record<string, string>> {
+export async function getUserCredentialFileMap(requestBody: any): Promise<Record<string, string>> {
   try {
-    const campaignId = request?.body?.CampaignDetails?.id;
-    const tenantId = request?.body?.CampaignDetails?.tenantId;
-    const hierarchy = request?.body?.CampaignDetails?.hierarchyType;
+    const campaignId = requestBody?.CampaignDetails?.id;
+    const tenantId = requestBody?.CampaignDetails?.tenantId;
+    const hierarchy = requestBody?.CampaignDetails?.hierarchyType;
     const type = "userCredential";
 
     logger.info(`getUserCredentialFileMap: Initiating downloadTemplate for campaign ID: ${campaignId}`);
 
-    const downloadResponse = await downloadTemplate(campaignId, tenantId, type, hierarchy, request?.body);
+    const downloadResponse = await downloadTemplate(campaignId, tenantId, type, hierarchy, requestBody);
 
     const fileStoreId = downloadResponse?.[0]?.fileStoreid;
     if (!fileStoreId) {
@@ -152,12 +152,14 @@ export async function getUserCredentialFileMap(request: any): Promise<Record<str
   }
 }
 
-export async function triggerUserCredentialEmailFlow(request: any): Promise<void> {
+export async function triggerUserCredentialEmailFlow(requestBody: any): Promise<void> {
   logger.info("triggerUserCredentialEmailFlow: Email flow started...");
-  
+  // waiting for 3 seconds to ensure that user credentials are ready
+  logger.info("triggerUserCredentialEmailFlow: Waiting for 3 seconds before proceeding with email flow...");
+  await new Promise(resolve => setTimeout(resolve, 3000));
   try {
-    const userCredentialFileMap = await getUserCredentialFileMap(request);
-    await sendNotificationEmail(userCredentialFileMap, request);
+    const userCredentialFileMap = await getUserCredentialFileMap(requestBody);
+    await sendNotificationEmail(userCredentialFileMap, requestBody);
     logger.info("triggerUserCredentialEmailFlow: Email flow completed successfully.");
   } catch (emailError) {
     logger.error("triggerUserCredentialEmailFlow: Email flow failed — continuing main flow", emailError);
