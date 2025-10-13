@@ -5,6 +5,7 @@ on:
     branches:
       - boundary_management_service
       - master
+      - console
 
 env:
   DOCKER_USERNAME: ${{ vars.DOCKER_USERNAME }}
