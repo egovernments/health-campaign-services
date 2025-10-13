@@ -5,15 +5,15 @@ import { getErrorCodes, mappingStatuses } from "../config/constants";
 import { v4 as uuidv4 } from 'uuid';
 import { produceModifiedMessages } from "../kafka/Producer";
 import { generateHierarchyList, getAllFacilities, getCampaignSearchResponse, getHierarchy } from "../api/campaignApis";
-import { getBoundarySheetData, getSheetData, createAndUploadFile, createExcelSheet, getTargetSheetData, callMdmsTypeSchema, getConfigurableColumnHeadersBasedOnCampaignTypeForBoundaryManagement } from "../api/genericApis";
+import { getBoundarySheetData, getSheetData, createAndUploadFile, createExcelSheet, getTargetSheetData, callMdmsTypeSchema } from "../api/genericApis";
 import { logger } from "./logger";
-import { checkIfSourceIsMicroplan, getConfigurableColumnHeadersBasedOnCampaignType, getDifferentTabGeneratedBasedOnConfig, getLocalizedName, getLocalizedNameOnlyIfMessagePresent } from "./campaignUtils";
+import { checkIfSourceIsMicroplan, getConfigurableColumnHeadersBasedOnCampaignType, getDifferentTabGeneratedBasedOnConfig, getLocalizedName } from "./campaignUtils";
 import Localisation from "../controllers/localisationController/localisation.controller";
 import { executeQuery, getTableName } from "./db";
 import { generatedResourceTransformer } from "./transforms/searchResponseConstructor";
 import { allProcesses, generatedResourceStatuses, headingMapping, processStatuses, resourceDataStatuses } from "../config/constants";
 import { getLocaleFromRequest, getLocaleFromRequestInfo, getLocalisationModuleName } from "./localisationUtils";
-import { getBoundaryColumnName, getBoundaryTabName, getLatLongMapForBoundaryCodes } from "./boundaryUtils";
+import { getBoundaryColumnName, getBoundaryTabName } from "./boundaryUtils";
 import { getBoundaryDataService, searchDataService } from "../service/dataManageService";
 import { addDataToSheet, enrichUsageColumnForFacility, formatWorksheet, getNewExcelWorkbook, protectSheet, updateFontNameToRoboto } from "./excelUtils";
 import createAndSearch from "../config/createAndSearch";
@@ -385,7 +385,7 @@ async function fullProcessFlowForNewEntry(newEntryResponse: any, generatedResour
     const localizationMapModule = await getLocalizedMessagesHandler(request, request?.query?.tenantId);
     const localizationMap = { ...localizationMapHierarchy, ...localizationMapModule };
     let fileUrlResponse: any;
-    if (type != 'boundaryManagement' && request?.query?.campaignId != 'default' && type != 'boundaryGeometryManagement') {
+    if (request?.query?.campaignId != 'default') {
       const responseFromCampaignSearch = await getCampaignSearchResponse(request);
       const campaignObject = responseFromCampaignSearch?.CampaignDetails?.[0];
       logger.info(`checks for parent campaign for type: ${type}`)
@@ -419,19 +419,6 @@ async function fullProcessFlowForNewEntry(newEntryResponse: any, generatedResour
       // send to update topic
       await produceModifiedMessages(generatedResourceNew, updateGeneratedResourceTopic, request?.query?.tenantId);
       request.body.generatedResource = finalResponse;
-    }
-    else if (type == 'boundaryManagement' || type === 'boundaryGeometryManagement') {
-      // get boundary data from boundary relationship search api
-      logger.info("Generating Boundary Data")
-      const boundaryDataSheetGeneratedBeforeDifferentTabSeparation = await getBoundaryDataService(request, false);
-      logger.info(`Boundary data generated successfully: ${JSON.stringify(boundaryDataSheetGeneratedBeforeDifferentTabSeparation)}`);
-      // get boundary sheet data after being generated
-      const finalResponse = await getFinalUpdatedResponse(boundaryDataSheetGeneratedBeforeDifferentTabSeparation, newEntryResponse, request);
-      const generatedResourceNew: any = { generatedResource: finalResponse }
-      // send to update topic
-      await produceModifiedMessages(generatedResourceNew, updateGeneratedResourceTopic, request?.query?.tenantId);
-      request.body.generatedResource = finalResponse;
-      logger.info("generation completed for boundary management create flow")
     }
     else if (type == "facilityWithBoundary" || type == 'userWithBoundary') {
       await processGenerateRequest(request, localizationMap, filteredBoundary, fileUrlResponse);
@@ -1237,44 +1224,6 @@ async function enrichResourceDetails(request: any) {
   await produceModifiedMessages(persistMessage, config?.kafka?.KAFKA_CREATE_RESOURCE_DETAILS_TOPIC, request?.body?.ResourceDetails?.tenantId);
 }
 
-function modifyBoundaryData(boundaryData: any[], localizationMap?: any) {
-  // Initialize arrays to store data
-  const withBoundaryCode: { key: string, value: string }[][] = [];
-  const withoutBoundaryCode: { key: string, value: string }[][] = [];
-
-  // Get the key for the boundary code
-  const boundaryCodeKey = getLocalizedName(config?.boundary?.boundaryCode, localizationMap);
-
-  // Process each object in boundaryData
-  boundaryData.forEach((obj: any) => {
-    // Convert object entries to an array of {key, value} objects
-    const row: any = Object.entries(obj)
-      .filter(([key, value]: [string, any]) => value !== null && value !== undefined) // Filter out null or undefined values
-      .map(([key, value]: [string, any]) => {
-        // Check if the current key is the "Boundary Code" key
-        if (key === boundaryCodeKey) {
-          // Keep the "Boundary Code" value as is without transformation
-          return { key, value: value.toString() };
-        } else {
-          // Transform other values
-          return { key, value: value.toString().replace(/_/g, ' ').trim() };
-        }
-      });
-
-    // Determine whether the object has a boundary code property
-    const hasBoundaryCode = obj.hasOwnProperty(boundaryCodeKey);
-
-    // Push the row to the appropriate array based on whether it has a boundary code property
-    if (hasBoundaryCode) {
-      withBoundaryCode.push(row);
-    } else {
-      withoutBoundaryCode.push(row);
-    }
-  });
-
-  // Return the arrays
-  return [withBoundaryCode, withoutBoundaryCode];
-}
 
 async function getDataFromSheetFromNormalCampaign(type: any, fileStoreId: any, tenantId: any, createAndSearchConfig: any, optionalSheetName?: any, localizationMap?: { [key: string]: string }) {
   const fileResponse = await httpRequest(config.host.filestore + config.paths.filestore + "/url", {}, { tenantId: tenantId, fileStoreIds: fileStoreId }, "get");
@@ -1288,21 +1237,6 @@ async function getDataFromSheetFromNormalCampaign(type: any, fileStoreId: any, t
 
 }
 
-function createHeaderToHierarchyMap(
-  sheetHeaders: string[],
-  hierarchy: string[]
-): { [key: string]: string } {
-  const map: { [key: string]: string } = {};
-  let hierarchyIndex = 0;
-
-  for (const header of sheetHeaders) {
-    if (hierarchyIndex < hierarchy.length) {
-      map[header] = hierarchy[hierarchyIndex++];
-    }
-  }
-
-  return map;
-}
 
 
 async function getDataFromSheet(request: any, fileStoreId: any, tenantId: any, createAndSearchConfig: any, optionalSheetName?: any, localizationMap?: { [key: string]: string }) {
@@ -1325,10 +1259,6 @@ async function getDataSheetReady(boundaryData: any, request: any, localizationMa
   const type = request?.query?.type;
   const boundaryType = boundaryData?.[0].boundaryType;
   const boundaryList = generateHierarchyList(boundaryData)
-  const locale = getLocaleFromRequest(request);
-  const region = locale.split('_')[1];
-  const frenchMessagesMap: any = await getLocalizedMessagesHandler(request, request?.query?.tenantId, getLocalisationModuleName(request?.query?.hierarchyType), true, `fr_${region}`);
-  const portugeseMessagesMap: any = await getLocalizedMessagesHandler(request, request?.query?.tenantId, getLocalisationModuleName(request?.query?.hierarchyType), true, `pt_${region}`);
   if (!Array.isArray(boundaryList) || boundaryList.length === 0) {
     throwError("COMMON", 400, "VALIDATION_ERROR", "Boundary list is empty or not an array.");
   }
@@ -1341,9 +1271,6 @@ async function getDataSheetReady(boundaryData: any, request: any, localizationMa
   var configurableColumnHeadersBasedOnCampaignType: any[] = []
   if (type == "boundary") {
     configurableColumnHeadersBasedOnCampaignType = await getConfigurableColumnHeadersBasedOnCampaignType(request, localizationMap);
-  }
-  if (type == "boundaryManagement" || type == "boundaryGeometryManagement") {
-    configurableColumnHeadersBasedOnCampaignType = await getConfigurableColumnHeadersBasedOnCampaignTypeForBoundaryManagement(request, localizationMap);
   }
   const headers = (type !== "facilityWithBoundary" && type !== "userWithBoundary")
     ? [
@@ -1367,27 +1294,9 @@ async function getDataSheetReady(boundaryData: any, request: any, localizationMa
     );
     const boundaryCodeIndex = reducedHierarchy.length;
     mappedRowData[boundaryCodeIndex] = boundaryCode;
-    if (type === "boundaryManagement") {
-      const frenchTranslation = getLocalizedNameOnlyIfMessagePresent(boundaryCode, frenchMessagesMap) || '';
-      const portugeseTranslation = getLocalizedNameOnlyIfMessagePresent(boundaryCode, portugeseMessagesMap) || '';
-      mappedRowData.push(frenchTranslation);
-      mappedRowData.push(portugeseTranslation);
-    }
+
     return mappedRowData;
   });
-  if (type == "boundaryManagement") {
-    logger.info("Processing data for boundaryManagement type")
-    const latLongBoundaryMap = await getLatLongMapForBoundaryCodes(request, boundaryCodeList);
-    for (let d of data) {
-      const boundaryCode = d[d.length - 1];  // Assume last element is the boundary code
-
-      if (latLongBoundaryMap[boundaryCode]) {
-        const [latitude = null, longitude = null] = latLongBoundaryMap[boundaryCode];  // Destructure lat/long
-        d.push(latitude);   // Append latitude
-        d.push(longitude);  // Append longitude
-      }
-    }
-  }
   const sheetRowCount = data.length;
   if (type != "facilityWithBoundary") {
     request.body.generatedResourceCount = sheetRowCount;
@@ -1448,48 +1357,6 @@ async function translateSchema(
   return translatedSchema;
 }
 
-
-function findMapValue(map: Map<any, any>, key: any): any | null {
-  let foundValue = null;
-  map.forEach((value, mapKey) => {
-    if (mapKey.key === key.key && mapKey.value === key.value) {
-      foundValue = value;
-    }
-  });
-  return foundValue;
-}
-
-function extractFrenchOrPortugeseLocalizationMap(
-  boundaryData: any[][],
-  isFrench: boolean,
-  isPortugese: boolean,
-  localizationMap: any
-): Map<{ key: string; value: string }, string> {
-  const resultMap = new Map<{ key: string; value: string }, string>();
-
-  boundaryData.forEach(row => {
-    const boundaryCodeObj = row.find(obj => obj.key === getLocalizedName(config?.boundary?.boundaryCode, localizationMap));
-    const boundaryCode = boundaryCodeObj?.value;
-
-    if (!boundaryCode) return;
-
-    if (isFrench) {
-      const frenchMessageObj = row.find(obj => obj.key === getLocalizedName("HCM_ADMIN_CONSOLE_FRENCH_LOCALIZATION_MESSAGE", localizationMap));
-      resultMap.set({
-        key: "french",
-        value: frenchMessageObj?.value || ""
-      }, boundaryCode);
-    } else if (isPortugese) {
-      const portugeseMessageObj = row.find(obj => obj.key === getLocalizedName("HCM_ADMIN_CONSOLE_PORTUGESE_LOCALIZATION_MESSAGE", localizationMap));
-      resultMap.set({
-        key: "portugese",
-        value: portugeseMessageObj?.value || ""
-      }, boundaryCode);
-    }
-  });
-
-  return resultMap;
-}
 
 
 function getDifferentDistrictTabs(boundaryData: any, differentTabsBasedOnLevel: any) {
@@ -1589,23 +1456,6 @@ function appendProjectTypeToCapacity(schema: any, projectType: string): any {
   return updatedSchema;
 }
 
-function modifyBoundaryDataHeadersWithMap(
-  boundaryData: any[],
-  headerToHierarchyMap: { [originalHeader: string]: string }
-) {
-  return boundaryData.map((row) => {
-    const updatedRow: { [key: string]: any } = {};
-
-    for (const key in row) {
-      if (Object.prototype.hasOwnProperty.call(row, key)) {
-        const newKey = headerToHierarchyMap[key];
-        updatedRow[newKey || key] = row[key];
-      }
-    }
-
-    return updatedRow;
-  });
-}
 
 export async function getRelatedDataWithCampaign(type: string, campaignNumber: string, tenantId: string, status ?: string, uniqueIdentifier ?: string) {
   const tableName = getTableName(config?.DB_CONFIG?.DB_CAMPAIGN_DATA_TABLE_NAME, tenantId);
@@ -2141,7 +1991,6 @@ export {
   processGenerate,
   getDataFromSheet,
   enrichResourceDetails,
-  modifyBoundaryData,
   searchAllGeneratedResources,
   getDataSheetReady,
   modifyDataBasedOnDifferentTab,
@@ -2149,7 +1998,6 @@ export {
   getLocalizedMessagesHandler,
   getLocalizedHeaders,
   createReadMeSheet,
-  findMapValue,
   replicateRequest,
   getDifferentDistrictTabs,
   addDataToSheet,
@@ -2161,8 +2009,5 @@ export {
   appendProjectTypeToCapacity,
   createFacilityAndBoundaryFile,
   hideUniqueIdentifierColumn,
-  createHeaderToHierarchyMap,
-  modifyBoundaryDataHeadersWithMap,
-  extractFrenchOrPortugeseLocalizationMap,
   getLocalizedMessagesHandlerViaLocale
 };

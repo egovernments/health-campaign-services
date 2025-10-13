@@ -64,41 +64,6 @@ async function checkRedisConnection(): Promise<boolean> {
     }
 }
 
-async function deleteRedisCacheKeysWithPrefix(prefix: string): Promise<void> {
-    try {
-        let isConnected = await checkRedisConnection();
-        if (!isConnected) {
-            await reconnectRedis();
-            isConnected = await checkRedisConnection();
-        }
-
-        if (!isConnected) {
-            logger.error("❌ Redis still not connected. Skipping cache deletion.");
-            return;
-        }
-
-        let cursor = '0';
-        const keysToDelete: string[] = [];
-
-        do {
-            const [nextCursor, keys] = await redis.scan(cursor, 'MATCH', `${prefix}*`, 'COUNT', '100');
-            cursor = nextCursor;
-            if (keys.length > 0) {
-                keysToDelete.push(...keys);
-                logger.info(`🧹 Found cache keys to delete: ${keys}`);
-            }
-        } while (cursor !== '0');
-
-        if (keysToDelete.length > 0) {
-            await redis.del(...keysToDelete);
-            logger.info(`✅ Deleted keys with prefix "${prefix}":`, keysToDelete);
-        } else {
-            logger.info(`ℹ️ No keys found with prefix "${prefix}"`);
-        }
-    } catch (error) {
-        logger.warn("⚠️ Error deleting Redis keys:", error);
-    }
-}
 
 // Start
 redis = createRedisInstance();
@@ -107,5 +72,4 @@ export {
     redis,
     checkRedisConnection,
     reconnectRedis,
-    deleteRedisCacheKeysWithPrefix,
 };

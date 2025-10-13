@@ -584,7 +584,7 @@ async function validateCreateRequest(request: any, localizationMap?: any) {
         const type = request?.body?.ResourceDetails?.type;
         // validate create request body 
         validateBodyViaSchema(createRequestSchema, request.body.ResourceDetails);
-        if (type !== "boundaryManagement" && request?.body?.ResourceDetails.campaignId !== "default") {
+        if (request?.body?.ResourceDetails.campaignId !== "default") {
             await validateCampaignId(request);
         }
         await validateHierarchyType(request, request?.body?.ResourceDetails?.hierarchyType, request?.body?.ResourceDetails?.tenantId);
@@ -594,7 +594,7 @@ async function validateCreateRequest(request: any, localizationMap?: any) {
         const fileUrl = await validateFile(request);
         await validateFileMetaDataViaFileUrl(fileUrl, getLocaleFromRequest(request), request?.body?.ResourceDetails?.campaignId, request?.body?.ResourceDetails?.action);
         // const localizationMap = await getLocalizedMessagesHandler(request, request?.body?.ResourceDetails?.tenantId);
-        if (request.body.ResourceDetails.type == 'boundary' || request.body.ResourceDetails.type == 'boundaryManagement') {
+        if (request.body.ResourceDetails.type == 'boundary') {
             await validateBoundarySheetData(request, fileUrl, localizationMap);
         }
     }
@@ -1349,36 +1349,6 @@ async function validateCampaignFromId(request: any) {
 }
 
 
-function validateBoundarySheetDataInCreateFlow(boundarySheetData: any, localizedHeadersOfBoundarySheet: any) {
-    const firstColumnValues = new Set();
-    const firstColumn = localizedHeadersOfBoundarySheet[0];
-
-    boundarySheetData.forEach((obj: any, index: number) => {
-        let firstEmptyFound = false;
-        // Collect value from the first column
-        if (obj[firstColumn]) {
-            firstColumnValues.add(obj[firstColumn]);
-        }
-        if (firstColumnValues.size > 1) {
-            throwError("BOUNDARY", 400, "BOUNDARY_SHEET_FIRST_COLUMN_INVALID_ERROR",
-                `Data is invalid: The "${firstColumn}" column must contain only one unique value across all rows.`);
-        }
-
-        for (const header of localizedHeadersOfBoundarySheet) {
-            const value = obj[header];
-
-            if (!value) {
-                // Mark that an empty value has been found for the first time
-                firstEmptyFound = true;
-            } else if (firstEmptyFound) {
-                // If a non-empty value is found after an empty value in the expected order, throw an error
-                throwError("BOUNDARY", 400, "BOUNDARY_SHEET_UPLOADED_INVALID_ERROR",
-                    `Data is invalid in object at index ${index + 2}: Non-empty value for key "${header}" found after an empty value in the left.`);
-            }
-        }
-    });
-}
-
 export function validateEmptyActive(data: any, type: string, localizationMap?: { [key: string]: string }) {
     let isActiveRowsZero = true;
     const activeColumnName = createAndSearch?.[type]?.activeColumnName ? getLocalizedName(createAndSearch?.[type]?.activeColumnName, localizationMap) : null;
@@ -1600,6 +1570,6 @@ export {
     immediateValidationForTargetSheet,
     validateBoundaryOfResouces,
     validateParent,
-    validateBoundarySheetDataInCreateFlow,
+    validateForRetry,
     validateMicroplanRequest
 }
