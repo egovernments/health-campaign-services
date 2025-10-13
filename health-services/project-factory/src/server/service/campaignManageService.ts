@@ -2,9 +2,6 @@ import express from "express";
 import { prepareAndProduceCancelMessage, processBasedOnAction, processFetchMicroPlan, searchProjectCampaignResourcData, updateCampaignAfterSearch, validateAndFetchCampaign } from "../utils/campaignUtils";
 import { logger } from "../utils/logger";
 import { validateMicroplanRequest, validateProjectCampaignRequest } from "../validators/campaignValidators";
-import { validateCampaignRequest } from "../validators/genericValidator";
-import { createRelatedResouce } from "../api/genericApis";
-import { enrichCampaign } from "../api/campaignApis";
 
 async function createProjectTypeCampaignService(request: express.Request) {
     // Validate the request for creating a project type campaign
@@ -38,20 +35,6 @@ async function searchProjectTypeCampaignService(campaignDetails: any , request? 
     return responseBody;
 };
 
-async function createCampaignService(
-    requestBody: any
-) {
-    await validateCampaignRequest(requestBody)
-    logger.info("VALIDATED THE CAMPAIGN CREATE REQUEST");
-
-    // Create related resource
-    await createRelatedResouce(requestBody)
-
-    // Enrich the campaign
-    await enrichCampaign(requestBody)
-    return requestBody?.Campaign
-};
-
 async function fetchFromMicroplanService(request: express.Request) {
     logger.info("FETCHING DATA FROM MICROPLAN");
     await validateMicroplanRequest(request);
@@ -73,7 +56,6 @@ export {
     createProjectTypeCampaignService,
     updateProjectTypeCampaignService,
     searchProjectTypeCampaignService,
-    createCampaignService,
     fetchFromMicroplanService,
     cancelCampaignService
 }

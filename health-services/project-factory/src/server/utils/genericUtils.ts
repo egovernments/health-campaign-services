@@ -1,7 +1,7 @@
 import { NextFunction, Request, Response } from "express";
 import { httpRequest, defaultheader } from "./request";
 import config from "../config/index";
-import { getErrorCodes } from "../config/constants";
+import { getErrorCodes, mappingStatuses } from "../config/constants";
 import { v4 as uuidv4 } from 'uuid';
 import { produceModifiedMessages } from "../kafka/Producer";
 import { generateHierarchyList, getAllFacilities, getCampaignSearchResponse, getHierarchy } from "../api/campaignApis";
@@ -434,20 +434,6 @@ async function fullProcessFlowForNewEntry(newEntryResponse: any, generatedResour
   }
 }
 
-function generateAuditDetails(request: any) {
-  const createdBy = request?.body?.RequestInfo?.userInfo?.uuid;
-  const lastModifiedBy = request?.body?.RequestInfo?.userInfo?.uuid;
-  const auditDetails = {
-    createdBy: createdBy,
-    lastModifiedBy: lastModifiedBy,
-    createdTime: Date.now(),
-    lastModifiedTime: Date.now()
-  }
-  return auditDetails;
-}
-
-
-
 function sortCampaignDetails(campaignDetails: any) {
   campaignDetails.sort((a: any, b: any) => {
     // If a is a child of b, a should come after b
@@ -483,20 +469,6 @@ function correctParentValues(campaignDetails: any) {
 
   return campaignDetails;
 }
-
-// function setDropdownFromSchema(request: any, schema: any, localizationMap?: { [key: string]: string }) {
-//   const dropdowns = Object.entries(schema.properties)
-//     .filter(([key, value]: any) => Array.isArray(value.enum) && value.enum.length > 0)
-//     .reduce((result: any, [key, value]: any) => {
-//       // Transform the key using localisedValue function
-//       const newKey: any = getLocalizedName(key, localizationMap);
-//       result[newKey] = value.enum;
-//       return result;
-//     }, {});
-//   logger.info(`dropdowns to set ${JSON.stringify(dropdowns)}`)
-//   request.body.dropdowns = dropdowns;
-//   return dropdowns;
-// }
 
 function setHiddenColumns(request: any, schema: any, localizationMap?: { [key: string]: string }) {
   // from schema.properties find the key whose value have value.hideColumn == true
@@ -1283,18 +1255,6 @@ async function getDataFromSheet(request: any, fileStoreId: any, tenantId: any, c
   }
 }
 
-// async function getBoundaryRelationshipData(request: any, params: any) {
-//   logger.info("Boundary relationship search initiated");
-//   const url = `${config.host.boundaryHost}${config.paths.boundaryRelationship}`;
-//   const header = {
-//     ...defaultheader,
-//     // cachekey: `boundaryRelationShipSearch${params?.hierarchyType}${params?.tenantId}${params.codes || ''}${params?.includeChildren || ''}`,
-//   }
-//   const boundaryRelationshipResponse = await httpRequest(url, request.body, params, undefined, undefined, header);
-//   logger.info("Boundary relationship search response received");
-//   return boundaryRelationshipResponse?.TenantBoundary?.[0]?.boundary;
-// }
-
 async function getDataSheetReady(boundaryData: any, request: any, localizationMap?: { [key: string]: string }) {
   const type = request?.query?.type;
   const boundaryType = boundaryData?.[0].boundaryType;
@@ -1365,13 +1325,6 @@ async function getLocalizedMessagesHandler(request: any, tenantId: any, module =
     locale = getLocaleFromRequest(request);
   }
   const localizationResponse = await localisationcontroller.getLocalisedData(module, locale, tenantId, overrideCache);
-  return localizationResponse;
-}
-
-async function getLocalizedMessagesHandlerViaRequestInfo(RequestInfo: any, tenantId: any, module = config.localisation.localizationModule) {
-  const localisationcontroller = Localisation.getInstance();
-  const locale = getLocaleFromRequestInfo(RequestInfo);
-  const localizationResponse = await localisationcontroller.getLocalisedData(module, locale, tenantId);
   return localizationResponse;
 }
 
@@ -1588,7 +1541,13 @@ export async function getCurrentProcesses(campaignNumber: string, tenantId: stri
     rows.push({
       campaignNumber: relatedData?.rows[i]?.campaignnumber,
       processName : relatedData?.rows[i]?.processname,
-      status: relatedData?.rows[i]?.status
+      status: relatedData?.rows[i]?.status,
+      auditDetails: {
+        createdBy: relatedData?.rows[i]?.createdby,
+        lastModifiedBy: relatedData?.rows[i]?.lastmodifiedby,
+        createdTime: relatedData?.rows[i]?.createdtime,
+        lastModifiedTime: relatedData?.rows[i]?.lastmodifiedtime
+      }
     })
   }
   return rows;
@@ -1618,13 +1577,25 @@ export async function getCampaignDataRowsWithUniqueIdentifiers(type: string, uni
 }
 
 
-export async function prepareProcessesInDb(campaignNumber: any, tenantId: string) {
+export async function prepareProcessesInDb(campaignNumber: any, tenantId: string, userUuid?: string) {
   logger.info("Preparing processes in DB...");
   let allCurrentProcesses = await getCurrentProcesses(campaignNumber, tenantId);
+  
+  const currentTime = Date.now();
+  
+  // Add audit details to existing processes being updated
   for (let i = 0; i < allCurrentProcesses?.length; i++) {
       allCurrentProcesses[i].status = processStatuses.pending;
+      allCurrentProcesses[i].auditDetails = {
+        createdBy: allCurrentProcesses[i].auditDetails?.createdBy || userUuid,
+        createdTime: allCurrentProcesses[i].auditDetails?.createdTime || currentTime,
+        lastModifiedBy: userUuid,
+        lastModifiedTime: currentTime
+      };
   }
+  
   produceModifiedMessages({ processes: allCurrentProcesses }, config.kafka.KAFKA_UPDATE_PROCESS_DATA_TOPIC, tenantId);
+  
   let allProcessesJson: any = JSON.parse(JSON.stringify(allProcesses))
   let newProcesses = [];
   for (let processKey in allProcesses) {
@@ -1633,16 +1604,372 @@ export async function prepareProcessesInDb(campaignNumber: any, tenantId: string
       newProcesses.push({
         campaignNumber: campaignNumber,
         processName: allProcessesJson[processKey],
-        status: processStatuses.pending
+        status: processStatuses.pending,
+        auditDetails: {
+          createdBy: userUuid,
+          createdTime: currentTime,
+          lastModifiedBy: userUuid,
+          lastModifiedTime: currentTime
+        }
       })
     }
   }
+  
   produceModifiedMessages({ processes: newProcesses }, config.kafka.KAFKA_SAVE_PROCESS_DATA_TOPIC, tenantId);
   // wait for 2 second
   logger.info("Waiting for 10 seconds for processes to get updated...");
   await new Promise(resolve => setTimeout(resolve, 10000));
 }
 
+/**
+ * Build base query for campaign data with WHERE conditions
+ */
+function buildCampaignDataBaseQuery(searchParams: {
+  tenantId: string;
+  type?: string;
+  campaignNumber?: string;
+  status?: string;
+  uniqueIdentifiers?: string[];
+}) {
+  const { tenantId, type, campaignNumber, status, uniqueIdentifiers } = searchParams;
+
+  const tableName = getTableName(config?.DB_CONFIG?.DB_CAMPAIGN_DATA_TABLE_NAME, tenantId);
+
+  let whereClause = `FROM ${tableName} WHERE 1=1`;
+  const queryParams: any[] = [];
+  let paramIndex = 1;
+
+  if (type) {
+    whereClause += ` AND type = $${paramIndex}`;
+    queryParams.push(type);
+    paramIndex++;
+  }
+
+  if (campaignNumber) {
+    whereClause += ` AND campaignNumber = $${paramIndex}`;
+    queryParams.push(campaignNumber);
+    paramIndex++;
+  }
+
+  if (status) {
+    whereClause += ` AND status = $${paramIndex}`;
+    queryParams.push(status);
+    paramIndex++;
+  }
+
+  if (uniqueIdentifiers && uniqueIdentifiers.length > 0) {
+    whereClause += ` AND uniqueIdentifier = ANY($${paramIndex})`;
+    queryParams.push(uniqueIdentifiers);
+    paramIndex++;
+  }
+
+  return { whereClause, queryParams, paramIndex };
+}
+
+/**
+ * Build base query for mapping data with WHERE conditions
+ */
+function buildMappingDataBaseQuery(searchParams: {
+  tenantId: string;
+  type?: string;
+  campaignNumber?: string;
+  status?: string;
+  boundaryCode?: string;
+  uniqueIdentifierForData?: string;
+}) {
+  const { tenantId, type, campaignNumber, status, boundaryCode, uniqueIdentifierForData } = searchParams;
+
+  const tableName = getTableName(config?.DB_CONFIG?.DB_CAMPAIGN_MAPPING_DATA_TABLE_NAME, tenantId);
+
+  let whereClause = `FROM ${tableName} WHERE 1=1`;
+  const queryParams: any[] = [];
+  let paramIndex = 1;
+
+  if (type) {
+    whereClause += ` AND type = $${paramIndex}`;
+    queryParams.push(type);
+    paramIndex++;
+  }
+
+  if (campaignNumber) {
+    whereClause += ` AND campaignNumber = $${paramIndex}`;
+    queryParams.push(campaignNumber);
+    paramIndex++;
+  }
+
+  if (status) {
+    whereClause += ` AND status = $${paramIndex}`;
+    queryParams.push(status);
+    paramIndex++;
+  }
+
+  if (boundaryCode) {
+    whereClause += ` AND boundaryCode = $${paramIndex}`;
+    queryParams.push(boundaryCode);
+    paramIndex++;
+  }
+
+  if (uniqueIdentifierForData) {
+    whereClause += ` AND uniqueIdentifierForData = $${paramIndex}`;
+    queryParams.push(uniqueIdentifierForData);
+    paramIndex++;
+  }
+
+  return { whereClause, queryParams, paramIndex };
+}
+
+/**
+ * Search campaign data with optional pagination
+ */
+export async function searchCampaignData(searchParams: {
+  tenantId: string;
+  type?: string;
+  campaignNumber?: string;
+  status?: string;
+  uniqueIdentifiers?: string[];
+  offset?: number;
+  limit?: number;
+}) {
+  const { offset, limit } = searchParams;
+
+  // Build base query
+  const { whereClause, queryParams, paramIndex } = buildCampaignDataBaseQuery(searchParams);
+
+  // Build data query with ordering
+  let dataQuery = `SELECT * ${whereClause}`;
+  let finalParams = [...queryParams];
+
+  // Add pagination if provided
+  if (offset !== undefined && limit !== undefined) {
+    dataQuery += ` LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+    finalParams.push(limit, offset);
+  }
+
+  // Build count query
+  const countQuery = `SELECT COUNT(*) ${whereClause}`;
+
+  // Execute both queries
+  const [dataResult, countResult] = await Promise.all([
+    executeQuery(dataQuery, finalParams),
+    executeQuery(countQuery, queryParams)
+  ]);
+
+  const totalCount = parseInt(countResult?.rows?.[0]?.count || '0');
+
+  // Transform results
+  const rows = dataResult?.rows?.map((row: any) => ({
+    id: row?.id,
+    campaignNumber: row?.campaignnumber,
+    type: row?.type,
+    data: row?.data,
+    uniqueIdentifier: row?.uniqueidentifier,
+    status: row?.status,
+    uniqueIdAfterProcess: row?.uniqueidafterprocess,
+    createdBy: row?.createdby,
+    createdTime: row?.createdtime,
+    lastModifiedBy: row?.lastmodifiedby,
+    lastModifiedTime: row?.lastmodifiedtime
+  })) || [];
+
+  const result: any = {
+    data: rows,
+    totalCount
+  };
+
+  // Add pagination info if pagination was used
+  if (offset !== undefined && limit !== undefined) {
+    result.pagination = {
+      offset,
+      limit,
+      totalPages: Math.ceil(totalCount / limit),
+      currentPage: Math.floor(offset / limit) + 1
+    };
+  }
+
+  return result;
+}
+
+/**
+ * Search mapping data with optional pagination
+ */
+export async function searchMappingData(searchParams: {
+  tenantId: string;
+  type?: string;
+  campaignNumber?: string;
+  status?: string;
+  boundaryCode?: string;
+  uniqueIdentifierForData?: string;
+  offset?: number;
+  limit?: number;
+}) {
+  const { offset, limit } = searchParams;
+
+  // Build base query
+  const { whereClause, queryParams, paramIndex } = buildMappingDataBaseQuery(searchParams);
+
+  // Build data query with ordering
+  let dataQuery = `SELECT * ${whereClause}`;
+  let finalParams = [...queryParams];
+
+  // Add pagination if provided
+  if (offset !== undefined && limit !== undefined) {
+    dataQuery += ` LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+    finalParams.push(limit, offset);
+  }
+
+  // Build count query
+  const countQuery = `SELECT COUNT(*) ${whereClause}`;
+
+  // Execute both queries
+  const [dataResult, countResult] = await Promise.all([
+    executeQuery(dataQuery, finalParams),
+    executeQuery(countQuery, queryParams)
+  ]);
+
+  const totalCount = parseInt(countResult?.rows?.[0]?.count || '0');
+
+  // Transform results
+  const rows = dataResult?.rows?.map((row: any) => ({
+    id: row?.id,
+    campaignNumber: row?.campaignnumber,
+    type: row?.type,
+    boundaryCode: row?.boundarycode,
+    uniqueIdentifierForData: row?.uniqueidentifierfordata,
+    status: row?.status,
+    mappingId: row?.mappingid,
+    createdBy: row?.createdby,
+    createdTime: row?.createdtime,
+    lastModifiedBy: row?.lastmodifiedby,
+    lastModifiedTime: row?.lastmodifiedtime
+  })) || [];
+
+  const result: any = {
+    data: rows,
+    totalCount
+  };
+
+  // Add pagination info if pagination was used
+  if (offset !== undefined && limit !== undefined) {
+    result.pagination = {
+      offset,
+      limit,
+      totalPages: Math.ceil(totalCount / limit),
+      currentPage: Math.floor(offset / limit) + 1
+    };
+  }
+
+  return result;
+}
+
+
+
+/**
+ * Fast check for campaign data completion status
+ * Returns: { allCompleted: boolean, anyFailed: boolean, totalRows: number, completedRows: number, failedRows: number }
+ */
+export async function checkCampaignDataCompletionStatus(campaignNumber: string, tenantId: string) {
+  try {
+    const tableName = getTableName(config?.DB_CONFIG?.DB_CAMPAIGN_DATA_TABLE_NAME, tenantId);
+    
+    // Fast query to get status counts - only select minimal fields for performance
+    const queryString = `
+      SELECT 
+        status,
+        COUNT(*) as count
+      FROM ${tableName} 
+      WHERE campaignNumber = $1 
+      GROUP BY status
+    `;
+    
+    const result = await executeQuery(queryString, [campaignNumber]);
+    
+    let totalRows = 0;
+    let completedRows = 0;
+    let failedRows = 0;
+    
+    // Process the grouped results using constants
+    result?.rows?.forEach((row: any) => {
+      const count = parseInt(row.count);
+      totalRows += count;
+      
+      if (row.status === resourceDataStatuses.completed) {
+        completedRows = count;
+      } else if (row.status === resourceDataStatuses.failed) {
+        failedRows = count;
+      }
+    });
+    
+    const allCompleted = totalRows > 0 && completedRows === totalRows;
+    const anyFailed = failedRows > 0;
+    
+    return {
+      allCompleted,
+      anyFailed,
+      totalRows,
+      completedRows,
+      failedRows,
+      pendingRows: totalRows - completedRows - failedRows
+    };
+    
+  } catch (error) {
+    logger.error('Error checking campaign data completion status:', error);
+    throw error;
+  }
+}
+
+/**
+ * Fast check for campaign mapping completion status
+ * Returns: { allCompleted: boolean, anyFailed: boolean, totalMappings: number, completedMappings: number, failedMappings: number }
+ */
+export async function checkCampaignMappingCompletionStatus(campaignNumber: string, tenantId: string) {
+  try {
+    const tableName = getTableName(config?.DB_CONFIG?.DB_CAMPAIGN_MAPPING_DATA_TABLE_NAME, tenantId);
+    
+    // Fast query to get mapping status counts - only select minimal fields for performance
+    const queryString = `
+      SELECT 
+        status,
+        COUNT(*) as count
+      FROM ${tableName} 
+      WHERE campaignNumber = $1 
+      GROUP BY status
+    `;
+    
+    const result = await executeQuery(queryString, [campaignNumber]);
+    
+    let totalMappings = 0;
+    let completedMappings = 0;
+    let failedMappings = 0;
+    
+    // Process the grouped results using constants
+    result.rows.forEach((row: any) => {
+      const count = parseInt(row.count);
+      totalMappings += count;
+      
+      if (row.status === mappingStatuses.mapped || row.status === mappingStatuses.deMapped) {
+        completedMappings += count;
+      } else if (row.status === mappingStatuses.failed) {
+        failedMappings += count;
+      }
+    });
+    
+    const allCompleted = totalMappings > 0 && completedMappings === totalMappings;
+    const anyFailed = failedMappings > 0;
+    
+    return {
+      allCompleted,
+      anyFailed,
+      totalMappings,
+      completedMappings,
+      failedMappings,
+      pendingMappings: totalMappings - completedMappings - failedMappings
+    };
+    
+  } catch (error) {
+    logger.error('Error checking campaign mapping completion status:', error);
+    throw error;
+  }
+}
 
 export {
   errorResponder,
@@ -1653,7 +1980,6 @@ export {
   throwErrorViaRequest,
   sendResponse,
   appCache,
-  generateAuditDetails,
   searchGeneratedResources,
   generateNewRequestObject,
   updateExistingResourceExpired,
@@ -1681,7 +2007,6 @@ export {
   getMdmsDataBasedOnCampaignType,
   shutdownGracefully,
   appendProjectTypeToCapacity,
-  getLocalizedMessagesHandlerViaRequestInfo,
   createFacilityAndBoundaryFile,
   hideUniqueIdentifierColumn,
   getLocalizedMessagesHandlerViaLocale

@@ -1125,6 +1125,10 @@ export async function enrichAndPersistCampaignForCreateViaFlow2(
 
   campaignDetails.status =
     campaignDetails.action == "create" ? campaignStatuses.inprogress : campaignStatuses.started;
+  
+  campaignDetails.auditDetails.lastModifiedTime = Date.now();
+  campaignDetails.auditDetails.lastModifiedBy = useruuid;
+  
   const topic = config?.kafka?.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC;
   const produceMessage: any = {
     RequestInfo,
@@ -1145,15 +1149,15 @@ async function getRootProjectIdViaCampaignNumber(campaignNumber: string, boundar
 }
 
 function enrichInnerCampaignDetails(
-  request: any,
+  requestBody: any,
   updatedInnerCampaignDetails: any
 ) {
   updatedInnerCampaignDetails.resources =
-    request?.body?.CampaignDetails?.resources || [];
+    requestBody?.CampaignDetails?.resources || [];
   updatedInnerCampaignDetails.deliveryRules =
-    request?.body?.CampaignDetails?.deliveryRules || [];
+    requestBody?.CampaignDetails?.deliveryRules || [];
   updatedInnerCampaignDetails.boundaries =
-    request?.body?.CampaignDetails?.boundaries || [];
+    requestBody?.CampaignDetails?.boundaries || [];
 }
 
 async function enrichAndPersistCampaignForUpdate(
@@ -1171,7 +1175,7 @@ async function enrichAndPersistCampaignForUpdate(
   // }
   const ExistingCampaignDetails = request?.body?.ExistingCampaignDetails;
   var updatedInnerCampaignDetails = {};
-  enrichInnerCampaignDetails(request, updatedInnerCampaignDetails);
+  enrichInnerCampaignDetails(request?.body, updatedInnerCampaignDetails);
   request.body.CampaignDetails.campaignNumber =
     ExistingCampaignDetails?.campaignNumber;
   request.body.CampaignDetails.campaignDetails = updatedInnerCampaignDetails;
@@ -1244,71 +1248,71 @@ async function makeParentInactiveOrActive(parentCampaign: any, userUuid: string,
   );
 }
 
-function getCreateResourceIds(resources: any[]) {
-  return resources
-    .filter(
-      (resource: any) =>
-        typeof resource.createResourceId === "string" &&
-        resource.createResourceId.trim() !== ""
-    )
-    .map((resource: any) => {
-      const resourceId = resource.createResourceId;
-      return resourceId;
-    });
-}
+// function getCreateResourceIds(resources: any[]) {
+//   return resources
+//     .filter(
+//       (resource: any) =>
+//         typeof resource.createResourceId === "string" &&
+//         resource.createResourceId.trim() !== ""
+//     )
+//     .map((resource: any) => {
+//       const resourceId = resource.createResourceId;
+//       return resourceId;
+//     });
+// }
 
-async function persistForCampaignProjectMapping(
-  request: any,
-  createResourceDetailsIds: any,
-  localizationMap?: any
-) {
-  if (createResourceDetailsIds && request?.body?.CampaignDetails?.projectId) {
-    var requestBody: any = {
-      RequestInfo: request?.body?.RequestInfo,
-      Campaign: {},
-    };
-    if (request?.body?.ExistingCampaignDetails) {
-      delete request.body.ExistingCampaignDetails;
-    }
-    requestBody.Campaign.id = request?.body?.CampaignDetails?.id;
-    // requestBody.Campaign.newlyCreatedBoundaryProjectMap =
-    //   request?.body?.newlyCreatedBoundaryProjectMap;
-    requestBody.Campaign.hierarchyType =
-      request?.body?.CampaignDetails?.hierarchyType;
-    requestBody.Campaign.tenantId = request?.body?.CampaignDetails?.tenantId;
-    requestBody.Campaign.campaignName =
-      request?.body?.CampaignDetails?.campaignName;
-    requestBody.Campaign.boundaryCode =
-      request?.body?.CampaignDetails?.boundaryCode;
-    requestBody.Campaign.startDate = request?.body?.CampaignDetails?.startDate;
-    requestBody.Campaign.endDate = request?.body?.CampaignDetails?.endDate;
-    requestBody.Campaign.projectType =
-      request?.body?.CampaignDetails?.projectType;
-    requestBody.Campaign.additionalDetails =
-      request?.body?.CampaignDetails?.additionalDetails;
-    requestBody.Campaign.deliveryRules =
-      request?.body?.CampaignDetails?.deliveryRules;
-    requestBody.Campaign.rootProjectId =
-      request?.body?.CampaignDetails?.projectId;
-    requestBody.Campaign.resourceDetailsIds = createResourceDetailsIds;
-    requestBody.CampaignDetails = request?.body?.CampaignDetails;
-    requestBody.parentCampaign = request?.body?.parentCampaign;
-    var updatedInnerCampaignDetails = {};
-    enrichInnerCampaignDetails(request, updatedInnerCampaignDetails);
-    requestBody.CampaignDetails = request?.body?.CampaignDetails;
-    requestBody.CampaignDetails.campaignDetails = updatedInnerCampaignDetails;
-    // requestBody.localizationMap = localizationMap
-    logger.info("Persisting CampaignProjectMapping...");
-    logger.debug(
-      `CampaignProjectMapping: ${getFormattedStringForDebug(requestBody)}`
-    );
-    await produceModifiedMessages(
-      requestBody,
-      config?.kafka?.KAFKA_START_CAMPAIGN_MAPPING_TOPIC,
-      request?.body?.CampaignDetails?.tenantId
-    );
-  }
-}
+// async function persistForCampaignProjectMapping(
+//   request: any,
+//   createResourceDetailsIds: any,
+//   localizationMap?: any
+// ) {
+//   if (createResourceDetailsIds && request?.body?.CampaignDetails?.projectId) {
+//     var requestBody: any = {
+//       RequestInfo: request?.body?.RequestInfo,
+//       Campaign: {},
+//     };
+//     if (request?.body?.ExistingCampaignDetails) {
+//       delete request.body.ExistingCampaignDetails;
+//     }
+//     requestBody.Campaign.id = request?.body?.CampaignDetails?.id;
+//     // requestBody.Campaign.newlyCreatedBoundaryProjectMap =
+//     //   request?.body?.newlyCreatedBoundaryProjectMap;
+//     requestBody.Campaign.hierarchyType =
+//       request?.body?.CampaignDetails?.hierarchyType;
+//     requestBody.Campaign.tenantId = request?.body?.CampaignDetails?.tenantId;
+//     requestBody.Campaign.campaignName =
+//       request?.body?.CampaignDetails?.campaignName;
+//     requestBody.Campaign.boundaryCode =
+//       request?.body?.CampaignDetails?.boundaryCode;
+//     requestBody.Campaign.startDate = request?.body?.CampaignDetails?.startDate;
+//     requestBody.Campaign.endDate = request?.body?.CampaignDetails?.endDate;
+//     requestBody.Campaign.projectType =
+//       request?.body?.CampaignDetails?.projectType;
+//     requestBody.Campaign.additionalDetails =
+//       request?.body?.CampaignDetails?.additionalDetails;
+//     requestBody.Campaign.deliveryRules =
+//       request?.body?.CampaignDetails?.deliveryRules;
+//     requestBody.Campaign.rootProjectId =
+//       request?.body?.CampaignDetails?.projectId;
+//     requestBody.Campaign.resourceDetailsIds = createResourceDetailsIds;
+//     requestBody.CampaignDetails = request?.body?.CampaignDetails;
+//     requestBody.parentCampaign = request?.body?.parentCampaign;
+//     var updatedInnerCampaignDetails = {};
+//     enrichInnerCampaignDetails(request?.body, updatedInnerCampaignDetails);
+//     requestBody.CampaignDetails = request?.body?.CampaignDetails;
+//     requestBody.CampaignDetails.campaignDetails = updatedInnerCampaignDetails;
+//     // requestBody.localizationMap = localizationMap
+//     logger.info("Persisting CampaignProjectMapping...");
+//     logger.debug(
+//       `CampaignProjectMapping: ${getFormattedStringForDebug(requestBody)}`
+//     );
+//     await produceModifiedMessages(
+//       requestBody,
+//       config?.kafka?.KAFKA_START_CAMPAIGN_MAPPING_TOPIC,
+//       request?.body?.CampaignDetails?.tenantId
+//     );
+//   }
+// }
 
 function removeBoundariesFromRequest(request: any) {
   const boundaries = request?.body?.CampaignDetails?.boundaries;
@@ -1336,37 +1340,37 @@ async function enrichAndPersistProjectCampaignForFirst(
   // }
 }
 
-async function enrichAndPersistProjectCampaignRequest(
-  request: any,
-  actionInUrl: any,
-  firstPersist: boolean = false,
-  localizationMap?: any
-) {
-  var createResourceDetailsIds: any[] = [];
-  if (
-    request?.body?.CampaignDetails?.resources &&
-    Array.isArray(request?.body?.CampaignDetails?.resources) &&
-    request?.body?.CampaignDetails?.resources?.length > 0 &&
-    request?.body?.CampaignDetails?.action == "create"
-  ) {
-    createResourceDetailsIds = getCreateResourceIds(
-      request?.body?.CampaignDetails?.resources
-    );
-  }
-  // removeBoundariesFromRequest(request);
-  if (actionInUrl == "create") {
-    await enrichAndPersistCampaignForCreate(request, firstPersist);
-  } else if (actionInUrl == "update") {
-    await enrichAndPersistCampaignForUpdate(request, firstPersist);
-  }
-  if (request?.body?.CampaignDetails?.action == "create") {
-    await persistForCampaignProjectMapping(
-      request,
-      createResourceDetailsIds,
-      localizationMap
-    );
-  }
-}
+// async function enrichAndPersistProjectCampaignRequest(
+//   request: any,
+//   actionInUrl: any,
+//   firstPersist: boolean = false,
+//   localizationMap?: any
+// ) {
+//   var createResourceDetailsIds: any[] = [];
+//   if (
+//     request?.body?.CampaignDetails?.resources &&
+//     Array.isArray(request?.body?.CampaignDetails?.resources) &&
+//     request?.body?.CampaignDetails?.resources?.length > 0 &&
+//     request?.body?.CampaignDetails?.action == "create"
+//   ) {
+//     createResourceDetailsIds = getCreateResourceIds(
+//       request?.body?.CampaignDetails?.resources
+//     );
+//   }
+//   // removeBoundariesFromRequest(request);
+//   if (actionInUrl == "create") {
+//     await enrichAndPersistCampaignForCreate(request, firstPersist);
+//   } else if (actionInUrl == "update") {
+//     await enrichAndPersistCampaignForUpdate(request, firstPersist);
+//   }
+//   if (request?.body?.CampaignDetails?.action == "create") {
+//     await persistForCampaignProjectMapping(
+//       request,
+//       createResourceDetailsIds,
+//       localizationMap
+//     );
+//   }
+// }
 
 
 async function getTotalCount(campaignDetails: any) {
@@ -2174,84 +2178,52 @@ async function reorderBoundaries(request: any, localizationMap?: any) {
   return request.body.boundariesCombined;
 }
 
-function convertToProjectsArray(Projects: any, currentArray: any = []) {
-  for (const project of Projects) {
-    const descendants = project?.descendants;
-    delete project?.descendants;
-    currentArray.push(project);
-    if (descendants && Array.isArray(descendants) && descendants?.length > 0) {
-      convertToProjectsArray(descendants, currentArray);
-    }
-  }
-  return currentArray;
-}
+// function convertToProjectsArray(Projects: any, currentArray: any = []) {
+//   for (const project of Projects) {
+//     const descendants = project?.descendants;
+//     delete project?.descendants;
+//     currentArray.push(project);
+//     if (descendants && Array.isArray(descendants) && descendants?.length > 0) {
+//       convertToProjectsArray(descendants, currentArray);
+//     }
+//   }
+//   return currentArray;
+// }
 
-async function getRelatedProjects(request: any) {
-  const { projectId, tenantId } = request?.body?.CampaignDetails;
-  const projectSearchBody = {
-    RequestInfo: request?.body?.RequestInfo,
-    Projects: [
-      {
-        id: projectId,
-        tenantId: tenantId,
-      },
-    ],
-  };
-  const projectSearchParams = {
-    tenantId: tenantId,
-    offset: 0,
-    limit: 1,
-    includeDescendants: true,
-  };
-  logger.info("Project search params " + JSON.stringify(projectSearchParams));
-  const projectSearchResponse = await httpRequest(
-    config?.host?.projectHost + config?.paths?.projectSearch,
-    projectSearchBody,
-    projectSearchParams
-  );
-  if (
-    projectSearchResponse?.Project &&
-    Array.isArray(projectSearchResponse?.Project) &&
-    projectSearchResponse?.Project?.length > 0
-  ) {
-    return convertToProjectsArray(projectSearchResponse?.Project);
-  } else {
-    throwError("PROJECT", 500, "PROJECT_SEARCH_ERROR");
-    return [];
-  }
-}
-
-async function updateProjectDates(request: any, actionInUrl: any) {
-  const { startDate, endDate, projectId } = request?.body?.CampaignDetails;
-  if ((startDate || endDate) && projectId && actionInUrl == "update") {
-    const projects = await getRelatedProjects(request);
-    for (const project of projects) {
-      project.startDate = startDate || project.startDate;
-      project.endDate = endDate || project.endDate;
-      delete project?.address;
-    }
-    logger.info(
-      "Projects related to current Campaign : " + JSON.stringify(projects)
-    );
-    const projectUpdateBody = {
-      RequestInfo: request?.body?.RequestInfo,
-      Projects: projects,
-    };
-    const projectUpdateResponse = await httpRequest(
-      config?.host?.projectHost + config?.paths?.projectUpdate,
-      projectUpdateBody
-    );
-    if (
-      projectUpdateResponse?.Project &&
-      Array.isArray(projectUpdateResponse?.Project) &&
-      projectUpdateResponse?.Project?.length == projects?.length
-    ) {
-      logger.info("Project dates updated successfully");
-    } else {
-      throwError("PROJECT", 500, "PROJECT_UPDATE_ERROR");
-    }
-  }
-}
+// async function getRelatedProjects(request: any) {
+//   const { projectId, tenantId } = request?.body?.CampaignDetails;
+//   const projectSearchBody = {
+//     RequestInfo: request?.body?.RequestInfo,
+//     Projects: [
+//       {
+//         id: projectId,
+//         tenantId: tenantId,
+//       },
+//     ],
+//   };
+//   const projectSearchParams = {
+//     tenantId: tenantId,
+//     offset: 0,
+//     limit: 1,
+//     includeDescendants: true,
+//   };
+//   logger.info("Project search params " + JSON.stringify(projectSearchParams));
+//   const projectSearchResponse = await httpRequest(
+//     config?.host?.projectHost + config?.paths?.projectSearch,
+//     projectSearchBody,
+//     projectSearchParams
+//   );
+//   if (
+//     projectSearchResponse?.Project &&
+//     Array.isArray(projectSearchResponse?.Project) &&
+//     projectSearchResponse?.Project?.length > 0
+//   ) {
+//     return convertToProjectsArray(projectSearchResponse?.Project);
+//   } else {
+//     throwError("PROJECT", 500, "PROJECT_SEARCH_ERROR");
+//     return [];
+//   }
+// }
 
 async function getCodesTarget(request: any, localizationMap?: any) {
   let boundaryCodesWhoseTargetsHasToBeUpdated: any = [];
@@ -2314,58 +2286,128 @@ async function getCodesTarget(request: any, localizationMap?: any) {
   } else return null;
 }
 
+/**
+ * Check if campaign is a unified template campaign
+ * Unified campaigns have resources with type "unified-console-resources"
+ */
+function isUnfiedTemplateCamapign(campaignDetails: any): boolean {
+  if (!campaignDetails?.resources || !Array.isArray(campaignDetails.resources)) {
+    throw new Error('Campaign resources not found or invalid');
+  }
+  
+  // Check if any resource has type "unified-console-resources"
+  return campaignDetails.resources.some((resource: any) => 
+    resource?.type === "unified-console-resources"
+  );
+}
+
+/**
+ * Process unified template campaign by calling excel-ingestion process API
+ */
+async function processUnifiedTemplateCampaign(request: any): Promise<void> {
+  // For unified template campaigns, call excel-ingestion process API
+  const campaignDetails = request?.body?.CampaignDetails;
+  const useruuid = request?.body?.RequestInfo?.userInfo?.uuid || campaignDetails?.auditDetails?.createdBy;
+  
+  // Find the unified-console-resources resource to get filestoreId
+  const unifiedResource = campaignDetails.resources.find((resource: any) => 
+    resource?.type === "unified-console-resources"
+  );
+  
+  if (!unifiedResource?.filestoreId) {
+    throw new Error('FileStoreId not found for unified-console-resources');
+  }
+  
+  logger.info(`Calling excel-ingestion process API for unified campaign: ${campaignDetails.campaignNumber}`);
+  
+  // Call excel-ingestion process API
+  const processRequestBody = {
+    RequestInfo: {
+      apiId: "project-factory",
+      ver: "1.0",
+      ts: Date.now(),
+      action: "process",
+      msgId: `pf-${Date.now()}`,
+      correlationId: `pf-correlation-${Date.now()}`,
+      userInfo: { uuid: useruuid }
+    },
+    ResourceDetails: {
+      type: "unified-console-parse",
+      tenantId: campaignDetails.tenantId,
+      referenceId: campaignDetails.id,
+      fileStoreId: unifiedResource.filestoreId,
+      campaignId: campaignDetails.id,
+      hierarchyType: campaignDetails.hierarchyType,
+      additionalDetails: {
+        projectType: campaignDetails.projectType
+      }
+    }
+  };
+  
+  const processUrl = `${config.host.excelIngestionHost}${config.paths.excelIngestionProcess}`;
+  
+  try {
+    await httpRequest(
+      processUrl,
+      processRequestBody,
+      {},
+      'post',
+      '',
+      {
+        'Content-Type': 'application/json'
+      }
+    );
+    logger.info(`Excel-ingestion process API called successfully for campaign: ${campaignDetails.campaignNumber}`);
+  } catch (error) {
+    logger.error(`Error calling excel-ingestion process API for campaign: ${campaignDetails.campaignNumber}`, error);
+    throw error;
+  }
+}
+
+/**
+ * Process regular campaign with background resource creation flow
+ */
+async function processRegularCampaign(request: any): Promise<void> {
+  const locale = getLocaleFromRequest(request);
+  const campaignDetails = request?.body?.CampaignDetails;
+  const campaignNumber = campaignDetails?.campaignNumber;
+  const tenantId = campaignDetails?.tenantId;
+  const useruuid =
+    request?.body?.RequestInfo?.userInfo?.uuid ||
+    campaignDetails?.auditDetails?.createdBy;
+
+  // Prepare DB setup synchronously
+  await prepareProcessesInDb(campaignNumber, tenantId, useruuid);
+
+  // ✅ Offload the long chain into background (non-blocking)
+  setImmediate(async () => {
+    try {
+      await createAllResources(campaignDetails, request?.body?.parentCampaign || null, useruuid);
+      await createAllMappings(campaignDetails, request?.body?.parentCampaign || null, useruuid);
+      await userCredGeneration(campaignDetails, useruuid, locale);
+      await enrichAndPersistCampaignForCreateViaFlow2(campaignDetails, request?.body?.RequestInfo, request?.body?.parentCampaign || null, useruuid);
+      triggerUserCredentialEmailFlow(request?.body); // not awaited = background
+    } catch (e) {
+      console.log(e);
+      logger.error("Async Background Flow Error:", e);
+      await enrichAndPersistCampaignWithError(request?.body, e);
+    }
+  });
+
+  // ✅ Immediately return so main thread isn't blocked
+  logger.info(`Started async background flow for campaign: ${campaignNumber}`);
+}
 
 export async function processAfterPersistNew(request: any, actionInUrl: any) {
   try {
     if (request?.body?.CampaignDetails?.action == "create") {
-      const locale = getLocaleFromRequest(request);
-      const campaignDetails = request?.body?.CampaignDetails;
-      const campaignNumber = campaignDetails?.campaignNumber;
-      const tenantId = campaignDetails?.tenantId;
-      const useruuid =
-        request?.body?.RequestInfo?.userInfo?.uuid ||
-        campaignDetails?.auditDetails?.createdBy;
-
-      // Prepare DB setup synchronously
-      await prepareProcessesInDb(campaignNumber, tenantId);
-
-      // ✅ Offload the long chain into background (non-blocking)
-      setImmediate(async () => {
-        try {
-          await createAllResources(campaignDetails, request?.body?.parentCampaign || null, useruuid);
-          await createAllMappings(campaignDetails, request?.body?.parentCampaign || null, useruuid);
-          await userCredGeneration(campaignDetails, useruuid, locale);
-          await enrichAndPersistCampaignForCreateViaFlow2(campaignDetails, request?.body?.RequestInfo, request?.body?.parentCampaign || null, useruuid);
-          triggerUserCredentialEmailFlow(request); // not awaited = background
-        } catch (e) {
-          console.log(e);
-          logger.error("Async Background Flow Error:", e);
-          await enrichAndPersistCampaignWithError(request?.body, e);
-        }
-      });
-
-      // ✅ Immediately return so main thread isn't blocked
-      logger.info(`Started async background flow for campaign: ${campaignNumber}`);
-    } else {
-      let localizationMap;
-      try {
-        localizationMap = await getLocalizedMessagesHandler(
-          request,
-          request?.body?.CampaignDetails?.tenantId
-        );
-      } catch (err) {
-        console.log(err);
-        throwError("COMMON", 500, "LOCALISATION_ERROR", "Localisation fetch error");
+      if(isUnfiedTemplateCamapign(request?.body?.CampaignDetails)){
+        await processUnifiedTemplateCampaign(request);
       }
-      await updateProjectDates(request, actionInUrl);
-      await enrichAndPersistProjectCampaignRequest(
-        request,
-        actionInUrl,
-        false,
-        localizationMap
-      );
+      else{
+        await processRegularCampaign(request);
+      }
     }
-
     delete request.body?.boundariesCombined;
   } catch (error: any) {
     console.log(error);
@@ -2380,7 +2422,7 @@ async function userCredGeneration(campaignDetails: any, useruuid: string, locale
   let userCredGenerationProcess = allProcesses.userCredGeneration;
   let allCurrentProcesses = await getCurrentProcesses(campaignDetails?.campaignNumber, campaignDetails?.tenantId);
   let task = allCurrentProcesses.find((process: any) => process?.processName == userCredGenerationProcess);
-  if (task && task?.status == processStatuses.pending) {
+  if (task && task?.status == processStatuses.pending || task?.status == processStatuses.failed) {
     const generateTemplateQuery: GenerateTemplateQuery = {
       type: "userCredential",
       campaignId: campaignDetails?.id,
@@ -2419,6 +2461,19 @@ async function userCredGeneration(campaignDetails: any, useruuid: string, locale
           throwError("COMMON", 400, "USER_CREDENTIAL_GENERATION_ERROR", "Campaign creation failed during user credential generation");
         }
         attempts++;
+      }
+      if (status == generatedResourceStatuses.completed) {
+        logger.info(`User credential generation completed successfully.`);
+        // Mark process as completed in DB
+        const currentTime = Date.now();
+        task.status = processStatuses.completed;
+        task.auditDetails = {
+          createdBy: task.auditDetails?.createdBy || useruuid,
+          createdTime: task.auditDetails?.createdTime || currentTime,
+          lastModifiedBy: useruuid,
+          lastModifiedTime: currentTime
+        };
+        await produceModifiedMessages({ processes: [task] }, config?.kafka?.KAFKA_UPDATE_PROCESS_DATA_TOPIC, campaignDetails?.tenantId);
       }
       if (status != generatedResourceStatuses.completed) {
         throwError("COMMON", 400, "USER_CREDENTIAL_GENERATION_ERROR", "User credential generation failed");

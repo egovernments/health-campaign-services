@@ -1,4 +1,3 @@
-// Import necessary modules and libraries
 import config from "../config"; // Import configuration settings
 import FormData from "form-data"; // Import FormData for handling multipart/form-data requests
 import { defaultheader, httpRequest } from "../utils/request"; // Import httpRequest function for making HTTP requests
@@ -8,7 +7,6 @@ import { generateFilteredBoundaryData, getConfigurableColumnHeadersBasedOnCampai
 import { getCampaignSearchResponse, getHierarchy } from './campaignApis';
 const _ = require('lodash'); // Import lodash library
 import { enrichTemplateMetaData, getExcelWorkbookFromFileURL } from "../utils/excelUtils";
-import { processMapping } from "../utils/campaignMappingUtils";
 import { defaultRequestInfo, searchBoundaryRelationshipData, searchMDMSDataViaV2Api } from "./coreApis";
 import { getLocaleFromRequestInfo } from "../utils/localisationUtils";
 import { MDMSModels } from "../models";
@@ -1068,7 +1066,6 @@ export {
   getCount,
   getBoundarySheetData,
   createAndUploadFile,
-  createRelatedResouce,
   createExcelSheet,
   generateHierarchy,
   generateHierarchyList,
