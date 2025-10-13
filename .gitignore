@@ -84,5 +84,5 @@ Thumbs.db
 .DS_Store
 Thumbs.db
 
-utilities/project-factory/node_modules/*
-frontend/micro-ui/web/micro-ui-internals/node_modules/*
+health-services/project-factory/node_modules/*
+health-services/boundary-management/node_modules/*
