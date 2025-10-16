@@ -5,6 +5,7 @@ on:
     branches:
       - allValidations
       - master
+      - project-factory-tenantId-fix
 
 env:
   DOCKER_USERNAME: ${{ vars.DOCKER_USERNAME }}
