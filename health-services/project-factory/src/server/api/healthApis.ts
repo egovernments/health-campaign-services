@@ -4,10 +4,10 @@ import config from "../config";
 import { throwError } from "../utils/genericUtils";
 import { logger } from "../utils/logger";
 
-export async function fetchProductVariants(pvarIds: string[]) {
+export async function fetchProductVariants(pvarIds: string[] , tenantId?: string) {
     const CHUNK_SIZE = 100;
     const allProductVariants: any[] = [];
-    const params: any = { limit: CHUNK_SIZE, offset: 0, tenantId: defaultRequestInfo?.RequestInfo?.userInfo?.tenantId };
+    const params: any = { limit: CHUNK_SIZE, offset: 0, tenantId: tenantId };
 
     for (let i = 0; i < pvarIds.length; i += CHUNK_SIZE) {
         const chunk = pvarIds.slice(i, i + CHUNK_SIZE);
