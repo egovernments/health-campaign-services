@@ -581,7 +581,7 @@ async function validateCreateRequest(request: any, localizationMap?: any) {
         throwError("COMMON", 400, "VALIDATION_ERROR", "ResourceDetails is missing or empty or null");
     }
     else {
-        const type = request?.body?.ResourceDetails?.type;
+        // const type = request?.body?.ResourceDetails?.type;
         // validate create request body 
         validateBodyViaSchema(createRequestSchema, request.body.ResourceDetails);
         if (request?.body?.ResourceDetails.campaignId !== "default") {
@@ -1127,6 +1127,10 @@ async function validateProjectCampaignRequest(request: any, actionInUrl: any) {
 
 async function validateProductVariant(request: any) {
     const deliveryRules = request?.body?.CampaignDetails?.deliveryRules;
+    const tenantId = request?.body?.CampaignDetails?.tenantId;
+    if(tenantId === undefined){
+        logger.error("tenantId is undefined");
+    }
 
     if (!Array.isArray(deliveryRules)) {
         throwError("COMMON", 400, "VALIDATION_ERROR", "deliveryRules must be an array");
@@ -1139,18 +1143,18 @@ async function validateProductVariant(request: any) {
         }
     });
     const pvarIds= getPvarIds(request?.body);
-    await validatePvarIds(pvarIds as string[]);
+    await validatePvarIds(pvarIds as string[],tenantId);
     logger.info("Validated product variants successfully");
 }
 
-async function validatePvarIds(pvarIds: string[]) {
+async function validatePvarIds(pvarIds: string[] , tenantId?: string) {
     // Validate that pvarIds is not null, undefined, or empty, and that no element is null or undefined
     if (!pvarIds?.length || pvarIds.some((id:any) => !id)) {
         throwError("COMMON", 400, "VALIDATION_ERROR", "productVariantId is required in every delivery rule's resources");
     }
 
     // Fetch product variants using the fetchProductVariants function
-    const allProductVariants = await fetchProductVariants(pvarIds);
+    const allProductVariants = await fetchProductVariants(pvarIds,tenantId);
 
     // Extract the ids of the fetched product variants
     const fetchedIds = new Set(allProductVariants.map((pvar: any) => pvar?.id));
@@ -1570,6 +1574,5 @@ export {
     immediateValidationForTargetSheet,
     validateBoundaryOfResouces,
     validateParent,
-    validateForRetry,
     validateMicroplanRequest
 }

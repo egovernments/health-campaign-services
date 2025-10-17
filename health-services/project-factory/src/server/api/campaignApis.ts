@@ -1497,6 +1497,7 @@ async function handleResouceDetailsError(request: any, error: any) {
     }
   }
 
+  const tenantId = request?.body?.ResourceDetails?.tenantId;
   logger.error("Error while processing after validation : " + error);
   if (request?.body?.ResourceDetails) {
     request.body.ResourceDetails.status = "failed";
@@ -1536,7 +1537,7 @@ async function handleResouceDetailsError(request: any, error: any) {
         await produceModifiedMessages(
           activityObject,
           config?.kafka?.KAFKA_CREATE_RESOURCE_ACTIVITY_TOPIC,
-          activities?.tenantId || config.app.defaultTenantId
+          tenantId || config.app.defaultTenantId
         )
       );
     }
