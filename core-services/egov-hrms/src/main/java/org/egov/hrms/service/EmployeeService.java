@@ -198,6 +198,33 @@ public class EmployeeService {
 				else
 					criteria.setUuids(userUUIDs);
 			}
+
+            if(!CollectionUtils.isEmpty(criteria.getUserServiceUuids())) {
+                List<String> userUUIDs = new ArrayList<>();
+                Map<String, Object> userSearchCriteria = new HashMap<>();
+
+                userSearchCriteria.put(HRMSConstants.HRMS_USER_SERACH_CRITERIA_USERTYPE_CODE, HRMSConstants.HRMS_USER_SERACH_CRITERIA_USERTYPE);
+                userSearchCriteria.put(HRMSConstants.HRMS_USER_SEARCH_CRITERA_TENANTID, criteria.getTenantId());
+                userSearchCriteria.put(HRMSConstants.HRMS_USER_SEARCH_CRITERA_USER_SERVICE_UUIDS, criteria.getUserServiceUuids());
+                if(!CollectionUtils.isEmpty(criteria.getNames()))
+                    userSearchCriteria.put(HRMSConstants.HRMS_USER_SEARCH_CRITERA_NAME, criteria.getNames().get(0));
+                UserResponse userResponse = userService.getUser(requestInfo, userSearchCriteria);
+                totalCount = userResponse.getTotalCount();
+                userChecked =true;
+                if(!CollectionUtils.isEmpty(userResponse.getUser())) {
+                    mapOfUsers.putAll(userResponse.getUser().stream()
+                            .collect(Collectors.toMap(User::getUuid, Function.identity())));
+                }
+
+                List<String> uuids = userResponse.getUser().stream().map(User :: getUuid).collect(Collectors.toList());
+                userUUIDs.addAll(uuids);
+
+                if(!CollectionUtils.isEmpty(criteria.getUuids()))
+                    criteria.setUuids(criteria.getUuids().stream().filter(userUUIDs::contains).collect(Collectors.toList()));
+                else
+                    criteria.setUuids(userUUIDs);
+            }
+
 		}
 		if(userChecked)
 			criteria.setTenantId(null);
@@ -207,7 +234,8 @@ public class EmployeeService {
 			employeeCountResponse = repository.fetchEmployees(criteria, requestInfo);
 		employees=employeeCountResponse.getEmployees();
         List<String> uuids = employees.stream().map(Employee :: getUuid).collect(Collectors.toList());
-		if(!CollectionUtils.isEmpty(uuids)){
+
+        if(!CollectionUtils.isEmpty(uuids)){
             Map<String, Object> userSearchCriteria = new HashMap<>();
 			userSearchCriteria.put(HRMSConstants.HRMS_USER_SERACH_CRITERIA_USERTYPE_CODE, HRMSConstants.HRMS_USER_SERACH_CRITERIA_USERTYPE);
             userSearchCriteria.put(HRMSConstants.HRMS_USER_SEARCH_CRITERA_UUID,uuids);
@@ -216,6 +244,7 @@ public class EmployeeService {
             if(mapOfUsers.isEmpty()){
 				log.info("searching in user service");
             UserResponse userResponse = userService.getUser(requestInfo, userSearchCriteria);
+            totalCount = userResponse.getTotalCount();
 			if(!CollectionUtils.isEmpty(userResponse.getUser())) {
 				mapOfUsers = userResponse.getUser().stream()
 						.collect(Collectors.toMap(User :: getUuid, Function.identity()));
@@ -226,7 +255,8 @@ public class EmployeeService {
             }
 		}
 		return EmployeeResponse.builder().responseInfo(factory.createResponseInfoFromRequestInfo(requestInfo, true))
-				.employees(employees).count(employeeCountResponse.getCount()).build();
+				.employees(employees).count(employeeCountResponse.getCount())
+                .totalCount(totalCount).build();
 	}
 	
 	
