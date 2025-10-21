@@ -96,7 +96,7 @@ const config = {
     contextPath: process.env.CONTEXT_PATH || "/project-factory",
     logLevel: process.env.APP_LOG_LEVEL || "debug",
     debugLogCharLimit: process.env.APP_MAX_DEBUG_CHAR ? Number(process.env.APP_MAX_DEBUG_CHAR) : 1000,
-    defaultTenantId: process.env.DEFAULT_TENANT_ID || "mz",
+    defaultTenantId: process.env.DEFAULT_TENANT_ID,
     incomingRequestPayloadLimit: process.env.INCOMING_REQUEST_PAYLOAD_LIMIT || "2mb"
   },
   localisation: {
