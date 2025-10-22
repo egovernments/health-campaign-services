@@ -1496,6 +1496,7 @@ async function handleResouceDetailsError(request: any, error: any) {
       stringifiedError = error;
     }
   }
+
   const tenantId = request?.body?.ResourceDetails?.tenantId;
   logger.error("Error while processing after validation : " + error);
   if (request?.body?.ResourceDetails) {

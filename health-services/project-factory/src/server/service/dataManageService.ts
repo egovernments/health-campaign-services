@@ -11,7 +11,7 @@ import { getBoundaryTabName } from "../utils/boundaryUtils";
 import { getNewExcelWorkbook } from "../utils/excelUtils";
 import { redis, checkRedisConnection } from "../utils/redisUtils"; // Importing checkRedisConnection function
 import config from '../config/index'
-import { buildGenerateRequest, callGenerate, triggerGenerate } from "../utils/generateUtils";
+import {callGenerate, triggerGenerate } from "../utils/generateUtils";
 import { generatedResourceStatuses } from "../config/constants";
 import { isCampaignIdOfMicroplan } from "../utils/campaignUtils";
 

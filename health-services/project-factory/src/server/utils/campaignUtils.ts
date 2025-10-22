@@ -4030,5 +4030,6 @@ export {
   enrichInnerCampaignDetails,
   processFetchMicroPlan,
   updateCampaignAfterSearch,
-  processBoundary
+  processBoundary,
+  userCredGeneration
 };

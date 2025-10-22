@@ -1,4 +1,4 @@
-import { getLocalizedMessagesHandler, processGenerate, replicateRequest } from "./genericUtils";
+import { getLocalizedMessagesHandler, processGenerate } from "./genericUtils";
 import _ from 'lodash';
 import { logger } from "./logger";
 import { generateDataService } from "../service/sheetManageService";
@@ -164,21 +164,21 @@ export async function triggerGenerate(type: string, tenantId: string, hierarchyT
 
 
 
-const buildGenerateRequest = (request: any) => {
-    const newRequestBody = {
-        RequestInfo: request?.body?.RequestInfo
-    };
+// const buildGenerateRequest = (request: any) => {
+//     const newRequestBody = {
+//         RequestInfo: request?.body?.RequestInfo
+//     };
 
-    const params = {
-        type: request?.query?.type,
-        tenantId: request?.query?.tenantId,
-        forceUpdate: 'true',
-        hierarchyType: request?.query?.hierarchyType,
-        campaignId: request?.query?.campaignId
-    };
+//     const params = {
+//         type: request?.query?.type,
+//         tenantId: request?.query?.tenantId,
+//         forceUpdate: 'true',
+//         hierarchyType: request?.query?.hierarchyType,
+//         campaignId: request?.query?.campaignId
+//     };
 
-    return replicateRequest(request, newRequestBody, params);
-};
+//     return replicateRequest(request, newRequestBody, params);
+// };
 
 export const isGenerationTriggerNeeded = (request: any) => {
     const ExistingCampaignDetails = request?.body?.ExistingCampaignDetails;
@@ -195,4 +195,4 @@ export const isGenerationTriggerNeeded = (request: any) => {
 
 
 
-export { callGenerateIfBoundariesOrCampaignTypeDiffer, areBoundariesSame, buildGenerateRequest }
+export { callGenerateIfBoundariesOrCampaignTypeDiffer, areBoundariesSame }
