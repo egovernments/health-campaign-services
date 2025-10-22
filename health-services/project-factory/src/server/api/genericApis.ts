@@ -2,7 +2,7 @@ import config from "../config"; // Import configuration settings
 import FormData from "form-data"; // Import FormData for handling multipart/form-data requests
 import { defaultheader, httpRequest } from "../utils/request"; // Import httpRequest function for making HTTP requests
 import { getFormattedStringForDebug, logger } from "../utils/logger"; // Import logger for logging
-import { correctParentValues, getDataSheetReady, getLocalizedHeaders, sortCampaignDetails, throwError } from "../utils/genericUtils"; // Import utility functions
+import { getDataSheetReady, getLocalizedHeaders,throwError } from "../utils/genericUtils"; // Import utility functions
 import { generateFilteredBoundaryData, getConfigurableColumnHeadersBasedOnCampaignType, getFiltersFromCampaignSearchResponse, getLocalizedName, processDataForTargetCalculation } from '../utils/campaignUtils'; // Import utility functions
 import { getCampaignSearchResponse, getHierarchy } from './campaignApis';
 const _ = require('lodash'); // Import lodash library
@@ -777,79 +777,6 @@ const createProjectFacilityHelper = (resourceId: any, projectId: any, resouceBod
 };
 
 
-/**
- * Asynchronously creates related entities such as staff, resources, and facilities based on the provided resources, tenant ID, project ID, start date, end date, and resource body.
- * @param resources List of resources.
- * @param tenantId The tenant ID.
- * @param projectId The project ID.
- * @param startDate The start date.
- * @param endDate The end date.
- * @param resouceBody The resource body.
- */
-async function createRelatedEntity(
-  createRelatedEntityArray: any[],
-  CampaignDetails: any,
-  requestBody: any
-) {
-  const mappingArray = []
-  for (const entity of createRelatedEntityArray) {
-    const { tenantId, projectId, startDate, endDate, resouceBody, campaignId, resources } = entity
-    for (const resource of resources) {
-      const type = resource?.type;
-      const mappingObject: any = {
-        type,
-        tenantId,
-        resource,
-        projectId,
-        startDate,
-        endDate,
-        resouceBody,
-        campaignId,
-        CampaignDetails
-      }
-      mappingArray.push(mappingObject)
-    }
-  }
-  const mappingObject: any = { mappingArray: mappingArray, CampaignDetails: CampaignDetails, RequestInfo: requestBody?.RequestInfo, parentCampaign: requestBody?.parentCampaign }
-  await processMapping(mappingObject)
-}
-
-
-/**
- * Asynchronously creates related resources based on the provided request body.
- * @param requestBody The request body.
- */
-async function createRelatedResouce(requestBody: any) {
-  const id = requestBody?.Campaign?.id;
-  sortCampaignDetails(requestBody?.Campaign?.CampaignDetails);
-  correctParentValues(requestBody?.Campaign?.CampaignDetails);
-  // Create related resources
-  const { tenantId } = requestBody?.Campaign;
-  const createRelatedEntityArray = [];
-  for (const campaignDetails of requestBody?.Campaign?.CampaignDetails) {
-    const resouceBody: any = {
-      RequestInfo: requestBody.RequestInfo,
-    };
-    var { projectId, startDate, endDate, resources } = campaignDetails;
-    campaignDetails.id = id;
-    startDate = parseInt(startDate);
-    endDate = parseInt(endDate);
-    createRelatedEntityArray.push({
-      resources,
-      tenantId,
-      projectId,
-      startDate,
-      endDate,
-      resouceBody,
-      campaignId: id,
-    });
-  }
-  await createRelatedEntity(
-    createRelatedEntityArray,
-    requestBody?.CampaignDetails,
-    requestBody
-  );
-}
 
 
 function enrichSchema(data: any, properties: any, required: any, columns: any, unique: any, columnsNotToBeFreezed: any, columnsToBeFreezed: any, columnsToHide: any, errorMessage: any) {

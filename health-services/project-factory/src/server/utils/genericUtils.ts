@@ -434,41 +434,6 @@ async function fullProcessFlowForNewEntry(newEntryResponse: any, generatedResour
   }
 }
 
-function sortCampaignDetails(campaignDetails: any) {
-  campaignDetails.sort((a: any, b: any) => {
-    // If a is a child of b, a should come after b
-    if (a.parentBoundaryCode === b.boundaryCode) return 1;
-    // If b is a child of a, a should come before b
-    if (a.boundaryCode === b.parentBoundaryCode) return -1;
-    // Otherwise, maintain the order
-    return 0;
-  });
-  return campaignDetails;
-}
-// Function to correct the totals and target values of parents
-function correctParentValues(campaignDetails: any) {
-  // Create a map to store parent-child relationships and their totals/targets
-  const parentMap: any = {};
-  campaignDetails.forEach((detail: any) => {
-    if (!detail.parentBoundaryCode) return; // Skip if it's not a child
-    if (!parentMap[detail.parentBoundaryCode]) {
-      parentMap[detail.parentBoundaryCode] = { total: 0, target: 0 };
-    }
-    parentMap[detail.parentBoundaryCode].total += detail.targets[0].total;
-    parentMap[detail.parentBoundaryCode].target += detail.targets[0].target;
-  });
-
-  // Update parent values with the calculated totals and targets
-  campaignDetails.forEach((detail: any) => {
-    if (!detail.parentBoundaryCode) return; // Skip if it's not a child
-    const parent = parentMap[detail.parentBoundaryCode];
-    const target = detail.targets[0];
-    target.total = parent.total;
-    target.target = parent.target;
-  });
-
-  return campaignDetails;
-}
 
 function setHiddenColumns(request: any, schema: any, localizationMap?: { [key: string]: string }) {
   // from schema.properties find the key whose value have value.hideColumn == true
@@ -1985,8 +1950,6 @@ export {
   updateExistingResourceExpired,
   getFinalUpdatedResponse,
   fullProcessFlowForNewEntry,
-  correctParentValues,
-  sortCampaignDetails,
   processGenerateRequest,
   processGenerate,
   getDataFromSheet,
