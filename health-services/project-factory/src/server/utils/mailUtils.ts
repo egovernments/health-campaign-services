@@ -6,6 +6,7 @@ import { MDMSModels } from "../models";
 import { getLocalizedName } from "./campaignUtils";
 import { getLocalizedMessagesHandlerViaLocale } from "./genericUtils";
 import { getFileUrl } from "./onGoingCampaignUpdateUtils";
+import { getEmployeeByUuid } from '../api/campaignApis';
 import { logger } from "./logger"; // if you use a custom logger
 
 export async function sendNotificationEmail(
@@ -13,6 +14,7 @@ export async function sendNotificationEmail(
 ): Promise<void> {
 
     try {
+        const requestUserInfo = await getEmployeeByUuid(requestBody);
         const requestInfo = requestBody?.RequestInfo;
         logger.info("Step 1: Starting sendNotificationEmail");
 
@@ -97,7 +99,7 @@ export async function sendNotificationEmail(
         const message = {
             requestInfo: requestInfo,
             email: {
-                emailTo: [requestInfo?.userInfo?.emailId],
+                emailTo: [requestUserInfo.user.emailId],
                 subject,
                 body: fullBody,
                 fileStoreId: fileStoreIdMap,
