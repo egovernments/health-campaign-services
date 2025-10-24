@@ -166,7 +166,7 @@ public class IndividualService {
      */
     public List<Individual> create(IndividualBulkRequest request, boolean isBulk, boolean generateDummyMobile,
                                    Map<Individual, ErrorDetails> errorDetailsMapOut) {
-
+        String tenantId =  request.getRequestInfo().getUserInfo().getTenantId();
         Tuple<List<Individual>, Map<Individual, ErrorDetails>> tuple = validate(validators,
                 isApplicableForCreate, request,
                 isBulk);
@@ -193,7 +193,7 @@ public class IndividualService {
                         .toList();
                 if (!validIndividuals.isEmpty()) {
                     encryptedIndividualList = individualEncryptionService
-                            .encrypt(request, validIndividuals, "IndividualEncrypt", isBulk);
+                            .encrypt(tenantId, request, validIndividuals, "IndividualEncrypt", isBulk);
                     individualRepository.save(encryptedIndividualList,
                             properties.getSaveIndividualTopic());
                     // update beneficiary ids in idgen
@@ -214,7 +214,7 @@ public class IndividualService {
 
         handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
         //decrypt
-        List<Individual> decryptedIndividualList = individualEncryptionService.decrypt(encryptedIndividualList,
+        List<Individual> decryptedIndividualList = individualEncryptionService.decrypt(tenantId, encryptedIndividualList,
                 "IndividualDecrypt", request.getRequestInfo());
         return decryptedIndividualList;
     }
@@ -296,7 +296,7 @@ public class IndividualService {
 
                 // encrypt new data
                 encryptedIndividualList = individualEncryptionService
-                        .encrypt(request, individualsToEncrypt, "IndividualEncrypt", isBulk);
+                        .encrypt(tenantId, request, individualsToEncrypt, "IndividualEncrypt", isBulk);
 
 
                 Map<String, Individual> idToObjMap = getIdToObjMap(encryptedIndividualList);
@@ -315,7 +315,9 @@ public class IndividualService {
                     encryptedIndividualList.forEach(encryptedIndividual -> {
                         List<Identifier> newIdentifiers = encryptedIndividual.getIdentifiers();
                         List<String> newIdentifiersIds = getIdList(newIdentifiers);
-                        List<Identifier> identifierList = existingIdentifiers.get(encryptedIndividual.getId()).stream()
+                        List<Identifier> identifierList = Optional.ofNullable(existingIdentifiers.get(encryptedIndividual.getId()))
+                                .orElse(Collections.emptyList())
+                                .stream()
                                 .filter(identifier -> !newIdentifiersIds.contains(identifier.getId()))
                                 .collect(Collectors.toList());
 
@@ -339,7 +341,7 @@ public class IndividualService {
 
         handleErrors(errorDetailsMap, isBulk, VALIDATION_ERROR);
         //decrypt
-        List<Individual> decryptedIndividualList = individualEncryptionService.decrypt(encryptedIndividualList,
+        List<Individual> decryptedIndividualList = individualEncryptionService.decrypt(tenantId, encryptedIndividualList,
                 "IndividualDecrypt", request.getRequestInfo());
         return decryptedIndividualList;
     }
@@ -389,7 +391,7 @@ public class IndividualService {
                     .collect(Collectors.toList());
             //decrypt
             List<Individual> decryptedIndividualList = (!encryptedIndividualList.isEmpty())
-                    ? individualEncryptionService.decrypt(encryptedIndividualList,
+                    ? individualEncryptionService.decrypt(tenantId, encryptedIndividualList,
                     "IndividualDecrypt", requestInfo)
                     : encryptedIndividualList;
 
@@ -402,13 +404,13 @@ public class IndividualService {
         IndividualSearch encryptedIndividualSearch;
         if (individualSearch.getIdentifier() != null && individualSearch.getMobileNumber() == null) {
             encryptedIndividualSearch = individualEncryptionService
-                    .encrypt(individualSearch, "IndividualSearchIdentifierEncrypt");
+                    .encrypt(tenantId, individualSearch, "IndividualSearchIdentifierEncrypt");
         } else if (individualSearch.getIdentifier() == null && individualSearch.getMobileNumber() != null) {
             encryptedIndividualSearch = individualEncryptionService
-                    .encrypt(individualSearch, "IndividualSearchMobileNumberEncrypt");
+                    .encrypt(tenantId, individualSearch, "IndividualSearchMobileNumberEncrypt");
         } else {
             encryptedIndividualSearch = individualEncryptionService
-                    .encrypt(individualSearch, "IndividualSearchEncrypt");
+                    .encrypt(tenantId, individualSearch, "IndividualSearchEncrypt");
         }
         try {
             searchResponse = individualRepository.find(encryptedIndividualSearch, limit, offset, tenantId,
@@ -422,7 +424,7 @@ public class IndividualService {
         }
         //decrypt
         List<Individual> decryptedIndividualList =  (!encryptedIndividualList.isEmpty())
-                ? individualEncryptionService.decrypt(encryptedIndividualList,
+                ? individualEncryptionService.decrypt(tenantId, encryptedIndividualList,
                 "IndividualDecrypt", requestInfo)
                 : encryptedIndividualList;
 

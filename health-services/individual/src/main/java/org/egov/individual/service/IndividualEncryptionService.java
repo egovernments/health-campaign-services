@@ -42,23 +42,23 @@ public class IndividualEncryptionService {
     }
 
 
-    public List<Individual> encrypt(IndividualBulkRequest request, List<Individual> individuals, String key, boolean isBulk) {
+    public List<Individual> encrypt(String tenantId, IndividualBulkRequest request, List<Individual> individuals, String key, boolean isBulk) {
         List<Individual> encryptedIndividuals = (List<Individual>) encryptionDecryptionUtil
-                .encryptObject(individuals, key, Individual.class);
+                .encryptObject(tenantId, individuals, key, Individual.class);
         validateAadhaarUniqueness(encryptedIndividuals, request, isBulk);
         return encryptedIndividuals;
     }
 
-    public IndividualSearch encrypt(IndividualSearch individualSearch, String key) {
+    public IndividualSearch encrypt(String tenantId, IndividualSearch individualSearch, String key) {
         IndividualSearch encryptedIndividualSearch = (IndividualSearch) encryptionDecryptionUtil
-                .encryptObject(individualSearch, key, IndividualSearch.class);
+                .encryptObject(tenantId, individualSearch, key, IndividualSearch.class);
         return encryptedIndividualSearch;
     }
 
-    public List<Individual> decrypt(List<Individual> individuals, String key, RequestInfo requestInfo) {
+    public List<Individual> decrypt(String tenantId, List<Individual> individuals, String key, RequestInfo requestInfo) {
         List<Individual> encryptedIndividuals = filterEncryptedIndividuals(individuals);
         List<Individual> decryptedIndividuals = (List<Individual>) encryptionDecryptionUtil
-                .decryptObject(encryptedIndividuals, key, Individual.class, requestInfo);
+                .decryptObject(tenantId, encryptedIndividuals, key, Individual.class, requestInfo);
         if (individuals.size() > decryptedIndividuals.size()) {
             // add the already decrypted objects to the list
             List<String> ids = decryptedIndividuals.stream()
