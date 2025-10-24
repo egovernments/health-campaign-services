@@ -6,15 +6,13 @@ import { MDMSModels } from "../models";
 import { getLocalizedName } from "./campaignUtils";
 import { getLocalizedMessagesHandlerViaLocale } from "./genericUtils";
 import { getFileUrl } from "./onGoingCampaignUpdateUtils";
-import { getEmployeeByUuid } from '../api/campaignApis';
 import { logger } from "./logger"; // if you use a custom logger
 
 export async function sendNotificationEmail(
-    fileStoreIdMap: Record<string, string>, requestBody: any
+    fileStoreIdMap: Record<string, string>, requestBody: any , createdByEmail?: string
 ): Promise<void> {
 
     try {
-        const requestUserInfo = await getEmployeeByUuid(requestBody);
         const requestInfo = requestBody?.RequestInfo;
         logger.info("Step 1: Starting sendNotificationEmail");
 
@@ -99,7 +97,8 @@ export async function sendNotificationEmail(
         const message = {
             requestInfo: requestInfo,
             email: {
-                emailTo: [requestUserInfo.user.emailId],
+                emailTo: requestInfo?.userInfo?.emailId ? [requestInfo.userInfo.emailId] : createdByEmail 
+                        ? [createdByEmail] : null,
                 subject,
                 body: fullBody,
                 fileStoreId: fileStoreIdMap,
@@ -154,14 +153,14 @@ export async function getUserCredentialFileMap(requestBody: any): Promise<Record
   }
 }
 
-export async function triggerUserCredentialEmailFlow(requestBody: any): Promise<void> {
+export async function triggerUserCredentialEmailFlow(requestBody: any , createdByEmail?: string): Promise<void> {
   logger.info("triggerUserCredentialEmailFlow: Email flow started...");
   // waiting for 3 seconds to ensure that user credentials are ready
   logger.info("triggerUserCredentialEmailFlow: Waiting for 3 seconds before proceeding with email flow...");
   await new Promise(resolve => setTimeout(resolve, 3000));
   try {
     const userCredentialFileMap = await getUserCredentialFileMap(requestBody);
-    await sendNotificationEmail(userCredentialFileMap, requestBody);
+    await sendNotificationEmail(userCredentialFileMap, requestBody , createdByEmail);
     logger.info("triggerUserCredentialEmailFlow: Email flow completed successfully.");
   } catch (emailError) {
     logger.error("triggerUserCredentialEmailFlow: Email flow failed — continuing main flow", emailError);

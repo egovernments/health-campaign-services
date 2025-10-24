@@ -809,61 +809,6 @@ async function getEmployeesBasedOnUserName(dataToCreate: any[], request: any) {
   return foundUsernames;
 }
 
-/**
- * Fetch a single employee by UUID from HRMS
- * @param userUuid string
- * @param tenantId string
- * @param request optional RequestInfo object
- * @returns employee object or null
- */
-async function getEmployeeByUuid(requestBody: any) {
-    try {
-        const requestInfo = requestBody?.RequestInfo;
-        const tenantId = requestInfo?.userInfo?.tenantId;
-        const userUuid = requestInfo?.userInfo?.uuid;
-
-        if (!tenantId || !userUuid) {
-            logger.error("Missing tenantId or userUuid in request info");
-            return null;
-        }
-
-        logger.info(`Fetching employee for UUID: ${userUuid}, tenantId: ${tenantId}`);
-        const searchBody = {
-            RequestInfo: requestInfo,
-        };
-        if (searchBody.RequestInfo?.userInfo) {
-            searchBody.RequestInfo.userInfo.type = "EMPLOYEE";
-        }
-        const searchUrl = `${config.host.hrmsHost}${config.paths.hrmsEmployeeSearch}`;
-        const params = {
-            tenantId,
-            userServiceUuids: userUuid,
-            limit: 1,
-            offset: 0,
-        };
-        const response = await httpRequest(
-            searchUrl,
-            searchBody,
-            params,
-            undefined,
-            undefined,
-            undefined,
-            undefined,
-            true
-        );
-
-        if (response?.Employees?.length > 0) {
-            logger.info(`Employee fetched successfully for UUID: ${userUuid}`);
-            return response.Employees[0];
-        } else {
-            logger.warn(`No employee found for UUID: ${userUuid}`);
-            return null;
-        }
-    } catch (error: any) {
-        logger.error("Error in getEmployeeByUuid:", error);
-        return null;
-    }
-}
 
 // Confirms the creation of resources by matching created and searched data.
 async function confirmCreation(
@@ -1993,5 +1938,4 @@ export {
   getCampaignSearchResponse,
   confirmProjectParentCreation,
   projectUpdateForTargets,
-  getEmployeeByUuid
 };
