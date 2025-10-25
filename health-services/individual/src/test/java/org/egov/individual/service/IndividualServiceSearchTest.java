@@ -26,6 +26,7 @@ import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -74,7 +75,7 @@ class IndividualServiceSearchTest {
                 .build();
         RequestInfo requestInfo = RequestInfoTestBuilder.builder().withCompleteRequestInfo().build();
 
-        when(encryptionService.encrypt(any(IndividualSearch.class), any(String.class))).thenReturn(individualSearch);
+        lenient().when(encryptionService.encrypt(any(String.class), any(IndividualSearch.class), any(String.class))).thenReturn(individualSearch);
 
         when(individualRepository.find(any(IndividualSearch.class), anyInt(), anyInt(), anyString(),
                 any(), anyBoolean())).thenReturn(SearchResponse.<Individual>builder()
@@ -123,7 +124,7 @@ class IndividualServiceSearchTest {
         when(individualRepository.find(any(IndividualSearch.class), anyInt(), anyInt(), anyString(), any(), anyBoolean()))
                 .thenReturn(SearchResponse.<Individual>builder().build());
 
-        when(encryptionService.encrypt(any(IndividualSearch.class), any(String.class))).thenReturn(individualSearch);
+        lenient().when(encryptionService.encrypt(any(String.class), any(IndividualSearch.class), any(String.class))).thenReturn(individualSearch);
 
         individualService.search(individualSearch, 0, 10,
                 "default", null, false,requestInfo);
@@ -140,7 +141,7 @@ class IndividualServiceSearchTest {
                 .byGender()
                 .build();
         RequestInfo requestInfo = RequestInfoTestBuilder.builder().withCompleteRequestInfo().build();
-        when(encryptionService.encrypt(any(IndividualSearch.class), any(String.class))).thenReturn(individualSearch);
+        lenient().when(encryptionService.encrypt(any(String.class), any(IndividualSearch.class), any(String.class))).thenReturn(individualSearch);
 
         when(individualRepository.find(any(IndividualSearch.class), anyInt(), anyInt(), anyString(),
                 any(), anyBoolean())).thenReturn(SearchResponse.<Individual>builder().totalCount(1L).response(Collections.singletonList(IndividualTestBuilder.builder()

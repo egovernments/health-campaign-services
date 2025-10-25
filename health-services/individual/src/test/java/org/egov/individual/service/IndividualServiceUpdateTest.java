@@ -179,7 +179,7 @@ class IndividualServiceUpdateTest {
                         .response(individualsInDb)
                         .build());
 
-        when(encryptionService.encrypt(any(IndividualBulkRequest.class),
+        lenient().when(encryptionService.encrypt(nullable(String.class), any(IndividualBulkRequest.class),
                 anyList(), any(String.class), anyBoolean())).thenReturn(Collections.singletonList(requestIndividual));
 
         lenient().doNothing().when(notificationService).sendNotification(any(IndividualRequest.class),eq(false));
@@ -258,7 +258,7 @@ class IndividualServiceUpdateTest {
                         .response(individualsInDb)
                         .build());
 
-        when(encryptionService.encrypt(any(IndividualBulkRequest.class), anyList(), anyString(), anyBoolean()))
+        lenient().when(encryptionService.encrypt(nullable(String.class), any(IndividualBulkRequest.class), anyList(), anyString(), anyBoolean()))
                 .thenReturn(Collections.singletonList(requestIndividual));
 
         List<Individual> result = individualService.update(request);

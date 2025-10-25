@@ -285,7 +285,9 @@ public class IndividualService {
                     encryptedIndividualList.forEach(encryptedIndividual -> {
                         List<Identifier> newIdentifiers = encryptedIndividual.getIdentifiers();
                         List<String> newIdentifiersIds = getIdList(newIdentifiers);
-                        List<Identifier> identifierList = existingIdentifiers.get(encryptedIndividual.getId()).stream()
+                        List<Identifier> identifierList = Optional.ofNullable(existingIdentifiers.get(encryptedIndividual.getId()))
+                                .orElse(Collections.emptyList())
+                                .stream()
                                 .filter(identifier -> !newIdentifiersIds.contains(identifier.getId()))
                                 .collect(Collectors.toList());
 

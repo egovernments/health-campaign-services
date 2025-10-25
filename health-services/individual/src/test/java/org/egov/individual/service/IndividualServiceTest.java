@@ -39,6 +39,8 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.nullable;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -102,7 +104,7 @@ class IndividualServiceTest {
                         .withName()
                         .build())
                 .build();
-        when(encryptionService.encrypt(any(IndividualBulkRequest.class),
+       when(encryptionService.encrypt(nullable(String.class), any(IndividualBulkRequest.class),
                 anyList(), any(String.class), anyBoolean())).thenReturn(Collections.singletonList(IndividualTestBuilder.builder()
                 .withTenantId()
                 .withIdentifiers()
