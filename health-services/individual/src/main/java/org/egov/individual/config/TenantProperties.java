@@ -2,29 +2,26 @@ package org.egov.individual.config;
 
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
-@Data
+@Getter
+@Setter
 @Component
-@ConfigurationProperties(prefix = "state.level.tenant")
+@ConfigurationProperties(prefix = "tenant.state.level.tenant.id")
 public class TenantProperties {
 
-    private Map<String, String> ids = new HashMap<>();
-
-    public void setIds(Map<String, List<String>> ids) {
-        if(ids != null) {
-            for(Map.Entry<String, List<String>> entry : ids.entrySet()) {
-                for(String value : entry.getValue()) {
-                    this.ids.put(value, entry.getKey());
-                }
-            }
-        }
-    }
+    private Map<String, String> mappings;
 
     public String getStateLevelTenant(String tenantId, String defaultTenantId) {
-        return ids.getOrDefault(tenantId, defaultTenantId);
+        if (tenantId == null) {
+            return defaultTenantId;
+        }
+        return mappings.getOrDefault(tenantId.toLowerCase(Locale.ROOT), defaultTenantId);
     }
 }
