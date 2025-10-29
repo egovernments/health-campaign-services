@@ -20,6 +20,7 @@ import org.egov.common.producer.Producer;
 import org.egov.common.utils.ResponseInfoFactory;
 import org.egov.individual.config.IndividualProperties;
 import org.egov.individual.service.IndividualService;
+import org.egov.individual.web.models.register.IndividualRegisterRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -145,5 +146,20 @@ public class IndividualApiController {
 
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(ResponseInfoFactory
                 .createResponseInfo(request.getRequestInfo(), true));
+    }
+
+    @RequestMapping(value = "/v1/_register", method = RequestMethod.POST)
+    public ResponseEntity<IndividualResponse> individualV1RegisterPost(@ApiParam(value = "Capture details of Individual.", required = true) @Valid @RequestBody IndividualRegisterRequest request) {
+
+
+        List<Individual> individuals = individualService.registerIndividualWithUser(request);
+        IndividualResponse response = IndividualResponse.builder()
+                .individual(individuals.get(0))
+                .responseInfo(ResponseInfoFactory
+                        .createResponseInfo(request.getRequestInfo(), true))
+                .build();
+
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
+
     }
 }
