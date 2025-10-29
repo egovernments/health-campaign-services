@@ -196,21 +196,18 @@ public class UserValidationProcessor implements IWorkbookProcessor {
                 
                 String existingErrors = errorCell != null ? ExcelUtil.getCellValueAsString(errorCell) : "";
                 String existingStatus = statusCell != null ? ExcelUtil.getCellValueAsString(statusCell) : "";
-                
-                // Build new error message
-                StringBuilder errorMessages = new StringBuilder();
+
+                // Use a Set to store unique error messages
+                Set<String> uniqueErrorMessages = new LinkedHashSet<>();
                 if (existingErrors != null && !existingErrors.trim().isEmpty()) {
-                    errorMessages.append(existingErrors);
+                    uniqueErrorMessages.addAll(Arrays.asList(existingErrors.split("\s*;\s*")));
                 }
                 
                 String status = existingStatus != null && !existingStatus.isEmpty() ? 
                     existingStatus : ValidationConstants.STATUS_VALID;
                 
                 for (ValidationError error : rowErrors) {
-                    if (errorMessages.length() > 0) {
-                        errorMessages.append("; ");
-                    }
-                    errorMessages.append(error.getErrorDetails());
+                    uniqueErrorMessages.add(error.getErrorDetails());
                     
                     // Set status to the most severe error
                     if (ValidationConstants.STATUS_ERROR.equals(error.getStatus())) {
@@ -220,6 +217,9 @@ public class UserValidationProcessor implements IWorkbookProcessor {
                         status = ValidationConstants.STATUS_INVALID;
                     }
                 }
+
+                // Build the final error message from unique messages
+                String finalErrorMessage = String.join("; ", uniqueErrorMessages);
                 
                 // Create cells if they don't exist
                 if (errorCell == null) {
@@ -230,7 +230,7 @@ public class UserValidationProcessor implements IWorkbookProcessor {
                 }
                 
                 // Set the enriched values
-                errorCell.setCellValue(errorMessages.toString());
+                errorCell.setCellValue(finalErrorMessage);
                 statusCell.setCellValue(status);
             }
         }
