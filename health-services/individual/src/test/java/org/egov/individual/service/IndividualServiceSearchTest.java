@@ -46,6 +46,24 @@ class IndividualServiceSearchTest {
     @Mock
     private IndividualEncryptionService encryptionService;
 
+    @Mock
+    private org.egov.individual.config.IndividualProperties properties;
+
+    @Mock
+    private EnrichmentService enrichmentService;
+
+    @Mock
+    private UserIntegrationService userIntegrationService;
+
+    @Mock
+    private NotificationService notificationService;
+
+    @Mock
+    private org.egov.individual.util.BeneficiaryIdGenUtil beneficiaryIdGenUtil;
+
+    @Mock
+    private org.egov.individual.util.OtpUtil otpUtil;
+
     @Test
     @DisplayName("should search only by id if only id is present")
     void shouldSearchOnlyByIdIfOnlyIdIsPresent() throws QueryBuilderException, InvalidTenantIdException {
