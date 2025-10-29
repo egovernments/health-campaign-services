@@ -233,6 +233,18 @@ public class ProjectTaskTransformationService {
         if (task.getStatus().equalsIgnoreCase(CLOSED_HOUSEHOLD) && !additionalDetails.has(REASON_OF_REFUSAL)) {
             additionalDetails.put(REASON_OF_REFUSAL, task.getStatus());
         }
+
+        if (additionalDetails != null && additionalDetails.has("selectedVaccines")) {
+            String selectedVaccines = additionalDetails.get("selectedVaccines").asText();
+
+            // Split by "." and remove prefix "HCM_VACCINE_"
+            String vaccinesList = Arrays.stream(selectedVaccines.split("\\."))
+                    .map(v -> v.replace("HCM_VACCINE_", ""))  // remove prefix
+                    .collect(Collectors.joining(","));         // join with commas
+
+            // Add new field to ObjectNode
+            additionalDetails.put("vaccinesList", vaccinesList);
+        }
         projectTaskIndexV1.setAdditionalDetails(additionalDetails);
 
         return projectTaskIndexV1;
