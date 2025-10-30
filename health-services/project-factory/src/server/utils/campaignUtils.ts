@@ -2308,6 +2308,7 @@ async function processUnifiedTemplateCampaign(request: any): Promise<void> {
   // For unified template campaigns, call excel-ingestion process API
   const campaignDetails = request?.body?.CampaignDetails;
   const useruuid = request?.body?.RequestInfo?.userInfo?.uuid || campaignDetails?.auditDetails?.createdBy;
+  const emailId = request?.body?.RequestInfo?.userInfo?.emailId || null;
   
   // Find the unified-console-resources resource to get filestoreId
   const unifiedResource = campaignDetails.resources.find((resource: any) => 
@@ -2329,7 +2330,7 @@ async function processUnifiedTemplateCampaign(request: any): Promise<void> {
       action: "process",
       msgId: `pf-${Date.now()}`,
       correlationId: `pf-correlation-${Date.now()}`,
-      userInfo: { uuid: useruuid }
+      userInfo: { uuid: useruuid ,emailId: emailId}
     },
     ResourceDetails: {
       type: "unified-console-parse",
