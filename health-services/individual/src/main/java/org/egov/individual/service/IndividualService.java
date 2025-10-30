@@ -632,6 +632,7 @@ public class IndividualService {
 
         // Call the existing create method
         List<Individual> individuals;
+        log.info("individualRequest:"+individualRequest);
         try {
             individuals = create(individualRequest);
         } catch (Exception e) {

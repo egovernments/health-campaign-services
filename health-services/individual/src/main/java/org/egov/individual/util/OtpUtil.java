@@ -49,30 +49,65 @@ public class OtpUtil {
         StringBuilder uri = new StringBuilder(config.getUserOtpHost())
                 .append(config.getUserOtpSendEndpoint());
 
+        log.info("OTP service URI: {}", uri.toString());
+
         var registerData = individualRequest.getIndividualRegister();
 
-        // Determine username/identifier for OTP: prefer mobile, fallback to email
-        String otpIdentifier = (registerData.getMobileNumber() != null && !registerData.getMobileNumber().isEmpty())
-                ? registerData.getMobileNumber()
-                : registerData.getEmailId();
+        // Check if both mobile number and email are null or empty
+        boolean hasMobileNumber = registerData.getMobileNumber() != null && !registerData.getMobileNumber().isEmpty();
+        boolean hasEmail = registerData.getEmailId() != null && !registerData.getEmailId().isEmpty();
 
-        Otp otp = Otp.builder()
+        if (!hasMobileNumber && !hasEmail) {
+            log.error("Both mobile number and email are null or empty for OTP request");
+            throw new CustomException("CONTACT_REQUIRED", "At least one contact method (mobile number or email) is required for OTP");
+        }
+
+        // Determine username/identifier for OTP: prefer mobile, fallback to email
+        String otpIdentifier = hasMobileNumber ? registerData.getMobileNumber() : registerData.getEmailId();
+
+        log.info("Sending OTP to identifier: {}", otpIdentifier);
+        log.info("Has mobile number: {}, Has email: {}", hasMobileNumber, hasEmail);
+
+        // Build OTP request - only include mobile number if present
+        Otp.OtpBuilder otpBuilder = Otp.builder()
                 .userName(otpIdentifier)
-                .mobileNumber(registerData.getMobileNumber())
                 .type(OTP_TYPE_LOGIN)
                 .tenantId(registerData.getTenantId())
-                .userType(String.valueOf(UserType.CITIZEN))
+                .userType(String.valueOf(UserType.CITIZEN));
+
+        // Only set mobile number if it's present and not empty
+        if (hasMobileNumber) {
+            otpBuilder.mobileNumber(registerData.getMobileNumber());
+            log.info("Including mobile number in OTP request");
+        } else {
+            log.info("Mobile number not present, using email for OTP");
+        }
+
+        Otp otp = otpBuilder.build();
+        OtpRequest otpRequest = OtpRequest.builder()
+                .otp(otp)
+                .requestInfo(individualRequest.getRequestInfo())
                 .build();
-        OtpRequest otpRequest = OtpRequest.builder().otp(otp).requestInfo(individualRequest.getRequestInfo()).build();
+
+        log.info("OTP request prepared for tenant: {}, userType: {}", registerData.getTenantId(), UserType.CITIZEN);
+        log.info("OTP request"+otpRequest);
 
         try{
+            log.info("Calling OTP service at: {}", uri);
             LinkedHashMap responseMap = (LinkedHashMap)serviceRequestRepository.fetchResult(uri, otpRequest);
-            OtpResponse otpResponse = mapper.convertValue(responseMap,OtpResponse.class);
+            OtpResponse otpResponse = mapper.convertValue(responseMap, OtpResponse.class);
+            log.info("OTP sent successfully to {}", otpIdentifier);
             return otpResponse;
         }
-        catch(IllegalArgumentException  e)
+        catch(IllegalArgumentException e)
         {
-            throw new CustomException("SEND_OTP_FAILED","Failed to send Otp for user"+ e);
+            log.error("Failed to send OTP: {}", e.getMessage(), e);
+            throw new CustomException("SEND_OTP_FAILED","Failed to send OTP for user: " + e.getMessage());
+        }
+        catch(Exception e)
+        {
+            log.error("Unexpected error while sending OTP: {}", e.getMessage(), e);
+            throw new CustomException("SEND_OTP_FAILED","Failed to send OTP for user: " + e.getMessage());
         }
 
     }
@@ -95,15 +130,45 @@ public class OtpUtil {
 
         StringBuilder otpValidateEndpoint = new StringBuilder(config.getEgovOtpServiceHost())
                 .append(config.getOtpValidateEndpoint());
+
+        log.info("OTP validation service URI: {}", otpValidateEndpoint.toString());
+
+        if (request == null || request.getOtp() == null) {
+            log.error("OTP validation request or OTP is null");
+            return false;
+        }
+
+        log.info("Validating OTP for identity: {}, tenantId: {}", request.getOtp().getIdentity(), request.getOtp().getTenantId());
+        log.info("Validate request"+request);
+
         try {
             OtpValidateResponse otpValidateResponse = restTemplate.postForObject(otpValidateEndpoint.toString(), request, OtpValidateResponse.class);
-            if (null != otpValidateResponse && null != otpValidateResponse.getOtp())
-                return otpValidateResponse.getOtp().isValidationSuccessful();
-            else
+
+            if (otpValidateResponse == null) {
+                log.error("OTP validation response is null");
                 return false;
+            }
+
+            if (otpValidateResponse.getOtp() == null) {
+                log.error("OTP object in validation response is null");
+                return false;
+            }
+
+            boolean isValid = otpValidateResponse.getOtp().isValidationSuccessful();
+            if (isValid) {
+                log.info("OTP validation successful for identity: {}", request.getOtp().getIdentity());
+            } else {
+                log.warn("OTP validation failed for identity: {}", request.getOtp().getIdentity());
+            }
+            return isValid;
+
         } catch (HttpClientErrorException e) {
-            log.error("Otp validation failed", e);
+            log.error("OTP validation failed with HTTP error. Status: {}, Response: {}",
+                    e.getStatusCode(), e.getResponseBodyAsString(), e);
             throw new ServiceCallException(e.getResponseBodyAsString());
+        } catch (Exception e) {
+            log.error("Unexpected error during OTP validation: {}", e.getMessage(), e);
+            throw new ServiceCallException("OTP validation failed: " + e.getMessage());
         }
     }
 }
