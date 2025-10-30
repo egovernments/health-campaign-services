@@ -13,6 +13,7 @@ import org.egov.individual.web.models.register.IndividualRegisterRequest;
 import org.egov.tracer.model.CustomException;
 import org.egov.tracer.model.ServiceCallException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
@@ -34,7 +35,7 @@ public class OtpUtil {
 
     @Autowired
     public OtpUtil(IndividualProperties config,
-                   ObjectMapper mapper,
+                   @Qualifier("objectMapper") ObjectMapper mapper,
                    ServiceRequestRepository serviceRequestRepository,
                    RestTemplate restTemplate) {
         this.config = config;
