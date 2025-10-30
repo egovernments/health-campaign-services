@@ -1,6 +1,7 @@
 package org.egov.transformer.transformationservice;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import digit.models.coremodels.AuditDetails;
 import lombok.extern.slf4j.Slf4j;
@@ -237,13 +238,17 @@ public class ProjectTaskTransformationService {
         if (additionalDetails != null && additionalDetails.has("selectedVaccines")) {
             String selectedVaccines = additionalDetails.get("selectedVaccines").asText();
 
-            // Split by "." and remove prefix "HCM_VACCINE_"
-            String vaccinesList = Arrays.stream(selectedVaccines.split("\\."))
+             // Split by "." and remove prefix "HCM_VACCINE_"
+            List<String> vaccinesList = Arrays.stream(selectedVaccines.split("\\."))
                     .map(v -> v.replace("HCM_VACCINE_", ""))  // remove prefix
-                    .collect(Collectors.joining(","));         // join with commas
+                    .collect(Collectors.toList());             // collect as list
+
+            // Convert List<String> → ArrayNode
+            ArrayNode vaccinesArray = objectMapper.valueToTree(vaccinesList);
+
 
             // Add new field to ObjectNode
-            additionalDetails.put("vaccinesList", vaccinesList);
+            additionalDetails.put("vaccinesList", vaccinesArray);
         }
         projectTaskIndexV1.setAdditionalDetails(additionalDetails);
 
