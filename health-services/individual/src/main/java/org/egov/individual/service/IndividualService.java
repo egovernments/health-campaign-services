@@ -609,7 +609,7 @@ public class IndividualService {
                         .givenName(registerData.getName())
                         .build())
                 .isSystemUser(true)
-                .isSystemUserActive(false)
+                .isSystemUserActive(true)
                 .userDetails(userDetails);
 
         // Conditionally add email if present
