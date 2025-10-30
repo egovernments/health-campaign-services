@@ -106,6 +106,7 @@ export async function handleProcessingResult(messageObject: any) {
         const validationStatus = messageObject?.additionalDetails?.validationStatus;
         const totalRowsProcessed = messageObject?.additionalDetails?.totalRowsProcessed || 0;
         const totalErrors = messageObject?.additionalDetails?.totalErrors || 0;
+        const createdByEmail = messageObject?.additionalDetails?.createdByEmail ?? null;
         
         logger.info(`Validation Status: ${validationStatus}`);
         logger.info(`Total Rows Processed: ${totalRowsProcessed}`);
@@ -230,7 +231,7 @@ export async function handleProcessingResult(messageObject: any) {
                 
                 // Trigger background resource creation and mapping flow
                 logger.info('=== TRIGGERING BACKGROUND RESOURCE CREATION FLOW ===');
-                await triggerBackgroundResourceCreationFlow(messageObject.tenantId, campaignDetails, parentCampaign, locale);
+                await triggerBackgroundResourceCreationFlow(messageObject.tenantId, campaignDetails, parentCampaign, locale,createdByEmail);
             } else {
                 throw new Error('No temp data found to process for campaign');
             }
@@ -1499,7 +1500,8 @@ async function triggerBackgroundResourceCreationFlow(
     tenantId: string,
     campaignDetails: any,
     parentCampaign: any,
-    locale: string
+    locale: string,
+    createdByEmail? : string,
 ): Promise<void> {
     try {
         const useruuid = campaignDetails?.auditDetails?.createdBy;
@@ -1574,7 +1576,8 @@ async function triggerBackgroundResourceCreationFlow(
                     RequestInfo: requestInfoObject.RequestInfo,
                     CampaignDetails: campaignDetails,
                     parentCampaign: parentCampaign
-                });
+                },  createdByEmail
+            );
                 
                 logger.info('=== BACKGROUND RESOURCE CREATION FLOW COMPLETED SUCCESSFULLY ===');
                 
