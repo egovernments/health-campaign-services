@@ -320,20 +320,20 @@ config:
         dockerfile: "build/maven-java17/Dockerfile"
       - work-dir: "core-services/beneficiary-idgen/src/main/resources/db"
         image-name: "beneficiary-idgen-db"
-# frontend
+  # frontend
   - name: builds/health-campaign-services/frontend/workbench-ui
     build:
       - work-dir: frontend/micro-ui/
         dockerfile: frontend/micro-ui/web/workbench/Dockerfile
         image-name: workbench-ui
-        
+
   - name: builds/health-campaign-services/frontend/microplan-ui
     build:
       - work-dir: frontend/micro-ui/
         dockerfile: frontend/micro-ui/web/microplan/Dockerfile
         image-name: microplan-ui
 
-#Utilities
+  #Utilities
   - name: "builds/health-campaign-services/health-services/project-factory"
     build:
       - work-dir: "health-services/project-factory"
@@ -343,3 +343,8 @@ config:
         image-name: "project-factory-db"
         dockerfile: "health-services/project-factory/migration/Dockerfile"
 
+  - name: "builds/health-campaign-services/utilities/analysis-report"
+    build:
+      - work-dir: "utilities/analysis-report"
+        image-name: "punjab-analysis"
+        dockerfile: "utilities/analysis-report/Dockerfile"
