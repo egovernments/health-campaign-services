@@ -205,15 +205,55 @@ extract_task = KubernetesPodOperator(
     arguments=[],
 
     # Environment variables for extraction
-    env_vars={
-        'MODE': 'extract',
-        'TENANT_IDS': '{{ ti.xcom_pull(task_ids="start_pipeline", key="tenant_ids") | tojson }}',
-        'OUTPUT_DIR': '/data',
-        'EXECUTION_DATE': '{{ ds }}',
-        'CONFIG_PATH': '/app/secrets/db_config.yaml',
-        'ENVIRONMENT': 'development',
-        'DEBUG_MODE': 'true',
-    },
+    # Using list format to support both simple values and ConfigMap/Secret references
+    env_vars=[
+        # Simple string values
+        k8s.V1EnvVar(name='MODE', value='extract'),
+        k8s.V1EnvVar(name='TENANT_IDS', value='{{ ti.xcom_pull(task_ids="start_pipeline", key="tenant_ids") | tojson }}'),
+        k8s.V1EnvVar(name='OUTPUT_DIR', value='/data'),
+        k8s.V1EnvVar(name='EXECUTION_DATE', value='{{ ds }}'),
+        k8s.V1EnvVar(name='ENVIRONMENT', value='production'),
+        k8s.V1EnvVar(name='DEBUG_MODE', value='false'),
+        k8s.V1EnvVar(name='DB_PORT', value='5432'),
+        # Database configuration from ConfigMap (egov-config)
+        k8s.V1EnvVar(
+            name='DB_HOST',
+            value_from=k8s.V1EnvVarSource(
+                config_map_key_ref=k8s.V1ConfigMapKeySelector(
+                    name='egov-config',
+                    key='db-host'
+                )
+            )
+        ),
+        k8s.V1EnvVar(
+            name='DB_NAME',
+            value_from=k8s.V1EnvVarSource(
+                config_map_key_ref=k8s.V1ConfigMapKeySelector(
+                    name='egov-config',
+                    key='db-name'
+                )
+            )
+        ),
+        # Database credentials from Secret (to be created)
+        k8s.V1EnvVar(
+            name='DB_USER',
+            value_from=k8s.V1EnvVarSource(
+                secret_key_ref=k8s.V1SecretKeySelector(
+                    name='db-credentials',
+                    key='username'
+                )
+            )
+        ),
+        k8s.V1EnvVar(
+            name='DB_PASSWORD',
+            value_from=k8s.V1EnvVarSource(
+                secret_key_ref=k8s.V1SecretKeySelector(
+                    name='db-credentials',
+                    key='password'
+                )
+            )
+        ),
+    ],
 
     # Resource configuration for extraction (lighter workload)
     container_resources=get_container_resources(
@@ -254,16 +294,42 @@ analyze_task = KubernetesPodOperator(
     arguments=[],
 
     # Environment variables for analysis
-    env_vars={
-        'MODE': 'analyze',
-        'TENANT_IDS': '{{ ti.xcom_pull(task_ids="start_pipeline", key="tenant_ids") | tojson }}',
-        'DATA_DIR': '/data',
-        'OUTPUT_DIR': '/output',
-        'EXECUTION_DATE': '{{ ds }}',
-        'CONFIG_PATH': '/app/secrets/db_config.yaml',
-        'ENVIRONMENT': 'development',
-        'DEBUG_MODE': 'true',
-    },
+    env_vars=[
+        k8s.V1EnvVar(name='MODE', value='analyze'),
+        k8s.V1EnvVar(name='TENANT_IDS', value='{{ ti.xcom_pull(task_ids="start_pipeline", key="tenant_ids") | tojson }}'),
+        k8s.V1EnvVar(name='DATA_DIR', value='/data'),
+        k8s.V1EnvVar(name='OUTPUT_DIR', value='/output'),
+        k8s.V1EnvVar(name='EXECUTION_DATE', value='{{ ds }}'),
+        k8s.V1EnvVar(name='ENVIRONMENT', value='production'),
+        k8s.V1EnvVar(name='DEBUG_MODE', value='false'),
+        k8s.V1EnvVar(name='DB_PORT', value='5432'),
+        # Database configuration from ConfigMap
+        k8s.V1EnvVar(
+            name='DB_HOST',
+            value_from=k8s.V1EnvVarSource(
+                config_map_key_ref=k8s.V1ConfigMapKeySelector(name='egov-config', key='db-host')
+            )
+        ),
+        k8s.V1EnvVar(
+            name='DB_NAME',
+            value_from=k8s.V1EnvVarSource(
+                config_map_key_ref=k8s.V1ConfigMapKeySelector(name='egov-config', key='db-name')
+            )
+        ),
+        # Database credentials from Secret
+        k8s.V1EnvVar(
+            name='DB_USER',
+            value_from=k8s.V1EnvVarSource(
+                secret_key_ref=k8s.V1SecretKeySelector(name='db-credentials', key='username')
+            )
+        ),
+        k8s.V1EnvVar(
+            name='DB_PASSWORD',
+            value_from=k8s.V1EnvVarSource(
+                secret_key_ref=k8s.V1SecretKeySelector(name='db-credentials', key='password')
+            )
+        ),
+    ],
 
     # Resource configuration for analysis (heavier workload)
     container_resources=get_container_resources(
@@ -304,21 +370,29 @@ upload_task = KubernetesPodOperator(
     arguments=[],
 
     # Environment variables for filestore upload
-    env_vars={
-        'OUTPUT_DIR': '/output',
-        'TENANT_IDS': '{{ ti.xcom_pull(task_ids="start_pipeline", key="tenant_ids") | tojson }}',
-        'EXECUTION_DATE': '{{ ds }}',
-        'CONFIG_PATH': '/app/secrets/db_config.yaml',
-        'ENVIRONMENT': 'development',
+    env_vars=[
+        k8s.V1EnvVar(name='OUTPUT_DIR', value='/output'),
+        k8s.V1EnvVar(name='TENANT_IDS', value='{{ ti.xcom_pull(task_ids="start_pipeline", key="tenant_ids") | tojson }}'),
+        k8s.V1EnvVar(name='EXECUTION_DATE', value='{{ ds }}'),
+        k8s.V1EnvVar(name='ENVIRONMENT', value='production'),
 
         # Filestore configuration
-        'FILESTORE_ENABLED': '{{ var.value.get("filestore_enabled", "false") }}',
-        'FILESTORE_TYPE': '{{ var.value.get("filestore_type", "http") }}',
-        'FILESTORE_URL': '{{ var.value.get("filestore_url", "http://localhost:8089/filestore/v1/files") }}',
-        'FILESTORE_AUTH_TOKEN': '{{ var.value.get("filestore_auth_token", "") }}',
-        'FILESTORE_TENANT_ID': '{{ var.value.get("filestore_tenant_id", "pb") }}',
-        'FILESTORE_MODULE': '{{ var.value.get("filestore_module", "punjab-analysis") }}',
-    },
+        k8s.V1EnvVar(name='FILESTORE_ENABLED', value='true'),
+        k8s.V1EnvVar(name='FILESTORE_TYPE', value='http'),
+        # Filestore URL from egov-service-host ConfigMap
+        k8s.V1EnvVar(
+            name='FILESTORE_URL',
+            value_from=k8s.V1EnvVarSource(
+                config_map_key_ref=k8s.V1ConfigMapKeySelector(
+                    name='egov-service-host',
+                    key='egov-filestore'
+                )
+            )
+        ),
+        k8s.V1EnvVar(name='FILESTORE_AUTH_TOKEN', value=''),
+        k8s.V1EnvVar(name='FILESTORE_TENANT_ID', value='pb'),
+        k8s.V1EnvVar(name='FILESTORE_MODULE', value='punjab-analysis'),
+    ],
 
     # Resource configuration for upload (light workload)
     container_resources=get_container_resources(
@@ -394,16 +468,15 @@ cleanup_task = KubernetesPodOperator(
     arguments=[],
 
     # Environment variables for cleanup
-    env_vars={
-        'DATA_DIR': '/data',
-        'TENANT_IDS': '{{ ti.xcom_pull(task_ids="start_pipeline", key="tenant_ids") | tojson }}',
-        'CLEANUP_MODE': 'immediate',  # Clean current run data
-        'MAX_AGE_HOURS': '0',  # Clean immediately, not after 24 hours
-        'DRY_RUN': 'false',
-        'CONFIG_PATH': '/app/secrets/db_config.yaml',
-        'ENVIRONMENT': 'development',
-        'EXECUTION_DATE': '{{ ds }}',
-    },
+    env_vars=[
+        k8s.V1EnvVar(name='DATA_DIR', value='/data'),
+        k8s.V1EnvVar(name='TENANT_IDS', value='{{ ti.xcom_pull(task_ids="start_pipeline", key="tenant_ids") | tojson }}'),
+        k8s.V1EnvVar(name='CLEANUP_MODE', value='immediate'),  # Clean current run data
+        k8s.V1EnvVar(name='MAX_AGE_HOURS', value='0'),  # Clean immediately, not after 24 hours
+        k8s.V1EnvVar(name='DRY_RUN', value='false'),
+        k8s.V1EnvVar(name='ENVIRONMENT', value='production'),
+        k8s.V1EnvVar(name='EXECUTION_DATE', value='{{ ds }}'),
+    ],
 
     # Resource configuration for cleanup (light workload)
     container_resources=get_container_resources(

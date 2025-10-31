@@ -25,7 +25,10 @@ class ConfigLoader:
         self.config = self._load_config()
 
     def _load_config(self):
-        """Load configuration from YAML file"""
+        """
+        Load configuration from YAML file.
+        Returns empty dict if file not found (will use environment variables instead).
+        """
         try:
             with open(self.config_path, 'r') as f:
                 config = yaml.safe_load(f)
@@ -42,8 +45,10 @@ class ConfigLoader:
             return config
 
         except FileNotFoundError:
-            logger.error(f"❌ Configuration file not found: {self.config_path}")
-            raise ValueError(f"Configuration file not found: {self.config_path}")
+            # File not found - return empty config (will use environment variables)
+            logger.warning(f"⚠️ Configuration file not found: {self.config_path}")
+            logger.info(f"ℹ️ Will use environment variables for configuration")
+            return {}
         except yaml.YAMLError as e:
             logger.error(f"❌ Invalid YAML format: {e}")
             raise ValueError(f"Invalid YAML configuration: {e}")
@@ -64,7 +69,31 @@ class ConfigLoader:
         return merged
 
     def get_database_config(self):
-        """Get database connection configuration"""
+        """
+        Get database connection configuration
+        Priority: Environment variables (from ConfigMaps) > YAML file
+        """
+        # Try reading from environment variables first (from Kubernetes ConfigMaps)
+        db_host = os.getenv('DB_HOST')
+        db_name = os.getenv('DB_NAME')
+        db_user = os.getenv('DB_USER')
+        db_password = os.getenv('DB_PASSWORD')
+        db_port = os.getenv('DB_PORT', '5432')
+
+        if db_host and db_name and db_user and db_password:
+            # Use environment variables (Kubernetes ConfigMaps approach)
+            logger.info(f"🔗 Using database config from environment variables (ConfigMaps)")
+            psycopg2_config = {
+                'host': db_host,
+                'port': int(db_port),
+                'database': db_name,
+                'user': db_user,
+                'password': db_password
+            }
+            logger.info(f"🔗 Database config: {db_user}@{db_host}:{db_port}/{db_name}")
+            return psycopg2_config
+
+        # Fall back to YAML file
         try:
             db_config = self.config['database'].copy()
 
@@ -88,12 +117,12 @@ class ConfigLoader:
             if 'connection_timeout' in db_config:
                 psycopg2_config['connect_timeout'] = db_config['connection_timeout']
 
-            logger.info(f"🔗 Database config loaded: {db_config['user']}@{db_config['host']}:{db_config['port']}/{db_config['name']}")
+            logger.info(f"🔗 Database config loaded from YAML: {db_config['user']}@{db_config['host']}:{db_config['port']}/{db_config['name']}")
 
             return psycopg2_config
 
         except KeyError as e:
-            raise ValueError(f"Missing database configuration section: {e}")
+            raise ValueError(f"Missing database configuration (not in env vars or YAML): {e}")
 
     def get_settings(self):
         """Get application settings"""
@@ -165,27 +194,50 @@ class ConfigLoader:
 
 # Example usage and testing
 if __name__ == "__main__":
-    # Test the configuration loader
+    """
+    Test the configuration loader with environment variables.
+
+    Usage:
+        # Test with environment variables (production mode):
+        export DB_HOST=localhost
+        export DB_NAME=testdb
+        export DB_USER=postgres
+        export DB_PASSWORD=password
+        python config_loader.py
+
+        # Test with config file (development mode):
+        export CONFIG_PATH=/path/to/db_config.yaml
+        python config_loader.py
+    """
+    import sys
+
     try:
-        # Test with local file (development)
+        # Initialize with defaults (reads from environment variables)
+        config_path = os.getenv('CONFIG_PATH', '/app/secrets/db_config.yaml')
+        environment = os.getenv('ENVIRONMENT', 'production')
+
+        logger.info(f"Testing ConfigLoader with environment: {environment}")
+        logger.info(f"Config path: {config_path}")
+
         config_loader = ConfigLoader(
-            config_path='/home/admin1/Desktop/airflow-punjab-analysis/k8s/secrets/db_config.yaml',
-            environment='development'
+            config_path=config_path,
+            environment=environment
         )
 
+        # Validate configuration
         config_loader.validate_config()
 
         # Test database config
         db_config = config_loader.get_database_config()
-        print(f"Database: {db_config}")
+        logger.info(f"✅ Database config loaded: {db_config['user']}@{db_config['host']}:{db_config['port']}/{db_config['database']}")
 
-        # Test tenant-specific settings
-        adampur_chunk_size = config_loader.get_setting('chunk_size', tenant_id='pb.adampur')
-        print(f"Adampur chunk size: {adampur_chunk_size}")
+        # Test data directories
+        data_dirs = config_loader.get_data_dirs()
+        logger.info(f"✅ Data directories: {data_dirs}")
 
-        # Test cleanup config
-        cleanup_config = config_loader.get_cleanup_config()
-        print(f"Cleanup config: {cleanup_config}")
+        logger.info("🎉 All tests passed!")
+        sys.exit(0)
 
     except Exception as e:
-        print(f"Configuration test failed: {e}")
+        logger.error(f"❌ Configuration test failed: {e}")
+        sys.exit(1)

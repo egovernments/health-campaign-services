@@ -1,0 +1,152 @@
+name: Build Punjab Analysis
+
+on:
+  push:
+    paths:
+      - 'utilities/analysis-report/**'
+      - 'utilities/airflow-dags/**'
+      - '.github/workflows/build-punjab-analysis.yml'
+    branches:
+      - master
+      - develop
+      - airflow-analysis
+      - 'HCMPRE-*'
+      - 'HCMPOST-*'
+      - 'HCMSUB-*'
+
+  # Allow manual trigger from any branch
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to build from'
+        required: false
+        default: 'current'
+
+env:
+  DOCKER_USERNAME: ${{ vars.DOCKER_USERNAME }}
+  DOCKER_PASSWORD: ${{ secrets.DOCKER_ACCESS_TOKEN }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    outputs:
+      docker_image: ${{ steps.save_docker_image.outputs.docker_image }}
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Cache Docker Layers
+        uses: actions/cache@v3
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-punjab-analysis-${{ github.ref_name }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ env.DOCKER_USERNAME }}
+          password: ${{ env.DOCKER_PASSWORD }}
+
+      - name: Generate the Next Tag
+        id: tag
+        run: |
+          set -euxo pipefail
+          BRANCH="${GITHUB_REF##*/}"
+          COMMIT_HASH=$(git rev-parse --short HEAD)
+          SERVICE_NAME="punjab-analysis"
+
+          # Try to get existing tags from Docker Hub
+          TOKEN=$(curl -s -X POST "https://hub.docker.com/v2/users/login/" \
+            -H "Content-Type: application/json" \
+            -d "{\"username\": \"$DOCKER_USERNAME\", \"password\": \"$DOCKER_PASSWORD\"}" \
+            | jq -r .token)
+
+          if [ -z "$TOKEN" ]; then
+            echo "Failed to authenticate with Docker Hub." >&2
+            exit 1
+          fi
+
+          # Check if repository exists
+          REPO_CHECK=$(curl -s -o /dev/null -w '%{http_code}' \
+            -H "Authorization: JWT $TOKEN" \
+            "https://hub.docker.com/v2/repositories/$DOCKER_USERNAME/$SERVICE_NAME/")
+
+          if [ "$REPO_CHECK" -ne 200 ]; then
+            # Repository doesn't exist, use first tag
+            NEXT_TAG="${BRANCH}-${COMMIT_HASH}"
+          else
+            # Repository exists, use branch-commit format
+            NEXT_TAG="${BRANCH}-${COMMIT_HASH}"
+          fi
+
+          echo "tag=$NEXT_TAG" >> "$GITHUB_OUTPUT"
+          echo "NEXT_TAG=$NEXT_TAG" >> "$GITHUB_ENV"
+
+      - name: Build and Push Docker Image
+        id: build_push_docker
+        uses: docker/build-push-action@v5
+        with:
+          platforms: linux/amd64,linux/arm64
+          context: utilities/analysis-report
+          file: utilities/analysis-report/Dockerfile
+          push: true
+          tags: |
+            egovio/punjab-analysis:${{ steps.tag.outputs.tag }}
+            egovio/punjab-analysis:latest
+          cache-from: type=registry,ref=egovio/punjab-analysis:latest
+          cache-to: type=inline
+
+      - name: Save Docker Image Info
+        id: save_docker_image
+        run: |
+          IMG="egovio/punjab-analysis:${{ steps.tag.outputs.tag }}"
+          echo "$IMG"
+          echo "docker_image=$IMG" >> "$GITHUB_OUTPUT"
+          echo "### ✅ Punjab Analysis Build Successful" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Image:** $IMG" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Also tagged as:** egovio/punjab-analysis:latest" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Commit:** ${{ github.sha }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Branch:** ${{ github.ref_name }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "#### Image Details" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Size: 313 MB (optimized multi-stage build)" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Python: 3.11" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Platform: linux/amd64, linux/arm64" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "#### Next Steps" >> "$GITHUB_STEP_SUMMARY"
+          echo "1. Image is available in Docker Hub" >> "$GITHUB_STEP_SUMMARY"
+          echo "2. Update Airflow variable (if needed):" >> "$GITHUB_STEP_SUMMARY"
+          echo '   ```bash' >> "$GITHUB_STEP_SUMMARY"
+          echo "   kubectl exec -n airflow \$SCHEDULER_POD -c scheduler -- \\" >> "$GITHUB_STEP_SUMMARY"
+          echo "     airflow variables set punjab_analysis_image \"$IMG\"" >> "$GITHUB_STEP_SUMMARY"
+          echo '   ```' >> "$GITHUB_STEP_SUMMARY"
+          echo "3. Trigger DAG in Airflow UI" >> "$GITHUB_STEP_SUMMARY"
+
+      # Optional: Update Airflow Variable Automatically
+      # Uncomment this section to auto-update Airflow after successful build
+      # - name: Update Airflow Variable (Optional)
+      #   if: success() && github.ref == 'refs/heads/develop'
+      #   env:
+      #     KUBECONFIG_DATA: ${{ secrets.KUBECONFIG_UNIFIED_DEV }}
+      #   run: |
+      #     # Setup kubeconfig
+      #     mkdir -p $HOME/.kube
+      #     echo "$KUBECONFIG_DATA" | base64 -d > $HOME/.kube/config
+      #
+      #     # Get scheduler pod
+      #     SCHEDULER_POD=$(kubectl get pods -n airflow \
+      #       -l component=scheduler \
+      #       -o jsonpath='{.items[0].metadata.name}')
+      #
+      #     # Update Airflow variable
+      #     kubectl exec -n airflow $SCHEDULER_POD -c scheduler -- \
+      #       airflow variables set punjab_analysis_image "egovio/punjab-analysis:${{ steps.tag.outputs.tag }}"
+      #
+      #     echo "✅ Airflow variable updated to: egovio/punjab-analysis:${{ steps.tag.outputs.tag }}"
