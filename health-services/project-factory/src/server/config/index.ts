@@ -179,6 +179,8 @@ const config = {
     unfrozeTillRow: process.env.UNFROZE_TILL_ROW || "5010",
     unfrozeTillColumn: process.env.UNFROZE_TILL_COLUMN || "26",
     moduleName: process.env.MODULE_NAME || "HCM-ADMIN-CONSOLE",
+    formConfigTemplateName: process.env.FORM_CONFIG_TEMPLATE_NAME || "FormConfigTemplate",
+    formConfigName: process.env.FORM_CONFIG_NAME || "FormConfig",
     readMeTab: process.env.READ_ME_TAB || "HCM_README_SHEETNAME",
     userMainBoundary: process.env.USER_MAIN_BOUNDARY || "mz",
     userMainBoundaryType: process.env.USER_MAIN_BOUNDARY_TYPE || "Country",
