@@ -2841,10 +2841,13 @@ export async function createAppConfig(
   try {
     logger.info("Creating app configuration...");
 
-    const FormConfigTemplate = "FormConfigTemplate";
-    const FormConfig = "FormConfig";
-    const templateSchema = `HCM-ADMIN-CONSOLE.${FormConfigTemplate}`;
-    const configSchema = `HCM-ADMIN-CONSOLE.${FormConfig}`;
+    const moduleName = config.values.moduleName;
+    const FormConfigTemplate = config.values.formConfigTemplateName;
+    const FormConfig = config.values.formConfigName;
+    const templateSchema = `${moduleName}.${FormConfigTemplate}`;
+    const configSchema = `${moduleName}.${FormConfig}`;
+    logger.debug(`Template Schema: ${templateSchema}`);
+    logger.debug(`Config Schema: ${configSchema}`);
 
     const [locales, localisation] = await Promise.all([
       getLocalesFromStateInfo(tenantId),
@@ -2880,8 +2883,12 @@ export async function createAppConfigFromClone(
   try {
     logger.info("Started creating app config from clone...");
 
-    const FormConfig = "FormConfig";
-    const configSchema = `HCM-ADMIN-CONSOLE.${FormConfig}`;
+    const moduleName = config.values.moduleName;
+    const FormConfig = config.values.formConfigName;
+    const configSchema = `${moduleName}.${FormConfig}`;
+
+    logger.debug(`Config Schema: ${configSchema}`);
+    
     const useruuid = RequestInfo?.userInfo?.uuid;
     if (!useruuid) {
       throw new Error("User uuid not found in request");
