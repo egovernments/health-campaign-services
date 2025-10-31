@@ -59,6 +59,7 @@ on:
           - workbench-ui
           - microplan-ui
           - project-factory
+          - analysis-report
 
 env:
   DOCKER_USERNAME: ${{ vars.DOCKER_USERNAME }}
