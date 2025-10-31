@@ -14,8 +14,12 @@ RUN apt-get update && apt-get install -y \
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
+# Set the working directory for build arg
+ARG WORK_DIR=utilities/analysis-report
+WORKDIR /build
+
 # Copy and install Python dependencies
-COPY requirements.txt .
+COPY ${WORK_DIR}/requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip
 RUN pip install --no-cache-dir -r requirements.txt
 
@@ -31,18 +35,21 @@ RUN apt-get update && apt-get install -y \
 COPY --from=builder /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
+# Set the working directory for build arg
+ARG WORK_DIR=utilities/analysis-report
+
 # Create application directory
 WORKDIR /app
 
 # Copy application code
-COPY main.py .
-COPY extract_data.py .
-COPY analyze_data.py .
-COPY cleanup_data.py .
-COPY config_loader.py .
-COPY process_all_tenants.py .
-COPY filestore_uploader.py .
-COPY upload_to_filestore.py .
+COPY ${WORK_DIR}/main.py .
+COPY ${WORK_DIR}/extract_data.py .
+COPY ${WORK_DIR}/analyze_data.py .
+COPY ${WORK_DIR}/cleanup_data.py .
+COPY ${WORK_DIR}/config_loader.py .
+COPY ${WORK_DIR}/process_all_tenants.py .
+COPY ${WORK_DIR}/filestore_uploader.py .
+COPY ${WORK_DIR}/upload_to_filestore.py .
 
 # Create directories for data and output
 RUN mkdir -p /data /output
