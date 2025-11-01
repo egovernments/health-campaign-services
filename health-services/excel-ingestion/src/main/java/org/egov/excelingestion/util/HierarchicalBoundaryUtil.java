@@ -585,38 +585,48 @@ public class HierarchicalBoundaryUtil {
             rowNum++;
         }
         
-        // Create validation for subsequent columns using hashed key lookup
-        for (int row = 2; row <= config.getExcelRowLimit(); row++) {
-            for (int colIdx = 1; colIdx < numColumns; colIdx++) {
-                int actualColIndex = startColumnIndex + colIdx;
-                CellRangeAddressList cascadeRange = new CellRangeAddressList(row, row, actualColIndex, actualColIndex);
-                
-                // Build the original key for lookup (still using # separator)
-                StringBuilder keyBuilder = new StringBuilder();
-                for (int i = 0; i <= colIdx - 1; i++) {
-                    if (i > 0) keyBuilder.append(", \"" + BOUNDARY_SEPARATOR + "\", ");
-                    String colRef = CellReference.convertNumToColString(startColumnIndex + i) + (row + 1);
-                    keyBuilder.append(colRef);
-                }
-                
-                // Create formula that uses INDEX/MATCH to find the hashed key from the original key
-                // Then use INDIRECT with that hashed key to get the named range
-                // MATCH finds the original key in column F, INDEX returns corresponding hashed key from column A
-                String formula = "IFERROR(INDIRECT(INDEX(_h_SimpleLookup_h_!$A:$A,MATCH(CONCATENATE(" + keyBuilder + 
-                    "),_h_SimpleLookup_h_!$F:$F,0)) & \"" + LIST_SUFFIX + "\"),\"\")";
-                
-                log.debug("Cascade formula for column {} row {}: length={}", actualColIndex, row, formula.length());
-                
-                try {
-                    DataValidationConstraint cascadeConstraint = dvHelper.createFormulaListConstraint(formula);
-                    DataValidation cascadeValidation = dvHelper.createValidation(cascadeConstraint, cascadeRange);
-                    cascadeValidation.setShowErrorBox(false);
-                    cascadeValidation.setEmptyCellAllowed(true);
-                    sheet.addValidationData(cascadeValidation);
-                } catch (Exception e) {
-                    log.error("Error creating cascade validation for column {} row {} with formula length {}: {}", 
-                             actualColIndex, row, formula.length(), e.getMessage());
-                }
+        // OPTIMIZED: Create validation for ENTIRE column range instead of per-cell
+        // This reduces validation count from ~25,000 (5000 rows × 5 cols) to just 5 validations
+        // Formula uses relative references (A3, B3, C3) which Excel auto-adjusts per row (A4, B4, C4 in row 4)
+        for (int colIdx = 1; colIdx < numColumns; colIdx++) {
+            int actualColIndex = startColumnIndex + colIdx;
+
+            // Create range for entire column (row 3 to rowLimit+1)
+            // Row index 2 = Excel row 3 (first data row), accounts for 0-based vs 1-based indexing
+            CellRangeAddressList cascadeRange = new CellRangeAddressList(2, config.getExcelRowLimit(), actualColIndex, actualColIndex);
+
+            // Build the formula using ROW 3 as template with RELATIVE references
+            // Excel automatically adjusts this formula for each row in the range:
+            // - Row 3: A3, B3, C3
+            // - Row 4: A4, B4, C4 (auto-adjusted by Excel)
+            // - Row 5: A5, B5, C5 (auto-adjusted by Excel)
+            StringBuilder keyBuilder = new StringBuilder();
+            for (int i = 0; i <= colIdx - 1; i++) {
+                if (i > 0) keyBuilder.append(", \"" + BOUNDARY_SEPARATOR + "\", ");
+                // Use row 3 as template - Excel auto-adjusts to relative row in each cell
+                String colRef = CellReference.convertNumToColString(startColumnIndex + i) + "3";
+                keyBuilder.append(colRef);
+            }
+
+            // Create formula that uses INDEX/MATCH to find the hashed key from the original key
+            // Then use INDIRECT with that hashed key to get the named range
+            // MATCH finds the original key in column F, INDEX returns corresponding hashed key from column A
+            String formula = "IFERROR(INDIRECT(INDEX(_h_SimpleLookup_h_!$A:$A,MATCH(CONCATENATE(" + keyBuilder +
+                "),_h_SimpleLookup_h_!$F:$F,0)) & \"" + LIST_SUFFIX + "\"),\"\")";
+
+            log.debug("Optimized cascade formula for column {}: length={}", actualColIndex, formula.length());
+
+            try {
+                DataValidationConstraint cascadeConstraint = dvHelper.createFormulaListConstraint(formula);
+                DataValidation cascadeValidation = dvHelper.createValidation(cascadeConstraint, cascadeRange);
+                cascadeValidation.setShowErrorBox(false);
+                cascadeValidation.setEmptyCellAllowed(true);
+                sheet.addValidationData(cascadeValidation);
+                log.info("✅ Applied OPTIMIZED range-based cascade validation to column {} (rows 3-{})",
+                         actualColIndex, config.getExcelRowLimit() + 1);
+            } catch (Exception e) {
+                log.error("Error creating cascade validation for column {} with formula length {}: {}",
+                         actualColIndex, formula.length(), e.getMessage());
             }
         }
         

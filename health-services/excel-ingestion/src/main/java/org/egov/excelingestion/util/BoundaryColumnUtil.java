@@ -342,44 +342,53 @@ public class BoundaryColumnUtil {
     /**
      * Adds data validations for level and boundary columns
      */
-    private void addLevelAndBoundaryDataValidations(XSSFWorkbook workbook, Sheet sheet, int lastSchemaCol, 
+    private void addLevelAndBoundaryDataValidations(XSSFWorkbook workbook, Sheet sheet, int lastSchemaCol,
                                                   List<String> levelTypes, String hierarchyType, Map<String, String> localizationMap) {
         DataValidationHelper dvHelper = sheet.getDataValidationHelper();
-        
-        // Add data validation for rows starting from row 2
+
+        // OPTIMIZED: Add data validation for ENTIRE column range instead of per-cell
+        // This reduces validation count from 10,000 (5000 rows × 2 cols) to just 2 validations
+        // Formula uses relative references which Excel auto-adjusts per row
+
+        // Level dropdown validation for entire column (uses "Levels" named range)
+        DataValidationConstraint levelConstraint = dvHelper.createFormulaListConstraint("Levels");
+        CellRangeAddressList levelAddr = new CellRangeAddressList(2, config.getExcelRowLimit(), lastSchemaCol, lastSchemaCol);
+        DataValidation levelValidation = dvHelper.createValidation(levelConstraint, levelAddr);
+        levelValidation.setErrorStyle(DataValidation.ErrorStyle.STOP);
+        levelValidation.setShowErrorBox(true);
+        levelValidation.createErrorBox(
+            LocalizationUtil.getLocalizedMessage(localizationMap, "HCM_VALIDATION_INVALID_LEVEL", "Invalid Level"),
+            LocalizationUtil.getLocalizedMessage(localizationMap, "HCM_VALIDATION_INVALID_LEVEL_MESSAGE", "Please select a valid level from the dropdown list.")
+        );
+        levelValidation.setShowPromptBox(false);
+        sheet.addValidationData(levelValidation);
+        log.info("✅ Applied OPTIMIZED range-based level validation to column {} (rows 3-{})",
+                 lastSchemaCol, config.getExcelRowLimit() + 1);
+
+        // Boundary dropdown validation for entire column (depends on level selected)
+        // Use row 3 as template - Excel auto-adjusts the relative reference for each row
+        String levelCellRef = CellReference.convertNumToColString(lastSchemaCol) + "3";  // Template for row 3
+        String boundaryFormula = "IF(" + levelCellRef + "=\"\", \"\", INDIRECT(\"Level_\"&MATCH(" + levelCellRef + ", Levels, 0)))";
+        DataValidationConstraint boundaryConstraint = dvHelper.createFormulaListConstraint(boundaryFormula);
+        CellRangeAddressList boundaryAddr = new CellRangeAddressList(2, config.getExcelRowLimit(), lastSchemaCol + 1, lastSchemaCol + 1);
+        DataValidation boundaryValidation = dvHelper.createValidation(boundaryConstraint, boundaryAddr);
+        boundaryValidation.setErrorStyle(DataValidation.ErrorStyle.STOP);
+        boundaryValidation.setShowErrorBox(true);
+        boundaryValidation.createErrorBox(
+            LocalizationUtil.getLocalizedMessage(localizationMap, "HCM_VALIDATION_INVALID_BOUNDARY", "Invalid Boundary"),
+            LocalizationUtil.getLocalizedMessage(localizationMap, "HCM_VALIDATION_INVALID_BOUNDARY_MESSAGE", "Please select a valid boundary from the dropdown list.")
+        );
+        boundaryValidation.setShowPromptBox(false);
+        sheet.addValidationData(boundaryValidation);
+        log.info("✅ Applied OPTIMIZED range-based boundary validation to column {} (rows 3-{})",
+                 lastSchemaCol + 1, config.getExcelRowLimit() + 1);
+
+        // Add VLOOKUP formulas to boundary code column for automatic population
+        // Still need to add formula per row as formulas are cell content, not validation
         for (int rowIndex = 2; rowIndex <= config.getExcelRowLimit(); rowIndex++) {
-            // Level dropdown uses "Levels" named range
-            DataValidationConstraint levelConstraint = dvHelper.createFormulaListConstraint("Levels");
-            CellRangeAddressList levelAddr = new CellRangeAddressList(rowIndex, rowIndex, lastSchemaCol, lastSchemaCol);
-            DataValidation levelValidation = dvHelper.createValidation(levelConstraint, levelAddr);
-            levelValidation.setErrorStyle(DataValidation.ErrorStyle.STOP);
-            levelValidation.setShowErrorBox(true);
-            levelValidation.createErrorBox(
-                LocalizationUtil.getLocalizedMessage(localizationMap, "HCM_VALIDATION_INVALID_LEVEL", "Invalid Level"),
-                LocalizationUtil.getLocalizedMessage(localizationMap, "HCM_VALIDATION_INVALID_LEVEL_MESSAGE", "Please select a valid level from the dropdown list.")
-            );
-            levelValidation.setShowPromptBox(false);
-            sheet.addValidationData(levelValidation);
-            
-            // Boundary dropdown: depends on level selected, shows "Boundary (Parent)" format 
-            String levelCellRef = CellReference.convertNumToColString(lastSchemaCol) + (rowIndex + 1);
-            String boundaryFormula = "IF(" + levelCellRef + "=\"\", \"\", INDIRECT(\"Level_\"&MATCH(" + levelCellRef + ", Levels, 0)))";
-            DataValidationConstraint boundaryConstraint = dvHelper.createFormulaListConstraint(boundaryFormula);
-            CellRangeAddressList boundaryAddr = new CellRangeAddressList(rowIndex, rowIndex, lastSchemaCol + 1, lastSchemaCol + 1);
-            DataValidation boundaryValidation = dvHelper.createValidation(boundaryConstraint, boundaryAddr);
-            boundaryValidation.setErrorStyle(DataValidation.ErrorStyle.STOP);
-            boundaryValidation.setShowErrorBox(true);
-            boundaryValidation.createErrorBox(
-                LocalizationUtil.getLocalizedMessage(localizationMap, "HCM_VALIDATION_INVALID_BOUNDARY", "Invalid Boundary"),
-                LocalizationUtil.getLocalizedMessage(localizationMap, "HCM_VALIDATION_INVALID_BOUNDARY_MESSAGE", "Please select a valid boundary from the dropdown list.")
-            );
-            boundaryValidation.setShowPromptBox(false);
-            sheet.addValidationData(boundaryValidation);
-            
-            // Add VLOOKUP formula to boundary code column for automatic population
             String boundaryNameCellRef = CellReference.convertNumToColString(lastSchemaCol + 1) + (rowIndex + 1);
             String vlookupFormula = "IF(" + boundaryNameCellRef + "=\"\", \"\", VLOOKUP(" + boundaryNameCellRef + ", BoundaryCodeMap, 2, FALSE))";
-            
+
             Row row = sheet.getRow(rowIndex);
             if (row == null) row = sheet.createRow(rowIndex);
             Cell boundaryCodeCell = row.createCell(lastSchemaCol + 2);

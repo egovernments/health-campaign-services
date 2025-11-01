@@ -126,10 +126,11 @@ public class ConfigBasedGenerationService {
         ByteArrayOutputStream bos = new ByteArrayOutputStream();
         try {
             workbook.write(bos);
+            bos.flush(); // Ensure all POI buffers are flushed
         } finally {
             workbook.close();
         }
-        
+
         log.info("Config-based Excel generation completed successfully");
         return bos.toByteArray();
     }
