@@ -114,7 +114,7 @@ class PunjabDataExtractor:
             return True
 
         except Exception as e:
-            logger.error(f"Failed to acquire lock: {e}")
+            logger.warning(f"Failed to acquire lock: {e}")
             return False
 
     def release_tenant_lock(self):

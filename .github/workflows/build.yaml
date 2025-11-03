@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
     inputs:
       pipeline_name:
-        description: 'Name of the config pipeline to build and deploy'
+        description: "Name of the config pipeline to build and deploy"
         required: true
         type: choice
         options:
@@ -59,6 +59,7 @@ on:
           - workbench-ui
           - microplan-ui
           - project-factory
+          - analysis-report
 
 env:
   DOCKER_USERNAME: ${{ vars.DOCKER_USERNAME }}
@@ -69,14 +70,14 @@ jobs:
     name: Resolve ${{ github.event.inputs.pipeline_name }} config
     runs-on: ubuntu-latest
     outputs:
-      service_work_dir:   ${{ steps.setenv.outputs.SERVICE_WORK_DIR }}
+      service_work_dir: ${{ steps.setenv.outputs.SERVICE_WORK_DIR }}
       service_image_name: ${{ steps.setenv.outputs.SERVICE_IMAGE_NAME }}
       service_dockerfile: ${{ steps.setenv.outputs.SERVICE_DOCKERFILE }}
-      db_folder_exists:   ${{ steps.check-db-folder.outputs.folder_exists }}
-      db_work_dir:        ${{ steps.setenv.outputs.DB_WORK_DIR }}
-      db_image_name:      ${{ steps.setenv.outputs.DB_IMAGE_NAME }}
-      db_dockerfile:      ${{ steps.setenv.outputs.DB_DOCKERFILE }}
-      tag:                ${{ steps.tag.outputs.tag }}
+      db_folder_exists: ${{ steps.check-db-folder.outputs.folder_exists }}
+      db_work_dir: ${{ steps.setenv.outputs.DB_WORK_DIR }}
+      db_image_name: ${{ steps.setenv.outputs.DB_IMAGE_NAME }}
+      db_dockerfile: ${{ steps.setenv.outputs.DB_DOCKERFILE }}
+      tag: ${{ steps.tag.outputs.tag }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -94,22 +95,22 @@ jobs:
           PIPELINE_NAME="${{ github.event.inputs.pipeline_name }}"
           DEFAULT_DOCKERFILE="Dockerfile"
           echo "### Pipeline Name - $PIPELINE_NAME" >> $GITHUB_STEP_SUMMARY
-          
+
           # Step 1: List matching config blocks
           MATCHING_CONFIGS=$(yq eval -o=json '.config[] | select(.name | test("/'"$PIPELINE_NAME"'$"))' build/build-config.yml)
-          
+
           # Step 2: Show matched config(s)
           echo "Matching config(s) for pipeline '$PIPELINE_NAME':"
           echo "$MATCHING_CONFIGS" | yq eval -P -  # pretty-print for readability
-          
+
           # Step 3: Check count of matching configs
           MATCH_COUNT=$(echo "$MATCHING_CONFIGS" | yq eval -o=json '.' - | jq -s 'length')
-          
+
           if [ "$MATCH_COUNT" -ne 1 ]; then
             echo "ERROR: Expected exactly 1 matching pipeline config, but found $MATCH_COUNT"
             exit 1
           fi
-          
+
           # Step 4: Extract service build config (image-name not ending with -db)
           SERVICE_BUILD_CONFIG=$(yq eval -o=json '
             .config[]
@@ -117,7 +118,7 @@ jobs:
             | .build[]
             | select(.["image-name"] | test("-db$") | not)
             ' build/build-config.yml)
-          
+
           # Step 5: Extract db build config (image-name ending with -db)
           DB_BUILD_CONFIG=$(yq eval -o=json '
             .config[]
@@ -125,26 +126,26 @@ jobs:
             | .build[]
             | select(.["image-name"] | test("-db$"))
             ' build/build-config.yml)
-          
+
           # Step 6: Print for confirmation
           echo "SERVICE_BUILD_CONFIG: $SERVICE_BUILD_CONFIG"
           echo "DB_BUILD_CONFIG: $DB_BUILD_CONFIG"
-          
+
           # Step 7: Extract Required Environment Variables
           SERVICE_DOCKERFILE=$(echo "$SERVICE_BUILD_CONFIG" | yq eval -r '.dockerfile // ""' -)
           SERVICE_IMAGE_NAME=$(echo "$SERVICE_BUILD_CONFIG" | yq eval -r '.["image-name"] // ""' -)
           SERVICE_WORK_DIR=$(echo "$SERVICE_BUILD_CONFIG" | yq eval -r '.["work-dir"] // ""' -)
-          
+
           DB_IMAGE_NAME=$(echo "$DB_BUILD_CONFIG" | yq eval -r '.["image-name"] // ""' -)
           DB_WORK_DIR=$(echo "$DB_BUILD_CONFIG" | yq eval -r '.["work-dir"] // ""' -)
           DB_DOCKERFILE=$(echo "$DB_BUILD_CONFIG" | yq eval -r '.["work-dir"] // ""' -)/Dockerfile
-          
+
           # Step 8: Set Default Dockerfile if service dockerfile config is missing
           if [ -z "$SERVICE_DOCKERFILE" ]; then
             echo "No dockerfile entry found for \"$PIPELINE_NAME\" in build-config.yml; using default"
             SERVICE_DOCKERFILE="$SERVICE_WORK_DIR/$DEFAULT_DOCKERFILE"
           fi
-          
+
           # Step 9: Export to github environment
           echo "SERVICE_WORK_DIR=$SERVICE_WORK_DIR" >> "$GITHUB_OUTPUT"
           echo "SERVICE_IMAGE_NAME=$SERVICE_IMAGE_NAME" >> "$GITHUB_OUTPUT"
@@ -153,7 +154,7 @@ jobs:
           echo "DB_IMAGE_NAME=$DB_IMAGE_NAME"  >> "$GITHUB_OUTPUT"
           echo "DB_DOCKERFILE=$DB_DOCKERFILE"  >> "$GITHUB_OUTPUT"
           missing_vars=()
-          
+
           # Step 10: Check if required env variables exists
           for var in SERVICE_WORK_DIR SERVICE_IMAGE_NAME SERVICE_DOCKERFILE; do
             if [ -z "${!var}" ]; then
@@ -161,7 +162,7 @@ jobs:
               missing_vars+=("$var")
             fi
           done
-          
+
           if [ ${#missing_vars[@]} -gt 0 ]; then
             echo "Required environment variables are missing: ${missing_vars[*]}"
             exit 1  # Fail the step
@@ -172,7 +173,7 @@ jobs:
           echo "Application Work Directory - $SERVICE_WORK_DIR" >> $GITHUB_STEP_SUMMARY
           echo "Image Name - $SERVICE_IMAGE_NAME" >> $GITHUB_STEP_SUMMARY
           echo "Dockerfile Path - $SERVICE_DOCKERFILE" >> $GITHUB_STEP_SUMMARY
-          
+
           echo "#### DB Config Summary" >> $GITHUB_STEP_SUMMARY
           echo "Application Work Directory - $DB_WORK_DIR" >> $GITHUB_STEP_SUMMARY
           echo "Image Name - $DB_IMAGE_NAME" >> $GITHUB_STEP_SUMMARY
