@@ -269,8 +269,9 @@ extract_task = KubernetesPodOperator(
     # Kubernetes configuration
     service_account_name="airflow-worker",
     is_delete_operator_pod=False,  # Keep pods for debugging
-    get_logs=True,
-    log_events_on_failure=True,
+    do_xcom_push=False,  # Disable XCom push to avoid log parsing issues
+    get_logs=False,  # Disable log fetching to prevent false failures
+    log_events_on_failure=False,  # Disable log events on failure
     image_pull_policy="IfNotPresent",  # Use cached image if available
     startup_timeout_seconds=600,  # 10 minutes to start
 
@@ -344,8 +345,9 @@ analyze_task = KubernetesPodOperator(
     # Kubernetes configuration
     service_account_name="airflow-worker",
     is_delete_operator_pod=False,  # Keep pods for debugging
-    get_logs=True,
-    log_events_on_failure=True,
+    do_xcom_push=False,  # Disable XCom push to avoid log parsing issues
+    get_logs=False,  # Disable log fetching to prevent false failures
+    log_events_on_failure=False,  # Disable log events on failure
     image_pull_policy="IfNotPresent",  # Use cached image if available
     startup_timeout_seconds=600,  # 10 minutes to start
 
@@ -430,8 +432,9 @@ upload_task = KubernetesPodOperator(
     # Kubernetes configuration
     service_account_name="airflow-worker",
     is_delete_operator_pod=False,  # Keep pods for debugging
-    get_logs=True,
-    log_events_on_failure=True,
+    do_xcom_push=False,  # Disable XCom push to avoid log parsing issues
+    get_logs=False,  # Disable log fetching to prevent false failures
+    log_events_on_failure=False,  # Disable log events on failure
     image_pull_policy="IfNotPresent",  # Use cached image if available
     startup_timeout_seconds=600,  # 10 minutes to start
 
@@ -511,8 +514,9 @@ cleanup_task = KubernetesPodOperator(
     # Kubernetes configuration
     service_account_name="airflow-worker",
     is_delete_operator_pod=False,  # Keep pods for debugging
-    get_logs=True,
-    log_events_on_failure=True,
+    do_xcom_push=False,  # Disable XCom push to avoid log parsing issues
+    get_logs=False,  # Disable log fetching to prevent false failures
+    log_events_on_failure=False,  # Disable log events on failure
     image_pull_policy="IfNotPresent",  # Use cached image if available
     startup_timeout_seconds=600,  # 10 minutes to start
 
