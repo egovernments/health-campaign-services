@@ -256,10 +256,10 @@ extract_task = KubernetesPodOperator(
 
     # Resource configuration for extraction (lighter workload)
     container_resources=get_container_resources(
-        memory_request="1Gi",
-        memory_limit="4Gi",
-        cpu_request="1000m",
-        cpu_limit="4000m"
+        memory_request="512Mi",
+        memory_limit="2Gi",
+        cpu_request="500m",
+        cpu_limit="2000m"
     ),
 
     # Volume mounts
@@ -268,17 +268,16 @@ extract_task = KubernetesPodOperator(
 
     # Kubernetes configuration
     service_account_name="airflow-worker",
-    is_delete_operator_pod=True,
+    is_delete_operator_pod=False,  # Keep pods for debugging
     get_logs=True,
     log_events_on_failure=True,
-    image_pull_policy="Always",  # Pull image from registry
+    image_pull_policy="IfNotPresent",  # Use cached image if available
+    startup_timeout_seconds=600,  # 10 minutes to start
 
-    # Pod security and execution settings
-    security_context=k8s.V1SecurityContext(
-        run_as_user=1000,
-        run_as_group=1000,
-        run_as_non_root=True,
-    ),
+    # Connection settings
+    kubernetes_conn_id="kubernetes_default",
+    in_cluster=True,
+    config_file=None,
 
     dag=dag,
 )
@@ -332,10 +331,10 @@ analyze_task = KubernetesPodOperator(
 
     # Resource configuration for analysis (heavier workload)
     container_resources=get_container_resources(
-        memory_request="2Gi",
-        memory_limit="8Gi",
-        cpu_request="2000m",
-        cpu_limit="8000m"
+        memory_request="1Gi",
+        memory_limit="4Gi",
+        cpu_request="1000m",
+        cpu_limit="4000m"
     ),
 
     # Volume mounts
@@ -344,17 +343,16 @@ analyze_task = KubernetesPodOperator(
 
     # Kubernetes configuration
     service_account_name="airflow-worker",
-    is_delete_operator_pod=True,
+    is_delete_operator_pod=False,  # Keep pods for debugging
     get_logs=True,
     log_events_on_failure=True,
-    image_pull_policy="Always",  # Pull image from registry
+    image_pull_policy="IfNotPresent",  # Use cached image if available
+    startup_timeout_seconds=600,  # 10 minutes to start
 
-    # Pod security and execution settings
-    security_context=k8s.V1SecurityContext(
-        run_as_user=1000,
-        run_as_group=1000,
-        run_as_non_root=True,
-    ),
+    # Connection settings
+    kubernetes_conn_id="kubernetes_default",
+    in_cluster=True,
+    config_file=None,
 
     dag=dag,
 )
@@ -431,17 +429,16 @@ upload_task = KubernetesPodOperator(
 
     # Kubernetes configuration
     service_account_name="airflow-worker",
-    is_delete_operator_pod=True,
+    is_delete_operator_pod=False,  # Keep pods for debugging
     get_logs=True,
     log_events_on_failure=True,
-    image_pull_policy="Always",  # Pull image from registry
+    image_pull_policy="IfNotPresent",  # Use cached image if available
+    startup_timeout_seconds=600,  # 10 minutes to start
 
-    # Pod security and execution settings
-    security_context=k8s.V1SecurityContext(
-        run_as_user=1000,
-        run_as_group=1000,
-        run_as_non_root=True,
-    ),
+    # Connection settings
+    kubernetes_conn_id="kubernetes_default",
+    in_cluster=True,
+    config_file=None,
 
     dag=dag,
 )
@@ -513,17 +510,16 @@ cleanup_task = KubernetesPodOperator(
 
     # Kubernetes configuration
     service_account_name="airflow-worker",
-    is_delete_operator_pod=True,
+    is_delete_operator_pod=False,  # Keep pods for debugging
     get_logs=True,
     log_events_on_failure=True,
-    image_pull_policy="Always",  # Pull image from registry
+    image_pull_policy="IfNotPresent",  # Use cached image if available
+    startup_timeout_seconds=600,  # 10 minutes to start
 
-    # Pod security and execution settings
-    security_context=k8s.V1SecurityContext(
-        run_as_user=1000,
-        run_as_group=1000,
-        run_as_non_root=True,
-    ),
+    # Connection settings
+    kubernetes_conn_id="kubernetes_default",
+    in_cluster=True,
+    config_file=None,
 
     dag=dag,
 )
