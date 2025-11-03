@@ -6,7 +6,7 @@ Simplified to process selected tenants dynamically in single tasks
 
 from datetime import datetime, timedelta
 from airflow import DAG
-from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
+from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 from airflow.operators.python import PythonOperator
 from airflow.models import Variable
 from kubernetes.client import models as k8s
@@ -32,7 +32,7 @@ dag = DAG(
     'punjab_analysis_kubernetes_pipeline',
     default_args=default_args,
     description='Punjab property tax analysis using Kubernetes - Scalable and distributed processing',
-    schedule_interval=None,  # Manual triggering only
+    schedule=None,  # Manual triggering only (changed from schedule_interval for Airflow 3.0)
     catchup=False,
     max_active_tasks=10,
     tags=['punjab', 'kubernetes', 'property-tax', 'scalable'],
@@ -65,7 +65,7 @@ except:
     NAMESPACE = None
 
 if not NAMESPACE:
-    NAMESPACE = os.getenv("AIRFLOW__KUBERNETES__NAMESPACE", "egov")
+    NAMESPACE = os.getenv("AIRFLOW__KUBERNETES__NAMESPACE", "airflow")
     logger.info(f"Using namespace from environment/default: {NAMESPACE}")
 
 # Kubernetes Resource Configuration
@@ -191,7 +191,6 @@ def get_tenant_ids(**context):
 start_task = PythonOperator(
     task_id='start_pipeline',
     python_callable=get_tenant_ids,
-    provide_context=True,
     dag=dag,
 )
 
@@ -234,12 +233,12 @@ extract_task = KubernetesPodOperator(
                 )
             )
         ),
-        # Database credentials from Secret (to be created)
+        # Database credentials from existing 'db' Secret (created by cluster-configs)
         k8s.V1EnvVar(
             name='DB_USER',
             value_from=k8s.V1EnvVarSource(
                 secret_key_ref=k8s.V1SecretKeySelector(
-                    name='db-credentials',
+                    name='db',
                     key='username'
                 )
             )
@@ -248,7 +247,7 @@ extract_task = KubernetesPodOperator(
             name='DB_PASSWORD',
             value_from=k8s.V1EnvVarSource(
                 secret_key_ref=k8s.V1SecretKeySelector(
-                    name='db-credentials',
+                    name='db',
                     key='password'
                 )
             )
@@ -316,17 +315,17 @@ analyze_task = KubernetesPodOperator(
                 config_map_key_ref=k8s.V1ConfigMapKeySelector(name='egov-config', key='db-name')
             )
         ),
-        # Database credentials from Secret
+        # Database credentials from existing 'db' Secret (created by cluster-configs)
         k8s.V1EnvVar(
             name='DB_USER',
             value_from=k8s.V1EnvVarSource(
-                secret_key_ref=k8s.V1SecretKeySelector(name='db-credentials', key='username')
+                secret_key_ref=k8s.V1SecretKeySelector(name='db', key='username')
             )
         ),
         k8s.V1EnvVar(
             name='DB_PASSWORD',
             value_from=k8s.V1EnvVarSource(
-                secret_key_ref=k8s.V1SecretKeySelector(name='db-credentials', key='password')
+                secret_key_ref=k8s.V1SecretKeySelector(name='db', key='password')
             )
         ),
     ],
@@ -454,7 +453,6 @@ complete_task = PythonOperator(
         f"🎉 Punjab Analysis Kubernetes Pipeline completed! "
         f"Execution date: {context['ds']}, Run ID: {context['run_id']}"
     ),
-    provide_context=True,
     dag=dag,
 )
 
