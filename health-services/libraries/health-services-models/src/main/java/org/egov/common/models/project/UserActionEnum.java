@@ -10,7 +10,9 @@ public enum UserActionEnum {
     FIXED("FIXED"),
     DAILY_PLAN("DAILY_PLAN"),
     NON_COMPLIANCE("NON_COMPLIANCE"),
-    OTHER("OTHER");
+    OTHER("OTHER"),
+    START("start"),
+    END("end");
 
     private String value;
 
