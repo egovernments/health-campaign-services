@@ -238,7 +238,7 @@ class PunjabDataAnalyzer:
                 pivoted.get('PT_CANCER_CESS', 0) +
                 pivoted.get('PT_FIRE_CESS', 0) +
                 pivoted.get('PT_ROUNDOFF', 0) -
-                (pivoted.get('PT_OWNER_EXEMPTION', 0).abs() + pivoted.get('PT_UNIT_USAGE_EXEMPTION', 0).abs())
+                (pivoted.get('PT_OWNER_EXEMPTION', pd.Series(0, index=pivoted.index)).abs() + pivoted.get('PT_UNIT_USAGE_EXEMPTION', pd.Series(0, index=pivoted.index)).abs())
             )
 
             # Merge back into result
