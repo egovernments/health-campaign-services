@@ -23,8 +23,8 @@ default_args = {
     'start_date': datetime(2024, 1, 1),
     'email_on_failure': True,
     'email_on_retry': False,
-    'retries': 2,
-    'retry_delay': timedelta(minutes=5),
+    'retries': 3,  # Increased to handle KubernetesExecutor false failures
+    'retry_delay': timedelta(minutes=2),  # Reduced since retries are due to executor bug, not real failures
 }
 
 # DAG Definition
@@ -268,12 +268,13 @@ extract_task = KubernetesPodOperator(
 
     # Kubernetes configuration
     service_account_name="airflow-worker",
-    is_delete_operator_pod=False,  # Keep pods for debugging
-    do_xcom_push=False,  # Disable XCom push to avoid log parsing issues
-    get_logs=False,  # Disable log fetching to prevent false failures
-    log_events_on_failure=False,  # Disable log events on failure
+    is_delete_operator_pod=False,  # Keep pods for debugging - allows manual log inspection
+    get_logs=True,  # Enable log fetching for visibility in Airflow UI
+    log_events_on_failure=True,  # Enable log events for debugging
     image_pull_policy="IfNotPresent",  # Use cached image if available
     startup_timeout_seconds=600,  # 10 minutes to start
+    # Note: KubernetesExecutor bug may cause retries even on success
+    # Logs will be available for inspection in Airflow UI
 
     # Connection settings
     kubernetes_conn_id="kubernetes_default",
@@ -344,12 +345,13 @@ analyze_task = KubernetesPodOperator(
 
     # Kubernetes configuration
     service_account_name="airflow-worker",
-    is_delete_operator_pod=False,  # Keep pods for debugging
-    do_xcom_push=False,  # Disable XCom push to avoid log parsing issues
-    get_logs=False,  # Disable log fetching to prevent false failures
-    log_events_on_failure=False,  # Disable log events on failure
+    is_delete_operator_pod=False,  # Keep pods for debugging - allows manual log inspection
+    get_logs=True,  # Enable log fetching for visibility in Airflow UI
+    log_events_on_failure=True,  # Enable log events for debugging
     image_pull_policy="IfNotPresent",  # Use cached image if available
     startup_timeout_seconds=600,  # 10 minutes to start
+    # Note: KubernetesExecutor bug may cause retries even on success
+    # Logs will be available for inspection in Airflow UI
 
     # Connection settings
     kubernetes_conn_id="kubernetes_default",
@@ -431,12 +433,13 @@ upload_task = KubernetesPodOperator(
 
     # Kubernetes configuration
     service_account_name="airflow-worker",
-    is_delete_operator_pod=False,  # Keep pods for debugging
-    do_xcom_push=False,  # Disable XCom push to avoid log parsing issues
-    get_logs=False,  # Disable log fetching to prevent false failures
-    log_events_on_failure=False,  # Disable log events on failure
+    is_delete_operator_pod=False,  # Keep pods for debugging - allows manual log inspection
+    get_logs=True,  # Enable log fetching for visibility in Airflow UI
+    log_events_on_failure=True,  # Enable log events for debugging
     image_pull_policy="IfNotPresent",  # Use cached image if available
     startup_timeout_seconds=600,  # 10 minutes to start
+    # Note: KubernetesExecutor bug may cause retries even on success
+    # Logs will be available for inspection in Airflow UI
 
     # Connection settings
     kubernetes_conn_id="kubernetes_default",
@@ -513,12 +516,13 @@ cleanup_task = KubernetesPodOperator(
 
     # Kubernetes configuration
     service_account_name="airflow-worker",
-    is_delete_operator_pod=False,  # Keep pods for debugging
-    do_xcom_push=False,  # Disable XCom push to avoid log parsing issues
-    get_logs=False,  # Disable log fetching to prevent false failures
-    log_events_on_failure=False,  # Disable log events on failure
+    is_delete_operator_pod=False,  # Keep pods for debugging - allows manual log inspection
+    get_logs=True,  # Enable log fetching for visibility in Airflow UI
+    log_events_on_failure=True,  # Enable log events for debugging
     image_pull_policy="IfNotPresent",  # Use cached image if available
     startup_timeout_seconds=600,  # 10 minutes to start
+    # Note: KubernetesExecutor bug may cause retries even on success
+    # Logs will be available for inspection in Airflow UI
 
     # Connection settings
     kubernetes_conn_id="kubernetes_default",
