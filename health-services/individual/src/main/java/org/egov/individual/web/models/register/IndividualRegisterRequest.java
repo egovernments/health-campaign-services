@@ -17,8 +17,6 @@ import org.egov.common.models.individual.Individual;
 public class IndividualRegisterRequest {
 
     @JsonProperty("RequestInfo")
-    @NotNull
-    @Valid
     private RequestInfo requestInfo;
 
     @JsonProperty("IndividualRegister")
