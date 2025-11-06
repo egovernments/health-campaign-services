@@ -118,6 +118,14 @@ def get_volumes():
         ),
     ]
 
+def get_security_context():
+    """Get security context for pods to ensure proper permissions on mounted volumes"""
+    return k8s.V1PodSecurityContext(
+        run_as_user=1000,  # punjab-user UID
+        run_as_group=1000,  # punjab-user GID
+        fs_group=1000,  # Ensures mounted volumes are writable by group 1000
+    )
+
 def get_tenant_ids(**context):
     """Get tenant IDs from DAG run configuration, params, or use defaults with validation"""
     dag_run = context.get('dag_run')
@@ -266,6 +274,9 @@ extract_task = KubernetesPodOperator(
     volume_mounts=get_volume_mounts(),
     volumes=get_volumes(),
 
+    # Security context to ensure proper permissions on mounted volumes
+    security_context=get_security_context(),
+
     # Kubernetes configuration
     service_account_name="airflow-worker",
     is_delete_operator_pod=False,  # Keep pods for debugging - allows manual log inspection
@@ -342,6 +353,9 @@ analyze_task = KubernetesPodOperator(
     # Volume mounts
     volume_mounts=get_volume_mounts(),
     volumes=get_volumes(),
+
+    # Security context to ensure proper permissions on mounted volumes
+    security_context=get_security_context(),
 
     # Kubernetes configuration
     service_account_name="airflow-worker",
@@ -430,6 +444,9 @@ upload_task = KubernetesPodOperator(
             ),
         ),
     ],
+
+    # Security context to ensure proper permissions on mounted volumes
+    security_context=get_security_context(),
 
     # Kubernetes configuration
     service_account_name="airflow-worker",
