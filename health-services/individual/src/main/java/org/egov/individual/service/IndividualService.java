@@ -512,6 +512,16 @@ public class IndividualService {
         // Extract the IndividualRegister data
         var registerData = request.getIndividualRegister();
 
+        // Check and enrich RequestInfo with userInfo if missing
+        if (request.getRequestInfo().getUserInfo() == null ||
+            StringUtils.isBlank(request.getRequestInfo().getUserInfo().getUuid())) {
+            log.info("UserInfo or UUID is missing, enriching with default system user");
+            org.egov.common.contract.request.User systemUser = org.egov.common.contract.request.User.builder()
+                    .uuid("ff1c0f86-d362-4420-b93b-fec4714cc604")
+                    .build();
+            request.getRequestInfo().setUserInfo(systemUser);
+        }
+
         // Validate that at least one contact method is present
         if (StringUtils.isBlank(registerData.getMobileNumber()) && StringUtils.isBlank(registerData.getEmailId())) {
             throw new CustomException("CONTACT_REQUIRED", "At least one contact method (mobile number or email) is required for registration");
