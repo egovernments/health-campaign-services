@@ -126,6 +126,7 @@ public class ConfigBasedGenerationService {
         ByteArrayOutputStream bos = new ByteArrayOutputStream();
         try {
             workbook.write(bos);
+            bos.flush(); // Ensure all POI buffers are flushed
         } finally {
             workbook.close();
         }
