@@ -267,7 +267,7 @@ class PunjabDataAnalyzer:
                 pivoted_current.get('PT_CANCER_CESS', 0) +
                 pivoted_current.get('PT_FIRE_CESS', 0) +
                 pivoted_current.get('PT_ROUNDOFF', 0) -
-                (pivoted_current.get('PT_OWNER_EXEMPTION', 0).abs() + pivoted_current.get('PT_UNIT_USAGE_EXEMPTION', 0).abs())
+                (abs(pivoted_current.get('PT_OWNER_EXEMPTION', 0)) + abs(pivoted_current.get('PT_UNIT_USAGE_EXEMPTION', 0)))
             )
 
             # Keep only required cols
