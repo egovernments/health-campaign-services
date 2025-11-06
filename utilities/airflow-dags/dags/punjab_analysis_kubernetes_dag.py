@@ -210,7 +210,7 @@ extract_task = KubernetesPodOperator(
         k8s.V1EnvVar(name='MODE', value='extract'),
         k8s.V1EnvVar(name='TENANT_IDS', value='{{ ti.xcom_pull(task_ids="start_pipeline", key="tenant_ids") | tojson }}'),
         k8s.V1EnvVar(name='OUTPUT_DIR', value='/data'),
-        k8s.V1EnvVar(name='EXECUTION_DATE', value='{{ ds }}'),
+        k8s.V1EnvVar(name='EXECUTION_DATE', value='{{ ts[:10] }}'),
         k8s.V1EnvVar(name='ENVIRONMENT', value='production'),
         k8s.V1EnvVar(name='DEBUG_MODE', value='false'),
         k8s.V1EnvVar(name='DB_PORT', value='5432'),
@@ -299,7 +299,7 @@ analyze_task = KubernetesPodOperator(
         k8s.V1EnvVar(name='TENANT_IDS', value='{{ ti.xcom_pull(task_ids="start_pipeline", key="tenant_ids") | tojson }}'),
         k8s.V1EnvVar(name='DATA_DIR', value='/data'),
         k8s.V1EnvVar(name='OUTPUT_DIR', value='/output'),
-        k8s.V1EnvVar(name='EXECUTION_DATE', value='{{ ds }}'),
+        k8s.V1EnvVar(name='EXECUTION_DATE', value='{{ ts[:10] }}'),
         k8s.V1EnvVar(name='ENVIRONMENT', value='production'),
         k8s.V1EnvVar(name='DEBUG_MODE', value='false'),
         k8s.V1EnvVar(name='DB_PORT', value='5432'),
@@ -374,7 +374,7 @@ upload_task = KubernetesPodOperator(
     env_vars=[
         k8s.V1EnvVar(name='OUTPUT_DIR', value='/output'),
         k8s.V1EnvVar(name='TENANT_IDS', value='{{ ti.xcom_pull(task_ids="start_pipeline", key="tenant_ids") | tojson }}'),
-        k8s.V1EnvVar(name='EXECUTION_DATE', value='{{ ds }}'),
+        k8s.V1EnvVar(name='EXECUTION_DATE', value='{{ ts[:10] }}'),
         k8s.V1EnvVar(name='ENVIRONMENT', value='production'),
 
         # Filestore configuration
@@ -476,7 +476,7 @@ cleanup_task = KubernetesPodOperator(
         k8s.V1EnvVar(name='MAX_AGE_HOURS', value='0'),  # Clean immediately, not after 24 hours
         k8s.V1EnvVar(name='DRY_RUN', value='false'),
         k8s.V1EnvVar(name='ENVIRONMENT', value='production'),
-        k8s.V1EnvVar(name='EXECUTION_DATE', value='{{ ds }}'),
+        k8s.V1EnvVar(name='EXECUTION_DATE', value='{{ ts[:10] }}'),
     ],
 
     # Resource configuration for cleanup (light workload)
