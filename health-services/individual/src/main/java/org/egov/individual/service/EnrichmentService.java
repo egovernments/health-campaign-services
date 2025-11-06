@@ -112,13 +112,11 @@ public class EnrichmentService {
                 Integer previousRowVersion = individual.getRowVersion();
                 if (individual.getIdentifiers() != null) {
                     log.info("enriching identifiers for delete");
-                    String userId = (request.getRequestInfo().getUserInfo() != null)
-                            ? request.getRequestInfo().getUserInfo().getUuid()
-                            : "SYSTEM";
                     individual.getIdentifiers().stream().filter(Identifier::getIsDeleted)
                             .forEach(identifier -> {
                                 AuditDetails existingAuditDetails = identifier.getAuditDetails();
-                                AuditDetails auditDetails = getAuditDetailsForUpdate(existingAuditDetails, userId);
+                                AuditDetails auditDetails = getAuditDetailsForUpdate(existingAuditDetails,
+                                        request.getRequestInfo().getUserInfo().getUuid());
                                 identifier.setAuditDetails(auditDetails);
                                 individual.setAuditDetails(auditDetails);
                                 individual.setRowVersion(previousRowVersion + 1);
@@ -127,13 +125,11 @@ public class EnrichmentService {
 
                 if (individual.getAddress() != null) {
                     log.info("enriching addresses for delete");
-                    String userId = (request.getRequestInfo().getUserInfo() != null)
-                            ? request.getRequestInfo().getUserInfo().getUuid()
-                            : "SYSTEM";
                     individual.getAddress().stream().filter(Address::getIsDeleted)
                             .forEach(address -> {
                                 AuditDetails existingAuditDetails = address.getAuditDetails();
-                                AuditDetails auditDetails = getAuditDetailsForUpdate(existingAuditDetails, userId);
+                                AuditDetails auditDetails = getAuditDetailsForUpdate(existingAuditDetails,
+                                        request.getRequestInfo().getUserInfo().getUuid());
                                 address.setAuditDetails(auditDetails);
                                 individual.setAuditDetails(auditDetails);
                                 individual.setRowVersion(previousRowVersion + 1);
@@ -142,13 +138,11 @@ public class EnrichmentService {
 
                 if (individual.getSkills() != null) {
                     log.info("enriching skills for delete");
-                    String userId = (request.getRequestInfo().getUserInfo() != null)
-                            ? request.getRequestInfo().getUserInfo().getUuid()
-                            : "SYSTEM";
                     individual.getSkills().stream().filter(Skill::getIsDeleted)
                             .forEach(skill -> {
                                 AuditDetails existingAuditDetails = skill.getAuditDetails();
-                                AuditDetails auditDetails = getAuditDetailsForUpdate(existingAuditDetails, userId);
+                                AuditDetails auditDetails = getAuditDetailsForUpdate(existingAuditDetails,
+                                        request.getRequestInfo().getUserInfo().getUuid());
                                 skill.setAuditDetails(auditDetails);
                                 individual.setAuditDetails(auditDetails);
                                 individual.setRowVersion(previousRowVersion + 1);
@@ -265,13 +259,11 @@ public class EnrichmentService {
 
         if (!addressesToUpdate.isEmpty()) {
             log.info("enriching addresses to update");
-            String userId = (request.getRequestInfo().getUserInfo() != null)
-                    ? request.getRequestInfo().getUserInfo().getUuid()
-                    : "SYSTEM";
             addressesToUpdate.forEach(address -> {
                 address.setIndividualId(individual.getId());
                 AuditDetails existingAuditDetails = address.getAuditDetails();
-                AuditDetails auditDetails = getAuditDetailsForUpdate(existingAuditDetails, userId);
+                AuditDetails auditDetails = getAuditDetailsForUpdate(existingAuditDetails,
+                        request.getRequestInfo().getUserInfo().getUuid());
                 address.setAuditDetails(auditDetails);
                 if (address.getIsDeleted() == null) {
                     address.setIsDeleted(Boolean.FALSE);
@@ -298,13 +290,11 @@ public class EnrichmentService {
 
             if (!identifiersToUpdate.isEmpty()) {
                 log.info("enriching identifiers to update");
-                String userId = (request.getRequestInfo().getUserInfo() != null)
-                        ? request.getRequestInfo().getUserInfo().getUuid()
-                        : "SYSTEM";
                 identifiersToUpdate.forEach(identifier -> {
                     identifier.setIndividualId(individual.getId());
                     AuditDetails existingAuditDetails = identifier.getAuditDetails();
-                    AuditDetails auditDetails = getAuditDetailsForUpdate(existingAuditDetails, userId);
+                    AuditDetails auditDetails = getAuditDetailsForUpdate(existingAuditDetails,
+                            request.getRequestInfo().getUserInfo().getUuid());
                     identifier.setAuditDetails(auditDetails);
                     if (identifier.getIsDeleted() == null) {
                         identifier.setIsDeleted(Boolean.FALSE);
@@ -331,13 +321,11 @@ public class EnrichmentService {
                     .collect(Collectors.toList());
             if (!skillsToUpdate.isEmpty()) {
                 log.info("enriching skills to update");
-                String userId = (request.getRequestInfo().getUserInfo() != null)
-                        ? request.getRequestInfo().getUserInfo().getUuid()
-                        : "SYSTEM";
                 skillsToUpdate.forEach(skill -> {
                     skill.setIndividualId(individual.getId());
                     AuditDetails existingAuditDetails = skill.getAuditDetails();
-                    AuditDetails auditDetails = getAuditDetailsForUpdate(existingAuditDetails, userId);
+                    AuditDetails auditDetails = getAuditDetailsForUpdate(existingAuditDetails,
+                            request.getRequestInfo().getUserInfo().getUuid());
                     skill.setAuditDetails(auditDetails);
                     if (skill.getIsDeleted() == null) {
                         skill.setIsDeleted(Boolean.FALSE);

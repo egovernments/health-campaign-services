@@ -48,30 +48,14 @@ public class IdPoolValidatorForCreate implements Validator<IndividualBulkRequest
     public Map<Individual, List<Error>> validate(IndividualBulkRequest request) {
         Map<Individual, List<Error>> errorDetailsMap = new HashMap<>();
 
+        String userId = request.getRequestInfo().getUserInfo().getUuid();
+
         // Skip validation if feature is disabled in configuration
         if (!individualProperties.getBeneficiaryIdValidationEnabled()) return errorDetailsMap;
 
         log.info("Validating beneficiary ID for create");
 
         List<Individual> individuals = request.getIndividuals();
-
-        // Check if any individual has a beneficiary ID
-        boolean hasBeneficiaryId = individuals.stream()
-                .anyMatch(individual -> !CollectionUtils.isEmpty(individual.getIdentifiers()) &&
-                        individual.getIdentifiers().stream()
-                                .anyMatch(id -> UNIQUE_BENEFICIARY_ID.equalsIgnoreCase(id.getIdentifierType()) &&
-                                        StringUtils.isNotBlank(id.getIdentifierId())));
-
-        // Require userInfo when beneficiary IDs are present to ensure proper ownership validation
-        if (hasBeneficiaryId && request.getRequestInfo().getUserInfo() == null) {
-            log.error("UserInfo is required when beneficiary IDs are provided");
-            throw new CustomException("USER_INFO_REQUIRED", "User information is required for beneficiary ID validation");
-        }
-
-        // Safely get user UUID, default to "SYSTEM" if userInfo is null (for cases without beneficiary IDs)
-        String userId = (request.getRequestInfo().getUserInfo() != null)
-                ? request.getRequestInfo().getUserInfo().getUuid()
-                : "SYSTEM";
 
         validateDuplicateIDs(errorDetailsMap, individuals);
 

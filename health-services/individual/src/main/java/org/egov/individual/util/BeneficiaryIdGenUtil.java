@@ -46,11 +46,6 @@ public class BeneficiaryIdGenUtil {
         return ids.stream().map(id -> {
             String updateStatus = StringUtils.isBlank(status) ? null : status;
 
-            // Safely get user UUID, default to "SYSTEM" if userInfo is null
-            String userUuid = (requestInfo.getUserInfo() != null)
-                    ? requestInfo.getUserInfo().getUuid()
-                    : "SYSTEM";
-
             return IdRecord.builder()
                     .id(id)
                     .tenantId(tenantId)
@@ -62,7 +57,7 @@ public class BeneficiaryIdGenUtil {
                     .additionalFields(null)
                     .auditDetails(
                             AuditDetails.builder()
-                                    .createdBy(userUuid)
+                                    .createdBy(requestInfo.getUserInfo().getUuid())
                                     .createdTime(System.currentTimeMillis())
                                     .build()
                     )
