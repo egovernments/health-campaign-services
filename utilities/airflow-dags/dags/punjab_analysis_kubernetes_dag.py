@@ -420,10 +420,11 @@ upload_task = KubernetesPodOperator(
             mount_path="/app/secrets",
             read_only=True,
         ),
-        # Mount Google Drive credentials from Kubernetes secret
+        # Mount Google Drive credentials from Kubernetes secret into the secrets directory
         k8s.V1VolumeMount(
             name="google-drive-credentials",
-            mount_path="/app/secrets",
+            mount_path="/app/secrets/google_drive_credentials.json",
+            sub_path="google_drive_credentials.json",
             read_only=True,
         ),
     ],
