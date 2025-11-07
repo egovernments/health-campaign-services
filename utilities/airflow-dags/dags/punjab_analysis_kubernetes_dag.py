@@ -280,12 +280,12 @@ extract_task = KubernetesPodOperator(
     # Kubernetes configuration
     service_account_name="airflow-worker",
     is_delete_operator_pod=False,  # Keep pods for debugging - allows manual log inspection
-    get_logs=True,  # Enable log fetching for visibility in Airflow UI
+    get_logs=False,  # Disable streaming logs to avoid DNS resolution errors after pod completion
     log_events_on_failure=True,  # Enable log events for debugging
     image_pull_policy="IfNotPresent",  # Use cached image if available
     startup_timeout_seconds=600,  # 10 minutes to start
-    # Note: KubernetesExecutor bug may cause retries even on success
-    # Logs will be available for inspection in Airflow UI
+    # Note: Logs can be accessed via: kubectl logs <pod-name> -n airflow
+    # Pods are kept for debugging (is_delete_operator_pod=False)
 
     # Connection settings
     kubernetes_conn_id="kubernetes_default",
@@ -360,12 +360,12 @@ analyze_task = KubernetesPodOperator(
     # Kubernetes configuration
     service_account_name="airflow-worker",
     is_delete_operator_pod=False,  # Keep pods for debugging - allows manual log inspection
-    get_logs=True,  # Enable log fetching for visibility in Airflow UI
+    get_logs=False,  # Disable streaming logs to avoid DNS resolution errors after pod completion
     log_events_on_failure=True,  # Enable log events for debugging
     image_pull_policy="IfNotPresent",  # Use cached image if available
     startup_timeout_seconds=600,  # 10 minutes to start
-    # Note: KubernetesExecutor bug may cause retries even on success
-    # Logs will be available for inspection in Airflow UI
+    # Note: Logs can be accessed via: kubectl logs <pod-name> -n airflow
+    # Pods are kept for debugging (is_delete_operator_pod=False)
 
     # Connection settings
     kubernetes_conn_id="kubernetes_default",
@@ -451,12 +451,12 @@ upload_task = KubernetesPodOperator(
     # Kubernetes configuration
     service_account_name="airflow-worker",
     is_delete_operator_pod=False,  # Keep pods for debugging - allows manual log inspection
-    get_logs=True,  # Enable log fetching for visibility in Airflow UI
+    get_logs=False,  # Disable streaming logs to avoid DNS resolution errors after pod completion
     log_events_on_failure=True,  # Enable log events for debugging
     image_pull_policy="IfNotPresent",  # Use cached image if available
     startup_timeout_seconds=600,  # 10 minutes to start
-    # Note: KubernetesExecutor bug may cause retries even on success
-    # Logs will be available for inspection in Airflow UI
+    # Note: Logs can be accessed via: kubectl logs <pod-name> -n airflow
+    # Pods are kept for debugging (is_delete_operator_pod=False)
 
     # Connection settings
     kubernetes_conn_id="kubernetes_default",
@@ -534,12 +534,12 @@ cleanup_task = KubernetesPodOperator(
     # Kubernetes configuration
     service_account_name="airflow-worker",
     is_delete_operator_pod=False,  # Keep pods for debugging - allows manual log inspection
-    get_logs=True,  # Enable log fetching for visibility in Airflow UI
+    get_logs=False,  # Disable streaming logs to avoid DNS resolution errors after pod completion
     log_events_on_failure=True,  # Enable log events for debugging
     image_pull_policy="IfNotPresent",  # Use cached image if available
     startup_timeout_seconds=600,  # 10 minutes to start
-    # Note: KubernetesExecutor bug may cause retries even on success
-    # Logs will be available for inspection in Airflow UI
+    # Note: Logs can be accessed via: kubectl logs <pod-name> -n airflow
+    # Pods are kept for debugging (is_delete_operator_pod=False)
 
     # Connection settings
     kubernetes_conn_id="kubernetes_default",
