@@ -393,7 +393,7 @@ upload_task = KubernetesPodOperator(
 
         # Google Drive configuration
         k8s.V1EnvVar(name='GOOGLE_DRIVE_ENABLED', value='{{ var.value.get("GOOGLE_DRIVE_ENABLED", "true") }}'),
-        k8s.V1EnvVar(name='GOOGLE_DRIVE_CREDENTIALS_PATH', value='/app/secrets/google_drive_credentials.json'),
+        k8s.V1EnvVar(name='GOOGLE_DRIVE_CREDENTIALS_PATH', value='/app/google-drive/google_drive_credentials.json'),
         k8s.V1EnvVar(name='GOOGLE_DRIVE_FOLDER_ID', value='{{ var.value.get("GOOGLE_DRIVE_FOLDER_ID", "") }}'),
         k8s.V1EnvVar(name='GOOGLE_DRIVE_SHARE_WITH', value='{{ var.value.get("GOOGLE_DRIVE_SHARE_WITH", "") }}'),
         k8s.V1EnvVar(name='GOOGLE_DRIVE_CREATE_DATED_FOLDER', value='true'),
@@ -420,11 +420,10 @@ upload_task = KubernetesPodOperator(
             mount_path="/app/secrets",
             read_only=True,
         ),
-        # Mount Google Drive credentials from Kubernetes secret into the secrets directory
+        # Mount Google Drive credentials from Kubernetes secret to separate directory
         k8s.V1VolumeMount(
             name="google-drive-credentials",
-            mount_path="/app/secrets/google_drive_credentials.json",
-            sub_path="google_drive_credentials.json",
+            mount_path="/app/google-drive",
             read_only=True,
         ),
     ],
