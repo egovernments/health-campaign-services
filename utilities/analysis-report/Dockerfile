@@ -46,6 +46,8 @@ COPY config_loader.py .
 COPY process_all_tenants.py .
 COPY filestore_uploader.py .
 COPY upload_to_filestore.py .
+COPY google_drive_uploader.py .
+COPY upload_to_google_drive.py .
 
 # Create data/output dirs
 RUN mkdir -p /data /output
