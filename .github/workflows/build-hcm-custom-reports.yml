@@ -75,6 +75,8 @@ jobs:
             --platform ${{ matrix.platform }} \
             --file utilities/hcm-custom-reports/Dockerfile \
             --tag egovio/${{ env.IMAGE_NAME }}:${{ needs.generate-tag.outputs.tag }}-${{ matrix.arch }} \
+            --provenance=false \
+            --sbom=false \
             --cache-from=type=local,src=/tmp/.buildx-cache \
             --cache-to=type=local,dest=/tmp/.buildx-cache,mode=max \
             --push \
