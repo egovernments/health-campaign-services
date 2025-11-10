@@ -6,6 +6,7 @@ on:
     branches:
       - main
       - k8s
+      - airflow-analysis
     paths:
       - 'utilities/hcm-custom-reports/**'
       - '.github/workflows/build-hcm-custom-reports.yml'
