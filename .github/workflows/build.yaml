@@ -60,7 +60,6 @@ on:
           - microplan-ui
           - project-factory
           - analysis-report
-          - hcm-custom-reports
 
 env:
   DOCKER_USERNAME: ${{ vars.DOCKER_USERNAME }}

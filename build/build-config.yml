@@ -348,9 +348,3 @@ config:
       - work-dir: "utilities/analysis-report"
         image-name: "punjab-analysis"
         dockerfile: "utilities/analysis-report/Dockerfile"
-
-  - name: "builds/health-campaign-services/utilities/hcm-custom-reports"
-    build:
-      - work-dir: "utilities/hcm-custom-reports"
-        image-name: "hcm-custom-reports"
-        dockerfile: "utilities/hcm-custom-reports/Dockerfile"
