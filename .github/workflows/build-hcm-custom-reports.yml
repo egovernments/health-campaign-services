@@ -30,8 +30,8 @@ jobs:
             runner: ubuntu-24.04-arm
     runs-on: ${{ matrix.runner }}
     outputs:
-      amd64_digest: ${{ steps.digest_amd64.outputs.digest }}
-      arm64_digest: ${{ steps.digest_arm64.outputs.digest }}
+      amd64_image: ${{ steps.save_tag_amd64.outputs.image_tag }}
+      arm64_image: ${{ steps.save_tag_arm64.outputs.image_tag }}
       tag: ${{ steps.generate-tag.outputs.tag }}
     steps:
       - name: Checkout Code
@@ -78,23 +78,17 @@ jobs:
         run: |
           docker buildx imagetools inspect egovio/${{ env.IMAGE_NAME }}:${{ steps.generate-tag.outputs.tag }}-${{ matrix.arch }}
 
-      - name: Export Digest (amd64)
+      - name: Save Image Tag (amd64)
         if: matrix.arch == 'amd64'
-        id: digest_amd64
+        id: save_tag_amd64
         run: |
-          digest=$(docker buildx imagetools inspect egovio/${{ env.IMAGE_NAME }}:${{ steps.generate-tag.outputs.tag }}-${{ matrix.arch }} \
-            --format '{{json .}}' | jq -r '.manifest.digest')
-          echo "digest=$digest" >> $GITHUB_OUTPUT
-          echo "AMD64 Digest: $digest"
+          echo "image_tag=egovio/${{ env.IMAGE_NAME }}:${{ steps.generate-tag.outputs.tag }}-${{ matrix.arch }}" >> $GITHUB_OUTPUT
 
-      - name: Export Digest (arm64)
+      - name: Save Image Tag (arm64)
         if: matrix.arch == 'arm64'
-        id: digest_arm64
+        id: save_tag_arm64
         run: |
-          digest=$(docker buildx imagetools inspect egovio/${{ env.IMAGE_NAME }}:${{ steps.generate-tag.outputs.tag }}-${{ matrix.arch }} \
-            --format '{{json .}}' | jq -r '.manifest.digest')
-          echo "digest=$digest" >> $GITHUB_OUTPUT
-          echo "ARM64 Digest: $digest"
+          echo "image_tag=egovio/${{ env.IMAGE_NAME }}:${{ steps.generate-tag.outputs.tag }}-${{ matrix.arch }}" >> $GITHUB_OUTPUT
 
   create-manifest:
     name: Create Multi-arch Manifest
@@ -110,16 +104,16 @@ jobs:
       - name: Create and Push Manifest
         run: |
           docker manifest create egovio/${{ env.IMAGE_NAME }}:${{ needs.build-and-push.outputs.tag }} \
-            --amend egovio/${{ env.IMAGE_NAME }}@${{ needs.build-and-push.outputs.amd64_digest }} \
-            --amend egovio/${{ env.IMAGE_NAME }}@${{ needs.build-and-push.outputs.arm64_digest }}
+            --amend ${{ needs.build-and-push.outputs.amd64_image }} \
+            --amend ${{ needs.build-and-push.outputs.arm64_image }}
           docker manifest push egovio/${{ env.IMAGE_NAME }}:${{ needs.build-and-push.outputs.tag }}
 
       - name: Create and Push Latest Tag (if main branch)
         if: github.ref == 'refs/heads/main'
         run: |
           docker manifest create egovio/${{ env.IMAGE_NAME }}:latest \
-            --amend egovio/${{ env.IMAGE_NAME }}@${{ needs.build-and-push.outputs.amd64_digest }} \
-            --amend egovio/${{ env.IMAGE_NAME }}@${{ needs.build-and-push.outputs.arm64_digest }}
+            --amend ${{ needs.build-and-push.outputs.amd64_image }} \
+            --amend ${{ needs.build-and-push.outputs.arm64_image }}
           docker manifest push egovio/${{ env.IMAGE_NAME }}:latest
 
       - name: Summary
