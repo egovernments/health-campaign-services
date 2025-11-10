@@ -1,0 +1,12 @@
+{
+	"hhr_registered_report": {
+		"input": "/REPORTS_GENERATION/REPORTS/hhr_registered_report/",
+		"scripts": [
+			"hhr_registered_report.py"
+		],
+		"filename": [
+			"Household_Registration_Report.xlsx"
+		],
+		"moveReport": false
+	}
+}
