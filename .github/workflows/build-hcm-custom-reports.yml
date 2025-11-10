@@ -17,8 +17,27 @@ env:
   IMAGE_NAME: hcm-custom-reports
 
 jobs:
+  generate-tag:
+    name: Generate Docker Tag
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.generate-tag.outputs.tag }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Generate Tag
+        id: generate-tag
+        run: |
+          BRANCH="${GITHUB_REF##*/}"
+          COMMIT_HASH=$(git rev-parse --short HEAD)
+          TAG="${BRANCH}-${COMMIT_HASH}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Generated tag: $TAG"
+
   build-and-push:
     name: Build and Push ${{ matrix.arch }}
+    needs: generate-tag
     strategy:
       matrix:
         include:
@@ -29,10 +48,6 @@ jobs:
             platform: linux/arm64
             runner: ubuntu-24.04-arm
     runs-on: ${{ matrix.runner }}
-    outputs:
-      amd64_image: ${{ steps.save_tag_amd64.outputs.image_tag }}
-      arm64_image: ${{ steps.save_tag_arm64.outputs.image_tag }}
-      tag: ${{ steps.generate-tag.outputs.tag }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -54,21 +69,12 @@ jobs:
           username: ${{ env.DOCKER_USERNAME }}
           password: ${{ env.DOCKER_PASSWORD }}
 
-      - name: Generate Tag
-        id: generate-tag
-        run: |
-          BRANCH="${GITHUB_REF##*/}"
-          COMMIT_HASH=$(git rev-parse --short HEAD)
-          TAG="${BRANCH}-${COMMIT_HASH}"
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo "Generated tag: $TAG"
-
       - name: Build and Push Docker Image
         run: |
           docker buildx build \
             --platform ${{ matrix.platform }} \
             --file utilities/hcm-custom-reports/Dockerfile \
-            --tag egovio/${{ env.IMAGE_NAME }}:${{ steps.generate-tag.outputs.tag }}-${{ matrix.arch }} \
+            --tag egovio/${{ env.IMAGE_NAME }}:${{ needs.generate-tag.outputs.tag }}-${{ matrix.arch }} \
             --cache-from=type=local,src=/tmp/.buildx-cache \
             --cache-to=type=local,dest=/tmp/.buildx-cache,mode=max \
             --push \
@@ -76,23 +82,11 @@ jobs:
 
       - name: Inspect Image
         run: |
-          docker buildx imagetools inspect egovio/${{ env.IMAGE_NAME }}:${{ steps.generate-tag.outputs.tag }}-${{ matrix.arch }}
-
-      - name: Save Image Tag (amd64)
-        if: matrix.arch == 'amd64'
-        id: save_tag_amd64
-        run: |
-          echo "image_tag=egovio/${{ env.IMAGE_NAME }}:${{ steps.generate-tag.outputs.tag }}-${{ matrix.arch }}" >> $GITHUB_OUTPUT
-
-      - name: Save Image Tag (arm64)
-        if: matrix.arch == 'arm64'
-        id: save_tag_arm64
-        run: |
-          echo "image_tag=egovio/${{ env.IMAGE_NAME }}:${{ steps.generate-tag.outputs.tag }}-${{ matrix.arch }}" >> $GITHUB_OUTPUT
+          docker buildx imagetools inspect egovio/${{ env.IMAGE_NAME }}:${{ needs.generate-tag.outputs.tag }}-${{ matrix.arch }}
 
   create-manifest:
     name: Create Multi-arch Manifest
-    needs: build-and-push
+    needs: [generate-tag, build-and-push]
     runs-on: ubuntu-latest
     steps:
       - name: Docker Login
@@ -103,17 +97,17 @@ jobs:
 
       - name: Create and Push Manifest
         run: |
-          docker manifest create egovio/${{ env.IMAGE_NAME }}:${{ needs.build-and-push.outputs.tag }} \
-            --amend ${{ needs.build-and-push.outputs.amd64_image }} \
-            --amend ${{ needs.build-and-push.outputs.arm64_image }}
-          docker manifest push egovio/${{ env.IMAGE_NAME }}:${{ needs.build-and-push.outputs.tag }}
+          docker manifest create egovio/${{ env.IMAGE_NAME }}:${{ needs.generate-tag.outputs.tag }} \
+            --amend egovio/${{ env.IMAGE_NAME }}:${{ needs.generate-tag.outputs.tag }}-amd64 \
+            --amend egovio/${{ env.IMAGE_NAME }}:${{ needs.generate-tag.outputs.tag }}-arm64
+          docker manifest push egovio/${{ env.IMAGE_NAME }}:${{ needs.generate-tag.outputs.tag }}
 
       - name: Create and Push Latest Tag (if main branch)
         if: github.ref == 'refs/heads/main'
         run: |
           docker manifest create egovio/${{ env.IMAGE_NAME }}:latest \
-            --amend ${{ needs.build-and-push.outputs.amd64_image }} \
-            --amend ${{ needs.build-and-push.outputs.arm64_image }}
+            --amend egovio/${{ env.IMAGE_NAME }}:${{ needs.generate-tag.outputs.tag }}-amd64 \
+            --amend egovio/${{ env.IMAGE_NAME }}:${{ needs.generate-tag.outputs.tag }}-arm64
           docker manifest push egovio/${{ env.IMAGE_NAME }}:latest
 
       - name: Summary
@@ -121,10 +115,10 @@ jobs:
           echo "### Docker Image Built Successfully! 🎉" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "- **Image**: egovio/${{ env.IMAGE_NAME }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Tag**: ${{ needs.build-and-push.outputs.tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Tag**: ${{ needs.generate-tag.outputs.tag }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Platforms**: linux/amd64, linux/arm64" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Pull command:" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          echo "docker pull egovio/${{ env.IMAGE_NAME }}:${{ needs.build-and-push.outputs.tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "docker pull egovio/${{ env.IMAGE_NAME }}:${{ needs.generate-tag.outputs.tag }}" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
