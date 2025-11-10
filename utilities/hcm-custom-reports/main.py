@@ -58,8 +58,10 @@ for report, reports_config in config.items():
         print(f"===== Generating report : {report}")
         for script in scripts:
             script_path = f"{input_folder}{script}"
+            # Use venv python if available (local), otherwise use system python (Docker)
             venv_python = os.path.join(original_dir, 'venv', 'bin', 'python3')
-            subprocess.run([venv_python, original_dir + script_path], check=True)
+            python_executable = venv_python if os.path.exists(venv_python) else 'python3'
+            subprocess.run([python_executable, original_dir + script_path], check=True)
             print(f"Executed {script}")
     except Exception as e:
         print(f"Error: {e}")
