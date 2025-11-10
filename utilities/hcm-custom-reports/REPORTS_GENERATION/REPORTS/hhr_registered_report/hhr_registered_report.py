@@ -14,11 +14,11 @@ from COMMON_UTILS.custom_date_utils import get_custom_dates_of_reports
 warnings.filterwarnings("ignore", message="Unverified HTTPS request is being made.*")
 
 # === CONSTANTS ===
-ES_HOUSEHOLD_INDEX = "http://elasticsearch-master-0.es-upgrade:9201/household-index-v1/_search"
-ES_HOUSEHOLD_MEMBER_INDEX = "http://elasticsearch-master-0.es-upgrade:9201/household-member-index-v1/_search"
-ES_INDIVIDUAL_INDEX = "http://elasticsearch-master-0.es-upgrade:9201/individual-index-v1/_search"
-ES_PROJECT_BENEFICIARY_INDEX = "http://elasticsearch-master-0.es-upgrade:9201/project-beneficiary-index-v1/_search"
-ES_SCROLL_API = "http://elasticsearch-master-0.es-upgrade:9201/_search/scroll"
+ES_HOUSEHOLD_INDEX = "http://elasticsearch-master-0.es-upgrade.svc.cluster.local:9201/household-index-v1/_search"
+ES_HOUSEHOLD_MEMBER_INDEX = "http://elasticsearch-master-0.es-upgrade.svc.cluster.local:9201/household-member-index-v1/_search"
+ES_INDIVIDUAL_INDEX = "http://elasticsearch-master-0.es-upgrade.svc.cluster.local:9201/individual-index-v1/_search"
+ES_PROJECT_BENEFICIARY_INDEX = "http://elasticsearch-master-0.es-upgrade.svc.cluster.local:9201/project-beneficiary-index-v1/_search"
+ES_SCROLL_API = "http://elasticsearch-master-0.es-upgrade.svc.cluster.local:9201/_search/scroll"
 
 # === DATE RANGE ===
 lteTime, gteTime, start_date_str, end_date_str = get_custom_dates_of_reports()
