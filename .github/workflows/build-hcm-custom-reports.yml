@@ -1,0 +1,135 @@
+name: Build HCM Custom Reports
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - k8s
+    paths:
+      - 'utilities/hcm-custom-reports/**'
+      - '.github/workflows/build-hcm-custom-reports.yml'
+
+env:
+  DOCKER_USERNAME: ${{ vars.DOCKER_USERNAME }}
+  DOCKER_PASSWORD: ${{ secrets.DOCKER_ACCESS_TOKEN }}
+  IMAGE_NAME: hcm-custom-reports
+
+jobs:
+  build-and-push:
+    name: Build and Push ${{ matrix.arch }}
+    strategy:
+      matrix:
+        include:
+          - arch: amd64
+            platform: linux/amd64
+            runner: ubuntu-latest
+          - arch: arm64
+            platform: linux/arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    outputs:
+      amd64_digest: ${{ steps.digest_amd64.outputs.digest }}
+      arm64_digest: ${{ steps.digest_arm64.outputs.digest }}
+      tag: ${{ steps.generate-tag.outputs.tag }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Cache Docker Layers
+        uses: actions/cache@v3
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-${{ matrix.arch }}-buildx-hcm-custom-reports-${{ github.ref_name }}
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.arch }}-buildx-hcm-custom-reports-
+
+      - name: Docker Login
+        uses: docker/login-action@v3
+        with:
+          username: ${{ env.DOCKER_USERNAME }}
+          password: ${{ env.DOCKER_PASSWORD }}
+
+      - name: Generate Tag
+        id: generate-tag
+        run: |
+          BRANCH="${GITHUB_REF##*/}"
+          COMMIT_HASH=$(git rev-parse --short HEAD)
+          TAG="${BRANCH}-${COMMIT_HASH}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Generated tag: $TAG"
+
+      - name: Build and Push Docker Image
+        run: |
+          docker buildx build \
+            --platform ${{ matrix.platform }} \
+            --file utilities/hcm-custom-reports/Dockerfile \
+            --tag egovio/${{ env.IMAGE_NAME }}:${{ steps.generate-tag.outputs.tag }}-${{ matrix.arch }} \
+            --cache-from=type=local,src=/tmp/.buildx-cache \
+            --cache-to=type=local,dest=/tmp/.buildx-cache,mode=max \
+            --push \
+            utilities/hcm-custom-reports
+
+      - name: Inspect Image
+        run: |
+          docker buildx imagetools inspect egovio/${{ env.IMAGE_NAME }}:${{ steps.generate-tag.outputs.tag }}-${{ matrix.arch }}
+
+      - name: Export Digest (amd64)
+        if: matrix.arch == 'amd64'
+        id: digest_amd64
+        run: |
+          digest=$(docker buildx imagetools inspect egovio/${{ env.IMAGE_NAME }}:${{ steps.generate-tag.outputs.tag }}-${{ matrix.arch }} \
+            --format '{{json .}}' | jq -r '.manifest.digest')
+          echo "digest=$digest" >> $GITHUB_OUTPUT
+          echo "AMD64 Digest: $digest"
+
+      - name: Export Digest (arm64)
+        if: matrix.arch == 'arm64'
+        id: digest_arm64
+        run: |
+          digest=$(docker buildx imagetools inspect egovio/${{ env.IMAGE_NAME }}:${{ steps.generate-tag.outputs.tag }}-${{ matrix.arch }} \
+            --format '{{json .}}' | jq -r '.manifest.digest')
+          echo "digest=$digest" >> $GITHUB_OUTPUT
+          echo "ARM64 Digest: $digest"
+
+  create-manifest:
+    name: Create Multi-arch Manifest
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Docker Login
+        uses: docker/login-action@v3
+        with:
+          username: ${{ env.DOCKER_USERNAME }}
+          password: ${{ env.DOCKER_PASSWORD }}
+
+      - name: Create and Push Manifest
+        run: |
+          docker manifest create egovio/${{ env.IMAGE_NAME }}:${{ needs.build-and-push.outputs.tag }} \
+            --amend egovio/${{ env.IMAGE_NAME }}@${{ needs.build-and-push.outputs.amd64_digest }} \
+            --amend egovio/${{ env.IMAGE_NAME }}@${{ needs.build-and-push.outputs.arm64_digest }}
+          docker manifest push egovio/${{ env.IMAGE_NAME }}:${{ needs.build-and-push.outputs.tag }}
+
+      - name: Create and Push Latest Tag (if main branch)
+        if: github.ref == 'refs/heads/main'
+        run: |
+          docker manifest create egovio/${{ env.IMAGE_NAME }}:latest \
+            --amend egovio/${{ env.IMAGE_NAME }}@${{ needs.build-and-push.outputs.amd64_digest }} \
+            --amend egovio/${{ env.IMAGE_NAME }}@${{ needs.build-and-push.outputs.arm64_digest }}
+          docker manifest push egovio/${{ env.IMAGE_NAME }}:latest
+
+      - name: Summary
+        run: |
+          echo "### Docker Image Built Successfully! 🎉" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image**: egovio/${{ env.IMAGE_NAME }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Tag**: ${{ needs.build-and-push.outputs.tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Platforms**: linux/amd64, linux/arm64" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Pull command:" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "docker pull egovio/${{ env.IMAGE_NAME }}:${{ needs.build-and-push.outputs.tag }}" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
