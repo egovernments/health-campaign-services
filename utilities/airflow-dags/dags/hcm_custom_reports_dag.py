@@ -207,7 +207,7 @@ run_report_generation = KubernetesPodOperator(
     volume_mounts=[
         k8s_models.V1VolumeMount(
             name='reports-output',
-            mount_path='/app/FINAL_REPORTS',
+            mount_path='/app/REPORTS_GENERATION/FINAL_REPORTS',
             sub_path=None,
         ),
         k8s_models.V1VolumeMount(
