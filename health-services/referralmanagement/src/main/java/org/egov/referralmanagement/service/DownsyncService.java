@@ -115,7 +115,7 @@ public class DownsyncService {
 
         Downsync downsync = new Downsync();
         DownsyncCriteria downsyncCriteria = downsyncRequest.getDownsyncCriteria();
-
+        downsyncCriteria.setLastSyncedTime(null);
         String key = downsyncCriteria.getLocality() + downsyncCriteria.getOffset() + downsyncCriteria.getLimit();
 
         Object obj = getFromCache(key);
