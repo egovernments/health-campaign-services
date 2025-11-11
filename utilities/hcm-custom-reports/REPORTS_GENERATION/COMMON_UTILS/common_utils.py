@@ -172,5 +172,139 @@ def yesterdays_date():
     yesterday_datetime = current_datetime - datetime.timedelta(days=1)
     date_str = yesterday_datetime.strftime("%d_%b").upper()
     return date_str
+
+
+def add_campaign_filter(query, campaign_number=None):
+    """
+    Add campaignNumber filter to Elasticsearch query for household-index-v1.
+
+    IMPORTANT: This filter should ONLY be applied to queries targeting household-index-v1.
+    Other indexes (individual-index, service-delivery-index, etc.) should NOT use this filter.
+
+    This function adds a 'must' clause to filter by Data.campaignNumber.keyword
+    If campaign_number is None or empty, returns query unchanged.
+
+    Args:
+        query (dict): Elasticsearch query object
+        campaign_number (str, optional): Campaign number to filter by (e.g., "CMP-2025-09-19-853729")
+
+    Returns:
+        dict: Modified query with campaign filter added
+
+    Usage:
+        # CORRECT: Apply to household-index-v1 queries ONLY
+        campaign_number = get_campaign_number()
+        household_query = load_query("household_query")
+        household_query = add_campaign_filter(household_query, campaign_number)
+        response = get_resp(HOUSEHOLD_INDEX_URL, household_query, es=True)
+
+        # INCORRECT: Do NOT apply to other indexes
+        individual_query = load_query("individual_query")
+        # individual_query = add_campaign_filter(individual_query, campaign_number)  # DON'T DO THIS
+        response = get_resp(INDIVIDUAL_INDEX_URL, individual_query, es=True)  # Use query directly
+
+    Example Query Structure Before:
+        {
+          "query": {
+            "bool": {
+              "must": [
+                {"range": {"auditDetails.createdTime": {...}}}
+              ]
+            }
+          }
+        }
+
+    Example Query Structure After:
+        {
+          "query": {
+            "bool": {
+              "must": [
+                {"range": {"auditDetails.createdTime": {...}}},
+                {"match": {"Data.campaignNumber.keyword": "CMP-2025-09-19-853729"}}
+              ]
+            }
+          }
+        }
+    """
+    # If no campaign_number provided or empty, return original query
+    if not campaign_number or campaign_number.strip() == "":
+        print("ℹ️  No campaign_number provided - returning query without campaign filter")
+        return query
+
+    print(f"🔍 Adding campaign filter: Data.campaignNumber.keyword = {campaign_number}")
+
+    # Deep copy to avoid modifying original
+    import copy
+    filtered_query = copy.deepcopy(query)
+
+    # Create campaign filter clause
+    campaign_filter = {
+        "match": {
+            "Data.campaignNumber.keyword": campaign_number
+        }
+    }
+
+    # Add filter to query
+    # Handle different query structures
+    if "query" in filtered_query:
+        if "bool" in filtered_query["query"]:
+            # If 'must' exists, append to it
+            if "must" in filtered_query["query"]["bool"]:
+                if isinstance(filtered_query["query"]["bool"]["must"], list):
+                    filtered_query["query"]["bool"]["must"].append(campaign_filter)
+                else:
+                    # Convert single must to list
+                    filtered_query["query"]["bool"]["must"] = [
+                        filtered_query["query"]["bool"]["must"],
+                        campaign_filter
+                    ]
+            else:
+                # Create 'must' list
+                filtered_query["query"]["bool"]["must"] = [campaign_filter]
+        else:
+            # Create bool query with must
+            original_query = filtered_query["query"]
+            filtered_query["query"] = {
+                "bool": {
+                    "must": [
+                        original_query,
+                        campaign_filter
+                    ]
+                }
+            }
+    else:
+        # No query field, create one
+        filtered_query["query"] = {
+            "bool": {
+                "must": [campaign_filter]
+            }
+        }
+
+    print("✅ Campaign filter added successfully")
+    return filtered_query
+
+
+def get_campaign_number():
+    """
+    Get campaign number from environment variable.
+
+    Returns:
+        str: Campaign number from CAMPAIGN_NUMBER env var, or empty string if not set
+
+    Usage:
+        campaign_number = get_campaign_number()
+        if campaign_number:
+            print(f"Filtering for campaign: {campaign_number}")
+        else:
+            print("No campaign filter - processing all campaigns")
+    """
+    campaign_number = os.getenv('CAMPAIGN_NUMBER', '')
+    if campaign_number:
+        print(f"📋 Campaign Number from environment: {campaign_number}")
+    else:
+        print("ℹ️  No CAMPAIGN_NUMBER environment variable set")
+    return campaign_number
+
+
 # without thread lock
 # def pd_different_sheets():

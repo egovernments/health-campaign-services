@@ -42,6 +42,9 @@ dag = DAG(
         "start_date": "2025-10-01 00:00:00+0000",
         "end_date": "2025-11-05 00:00:00+0000",
         "output_pvc_name": "hcm-reports-output",  # PVC for storing output reports
+        "upload_to_drive": True,  # Enable/disable Google Drive upload
+        "drive_folder_id": "",  # Google Drive folder ID (leave empty to use ConfigMap)
+        "campaign_number": "",  # Campaign number to filter data (e.g., "CMP-2025-09-19-853729")
     },
 )
 
@@ -187,6 +190,7 @@ run_report_generation = KubernetesPodOperator(
     arguments=['main.py'],
     env_vars={
         'PYTHONUNBUFFERED': '1',
+        'CAMPAIGN_NUMBER': '{{ params.campaign_number }}',
     },
     # Mount PVC for output storage
     volumes=[
@@ -268,7 +272,66 @@ verify_output_task = KubernetesPodOperator(
     dag=dag,
 )
 
-# Task 5: Generate summary
+# Task 5: Upload to Google Drive
+upload_to_drive_task = KubernetesPodOperator(
+    task_id='upload_to_google_drive',
+    name='upload-to-drive',
+    namespace=NAMESPACE,
+    image=DOCKER_IMAGE,
+    cmds=['python3'],
+    arguments=['-m', 'REPORTS_GENERATION.COMMON_UTILS.google_drive_uploader'],
+    env_vars={
+        'PYTHONUNBUFFERED': '1',
+        'GOOGLE_DRIVE_CREDENTIALS_PATH': '/app/credentials/google-drive-credentials.json',
+        'GOOGLE_DRIVE_FOLDER_ID': '{{ params.drive_folder_id or var.value.get("google_drive_folder_id", "") }}',
+        'REPORTS_PATH': '/app/REPORTS_GENERATION/FINAL_REPORTS',
+    },
+    # Mount PVC and credentials
+    volumes=[
+        k8s_models.V1Volume(
+            name='reports-output',
+            persistent_volume_claim=k8s_models.V1PersistentVolumeClaimVolumeSource(
+                claim_name='{{ params.output_pvc_name }}'
+            ),
+        ),
+        k8s_models.V1Volume(
+            name='drive-credentials',
+            secret=k8s_models.V1SecretVolumeSource(
+                secret_name='google-drive-credentials',
+                optional=True,
+            ),
+        ),
+    ],
+    volume_mounts=[
+        k8s_models.V1VolumeMount(
+            name='reports-output',
+            mount_path='/app/REPORTS_GENERATION/FINAL_REPORTS',
+            sub_path=None,
+        ),
+        k8s_models.V1VolumeMount(
+            name='drive-credentials',
+            mount_path='/app/credentials',
+            read_only=True,
+        ),
+    ],
+    # Resource limits
+    container_resources=k8s_models.V1ResourceRequirements(
+        requests={
+            'memory': '256Mi',
+            'cpu': '200m',
+        },
+        limits={
+            'memory': '512Mi',
+            'cpu': '500m',
+        },
+    ),
+    get_logs=True,
+    is_delete_operator_pod=True,
+    in_cluster=True,
+    dag=dag,
+)
+
+# Task 6: Generate summary
 generate_summary_task = PythonOperator(
     task_id='generate_summary',
     python_callable=get_report_summary,
@@ -277,4 +340,4 @@ generate_summary_task = PythonOperator(
 )
 
 # Define task dependencies
-validate_config_task >> create_date_config_task >> run_report_generation >> verify_output_task >> generate_summary_task
+validate_config_task >> create_date_config_task >> run_report_generation >> verify_output_task >> upload_to_drive_task >> generate_summary_task
