@@ -65,209 +65,112 @@ if not NAMESPACE:
     NAMESPACE = os.getenv("AIRFLOW__KUBERNETES__NAMESPACE", "airflow")
 
 
-# Task 1: Read config file and extract active campaigns
-@task(dag=dag)
-def get_active_campaigns():
+# Read campaigns from ConfigMap at DAG parse time
+def read_campaigns_config():
     """
-    Read campaigns config file and return list of active campaign objects.
-    Config file location: /opt/airflow/config/campaigns_config.yaml
-    (Mounted from ConfigMap: hcm-campaigns-parallel-config)
-
-    Expected config structure:
-    campaigns:
-      - report_type: "hhr_registered_report"
-        start_date: "2025-10-01 00:00:00+0000"
-        end_date: "2025-11-05 00:00:00+0000"
-        campaign_number: "CMP-2025-09-19-853729"
-        output_pvc_name: "hcm-reports-output"
-        upload_to_drive: false
-        drive_folder_id: ""
-        enabled: true
+    Read campaigns directly from ConfigMap YAML file.
+    This runs once when DAG is parsed, not as a task.
     """
-    config_path = "/opt/airflow/config/campaigns_config.yaml"
-
-    logger.info("=" * 80)
-    logger.info("📖 STEP 1: Reading campaigns configuration")
-    logger.info("=" * 80)
-    logger.info(f"Config file: {config_path}")
+    config_path = "/opt/airflow/dags/repo/utilities/airflow-dags/k8s/campaigns-simple-configmap.yaml"
 
     try:
-        # Check if file exists
-        if not os.path.exists(config_path):
-            logger.warning(f"⚠️  Config file not found: {config_path}")
-            logger.info("Returning empty campaign list")
-            return []
-
-        # Read YAML config
         with open(config_path, 'r') as f:
-            config = yaml.safe_load(f)
+            configmap = yaml.safe_load(f)
 
-        # Get campaigns list (simple array, no groups)
+        # Extract the campaigns_config.yaml content from ConfigMap data
+        config_yaml = configmap.get('data', {}).get('campaigns_config.yaml', '')
+        config = yaml.safe_load(config_yaml)
+
         all_campaigns = config.get('campaigns', [])
 
-        if not all_campaigns:
-            logger.warning("⚠️  No campaigns found in config")
-            return []
-
-        logger.info(f"Found {len(all_campaigns)} campaign(s) in config")
-
         # Filter only enabled campaigns
-        active_campaigns = []
+        active_campaigns = [c for c in all_campaigns if c.get('enabled', False)]
 
-        for idx, campaign in enumerate(all_campaigns):
-            # Check if enabled
-            if not campaign.get('enabled', False):
-                logger.info(f"⏭️  Skipping disabled campaign: {campaign.get('campaign_number', f'campaign_{idx}')}")
-                continue
-
-            # Validate required fields
-            campaign_number = campaign.get('campaign_number')
-            if not campaign_number:
-                logger.warning(f"⚠️  Skipping campaign {idx}: missing campaign_number")
-                continue
-
-            # Add to active list
-            active_campaigns.append(campaign)
-            logger.info(f"  ✓ Added: {campaign_number}")
-
-        logger.info("")
-        logger.info("=" * 80)
-        logger.info(f"📊 TOTAL ACTIVE CAMPAIGNS: {len(active_campaigns)}")
-        logger.info("=" * 80)
-
-        for idx, campaign in enumerate(active_campaigns):
-            logger.info(f"{idx + 1}. {campaign['campaign_number']}")
-            logger.info(f"   Report Type: {campaign.get('report_type', 'N/A')}")
-            logger.info(f"   Date Range: {campaign.get('start_date')} to {campaign.get('end_date')}")
-            logger.info(f"   Upload to Drive: {campaign.get('upload_to_drive', False)}")
-
-        logger.info("=" * 80)
+        logger.info(f"Found {len(active_campaigns)} enabled campaign(s)")
+        for c in active_campaigns:
+            logger.info(f"  - {c['campaign_number']}")
 
         return active_campaigns
-
     except Exception as e:
-        logger.error(f"❌ Error reading config: {str(e)}")
-        raise
+        logger.error(f"Error reading campaigns config: {e}")
+        return []
 
 
-# Task 2: Prepare individual parameter lists for expansion
-@task(dag=dag)
-def prepare_pod_names(campaigns: list):
-    """Extract pod names from campaigns."""
-    return [f"campaign-{c['campaign_number'].lower().replace('_', '-').replace('/', '-')}" for c in campaigns]
+# Get active campaigns at DAG parse time
+ACTIVE_CAMPAIGNS = read_campaigns_config()
 
-@task(dag=dag)
-def prepare_env_vars(campaigns: list):
-    """Extract environment variables from campaigns."""
-    return [
-        {
+
+# Task: Generate report for one campaign (will be expanded for each active campaign)
+def create_campaign_task(campaign):
+    """Create a KubernetesPodOperator for one campaign."""
+    campaign_number = campaign['campaign_number']
+    pod_name = f"campaign-{campaign_number.lower().replace('_', '-').replace('/', '-')}"
+
+    return KubernetesPodOperator(
+        task_id=f"generate_report_{campaign_number.replace('-', '_').replace('/', '_')}",
+        name=pod_name,
+        namespace=NAMESPACE,
+        image=DOCKER_IMAGE,
+        cmds=['python3'],
+        arguments=['main.py'],
+        env_vars={
             'PYTHONUNBUFFERED': '1',
-            'CAMPAIGN_NUMBER': c['campaign_number'],
-            'REPORT_TYPE': c.get('report_type', 'hhr_registered_report'),
-        }
-        for c in campaigns
-    ]
-
-@task(dag=dag)
-def prepare_volumes(campaigns: list):
-    """Extract volumes configuration from campaigns."""
-    return [
-        [
+            'CAMPAIGN_NUMBER': campaign_number,
+            'REPORT_TYPE': campaign.get('report_type', 'hhr_registered_report'),
+        },
+        volumes=[
             k8s_models.V1Volume(
                 name='reports-output',
                 persistent_volume_claim=k8s_models.V1PersistentVolumeClaimVolumeSource(
-                    claim_name=c.get('output_pvc_name', 'hcm-reports-output')
+                    claim_name=campaign.get('output_pvc_name', 'hcm-reports-output')
                 ),
             ),
-        ]
-        for c in campaigns
-    ]
-
-@task(dag=dag)
-def prepare_volume_mounts(campaigns: list):
-    """Extract volume mounts configuration from campaigns."""
-    return [
-        [
+        ],
+        volume_mounts=[
             k8s_models.V1VolumeMount(
                 name='reports-output',
                 mount_path='/app/REPORTS_GENERATION/FINAL_REPORTS',
-                sub_path=f"campaign-{c['campaign_number']}",
+                sub_path=f"campaign-{campaign_number}",
             ),
-        ]
-        for c in campaigns
-    ]
+        ],
+        container_resources=k8s_models.V1ResourceRequirements(
+            requests={'memory': '1Gi', 'cpu': '500m'},
+            limits={'memory': '2Gi', 'cpu': '1000m'},
+        ),
+        get_logs=True,
+        is_delete_operator_pod=True,
+        in_cluster=True,
+        startup_timeout_seconds=600,
+        dag=dag,
+    )
 
 
-# Task 3: Generate report for one campaign (will be expanded)
-generate_campaign_report = KubernetesPodOperator.partial(
-    task_id='generate_campaign_report',
-    namespace=NAMESPACE,
-    image=DOCKER_IMAGE,
-    cmds=['python3'],
-    arguments=['main.py'],
-    get_logs=True,
-    is_delete_operator_pod=True,
-    in_cluster=True,
-    startup_timeout_seconds=600,
-    container_resources=k8s_models.V1ResourceRequirements(
-        requests={'memory': '1Gi', 'cpu': '500m'},
-        limits={'memory': '2Gi', 'cpu': '1000m'},
-    ),
-    dag=dag,
-).expand(
-    name=prepare_pod_names(get_active_campaigns()),
-    env_vars=prepare_env_vars(get_active_campaigns()),
-    volumes=prepare_volumes(get_active_campaigns()),
-    volume_mounts=prepare_volume_mounts(get_active_campaigns()),
-)
+# Create tasks for all active campaigns
+campaign_tasks = [create_campaign_task(campaign) for campaign in ACTIVE_CAMPAIGNS]
 
 
-# Task 4: Summary
+# Summary task
 @task(dag=dag)
-def create_execution_summary(campaigns: list):
-    """
-    Create summary of parallel execution
-    """
-    total = len(campaigns) if campaigns else 0
-
-    logger.info("")
+def print_summary():
+    """Print execution summary."""
     logger.info("=" * 80)
     logger.info("📊 EXECUTION SUMMARY")
     logger.info("=" * 80)
-    logger.info(f"Total campaigns processed: {total}")
+    logger.info(f"Total campaigns processed: {len(ACTIVE_CAMPAIGNS)}")
     logger.info("")
 
-    if campaigns:
-        logger.info("Campaigns:")
-        for idx, campaign in enumerate(campaigns):
-            logger.info(f"  {idx + 1}. {campaign['campaign_number']}")
-            logger.info(f"     Report: {campaign['report_type']}")
-            logger.info(f"     Period: {campaign['start_date']} to {campaign['end_date']}")
-            logger.info(f"     Upload: {campaign['upload_to_drive']}")
+    for idx, campaign in enumerate(ACTIVE_CAMPAIGNS):
+        logger.info(f"{idx + 1}. {campaign['campaign_number']}")
+        logger.info(f"   Period: {campaign['start_date']} to {campaign['end_date']}")
 
     logger.info("=" * 80)
     logger.info("✅ All campaigns completed successfully!")
     logger.info("=" * 80)
 
-    return {
-        'total_campaigns': total,
-        'timestamp': datetime.now().isoformat(),
-        'campaigns': [c['campaign_number'] for c in campaigns] if campaigns else []
-    }
+
+summary = print_summary()
 
 
-# Define DAG flow
-active_campaigns = get_active_campaigns()
-
-# Prepare all parameter lists
-pod_names = prepare_pod_names(active_campaigns)
-env_vars = prepare_env_vars(active_campaigns)
-volumes = prepare_volumes(active_campaigns)
-volume_mounts = prepare_volume_mounts(active_campaigns)
-
-# generate_campaign_report already has .expand() defined above
-summary = create_execution_summary(active_campaigns)
-
-# Dependencies
-active_campaigns >> [pod_names, env_vars, volumes, volume_mounts]
-[pod_names, env_vars, volumes, volume_mounts] >> generate_campaign_report >> summary
+# Define dependencies - all campaign tasks run in parallel, then summary
+if campaign_tasks:
+    campaign_tasks >> summary
