@@ -120,46 +120,62 @@ def list_active_campaigns():
 campaigns = list_active_campaigns()
 
 
-# Task 2: Generate report (will be dynamically mapped per campaign)
-generate_report = KubernetesPodOperator.partial(
-    task_id="generate_campaign_report",
-    namespace=NAMESPACE,
-    image=DOCKER_IMAGE,
-    cmds=['python3'],
-    arguments=['main.py'],
-    get_logs=True,
-    is_delete_operator_pod=True,
-    in_cluster=True,
-    startup_timeout_seconds=600,
-    container_resources=k8s_models.V1ResourceRequirements(
-        requests={'memory': '1Gi', 'cpu': '500m'},
-        limits={'memory': '2Gi', 'cpu': '1000m'},
-    ),
-    dag=dag,
-).expand(
-    # Map over campaigns - one pod per campaign
-    name=campaigns.map(lambda c: f"campaign-{c['campaign_number'].lower().replace('_', '-').replace('/', '-')}"),
-    env_vars=campaigns.map(lambda c: {
-        'PYTHONUNBUFFERED': '1',
-        'CAMPAIGN_NUMBER': c['campaign_number'],
-        'REPORT_TYPE': c.get('report_type', 'hhr_registered_report'),
-    }),
-    volumes=campaigns.map(lambda c: [
-        k8s_models.V1Volume(
-            name='reports-output',
-            persistent_volume_claim=k8s_models.V1PersistentVolumeClaimVolumeSource(
-                claim_name=c.get('output_pvc_name', 'hcm-reports-output')
+# Task 2: Create one KubernetesPodOperator per campaign
+@task.bash(dag=dag)
+def trigger_campaign_reports(campaign_list):
+    """Dummy task - actual pods are created statically below."""
+    return f"Triggering {len(campaign_list)} campaigns"
+
+
+# Dynamically create campaign report tasks
+campaign_report_tasks = []
+
+for idx, campaign in enumerate(CAMPAIGNS_CONFIG):
+    if not campaign.get('enabled', False):
+        continue
+
+    campaign_number = campaign['campaign_number']
+    pod_name = f"campaign-{campaign_number.lower().replace('_', '-').replace('/', '-')}"
+
+    report_task = KubernetesPodOperator(
+        task_id=f"generate_report_{idx}_{campaign_number.replace('-', '_').replace('/', '_')}",
+        name=pod_name,
+        namespace=NAMESPACE,
+        image=DOCKER_IMAGE,
+        cmds=['python3'],
+        arguments=['main.py'],
+        env_vars={
+            'PYTHONUNBUFFERED': '1',
+            'CAMPAIGN_NUMBER': campaign_number,
+            'REPORT_TYPE': campaign.get('report_type', 'hhr_registered_report'),
+        },
+        volumes=[
+            k8s_models.V1Volume(
+                name='reports-output',
+                persistent_volume_claim=k8s_models.V1PersistentVolumeClaimVolumeSource(
+                    claim_name=campaign.get('output_pvc_name', 'hcm-reports-output')
+                ),
             ),
+        ],
+        volume_mounts=[
+            k8s_models.V1VolumeMount(
+                name='reports-output',
+                mount_path='/app/REPORTS_GENERATION/FINAL_REPORTS',
+                sub_path=f"campaign-{campaign_number}",
+            ),
+        ],
+        container_resources=k8s_models.V1ResourceRequirements(
+            requests={'memory': '1Gi', 'cpu': '500m'},
+            limits={'memory': '2Gi', 'cpu': '1000m'},
         ),
-    ]),
-    volume_mounts=campaigns.map(lambda c: [
-        k8s_models.V1VolumeMount(
-            name='reports-output',
-            mount_path='/app/REPORTS_GENERATION/FINAL_REPORTS',
-            sub_path=f"campaign-{c['campaign_number']}",
-        ),
-    ]),
-)
+        get_logs=True,
+        is_delete_operator_pod=True,
+        in_cluster=True,
+        startup_timeout_seconds=600,
+        dag=dag,
+    )
+
+    campaign_report_tasks.append(report_task)
 
 
 # Task 3: Summary
@@ -184,5 +200,5 @@ def print_summary(campaign_list):
 summary = print_summary(campaigns)
 
 
-# Dependencies
-campaigns >> generate_report >> summary
+# Dependencies - all campaign tasks run in parallel
+campaigns >> campaign_report_tasks >> summary
