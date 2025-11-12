@@ -65,36 +65,55 @@ if not NAMESPACE:
     NAMESPACE = os.getenv("AIRFLOW__KUBERNETES__NAMESPACE", "airflow")
 
 
-# Task 1: Read active campaigns from config
+# Campaign Configuration - Edit this list to add/remove campaigns
+CAMPAIGNS_CONFIG = [
+    {
+        "report_type": "hhr_registered_report",
+        "start_date": "2025-10-01 00:00:00+0000",
+        "end_date": "2025-11-05 00:00:00+0000",
+        "campaign_number": "CMP-2025-09-18-006990",
+        "output_pvc_name": "hcm-reports-output",
+        "upload_to_drive": False,
+        "drive_folder_id": "",
+        "enabled": True,
+    },
+    {
+        "report_type": "hhr_registered_report",
+        "start_date": "2025-10-01 00:00:00+0000",
+        "end_date": "2025-11-05 00:00:00+0000",
+        "campaign_number": "CMP-2025-09-23-797063",
+        "output_pvc_name": "hcm-reports-output",
+        "upload_to_drive": False,
+        "drive_folder_id": "",
+        "enabled": True,
+    },
+    {
+        "report_type": "hhr_registered_report",
+        "start_date": "2025-10-01 00:00:00+0000",
+        "end_date": "2025-11-05 00:00:00+0000",
+        "campaign_number": "CMP-2025-09-23-952046",
+        "output_pvc_name": "hcm-reports-output",
+        "upload_to_drive": False,
+        "drive_folder_id": "",
+        "enabled": False,
+    },
+]
+
+
+# Task 1: Get active campaigns
 @task(dag=dag)
 def list_active_campaigns():
     """
-    Read campaigns config and return list of active campaigns.
-    Each campaign is a dict with all needed fields.
+    Return list of active (enabled) campaigns.
     """
-    config_path = "/opt/airflow/dags/repo/utilities/airflow-dags/k8s/campaigns-simple-configmap.yaml"
+    # Filter only enabled campaigns
+    active_campaigns = [c for c in CAMPAIGNS_CONFIG if c.get('enabled', False)]
 
-    try:
-        with open(config_path, 'r') as f:
-            configmap = yaml.safe_load(f)
+    logger.info(f"Found {len(active_campaigns)} enabled campaign(s)")
+    for c in active_campaigns:
+        logger.info(f"  - {c['campaign_number']}")
 
-        # Extract campaigns from ConfigMap data
-        config_yaml = configmap.get('data', {}).get('campaigns_config.yaml', '')
-        config = yaml.safe_load(config_yaml)
-        all_campaigns = config.get('campaigns', [])
-
-        # Filter only enabled campaigns
-        active_campaigns = [c for c in all_campaigns if c.get('enabled', False)]
-
-        logger.info(f"Found {len(active_campaigns)} enabled campaign(s)")
-        for c in active_campaigns:
-            logger.info(f"  - {c['campaign_number']}")
-
-        return active_campaigns
-
-    except Exception as e:
-        logger.error(f"Error reading campaigns config: {e}")
-        return []
+    return active_campaigns
 
 
 # Get the campaign list
