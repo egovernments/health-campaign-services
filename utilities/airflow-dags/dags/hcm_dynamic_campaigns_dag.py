@@ -66,7 +66,7 @@ if not NAMESPACE:
 
 
 # Task 1: Read config file and extract active campaigns
-@task
+@task(dag=dag)
 def get_active_campaigns():
     """
     Read campaigns config file and return list of active campaign objects.
@@ -151,7 +151,7 @@ def get_active_campaigns():
 
 
 # Task 2: Prepare pod config for each campaign
-@task
+@task(dag=dag)
 def prepare_pod_configs(campaigns: list):
     """
     Convert campaign list into pod configuration dicts.
@@ -214,8 +214,8 @@ generate_campaign_report = KubernetesPodOperator.partial(
 )
 
 
-# Task 3: Summary
-@task
+# Task 4: Summary
+@task(dag=dag)
 def create_execution_summary(campaigns: list):
     """
     Create summary of parallel execution
