@@ -135,11 +135,13 @@ for idx, campaign in enumerate(CAMPAIGNS_CONFIG):
         continue
 
     campaign_number = campaign['campaign_number']
-    pod_name = f"campaign-{campaign_number.lower().replace('_', '-').replace('/', '-')}"
+    # Shorten pod name to avoid Kubernetes 63-char limit
+    # Extract last part of campaign number (e.g., "006990" from "CMP-2025-09-18-006990")
+    campaign_short = campaign_number.split('-')[-1]
 
     report_task = KubernetesPodOperator(
-        task_id=f"generate_report_{idx}_{campaign_number.replace('-', '_').replace('/', '_')}",
-        name=pod_name,
+        task_id=f"campaign_{campaign_short}",
+        name=f"campaign-{campaign_short}",
         namespace=NAMESPACE,
         image=DOCKER_IMAGE,
         cmds=['python3'],
