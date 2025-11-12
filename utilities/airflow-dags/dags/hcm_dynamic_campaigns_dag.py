@@ -40,11 +40,11 @@ dag = DAG(
     'hcm_dynamic_campaigns',
     default_args=default_args,
     description='Dynamic parallel campaign execution using task mapping',
-    schedule=None,
+    schedule="@daily",
     catchup=False,
     tags=['hcm', 'reports', 'campaigns', 'parallel', 'dynamic'],
     max_active_runs=1,
-    max_active_tasks=50,  # Max parallel tasks
+    max_active_tasks=2,  # Max parallel tasks
 )
 
 # Configuration
