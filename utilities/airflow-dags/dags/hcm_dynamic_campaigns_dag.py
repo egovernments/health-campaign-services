@@ -150,47 +150,52 @@ def get_active_campaigns():
         raise
 
 
-# Task 2: Prepare pod config for each campaign
+# Task 2: Prepare individual parameter lists for expansion
 @task(dag=dag)
-def prepare_pod_configs(campaigns: list):
-    """
-    Convert campaign list into pod configuration dicts.
-    This task takes the output from get_active_campaigns and prepares
-    the configuration for each KubernetesPodOperator instance.
-    """
-    pod_configs = []
+def prepare_pod_names(campaigns: list):
+    """Extract pod names from campaigns."""
+    return [f"campaign-{c['campaign_number'].lower().replace('_', '-').replace('/', '-')}" for c in campaigns]
 
-    for campaign in campaigns:
-        campaign_number = campaign['campaign_number']
-        pod_name = f"campaign-{campaign_number.lower().replace('_', '-').replace('/', '-')}"
-
-        config = {
-            'name': pod_name,
-            'env_vars': {
-                'PYTHONUNBUFFERED': '1',
-                'CAMPAIGN_NUMBER': campaign_number,
-                'REPORT_TYPE': campaign.get('report_type', 'hhr_registered_report'),
-            },
-            'volumes': [
-                k8s_models.V1Volume(
-                    name='reports-output',
-                    persistent_volume_claim=k8s_models.V1PersistentVolumeClaimVolumeSource(
-                        claim_name=campaign.get('output_pvc_name', 'hcm-reports-output')
-                    ),
-                ),
-            ],
-            'volume_mounts': [
-                k8s_models.V1VolumeMount(
-                    name='reports-output',
-                    mount_path='/app/REPORTS_GENERATION/FINAL_REPORTS',
-                    sub_path=f"campaign-{campaign_number}",
-                ),
-            ],
+@task(dag=dag)
+def prepare_env_vars(campaigns: list):
+    """Extract environment variables from campaigns."""
+    return [
+        {
+            'PYTHONUNBUFFERED': '1',
+            'CAMPAIGN_NUMBER': c['campaign_number'],
+            'REPORT_TYPE': c.get('report_type', 'hhr_registered_report'),
         }
-        pod_configs.append(config)
-        logger.info(f"Prepared pod config for: {campaign_number}")
+        for c in campaigns
+    ]
 
-    return pod_configs
+@task(dag=dag)
+def prepare_volumes(campaigns: list):
+    """Extract volumes configuration from campaigns."""
+    return [
+        [
+            k8s_models.V1Volume(
+                name='reports-output',
+                persistent_volume_claim=k8s_models.V1PersistentVolumeClaimVolumeSource(
+                    claim_name=c.get('output_pvc_name', 'hcm-reports-output')
+                ),
+            ),
+        ]
+        for c in campaigns
+    ]
+
+@task(dag=dag)
+def prepare_volume_mounts(campaigns: list):
+    """Extract volume mounts configuration from campaigns."""
+    return [
+        [
+            k8s_models.V1VolumeMount(
+                name='reports-output',
+                mount_path='/app/REPORTS_GENERATION/FINAL_REPORTS',
+                sub_path=f"campaign-{c['campaign_number']}",
+            ),
+        ]
+        for c in campaigns
+    ]
 
 
 # Task 3: Generate report for one campaign (will be expanded)
@@ -209,8 +214,11 @@ generate_campaign_report = KubernetesPodOperator.partial(
         limits={'memory': '2Gi', 'cpu': '1000m'},
     ),
     dag=dag,
-).expand_kwargs(
-    op_kwargs=prepare_pod_configs(get_active_campaigns())
+).expand(
+    name=prepare_pod_names(get_active_campaigns()),
+    env_vars=prepare_env_vars(get_active_campaigns()),
+    volumes=prepare_volumes(get_active_campaigns()),
+    volume_mounts=prepare_volume_mounts(get_active_campaigns()),
 )
 
 
@@ -250,9 +258,16 @@ def create_execution_summary(campaigns: list):
 
 # Define DAG flow
 active_campaigns = get_active_campaigns()
-pod_configs = prepare_pod_configs(active_campaigns)
-# generate_campaign_report already has .expand_kwargs() defined above
+
+# Prepare all parameter lists
+pod_names = prepare_pod_names(active_campaigns)
+env_vars = prepare_env_vars(active_campaigns)
+volumes = prepare_volumes(active_campaigns)
+volume_mounts = prepare_volume_mounts(active_campaigns)
+
+# generate_campaign_report already has .expand() defined above
 summary = create_execution_summary(active_campaigns)
 
 # Dependencies
-active_campaigns >> pod_configs >> generate_campaign_report >> summary
+active_campaigns >> [pod_names, env_vars, volumes, volume_mounts]
+[pod_names, env_vars, volumes, volume_mounts] >> generate_campaign_report >> summary
