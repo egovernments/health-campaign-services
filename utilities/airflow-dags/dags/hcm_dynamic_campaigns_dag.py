@@ -81,7 +81,7 @@ CAMPAIGNS_CONFIG = [
         "report_type": "hhr_registered_report",
         "start_date": "2025-10-01 00:00:00+0000",
         "end_date": "2025-11-05 00:00:00+0000",
-        "campaign_number": "CMP-2025-09-23-797063",
+        "campaign_number": "CMP-2025-09-19-874582",
         "output_pvc_name": "hcm-reports-output",
         "upload_to_drive": False,
         "drive_folder_id": "",
@@ -91,11 +91,11 @@ CAMPAIGNS_CONFIG = [
         "report_type": "hhr_registered_report",
         "start_date": "2025-10-01 00:00:00+0000",
         "end_date": "2025-11-05 00:00:00+0000",
-        "campaign_number": "CMP-2025-09-23-952046",
+        "campaign_number": "CMP-2025-09-23-426029",
         "output_pvc_name": "hcm-reports-output",
         "upload_to_drive": False,
         "drive_folder_id": "",
-        "enabled": False,
+        "enabled": True,
     },
 ]
 
