@@ -44,7 +44,7 @@ dag = DAG(
     catchup=False,
     tags=['hcm', 'reports', 'campaigns', 'parallel', 'dynamic'],
     max_active_runs=1,
-    concurrency=50,  # Max parallel tasks
+    max_active_tasks=50,  # Max parallel tasks
 )
 
 # Configuration
