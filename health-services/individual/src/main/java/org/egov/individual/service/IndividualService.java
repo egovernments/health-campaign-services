@@ -137,9 +137,13 @@ public class IndividualService {
     }
 
     public List<Individual> create(IndividualRequest request) {
+        return create(request, true);
+    }
+
+    public List<Individual> create(IndividualRequest request, boolean generateDummyMobile) {
         IndividualBulkRequest bulkRequest = IndividualBulkRequest.builder().requestInfo(request.getRequestInfo())
                 .individuals(Collections.singletonList(request.getIndividual())).build();
-        List<Individual> individuals = create(bulkRequest, false);
+        List<Individual> individuals = create(bulkRequest, false, generateDummyMobile);
 
         // check if sms feature is enable for the environment role
         if(properties.getIsSMSEnabled() && isSmsEnabledForRole(request))
@@ -148,6 +152,10 @@ public class IndividualService {
     }
 
     public List<Individual> create(IndividualBulkRequest request, boolean isBulk) {
+        return create(request, isBulk, true);
+    }
+
+    public List<Individual> create(IndividualBulkRequest request, boolean isBulk, boolean generateDummyMobile) {
 
         Tuple<List<Individual>, Map<Individual, ErrorDetails>> tuple = validate(validators,
                 isApplicableForCreate, request,
@@ -160,7 +168,7 @@ public class IndividualService {
                 log.info("processing {} valid entities", validIndividuals.size());
                 enrichmentService.create(validIndividuals, request);
                 // integrate with user service create call
-                validIndividuals = integrateWithUserService(request, validIndividuals, ApiOperation.CREATE, errorDetailsMap);
+                validIndividuals = integrateWithUserService(request, validIndividuals, ApiOperation.CREATE, errorDetailsMap, generateDummyMobile);
                 //encrypt PII data
 
                 // BenificiaryIds to Update
@@ -454,6 +462,12 @@ public class IndividualService {
     private List<Individual> integrateWithUserService(IndividualBulkRequest request,
                                           List<Individual> individualList, ApiOperation apiOperation,
                                           Map<Individual, ErrorDetails> errorDetails) {
+        return integrateWithUserService(request, individualList, apiOperation, errorDetails, true);
+    }
+
+    private List<Individual> integrateWithUserService(IndividualBulkRequest request,
+                                          List<Individual> individualList, ApiOperation apiOperation,
+                                          Map<Individual, ErrorDetails> errorDetails, boolean generateDummyMobile) {
         List<Individual> validIndividuals = new ArrayList<>(individualList);
         if (properties.isUserSyncEnabled()) {
             for (Individual individual : individualList) {
@@ -465,7 +479,7 @@ public class IndividualService {
                                 individual.getName());
                     } else if (apiOperation.equals(ApiOperation.CREATE)) {
                         List<UserRequest> userRequests = userIntegrationService.createUser(individual,
-                                request.getRequestInfo());
+                                request.getRequestInfo(), generateDummyMobile);
                             individual.setUserId(Long.toString(userRequests.get(0).getId()));
                             individual.setUserUuid(userRequests.get(0).getUuid());
                         log.info("successfully created user for {} ",
@@ -640,11 +654,11 @@ public class IndividualService {
                 .individual(individual)
                 .build();
 
-        // Call the existing create method
+        // Call the existing create method with generateDummyMobile = false for register API
         List<Individual> individuals;
         log.info("individualRequest:"+individualRequest);
         try {
-            individuals = create(individualRequest);
+            individuals = create(individualRequest, false);
         } catch (Exception e) {
             log.error("Failed to create individual during registration: {}", e.getMessage(), e);
             throw e; // Re-throw exception without calling sendOtp
