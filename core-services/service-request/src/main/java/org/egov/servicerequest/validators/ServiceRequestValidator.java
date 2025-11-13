@@ -173,11 +173,26 @@ public class ServiceRequestValidator {
 
     private void validateServiceRequestAlreadyExists(ServiceRequest serviceRequest) throws InvalidTenantIdException {
         Service service = serviceRequest.getService();
+        ServiceCriteria.ServiceCriteriaBuilder criteriaBuilder = ServiceCriteria.builder()
+                .tenantId(service.getTenantId());
+
+        // Add clientId if provided
+        if (!ObjectUtils.isEmpty(service.getClientId())) {
+            criteriaBuilder.clientId(service.getClientId());
+        }
+
+        // Add accountId if provided
+        if (!ObjectUtils.isEmpty(service.getAccountId())) {
+            criteriaBuilder.accountId(service.getAccountId());
+        }
+
+        // Add serviceDefId if provided
+        if (!ObjectUtils.isEmpty(service.getServiceDefId())) {
+            criteriaBuilder.serviceDefIds(Collections.singletonList(service.getServiceDefId()));
+        }
+
         List<Service> services = serviceRequestRepository.getService(ServiceSearchRequest.builder()
-                .serviceCriteria(ServiceCriteria.builder()
-                        .clientId(service.getClientId())
-                        .tenantId(service.getTenantId())
-                        .build())
+                .serviceCriteria(criteriaBuilder.build())
                 .build());
         if (!CollectionUtils.isEmpty(services)) {
             throw new CustomException(SERVICE_ALREADY_EXISTS_ERR_CODE, SERVICE_ALREADY_EXISTS_FOR_CLIENT_ID_ERR_MSG);
