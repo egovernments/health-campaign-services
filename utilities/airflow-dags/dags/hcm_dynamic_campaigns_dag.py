@@ -237,7 +237,7 @@ for idx, campaign in enumerate(CAMPAIGNS_CONFIG):
             ),
         ],
         container_resources=k8s_models.V1ResourceRequirements(
-            requests={'memory': '1Gi', 'cpu': '500m'},
+            requests={'memory': '512Mi', 'cpu': '250m'},
             limits={'memory': '2Gi', 'cpu': '1000m'},
         ),
         get_logs=True,
