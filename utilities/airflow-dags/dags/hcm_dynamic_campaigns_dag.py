@@ -240,15 +240,14 @@ def fetch_campaigns_from_mdms():
     [
         {
             "campaignNumber" : "CMP-2025-09-18-006990",
-            "startDate" : "23-09-2025 00:00:00+0000",
-            "endDate" : "04-10-2025 00:00:00+0000",
+            "campaignStartDate" : "23-09-2025 00:00:00+0000",
+            "campaignEndDate" : "04-10-2025 00:00:00+0000",
             "reportName" : "hhr_registered_report",
             "triggerTime" : "16:00:00+0000",
             "triggerFrequency" : "Daily",
             "reportStartTime": "00:00:00+0000",
             "reportEndTime": "23:59:59+0000",
-            "outputPvcName": "hcm-reports-output",
-            "active" : true
+            "outputPvcName": "hcm-reports-output"
         }
     ]
     """
@@ -375,7 +374,7 @@ def print_summary(campaign_list):
 
     for idx, campaign in enumerate(campaign_list):
         logger.info(f"{idx + 1}. {campaign['campaignNumber']}")
-        logger.info(f"   Period: {campaign['startDate']} to {campaign['endDate']}")
+        logger.info(f"   Period: {campaign['campaignStartDate']} to {campaign['campaignEndDate']}")
 
     logger.info("=" * 80)
     logger.info("✅ All campaigns completed successfully!")
