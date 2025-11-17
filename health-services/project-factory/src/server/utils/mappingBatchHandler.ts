@@ -106,11 +106,11 @@ function groupMappings(mappings: any[]) {
         userToBeMapped: [] as any[],
         userToBeDeMapped: [] as any[]
     };
-    
+
     mappings.forEach(mapping => {
         const type = mapping.type;
         const status = mapping.status;
-        
+
         if (type === 'resource') {
             if (status === mappingStatuses.toBeMapped) {
                 groups.resourceToBeMapped.push(mapping);
@@ -131,8 +131,27 @@ function groupMappings(mappings: any[]) {
             }
         }
     });
-    
+
     return groups;
+}
+
+/**
+ * Persist data in batches to Kafka with chunking and wait time
+ * Prevents Kafka message size limits and ensures proper persistence
+ */
+async function persistInBatches(datas: any[], topic: string, tenantId: string): Promise<void> {
+    if (datas.length === 0) {
+        return;
+    }
+
+    const BATCH_SIZE = 100;
+    for (let i = 0; i < datas.length; i += BATCH_SIZE) {
+        const batch = datas.slice(i, i + BATCH_SIZE);
+        await produceModifiedMessages({ datas: batch }, topic, tenantId);
+    }
+    const waitTime = Math.max(5000, datas.length * 8);
+    logger.info(`Waiting for ${waitTime} ms for persistence...`);
+    await new Promise((res) => setTimeout(res, waitTime));
 }
 
 /**
@@ -145,17 +164,19 @@ async function processResourceMappings(
     useruuid: string
 ): Promise<void> {
     logger.info(`Processing ${mappings.length} resource mappings`);
-    
+
     const RequestInfo = JSON.parse(JSON.stringify(defaultRequestInfo?.RequestInfo));
     RequestInfo.userInfo.uuid = useruuid;
-    
+
+    const updateBatch: any[] = []; // Collect all updates for batch sending
+
     const promises = mappings.map(async (mapping) => {
         try {
             const projectId = boundaryToProjectId[mapping.boundaryCode];
             if (!projectId) {
                 throw new Error(`Project not found for boundary ${mapping.boundaryCode}`);
             }
-            
+
             const ProjectResource = {
                 tenantId,
                 projectId,
@@ -167,25 +188,28 @@ async function processResourceMappings(
                 startDate: null, // Set appropriate dates
                 endDate: null,
             };
-            
+
             const response = await createProjectResource({ RequestInfo, ProjectResource });
-            
+
             mapping.status = mappingStatuses.mapped;
             if (response?.ProjectResource?.id) {
                 mapping.mappingId = response.ProjectResource.id;
             }
-            
-            await produceModifiedMessages({ datas: [mapping] }, config.kafka.KAFKA_UPDATE_MAPPING_DATA_TOPIC, tenantId);
+
+            updateBatch.push(mapping); // Collect instead of sending immediately
         } catch (error) {
             logger.error(`Failed to create project resource for ${mapping.uniqueIdentifierForData}:`, error);
-            
+
             // Mark mapping as failed
             mapping.status = mappingStatuses.failed;
-            await produceModifiedMessages({ datas: [mapping] }, config.kafka.KAFKA_UPDATE_MAPPING_DATA_TOPIC, tenantId);
+            updateBatch.push(mapping); // Collect failed ones too
         }
     });
-    
+
     await Promise.all(promises);
+
+    // Send all updates in batches with chunking - prevents Kafka message size limits
+    await persistInBatches(updateBatch, config.kafka.KAFKA_UPDATE_MAPPING_DATA_TOPIC, tenantId);
 }
 
 /**
@@ -199,19 +223,21 @@ async function processFacilityMappings(
     useruuid: string
 ): Promise<void> {
     logger.info(`Processing ${mappings.length} facility mappings`);
-    
+
     const RequestInfo = JSON.parse(JSON.stringify(defaultRequestInfo?.RequestInfo));
     RequestInfo.userInfo.uuid = useruuid;
-    
+
+    const updateBatch: any[] = []; // Collect all updates for batch sending
+
     const promises = mappings.map(async (mapping) => {
         try {
             const projectId = boundaryToProjectId[mapping.boundaryCode];
             const facilityId = facilityMap[mapping.uniqueIdentifierForData];
-            
+
             if (!projectId || !facilityId) {
                 throw new Error(`Missing project/facility ID for ${mapping.uniqueIdentifierForData}`);
             }
-            
+
             const ProjectFacility = {
                 tenantId: tenantId.split(".")?.[0],
                 projectId,
@@ -219,25 +245,28 @@ async function processFacilityMappings(
                 startDate: null,
                 endDate: null
             };
-            
+
             const response = await createProjectFacility({ RequestInfo, ProjectFacility });
-            
+
             mapping.status = mappingStatuses.mapped;
             if (response?.ProjectFacility?.id) {
                 mapping.mappingId = response.ProjectFacility.id;
             }
-            
-            await produceModifiedMessages({ datas: [mapping] }, config.kafka.KAFKA_UPDATE_MAPPING_DATA_TOPIC, tenantId);
+
+            updateBatch.push(mapping); // Collect instead of sending immediately
         } catch (error) {
             logger.error(`Failed to create project facility for ${mapping.uniqueIdentifierForData}:`, error);
-            
+
             // Mark mapping as failed
             mapping.status = mappingStatuses.failed;
-            await produceModifiedMessages({ datas: [mapping] }, config.kafka.KAFKA_UPDATE_MAPPING_DATA_TOPIC, tenantId);
+            updateBatch.push(mapping); // Collect failed ones too
         }
     });
-    
+
     await Promise.all(promises);
+
+    // Send all updates in batches with chunking - prevents Kafka message size limits
+    await persistInBatches(updateBatch, config.kafka.KAFKA_UPDATE_MAPPING_DATA_TOPIC, tenantId);
 }
 
 /**
@@ -251,19 +280,21 @@ async function processUserMappings(
     useruuid: string
 ): Promise<void> {
     logger.info(`Processing ${mappings.length} user mappings`);
-    
+
     const RequestInfo = JSON.parse(JSON.stringify(defaultRequestInfo?.RequestInfo));
     RequestInfo.userInfo.uuid = useruuid;
-    
+
+    const updateBatch: any[] = []; // Collect all updates for batch sending
+
     const promises = mappings.map(async (mapping) => {
         try {
             const projectId = boundaryToProjectId[mapping.boundaryCode];
             const userId = userMap[mapping.uniqueIdentifierForData];
-            
+
             if (!projectId || !userId) {
                 throw new Error(`Missing project/user ID for ${mapping.uniqueIdentifierForData}`);
             }
-            
+
             const ProjectStaff = {
                 tenantId,
                 projectId,
@@ -271,25 +302,28 @@ async function processUserMappings(
                 startDate: null,
                 endDate: null,
             };
-            
+
             const response = await createStaff({ RequestInfo, ProjectStaff });
-            
+
             mapping.status = mappingStatuses.mapped;
             if (response?.ProjectStaff?.id) {
                 mapping.mappingId = response.ProjectStaff.id;
             }
-            
-            await produceModifiedMessages({ datas: [mapping] }, config.kafka.KAFKA_UPDATE_MAPPING_DATA_TOPIC, tenantId);
+
+            updateBatch.push(mapping); // Collect instead of sending immediately
         } catch (error) {
             logger.error(`Failed to create project staff for ${mapping.uniqueIdentifierForData}:`, error);
-            
+
             // Mark mapping as failed
             mapping.status = mappingStatuses.failed;
-            await produceModifiedMessages({ datas: [mapping] }, config.kafka.KAFKA_UPDATE_MAPPING_DATA_TOPIC, tenantId);
+            updateBatch.push(mapping); // Collect failed ones too
         }
     });
-    
+
     await Promise.all(promises);
+
+    // Send all updates in batches with chunking - prevents Kafka message size limits
+    await persistInBatches(updateBatch, config.kafka.KAFKA_UPDATE_MAPPING_DATA_TOPIC, tenantId);
 }
 
 /**
@@ -301,21 +335,28 @@ async function processResourceDemappings(
     useruuid: string
 ): Promise<void> {
     logger.info(`Processing ${mappings.length} resource demappings (direct deletion)`);
-    
+
+    const deleteBatch: any[] = []; // Collect successful deletions
+    const failedBatch: any[] = []; // Collect failed ones
+
     // For resources, just delete the mapping entries as they can't be actually demapped
     const promises = mappings.map(async (mapping) => {
         try {
-            await produceModifiedMessages({ datas: [mapping] }, config.kafka.KAFKA_DELETE_MAPPING_DATA_TOPIC, tenantId);
+            deleteBatch.push(mapping); // Collect for batch deletion
         } catch (error) {
             logger.error(`Failed to delete resource mapping for ${mapping.uniqueIdentifierForData}:`, error);
-            
+
             // Mark mapping as failed
             mapping.status = mappingStatuses.failed;
-            await produceModifiedMessages({ datas: [mapping] }, config.kafka.KAFKA_UPDATE_MAPPING_DATA_TOPIC, tenantId);
+            failedBatch.push(mapping); // Collect failed ones
         }
     });
-    
+
     await Promise.all(promises);
+
+    // Send deletions and failures in batches with chunking
+    await persistInBatches(deleteBatch, config.kafka.KAFKA_DELETE_MAPPING_DATA_TOPIC, tenantId);
+    await persistInBatches(failedBatch, config.kafka.KAFKA_UPDATE_MAPPING_DATA_TOPIC, tenantId);
 }
 
 /**
@@ -329,34 +370,41 @@ async function processFacilityDemappings(
     useruuid: string
 ): Promise<void> {
     logger.info(`Processing ${mappings.length} facility demappings`);
-    
+
     const RequestInfo = JSON.parse(JSON.stringify(defaultRequestInfo?.RequestInfo));
     RequestInfo.userInfo.uuid = useruuid;
-    
+
+    const deleteBatch: any[] = []; // Collect successful deletions
+    const failedBatch: any[] = []; // Collect failed ones
+
     const promises = mappings.map(async (mapping) => {
         try {
             const projectId = boundaryToProjectId[mapping.boundaryCode];
             const facilityId = facilityMap[mapping.uniqueIdentifierForData];
             const mappingId = mapping.mappingId;
-            
+
             if (!projectId || !facilityId || !mappingId) {
                 // Direct delete for invalid mappings
-                await produceModifiedMessages({ datas: [mapping] }, config.kafka.KAFKA_DELETE_MAPPING_DATA_TOPIC, tenantId);
+                deleteBatch.push(mapping); // Collect for batch deletion
                 return;
             }
-            
+
             await fetchAndDeleteProjectFacility(RequestInfo, tenantId, projectId, facilityId);
-            await produceModifiedMessages({ datas: [mapping] }, config.kafka.KAFKA_DELETE_MAPPING_DATA_TOPIC, tenantId);
+            deleteBatch.push(mapping); // Collect for batch deletion
         } catch (error) {
             logger.error(`Failed to demap facility ${mapping.uniqueIdentifierForData}:`, error);
-            
+
             // Mark mapping as failed instead of deleting
             mapping.status = mappingStatuses.failed;
-            await produceModifiedMessages({ datas: [mapping] }, config.kafka.KAFKA_UPDATE_MAPPING_DATA_TOPIC, tenantId);
+            failedBatch.push(mapping); // Collect failed ones
         }
     });
-    
+
     await Promise.all(promises);
+
+    // Send deletions and failures in batches with chunking
+    await persistInBatches(deleteBatch, config.kafka.KAFKA_DELETE_MAPPING_DATA_TOPIC, tenantId);
+    await persistInBatches(failedBatch, config.kafka.KAFKA_UPDATE_MAPPING_DATA_TOPIC, tenantId);
 }
 
 /**
@@ -370,34 +418,41 @@ async function processUserDemappings(
     useruuid: string
 ): Promise<void> {
     logger.info(`Processing ${mappings.length} user demappings`);
-    
+
     const RequestInfo = JSON.parse(JSON.stringify(defaultRequestInfo?.RequestInfo));
     RequestInfo.userInfo.uuid = useruuid;
-    
+
+    const deleteBatch: any[] = []; // Collect successful deletions
+    const failedBatch: any[] = []; // Collect failed ones
+
     const promises = mappings.map(async (mapping) => {
         try {
             const projectId = boundaryToProjectId[mapping.boundaryCode];
             const userId = userMap[mapping.uniqueIdentifierForData];
             const mappingId = mapping.mappingId;
-            
+
             if (!projectId || !userId || !mappingId) {
                 // Direct delete for invalid mappings
-                await produceModifiedMessages({ datas: [mapping] }, config.kafka.KAFKA_DELETE_MAPPING_DATA_TOPIC, tenantId);
+                deleteBatch.push(mapping); // Collect for batch deletion
                 return;
             }
-            
+
             await fetchAndDeleteProjectStaff(RequestInfo, tenantId, projectId, userId);
-            await produceModifiedMessages({ datas: [mapping] }, config.kafka.KAFKA_DELETE_MAPPING_DATA_TOPIC, tenantId);
+            deleteBatch.push(mapping); // Collect for batch deletion
         } catch (error) {
             logger.error(`Failed to demap user ${mapping.uniqueIdentifierForData}:`, error);
-            
+
             // Mark mapping as failed instead of deleting
             mapping.status = mappingStatuses.failed;
-            await produceModifiedMessages({ datas: [mapping] }, config.kafka.KAFKA_UPDATE_MAPPING_DATA_TOPIC, tenantId);
+            failedBatch.push(mapping); // Collect failed ones
         }
     });
-    
+
     await Promise.all(promises);
+
+    // Send deletions and failures in batches with chunking
+    await persistInBatches(deleteBatch, config.kafka.KAFKA_DELETE_MAPPING_DATA_TOPIC, tenantId);
+    await persistInBatches(failedBatch, config.kafka.KAFKA_UPDATE_MAPPING_DATA_TOPIC, tenantId);
 }
 
 /**
