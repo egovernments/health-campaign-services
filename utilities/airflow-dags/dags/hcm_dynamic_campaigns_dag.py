@@ -331,7 +331,9 @@ for idx, campaign in enumerate(campaigns):
         env_vars={
             'PYTHONUNBUFFERED': '1',
             'CAMPAIGN_NUMBER': campaign_number,
-            'REPORT_TYPE': campaign.get('reportName', 'hhr_registered_report'),
+            'REPORT_NAME': campaign.get('reportName', 'hhr_registered_report'),
+            'START_DATE' : campaign.get('reportStartTime'),
+            'END_DATE' : campaign.get('reportEndTime')
         },
         volumes=[
             k8s_models.V1Volume(
