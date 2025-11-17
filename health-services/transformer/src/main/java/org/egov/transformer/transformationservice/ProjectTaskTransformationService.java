@@ -231,7 +231,7 @@ public class ProjectTaskTransformationService {
         if (pregnantWomenCount > 0 || childrenCount > 0) {
             additionalDetails.put(ISVULNERABLE, true);
         }
-        if (task.getStatus().equalsIgnoreCase(CLOSED_HOUSEHOLD) && !additionalDetails.has(REASON_OF_REFUSAL)) {
+        if (task.getStatus() != null && task.getStatus().equalsIgnoreCase(CLOSED_HOUSEHOLD) && !additionalDetails.has(REASON_OF_REFUSAL)) {
             additionalDetails.put(REASON_OF_REFUSAL, task.getStatus());
         }
 
@@ -291,8 +291,8 @@ public class ProjectTaskTransformationService {
     private Task constructTaskResourceIfNull(Task task) {
         if (task.getResources() == null || task.getResources().isEmpty()) {
             TaskResource taskResource = new TaskResource();
-            taskResource.setId(task.getStatus() + HYPHEN + task.getId());
-            taskResource.setClientReferenceId(task.getStatus() + HYPHEN + task.getClientReferenceId());
+            taskResource.setId((task.getStatus() == null ? "NULL" : task.getStatus()) + HYPHEN + task.getId());
+            taskResource.setClientReferenceId((task.getStatus() == null ? "NULL" : task.getStatus()) + HYPHEN + task.getClientReferenceId());
             taskResource.setIsDelivered(false);
             taskResource.setDeliveryComment(null);
 
