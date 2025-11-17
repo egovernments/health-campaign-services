@@ -29,7 +29,7 @@ from datetime import datetime, timedelta, timezone
 from airflow import DAG
 from airflow.decorators import task
 
-from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
+from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 from kubernetes.client import models as k8s_models
 
 logger = logging.getLogger("airflow.task")

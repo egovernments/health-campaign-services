@@ -378,8 +378,8 @@ with DAG(
             logger.exception("Failed to trigger processor DAG")
             raise
 
-    t1 = PythonOperator(task_id="find_window_matches", python_callable=find_window_matches, provide_context=True)
-    t2 = PythonOperator(task_id="decide_campaign_trigger", python_callable=decide_campaign_trigger, provide_context=True)
-    t3 = PythonOperator(task_id="trigger_processor", python_callable=trigger_processor, provide_context=True)
+    t1 = PythonOperator(task_id="find_window_matches", python_callable=find_window_matches)
+    t2 = PythonOperator(task_id="decide_campaign_trigger", python_callable=decide_campaign_trigger)
+    t3 = PythonOperator(task_id="trigger_processor", python_callable=trigger_processor)
 
     t1 >> t2 >> t3
