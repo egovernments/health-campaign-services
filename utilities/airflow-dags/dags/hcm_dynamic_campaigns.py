@@ -28,7 +28,6 @@ from datetime import datetime, timedelta, timezone
 
 from airflow import DAG
 from airflow.decorators import task
-from airflow.utils.dates import days_ago
 
 from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
 from kubernetes.client import models as k8s_models
@@ -137,7 +136,7 @@ with DAG(
     default_args=default_args,
     description="Campaign report processor - dynamically creates pods for matched campaigns",
     schedule_interval=None,   # ✅ No schedule - triggered by hcm_campaign_scheduler only
-    start_date=days_ago(1),
+    start_date=datetime(2025, 1, 1, tzinfo=UTC),
     catchup=False,
     tags=["hcm", "reports", "processor"],
     max_active_tasks=10,      # Max 10 pods running in parallel (adjust based on cluster capacity)

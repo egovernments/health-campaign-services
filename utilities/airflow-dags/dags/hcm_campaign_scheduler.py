@@ -25,7 +25,6 @@ import requests
 
 from airflow import DAG
 from airflow.operators.python import PythonOperator
-from airflow.utils.dates import days_ago
 from airflow.models import DagBag
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
@@ -211,7 +210,7 @@ with DAG(
     dag_id="hcm_campaign_scheduler",
     default_args=default_args,
     schedule_interval="0 * * * *",  # run hourly at minute 0 UTC
-    start_date=days_ago(1),
+    start_date=datetime(2025, 1, 1, tzinfo=UTC),
     catchup=False,
     tags=["hcm", "scheduler"],
 ) as dag:
