@@ -99,9 +99,7 @@ public class DownsyncService {
 
         downsync.setDownsyncCriteria(downsyncCriteria);
         // removing incremental downsync for matview flow
-        if (configs.isEnableMatviewSearch()) {
-            downsyncCriteria.setLastSyncedTime(null);
-        }
+        downsyncCriteria.setLastSyncedTime(null);
         boolean isSyncTimeAvailable = null != downsyncCriteria.getLastSyncedTime();
 
         //Project project = getProjectType(downsyncRequest);
