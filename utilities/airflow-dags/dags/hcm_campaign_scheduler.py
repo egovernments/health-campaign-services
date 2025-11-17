@@ -209,7 +209,7 @@ default_args = {
 with DAG(
     dag_id="hcm_campaign_scheduler",
     default_args=default_args,
-    schedule_interval="0 * * * *",  # run hourly at minute 0 UTC
+    schedule="0 * * * *",  # run hourly at minute 0 UTC
     start_date=datetime(2025, 1, 1, tzinfo=UTC),
     catchup=False,
     tags=["hcm", "scheduler"],

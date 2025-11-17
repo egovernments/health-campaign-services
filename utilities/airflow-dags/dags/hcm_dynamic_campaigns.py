@@ -135,7 +135,7 @@ with DAG(
     dag_id="hcm_dynamic_campaigns",
     default_args=default_args,
     description="Campaign report processor - dynamically creates pods for matched campaigns",
-    schedule_interval=None,   # ✅ No schedule - triggered by hcm_campaign_scheduler only
+    schedule=None,   # ✅ No schedule - triggered by hcm_campaign_scheduler only
     start_date=datetime(2025, 1, 1, tzinfo=UTC),
     catchup=False,
     tags=["hcm", "reports", "processor"],
