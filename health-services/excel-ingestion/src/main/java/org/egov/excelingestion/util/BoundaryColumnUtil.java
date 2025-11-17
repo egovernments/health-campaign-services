@@ -358,12 +358,10 @@ public class BoundaryColumnUtil {
         );
         levelValidation.setShowPromptBox(false);
         sheet.addValidationData(levelValidation);
-        log.info("range-based level validation to column {} (rows 3-{})",
-                lastSchemaCol, config.getExcelRowLimit() + 1);
 
-        // Use row 3 as template - Excel auto-adjusts the relative reference for each row
-        String levelCellRef = CellReference.convertNumToColString(lastSchemaCol) + "3";  // Template for row 3
-        String boundaryFormula = "IF(" + levelCellRef + "=\"\", \"\", INDIRECT(\"Level_\"&MATCH(" + levelCellRef + ", Levels, 0)))";
+        String colLetter = CellReference.convertNumToColString(lastSchemaCol);
+        String dynamicLevelRef = "INDIRECT(\"" + colLetter + "\"&ROW())";
+        String boundaryFormula = "IF(" + dynamicLevelRef + "=\"\", \"\", INDIRECT(\"Level_\"&MATCH(" + dynamicLevelRef + ", Levels, 0)))";
         DataValidationConstraint boundaryConstraint = dvHelper.createFormulaListConstraint(boundaryFormula);
         CellRangeAddressList boundaryAddr = new CellRangeAddressList(2, config.getExcelRowLimit(), lastSchemaCol + 1, lastSchemaCol + 1);
         DataValidation boundaryValidation = dvHelper.createValidation(boundaryConstraint, boundaryAddr);
