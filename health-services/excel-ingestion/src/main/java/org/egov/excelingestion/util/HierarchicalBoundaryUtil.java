@@ -318,19 +318,17 @@ public class HierarchicalBoundaryUtil {
 
         // Create or get the hidden lookup sheet
         Sheet lookupSheet = workbook.getSheet("_h_SimpleLookup_h_");
-        if (lookupSheet == null) {
-            lookupSheet = workbook.createSheet("_h_SimpleLookup_h_");
-            workbook.setSheetHidden(workbook.getSheetIndex("_h_SimpleLookup_h_"), true);
-        } else {
-            int actualLastRow = ExcelUtil.findActualLastRowWithData(lookupSheet);
-            // Clear existing content
-            for (int i = actualLastRow; i >= 0; i--) {
-                Row row = lookupSheet.getRow(i);
-                if (row != null) {
-                    lookupSheet.removeRow(row);
-                }
-            }
+        if (lookupSheet != null) {
+            // Complete removal - deletes ALL internal POI structures
+            int sheetIndex = workbook.getSheetIndex(lookupSheet);
+            workbook.removeSheetAt(sheetIndex);
+            log.info("Removed existing _h_SimpleLookup_h_ sheet to prevent named range accumulation (fixes LibreOffice/Excel corruption)");
         }
+
+        // Always create fresh sheet - ensures zero accumulated metadata
+        lookupSheet = workbook.createSheet("_h_SimpleLookup_h_");
+        workbook.setSheetHidden(workbook.getSheetIndex("_h_SimpleLookup_h_"), true);
+        log.info("Created fresh _h_SimpleLookup_h_ sheet for current generation");
 
         // Build parent-children mapping with hashed keys
         Map<String, Set<String>> parentChildrenMap = new HashMap<>();
@@ -585,7 +583,6 @@ public class HierarchicalBoundaryUtil {
             rowNum++;
         }
 
-        // Formula uses relative references (A3, B3, C3) which Excel auto-adjusts per row (A4, B4, C4 in row 4)
         for (int colIdx = 1; colIdx < numColumns; colIdx++) {
             int actualColIndex = startColumnIndex + colIdx;
 
@@ -593,17 +590,13 @@ public class HierarchicalBoundaryUtil {
             // Row index 2 = Excel row 3 (first data row), accounts for 0-based vs 1-based indexing
             CellRangeAddressList cascadeRange = new CellRangeAddressList(2, config.getExcelRowLimit(), actualColIndex, actualColIndex);
 
-            // Build the formula using ROW 3 as template with RELATIVE references
-            // Excel automatically adjusts this formula for each row in the range:
-            // - Row 3: A3, B3, C3
-            // - Row 4: A4, B4, C4 (auto-adjusted by Excel)
-            // - Row 5: A5, B5, C5 (auto-adjusted by Excel)
             StringBuilder keyBuilder = new StringBuilder();
             for (int i = 0; i <= colIdx - 1; i++) {
                 if (i > 0) keyBuilder.append(", \"" + BOUNDARY_SEPARATOR + "\", ");
-                // Use row 3 as template - Excel auto-adjusts to relative row in each cell
-                String colRef = CellReference.convertNumToColString(startColumnIndex + i) + "3";
-                keyBuilder.append(colRef);
+                // Use INDIRECT with ROW() function for dynamic row-specific cell references
+                String colLetter = CellReference.convertNumToColString(startColumnIndex + i);
+                String dynamicRef = "INDIRECT(\"" + colLetter + "\"&ROW())";
+                keyBuilder.append(dynamicRef);
             }
 
             // Create formula that uses INDEX/MATCH to find the hashed key from the original key
@@ -620,8 +613,6 @@ public class HierarchicalBoundaryUtil {
                 cascadeValidation.setShowErrorBox(false);
                 cascadeValidation.setEmptyCellAllowed(true);
                 sheet.addValidationData(cascadeValidation);
-                log.info("✅ Applied OPTIMIZED range-based cascade validation to column {} (rows 3-{})",
-                        actualColIndex, config.getExcelRowLimit() + 1);
             } catch (Exception e) {
                 log.error("Error creating cascade validation for column {} with formula length {}: {}",
                         actualColIndex, formula.length(), e.getMessage());
