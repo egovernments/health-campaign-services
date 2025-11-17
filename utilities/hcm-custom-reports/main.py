@@ -1,17 +1,59 @@
 import os
 import subprocess
+import sys
+from pathlib import Path
 import json
 import datetime
 import shutil
-import time
-from openpyxl import load_workbook
+import glob
+
+
+# Read env vars
+REPORT_NAME = os.getenv('REPORT_NAME')
+CAMPAIGN_NUMBER = os.getenv('CAMPAIGN_NUMBER')
+START_DATE = os.getenv('START_DATE')
+END_DATE = os.getenv('END_DATE')
+OUTPUT_PVC_NAME = os.getenv('OUTPUT_PVC_NAME', 'hcm-reports-output')
+REPORT_FILE_NAME = REPORT_NAME.upper()
+
+
+if not REPORT_NAME or not CAMPAIGN_NUMBER:
+    print('REPORT_TYPE and CAMPAIGN_NUMBER are required environment variables')
+    sys.exit(1)
+
+
+# # Script path (mounted from report scripts volume)
+# script_path = Path('/app/reports') / REPORT_NAME / f"{REPORT_NAME}.py"
+# if not script_path.exists():
+#     print(f"Report script not found: {script_path}")
+#     sys.exit(2)
+
+
+# # Prepare output dir (mounted PVC expected at /app/REPORTS_GENERATION/FINAL_REPORTS)
+# output_base = Path('/app/REPORTS_GENERATION/FINAL_REPORTS')
+# campaign_dir = output_base / f"campaign-{CAMPAIGN_NUMBER}"
+# campaign_dir.mkdir(parents=True, exist_ok=True)
+
+
+# # Build command
+# cmd = [sys.executable, str(script_path),
+#     '--campaign', CAMPAIGN_NUMBER,
+#     '--start', START_DATE or '',
+#     '--end', END_DATE or '',
+#     '--output', str(campaign_dir)]
+
+
+# print('Running command:', ' '.join(cmd))
+# ret = subprocess.run(cmd)
+# if ret.returncode != 0:
+#     print('Report script failed with code', ret.returncode)
+#     sys.exit(ret.returncode)
+
 
 def get_custom_dates_of_reports():
-    with open("reports_date_config.json") as f:
-        reports_date_config = json.load(f)
 
-    start_date_str = reports_date_config['start_date']
-    end_date_str = reports_date_config['end_date']
+    start_date_str = START_DATE
+    end_date_str = END_DATE
     date_format = '%Y-%m-%d %H:%M:%S%z'
 
     start_date = datetime.datetime.strptime(start_date_str, date_format)
@@ -27,12 +69,6 @@ def get_custom_dates_of_reports():
 
 start_date_str, end_date_str = get_custom_dates_of_reports()
 
-def remove_empty_sheets(file_path):
-    workbook = load_workbook(file_path)
-    if "Sheet" in workbook.sheetnames:
-        del workbook["Sheet"]
-        workbook.save(file_path)
-
 def save_file_to_folder(file):
     file_name, extension = os.path.splitext(file)
     new_file_name = f"{file_name}_{start_date_str}_TO_{end_date_str}{extension}"
@@ -40,40 +76,54 @@ def save_file_to_folder(file):
     os.makedirs(folder_path, exist_ok=True)
     shutil.move(file, os.path.join(folder_path, os.path.basename(new_file_name)))
 
-def today_date():
-    current_datetime = datetime.datetime.now()
-    return current_datetime.strftime("%d_%b").upper()
+original_dir = os.getcwd()
+# input_folder = reports_config["input"]
+# scripts = reports_config["scripts"]
 
-config_file = open("reports_config.json")
-config = json.load(config_file)
-start_time = time.time()
 
-for report, reports_config in config.items():
-    original_dir = os.getcwd()
-    input_folder = reports_config["input"]
-    scripts = reports_config["scripts"]
+try:
+    print("\n")
+    print(f"===== Generating report : {REPORT_NAME}")
 
-    try:
-        print("\n")
-        print(f"===== Generating report : {report}")
-        for script in scripts:
-            script_path = f"{input_folder}{script}"
-            # Use venv python if available (local), otherwise use system python (Docker)
-            venv_python = os.path.join(original_dir, 'venv', 'bin', 'python3')
-            python_executable = venv_python if os.path.exists(venv_python) else 'python3'
-            subprocess.run([python_executable, original_dir + script_path], check=True)
-            print(f"Executed {script}")
-    except Exception as e:
-        print(f"Error: {e}")
-    finally:
-        file_names = reports_config.get("filename", [])
-        move_file = reports_config.get("moveReport", True)
-        if move_file:
-            for file_name in file_names:
+    script_path = f"{original_dir}{REPORT_NAME}/{REPORT_NAME}.py"
+    # Use venv python if available (local), otherwise use system python (Docker)
+    venv_python = os.path.join(original_dir, 'venv', 'bin', 'python3')
+    python_executable = venv_python if os.path.exists(venv_python) else 'python3'
+
+    cmd = [python_executable, script_path,
+    '--campaign_number', CAMPAIGN_NUMBER,
+    '--start_date', START_DATE or '',
+    '--end_date', END_DATE or '',
+    '--file_name', REPORT_FILE_NAME]
+
+    print('Running command:', ' '.join(cmd))
+
+    subprocess.run(cmd, check=True)
+
+    print(f"Executed {REPORT_NAME}")
+
+except Exception as e:
+    print(f"Error: {e}")
+finally:
+    file_name_substring = REPORT_FILE_NAME
+    move_file = True
+    if move_file:
+        matching_files = glob.glob(f"*{file_name_substring}*")  # Case-sensitive
+        
+        if matching_files:
+            for file_name in matching_files:
                 if os.path.exists(file_name):
-                    if reports_config.get("removeSheet", True):
-                        remove_empty_sheets(file_name)
                     save_file_to_folder(file_name)
+                    print(f"Moved file: {file_name}")
                 else:
                     print(f"⚠ File not found, skipping: {file_name}")
+        else:
+            print(f"⚠ No files found containing substring: {file_name_substring}")
+    # if move_file:
+    #     # for file_name in file_names:
+    #     if os.path.exists(file_name):
+    #         save_file_to_folder(file_name)
+    #     else:
+    #         print(f"⚠ File not found, skipping: {file_name}")
 
+    

@@ -2,13 +2,13 @@ import json
 from datetime import datetime
 
 
-def get_custom_dates_of_reports():
+def get_custom_dates_of_reports(start_date_str, end_date_str):
     # Customize the path name of the file
-    reports_date_config_file = open("reports_date_config.json")
-    reports_date_config = json.load(reports_date_config_file)
+    # reports_date_config_file = open("reports_date_config.json")
+    # reports_date_config = json.load(reports_date_config_file)
 
-    start_date_str = reports_date_config['start_date']
-    end_date_str = reports_date_config['end_date']
+    # start_date_str = reports_date_config['start_date']
+    # end_date_str = reports_date_config['end_date']
     date_format = '%Y-%m-%d %H:%M:%S%z'
 
     start_date = datetime.strptime(start_date_str, date_format)

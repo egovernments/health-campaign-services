@@ -3,6 +3,19 @@ import sys
 import warnings
 import pandas as pd
 from datetime import datetime
+import argparse
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--campaign_number', required=True)
+parser.add_argument('--start_date', default='')
+parser.add_argument('--end_date', default='')
+parser.add_argument('--file_name', required=True)
+args = parser.parse_args()
+
+CAMPAIGN_NUMBER = args.campaign_number
+START_DATE = args.start_date
+END_DATE = args.end_date
+FILE_NAME = args.file_name
 
 # === PATH SETUP ===
 file_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -21,7 +34,7 @@ ES_PROJECT_BENEFICIARY_INDEX = "http://elasticsearch-master.es-upgrade.svc.clust
 ES_SCROLL_API = "http://elasticsearch-master.es-upgrade.svc.cluster.local:9200/_search/scroll"
 
 # === DATE RANGE ===
-lteTime, gteTime, start_date_str, end_date_str = get_custom_dates_of_reports()
+lteTime, gteTime, start_date_str, end_date_str = get_custom_dates_of_reports(START_DATE, END_DATE)
 start_date = datetime.strptime(start_date_str, "%Y-%m-%d %H:%M:%S%z")
 end_date = datetime.strptime(end_date_str, "%Y-%m-%d %H:%M:%S%z")
 date_folder = f"{start_date.strftime('%Y-%m-%d')}_to_{end_date.strftime('%Y-%m-%d')}"
@@ -141,6 +154,13 @@ def fetch_household_data():
         ],
         "query": {
             "bool": {
+                "must" : [
+                    {
+                        "term" : {
+                            "Data.campaignNumber" : CAMPAIGN_NUMBER
+                        }
+                    }
+                ],
                 "filter": [
                     {"range": {"Data.@timestamp": {"gte": gteTime, "lte": lteTime}}}
                 ]
@@ -149,6 +169,11 @@ def fetch_household_data():
     }
 
     scroll_id = None
+    """
+    SUGGESTION : Make the scroll time dynamic according to the campaign target (read from helm)
+    some campaigns can have more coverage while other will have less
+    and hence some campaign might need scroll duration of more than 5 mins 
+    """
     initial_scroll_url = ES_HOUSEHOLD_INDEX + "?scroll=5m"
     all_data = []
 
@@ -194,6 +219,12 @@ def fetch_household_data():
 
     return all_data
 
+
+"""
+Fetch household heads for only the households you're fetching data for (falling in the time range)
+that way you won't be fetching household head info of unrelated households
+there's a one to one mapping between household and household head (1 household head for 1 household)
+"""
 
 # === FETCH HOUSEHOLD MEMBER DATA (HEAD OF HOUSEHOLD) ===
 def fetch_household_head_data():
