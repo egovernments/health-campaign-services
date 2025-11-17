@@ -45,7 +45,7 @@ public class PtIsResouceEmptyValidator implements Validator<TaskBulkRequest, Tas
         List<Task> entities = request.getTasks();
         if(!entities.isEmpty()) {
             entities.forEach(task -> {
-                if (CollectionUtils.isEmpty(task.getResources()) &&
+                if (task.getStatus() != null && CollectionUtils.isEmpty(task.getResources()) &&
                         !projectConfiguration.getNoResourceStatuses().contains(task.getStatus().toString())) {
                     /**
                      *  If the task resource is empty or null and task status is not BENEFICIARY_REFUSED it is invalid
@@ -58,7 +58,7 @@ public class PtIsResouceEmptyValidator implements Validator<TaskBulkRequest, Tas
                         .type(Error.ErrorType.NON_RECOVERABLE)
                         .exception(new CustomException(TASK_NOT_ALLOWED, errorMessage)).build();
                     populateErrorDetails(task, error, errorDetailsMap);
-                } else if (!CollectionUtils.isEmpty(task.getResources()) && projectConfiguration.getNoResourceStatuses().contains(task.getStatus().toString())) {
+                } else if (task.getStatus() != null && !CollectionUtils.isEmpty(task.getResources()) && projectConfiguration.getNoResourceStatuses().contains(task.getStatus().toString())) {
                     /**
                      *  If the task resource is not empty and task status is BENEFICIARY_REFUSED
                       */
