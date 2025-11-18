@@ -16,7 +16,7 @@ Notes:
     MDMS_MODULE_NAME (opt), MDMS_MASTER_NAME (opt), TENANT_ID (opt), MDMS_LIMIT (opt),
     PROCESSOR_DAG_ID (opt) - default "hcm_dynamic_campaigns".
 """
-
+from __future__ import annotations
 import os
 import json
 import logging
@@ -29,6 +29,8 @@ from airflow.operators.python import PythonOperator
 from airflow.models import DagBag
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
+from airflow.operators.trigger_dagrun import TriggerDagRunOperator
+from airflow.utils.dates import days_ago
 
 logger = logging.getLogger("airflow.task")
 logger.setLevel(logging.INFO)
@@ -368,61 +370,46 @@ with DAG(
 
     def trigger_processor(**context):
         """
-        Trigger the processor DAG programmatically using Airflow REST API
-        (Airflow 3.0+ does NOT allow DagBag or ORM-based dagrun creation).
+        Instead of calling REST API,
+        internally trigger the dynamic campaigns DAG using TriggerDagRunOperator.
         """
 
-        # Pull final payload from previous task
         final = context["ti"].xcom_pull(
-            key="final_payload",
-            task_ids="decide_campaign_trigger"
+        key="final_payload",
+        task_ids="decide_campaign_trigger"
         ) or []
+
 
         if not final:
             logger.info("No campaigns to trigger this hour.")
             return "no_triggers"
 
-        # Build conf for processor DAG
+
+        run_id = f"auto_trigger__{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}"
         conf = {"matched_campaigns": final}
 
-        # Prepare Airflow API URL for dagRun creation
-        api_url = f"http://airflow-api-server:8080/airflow/api/v2/dags/{PROCESSOR_DAG_ID}/dagRuns"
 
-        # Generate run_id for the triggered DAG
-        now = datetime.now(UTC)
-        run_id = f"auto_trigger__{now.strftime('%Y%m%d_%H%M%S')}"
+        logger.info(
+        "Running TriggerDagRunOperator internally for '%s' with run_id=%s",
+        PROCESSOR_DAG_ID,
+        run_id,
+        )
 
-        # Body payload for API call
-        body = {
-            "dag_run_id": run_id,
-            "conf": conf
-        }
 
-        headers = {"Content-Type": "application/json"}
+        # TriggerDagRunOperator dynamically created and executed inside Python callable
+        trigger_op = TriggerDagRunOperator(
+        task_id=f"trigger_internal_{run_id}",
+        trigger_dag_id=PROCESSOR_DAG_ID,
+        conf=conf,
+        wait_for_completion=False,
+        reset_dag_run=True,
+        poke_interval=10,
+        )
 
-        logger.info("Triggering processor DAG via REST API: %s", api_url)
 
-        try:
-            # POST request to Airflow 3.x REST API
-            response = requests.post(api_url, json=body, headers=headers, timeout=30)
-
-            if response.status_code not in (200, 201):
-                logger.error("Failed to trigger DAG. Status: %s, Response: %s",
-                             response.status_code, response.text)
-                raise Exception(f"Failed to trigger DAG: {response.text}")
-
-            logger.info(
-                "✓ Successfully triggered processor DAG '%s' with run_id='%s' and %d campaigns",
-                PROCESSOR_DAG_ID,
-                run_id,
-                len(final),
-            )
-
-            return f"triggered_{len(final)}"
-
-        except Exception as e:
-            logger.exception("Exception while triggering processor DAG via REST API")
-            raise
+        # Manually execute operator
+        trigger_op.execute(context=context)
+        return f"triggered_{len(final)}"
 
     t1 = PythonOperator(task_id="find_window_matches", python_callable=find_window_matches)
     t2 = PythonOperator(task_id="decide_campaign_trigger", python_callable=decide_campaign_trigger)
