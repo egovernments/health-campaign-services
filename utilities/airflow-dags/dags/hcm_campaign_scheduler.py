@@ -12,7 +12,8 @@ Notes:
 - Window logic: window_start = now_utc - 1 hour + 1 minute, window_end = now_utc
 - Uses ONLY Python built-in modules (datetime, no pendulum required)
 - Required env vars:
-    MDMS_URL, MDMS_MODULE_NAME (opt), MDMS_MASTER_NAME (opt), TENANT_ID (opt), MDMS_LIMIT (opt),
+    MDMS_URL (base URL), MDMS_SEARCH_ENDPOINT (opt, default: /mdms-v2/v2/_search),
+    MDMS_MODULE_NAME (opt), MDMS_MASTER_NAME (opt), TENANT_ID (opt), MDMS_LIMIT (opt),
     PROCESSOR_DAG_ID (opt) - default "hcm_dynamic_campaigns".
 """
 
@@ -36,6 +37,7 @@ logger.setLevel(logging.INFO)
 # Configuration via environment
 # -----------------------------
 MDMS_URL = os.getenv("MDMS_URL")
+MDMS_SEARCH_ENDPOINT = os.getenv("MDMS_SEARCH_ENDPOINT", "/mdms-v2/v2/_search")
 MDMS_MODULE_NAME = os.getenv("MDMS_MODULE_NAME", "airflow-configs")
 MDMS_MASTER_NAME = os.getenv("MDMS_MASTER_NAME", "campaign-report-config")
 TENANT_ID = os.getenv("TENANT_ID", "dev")
@@ -69,6 +71,10 @@ def fetch_campaigns_from_mdms():
     if not MDMS_URL:
         raise ValueError("MDMS_URL environment variable is required")
 
+    # Construct full MDMS API URL
+    full_mdms_url = f"{MDMS_URL}{MDMS_SEARCH_ENDPOINT}"
+    logger.info("Fetching campaigns from MDMS: %s", full_url)
+
     body = {
         "RequestInfo": {"authToken": ""},
         "MdmsCriteria": {
@@ -79,7 +85,7 @@ def fetch_campaigns_from_mdms():
             "isActive": True,
         }
     }
-    res = call_api(MDMS_URL, json_body=body, headers={"Content-Type": "application/json"})
+    res = call_api(full_mdms_url, json_body=body, headers={"Content-Type": "application/json"})
     if "error" in res:
         raise Exception(f"Error fetching MDMS: {res['error']}")
     # Try common keys; raise if unexpected
