@@ -73,7 +73,7 @@ def fetch_campaigns_from_mdms():
 
     # Construct full MDMS API URL
     full_mdms_url = f"{MDMS_URL}{MDMS_SEARCH_ENDPOINT}"
-    logger.info("Fetching campaigns from MDMS: %s", full_url)
+    logger.info("Fetching campaigns from MDMS: %s", full_mdms_url)
 
     body = {
         "RequestInfo": {"authToken": ""},
