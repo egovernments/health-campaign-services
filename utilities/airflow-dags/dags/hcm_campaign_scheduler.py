@@ -93,7 +93,20 @@ def fetch_campaigns_from_mdms():
     if not isinstance(campaigns, list):
         raise Exception("Unexpected MDMS response format: expected a list of campaign objects")
     logger.info("MDMS returned %d entries", len(campaigns))
-    return campaigns
+
+    # Normalize MDMS response: extract 'data' field and merge with root-level isActive
+    normalized = []
+    for entry in campaigns:
+        if isinstance(entry, dict) and "data" in entry:
+            # Extract campaign data and add isActive from root level
+            campaign = entry["data"].copy()
+            campaign["isActive"] = entry.get("isActive", False)
+            normalized.append(campaign)
+        else:
+            # If no nested 'data', use entry as-is
+            normalized.append(entry)
+
+    return normalized
 
 def parse_trigger_time_today(trigger_time_str, ref_dt):
     """
@@ -149,23 +162,24 @@ def parse_date_string(date_str):
 
 def is_first_day(campaign, ref_dt):
     """
-    Return True if campaign.startDate equals the reference date (no previous data to report).
+    Return True if campaign start date equals the reference date (no previous data to report).
 
     Args:
-        campaign (dict): Campaign object with startDate
+        campaign (dict): Campaign object with campaignStartDate or startDate
         ref_dt (datetime): Reference datetime (current execution time)
 
     Returns:
         bool: True if today is the campaign's start date
     """
-    s = campaign.get("startDate")
+    # Support both campaignStartDate (MDMS) and startDate (legacy)
+    s = campaign.get("campaignStartDate") or campaign.get("startDate")
     if not s:
         return False
     try:
         parsed = parse_date_string(s)
         return parsed.date() == ref_dt.date()
     except Exception:
-        logger.exception("Failed to parse startDate for campaign %s", campaign.get("campaignNumber"))
+        logger.exception("Failed to parse start date for campaign %s", campaign.get("campaignNumber"))
         return False
 
 def frequency_due(campaign, ref_dt):
@@ -176,29 +190,30 @@ def frequency_due(campaign, ref_dt):
       - MONTHLY: days_since_start >= 30 and days_since_start % 30 == 0
 
     Args:
-        campaign (dict): Campaign object with triggerFrequency and startDate
+        campaign (dict): Campaign object with triggerFrequency and campaignStartDate/startDate
         ref_dt (datetime): Reference datetime (current execution time)
 
     Returns:
         bool: True if the campaign is due to run based on frequency
     """
     freq = (campaign.get("triggerFrequency") or "DAILY").strip().lower()
-    start = campaign.get("startDate")
+    # Support both campaignStartDate (MDMS) and startDate (legacy)
+    start = campaign.get("campaignStartDate") or campaign.get("startDate")
     if not start:
         return False
     try:
         sdt = parse_date_string(start).date()
     except Exception:
-        logger.exception("Failed to parse startDate for frequency check: %s", campaign.get("campaignNumber"))
+        logger.exception("Failed to parse start date for frequency check: %s", campaign.get("campaignNumber"))
         return False
 
     days = (ref_dt.date() - sdt).days
 
-    if freq == "DAILY":
+    if freq == "daily":
         return days >= 1
-    if freq == "WEEKLY":
+    if freq == "weekly":
         return days >= 7 and (days % 7 == 0)
-    if freq == "MONTHLY":
+    if freq == "monthly":
         return days >= 30 and (days % 30 == 0)
     return False
 
@@ -249,8 +264,9 @@ with DAG(
             try:
                 campaign_number = c.get("campaignNumber", "UNKNOWN")
 
-                # Check if active
-                if not c.get("active", False):
+                # Check if active (support both isActive and active)
+                is_active = c.get("isActive", c.get("active", False))
+                if not is_active:
                     logger.debug("Campaign %s: Inactive - SKIP", campaign_number)
                     continue
 
