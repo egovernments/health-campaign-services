@@ -85,7 +85,13 @@ try:
     print("\n")
     print(f"===== Generating report : {REPORT_NAME}")
 
-    script_path = f"{original_dir}{REPORT_NAME}/{REPORT_NAME}.py"
+    script_path = os.path.join(
+        original_dir,
+        "REPORTS_GENERATION",
+        "REPORTS",
+        REPORT_NAME,
+        f"{REPORT_NAME}.py"
+    )
     # Use venv python if available (local), otherwise use system python (Docker)
     venv_python = os.path.join(original_dir, 'venv', 'bin', 'python3')
     python_executable = venv_python if os.path.exists(venv_python) else 'python3'
