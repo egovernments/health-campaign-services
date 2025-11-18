@@ -28,6 +28,7 @@ from datetime import datetime, timedelta, timezone
 
 from airflow import DAG
 from airflow.decorators import task
+from airflow.models import Variable
 
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 from kubernetes.client import models as k8s_models
@@ -42,10 +43,12 @@ UTC = timezone.utc
 # ENVIRONMENT CONFIGURATION
 # -----------------------------------------
 
-# Docker image for report generation (updated by CI/CD pipeline)
-REPORT_IMAGE = os.getenv("REPORT_IMAGE")
+# Docker image for report generation (configured via Airflow Variables)
+# Set via: Admin → Variables → Add Variable (Key: REPORT_IMAGE, Value: <image:tag>)
+# Or via CLI: airflow variables set REPORT_IMAGE "egovio/hcm-custom-reports:airflow-analysis-3b0c066"
+REPORT_IMAGE = Variable.get("REPORT_IMAGE", default_var=None)
 if not REPORT_IMAGE:
-    raise ValueError("REPORT_IMAGE environment variable is required")
+    raise ValueError("REPORT_IMAGE Airflow Variable is required. Set it via Admin → Variables in Airflow UI.")
 
 # PVC configuration for report output
 OUTPUT_PVC_NAME = os.getenv("OUTPUT_PVC_NAME", "hcm-reports-output")
