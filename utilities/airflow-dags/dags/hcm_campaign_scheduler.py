@@ -368,36 +368,60 @@ with DAG(
 
     def trigger_processor(**context):
         """
-        Trigger the processor DAG programmatically and pass final_payload in conf.
+        Trigger the processor DAG programmatically using Airflow REST API
+        (Airflow 3.0+ does NOT allow DagBag or ORM-based dagrun creation).
         """
-        final = context["ti"].xcom_pull(key="final_payload", task_ids="decide_campaign_trigger") or []
+
+        # Pull final payload from previous task
+        final = context["ti"].xcom_pull(
+            key="final_payload",
+            task_ids="decide_campaign_trigger"
+        ) or []
+
         if not final:
             logger.info("No campaigns to trigger this hour.")
             return "no_triggers"
 
+        # Build conf for processor DAG
         conf = {"matched_campaigns": final}
+
+        # Prepare Airflow API URL for dagRun creation
+        api_url = f"http://airflow-api-server:8080/api/v1/dags/{PROCESSOR_DAG_ID}/dagRuns"
+
+        # Generate run_id for the triggered DAG
+        now = datetime.now(UTC)
+        run_id = f"auto_trigger__{now.strftime('%Y%m%d_%H%M%S')}"
+
+        # Body payload for API call
+        body = {
+            "dag_run_id": run_id,
+            "conf": conf
+        }
+
+        headers = {"Content-Type": "application/json"}
+
+        logger.info("Triggering processor DAG via REST API: %s", api_url)
+
         try:
-            db = DagBag()
-            proc_dag = db.get_dag(PROCESSOR_DAG_ID)
-            if not proc_dag:
-                raise Exception(f"Processor DAG '{PROCESSOR_DAG_ID}' not found")
+            # POST request to Airflow 3.x REST API
+            response = requests.post(api_url, json=body, headers=headers, timeout=30)
 
-            # Get current time for run_id
-            now = datetime.now(UTC)
-            run_id = f"auto_trigger__{now.strftime('%Y%m%d_%H%M%S')}"
+            if response.status_code not in (200, 201):
+                logger.error("Failed to trigger DAG. Status: %s, Response: %s",
+                             response.status_code, response.text)
+                raise Exception(f"Failed to trigger DAG: {response.text}")
 
-            proc_dag.create_dagrun(
-                run_id=run_id,
-                state=State.QUEUED,
-                execution_date=now,
-                conf=conf,
-                run_type=DagRunType.MANUAL,
-                external_trigger=True,
+            logger.info(
+                "✓ Successfully triggered processor DAG '%s' with run_id='%s' and %d campaigns",
+                PROCESSOR_DAG_ID,
+                run_id,
+                len(final),
             )
-            logger.info("✓ Triggered processor DAG %s with %d campaigns", PROCESSOR_DAG_ID, len(final))
+
             return f"triggered_{len(final)}"
-        except Exception:
-            logger.exception("Failed to trigger processor DAG")
+
+        except Exception as e:
+            logger.exception("Exception while triggering processor DAG via REST API")
             raise
 
     t1 = PythonOperator(task_id="find_window_matches", python_callable=find_window_matches)

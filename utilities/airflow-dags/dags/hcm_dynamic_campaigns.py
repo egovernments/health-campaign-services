@@ -220,8 +220,8 @@ with DAG(
             # Calculate report date range based on frequency
             start_dt, end_dt = compute_range(c, now)
             logger.info("  Date range: %s to %s",
-                       start_dt.to_datetime_string(),
-                       end_dt.to_datetime_string())
+                    start_dt.strftime("%Y-%m-%d %H:%M:%S"),
+                    end_dt.strftime("%Y-%m-%d %H:%M:%S"))
 
             # Build PVC folder structure
             # Format: /app/REPORTS_GENERATION/FINAL_REPORTS/<campaign>/<report>/<frequency>/
@@ -231,7 +231,7 @@ with DAG(
             # Generate timestamped filename
             # Format: <report_name>_YYYY-MM-DD_HH-MM-SS.xlsx
             # Example: hhr_registered_report_2025-01-18_09-00-00.xlsx
-            timestamp = now.to_datetime_string().replace(" ", "_").replace(":", "-")
+            timestamp = now.strftime("%Y-%m-%d_%H-%M-%S")
             filename = f"{report_name}_{timestamp}.xlsx"
             output_file = f"{output_dir}/{filename}"
 
@@ -367,7 +367,7 @@ with DAG(
                 "campaignNumber": env.get("CAMPAIGN_NUMBER"),
                 "reportName": env.get("REPORT_NAME"),
                 "frequency": env.get("TRIGGER_FREQUENCY"),
-                "dateRange": f"{env.get('REPORT_START')} to {env.get('REPORT_END')}",
+                "dateRange": f"{env.get('START_DATE')} to {env.get('END_DATE')}",
                 "outputFile": env.get("OUTPUT_FILE")
             }
             summary.append(campaign_info)
@@ -376,8 +376,8 @@ with DAG(
             logger.info("  Report: %s", env.get("REPORT_NAME"))
             logger.info("  Frequency: %s", env.get("TRIGGER_FREQUENCY"))
             logger.info("  Date range: %s to %s",
-                       env.get("REPORT_START"),
-                       env.get("REPORT_END"))
+                       env.get("START_DATE"),
+                       env.get("END_DATE"))
             logger.info("  Output file: %s", env.get("OUTPUT_FILE"))
             logger.info("")
 
