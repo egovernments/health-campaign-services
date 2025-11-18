@@ -386,7 +386,7 @@ with DAG(
         conf = {"matched_campaigns": final}
 
         # Prepare Airflow API URL for dagRun creation
-        api_url = f"http://airflow-api-server:8080/api/v1/dags/{PROCESSOR_DAG_ID}/dagRuns"
+        api_url = f"http://airflow-api-server:8080/airflow/api/v2/dags/{PROCESSOR_DAG_ID}/dagRuns"
 
         # Generate run_id for the triggered DAG
         now = datetime.now(UTC)
