@@ -42,6 +42,8 @@ import org.egov.common.models.project.TaskBulkResponse;
 import org.egov.common.models.project.TaskRequest;
 import org.egov.common.models.project.TaskResponse;
 import org.egov.common.models.project.TaskSearchRequest;
+import org.egov.common.models.project.TaskStatus;
+import org.egov.common.models.core.Field;
 import org.egov.common.producer.Producer;
 import org.egov.common.utils.ResponseInfoFactory;
 import org.egov.project.config.ProjectConfiguration;
@@ -102,6 +104,38 @@ public class ProjectApiController {
         this.producer = producer;
         this.projectConfiguration = projectConfiguration;
         this.projectService = projectService;
+    }
+
+    /**
+     * Sets task status based on additionalFields if status is null.
+     * Checks additionalFields for a "taskStatus" key, otherwise sets to VISITED.
+     * 
+     * @param task The task to set status for
+     */
+    private void setTaskStatusIfNull(Task task) {
+        // Only update status if it's currently null
+        if (task.getStatus() == null) {
+            TaskStatus status = null;
+            
+            // Check if additionalFields has a taskStatus key in Field list
+            if (task.getAdditionalFields() != null && task.getAdditionalFields().getFields() != null) {
+                for (Field field : task.getAdditionalFields().getFields()) {
+                    if ("taskStatus".equals(field.getKey())) {
+                        // Convert the value to TaskStatus enum
+                        status = TaskStatus.fromValue(field.getValue());
+                        break;
+                    }
+                }
+            }
+            
+            // If not found or invalid, set to VISITED status
+            if (status == null) {
+                status = TaskStatus.VISITED;
+            }
+            
+            // Set the status
+            task.setStatus(status);
+        }
     }
 
     @RequestMapping(value = "/beneficiary/v1/bulk/_create", method = RequestMethod.POST)
@@ -375,6 +409,8 @@ public class ProjectApiController {
 
     @RequestMapping(value = "/task/v1/_create", method = RequestMethod.POST)
     public ResponseEntity<TaskResponse> projectTaskV1CreatePost(@ApiParam(value = "Capture details of Task", required = true) @Valid @RequestBody TaskRequest request) {
+        // Set status if null based on additionalFields
+        setTaskStatusIfNull(request.getTask());
 
         Task task = projectTaskService.create(request);
         TaskResponse response = TaskResponse.builder()
@@ -391,6 +427,12 @@ public class ProjectApiController {
     @RequestMapping(value = "/task/v1/bulk/_create", method = RequestMethod.POST)
     public ResponseEntity<ResponseInfo> projectTaskBulkV1CreatePost(@ApiParam(value = "Capture details of Task", required = true) @Valid @RequestBody TaskBulkRequest request) {
         request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
+        
+        // Loop through tasks and set status if null based on additionalFields
+        for (Task task : request.getTasks()) {
+            setTaskStatusIfNull(task);
+        }
+        
         projectTaskService.putInCache(request.getTasks());
         producer.push(projectConfiguration.getCreateProjectTaskBulkTopic(), request);
 
@@ -421,7 +463,10 @@ public class ProjectApiController {
 
     @RequestMapping(value = "/task/v1/_update", method = RequestMethod.POST)
     public ResponseEntity<TaskResponse> projectTaskV1UpdatePost(@ApiParam(value = "Capture details of Existing task", required = true) @Valid @RequestBody TaskRequest request) {
-       Task task = projectTaskService.update(request);
+        // Set status if null based on additionalFields
+        setTaskStatusIfNull(request.getTask());
+        
+        Task task = projectTaskService.update(request);
 
         TaskResponse response = TaskResponse.builder()
                 .task(task)
@@ -436,6 +481,12 @@ public class ProjectApiController {
     @RequestMapping(value = "/task/v1/bulk/_update", method = RequestMethod.POST)
     public ResponseEntity<ResponseInfo> projectTaskV1BulkUpdatePost(@ApiParam(value = "Capture details of Existing task", required = true) @Valid @RequestBody TaskBulkRequest request) {
         request.getRequestInfo().setApiId(httpServletRequest.getRequestURI());
+        
+        // Loop through tasks and set status if null based on additionalFields
+        for (Task task : request.getTasks()) {
+            setTaskStatusIfNull(task);
+        }
+        
         producer.push(projectConfiguration.getUpdateProjectTaskBulkTopic(), request);
 
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(ResponseInfoFactory

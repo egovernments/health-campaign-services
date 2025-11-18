@@ -62,6 +62,10 @@ public enum TaskStatus {
      */
     BENEFICIARY_INELIGIBLE("BENEFICIARY_INELIGIBLE"),
 
+    VISITED("VISITED"),
+
+    BENEFICIARY_ABSENT("BENEFICIARY_ABSENT"),
+
     /**
      * Indicates that the beneficiary is ineligible.
      * This status means that the individual or entity for whom the task
