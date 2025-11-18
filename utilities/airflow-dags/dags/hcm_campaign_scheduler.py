@@ -171,9 +171,9 @@ def is_first_day(campaign, ref_dt):
 def frequency_due(campaign, ref_dt):
     """
     Frequency rules:
-      - Daily: days_since_start >= 1
-      - Weekly: days_since_start >= 7 and days_since_start % 7 == 0
-      - Monthly: days_since_start >= 30 and days_since_start % 30 == 0
+      - DAILY: days_since_start >= 1
+      - WEEKLY: days_since_start >= 7 and days_since_start % 7 == 0
+      - MONTHLY: days_since_start >= 30 and days_since_start % 30 == 0
 
     Args:
         campaign (dict): Campaign object with triggerFrequency and startDate
@@ -182,7 +182,7 @@ def frequency_due(campaign, ref_dt):
     Returns:
         bool: True if the campaign is due to run based on frequency
     """
-    freq = (campaign.get("triggerFrequency") or "Daily").strip().lower()
+    freq = (campaign.get("triggerFrequency") or "DAILY").strip().lower()
     start = campaign.get("startDate")
     if not start:
         return False
@@ -194,11 +194,11 @@ def frequency_due(campaign, ref_dt):
 
     days = (ref_dt.date() - sdt).days
 
-    if freq == "daily":
+    if freq == "DAILY":
         return days >= 1
-    if freq == "weekly":
+    if freq == "WEEKLY":
         return days >= 7 and (days % 7 == 0)
-    if freq == "monthly":
+    if freq == "MONTHLY":
         return days >= 30 and (days % 30 == 0)
     return False
 
@@ -286,8 +286,8 @@ with DAG(
                         "reportName": c.get("reportName"),
                         "triggerFrequency": c.get("triggerFrequency"),
                         "triggerTime": c.get("triggerTime"),
-                        "startDate": c.get("startDate"),
-                        "endDate": c.get("endDate"),
+                        "startDate": c.get("campaignStartDate"),
+                        "endDate": c.get("campaignEndDate"),
                         "outputPvcName": c.get("outputPvcName")
                     })
                 else:
