@@ -30,7 +30,6 @@ from airflow.models import DagBag
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 from airflow.operators.trigger_dagrun import TriggerDagRunOperator
-from airflow.utils.dates import days_ago
 
 logger = logging.getLogger("airflow.task")
 logger.setLevel(logging.INFO)
