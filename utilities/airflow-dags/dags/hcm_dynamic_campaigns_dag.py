@@ -253,6 +253,7 @@ def fetch_campaigns_from_mdms():
     """
 
     MDMS_URL = os.getenv("MDMS_URL") 
+    MDMS_SEARCH_ENDPOINT = os.getenv("MDMS_SEARCH_ENDPOINT", "/egov-mdms-service/v2/_search")
     MDMS_MASTER_NAME = os.getenv("MDMS_MASTER_NAME", "campaign-report-config") 
     MDMS_MODULE_NAME = os.getenv("MDMS_MODULE_NAME", "airflow-configs")
     TENANT_ID = os.getenv("TENANT_ID", "dev")
@@ -275,7 +276,7 @@ def fetch_campaigns_from_mdms():
     }
 
     result = call_api(
-        MDMS_URL, 
+        f"{MDMS_URL}{MDMS_SEARCH_ENDPOINT}", 
         method="POST", 
         json=body,
         headers={"Content-Type": "application/json"}
