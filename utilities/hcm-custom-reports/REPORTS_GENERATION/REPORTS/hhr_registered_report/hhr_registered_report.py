@@ -463,7 +463,17 @@ voucher_data = fetch_voucher_data()
 df_voucher = pd.DataFrame(voucher_data)
 
 if df_household.empty:
-    print("⚠️ No household records found.")
+    print("⚠️ No household records found. Creating empty report...")
+    # Create empty DataFrame with required columns
+    column_order = [
+        "Province", "District", "Commune", "Health Facility", "Collines", "Sous Collines",
+        "User id", "Phone number", "Registrar Name", "Beneficiary Name", "Age (Beneficiary)",
+        "Gender (Beneficiary)", "Id (Beneficiary)", "Household Head Name", "Age (Household Head)",
+        "Gender (Household Head)", "Id (Household Head)", "Mobile Number",
+        "Number of People Living in HH", "Serial Number of Voucher",
+        "Latitude", "Longitude", "Location Accuracy", "Created Time", "Synced Time"
+    ]
+    df_final = pd.DataFrame(columns=column_order)
 else:
     print(f"✅ Retrieved {len(df_household)} household records.")
     print(f"✅ Retrieved {len(df_household_head)} household head records.")
@@ -585,12 +595,12 @@ else:
     if sort_cols:
         df_final.sort_values(by=sort_cols, inplace=True)
 
-    # === SAVE REPORT ===
-    output_dir = os.path.join(file_path, "FINAL_REPORTS", date_folder)
-    os.makedirs(output_dir, exist_ok=True)
+# === SAVE REPORT === (moved outside else block to always create file)
+output_dir = os.path.join(file_path, "FINAL_REPORTS", date_folder)
+os.makedirs(output_dir, exist_ok=True)
 
-    file_name = "HHR_Detailed_Registration_Report.xlsx"
-    output_path = os.path.join(output_dir, file_name)
+file_name = "HHR_Detailed_Registration_Report.xlsx"
+output_path = os.path.join(output_dir, file_name)
 
-    df_final.to_excel(output_path, index=False)
-    print(f"✅ Detailed registration report generated: {output_path}")
+df_final.to_excel(output_path, index=False)
+print(f"✅ Detailed registration report generated: {output_path} (Rows: {len(df_final)})")
