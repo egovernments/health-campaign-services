@@ -301,11 +301,9 @@ const autoGenerateBoundaryCodes = async (
     ];
     data.forEach((row: any[], index: string | number) => {
       if (latLongData.length > index) {
-        row.push("", "", latLongData[index][0], latLongData[index][1]);
+        row.push(latLongData[index][0], latLongData[index][1]);
       }
-      else{
-        row.push("", "", "", "");
-      }
+     
     });
   }
   const localizedHeaders = getLocalizedHeaders(headers, localizationMap);
