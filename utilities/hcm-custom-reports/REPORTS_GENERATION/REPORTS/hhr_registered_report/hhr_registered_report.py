@@ -595,12 +595,10 @@ else:
     if sort_cols:
         df_final.sort_values(by=sort_cols, inplace=True)
 
-# === SAVE REPORT === (moved outside else block to always create file)
-output_dir = os.path.join(file_path, "FINAL_REPORTS", date_folder)
-os.makedirs(output_dir, exist_ok=True)
-
-file_name = "HHR_Detailed_Registration_Report.xlsx"
-output_path = os.path.join(output_dir, file_name)
+# === SAVE REPORT === (save to current working directory with FILE_NAME from command line arg)
+# main.py will handle moving the file to the correct PVC folder structure
+file_name = f"{FILE_NAME}.xlsx"
+output_path = os.path.join(os.getcwd(), file_name)
 
 df_final.to_excel(output_path, index=False)
 print(f"✅ Detailed registration report generated: {output_path} (Rows: {len(df_final)})")
