@@ -14,6 +14,8 @@ CAMPAIGN_NUMBER = os.getenv('CAMPAIGN_NUMBER')
 START_DATE = os.getenv('START_DATE')
 END_DATE = os.getenv('END_DATE')
 OUTPUT_PVC_NAME = os.getenv('OUTPUT_PVC_NAME', 'hcm-reports-output')
+OUTPUT_DIR = os.getenv('OUTPUT_DIR', '/app/FINAL_REPORTS')
+TRIGGER_FREQUENCY = os.getenv('TRIGGER_FREQUENCY', 'DAILY')
 REPORT_FILE_NAME = REPORT_NAME.upper()
 
 
@@ -70,11 +72,25 @@ def get_custom_dates_of_reports():
 start_date_str, end_date_str = get_custom_dates_of_reports()
 
 def save_file_to_folder(file):
-    file_name, extension = os.path.splitext(file)
-    new_file_name = f"{file_name}_{start_date_str}_TO_{end_date_str}{extension}"
-    folder_path = os.path.join("FINAL_REPORTS", f"{start_date_str}_TO_{end_date_str}")
+    _, extension = os.path.splitext(file)
+
+    # Generate timestamped filename
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    new_file_name = f"{REPORT_FILE_NAME}_{timestamp}{extension}"
+
+    # Build folder path: OUTPUT_DIR/CAMPAIGN_NUMBER/REPORT_NAME/TRIGGER_FREQUENCY/
+    folder_path = os.path.join(
+        OUTPUT_DIR,
+        CAMPAIGN_NUMBER,
+        REPORT_NAME,
+        TRIGGER_FREQUENCY
+    )
+
     os.makedirs(folder_path, exist_ok=True)
-    shutil.move(file, os.path.join(folder_path, os.path.basename(new_file_name)))
+    destination = os.path.join(folder_path, new_file_name)
+    shutil.move(file, destination)
+    print(f"✅ File saved to: {destination}")
+    return destination
 
 original_dir = os.getcwd()
 # input_folder = reports_config["input"]
