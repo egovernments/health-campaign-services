@@ -252,7 +252,7 @@ with DAG(
 
                 # Output configuration
                 "OUTPUT_PVC_NAME": OUTPUT_PVC_NAME,
-                "OUTPUT_DIR": output_dir,
+                "OUTPUT_DIR": OUTPUT_MOUNT_PATH,  # Base path - main.py will add campaign/report/frequency
                 "OUTPUT_FILE": output_file,
 
                 # Script location (main.py will execute this)
