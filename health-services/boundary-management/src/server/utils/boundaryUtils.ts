@@ -220,20 +220,52 @@ const autoGenerateBoundaryCodes = async (
     hierarchy
   );
   logger.info("Boundary Code Auto Generation Completed");
-  await createBoundaryEntities(request, boundaryMap);
-  logger.info(
-    "waiting for 2 secs to persist the boundary entities before creating boundary relationship"
-  );
-  await new Promise((resolve) => setTimeout(resolve, 2000));
-  const modifiedChildParentMap = modifyChildParentMap(
-    childParentMap,
-    boundaryMap
-  );
-  await createBoundaryRelationship(
-    request,
-    boundaryMap,
-    modifiedChildParentMap
-  );
+
+  const allBoundaries = new Map();
+  for (const [key, value] of boundaryMap.entries()) {
+    allBoundaries.set(key, value);
+  }
+
+  for (const level of hierarchy) {
+    const boundaryMapForLevel = new Map();
+    const boundariesInLevel: any[] = [];
+
+    // Find all boundaries for the current level
+    for (const boundary of allBoundaries.keys()) {
+        if (boundary.key === level) {
+            boundariesInLevel.push(boundary);
+            boundaryMapForLevel.set(boundary, allBoundaries.get(boundary));
+        }
+    }
+    
+    if (boundaryMapForLevel.size > 0) {
+        logger.info(`Processing level: ${level}`);
+        
+        await createBoundaryEntities(request, boundaryMapForLevel);
+        
+        logger.info(`waiting for 2 secs to persist the boundary entities for level ${level}`);
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+        
+        const childParentMapForLevel = new Map();
+        for (const boundary of boundariesInLevel) {
+            const parent = findMapValue(childParentMap, boundary); 
+            childParentMapForLevel.set(boundary, parent);
+        }
+        
+        const modifiedChildParentMapForLevel = modifyChildParentMap(
+            childParentMapForLevel,
+            boundaryMap
+        );
+        
+        await createBoundaryRelationship(
+            request,
+            boundaryMapForLevel,
+            modifiedChildParentMapForLevel
+        );
+        logger.info(`Created relationships for level: ${level}`);
+    }
+  }
+
   const boundaryDataForSheet = addBoundaryCodeToData(
     withBoundaryCode,
     withoutBoundaryCode,
@@ -263,13 +295,16 @@ const autoGenerateBoundaryCodes = async (
     headers = [
       ...headers,
       getLocalizedName("HCM_ADMIN_CONSOLE_FRENCH_LOCALIZATION_MESSAGE", localizationMap),
-      getLocalizedName("HCM_ADMIN_CONSOLE_FRENCH_LOCALIZATION_MESSAGE", localizationMap),
+      getLocalizedName("HCM_ADMIN_CONSOLE_PORTUGESE_LOCALIZATION_MESSAGE", localizationMap),
       getLocalizedName("HCM_ADMIN_CONSOLE_LAT", localizationMap),
       getLocalizedName("HCM_ADMIN_CONSOLE_LONG", localizationMap)
     ];
     data.forEach((row: any[], index: string | number) => {
       if (latLongData.length > index) {
-        row.push(latLongData[index][0], latLongData[index][1]);
+        row.push("", "", latLongData[index][0], latLongData[index][1]);
+      }
+      else{
+        row.push("", "", "", "");
       }
     });
   }
