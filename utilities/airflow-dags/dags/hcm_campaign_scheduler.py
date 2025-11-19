@@ -111,35 +111,72 @@ def fetch_campaigns_from_mdms():
 
 def parse_trigger_time_today(trigger_time_str, ref_dt):
     """
-    Convert triggerTime string (e.g. '09:30:00+0000' or '09:30:00' or '09:30')
+    Convert triggerTime string (e.g. '09:30:00+0000', '19:26:00+0530', '14:00:00+0200')
     into a datetime for the reference date (ref_dt) in UTC.
 
+    Supports timezone offsets in formats: +HHMM, -HHMM, +HH:MM, -HH:MM
+    Examples:
+        - '09:30:00+0000' -> 09:30 UTC
+        - '19:26:00+0530' -> 13:56 UTC (IST to UTC)
+        - '14:00:00+0200' -> 12:00 UTC (SAST to UTC)
+        - '09:30:00-0500' -> 14:30 UTC (EST to UTC)
+        - '09:30:00' or '09:30' -> 09:30 UTC (assumes UTC if no offset)
+
     Args:
-        trigger_time_str (str): Time string from MDMS
+        trigger_time_str (str): Time string from MDMS with optional timezone offset
         ref_dt (datetime): Reference datetime (current execution time)
 
     Returns:
-        datetime: Datetime object for today at the trigger time in UTC
+        datetime: Datetime object for today at the trigger time converted to UTC
     """
-    # Remove timezone suffix (e.g., "+0000")
-    t = trigger_time_str.split("+")[0].strip()
+    # Parse timezone offset
+    tz_offset_minutes = 0
+    time_part = trigger_time_str.strip()
 
-    # Split into components
+    # Check for timezone offset (+HHMM or -HHMM)
+    if '+' in time_part or time_part.count('-') > 2:  # More than 2 hyphens means timezone (not just time separator)
+        # Split by + or - (but preserve the sign)
+        if '+' in time_part:
+            t, tz = time_part.split('+')
+            tz_sign = 1
+        else:
+            # Find the last occurrence of - (timezone separator, not time separator)
+            parts = time_part.rsplit('-', 1)
+            t = parts[0]
+            tz = parts[1] if len(parts) > 1 else '0000'
+            tz_sign = -1
+
+        # Parse timezone offset (HHMM or HH:MM format)
+        tz = tz.strip().replace(':', '')
+        if tz:
+            tz_hours = int(tz[:2]) if len(tz) >= 2 else 0
+            tz_mins = int(tz[2:4]) if len(tz) >= 4 else 0
+            tz_offset_minutes = tz_sign * (tz_hours * 60 + tz_mins)
+    else:
+        t = time_part
+
+    # Parse time components (HH:MM:SS or HH:MM or HH)
     parts = t.split(":")
     hh = int(parts[0])
     mm = int(parts[1]) if len(parts) > 1 else 0
     ss = int(parts[2]) if len(parts) > 2 else 0
 
-    # Create datetime with today's date and trigger time in UTC
-    return datetime(
+    # Create datetime with today's date and trigger time in the source timezone
+    dt_local = datetime(
         ref_dt.year,
         ref_dt.month,
         ref_dt.day,
         hh,
         mm,
         ss,
-        tzinfo=UTC
+        tzinfo=UTC  # Temporarily set as UTC
     )
+
+    # Convert to UTC by subtracting the timezone offset
+    # If time is 19:26 +0530 (IST), we subtract 5h30m to get UTC time
+    dt_utc = dt_local - timedelta(minutes=tz_offset_minutes)
+
+    return dt_utc
 
 def parse_date_string(date_str):
     """
