@@ -21,6 +21,7 @@ import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -98,6 +99,7 @@ public class PtProductVariantIdValidator implements Validator<TaskBulkRequest, T
     private List<ProductVariant> checkIfProductVariantExist(Set<String> pvIds, String tenantId, RequestInfo requestInfo) {
 
         List<String> productVariantIds = new ArrayList<>(pvIds);
+        if(CollectionUtils.isEmpty(productVariantIds)) return Collections.emptyList();
         ProductVariantSearch productVariantSearch = ProductVariantSearch.builder()
                 .id(productVariantIds).build();
         ProductVariantSearchRequest request = ProductVariantSearchRequest.builder().productVariant(productVariantSearch)
