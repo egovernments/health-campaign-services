@@ -150,7 +150,7 @@ public class ProjectTaskEnrichmentService {
         }
     }
 
-    private static void enrichResourcesForCreate(TaskBulkRequest request,
+    private void enrichResourcesForCreate(TaskBulkRequest request,
                                                  List<Task> validTasks) {
         for (Task task : validTasks) {
             log.info("enriching resources");
@@ -158,6 +158,7 @@ public class ProjectTaskEnrichmentService {
             if(CollectionUtils.isEmpty(resources))
                 continue;
             enrichResourcesForCreate(request, resources, task.getId());
+            enrichNullValues(task.getTenantId(), task.getResources());
         }
     }
 
