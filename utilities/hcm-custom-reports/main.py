@@ -14,7 +14,7 @@ CAMPAIGN_NUMBER = os.getenv('CAMPAIGN_NUMBER')
 START_DATE = os.getenv('START_DATE')
 END_DATE = os.getenv('END_DATE')
 OUTPUT_PVC_NAME = os.getenv('OUTPUT_PVC_NAME', 'hcm-reports-output')
-OUTPUT_DIR = os.getenv('OUTPUT_DIR', '/app/FINAL_REPORTS')
+OUTPUT_DIR = os.getenv('OUTPUT_DIR', '/app/REPORTS_GENERATION/FINAL_REPORTS')
 TRIGGER_FREQUENCY = os.getenv('TRIGGER_FREQUENCY', 'DAILY')
 REPORT_FILE_NAME = REPORT_NAME.upper()
 
@@ -85,6 +85,12 @@ def save_file_to_folder(file):
         REPORT_NAME,
         TRIGGER_FREQUENCY
     )
+
+    print(f"[DEBUG] Folder Path: {folder_path}")
+    print(f"[DEBUG] Parent Exists: {os.path.exists(os.path.dirname(folder_path))}")
+    print(f"[DEBUG] Is OUTPUT_DIR Writable: {os.access(OUTPUT_DIR, os.W_OK)}")
+    print(f"[DEBUG] Is Parent Writable: {os.access(os.path.dirname(folder_path), os.W_OK)}")
+
 
     os.makedirs(folder_path, exist_ok=True)
     destination = os.path.join(folder_path, new_file_name)
