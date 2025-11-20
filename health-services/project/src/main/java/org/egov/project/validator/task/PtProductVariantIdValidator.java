@@ -18,6 +18,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
+import org.springframework.util.ObjectUtils;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -66,7 +67,9 @@ public class PtProductVariantIdValidator implements Validator<TaskBulkRequest, T
                 if(CollectionUtils.isEmpty(task.getResources()))
                     continue;
                 Set<String> productVariantIds = new HashSet<>(getIdList(task.getResources(),
-                        getIdMethod(task.getResources(), "productVariantId")));
+                        getIdMethod(task.getResources(), "productVariantId")).stream()
+                        .filter(productVariantId -> !ObjectUtils.isEmpty(productVariantId))
+                        .collect(Collectors.toSet()));
                 try {
                     List<ProductVariant> validProductVariants = checkIfProductVariantExist(productVariantIds,
                             getTenantId(task.getResources()), request.getRequestInfo());
