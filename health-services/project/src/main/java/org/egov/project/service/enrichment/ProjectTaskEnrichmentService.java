@@ -185,7 +185,7 @@ public class ProjectTaskEnrichmentService {
             }
             List<Field> fields = new ArrayList<>(additionalFields.getFields());
             log.info("Enrich TaskResource for null values for tenant {}: {} with quantity '{}' of product variant id: '{}'", tenantId, taskResource.getClientReferenceId(), taskResource.getQuantity(), taskResource.getProductVariantId());
-            if(ObjectUtils.isEmpty(taskResource.getQuantity() == null)) {
+            if(ObjectUtils.isEmpty(taskResource.getQuantity())) {
                 taskResource.setQuantity(1d);
                 fields.add(new Field("nullQuantity", "true"));
                 log.info("Enriching null quantity for task resource cref {} tenant: {}", taskResource.getClientReferenceId(), tenantId);
