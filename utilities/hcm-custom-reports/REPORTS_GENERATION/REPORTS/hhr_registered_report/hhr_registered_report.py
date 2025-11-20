@@ -157,7 +157,7 @@ def fetch_household_data():
                 "must" : [
                     {
                         "term" : {
-                            "Data.campaignNumber" : CAMPAIGN_NUMBER
+                            "Data.campaignNumber.keyword" : CAMPAIGN_NUMBER
                         }
                     }
                 ],
