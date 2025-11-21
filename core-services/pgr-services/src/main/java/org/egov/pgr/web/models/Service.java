@@ -69,7 +69,7 @@ public class Service   {
 
         @CharacterConstraint(size = 600)
         @JsonProperty("additionalDetail")
-        private Object additionalDetail = null;
+        private String additionalDetail = null;
 
         @CustomSafeHtml
         @JsonProperty("applicationStatus")
