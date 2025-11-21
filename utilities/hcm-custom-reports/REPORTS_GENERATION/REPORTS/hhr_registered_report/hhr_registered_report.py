@@ -616,12 +616,13 @@ print("🔄 Fetching individual data...")
 individual_data = fetch_individual_data(individual_clientReferenceIds)
 df_individual = pd.DataFrame(individual_data)
 
-# Decrypt mobile numbers for individuals
-df_individual["Individual Mobile Number"] = df_individual["Individual Mobile Number"].apply(decrypt_mobile_number)
-
 for col in required_columns_for_individual:
     if col not in df_individual.columns:
         df_individual[col] = ""
+
+# Decrypt mobile numbers for individuals
+df_individual["Individual Mobile Number"] = df_individual["Individual Mobile Number"].apply(decrypt_mobile_number)
+
 
 print("🔄 Fetching voucher data...")
 voucher_data = fetch_voucher_data(household_clientreferenceids)
