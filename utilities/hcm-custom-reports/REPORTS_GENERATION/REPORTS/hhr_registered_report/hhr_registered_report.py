@@ -163,7 +163,7 @@ def fetch_household_data():
                     }
                 ],
                 "filter": [
-                    {"range": {"Data.@timestamp": {"gte": 1763586000000, "lte": 1763676000000}}}
+                    {"range": {"Data.@timestamp": {"gte": gteTime, "lte": lteTime}}}
                 ]
             }
         }
