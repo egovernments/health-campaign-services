@@ -300,6 +300,13 @@ with DAG(
         # Resource constraints (requests and limits)
         container_resources=CONTAINER_RESOURCES,
 
+        # Security context: Run as root to create directories in PVC
+        # Alternative: Use fsGroup to match PVC ownership (e.g., fsGroup=1000)
+        security_context=k8s_models.V1PodSecurityContext(
+            run_as_user=0,      # Run as root user
+            fs_group=0          # File system group
+        ),
+
         # Pod behavior
         get_logs=True,                    # Stream pod logs to Airflow task logs
         is_delete_operator_pod=True,      # Delete pod after completion (cleanup)
