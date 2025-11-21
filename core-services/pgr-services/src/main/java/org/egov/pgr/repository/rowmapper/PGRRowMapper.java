@@ -1,7 +1,5 @@
 package org.egov.pgr.repository.rowmapper;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.egov.pgr.web.models.Address;
 import org.egov.pgr.web.models.AuditDetails;
 import org.egov.pgr.web.models.Boundary;
@@ -9,12 +7,10 @@ import org.egov.pgr.web.models.GeoLocation;
 import org.egov.pgr.web.models.Service;
 import org.egov.tracer.model.CustomException;
 import org.postgresql.util.PGobject;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.ResultSetExtractor;
 import org.springframework.stereotype.Repository;
 
-import java.io.IOException;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -24,10 +20,6 @@ import java.util.Map;
 
 @Repository
 public class PGRRowMapper implements ResultSetExtractor<List<Service>> {
-
-
-    @Autowired
-    private ObjectMapper mapper;
 
 
 
@@ -76,7 +68,7 @@ public class PGRRowMapper implements ResultSetExtractor<List<Service>> {
                         .selfComplaint(selfComplaint)
                         .build();
 
-                JsonNode additionalDetails = getAdditionalDetail("ser_additionaldetails",rs);
+                String additionalDetails = getAdditionalDetail("ser_additionaldetails",rs);
 
                 if(additionalDetails != null)
                     currentService.setAdditionalDetail(additionalDetails);
@@ -121,7 +113,7 @@ public class PGRRowMapper implements ResultSetExtractor<List<Service>> {
                     .geoLocation(geoLocation)
                     .build();
 
-            JsonNode additionalDetails = getAdditionalDetail("ads_additionaldetails",rs);
+            String additionalDetails = getAdditionalDetail("ads_additionaldetails",rs);
 
             if(additionalDetails != null)
                 address.setAdditionDetails(additionalDetails);
@@ -133,16 +125,16 @@ public class PGRRowMapper implements ResultSetExtractor<List<Service>> {
     }
 
 
-    private JsonNode getAdditionalDetail(String columnName, ResultSet rs){
+    private String getAdditionalDetail(String columnName, ResultSet rs){
 
-        JsonNode additionalDetail = null;
+        String additionalDetail = null;
         try {
             PGobject pgObj = (PGobject) rs.getObject(columnName);
             if(pgObj!=null){
-                 additionalDetail = mapper.readTree(pgObj.getValue());
+                 additionalDetail = pgObj.getValue();
             }
         }
-        catch (IOException | SQLException e){
+        catch (SQLException e){
             throw new CustomException("PARSING_ERROR","Failed to parse additionalDetail object");
         }
         return additionalDetail;
