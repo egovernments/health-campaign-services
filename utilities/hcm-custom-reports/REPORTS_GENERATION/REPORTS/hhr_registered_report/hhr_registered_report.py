@@ -150,7 +150,8 @@ def fetch_household_data():
             "Data.userName",
             "Data.household.memberCount",
             "Data.household.clientAuditDetails.createdTime",
-            "Data.syncedTimeStamp"
+            "Data.syncedTimeStamp",
+            "Data.household.address"
         ],
         "query": {
             "bool": {
@@ -167,6 +168,7 @@ def fetch_household_data():
             }
         }
     }
+    household_client_reference_ids = []
 
     scroll_id = None
     """
@@ -198,26 +200,29 @@ def fetch_household_data():
             boundary = data.get("boundaryHierarchy", {})
             household = data.get("household", {})
             audit_details = household.get("clientAuditDetails", {})
+            address = household.get("address", {})
 
             user_id = audit_details.get("createdBy", "")
-
+            household_client_reference_ids.append(household.get("clientReferenceId", ""))
             row = {
                 "Household Client Reference ID": household.get("clientReferenceId", ""),
                 "Province": boundary.get("province", ""),
                 "District": boundary.get("district", ""),
-                "Commune": boundary.get("municipality", ""),
-                "Health Facility": boundary.get("areaOfResponsibility", ""),
-                "Collines": boundary.get("hills", ""),
-                "Sous Collines": boundary.get("subHills", ""),
+                "Administrative Province": boundary.get("administrativeProvince", ""),
+                "Locality": boundary.get("locality", ""),
+                "Village": boundary.get("village", ""),
                 "User id": user_id,
                 "Registrar Name": data.get("nameOfUser", ""),
                 "Number of People Living in HH": household.get("memberCount", ""),
                 "Created Time": convert_epoch_to_datetime(audit_details.get("createdTime", 0)),
-                "Synced Time": data.get("syncedTimeStamp", "")
+                "Synced Time": data.get("syncedTimeStamp", ""),
+                "Location Accuracy" : address.get("locationAccuracy", 0),
+                "Latitude" : address.get("latitude", 0),
+                "Longitude" : address.get("longitude", 0)
             }
             all_data.append(row)
 
-    return all_data
+    return all_data, household_client_reference_ids
 
 
 """
@@ -227,53 +232,98 @@ there's a one to one mapping between household and household head (1 household h
 """
 
 # === FETCH HOUSEHOLD MEMBER DATA (HEAD OF HOUSEHOLD) ===
-def fetch_household_head_data():
-    """Fetch household member data to identify household heads"""
-    query = {
-        "size": 5000,
-        "_source": [
-            "Data.householdMember.householdClientReferenceId",
-            "Data.householdMember.individualClientReferenceId",
-            "Data.householdMember.isHeadOfHousehold"
-        ],
-        "query": {
-            "bool": {
-                "filter": [
-                    {"term": {"Data.householdMember.isHeadOfHousehold": True}}
-                ]
-            }
-        }
-    }
+# def fetch_household_head_data(household_clientreferenceids):
+#     """Fetch household member data to identify household heads"""
+#     query = {
+#         "size": 5000,
+#         "_source": [
+#             "Data.householdMember.householdClientReferenceId",
+#             "Data.householdMember.individualClientReferenceId",
+#             "Data.householdMember.isHeadOfHousehold"
+#         ],
+#         "query": {
+#             "bool": {
+#                 "must": [
+#                     {"term": {"Data.householdMember.isHeadOfHousehold": True}},
+#                     {"terms": {"Data.householdMember.householdClientReferenceId": chunk}}
+#                 ]
+#             }
+#         }
+#     }
 
-    scroll_id = None
-    initial_scroll_url = ES_HOUSEHOLD_MEMBER_INDEX + "?scroll=5m"
+#     scroll_id = None
+#     initial_scroll_url = ES_HOUSEHOLD_MEMBER_INDEX + "?scroll=5m"
+#     all_data = []
+
+#     previous_scroll_id = None
+#     while True:
+#         if scroll_id is None:
+#             resp = get_resp(initial_scroll_url, query, True).json()
+#         else:
+#             resp = get_resp(ES_SCROLL_API, {"scroll": "5m", "scroll_id": scroll_id}, True).json()
+
+#         new_scroll_id = resp.get("_scroll_id")
+#         hits = resp.get("hits", {}).get("hits", [])
+
+#         if not hits or new_scroll_id == previous_scroll_id:
+#             break
+
+#         previous_scroll_id = new_scroll_id
+#         scroll_id = new_scroll_id
+
+#         for hit in hits:
+#             data = hit["_source"].get("Data", {})
+#             member = data.get("householdMember", {})
+#             all_data.append({
+#                 "Household Client Reference ID": member.get("householdClientReferenceId", ""),
+#                 "Head Individual Client Reference ID": member.get("individualClientReferenceId", "")
+#             })
+
+#     return all_data
+
+
+def fetch_household_head_data(household_clientReferenceIds) :
+    print(f"{len(household_clientReferenceIds)} number of clientReferenceIds provided to fetch household heads") 
     all_data = []
+    individual_clientReferenceIds = []
 
-    previous_scroll_id = None
-    while True:
-        if scroll_id is None:
-            resp = get_resp(initial_scroll_url, query, True).json()
-        else:
-            resp = get_resp(ES_SCROLL_API, {"scroll": "5m", "scroll_id": scroll_id}, True).json()
-
-        new_scroll_id = resp.get("_scroll_id")
-        hits = resp.get("hits", {}).get("hits", [])
-
-        if not hits or new_scroll_id == previous_scroll_id:
-            break
-
-        previous_scroll_id = new_scroll_id
-        scroll_id = new_scroll_id
-
-        for hit in hits:
-            data = hit["_source"].get("Data", {})
+    # Split clientReferenceIds into chunks of 10000 or less
+    chunk_size = 10000
+    for i in range(0, len(household_clientReferenceIds), chunk_size):
+        chunk = household_clientReferenceIds[i:i + chunk_size]
+        query = {
+            "size" : len(chunk),
+            "query": {
+                "bool": {
+                    "must": [
+                                {
+                                "terms": {
+                                    "Data.householdMember.householdClientReferenceId.keyword": chunk
+                            }
+                        },
+                        {
+                            "match": {
+                                "Data.householdMember.isHeadOfHousehold": True
+                            }
+                        }
+                    ]
+                }
+            },
+            "_source": ["Data.householdMember.individualClientReferenceId", "Data.householdMember.householdClientReferenceId",
+            "Data.householdMember.isHeadOfHousehold"]
+        }
+        docs = get_resp(ES_HOUSEHOLD_MEMBER_INDEX, query, True).json()["hits"]["hits"]
+        for item in docs:
+            data = item["_source"].get("Data", {})
             member = data.get("householdMember", {})
             all_data.append({
                 "Household Client Reference ID": member.get("householdClientReferenceId", ""),
                 "Head Individual Client Reference ID": member.get("individualClientReferenceId", "")
             })
-
-    return all_data
+            individual_clientReferenceIds.append(item["_source"]["Data"]["householdMember"]["individualClientReferenceId"])
+    # print(data)
+    print(f"{len(all_data)} number of modified objects from household member index")
+    return individual_clientReferenceIds, all_data
 
 
 # === FETCH ALL HOUSEHOLD MEMBERS (FOR BENEFICIARIES) ===
@@ -320,46 +370,102 @@ def fetch_all_household_members():
 
 
 # === FETCH INDIVIDUAL DATA ===
-def fetch_individual_data():
-    """Fetch individual data for both heads and beneficiaries"""
-    query = {
-        "size": 5000,
-        "_source": [
-            "clientReferenceId",
-            "name.givenName",
-            "name.familyName",
-            "gender",
-            "dateOfBirth",
-            "mobileNumber",
-            "address.latitude",
-            "address.longitude",
-            "address.locationAccuracy"
-        ],
-        "query": {"match_all": {}}
-    }
+# def fetch_individual_data():
+#     """Fetch individual data for both heads and beneficiaries"""
+#     query = {
+#         "size": 5000,
+#         "_source": [
+#             "clientReferenceId",
+#             "name.givenName",
+#             "name.familyName",
+#             "gender",
+#             "dateOfBirth",
+#             "mobileNumber",
+#             "address.latitude",
+#             "address.longitude",
+#             "address.locationAccuracy"
+#         ],
+#         "query": {"match_all": {}}
+#     }
 
-    scroll_id = None
-    initial_scroll_url = ES_INDIVIDUAL_INDEX + "?scroll=5m"
+#     scroll_id = None
+#     initial_scroll_url = ES_INDIVIDUAL_INDEX + "?scroll=5m"
+#     all_data = []
+
+#     previous_scroll_id = None
+#     while True:
+#         if scroll_id is None:
+#             resp = get_resp(initial_scroll_url, query, True).json()
+#         else:
+#             resp = get_resp(ES_SCROLL_API, {"scroll": "5m", "scroll_id": scroll_id}, True).json()
+
+#         new_scroll_id = resp.get("_scroll_id")
+#         hits = resp.get("hits", {}).get("hits", [])
+
+#         if not hits or new_scroll_id == previous_scroll_id:
+#             break
+
+#         previous_scroll_id = new_scroll_id
+#         scroll_id = new_scroll_id
+
+#         for hit in hits:
+#             src = hit["_source"]
+
+#             given_name = src.get("name", {}).get("givenName") or ""
+#             family_name = src.get("name", {}).get("familyName") or ""
+#             full_name = (given_name + " " + family_name).strip()
+
+#             dob_str = src.get("dateOfBirth", "")
+#             age = calculate_age_from_dob(dob_str) if dob_str else ""
+
+#             address_list = src.get("address", [])
+#             address = address_list[0] if address_list else {}
+
+#             row = {
+#                 "Individual Client Reference ID": src.get("clientReferenceId", ""),
+#                 "Individual Name": full_name,
+#                 "Individual Age": age,
+#                 "Individual Gender": src.get("gender", ""),
+#                 "Individual Mobile Number": src.get("mobileNumber", ""),
+#                 "Individual Latitude": address.get("latitude", ""),
+#                 "Individual Longitude": address.get("longitude", ""),
+#                 "Individual Location Accuracy": address.get("locationAccuracy", "")
+#             }
+#             all_data.append(row)
+
+#     return all_data
+
+
+def fetch_individual_data(individualClientReferenceIds):
+    print(f"{len(individualClientReferenceIds)} number of individualClientReferenceIds provided to fetch individuals") 
     all_data = []
 
-    previous_scroll_id = None
-    while True:
-        if scroll_id is None:
-            resp = get_resp(initial_scroll_url, query, True).json()
-        else:
-            resp = get_resp(ES_SCROLL_API, {"scroll": "5m", "scroll_id": scroll_id}, True).json()
-
-        new_scroll_id = resp.get("_scroll_id")
-        hits = resp.get("hits", {}).get("hits", [])
-
-        if not hits or new_scroll_id == previous_scroll_id:
-            break
-
-        previous_scroll_id = new_scroll_id
-        scroll_id = new_scroll_id
-
-        for hit in hits:
-            src = hit["_source"]
+    # Split individualClientReferenceIds into chunks of 10000 or less
+    chunk_size = 10000
+    for i in range(0, len(individualClientReferenceIds), chunk_size):
+        chunk = individualClientReferenceIds[i:i + chunk_size]
+        query = {
+            "size": len(chunk),
+            "query": {
+                "terms": {
+                    "_id": chunk
+                }
+            },
+            "_source": [
+                "clientReferenceId",
+                "name.givenName",
+                "name.familyName",
+                "gender",
+                "dateOfBirth",
+                "mobileNumber",
+                "address.latitude",
+                "address.longitude",
+                "address.locationAccuracy"
+            ]
+        }
+        docs = get_resp(ES_INDIVIDUAL_INDEX, query, True).json()["hits"]["hits"]
+        for item in docs:
+            src = item["_source"]
 
             given_name = src.get("name", {}).get("givenName") or ""
             family_name = src.get("name", {}).get("familyName") or ""
@@ -382,55 +488,106 @@ def fetch_individual_data():
                 "Individual Location Accuracy": address.get("locationAccuracy", "")
             }
             all_data.append(row)
-
+    # print(data)
+    print(f"{len(all_data)} number of modified objects from individual index")
     return all_data
 
 
 # === FETCH PROJECT BENEFICIARY DATA (VOUCHER) ===
-def fetch_voucher_data():
-    """Fetch voucher codes from project beneficiary"""
-    query = {
-        "size": 5000,
-        "_source": [
-            "beneficiaryClientReferenceId",
-            "tag"
-        ],
-        "query": {"match_all": {}}
-    }
+# def fetch_voucher_data():
+#     """Fetch voucher codes from project beneficiary"""
+#     query = {
+#         "size": 5000,
+#         "_source": [
+#             "beneficiaryClientReferenceId",
+#             "tag"
+#         ],
+#         "query": {"match_all": {}}
+#     }
 
-    scroll_id = None
-    initial_scroll_url = ES_PROJECT_BENEFICIARY_INDEX + "?scroll=5m"
+#     scroll_id = None
+#     initial_scroll_url = ES_PROJECT_BENEFICIARY_INDEX + "?scroll=5m"
+#     all_data = []
+
+#     previous_scroll_id = None
+#     while True:
+#         if scroll_id is None:
+#             resp = get_resp(initial_scroll_url, query, True).json()
+#         else:
+#             resp = get_resp(ES_SCROLL_API, {"scroll": "5m", "scroll_id": scroll_id}, True).json()
+
+#         new_scroll_id = resp.get("_scroll_id")
+#         hits = resp.get("hits", {}).get("hits", [])
+
+#         if not hits or new_scroll_id == previous_scroll_id:
+#             break
+
+#         previous_scroll_id = new_scroll_id
+#         scroll_id = new_scroll_id
+
+#         for hit in hits:
+#             src = hit.get("_source", {})
+#             all_data.append({
+#                 "Household Client Reference ID": src.get("beneficiaryClientReferenceId", ""),
+#                 "Serial Number of Voucher": src.get("tag", "")
+#             })
+
+#     return all_data
+
+
+def fetch_voucher_data(household_clientreferenceids):
+    print(f"{len(household_clientreferenceids)} number of household clientReferenceIds provided to fetch voucher codes") 
     all_data = []
 
-    previous_scroll_id = None
-    while True:
-        if scroll_id is None:
-            resp = get_resp(initial_scroll_url, query, True).json()
-        else:
-            resp = get_resp(ES_SCROLL_API, {"scroll": "5m", "scroll_id": scroll_id}, True).json()
-
-        new_scroll_id = resp.get("_scroll_id")
-        hits = resp.get("hits", {}).get("hits", [])
-
-        if not hits or new_scroll_id == previous_scroll_id:
-            break
-
-        previous_scroll_id = new_scroll_id
-        scroll_id = new_scroll_id
-
-        for hit in hits:
-            src = hit.get("_source", {})
+    chunk_size = 10000
+    for i in range(0, len(household_clientreferenceids), chunk_size):
+        chunk = household_clientreferenceids[i:i + chunk_size]
+        query = {
+            "size": len(chunk),
+            "query": {
+                "terms": {
+                    "beneficiaryClientReferenceId.keyword": chunk
+                }
+            },
+            "_source": ["tag", "beneficiaryClientReferenceId"]
+        }
+        docs = get_resp(ES_PROJECT_BENEFICIARY_INDEX, query, True).json()["hits"]["hits"]
+        for item in docs:
+            src = item.get("_source", {})
             all_data.append({
                 "Household Client Reference ID": src.get("beneficiaryClientReferenceId", ""),
                 "Serial Number of Voucher": src.get("tag", "")
             })
 
+    print(f"{len(all_data)} number of modified objects from project beneficiary index")
     return all_data
+
+
+required_columns_for_individual = [
+    "Individual Client Reference ID",
+    "Individual Name",
+    "Individual Age",
+    "Individual Gender",
+    "Individual Mobile Number",
+    "Individual Latitude",
+    "Individual Longitude",
+    "Individual Location Accuracy"
+]
+
+required_columns_for_hhm = [
+    "Household Client Reference ID",
+    "Head Individual Client Reference ID"
+]
+
+required_columns_for_beneficiary = [
+    "Household Client Reference ID",
+    "Serial Number of Voucher"
+]
 
 
 # === MAIN ===
 print("🔄 Fetching household data...")
-household_data = fetch_household_data()
+household_data, household_clientreferenceids = fetch_household_data()
 df_household = pd.DataFrame(household_data)
 
 # Extract unique user IDs for registrar phone numbers
@@ -444,29 +601,41 @@ else:
     registrar_mobiles = {}
 
 print("🔄 Fetching household head data...")
-household_head_data = fetch_household_head_data()
+individual_clientReferenceIds, household_head_data = fetch_household_head_data(household_clientreferenceids)
 df_household_head = pd.DataFrame(household_head_data)
 
-print("🔄 Fetching all household members (beneficiaries)...")
-all_members_data = fetch_all_household_members()
-df_all_members = pd.DataFrame(all_members_data)
+for col in required_columns_for_hhm:
+    if col not in df_household_head.columns:
+        df_household_head[col] = ""
+
+# print("🔄 Fetching all household members (beneficiaries)...")
+# all_members_data = fetch_all_household_members()
+# df_all_members = pd.DataFrame(all_members_data)
 
 print("🔄 Fetching individual data...")
-individual_data = fetch_individual_data()
+individual_data = fetch_individual_data(individual_clientReferenceIds)
 df_individual = pd.DataFrame(individual_data)
 
 # Decrypt mobile numbers for individuals
 df_individual["Individual Mobile Number"] = df_individual["Individual Mobile Number"].apply(decrypt_mobile_number)
 
+for col in required_columns_for_individual:
+    if col not in df_individual.columns:
+        df_individual[col] = ""
+
 print("🔄 Fetching voucher data...")
-voucher_data = fetch_voucher_data()
+voucher_data = fetch_voucher_data(household_clientreferenceids)
 df_voucher = pd.DataFrame(voucher_data)
+
+for col in required_columns_for_beneficiary:
+    if col not in df_voucher.columns:
+        df_voucher[col] = ""
 
 if df_household.empty:
     print("⚠️ No household records found. Creating empty report...")
     # Create empty DataFrame with required columns
     column_order = [
-        "Province", "District", "Commune", "Health Facility", "Collines", "Sous Collines",
+        "Province", "District", "Administrative Province", "Locality", "Village",
         "User id", "Phone number", "Registrar Name", "Beneficiary Name", "Age (Beneficiary)",
         "Gender (Beneficiary)", "Id (Beneficiary)", "Household Head Name", "Age (Household Head)",
         "Gender (Household Head)", "Id (Household Head)", "Mobile Number",
@@ -477,7 +646,7 @@ if df_household.empty:
 else:
     print(f"✅ Retrieved {len(df_household)} household records.")
     print(f"✅ Retrieved {len(df_household_head)} household head records.")
-    print(f"✅ Retrieved {len(df_all_members)} household member records.")
+    # print(f"✅ Retrieved {len(df_all_members)} household member records.")
     print(f"✅ Retrieved {len(df_individual)} individual records.")
     print(f"✅ Retrieved {len(df_voucher)} voucher records.")
     print(f"✅ Retrieved {len(registrar_mobiles)} registrar phone numbers.")
@@ -517,41 +686,41 @@ else:
         "Head Individual Client Reference ID": "Id (Household Head)"
     })
 
-    # === JOIN 3: Add All Household Members (Beneficiaries) ===
-    df_with_beneficiaries = pd.merge(
-        df_with_head_details,
-        df_all_members,
-        on="Household Client Reference ID",
-        how="left"
-    )
+    # # === JOIN 3: Add All Household Members (Beneficiaries) ===
+    # df_with_beneficiaries = pd.merge(
+    #     df_with_head_details,
+    #     df_all_members,
+    #     on="Household Client Reference ID",
+    #     how="left"
+    # )
 
-    # === JOIN 4: Add Beneficiary Details from Individual ===
-    df_with_beneficiary_details = pd.merge(
-        df_with_beneficiaries,
-        df_individual.rename(columns={
-            "Individual Client Reference ID": "Beneficiary Individual Client Reference ID",
-            "Individual Name": "Beneficiary Name",
-            "Individual Age": "Age (Beneficiary)",
-            "Individual Gender": "Gender (Beneficiary)",
-            "Individual Latitude": "Latitude",
-            "Individual Longitude": "Longitude",
-            "Individual Location Accuracy": "Location Accuracy"
-        }),
-        on="Beneficiary Individual Client Reference ID",
-        how="left"
-    )
+    # # === JOIN 4: Add Beneficiary Details from Individual ===
+    # df_with_beneficiary_details = pd.merge(
+    #     df_with_beneficiaries,
+    #     df_individual.rename(columns={
+    #         "Individual Client Reference ID": "Beneficiary Individual Client Reference ID",
+    #         "Individual Name": "Beneficiary Name",
+    #         "Individual Age": "Age (Beneficiary)",
+    #         "Individual Gender": "Gender (Beneficiary)",
+    #         "Individual Latitude": "Latitude",
+    #         "Individual Longitude": "Longitude",
+    #         "Individual Location Accuracy": "Location Accuracy"
+    #     }),
+    #     on="Beneficiary Individual Client Reference ID",
+    #     how="left"
+    # )
 
-    # Rename beneficiary ID column and drop intermediate columns
-    df_with_beneficiary_details = df_with_beneficiary_details.rename(columns={
-        "Beneficiary Individual Client Reference ID": "Id (Beneficiary)"
-    })
-    df_with_beneficiary_details = df_with_beneficiary_details.drop(columns=[
-        "Individual Mobile Number"
-    ], errors='ignore')
+    # # Rename beneficiary ID column and drop intermediate columns
+    # df_with_beneficiary_details = df_with_beneficiary_details.rename(columns={
+    #     "Beneficiary Individual Client Reference ID": "Id (Beneficiary)"
+    # })
+    # df_with_beneficiary_details = df_with_beneficiary_details.drop(columns=[
+    #     "Individual Mobile Number"
+    # ], errors='ignore')
 
     # === JOIN 5: Add Voucher Information ===
     df_final = pd.merge(
-        df_with_beneficiary_details,
+        df_with_head_details,
         df_voucher,
         on="Household Client Reference ID",
         how="left"
@@ -561,17 +730,16 @@ else:
     column_order = [
         "Province",
         "District",
-        "Commune",
-        "Health Facility",
-        "Collines",
-        "Sous Collines",
+        "Administrative Province",
+        "Locality",
+        "Village",
         "User id",
         "Phone number",
         "Registrar Name",
-        "Beneficiary Name",
-        "Age (Beneficiary)",
-        "Gender (Beneficiary)",
-        "Id (Beneficiary)",
+        # "Beneficiary Name",
+        # "Age (Beneficiary)",
+        # "Gender (Beneficiary)",
+        # "Id (Beneficiary)",
         "Household Head Name",
         "Age (Household Head)",
         "Gender (Household Head)",
@@ -591,7 +759,7 @@ else:
     df_final = df_final[available_columns]
 
     # === SORT BY LOCATION ===
-    sort_cols = [col for col in ["Province", "District", "Commune", "Health Facility", "Collines"] if col in df_final.columns]
+    sort_cols = [col for col in ["Province", "District", "Administrative Province", "Locality", "Village"] if col in df_final.columns]
     if sort_cols:
         df_final.sort_values(by=sort_cols, inplace=True)
 
