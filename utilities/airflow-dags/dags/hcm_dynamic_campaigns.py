@@ -131,7 +131,7 @@ default_args = {
     "owner": "hcm-reports-team",
     "depends_on_past": False,
     "retries": 1,
-    "retry_delay": timedelta(minutes=5),
+    "retry_delay": timedelta(minutes=2),
 }
 
 with DAG(
