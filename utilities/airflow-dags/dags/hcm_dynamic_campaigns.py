@@ -303,8 +303,9 @@ with DAG(
         # Security context: Run as root to create directories in PVC
         # Alternative: Use fsGroup to match PVC ownership (e.g., fsGroup=1000)
         security_context=k8s_models.V1PodSecurityContext(
-            run_as_user=0,      # Run as root user
-            fs_group=0          # File system group
+            run_as_user=1000,
+            run_as_group=1000,      
+            fs_group=1000         # File system group
         ),
 
         # Pod behavior
