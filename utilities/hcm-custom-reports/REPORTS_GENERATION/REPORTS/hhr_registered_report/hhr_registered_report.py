@@ -97,13 +97,13 @@ def fetch_registrar_mobile_numbers(user_ids):
 
         query = {
             "size": len(chunk),
-            "_source": ["clientReferenceId", "mobileNumber"],
+            "_source": ["userUuid", "mobileNumber"],
             "query": {
                 "bool": {
                     "must": [
                         {
                             "terms": {
-                                "clientReferenceId.keyword": chunk
+                                "userUuid.keyword": chunk
                             }
                         },
                         {
@@ -122,12 +122,12 @@ def fetch_registrar_mobile_numbers(user_ids):
 
             for hit in hits:
                 src = hit["_source"]
-                client_ref_id = src.get("clientReferenceId", "")
+                userUuid = src.get("userUuid", "")
                 encrypted_mobile = src.get("mobileNumber", "")
-                decrypted_mobile = decrypt_mobile_number(encrypted_mobile)
+                # decrypted_mobile = decrypt_mobile_number(encrypted_mobile)
 
-                if client_ref_id:
-                    all_mobile_data[client_ref_id] = decrypted_mobile
+                if userUuid:
+                    all_mobile_data[userUuid] = encrypted_mobile
 
         except Exception as e:
             print(f"⚠️ Error fetching registrar mobile numbers: {e}")
@@ -621,7 +621,7 @@ for col in required_columns_for_individual:
         df_individual[col] = ""
 
 # Decrypt mobile numbers for individuals
-df_individual["Individual Mobile Number"] = df_individual["Individual Mobile Number"].apply(decrypt_mobile_number)
+# df_individual["Individual Mobile Number"] = df_individual["Individual Mobile Number"].apply(decrypt_mobile_number)
 
 
 print("🔄 Fetching voucher data...")
