@@ -126,6 +126,11 @@ try:
 
     print('Running command:', ' '.join(cmd))
 
+    # Change working directory to PVC mount (OUTPUT_DIR)
+    print(f"[DEBUG] Changing working directory to OUTPUT_DIR: {OUTPUT_DIR}")
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    os.chdir(OUTPUT_DIR)
+
     subprocess.run(cmd, check=True)
 
     print(f"Executed {REPORT_NAME}")
