@@ -289,7 +289,8 @@ public class HierarchicalBoundaryUtil {
             formula.append("IF(").append(colRef).append("<>\"\",");
 
             // Use VLOOKUP to find the boundary code from the display name to code mapping in columns D:E
-            formula.append("IFERROR(VLOOKUP(").append(colRef).append(",_h_SimpleLookup_h_!$D:$E,2,0),\"\")");
+            // Use bounded range instead of whole-column reference for better Excel compatibility
+            formula.append("IFERROR(VLOOKUP(").append(colRef).append(",_h_SimpleLookup_h_!$D$1:$E$50000,2,0),\"\")");
 
             if (i > 0) {
                 formula.append(",");
@@ -593,17 +594,20 @@ public class HierarchicalBoundaryUtil {
             StringBuilder keyBuilder = new StringBuilder();
             for (int i = 0; i <= colIdx - 1; i++) {
                 if (i > 0) keyBuilder.append(", \"" + BOUNDARY_SEPARATOR + "\", ");
-                // Use INDIRECT with ROW() function for dynamic row-specific cell references
-                String colLetter = CellReference.convertNumToColString(startColumnIndex + i);
-                String dynamicRef = "INDIRECT(\"" + colLetter + "\"&ROW())";
-                keyBuilder.append(dynamicRef);
+                // Use relative cell reference (e.g., A3) - Excel automatically adjusts this
+                // for each row when the validation formula is applied to a range.
+                // IMPORTANT: Do NOT use INDIRECT("A"&ROW()) as it doesn't work in MS Excel
+                // data validation (Excel evaluates ROW() only once, not per-cell).
+                String colRef = CellReference.convertNumToColString(startColumnIndex + i) + "3";
+                keyBuilder.append(colRef);
             }
 
             // Create formula that uses INDEX/MATCH to find the hashed key from the original key
             // Then use INDIRECT with that hashed key to get the named range
             // MATCH finds the original key in column F, INDEX returns corresponding hashed key from column A
-            String formula = "IFERROR(INDIRECT(INDEX(_h_SimpleLookup_h_!$A:$A,MATCH(CONCATENATE(" + keyBuilder +
-                    "),_h_SimpleLookup_h_!$F:$F,0)) & \"" + LIST_SUFFIX + "\"),\"\")";
+            // Use bounded ranges instead of whole-column references for better Excel compatibility
+            String formula = "IFERROR(INDIRECT(INDEX(_h_SimpleLookup_h_!$A$1:$A$50000,MATCH(CONCATENATE(" + keyBuilder +
+                    "),_h_SimpleLookup_h_!$F$1:$F$50000,0)) & \"" + LIST_SUFFIX + "\"),\"\")";
 
             log.debug("Optimized cascade formula for column {}: length={}", actualColIndex, formula.length());
 
