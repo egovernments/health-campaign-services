@@ -448,7 +448,7 @@ def fetch_individual_data(individualClientReferenceIds):
             "size": len(chunk),
             "query": {
                 "terms": {
-                    "_id": chunk
+                    "clientReferenceId.keyword": chunk
                 }
             },
             "_source": [
