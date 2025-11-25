@@ -518,6 +518,7 @@ public class HierarchicalBoundaryUtil {
         // Find where to add helper area (after existing content)
         int rowNum = ExcelUtil.findActualLastRowWithData(lookupSheet) + 3; // Add some spacing
 
+        int lookupDataLastRow = ExcelUtil.findActualLastRowWithData(lookupSheet);
         // For each parent-children mapping, create individual columns for children  
         Map<String, Integer> keyToHelperRowMap = new HashMap<>();
         Map<String, String> originalToHashedKeyMap = new HashMap<>();
@@ -525,8 +526,7 @@ public class HierarchicalBoundaryUtil {
         // We need to rebuild the parentChildrenMap since it's not accessible from mappingResult
         // Let's use a simplified approach by reading from the lookup sheet
         Map<String, Set<String>> parentChildrenMap = new HashMap<>();
-        int actualLastRow = ExcelUtil.findActualLastRowWithData(lookupSheet);
-        for (int i = 0; i <= actualLastRow; i++) {
+        for (int i = 0; i <= lookupDataLastRow; i++) {
             Row row = lookupSheet.getRow(i);
             if (row != null && row.getCell(0) != null && row.getCell(1) != null) {
                 String hashedKey = row.getCell(0).getStringCellValue();
@@ -596,19 +596,24 @@ public class HierarchicalBoundaryUtil {
                 // Use INDIRECT with ROW() function for dynamic row-specific cell references
                 String colLetter = CellReference.convertNumToColString(startColumnIndex + i);
                 String dynamicRef = "INDIRECT(\"" + colLetter + "\"&ROW())";
-                keyBuilder.append(dynamicRef);
-            }
+            keyBuilder.append(dynamicRef);
+        }
 
-            // Create formula that uses INDEX/MATCH to find the hashed key from the original key
-            // Then use INDIRECT with that hashed key to get the named range
-            // MATCH finds the original key in column F, INDEX returns corresponding hashed key from column A
-            String formula = "IFERROR(INDIRECT(INDEX(_h_SimpleLookup_h_!$A:$A,MATCH(CONCATENATE(" + keyBuilder +
-                    "),_h_SimpleLookup_h_!$F:$F,0)) & \"" + LIST_SUFFIX + "\"),\"\")";
+        // Use bounded ranges (not whole-column) in MATCH/INDEX to keep Excel validation happy
+        int matchLastRow = Math.max(lookupDataLastRow + 1, 1); // convert 0-based to 1-based, ensure at least 1
+        String lookupIndexRange = "_h_SimpleLookup_h_!$A$1:$A$" + matchLastRow;
+        String lookupMatchRange = "_h_SimpleLookup_h_!$F$1:$F$" + matchLastRow;
 
-            log.debug("Optimized cascade formula for column {}: length={}", actualColIndex, formula.length());
+        // Create formula that uses INDEX/MATCH to find the hashed key from the original key
+        // Then use INDIRECT with that hashed key to get the named range
+        // MATCH finds the original key in column F, INDEX returns corresponding hashed key from column A
+        String formula = "IFERROR(INDIRECT(INDEX(" + lookupIndexRange + ",MATCH(CONCATENATE(" + keyBuilder +
+                    ")," + lookupMatchRange + ",0)) & \"" + LIST_SUFFIX + "\"),\"\")";
 
-            try {
-                DataValidationConstraint cascadeConstraint = dvHelper.createFormulaListConstraint(formula);
+        log.debug("Optimized cascade formula for column {}: length={}", actualColIndex, formula.length());
+
+        try {
+            DataValidationConstraint cascadeConstraint = dvHelper.createFormulaListConstraint(formula);
                 DataValidation cascadeValidation = dvHelper.createValidation(cascadeConstraint, cascadeRange);
                 cascadeValidation.setShowErrorBox(false);
                 cascadeValidation.setEmptyCellAllowed(true);
