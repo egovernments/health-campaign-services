@@ -538,8 +538,16 @@ public class HierarchicalBoundaryUtil {
         int lookupDataLastRow = ExcelUtil.findActualLastRowWithData(lookupSheet);
         int matchLastRow = Math.max(lookupDataLastRow + 1, 1); // convert 0-based to 1-based, ensure at least 1
 
-        // Rebuild parent-children mapping (and original->hashed map) from lookup sheet
-        Map<String, String> originalToHashedKeyMap = new HashMap<>();
+        // Rebuild parent-children mapping (and original->hashed map)
+        Map<String, String> originalToHashedKeyMap = new LinkedHashMap<>();
+        if (mappingResult.hashToOriginalKeyMap != null) {
+            // mappingResult stores hash -> original, invert it to original -> hash
+            mappingResult.hashToOriginalKeyMap.forEach((hash, original) -> {
+                if (original != null && hash != null) {
+                    originalToHashedKeyMap.put(original, hash);
+                }
+            });
+        }
         Map<String, Set<String>> parentChildrenMap = new HashMap<>();
         for (int i = 0; i <= lookupDataLastRow; i++) {
             Row row = lookupSheet.getRow(i);
@@ -644,16 +652,15 @@ public class HierarchicalBoundaryUtil {
                 // Use INDIRECT with ROW() function for dynamic row-specific cell references
                 String colLetter = CellReference.convertNumToColString(startColumnIndex + i);
                 String dynamicRef = "INDIRECT(\"" + colLetter + "\"&ROW())";
-            keyBuilder.append(dynamicRef);
-        }
+                keyBuilder.append(dynamicRef);
+            }
 
-        // Create formula that uses INDEX/MATCH to find the hashed key from the original key
-        // Then use INDIRECT with that hashed key to get the named range
-        // MATCH finds the original key in column F, INDEX returns corresponding hashed key from column A
-            String lookupKeyFormula = "VLOOKUP(CONCATENATE(" + keyBuilder + ")," + keyHashRangeName + ",2,0)";
+            // Build lookup with a fallback to the older INDEX/MATCH range, so Excel still works if the key-hash table misses an entry
+            String keyConcat = "CONCATENATE(" + keyBuilder + ")";
+            String lookupKeyFormula = "IFERROR(VLOOKUP(" + keyConcat + "," + keyHashRangeName + ",2,0),INDEX(" + hashIndexRangeName + ",MATCH(" + keyConcat + "," + hashKeyRangeName + ",0)))";
             String formula = "IFERROR(INDIRECT(" + lookupKeyFormula + " & \"" + LIST_SUFFIX + "\"),\"\")";
 
-        log.debug("Optimized cascade formula for column {}: length={}", actualColIndex, formula.length());
+            log.debug("Optimized cascade formula for column {}: length={}", actualColIndex, formula.length());
 
         try {
             DataValidationConstraint cascadeConstraint = dvHelper.createFormulaListConstraint(formula);
