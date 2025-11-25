@@ -33,8 +33,10 @@ public class HierarchicalBoundaryUtil {
     private static final String HASH_PREFIX = "H_";
     private static final String LIST_SUFFIX = "_LIST";
     private static final String SHA256_ALGORITHM = "SHA-256";
-    // Column index for storing original keys (for debugging) - use high index to avoid conflict with children
-    private static final int ORIGINAL_KEY_COLUMN = 25; // Column Z
+    // Column indices for the separate key-to-hash mapping table
+    // This table is stored in a completely separate section of the lookup sheet
+    private static final int KEY_HASH_TABLE_KEY_COLUMN = 7;   // Column H: Original key
+    private static final int KEY_HASH_TABLE_HASH_COLUMN = 8;  // Column I: Hashed key
 
     private final ExcelIngestionConfig config;
     private final BoundaryService boundaryService;
@@ -320,7 +322,8 @@ public class HierarchicalBoundaryUtil {
             }
         }
 
-        // Populate lookup sheet with children data
+        // SECTION 1: Children data (Rows 1-N)
+        // Structure: Column A = Hash, Columns B onwards = Children (NO original key here!)
         int rowNum = 0;
         for (Map.Entry<String, Set<String>> entry : parentChildrenMap.entrySet()) {
             String hashedKey = entry.getKey();
@@ -330,19 +333,14 @@ public class HierarchicalBoundaryUtil {
             // Column A: Hashed key
             row.createCell(0).setCellValue(hashedKey);
 
-            // Columns B onwards: Children (one per column)
+            // Columns B onwards: Children ONLY (one per column)
             int col = 1;
             for (String child : children) {
                 row.createCell(col++).setCellValue(child);
             }
 
-            // Column Z (index 25): Original key for debugging - far from children to avoid conflicts
-            // This ensures even if there are many children (up to 24), they won't overlap with the debug column
-            if (hashToOriginalKeyMap.containsKey(hashedKey)) {
-                row.createCell(ORIGINAL_KEY_COLUMN).setCellValue(hashToOriginalKeyMap.get(hashedKey));
-            }
-
             // Create a named range for this row of children (columns B to last child column)
+            // NO original key in this row - children only!
             String rangeName = hashedKey + LIST_SUFFIX;
             try {
                 Name existingName = workbook.getName(rangeName);
@@ -364,8 +362,10 @@ public class HierarchicalBoundaryUtil {
 
             rowNum++;
         }
+        int childrenSectionEndRow = rowNum;
 
-        // Add display name to code mapping after the main lookup data (for boundary code formula)
+        // SECTION 2: Display name to code mapping (for boundary code VLOOKUP)
+        // Structure: Column D = Display name, Column E = Code
         rowNum += 2; // Add spacing
         for (Map.Entry<String, String> entry : codeToDisplayNameMap.entrySet()) {
             Row mappingRow = lookupSheet.createRow(rowNum++);
@@ -373,8 +373,26 @@ public class HierarchicalBoundaryUtil {
             mappingRow.createCell(4).setCellValue(entry.getKey());    // Column E: Code
         }
 
-        log.info("Created cascading boundary lookup sheet with {} parent-children mappings", parentChildrenMap.size());
-        return new ParentChildrenMapping(parentChildrenMap, codeToDisplayNameMap, parentChildrenCodeMap, hashToOriginalKeyMap);
+        // SECTION 3: Key-to-Hash mapping table (COMPLETELY SEPARATE from children!)
+        // Structure: Column H = Original key (e.g., "INDIA#Karnataka"), Column I = Hash
+        // This is used by the helper formula to find the hash for a given key combination
+        rowNum += 2; // Add spacing
+        int keyHashTableStartRow = rowNum;
+        for (Map.Entry<String, String> entry : hashToOriginalKeyMap.entrySet()) {
+            String hashedKey = entry.getKey();
+            String originalKey = entry.getValue();
+
+            Row keyHashRow = lookupSheet.createRow(rowNum++);
+            keyHashRow.createCell(KEY_HASH_TABLE_KEY_COLUMN).setCellValue(originalKey);   // Column H: Original key
+            keyHashRow.createCell(KEY_HASH_TABLE_HASH_COLUMN).setCellValue(hashedKey);    // Column I: Hash
+        }
+        int keyHashTableEndRow = rowNum;
+
+        log.info("Created cascading boundary lookup sheet: {} children rows, {} key-hash mappings (rows {}-{})",
+                childrenSectionEndRow, hashToOriginalKeyMap.size(), keyHashTableStartRow + 1, keyHashTableEndRow);
+
+        return new ParentChildrenMapping(parentChildrenMap, codeToDisplayNameMap, parentChildrenCodeMap,
+                hashToOriginalKeyMap, keyHashTableStartRow, keyHashTableEndRow);
     }
 
     /**
@@ -385,13 +403,18 @@ public class HierarchicalBoundaryUtil {
         final Map<String, String> codeToDisplayNameMap;
         final Map<String, Set<String>> parentChildrenCodeMap;
         final Map<String, String> hashToOriginalKeyMap;
+        final int keyHashTableStartRow;  // Start row of the key-to-hash mapping table
+        final int keyHashTableEndRow;    // End row of the key-to-hash mapping table
 
         ParentChildrenMapping(Map<String, Set<String>> parentChildrenMap, Map<String, String> codeToDisplayNameMap,
-                            Map<String, Set<String>> parentChildrenCodeMap, Map<String, String> hashToOriginalKeyMap) {
+                            Map<String, Set<String>> parentChildrenCodeMap, Map<String, String> hashToOriginalKeyMap,
+                            int keyHashTableStartRow, int keyHashTableEndRow) {
             this.parentChildrenMap = parentChildrenMap;
             this.codeToDisplayNameMap = codeToDisplayNameMap;
             this.parentChildrenCodeMap = parentChildrenCodeMap;
             this.hashToOriginalKeyMap = hashToOriginalKeyMap;
+            this.keyHashTableStartRow = keyHashTableStartRow;
+            this.keyHashTableEndRow = keyHashTableEndRow;
         }
     }
 
@@ -433,10 +456,18 @@ public class HierarchicalBoundaryUtil {
         addLevel1BoundaryValidation(workbook, sheet, dvHelper, visibleColIndices.get(0), level1Boundaries);
 
         // Cascading Validations for Levels 2+ using Helper Column Architecture
-        int lastLookupRow = ExcelUtil.findActualLastRowWithData(lookupSheet) + 1;
-        // Use column Z (index 25) for original keys lookup
-        String lookupRangeA = "_h_SimpleLookup_h_!$A$1:$A$" + lastLookupRow;
-        String lookupRangeZ = "_h_SimpleLookup_h_!$Z$1:$Z$" + lastLookupRow;
+        // Key-to-Hash lookup table is in a SEPARATE section (columns H and I)
+        // This ensures children data (cols B onwards) never overlaps with the lookup keys
+        int keyHashStartRow = mappingResult.keyHashTableStartRow + 1; // Excel rows are 1-based
+        int keyHashEndRow = mappingResult.keyHashTableEndRow;
+        String keyColLetter = CellReference.convertNumToColString(KEY_HASH_TABLE_KEY_COLUMN);   // Column H
+        String hashColLetter = CellReference.convertNumToColString(KEY_HASH_TABLE_HASH_COLUMN); // Column I
+
+        // Lookup ranges for the separate key-to-hash table
+        String lookupRangeKeys = String.format("_h_SimpleLookup_h_!$%s$%d:$%s$%d",
+                keyColLetter, keyHashStartRow, keyColLetter, keyHashEndRow);
+        String lookupRangeHashes = String.format("_h_SimpleLookup_h_!$%s$%d:$%s$%d",
+                hashColLetter, keyHashStartRow, hashColLetter, keyHashEndRow);
 
         for (int level = 1; level < numLevels; level++) {
             int currentVisibleColIdx = visibleColIndices.get(level);
@@ -454,9 +485,10 @@ public class HierarchicalBoundaryUtil {
                 keyBuilder.append("INDIRECT(\"").append(colLetter).append("\"&ROW())");
             }
 
-            // Helper formula: finds the concatenated key in Col Z of lookup sheet, returns hash from Col A
+            // Helper formula: finds the concatenated key in Col H (keys), returns hash from Col I (hashes)
+            // Uses the SEPARATE key-to-hash table, NOT the children rows
             String helperFormula = String.format("IFERROR(INDEX(%s,MATCH(CONCATENATE(%s),%s,0)),\"\")",
-                                                 lookupRangeA, keyBuilder.toString(), lookupRangeZ);
+                                                 lookupRangeHashes, keyBuilder.toString(), lookupRangeKeys);
 
             // Data validation formula: simple relative reference to helper column
             // Uses row 3 as template - Excel automatically adjusts for each row
