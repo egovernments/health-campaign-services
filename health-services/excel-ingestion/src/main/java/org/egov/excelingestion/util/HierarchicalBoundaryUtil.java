@@ -421,6 +421,23 @@ public class HierarchicalBoundaryUtil {
     }
 
     /**
+     * Creates or replaces a workbook-level named range
+     */
+    private void createOrReplaceName(Workbook workbook, String name, String refersToFormula) {
+        try {
+            Name existing = workbook.getName(name);
+            if (existing != null) {
+                workbook.removeName(existing);
+            }
+            Name namedRange = workbook.createName();
+            namedRange.setNameName(name);
+            namedRange.setRefersToFormula(refersToFormula);
+        } catch (Exception e) {
+            log.error("Failed to create named range {} -> {}", name, refersToFormula, e);
+        }
+    }
+
+    /**
      * Sanitizes boundary name for use in keys and lookups
      * Replaces ALL non-alphanumeric characters with underscores
      */
@@ -519,6 +536,16 @@ public class HierarchicalBoundaryUtil {
         int rowNum = ExcelUtil.findActualLastRowWithData(lookupSheet) + 3; // Add some spacing
 
         int lookupDataLastRow = ExcelUtil.findActualLastRowWithData(lookupSheet);
+        int matchLastRow = Math.max(lookupDataLastRow + 1, 1); // convert 0-based to 1-based, ensure at least 1
+
+        // Create short named ranges for lookup columns to keep validation formulas Excel-compatible
+        String hashIndexRangeName = "HB_LOOKUP_HASHES";
+        String hashKeyRangeName = "HB_LOOKUP_KEYS";
+        createOrReplaceName(workbook, hashIndexRangeName,
+                "_h_SimpleLookup_h_!$A$1:$A$" + matchLastRow);
+        createOrReplaceName(workbook, hashKeyRangeName,
+                "_h_SimpleLookup_h_!$F$1:$F$" + matchLastRow);
+
         // For each parent-children mapping, create individual columns for children  
         Map<String, Integer> keyToHelperRowMap = new HashMap<>();
         Map<String, String> originalToHashedKeyMap = new HashMap<>();
@@ -600,9 +627,8 @@ public class HierarchicalBoundaryUtil {
         }
 
         // Use bounded ranges (not whole-column) in MATCH/INDEX to keep Excel validation happy
-        int matchLastRow = Math.max(lookupDataLastRow + 1, 1); // convert 0-based to 1-based, ensure at least 1
-        String lookupIndexRange = "_h_SimpleLookup_h_!$A$1:$A$" + matchLastRow;
-        String lookupMatchRange = "_h_SimpleLookup_h_!$F$1:$F$" + matchLastRow;
+        String lookupIndexRange = hashIndexRangeName;
+        String lookupMatchRange = hashKeyRangeName;
 
         // Create formula that uses INDEX/MATCH to find the hashed key from the original key
         // Then use INDIRECT with that hashed key to get the named range
