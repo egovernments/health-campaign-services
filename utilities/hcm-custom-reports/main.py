@@ -137,6 +137,7 @@ try:
 
 except Exception as e:
     print(f"Error: {e}")
+    sys.exit(1)
 finally:
     file_name_substring = REPORT_FILE_NAME
     move_file = True
@@ -152,6 +153,7 @@ finally:
                     print(f"⚠ File not found, skipping: {file_name}")
         else:
             print(f"⚠ No files found containing substring: {file_name_substring}")
+            sys.exit(2)
     # if move_file:
     #     # for file_name in file_names:
     #     if os.path.exists(file_name):
