@@ -538,20 +538,8 @@ public class HierarchicalBoundaryUtil {
         int lookupDataLastRow = ExcelUtil.findActualLastRowWithData(lookupSheet);
         int matchLastRow = Math.max(lookupDataLastRow + 1, 1); // convert 0-based to 1-based, ensure at least 1
 
-        // Create short named ranges for lookup columns to keep validation formulas Excel-compatible
-        String hashIndexRangeName = "HB_LOOKUP_HASHES";
-        String hashKeyRangeName = "HB_LOOKUP_KEYS";
-        createOrReplaceName(workbook, hashIndexRangeName,
-                "_h_SimpleLookup_h_!$A$1:$A$" + matchLastRow);
-        createOrReplaceName(workbook, hashKeyRangeName,
-                "_h_SimpleLookup_h_!$F$1:$F$" + matchLastRow);
-
-        // For each parent-children mapping, create individual columns for children  
-        Map<String, Integer> keyToHelperRowMap = new HashMap<>();
+        // Rebuild parent-children mapping (and original->hashed map) from lookup sheet
         Map<String, String> originalToHashedKeyMap = new HashMap<>();
-
-        // We need to rebuild the parentChildrenMap since it's not accessible from mappingResult
-        // Let's use a simplified approach by reading from the lookup sheet
         Map<String, Set<String>> parentChildrenMap = new HashMap<>();
         for (int i = 0; i <= lookupDataLastRow; i++) {
             Row row = lookupSheet.getRow(i);
@@ -572,6 +560,39 @@ public class HierarchicalBoundaryUtil {
                 }
             }
         }
+
+        // Create short named ranges for lookup columns to keep validation formulas Excel-compatible
+        String hashIndexRangeName = "HB_LOOKUP_HASHES";
+        String hashKeyRangeName = "HB_LOOKUP_KEYS";
+        createOrReplaceName(workbook, hashIndexRangeName,
+                "_h_SimpleLookup_h_!$A$1:$A$" + matchLastRow);
+        createOrReplaceName(workbook, hashKeyRangeName,
+                "_h_SimpleLookup_h_!$F$1:$F$" + matchLastRow);
+
+        // Create a compact originalKey -> hashedKey lookup table to avoid long MATCH ranges in DV formulas
+        int keyHashStartRow = 1; // 1-based row
+        int keyHashRow = keyHashStartRow;
+        for (Map.Entry<String, String> entry : originalToHashedKeyMap.entrySet()) {
+            String originalKey = entry.getKey();
+            String hashedKey = entry.getValue();
+            if (originalKey == null || hashedKey == null) continue;
+            Row row = lookupSheet.getRow(keyHashRow - 1);
+            if (row == null) row = lookupSheet.createRow(keyHashRow - 1);
+            row.createCell(7).setCellValue(originalKey); // Column H (index 7)
+            row.createCell(8).setCellValue(hashedKey);   // Column I (index 8)
+            keyHashRow++;
+        }
+        String keyHashRangeName = "HB_KEY_HASH_TABLE";
+        if (keyHashRow > keyHashStartRow) {
+            createOrReplaceName(workbook, keyHashRangeName,
+                    "_h_SimpleLookup_h_!$H$" + keyHashStartRow + ":$I$" + (keyHashRow - 1));
+        } else {
+            // Fallback to a single dummy cell to avoid invalid range
+            createOrReplaceName(workbook, keyHashRangeName, "_h_SimpleLookup_h_!$H$1:$I$1");
+        }
+
+        // For each parent-children mapping, create individual columns for children  
+        Map<String, Integer> keyToHelperRowMap = new HashMap<>();
 
         for (Map.Entry<String, Set<String>> entry : parentChildrenMap.entrySet()) {
             String hashedKey = entry.getKey();
@@ -626,15 +647,11 @@ public class HierarchicalBoundaryUtil {
             keyBuilder.append(dynamicRef);
         }
 
-        // Use bounded ranges (not whole-column) in MATCH/INDEX to keep Excel validation happy
-        String lookupIndexRange = hashIndexRangeName;
-        String lookupMatchRange = hashKeyRangeName;
-
         // Create formula that uses INDEX/MATCH to find the hashed key from the original key
         // Then use INDIRECT with that hashed key to get the named range
         // MATCH finds the original key in column F, INDEX returns corresponding hashed key from column A
-        String formula = "IFERROR(INDIRECT(INDEX(" + lookupIndexRange + ",MATCH(CONCATENATE(" + keyBuilder +
-                    ")," + lookupMatchRange + ",0)) & \"" + LIST_SUFFIX + "\"),\"\")";
+            String lookupKeyFormula = "VLOOKUP(CONCATENATE(" + keyBuilder + ")," + keyHashRangeName + ",2,0)";
+            String formula = "IFERROR(INDIRECT(" + lookupKeyFormula + " & \"" + LIST_SUFFIX + "\"),\"\")";
 
         log.debug("Optimized cascade formula for column {}: length={}", actualColIndex, formula.length());
 
