@@ -211,7 +211,8 @@ public class HierarchicalBoundaryUtil {
         if (existingData != null && !existingData.isEmpty()) {
             dataRowsPopulated = populateExistingDataWithBoundaries(sheet, existingData, lastSchemaCol,
                     levelTypes.size(), boundaryCodeColIndex, levelTypes, hierarchyType,
-                    filteredBoundaries, localizationMap, unlocked, formulaStyle, visibleColIndices);
+                    filteredBoundaries, localizationMap, unlocked, formulaStyle, visibleColIndices,
+                    mappingResult.displayNameMappingStartRow, mappingResult.displayNameMappingEndRow);
         }
 
         // Create remaining empty rows with dropdowns and formulas
@@ -224,7 +225,8 @@ public class HierarchicalBoundaryUtil {
             }
             Cell boundaryCodeCell = row.getCell(boundaryCodeColIndex, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK);
             boundaryCodeCell.setCellStyle(formulaStyle);
-            String boundaryCodeFormula = createBoundaryCodeFormula(r + 1, visibleColIndices);
+            String boundaryCodeFormula = createBoundaryCodeFormula(r + 1, visibleColIndices,
+                    mappingResult.displayNameMappingStartRow, mappingResult.displayNameMappingEndRow);
             boundaryCodeCell.setCellFormula(boundaryCodeFormula);
         }
 
@@ -234,9 +236,18 @@ public class HierarchicalBoundaryUtil {
     /**
      * Creates a formula to get the boundary code based on the selected boundary values
      * Uses a simple approach - checks from right to left and returns code for first non-empty value
+     * @param rowNumber The Excel row number (1-based)
+     * @param visibleColIndices List of visible column indices
+     * @param displayNameMappingStartRow Start row of display name to code mapping (0-based)
+     * @param displayNameMappingEndRow End row of display name to code mapping (0-based)
      */
-    private String createBoundaryCodeFormula(int rowNumber, List<Integer> visibleColIndices) {
+    private String createBoundaryCodeFormula(int rowNumber, List<Integer> visibleColIndices,
+                                             int displayNameMappingStartRow, int displayNameMappingEndRow) {
         StringBuilder formula = new StringBuilder();
+
+        // Convert 0-based row indices to 1-based Excel row numbers
+        int excelStartRow = displayNameMappingStartRow + 1;
+        int excelEndRow = displayNameMappingEndRow;
 
         // Build nested IF statements from last column to first
         for (int i = visibleColIndices.size() - 1; i >= 0; i--) {
@@ -245,8 +256,10 @@ public class HierarchicalBoundaryUtil {
             formula.append("IF(").append(colRef).append("<>\"\",");
 
             // Use VLOOKUP to find the boundary code from the display name to code mapping in columns D:E
-            // Use bounded range for Excel compatibility
-            formula.append("IFERROR(VLOOKUP(").append(colRef).append(",_h_SimpleLookup_h_!$D$1:$E$50000,2,0),\"\")");
+            // Use the correct row range where the mapping data actually exists
+            formula.append("IFERROR(VLOOKUP(").append(colRef)
+                   .append(",_h_SimpleLookup_h_!$D$").append(excelStartRow)
+                   .append(":$E$").append(excelEndRow).append(",2,0),\"\")");
 
             if (i > 0) {
                 formula.append(",");
@@ -367,11 +380,13 @@ public class HierarchicalBoundaryUtil {
         // SECTION 2: Display name to code mapping (for boundary code VLOOKUP)
         // Structure: Column D = Display name, Column E = Code
         rowNum += 2; // Add spacing
+        int displayNameMappingStartRow = rowNum;
         for (Map.Entry<String, String> entry : codeToDisplayNameMap.entrySet()) {
             Row mappingRow = lookupSheet.createRow(rowNum++);
             mappingRow.createCell(3).setCellValue(entry.getValue()); // Column D: Display name
             mappingRow.createCell(4).setCellValue(entry.getKey());    // Column E: Code
         }
+        int displayNameMappingEndRow = rowNum;
 
         // SECTION 3: Key-to-Hash mapping table (COMPLETELY SEPARATE from children!)
         // Structure: Column H = Original key (e.g., "INDIA#Karnataka"), Column I = Hash
@@ -388,11 +403,13 @@ public class HierarchicalBoundaryUtil {
         }
         int keyHashTableEndRow = rowNum;
 
-        log.info("Created cascading boundary lookup sheet: {} children rows, {} key-hash mappings (rows {}-{})",
-                childrenSectionEndRow, hashToOriginalKeyMap.size(), keyHashTableStartRow + 1, keyHashTableEndRow);
+        log.info("Created cascading boundary lookup sheet: {} children rows, {} display-name mappings (rows {}-{}), {} key-hash mappings (rows {}-{})",
+                childrenSectionEndRow, codeToDisplayNameMap.size(), displayNameMappingStartRow + 1, displayNameMappingEndRow,
+                hashToOriginalKeyMap.size(), keyHashTableStartRow + 1, keyHashTableEndRow);
 
         return new ParentChildrenMapping(parentChildrenMap, codeToDisplayNameMap, parentChildrenCodeMap,
-                hashToOriginalKeyMap, keyHashTableStartRow, keyHashTableEndRow);
+                hashToOriginalKeyMap, keyHashTableStartRow, keyHashTableEndRow,
+                displayNameMappingStartRow, displayNameMappingEndRow);
     }
 
     /**
@@ -405,16 +422,21 @@ public class HierarchicalBoundaryUtil {
         final Map<String, String> hashToOriginalKeyMap;
         final int keyHashTableStartRow;  // Start row of the key-to-hash mapping table
         final int keyHashTableEndRow;    // End row of the key-to-hash mapping table
+        final int displayNameMappingStartRow;  // Start row of display name to code mapping (Section 2)
+        final int displayNameMappingEndRow;    // End row of display name to code mapping (Section 2)
 
         ParentChildrenMapping(Map<String, Set<String>> parentChildrenMap, Map<String, String> codeToDisplayNameMap,
                             Map<String, Set<String>> parentChildrenCodeMap, Map<String, String> hashToOriginalKeyMap,
-                            int keyHashTableStartRow, int keyHashTableEndRow) {
+                            int keyHashTableStartRow, int keyHashTableEndRow,
+                            int displayNameMappingStartRow, int displayNameMappingEndRow) {
             this.parentChildrenMap = parentChildrenMap;
             this.codeToDisplayNameMap = codeToDisplayNameMap;
             this.parentChildrenCodeMap = parentChildrenCodeMap;
             this.hashToOriginalKeyMap = hashToOriginalKeyMap;
             this.keyHashTableStartRow = keyHashTableStartRow;
             this.keyHashTableEndRow = keyHashTableEndRow;
+            this.displayNameMappingStartRow = displayNameMappingStartRow;
+            this.displayNameMappingEndRow = displayNameMappingEndRow;
         }
     }
 
@@ -635,7 +657,8 @@ public class HierarchicalBoundaryUtil {
                                                    List<BoundaryUtil.BoundaryRowData> filteredBoundaries,
                                                    Map<String, String> localizationMap,
                                                    CellStyle unlocked, CellStyle formulaStyle,
-                                                   List<Integer> visibleColIndices) {
+                                                   List<Integer> visibleColIndices,
+                                                   int displayNameMappingStartRow, int displayNameMappingEndRow) {
 
         int rowsPopulated = 0;
 
@@ -684,7 +707,8 @@ public class HierarchicalBoundaryUtil {
                 boundaryCodeCell = row.createCell(boundaryCodeColIndex);
             }
             boundaryCodeCell.setCellStyle(formulaStyle);
-            String boundaryCodeFormula = createBoundaryCodeFormula(excelRowIndex + 1, visibleColIndices);
+            String boundaryCodeFormula = createBoundaryCodeFormula(excelRowIndex + 1, visibleColIndices,
+                    displayNameMappingStartRow, displayNameMappingEndRow);
             boundaryCodeCell.setCellFormula(boundaryCodeFormula);
 
             rowsPopulated++;
