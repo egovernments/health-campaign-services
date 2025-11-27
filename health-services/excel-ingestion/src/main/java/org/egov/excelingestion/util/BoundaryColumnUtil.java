@@ -359,9 +359,12 @@ public class BoundaryColumnUtil {
         levelValidation.setShowPromptBox(false);
         sheet.addValidationData(levelValidation);
 
-        String colLetter = CellReference.convertNumToColString(lastSchemaCol);
-        String dynamicLevelRef = "INDIRECT(\"" + colLetter + "\"&ROW())";
-        String boundaryFormula = "IF(" + dynamicLevelRef + "=\"\", \"\", INDIRECT(\"Level_\"&MATCH(" + dynamicLevelRef + ", Levels, 0)))";
+        // Use relative cell reference (e.g., A3) - Excel automatically adjusts this
+        // for each row when the validation formula is applied to a range.
+        // IMPORTANT: Do NOT use INDIRECT("A"&ROW()) as it doesn't work in MS Excel
+        // data validation (Excel evaluates ROW() only once, not per-cell).
+        String levelCellRef = CellReference.convertNumToColString(lastSchemaCol) + "3";
+        String boundaryFormula = "IF(" + levelCellRef + "=\"\", \"\", INDIRECT(\"Level_\"&MATCH(" + levelCellRef + ", Levels, 0)))";
         DataValidationConstraint boundaryConstraint = dvHelper.createFormulaListConstraint(boundaryFormula);
         CellRangeAddressList boundaryAddr = new CellRangeAddressList(2, config.getExcelRowLimit(), lastSchemaCol + 1, lastSchemaCol + 1);
         DataValidation boundaryValidation = dvHelper.createValidation(boundaryConstraint, boundaryAddr);
