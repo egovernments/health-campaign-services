@@ -37,7 +37,8 @@ export class TemplateClass {
             localizedData["UserName"] = decrypt(rawData["UserName"]);
             localizedData["Password"] = decrypt(rawData["Password"]);
             if (!localizedData["HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY"]){
-                localizedData["HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY"] = localizedData["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"];
+                const boundaryCode = localizedData["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"];
+                localizedData["HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY"] = getLocalizedName(boundaryCode, localizationMap) || boundaryCode;
             }
             return localizedData;
         }));
