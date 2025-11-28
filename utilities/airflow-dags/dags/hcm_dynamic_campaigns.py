@@ -80,7 +80,7 @@ def compute_range(campaign, now):
     Calculate report date range based on trigger frequency.
 
     Args:
-        campaign (dict): Campaign object with triggerFrequency
+        campaign (dict): Campaign object with triggerFrequency, isFinalReport, remainingDays
         now (datetime): Current execution time (UTC)
 
     Returns:
@@ -90,14 +90,39 @@ def compute_range(campaign, now):
         - Daily: Yesterday (00:00:00 to 23:59:59)
         - Weekly: Last 7 days ending yesterday
         - Monthly: Last 30 days ending yesterday
+        - Final Report (partial): Only the remaining days since last scheduled report
 
     Examples:
         If today is 2025-01-18:
         - Daily: 2025-01-17 00:00:00 to 2025-01-17 23:59:59
         - Weekly: 2025-01-11 00:00:00 to 2025-01-17 23:59:59 (7 days)
         - Monthly: 2024-12-19 00:00:00 to 2025-01-17 23:59:59 (30 days)
+
+        Final Report Example (campaign ends on day 19, weekly frequency):
+        - Last weekly report was on day 14
+        - remainingDays = 5
+        - Report covers: 2025-01-13 00:00:00 to 2025-01-17 23:59:59 (5 days)
     """
     freq = campaign.get("triggerFrequency", "Daily").lower()
+    is_final = campaign.get("isFinalReport", False)
+    remaining_days = campaign.get("remainingDays", 0)
+
+    # Handle final partial report for campaign end date
+    if is_final and remaining_days > 0:
+        # FINAL PARTIAL REPORT: Cover only the remaining days since last scheduled report
+        # Start: (remaining_days) days ago at 00:00:00
+        start = (now - timedelta(days=remaining_days)).replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
+        # End: Yesterday at 23:59:59
+        end = (now - timedelta(days=1)).replace(
+            hour=23, minute=59, second=59, microsecond=999999
+        )
+        logger.info("Final partial report: %d days (%s to %s)",
+                   remaining_days,
+                   start.strftime("%Y-%m-%d"),
+                   end.strftime("%Y-%m-%d"))
+        return (start, end)
 
     if freq == "weekly":
         # Report covers last 7 days (excluding today)
@@ -212,12 +237,17 @@ with DAG(
             campaign_number = c.get("campaignNumber", "UNKNOWN")
             report_name = c.get("reportName", "UNKNOWN")
             frequency = c.get("triggerFrequency", "Daily")
+            is_final_report = c.get("isFinalReport", False)
+            remaining_days = c.get("remainingDays", 0)
 
             logger.info("Campaign %d/%d: %s", idx, len(matches), campaign_number)
             logger.info("  Report: %s", report_name)
             logger.info("  Frequency: %s", frequency)
+            if is_final_report:
+                logger.info("  ⚡ FINAL REPORT: Covering %d remaining days", remaining_days)
 
             # Calculate report date range based on frequency
+            # Pass isFinalReport and remainingDays for partial report calculation
             start_dt, end_dt = compute_range(c, now)
             logger.info("  Date range: %s to %s",
                     start_dt.strftime("%Y-%m-%d %H:%M:%S"),
@@ -249,6 +279,10 @@ with DAG(
                 # main.py expects START_DATE and END_DATE (not REPORT_START/REPORT_END)
                 "START_DATE": start_dt.strftime("%Y-%m-%d %H:%M:%S%z"),
                 "END_DATE": end_dt.strftime("%Y-%m-%d %H:%M:%S%z"),
+
+                # Final report flag (for campaign end date with partial period)
+                "IS_FINAL_REPORT": str(is_final_report).lower(),
+                "REMAINING_DAYS": str(remaining_days),
 
                 # Output configuration
                 "OUTPUT_PVC_NAME": OUTPUT_PVC_NAME,

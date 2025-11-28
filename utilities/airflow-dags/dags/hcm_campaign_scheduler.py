@@ -220,6 +220,63 @@ def is_first_day(campaign, ref_dt):
         logger.exception("Failed to parse start date for campaign %s", campaign.get("campaignNumber"))
         return False
 
+
+def is_campaign_active(campaign, ref_dt):
+    """
+    Check if today falls within the campaign's active date range.
+
+    Reports should only be generated when:
+        campaignStartDate <= today <= campaignEndDate
+
+    This ensures:
+    - No reports are generated before the campaign starts
+    - No reports are generated after the campaign ends
+    - The last daily report is generated ON the campaignEndDate
+
+    Args:
+        campaign (dict): Campaign object with campaignStartDate and campaignEndDate
+        ref_dt (datetime): Reference datetime (current execution time)
+
+    Returns:
+        tuple: (is_active: bool, reason: str)
+            - is_active: True if campaign is within active date range
+            - reason: Description of why campaign is active/inactive
+    """
+    today = ref_dt.date()
+
+    # Get campaign start date
+    start_date_str = campaign.get("campaignStartDate") or campaign.get("startDate")
+    if not start_date_str:
+        return (True, "No start date defined - assuming active")
+
+    try:
+        start_date = parse_date_string(start_date_str).date()
+    except Exception:
+        logger.exception("Failed to parse start date for campaign %s", campaign.get("campaignNumber"))
+        return (True, "Failed to parse start date - assuming active")
+
+    # Check if campaign hasn't started yet
+    if today < start_date:
+        return (False, f"Campaign hasn't started yet (starts: {start_date})")
+
+    # Get campaign end date
+    end_date_str = campaign.get("campaignEndDate") or campaign.get("endDate")
+    if not end_date_str:
+        return (True, "No end date defined - campaign is active")
+
+    try:
+        end_date = parse_date_string(end_date_str).date()
+    except Exception:
+        logger.exception("Failed to parse end date for campaign %s", campaign.get("campaignNumber"))
+        return (True, "Failed to parse end date - assuming active")
+
+    # Check if campaign has ended (today > campaignEndDate)
+    if today > end_date:
+        return (False, f"Campaign has ended (ended: {end_date})")
+
+    # Campaign is active: startDate <= today <= endDate
+    return (True, f"Campaign is active ({start_date} to {end_date})")
+
 def frequency_due(campaign, ref_dt):
     """
     Frequency rules:
@@ -254,6 +311,87 @@ def frequency_due(campaign, ref_dt):
     if freq == "monthly":
         return days >= 30 and (days % 30 == 0)
     return False
+
+
+def is_final_report_due(campaign, ref_dt):
+    """
+    Check if campaign is ending today and needs a final partial report.
+
+    This handles the scenario where a campaign ends mid-cycle (e.g., on day 5
+    of a weekly report cycle). In such cases, we need to generate a final
+    report covering the remaining days.
+
+    Args:
+        campaign (dict): Campaign object with campaignEndDate and triggerFrequency
+        ref_dt (datetime): Reference datetime (current execution time)
+
+    Returns:
+        tuple: (is_due: bool, remaining_days: int)
+            - is_due: True if a final partial report should be generated
+            - remaining_days: Number of days to include in the final report
+
+    Example:
+        Campaign starts: Day 1
+        Weekly reports on: Day 7, Day 14
+        Campaign ends: Day 19
+
+        On Day 19, this function returns (True, 5) because:
+        - Today is the campaign end date
+        - 5 days have passed since the last weekly report (Day 14)
+        - A final report covering days 15-19 should be generated
+    """
+    # Get campaign end date
+    end_date_str = campaign.get("campaignEndDate") or campaign.get("endDate")
+    if not end_date_str:
+        return (False, 0)
+
+    try:
+        end_date = parse_date_string(end_date_str).date()
+    except Exception:
+        logger.exception("Failed to parse end date for final report check: %s", campaign.get("campaignNumber"))
+        return (False, 0)
+
+    today = ref_dt.date()
+
+    # Check if today is campaign end date
+    if today != end_date:
+        return (False, 0)
+
+    # Only applies to WEEKLY and MONTHLY frequencies
+    # Daily reports don't need special handling as they run every day
+    freq = (campaign.get("triggerFrequency") or "DAILY").strip().lower()
+    if freq == "daily":
+        return (False, 0)
+
+    # Get campaign start date to calculate days since start
+    start_date_str = campaign.get("campaignStartDate") or campaign.get("startDate")
+    if not start_date_str:
+        return (False, 0)
+
+    try:
+        start_date = parse_date_string(start_date_str).date()
+    except Exception:
+        logger.exception("Failed to parse start date for final report check: %s", campaign.get("campaignNumber"))
+        return (False, 0)
+
+    days_since_start = (today - start_date).days
+
+    # Calculate days since last scheduled report
+    if freq == "weekly":
+        days_since_last_report = days_since_start % 7
+    elif freq == "monthly":
+        days_since_last_report = days_since_start % 30
+    else:
+        return (False, 0)
+
+    # If there are remaining days (not on a regular report boundary), trigger final report
+    # Also check that days_since_start >= 1 to ensure there's at least one day of data
+    if days_since_last_report > 0 and days_since_start >= 1:
+        logger.info("Campaign %s: Final report due with %d remaining days",
+                   campaign.get("campaignNumber"), days_since_last_report)
+        return (True, days_since_last_report)
+
+    return (False, 0)
 
 # -----------------------------
 # DAG definition
@@ -308,6 +446,12 @@ with DAG(
                     logger.debug("Campaign %s: Inactive - SKIP", campaign_number)
                     continue
 
+                # Check if campaign is within active date range (startDate <= today <= endDate)
+                campaign_active, active_reason = is_campaign_active(c, now)
+                if not campaign_active:
+                    logger.info("Campaign %s: %s - SKIP", campaign_number, active_reason)
+                    continue
+
                 # Check if first day (no previous data to report)
                 if is_first_day(c, now):
                     logger.info("Campaign %s: First day - SKIP", campaign_number)
@@ -328,13 +472,20 @@ with DAG(
                 # Check if frequency is due
                 freq_due = frequency_due(c, now)
 
+                # Check if final report is due (campaign ending today with remaining days)
+                is_final, remaining_days = is_final_report_due(c, now)
+
                 logger.info("Campaign %s:", campaign_number)
                 logger.info("  Trigger time: %s → %s", trig, trig_dt.strftime("%H:%M:%S"))
                 logger.info("  In window: %s", in_window)
                 logger.info("  Frequency due: %s", freq_due)
+                logger.info("  Final report due: %s (remaining days: %d)", is_final, remaining_days)
 
-                if in_window and freq_due:
-                    logger.info("  ✓ MATCH - Adding to processing list")
+                if in_window and (freq_due or is_final):
+                    if is_final:
+                        logger.info("  ✓ FINAL REPORT MATCH - Campaign ending with %d remaining days", remaining_days)
+                    else:
+                        logger.info("  ✓ MATCH - Adding to processing list")
                     matched.append({
                         "campaignNumber": c.get("campaignNumber"),
                         "reportName": c.get("reportName"),
@@ -342,7 +493,9 @@ with DAG(
                         "triggerTime": c.get("triggerTime"),
                         "startDate": c.get("campaignStartDate"),
                         "endDate": c.get("campaignEndDate"),
-                        "outputPvcName": c.get("outputPvcName")
+                        "outputPvcName": c.get("outputPvcName"),
+                        "isFinalReport": is_final,
+                        "remainingDays": remaining_days if is_final else 0
                     })
                 else:
                     logger.info("  ✗ SKIP")
