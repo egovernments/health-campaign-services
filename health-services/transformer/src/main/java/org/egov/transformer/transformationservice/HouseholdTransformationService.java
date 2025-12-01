@@ -7,6 +7,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.egov.common.models.household.AdditionalFields;
 import org.egov.common.models.household.Household;
 import org.egov.transformer.config.TransformerProperties;
+import org.egov.transformer.models.Project.ProjectInfo;
 import org.egov.transformer.models.boundary.BoundaryHierarchyResult;
 import org.egov.transformer.models.downstream.HouseholdIndexV1;
 import org.egov.transformer.producer.Producer;
@@ -91,11 +92,11 @@ public class HouseholdTransformationService {
         if (!additionalDetails.has(PROJECT_ID) || !additionalDetails.has(PROJECT_TYPE_ID)) {
             commonUtils.addProjectDetailsToAdditionalDetails(additionalDetails, household.getClientAuditDetails().getLastModifiedBy(), household.getTenantId());
         }
-        String projectIdProjectTypeId = commonUtils.projectDetailsFromUserId(household.getClientAuditDetails().getCreatedBy(), household.getTenantId());
+        ProjectInfo projectInfo = commonUtils.projectInfoFromUserId(household.getClientAuditDetails().getCreatedBy(), household.getTenantId());
 
         String projectTypeId = null;
-        if (!StringUtils.isEmpty(projectIdProjectTypeId)) {
-            projectTypeId = projectIdProjectTypeId.split(":")[1];
+        if(projectInfo!=null){
+            projectTypeId = projectInfo.getProjectTypeId();
         }
         log.info("HOUSEHOLD ADD INFO {}, {}", additionalDetails, additionalDetails.get(PROJECT_TYPE_ID));
         String cycleIndex = commonUtils.fetchCycleIndexFromTime(household.getTenantId(), projectTypeId, household.getClientAuditDetails().getCreatedTime());

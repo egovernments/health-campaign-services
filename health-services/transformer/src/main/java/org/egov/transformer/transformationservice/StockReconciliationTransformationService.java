@@ -9,6 +9,7 @@ import org.egov.common.models.facility.Facility;
 import org.egov.common.models.stock.Field;
 import org.egov.common.models.stock.StockReconciliation;
 import org.egov.transformer.config.TransformerProperties;
+import org.egov.transformer.models.Project.ProjectInfo;
 import org.egov.transformer.models.boundary.BoundaryHierarchyResult;
 import org.egov.transformer.models.downstream.StockReconciliationIndexV1;
 import org.egov.transformer.producer.Producer;
@@ -94,10 +95,10 @@ public class StockReconciliationTransformationService {
                 && !CollectionUtils.isEmpty(stockReconciliation.getAdditionalFields().getFields())) {
             additionalDetails = additionalFieldsToDetails(stockReconciliation.getAdditionalFields().getFields());
         }
-        String projectIdProjectTypeId = commonUtils.projectDetailsFromUserId(stockReconciliation.getClientAuditDetails().getCreatedBy(), tenantId);
 
-        if (!StringUtils.isEmpty(projectIdProjectTypeId)) {
-            projectTypeId = projectIdProjectTypeId.split(":")[1];
+        ProjectInfo projectInfo = commonUtils.projectInfoFromUserId(stockReconciliation.getClientAuditDetails().getCreatedBy(), tenantId);
+        if(projectInfo!=null){
+            projectTypeId = projectInfo.getProjectTypeId();
         }
         String cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectTypeId, stockReconciliation.getAuditDetails());
         additionalDetails.put(PROJECT_TYPE_ID, projectTypeId);

@@ -9,6 +9,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.egov.common.models.household.Household;
 import org.egov.common.models.project.*;
 import org.egov.transformer.config.TransformerProperties;
+import org.egov.transformer.models.Project.ProjectInfo;
 import org.egov.transformer.models.boundary.BoundaryHierarchyResult;
 import org.egov.transformer.models.downstream.ProjectTaskIndexV1;
 import org.egov.transformer.producer.Producer;
@@ -233,6 +234,19 @@ public class ProjectTaskTransformationService {
         if (task.getStatus().equalsIgnoreCase(CLOSED_HOUSEHOLD) && !additionalDetails.has(REASON_OF_REFUSAL)) {
             additionalDetails.put(REASON_OF_REFUSAL, task.getStatus());
         }
+
+        ProjectInfo projectInfo = commonUtils.projectInfoFromUserId(task.getAuditDetails().getCreatedBy(), tenantId);
+        if (projectInfo != null) {
+
+            if (projectInfo.getName() != null) {
+                additionalDetails.put(PROJECT_NAME, projectInfo.getName());
+            }
+
+            if (projectInfo.getReferenceId() != null) {
+                additionalDetails.put(PROJECT_REFERENCE_ID, projectInfo.getReferenceId());
+            }
+        }
+
         projectTaskIndexV1.setAdditionalDetails(additionalDetails);
 
         return projectTaskIndexV1;

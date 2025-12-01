@@ -13,6 +13,7 @@ import org.egov.common.models.household.Field;
 import org.egov.common.models.project.Project;
 import org.egov.common.models.project.ProjectStaff;
 import org.egov.transformer.config.TransformerProperties;
+import org.egov.transformer.models.Project.ProjectInfo;
 import org.egov.transformer.service.ProjectService;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
@@ -37,6 +38,7 @@ public class CommonUtils {
     private final ObjectMapper objectMapper;
     private static Map<String, List<JsonNode>> boundaryLevelVsLabelCache = new ConcurrentHashMap<>();
     private static Map<String, String> userIdVsProjectIdAndProjectTypeIdCache = new ConcurrentHashMap<>();
+    private static final Map<String, ProjectInfo> userProjectInfoCache = new ConcurrentHashMap<>();
 
     public CommonUtils(TransformerProperties properties, ObjectMapper objectMapper, ProjectService projectService) {
         this.properties = properties;
@@ -270,19 +272,44 @@ public class CommonUtils {
         return projectIdAndProjectTypeId;
     }
 
-    public void addProjectDetailsToAdditionalDetails(ObjectNode additionalDetails, String userId, String tenantId) {
-        String projectDetails = projectDetailsFromUserId(userId, tenantId);
 
-        if (!StringUtils.isEmpty(projectDetails)) {
-            String[] projectDetailsParts = projectDetails.split(":");  // ":" is being to separate project id from project type id
-            if (projectDetailsParts.length == 2) {
-                if (!additionalDetails.has(PROJECT_ID)) {
-                    additionalDetails.put(PROJECT_ID, projectDetailsParts[0]);
-                }
-                if (!additionalDetails.has(PROJECT_TYPE_ID)) {
-                    additionalDetails.put(PROJECT_TYPE_ID, projectDetailsParts[1]);
-                }
+    public ProjectInfo projectInfoFromUserId(String userId, String tenantId) {
+        // return from cache if exists
+        if (userProjectInfoCache.containsKey(userId)) {
+            return userProjectInfoCache.get(userId);
+        }
+        List<String> userIds = new ArrayList<>(Arrays.asList(userId));
+        List<ProjectStaff> projectStaffList = projectService.searchProjectStaff(userIds, tenantId);
+        ProjectStaff projectStaff = CollectionUtils.isEmpty(projectStaffList) ? null : projectStaffList.get(0);
+
+        if (ObjectUtils.isNotEmpty(projectStaff)) {
+            Project project = projectService.getProject(projectStaff.getProjectId(), tenantId);
+
+            if (ObjectUtils.isNotEmpty(project)) {
+                ProjectInfo info = new ProjectInfo(
+                        projectStaff.getProjectId(),
+                        project.getProjectTypeId(),
+                        project.getName(),
+                        project.getReferenceID()
+                );
+                userProjectInfoCache.put(userId, info);
+                return info;
             }
+        }
+
+        return null;
+    }
+
+    public void addProjectDetailsToAdditionalDetails(ObjectNode additionalDetails, String userId, String tenantId) {
+        ProjectInfo projectInfo = projectInfoFromUserId(userId, tenantId);
+
+        if (projectInfo == null) return;
+
+        if (!additionalDetails.has(PROJECT_ID)) {
+            additionalDetails.put(PROJECT_ID, projectInfo.getProjectId());
+        }
+        if (!additionalDetails.has(PROJECT_TYPE_ID)) {
+            additionalDetails.put(PROJECT_TYPE_ID, projectInfo.getProjectTypeId());
         }
     }
 

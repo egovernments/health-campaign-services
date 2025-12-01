@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.egov.transformer.config.TransformerProperties;
+import org.egov.transformer.models.Project.ProjectInfo;
 import org.egov.transformer.models.boundary.BoundaryHierarchyResult;
 import org.egov.transformer.models.downstream.PGRIndex;
 import org.egov.transformer.models.pgr.Service;
@@ -84,11 +85,12 @@ public class PGRTransformationService {
 //        service.setServiceCode(mdmsService.getMDMSTransformerLocalizations(service.getServiceCode(), tenantId));
 
         ObjectNode additionalDetails = objectMapper.createObjectNode();
-        String projectIdProjectTypeId = commonUtils.projectDetailsFromUserId(service.getAuditDetails().getLastModifiedBy(), tenantId);
 
-        if (!StringUtils.isEmpty(projectIdProjectTypeId)) {
-            projectTypeId = projectIdProjectTypeId.split(":")[1];
+        ProjectInfo projectInfo = commonUtils.projectInfoFromUserId(service.getAuditDetails().getLastModifiedBy(), tenantId);
+        if(projectInfo!=null){
+            projectTypeId = projectInfo.getProjectTypeId();
         }
+
         String cycleIndex = commonUtils.fetchCycleIndexFromTime(service.getTenantId(), projectTypeId, service.getAuditDetails().getCreatedTime());
         additionalDetails.put(CYCLE_INDEX, cycleIndex);
         additionalDetails.put(PROJECT_TYPE_ID, projectTypeId);

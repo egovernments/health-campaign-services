@@ -6,6 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.individual.Individual;
 import org.egov.common.models.individual.Name;
 import org.egov.transformer.config.TransformerProperties;
+import org.egov.transformer.models.Project.ProjectInfo;
 import org.egov.transformer.models.attendance.AttendanceLog;
 import org.egov.transformer.models.attendance.AttendanceRegister;
 import org.egov.transformer.models.attendance.IndividualEntry;
@@ -110,10 +111,10 @@ public class AttendanceTransformationService {
             attendanceLog.setUserName(individualUsername);
         }
         ObjectNode additionalDetails = objectMapper.createObjectNode();
-        String projectIdProjectTypeId = commonUtils.projectDetailsFromUserId(attendanceLog.getAuditDetails().getCreatedBy(), attendanceLog.getTenantId());
 
-        if (!StringUtils.isEmpty(projectIdProjectTypeId)) {
-            projectTypeId = projectIdProjectTypeId.split(":")[1];
+        ProjectInfo projectInfo = commonUtils.projectInfoFromUserId(attendanceLog.getAuditDetails().getCreatedBy(), attendanceLog.getTenantId());
+        if(projectInfo!=null){
+            projectTypeId = projectInfo.getProjectTypeId();
         }
         String cycleIndex = commonUtils.fetchCycleIndex(attendanceLog.getTenantId(), projectTypeId, attendanceLog.getAuditDetails());
         additionalDetails.put(CYCLE_INDEX, cycleIndex);
@@ -155,9 +156,10 @@ public class AttendanceTransformationService {
             boundaryHierarchyResult =  boundaryService.getBoundaryHierarchyWithLocalityCode(boundaryCode, tenantId);
         }
         else {
-            String projectIdProjectTypeId = commonUtils.projectDetailsFromUserId(createdBy, tenantId);
-            if (!StringUtils.isEmpty(projectIdProjectTypeId)) {
-                String projectId = projectIdProjectTypeId.split(":")[0];
+            ProjectInfo projectInfo = commonUtils.projectInfoFromUserId(createdBy, tenantId);
+            String projectId;
+            if(projectInfo!=null && projectInfo.getProjectId()!=null){
+                projectId = projectInfo.getProjectId();
                 boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithProjectId(projectId, tenantId);
             }
         }

@@ -111,5 +111,7 @@ public interface Constants {
     String INDIVIDUAL_CLIENT_REFERENCE_ID = "individualClientReferenceId";
     String HOUSEHOLD_CLIENT_REFERENCE_ID = "householdClientReferenceId";
     String UNIQUE_BENEFICIARY_ID = "uniqueBeneficiaryId";
+    String PROJECT_NAME = "projectName";
+    String PROJECT_REFERENCE_ID = "projectReferenceId";
 
 }
