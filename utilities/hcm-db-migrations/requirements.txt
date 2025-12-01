@@ -1,0 +1,4 @@
+alembic==1.13.1
+psycopg2-binary==2.9.9
+sqlalchemy==2.0.25
+python-dotenv==1.0.0
