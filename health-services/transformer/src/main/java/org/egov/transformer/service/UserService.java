@@ -44,7 +44,7 @@ public class UserService {
         Map<String, String> userMap = new HashMap<>();
         Map<String, String> userDetailsMap;
         String userName;
-        String role;
+        StringBuilder role = new StringBuilder();
 
         if (userIdVsUserInfoCache.containsKey(userId)) {
             log.info("fetching from userIdVsUserInfoCache for userId: " + userId);
@@ -62,10 +62,13 @@ public class UserService {
                 return userMap;
             }
             userName = users.get(0).getUserName();
-            role = getStaffRole(tenantId, users);
+            users.get(0).getRoles().forEach(r -> {
+                role.append(r.getCode()).append("_");
+            });
+
             userMap.put(USERNAME, userName);
             userMap.put(NAME, users.get(0).getName());
-            userMap.put(ROLE, role);
+            userMap.put(ROLE, role.toString());
             userMap.put(ID, String.valueOf(users.get(0).getId()));
             userMap.put(CITY, users.get(0).getCorrespondenceAddress());
             userIdVsUserInfoCache.put(userId, userMap);
