@@ -1,0 +1,77 @@
+services:
+  bot_db:
+    image: postgres:12-alpine
+    restart: always
+    container_name: ${CONTAINER_DB}
+    env_file:
+      - .env
+    ports:
+      - 5432:${DB_PORT}
+    environment:
+      - POSTGRES_DB=${ADMIN_DB_NAME}
+      - POSTGRES_USER=${DB_ADMIN_USER}
+      - POSTGRES_PASSWORD=${DB_ADMIN_PASS}
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_USER_PASS=${DB_USER_PASS}
+    volumes:
+      - bot_db_v:/var/lib/postgresql/data
+      - ./scripts/db_script.sh:/docker-entrypoint-initdb.d/1_db_script.sh
+
+  sql_chatbot_server:
+    container_name: ${SQL_CHATBOT_WEB_SERVER}
+    build:
+      context: ../backend
+    platform: linux/x86_64
+    restart: always
+    env_file:
+      - .env
+    environment:
+      - FLASK_APP=app.py
+      - DATABASE_URL=postgresql://${DB_USER}:${DB_USER_PASS}@${DB_HOST}:${DB_PORT}/${DB_NAME}
+    ports:
+      - 5000:${SQL_CHATBOT_WEB_SERVER_PORT}
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      - bot_db
+
+  sql_chatbot_ui:
+    container_name: ${SQL_CHATBOT_UI_SERVER}
+    restart: always
+    build:
+      context: ../frontend
+      args:
+        REACT_APP_PROD_BACKEND_PORT: ${SQL_CHATBOT_WEB_SERVER_PORT}
+        REACT_APP_PROD_NGINX_PORT: ${NGINX_PORT}
+    ports:
+      - 3000:${SQL_CHATBOT_UI_PORT}
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+    depends_on:
+      - sql_chatbot_server
+
+  sql_chatbot_nginx:
+    container_name: ${NGINX_SERVER_NAME}
+    restart: always
+    build:
+      context: ../nginx
+    ports:
+      - 80:${NGINX_PORT}
+    environment:
+      FRONTEND_HOST: ${SQL_CHATBOT_UI_SERVER}
+      FRONTEND_PORT: ${SQL_CHATBOT_UI_PORT}
+      BACKEND_HOST: ${SQL_CHATBOT_WEB_SERVER}
+      BACKEND_PORT: ${SQL_CHATBOT_WEB_SERVER_PORT}
+    depends_on:
+      - sql_chatbot_ui
+      - sql_chatbot_server
+
+volumes:
+  bot_db_v:
+  
+networks:
+  default:
+    name: ${BOT_NETWORK}

@@ -1,0 +1,391 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-box-sizing: border-box;
+}
+
+body {
+  height: 100vh;
+}
+
+#root {
+  height: 100%;
+  width: 100%;
+}
+
+.more-actions {
+  cursor: pointer;
+}
+
+:where(.css-dev-only-do-not-override-umhk5q).ant-card .ant-card-head-title {
+  padding: 2px 0;
+}
+
+ul.ant-menu.ant-menu-root.ant-menu-inline.ant-menu-light.css-dev-only-do-not-override-umhk5q,
+ul.ant-menu.ant-menu-root.ant-menu-vertical.ant-menu-light.ant-menu-inline-collapsed.css-dev-only-do-not-override-umhk5q {
+  height: 80vh;
+}
+
+.image-rotate {
+  transform: rotate(90deg);
+  -ms-transform: rotate(90deg);
+  -moz-transform: rotate(90deg);
+  -webkit-transform: rotate(90deg);
+  -o-transform: rotate(90deg);
+}
+
+.org-tree {
+  position: sticky;
+}
+
+.tree-hierarchy {
+  display: flex;
+  justify-content: center;
+}
+
+.org-tree ul {
+  padding-top: 20px;
+  transition: all 0.5s;
+  position: relative;
+  -webkit-transition: all 0.5s;
+  -moz-transition: all 0.5s;
+}
+
+.org-tree li {
+  float: left;
+  text-align: center;
+  list-style-type: none;
+  position: relative;
+  padding: 25px 5px 0 5px;
+  transition: all 0.5s;
+  -webkit-transition: all 0.5s;
+  -moz-transition: all 0.5s;
+}
+
+/*We will use ::before and ::after to draw the connectors*/
+
+.org-tree li::before,
+.org-tree li::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 50%;
+  border-top: 1px solid #000;
+  width: 50%;
+  height: 25px;
+}
+.org-tree li::after {
+  right: auto;
+  left: 50%;
+  border-left: 1px solid #000;
+}
+
+.org-tree li:only-child::after,
+.org-tree li:only-child::before {
+  display: none;
+}
+
+.org-tree li:only-child {
+  padding-top: 0px;
+}
+
+.org-tree li:first-child::before,
+.org-tree li:last-child::after {
+  border: 0 none;
+}
+
+.org-tree li:last-child::before {
+  border-right: 1px solid #000;
+  border-radius: 0 5px 0 0;
+  -webkit-border-radius: 0 5px 0 0;
+  -moz-border-radius: 0 5px 0 0;
+}
+.org-tree li:first-child::after {
+  border-radius: 5px 0 0 0;
+  -webkit-border-radius: 5px 0 0 0;
+  -moz-border-radius: 5px 0 0 0;
+}
+
+.org-tree ul ul::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  border-left: 1px solid #000;
+  width: 0;
+  height: 20px;
+}
+
+.org-tree li a {
+  cursor: pointer;
+  display: inline-block;
+  border-radius: 5px;
+  -webkit-border-radius: 5px;
+  -moz-border-radius: 5px;
+  transition: all 0.5s;
+  -webkit-transition: all 0.5s;
+  -moz-transition: all 0.5s;
+}
+
+.org-tree li a:hover + ul li::after,
+.org-tree li a:hover + ul li::before,
+.org-tree li a:hover + ul::before,
+.org-tree li a:hover + ul ul::before {
+  border-color: #000;
+}
+
+.card .card-body {
+  background: #fff;
+  height: auto;
+  text-align: center;
+  width: 150px;
+  position: relative;
+  border: 1px solid #000;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.card-hierarchy {
+  display: flex;
+  justify-content: center;
+}
+
+.card-body-header {
+  background: #fff;
+  height: auto;
+  text-align: center;
+  width: 150px;
+  position: relative;
+  border: 1px solid #000;
+  transform: translateX(-50%);
+}
+
+.divider {
+  margin: 0;
+  background-color: #000;
+}
+
+.child-hirarchy {
+  width: 20px;
+  height: 20px;
+  display: inline;
+}
+.card-body h4 a {
+  text-decoration: underline;
+  color: blue;
+}
+
+.ant-collapse > .ant-collapse-item > .ant-collapse-header .ant-collapse-arrow {
+  vertical-align: 0px;
+}
+
+.ant-btn-primary {
+  color: #fff;
+  border-color: #1890ff;
+  background: #1890ff;
+  text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.12);
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.045);
+}
+
+.ant-btn-danger {
+  color: #fff;
+  border-color: #ff4d4f;
+  background: #ff4d4f;
+  text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.12);
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.045);
+}
+
+.ant-form-item-label {
+  white-space: normal;
+}
+
+a {
+  color: #1890ff;
+}
+.ant-breadcrumb .anticon {
+  font-size: 16px;
+  text-align: center;
+}
+
+.anticon {
+  vertical-align: 0em;
+}
+
+.customer-icon {
+  width: 20px;
+  height: 20px;
+  margin-left: 5px;
+  margin-right: 10px;
+}
+
+.bredcrumb-container {
+  display: flex;
+  justify-content: space-between;
+}
+
+.ant-checkbox-input:not(:checked) + .ant-checkbox-inner {
+  border-color: black !important;
+}
+
+.ant-switch {
+  background-color: gray !important;
+}
+
+.ant-switch-checked {
+  background-color: #1890ff !important;
+}
+
+.ant-form-item-label
+  > label.ant-form-item-required:not(
+    .ant-form-item-required-mark-optional
+  )::after {
+  display: inline-flex;
+  margin-right: 4px;
+  color: #ff4d4f;
+  font-size: 14px;
+  font-family: SimSun, sans-serif;
+  line-height: 1;
+  content: "*";
+}
+.ant-form-item-label
+  > label.ant-form-item-required:not(
+    .ant-form-item-required-mark-optional
+  )::before {
+  content: none;
+}
+
+.ant-input[disabled] {
+  color: black;
+  background-color: white;
+}
+
+.ant-input-disabled {
+  color: black;
+  background-color: white;
+}
+
+.ant-select-multiple.ant-select-disabled.ant-select:not(
+    .ant-select-customize-input
+  )
+  .ant-select-selector {
+  background-color: white;
+}
+
+.ant-select-disabled.ant-select:not(.ant-select-customize-input)
+  .ant-select-selector {
+  background-color: white;
+}
+
+.ant-space.ant-space-vertical {
+  width: 100%;
+}
+
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.ant-collapse-expand-icon {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 10px;
+}
+
+.action-container {
+  margin: 0.5vh;
+}
+
+.action-icon {
+  width: 25px !important;
+  height: 25px !important;
+  cursor: pointer;
+}
+
+.action-box {
+  display: flex;
+  justify-content: space-evenly;
+  align-content: center;
+}
+
+.ant-spin-nested-loading > div > .ant-spin .ant-spin-dot {
+  position: unset;
+}
+
+.loading-style {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 5rem;
+  margin-bottom: 5rem;
+}
+.ant-layout-header {
+  height: 64px;
+  padding: 0 50px;
+  color: rgba(0, 0, 0, 0.85);
+  line-height: 64px;
+  background: #ffff;
+}
+.sticky-header {
+  position: sticky;
+  top: 50px;
+  z-index: 10;
+  height: 50px;
+  background: #f0f2f5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-left: 12px;
+  padding-right: 2px;
+}
+
+.fixed-header {
+  position: fixed;
+  top: 0;
+  z-index: 10;
+  height: 50px;
+  width: 100%;
+  background: #f0f2f5;
+  margin-top: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-left: 12px;
+}
+
+td.ant-table-cell.ant-table-column-sort {
+  background-color: rgba(150, 150, 150, 0.001);
+}
+
+.ant-input[disabled],
+.ant-select-disabled.ant-select:not(.ant-select-customize-input)
+  .ant-select-selector {
+  cursor: pointer;
+  color: #000;
+}
+
+.ant-picker-content {
+  transform: scale(1, 1);
+}
+
+textarea.ant-input {
+  max-width: 107%;
+  height: auto;
+  min-height: 32px;
+  line-height: 1.5715;
+  vertical-align: bottom;
+  transition: all 0.3s, height 0s;
+}
+
+.level-icon {
+  width: 20px !important;
+  height: 20px !important;
+  margin-left: 1rem;
+  cursor: pointer;
+}

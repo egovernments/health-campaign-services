@@ -1,0 +1,77 @@
+.my-header {
+  top: 0;
+  position: sticky;
+  z-index: 10;
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 4px solid #898a8d;
+  align-items: center;
+  height: 50px;
+  padding: 10px;
+  width: 100%;
+}
+
+.logo-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  max-height: 100%; /* Ensure it doesn’t overflow the header */
+}
+
+.logo-image {
+  max-width: 125px; /* Set a reasonable width */
+  max-height: 45px; /* Prevent it from exceeding navbar height */
+  object-fit: contain; /* Ensures the logo maintains its aspect ratio */
+  height: auto;
+}
+
+.title {
+  display: flex;
+  align-items: center;
+  color: #fff;
+  margin-left: 15px;
+  font-size: 1.5rem;
+}
+
+.profile {
+  display: flex;
+  align-items: center;
+  height: inherit;
+}
+
+.username {
+  color: #fff;
+  margin-left: 8px;
+}
+
+.dropdown {
+  margin-left: 0.5rem;
+  margin-right: 0.5rem;
+}
+
+.ant-dropdown-link {
+  color: white;
+}
+
+.ant-layout-header {
+  line-height: 30px;
+}
+
+.ant-layout-sider-children {
+  margin-top: -50px;
+}
+
+.env-TESTING,
+.env-STAGING,
+.env-PROD {
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 5px;
+  color: #fff;
+  letter-spacing: 0.5px;
+  text-align: center;
+  justify-content: center;
+  align-items: center;
+  padding: 2px 5px;
+  margin: 0px 5px;
+}

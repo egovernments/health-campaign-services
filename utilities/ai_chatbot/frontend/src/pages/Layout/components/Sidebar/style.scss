@@ -1,0 +1,23 @@
+.sider-style {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 150vh;
+  width: 200px;
+  background-color: #f0f0f0;
+  overflow-y: auto;
+  z-index: 1;
+  margin-top: 50px;
+}
+
+.menu-style {
+  height: 100vh;
+  width: inherit;
+  padding-top: 60px;
+  border-right: 0px;
+}
+
+.sidebar-icon {
+  width: 20px;
+  height: 20px;
+}
