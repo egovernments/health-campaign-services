@@ -36,7 +36,7 @@ public class Stock extends EgovOfflineModel {
 
     @JsonProperty("quantity")
     @NotNull
-    @Min(value = 1, message = "Minimum value cannot be less than 1")
+    @Min(value = 0, message = "Minimum value cannot be less than 0")
     @Max(value = Integer.MAX_VALUE, message = "Value exceeds maximum allowable limit")
     private Integer quantity;
 
