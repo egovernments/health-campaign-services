@@ -1,6 +1,7 @@
 package org.egov.transformer.transformationservice;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import digit.models.coremodels.AuditDetails;
 import lombok.extern.slf4j.Slf4j;
@@ -253,6 +254,8 @@ public class ProjectTaskTransformationService {
     }
 
     private void addAdditionalDetails(AdditionalFields additionalFields, ObjectNode additionalDetails) {
+        String scannerKey = "scanner";
+
         additionalFields.getFields().forEach(field -> {
             String key = field.getKey();
             String value = field.getValue();
@@ -271,6 +274,10 @@ public class ProjectTaskTransformationService {
                     log.warn("Invalid integer format for key '{}': value '{}'. Storing as null.", key, value);
                     additionalDetails.set(key, null);
                 }
+            } else if (scannerKey.equalsIgnoreCase(key)) {
+                ArrayNode codesScanned = objectMapper.valueToTree(value.split(COMMA));
+                additionalDetails.put("codesScanned", codesScanned.size());
+                additionalDetails.put("codesScannedList", codesScanned);
             } else {
                 additionalDetails.put(key, value);
             }
