@@ -53,6 +53,10 @@ public class ProjectIndexV1 {
     private String projectTypeId;
     @JsonProperty("subProjectType")
     private String subProjectType;
+    @JsonProperty("name")
+    private String name;
+    @JsonProperty("referenceId")
+    private String referenceId;
     @JsonProperty("localityCode")
     private String localityCode;
     @JsonProperty("createdBy")

@@ -137,6 +137,8 @@ public class ProjectTransformationService {
                             .projectType(project.getProjectType())
                             .subProjectType(project.getProjectSubType())
                             .projectTypeId(projectTypeId)
+                            .name(project.getName())
+                            .referenceId(project.getReferenceID())
                             .localityCode(localityCode)
                             .createdTime(project.getAuditDetails().getCreatedTime())
                             .createdBy(project.getAuditDetails().getCreatedBy())
