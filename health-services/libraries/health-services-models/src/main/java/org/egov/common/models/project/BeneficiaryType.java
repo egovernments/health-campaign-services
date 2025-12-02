@@ -11,7 +11,7 @@ public enum BeneficiaryType {
 
 	PRODUCT("PRODUCT"),
 
-	SCHOOL("SCHOOL")
+	SCHOOL("SCHOOL"),
 
 	SPAQ_1("SPAQ-1"),
 
