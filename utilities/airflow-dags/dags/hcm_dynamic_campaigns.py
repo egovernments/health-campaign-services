@@ -363,9 +363,7 @@ with DAG(
             # Get campaign identifier (new unified field)
             campaign_identifier = c.get("campaignIdentifier", "UNKNOWN")
             identifier_type = c.get("identifierType", "unknown")
-            # Get projectTypeId if available (for scripts that need it specifically)
-            project_type_id = c.get("projectTypeId")  # May be None if using campaignNumber
-
+            
             report_name = c.get("reportName", "UNKNOWN")
             frequency = c.get("triggerFrequency", "Daily")
             is_final_report = c.get("isFinalReport", False)
@@ -410,8 +408,6 @@ with DAG(
                 # Campaign identification
                 "CAMPAIGN_IDENTIFIER": campaign_identifier,
                 "IDENTIFIER_TYPE": identifier_type,
-                # Additional field for scripts that need projectTypeId specifically
-                "PROJECT_TYPE_ID": project_type_id or "",  # Empty string if not a projectTypeId
 
                 "REPORT_NAME": report_name,
                 "TRIGGER_FREQUENCY": frequency,
