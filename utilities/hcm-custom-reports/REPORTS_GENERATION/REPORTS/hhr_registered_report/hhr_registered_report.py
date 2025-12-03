@@ -6,13 +6,17 @@ from datetime import datetime
 import argparse
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--campaign_number', required=True)
+parser.add_argument('--campaign_identifier', required=True,
+                    help='Campaign identifier (can be campaignNumber or projectTypeId)')
+parser.add_argument('--identifier_type', default='campaignNumber',
+                    help='Type of identifier: "campaignNumber" or "projectTypeId"')
 parser.add_argument('--start_date', default='')
 parser.add_argument('--end_date', default='')
 parser.add_argument('--file_name', required=True)
 args = parser.parse_args()
 
-CAMPAIGN_NUMBER = args.campaign_number
+CAMPAIGN_IDENTIFIER = args.campaign_identifier  # Can be campaignNumber or projectTypeId (UUID)
+IDENTIFIER_TYPE = args.identifier_type  # "campaignNumber" or "projectTypeId"
 START_DATE = args.start_date
 END_DATE = args.end_date
 FILE_NAME = args.file_name
@@ -38,6 +42,17 @@ lteTime, gteTime, start_date_str, end_date_str = get_custom_dates_of_reports(STA
 start_date = datetime.strptime(start_date_str, "%Y-%m-%d %H:%M:%S%z")
 end_date = datetime.strptime(end_date_str, "%Y-%m-%d %H:%M:%S%z")
 date_folder = f"{start_date.strftime('%Y-%m-%d')}_to_{end_date.strftime('%Y-%m-%d')}"
+
+# === CAMPAIGN FILTER FIELD ===
+# Determine which ES field to use based on identifier type
+# - campaignNumber: Filter by Data.campaignNumber.keyword
+# - projectTypeId: Filter by Data.projectTypeId.keyword
+if IDENTIFIER_TYPE == "projectTypeId":
+    CAMPAIGN_FILTER_FIELD = "Data.projectTypeId.keyword"
+    print(f"📋 Using projectTypeId filter: {CAMPAIGN_IDENTIFIER}")
+else:
+    CAMPAIGN_FILTER_FIELD = "Data.campaignNumber.keyword"
+    print(f"📋 Using campaignNumber filter: {CAMPAIGN_IDENTIFIER}")
 
 # === UTILITY FUNCTIONS ===
 def decrypt_mobile_number(encrypted_mobile):
@@ -158,7 +173,7 @@ def fetch_household_data():
                 "must" : [
                     {
                         "term" : {
-                            "Data.campaignNumber.keyword" : CAMPAIGN_NUMBER
+                            CAMPAIGN_FILTER_FIELD : CAMPAIGN_IDENTIFIER
                         }
                     }
                 ],

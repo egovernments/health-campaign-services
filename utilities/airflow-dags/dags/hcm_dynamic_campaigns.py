@@ -302,7 +302,10 @@ with DAG(
             context["dag_run"].conf = {
                 "matched_campaigns": [
                     {
-                        "campaignNumber": "CMP-2025-01-15-001",
+                        "campaignIdentifier": "CMP-2025-01-15-001" or "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+                        "identifierType": "campaignNumber" or "projectTypeId",
+                        "campaignNumber": "CMP-2025-01-15-001" or null,
+                        "projectTypeId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890" or null,
                         "reportName": "hhr_registered_report",
                         "triggerFrequency": "Daily",
                         "triggerTime": "09:00:00+0000",
@@ -318,7 +321,8 @@ with DAG(
             List of environment variable dictionaries, one per campaign:
             [
                 {
-                    "CAMPAIGN_NUMBER": "CMP-2025-01-15-001",
+                    "CAMPAIGN_IDENTIFIER": "CMP-2025-01-15-001",
+                    "IDENTIFIER_TYPE": "campaignNumber",
                     "REPORT_NAME": "hhr_registered_report",
                     "TRIGGER_FREQUENCY": "Daily",
                     "START_DATE": "2025-01-17 00:00:00+0000",
@@ -333,7 +337,7 @@ with DAG(
 
         Pod Execution Flow:
         1. Dockerfile ENTRYPOINT runs: python /app/main.py
-        2. main.py reads environment variables (REPORT_NAME, CAMPAIGN_NUMBER, START_DATE, END_DATE)
+        2. main.py reads environment variables (REPORT_NAME, CAMPAIGN_IDENTIFIER, IDENTIFIER_TYPE, START_DATE, END_DATE)
         3. main.py calls report script with command-line arguments
         4. Report script queries Elasticsearch filtered by campaign and date range
         5. Generate Excel file and save to OUTPUT_FILE path on PVC
@@ -356,7 +360,12 @@ with DAG(
         now = datetime.now(UTC)
 
         for idx, c in enumerate(matches, 1):
-            campaign_number = c.get("campaignNumber", "UNKNOWN")
+            # Get campaign identifier (new unified field)
+            campaign_identifier = c.get("campaignIdentifier", "UNKNOWN")
+            identifier_type = c.get("identifierType", "unknown")
+            # Get projectTypeId if available (for scripts that need it specifically)
+            project_type_id = c.get("projectTypeId")  # May be None if using campaignNumber
+
             report_name = c.get("reportName", "UNKNOWN")
             frequency = c.get("triggerFrequency", "Daily")
             is_final_report = c.get("isFinalReport", False)
@@ -365,7 +374,7 @@ with DAG(
             report_end_time = c.get("reportEndTime", "23:59:59")
             trigger_time = c.get("triggerTime", "00:00:00")
 
-            logger.info("Campaign %d/%d: %s", idx, len(matches), campaign_number)
+            logger.info("Campaign %d/%d: %s [%s]", idx, len(matches), campaign_identifier, identifier_type)
             logger.info("  Report: %s", report_name)
             logger.info("  Frequency: %s", frequency)
             logger.info("  Report time window: %s to %s", report_start_time, report_end_time)
@@ -381,9 +390,10 @@ with DAG(
                     end_dt.strftime("%Y-%m-%d %H:%M:%S"))
 
             # Build PVC folder structure
-            # Format: /app/REPORTS_GENERATION/FINAL_REPORTS/<campaign>/<report>/<frequency>/
+            # Format: /app/REPORTS_GENERATION/FINAL_REPORTS/<campaign_identifier>/<report>/<frequency>/
             # Example: /app/REPORTS_GENERATION/FINAL_REPORTS/CMP-001/hhr_registered_report/Daily/
-            output_dir = f"{OUTPUT_MOUNT_PATH}/{campaign_number}/{report_name}/{frequency}"
+            # Example: /app/REPORTS_GENERATION/FINAL_REPORTS/a1b2c3d4-e5f6-7890-abcd-ef1234567890/hhr_registered_report/Daily/
+            output_dir = f"{OUTPUT_MOUNT_PATH}/{campaign_identifier}/{report_name}/{frequency}"
 
             # Generate timestamped filename
             # Format: <report_name>_YYYY-MM-DD_HH-MM-SS.xlsx
@@ -398,7 +408,11 @@ with DAG(
             # These match the env vars expected by main.py
             env_dict = {
                 # Campaign identification
-                "CAMPAIGN_NUMBER": campaign_number,
+                "CAMPAIGN_IDENTIFIER": campaign_identifier,
+                "IDENTIFIER_TYPE": identifier_type,
+                # Additional field for scripts that need projectTypeId specifically
+                "PROJECT_TYPE_ID": project_type_id or "",  # Empty string if not a projectTypeId
+
                 "REPORT_NAME": report_name,
                 "TRIGGER_FREQUENCY": frequency,
                 "TRIGGER_TIME" : c.get("triggerTime", 0),
@@ -544,7 +558,8 @@ with DAG(
         for idx, env in enumerate(env_list, 1):
             campaign_info = {
                 "index": idx,
-                "campaignNumber": env.get("CAMPAIGN_NUMBER"),
+                "campaignIdentifier": env.get("CAMPAIGN_IDENTIFIER"),
+                "identifierType": env.get("IDENTIFIER_TYPE"),
                 "reportName": env.get("REPORT_NAME"),
                 "frequency": env.get("TRIGGER_FREQUENCY"),
                 "dateRange": f"{env.get('START_DATE')} to {env.get('END_DATE')}",
@@ -552,7 +567,7 @@ with DAG(
             }
             summary.append(campaign_info)
 
-            logger.info("Campaign %d: %s", idx, env.get("CAMPAIGN_NUMBER"))
+            logger.info("Campaign %d: %s [%s]", idx, env.get("CAMPAIGN_IDENTIFIER"), env.get("IDENTIFIER_TYPE"))
             logger.info("  Report: %s", env.get("REPORT_NAME"))
             logger.info("  Frequency: %s", env.get("TRIGGER_FREQUENCY"))
             logger.info("  Date range: %s to %s",
