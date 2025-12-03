@@ -104,5 +104,7 @@ public class ProjectTaskIndexV1 {
     private List<Double> geoPoint;
     @JsonProperty("taskDates")
     private String taskDates;
+    @JsonProperty("isDeleted")
+    private boolean isDeleted;
 
 }

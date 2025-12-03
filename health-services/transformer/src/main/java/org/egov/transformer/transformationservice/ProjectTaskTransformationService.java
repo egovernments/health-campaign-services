@@ -153,6 +153,7 @@ public class ProjectTaskTransformationService {
                 .age(beneficiaryInfo.containsKey(AGE) ? (Integer) beneficiaryInfo.get(AGE) : null)
                 .gender(beneficiaryInfo.containsKey(GENDER) ? (String) beneficiaryInfo.get(GENDER) : null)
                 .individualId(beneficiaryInfo.containsKey(INDIVIDUAL_ID) ? (String) beneficiaryInfo.get(INDIVIDUAL_ID) : null)
+                .isDeleted(task.getIsDeleted())
                 .build();
 
         //adding to additional details  from additionalFields in task and task resource
