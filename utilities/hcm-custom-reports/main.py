@@ -312,7 +312,7 @@ finally:
                 data_object = json.dumps(data)
                 send_to_kafka(producer=producer, topic=CUSTOM_REPORTS_AUTOMATION_TOPIC, message=data_object)
         else:
-            print(f"upload_response")
+            print(f"Error response : {upload_response}")
 
 
 
