@@ -62,7 +62,7 @@ def get_data_to_be_pushed(file_store_id):
     data = {
         "dag_run_id" : DAG_RUN_ID,
         "dag_name" : DAG_ID,
-        "campaign_identifier" : CAMPAIGN_NUMBER,
+        "campaign_identifier" : CAMPAIGN_IDENTIFIER,
         "report_name" : REPORT_NAME,
         "trigger_frequency" : TRIGGER_FREQUENCY,
         "file_store_id" : file_store_id,
@@ -288,13 +288,13 @@ finally:
 
     reports_folder = os.path.join(
         OUTPUT_DIR,
-        CAMPAIGN_NUMBER,
+        CAMPAIGN_IDENTIFIER,
         REPORT_NAME,
         TRIGGER_FREQUENCY
     )
 
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    zip_name = f"{REPORT_FILE_NAME}_{CAMPAIGN_NUMBER}_{timestamp}.zip"
+    zip_name = f"{REPORT_FILE_NAME}_{CAMPAIGN_IDENTIFIER}_{timestamp}.zip"
 
     zip_path = create_zip_of_reports(reports_folder, zip_name)
 
