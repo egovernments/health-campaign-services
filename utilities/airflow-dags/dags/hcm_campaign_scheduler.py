@@ -495,7 +495,10 @@ with DAG(
                         "endDate": c.get("campaignEndDate"),
                         "outputPvcName": c.get("outputPvcName"),
                         "isFinalReport": is_final,
-                        "remainingDays": remaining_days if is_final else 0
+                        "remainingDays": remaining_days if is_final else 0,
+                        # Report time bounds for data collection window
+                        "reportStartTime": c.get("reportStartTime", "00:00:00"),
+                        "reportEndTime": c.get("reportEndTime", "23:59:59")
                     })
                 else:
                     logger.info("  ✗ SKIP")
