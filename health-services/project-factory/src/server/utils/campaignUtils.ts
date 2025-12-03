@@ -2335,6 +2335,7 @@ async function processUnifiedTemplateCampaign(request: any): Promise<void> {
     ResourceDetails: {
       type: "unified-console-parse",
       tenantId: campaignDetails.tenantId,
+      locale: getLocaleFromRequest(request),
       referenceId: campaignDetails.id,
       fileStoreId: unifiedResource.filestoreId,
       campaignId: campaignDetails.id,

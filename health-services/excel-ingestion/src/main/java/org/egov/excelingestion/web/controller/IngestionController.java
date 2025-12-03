@@ -76,8 +76,10 @@ public class IngestionController {
         GenerateResource inputResource = request.getGenerateResource();
         
         // Extract locale from RequestInfo using RequestInfoConverter
-        String locale = requestInfoConverter.extractLocale(request.getRequestInfo());
-        
+        String locale = inputResource.getLocale() != null ? inputResource.getLocale()
+                : requestInfoConverter.extractLocale(request.getRequestInfo());
+
+
         GenerateResource responseResource = GenerateResource.builder()
                 .id(generationId)
                 .tenantId(inputResource.getTenantId())
@@ -109,14 +111,19 @@ public class IngestionController {
     @PostMapping("/_process")
     public ResponseEntity<ProcessResourceResponse> processExcel(
             @Valid @RequestBody ProcessResourceRequest request) {
-        
-        log.info("Received process request for type: {} and tenantId: {}", 
-                request.getResourceDetails().getType(), 
+
+        log.info("Received process request for type: {} and tenantId: {}",
+                request.getResourceDetails().getType(),
                 request.getResourceDetails().getTenantId());
-        
+
         RequestInfo requestInfo = request.getRequestInfo();
         String processingId = processingService.initiateProcessing(request);
-        
+
+        // Extract locale from RequestInfo using RequestInfoConverter
+        String locale = request.getResourceDetails().getLocale() != null
+                ? request.getResourceDetails().getLocale()
+                : requestInfoConverter.extractLocale(requestInfo);
+
         // Return the resource with pending status and processing ID
         ProcessResource responseResource = ProcessResource.builder()
                 .id(processingId)
@@ -126,6 +133,7 @@ public class IngestionController {
                 .referenceId(request.getResourceDetails().getReferenceId())
                 .fileStoreId(request.getResourceDetails().getFileStoreId())
                 .status(ProcessingConstants.STATUS_PENDING)
+                .locale(locale)
                 .additionalDetails(request.getResourceDetails().getAdditionalDetails())
                 .build();
         

@@ -60,7 +60,8 @@ public class GenerationService {
         
         // Extract and set locale from RequestInfo
         if (request.getRequestInfo() != null) {
-            String locale = requestInfoConverter.extractLocale(request.getRequestInfo());
+            String locale = generateResource.getLocale() != null ? generateResource.getLocale()
+                    : requestInfoConverter.extractLocale(request.getRequestInfo());
             generateResource.setLocale(locale);
         }
 
@@ -104,8 +105,9 @@ public class GenerationService {
             }
 
             // Set locale from RequestInfo if not already set
-            if (request.getRequestInfo() != null && criteria.getLocale() == null) {
-                String locale = requestInfoConverter.extractLocale(request.getRequestInfo());
+            if (request.getRequestInfo() != null ) {
+                String locale = criteria.getLocale() != null ? criteria.getLocale()
+                        : requestInfoConverter.extractLocale(request.getRequestInfo());
                 criteria.setLocale(locale);
             }
 
