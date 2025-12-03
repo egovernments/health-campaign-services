@@ -57,6 +57,12 @@ OUTPUT_MOUNT_PATH = "/app/REPORTS_GENERATION/FINAL_REPORTS"
 # Kubernetes namespace where pods will be created
 K8S_NAMESPACE = os.getenv("K8S_NAMESPACE", "airflow")
 
+#File store env variables
+FILE_STORE_URL = os.getenv("FILE_STORE_URL") 
+FILE_STORE_UPLOAD_FILE_ENDPOINT = os.getenv("FILE_STORE_UPLOAD_FILE_ENDPOINT", "filestore/v1/files")
+TENANT_ID = os.getenv("TENANT_ID", "dev")
+MODULE_NAME = os.getenv("FILE_STORE_MODULE_NAME", "custom-reports")
+
 # Container resource constraints
 # Requests: Minimum guaranteed resources
 # Limits: Maximum allowed resources
@@ -230,6 +236,9 @@ with DAG(
         logger.info("BUILDING PAYLOAD FOR %d CAMPAIGNS", len(matches))
         logger.info("=" * 80)
 
+        dag_run_id = context["dag_run"].run_id
+        dag_id = context["dag"].dag_id
+
         env_list = []
         now = datetime.now(UTC)
 
@@ -274,6 +283,7 @@ with DAG(
                 "CAMPAIGN_NUMBER": campaign_number,
                 "REPORT_NAME": report_name,
                 "TRIGGER_FREQUENCY": frequency,
+                "TRIGGER_TIME" : c.get("triggerTime", 0),
 
                 # Date range for report (format: YYYY-MM-DD HH:MM:SS+ZZZZ)
                 # main.py expects START_DATE and END_DATE (not REPORT_START/REPORT_END)
@@ -291,7 +301,17 @@ with DAG(
 
                 # Script location (main.py will execute this)
                 # Report scripts are stored in /app/REPORTS_GENERATION/REPORTS/<report_name>/<report_name>.py
-                "REPORT_SCRIPT": f"/app/REPORTS_GENERATION/REPORTS/{report_name}/{report_name}.py"
+                "REPORT_SCRIPT": f"/app/REPORTS_GENERATION/REPORTS/{report_name}/{report_name}.py",
+
+                #File store configurations
+                "FILE_STORE_URL" : FILE_STORE_URL,
+                "FILE_STORE_UPLOAD_FILE_ENDPOINT" : FILE_STORE_UPLOAD_FILE_ENDPOINT,
+                "TENANT_ID" : TENANT_ID,
+                "FILE_STORE_MODULE_NAME" : MODULE_NAME,
+
+                #Dag information
+                "DAG_RUN_ID" : dag_run_id,
+                "DAG_ID" : dag_id
             }
 
             env_list.append(env_dict)
