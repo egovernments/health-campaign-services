@@ -159,6 +159,44 @@ def is_first_day(campaign, now):
         return False
 
 
+def frequency_due(campaign, now):
+    """
+    Check if the campaign is due to run based on its trigger frequency.
+
+    Frequency rules:
+      - DAILY: Always due (days_since_start >= 0)
+      - WEEKLY: Due every 7 days from start (days_since_start >= 7 and days % 7 == 0)
+      - MONTHLY: Due every 30 days from start (days_since_start >= 30 and days % 30 == 0)
+
+    Args:
+        campaign (dict): Campaign object with triggerFrequency and startDate
+        now (datetime): Current execution time
+
+    Returns:
+        bool: True if the campaign is due to run based on frequency
+    """
+    freq = (campaign.get("triggerFrequency") or "DAILY").strip().lower()
+    start_date_str = campaign.get("startDate", "")
+
+    if not start_date_str:
+        return True  # Default to running if no start date
+
+    try:
+        start_dt = datetime.strptime(start_date_str, "%d-%m-%Y %H:%M:%S%z")
+        days = (now.date() - start_dt.date()).days
+
+        if freq == "daily":
+            return days >= 0
+        if freq == "weekly":
+            return days >= 7 and (days % 7 == 0)
+        if freq == "monthly":
+            return days >= 30 and (days % 30 == 0)
+        return True  # Default to running for unknown frequencies
+    except ValueError:
+        logger.warning("Failed to parse startDate for frequency check: %s", start_date_str)
+        return True  # Default to running if parsing fails
+
+
 def compute_range(campaign, now):
     """
     Calculate report date range based on trigger frequency and report time bounds.
@@ -408,6 +446,11 @@ with DAG(
             logger.info("  Trigger time: %s", trigger_time)
             if is_final_report:
                 logger.info("  ⚡ FINAL REPORT: Covering %d remaining days", remaining_days)
+
+            # Check if frequency is due (DAILY/WEEKLY/MONTHLY)
+            if not frequency_due(c, now):
+                logger.info("  ⏭️ SKIP: Frequency not due (%s)", frequency)
+                continue
 
             # Check if first day AND report would cover yesterday's data
             # On first day, only allow if reportEndTime < triggerTime (report covers today)

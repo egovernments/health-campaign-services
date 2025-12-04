@@ -307,42 +307,6 @@ def is_campaign_active(campaign, ref_dt):
     # Campaign is active: startDate <= today <= endDate
     return (True, f"Campaign is active ({start_date} to {end_date})")
 
-def frequency_due(campaign, ref_dt):
-    """
-    Frequency rules:
-      - DAILY: days_since_start >= 1
-      - WEEKLY: days_since_start >= 7 and days_since_start % 7 == 0
-      - MONTHLY: days_since_start >= 30 and days_since_start % 30 == 0
-
-    Args:
-        campaign (dict): Campaign object with triggerFrequency and campaignStartDate/startDate
-        ref_dt (datetime): Reference datetime (current execution time)
-
-    Returns:
-        bool: True if the campaign is due to run based on frequency
-    """
-    freq = (campaign.get("triggerFrequency") or "DAILY").strip().lower()
-    # Support both campaignStartDate (MDMS) and startDate (legacy)
-    start = campaign.get("campaignStartDate") or campaign.get("startDate")
-    if not start:
-        return False
-    try:
-        sdt = parse_date_string(start).date()
-    except Exception:
-        logger.exception("Failed to parse start date for frequency check: %s", campaign.get("campaignNumber"))
-        return False
-
-    days = (ref_dt.date() - sdt).days
-
-    if freq == "daily":
-        return days >= 1
-    if freq == "weekly":
-        return days >= 7 and (days % 7 == 0)
-    if freq == "monthly":
-        return days >= 30 and (days % 30 == 0)
-    return False
-
-
 def is_final_report_due(campaign, ref_dt):
     """
     Check if campaign is ending today and needs a final partial report.
@@ -495,19 +459,16 @@ with DAG(
                 # Check if in window
                 in_window = window_start <= trig_dt <= window_end
 
-                # Check if frequency is due
-                freq_due = frequency_due(c, now)
-
                 # Check if final report is due (campaign ending today with remaining days)
                 is_final, remaining_days = is_final_report_due(c, now)
 
                 logger.info("Campaign %s (%s):", identifier, identifier_type)
                 logger.info("  Trigger time: %s → %s", trig, trig_dt.strftime("%H:%M:%S"))
                 logger.info("  In window: %s", in_window)
-                logger.info("  Frequency due: %s", freq_due)
                 logger.info("  Final report due: %s (remaining days: %d)", is_final, remaining_days)
 
-                if in_window and (freq_due or is_final):
+                # Scheduler only checks window timing; processor DAG handles frequency logic
+                if in_window:
                     if is_final:
                         logger.info("  ✓ FINAL REPORT MATCH - Campaign ending with %d remaining days", remaining_days)
                     else:
