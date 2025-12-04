@@ -1,6 +1,7 @@
 package org.egov.excelingestion.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.contract.models.AuditDetails;
 import org.egov.excelingestion.constants.GenerationConstants;
 import org.egov.excelingestion.repository.GeneratedFileRepository;
 import org.egov.excelingestion.util.RequestInfoConverter;
@@ -49,14 +50,19 @@ public class GenerationService {
         GenerateResource generateResource = request.getGenerateResource();
         generateResource.setId(generationId);
         generateResource.setStatus(GenerationConstants.STATUS_PENDING);
-        generateResource.setCreatedTime(System.currentTimeMillis());
-        generateResource.setLastModifiedTime(System.currentTimeMillis());
+
+        // Set audit details
+        AuditDetails auditDetails = AuditDetails.builder()
+                .createdTime(System.currentTimeMillis())
+                .lastModifiedTime(System.currentTimeMillis())
+                .build();
         
         if (request.getRequestInfo() != null && request.getRequestInfo().getUserInfo() != null) {
             String userUuid = request.getRequestInfo().getUserInfo().getUuid();
-            generateResource.setCreatedBy(userUuid);
-            generateResource.setLastModifiedBy(userUuid);
+            auditDetails.setCreatedBy(userUuid);
+            auditDetails.setLastModifiedBy(userUuid);
         }
+        generateResource.setAuditDetails(auditDetails);
         
         // Extract and set locale from RequestInfo
         if (request.getRequestInfo() != null) {

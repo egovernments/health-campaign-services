@@ -1,6 +1,7 @@
 package org.egov.excelingestion.repository;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.contract.models.AuditDetails;
 import org.egov.excelingestion.constants.GenerationConstants;
 import org.egov.excelingestion.web.models.GenerateResource;
 import org.egov.excelingestion.web.models.GenerationSearchCriteria;
@@ -137,6 +138,13 @@ public class GeneratedFileRepository {
                     additionalDetails = objectMapper.readTree(additionalDetailsStr);
                 }
 
+                AuditDetails auditDetails = AuditDetails.builder()
+                        .createdBy(rs.getString("createdby"))
+                        .lastModifiedBy(rs.getString("lastmodifiedby"))
+                        .createdTime(rs.getLong("createdtime"))
+                        .lastModifiedTime(rs.getLong("lastmodifiedtime"))
+                        .build();
+
                 return GenerateResource.builder()
                     .id(rs.getString("id"))
                     .referenceId(rs.getString("referenceId"))
@@ -146,10 +154,7 @@ public class GeneratedFileRepository {
                     .status(rs.getString("status"))
                     .locale(rs.getString("locale"))
                     .additionalDetails(additionalDetails != null ? objectMapper.convertValue(additionalDetails, java.util.Map.class) : null)
-                    .createdBy(rs.getString("createdBy"))
-                    .lastModifiedBy(rs.getString("lastModifiedBy"))
-                    .createdTime(rs.getLong("createdTime"))
-                    .lastModifiedTime(rs.getLong("lastModifiedTime"))
+                    .auditDetails(auditDetails)
                     .build();
             } catch (Exception e) {
                 log.error("Error mapping row to GenerateResource: {}", e.getMessage(), e);
