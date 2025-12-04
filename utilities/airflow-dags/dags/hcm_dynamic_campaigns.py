@@ -17,8 +17,10 @@ Parallelism: All campaigns run simultaneously (max controlled by max_active_task
 
 Required Environment Variables:
 - REPORT_IMAGE: Docker image for report generation (set by CI/CD)
-- OUTPUT_PVC_NAME: PVC name for storing reports (default: hcm-reports-output)
 - K8S_NAMESPACE: Kubernetes namespace (default: default)
+
+Note: Reports are generated in ephemeral storage (emptyDir) and uploaded to FileStore.
+No PVC is required as files don't need to persist after upload.
 """
 
 import os
@@ -50,8 +52,7 @@ REPORT_IMAGE = Variable.get("REPORT_IMAGE", default_var=None)
 if not REPORT_IMAGE:
     raise ValueError("REPORT_IMAGE Airflow Variable is required. Set it via Admin → Variables in Airflow UI.")
 
-# PVC configuration for report output
-OUTPUT_PVC_NAME = os.getenv("OUTPUT_PVC_NAME", "hcm-reports-output")
+# Temporary storage path for report generation (uses emptyDir, not PVC)
 OUTPUT_MOUNT_PATH = "/app/REPORTS_GENERATION/FINAL_REPORTS"
 
 # Kubernetes namespace where pods will be created
@@ -395,7 +396,6 @@ with DAG(
                     "TRIGGER_FREQUENCY": "Daily",
                     "START_DATE": "2025-01-17 00:00:00+0000",
                     "END_DATE": "2025-01-17 23:59:59+0000",
-                    "OUTPUT_PVC_NAME": "hcm-reports-output",
                     "OUTPUT_DIR": "/app/REPORTS_GENERATION/FINAL_REPORTS/CMP-001/hhr_registered_report/Daily",
                     "OUTPUT_FILE": "/app/REPORTS_GENERATION/FINAL_REPORTS/CMP-001/hhr_registered_report/Daily/hhr_registered_report_2025-01-18_09-00-00.xlsx",
                     "REPORT_SCRIPT": "/app/REPORTS_GENERATION/REPORTS/hhr_registered_report/hhr_registered_report.py"
@@ -408,7 +408,7 @@ with DAG(
         2. main.py reads environment variables (REPORT_NAME, CAMPAIGN_IDENTIFIER, IDENTIFIER_TYPE, START_DATE, END_DATE)
         3. main.py calls report script with command-line arguments
         4. Report script queries Elasticsearch filtered by campaign and date range
-        5. Generate Excel file and save to OUTPUT_FILE path on PVC
+        5. Generate Excel file, create ZIP, and upload to FileStore
         """
         # Read matched campaigns from DAG run configuration
         matches = context["dag_run"].conf.get("matched_campaigns", [])
@@ -466,7 +466,7 @@ with DAG(
                     start_dt.strftime("%Y-%m-%d %H:%M:%S"),
                     end_dt.strftime("%Y-%m-%d %H:%M:%S"))
 
-            # Build PVC folder structure
+            # Build folder structure for temporary storage
             # Format: /app/REPORTS_GENERATION/FINAL_REPORTS/<campaign_identifier>/<report>/<frequency>/
             # Example: /app/REPORTS_GENERATION/FINAL_REPORTS/CMP-001/hhr_registered_report/Daily/
             # Example: /app/REPORTS_GENERATION/FINAL_REPORTS/a1b2c3d4-e5f6-7890-abcd-ef1234567890/hhr_registered_report/Daily/
@@ -502,7 +502,6 @@ with DAG(
                 "REMAINING_DAYS": str(remaining_days),
 
                 # Output configuration
-                "OUTPUT_PVC_NAME": OUTPUT_PVC_NAME,
                 "OUTPUT_DIR": OUTPUT_MOUNT_PATH,  # Base path - main.py will add campaign/report/frequency
                 "OUTPUT_FILE": output_file,
 
@@ -565,8 +564,7 @@ with DAG(
         # Resource constraints (requests and limits)
         container_resources=CONTAINER_RESOURCES,
 
-        # Security context: Run as root to create directories in PVC
-        # Alternative: Use fsGroup to match PVC ownership (e.g., fsGroup=1000)
+        # Security context for pod execution
         security_context=k8s_models.V1PodSecurityContext(
             run_as_user=1000,
             run_as_group=1000,      
@@ -579,13 +577,12 @@ with DAG(
         in_cluster=True,                  # Running inside Kubernetes cluster
         startup_timeout_seconds=600,      # Wait up to 10 minutes for pod to start
 
-        # Volume configuration: Mount PVC for report output
+        # Volume configuration: Use emptyDir for temporary report storage
+        # Reports are uploaded to FileStore and don't need persistent storage
         volumes=[
             k8s_models.V1Volume(
                 name="reports-output",
-                persistent_volume_claim=k8s_models.V1PersistentVolumeClaimVolumeSource(
-                    claim_name=OUTPUT_PVC_NAME
-                )
+                empty_dir=k8s_models.V1EmptyDirVolumeSource()
             )
         ],
         volume_mounts=[
@@ -656,8 +653,7 @@ with DAG(
             logger.info("")
 
         logger.info("=" * 80)
-        logger.info("All campaign reports have been generated and saved to PVC")
-        logger.info("PVC: %s", OUTPUT_PVC_NAME)
+        logger.info("All campaign reports have been generated and uploaded to FileStore")
         logger.info("=" * 80)
 
         return {
