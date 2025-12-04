@@ -6,7 +6,6 @@ on:
       - allValidations
       - master
       - console
-      - kafka-issue-fix
 
 env:
   DOCKER_USERNAME: ${{ vars.DOCKER_USERNAME }}
