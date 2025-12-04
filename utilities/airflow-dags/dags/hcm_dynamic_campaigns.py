@@ -78,79 +78,216 @@ CONTAINER_RESOURCES = k8s_models.V1ResourceRequirements(
 )
 
 # -------------------------------------------------
-# HELPER FUNCTION: Compute Date Range by Frequency
+# HELPER FUNCTIONS
 # -------------------------------------------------
+
+def parse_time_string(time_str):
+    """
+    Parse a time string (HH:MM:SS or HH:MM) into hours, minutes, seconds.
+
+    Args:
+        time_str (str): Time string like "14:00:00", "14:00", or "14"
+
+    Returns:
+        tuple: (hour, minute, second)
+    """
+    parts = time_str.strip().split(":")
+    hour = int(parts[0]) if len(parts) > 0 else 0
+    minute = int(parts[1]) if len(parts) > 1 else 0
+    second = int(parts[2]) if len(parts) > 2 else 0
+    return (hour, minute, second)
+
+
+def should_report_today(campaign, now):
+    """
+    Determine if the report should cover today's data or yesterday's data
+    based on reportEndTime vs triggerTime comparison.
+
+    Logic:
+        - If reportEndTime < triggerTime: Report covers TODAY (data collection complete)
+        - If reportEndTime >= triggerTime: Report covers YESTERDAY (data collection not complete)
+
+    Args:
+        campaign (dict): Campaign with reportEndTime and triggerTime
+        now (datetime): Current execution time
+
+    Returns:
+        bool: True if report should cover today, False for yesterday
+    """
+    report_end_time_str = campaign.get("reportEndTime", "23:59:59")
+    trigger_time_str = campaign.get("triggerTime", "00:00:00")
+
+    # Parse reportEndTime (just the time part, ignore timezone)
+    end_h, end_m, end_s = parse_time_string(report_end_time_str.split("+")[0].split("-")[0])
+    report_end_minutes = end_h * 60 + end_m
+
+    # Parse triggerTime (just the time part, ignore timezone)
+    trig_h, trig_m, trig_s = parse_time_string(trigger_time_str.split("+")[0].split("-")[0])
+    trigger_minutes = trig_h * 60 + trig_m
+
+    # If reportEndTime < triggerTime, data collection is complete for today
+    return report_end_minutes < trigger_minutes
+
+
+def is_first_day(campaign, now):
+    """
+    Check if today is the first day of the campaign.
+
+    Args:
+        campaign (dict): Campaign object with startDate field
+        now (datetime): Current execution time
+
+    Returns:
+        bool: True if today is the campaign's start date
+    """
+    start_date_str = campaign.get("startDate", "")
+    if not start_date_str:
+        return False
+
+    # Parse start date (format: DD-MM-YYYY HH:MM:SS+ZZZZ)
+    try:
+        start_dt = datetime.strptime(start_date_str, "%d-%m-%Y %H:%M:%S%z")
+        return now.date() == start_dt.date()
+    except ValueError:
+        logger.warning("Failed to parse startDate: %s", start_date_str)
+        return False
+
 
 def compute_range(campaign, now):
     """
-    Calculate report date range based on trigger frequency.
+    Calculate report date range based on trigger frequency and report time bounds.
 
     Args:
-        campaign (dict): Campaign object with triggerFrequency, isFinalReport, remainingDays
+        campaign (dict): Campaign object with:
+            - triggerFrequency: Daily, Weekly, Monthly
+            - isFinalReport: bool for campaign end date
+            - remainingDays: int for partial period
+            - reportStartTime: Start time for data collection (e.g., "00:00:00")
+            - reportEndTime: End time for data collection (e.g., "14:00:00")
+            - triggerTime: When the report is triggered (e.g., "16:00:00")
         now (datetime): Current execution time (UTC)
 
     Returns:
         tuple: (start_datetime, end_datetime) in UTC
 
-    Logic:
-        - Daily: Yesterday (00:00:00 to 23:59:59)
-        - Weekly: Last 7 days ending yesterday
-        - Monthly: Last 30 days ending yesterday
-        - Final Report (partial): Only the remaining days since last scheduled report
+    Logic for Daily Reports:
+        - If reportEndTime < triggerTime: Report covers TODAY's reportStartTime to reportEndTime
+        - If reportEndTime >= triggerTime: Report covers YESTERDAY's reportStartTime to reportEndTime
 
     Examples:
-        If today is 2025-01-18:
-        - Daily: 2025-01-17 00:00:00 to 2025-01-17 23:59:59
-        - Weekly: 2025-01-11 00:00:00 to 2025-01-17 23:59:59 (7 days)
-        - Monthly: 2024-12-19 00:00:00 to 2025-01-17 23:59:59 (30 days)
+        Scenario 1: reportStartTime=00:00, reportEndTime=14:00, triggerTime=16:00
+        - reportEndTime (14:00) < triggerTime (16:00)
+        - Report covers: TODAY 00:00 to TODAY 14:00
 
-        Final Report Example (campaign ends on day 19, weekly frequency):
-        - Last weekly report was on day 14
-        - remainingDays = 5
-        - Report covers: 2025-01-13 00:00:00 to 2025-01-17 23:59:59 (5 days)
+        Scenario 2: reportStartTime=00:00, reportEndTime=17:00, triggerTime=16:00
+        - reportEndTime (17:00) >= triggerTime (16:00)
+        - Report covers: YESTERDAY 00:00 to YESTERDAY 17:00
+
+    Weekly/Monthly:
+        - Uses the same today/yesterday logic for the end date
+        - Start date is calculated based on frequency (7 or 30 days back)
     """
     freq = campaign.get("triggerFrequency", "Daily").lower()
     is_final = campaign.get("isFinalReport", False)
     remaining_days = campaign.get("remainingDays", 0)
 
+    # Parse report time bounds
+    report_start_time_str = campaign.get("reportStartTime", "00:00:00")
+    report_end_time_str = campaign.get("reportEndTime", "23:59:59")
+
+    start_h, start_m, start_s = parse_time_string(report_start_time_str.split("+")[0].split("-")[0])
+    end_h, end_m, end_s = parse_time_string(report_end_time_str.split("+")[0].split("-")[0])
+
+    # Determine if we should report for today or yesterday
+    use_today = should_report_today(campaign, now)
+
+    if use_today:
+        # Data collection is complete for today
+        base_date = now.date()
+        logger.info("Report will cover TODAY's data (reportEndTime < triggerTime)")
+    else:
+        # Data collection not complete for today, use yesterday
+        base_date = (now - timedelta(days=1)).date()
+        logger.info("Report will cover YESTERDAY's data (reportEndTime >= triggerTime)")
+
     # Handle final partial report for campaign end date
     if is_final and remaining_days > 0:
-        # FINAL PARTIAL REPORT: Cover only the remaining days since last scheduled report
-        # Start: (remaining_days) days ago at 00:00:00
-        start = (now - timedelta(days=remaining_days)).replace(
-            hour=0, minute=0, second=0, microsecond=0
+        # FINAL PARTIAL REPORT: Cover remaining days since last scheduled report
+        # For final reports, we need to cover multiple days ending at base_date
+
+        # Calculate start date for partial period
+        if use_today:
+            # Start from (remaining_days - 1) days ago (since today is included)
+            start_date = now.date() - timedelta(days=remaining_days - 1)
+            end_date = now.date()
+        else:
+            # Start from remaining_days days ago, end yesterday
+            start_date = now.date() - timedelta(days=remaining_days)
+            end_date = (now - timedelta(days=1)).date()
+
+        start = datetime(
+            start_date.year, start_date.month, start_date.day,
+            start_h, start_m, start_s, tzinfo=UTC
         )
-        # End: Yesterday at 23:59:59
-        end = (now - timedelta(days=1)).replace(
-            hour=23, minute=59, second=59, microsecond=999999
+        end = datetime(
+            end_date.year, end_date.month, end_date.day,
+            end_h, end_m, end_s, tzinfo=UTC
         )
         logger.info("Final partial report: %d days (%s to %s)",
                    remaining_days,
-                   start.strftime("%Y-%m-%d"),
-                   end.strftime("%Y-%m-%d"))
+                   start.strftime("%Y-%m-%d %H:%M:%S"),
+                   end.strftime("%Y-%m-%d %H:%M:%S"))
         return (start, end)
 
+    # Calculate date range based on frequency
     if freq == "weekly":
-        # Report covers last 7 days (excluding today)
-        # Start: 7 days ago at 00:00:00
-        start = (now - timedelta(days=7)).replace(hour=0, minute=0, second=0, microsecond=0)
-        # End: Yesterday at 23:59:59
-        end = (now - timedelta(days=1)).replace(hour=23, minute=59, second=59, microsecond=999999)
+        # Report covers 7 days ending at base_date
+        if use_today:
+            end_date = now.date()
+            start_date = end_date - timedelta(days=6)  # 7 days total including today
+        else:
+            end_date = (now - timedelta(days=1)).date()
+            start_date = end_date - timedelta(days=6)  # 7 days total
+
+        start = datetime(
+            start_date.year, start_date.month, start_date.day,
+            start_h, start_m, start_s, tzinfo=UTC
+        )
+        end = datetime(
+            end_date.year, end_date.month, end_date.day,
+            end_h, end_m, end_s, tzinfo=UTC
+        )
         return (start, end)
 
     if freq == "monthly":
-        # Report covers last 30 days (excluding today)
-        # Start: 30 days ago at 00:00:00
-        start = (now - timedelta(days=30)).replace(hour=0, minute=0, second=0, microsecond=0)
-        # End: Yesterday at 23:59:59
-        end = (now - timedelta(days=1)).replace(hour=23, minute=59, second=59, microsecond=999999)
+        # Report covers 30 days ending at base_date
+        if use_today:
+            end_date = now.date()
+            start_date = end_date - timedelta(days=29)  # 30 days total including today
+        else:
+            end_date = (now - timedelta(days=1)).date()
+            start_date = end_date - timedelta(days=29)  # 30 days total
+
+        start = datetime(
+            start_date.year, start_date.month, start_date.day,
+            start_h, start_m, start_s, tzinfo=UTC
+        )
+        end = datetime(
+            end_date.year, end_date.month, end_date.day,
+            end_h, end_m, end_s, tzinfo=UTC
+        )
         return (start, end)
 
-    # Default: Daily report (yesterday only)
-    # Start: Yesterday at 00:00:00
-    start = (now - timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
-    # End: Yesterday at 23:59:59
-    end = (now - timedelta(days=1)).replace(hour=23, minute=59, second=59, microsecond=999999)
+    # Default: Daily report
+    # Report covers single day (today or yesterday based on time comparison)
+    start = datetime(
+        base_date.year, base_date.month, base_date.day,
+        start_h, start_m, start_s, tzinfo=UTC
+    )
+    end = datetime(
+        base_date.year, base_date.month, base_date.day,
+        end_h, end_m, end_s, tzinfo=UTC
+    )
     return (start, end)
 
 
@@ -189,7 +326,10 @@ with DAG(
             context["dag_run"].conf = {
                 "matched_campaigns": [
                     {
-                        "campaignNumber": "CMP-2025-01-15-001",
+                        "campaignIdentifier": "CMP-2025-01-15-001" or "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+                        "identifierType": "campaignNumber" or "projectTypeId",
+                        "campaignNumber": "CMP-2025-01-15-001" or null,
+                        "projectTypeId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890" or null,
                         "reportName": "hhr_registered_report",
                         "triggerFrequency": "Daily",
                         "triggerTime": "09:00:00+0000",
@@ -205,7 +345,8 @@ with DAG(
             List of environment variable dictionaries, one per campaign:
             [
                 {
-                    "CAMPAIGN_NUMBER": "CMP-2025-01-15-001",
+                    "CAMPAIGN_IDENTIFIER": "CMP-2025-01-15-001",
+                    "IDENTIFIER_TYPE": "campaignNumber",
                     "REPORT_NAME": "hhr_registered_report",
                     "TRIGGER_FREQUENCY": "Daily",
                     "START_DATE": "2025-01-17 00:00:00+0000",
@@ -220,7 +361,7 @@ with DAG(
 
         Pod Execution Flow:
         1. Dockerfile ENTRYPOINT runs: python /app/main.py
-        2. main.py reads environment variables (REPORT_NAME, CAMPAIGN_NUMBER, START_DATE, END_DATE)
+        2. main.py reads environment variables (REPORT_NAME, CAMPAIGN_IDENTIFIER, IDENTIFIER_TYPE, START_DATE, END_DATE)
         3. main.py calls report script with command-line arguments
         4. Report script queries Elasticsearch filtered by campaign and date range
         5. Generate Excel file and save to OUTPUT_FILE path on PVC
@@ -243,29 +384,44 @@ with DAG(
         now = datetime.now(UTC)
 
         for idx, c in enumerate(matches, 1):
-            campaign_number = c.get("campaignNumber", "UNKNOWN")
-            report_name = c.get("reportName", "UNKNOWN")
+            # Required fields - already validated by scheduler DAG
+            campaign_identifier = c.get("campaignIdentifier")
+            identifier_type = c.get("identifierType")
+            report_name = c.get("reportName")
             frequency = c.get("triggerFrequency", "Daily")
             is_final_report = c.get("isFinalReport", False)
             remaining_days = c.get("remainingDays", 0)
+            report_start_time = c.get("reportStartTime", "00:00:00")
+            report_end_time = c.get("reportEndTime", "23:59:59")
+            trigger_time = c.get("triggerTime", "00:00:00")
 
-            logger.info("Campaign %d/%d: %s", idx, len(matches), campaign_number)
+            logger.info("Campaign %d/%d: %s [%s]", idx, len(matches), campaign_identifier, identifier_type)
             logger.info("  Report: %s", report_name)
             logger.info("  Frequency: %s", frequency)
+            logger.info("  Report time window: %s to %s", report_start_time, report_end_time)
+            logger.info("  Trigger time: %s", trigger_time)
             if is_final_report:
                 logger.info("  ⚡ FINAL REPORT: Covering %d remaining days", remaining_days)
 
+            # Check if first day AND report would cover yesterday's data
+            # On first day, only allow if reportEndTime < triggerTime (report covers today)
+            # Skip if reportEndTime >= triggerTime (would try to report yesterday before campaign existed)
+            if is_first_day(c, now) and not should_report_today(c, now):
+                logger.info("  ⏭️ SKIP: First day and report would cover yesterday (no data exists)")
+                continue
+
             # Calculate report date range based on frequency
-            # Pass isFinalReport and remainingDays for partial report calculation
+            # Uses reportStartTime, reportEndTime, and triggerTime to determine today vs yesterday
             start_dt, end_dt = compute_range(c, now)
             logger.info("  Date range: %s to %s",
                     start_dt.strftime("%Y-%m-%d %H:%M:%S"),
                     end_dt.strftime("%Y-%m-%d %H:%M:%S"))
 
             # Build PVC folder structure
-            # Format: /app/REPORTS_GENERATION/FINAL_REPORTS/<campaign>/<report>/<frequency>/
+            # Format: /app/REPORTS_GENERATION/FINAL_REPORTS/<campaign_identifier>/<report>/<frequency>/
             # Example: /app/REPORTS_GENERATION/FINAL_REPORTS/CMP-001/hhr_registered_report/Daily/
-            output_dir = f"{OUTPUT_MOUNT_PATH}/{campaign_number}/{report_name}/{frequency}"
+            # Example: /app/REPORTS_GENERATION/FINAL_REPORTS/a1b2c3d4-e5f6-7890-abcd-ef1234567890/hhr_registered_report/Daily/
+            output_dir = f"{OUTPUT_MOUNT_PATH}/{campaign_identifier}/{report_name}/{frequency}"
 
             # Generate timestamped filename
             # Format: <report_name>_YYYY-MM-DD_HH-MM-SS.xlsx
@@ -280,7 +436,9 @@ with DAG(
             # These match the env vars expected by main.py
             env_dict = {
                 # Campaign identification
-                "CAMPAIGN_NUMBER": campaign_number,
+                "CAMPAIGN_IDENTIFIER": campaign_identifier,
+                "IDENTIFIER_TYPE": identifier_type,
+
                 "REPORT_NAME": report_name,
                 "TRIGGER_FREQUENCY": frequency,
                 "TRIGGER_TIME" : c.get("triggerTime", 0),
@@ -426,7 +584,8 @@ with DAG(
         for idx, env in enumerate(env_list, 1):
             campaign_info = {
                 "index": idx,
-                "campaignNumber": env.get("CAMPAIGN_NUMBER"),
+                "campaignIdentifier": env.get("CAMPAIGN_IDENTIFIER"),
+                "identifierType": env.get("IDENTIFIER_TYPE"),
                 "reportName": env.get("REPORT_NAME"),
                 "frequency": env.get("TRIGGER_FREQUENCY"),
                 "dateRange": f"{env.get('START_DATE')} to {env.get('END_DATE')}",
@@ -434,7 +593,7 @@ with DAG(
             }
             summary.append(campaign_info)
 
-            logger.info("Campaign %d: %s", idx, env.get("CAMPAIGN_NUMBER"))
+            logger.info("Campaign %d: %s [%s]", idx, env.get("CAMPAIGN_IDENTIFIER"), env.get("IDENTIFIER_TYPE"))
             logger.info("  Report: %s", env.get("REPORT_NAME"))
             logger.info("  Frequency: %s", env.get("TRIGGER_FREQUENCY"))
             logger.info("  Date range: %s to %s",

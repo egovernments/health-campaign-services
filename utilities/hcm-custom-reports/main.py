@@ -13,7 +13,10 @@ from confluent_kafka import Producer, KafkaException
 
 # Read env vars
 REPORT_NAME = os.getenv('REPORT_NAME')
-CAMPAIGN_NUMBER = os.getenv('CAMPAIGN_NUMBER')
+# Campaign identifier: can be either campaignNumber or projectTypeId (UUID)
+CAMPAIGN_IDENTIFIER = os.getenv('CAMPAIGN_IDENTIFIER')
+# Identifier type: "campaignNumber" or "projectTypeId" - determines which ES field to query
+IDENTIFIER_TYPE = os.getenv('IDENTIFIER_TYPE', 'campaignNumber')
 START_DATE = os.getenv('START_DATE')
 END_DATE = os.getenv('END_DATE')
 OUTPUT_PVC_NAME = os.getenv('OUTPUT_PVC_NAME', 'hcm-reports-output')
@@ -39,8 +42,8 @@ PRODUCER_CONFIG = {
 }
 
 
-if not REPORT_NAME or not CAMPAIGN_NUMBER:
-    print('REPORT_TYPE and CAMPAIGN_NUMBER are required environment variables')
+if not REPORT_NAME or not CAMPAIGN_IDENTIFIER:
+    print('REPORT_NAME and CAMPAIGN_IDENTIFIER are required environment variables')
     sys.exit(1)
 
 producer = Producer(PRODUCER_CONFIG)
@@ -59,7 +62,7 @@ def get_data_to_be_pushed(file_store_id):
     data = {
         "dag_run_id" : DAG_RUN_ID,
         "dag_name" : DAG_ID,
-        "campaign_identifier" : CAMPAIGN_NUMBER,
+        "campaign_identifier" : CAMPAIGN_IDENTIFIER,
         "report_name" : REPORT_NAME,
         "trigger_frequency" : TRIGGER_FREQUENCY,
         "file_store_id" : file_store_id,
@@ -204,10 +207,10 @@ def save_file_to_folder(file):
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     new_file_name = f"{REPORT_FILE_NAME}_{timestamp}{extension}"
 
-    # Build folder path: OUTPUT_DIR/CAMPAIGN_NUMBER/REPORT_NAME/TRIGGER_FREQUENCY/
+    # Build folder path: OUTPUT_DIR/CAMPAIGN_IDENTIFIER/REPORT_NAME/TRIGGER_FREQUENCY/
     folder_path = os.path.join(
         OUTPUT_DIR,
-        CAMPAIGN_NUMBER,
+        CAMPAIGN_IDENTIFIER,
         REPORT_NAME,
         TRIGGER_FREQUENCY
     )
@@ -245,7 +248,8 @@ try:
     python_executable = venv_python if os.path.exists(venv_python) else 'python3'
 
     cmd = [python_executable, script_path,
-    '--campaign_number', CAMPAIGN_NUMBER,
+    '--campaign_identifier', CAMPAIGN_IDENTIFIER,
+    '--identifier_type', IDENTIFIER_TYPE,
     '--start_date', START_DATE or '',
     '--end_date', END_DATE or '',
     '--file_name', REPORT_FILE_NAME]
@@ -284,13 +288,13 @@ finally:
 
     reports_folder = os.path.join(
         OUTPUT_DIR,
-        CAMPAIGN_NUMBER,
+        CAMPAIGN_IDENTIFIER,
         REPORT_NAME,
         TRIGGER_FREQUENCY
     )
 
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    zip_name = f"{REPORT_FILE_NAME}_{CAMPAIGN_NUMBER}_{timestamp}.zip"
+    zip_name = f"{REPORT_FILE_NAME}_{CAMPAIGN_IDENTIFIER}_{timestamp}.zip"
 
     zip_path = create_zip_of_reports(reports_folder, zip_name)
 

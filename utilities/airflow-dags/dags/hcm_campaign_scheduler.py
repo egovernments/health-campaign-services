@@ -18,6 +18,7 @@ Notes:
 """
 from __future__ import annotations
 import os
+import re
 import json
 import logging
 from datetime import datetime, timedelta, timezone
@@ -51,9 +52,60 @@ WINDOW_GRACE_MINUTES = int(os.getenv("WINDOW_GRACE_MINUTES", "1"))
 # Timezone: UTC
 UTC = timezone.utc
 
+# UUID regex pattern for detecting projectTypeId
+UUID_PATTERN = re.compile(
+    r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'
+)
+
 # -----------------------------
 # Helpers
 # -----------------------------
+
+def get_campaign_identifier(campaign):
+    """
+    Get campaign identifier and detect its type from MDMS config.
+
+    MDMS provides 'campaignIdentifier' which can be either:
+    - campaignNumber (e.g., "CMP-2025-01-15-001")
+    - projectTypeId (UUID, e.g., "a1b2c3d4-e5f6-7890-abcd-ef1234567890")
+
+    Detection Logic:
+    - If matches UUID pattern (8-4-4-4-12 hex format) → identifierType = "projectTypeId"
+    - Otherwise → identifierType = "campaignNumber"
+
+    Args:
+        campaign (dict): Campaign object from MDMS with 'campaignIdentifier' field
+
+    Returns:
+        tuple: (identifier_value, identifier_type)
+            - identifier_value: The actual identifier string
+            - identifier_type: "campaignNumber" or "projectTypeId" or "unknown"
+
+    Examples:
+        {"campaignIdentifier": "CMP-2025-01-15-001"}
+            → ("CMP-2025-01-15-001", "campaignNumber")
+
+        {"campaignIdentifier": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"}
+            → ("a1b2c3d4-e5f6-7890-abcd-ef1234567890", "projectTypeId")
+
+        {"campaignIdentifier": ""}
+            → raises ValueError
+    """
+    identifier = campaign.get("campaignIdentifier", "").strip()
+
+    if not identifier:
+        raise ValueError("Campaign missing required field: campaignIdentifier")
+
+    # Check if it's a UUID (projectTypeId)
+    if UUID_PATTERN.match(identifier):
+        logger.debug("Identifier '%s' detected as projectTypeId (UUID)", identifier)
+        return (identifier, "projectTypeId")
+
+    # Otherwise, treat as campaignNumber
+    logger.debug("Identifier '%s' detected as campaignNumber", identifier)
+    return (identifier, "campaignNumber")
+
+
 def call_api(url, method="POST", json_body=None, headers=None, timeout=30):
     """Generic requests wrapper with logging and error return."""
     try:
@@ -197,28 +249,6 @@ def parse_date_string(date_str):
 
     # Add UTC timezone
     return dt.replace(tzinfo=UTC)
-
-def is_first_day(campaign, ref_dt):
-    """
-    Return True if campaign start date equals the reference date (no previous data to report).
-
-    Args:
-        campaign (dict): Campaign object with campaignStartDate or startDate
-        ref_dt (datetime): Reference datetime (current execution time)
-
-    Returns:
-        bool: True if today is the campaign's start date
-    """
-    # Support both campaignStartDate (MDMS) and startDate (legacy)
-    s = campaign.get("campaignStartDate") or campaign.get("startDate")
-    if not s:
-        return False
-    try:
-        parsed = parse_date_string(s)
-        return parsed.date() == ref_dt.date()
-    except Exception:
-        logger.exception("Failed to parse start date for campaign %s", campaign.get("campaignNumber"))
-        return False
 
 
 def is_campaign_active(campaign, ref_dt):
@@ -438,29 +468,25 @@ with DAG(
 
         for c in campaigns:
             try:
-                campaign_number = c.get("campaignNumber", "UNKNOWN")
+                # Get campaign identifier (can be campaignNumber or projectTypeId)
+                identifier, identifier_type = get_campaign_identifier(c)
 
                 # Check if active (support both isActive and active)
                 is_active = c.get("isActive", c.get("active", False))
                 if not is_active:
-                    logger.debug("Campaign %s: Inactive - SKIP", campaign_number)
+                    logger.debug("Campaign %s: Inactive - SKIP", identifier)
                     continue
 
                 # Check if campaign is within active date range (startDate <= today <= endDate)
                 campaign_active, active_reason = is_campaign_active(c, now)
                 if not campaign_active:
-                    logger.info("Campaign %s: %s - SKIP", campaign_number, active_reason)
-                    continue
-
-                # Check if first day (no previous data to report)
-                if is_first_day(c, now):
-                    logger.info("Campaign %s: First day - SKIP", campaign_number)
+                    logger.info("Campaign %s: %s - SKIP", identifier, active_reason)
                     continue
 
                 # Get trigger time
                 trig = c.get("triggerTime")
                 if not trig:
-                    logger.warning("Campaign %s: Missing triggerTime - SKIP", campaign_number)
+                    logger.warning("Campaign %s: Missing triggerTime - SKIP", identifier)
                     continue
 
                 # Parse trigger time for today
@@ -475,7 +501,7 @@ with DAG(
                 # Check if final report is due (campaign ending today with remaining days)
                 is_final, remaining_days = is_final_report_due(c, now)
 
-                logger.info("Campaign %s:", campaign_number)
+                logger.info("Campaign %s (%s):", identifier, identifier_type)
                 logger.info("  Trigger time: %s → %s", trig, trig_dt.strftime("%H:%M:%S"))
                 logger.info("  In window: %s", in_window)
                 logger.info("  Frequency due: %s", freq_due)
@@ -487,7 +513,12 @@ with DAG(
                     else:
                         logger.info("  ✓ MATCH - Adding to processing list")
                     matched.append({
-                        "campaignNumber": c.get("campaignNumber"),
+                        # New unified identifier fields
+                        "campaignIdentifier": identifier,
+                        "identifierType": identifier_type,
+                        # Keep campaignNumber for backward compatibility
+                        "campaignNumber": identifier if identifier_type == "campaignNumber" else None,
+                        "projectTypeId": identifier if identifier_type == "projectTypeId" else None,
                         "reportName": c.get("reportName"),
                         "triggerFrequency": c.get("triggerFrequency"),
                         "triggerTime": c.get("triggerTime"),
@@ -495,20 +526,23 @@ with DAG(
                         "endDate": c.get("campaignEndDate"),
                         "outputPvcName": c.get("outputPvcName"),
                         "isFinalReport": is_final,
-                        "remainingDays": remaining_days if is_final else 0
+                        "remainingDays": remaining_days if is_final else 0,
+                        # Report time bounds for data collection window
+                        "reportStartTime": c.get("reportStartTime", "00:00:00"),
+                        "reportEndTime": c.get("reportEndTime", "23:59:59")
                     })
                 else:
                     logger.info("  ✗ SKIP")
 
             except Exception:
-                logger.exception("Error while evaluating campaign %s", c.get("campaignNumber"))
+                logger.exception("Error while evaluating campaign %s", c.get("campaignIdentifier", "UNKNOWN"))
                 continue
 
         logger.info("=" * 80)
         logger.info("RESULT: %d campaign(s) matched", len(matched))
         if matched:
             for m in matched:
-                logger.info("  - %s (%s)", m["campaignNumber"], m["reportName"])
+                logger.info("  - %s [%s] (%s)", m["campaignIdentifier"], m["identifierType"], m["reportName"])
         logger.info("=" * 80)
 
         context["ti"].xcom_push(key="matched_campaigns", value=matched)
@@ -525,11 +559,13 @@ with DAG(
         seen = set()
 
         for c in matched:
-            cid = c.get("campaignNumber")
+            # Use campaignIdentifier for identification
+            cid = c.get("campaignIdentifier")
             if not cid:
+                logger.warning("Campaign missing campaignIdentifier; skipping")
                 continue
 
-            # Dedupe by (campaignNumber, reportName)
+            # Dedupe by (campaignIdentifier, reportName)
             key = (cid, c.get("reportName"))
             if key in seen:
                 logger.warning("Duplicate: %s - %s (skipping)", cid, c.get("reportName"))
