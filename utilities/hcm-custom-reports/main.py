@@ -66,7 +66,8 @@ def get_data_to_be_pushed(file_store_id):
         "report_name" : REPORT_NAME,
         "trigger_frequency" : TRIGGER_FREQUENCY,
         "file_store_id" : file_store_id,
-        "trigger_time" : normalize_timestamp_to_utc(TRIGGER_TIME)
+        "trigger_time" : normalize_timestamp_to_utc(TRIGGER_TIME),
+        "tenant_id" : TENANT_ID
     }
 
     return data

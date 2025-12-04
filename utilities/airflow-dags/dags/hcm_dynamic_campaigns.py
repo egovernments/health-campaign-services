@@ -77,6 +77,12 @@ CONTAINER_RESOURCES = k8s_models.V1ResourceRequirements(
     }
 )
 
+#Kafka config
+KAFKA_BROKER = os.getenv("KAFKA_BROKER")
+
+if not KAFKA_BROKER:
+    raise ValueError("Missing required field: KAFKA_BROKER")
+
 # -------------------------------------------------
 # HELPER FUNCTIONS
 # -------------------------------------------------
@@ -469,7 +475,11 @@ with DAG(
 
                 #Dag information
                 "DAG_RUN_ID" : dag_run_id,
-                "DAG_ID" : dag_id
+                "DAG_ID" : dag_id,
+
+                #Kafka configurations
+                "CUSTOM_REPORTS_AUTOMATION_TOPIC" : os.getenv("CUSTOM_REPORTS_AUTOMATION_TOPIC"),
+                "KAFKA_BROKER" : KAFKA_BROKER
             }
 
             env_list.append(env_dict)
