@@ -129,6 +129,30 @@ def should_report_today(campaign, now):
     return report_end_minutes < trigger_minutes
 
 
+def is_first_day(campaign, now):
+    """
+    Check if today is the first day of the campaign.
+
+    Args:
+        campaign (dict): Campaign object with startDate field
+        now (datetime): Current execution time
+
+    Returns:
+        bool: True if today is the campaign's start date
+    """
+    start_date_str = campaign.get("startDate", "")
+    if not start_date_str:
+        return False
+
+    # Parse start date (format: DD-MM-YYYY HH:MM:SS+ZZZZ)
+    try:
+        start_dt = datetime.strptime(start_date_str, "%d-%m-%Y %H:%M:%S%z")
+        return now.date() == start_dt.date()
+    except ValueError:
+        logger.warning("Failed to parse startDate: %s", start_date_str)
+        return False
+
+
 def compute_range(campaign, now):
     """
     Calculate report date range based on trigger frequency and report time bounds.
@@ -379,6 +403,13 @@ with DAG(
             logger.info("  Trigger time: %s", trigger_time)
             if is_final_report:
                 logger.info("  ⚡ FINAL REPORT: Covering %d remaining days", remaining_days)
+
+            # Check if first day AND report would cover yesterday's data
+            # On first day, only allow if reportEndTime < triggerTime (report covers today)
+            # Skip if reportEndTime >= triggerTime (would try to report yesterday before campaign existed)
+            if is_first_day(c, now) and not should_report_today(c, now):
+                logger.info("  ⏭️ SKIP: First day and report would cover yesterday (no data exists)")
+                continue
 
             # Calculate report date range based on frequency
             # Uses reportStartTime, reportEndTime, and triggerTime to determine today vs yesterday

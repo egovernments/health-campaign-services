@@ -251,28 +251,6 @@ def parse_date_string(date_str):
     # Add UTC timezone
     return dt.replace(tzinfo=UTC)
 
-def is_first_day(campaign, ref_dt):
-    """
-    Return True if campaign start date equals the reference date (no previous data to report).
-
-    Args:
-        campaign (dict): Campaign object with campaignStartDate or startDate
-        ref_dt (datetime): Reference datetime (current execution time)
-
-    Returns:
-        bool: True if today is the campaign's start date
-    """
-    # Support both campaignStartDate (MDMS) and startDate (legacy)
-    s = campaign.get("campaignStartDate") or campaign.get("startDate")
-    if not s:
-        return False
-    try:
-        parsed = parse_date_string(s)
-        return parsed.date() == ref_dt.date()
-    except Exception:
-        logger.exception("Failed to parse start date for campaign %s", campaign.get("campaignNumber"))
-        return False
-
 
 def is_campaign_active(campaign, ref_dt):
     """
@@ -504,11 +482,6 @@ with DAG(
                 campaign_active, active_reason = is_campaign_active(c, now)
                 if not campaign_active:
                     logger.info("Campaign %s: %s - SKIP", identifier, active_reason)
-                    continue
-
-                # Check if first day (no previous data to report)
-                if is_first_day(c, now):
-                    logger.info("Campaign %s: First day - SKIP", identifier)
                     continue
 
                 # Get trigger time
