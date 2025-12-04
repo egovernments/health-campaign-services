@@ -89,13 +89,12 @@ def get_campaign_identifier(campaign):
             → ("a1b2c3d4-e5f6-7890-abcd-ef1234567890", "projectTypeId")
 
         {"campaignIdentifier": ""}
-            → ("UNKNOWN", "unknown")
+            → raises ValueError
     """
     identifier = campaign.get("campaignIdentifier", "").strip()
 
     if not identifier:
-        logger.warning("Campaign missing campaignIdentifier")
-        return ("UNKNOWN", "unknown")
+        raise ValueError("Campaign missing required field: campaignIdentifier")
 
     # Check if it's a UUID (projectTypeId)
     if UUID_PATTERN.match(identifier):

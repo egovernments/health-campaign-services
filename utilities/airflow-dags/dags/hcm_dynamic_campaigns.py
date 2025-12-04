@@ -384,11 +384,10 @@ with DAG(
         now = datetime.now(UTC)
 
         for idx, c in enumerate(matches, 1):
-            # Get campaign identifier (new unified field)
-            campaign_identifier = c.get("campaignIdentifier", "UNKNOWN")
-            identifier_type = c.get("identifierType", "unknown")
-            
-            report_name = c.get("reportName", "UNKNOWN")
+            # Required fields - already validated by scheduler DAG
+            campaign_identifier = c.get("campaignIdentifier")
+            identifier_type = c.get("identifierType")
+            report_name = c.get("reportName")
             frequency = c.get("triggerFrequency", "Daily")
             is_final_report = c.get("isFinalReport", False)
             remaining_days = c.get("remainingDays", 0)
