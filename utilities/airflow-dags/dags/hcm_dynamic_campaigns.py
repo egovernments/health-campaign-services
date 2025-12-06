@@ -198,19 +198,102 @@ def frequency_due(campaign, now):
         return True  # Default to running if parsing fails
 
 
-def compute_range(campaign, now):
+def is_final_report_due(campaign, ref_dt):
+    """
+    Check if campaign is ending today and needs a final partial report.
+
+    This handles the scenario where a campaign ends mid-cycle (e.g., on day 5
+    of a weekly report cycle). In such cases, we need to generate a final
+    report covering the remaining days.
+
+    Args:
+        campaign (dict): Campaign object with endDate, startDate, and triggerFrequency
+        ref_dt (datetime): Reference datetime (current execution time)
+
+    Returns:
+        tuple: (is_due: bool, remaining_days: int)
+            - is_due: True if a final partial report should be generated
+            - remaining_days: Number of days to include in the final report
+
+    Example:
+        Campaign starts: Day 1
+        Weekly reports on: Day 7, Day 14
+        Campaign ends: Day 19
+
+        On Day 19, this function returns (True, 5) because:
+        - Today is the campaign end date
+        - 5 days have passed since the last weekly report (Day 14)
+        - A final report covering days 15-19 should be generated
+    """
+    # Get campaign end date
+    end_date_str = campaign.get("endDate", "")
+    if not end_date_str:
+        return (False, 0)
+
+    try:
+        end_dt = datetime.strptime(end_date_str, "%d-%m-%Y %H:%M:%S%z")
+        end_date = end_dt.date()
+    except ValueError:
+        logger.warning("Failed to parse endDate for final report check: %s", end_date_str)
+        return (False, 0)
+
+    today = ref_dt.date()
+
+    # Check if today is campaign end date
+    if today != end_date:
+        return (False, 0)
+
+    # Only applies to WEEKLY and MONTHLY frequencies
+    # Daily reports don't need special handling as they run every day
+    freq = (campaign.get("triggerFrequency") or "DAILY").strip().lower()
+    if freq == "daily":
+        return (False, 0)
+
+    # Get campaign start date to calculate days since start
+    start_date_str = campaign.get("startDate", "")
+    if not start_date_str:
+        return (False, 0)
+
+    try:
+        start_dt = datetime.strptime(start_date_str, "%d-%m-%Y %H:%M:%S%z")
+        start_date = start_dt.date()
+    except ValueError:
+        logger.warning("Failed to parse startDate for final report check: %s", start_date_str)
+        return (False, 0)
+
+    days_since_start = (today - start_date).days
+
+    # Calculate days since last scheduled report
+    if freq == "weekly":
+        days_since_last_report = days_since_start % 7
+    elif freq == "monthly":
+        days_since_last_report = days_since_start % 30
+    else:
+        return (False, 0)
+
+    # If there are remaining days (not on a regular report boundary), trigger final report
+    # Also check that days_since_start >= 1 to ensure there's at least one day of data
+    if days_since_last_report > 0 and days_since_start >= 1:
+        logger.info("Campaign %s: Final report due with %d remaining days",
+                   campaign.get("campaignIdentifier", "UNKNOWN"), days_since_last_report)
+        return (True, days_since_last_report)
+
+    return (False, 0)
+
+
+def compute_range(campaign, now, is_final=False, remaining_days=0):
     """
     Calculate report date range based on trigger frequency and report time bounds.
 
     Args:
         campaign (dict): Campaign object with:
             - triggerFrequency: Daily, Weekly, Monthly
-            - isFinalReport: bool for campaign end date
-            - remainingDays: int for partial period
             - reportStartTime: Start time for data collection (e.g., "00:00:00")
             - reportEndTime: End time for data collection (e.g., "14:00:00")
             - triggerTime: When the report is triggered (e.g., "16:00:00")
         now (datetime): Current execution time (UTC)
+        is_final (bool): Whether this is a final partial report for campaign end date
+        remaining_days (int): Number of days to include in final partial report
 
     Returns:
         tuple: (start_datetime, end_datetime) in UTC
@@ -233,8 +316,6 @@ def compute_range(campaign, now):
         - Start date is calculated based on frequency (7 or 30 days back)
     """
     freq = campaign.get("triggerFrequency", "Daily").lower()
-    is_final = campaign.get("isFinalReport", False)
-    remaining_days = campaign.get("remainingDays", 0)
 
     # Parse report time bounds
     report_start_time_str = campaign.get("reportStartTime", "00:00:00")
@@ -433,11 +514,13 @@ with DAG(
             identifier_type = c.get("identifierType")
             report_name = c.get("reportName")
             frequency = c.get("triggerFrequency", "Daily")
-            is_final_report = c.get("isFinalReport", False)
-            remaining_days = c.get("remainingDays", 0)
             report_start_time = c.get("reportStartTime", "00:00:00")
             report_end_time = c.get("reportEndTime", "23:59:59")
             trigger_time = c.get("triggerTime", "00:00:00")
+
+            # Check if this is a final report (campaign ending today with remaining days)
+            # This logic was moved from scheduler DAG to keep all report logic here
+            is_final_report, remaining_days = is_final_report_due(c, now)
 
             logger.info("Campaign %d/%d: %s [%s]", idx, len(matches), campaign_identifier, identifier_type)
             logger.info("  Report: %s", report_name)
@@ -461,7 +544,8 @@ with DAG(
 
             # Calculate report date range based on frequency
             # Uses reportStartTime, reportEndTime, and triggerTime to determine today vs yesterday
-            start_dt, end_dt = compute_range(c, now)
+            # Pass is_final_report and remaining_days computed above
+            start_dt, end_dt = compute_range(c, now, is_final_report, remaining_days)
             logger.info("  Date range: %s to %s",
                     start_dt.strftime("%Y-%m-%d %H:%M:%S"),
                     end_dt.strftime("%Y-%m-%d %H:%M:%S"))

@@ -307,86 +307,6 @@ def is_campaign_active(campaign, ref_dt):
     # Campaign is active: startDate <= today <= endDate
     return (True, f"Campaign is active ({start_date} to {end_date})")
 
-def is_final_report_due(campaign, ref_dt):
-    """
-    Check if campaign is ending today and needs a final partial report.
-
-    This handles the scenario where a campaign ends mid-cycle (e.g., on day 5
-    of a weekly report cycle). In such cases, we need to generate a final
-    report covering the remaining days.
-
-    Args:
-        campaign (dict): Campaign object with campaignEndDate and triggerFrequency
-        ref_dt (datetime): Reference datetime (current execution time)
-
-    Returns:
-        tuple: (is_due: bool, remaining_days: int)
-            - is_due: True if a final partial report should be generated
-            - remaining_days: Number of days to include in the final report
-
-    Example:
-        Campaign starts: Day 1
-        Weekly reports on: Day 7, Day 14
-        Campaign ends: Day 19
-
-        On Day 19, this function returns (True, 5) because:
-        - Today is the campaign end date
-        - 5 days have passed since the last weekly report (Day 14)
-        - A final report covering days 15-19 should be generated
-    """
-    # Get campaign end date
-    end_date_str = campaign.get("campaignEndDate") or campaign.get("endDate")
-    if not end_date_str:
-        return (False, 0)
-
-    try:
-        end_date = parse_date_string(end_date_str).date()
-    except Exception:
-        logger.exception("Failed to parse end date for final report check: %s", campaign.get("campaignNumber"))
-        return (False, 0)
-
-    today = ref_dt.date()
-
-    # Check if today is campaign end date
-    if today != end_date:
-        return (False, 0)
-
-    # Only applies to WEEKLY and MONTHLY frequencies
-    # Daily reports don't need special handling as they run every day
-    freq = (campaign.get("triggerFrequency") or "DAILY").strip().lower()
-    if freq == "daily":
-        return (False, 0)
-
-    # Get campaign start date to calculate days since start
-    start_date_str = campaign.get("campaignStartDate") or campaign.get("startDate")
-    if not start_date_str:
-        return (False, 0)
-
-    try:
-        start_date = parse_date_string(start_date_str).date()
-    except Exception:
-        logger.exception("Failed to parse start date for final report check: %s", campaign.get("campaignNumber"))
-        return (False, 0)
-
-    days_since_start = (today - start_date).days
-
-    # Calculate days since last scheduled report
-    if freq == "weekly":
-        days_since_last_report = days_since_start % 7
-    elif freq == "monthly":
-        days_since_last_report = days_since_start % 30
-    else:
-        return (False, 0)
-
-    # If there are remaining days (not on a regular report boundary), trigger final report
-    # Also check that days_since_start >= 1 to ensure there's at least one day of data
-    if days_since_last_report > 0 and days_since_start >= 1:
-        logger.info("Campaign %s: Final report due with %d remaining days",
-                   campaign.get("campaignNumber"), days_since_last_report)
-        return (True, days_since_last_report)
-
-    return (False, 0)
-
 # -----------------------------
 # DAG definition
 # -----------------------------
@@ -459,20 +379,14 @@ with DAG(
                 # Check if in window
                 in_window = window_start <= trig_dt <= window_end
 
-                # Check if final report is due (campaign ending today with remaining days)
-                is_final, remaining_days = is_final_report_due(c, now)
-
                 logger.info("Campaign %s (%s):", identifier, identifier_type)
                 logger.info("  Trigger time: %s → %s", trig, trig_dt.strftime("%H:%M:%S"))
                 logger.info("  In window: %s", in_window)
-                logger.info("  Final report due: %s (remaining days: %d)", is_final, remaining_days)
 
-                # Scheduler only checks window timing; processor DAG handles frequency logic
+                # Scheduler only checks window timing; processor DAG handles all report logic
+                # (frequency, first day, final report, date ranges)
                 if in_window:
-                    if is_final:
-                        logger.info("  ✓ FINAL REPORT MATCH - Campaign ending with %d remaining days", remaining_days)
-                    else:
-                        logger.info("  ✓ MATCH - Adding to processing list")
+                    logger.info("  ✓ MATCH - Adding to processing list")
                     matched.append({
                         # New unified identifier fields
                         "campaignIdentifier": identifier,
@@ -486,8 +400,6 @@ with DAG(
                         "startDate": c.get("campaignStartDate"),
                         "endDate": c.get("campaignEndDate"),
                         "outputPvcName": c.get("outputPvcName"),
-                        "isFinalReport": is_final,
-                        "remainingDays": remaining_days if is_final else 0,
                         # Report time bounds for data collection window
                         "reportStartTime": c.get("reportStartTime", "00:00:00"),
                         "reportEndTime": c.get("reportEndTime", "23:59:59")
