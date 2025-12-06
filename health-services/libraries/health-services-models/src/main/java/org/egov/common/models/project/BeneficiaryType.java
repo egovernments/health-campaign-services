@@ -8,7 +8,13 @@ public enum BeneficiaryType {
 
 		HOUSEHOLD("HOUSEHOLD"),
 
-		INDIVIDUAL("INDIVIDUAL");
+		INDIVIDUAL("INDIVIDUAL"),
+
+        ONE_ELEVEN_MONTH("1-11MONTH"),
+
+        TWELVE_FIFTY_NINE_MONTH("12-59MONTH"),
+
+        PRODUCT("PRODUCT");
 
 		private String value;
 
