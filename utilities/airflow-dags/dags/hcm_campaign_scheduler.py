@@ -399,7 +399,6 @@ with DAG(
                         "triggerTime": c.get("triggerTime"),
                         "startDate": c.get("campaignStartDate"),
                         "endDate": c.get("campaignEndDate"),
-                        "outputPvcName": c.get("outputPvcName"),
                         # Report time bounds for data collection window
                         "reportStartTime": c.get("reportStartTime", "00:00:00"),
                         "reportEndTime": c.get("reportEndTime", "23:59:59")

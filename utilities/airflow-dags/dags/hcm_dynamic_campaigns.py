@@ -460,8 +460,7 @@ with DAG(
                         "triggerFrequency": "Daily",
                         "triggerTime": "09:00:00+0000",
                         "startDate": "15-01-2025 00:00:00+0000",
-                        "endDate": "31-01-2025 00:00:00+0000",
-                        "outputPvcName": "hcm-reports-output"
+                        "endDate": "31-01-2025 00:00:00+0000"
                     },
                     ...
                 ]
