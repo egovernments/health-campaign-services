@@ -480,13 +480,9 @@ public class EmployeeValidator {
 	private void validateEmployee(Employee employee, Map<String, String> errorMap, Map<String, List<String>> mdmsData) {
 
 		String empCode = employee.getCode() != null ? employee.getCode() : "<no-code>";
-		String mob = employee.getUser() != null ? employee.getUser().getMobileNumber() : null;
 
-		if (mob == null || (mob.length() != 10 && mob.length() != 9)) {
-			errorMap.put("HRMS_EMPLOYEE_CREATE_INVALID_MOBILE_NUMBER:" + empCode,
-					String.format("Employee code='%s' has invalid mobileNumber='%s'. "
-									+ "Expected 9 or 10 digits.",
-							empCode, mob));
+		if(employee.getUser().getMobileNumber().length() < 8 || employee.getUser().getMobileNumber().length() > 11) {
+			errorMap.put(ErrorConstants.HRMS_INVALID_MOB_NO_CODE, ErrorConstants.HRMS_INVALID_MOB_NO_MSG);
 		}
 
 		if (CollectionUtils.isEmpty(employee.getUser().getRoles())) {
