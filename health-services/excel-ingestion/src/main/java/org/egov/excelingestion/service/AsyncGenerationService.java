@@ -58,13 +58,16 @@ public class AsyncGenerationService {
                 generateResource.getAdditionalDetails().remove("errorCode");
                 generateResource.getAdditionalDetails().remove("errorMessage");
             }
-            
-            generateResource.setLastModifiedTime(System.currentTimeMillis());
-            if (requestInfo != null && requestInfo.getUserInfo() != null) {
-                generateResource.setLastModifiedBy(requestInfo.getUserInfo().getUuid());
+            //Update audit details
+            if (generateResource.getAuditDetails() != null) {
+                generateResource.getAuditDetails().setLastModifiedTime(System.currentTimeMillis());
+                if (requestInfo != null && requestInfo.getUserInfo() != null) {
+                    generateResource.getAuditDetails().setLastModifiedBy(requestInfo.getUserInfo().getUuid());
+                }
             }
-            log.info("Pushing COMPLETED update to Kafka - ID: {}, Status: {}, LastModifiedBy: {}", 
-                    generateResource.getId(), generateResource.getStatus(), generateResource.getLastModifiedBy());
+
+            log.info("Pushing COMPLETED update to Kafka - ID: {}, Status: {}, LastModifiedBy: {}",
+                    generateResource.getId(), generateResource.getStatus(), generateResource.getAuditDetails().getLastModifiedBy());
             producer.push(generateResource.getTenantId(), kafkaTopicConfig.getGenerationUpdateTopic(), generateResource);
             
             log.info("Async generation completed successfully for id: {}", generateResource.getId());
@@ -78,12 +81,12 @@ public class AsyncGenerationService {
             // Update status to FAILED via Kafka
             generateResource.setStatus(GenerationConstants.STATUS_FAILED);
             generateResource.setFileStoreId(null);
-            generateResource.setLastModifiedTime(System.currentTimeMillis());
+            generateResource.getAuditDetails().setLastModifiedTime(System.currentTimeMillis());
             if (requestInfo != null && requestInfo.getUserInfo() != null) {
-                generateResource.setLastModifiedBy(requestInfo.getUserInfo().getUuid());
+                generateResource.getAuditDetails().setLastModifiedBy(requestInfo.getUserInfo().getUuid());
             }
             log.info("Pushing FAILED update to Kafka - ID: {}, Status: {}, LastModifiedBy: {}", 
-                    generateResource.getId(), generateResource.getStatus(), generateResource.getLastModifiedBy());
+                    generateResource.getId(), generateResource.getStatus(), generateResource.getAuditDetails().getLastModifiedBy());
             producer.push(generateResource.getTenantId(), kafkaTopicConfig.getGenerationUpdateTopic(), generateResource);
         }
     }

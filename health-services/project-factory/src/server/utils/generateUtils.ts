@@ -47,6 +47,7 @@ export async function callExcelIngestionService(requestBody: any) {
             tenantId: tenantId,
             type: 'unified-console',
             hierarchyType: hierarchyType,
+            locale: getLocaleFromRequestInfo (requestBody?.RequestInfo),
             referenceId: campaignId,
             additionalDetails: {}
         };

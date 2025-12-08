@@ -71,7 +71,8 @@ public class AsyncProcessingService {
             processResource.setProcessedFileStoreId(processedResource.getProcessedFileStoreId());
             processResource.setAdditionalDetails(processedResource.getAdditionalDetails());
             // Set locale from RequestInfo
-            String locale = requestInfoConverter.extractLocale(requestInfo);
+            String locale = processResource.getLocale() != null ? processResource.getLocale()
+                    : requestInfoConverter.extractLocale(requestInfo);
             processResource.setLocale(locale);
             
             // Update audit details
@@ -106,7 +107,8 @@ public class AsyncProcessingService {
             processResource.getAdditionalDetails().put("errorMessage", e.getMessage());
             
             // Set locale from RequestInfo
-            String locale = requestInfoConverter.extractLocale(requestInfo);
+            String locale = processResource.getLocale() != null ? processResource.getLocale()
+                    : requestInfoConverter.extractLocale(requestInfo);
             processResource.setLocale(locale);
             
             // Update audit details

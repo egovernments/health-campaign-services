@@ -64,7 +64,7 @@ public class IngestionController {
         this.requestInfoConverter = requestInfoConverter;
     }
 
-    @PostMapping("/_generate")
+    @PostMapping("/generate/_init")
     public ResponseEntity<GenerateResourceResponse> generate(@RequestBody @Valid GenerateResourceRequest request) {
         log.info("Received async generation request for type: {} and tenantId: {}", 
                 request.getGenerateResource().getType(), 
@@ -76,8 +76,10 @@ public class IngestionController {
         GenerateResource inputResource = request.getGenerateResource();
         
         // Extract locale from RequestInfo using RequestInfoConverter
-        String locale = requestInfoConverter.extractLocale(request.getRequestInfo());
-        
+        String locale = inputResource.getLocale() != null ? inputResource.getLocale()
+                : requestInfoConverter.extractLocale(request.getRequestInfo());
+
+
         GenerateResource responseResource = GenerateResource.builder()
                 .id(generationId)
                 .tenantId(inputResource.getTenantId())
@@ -106,17 +108,22 @@ public class IngestionController {
         return new ResponseEntity<>(response, HttpStatus.ACCEPTED);
     }
 
-    @PostMapping("/_process")
-    public ResponseEntity<ProcessResourceResponse> processExcel(
+    @PostMapping("/process/_validation")
+    public ResponseEntity<ProcessResourceResponse> processExcelValidation(
             @Valid @RequestBody ProcessResourceRequest request) {
-        
-        log.info("Received process request for type: {} and tenantId: {}", 
-                request.getResourceDetails().getType(), 
+
+        log.info("Received process validation request for type: {} and tenantId: {}",
+                request.getResourceDetails().getType(),
                 request.getResourceDetails().getTenantId());
-        
+
         RequestInfo requestInfo = request.getRequestInfo();
         String processingId = processingService.initiateProcessing(request);
-        
+
+        // Extract locale from RequestInfo using RequestInfoConverter
+        String locale = request.getResourceDetails().getLocale() != null
+                ? request.getResourceDetails().getLocale()
+                : requestInfoConverter.extractLocale(requestInfo);
+
         // Return the resource with pending status and processing ID
         ProcessResource responseResource = ProcessResource.builder()
                 .id(processingId)
@@ -126,6 +133,7 @@ public class IngestionController {
                 .referenceId(request.getResourceDetails().getReferenceId())
                 .fileStoreId(request.getResourceDetails().getFileStoreId())
                 .status(ProcessingConstants.STATUS_PENDING)
+                .locale(locale)
                 .additionalDetails(request.getResourceDetails().getAdditionalDetails())
                 .build();
         
@@ -142,7 +150,49 @@ public class IngestionController {
         return new ResponseEntity<>(response, HttpStatus.ACCEPTED);
     }
 
-    @PostMapping("/_generationSearch")
+    @PostMapping("/process/_create")
+    public ResponseEntity<ProcessResourceResponse> processExcelParse(
+            @Valid @RequestBody ProcessResourceRequest request) {
+
+        log.info("Received process request for type: {} and tenantId: {}",
+                request.getResourceDetails().getType(),
+                request.getResourceDetails().getTenantId());
+
+        RequestInfo requestInfo = request.getRequestInfo();
+        String processingId = processingService.initiateProcessing(request);
+
+        // Extract locale from RequestInfo using RequestInfoConverter
+        String locale = request.getResourceDetails().getLocale() != null
+                ? request.getResourceDetails().getLocale()
+                : requestInfoConverter.extractLocale(requestInfo);
+
+        // Return the resource with pending status and processing ID
+        ProcessResource responseResource = ProcessResource.builder()
+                .id(processingId)
+                .tenantId(request.getResourceDetails().getTenantId())
+                .type(request.getResourceDetails().getType())
+                .hierarchyType(request.getResourceDetails().getHierarchyType())
+                .referenceId(request.getResourceDetails().getReferenceId())
+                .fileStoreId(request.getResourceDetails().getFileStoreId())
+                .status(ProcessingConstants.STATUS_PENDING)
+                .locale(locale)
+                .additionalDetails(request.getResourceDetails().getAdditionalDetails())
+                .build();
+
+        ProcessResourceResponse response = ProcessResourceResponse.builder()
+                .responseInfo(org.egov.common.contract.response.ResponseInfo.builder()
+                        .apiId(requestInfo.getApiId())
+                        .ver(requestInfo.getVer())
+                        .ts(requestInfo.getTs())
+                        .status("successful")
+                        .build())
+                .processResource(responseResource)
+                .build();
+
+        return new ResponseEntity<>(response, HttpStatus.ACCEPTED);
+    }
+
+    @PostMapping("/generate/_search")
     public ResponseEntity<GenerationSearchResponse> searchGenerations(
             @Valid @RequestBody GenerationSearchRequest request) throws InvalidTenantIdException {
         
@@ -154,7 +204,7 @@ public class IngestionController {
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
-    @PostMapping("/_processSearch")
+    @PostMapping("/process/_search")
     public ResponseEntity<ProcessingSearchResponse> searchProcessing(
             @Valid @RequestBody ProcessingSearchRequest request) throws InvalidTenantIdException {
         
