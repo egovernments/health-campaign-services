@@ -113,7 +113,8 @@ public class ExcelGenerationService {
     private Map<String, String> prepareLocalizationMap(GenerateResource generateResource, RequestInfo requestInfo) {
         String tenantId = generateResource.getTenantId();
         String hierarchyType = generateResource.getHierarchyType();
-        String locale = requestInfoConverter.extractLocale(requestInfo);
+        String locale = generateResource.getLocale() != null ? generateResource.getLocale()
+                : requestInfoConverter.extractLocale(requestInfo);
 
         Map<String, String> mergedLocalizationMap = new HashMap<>();
 

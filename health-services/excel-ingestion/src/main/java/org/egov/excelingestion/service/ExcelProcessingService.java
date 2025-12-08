@@ -84,7 +84,8 @@ public class ExcelProcessingService {
 
         try {
             // Extract locale and create localization maps
-            String locale = requestInfoConverter.extractLocale(request.getRequestInfo());
+            String locale = resource.getLocale() != null ? resource.getLocale()
+                    : requestInfoConverter.extractLocale(request.getRequestInfo());
             String tenantId = resource.getTenantId();
             String hierarchyType = resource.getHierarchyType();
 
