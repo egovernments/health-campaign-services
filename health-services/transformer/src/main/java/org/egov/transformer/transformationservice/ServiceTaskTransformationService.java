@@ -71,7 +71,6 @@ public class ServiceTaskTransformationService {
                 .map(ServiceIndexV1::getId)
                 .collect(Collectors.toList()));
         producer.push(topic, serviceIndexV1List);
-        filterChecklistsForExtraTransformation(serviceIndexV1List);
     }
 
     private ServiceIndexV1 transform(Service service) {
@@ -149,46 +148,36 @@ public class ServiceTaskTransformationService {
                 .additionalDetails(additionalDetails)
                 .geoPoint(geoPoint)
                 .build();
+
+        filterChecklistsForExtraTransformation(serviceIndexV1);
+
         return serviceIndexV1;
     }
 
-    private void filterChecklistsForExtraTransformation(List<ServiceIndexV1> serviceIndexV1List) {
-        if (serviceIndexV1List == null || serviceIndexV1List.isEmpty()) {
-            log.info("No service index data to process.");
-            return;
-        }
+    private void filterChecklistsForExtraTransformation(ServiceIndexV1 serviceIndexV1) {
+
         List<String> checklistNames = Arrays.asList(transformerProperties.getChecklistsForExtraTransformation().split(","));
-        List<ServiceIndexV1> checklistList = serviceIndexV1List.stream()
-                .filter(service -> checklistNames.contains(service.getChecklistName()))
-                .collect(Collectors.toList());
-        if (CollectionUtils.isEmpty(checklistList)) return;
+        if (!checklistNames.contains(serviceIndexV1.getChecklistName())) return;
+        log.info("{} checklist(s) will go through extra transformation", serviceIndexV1.getClientReferenceId());
 
-        log.info("{} checklist(s) will go through extra transformation", checklistList.size());
+        JsonNode checklistInfo = mdmsService.fetchChecklistInfoFromMDMS(serviceIndexV1.getTenantId(), serviceIndexV1.getChecklistName());
+        ObjectNode transformedChecklist = objectMapper.createObjectNode();
+        List<AttributeValue> attributeValues = serviceIndexV1.getAttributes();
+        for (AttributeValue attributeValue : attributeValues) {
+            String attributeCode = attributeValue.getAttributeCode();
+            Object value = getValueFromChecklist(attributeValue);
 
-        for (ServiceIndexV1 service : checklistList) {
-            JsonNode checklistInfo = mdmsService.fetchChecklistInfoFromMDMS(service.getTenantId(), service.getChecklistName());
-            ObjectNode transformedChecklist = objectMapper.createObjectNode();
-            List<AttributeValue> attributeValues = service.getAttributes();
-            for (AttributeValue attributeValue : attributeValues) {
-                String attributeCode = attributeValue.getAttributeCode();
-                Object value = getValueFromChecklist(attributeValue);
-
-                if (checklistInfo == null || !checklistInfo.has(attributeCode)) {
-                    // MDMS info not found — adding raw attribute code and value
-                    transformedChecklist.putPOJO(attributeCode, value);
-                    continue;
-                }
-
-                JsonNode attrSpecificMap = checklistInfo.get(attributeCode);
-                String keyVal = attrSpecificMap.get(KEY_VALUE).asText();
-                Class<?> valueType = typeMap.getOrDefault(attrSpecificMap.get(VALUE_TYPE).asText(), Object.class);
-                commonUtils.putValueBasedOnType(transformedChecklist, keyVal , value, valueType);
+            if (checklistInfo == null || !checklistInfo.has(attributeCode)) {
+                transformedChecklist.putPOJO(attributeCode, value);
+                continue;
             }
-            service.setTransformedChecklist(transformedChecklist);
-        }
 
-        String topic = transformerProperties.getTransformerProducerExtraTransformedChecklistIndexV1Topic();
-        producer.push(topic, checklistList);
+            JsonNode attrSpecificMap = checklistInfo.get(attributeCode);
+            String keyVal = attrSpecificMap.get(KEY_VALUE).asText();
+            Class<?> valueType = typeMap.getOrDefault(attrSpecificMap.get(VALUE_TYPE).asText(), Object.class);
+            commonUtils.putValueBasedOnType(transformedChecklist, keyVal , value, valueType);
+        }
+        serviceIndexV1.setTransformedChecklist(transformedChecklist);
     }
 
     private Object getValueFromChecklist(AttributeValue attributeValue) {
