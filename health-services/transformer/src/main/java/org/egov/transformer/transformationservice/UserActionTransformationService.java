@@ -71,7 +71,7 @@ public class UserActionTransformationService {
         log.info("Transformation success for USER ACTION ids: {}", userActionIndexList.stream()
                 .map(UserActionIndexV1::getId)
                 .collect(Collectors.toList()));
-        producer.push(getTopicName(userActionList.get(0), topic), userActionIndexList);
+        producer.push( topic, userActionIndexList);
     }
 
     private String getTopicName(UserAction userAction, String topic) {
