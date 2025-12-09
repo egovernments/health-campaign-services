@@ -89,6 +89,7 @@ public class ProjectStaffTransformationService {
                 .boundaryHierarchyCode(boundaryHierarchyResult.getBoundaryHierarchyCode())
                 .localityCode(localityCode)
                 .isDeleted(projectStaff.getIsDeleted())
+                .tenantId(projectStaff.getTenantId())
                 .build();
         return projectStaffIndexV1;
     }
