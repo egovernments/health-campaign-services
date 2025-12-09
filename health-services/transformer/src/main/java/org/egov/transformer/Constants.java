@@ -126,5 +126,12 @@ public interface Constants {
 
     String DAY_OF_VISIT = "dayOfVisit";
     String VISITED_BOUNDARIES_SUFFIX = "_visited_boundaries";
+    //vehicle tracking
+    String TRIP_START_TIME = "tripStartTime";
+    String END_TRIP_TIME = "endTripTime";
+    String START_MILEAGE = "startMileage";
+    String END_MILEAGE = "endMileage";
+    String TRIP_DURATION = "tripDuration";
+    String TRIP_DISTANCE = "tripDistance";
 
 }

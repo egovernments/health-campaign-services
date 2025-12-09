@@ -8,8 +8,8 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.node.TextNode;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.egov.common.models.core.AdditionalFields;
 import org.egov.common.models.core.Field;
-import org.egov.common.models.project.Project;
 import org.egov.common.models.project.UserActionEnum;
 import org.egov.common.models.project.useraction.UserAction;
 import org.egov.transformer.config.TransformerProperties;
@@ -29,14 +29,12 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 
 import static org.egov.transformer.Constants.*;
 
 @Slf4j
 @Component
 public class UserActionTransformationService {
-    
     private final Producer producer;
     private final TransformerProperties transformerProperties;
     private final ObjectMapper objectMapper;
@@ -65,13 +63,10 @@ public class UserActionTransformationService {
     public void transform(List<UserAction> userActionList) {
         log.info("Transforming USER ACTION ids: {}", userActionList.stream()
                 .map(UserAction::getId).collect(Collectors.toList()));
-        
         String topic = transformerProperties.getTransformerProducerUserActionIndexV1Topic();
-        
         List<UserActionIndexV1> userActionIndexList = userActionList.stream()
                 .map(this::transform)
                 .collect(Collectors.toList());
-        
 
         log.info("Transformation success for USER ACTION ids: {}", userActionIndexList.stream()
                 .map(UserActionIndexV1::getId)
@@ -87,7 +82,7 @@ public class UserActionTransformationService {
 
     private UserActionIndexV1 transform(UserAction userAction) {
         log.info("Transforming UserAction with id: {}", userAction.getId());
-        
+
         String tenantId = userAction.getTenantId();
         String projectId = userAction.getProjectId();
 
@@ -105,16 +100,16 @@ public class UserActionTransformationService {
             projectType = "";
         }
 
-        
+
         BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(userAction.getBoundaryCode(), tenantId);
         JsonNode projectAdditionalDetails = projectService.fetchProjectAdditionalDetails(tenantId, null, projectTypeId);
-        
+
         // Create geoPoint from latitude and longitude
         Double[] geoPoint = null;
         if (userAction.getLatitude() != null && userAction.getLongitude() != null) {
             geoPoint = new Double[]{userAction.getLongitude(), userAction.getLatitude()};
         }
-        
+
         // Build combined additionalDetails with additionalFields as key-value pairs and MDMS data if applicable
         ObjectNode combinedAdditionalDetails = buildCombinedAdditionalDetails(userAction, projectAdditionalDetails, tenantId);
         Map<String, String> userInfoMap = userService.getUserInfo(userAction.getTenantId(), userAction.getClientAuditDetails().getCreatedBy());
@@ -140,19 +135,19 @@ public class UserActionTransformationService {
                 .syncedDate(commonUtils.getDateFromEpoch(userAction.getAuditDetails().getLastModifiedTime()))
                 .userAssignedLowestBoundaryCount(boundaryService.fetchLowestChildCount(projectId, tenantId))
                 .build();
-                
+
         log.info("Successfully transformed UserAction with id: {}", userAction.getId());
         return userActionIndex;
     }
 
     private ObjectNode buildCombinedAdditionalDetails(UserAction userAction, JsonNode projectAdditionalDetails, String tenantId) {
         ObjectNode combinedDetails = objectMapper.createObjectNode();
-        
+
         // Add project additional details if present
         if (projectAdditionalDetails != null) {
             combinedDetails.setAll((ObjectNode) projectAdditionalDetails);
         }
-        
+
         // Add additionalFields as key-value pairs
         if (userAction.getAdditionalFields() != null && !CollectionUtils.isEmpty(userAction.getAdditionalFields().getFields())) {
             for (Field field : userAction.getAdditionalFields().getFields()) {
@@ -160,80 +155,13 @@ public class UserActionTransformationService {
                     combinedDetails.set(field.getKey(), convertToJsonNode(field.getValue()));
                 }
             }
+            combinedDetails.put(TRIP_DURATION, getTripDuration(userAction.getAdditionalFields()));
+            combinedDetails.put(TRIP_DISTANCE, getTripDistance(userAction.getAdditionalFields()));
         }
-        
-        // Add MDMS data only for DAILY_PLAN action
-        if (UserActionEnum.DAILY_PLAN.equals(userAction.getAction())) {
-            Map<String, String> userActionDailyPlan = fetchUserActionDailyPlan(tenantId);
 
-            try {
-                Field field = userAction.getAdditionalFields().getFields().stream()
-                        .filter(f -> "Data".equalsIgnoreCase(f.getKey()))
-                        .findFirst()
-                        .orElse(null);
-
-                if (field != null && field.getValue() != null) {
-                    ArrayNode arrayNode = JsonNodeFactory.instance.arrayNode();
-                    try {
-                        arrayNode = objectMapper.readValue(field.getValue(), ArrayNode.class);
-                    } catch (Exception e) {
-                        log.error("Failed to parse field value into list for userAction: {}", userAction.getId(), e);
-                    }
-
-
-                    try {
-                        List<JsonNode> parsedNodes = new ArrayList<>();
-                        for (JsonNode node : arrayNode) {
-                            if (node.isTextual()) {
-                                try {
-                                    parsedNodes.add(objectMapper.readTree(node.asText()));
-                                } catch (Exception e) {
-                                    log.error("Failed to parse inner JSON element for userAction: {}", userAction.getId(), e);
-                                }
-                            } else {
-                                parsedNodes.add(node);
-                            }
-                        }
-
-                        Map<String, List<String>> grouped = parsedNodes.stream()
-                                .filter(node -> node.hasNonNull(DAY_OF_VISIT) && node.hasNonNull(BOUNDARY_CODE_KEY))
-                                .collect(Collectors.groupingBy(
-                                        node -> node.get(DAY_OF_VISIT).asText(),
-                                        Collectors.mapping(node -> node.get(BOUNDARY_CODE_KEY).asText(), Collectors.toList())
-                                ));
-
-                        for (Map.Entry<String, List<String>> entry : grouped.entrySet()) {
-                            String day = entry.getKey().replace(" ", "_"); // "Day 1" -> "Day_1"
-                            List<String> boundaries = entry.getValue();
-
-                            String visitedBoundaries = day + VISITED_BOUNDARIES_SUFFIX;
-                            combinedDetails.set(visitedBoundaries, objectMapper.valueToTree(boundaries));
-                            combinedDetails.put(day, boundaries.size());
-                            combinedDetails.set("data", arrayNode);
-
-                        }
-                    } catch (Exception e) {
-                        log.error("Failed to group and process nodes for userAction: {}", userAction.getId(), e);
-                    }
-                } else {
-                    log.warn("No 'Data' field found in additionalFields for userAction: {}", userAction.getId());
-                }
-
-            } catch (Exception e) {
-                log.error("Unexpected error while processing DAILY_PLAN userAction: {}", userAction.getId(), e);
-            }
-
-            
-            if (!userActionDailyPlan.isEmpty()) {
-                combinedDetails.put(SUPERVISOR_ROLE, userActionDailyPlan.get(SUPERVISOR_ROLE_KEY));
-                combinedDetails.put(SUB_BOUNDARY_TYPE, userActionDailyPlan.get(SUB_BOUNDARY_TYPE_KEY));
-                combinedDetails.put(BOUNDARY_TYPE, userActionDailyPlan.get(BOUNDARY_TYPE_KEY));
-            }
-        }
-        
         return combinedDetails;
     }
-    
+
     private Map<String, String> fetchUserActionDailyPlan(String tenantId) {
         try {
             return mdmsService.fetchUserActionDailyPlan(tenantId);
@@ -252,5 +180,45 @@ public class UserActionTransformationService {
             // If parsing fails, treat it as plain string
             return TextNode.valueOf(value);
         }
+    }
+
+    private Long getLongValue(AdditionalFields additionalFields, String key) {
+        if (additionalFields == null || additionalFields.getFields() == null) {
+            return null;
+        }
+
+        return additionalFields.getFields().stream()
+                .filter(f -> key.equals(f.getKey()))
+                .map(Field::getValue)
+                .map(value -> {
+                    try {
+                        return Long.valueOf(value);
+                    } catch (NumberFormatException e) {
+                        return null;
+                    }
+                })
+                .findFirst()
+                .orElse(null);
+    }
+
+    public Long getTripDuration(AdditionalFields additionalFields) {
+        Long tripStartTime = getLongValue(additionalFields, TRIP_START_TIME);
+        Long tripEndTime   = getLongValue(additionalFields, END_TRIP_TIME);
+
+        if (tripStartTime != null && tripEndTime != null) {
+            return tripEndTime - tripStartTime;
+        }
+
+        return 0L;
+    }
+    public Long getTripDistance(AdditionalFields additionalFields) {
+        Long startMileage = getLongValue(additionalFields, START_MILEAGE);
+        Long endMileage   = getLongValue(additionalFields, END_MILEAGE);
+
+        if (startMileage != null && endMileage != null) {
+            return endMileage - startMileage;
+        }
+
+        return 0L;
     }
 }
