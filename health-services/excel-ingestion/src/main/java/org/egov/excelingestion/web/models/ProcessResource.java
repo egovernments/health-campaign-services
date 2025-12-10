@@ -45,6 +45,10 @@ public class ProcessResource {
     @Size(min = 1, max = 255, message = "INGEST_INVALID_REFERENCE_ID_LENGTH")
     private String referenceId;
 
+    @JsonProperty("referenceType")
+    @NotBlank(message = "INGEST_MISSING_REFERENCE_TYPE")
+    private String referenceType;
+
     @JsonProperty("fileStoreId")
     @NotBlank(message = "INGEST_MISSING_FILE_STORE_ID")
     private String fileStoreId;

@@ -112,6 +112,11 @@ public class GeneratedFileRepository {
             preparedStmtList.put("referenceIds", criteria.getReferenceIds());
         }
 
+        if (!CollectionUtils.isEmpty(criteria.getReferenceTypes())) {
+            query.append(" AND referenceType IN (:referenceTypes)");
+            preparedStmtList.put("referenceTypes", criteria.getReferenceTypes());
+        }
+
         if (!CollectionUtils.isEmpty(criteria.getTypes())) {
             query.append(" AND type IN (:types)");
             preparedStmtList.put("types", criteria.getTypes());
@@ -148,6 +153,7 @@ public class GeneratedFileRepository {
                 return GenerateResource.builder()
                     .id(rs.getString("id"))
                     .referenceId(rs.getString("referenceId"))
+                    .referenceType(rs.getString("referencetype"))
                     .tenantId(rs.getString("tenantId"))
                     .type(rs.getString("type"))
                     .fileStoreId(rs.getString("fileStoreId"))

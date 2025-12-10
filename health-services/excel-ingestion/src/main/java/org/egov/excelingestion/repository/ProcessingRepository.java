@@ -112,6 +112,11 @@ public class ProcessingRepository {
             preparedStmtList.put("referenceIds", criteria.getReferenceIds());
         }
 
+        if (!CollectionUtils.isEmpty(criteria.getReferenceTypes())) {
+            query.append(" AND referencetype IN (:referenceTypes)");
+            preparedStmtList.put("referenceTypes", criteria.getReferenceTypes());
+        }
+
         if (!CollectionUtils.isEmpty(criteria.getTypes())) {
             query.append(" AND type IN (:types)");
             preparedStmtList.put("types", criteria.getTypes());
@@ -143,6 +148,7 @@ public class ProcessingRepository {
                 return ProcessResource.builder()
                     .id(rs.getString("id"))
                     .referenceId(rs.getString("referenceid"))
+                    .referenceType(rs.getString("referencetype"))
                     .tenantId(rs.getString("tenantid"))
                     .type(rs.getString("type"))
                     .hierarchyType(rs.getString("hierarchytype"))
