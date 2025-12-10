@@ -63,7 +63,10 @@ public enum TaskStatus {
      * represents a system-determined ineligibility rather than
      * beneficiary choice.
      */
-    INELIGIBLE("INELIGIBLE");
+    INELIGIBLE("INELIGIBLE"),
+
+    BENEFICIARY_REFERRED("BENEFICIARY_REFERRED"),
+    VISITED("VISITED");
 
     // The string value associated with the task status.
     private String value;
