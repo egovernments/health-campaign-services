@@ -39,6 +39,7 @@ KAFKA_BROKER = os.getenv("KAFKA_BROKER")
 PRODUCER_CONFIG = {
     "bootstrap.servers": KAFKA_BROKER,
     'client.id': 'custom-report-metadata-producer',
+    "debug": "broker,topic,msg",
 }
 
 
@@ -49,31 +50,42 @@ if not REPORT_NAME or not CAMPAIGN_IDENTIFIER:
 producer = Producer(PRODUCER_CONFIG)
 
 def send_to_kafka(producer, topic, message, flush_timeout=10):
+    print(f"[KAFKA] Broker config: {PRODUCER_CONFIG}")
+    print(f"[KAFKA] Using broker: {KAFKA_BROKER!r}")
     try:
-        print(f"Trying to push data to Kafka topic: {topic}")
-        
-        # Better to be explicit: value=message
-        producer.produce(topic=topic, value=message)
+        print(f"[KAFKA] Trying to push data to Kafka topic: {topic}")
+        print(f"[KAFKA] Message preview: {message[:200]}")  # avoid huge logs
 
-        # Let the producer serve internal events & delivery reports
+        # Make sure we're sending bytes
+        if isinstance(message, str):
+            value = message.encode("utf-8")
+        else:
+            value = message
+
+        print("[KAFKA] Calling producer.produce()")
+        producer.produce(topic=topic, value=value)
+
+        # Serve delivery callbacks (even if we don't use them yet)
         producer.poll(0)
+        print("[KAFKA] Called poll(0), now flushing...")
 
-        # 🚨 This is the important part:
-        # Wait for all queued messages to be delivered (or timeout).
         remaining = producer.flush(flush_timeout)
+        print(f"[KAFKA] flush() returned, remaining messages in queue: {remaining}")
 
         if remaining == 0:
-            print(f"Successfully delivered message to Kafka topic: {topic}")
+            print(f"[KAFKA] ✅ Successfully delivered message to Kafka topic: {topic}")
         else:
             print(
-                f"Warning: {remaining} message(s) still undelivered "
+                f"[KAFKA] ⚠ Warning: {remaining} message(s) still undelivered "
                 f"after flush() for topic {topic}"
             )
 
     except KafkaException as e:
-        print(f"Failed to produce message: {e} in topic {topic}")
+        print(f"[KAFKA] ❌ KafkaException while producing to topic {topic}: {e}")
+    except BufferError as e:
+        print(f"[KAFKA] ❌ Local producer queue is full for topic {topic}: {e}")
     except Exception as e:
-        print(f"An error occurred: {e} while trying to push data to topic {topic}")
+        print(f"[KAFKA] ❌ Unexpected error while pushing to topic {topic}: {e}")
 
 def get_data_to_be_pushed(file_store_id):
     data = {
