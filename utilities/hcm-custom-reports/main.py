@@ -48,11 +48,28 @@ if not REPORT_NAME or not CAMPAIGN_IDENTIFIER:
 
 producer = Producer(PRODUCER_CONFIG)
 
-def send_to_kafka(producer, topic, message):
+def send_to_kafka(producer, topic, message, flush_timeout=10):
     try:
         print(f"Trying to push data to Kafka topic: {topic}")
-        producer.produce(topic, message)
-        print(f"Pushed data to Kafka topic: {topic}")
+        
+        # Better to be explicit: value=message
+        producer.produce(topic=topic, value=message)
+
+        # Let the producer serve internal events & delivery reports
+        producer.poll(0)
+
+        # 🚨 This is the important part:
+        # Wait for all queued messages to be delivered (or timeout).
+        remaining = producer.flush(flush_timeout)
+
+        if remaining == 0:
+            print(f"Successfully delivered message to Kafka topic: {topic}")
+        else:
+            print(
+                f"Warning: {remaining} message(s) still undelivered "
+                f"after flush() for topic {topic}"
+            )
+
     except KafkaException as e:
         print(f"Failed to produce message: {e} in topic {topic}")
     except Exception as e:
