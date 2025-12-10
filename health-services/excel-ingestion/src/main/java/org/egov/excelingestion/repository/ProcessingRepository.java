@@ -151,6 +151,7 @@ public class ProcessingRepository {
                     .status(rs.getString("status"))
                     .additionalDetails(additionalDetails != null ? objectMapper.convertValue(additionalDetails, java.util.Map.class) : null)
                     .auditDetails(auditDetails)
+                    .processedStatus(rs.getString("processedstatus"))
                     .build();
             } catch (Exception e) {
                 log.error("Error mapping row to ProcessResource: {}", e.getMessage(), e);

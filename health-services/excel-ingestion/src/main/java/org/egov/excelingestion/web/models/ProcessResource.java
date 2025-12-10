@@ -63,4 +63,7 @@ public class ProcessResource {
 
     @JsonProperty("locale")
     private String locale;
+
+    @JsonProperty("processedStatus")
+    private String processedStatus;
 }
