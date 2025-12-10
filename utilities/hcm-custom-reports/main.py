@@ -228,7 +228,7 @@ def normalize_timestamp_to_utc(ts: str) -> str:
     dt_utc = dt.astimezone(datetime.timezone.utc)
 
     # Format as DD:MM:YYYY HH:MM:SS+0000
-    return dt_utc.strftime("%d-%m-%Y %H:%M:%S")
+    return dt_utc.strftime("%Y-%m-%d %H:%M:%S")
 
 def save_file_to_folder(file):
     _, extension = os.path.splitext(file)
