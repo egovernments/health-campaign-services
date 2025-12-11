@@ -530,7 +530,8 @@ with DAG(
                 logger.info("  ⚡ FINAL REPORT: Covering %d remaining days", remaining_days)
 
             # Check if frequency is due (DAILY/WEEKLY/MONTHLY)
-            if not frequency_due(c, now):
+            # Final reports bypass frequency check (campaign ending mid-cycle)
+            if not is_final_report and not frequency_due(c, now):
                 logger.info("  ⏭️ SKIP: Frequency not due (%s)", frequency)
                 continue
 
