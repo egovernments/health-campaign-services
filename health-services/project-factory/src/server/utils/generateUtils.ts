@@ -49,6 +49,7 @@ export async function callExcelIngestionService(requestBody: any) {
             hierarchyType: hierarchyType,
             locale: getLocaleFromRequestInfo (requestBody?.RequestInfo),
             referenceId: campaignId,
+            referenceType: 'campaign',
             additionalDetails: {}
         };
 
