@@ -2337,6 +2337,7 @@ async function processUnifiedTemplateCampaign(request: any): Promise<void> {
       tenantId: campaignDetails.tenantId,
       locale: getLocaleFromRequest(request),
       referenceId: campaignDetails.id,
+      referenceType: 'campaign',
       fileStoreId: unifiedResource.filestoreId,
       campaignId: campaignDetails.id,
       hierarchyType: campaignDetails.hierarchyType,

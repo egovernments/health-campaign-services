@@ -24,6 +24,9 @@ public class GenerationSearchCriteria {
     @JsonProperty("referenceIds")
     private List<String> referenceIds;
 
+    @JsonProperty("referenceTypes")
+    private List<String> referenceTypes;
+
     @JsonProperty("tenantId")
     @NotBlank(message = "INGEST_MISSING_TENANT_ID")
     private String tenantId;
