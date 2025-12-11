@@ -437,10 +437,11 @@ with DAG(
                 logger.warning("Campaign missing campaignIdentifier; skipping")
                 continue
 
-            # Dedupe by (campaignIdentifier, reportName)
-            key = (cid, c.get("reportName"))
+            # Dedupe by (campaignIdentifier, reportName, triggerTime)
+            # triggerTime is included to allow same campaign/report with different trigger schedules
+            key = (cid, c.get("reportName"), c.get("triggerTime"))
             if key in seen:
-                logger.warning("Duplicate: %s - %s (skipping)", cid, c.get("reportName"))
+                logger.warning("Duplicate: %s - %s - %s (skipping)", cid, c.get("reportName"), c.get("triggerTime"))
                 continue
 
             # Basic validation
