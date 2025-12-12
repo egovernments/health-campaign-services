@@ -390,7 +390,19 @@ public class ProjectAddressQueryBuilder {
         
         return queryBuilder.toString();
     }
-    
+
+    /* Returns query to search for projects where project parent contains project Ids */
+    public String getProjectImmediateDescendantsSearchQueryBasedOnIds(List<String> projectIds, List<Object> preparedStmtListDescendants) {
+        StringBuilder queryBuilder = new StringBuilder(FETCH_PROJECT_ADDRESS_QUERY);
+        for (String projectId : projectIds) {
+            addConditionalClause(preparedStmtListDescendants, queryBuilder);
+            queryBuilder.append(" ( prj.parent = ? )");
+            preparedStmtListDescendants.add(projectId);
+        }
+
+        return queryBuilder.toString();
+    }
+
     /* Returns query to get total projects count based on project search params */
     public String getSearchCountQueryString(List<Project> projects, String tenantId, Long lastChangedSince, Boolean includeDeleted, Long createdFrom, Long createdTo, boolean isAncestorProjectId, List<Object> preparedStatement) {
         String query = getProjectSearchQuery(projects, config.getMaxLimit(), config.getDefaultOffset(), tenantId, lastChangedSince, includeDeleted, createdFrom, createdTo, isAncestorProjectId, preparedStatement, true);
