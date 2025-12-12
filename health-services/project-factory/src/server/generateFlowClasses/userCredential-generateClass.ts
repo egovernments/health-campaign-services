@@ -37,8 +37,12 @@ export class TemplateClass {
             localizedData["UserName"] = decrypt(rawData["UserName"]);
             localizedData["Password"] = decrypt(rawData["Password"]);
             if (!localizedData["HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY"]){
-                const boundaryCode = localizedData["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"];
-                localizedData["HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY"] = getLocalizedName(boundaryCode, localizationMap) || boundaryCode;
+                localizedData["HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY"] = localizedData["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"];
+            }
+            // Add localized boundary name
+            const boundaryCode = localizedData["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"] ;
+            if (boundaryCode && !localizedData["HCM_ADMIN_CONSOLE_BOUNDARY_NAME"]) {
+                localizedData["HCM_ADMIN_CONSOLE_BOUNDARY_NAME"] = getLocalizedName(boundaryCode, localizationMap);
             }
             return localizedData;
         }));
