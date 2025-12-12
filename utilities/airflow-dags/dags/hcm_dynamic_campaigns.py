@@ -235,10 +235,15 @@ def frequency_due(campaign, now):
     """
     Check if the campaign is due to run based on its trigger frequency.
 
-    Frequency rules:
-      - DAILY: Always due (days_since_start >= 0)
-      - WEEKLY: Due every 7 days from start (days_since_start >= 7 and days % 7 == 0)
-      - MONTHLY: Due every 30 days from start (days_since_start >= 30 and days % 30 == 0)
+    Uses 1-indexed days (campaign start date = Day 1, not Day 0):
+      - DAILY: Always due (day_number >= 1)
+      - WEEKLY: Due on Day 7, 14, 21, ... (day_number >= 7 and day_number % 7 == 0)
+      - MONTHLY: Due on Day 30, 60, 90, ... (day_number >= 30 and day_number % 30 == 0)
+
+    Example for WEEKLY:
+      - Day 1 (start date): Not due
+      - Day 7: Due (first weekly report covers Days 1-7)
+      - Day 14: Due (second weekly report covers Days 8-14)
 
     Args:
         campaign (dict): Campaign object with triggerFrequency and startDate
@@ -255,14 +260,15 @@ def frequency_due(campaign, now):
 
     try:
         start_dt = datetime.strptime(start_date_str, "%d-%m-%Y %H:%M:%S%z")
-        days = (now.date() - start_dt.date()).days
+        # Use 1-indexed days: start date = Day 1
+        day_number = (now.date() - start_dt.date()).days + 1
 
         if freq == "daily":
-            return days >= 0
+            return day_number >= 1
         if freq == "weekly":
-            return days >= 7 and (days % 7 == 0)
+            return day_number >= 7 and (day_number % 7 == 0)
         if freq == "monthly":
-            return days >= 30 and (days % 30 == 0)
+            return day_number >= 30 and (day_number % 30 == 0)
         return True  # Default to running for unknown frequencies
     except ValueError:
         logger.warning("Failed to parse startDate for frequency check: %s", start_date_str)
@@ -273,9 +279,10 @@ def is_final_report_due(campaign, ref_dt):
     """
     Check if campaign is ending today and needs a final partial report.
 
-    This handles the scenario where a campaign ends mid-cycle (e.g., on day 5
+    Uses 1-indexed days (campaign start date = Day 1).
+    This handles the scenario where a campaign ends mid-cycle (e.g., on Day 8
     of a weekly report cycle). In such cases, we need to generate a final
-    report covering the remaining days.
+    report covering the remaining days after the last scheduled report.
 
     Args:
         campaign (dict): Campaign object with endDate, startDate, and triggerFrequency
@@ -287,14 +294,14 @@ def is_final_report_due(campaign, ref_dt):
             - remaining_days: Number of days to include in the final report
 
     Example:
-        Campaign starts: Day 1
-        Weekly reports on: Day 7, Day 14
-        Campaign ends: Day 19
+        Campaign starts: Day 1 (05-12-2025)
+        Weekly reports on: Day 7 (11-12-2025) covers Days 1-7
+        Campaign ends: Day 8 (12-12-2025)
 
-        On Day 19, this function returns (True, 5) because:
+        On Day 8, this function returns (True, 1) because:
         - Today is the campaign end date
-        - 5 days have passed since the last weekly report (Day 14)
-        - A final report covering days 15-19 should be generated
+        - 1 day has passed since the last weekly report (Day 7)
+        - A final report covering Day 8 should be generated
     """
     # Get campaign end date
     end_date_str = campaign.get("endDate", "")
@@ -320,7 +327,7 @@ def is_final_report_due(campaign, ref_dt):
     if freq == "daily":
         return (False, 0)
 
-    # Get campaign start date to calculate days since start
+    # Get campaign start date to calculate day number
     start_date_str = campaign.get("startDate", "")
     if not start_date_str:
         return (False, 0)
@@ -332,19 +339,20 @@ def is_final_report_due(campaign, ref_dt):
         logger.warning("Failed to parse startDate for final report check: %s", start_date_str)
         return (False, 0)
 
-    days_since_start = (today - start_date).days
+    # Use 1-indexed days: start date = Day 1
+    day_number = (today - start_date).days + 1
 
     # Calculate days since last scheduled report
     if freq == "weekly":
-        days_since_last_report = days_since_start % 7
+        days_since_last_report = day_number % 7
     elif freq == "monthly":
-        days_since_last_report = days_since_start % 30
+        days_since_last_report = day_number % 30
     else:
         return (False, 0)
 
     # If there are remaining days (not on a regular report boundary), trigger final report
-    # Also check that days_since_start >= 1 to ensure there's at least one day of data
-    if days_since_last_report > 0 and days_since_start >= 1:
+    # Also check that day_number >= 1 to ensure there's at least one day of data
+    if days_since_last_report > 0 and day_number >= 1:
         logger.info("Campaign %s: Final report due with %d remaining days",
                    campaign.get("campaignIdentifier", "UNKNOWN"), days_since_last_report)
         return (True, days_since_last_report)
