@@ -112,6 +112,9 @@ public class UserActionTransformationService {
 
         // Build combined additionalDetails with additionalFields as key-value pairs and MDMS data if applicable
         ObjectNode combinedAdditionalDetails = buildCombinedAdditionalDetails(userAction, projectAdditionalDetails, tenantId);
+        String cycleIndex = commonUtils.fetchCycleIndexFromTime(userAction.getTenantId(), projectTypeId, userAction.getClientAuditDetails().getCreatedTime());
+        combinedAdditionalDetails.put(CYCLE_INDEX, cycleIndex);
+
         Map<String, String> userInfoMap = userService.getUserInfo(userAction.getTenantId(), userAction.getClientAuditDetails().getCreatedBy());
         String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(userAction.getAuditDetails().getLastModifiedTime());
 
@@ -144,9 +147,9 @@ public class UserActionTransformationService {
         ObjectNode combinedDetails = objectMapper.createObjectNode();
 
         // Add project additional details if present
-        if (projectAdditionalDetails != null) {
-            combinedDetails.setAll((ObjectNode) projectAdditionalDetails);
-        }
+//        if (projectAdditionalDetails != null) {
+//            combinedDetails.setAll((ObjectNode) projectAdditionalDetails);
+//        }
 
         // Add additionalFields as key-value pairs
         if (userAction.getAdditionalFields() != null && !CollectionUtils.isEmpty(userAction.getAdditionalFields().getFields())) {

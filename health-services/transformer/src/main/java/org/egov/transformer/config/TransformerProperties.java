@@ -50,9 +50,6 @@ public class TransformerProperties {
     @Value("${transformer.producer.special.spraying.checklist.index.v1.topic}")
     private String transformerProducerSpecialSprayingChecklistIndexV1Topic;
 
-    @Value("${transformer.producer.extra.transformed.checklist.index.v1.topic}")
-    private String transformerProducerExtraTransformedChecklistIndexV1Topic;
-
     @Value("${transformer.producer.create.pgr.topic}")
     private String transformerProducerCreatePgrTopic;
 
