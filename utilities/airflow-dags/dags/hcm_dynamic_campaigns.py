@@ -105,6 +105,77 @@ def parse_time_string(time_str):
     return (hour, minute, second)
 
 
+def parse_time_with_timezone(time_str):
+    """
+    Parse a time string with timezone offset and return time components plus UTC offset.
+
+    Supports formats:
+        - "10:00:00+0530" → (10, 0, 0, 330) - 10 AM IST, offset +330 minutes
+        - "14:00:00-0500" → (14, 0, 0, -300) - 2 PM EST, offset -300 minutes
+        - "10:00:00" → (10, 0, 0, 0) - assumes UTC
+
+    Args:
+        time_str (str): Time string with optional timezone offset
+
+    Returns:
+        tuple: (hour, minute, second, tz_offset_minutes)
+            - hour, minute, second: Time components
+            - tz_offset_minutes: Timezone offset in minutes (positive = ahead of UTC)
+    """
+    time_part = time_str.strip()
+    tz_offset_minutes = 0
+
+    # Check for timezone offset (+HHMM or -HHMM)
+    if '+' in time_part:
+        t, tz = time_part.split('+')
+        tz_sign = 1
+    elif time_part.count('-') > 2:
+        # More than 2 hyphens means timezone (not just time separator)
+        parts = time_part.rsplit('-', 1)
+        t = parts[0]
+        tz = parts[1] if len(parts) > 1 else '0000'
+        tz_sign = -1
+    else:
+        t = time_part
+        tz = None
+        tz_sign = 0
+
+    # Parse timezone offset
+    if tz:
+        tz = tz.strip().replace(':', '')
+        tz_hours = int(tz[:2]) if len(tz) >= 2 else 0
+        tz_mins = int(tz[2:4]) if len(tz) >= 4 else 0
+        tz_offset_minutes = tz_sign * (tz_hours * 60 + tz_mins)
+
+    # Parse time components
+    parts = t.split(":")
+    hour = int(parts[0]) if len(parts) > 0 else 0
+    minute = int(parts[1]) if len(parts) > 1 else 0
+    second = int(parts[2]) if len(parts) > 2 else 0
+
+    return (hour, minute, second, tz_offset_minutes)
+
+
+def to_utc(date, hour, minute, second, tz_offset_minutes):
+    """
+    Convert a local datetime to UTC.
+
+    Args:
+        date: The date object
+        hour, minute, second: Time components in local timezone
+        tz_offset_minutes: Timezone offset in minutes (positive = ahead of UTC)
+
+    Returns:
+        datetime: UTC datetime
+
+    Example:
+        10:00:00+0530 (10 AM IST) → subtract 330 minutes → 04:30:00 UTC
+        14:00:00-0500 (2 PM EST) → subtract -300 minutes → 19:00:00 UTC
+    """
+    local_dt = datetime(date.year, date.month, date.day, hour, minute, second, tzinfo=UTC)
+    return local_dt - timedelta(minutes=tz_offset_minutes)
+
+
 def should_report_today(campaign, now):
     """
     Determine if the report should cover today's data or yesterday's data
@@ -317,12 +388,13 @@ def compute_range(campaign, now, is_final=False, remaining_days=0):
     """
     freq = campaign.get("triggerFrequency", "Daily").lower()
 
-    # Parse report time bounds
+    # Parse report time bounds with timezone support
+    # Example: "10:00:00+0530" → 10 AM IST → 04:30 UTC
     report_start_time_str = campaign.get("reportStartTime", "00:00:00")
     report_end_time_str = campaign.get("reportEndTime", "23:59:59")
 
-    start_h, start_m, start_s = parse_time_string(report_start_time_str.split("+")[0].split("-")[0])
-    end_h, end_m, end_s = parse_time_string(report_end_time_str.split("+")[0].split("-")[0])
+    start_h, start_m, start_s, start_tz_offset = parse_time_with_timezone(report_start_time_str)
+    end_h, end_m, end_s, end_tz_offset = parse_time_with_timezone(report_end_time_str)
 
     # Determine if we should report for today or yesterday
     use_today = should_report_today(campaign, now)
@@ -351,14 +423,10 @@ def compute_range(campaign, now, is_final=False, remaining_days=0):
             start_date = now.date() - timedelta(days=remaining_days)
             end_date = (now - timedelta(days=1)).date()
 
-        start = datetime(
-            start_date.year, start_date.month, start_date.day,
-            start_h, start_m, start_s, tzinfo=UTC
-        )
-        end = datetime(
-            end_date.year, end_date.month, end_date.day,
-            end_h, end_m, end_s, tzinfo=UTC
-        )
+        # Convert to UTC considering timezone offsets
+        start = to_utc(start_date, start_h, start_m, start_s, start_tz_offset)
+        end = to_utc(end_date, end_h, end_m, end_s, end_tz_offset)
+
         logger.info("Final partial report: %d days (%s to %s)",
                    remaining_days,
                    start.strftime("%Y-%m-%d %H:%M:%S"),
@@ -375,14 +443,9 @@ def compute_range(campaign, now, is_final=False, remaining_days=0):
             end_date = (now - timedelta(days=1)).date()
             start_date = end_date - timedelta(days=6)  # 7 days total
 
-        start = datetime(
-            start_date.year, start_date.month, start_date.day,
-            start_h, start_m, start_s, tzinfo=UTC
-        )
-        end = datetime(
-            end_date.year, end_date.month, end_date.day,
-            end_h, end_m, end_s, tzinfo=UTC
-        )
+        # Convert to UTC considering timezone offsets
+        start = to_utc(start_date, start_h, start_m, start_s, start_tz_offset)
+        end = to_utc(end_date, end_h, end_m, end_s, end_tz_offset)
         return (start, end)
 
     if freq == "monthly":
@@ -394,26 +457,16 @@ def compute_range(campaign, now, is_final=False, remaining_days=0):
             end_date = (now - timedelta(days=1)).date()
             start_date = end_date - timedelta(days=29)  # 30 days total
 
-        start = datetime(
-            start_date.year, start_date.month, start_date.day,
-            start_h, start_m, start_s, tzinfo=UTC
-        )
-        end = datetime(
-            end_date.year, end_date.month, end_date.day,
-            end_h, end_m, end_s, tzinfo=UTC
-        )
+        # Convert to UTC considering timezone offsets
+        start = to_utc(start_date, start_h, start_m, start_s, start_tz_offset)
+        end = to_utc(end_date, end_h, end_m, end_s, end_tz_offset)
         return (start, end)
 
     # Default: Daily report
     # Report covers single day (today or yesterday based on time comparison)
-    start = datetime(
-        base_date.year, base_date.month, base_date.day,
-        start_h, start_m, start_s, tzinfo=UTC
-    )
-    end = datetime(
-        base_date.year, base_date.month, base_date.day,
-        end_h, end_m, end_s, tzinfo=UTC
-    )
+    # Convert to UTC considering timezone offsets
+    start = to_utc(base_date, start_h, start_m, start_s, start_tz_offset)
+    end = to_utc(base_date, end_h, end_m, end_s, end_tz_offset)
     return (start, end)
 
 
