@@ -368,8 +368,8 @@ def compute_range(campaign, now, is_final=False, remaining_days=0):
         campaign (dict): Campaign object with:
             - triggerFrequency: Daily, Weekly, Monthly
             - reportStartTime: Start time for data collection (e.g., "00:00:00")
-            - reportEndTime: End time for data collection (e.g., "14:00:00")
-            - triggerTime: When the report is triggered (e.g., "16:00:00")
+            - reportEndTime: End time for data collection (e.g., "14:00:00") - used for DAILY only
+            - triggerTime: When the report is triggered (e.g., "12:00:00") - used as end time for WEEKLY/MONTHLY
         now (datetime): Current execution time (UTC)
         is_final (bool): Whether this is a final partial report for campaign end date
         remaining_days (int): Number of days to include in final partial report
@@ -378,21 +378,28 @@ def compute_range(campaign, now, is_final=False, remaining_days=0):
         tuple: (start_datetime, end_datetime) in UTC
 
     Logic for Daily Reports:
+        - Uses reportStartTime and reportEndTime
         - If reportEndTime < triggerTime: Report covers TODAY's reportStartTime to reportEndTime
         - If reportEndTime >= triggerTime: Report covers YESTERDAY's reportStartTime to reportEndTime
 
+    Logic for Weekly/Monthly Reports:
+        - Uses reportStartTime for start time and triggerTime as end time
+        - This ensures all data up to the trigger time is captured, avoiding missing last day data
+        - End date is always TODAY (when report is triggered)
+        - Start date is 7 days back (weekly) or 30 days back (monthly)
+
     Examples:
-        Scenario 1: reportStartTime=00:00, reportEndTime=14:00, triggerTime=16:00
+        Daily - Scenario 1: reportStartTime=00:00, reportEndTime=14:00, triggerTime=16:00
         - reportEndTime (14:00) < triggerTime (16:00)
         - Report covers: TODAY 00:00 to TODAY 14:00
 
-        Scenario 2: reportStartTime=00:00, reportEndTime=17:00, triggerTime=16:00
+        Daily - Scenario 2: reportStartTime=00:00, reportEndTime=17:00, triggerTime=16:00
         - reportEndTime (17:00) >= triggerTime (16:00)
         - Report covers: YESTERDAY 00:00 to YESTERDAY 17:00
 
-    Weekly/Monthly:
-        - Uses the same today/yesterday logic for the end date
-        - Start date is calculated based on frequency (7 or 30 days back)
+        Weekly: reportStartTime=00:00, triggerTime=12:00, freq=weekly
+        - campaignStartDate=06-12-2025, report runs on 12-12-2025
+        - Report covers: 06-12-2025 00:00 to 12-12-2025 12:00
     """
     freq = campaign.get("triggerFrequency", "Daily").lower()
 
@@ -400,10 +407,38 @@ def compute_range(campaign, now, is_final=False, remaining_days=0):
     # Example: "10:00:00+0530" → 10 AM IST → 04:30 UTC
     report_start_time_str = campaign.get("reportStartTime", "00:00:00")
     report_end_time_str = campaign.get("reportEndTime", "23:59:59")
+    trigger_time_str = campaign.get("triggerTime", "00:00:00")
 
     start_h, start_m, start_s, start_tz_offset = parse_time_with_timezone(report_start_time_str)
     end_h, end_m, end_s, end_tz_offset = parse_time_with_timezone(report_end_time_str)
+    trigger_h, trigger_m, trigger_s, trigger_tz_offset = parse_time_with_timezone(trigger_time_str)
 
+    # For WEEKLY and MONTHLY: use triggerTime as end time instead of reportEndTime
+    # This ensures we capture all data up to the moment the report is generated
+    if freq in ("weekly", "monthly"):
+        # End date is always TODAY (when the report is triggered)
+        end_date = now.date()
+
+        if freq == "weekly":
+            # Report covers 7 days: from (today - 6 days) to today
+            start_date = end_date - timedelta(days=6)
+        else:  # monthly
+            # Report covers 30 days: from (today - 29 days) to today
+            start_date = end_date - timedelta(days=29)
+
+        # Convert to UTC:
+        # - Start: first day at reportStartTime
+        # - End: last day (today) at triggerTime
+        start = to_utc(start_date, start_h, start_m, start_s, start_tz_offset)
+        end = to_utc(end_date, trigger_h, trigger_m, trigger_s, trigger_tz_offset)
+
+        logger.info("%s report range: %s %02d:%02d:%02d to %s %02d:%02d:%02d (using triggerTime as end)",
+                   freq.upper(),
+                   start_date.strftime("%Y-%m-%d"), start_h, start_m, start_s,
+                   end_date.strftime("%Y-%m-%d"), trigger_h, trigger_m, trigger_s)
+        return (start, end)
+
+    # DAILY reports: use reportStartTime and reportEndTime
     # Determine if we should report for today or yesterday
     use_today = should_report_today(campaign, now)
 
@@ -419,7 +454,7 @@ def compute_range(campaign, now, is_final=False, remaining_days=0):
     # Handle final partial report for campaign end date
     if is_final and remaining_days > 0:
         # FINAL PARTIAL REPORT: Cover remaining days since last scheduled report
-        # For final reports, we need to cover multiple days ending at base_date
+        # For final reports, use triggerTime as end time to capture all data
 
         # Calculate start date for partial period
         if use_today:
@@ -431,43 +466,14 @@ def compute_range(campaign, now, is_final=False, remaining_days=0):
             start_date = now.date() - timedelta(days=remaining_days)
             end_date = (now - timedelta(days=1)).date()
 
-        # Convert to UTC considering timezone offsets
+        # Convert to UTC - use triggerTime as end time for final reports
         start = to_utc(start_date, start_h, start_m, start_s, start_tz_offset)
-        end = to_utc(end_date, end_h, end_m, end_s, end_tz_offset)
+        end = to_utc(end_date, trigger_h, trigger_m, trigger_s, trigger_tz_offset)
 
         logger.info("Final partial report: %d days (%s to %s)",
                    remaining_days,
                    start.strftime("%Y-%m-%d %H:%M:%S"),
                    end.strftime("%Y-%m-%d %H:%M:%S"))
-        return (start, end)
-
-    # Calculate date range based on frequency
-    if freq == "weekly":
-        # Report covers 7 days ending at base_date
-        if use_today:
-            end_date = now.date()
-            start_date = end_date - timedelta(days=6)  # 7 days total including today
-        else:
-            end_date = (now - timedelta(days=1)).date()
-            start_date = end_date - timedelta(days=6)  # 7 days total
-
-        # Convert to UTC considering timezone offsets
-        start = to_utc(start_date, start_h, start_m, start_s, start_tz_offset)
-        end = to_utc(end_date, end_h, end_m, end_s, end_tz_offset)
-        return (start, end)
-
-    if freq == "monthly":
-        # Report covers 30 days ending at base_date
-        if use_today:
-            end_date = now.date()
-            start_date = end_date - timedelta(days=29)  # 30 days total including today
-        else:
-            end_date = (now - timedelta(days=1)).date()
-            start_date = end_date - timedelta(days=29)  # 30 days total
-
-        # Convert to UTC considering timezone offsets
-        start = to_utc(start_date, start_h, start_m, start_s, start_tz_offset)
-        end = to_utc(end_date, end_h, end_m, end_s, end_tz_offset)
         return (start, end)
 
     # Default: Daily report
