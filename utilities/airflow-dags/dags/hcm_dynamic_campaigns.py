@@ -413,6 +413,39 @@ def compute_range(campaign, now, is_final=False, remaining_days=0):
     end_h, end_m, end_s, end_tz_offset = parse_time_with_timezone(report_end_time_str)
     trigger_h, trigger_m, trigger_s, trigger_tz_offset = parse_time_with_timezone(trigger_time_str)
 
+    # ================================================================
+    # FINAL PARTIAL REPORT (for WEEKLY/MONTHLY campaigns ending mid-cycle)
+    # ================================================================
+    # This handles campaigns that end before a full cycle completes.
+    # Example: Weekly campaign starts Day 1, last report on Day 7, ends on Day 9
+    # Final report covers Days 8-9 (remaining_days = 2)
+    #
+    # Calculation:
+    #   - Start: (today - remaining_days + 1) at reportStartTime
+    #   - End: today at triggerTime
+    #
+    # Example with remaining_days=2, today=13-12-2025:
+    #   - Start: 12-12-2025 00:00:00 (Day 8)
+    #   - End: 13-12-2025 12:00:00 (Day 9 at trigger time)
+    if is_final and remaining_days > 0 and freq in ("weekly", "monthly"):
+        # End date is TODAY (campaign end date)
+        end_date = now.date()
+        # Start date is (remaining_days - 1) days ago
+        # Example: remaining_days=2, today=Day 9 → start = Day 9 - 1 = Day 8
+        start_date = end_date - timedelta(days=remaining_days - 1)
+
+        # Convert to UTC:
+        # - Start: first day of partial period at reportStartTime
+        # - End: last day (today) at triggerTime
+        start = to_utc(start_date, start_h, start_m, start_s, start_tz_offset)
+        end = to_utc(end_date, trigger_h, trigger_m, trigger_s, trigger_tz_offset)
+
+        logger.info("FINAL PARTIAL %s report: %d days (%s %02d:%02d:%02d to %s %02d:%02d:%02d)",
+                   freq.upper(), remaining_days,
+                   start_date.strftime("%Y-%m-%d"), start_h, start_m, start_s,
+                   end_date.strftime("%Y-%m-%d"), trigger_h, trigger_m, trigger_s)
+        return (start, end)
+
     # For WEEKLY and MONTHLY: use triggerTime as end time instead of reportEndTime
     # This ensures we capture all data up to the moment the report is generated
     if freq in ("weekly", "monthly"):
@@ -438,46 +471,22 @@ def compute_range(campaign, now, is_final=False, remaining_days=0):
                    end_date.strftime("%Y-%m-%d"), trigger_h, trigger_m, trigger_s)
         return (start, end)
 
-    # DAILY reports: use reportStartTime and reportEndTime
+    # ================================================================
+    # DAILY REPORTS
+    # ================================================================
     # Determine if we should report for today or yesterday
     use_today = should_report_today(campaign, now)
 
     if use_today:
         # Data collection is complete for today
         base_date = now.date()
-        logger.info("Report will cover TODAY's data (reportEndTime < triggerTime)")
+        logger.info("DAILY report will cover TODAY's data (reportEndTime < triggerTime)")
     else:
         # Data collection not complete for today, use yesterday
         base_date = (now - timedelta(days=1)).date()
-        logger.info("Report will cover YESTERDAY's data (reportEndTime >= triggerTime)")
+        logger.info("DAILY report will cover YESTERDAY's data (reportEndTime >= triggerTime)")
 
-    # Handle final partial report for campaign end date
-    if is_final and remaining_days > 0:
-        # FINAL PARTIAL REPORT: Cover remaining days since last scheduled report
-        # For final reports, use triggerTime as end time to capture all data
-
-        # Calculate start date for partial period
-        if use_today:
-            # Start from (remaining_days - 1) days ago (since today is included)
-            start_date = now.date() - timedelta(days=remaining_days - 1)
-            end_date = now.date()
-        else:
-            # Start from remaining_days days ago, end yesterday
-            start_date = now.date() - timedelta(days=remaining_days)
-            end_date = (now - timedelta(days=1)).date()
-
-        # Convert to UTC - use triggerTime as end time for final reports
-        start = to_utc(start_date, start_h, start_m, start_s, start_tz_offset)
-        end = to_utc(end_date, trigger_h, trigger_m, trigger_s, trigger_tz_offset)
-
-        logger.info("Final partial report: %d days (%s to %s)",
-                   remaining_days,
-                   start.strftime("%Y-%m-%d %H:%M:%S"),
-                   end.strftime("%Y-%m-%d %H:%M:%S"))
-        return (start, end)
-
-    # Default: Daily report
-    # Report covers single day (today or yesterday based on time comparison)
+    # Daily report covers single day (today or yesterday based on time comparison)
     # Convert to UTC considering timezone offsets
     start = to_utc(base_date, start_h, start_m, start_s, start_tz_offset)
     end = to_utc(base_date, end_h, end_m, end_s, end_tz_offset)
