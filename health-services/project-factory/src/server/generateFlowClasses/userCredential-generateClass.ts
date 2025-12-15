@@ -36,13 +36,14 @@ export class TemplateClass {
             localizedData["#status#"] = sheetDataRowStatuses.CREATED;
             localizedData["UserName"] = decrypt(rawData["UserName"]);
             localizedData["Password"] = decrypt(rawData["Password"]);
-            if (!localizedData["HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY"]){
-                localizedData["HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY"] = localizedData["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"];
-            }
-            // Add localized boundary name
             const boundaryCode = localizedData["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"] ;
-            if (boundaryCode && !localizedData["HCM_ADMIN_CONSOLE_BOUNDARY_NAME"]) {
-                localizedData["HCM_ADMIN_CONSOLE_BOUNDARY_NAME"] = getLocalizedName(boundaryCode, localizationMap);
+            // Add localized boundary code
+            if (boundaryCode && !localizedData["HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY"]){
+                localizedData["HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY"] = getLocalizedName(boundaryCode, localizationMap);
+            }
+            // Add boundary code
+            if (!localizedData["HCM_ADMIN_CONSOLE_BOUNDARY_NAME"]) {
+                localizedData["HCM_ADMIN_CONSOLE_BOUNDARY_NAME"] = localizedData["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"];
             }
             return localizedData;
         }));
