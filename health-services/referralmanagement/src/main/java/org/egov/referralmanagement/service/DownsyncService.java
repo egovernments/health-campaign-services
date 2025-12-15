@@ -11,6 +11,7 @@ import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.RequestInfo;
+import org.egov.common.ds.Tuple;
 import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.common.models.core.Pagination;
@@ -50,6 +51,7 @@ import org.egov.common.models.service.ServiceSearchRequest;
 import org.egov.common.utils.MultiStateInstanceUtil;
 import org.egov.referralmanagement.Constants;
 import org.egov.referralmanagement.config.ReferralManagementConfiguration;
+import org.egov.referralmanagement.repository.HouseholdRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -75,6 +77,8 @@ public class DownsyncService {
     private MasterDataService masterDataService;
 
     private final MultiStateInstanceUtil multiStateInstanceUtil;
+
+    private HouseholdRepository householdRepository;
 
     @Autowired
     public DownsyncService( ServiceRequestClient serviceRequestClient,
@@ -176,26 +180,32 @@ public class DownsyncService {
     private List<String> searchHouseholds(DownsyncRequest downsyncRequest, Downsync downsync) {
 
         DownsyncCriteria criteria = downsyncRequest.getDownsyncCriteria();
-        RequestInfo requestInfo = downsyncRequest.getRequestInfo();
+        List<Household> households = null;
+        if (configs.isEnableMatviewSearch()) {
+            Tuple<Long, List<Household>> res = householdRepository.findByView(criteria.getLocality(), criteria.getLimit(), criteria.getOffset(), null);
+            households = res.getY();
+            downsync.getDownsyncCriteria().setTotalCount(res.getX());
+        } else {
+            RequestInfo requestInfo = downsyncRequest.getRequestInfo();
 
-        StringBuilder householdUrl = new StringBuilder(configs.getHouseholdHost())
-                .append(configs.getHouseholdSearchUrl());
-        appendUrlParams(householdUrl, criteria, null, null, true);
+            StringBuilder householdUrl = new StringBuilder(configs.getHouseholdHost())
+                    .append(configs.getHouseholdSearchUrl());
+            appendUrlParams(householdUrl, criteria, null, null, true);
 
-        HouseholdSearch householdSearch = HouseholdSearch.builder()
-                .localityCode(criteria.getLocality())
-                .build();
+            HouseholdSearch householdSearch = HouseholdSearch.builder()
+                    .localityCode(criteria.getLocality())
+                    .build();
 
-        HouseholdSearchRequest searchRequest = HouseholdSearchRequest.builder()
-                .household(householdSearch)
-                .requestInfo(requestInfo)
-                .build();
+            HouseholdSearchRequest searchRequest = HouseholdSearchRequest.builder()
+                    .household(householdSearch)
+                    .requestInfo(requestInfo)
+                    .build();
 
-        HouseholdBulkResponse res = restClient.fetchResult(householdUrl, searchRequest, HouseholdBulkResponse.class);
-        List<Household> households = res.getHouseholds();
+            HouseholdBulkResponse res = restClient.fetchResult(householdUrl, searchRequest, HouseholdBulkResponse.class);
+            households = res.getHouseholds();
+            downsync.getDownsyncCriteria().setTotalCount(res.getTotalCount());
+        }
         downsync.setHouseholds(households);
-        downsync.getDownsyncCriteria().setTotalCount(res.getTotalCount());
-
         if(CollectionUtils.isEmpty(households))
             return Collections.emptyList();
 

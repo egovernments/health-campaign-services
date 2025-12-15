@@ -145,4 +145,7 @@ public class ReferralManagementConfiguration {
     @Value("${egov.service.request.service.search.url}")
     private String serviceRequestServiceSearchUrl;
 
+    @Value("${egov.enable.matview.search}")
+    private boolean enableMatviewSearch;
+
 }
