@@ -86,7 +86,7 @@ public class DownsyncService {
                             NamedParameterJdbcTemplate jdbcTemplate,
                             SideEffectService sideEffectService,
                             ReferralManagementService referralService,
-                            MasterDataService masterDataService, MultiStateInstanceUtil multiStateInstanceUtil) {
+                            MasterDataService masterDataService, MultiStateInstanceUtil multiStateInstanceUtil, HouseholdRepository householdRepository) {
 
         this.restClient = serviceRequestClient;
         this.configs = referralManagementConfiguration;
@@ -95,6 +95,7 @@ public class DownsyncService {
         this.referralService = referralService;
         this.masterDataService = masterDataService;
         this.multiStateInstanceUtil = multiStateInstanceUtil;
+        this.householdRepository = householdRepository;
 
     }
 
