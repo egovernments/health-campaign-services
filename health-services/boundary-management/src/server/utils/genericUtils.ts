@@ -3,6 +3,7 @@ import { logger } from "./logger";
 import { getLocaleFromRequest , getLocaleFromRequestInfo ,getLocalisationModuleName} from "./localisationUtils";
 import Localisation from "../controllers/localisationController/localisation.controller";
 import config from "../config/index";
+import { httpRequest } from "./request";
 import { getErrorCodes ,generatedResourceStatuses} from "../config/constants";
 import { v4 as uuidv4 } from 'uuid';
 import { resourceDataStatuses } from "../config/constants";
@@ -256,16 +257,139 @@ function modifyBoundaryDataHeadersWithMap(
   });
 }
 
-function modifyBoundaryData(boundaryData: any[], localizationMap?: any) {
+/**
+ * Helper function to check which boundary codes already exist in the database
+ * @param boundaryCodes - Array of boundary codes to check
+ * @param tenantId - Tenant ID for the request
+ * @param request - Request object
+ * @returns Set of boundary codes that exist in the database
+ */
+async function checkExistingBoundaryCodes(
+  boundaryCodes: string[],
+  tenantId: string,
+  request: any
+): Promise<Set<string>> {
+  const existingCodes = new Set<string>();
+
+  if (!boundaryCodes || boundaryCodes.length === 0) {
+    return existingCodes;
+  }
+
+  const chunkSize = 20;
+  const boundaryCodeChunks = [];
+
+  // Split the boundaryCodes into chunks of 20
+  for (let i = 0; i < boundaryCodes.length; i += chunkSize) {
+    boundaryCodeChunks.push(boundaryCodes.slice(i, i + chunkSize));
+  }
+
+  // Process each chunk
+  for (const chunk of boundaryCodeChunks) {
+    const boundaryCodeString = chunk.join(", ");
+
+    try {
+      // Make the API request to fetch boundary entities
+      const boundaryEntityResponse = await httpRequest(
+        config.host.boundaryHost + config.paths.boundaryEntity,
+        request.body,
+        { tenantId, codes: boundaryCodeString }
+      );
+
+      // Collect codes that exist in the response
+      if (boundaryEntityResponse?.Boundary && Array.isArray(boundaryEntityResponse.Boundary)) {
+        for (const boundary of boundaryEntityResponse.Boundary) {
+          if (boundary?.code) {
+            existingCodes.add(boundary.code);
+          }
+        }
+      }
+    } catch (error: any) {
+      logger.error(`Failed to fetch boundary entities for codes: ${boundaryCodeString}, Error: ${error.message}`);
+      // Continue processing other chunks even if one fails
+    }
+  }
+
+  return existingCodes;
+}
+
+/**
+ * Helper function to check for duplicate boundary codes within arrays
+ * Used inside modifyBoundaryData to validate immediately after DB check
+ */
+function checkForDuplicateBoundaryCodesInArrays(
+  withBoundaryCode: any[],
+  manualBoundaryCode: any[],
+  boundaryCodeKey: string
+) {
+  const seenCodes = new Map<string, number>();
+  const duplicates: string[] = [];
+
+  // Combine both arrays
+  const allBoundaryCodeRows = [...withBoundaryCode, ...manualBoundaryCode];
+
+  // Extract and check for duplicates
+  allBoundaryCodeRows.forEach((row: any[]) => {
+    const boundaryCodeObj = row.find((obj: any) => obj.key === boundaryCodeKey);
+    if (boundaryCodeObj && boundaryCodeObj.value) {
+      const code = boundaryCodeObj.value.toString().trim();
+      if (seenCodes.has(code)) {
+        if (!duplicates.includes(code)) {
+          duplicates.push(code);
+        }
+      } else {
+        seenCodes.set(code, 1);
+      }
+    }
+  });
+
+  if (duplicates.length > 0) {
+    const duplicateCodesString = duplicates.join(", ");
+    throwError(
+      "BOUNDARY",
+      400,
+      "DUPLICATE_BOUNDARY_CODE",
+      `You have entered duplicate boundary service codes: ${duplicateCodesString}. Please correct them.`
+    );
+  }
+}
+
+/**
+ * Helper function to check for mixed boundary flow
+ * Used inside modifyBoundaryData to validate immediately after DB check
+ */
+function checkForMixedBoundaryFlowInArrays(
+  withoutBoundaryCode: any[],
+  manualBoundaryCode: any[]
+) {
+  if (withoutBoundaryCode.length > 0 && manualBoundaryCode.length > 0) {
+    throwError(
+      "BOUNDARY",
+      400,
+      "MIXED_BOUNDARY_FLOW",
+      "You should only use either manual flow or auto-generated flow, not both. Please ensure all boundaries either have service codes or none have service codes."
+    );
+  }
+}
+
+async function modifyBoundaryData(
+  boundaryData: any[],
+  localizationMap?: any,
+  request?: any
+): Promise<[{ key: string; value: string }[][], { key: string; value: string }[][], { key: string; value: string }[][]]> {
   // Initialize arrays to store data
   const withBoundaryCode: { key: string, value: string }[][] = [];
   const withoutBoundaryCode: { key: string, value: string }[][] = [];
+  const manualBoundaryCode: { key: string, value: string }[][] = [];
 
   // Get the key for the boundary code
   const boundaryCodeKey = getLocalizedName(config?.boundary?.boundaryCode, localizationMap);
 
+  // Temporary arrays to hold rows with and without boundary codes
+  const tempWithBoundaryCode: { row: any; boundaryCode: string; index: number }[] = [];
+  const tempWithoutBoundaryCode: { row: any; index: number }[] = [];
+
   // Process each object in boundaryData
-  boundaryData.forEach((obj: any) => {
+  boundaryData.forEach((obj: any, index: number) => {
     // Convert object entries to an array of {key, value} objects
     const row: any = Object.entries(obj)
       .filter(([key, value]: [string, any]) => value !== null && value !== undefined) // Filter out null or undefined values
@@ -280,19 +404,63 @@ function modifyBoundaryData(boundaryData: any[], localizationMap?: any) {
         }
       });
 
-    // Determine whether the object has a boundary code property
-    const hasBoundaryCode = obj.hasOwnProperty(boundaryCodeKey);
+    // Determine whether the object has a boundary code property WITH A NON-EMPTY VALUE
+    // Check both: (1) property exists, (2) value is not empty/null/undefined
+    const hasBoundaryCode = obj.hasOwnProperty(boundaryCodeKey) &&
+                           obj[boundaryCodeKey] !== null &&
+                           obj[boundaryCodeKey] !== undefined &&
+                           obj[boundaryCodeKey].toString().trim() !== '';
 
-    // Push the row to the appropriate array based on whether it has a boundary code property
+    // Store rows with their original index to maintain order
     if (hasBoundaryCode) {
-      withBoundaryCode.push(row);
+      const boundaryCodeValue = obj[boundaryCodeKey]?.toString().trim();
+      tempWithBoundaryCode.push({ row, boundaryCode: boundaryCodeValue, index });
     } else {
-      withoutBoundaryCode.push(row);
+      tempWithoutBoundaryCode.push({ row, index });
     }
   });
 
-  // Return the arrays
-  return [withBoundaryCode, withoutBoundaryCode];
+  // If there are rows with boundary codes and request is provided, check which ones are already processed
+  if (tempWithBoundaryCode.length > 0 && request) {
+    const boundaryCodes = tempWithBoundaryCode.map(item => item.boundaryCode);
+    const tenantId = request?.body?.ResourceDetails?.tenantId || request?.query?.tenantId;
+
+    // Check which boundary codes already exist in the database
+    const existingCodes = await checkExistingBoundaryCodes(boundaryCodes, tenantId, request);
+
+    // Separate into already processed and manual (user-provided but not processed)
+    tempWithBoundaryCode.forEach(item => {
+      if (existingCodes.has(item.boundaryCode)) {
+        // Boundary is already processed
+        withBoundaryCode.push(item.row);
+      } else {
+        // Boundary code is user-provided but not processed yet
+        manualBoundaryCode.push(item.row);
+      }
+    });
+
+    // IMMEDIATE VALIDATION: Check for duplicates within user submission
+    // This prevents race conditions by validating immediately after DB check
+    // Additional safeguards exist at creation time:
+    // - createBoundaryEntities checks DB before creating
+    // - createBoundaryRelationship validates boundaries don't already exist
+    if (manualBoundaryCode.length > 0) {
+      checkForDuplicateBoundaryCodesInArrays(withBoundaryCode, manualBoundaryCode, boundaryCodeKey);
+    }
+  } else {
+    // If no request provided (backward compatibility), treat all as withBoundaryCode
+    tempWithBoundaryCode.forEach(item => {
+      withBoundaryCode.push(item.row);
+    });
+  }
+
+  // Add rows without boundary codes in their original order
+  tempWithoutBoundaryCode.forEach(item => {
+    withoutBoundaryCode.push(item.row);
+  });
+
+  // Return the three arrays: processed boundaries, unprocessed boundaries, manual boundary codes
+  return [withBoundaryCode, withoutBoundaryCode, manualBoundaryCode];
 }
 
 function findMapValue(map: Map<any, any>, key: any): any | null {
@@ -690,5 +858,5 @@ export {  appCache,errorLogger,invalidPathHandler
   ,sendResponse,getLocalizedMessagesHandler,throwErrorViaRequest,throwError
   ,getLocalizedHeaders ,enrichResourceDetails,shutdownGracefully,createHeaderToHierarchyMap
   ,modifyBoundaryDataHeadersWithMap,modifyBoundaryData,findMapValue,extractFrenchOrPortugeseLocalizationMap
-  ,processGenerate ,getDataSheetReady , replicateRequest ,searchGeneratedBoundaryResources
+  ,processGenerate ,getDataSheetReady , replicateRequest ,searchGeneratedBoundaryResources , checkForMixedBoundaryFlowInArrays
 };
