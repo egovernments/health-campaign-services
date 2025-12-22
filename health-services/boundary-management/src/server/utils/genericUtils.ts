@@ -522,13 +522,20 @@ function extractFrenchOrPortugeseLocalizationMap(
 async function processGenerate(request: any, enableCaching = false, filteredBoundary?: any) {
   // fetch the data from db  to check any request already exists
   const responseData = await searchGeneratedResources(request?.query, getLocaleFromRequestInfo(request?.body?.RequestInfo));
-  // modify response from db 
-  const modifiedResponse = await enrichAuditDetails(responseData);
+
+  // Preserve existing currentFlow if available and not already set from process flow
+  if (responseData && responseData.length > 0 && responseData[0]?.additionalDetails?.currentFlow) {
+    request.body.determinedCurrentFlow = responseData[0].additionalDetails.currentFlow;
+    logger.info(`Preserving existing currentFlow '${request.body.determinedCurrentFlow}' from previous generation for hierarchy '${request?.query?.hierarchyType}'`);
+  }
+
+  // modify response from db
+  const modifiedResponse = await enrichAuditDetails(responseData || []);
   // generate new random id and make filestore id null
   const newEntryResponse = await generateNewRequestObject(request);
   // make old data status as expired
   const oldEntryResponse = await updateExistingResourceExpired(modifiedResponse, request);
-  // generate data 
+  // generate data
   await updateAndPersistGenerateRequest(newEntryResponse, oldEntryResponse, responseData, request, enableCaching, filteredBoundary);
 }
 
@@ -636,7 +643,14 @@ async function handleGenerateError(newEntryResponse: any, generatedResource: any
 }
 
 async function generateNewRequestObject(request: any) {
-  const additionalDetails = {};
+  const additionalDetails: any = {};
+
+  // Add currentFlow if passed from process flow (first-time processing)
+  if (request?.body?.determinedCurrentFlow) {
+    additionalDetails.currentFlow = request.body.determinedCurrentFlow;
+    logger.info(`Adding currentFlow '${request.body.determinedCurrentFlow}' to new generated resource for hierarchy '${request?.query?.hierarchyType}'`);
+  }
+
   const newEntry = {
     id: uuidv4(),
     fileStoreid: null,

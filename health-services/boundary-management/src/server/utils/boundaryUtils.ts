@@ -22,6 +22,23 @@ const _ = require("lodash");
 
 
 
+/**
+ * Determines the current flow based on boundary data arrays
+ * @param withoutBoundaryCode - Array of boundaries for auto-generation
+ * @param manualBoundaryCode - Array of boundaries for manual flow
+ * @returns "auto" if auto-generation, "manual" if manual flow
+ */
+function getCurrentFlow(
+  withoutBoundaryCode: any[],
+  manualBoundaryCode: any[]
+): string {
+  if (withoutBoundaryCode.length > 0) {
+    return "auto";
+  } else {
+    return "manual";
+  }
+}
+
 function getLocalizedName(
   expectedName: string,
   localizationMap?: { [key: string]: string }
@@ -315,6 +332,9 @@ const autoGenerateBoundaryCodes = async (
     localizationMap
   );
   const type = "boundaryManagement";
+  const currentFlow = await getCurrentFlowFromDB(tenantId, hierarchyType);
+  logger.info("Existing flow for this tenant and hierarchy type from DB: " + currentFlow);
+  
   const fileResponse = await httpRequest(
     config.host.filestore + config.paths.filestore + "/url",
     {},
@@ -359,6 +379,18 @@ const autoGenerateBoundaryCodes = async (
   manualServiceFlow = manualBoundaryCode.length > 0 ? true : false;
 
   checkForMixedBoundaryFlowInArrays(withoutBoundaryCode, manualBoundaryCode);
+
+  validateHierarchyCurrentFlow(currentFlow, hierarchyType, withoutBoundaryCode, manualBoundaryCode, withBoundaryCode);
+
+  // Determine and store currentFlow for first-time processing
+  if (!currentFlow || currentFlow === "") {
+    const determinedFlow = getCurrentFlow(withoutBoundaryCode, manualBoundaryCode);
+    request.body.determinedCurrentFlow = determinedFlow;
+    logger.info(`First-time processing - determined flow: ${determinedFlow}`);
+  }
+  else{
+    request.body.determinedCurrentFlow = currentFlow;
+  }
 
   let boundaryMap: Map<{ key: string; value: string }, string>;
 
@@ -583,9 +615,16 @@ async function generateProcessedFileAndPersist(
     logger.info(
       "calling generate after boundary data uploaded under type boundary management"
     );
-    const newRequestBody = {
+    const newRequestBody: any = {
       RequestInfo: request?.body?.RequestInfo,
     };
+
+    // Add determinedCurrentFlow to request body if available
+    if (request?.body?.determinedCurrentFlow) {
+      newRequestBody.determinedCurrentFlow = request.body.determinedCurrentFlow;
+      logger.info(`Passing determinedCurrentFlow '${request.body.determinedCurrentFlow}' to generate request`);
+    }
+
     const params = {
       type: "boundaryManagement",
       tenantId: request?.body?.ResourceDetails?.tenantId,
@@ -978,6 +1017,92 @@ function buildWhereClauseForDataSearch(SearchCriteria: any): {
             ${whereClause};`,
     values,
   };
+}
+
+
+/**
+ * Fetches the current flow (auto/manual) for a hierarchy from the database
+ * @param tenantId - Tenant ID
+ * @param hierarchyType - Hierarchy type
+ * @returns Current flow value or null if not set
+ */
+async function getCurrentFlowFromDB(
+  tenantId: string,
+  hierarchyType: string
+): Promise<string | null> {
+  try {
+    const tableName = getTableName(config?.DB_CONFIG.DB_GENERATED_TEMPLATE_TABLE_NAME, tenantId);
+    const query = `
+      SELECT additionalDetails
+      FROM ${tableName}
+      WHERE tenantId = $1
+        AND hierarchyType = $2
+        AND status = 'completed'
+      ORDER BY createdTime DESC
+      LIMIT 1
+    `;
+    const queryResult = await executeQuery(query, [tenantId, hierarchyType]);
+
+    if (queryResult?.rows?.length > 0) {
+      const additionalDetails = queryResult.rows[0].additionaldetails;
+      return additionalDetails?.currentFlow || null;
+    }
+    return null;
+  } catch (error: any) {
+    logger.error(`Error fetching currentFlow from database: ${error.message}`);
+    // Return null on error to allow processing (fail-open approach)
+    return null;
+  }
+}
+
+/**
+ * Validates that the hierarchy uses only one flow (auto or manual)
+ * @param currentFlow - Current flow set for the hierarchy (null/empty for first upload)
+ * @param hierarchyType - Hierarchy type
+ * @param withoutBoundaryCode - Array of boundaries for auto-generation
+ * @param manualBoundaryCode - Array of boundaries for manual flow
+ * @param withBoundaryCode - Array of already processed boundaries
+ * @throws Error if validation fails
+ */
+function validateHierarchyCurrentFlow(
+  currentFlow: string | null,
+  hierarchyType: string,
+  withoutBoundaryCode: any[],
+  manualBoundaryCode: any[],
+  withBoundaryCode: any[]
+): void {
+  logger.info(`Validating hierarchy flow - Current: '${currentFlow}', Auto boundaries: ${withoutBoundaryCode.length}, Manual boundaries: ${manualBoundaryCode.length}`);
+
+  // Case 1: No existing flow - allow processing (first upload for hierarchy)
+  if (!currentFlow || currentFlow === "") {
+    logger.info("No existing flow found - allowing first upload");
+    return;
+  }
+
+  // Case 2: Current flow is auto AND new upload has auto boundaries
+  if (currentFlow === "auto" && withoutBoundaryCode.length > 0) {
+    logger.info("Auto flow validated - allowing auto-generation boundaries");
+    return;
+  }
+
+  // Case 3: Current flow is manual AND new upload has manual boundaries
+  if (currentFlow === "manual" && manualBoundaryCode.length > 0) {
+    logger.info("Manual flow validated - allowing manual boundaries");
+    return;
+  }
+
+  // Case 4: Flow mismatch - throw error
+  const affectedRowCount = withoutBoundaryCode.length > 0
+    ? withoutBoundaryCode.length
+    : manualBoundaryCode.length;
+  const startingRow = withBoundaryCode.length + 2; // +1 for header, +1 for 1-based indexing
+
+  const errorMessage = `Existing flow is '${currentFlow}' for hierarchy '${hierarchyType}'. Please use the same flow. ` +
+    `To change the flow: ${currentFlow === 'auto' ? 'remove boundary codes' : 'add boundary codes'}. ` +
+    `Total affected rows: ${affectedRowCount}, Starting from row: ${startingRow}`;
+
+  logger.error(`Flow validation failed: ${errorMessage}`);
+  throwError("BOUNDARY", 400, "FLOW_MISMATCH_ERROR", errorMessage);
 }
 
 export {getHeadersOfBoundarySheet ,getLocalizedName,getHierarchy,validateHeaders,boundaryBulkUpload
