@@ -1,0 +1,9002 @@
+{
+    "ADMIN_BU": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+    ],
+    "ADMIN_BU_01_04_VUMBI": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        null,
+        null,
+        null,
+        null
+    ],
+    "ADMIN_BU_01_04_02_06_04_01_BUHURAMUTWE": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "VUMBI",
+        "VUMBI",
+        "VUMBI",
+        "BUHURAMUTWE"
+    ],
+    "ADMIN_BU_01_04_02_06_04_02_GASANGE_01": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "VUMBI",
+        "VUMBI",
+        "VUMBI",
+        "01"
+    ],
+    "ADMIN_BU_01_04_02_06_04_03_KIRYAMA_03": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "VUMBI",
+        "VUMBI",
+        "VUMBI",
+        "03"
+    ],
+    "ADMIN_BU_01_04_02_06_04_04_MAKOMBE_03": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "VUMBI",
+        "VUMBI",
+        "VUMBI",
+        "03"
+    ],
+    "ADMIN_BU_01_04_02_06_04_05_MUGAZI_01": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "VUMBI",
+        "VUMBI",
+        "VUMBI",
+        "01"
+    ],
+    "ADMIN_BU_01_04_02_06_04_06_NTAMBA_02": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "VUMBI",
+        "VUMBI",
+        "VUMBI",
+        "02"
+    ],
+    "ADMIN_BU_01_04_02_06_04_07_NYARURAMBI_01": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "VUMBI",
+        "VUMBI",
+        "VUMBI",
+        "01"
+    ],
+    "ADMIN_BU_01_04_02_06_04_08_VUMBI_SITE": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "VUMBI",
+        "VUMBI",
+        "VUMBI",
+        "SITE"
+    ],
+    "ADMIN_BU_01_04_02_06_04_VUMBI": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "VUMBI",
+        "VUMBI",
+        "VUMBI",
+        null
+    ],
+    "ADMIN_BU_01_04_02_06_VUMBI": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "VUMBI",
+        "VUMBI",
+        null,
+        null
+    ],
+    "ADMIN_BU_01_04_02_VUMBI": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "VUMBI",
+        null,
+        null,
+        null
+    ],
+    "ADMIN_BU_01_01_01_01_01_01_BIDOGO": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "BISHISHA",
+        "GATETE",
+        "BIDOGO"
+    ],
+    "ADMIN_BU_01_01_01_01_01_GATETE": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "BISHISHA",
+        "GATETE",
+        null
+    ],
+    "ADMIN_BU_01_01_01_01_BISHISHA": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "BISHISHA",
+        null,
+        null
+    ],
+    "ADMIN_BU_01_01_BUSONI": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        null,
+        null,
+        null,
+        null
+    ],
+    "ADMIN_BU_01_KIRUNDO": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+    ],
+    "ADMIN_BU_01_01_01_01_01_02_CABARIZA_I": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "BISHISHA",
+        "GATETE",
+        "I"
+    ],
+    "ADMIN_BU_01_01_01_01_01_03_CABARIZA_II": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "BISHISHA",
+        "GATETE",
+        "II"
+    ],
+    "ADMIN_BU_01_01_01_01_02_01_BISHISHA": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "BISHISHA",
+        "RWIBIKARA",
+        "BISHISHA"
+    ],
+    "ADMIN_BU_01_01_01_01_02_02_CIMBOGO": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "BISHISHA",
+        "RWIBIKARA",
+        "CIMBOGO"
+    ],
+    "ADMIN_BU_01_01_01_01_02_03_MUHUZU": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "BISHISHA",
+        "RWIBIKARA",
+        "MUHUZU"
+    ],
+    "ADMIN_BU_01_01_01_01_02_04_RUGANDO": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "BISHISHA",
+        "RWIBIKARA",
+        "RUGANDO"
+    ],
+    "ADMIN_BU_01_01_01_01_02_05_RWIBIKARA": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "BISHISHA",
+        "RWIBIKARA",
+        "RWIBIKARA"
+    ],
+    "ADMIN_BU_01_01_01_01_02_RWIBIKARA": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "BISHISHA",
+        "RWIBIKARA",
+        null
+    ],
+    "ADMIN_BU_01_01_01_02_01_01_GASAVE": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "BUNYARI",
+        "GISENYI",
+        "GASAVE"
+    ],
+    "ADMIN_BU_01_01_01_02_01_02_GASAVE_MUNAZI": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "BUNYARI",
+        "GISENYI",
+        "MUNAZI"
+    ],
+    "ADMIN_BU_01_01_01_02_01_03_KIBATI": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "BUNYARI",
+        "GISENYI",
+        "KIBATI"
+    ],
+    "ADMIN_BU_01_01_01_02_01_04_KUBANIRO_RURAL": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "BUNYARI",
+        "GISENYI",
+        "RURAL"
+    ],
+    "ADMIN_BU_01_01_01_02_01_GISENYI": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "BUNYARI",
+        "GISENYI",
+        null
+    ],
+    "ADMIN_BU_01_01_01_02_02_01_KAGEGE": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "BUNYARI",
+        "RENGA",
+        "KAGEGE"
+    ],
+    "ADMIN_BU_01_01_01_02_02_02_KARARIRE": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "BUNYARI",
+        "RENGA",
+        "KARARIRE"
+    ],
+    "ADMIN_BU_01_01_01_02_02_03_KAREHE": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "BUNYARI",
+        "RENGA",
+        "KAREHE"
+    ],
+    "ADMIN_BU_01_01_01_02_02_04_RENGA_II": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "BUNYARI",
+        "RENGA",
+        "II"
+    ],
+    "ADMIN_BU_01_01_01_02_02_RENGA": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "BUNYARI",
+        "RENGA",
+        null
+    ],
+    "ADMIN_BU_01_01_01_02_03_01_GAHAMA": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "BUNYARI",
+        "RUGARAMA",
+        "GAHAMA"
+    ],
+    "ADMIN_BU_01_01_01_02_03_02_GISENYI": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "BUNYARI",
+        "RUGARAMA",
+        "GISENYI"
+    ],
+    "ADMIN_BU_01_01_01_02_03_03_GITANGA": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "BUNYARI",
+        "RUGARAMA",
+        "GITANGA"
+    ],
+    "ADMIN_BU_01_01_01_02_03_04_KABIRA": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "BUNYARI",
+        "RUGARAMA",
+        "KABIRA"
+    ],
+    "ADMIN_BU_01_01_01_02_03_05_KUBANIRO_CENTRE": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "BUNYARI",
+        "RUGARAMA",
+        "CENTRE"
+    ],
+    "ADMIN_BU_01_01_01_02_03_06_MPINGA": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "BUNYARI",
+        "RUGARAMA",
+        "MPINGA"
+    ],
+    "ADMIN_BU_01_01_01_02_03_07_MUYANGE": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "BUNYARI",
+        "RUGARAMA",
+        "MUYANGE"
+    ],
+    "ADMIN_BU_01_01_01_02_03_08_RENGA_I": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "BUNYARI",
+        "RUGARAMA",
+        "I"
+    ],
+    "ADMIN_BU_01_01_01_02_03_09_RUGARAMA": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "BUNYARI",
+        "RUGARAMA",
+        "RUGARAMA"
+    ],
+    "ADMIN_BU_01_01_01_02_03_10_TABA": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "BUNYARI",
+        "RUGARAMA",
+        "TABA"
+    ],
+    "ADMIN_BU_01_01_01_02_03_RUGARAMA": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "BUNYARI",
+        "RUGARAMA",
+        null
+    ],
+    "ADMIN_BU_01_01_01_02_BUNYARI": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "BUNYARI",
+        null,
+        null
+    ],
+    "ADMIN_BU_01_01_01_03_01_01_BUCANKA": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "BUSONI",
+        "BURARA",
+        "BUCANKA"
+    ],
+    "ADMIN_BU_01_01_01_03_01_02_KIRERAMA": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "BUSONI",
+        "BURARA",
+        "KIRERAMA"
+    ],
+    "ADMIN_BU_01_01_01_03_01_03_MAKOMBE": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "BUSONI",
+        "BURARA",
+        "MAKOMBE"
+    ],
+    "ADMIN_BU_01_01_01_03_01_04_MPINGA_01": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "BUSONI",
+        "BURARA",
+        "01"
+    ],
+    "ADMIN_BU_01_01_01_03_01_05_RUSARASI": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "BUSONI",
+        "BURARA",
+        "RUSARASI"
+    ],
+    "ADMIN_BU_01_01_01_03_01_06_RWIKUBO": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "BUSONI",
+        "BURARA",
+        "RWIKUBO"
+    ],
+    "ADMIN_BU_01_01_01_03_01_BURARA": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "BUSONI",
+        "BURARA",
+        null
+    ],
+    "ADMIN_BU_01_01_01_03_02_01_BINYENGA": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "BUSONI",
+        "NYABUGENI",
+        "BINYENGA"
+    ],
+    "ADMIN_BU_01_01_01_03_02_02_MAGARAMANGO": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "BUSONI",
+        "NYABUGENI",
+        "MAGARAMANGO"
+    ],
+    "ADMIN_BU_01_01_01_03_02_03_MUNYONZA": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "BUSONI",
+        "NYABUGENI",
+        "MUNYONZA"
+    ],
+    "ADMIN_BU_01_01_01_03_02_04_NYABUGENI": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "BUSONI",
+        "NYABUGENI",
+        "NYABUGENI"
+    ],
+    "ADMIN_BU_01_01_01_03_02_05_NYAKIZU": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "BUSONI",
+        "NYABUGENI",
+        "NYAKIZU"
+    ],
+    "ADMIN_BU_01_01_01_03_02_06_TWISINE": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "BUSONI",
+        "NYABUGENI",
+        "TWISINE"
+    ],
+    "ADMIN_BU_01_01_01_03_02_NYABUGENI": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "BUSONI",
+        "NYABUGENI",
+        null
+    ],
+    "ADMIN_BU_01_01_01_03_03_01_GACAMIHIGO": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "BUSONI",
+        "RUTABO",
+        "GACAMIHIGO"
+    ],
+    "ADMIN_BU_01_01_01_03_03_02_KIGARAMA": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "BUSONI",
+        "RUTABO",
+        "KIGARAMA"
+    ],
+    "ADMIN_BU_01_01_01_03_03_03_KIYANGE": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "BUSONI",
+        "RUTABO",
+        "KIYANGE"
+    ],
+    "ADMIN_BU_01_01_01_03_03_04_MUGOBE": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "BUSONI",
+        "RUTABO",
+        "MUGOBE"
+    ],
+    "ADMIN_BU_01_01_01_03_03_05_MUHETSI": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "BUSONI",
+        "RUTABO",
+        "MUHETSI"
+    ],
+    "ADMIN_BU_01_01_01_03_03_06_NYADEMBWE": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "BUSONI",
+        "RUTABO",
+        "NYADEMBWE"
+    ],
+    "ADMIN_BU_01_01_01_03_03_07_RUTABO": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "BUSONI",
+        "RUTABO",
+        "RUTABO"
+    ],
+    "ADMIN_BU_01_01_01_03_03_08_SITE": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "BUSONI",
+        "RUTABO",
+        "SITE"
+    ],
+    "ADMIN_BU_01_01_01_03_03_RUTABO": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "BUSONI",
+        "RUTABO",
+        null
+    ],
+    "ADMIN_BU_01_01_01_03_HOPITAL_COMMUNAL_BUSONI": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "BUSONI",
+        null,
+        null
+    ],
+    "ADMIN_BU_01_01_01_04_01_01_BURINGA": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "KABANGA",
+        "BUHIMBA",
+        "BURINGA"
+    ],
+    "ADMIN_BU_01_01_01_04_01_02_BUTUHURANA": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "KABANGA",
+        "BUHIMBA",
+        "BUTUHURANA"
+    ],
+    "ADMIN_BU_01_01_01_04_01_03_KIGARAMA_01": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "KABANGA",
+        "BUHIMBA",
+        "01"
+    ],
+    "ADMIN_BU_01_01_01_04_01_04_MABAMBA": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "KABANGA",
+        "BUHIMBA",
+        "MABAMBA"
+    ],
+    "ADMIN_BU_01_01_01_04_01_05_MUHETSI_01": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "KABANGA",
+        "BUHIMBA",
+        "01"
+    ],
+    "ADMIN_BU_01_01_01_04_01_06_SHEMBE": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "KABANGA",
+        "BUHIMBA",
+        "SHEMBE"
+    ],
+    "ADMIN_BU_01_01_01_04_01_BUHIMBA": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "KABANGA",
+        "BUHIMBA",
+        null
+    ],
+    "ADMIN_BU_01_01_01_04_02_01_BUCANA": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "KABANGA",
+        "KABANGA",
+        "BUCANA"
+    ],
+    "ADMIN_BU_01_01_01_04_02_02_BUNIHA": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "KABANGA",
+        "KABANGA",
+        "BUNIHA"
+    ],
+    "ADMIN_BU_01_01_01_04_02_03_GASHANGA": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "KABANGA",
+        "KABANGA",
+        "GASHANGA"
+    ],
+    "ADMIN_BU_01_01_01_04_02_04_KABANGA_CENTRE": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "KABANGA",
+        "KABANGA",
+        "CENTRE"
+    ],
+    "ADMIN_BU_01_01_01_04_02_05_KAMONYO": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "KABANGA",
+        "KABANGA",
+        "KAMONYO"
+    ],
+    "ADMIN_BU_01_01_01_04_02_06_RWETETO": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "KABANGA",
+        "KABANGA",
+        "RWETETO"
+    ],
+    "ADMIN_BU_01_01_01_04_02_KABANGA": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "KABANGA",
+        "KABANGA",
+        null
+    ],
+    "ADMIN_BU_01_01_01_04_03_01_BISIGA": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "KABANGA",
+        "KIDIDIRI",
+        "BISIGA"
+    ],
+    "ADMIN_BU_01_01_01_04_03_02_BUJAGA": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "KABANGA",
+        "KIDIDIRI",
+        "BUJAGA"
+    ],
+    "ADMIN_BU_01_01_01_04_03_03_KARAMBO": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "KABANGA",
+        "KIDIDIRI",
+        "KARAMBO"
+    ],
+    "ADMIN_BU_01_01_01_04_03_04_KIDIDIRI_I": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "KABANGA",
+        "KIDIDIRI",
+        "I"
+    ],
+    "ADMIN_BU_01_01_01_04_03_05_KIDIDIRI_II": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "KABANGA",
+        "KIDIDIRI",
+        "II"
+    ],
+    "ADMIN_BU_01_01_01_04_03_06_MUGONGOI": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "KABANGA",
+        "KIDIDIRI",
+        "MUGONGOI"
+    ],
+    "ADMIN_BU_01_01_01_04_03_07_MUGONGOII": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "KABANGA",
+        "KIDIDIRI",
+        "MUGONGOII"
+    ],
+    "ADMIN_BU_01_01_01_04_03_08_RUGOGWE": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "KABANGA",
+        "KIDIDIRI",
+        "RUGOGWE"
+    ],
+    "ADMIN_BU_01_01_01_04_03_09_RUNYANGWE": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "KABANGA",
+        "KIDIDIRI",
+        "RUNYANGWE"
+    ],
+    "ADMIN_BU_01_01_01_04_03_10_RYAMAGINA": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "KABANGA",
+        "KIDIDIRI",
+        "RYAMAGINA"
+    ],
+    "ADMIN_BU_01_01_01_04_03_KIDIDIRI": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "KABANGA",
+        "KIDIDIRI",
+        null
+    ],
+    "ADMIN_BU_01_01_01_04_04_01_GITANGA_01": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "KABANGA",
+        "MUVYUKO",
+        "01"
+    ],
+    "ADMIN_BU_01_01_01_04_04_02_GITETE": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "KABANGA",
+        "MUVYUKO",
+        "GITETE"
+    ],
+    "ADMIN_BU_01_01_01_04_04_03_KIDAKEHA": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "KABANGA",
+        "MUVYUKO",
+        "KIDAKEHA"
+    ],
+    "ADMIN_BU_01_01_01_04_04_04_MUVYUKO": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "KABANGA",
+        "MUVYUKO",
+        "MUVYUKO"
+    ],
+    "ADMIN_BU_01_01_01_04_04_05_NYABUZIBA": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "KABANGA",
+        "MUVYUKO",
+        "NYABUZIBA"
+    ],
+    "ADMIN_BU_01_01_01_04_04_MUVYUKO": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "KABANGA",
+        "MUVYUKO",
+        null
+    ],
+    "ADMIN_BU_01_01_01_04_05_01_GAKUYO": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "KABANGA",
+        "RURENDE",
+        "GAKUYO"
+    ],
+    "ADMIN_BU_01_01_01_04_05_02_KABANGA_RURENDE": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "KABANGA",
+        "RURENDE",
+        "RURENDE"
+    ],
+    "ADMIN_BU_01_01_01_04_05_03_KABIRIZI": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "KABANGA",
+        "RURENDE",
+        "KABIRIZI"
+    ],
+    "ADMIN_BU_01_01_01_04_05_04_NYANKERENKE": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "KABANGA",
+        "RURENDE",
+        "NYANKERENKE"
+    ],
+    "ADMIN_BU_01_01_01_04_05_05_RURENDE": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "KABANGA",
+        "RURENDE",
+        "RURENDE"
+    ],
+    "ADMIN_BU_01_01_01_04_05_06_RUYAGA": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "KABANGA",
+        "RURENDE",
+        "RUYAGA"
+    ],
+    "ADMIN_BU_01_01_01_04_05_RURENDE": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "KABANGA",
+        "RURENDE",
+        null
+    ],
+    "ADMIN_BU_01_01_01_04_KABANGA": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "KABANGA",
+        null,
+        null
+    ],
+    "ADMIN_BU_01_01_01_05_01_01_HIGIRO": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "KARAGO",
+        "KIBONDE",
+        "HIGIRO"
+    ],
+    "ADMIN_BU_01_01_01_05_01_02_KARAGO": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "KARAGO",
+        "KIBONDE",
+        "KARAGO"
+    ],
+    "ADMIN_BU_01_01_01_05_01_03_KINDAMA": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "KARAGO",
+        "KIBONDE",
+        "KINDAMA"
+    ],
+    "ADMIN_BU_01_01_01_05_01_04_MIGIRYE": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "KARAGO",
+        "KIBONDE",
+        "MIGIRYE"
+    ],
+    "ADMIN_BU_01_01_01_05_01_05_MURAMA": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "KARAGO",
+        "KIBONDE",
+        "MURAMA"
+    ],
+    "ADMIN_BU_01_01_01_05_01_06_NCIRI": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "KARAGO",
+        "KIBONDE",
+        "NCIRI"
+    ],
+    "ADMIN_BU_01_01_01_05_01_07_NUNGA": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "KARAGO",
+        "KIBONDE",
+        "NUNGA"
+    ],
+    "ADMIN_BU_01_01_01_05_01_08_RUGENGE": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "KARAGO",
+        "KIBONDE",
+        "RUGENGE"
+    ],
+    "ADMIN_BU_01_01_01_05_01_09_SITE_01": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "KARAGO",
+        "KIBONDE",
+        "01"
+    ],
+    "ADMIN_BU_01_01_01_05_01_KIBONDE": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "KARAGO",
+        "KIBONDE",
+        null
+    ],
+    "ADMIN_BU_01_01_01_05_KARAGO": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "KARAGO",
+        null,
+        null
+    ],
+    "ADMIN_BU_01_01_01_06_01_01_MAREMBO": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "MAREMBO",
+        "MAREMBO",
+        "MAREMBO"
+    ],
+    "ADMIN_BU_01_01_01_06_01_02_SITE_02": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "MAREMBO",
+        "MAREMBO",
+        "02"
+    ],
+    "ADMIN_BU_01_01_01_06_01_MAREMBO": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "MAREMBO",
+        "MAREMBO",
+        null
+    ],
+    "ADMIN_BU_01_01_01_06_02_01_GITAMO": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "MAREMBO",
+        "MURAMBI",
+        "GITAMO"
+    ],
+    "ADMIN_BU_01_01_01_06_02_02_MURAMBO": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "MAREMBO",
+        "MURAMBI",
+        "MURAMBO"
+    ],
+    "ADMIN_BU_01_01_01_06_02_03_RUTANGA": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "MAREMBO",
+        "MURAMBI",
+        "RUTANGA"
+    ],
+    "ADMIN_BU_01_01_01_06_02_MURAMBI": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "MAREMBO",
+        "MURAMBI",
+        null
+    ],
+    "ADMIN_BU_01_01_01_06_03_01_KAREHE_01": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "MAREMBO",
+        "NYABISINDU",
+        "01"
+    ],
+    "ADMIN_BU_01_01_01_06_03_02_KIMARANZARA": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "MAREMBO",
+        "NYABISINDU",
+        "KIMARANZARA"
+    ],
+    "ADMIN_BU_01_01_01_06_03_03_MUBARI": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "MAREMBO",
+        "NYABISINDU",
+        "MUBARI"
+    ],
+    "ADMIN_BU_01_01_01_06_03_NYABISINDU": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "MAREMBO",
+        "NYABISINDU",
+        null
+    ],
+    "ADMIN_BU_01_01_01_06_04_01_BUNYAGURA": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "MAREMBO",
+        "01",
+        "BUNYAGURA"
+    ],
+    "ADMIN_BU_01_01_01_06_04_02_KIGERI": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "MAREMBO",
+        "01",
+        "KIGERI"
+    ],
+    "ADMIN_BU_01_01_01_06_04_03_KIGWATI": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "MAREMBO",
+        "01",
+        "KIGWATI"
+    ],
+    "ADMIN_BU_01_01_01_06_04_04_RURANZI": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "MAREMBO",
+        "01",
+        "RURANZI"
+    ],
+    "ADMIN_BU_01_01_01_06_04_RWIBIKARA_01": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "MAREMBO",
+        "01",
+        null
+    ],
+    "ADMIN_BU_01_01_01_06_MAREMBO": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "MAREMBO",
+        null,
+        null
+    ],
+    "ADMIN_BU_01_01_01_07_01_01_KABIRIZI_01": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "MUKERWA",
+        "KIRAVUMBA",
+        "01"
+    ],
+    "ADMIN_BU_01_01_01_07_01_02_KAGIRASONI": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "MUKERWA",
+        "KIRAVUMBA",
+        "KAGIRASONI"
+    ],
+    "ADMIN_BU_01_01_01_07_01_03_RUHUNGORE": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "MUKERWA",
+        "KIRAVUMBA",
+        "RUHUNGORE"
+    ],
+    "ADMIN_BU_01_01_01_07_01_04_RUNYINYA": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "MUKERWA",
+        "KIRAVUMBA",
+        "RUNYINYA"
+    ],
+    "ADMIN_BU_01_01_01_07_01_05_RWIMBOGO": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "MUKERWA",
+        "KIRAVUMBA",
+        "RWIMBOGO"
+    ],
+    "ADMIN_BU_01_01_01_07_01_KIRAVUMBA": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "MUKERWA",
+        "KIRAVUMBA",
+        null
+    ],
+    "ADMIN_BU_01_01_01_07_02_01_KAJAGE_I": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "MUKERWA",
+        "MUKERWA",
+        "I"
+    ],
+    "ADMIN_BU_01_01_01_07_02_02_KAJAGE_II": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "MUKERWA",
+        "MUKERWA",
+        "II"
+    ],
+    "ADMIN_BU_01_01_01_07_02_03_KIRAVUMBA": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "MUKERWA",
+        "MUKERWA",
+        "KIRAVUMBA"
+    ],
+    "ADMIN_BU_01_01_01_07_02_04_MATONYANGA_I": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "MUKERWA",
+        "MUKERWA",
+        "I"
+    ],
+    "ADMIN_BU_01_01_01_07_02_05_MATONYANGA_II": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "MUKERWA",
+        "MUKERWA",
+        "II"
+    ],
+    "ADMIN_BU_01_01_01_07_02_06_MUKERWA": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "MUKERWA",
+        "MUKERWA",
+        "MUKERWA"
+    ],
+    "ADMIN_BU_01_01_01_07_02_07_NAMBA": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "MUKERWA",
+        "MUKERWA",
+        "NAMBA"
+    ],
+    "ADMIN_BU_01_01_01_07_02_MUKERWA": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "MUKERWA",
+        "MUKERWA",
+        null
+    ],
+    "ADMIN_BU_01_01_01_07_03_01_BISHUNZI": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "MUKERWA",
+        "MUNYINYA",
+        "BISHUNZI"
+    ],
+    "ADMIN_BU_01_01_01_07_03_02_GIHUSHI": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "MUKERWA",
+        "MUNYINYA",
+        "GIHUSHI"
+    ],
+    "ADMIN_BU_01_01_01_07_03_03_KIGOMERO": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "MUKERWA",
+        "MUNYINYA",
+        "KIGOMERO"
+    ],
+    "ADMIN_BU_01_01_01_07_03_04_MUNYINYA": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "MUKERWA",
+        "MUNYINYA",
+        "MUNYINYA"
+    ],
+    "ADMIN_BU_01_01_01_07_03_05_NANGONA": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "MUKERWA",
+        "MUNYINYA",
+        "NANGONA"
+    ],
+    "ADMIN_BU_01_01_01_07_03_MUNYINYA": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "MUKERWA",
+        "MUNYINYA",
+        null
+    ],
+    "ADMIN_BU_01_01_01_07_MUKERWA": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "MUKERWA",
+        null,
+        null
+    ],
+    "ADMIN_BU_01_01_01_08_01_01_BAHIZI": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "MURORE",
+        "MURORE",
+        "BAHIZI"
+    ],
+    "ADMIN_BU_01_01_01_08_01_02_MUBIRA": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "MURORE",
+        "MURORE",
+        "MUBIRA"
+    ],
+    "ADMIN_BU_01_01_01_08_01_03_MUSHA_MASARE": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "MURORE",
+        "MURORE",
+        "MASARE"
+    ],
+    "ADMIN_BU_01_01_01_08_01_04_RUGOMERO": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "MURORE",
+        "MURORE",
+        "RUGOMERO"
+    ],
+    "ADMIN_BU_01_01_01_08_01_05_RUHONGORE": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "MURORE",
+        "MURORE",
+        "RUHONGORE"
+    ],
+    "ADMIN_BU_01_01_01_08_01_MURORE": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "MURORE",
+        "MURORE",
+        null
+    ],
+    "ADMIN_BU_01_01_01_08_02_01_GASAGARA": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "MURORE",
+        "RURIRA",
+        "GASAGARA"
+    ],
+    "ADMIN_BU_01_01_01_08_02_02_NGOMA": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "MURORE",
+        "RURIRA",
+        "NGOMA"
+    ],
+    "ADMIN_BU_01_01_01_08_02_03_NYAMISAGARA": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "MURORE",
+        "RURIRA",
+        "NYAMISAGARA"
+    ],
+    "ADMIN_BU_01_01_01_08_02_04_RIBA": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "MURORE",
+        "RURIRA",
+        "RIBA"
+    ],
+    "ADMIN_BU_01_01_01_08_02_05_RUTAMBWE": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "MURORE",
+        "RURIRA",
+        "RUTAMBWE"
+    ],
+    "ADMIN_BU_01_01_01_08_02_RURIRA": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "MURORE",
+        "RURIRA",
+        null
+    ],
+    "ADMIN_BU_01_01_01_08_03_01_BISIGA_01": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "MURORE",
+        "RUYAGA",
+        "01"
+    ],
+    "ADMIN_BU_01_01_01_08_03_02_GASEME": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "MURORE",
+        "RUYAGA",
+        "GASEME"
+    ],
+    "ADMIN_BU_01_01_01_08_03_03_GATEMERE": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "MURORE",
+        "RUYAGA",
+        "GATEMERE"
+    ],
+    "ADMIN_BU_01_01_01_08_03_04_MITERAMA": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "MURORE",
+        "RUYAGA",
+        "MITERAMA"
+    ],
+    "ADMIN_BU_01_01_01_08_03_05_MUSHA_GASEME": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "MURORE",
+        "RUYAGA",
+        "GASEME"
+    ],
+    "ADMIN_BU_01_01_01_08_03_06_NYAKIBARI": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "MURORE",
+        "RUYAGA",
+        "NYAKIBARI"
+    ],
+    "ADMIN_BU_01_01_01_08_03_07_RUGARI": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "MURORE",
+        "RUYAGA",
+        "RUGARI"
+    ],
+    "ADMIN_BU_01_01_01_08_03_RUYAGA": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "MURORE",
+        "RUYAGA",
+        null
+    ],
+    "ADMIN_BU_01_01_01_08_MURORE": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "MURORE",
+        null,
+        null
+    ],
+    "ADMIN_BU_01_01_01_09_01_01_BUHASA": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "NYAGISOZI",
+        "GITETE",
+        "BUHASA"
+    ],
+    "ADMIN_BU_01_01_01_09_01_02_BUTWARIRA": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "NYAGISOZI",
+        "GITETE",
+        "BUTWARIRA"
+    ],
+    "ADMIN_BU_01_01_01_09_01_03_GISAGARA": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "NYAGISOZI",
+        "GITETE",
+        "GISAGARA"
+    ],
+    "ADMIN_BU_01_01_01_09_01_04_GITETEMA": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "NYAGISOZI",
+        "GITETE",
+        "GITETEMA"
+    ],
+    "ADMIN_BU_01_01_01_09_01_05_KABIZI": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "NYAGISOZI",
+        "GITETE",
+        "KABIZI"
+    ],
+    "ADMIN_BU_01_01_01_09_01_06_MURAMA_01": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "NYAGISOZI",
+        "GITETE",
+        "01"
+    ],
+    "ADMIN_BU_01_01_01_09_01_07_RUBINDURA": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "NYAGISOZI",
+        "GITETE",
+        "RUBINDURA"
+    ],
+    "ADMIN_BU_01_01_01_09_01_08_RUFUNDISHA": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "NYAGISOZI",
+        "GITETE",
+        "RUFUNDISHA"
+    ],
+    "ADMIN_BU_01_01_01_09_01_GITETE": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "NYAGISOZI",
+        "GITETE",
+        null
+    ],
+    "ADMIN_BU_01_01_01_09_02_01_GATEMERE_01": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "NYAGISOZI",
+        "NYAGISOZI",
+        "01"
+    ],
+    "ADMIN_BU_01_01_01_09_02_02_MURONGOMYA": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "NYAGISOZI",
+        "NYAGISOZI",
+        "MURONGOMYA"
+    ],
+    "ADMIN_BU_01_01_01_09_02_03_NYABISIGA1": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "NYAGISOZI",
+        "NYAGISOZI",
+        "NYABISIGA1"
+    ],
+    "ADMIN_BU_01_01_01_09_02_04_NYABISIGA2": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "NYAGISOZI",
+        "NYAGISOZI",
+        "NYABISIGA2"
+    ],
+    "ADMIN_BU_01_01_01_09_02_05_NYAGISOZI_CENTRE": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "NYAGISOZI",
+        "NYAGISOZI",
+        "CENTRE"
+    ],
+    "ADMIN_BU_01_01_01_09_02_06_RUKORI": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "NYAGISOZI",
+        "NYAGISOZI",
+        "RUKORI"
+    ],
+    "ADMIN_BU_01_01_01_09_02_07_SENGA": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "NYAGISOZI",
+        "NYAGISOZI",
+        "SENGA"
+    ],
+    "ADMIN_BU_01_01_01_09_02_NYAGISOZI": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "NYAGISOZI",
+        "NYAGISOZI",
+        null
+    ],
+    "ADMIN_BU_01_01_01_09_03_01_RUCINYIRO": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "NYAGISOZI",
+        "RUHEHA",
+        "RUCINYIRO"
+    ],
+    "ADMIN_BU_01_01_01_09_03_02_RUHEHA1": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "NYAGISOZI",
+        "RUHEHA",
+        "RUHEHA1"
+    ],
+    "ADMIN_BU_01_01_01_09_03_03_RUHEHA2": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "NYAGISOZI",
+        "RUHEHA",
+        "RUHEHA2"
+    ],
+    "ADMIN_BU_01_01_01_09_03_04_RUHORORO1": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "NYAGISOZI",
+        "RUHEHA",
+        "RUHORORO1"
+    ],
+    "ADMIN_BU_01_01_01_09_03_05_RUHORORO2": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "NYAGISOZI",
+        "RUHEHA",
+        "RUHORORO2"
+    ],
+    "ADMIN_BU_01_01_01_09_03_06_RUKORI1": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "NYAGISOZI",
+        "RUHEHA",
+        "RUKORI1"
+    ],
+    "ADMIN_BU_01_01_01_09_03_07_RUKORI2": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "NYAGISOZI",
+        "RUHEHA",
+        "RUKORI2"
+    ],
+    "ADMIN_BU_01_01_01_09_03_RUHEHA": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "NYAGISOZI",
+        "RUHEHA",
+        null
+    ],
+    "ADMIN_BU_01_01_01_09_NYAGISOZI": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "NYAGISOZI",
+        null,
+        null
+    ],
+    "ADMIN_BU_01_01_01_10_01_01_BUVUMBI": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "SIGU",
+        "KUMANA",
+        "BUVUMBI"
+    ],
+    "ADMIN_BU_01_01_01_10_01_02_JERI": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "SIGU",
+        "KUMANA",
+        "JERI"
+    ],
+    "ADMIN_BU_01_01_01_10_01_03_KIGINA": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "SIGU",
+        "KUMANA",
+        "KIGINA"
+    ],
+    "ADMIN_BU_01_01_01_10_01_04_KINYANGORO": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "SIGU",
+        "KUMANA",
+        "KINYANGORO"
+    ],
+    "ADMIN_BU_01_01_01_10_01_05_KINYINYA": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "SIGU",
+        "KUMANA",
+        "KINYINYA"
+    ],
+    "ADMIN_BU_01_01_01_10_01_06_KUMANA_I": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "SIGU",
+        "KUMANA",
+        "I"
+    ],
+    "ADMIN_BU_01_01_01_10_01_07_KUMANA_II": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "SIGU",
+        "KUMANA",
+        "II"
+    ],
+    "ADMIN_BU_01_01_01_10_01_08_MUGUME": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "SIGU",
+        "KUMANA",
+        "MUGUME"
+    ],
+    "ADMIN_BU_01_01_01_10_01_09_NYANGE": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "SIGU",
+        "KUMANA",
+        "NYANGE"
+    ],
+    "ADMIN_BU_01_01_01_10_01_10_RABIRO": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "SIGU",
+        "KUMANA",
+        "RABIRO"
+    ],
+    "ADMIN_BU_01_01_01_10_01_KUMANA": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "SIGU",
+        "KUMANA",
+        null
+    ],
+    "ADMIN_BU_01_01_01_10_02_01_GASENGA_SITE": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "SIGU",
+        "SIGU",
+        "SITE"
+    ],
+    "ADMIN_BU_01_01_01_10_02_02_KIVOGO": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "SIGU",
+        "SIGU",
+        "KIVOGO"
+    ],
+    "ADMIN_BU_01_01_01_10_02_03_MUTEMBO_I": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "SIGU",
+        "SIGU",
+        "I"
+    ],
+    "ADMIN_BU_01_01_01_10_02_04_MUTEMBO_II": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "SIGU",
+        "SIGU",
+        "II"
+    ],
+    "ADMIN_BU_01_01_01_10_02_SIGU": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "SIGU",
+        "SIGU",
+        null
+    ],
+    "ADMIN_BU_01_01_01_10_SIGU": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "SIGU",
+        null,
+        null
+    ],
+    "ADMIN_BU_01_01_01_11_01_01_CISEKE": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "VYANZO",
+        "GATARE",
+        "CISEKE"
+    ],
+    "ADMIN_BU_01_01_01_11_01_02_GATARE_I": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "VYANZO",
+        "GATARE",
+        "I"
+    ],
+    "ADMIN_BU_01_01_01_11_01_03_GATARE_II": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "VYANZO",
+        "GATARE",
+        "II"
+    ],
+    "ADMIN_BU_01_01_01_11_01_04_KIGOMA": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "VYANZO",
+        "GATARE",
+        "KIGOMA"
+    ],
+    "ADMIN_BU_01_01_01_11_01_05_MAGO": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "VYANZO",
+        "GATARE",
+        "MAGO"
+    ],
+    "ADMIN_BU_01_01_01_11_01_06_RUYOKA": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "VYANZO",
+        "GATARE",
+        "RUYOKA"
+    ],
+    "ADMIN_BU_01_01_01_11_01_07_VYANZO": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "VYANZO",
+        "GATARE",
+        "VYANZO"
+    ],
+    "ADMIN_BU_01_01_01_11_01_GATARE": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "VYANZO",
+        "GATARE",
+        null
+    ],
+    "ADMIN_BU_01_01_01_11_02_01_KAMAKARA_I": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "VYANZO",
+        "KIVO",
+        "I"
+    ],
+    "ADMIN_BU_01_01_01_11_02_02_KIVO": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "VYANZO",
+        "KIVO",
+        "KIVO"
+    ],
+    "ADMIN_BU_01_01_01_11_02_03_RUSENYI": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "VYANZO",
+        "KIVO",
+        "RUSENYI"
+    ],
+    "ADMIN_BU_01_01_01_11_02_04_RUTONDE": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "VYANZO",
+        "KIVO",
+        "RUTONDE"
+    ],
+    "ADMIN_BU_01_01_01_11_02_KIVO": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "VYANZO",
+        "KIVO",
+        null
+    ],
+    "ADMIN_BU_01_01_01_11_03_01_KAMAKARA_II": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "VYANZO",
+        "MUNAZI",
+        "II"
+    ],
+    "ADMIN_BU_01_01_01_11_03_02_MARAMVYA": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "VYANZO",
+        "MUNAZI",
+        "MARAMVYA"
+    ],
+    "ADMIN_BU_01_01_01_11_03_03_RUZYEGE_I": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "VYANZO",
+        "MUNAZI",
+        "I"
+    ],
+    "ADMIN_BU_01_01_01_11_03_04_RUZYEGE_II": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "VYANZO",
+        "MUNAZI",
+        "II"
+    ],
+    "ADMIN_BU_01_01_01_11_03_MUNAZI": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "VYANZO",
+        "MUNAZI",
+        null
+    ],
+    "ADMIN_BU_01_01_01_11_VYANZO": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        "VYANZO",
+        null,
+        null
+    ],
+    "ADMIN_BU_01_01_01_BUSONI": [
+        "BU",
+        "KIRUNDO",
+        "BUSONI",
+        "BUSONI",
+        null,
+        null,
+        null
+    ],
+    "ADMIN_BU_01_02_01_01_01_01_KAMIRANZOGERA": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "BWIZA",
+        "NYABIKENKE",
+        "KAMIRANZOGERA"
+    ],
+    "ADMIN_BU_01_02_01_01_01_02_MUYANGE_01": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "BWIZA",
+        "NYABIKENKE",
+        "01"
+    ],
+    "ADMIN_BU_01_02_01_01_01_03_MUYUMPU": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "BWIZA",
+        "NYABIKENKE",
+        "MUYUMPU"
+    ],
+    "ADMIN_BU_01_02_01_01_01_04_RUNYANGONA": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "BWIZA",
+        "NYABIKENKE",
+        "RUNYANGONA"
+    ],
+    "ADMIN_BU_01_02_01_01_01_NYABIKENKE": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "BWIZA",
+        "NYABIKENKE",
+        null
+    ],
+    "ADMIN_BU_01_02_01_01_02_01_BWIZA": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "BWIZA",
+        "NYAMABUYE",
+        "BWIZA"
+    ],
+    "ADMIN_BU_01_02_01_01_02_02_CIBISHURI": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "BWIZA",
+        "NYAMABUYE",
+        "CIBISHURI"
+    ],
+    "ADMIN_BU_01_02_01_01_02_03_NGUGO": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "BWIZA",
+        "NYAMABUYE",
+        "NGUGO"
+    ],
+    "ADMIN_BU_01_02_01_01_02_04_NTAHO_II": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "BWIZA",
+        "NYAMABUYE",
+        "II"
+    ],
+    "ADMIN_BU_01_02_01_01_02_05_RUKONDOKONDO": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "BWIZA",
+        "NYAMABUYE",
+        "RUKONDOKONDO"
+    ],
+    "ADMIN_BU_01_02_01_01_02_NYAMABUYE": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "BWIZA",
+        "NYAMABUYE",
+        null
+    ],
+    "ADMIN_BU_01_02_01_01_BWIZA": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "BWIZA",
+        null,
+        null
+    ],
+    "ADMIN_BU_01_02_01_02_01_01_CIMO": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "KIRI",
+        "KIRI",
+        "CIMO"
+    ],
+    "ADMIN_BU_01_02_01_02_01_02_KIRI": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "KIRI",
+        "KIRI",
+        "KIRI"
+    ],
+    "ADMIN_BU_01_02_01_02_01_03_MUGOMBWA": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "KIRI",
+        "KIRI",
+        "MUGOMBWA"
+    ],
+    "ADMIN_BU_01_02_01_02_01_04_MUNYINYA_01": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "KIRI",
+        "KIRI",
+        "01"
+    ],
+    "ADMIN_BU_01_02_01_02_01_05_NGARAGU": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "KIRI",
+        "KIRI",
+        "NGARAGU"
+    ],
+    "ADMIN_BU_01_02_01_02_01_06_NTEMBE": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "KIRI",
+        "KIRI",
+        "NTEMBE"
+    ],
+    "ADMIN_BU_01_02_01_02_01_KIRI": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "KIRI",
+        "KIRI",
+        null
+    ],
+    "ADMIN_BU_01_02_01_02_KIRI": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "KIRI",
+        null,
+        null
+    ],
+    "ADMIN_BU_01_02_01_03_01_01_CINDONYI_I": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "KIYONZA",
+        "KIYONZA",
+        "I"
+    ],
+    "ADMIN_BU_01_02_01_03_01_02_FOKO": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "KIYONZA",
+        "KIYONZA",
+        "FOKO"
+    ],
+    "ADMIN_BU_01_02_01_03_01_03_MAMFU": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "KIYONZA",
+        "KIYONZA",
+        "MAMFU"
+    ],
+    "ADMIN_BU_01_02_01_03_01_04_MUBUGA": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "KIYONZA",
+        "KIYONZA",
+        "MUBUGA"
+    ],
+    "ADMIN_BU_01_02_01_03_01_05_NUNGA_I": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "KIYONZA",
+        "KIYONZA",
+        "I"
+    ],
+    "ADMIN_BU_01_02_01_03_01_KIYONZA": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "KIYONZA",
+        "KIYONZA",
+        null
+    ],
+    "ADMIN_BU_01_02_01_03_02_01_CINDONYI_II": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "KIYONZA",
+        "RUBUGA",
+        "II"
+    ],
+    "ADMIN_BU_01_02_01_03_02_02_NUNGA_II": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "KIYONZA",
+        "RUBUGA",
+        "II"
+    ],
+    "ADMIN_BU_01_02_01_03_02_03_RUBUGA": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "KIYONZA",
+        "RUBUGA",
+        "RUBUGA"
+    ],
+    "ADMIN_BU_01_02_01_03_02_RUBUGA": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "KIYONZA",
+        "RUBUGA",
+        null
+    ],
+    "ADMIN_BU_01_02_01_03_KIYONZA": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "KIYONZA",
+        null,
+        null
+    ],
+    "ADMIN_BU_01_02_01_04_01_01_BIRWA_COT__GITWE": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "MUYANGE",
+        "GITWE",
+        "GITWE"
+    ],
+    "ADMIN_BU_01_02_01_04_01_02_CINYAMBO": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "MUYANGE",
+        "GITWE",
+        "CINYAMBO"
+    ],
+    "ADMIN_BU_01_02_01_04_01_03_GITWE": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "MUYANGE",
+        "GITWE",
+        "GITWE"
+    ],
+    "ADMIN_BU_01_02_01_04_01_04_RUYIVYI": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "MUYANGE",
+        "GITWE",
+        "RUYIVYI"
+    ],
+    "ADMIN_BU_01_02_01_04_01_GITWE": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "MUYANGE",
+        "GITWE",
+        null
+    ],
+    "ADMIN_BU_01_02_01_04_02_01_BIRWA_COT__MUYANGE": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "MUYANGE",
+        "KIGOMA",
+        "MUYANGE"
+    ],
+    "ADMIN_BU_01_02_01_04_02_02_KABIRIZI_02": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "MUYANGE",
+        "KIGOMA",
+        "02"
+    ],
+    "ADMIN_BU_01_02_01_04_02_03_KIGOMA_I": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "MUYANGE",
+        "KIGOMA",
+        "I"
+    ],
+    "ADMIN_BU_01_02_01_04_02_04_KIGOMA_II": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "MUYANGE",
+        "KIGOMA",
+        "II"
+    ],
+    "ADMIN_BU_01_02_01_04_02_05_MUYANGE_02": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "MUYANGE",
+        "KIGOMA",
+        "02"
+    ],
+    "ADMIN_BU_01_02_01_04_02_06_NTWAGO": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "MUYANGE",
+        "KIGOMA",
+        "NTWAGO"
+    ],
+    "ADMIN_BU_01_02_01_04_02_07_RUGANDO_01": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "MUYANGE",
+        "KIGOMA",
+        "01"
+    ],
+    "ADMIN_BU_01_02_01_04_02_08_RYAGIHANA": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "MUYANGE",
+        "KIGOMA",
+        "RYAGIHANA"
+    ],
+    "ADMIN_BU_01_02_01_04_02_09_SHENGA_I": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "MUYANGE",
+        "KIGOMA",
+        "I"
+    ],
+    "ADMIN_BU_01_02_01_04_02_KIGOMA": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "MUYANGE",
+        "KIGOMA",
+        null
+    ],
+    "ADMIN_BU_01_02_01_04_MUYANGE": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "MUYANGE",
+        null,
+        null
+    ],
+    "ADMIN_BU_01_02_01_05_01_01_CINUMA": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "NYAKARAMA",
+        "NYAKARAMA",
+        "CINUMA"
+    ],
+    "ADMIN_BU_01_02_01_05_01_02_NYAMABUYE": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "NYAKARAMA",
+        "NYAKARAMA",
+        "NYAMABUYE"
+    ],
+    "ADMIN_BU_01_02_01_05_01_03_RUTAMO": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "NYAKARAMA",
+        "NYAKARAMA",
+        "RUTAMO"
+    ],
+    "ADMIN_BU_01_02_01_05_01_04_VUMBI": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "NYAKARAMA",
+        "NYAKARAMA",
+        "VUMBI"
+    ],
+    "ADMIN_BU_01_02_01_05_01_NYAKARAMA": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "NYAKARAMA",
+        "NYAKARAMA",
+        null
+    ],
+    "ADMIN_BU_01_02_01_05_02_01_GASAGARA_01": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "NYAKARAMA",
+        "01",
+        "01"
+    ],
+    "ADMIN_BU_01_02_01_05_02_02_NINA": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "NYAKARAMA",
+        "01",
+        "NINA"
+    ],
+    "ADMIN_BU_01_02_01_05_02_RUBUGA_01": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "NYAKARAMA",
+        "01",
+        null
+    ],
+    "ADMIN_BU_01_02_01_05_NYAKARAMA": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "NYAKARAMA",
+        null,
+        null
+    ],
+    "ADMIN_BU_01_02_01_06_01_01_HAGA": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "NYAMABUYE",
+        "01",
+        "HAGA"
+    ],
+    "ADMIN_BU_01_02_01_06_01_02_KAMWAYI": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "NYAMABUYE",
+        "01",
+        "KAMWAYI"
+    ],
+    "ADMIN_BU_01_02_01_06_01_03_NDAVA": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "NYAMABUYE",
+        "01",
+        "NDAVA"
+    ],
+    "ADMIN_BU_01_02_01_06_01_04_RUYIGI": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "NYAMABUYE",
+        "01",
+        "RUYIGI"
+    ],
+    "ADMIN_BU_01_02_01_06_01_NYAMABUYE_01": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "NYAMABUYE",
+        "01",
+        null
+    ],
+    "ADMIN_BU_01_02_01_06_NYAMABUYE": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "NYAMABUYE",
+        null,
+        null
+    ],
+    "ADMIN_BU_01_02_01_07_01_01_CINGWE": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "RUGASA",
+        "RUGASA",
+        "CINGWE"
+    ],
+    "ADMIN_BU_01_02_01_07_01_02_NYAMATA": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "RUGASA",
+        "RUGASA",
+        "NYAMATA"
+    ],
+    "ADMIN_BU_01_02_01_07_01_03_RUGASA_I": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "RUGASA",
+        "RUGASA",
+        "I"
+    ],
+    "ADMIN_BU_01_02_01_07_01_04_RUGASA_II": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "RUGASA",
+        "RUGASA",
+        "II"
+    ],
+    "ADMIN_BU_01_02_01_07_01_05_RUGASA_III": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "RUGASA",
+        "RUGASA",
+        "III"
+    ],
+    "ADMIN_BU_01_02_01_07_01_06_RUKINDO": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "RUGASA",
+        "RUGASA",
+        "RUKINDO"
+    ],
+    "ADMIN_BU_01_02_01_07_01_07_SARUDUHA": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "RUGASA",
+        "RUGASA",
+        "SARUDUHA"
+    ],
+    "ADMIN_BU_01_02_01_07_01_08_SHENGA_II": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "RUGASA",
+        "RUGASA",
+        "II"
+    ],
+    "ADMIN_BU_01_02_01_07_01_09_SHENGA_III": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "RUGASA",
+        "RUGASA",
+        "III"
+    ],
+    "ADMIN_BU_01_02_01_07_01_RUGASA": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "RUGASA",
+        "RUGASA",
+        null
+    ],
+    "ADMIN_BU_01_02_01_07_RUGASA": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "RUGASA",
+        null,
+        null
+    ],
+    "ADMIN_BU_01_02_01_08_01_01_GATORONGERO": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "RUHEHE",
+        "GATURANDA",
+        "GATORONGERO"
+    ],
+    "ADMIN_BU_01_02_01_08_01_02_GATURANDA": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "RUHEHE",
+        "GATURANDA",
+        "GATURANDA"
+    ],
+    "ADMIN_BU_01_02_01_08_01_03_KARISHA": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "RUHEHE",
+        "GATURANDA",
+        "KARISHA"
+    ],
+    "ADMIN_BU_01_02_01_08_01_04_KIGINA_01": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "RUHEHE",
+        "GATURANDA",
+        "01"
+    ],
+    "ADMIN_BU_01_02_01_08_01_GATURANDA": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "RUHEHE",
+        "GATURANDA",
+        null
+    ],
+    "ADMIN_BU_01_02_01_08_02_01_BWIZA_I": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "RUHEHE",
+        "RUHEHE",
+        "I"
+    ],
+    "ADMIN_BU_01_02_01_08_02_02_BWIZA_II": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "RUHEHE",
+        "RUHEHE",
+        "II"
+    ],
+    "ADMIN_BU_01_02_01_08_02_03_GAHWIJO": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "RUHEHE",
+        "RUHEHE",
+        "GAHWIJO"
+    ],
+    "ADMIN_BU_01_02_01_08_02_04_KIRUNDUZI": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "RUHEHE",
+        "RUHEHE",
+        "KIRUNDUZI"
+    ],
+    "ADMIN_BU_01_02_01_08_02_05_NTAHO": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "RUHEHE",
+        "RUHEHE",
+        "NTAHO"
+    ],
+    "ADMIN_BU_01_02_01_08_02_06_NTAHO_I": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "RUHEHE",
+        "RUHEHE",
+        "I"
+    ],
+    "ADMIN_BU_01_02_01_08_02_07_NYABIKENKE": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "RUHEHE",
+        "RUHEHE",
+        "NYABIKENKE"
+    ],
+    "ADMIN_BU_01_02_01_08_02_08_NYABIKENKE_I": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "RUHEHE",
+        "RUHEHE",
+        "I"
+    ],
+    "ADMIN_BU_01_02_01_08_02_09_NYABIKENKE_II": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "RUHEHE",
+        "RUHEHE",
+        "II"
+    ],
+    "ADMIN_BU_01_02_01_08_02_10_NYABIKENKE_III": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "RUHEHE",
+        "RUHEHE",
+        "III"
+    ],
+    "ADMIN_BU_01_02_01_08_02_11_RUBUGA_I": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "RUHEHE",
+        "RUHEHE",
+        "I"
+    ],
+    "ADMIN_BU_01_02_01_08_02_12_RUBUGA_II": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "RUHEHE",
+        "RUHEHE",
+        "II"
+    ],
+    "ADMIN_BU_01_02_01_08_02_13_RUGANDO_02": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "RUHEHE",
+        "RUHEHE",
+        "02"
+    ],
+    "ADMIN_BU_01_02_01_08_02_14_RUKORE": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "RUHEHE",
+        "RUHEHE",
+        "RUKORE"
+    ],
+    "ADMIN_BU_01_02_01_08_02_15_RUSUGI": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "RUHEHE",
+        "RUHEHE",
+        "RUSUGI"
+    ],
+    "ADMIN_BU_01_02_01_08_02_RUHEHE": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "RUHEHE",
+        "RUHEHE",
+        null
+    ],
+    "ADMIN_BU_01_02_01_08_RUHEHE": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        "RUHEHE",
+        null,
+        null
+    ],
+    "ADMIN_BU_01_02_01_BUGABIRA": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGABIRA",
+        null,
+        null,
+        null
+    ],
+    "ADMIN_BU_01_02_02_01_01_01_KARAMAGI": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "CUMVA",
+        "BUSENYI",
+        "KARAMAGI"
+    ],
+    "ADMIN_BU_01_02_02_01_01_02_KIBANDE": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "CUMVA",
+        "BUSENYI",
+        "KIBANDE"
+    ],
+    "ADMIN_BU_01_02_02_01_01_03_MURAMBO_01": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "CUMVA",
+        "BUSENYI",
+        "01"
+    ],
+    "ADMIN_BU_01_02_02_01_01_04_MUTUMBA": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "CUMVA",
+        "BUSENYI",
+        "MUTUMBA"
+    ],
+    "ADMIN_BU_01_02_02_01_01_05_RUHANDA": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "CUMVA",
+        "BUSENYI",
+        "RUHANDA"
+    ],
+    "ADMIN_BU_01_02_02_01_01_06_RUVUMU": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "CUMVA",
+        "BUSENYI",
+        "RUVUMU"
+    ],
+    "ADMIN_BU_01_02_02_01_01_BUSENYI": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "CUMVA",
+        "BUSENYI",
+        null
+    ],
+    "ADMIN_BU_01_02_02_01_02_01_BURENZA": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "CUMVA",
+        "CUMVA",
+        "BURENZA"
+    ],
+    "ADMIN_BU_01_02_02_01_02_02_BUSASA": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "CUMVA",
+        "CUMVA",
+        "BUSASA"
+    ],
+    "ADMIN_BU_01_02_02_01_02_03_GACABWOYA": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "CUMVA",
+        "CUMVA",
+        "GACABWOYA"
+    ],
+    "ADMIN_BU_01_02_02_01_02_04_KATONYOMVYI": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "CUMVA",
+        "CUMVA",
+        "KATONYOMVYI"
+    ],
+    "ADMIN_BU_01_02_02_01_02_05_NDINDA": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "CUMVA",
+        "CUMVA",
+        "NDINDA"
+    ],
+    "ADMIN_BU_01_02_02_01_02_CUMVA": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "CUMVA",
+        "CUMVA",
+        null
+    ],
+    "ADMIN_BU_01_02_02_01_03_01_BIRAMVU": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "CUMVA",
+        "RUGERO",
+        "BIRAMVU"
+    ],
+    "ADMIN_BU_01_02_02_01_03_02_GATOGOTA": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "CUMVA",
+        "RUGERO",
+        "GATOGOTA"
+    ],
+    "ADMIN_BU_01_02_02_01_03_03_KAYENZI": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "CUMVA",
+        "RUGERO",
+        "KAYENZI"
+    ],
+    "ADMIN_BU_01_02_02_01_03_04_MATAKA": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "CUMVA",
+        "RUGERO",
+        "MATAKA"
+    ],
+    "ADMIN_BU_01_02_02_01_03_05_NKORONKO": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "CUMVA",
+        "RUGERO",
+        "NKORONKO"
+    ],
+    "ADMIN_BU_01_02_02_01_03_06_NYABIKENKE_01": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "CUMVA",
+        "RUGERO",
+        "01"
+    ],
+    "ADMIN_BU_01_02_02_01_03_07_SHINGE": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "CUMVA",
+        "RUGERO",
+        "SHINGE"
+    ],
+    "ADMIN_BU_01_02_02_01_03_RUGERO": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "CUMVA",
+        "RUGERO",
+        null
+    ],
+    "ADMIN_BU_01_02_02_01_CUMVA": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "CUMVA",
+        null,
+        null
+    ],
+    "ADMIN_BU_01_02_02_02_01_01_GAHARO": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "GAHARO",
+        "KINYANGURUBE",
+        "GAHARO"
+    ],
+    "ADMIN_BU_01_02_02_02_01_02_GISENYI_01": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "GAHARO",
+        "KINYANGURUBE",
+        "01"
+    ],
+    "ADMIN_BU_01_02_02_02_01_03_MIGEREKA_I": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "GAHARO",
+        "KINYANGURUBE",
+        "I"
+    ],
+    "ADMIN_BU_01_02_02_02_01_04_MIGEREKA_II": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "GAHARO",
+        "KINYANGURUBE",
+        "II"
+    ],
+    "ADMIN_BU_01_02_02_02_01_05_NYABIBUBUGU": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "GAHARO",
+        "KINYANGURUBE",
+        "NYABIBUBUGU"
+    ],
+    "ADMIN_BU_01_02_02_02_01_KINYANGURUBE": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "GAHARO",
+        "KINYANGURUBE",
+        null
+    ],
+    "ADMIN_BU_01_02_02_02_02_01_GASHOKA": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "GAHARO",
+        "KIYANZA",
+        "GASHOKA"
+    ],
+    "ADMIN_BU_01_02_02_02_02_02_KIRUHURA": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "GAHARO",
+        "KIYANZA",
+        "KIRUHURA"
+    ],
+    "ADMIN_BU_01_02_02_02_02_03_MIHAMA": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "GAHARO",
+        "KIYANZA",
+        "MIHAMA"
+    ],
+    "ADMIN_BU_01_02_02_02_02_04_RUNZENZE": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "GAHARO",
+        "KIYANZA",
+        "RUNZENZE"
+    ],
+    "ADMIN_BU_01_02_02_02_02_05_RWIRI": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "GAHARO",
+        "KIYANZA",
+        "RWIRI"
+    ],
+    "ADMIN_BU_01_02_02_02_02_KIYANZA": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "GAHARO",
+        "KIYANZA",
+        null
+    ],
+    "ADMIN_BU_01_02_02_02_03_01_KIRUNDUZI_01": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "GAHARO",
+        "MWENYA",
+        "01"
+    ],
+    "ADMIN_BU_01_02_02_02_03_02_MARAMVYA_01": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "GAHARO",
+        "MWENYA",
+        "01"
+    ],
+    "ADMIN_BU_01_02_02_02_03_03_MWENYA": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "GAHARO",
+        "MWENYA",
+        "MWENYA"
+    ],
+    "ADMIN_BU_01_02_02_02_03_04_NZOBE": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "GAHARO",
+        "MWENYA",
+        "NZOBE"
+    ],
+    "ADMIN_BU_01_02_02_02_03_MWENYA": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "GAHARO",
+        "MWENYA",
+        null
+    ],
+    "ADMIN_BU_01_02_02_02_GAHARO": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "GAHARO",
+        null,
+        null
+    ],
+    "ADMIN_BU_01_02_02_03_01_01_BUGORORA": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "GAKANA",
+        "GAKANA",
+        "BUGORORA"
+    ],
+    "ADMIN_BU_01_02_02_03_01_02_KABIRIZI_03": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "GAKANA",
+        "GAKANA",
+        "03"
+    ],
+    "ADMIN_BU_01_02_02_03_01_03_KAREHE_02": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "GAKANA",
+        "GAKANA",
+        "02"
+    ],
+    "ADMIN_BU_01_02_02_03_01_04_KIGARAMA_02": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "GAKANA",
+        "GAKANA",
+        "02"
+    ],
+    "ADMIN_BU_01_02_02_03_01_05_KINYANGURUBE_NKURU": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "GAKANA",
+        "GAKANA",
+        "NKURU"
+    ],
+    "ADMIN_BU_01_02_02_03_01_06_NTITA": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "GAKANA",
+        "GAKANA",
+        "NTITA"
+    ],
+    "ADMIN_BU_01_02_02_03_01_07_RUVYAGIRA": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "GAKANA",
+        "GAKANA",
+        "RUVYAGIRA"
+    ],
+    "ADMIN_BU_01_02_02_03_01_08_RWIMBOGO_01": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "GAKANA",
+        "GAKANA",
+        "01"
+    ],
+    "ADMIN_BU_01_02_02_03_01_GAKANA": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "GAKANA",
+        "GAKANA",
+        null
+    ],
+    "ADMIN_BU_01_02_02_03_02_01_BIRAYI": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "GAKANA",
+        "MUTARA",
+        "BIRAYI"
+    ],
+    "ADMIN_BU_01_02_02_03_02_02_BITUGARA": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "GAKANA",
+        "MUTARA",
+        "BITUGARA"
+    ],
+    "ADMIN_BU_01_02_02_03_02_03_BUJORORO": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "GAKANA",
+        "MUTARA",
+        "BUJORORO"
+    ],
+    "ADMIN_BU_01_02_02_03_02_04_KANYEGENYEGE": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "GAKANA",
+        "MUTARA",
+        "KANYEGENYEGE"
+    ],
+    "ADMIN_BU_01_02_02_03_02_05_KIBANDE_01": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "GAKANA",
+        "MUTARA",
+        "01"
+    ],
+    "ADMIN_BU_01_02_02_03_02_06_MBIZI": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "GAKANA",
+        "MUTARA",
+        "MBIZI"
+    ],
+    "ADMIN_BU_01_02_02_03_02_07_NTAMBA": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "GAKANA",
+        "MUTARA",
+        "NTAMBA"
+    ],
+    "ADMIN_BU_01_02_02_03_02_MUTARA": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "GAKANA",
+        "MUTARA",
+        null
+    ],
+    "ADMIN_BU_01_02_02_03_GAKANA": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "GAKANA",
+        null,
+        null
+    ],
+    "ADMIN_BU_01_02_02_04_01_01_KIGOZI": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIGOZI",
+        "YARANDA",
+        "KIGOZI"
+    ],
+    "ADMIN_BU_01_02_02_04_01_02_MAKOMBE_01": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIGOZI",
+        "YARANDA",
+        "01"
+    ],
+    "ADMIN_BU_01_02_02_04_01_03_MUTOZA": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIGOZI",
+        "YARANDA",
+        "MUTOZA"
+    ],
+    "ADMIN_BU_01_02_02_04_01_04_NUNGA_01": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIGOZI",
+        "YARANDA",
+        "01"
+    ],
+    "ADMIN_BU_01_02_02_04_01_05_RUHUZU": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIGOZI",
+        "YARANDA",
+        "RUHUZU"
+    ],
+    "ADMIN_BU_01_02_02_04_01_YARANDA": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIGOZI",
+        "YARANDA",
+        null
+    ],
+    "ADMIN_BU_01_02_02_04_KIGOZI": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIGOZI",
+        null,
+        null
+    ],
+    "ADMIN_BU_01_02_02_05_01_01_KABIRA_01": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGERA",
+        "01"
+    ],
+    "ADMIN_BU_01_02_02_05_01_02_KANABUGIRI": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGERA",
+        "KANABUGIRI"
+    ],
+    "ADMIN_BU_01_02_02_05_01_03_MUTWENZI": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGERA",
+        "MUTWENZI"
+    ],
+    "ADMIN_BU_01_02_02_05_01_BUGERA": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUGERA",
+        null
+    ],
+    "ADMIN_BU_01_02_02_05_02_01_KAREHE_03": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUSHAZA",
+        "03"
+    ],
+    "ADMIN_BU_01_02_02_05_02_02_NTITA_KAROBOGO": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUSHAZA",
+        "KAROBOGO"
+    ],
+    "ADMIN_BU_01_02_02_05_02_03_NYANGE_I": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUSHAZA",
+        "I"
+    ],
+    "ADMIN_BU_01_02_02_05_02_04_RAMBO": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUSHAZA",
+        "RAMBO"
+    ],
+    "ADMIN_BU_01_02_02_05_02_BUSHAZA": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "BUSHAZA",
+        null
+    ],
+    "ADMIN_BU_01_02_02_05_03_01_BUGARURA": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "GIKUYO",
+        "BUGARURA"
+    ],
+    "ADMIN_BU_01_02_02_05_03_02_GIKUYO": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "GIKUYO",
+        "GIKUYO"
+    ],
+    "ADMIN_BU_01_02_02_05_03_03_KIREKA": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "GIKUYO",
+        "KIREKA"
+    ],
+    "ADMIN_BU_01_02_02_05_03_04_KIVOGA": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "GIKUYO",
+        "KIVOGA"
+    ],
+    "ADMIN_BU_01_02_02_05_03_05_RUVUMERA": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "GIKUYO",
+        "RUVUMERA"
+    ],
+    "ADMIN_BU_01_02_02_05_03_GIKUYO": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "GIKUYO",
+        null
+    ],
+    "ADMIN_BU_01_02_02_05_04_01_KIBUBURU": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KINYINYA",
+        "KIBUBURU"
+    ],
+    "ADMIN_BU_01_02_02_05_04_02_NYANGE_01": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KINYINYA",
+        "01"
+    ],
+    "ADMIN_BU_01_02_02_05_04_KINYINYA": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KINYINYA",
+        null
+    ],
+    "ADMIN_BU_01_02_02_05_05_01_AVENUE_SENTARE": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "III",
+        "SENTARE"
+    ],
+    "ADMIN_BU_01_02_02_05_05_02_GAHARATA": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "III",
+        "GAHARATA"
+    ],
+    "ADMIN_BU_01_02_02_05_05_03_GAHARATA_I": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "III",
+        "I"
+    ],
+    "ADMIN_BU_01_02_02_05_05_04_GAHARATA_II": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "III",
+        "II"
+    ],
+    "ADMIN_BU_01_02_02_05_05_05_GASANGE_KIREKA": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "III",
+        "KIREKA"
+    ],
+    "ADMIN_BU_01_02_02_05_05_06_GASANGE_MURAMA": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "III",
+        "MURAMA"
+    ],
+    "ADMIN_BU_01_02_02_05_05_07_IER_ET_II_AVENUE": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "III",
+        "AVENUE"
+    ],
+    "ADMIN_BU_01_02_02_05_05_08_III_ET_IV_AVENUE": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "III",
+        "AVENUE"
+    ],
+    "ADMIN_BU_01_02_02_05_05_09_KARAMA": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "III",
+        "KARAMA"
+    ],
+    "ADMIN_BU_01_02_02_05_05_10_KIGARAMA_03": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "III",
+        "03"
+    ],
+    "ADMIN_BU_01_02_02_05_05_11_KIREKA_I": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "III",
+        "I"
+    ],
+    "ADMIN_BU_01_02_02_05_05_12_KIREKA_II": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "III",
+        "II"
+    ],
+    "ADMIN_BU_01_02_02_05_05_13_MUNZENZE_I": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "III",
+        "I"
+    ],
+    "ADMIN_BU_01_02_02_05_05_14_MUSOKO_I": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "III",
+        "I"
+    ],
+    "ADMIN_BU_01_02_02_05_05_15_MUSOKO_II": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "III",
+        "II"
+    ],
+    "ADMIN_BU_01_02_02_05_05_16_RUNANIRA": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "III",
+        "RUNANIRA"
+    ],
+    "ADMIN_BU_01_02_02_05_05_17_RUSANGE": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "III",
+        "RUSANGE"
+    ],
+    "ADMIN_BU_01_02_02_05_05_18_WINDORA": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "III",
+        "WINDORA"
+    ],
+    "ADMIN_BU_01_02_02_05_05_RUNANIRA_III": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "III",
+        null
+    ],
+    "ADMIN_BU_01_02_02_05_06_01_BUSHAZA_NYANGE": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "RUPFUNDA",
+        "NYANGE"
+    ],
+    "ADMIN_BU_01_02_02_05_06_02_BUSHAZA_RUPF": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "RUPFUNDA",
+        "RUPF"
+    ],
+    "ADMIN_BU_01_02_02_05_06_03_KAVOGERO": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "RUPFUNDA",
+        "KAVOGERO"
+    ],
+    "ADMIN_BU_01_02_02_05_06_04_KIRI_I": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "RUPFUNDA",
+        "I"
+    ],
+    "ADMIN_BU_01_02_02_05_06_05_KIRIRI_II": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "RUPFUNDA",
+        "II"
+    ],
+    "ADMIN_BU_01_02_02_05_06_06_MARIMANO": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "RUPFUNDA",
+        "MARIMANO"
+    ],
+    "ADMIN_BU_01_02_02_05_06_07_NYANGE_II": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "RUPFUNDA",
+        "II"
+    ],
+    "ADMIN_BU_01_02_02_05_06_08_RUPFUNDA_I": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "RUPFUNDA",
+        "I"
+    ],
+    "ADMIN_BU_01_02_02_05_06_09_RUPFUNDA_II": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "RUPFUNDA",
+        "II"
+    ],
+    "ADMIN_BU_01_02_02_05_06_RUPFUNDA": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "RUPFUNDA",
+        null
+    ],
+    "ADMIN_BU_01_02_02_05_KIRUNDO": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        null,
+        null
+    ],
+    "ADMIN_BU_01_02_02_06_01_01_KANTUYE_I": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "RUKURAMIGABO",
+        "CERU",
+        "I"
+    ],
+    "ADMIN_BU_01_02_02_06_01_02_KANTUYE_II": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "RUKURAMIGABO",
+        "CERU",
+        "II"
+    ],
+    "ADMIN_BU_01_02_02_06_01_03_RUTEGA_I": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "RUKURAMIGABO",
+        "CERU",
+        "I"
+    ],
+    "ADMIN_BU_01_02_02_06_01_04_VYAMUGONDO": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "RUKURAMIGABO",
+        "CERU",
+        "VYAMUGONDO"
+    ],
+    "ADMIN_BU_01_02_02_06_01_CERU": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "RUKURAMIGABO",
+        "CERU",
+        null
+    ],
+    "ADMIN_BU_01_02_02_06_02_01_BIDUDA": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "RUKURAMIGABO",
+        "CEWE",
+        "BIDUDA"
+    ],
+    "ADMIN_BU_01_02_02_06_02_02_CEWE_I": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "RUKURAMIGABO",
+        "CEWE",
+        "I"
+    ],
+    "ADMIN_BU_01_02_02_06_02_03_CEWE_II": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "RUKURAMIGABO",
+        "CEWE",
+        "II"
+    ],
+    "ADMIN_BU_01_02_02_06_02_04_CINYAMBO_01": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "RUKURAMIGABO",
+        "CEWE",
+        "01"
+    ],
+    "ADMIN_BU_01_02_02_06_02_05_MAYUMBA": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "RUKURAMIGABO",
+        "CEWE",
+        "MAYUMBA"
+    ],
+    "ADMIN_BU_01_02_02_06_02_06_NUNGA_02": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "RUKURAMIGABO",
+        "CEWE",
+        "02"
+    ],
+    "ADMIN_BU_01_02_02_06_02_CEWE": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "RUKURAMIGABO",
+        "CEWE",
+        null
+    ],
+    "ADMIN_BU_01_02_02_06_03_01_BITOZI_I": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "RUKURAMIGABO",
+        "RUNYONZA",
+        "I"
+    ],
+    "ADMIN_BU_01_02_02_06_03_02_BITOZI_II": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "RUKURAMIGABO",
+        "RUNYONZA",
+        "II"
+    ],
+    "ADMIN_BU_01_02_02_06_03_03_KANYENTAMBWE_I": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "RUKURAMIGABO",
+        "RUNYONZA",
+        "I"
+    ],
+    "ADMIN_BU_01_02_02_06_03_04_KANYENTAMBWE_II": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "RUKURAMIGABO",
+        "RUNYONZA",
+        "II"
+    ],
+    "ADMIN_BU_01_02_02_06_03_05_KARAGO_I": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "RUKURAMIGABO",
+        "RUNYONZA",
+        "I"
+    ],
+    "ADMIN_BU_01_02_02_06_03_06_KARAGO_II": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "RUKURAMIGABO",
+        "RUNYONZA",
+        "II"
+    ],
+    "ADMIN_BU_01_02_02_06_03_07_QUARTIER": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "RUKURAMIGABO",
+        "RUNYONZA",
+        "QUARTIER"
+    ],
+    "ADMIN_BU_01_02_02_06_03_08_RUJOJWE": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "RUKURAMIGABO",
+        "RUNYONZA",
+        "RUJOJWE"
+    ],
+    "ADMIN_BU_01_02_02_06_03_09_RUKURAMIGABO_I": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "RUKURAMIGABO",
+        "RUNYONZA",
+        "I"
+    ],
+    "ADMIN_BU_01_02_02_06_03_10_RUKURAMIGABO_II": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "RUKURAMIGABO",
+        "RUNYONZA",
+        "II"
+    ],
+    "ADMIN_BU_01_02_02_06_03_11_RUTEGA_II": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "RUKURAMIGABO",
+        "RUNYONZA",
+        "II"
+    ],
+    "ADMIN_BU_01_02_02_06_03_12_RUZIRAKABOGI_I": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "RUKURAMIGABO",
+        "RUNYONZA",
+        "I"
+    ],
+    "ADMIN_BU_01_02_02_06_03_13_RUZIRAKABOGI_II": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "RUKURAMIGABO",
+        "RUNYONZA",
+        "II"
+    ],
+    "ADMIN_BU_01_02_02_06_03_RUNYONZA": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "RUKURAMIGABO",
+        "RUNYONZA",
+        null
+    ],
+    "ADMIN_BU_01_02_02_06_RUKURAMIGABO": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "RUKURAMIGABO",
+        null,
+        null
+    ],
+    "ADMIN_BU_01_02_02_07_01_01_GAHINI": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "RUTARE",
+        "KAVOMO",
+        "GAHINI"
+    ],
+    "ADMIN_BU_01_02_02_07_01_02_GERERO": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "RUTARE",
+        "KAVOMO",
+        "GERERO"
+    ],
+    "ADMIN_BU_01_02_02_07_01_03_KABAGABAGA": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "RUTARE",
+        "KAVOMO",
+        "KABAGABAGA"
+    ],
+    "ADMIN_BU_01_02_02_07_01_04_MUNZENZE_II": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "RUTARE",
+        "KAVOMO",
+        "II"
+    ],
+    "ADMIN_BU_01_02_02_07_01_05_RUHITA": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "RUTARE",
+        "KAVOMO",
+        "RUHITA"
+    ],
+    "ADMIN_BU_01_02_02_07_01_KAVOMO": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "RUTARE",
+        "KAVOMO",
+        null
+    ],
+    "ADMIN_BU_01_02_02_07_02_01_KABONDE": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "RUTARE",
+        "01",
+        "KABONDE"
+    ],
+    "ADMIN_BU_01_02_02_07_02_02_MUDAHANGA": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "RUTARE",
+        "01",
+        "MUDAHANGA"
+    ],
+    "ADMIN_BU_01_02_02_07_02_03_MUHERO_RUNYONZA": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "RUTARE",
+        "01",
+        "RUNYONZA"
+    ],
+    "ADMIN_BU_01_02_02_07_02_04_MUHERO_YARANDA": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "RUTARE",
+        "01",
+        "YARANDA"
+    ],
+    "ADMIN_BU_01_02_02_07_02_05_RUGUNGA": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "RUTARE",
+        "01",
+        "RUGUNGA"
+    ],
+    "ADMIN_BU_01_02_02_07_02_YARANDA_01": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "RUTARE",
+        "01",
+        null
+    ],
+    "ADMIN_BU_01_02_02_07_RUTARE": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        "RUTARE",
+        null,
+        null
+    ],
+    "ADMIN_BU_01_02_02_KIRUNDO": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        "KIRUNDO",
+        null,
+        null,
+        null
+    ],
+    "ADMIN_BU_01_02_KIRUNDO": [
+        "BU",
+        "KIRUNDO",
+        "KIRUNDO",
+        null,
+        null,
+        null,
+        null
+    ],
+    "ADMIN_BU_01_03_01_01_01_01_BUGORORA_01": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "BUGORORA",
+        "BUGORORA",
+        "01"
+    ],
+    "ADMIN_BU_01_03_01_01_01_02_GAHABWA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "BUGORORA",
+        "BUGORORA",
+        "GAHABWA"
+    ],
+    "ADMIN_BU_01_03_01_01_01_03_GASENYI": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "BUGORORA",
+        "BUGORORA",
+        "GASENYI"
+    ],
+    "ADMIN_BU_01_03_01_01_01_04_NTITA_KIRAMA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "BUGORORA",
+        "BUGORORA",
+        "KIRAMA"
+    ],
+    "ADMIN_BU_01_03_01_01_01_BUGORORA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "BUGORORA",
+        "BUGORORA",
+        null
+    ],
+    "ADMIN_BU_01_03_01_01_02_01_NTITA_I": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "BUGORORA",
+        "BUHEVYI",
+        "I"
+    ],
+    "ADMIN_BU_01_03_01_01_02_02_NTITAII": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "BUGORORA",
+        "BUHEVYI",
+        "NTITAII"
+    ],
+    "ADMIN_BU_01_03_01_01_02_03_RUYAGARA_I": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "BUGORORA",
+        "BUHEVYI",
+        "I"
+    ],
+    "ADMIN_BU_01_03_01_01_02_04_RUYAGARA_II": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "BUGORORA",
+        "BUHEVYI",
+        "II"
+    ],
+    "ADMIN_BU_01_03_01_01_02_BUHEVYI": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "BUGORORA",
+        "BUHEVYI",
+        null
+    ],
+    "ADMIN_BU_01_03_01_01_03_01_BUGONGO": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "BUGORORA",
+        "KADUDURI",
+        "BUGONGO"
+    ],
+    "ADMIN_BU_01_03_01_01_03_02_GATARO": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "BUGORORA",
+        "KADUDURI",
+        "GATARO"
+    ],
+    "ADMIN_BU_01_03_01_01_03_03_GITARO": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "BUGORORA",
+        "KADUDURI",
+        "GITARO"
+    ],
+    "ADMIN_BU_01_03_01_01_03_04_KADUDURI_RUBAVU": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "BUGORORA",
+        "KADUDURI",
+        "RUBAVU"
+    ],
+    "ADMIN_BU_01_03_01_01_03_05_KARAMBO_01": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "BUGORORA",
+        "KADUDURI",
+        "01"
+    ],
+    "ADMIN_BU_01_03_01_01_03_06_KIGARAMA_04": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "BUGORORA",
+        "KADUDURI",
+        "04"
+    ],
+    "ADMIN_BU_01_03_01_01_03_KADUDURI": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "BUGORORA",
+        "KADUDURI",
+        null
+    ],
+    "ADMIN_BU_01_03_01_01_04_01_GIHAMA_GISENGA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "BUGORORA",
+        "MUTARISHWA",
+        "GISENGA"
+    ],
+    "ADMIN_BU_01_03_01_01_04_02_MUGONGO": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "BUGORORA",
+        "MUTARISHWA",
+        "MUGONGO"
+    ],
+    "ADMIN_BU_01_03_01_01_04_03_MUTETEMA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "BUGORORA",
+        "MUTARISHWA",
+        "MUTETEMA"
+    ],
+    "ADMIN_BU_01_03_01_01_04_MUTARISHWA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "BUGORORA",
+        "MUTARISHWA",
+        null
+    ],
+    "ADMIN_BU_01_03_01_01_BUGORORA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "BUGORORA",
+        null,
+        null
+    ],
+    "ADMIN_BU_01_03_01_02_01_01_BUCAMIHIGO": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "BUHORO",
+        "BUHORO",
+        "BUCAMIHIGO"
+    ],
+    "ADMIN_BU_01_03_01_02_01_02_GASANGE": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "BUHORO",
+        "BUHORO",
+        "GASANGE"
+    ],
+    "ADMIN_BU_01_03_01_02_01_03_MIKAMBA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "BUHORO",
+        "BUHORO",
+        "MIKAMBA"
+    ],
+    "ADMIN_BU_01_03_01_02_01_04_MUSAVE": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "BUHORO",
+        "BUHORO",
+        "MUSAVE"
+    ],
+    "ADMIN_BU_01_03_01_02_01_05_NTITA_01": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "BUHORO",
+        "BUHORO",
+        "01"
+    ],
+    "ADMIN_BU_01_03_01_02_01_BUHORO": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "BUHORO",
+        "BUHORO",
+        null
+    ],
+    "ADMIN_BU_01_03_01_02_02_01_BUKINGA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "BUHORO",
+        "BUNYWERA",
+        "BUKINGA"
+    ],
+    "ADMIN_BU_01_03_01_02_02_02_GATARE": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "BUHORO",
+        "BUNYWERA",
+        "GATARE"
+    ],
+    "ADMIN_BU_01_03_01_02_02_03_KINANA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "BUHORO",
+        "BUNYWERA",
+        "KINANA"
+    ],
+    "ADMIN_BU_01_03_01_02_02_04_MABUYE": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "BUHORO",
+        "BUNYWERA",
+        "MABUYE"
+    ],
+    "ADMIN_BU_01_03_01_02_02_05_NGARA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "BUHORO",
+        "BUNYWERA",
+        "NGARA"
+    ],
+    "ADMIN_BU_01_03_01_02_02_BUNYWERA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "BUHORO",
+        "BUNYWERA",
+        null
+    ],
+    "ADMIN_BU_01_03_01_02_03_01_MWAMIRA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "BUHORO",
+        "KARAMBO",
+        "MWAMIRA"
+    ],
+    "ADMIN_BU_01_03_01_02_03_02_SEKESEKE": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "BUHORO",
+        "KARAMBO",
+        "SEKESEKE"
+    ],
+    "ADMIN_BU_01_03_01_02_03_KARAMBO": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "BUHORO",
+        "KARAMBO",
+        null
+    ],
+    "ADMIN_BU_01_03_01_02_BUHORO": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "BUHORO",
+        null,
+        null
+    ],
+    "ADMIN_BU_01_03_01_03_01_01_KABUYENGE": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "KABUYENGE",
+        "BUDAHUNGA",
+        "KABUYENGE"
+    ],
+    "ADMIN_BU_01_03_01_03_01_02_KAGAZO": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "KABUYENGE",
+        "BUDAHUNGA",
+        "KAGAZO"
+    ],
+    "ADMIN_BU_01_03_01_03_01_03_MURAMA_02": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "KABUYENGE",
+        "BUDAHUNGA",
+        "02"
+    ],
+    "ADMIN_BU_01_03_01_03_01_BUDAHUNGA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "KABUYENGE",
+        "BUDAHUNGA",
+        null
+    ],
+    "ADMIN_BU_01_03_01_03_02_01_MANA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "KABUYENGE",
+        "MINYAGO",
+        "MANA"
+    ],
+    "ADMIN_BU_01_03_01_03_02_02_RUTAMBA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "KABUYENGE",
+        "MINYAGO",
+        "RUTAMBA"
+    ],
+    "ADMIN_BU_01_03_01_03_02_03_TEKA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "KABUYENGE",
+        "MINYAGO",
+        "TEKA"
+    ],
+    "ADMIN_BU_01_03_01_03_02_MINYAGO": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "KABUYENGE",
+        "MINYAGO",
+        null
+    ],
+    "ADMIN_BU_01_03_01_03_KABUYENGE": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "KABUYENGE",
+        null,
+        null
+    ],
+    "ADMIN_BU_01_03_01_04_01_01_MANA_01": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "KIBAZI",
+        "KIBAZI",
+        "01"
+    ],
+    "ADMIN_BU_01_03_01_04_01_02_MUVUNYI": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "KIBAZI",
+        "KIBAZI",
+        "MUVUNYI"
+    ],
+    "ADMIN_BU_01_03_01_04_01_03_MUYANGE_03": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "KIBAZI",
+        "KIBAZI",
+        "03"
+    ],
+    "ADMIN_BU_01_03_01_04_01_04_MUZENGA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "KIBAZI",
+        "KIBAZI",
+        "MUZENGA"
+    ],
+    "ADMIN_BU_01_03_01_04_01_KIBAZI": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "KIBAZI",
+        "KIBAZI",
+        null
+    ],
+    "ADMIN_BU_01_03_01_04_KIBAZI": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "KIBAZI",
+        null,
+        null
+    ],
+    "ADMIN_BU_01_03_01_05_01_01_BIGERA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "KIMEZA",
+        "KIMEZA",
+        "BIGERA"
+    ],
+    "ADMIN_BU_01_03_01_05_01_02_BISHURI": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "KIMEZA",
+        "KIMEZA",
+        "BISHURI"
+    ],
+    "ADMIN_BU_01_03_01_05_01_03_GASURU": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "KIMEZA",
+        "KIMEZA",
+        "GASURU"
+    ],
+    "ADMIN_BU_01_03_01_05_01_04_GISHEHE": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "KIMEZA",
+        "KIMEZA",
+        "GISHEHE"
+    ],
+    "ADMIN_BU_01_03_01_05_01_05_KABENGA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "KIMEZA",
+        "KIMEZA",
+        "KABENGA"
+    ],
+    "ADMIN_BU_01_03_01_05_01_06_KIMEZA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "KIMEZA",
+        "KIMEZA",
+        "KIMEZA"
+    ],
+    "ADMIN_BU_01_03_01_05_01_07_NGOMA_01": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "KIMEZA",
+        "KIMEZA",
+        "01"
+    ],
+    "ADMIN_BU_01_03_01_05_01_08_RUZIZI_I": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "KIMEZA",
+        "KIMEZA",
+        "I"
+    ],
+    "ADMIN_BU_01_03_01_05_01_09_RUZIZI_II": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "KIMEZA",
+        "KIMEZA",
+        "II"
+    ],
+    "ADMIN_BU_01_03_01_05_01_KIMEZA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "KIMEZA",
+        "KIMEZA",
+        null
+    ],
+    "ADMIN_BU_01_03_01_05_02_01_BUCAMIHIGO_01": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "KIMEZA",
+        "MUGONGO",
+        "01"
+    ],
+    "ADMIN_BU_01_03_01_05_02_02_GASAVE_01": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "KIMEZA",
+        "MUGONGO",
+        "01"
+    ],
+    "ADMIN_BU_01_03_01_05_02_03_GASHIKANWA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "KIMEZA",
+        "MUGONGO",
+        "GASHIKANWA"
+    ],
+    "ADMIN_BU_01_03_01_05_02_04_KARIRA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "KIMEZA",
+        "MUGONGO",
+        "KARIRA"
+    ],
+    "ADMIN_BU_01_03_01_05_02_05_MUGONGO_01": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "KIMEZA",
+        "MUGONGO",
+        "01"
+    ],
+    "ADMIN_BU_01_03_01_05_02_06_NGARA_01": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "KIMEZA",
+        "MUGONGO",
+        "01"
+    ],
+    "ADMIN_BU_01_03_01_05_02_MUGONGO": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "KIMEZA",
+        "MUGONGO",
+        null
+    ],
+    "ADMIN_BU_01_03_01_05_03_01_BUHEMBERA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "KIMEZA",
+        "RUYENZI",
+        "BUHEMBERA"
+    ],
+    "ADMIN_BU_01_03_01_05_03_02_BURARANGAVYE": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "KIMEZA",
+        "RUYENZI",
+        "BURARANGAVYE"
+    ],
+    "ADMIN_BU_01_03_01_05_03_03_GAKONI": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "KIMEZA",
+        "RUYENZI",
+        "GAKONI"
+    ],
+    "ADMIN_BU_01_03_01_05_03_04_KIBANDE_02": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "KIMEZA",
+        "RUYENZI",
+        "02"
+    ],
+    "ADMIN_BU_01_03_01_05_03_05_MAKOMBE_02": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "KIMEZA",
+        "RUYENZI",
+        "02"
+    ],
+    "ADMIN_BU_01_03_01_05_03_06_MURAMA_03": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "KIMEZA",
+        "RUYENZI",
+        "03"
+    ],
+    "ADMIN_BU_01_03_01_05_03_07_NTITA_02": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "KIMEZA",
+        "RUYENZI",
+        "02"
+    ],
+    "ADMIN_BU_01_03_01_05_03_08_NYAKARIBA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "KIMEZA",
+        "RUYENZI",
+        "NYAKARIBA"
+    ],
+    "ADMIN_BU_01_03_01_05_03_09_RUYENZI": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "KIMEZA",
+        "RUYENZI",
+        "RUYENZI"
+    ],
+    "ADMIN_BU_01_03_01_05_03_10_RUZIZI_I_01": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "KIMEZA",
+        "RUYENZI",
+        "01"
+    ],
+    "ADMIN_BU_01_03_01_05_03_11_RUZIZI_II_01": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "KIMEZA",
+        "RUYENZI",
+        "01"
+    ],
+    "ADMIN_BU_01_03_01_05_03_RUYENZI": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "KIMEZA",
+        "RUYENZI",
+        null
+    ],
+    "ADMIN_BU_01_03_01_05_KIMEZA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "KIMEZA",
+        null,
+        null
+    ],
+    "ADMIN_BU_01_03_01_06_01_01_BUDAHUNGA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "MUKENKE",
+        "01",
+        "BUDAHUNGA"
+    ],
+    "ADMIN_BU_01_03_01_06_01_02_GITABA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "MUKENKE",
+        "01",
+        "GITABA"
+    ],
+    "ADMIN_BU_01_03_01_06_01_03_KABUBURU": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "MUKENKE",
+        "01",
+        "KABUBURU"
+    ],
+    "ADMIN_BU_01_03_01_06_01_04_KIRYAMA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "MUKENKE",
+        "01",
+        "KIRYAMA"
+    ],
+    "ADMIN_BU_01_03_01_06_01_05_NGOMO": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "MUKENKE",
+        "01",
+        "NGOMO"
+    ],
+    "ADMIN_BU_01_03_01_06_01_06_RUPFUHA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "MUKENKE",
+        "01",
+        "RUPFUHA"
+    ],
+    "ADMIN_BU_01_03_01_06_01_BUDAHUNGA_01": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "MUKENKE",
+        "01",
+        null
+    ],
+    "ADMIN_BU_01_03_01_06_02_01_GASAGARA_02": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "MUKENKE",
+        "BUTEGANA",
+        "02"
+    ],
+    "ADMIN_BU_01_03_01_06_02_02_GIKOMBE": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "MUKENKE",
+        "BUTEGANA",
+        "GIKOMBE"
+    ],
+    "ADMIN_BU_01_03_01_06_02_03_KIGWATI_01": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "MUKENKE",
+        "BUTEGANA",
+        "01"
+    ],
+    "ADMIN_BU_01_03_01_06_02_04_KINYAMATEKE": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "MUKENKE",
+        "BUTEGANA",
+        "KINYAMATEKE"
+    ],
+    "ADMIN_BU_01_03_01_06_02_05_NTAMBA_01": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "MUKENKE",
+        "BUTEGANA",
+        "01"
+    ],
+    "ADMIN_BU_01_03_01_06_02_06_ROHERO": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "MUKENKE",
+        "BUTEGANA",
+        "ROHERO"
+    ],
+    "ADMIN_BU_01_03_01_06_02_BUTEGANA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "MUKENKE",
+        "BUTEGANA",
+        null
+    ],
+    "ADMIN_BU_01_03_01_06_03_01_BUJOBE": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "MUKENKE",
+        "I",
+        "BUJOBE"
+    ],
+    "ADMIN_BU_01_03_01_06_03_02_GAPFUNYA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "MUKENKE",
+        "I",
+        "GAPFUNYA"
+    ],
+    "ADMIN_BU_01_03_01_06_03_03_GOMBA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "MUKENKE",
+        "I",
+        "GOMBA"
+    ],
+    "ADMIN_BU_01_03_01_06_03_04_KABIRIZI_04": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "MUKENKE",
+        "I",
+        "04"
+    ],
+    "ADMIN_BU_01_03_01_06_03_05_MUKENKE_RURAL": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "MUKENKE",
+        "I",
+        "RURAL"
+    ],
+    "ADMIN_BU_01_03_01_06_03_06_NYARURAMBI": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "MUKENKE",
+        "I",
+        "NYARURAMBI"
+    ],
+    "ADMIN_BU_01_03_01_06_03_MUKENKE_I": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "MUKENKE",
+        "I",
+        null
+    ],
+    "ADMIN_BU_01_03_01_06_MUKENKE": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "MUKENKE",
+        null,
+        null
+    ],
+    "ADMIN_BU_01_03_01_07_01_01_BUHORANA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "RUSARA",
+        "RUSARA",
+        "BUHORANA"
+    ],
+    "ADMIN_BU_01_03_01_07_01_02_GIHANGA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "RUSARA",
+        "RUSARA",
+        "GIHANGA"
+    ],
+    "ADMIN_BU_01_03_01_07_01_03_KABEZA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "RUSARA",
+        "RUSARA",
+        "KABEZA"
+    ],
+    "ADMIN_BU_01_03_01_07_01_04_MUKINGA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "RUSARA",
+        "RUSARA",
+        "MUKINGA"
+    ],
+    "ADMIN_BU_01_03_01_07_01_05_MYUGARIRO": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "RUSARA",
+        "RUSARA",
+        "MYUGARIRO"
+    ],
+    "ADMIN_BU_01_03_01_07_01_06_REBERO": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "RUSARA",
+        "RUSARA",
+        "REBERO"
+    ],
+    "ADMIN_BU_01_03_01_07_01_RUSARA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "RUSARA",
+        "RUSARA",
+        null
+    ],
+    "ADMIN_BU_01_03_01_07_RUSARA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        "RUSARA",
+        null,
+        null
+    ],
+    "ADMIN_BU_01_03_01_BWAMBARANGWE": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "BWAMBARANGWE",
+        null,
+        null,
+        null
+    ],
+    "ADMIN_BU_01_03_02_01_01_01_BUGANDA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "BUCANA",
+        "BAZIRO",
+        "BUGANDA"
+    ],
+    "ADMIN_BU_01_03_02_01_01_02_BUKURANA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "BUCANA",
+        "BAZIRO",
+        "BUKURANA"
+    ],
+    "ADMIN_BU_01_03_02_01_01_03_GASHUBI": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "BUCANA",
+        "BAZIRO",
+        "GASHUBI"
+    ],
+    "ADMIN_BU_01_03_02_01_01_04_KIBUYE": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "BUCANA",
+        "BAZIRO",
+        "KIBUYE"
+    ],
+    "ADMIN_BU_01_03_02_01_01_05_MURAMIRA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "BUCANA",
+        "BAZIRO",
+        "MURAMIRA"
+    ],
+    "ADMIN_BU_01_03_02_01_01_06_RUNYANKEZI": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "BUCANA",
+        "BAZIRO",
+        "RUNYANKEZI"
+    ],
+    "ADMIN_BU_01_03_02_01_01_07_RWARAMA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "BUCANA",
+        "BAZIRO",
+        "RWARAMA"
+    ],
+    "ADMIN_BU_01_03_02_01_01_BAZIRO": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "BUCANA",
+        "BAZIRO",
+        null
+    ],
+    "ADMIN_BU_01_03_02_01_02_01_BURIBA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "BUCANA",
+        "BUCANA",
+        "BURIBA"
+    ],
+    "ADMIN_BU_01_03_02_01_02_02_BUSAMA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "BUCANA",
+        "BUCANA",
+        "BUSAMA"
+    ],
+    "ADMIN_BU_01_03_02_01_02_03_GITAMO_01": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "BUCANA",
+        "BUCANA",
+        "01"
+    ],
+    "ADMIN_BU_01_03_02_01_02_04_KIMIRIKA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "BUCANA",
+        "BUCANA",
+        "KIMIRIKA"
+    ],
+    "ADMIN_BU_01_03_02_01_02_05_MAKERA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "BUCANA",
+        "BUCANA",
+        "MAKERA"
+    ],
+    "ADMIN_BU_01_03_02_01_02_06_MUGONGO_02": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "BUCANA",
+        "BUCANA",
+        "02"
+    ],
+    "ADMIN_BU_01_03_02_01_02_BUCANA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "BUCANA",
+        "BUCANA",
+        null
+    ],
+    "ADMIN_BU_01_03_02_01_03_01_GIHINGA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "BUCANA",
+        "KIVUMU",
+        "GIHINGA"
+    ],
+    "ADMIN_BU_01_03_02_01_03_02_GIKOMBE_01": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "BUCANA",
+        "KIVUMU",
+        "01"
+    ],
+    "ADMIN_BU_01_03_02_01_03_03_MUSENGA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "BUCANA",
+        "KIVUMU",
+        "MUSENGA"
+    ],
+    "ADMIN_BU_01_03_02_01_03_04_MUTWENZI_01": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "BUCANA",
+        "KIVUMU",
+        "01"
+    ],
+    "ADMIN_BU_01_03_02_01_03_05_NYAMUKO": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "BUCANA",
+        "KIVUMU",
+        "NYAMUKO"
+    ],
+    "ADMIN_BU_01_03_02_01_03_KIVUMU": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "BUCANA",
+        "KIVUMU",
+        null
+    ],
+    "ADMIN_BU_01_03_02_01_04_01_BUTARE": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "BUCANA",
+        "SANTUNDA",
+        "BUTARE"
+    ],
+    "ADMIN_BU_01_03_02_01_04_02_GAYAZA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "BUCANA",
+        "SANTUNDA",
+        "GAYAZA"
+    ],
+    "ADMIN_BU_01_03_02_01_04_03_KAVO": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "BUCANA",
+        "SANTUNDA",
+        "KAVO"
+    ],
+    "ADMIN_BU_01_03_02_01_04_04_MUHINGO": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "BUCANA",
+        "SANTUNDA",
+        "MUHINGO"
+    ],
+    "ADMIN_BU_01_03_02_01_04_05_RUGINA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "BUCANA",
+        "SANTUNDA",
+        "RUGINA"
+    ],
+    "ADMIN_BU_01_03_02_01_04_06_SANTUNDA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "BUCANA",
+        "SANTUNDA",
+        "SANTUNDA"
+    ],
+    "ADMIN_BU_01_03_02_01_04_SANTUNDA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "BUCANA",
+        "SANTUNDA",
+        null
+    ],
+    "ADMIN_BU_01_03_02_01_BUCANA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "BUCANA",
+        null,
+        null
+    ],
+    "ADMIN_BU_01_03_02_02_01_01_BITAMBWE": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "BUGWANA",
+        "BUGWANA",
+        "BITAMBWE"
+    ],
+    "ADMIN_BU_01_03_02_02_01_02_BUTIHINDA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "BUGWANA",
+        "BUGWANA",
+        "BUTIHINDA"
+    ],
+    "ADMIN_BU_01_03_02_02_01_03_BUVUMBI_01": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "BUGWANA",
+        "BUGWANA",
+        "01"
+    ],
+    "ADMIN_BU_01_03_02_02_01_04_BUZIRAMBIYE": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "BUGWANA",
+        "BUGWANA",
+        "BUZIRAMBIYE"
+    ],
+    "ADMIN_BU_01_03_02_02_01_05_GIHAMAGARA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "BUGWANA",
+        "BUGWANA",
+        "GIHAMAGARA"
+    ],
+    "ADMIN_BU_01_03_02_02_01_06_MIKORE": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "BUGWANA",
+        "BUGWANA",
+        "MIKORE"
+    ],
+    "ADMIN_BU_01_03_02_02_01_07_MUGONGO_03": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "BUGWANA",
+        "BUGWANA",
+        "03"
+    ],
+    "ADMIN_BU_01_03_02_02_01_08_RUBANDIRO": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "BUGWANA",
+        "BUGWANA",
+        "RUBANDIRO"
+    ],
+    "ADMIN_BU_01_03_02_02_01_09_RUGOMERO_01": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "BUGWANA",
+        "BUGWANA",
+        "01"
+    ],
+    "ADMIN_BU_01_03_02_02_01_BUGWANA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "BUGWANA",
+        "BUGWANA",
+        null
+    ],
+    "ADMIN_BU_01_03_02_02_BUGWANA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "BUGWANA",
+        null,
+        null
+    ],
+    "ADMIN_BU_01_03_02_03_01_01_GATEMERE_02": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "GITOBE",
+        "BUTAHANA",
+        "02"
+    ],
+    "ADMIN_BU_01_03_02_03_01_02_GATOKE": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "GITOBE",
+        "BUTAHANA",
+        "GATOKE"
+    ],
+    "ADMIN_BU_01_03_02_03_01_03_GISENYA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "GITOBE",
+        "BUTAHANA",
+        "GISENYA"
+    ],
+    "ADMIN_BU_01_03_02_03_01_04_KIVYUKA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "GITOBE",
+        "BUTAHANA",
+        "KIVYUKA"
+    ],
+    "ADMIN_BU_01_03_02_03_01_05_MUEREGERE": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "GITOBE",
+        "BUTAHANA",
+        "MUEREGERE"
+    ],
+    "ADMIN_BU_01_03_02_03_01_06_MUGOROGORO": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "GITOBE",
+        "BUTAHANA",
+        "MUGOROGORO"
+    ],
+    "ADMIN_BU_01_03_02_03_01_07_RUHAMA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "GITOBE",
+        "BUTAHANA",
+        "RUHAMA"
+    ],
+    "ADMIN_BU_01_03_02_03_01_BUTAHANA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "GITOBE",
+        "BUTAHANA",
+        null
+    ],
+    "ADMIN_BU_01_03_02_03_02_01_BUFYIRITI": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "GITOBE",
+        "GAHOSHA",
+        "BUFYIRITI"
+    ],
+    "ADMIN_BU_01_03_02_03_02_02_BUTAHANA__MUVUGO": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "GITOBE",
+        "GAHOSHA",
+        "MUVUGO"
+    ],
+    "ADMIN_BU_01_03_02_03_02_03_GISOKO": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "GITOBE",
+        "GAHOSHA",
+        "GISOKO"
+    ],
+    "ADMIN_BU_01_03_02_03_02_04_MUSENGA_01": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "GITOBE",
+        "GAHOSHA",
+        "01"
+    ],
+    "ADMIN_BU_01_03_02_03_02_05_RUGUNGA_01": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "GITOBE",
+        "GAHOSHA",
+        "01"
+    ],
+    "ADMIN_BU_01_03_02_03_02_06_RUNGAZI": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "GITOBE",
+        "GAHOSHA",
+        "RUNGAZI"
+    ],
+    "ADMIN_BU_01_03_02_03_02_07_RUNGAZI_MUVUGO": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "GITOBE",
+        "GAHOSHA",
+        "MUVUGO"
+    ],
+    "ADMIN_BU_01_03_02_03_02_08_RUTEGAMA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "GITOBE",
+        "GAHOSHA",
+        "RUTEGAMA"
+    ],
+    "ADMIN_BU_01_03_02_03_02_GAHOSHA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "GITOBE",
+        "GAHOSHA",
+        null
+    ],
+    "ADMIN_BU_01_03_02_03_GITOBE": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "GITOBE",
+        null,
+        null
+    ],
+    "ADMIN_BU_01_03_02_04_01_01_CINKA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "MABUGA",
+        "MABUGA",
+        "CINKA"
+    ],
+    "ADMIN_BU_01_03_02_04_01_02_KIVUMU_BIRARA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "MABUGA",
+        "MABUGA",
+        "BIRARA"
+    ],
+    "ADMIN_BU_01_03_02_04_01_03_KIVUMU_MIRINDA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "MABUGA",
+        "MABUGA",
+        "MIRINDA"
+    ],
+    "ADMIN_BU_01_03_02_04_01_04_KIVUMU_MUHINGO": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "MABUGA",
+        "MABUGA",
+        "MUHINGO"
+    ],
+    "ADMIN_BU_01_03_02_04_01_05_KIVUMU_NYARUTOVU": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "MABUGA",
+        "MABUGA",
+        "NYARUTOVU"
+    ],
+    "ADMIN_BU_01_03_02_04_01_06_KIVUMU_RWINGAJO": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "MABUGA",
+        "MABUGA",
+        "RWINGAJO"
+    ],
+    "ADMIN_BU_01_03_02_04_01_07_NYNZI_KIDASHA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "MABUGA",
+        "MABUGA",
+        "KIDASHA"
+    ],
+    "ADMIN_BU_01_03_02_04_01_08_RUHONGORE__KAGUNGA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "MABUGA",
+        "MABUGA",
+        "KAGUNGA"
+    ],
+    "ADMIN_BU_01_03_02_04_01_MABUGA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "MABUGA",
+        "MABUGA",
+        null
+    ],
+    "ADMIN_BU_01_03_02_04_MABUGA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "MABUGA",
+        null,
+        null
+    ],
+    "ADMIN_BU_01_03_02_05_01_01_BAZIRO": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "NYENZI",
+        "NGOMA",
+        "BAZIRO"
+    ],
+    "ADMIN_BU_01_03_02_05_01_02_BUYUGU": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "NYENZI",
+        "NGOMA",
+        "BUYUGU"
+    ],
+    "ADMIN_BU_01_03_02_05_01_03_COGO": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "NYENZI",
+        "NGOMA",
+        "COGO"
+    ],
+    "ADMIN_BU_01_03_02_05_01_04_KIBANDE_03": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "NYENZI",
+        "NGOMA",
+        "03"
+    ],
+    "ADMIN_BU_01_03_02_05_01_05_KIYAMA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "NYENZI",
+        "NGOMA",
+        "KIYAMA"
+    ],
+    "ADMIN_BU_01_03_02_05_01_06_TABA_01": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "NYENZI",
+        "NGOMA",
+        "01"
+    ],
+    "ADMIN_BU_01_03_02_05_01_NGOMA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "NYENZI",
+        "NGOMA",
+        null
+    ],
+    "ADMIN_BU_01_03_02_05_02_01_MUSENGA_I": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "NYENZI",
+        "NYENZI",
+        "I"
+    ],
+    "ADMIN_BU_01_03_02_05_02_02_MUSENGA_II": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "NYENZI",
+        "NYENZI",
+        "II"
+    ],
+    "ADMIN_BU_01_03_02_05_02_03_NDENGANE": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "NYENZI",
+        "NYENZI",
+        "NDENGANE"
+    ],
+    "ADMIN_BU_01_03_02_05_02_04_NYENZI_BAZIRO": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "NYENZI",
+        "NYENZI",
+        "BAZIRO"
+    ],
+    "ADMIN_BU_01_03_02_05_02_05_NYENZI_NYENZI": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "NYENZI",
+        "NYENZI",
+        "NYENZI"
+    ],
+    "ADMIN_BU_01_03_02_05_02_NYENZI": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "NYENZI",
+        "NYENZI",
+        null
+    ],
+    "ADMIN_BU_01_03_02_05_NYENZI": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "NYENZI",
+        null,
+        null
+    ],
+    "ADMIN_BU_01_03_02_06_01_01_COGA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "SHORE",
+        "SHORE",
+        "COGA"
+    ],
+    "ADMIN_BU_01_03_02_06_01_02_GACUCU": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "SHORE",
+        "SHORE",
+        "GACUCU"
+    ],
+    "ADMIN_BU_01_03_02_06_01_03_GATANGA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "SHORE",
+        "SHORE",
+        "GATANGA"
+    ],
+    "ADMIN_BU_01_03_02_06_01_04_KANYINYA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "SHORE",
+        "SHORE",
+        "KANYINYA"
+    ],
+    "ADMIN_BU_01_03_02_06_01_05_KIBUYE_01": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "SHORE",
+        "SHORE",
+        "01"
+    ],
+    "ADMIN_BU_01_03_02_06_01_06_MBIZI_01": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "SHORE",
+        "SHORE",
+        "01"
+    ],
+    "ADMIN_BU_01_03_02_06_01_07_MPINGA_02": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "SHORE",
+        "SHORE",
+        "02"
+    ],
+    "ADMIN_BU_01_03_02_06_01_08_MUREHE": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "SHORE",
+        "SHORE",
+        "MUREHE"
+    ],
+    "ADMIN_BU_01_03_02_06_01_09_NYABITARE": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "SHORE",
+        "SHORE",
+        "NYABITARE"
+    ],
+    "ADMIN_BU_01_03_02_06_01_10_RUBANZA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "SHORE",
+        "SHORE",
+        "RUBANZA"
+    ],
+    "ADMIN_BU_01_03_02_06_01_11_RUREMBA_I": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "SHORE",
+        "SHORE",
+        "I"
+    ],
+    "ADMIN_BU_01_03_02_06_01_12_RUREMBA_II": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "SHORE",
+        "SHORE",
+        "II"
+    ],
+    "ADMIN_BU_01_03_02_06_01_13_RWERU": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "SHORE",
+        "SHORE",
+        "RWERU"
+    ],
+    "ADMIN_BU_01_03_02_06_01_14_SHORE": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "SHORE",
+        "SHORE",
+        "SHORE"
+    ],
+    "ADMIN_BU_01_03_02_06_01_SHORE": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "SHORE",
+        "SHORE",
+        null
+    ],
+    "ADMIN_BU_01_03_02_06_SHORE": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "SHORE",
+        null,
+        null
+    ],
+    "ADMIN_BU_01_03_02_07_01_01_CUMBA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "TONGA",
+        "CUMBA",
+        "CUMBA"
+    ],
+    "ADMIN_BU_01_03_02_07_01_02_GATOBE": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "TONGA",
+        "CUMBA",
+        "GATOBE"
+    ],
+    "ADMIN_BU_01_03_02_07_01_03_KIRINZI": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "TONGA",
+        "CUMBA",
+        "KIRINZI"
+    ],
+    "ADMIN_BU_01_03_02_07_01_04_NKOMERO": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "TONGA",
+        "CUMBA",
+        "NKOMERO"
+    ],
+    "ADMIN_BU_01_03_02_07_01_CUMBA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "TONGA",
+        "CUMBA",
+        null
+    ],
+    "ADMIN_BU_01_03_02_07_02_01_BITAMBWE_01": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "TONGA",
+        "TONGA",
+        "01"
+    ],
+    "ADMIN_BU_01_03_02_07_02_02_GASURU_01": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "TONGA",
+        "TONGA",
+        "01"
+    ],
+    "ADMIN_BU_01_03_02_07_02_03_GISHUHA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "TONGA",
+        "TONGA",
+        "GISHUHA"
+    ],
+    "ADMIN_BU_01_03_02_07_02_04_RUNYINYA_01": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "TONGA",
+        "TONGA",
+        "01"
+    ],
+    "ADMIN_BU_01_03_02_07_02_05_RUTAMBA_01": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "TONGA",
+        "TONGA",
+        "01"
+    ],
+    "ADMIN_BU_01_03_02_07_02_TONGA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "TONGA",
+        "TONGA",
+        null
+    ],
+    "ADMIN_BU_01_03_02_07_TONGA": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        "TONGA",
+        null,
+        null
+    ],
+    "ADMIN_BU_01_03_02_GITOBE": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        "GITOBE",
+        null,
+        null,
+        null
+    ],
+    "ADMIN_BU_01_03_MUKENKE": [
+        "BU",
+        "KIRUNDO",
+        "MUKENKE",
+        null,
+        null,
+        null,
+        null
+    ],
+    "ADMIN_BU_01_04_01_01_01_01_BUTANKANA": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "KIGARI",
+        "KIGARI",
+        "BUTANKANA"
+    ],
+    "ADMIN_BU_01_04_01_01_01_02_BUVYUKANA": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "KIGARI",
+        "KIGARI",
+        "BUVYUKANA"
+    ],
+    "ADMIN_BU_01_04_01_01_01_03_GATWENZI": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "KIGARI",
+        "KIGARI",
+        "GATWENZI"
+    ],
+    "ADMIN_BU_01_04_01_01_01_04_GOMBA_01": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "KIGARI",
+        "KIGARI",
+        "01"
+    ],
+    "ADMIN_BU_01_04_01_01_01_05_KIGARI": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "KIGARI",
+        "KIGARI",
+        "KIGARI"
+    ],
+    "ADMIN_BU_01_04_01_01_01_06_KIGUFI": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "KIGARI",
+        "KIGARI",
+        "KIGUFI"
+    ],
+    "ADMIN_BU_01_04_01_01_01_07_NTINDO": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "KIGARI",
+        "KIGARI",
+        "NTINDO"
+    ],
+    "ADMIN_BU_01_04_01_01_01_08_NYARUHENGERI": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "KIGARI",
+        "KIGARI",
+        "NYARUHENGERI"
+    ],
+    "ADMIN_BU_01_04_01_01_01_09_RUNYINYA_02": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "KIGARI",
+        "KIGARI",
+        "02"
+    ],
+    "ADMIN_BU_01_04_01_01_01_KIGARI": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "KIGARI",
+        "KIGARI",
+        null
+    ],
+    "ADMIN_BU_01_04_01_01_KIGARI": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "KIGARI",
+        null,
+        null
+    ],
+    "ADMIN_BU_01_04_01_02_01_01_GAKINDO_CARUBAMBO": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "KINYOVU",
+        "CARUBAMBO",
+        "CARUBAMBO"
+    ],
+    "ADMIN_BU_01_04_01_02_01_02_GIKOMBE_CARUBAMBO": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "KINYOVU",
+        "CARUBAMBO",
+        "CARUBAMBO"
+    ],
+    "ADMIN_BU_01_04_01_02_01_03_GISAGARA_MAKOMBE": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "KINYOVU",
+        "CARUBAMBO",
+        "MAKOMBE"
+    ],
+    "ADMIN_BU_01_04_01_02_01_04_KARAMBO_02": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "KINYOVU",
+        "CARUBAMBO",
+        "02"
+    ],
+    "ADMIN_BU_01_04_01_02_01_05_KARIRA_01": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "KINYOVU",
+        "CARUBAMBO",
+        "01"
+    ],
+    "ADMIN_BU_01_04_01_02_01_06_KIGARAMA_05": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "KINYOVU",
+        "CARUBAMBO",
+        "05"
+    ],
+    "ADMIN_BU_01_04_01_02_01_07_MURAMBI": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "KINYOVU",
+        "CARUBAMBO",
+        "MURAMBI"
+    ],
+    "ADMIN_BU_01_04_01_02_01_08_RUGEGA": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "KINYOVU",
+        "CARUBAMBO",
+        "RUGEGA"
+    ],
+    "ADMIN_BU_01_04_01_02_01_09_RUREMBO": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "KINYOVU",
+        "CARUBAMBO",
+        "RUREMBO"
+    ],
+    "ADMIN_BU_01_04_01_02_01_10_RUSOKO__MAKOMBE": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "KINYOVU",
+        "CARUBAMBO",
+        "MAKOMBE"
+    ],
+    "ADMIN_BU_01_04_01_02_01_11_RWARAMA_CARUBAMBO": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "KINYOVU",
+        "CARUBAMBO",
+        "CARUBAMBO"
+    ],
+    "ADMIN_BU_01_04_01_02_01_CARUBAMBO": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "KINYOVU",
+        "CARUBAMBO",
+        null
+    ],
+    "ADMIN_BU_01_04_01_02_02_01_KINYOVU": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "KINYOVU",
+        "KINYOVU",
+        "KINYOVU"
+    ],
+    "ADMIN_BU_01_04_01_02_02_02_RUGARAMA_01": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "KINYOVU",
+        "KINYOVU",
+        "01"
+    ],
+    "ADMIN_BU_01_04_01_02_02_03_RUGEGA_01": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "KINYOVU",
+        "KINYOVU",
+        "01"
+    ],
+    "ADMIN_BU_01_04_01_02_02_04_RUTEMBA": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "KINYOVU",
+        "KINYOVU",
+        "RUTEMBA"
+    ],
+    "ADMIN_BU_01_04_01_02_02_05_RWIMVUBU": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "KINYOVU",
+        "KINYOVU",
+        "RWIMVUBU"
+    ],
+    "ADMIN_BU_01_04_01_02_02_KINYOVU": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "KINYOVU",
+        "KINYOVU",
+        null
+    ],
+    "ADMIN_BU_01_04_01_02_03_01_GASEBEYI_MAKOMBE": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "KINYOVU",
+        "MAKOMBE",
+        "MAKOMBE"
+    ],
+    "ADMIN_BU_01_04_01_02_03_02_KAREHE_II_MAKOMBE": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "KINYOVU",
+        "MAKOMBE",
+        "MAKOMBE"
+    ],
+    "ADMIN_BU_01_04_01_02_03_03_KAREHE_I_MAKOMBE": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "KINYOVU",
+        "MAKOMBE",
+        "MAKOMBE"
+    ],
+    "ADMIN_BU_01_04_01_02_03_04_KUBUTARE_MAKOMBE": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "KINYOVU",
+        "MAKOMBE",
+        "MAKOMBE"
+    ],
+    "ADMIN_BU_01_04_01_02_03_05_MAGORA_KINYOVU": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "KINYOVU",
+        "MAKOMBE",
+        "KINYOVU"
+    ],
+    "ADMIN_BU_01_04_01_02_03_06_NTANGO_NTANGO": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "KINYOVU",
+        "MAKOMBE",
+        "NTANGO"
+    ],
+    "ADMIN_BU_01_04_01_02_03_07_RIRENGA_NTANGO": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "KINYOVU",
+        "MAKOMBE",
+        "NTANGO"
+    ],
+    "ADMIN_BU_01_04_01_02_03_08_RUGOBAGOBA_MAKOMBE": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "KINYOVU",
+        "MAKOMBE",
+        "MAKOMBE"
+    ],
+    "ADMIN_BU_01_04_01_02_03_MAKOMBE": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "KINYOVU",
+        "MAKOMBE",
+        null
+    ],
+    "ADMIN_BU_01_04_01_02_KINYOVU": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "KINYOVU",
+        null,
+        null
+    ],
+    "ADMIN_BU_01_04_01_03_01_01_CASANDE_I": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MUGENDO",
+        "MUGENDO",
+        "I"
+    ],
+    "ADMIN_BU_01_04_01_03_01_02_CASANDE_II": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MUGENDO",
+        "MUGENDO",
+        "II"
+    ],
+    "ADMIN_BU_01_04_01_03_01_03_GATANGA_BURINGANIRE": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MUGENDO",
+        "MUGENDO",
+        "BURINGANIRE"
+    ],
+    "ADMIN_BU_01_04_01_03_01_04_GATANGA_MUGENDO": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MUGENDO",
+        "MUGENDO",
+        "MUGENDO"
+    ],
+    "ADMIN_BU_01_04_01_03_01_05_KABINDI": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MUGENDO",
+        "MUGENDO",
+        "KABINDI"
+    ],
+    "ADMIN_BU_01_04_01_03_01_06_MABUMBA_NTANGO": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MUGENDO",
+        "MUGENDO",
+        "NTANGO"
+    ],
+    "ADMIN_BU_01_04_01_03_01_07_MUGENDO_I": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MUGENDO",
+        "MUGENDO",
+        "I"
+    ],
+    "ADMIN_BU_01_04_01_03_01_08_MUGENDO_II": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MUGENDO",
+        "MUGENDO",
+        "II"
+    ],
+    "ADMIN_BU_01_04_01_03_01_09_MUREHE_01": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MUGENDO",
+        "MUGENDO",
+        "01"
+    ],
+    "ADMIN_BU_01_04_01_03_01_10_NYANGE_BURINGANIRE": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MUGENDO",
+        "MUGENDO",
+        "BURINGANIRE"
+    ],
+    "ADMIN_BU_01_04_01_03_01_11_RABIRO_01": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MUGENDO",
+        "MUGENDO",
+        "01"
+    ],
+    "ADMIN_BU_01_04_01_03_01_12_RUGARAMA_02": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MUGENDO",
+        "MUGENDO",
+        "02"
+    ],
+    "ADMIN_BU_01_04_01_03_01_13_RUNGAZI_01": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MUGENDO",
+        "MUGENDO",
+        "01"
+    ],
+    "ADMIN_BU_01_04_01_03_01_14_RWARAMA_01": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MUGENDO",
+        "MUGENDO",
+        "01"
+    ],
+    "ADMIN_BU_01_04_01_03_01_MUGENDO": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MUGENDO",
+        "MUGENDO",
+        null
+    ],
+    "ADMIN_BU_01_04_01_03_02_01_GWIMFYISI": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MUGENDO",
+        "RUTAGARA",
+        "GWIMFYISI"
+    ],
+    "ADMIN_BU_01_04_01_03_02_02_KANYANA": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MUGENDO",
+        "RUTAGARA",
+        "KANYANA"
+    ],
+    "ADMIN_BU_01_04_01_03_02_03_RUTAGARA": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MUGENDO",
+        "RUTAGARA",
+        "RUTAGARA"
+    ],
+    "ADMIN_BU_01_04_01_03_02_04_RWANKUBA": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MUGENDO",
+        "RUTAGARA",
+        "RWANKUBA"
+    ],
+    "ADMIN_BU_01_04_01_03_02_RUTAGARA": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MUGENDO",
+        "RUTAGARA",
+        null
+    ],
+    "ADMIN_BU_01_04_01_03_MUGENDO": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MUGENDO",
+        null,
+        null
+    ],
+    "ADMIN_BU_01_04_01_04_01_01_GASYISYE": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MUGINA",
+        "KIGAGA",
+        "GASYISYE"
+    ],
+    "ADMIN_BU_01_04_01_04_01_02_KANYONI": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MUGINA",
+        "KIGAGA",
+        "KANYONI"
+    ],
+    "ADMIN_BU_01_04_01_04_01_03_NTINDO_01": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MUGINA",
+        "KIGAGA",
+        "01"
+    ],
+    "ADMIN_BU_01_04_01_04_01_04_NYABISINDU": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MUGINA",
+        "KIGAGA",
+        "NYABISINDU"
+    ],
+    "ADMIN_BU_01_04_01_04_01_05_RYARUKIMBAGIRA": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MUGINA",
+        "KIGAGA",
+        "RYARUKIMBAGIRA"
+    ],
+    "ADMIN_BU_01_04_01_04_01_06_SISYE": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MUGINA",
+        "KIGAGA",
+        "SISYE"
+    ],
+    "ADMIN_BU_01_04_01_04_01_KIGAGA": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MUGINA",
+        "KIGAGA",
+        null
+    ],
+    "ADMIN_BU_01_04_01_04_02_01_MITARI": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MUGINA",
+        "MARIZA",
+        "MITARI"
+    ],
+    "ADMIN_BU_01_04_01_04_02_02_MUKENKE_1": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MUGINA",
+        "MARIZA",
+        "1"
+    ],
+    "ADMIN_BU_01_04_01_04_02_03_MUKENKE_2": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MUGINA",
+        "MARIZA",
+        "2"
+    ],
+    "ADMIN_BU_01_04_01_04_02_04_NGOMA_02": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MUGINA",
+        "MARIZA",
+        "02"
+    ],
+    "ADMIN_BU_01_04_01_04_02_05_RUGESE": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MUGINA",
+        "MARIZA",
+        "RUGESE"
+    ],
+    "ADMIN_BU_01_04_01_04_02_06_RUHONGORE_01": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MUGINA",
+        "MARIZA",
+        "01"
+    ],
+    "ADMIN_BU_01_04_01_04_02_MARIZA": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MUGINA",
+        "MARIZA",
+        null
+    ],
+    "ADMIN_BU_01_04_01_04_03_01_BISHURI_01": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MUGINA",
+        "NYEMERA",
+        "01"
+    ],
+    "ADMIN_BU_01_04_01_04_03_02_GATARE_01": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MUGINA",
+        "NYEMERA",
+        "01"
+    ],
+    "ADMIN_BU_01_04_01_04_03_03_KIGARAMA_06": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MUGINA",
+        "NYEMERA",
+        "06"
+    ],
+    "ADMIN_BU_01_04_01_04_03_04_MPAZI": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MUGINA",
+        "NYEMERA",
+        "MPAZI"
+    ],
+    "ADMIN_BU_01_04_01_04_03_05_MUGINA": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MUGINA",
+        "NYEMERA",
+        "MUGINA"
+    ],
+    "ADMIN_BU_01_04_01_04_03_06_MUKORE": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MUGINA",
+        "NYEMERA",
+        "MUKORE"
+    ],
+    "ADMIN_BU_01_04_01_04_03_07_NAKAGARA": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MUGINA",
+        "NYEMERA",
+        "NAKAGARA"
+    ],
+    "ADMIN_BU_01_04_01_04_03_NYEMERA": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MUGINA",
+        "NYEMERA",
+        null
+    ],
+    "ADMIN_BU_01_04_01_04_04_01_BURAMBA": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MUGINA",
+        "RUGESE",
+        "BURAMBA"
+    ],
+    "ADMIN_BU_01_04_01_04_04_02_GITANGA_02": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MUGINA",
+        "RUGESE",
+        "02"
+    ],
+    "ADMIN_BU_01_04_01_04_04_03_KAGAGA": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MUGINA",
+        "RUGESE",
+        "KAGAGA"
+    ],
+    "ADMIN_BU_01_04_01_04_04_04_MAVUBI": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MUGINA",
+        "RUGESE",
+        "MAVUBI"
+    ],
+    "ADMIN_BU_01_04_01_04_04_05_MBURABUTURO": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MUGINA",
+        "RUGESE",
+        "MBURABUTURO"
+    ],
+    "ADMIN_BU_01_04_01_04_04_06_MUDIDA": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MUGINA",
+        "RUGESE",
+        "MUDIDA"
+    ],
+    "ADMIN_BU_01_04_01_04_04_07_MUREMERA": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MUGINA",
+        "RUGESE",
+        "MUREMERA"
+    ],
+    "ADMIN_BU_01_04_01_04_04_08_RUYAGA_01": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MUGINA",
+        "RUGESE",
+        "01"
+    ],
+    "ADMIN_BU_01_04_01_04_04_RUGESE": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MUGINA",
+        "RUGESE",
+        null
+    ],
+    "ADMIN_BU_01_04_01_04_MUGINA": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MUGINA",
+        null,
+        null
+    ],
+    "ADMIN_BU_01_04_01_05_01_01_BISHONGE": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MURUNGURIRA",
+        "GITWENZI",
+        "BISHONGE"
+    ],
+    "ADMIN_BU_01_04_01_05_01_02_GIKOMERO": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MURUNGURIRA",
+        "GITWENZI",
+        "GIKOMERO"
+    ],
+    "ADMIN_BU_01_04_01_05_01_03_GITANGA_03": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MURUNGURIRA",
+        "GITWENZI",
+        "03"
+    ],
+    "ADMIN_BU_01_04_01_05_01_04_HAGA_01": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MURUNGURIRA",
+        "GITWENZI",
+        "01"
+    ],
+    "ADMIN_BU_01_04_01_05_01_05_MITARI_1": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MURUNGURIRA",
+        "GITWENZI",
+        "1"
+    ],
+    "ADMIN_BU_01_04_01_05_01_06_MITARI_2": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MURUNGURIRA",
+        "GITWENZI",
+        "2"
+    ],
+    "ADMIN_BU_01_04_01_05_01_07_RAMBO_01": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MURUNGURIRA",
+        "GITWENZI",
+        "01"
+    ],
+    "ADMIN_BU_01_04_01_05_01_08_RENGA_1": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MURUNGURIRA",
+        "GITWENZI",
+        "1"
+    ],
+    "ADMIN_BU_01_04_01_05_01_09_RENGA_2": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MURUNGURIRA",
+        "GITWENZI",
+        "2"
+    ],
+    "ADMIN_BU_01_04_01_05_01_GITWENZI": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MURUNGURIRA",
+        "GITWENZI",
+        null
+    ],
+    "ADMIN_BU_01_04_01_05_02_01_KIBANDE_04": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MURUNGURIRA",
+        "KAMENYA",
+        "04"
+    ],
+    "ADMIN_BU_01_04_01_05_02_02_KIGINA_1": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MURUNGURIRA",
+        "KAMENYA",
+        "1"
+    ],
+    "ADMIN_BU_01_04_01_05_02_03_KIGINA_2": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MURUNGURIRA",
+        "KAMENYA",
+        "2"
+    ],
+    "ADMIN_BU_01_04_01_05_02_04_MYUGARIRO_01": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MURUNGURIRA",
+        "KAMENYA",
+        "01"
+    ],
+    "ADMIN_BU_01_04_01_05_02_05_RUJONGORO": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MURUNGURIRA",
+        "KAMENYA",
+        "RUJONGORO"
+    ],
+    "ADMIN_BU_01_04_01_05_02_06_RYAMUTUNGA": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MURUNGURIRA",
+        "KAMENYA",
+        "RYAMUTUNGA"
+    ],
+    "ADMIN_BU_01_04_01_05_02_KAMENYA": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MURUNGURIRA",
+        "KAMENYA",
+        null
+    ],
+    "ADMIN_BU_01_04_01_05_03_01_GITEGANYI": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MURUNGURIRA",
+        "KANYAGU",
+        "GITEGANYI"
+    ],
+    "ADMIN_BU_01_04_01_05_03_02_KARIBA": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MURUNGURIRA",
+        "KANYAGU",
+        "KARIBA"
+    ],
+    "ADMIN_BU_01_04_01_05_03_03_MURARAMBWE": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MURUNGURIRA",
+        "KANYAGU",
+        "MURARAMBWE"
+    ],
+    "ADMIN_BU_01_04_01_05_03_04_NGUGO_01": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MURUNGURIRA",
+        "KANYAGU",
+        "01"
+    ],
+    "ADMIN_BU_01_04_01_05_03_05_RUSENO": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MURUNGURIRA",
+        "KANYAGU",
+        "RUSENO"
+    ],
+    "ADMIN_BU_01_04_01_05_03_KANYAGU": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MURUNGURIRA",
+        "KANYAGU",
+        null
+    ],
+    "ADMIN_BU_01_04_01_05_04_01_BISARE": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MURUNGURIRA",
+        "MURUNGURIRA",
+        "BISARE"
+    ],
+    "ADMIN_BU_01_04_01_05_04_02_GATARE_02": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MURUNGURIRA",
+        "MURUNGURIRA",
+        "02"
+    ],
+    "ADMIN_BU_01_04_01_05_04_03_MONGE_HAGATI": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MURUNGURIRA",
+        "MURUNGURIRA",
+        "HAGATI"
+    ],
+    "ADMIN_BU_01_04_01_05_04_04_MUREHE_02": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MURUNGURIRA",
+        "MURUNGURIRA",
+        "02"
+    ],
+    "ADMIN_BU_01_04_01_05_04_05_NTWAGO_01": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MURUNGURIRA",
+        "MURUNGURIRA",
+        "01"
+    ],
+    "ADMIN_BU_01_04_01_05_04_06_NYARUHENGERI_01": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MURUNGURIRA",
+        "MURUNGURIRA",
+        "01"
+    ],
+    "ADMIN_BU_01_04_01_05_04_MURUNGURIRA": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MURUNGURIRA",
+        "MURUNGURIRA",
+        null
+    ],
+    "ADMIN_BU_01_04_01_05_MURUNGURIRA": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "MURUNGURIRA",
+        null,
+        null
+    ],
+    "ADMIN_BU_01_04_01_06_01_01_BIHEMBE_MONGE": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "NTEGA",
+        "GIHOME",
+        "MONGE"
+    ],
+    "ADMIN_BU_01_04_01_06_01_02_BUDASUMBANA_MONGE": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "NTEGA",
+        "GIHOME",
+        "MONGE"
+    ],
+    "ADMIN_BU_01_04_01_06_01_03_BUNIHA_MONGE": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "NTEGA",
+        "GIHOME",
+        "MONGE"
+    ],
+    "ADMIN_BU_01_04_01_06_01_04_KIRAMATA_MONGE": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "NTEGA",
+        "GIHOME",
+        "MONGE"
+    ],
+    "ADMIN_BU_01_04_01_06_01_05_MUHERO_MIHIGO": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "NTEGA",
+        "GIHOME",
+        "MIHIGO"
+    ],
+    "ADMIN_BU_01_04_01_06_01_06_MUSUMBA_1_GIHOME": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "NTEGA",
+        "GIHOME",
+        "GIHOME"
+    ],
+    "ADMIN_BU_01_04_01_06_01_07_MUSUMBA_2_GIHOME": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "NTEGA",
+        "GIHOME",
+        "GIHOME"
+    ],
+    "ADMIN_BU_01_04_01_06_01_08_NTEGA_MONGE": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "NTEGA",
+        "GIHOME",
+        "MONGE"
+    ],
+    "ADMIN_BU_01_04_01_06_01_09_RUHOHERA_MIHIGO": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "NTEGA",
+        "GIHOME",
+        "MIHIGO"
+    ],
+    "ADMIN_BU_01_04_01_06_01_10_RWIRI_MONGE": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "NTEGA",
+        "GIHOME",
+        "MONGE"
+    ],
+    "ADMIN_BU_01_04_01_06_01_GIHOME": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "NTEGA",
+        "GIHOME",
+        null
+    ],
+    "ADMIN_BU_01_04_01_06_02_01_BUHANGWA_1_KANAGUGIRI": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "NTEGA",
+        "KANABUGIRI",
+        "KANAGUGIRI"
+    ],
+    "ADMIN_BU_01_04_01_06_02_02_BUHANGWA_2_KANAGUGIRI": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "NTEGA",
+        "KANABUGIRI",
+        "KANAGUGIRI"
+    ],
+    "ADMIN_BU_01_04_01_06_02_03_GAKINDO_GASAVE": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "NTEGA",
+        "KANABUGIRI",
+        "GASAVE"
+    ],
+    "ADMIN_BU_01_04_01_06_02_04_GAKINDO_NTEGA": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "NTEGA",
+        "KANABUGIRI",
+        "NTEGA"
+    ],
+    "ADMIN_BU_01_04_01_06_02_05_GASANDA_NTEGA": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "NTEGA",
+        "KANABUGIRI",
+        "NTEGA"
+    ],
+    "ADMIN_BU_01_04_01_06_02_06_GASHARA_GASAVE": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "NTEGA",
+        "KANABUGIRI",
+        "GASAVE"
+    ],
+    "ADMIN_BU_01_04_01_06_02_07_MIGOGO__NTEGA": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "NTEGA",
+        "KANABUGIRI",
+        "NTEGA"
+    ],
+    "ADMIN_BU_01_04_01_06_02_08_MUCAMO_GASAVE": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "NTEGA",
+        "KANABUGIRI",
+        "GASAVE"
+    ],
+    "ADMIN_BU_01_04_01_06_02_09_MYUGARIRO_GASAVE": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "NTEGA",
+        "KANABUGIRI",
+        "GASAVE"
+    ],
+    "ADMIN_BU_01_04_01_06_02_10_NYANGE__KANABUGIRI": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "NTEGA",
+        "KANABUGIRI",
+        "KANABUGIRI"
+    ],
+    "ADMIN_BU_01_04_01_06_02_11_NYARUNAZI_1_GASAVE": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "NTEGA",
+        "KANABUGIRI",
+        "GASAVE"
+    ],
+    "ADMIN_BU_01_04_01_06_02_12_NYARUNAZI_2_GASAVE": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "NTEGA",
+        "KANABUGIRI",
+        "GASAVE"
+    ],
+    "ADMIN_BU_01_04_01_06_02_KANABUGIRI": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "NTEGA",
+        "KANABUGIRI",
+        null
+    ],
+    "ADMIN_BU_01_04_01_06_03_01_BIHONGOYE": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "NTEGA",
+        "MWENDO",
+        "BIHONGOYE"
+    ],
+    "ADMIN_BU_01_04_01_06_03_02_BUDORI": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "NTEGA",
+        "MWENDO",
+        "BUDORI"
+    ],
+    "ADMIN_BU_01_04_01_06_03_03_BURINGA_MWENDO": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "NTEGA",
+        "MWENDO",
+        "MWENDO"
+    ],
+    "ADMIN_BU_01_04_01_06_03_04_BUTARE_KANABUGIRI": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "NTEGA",
+        "MWENDO",
+        "KANABUGIRI"
+    ],
+    "ADMIN_BU_01_04_01_06_03_05_BUTARE_NTEGA": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "NTEGA",
+        "MWENDO",
+        "NTEGA"
+    ],
+    "ADMIN_BU_01_04_01_06_03_06_GASONGATI_I": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "NTEGA",
+        "MWENDO",
+        "I"
+    ],
+    "ADMIN_BU_01_04_01_06_03_07_GASONGATI_II": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "NTEGA",
+        "MWENDO",
+        "II"
+    ],
+    "ADMIN_BU_01_04_01_06_03_08_KAGOMOGOMO": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "NTEGA",
+        "MWENDO",
+        "KAGOMOGOMO"
+    ],
+    "ADMIN_BU_01_04_01_06_03_09_KINYONGA": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "NTEGA",
+        "MWENDO",
+        "KINYONGA"
+    ],
+    "ADMIN_BU_01_04_01_06_03_10_KIRAMATA_KANABUGIRI": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "NTEGA",
+        "MWENDO",
+        "KANABUGIRI"
+    ],
+    "ADMIN_BU_01_04_01_06_03_11_MIHIGO_MIHIGO": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "NTEGA",
+        "MWENDO",
+        "MIHIGO"
+    ],
+    "ADMIN_BU_01_04_01_06_03_12_MUSENGA_02": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "NTEGA",
+        "MWENDO",
+        "02"
+    ],
+    "ADMIN_BU_01_04_01_06_03_MWENDO": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "NTEGA",
+        "MWENDO",
+        null
+    ],
+    "ADMIN_BU_01_04_01_06_04_01_BUCAMIHIGO_GIHOME": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "NTEGA",
+        "NTEGA",
+        "GIHOME"
+    ],
+    "ADMIN_BU_01_04_01_06_04_02_BUHANGWA_NTEGA": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "NTEGA",
+        "NTEGA",
+        "NTEGA"
+    ],
+    "ADMIN_BU_01_04_01_06_04_03_BUHIGA": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "NTEGA",
+        "NTEGA",
+        "BUHIGA"
+    ],
+    "ADMIN_BU_01_04_01_06_04_04_BURINGA_GIHOME": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "NTEGA",
+        "NTEGA",
+        "GIHOME"
+    ],
+    "ADMIN_BU_01_04_01_06_04_05_KARUTANUTSI": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "NTEGA",
+        "NTEGA",
+        "KARUTANUTSI"
+    ],
+    "ADMIN_BU_01_04_01_06_04_06_KIGORI_MIHIGO": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "NTEGA",
+        "NTEGA",
+        "MIHIGO"
+    ],
+    "ADMIN_BU_01_04_01_06_04_07_MUGOBOKA": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "NTEGA",
+        "NTEGA",
+        "MUGOBOKA"
+    ],
+    "ADMIN_BU_01_04_01_06_04_08_NTARAGA_GIHOME": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "NTEGA",
+        "NTEGA",
+        "GIHOME"
+    ],
+    "ADMIN_BU_01_04_01_06_04_09_NTEGA": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "NTEGA",
+        "NTEGA",
+        "NTEGA"
+    ],
+    "ADMIN_BU_01_04_01_06_04_10_NTEGA_Q": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "NTEGA",
+        "NTEGA",
+        "Q"
+    ],
+    "ADMIN_BU_01_04_01_06_04_NTEGA": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "NTEGA",
+        "NTEGA",
+        null
+    ],
+    "ADMIN_BU_01_04_01_06_05_01_BIHEMBE": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "NTEGA",
+        "SASA",
+        "BIHEMBE"
+    ],
+    "ADMIN_BU_01_04_01_06_05_02_BUBANDA": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "NTEGA",
+        "SASA",
+        "BUBANDA"
+    ],
+    "ADMIN_BU_01_04_01_06_05_03_BURINGANIRE": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "NTEGA",
+        "SASA",
+        "BURINGANIRE"
+    ],
+    "ADMIN_BU_01_04_01_06_05_04_BUSHASHA": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "NTEGA",
+        "SASA",
+        "BUSHASHA"
+    ],
+    "ADMIN_BU_01_04_01_06_05_05_GISOTA": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "NTEGA",
+        "SASA",
+        "GISOTA"
+    ],
+    "ADMIN_BU_01_04_01_06_05_06_KANGAZI": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "NTEGA",
+        "SASA",
+        "KANGAZI"
+    ],
+    "ADMIN_BU_01_04_01_06_05_07_KIBANGU": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "NTEGA",
+        "SASA",
+        "KIBANGU"
+    ],
+    "ADMIN_BU_01_04_01_06_05_08_KIDOBORI": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "NTEGA",
+        "SASA",
+        "KIDOBORI"
+    ],
+    "ADMIN_BU_01_04_01_06_05_09_KIGARAMA_07": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "NTEGA",
+        "SASA",
+        "07"
+    ],
+    "ADMIN_BU_01_04_01_06_05_10_MIGONGO": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "NTEGA",
+        "SASA",
+        "MIGONGO"
+    ],
+    "ADMIN_BU_01_04_01_06_05_11_MUMENA": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "NTEGA",
+        "SASA",
+        "MUMENA"
+    ],
+    "ADMIN_BU_01_04_01_06_05_12_NDAGANO": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "NTEGA",
+        "SASA",
+        "NDAGANO"
+    ],
+    "ADMIN_BU_01_04_01_06_05_13_RWANKABATEMYI_I": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "NTEGA",
+        "SASA",
+        "I"
+    ],
+    "ADMIN_BU_01_04_01_06_05_14_RWANKABATEMYI_II": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "NTEGA",
+        "SASA",
+        "II"
+    ],
+    "ADMIN_BU_01_04_01_06_05_15_TABA_02": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "NTEGA",
+        "SASA",
+        "02"
+    ],
+    "ADMIN_BU_01_04_01_06_05_16_TEGERO": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "NTEGA",
+        "SASA",
+        "TEGERO"
+    ],
+    "ADMIN_BU_01_04_01_06_05_SASA": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "NTEGA",
+        "SASA",
+        null
+    ],
+    "ADMIN_BU_01_04_01_06_NTEGA": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "NTEGA",
+        null,
+        null
+    ],
+    "ADMIN_BU_01_04_01_07_01_01_BITARE": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUNYANKEZI",
+        "GISITWE",
+        "BITARE"
+    ],
+    "ADMIN_BU_01_04_01_07_01_02_BWANKA": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUNYANKEZI",
+        "GISITWE",
+        "BWANKA"
+    ],
+    "ADMIN_BU_01_04_01_07_01_03_GAKANA": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUNYANKEZI",
+        "GISITWE",
+        "GAKANA"
+    ],
+    "ADMIN_BU_01_04_01_07_01_04_KIDASHA": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUNYANKEZI",
+        "GISITWE",
+        "KIDASHA"
+    ],
+    "ADMIN_BU_01_04_01_07_01_05_RUGOMERO_02": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUNYANKEZI",
+        "GISITWE",
+        "02"
+    ],
+    "ADMIN_BU_01_04_01_07_01_06_RUKOKWE": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUNYANKEZI",
+        "GISITWE",
+        "RUKOKWE"
+    ],
+    "ADMIN_BU_01_04_01_07_01_07_RUTONDE_01": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUNYANKEZI",
+        "GISITWE",
+        "01"
+    ],
+    "ADMIN_BU_01_04_01_07_01_08_SUMO": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUNYANKEZI",
+        "GISITWE",
+        "SUMO"
+    ],
+    "ADMIN_BU_01_04_01_07_01_GISITWE": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUNYANKEZI",
+        "GISITWE",
+        null
+    ],
+    "ADMIN_BU_01_04_01_07_02_01_GASHARA": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUNYANKEZI",
+        "01",
+        "GASHARA"
+    ],
+    "ADMIN_BU_01_04_01_07_02_02_JABIRO": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUNYANKEZI",
+        "01",
+        "JABIRO"
+    ],
+    "ADMIN_BU_01_04_01_07_02_03_KAREHE_04": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUNYANKEZI",
+        "01",
+        "04"
+    ],
+    "ADMIN_BU_01_04_01_07_02_04_KIBUYE_02": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUNYANKEZI",
+        "01",
+        "02"
+    ],
+    "ADMIN_BU_01_04_01_07_02_05_KIRYAMA_01": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUNYANKEZI",
+        "01",
+        "01"
+    ],
+    "ADMIN_BU_01_04_01_07_02_06_MUTUMBA_GATANGA": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUNYANKEZI",
+        "01",
+        "GATANGA"
+    ],
+    "ADMIN_BU_01_04_01_07_02_07_MUTUMBA_MWENDO": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUNYANKEZI",
+        "01",
+        "MWENDO"
+    ],
+    "ADMIN_BU_01_04_01_07_02_08_NGENDO": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUNYANKEZI",
+        "01",
+        "NGENDO"
+    ],
+    "ADMIN_BU_01_04_01_07_02_09_NYANGE_02": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUNYANKEZI",
+        "01",
+        "02"
+    ],
+    "ADMIN_BU_01_04_01_07_02_MWENDO_01": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUNYANKEZI",
+        "01",
+        null
+    ],
+    "ADMIN_BU_01_04_01_07_03_01_BUNIHA_01": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUNYANKEZI",
+        "RUNYANKEZI",
+        "01"
+    ],
+    "ADMIN_BU_01_04_01_07_03_02_BUZIRABWOBA": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUNYANKEZI",
+        "RUNYANKEZI",
+        "BUZIRABWOBA"
+    ],
+    "ADMIN_BU_01_04_01_07_03_03_COGO_01": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUNYANKEZI",
+        "RUNYANKEZI",
+        "01"
+    ],
+    "ADMIN_BU_01_04_01_07_03_04_GIHAGO": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUNYANKEZI",
+        "RUNYANKEZI",
+        "GIHAGO"
+    ],
+    "ADMIN_BU_01_04_01_07_03_05_MUSHANGA": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUNYANKEZI",
+        "RUNYANKEZI",
+        "MUSHANGA"
+    ],
+    "ADMIN_BU_01_04_01_07_03_06_NDARO": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUNYANKEZI",
+        "RUNYANKEZI",
+        "NDARO"
+    ],
+    "ADMIN_BU_01_04_01_07_03_07_NSYO": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUNYANKEZI",
+        "RUNYANKEZI",
+        "NSYO"
+    ],
+    "ADMIN_BU_01_04_01_07_03_08_NYABIGUGO": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUNYANKEZI",
+        "RUNYANKEZI",
+        "NYABIGUGO"
+    ],
+    "ADMIN_BU_01_04_01_07_03_09_RYANAFOKO": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUNYANKEZI",
+        "RUNYANKEZI",
+        "RYANAFOKO"
+    ],
+    "ADMIN_BU_01_04_01_07_03_10_TABA_03": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUNYANKEZI",
+        "RUNYANKEZI",
+        "03"
+    ],
+    "ADMIN_BU_01_04_01_07_03_RUNYANKEZI": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUNYANKEZI",
+        "RUNYANKEZI",
+        null
+    ],
+    "ADMIN_BU_01_04_01_07_RUNYANKEZI": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUNYANKEZI",
+        null,
+        null
+    ],
+    "ADMIN_BU_01_04_01_08_01_01_BUGENDERAHEJURU_I": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUSHUBIJE",
+        "GATWE",
+        "I"
+    ],
+    "ADMIN_BU_01_04_01_08_01_02_BUGENDERAHEJURU_II": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUSHUBIJE",
+        "GATWE",
+        "II"
+    ],
+    "ADMIN_BU_01_04_01_08_01_03_BUGENDERAHEJURU_III": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUSHUBIJE",
+        "GATWE",
+        "III"
+    ],
+    "ADMIN_BU_01_04_01_08_01_04_GASHARA_I": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUSHUBIJE",
+        "GATWE",
+        "I"
+    ],
+    "ADMIN_BU_01_04_01_08_01_05_GASHARA_II": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUSHUBIJE",
+        "GATWE",
+        "II"
+    ],
+    "ADMIN_BU_01_04_01_08_01_06_KIBENGA": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUSHUBIJE",
+        "GATWE",
+        "KIBENGA"
+    ],
+    "ADMIN_BU_01_04_01_08_01_07_MIGEZI_NKOGWE": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUSHUBIJE",
+        "GATWE",
+        "NKOGWE"
+    ],
+    "ADMIN_BU_01_04_01_08_01_08_NKOGWE_NKOGWE": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUSHUBIJE",
+        "GATWE",
+        "NKOGWE"
+    ],
+    "ADMIN_BU_01_04_01_08_01_09_RAMBO_I": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUSHUBIJE",
+        "GATWE",
+        "I"
+    ],
+    "ADMIN_BU_01_04_01_08_01_10_RAMBO_II": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUSHUBIJE",
+        "GATWE",
+        "II"
+    ],
+    "ADMIN_BU_01_04_01_08_01_11_RUNYINYA_03": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUSHUBIJE",
+        "GATWE",
+        "03"
+    ],
+    "ADMIN_BU_01_04_01_08_01_12_TABA_III_RWIMBOGO": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUSHUBIJE",
+        "GATWE",
+        "RWIMBOGO"
+    ],
+    "ADMIN_BU_01_04_01_08_01_13_TABA_II_RWIMBOGO": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUSHUBIJE",
+        "GATWE",
+        "RWIMBOGO"
+    ],
+    "ADMIN_BU_01_04_01_08_01_14_TABA_I_RWIMBOGO": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUSHUBIJE",
+        "GATWE",
+        "RWIMBOGO"
+    ],
+    "ADMIN_BU_01_04_01_08_01_GATWE": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUSHUBIJE",
+        "GATWE",
+        null
+    ],
+    "ADMIN_BU_01_04_01_08_02_01_GASHARA_I_01": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUSHUBIJE",
+        "NYAKIBINGO",
+        "01"
+    ],
+    "ADMIN_BU_01_04_01_08_02_02_GASHARA_II_01": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUSHUBIJE",
+        "NYAKIBINGO",
+        "01"
+    ],
+    "ADMIN_BU_01_04_01_08_02_03_KARAMBO_MUYINZA": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUSHUBIJE",
+        "NYAKIBINGO",
+        "MUYINZA"
+    ],
+    "ADMIN_BU_01_04_01_08_02_04_MISURI_I": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUSHUBIJE",
+        "NYAKIBINGO",
+        "I"
+    ],
+    "ADMIN_BU_01_04_01_08_02_05_MISURI_II": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUSHUBIJE",
+        "NYAKIBINGO",
+        "II"
+    ],
+    "ADMIN_BU_01_04_01_08_02_06_MURARAMBWE_I": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUSHUBIJE",
+        "NYAKIBINGO",
+        "I"
+    ],
+    "ADMIN_BU_01_04_01_08_02_07_MURARAMBWE_II": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUSHUBIJE",
+        "NYAKIBINGO",
+        "II"
+    ],
+    "ADMIN_BU_01_04_01_08_02_08_NUNGA_I_01": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUSHUBIJE",
+        "NYAKIBINGO",
+        "01"
+    ],
+    "ADMIN_BU_01_04_01_08_02_09_NUNGA_II_01": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUSHUBIJE",
+        "NYAKIBINGO",
+        "01"
+    ],
+    "ADMIN_BU_01_04_01_08_02_10_NZOBE_MUYINZA": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUSHUBIJE",
+        "NYAKIBINGO",
+        "MUYINZA"
+    ],
+    "ADMIN_BU_01_04_01_08_02_11_RUGINA_I": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUSHUBIJE",
+        "NYAKIBINGO",
+        "I"
+    ],
+    "ADMIN_BU_01_04_01_08_02_12_RUGINA_II": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUSHUBIJE",
+        "NYAKIBINGO",
+        "II"
+    ],
+    "ADMIN_BU_01_04_01_08_02_13_RUVUMVU_MUYINZA": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUSHUBIJE",
+        "NYAKIBINGO",
+        "MUYINZA"
+    ],
+    "ADMIN_BU_01_04_01_08_02_14_TWENGEBUYE_I": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUSHUBIJE",
+        "NYAKIBINGO",
+        "I"
+    ],
+    "ADMIN_BU_01_04_01_08_02_15_TWENGEBUYE_II": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUSHUBIJE",
+        "NYAKIBINGO",
+        "II"
+    ],
+    "ADMIN_BU_01_04_01_08_02_NYAKIBINGO": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUSHUBIJE",
+        "NYAKIBINGO",
+        null
+    ],
+    "ADMIN_BU_01_04_01_08_03_01_BURENGO": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUSHUBIJE",
+        "RUSHUBIJE",
+        "BURENGO"
+    ],
+    "ADMIN_BU_01_04_01_08_03_02_BURYAMANKIMA": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUSHUBIJE",
+        "RUSHUBIJE",
+        "BURYAMANKIMA"
+    ],
+    "ADMIN_BU_01_04_01_08_03_03_BUTENDWA": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUSHUBIJE",
+        "RUSHUBIJE",
+        "BUTENDWA"
+    ],
+    "ADMIN_BU_01_04_01_08_03_04_COGO_02": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUSHUBIJE",
+        "RUSHUBIJE",
+        "02"
+    ],
+    "ADMIN_BU_01_04_01_08_03_05_CURABUGUFI": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUSHUBIJE",
+        "RUSHUBIJE",
+        "CURABUGUFI"
+    ],
+    "ADMIN_BU_01_04_01_08_03_06_GISENYI_02": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUSHUBIJE",
+        "RUSHUBIJE",
+        "02"
+    ],
+    "ADMIN_BU_01_04_01_08_03_07_KABUGA": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUSHUBIJE",
+        "RUSHUBIJE",
+        "KABUGA"
+    ],
+    "ADMIN_BU_01_04_01_08_03_08_KAJERI_KANABUGIRI": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUSHUBIJE",
+        "RUSHUBIJE",
+        "KANABUGIRI"
+    ],
+    "ADMIN_BU_01_04_01_08_03_09_KARAMA_01": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUSHUBIJE",
+        "RUSHUBIJE",
+        "01"
+    ],
+    "ADMIN_BU_01_04_01_08_03_10_KIRYAMA_02": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUSHUBIJE",
+        "RUSHUBIJE",
+        "02"
+    ],
+    "ADMIN_BU_01_04_01_08_03_11_KIYANGE_KANABUGIRI": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUSHUBIJE",
+        "RUSHUBIJE",
+        "KANABUGIRI"
+    ],
+    "ADMIN_BU_01_04_01_08_03_12_MUBUGA_01": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUSHUBIJE",
+        "RUSHUBIJE",
+        "01"
+    ],
+    "ADMIN_BU_01_04_01_08_03_13_MURARANYAMBO": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUSHUBIJE",
+        "RUSHUBIJE",
+        "MURARANYAMBO"
+    ],
+    "ADMIN_BU_01_04_01_08_03_14_NTORE": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUSHUBIJE",
+        "RUSHUBIJE",
+        "NTORE"
+    ],
+    "ADMIN_BU_01_04_01_08_03_RUSHUBIJE": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUSHUBIJE",
+        "RUSHUBIJE",
+        null
+    ],
+    "ADMIN_BU_01_04_01_08_RUSHUBIJE": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        "RUSHUBIJE",
+        null,
+        null
+    ],
+    "ADMIN_BU_01_04_01_NTEGA": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "NTEGA",
+        null,
+        null,
+        null
+    ],
+    "ADMIN_BU_01_04_02_01_01_01_GITAHANA": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "VUMBI",
+        "GIKOMERO",
+        "GIKOMERO",
+        "GITAHANA"
+    ],
+    "ADMIN_BU_01_04_02_01_01_02_MABUMBA": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "VUMBI",
+        "GIKOMERO",
+        "GIKOMERO",
+        "MABUMBA"
+    ],
+    "ADMIN_BU_01_04_02_01_01_03_MIKUKU": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "VUMBI",
+        "GIKOMERO",
+        "GIKOMERO",
+        "MIKUKU"
+    ],
+    "ADMIN_BU_01_04_02_01_01_04_MUSENGA_03": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "VUMBI",
+        "GIKOMERO",
+        "GIKOMERO",
+        "03"
+    ],
+    "ADMIN_BU_01_04_02_01_01_05_RUVYAGIRA_01": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "VUMBI",
+        "GIKOMERO",
+        "GIKOMERO",
+        "01"
+    ],
+    "ADMIN_BU_01_04_02_01_01_GIKOMERO": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "VUMBI",
+        "GIKOMERO",
+        "GIKOMERO",
+        null
+    ],
+    "ADMIN_BU_01_04_02_01_02_01_BUGARI": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "VUMBI",
+        "GIKOMERO",
+        "KAVUMU",
+        "BUGARI"
+    ],
+    "ADMIN_BU_01_04_02_01_02_02_GIKOMBE_02": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "VUMBI",
+        "GIKOMERO",
+        "KAVUMU",
+        "02"
+    ],
+    "ADMIN_BU_01_04_02_01_02_03_HIGIRO_01": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "VUMBI",
+        "GIKOMERO",
+        "KAVUMU",
+        "01"
+    ],
+    "ADMIN_BU_01_04_02_01_02_04_KARUTOKE": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "VUMBI",
+        "GIKOMERO",
+        "KAVUMU",
+        "KARUTOKE"
+    ],
+    "ADMIN_BU_01_04_02_01_02_05_KIBANDE_05": [
+        "BU",
+        "KIRUNDO",
+        "VUMBI",
+        "VUMBI",
+        "GIKOMERO",
+        "KAVUMU",
+        "05"
+    ]
+}
