@@ -228,6 +228,7 @@ def fetch_household_data():
                 "Village": boundary.get("village", ""),
                 "User id": user_id,
                 "Registrar Name": data.get("nameOfUser", ""),
+                "UserName" : data.get("userName", ""),
                 "Number of People Living in HH": household.get("memberCount", ""),
                 "Created Time": convert_epoch_to_datetime(audit_details.get("createdTime", 0)),
                 "Synced Time": data.get("syncedTimeStamp", ""),
@@ -456,11 +457,11 @@ def fetch_individual_data(individualClientReferenceIds):
     all_data = []
 
     # Split individualClientReferenceIds into chunks of 10000 or less
-    chunk_size = 10000
+    chunk_size = 3000
     for i in range(0, len(individualClientReferenceIds), chunk_size):
         chunk = individualClientReferenceIds[i:i + chunk_size]
         query = {
-            "size": len(chunk),
+            "size": 10000,
             "query": {
                 "terms": {
                     "clientReferenceId.keyword": chunk
@@ -554,11 +555,11 @@ def fetch_voucher_data(household_clientreferenceids):
     print(f"{len(household_clientreferenceids)} number of household clientReferenceIds provided to fetch voucher codes") 
     all_data = []
 
-    chunk_size = 10000
+    chunk_size = 3000
     for i in range(0, len(household_clientreferenceids), chunk_size):
         chunk = household_clientreferenceids[i:i + chunk_size]
         query = {
-            "size": len(chunk),
+            "size": 10000,
             "query": {
                 "terms": {
                     "beneficiaryClientReferenceId.keyword": chunk
@@ -652,7 +653,7 @@ if df_household.empty:
     # Create empty DataFrame with required columns
     column_order = [
         "Province", "District", "Administrative Province", "Locality", "Village",
-        "User id", "Phone number", "Registrar Name", "Beneficiary Name", "Age (Beneficiary)",
+        "User id", "Phone number", "Registrar Name", "UserName", "Beneficiary Name", "Age (Beneficiary)",
         "Gender (Beneficiary)", "Id (Beneficiary)", "Household Head Name", "Age (Household Head)",
         "Gender (Household Head)", "Id (Household Head)", "Mobile Number",
         "Number of People Living in HH", "Serial Number of Voucher",
@@ -752,6 +753,7 @@ else:
         "User id",
         "Phone number",
         "Registrar Name",
+        "UserName",
         # "Beneficiary Name",
         # "Age (Beneficiary)",
         # "Gender (Beneficiary)",
