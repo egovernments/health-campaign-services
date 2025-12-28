@@ -32,10 +32,10 @@ file_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.p
 sys.path.append(file_path)
 from REPORTS_GENERATION.COMMON_UTILS.custom_date_utils import get_custom_dates_of_reports
 
-ES_HOUSEHOLD_SEARCH="https://elasticsearch-data.es-cluster-v8:9200/household-index-v1/_search"
-ES_HOUSEHOLD_MEMBER_SEARCH="https://elasticsearch-data.es-cluster-v8:9200/household-member-index-v1/_search"
-ES_INDIVIDUAL_SEARCH = "https://elasticsearch-data.es-cluster-v8:9200/individual-index-v1/_search"
-ES_BENEFICIARY_SEARCH="https://elasticsearch-data.es-cluster-v8:9200/project-beneficiary-index-v1/_search"
+ES_HOUSEHOLD_SEARCH="http://elasticsearch-master.es-upgrade.svc.cluster.local:9200/household-index-v1/_search"
+ES_HOUSEHOLD_MEMBER_SEARCH="http://elasticsearch-master.es-upgrade.svc.cluster.local:9200/household-member-index-v1/_search"
+ES_INDIVIDUAL_SEARCH = "http://elasticsearch-master.es-upgrade.svc.cluster.local:9200/individual-index-v1/_search"
+ES_BENEFICIARY_SEARCH="http://elasticsearch-master.es-upgrade.svc.cluster.local:9200/project-beneficiary-index-v1/_search"
 
 max_retries = 60
 retry_delay = 5
@@ -349,9 +349,9 @@ def generate_report():
     # sheet = workbook.active
 
     header_row = [
-        "Province", "District", "Commune", "Health Facility", "Collines", "Sous Collines", "Designated Distribution Point", 
-        "HHR Username", "HHR Phone number", "HHR Name","Household Head Name", "Gender", 
-        "Number of People Living in HHs", "Serial Number of Voucher", "Latitude", "Longitude", 
+        "Province", "District", "Administrative Province", "Locality", "Village", "Designated Distribution Point",
+        "HHR Username", "HHR Phone number", "HHR Name","Household Head Name", "Gender",
+        "Number of People Living in HHs", "Serial Number of Voucher", "Latitude", "Longitude",
         "Created Time", "Synced Time"
     ]
     # sheet.append(header_row)
@@ -364,30 +364,30 @@ def generate_report():
 
         # if all(field in value and value[field] is not None for field in ["voucherCode", "firstName", "lastName"]):
             
-        province = value["boundaryHierarchy"].get("province", "null") if value.get("boundaryHierarchy") else "null"
-        healthDistrict = value["boundaryHierarchy"].get("healthDistrict", "null") if value.get("boundaryHierarchy") else "null"
-        commune = value["boundaryHierarchy"].get("municipality", "null") if value.get("boundaryHierarchy") else "null"
-        health_facility = value["boundaryHierarchy"].get("areaOfResponsibility", "null") if value.get("boundaryHierarchy") else "null"
-        hills = value["boundaryHierarchy"].get("hills", "null") if value.get("boundaryHierarchy") else "null"
-        subHills = value["boundaryHierarchy"].get("subHills", "null") if value.get("boundaryHierarchy") else "null"          
+        boundary = value.get("boundaryHierarchy", {})
+        province = boundary.get("province", "null")
+        district = boundary.get("district", "null")
+        administrativeProvince = boundary.get("administrativeProvince", "null")
+        locality = boundary.get("locality", "null")
+        village = boundary.get("village", "null")
         created_time = convert_epoch_to_datetime(value["createdTime"])
         synced_time = value["syncedTime"]
         # distribution_point = get_distribution_point(value["localityCode"])
         distribution_point = value["ddp"] #Todo
         row_data = [
-                province, healthDistrict,commune, health_facility, hills, subHills, distribution_point,
+                province, district, administrativeProvince, locality, village, distribution_point,
                 value["userName"], mobile_number, value["nameOfUser"],
                 f"{value['firstName']} {value['lastName']}" if "firstName" in value and "lastName" in value else "null",
                 value.get("gender", "null"), value.get("memberCount", "null"), value.get("voucherCode", "null"),
                 value.get("latitude", "null"), value.get("longitude", "null"), created_time, synced_time
             ]
         print("row_data",row_data)
-        if health_facility not in sheets:
-            sheet = workbook.create_sheet(title=health_facility)  # Excel sheet names are limited to 31 chars
+        if locality not in sheets:
+            sheet = workbook.create_sheet(title=locality[:31])  # Excel sheet names are limited to 31 chars
             sheet.append(header_row)
-            sheets[health_facility] = sheet
-        
-        sheets[health_facility].append(row_data)
+            sheets[locality] = sheet
+
+        sheets[locality].append(row_data)
         # sheet.append(row_data)
     # Remove default sheet if unused
     if "Sheet" in workbook.sheetnames and len(workbook.sheetnames) > 1:

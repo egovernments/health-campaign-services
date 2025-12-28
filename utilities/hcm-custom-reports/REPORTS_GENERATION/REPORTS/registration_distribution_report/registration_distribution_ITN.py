@@ -33,9 +33,9 @@ from COMMON_UTILS.custom_date_utils import get_custom_dates_of_reports
 from COMMON_UTILS.common_utils import get_resp
 
 # ===== Elasticsearch Endpoints =====
-ES_PROJECT_TASK_SEARCH = "https://elasticsearch-data.es-cluster-v8:9200/project-task-index-v1/_search"
-ES_HOUSEHOLD_MEMBER_SEARCH = "https://elasticsearch-data.es-cluster-v8:9200/household-member-index-v1/_search"
-ES_INDIVIDUAL_SEARCH = "https://elasticsearch-data.es-cluster-v8:9200/individual-index-v1/_search"
+ES_PROJECT_TASK_SEARCH = "http://elasticsearch-master.es-upgrade.svc.cluster.local:9200/project-task-index-v1/_search"
+ES_HOUSEHOLD_MEMBER_SEARCH = "http://elasticsearch-master.es-upgrade.svc.cluster.local:9200/household-member-index-v1/_search"
+ES_INDIVIDUAL_SEARCH = "http://elasticsearch-master.es-upgrade.svc.cluster.local:9200/individual-index-v1/_search"
 EGOV_DECRYPT_URL = "http://egov-enc-service.egov:8080/egov-enc-service/crypto/v1/_decrypt"
 
 # ===== Get date range for report and folder naming =====
@@ -154,7 +154,7 @@ def fetch_project_tasks():
             }
 
         scroll_resp = get_resp(
-            "https://elasticsearch-data.es-cluster-v8:9200/_search/scroll",
+            "http://elasticsearch-master.es-upgrade.svc.cluster.local:9200/_search/scroll",
             {"scroll": "2m", "scroll_id": scroll_id},
             is_post=True,
             es=True

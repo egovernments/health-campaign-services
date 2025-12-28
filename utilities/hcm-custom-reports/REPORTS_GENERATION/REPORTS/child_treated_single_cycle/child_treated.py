@@ -34,10 +34,10 @@ from COMMON_UTILS.common_utils import get_resp
 warnings.filterwarnings("ignore", message="Unverified HTTPS request is being made.*")
 
 # === CONSTANTS ===
-ES_PROJECT_TASK_INDEX = "https://elasticsearch-data.es-cluster-v8:9200/project-task-index-v1/_search"
-ES_INDIVIDUAL_INDEX = "https://elasticsearch-data.es-cluster-v8:9200/individual-index-v1/_search"
-ES_SCROLL_API = "https://elasticsearch-data.es-cluster-v8:9200/_search/scroll"
-ES_HOUSEHOLD_MEMBER_INDEX = "https://elasticsearch-data.es-cluster-v8:9200/household-member-index-v1/_search"
+ES_PROJECT_TASK_INDEX = "http://elasticsearch-master.es-upgrade.svc.cluster.local:9200/project-task-index-v1/_search"
+ES_INDIVIDUAL_INDEX = "http://elasticsearch-master.es-upgrade.svc.cluster.local:9200/individual-index-v1/_search"
+ES_SCROLL_API = "http://elasticsearch-master.es-upgrade.svc.cluster.local:9200/_search/scroll"
+ES_HOUSEHOLD_MEMBER_INDEX = "http://elasticsearch-master.es-upgrade.svc.cluster.local:9200/household-member-index-v1/_search"
 DECRYPT_URL = "http://egov-enc-service.egov:8080/egov-enc-service/crypto/v1/_decrypt"
 
 # === DATE RANGE ===
