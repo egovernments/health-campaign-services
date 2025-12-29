@@ -42,8 +42,8 @@ retry_delay = 5
 
 # Filter out the specific warning messages by message
 warnings.filterwarnings("ignore", message="Unverified HTTPS request is being made.*")
-users_file = open("USERS/users_burundi.json")
-users_json = json.load(users_file)
+# users_file = open("USERS/users_burundi.json")
+# users_json = json.load(users_file)
 
 boundary_file = open("BOUNDARY/BOUNDARY_bi.json")
 boundary_json = json.load(boundary_file)
@@ -357,10 +357,10 @@ def generate_report():
     # sheet.append(header_row)
 
     for id, value in data.items():
-        mobile_number = "null"
-        if len(value.get("userId", "")) > 0:
-            # mobile_number = get_user_details(value["userId"])
-            mobile_number = users_json.get(value["userId"],'')
+        # mobile_number = "null"
+        # if len(value.get("userId", "")) > 0:
+        #     # mobile_number = get_user_details(value["userId"])
+        #     mobile_number = users_json.get(value["userId"],'')
 
         # if all(field in value and value[field] is not None for field in ["voucherCode", "firstName", "lastName"]):
             
@@ -376,7 +376,7 @@ def generate_report():
         distribution_point = value["ddp"] #Todo
         row_data = [
                 province, district, administrativeProvince, locality, village, distribution_point,
-                value["userName"], mobile_number, value["nameOfUser"],
+                value["userName"], value["nameOfUser"],
                 f"{value['firstName']} {value['lastName']}" if "firstName" in value and "lastName" in value else "null",
                 value.get("gender", "null"), value.get("memberCount", "null"), value.get("voucherCode", "null"),
                 value.get("latitude", "null"), value.get("longitude", "null"), created_time, synced_time
