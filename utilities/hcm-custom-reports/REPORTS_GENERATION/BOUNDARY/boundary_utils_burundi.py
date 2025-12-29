@@ -72,8 +72,8 @@ def fetch_boundary_info():
         if bucket["key"] not in localityVsBoundaryMap:
             localityVsBoundaryMap[bucket["key"]] = [
                 boundaryHierarchy.get("country"), boundaryHierarchy.get("province"), boundaryHierarchy.get("district"), 
-                boundaryHierarchy.get("municipality"), boundaryHierarchy.get("areaOfResponsibility"), 
-                boundaryHierarchy.get("hills"), boundaryHierarchy.get("subHills")
+                boundaryHierarchy.get("POSTADMINISTRATIVE"), boundaryHierarchy.get("locality"), 
+                boundaryHierarchy.get("village")
                 ]
     print("kfkfh",localityVsBoundaryMap)
 fetch_boundary_info()
