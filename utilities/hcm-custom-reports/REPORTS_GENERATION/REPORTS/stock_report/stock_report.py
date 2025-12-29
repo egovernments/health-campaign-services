@@ -97,7 +97,7 @@ QUERY = {
             "must": [
                 {"term": {CAMPAIGN_FILTER_FIELD: CAMPAIGN_IDENTIFIER}},
                 {"range": {"Data.createdTime": {"gte": gteTime, "lte": lteTime}}},
-                {"wildcard": {"Data.role.keyword": {"value": "WAREHOUSE_MANAGER"}}}
+                {"term": {"Data.role.keyword": {"value": "WAREHOUSE_MANAGER"}}}
             ]
         }
     }
