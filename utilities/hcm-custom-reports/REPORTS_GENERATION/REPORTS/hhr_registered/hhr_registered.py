@@ -45,10 +45,11 @@ warnings.filterwarnings("ignore", message="Unverified HTTPS request is being mad
 # users_file = open("USERS/users_burundi.json")
 # users_json = json.load(users_file)
 
-boundary_file = open("BOUNDARY/BOUNDARY_bi.json")
-boundary_json = json.load(boundary_file)
+# boundary_file = open("BOUNDARY/BOUNDARY_bi.json")
+# boundary_json = json.load(boundary_file)
 
-localization_data = open("BOUNDARY/localization_data.json")
+localization_data_path = os.path.join(file_path, "REPORTS_GENERATION", "BOUNDARY", "localization_data.json")
+localization_data = open(localization_data_path)
 localization_data_json = json.load(localization_data)
 
 def get_resp(url, data, es=False):
