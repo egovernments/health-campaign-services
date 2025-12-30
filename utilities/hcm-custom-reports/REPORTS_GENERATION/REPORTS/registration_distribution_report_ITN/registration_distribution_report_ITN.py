@@ -126,7 +126,7 @@ def fetch_project_tasks():
     }
 
     url = ES_PROJECT_TASK_SEARCH + "?scroll=2m"
-    resp = get_resp(url, query, is_post=True, es=True)
+    resp = get_resp(url, query, es=True)
     if not resp:
         return {}
 
@@ -156,7 +156,6 @@ def fetch_project_tasks():
         scroll_resp = get_resp(
             "http://elasticsearch-master.es-upgrade.svc.cluster.local:9200/_search/scroll",
             {"scroll": "2m", "scroll_id": scroll_id},
-            is_post=True,
             es=True
         )
         if not scroll_resp:
@@ -197,7 +196,7 @@ def enrich_with_household_head_name(task_data):
                 "Data.age"
             ]
         }
-        resp = get_resp(ES_HOUSEHOLD_MEMBER_SEARCH, query, is_post=True, es=True)
+        resp = get_resp(ES_HOUSEHOLD_MEMBER_SEARCH, query, es=True)
         if not resp:
             continue
 
@@ -228,7 +227,7 @@ def enrich_with_household_head_name(task_data):
                 "additionalFields.fields", "identifiers"
             ]
         }
-        resp = get_resp(ES_INDIVIDUAL_SEARCH, query, is_post=True, es=True)
+        resp = get_resp(ES_INDIVIDUAL_SEARCH, query, es=True)
         if not resp:
             continue
 
