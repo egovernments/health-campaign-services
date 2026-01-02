@@ -154,7 +154,8 @@ def extract_data():
 
         for item in docs:
             locCode = item["_source"]["Data"]["household"]["address"]["locality"]["code"]
-            ddp = get_distribution_point(locCode)
+            # ddp = get_distribution_point(locCode)
+            ddp=locCode;
             household_registered[item["_source"]["Data"]["household"]["clientReferenceId"]] = {
                 "boundaryHierarchy" : item["_source"]["Data"]["boundaryHierarchy"] ,
                 "nameOfUser" : item["_source"]["Data"]["nameOfUser"],
@@ -257,20 +258,22 @@ def get_individuals(individualClientReferenceIds):
             "size": len(chunk),
             "query": {
                 "terms": {
-                    "_id": chunk
+                    "clientReferenceId.keyword": chunk
                 }
             },
-            "_source": ["gender", "name", "clientAuditDetails.createdBy", "mobileNumber", "address"]
+            "_source": ["clientReferenceId", "gender", "name", "clientAuditDetails.createdBy", "mobileNumber", "address"]
         }
         docs = get_resp(ES_INDIVIDUAL_SEARCH, query, True).json()["hits"]["hits"]
         for item in docs:
-            data[item["_id"]] = {
-                "gender" : item["_source"]["gender"],
-                "firstName" : item["_source"]["name"]["givenName"],
-                "lastName" :  item["_source"]["name"]["familyName"],
-                "latitude" : item["_source"]["address"][0]["latitude"],
-                "longitude" : item["_source"]["address"][0]["longitude"]
-                # "individualMobileNumber" : get_decrypted_mobile_number(item["_source"]["mobileNumber"]),
+            src = item["_source"]
+            name = src.get("name", {})
+            address = src.get("address", [{}])[0] if src.get("address") else {}
+            data[src["clientReferenceId"]] = {
+                "gender" : src.get("gender", ""),
+                "firstName" : name.get("givenName") or "",
+                "lastName" :  name.get("familyName") or "",
+                "latitude" : address.get("latitude", ""),
+                "longitude" : address.get("longitude", "")
             }            
     print(f"{len(data)} number of modified objects from individual index")
     return data
@@ -350,8 +353,8 @@ def generate_report():
     # sheet = workbook.active
 
     header_row = [
-        "Province", "District", "Administrative Province", "Locality", "Village", "Designated Distribution Point",
-        "HHR Username", "HHR Phone number", "HHR Name","Household Head Name", "Gender",
+        "Province", "District", "POSTADMINISTRATIVE", "Locality", "Village", "Designated Distribution Point",
+        "HHR Username", "HHR Name","Household Head Name", "Gender",
         "Number of People Living in HHs", "Serial Number of Voucher", "Latitude", "Longitude",
         "Created Time", "Synced Time"
     ]
@@ -368,7 +371,7 @@ def generate_report():
         boundary = value.get("boundaryHierarchy", {})
         province = boundary.get("province", "null")
         district = boundary.get("district", "null")
-        administrativeProvince = boundary.get("administrativeProvince", "null")
+        POSTADMINISTRATIVE = boundary.get("POSTADMINISTRATIVE", "null")
         locality = boundary.get("locality", "null")
         village = boundary.get("village", "null")
         created_time = convert_epoch_to_datetime(value["createdTime"])
@@ -376,7 +379,7 @@ def generate_report():
         # distribution_point = get_distribution_point(value["localityCode"])
         distribution_point = value["ddp"] #Todo
         row_data = [
-                province, district, administrativeProvince, locality, village, distribution_point,
+                province, district, POSTADMINISTRATIVE, locality, village, distribution_point,
                 value["userName"], value["nameOfUser"],
                 f"{value['firstName']} {value['lastName']}" if "firstName" in value and "lastName" in value else "null",
                 value.get("gender", "null"), value.get("memberCount", "null"), value.get("voucherCode", "null"),
