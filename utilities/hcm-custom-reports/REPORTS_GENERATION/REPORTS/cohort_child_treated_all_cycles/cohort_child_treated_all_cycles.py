@@ -90,10 +90,10 @@ def fetch_project_tasks():
             }
         },
         "_source": [
-            "Data.boundaryHierarchy", "Data.age", "Data.gender", "Data.individualId",
+            "Data.boundaryHierarchy", "Data.additionalDetails.age", "Data.additionalDetails.gender", "Data.individualId",
             "Data.userName", "Data.quantity", "Data.uniqueBeneficiaryID",
             "Data.administrationStatus", "Data.additionalDetails.reAdministered",
-            "Data.taskDates", "Data.additionalDetails.dateOfAdministration",
+            "Data.taskDates", "Data.additionalDetails.dateOfAdministration", "Data.additionalDetails.name",
             "Data.productName", "Data.additionalDetails.cycleIndex"
         ]
     }
@@ -130,6 +130,7 @@ def fetch_project_tasks():
 
             if indv_id not in ind_id_vs_info:
                 boundary = data.get("boundaryHierarchy", {})
+                additional_details = data.get("additionalDetails", {})
                 ind_id_vs_info[indv_id] = {
                     "Province": boundary.get("province", ""),
                     "District": boundary.get("district", ""),
@@ -137,9 +138,9 @@ def fetch_project_tasks():
                     "Locality": boundary.get("locality", ""),
                     "Village": boundary.get("village", ""),
                     "Username": data.get("userName", ""),
-                    "Child Name": "",
+                    "Child Name": additional_details.get("name", ""),
                     "Age List": [],
-                    "Gender": data.get("gender", ""),
+                    "Gender": additional_details.get("gender", ""),
                     "Beneficiary ID (Child)": "",
                     "Household Client Reference ID": "",
                     "Household Head Name": "",
@@ -156,8 +157,9 @@ def fetch_project_tasks():
                 }
 
             # Append unique cycle index and age
-            cycle_index = data.get("additionalDetails", {}).get("cycleIndex")
-            age = data.get("age", "")
+            additional_details = data.get("additionalDetails", {})
+            cycle_index = additional_details.get("cycleIndex")
+            age = additional_details.get("age", "")
             date_of_admin = convert_ts_to_date(data.get("additionalDetails", {}).get("dateOfAdministration"))
             quantity = data.get("quantity", 0)
             re_administered = str(data.get("additionalDetails", {}).get("reAdministered", "")).lower()

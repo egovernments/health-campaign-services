@@ -89,10 +89,10 @@ def fetch_project_tasks():
             }
         },
         "_source": [
-            "Data.boundaryHierarchy", "Data.age", "Data.gender", "Data.individualId",
+            "Data.boundaryHierarchy", "Data.additionalDetails.age", "Data.additionalDetails.gender", "Data.individualId",
             "Data.userName", "Data.quantity", "Data.uniqueBeneficiaryID",
             "Data.administrationStatus", "Data.additionalDetails.reAdministered",
-            "Data.taskDates", "Data.additionalDetails.dateOfAdministration"
+            "Data.taskDates", "Data.additionalDetails.dateOfAdministration", "Data.additionalDetails.name"
         ]
     }
 
@@ -118,28 +118,29 @@ def fetch_project_tasks():
 
             if indv_id not in ind_id_vs_info:
               boundary = data.get("boundaryHierarchy", {})
+              additional_details = data.get("additionalDetails", {})
               ind_id_vs_info[indv_id] = {
-        "Province": boundary.get("province", ""),
-        "District": boundary.get("district", ""),
-        "Administrative Province": boundary.get("administrativeProvince", ""),
-        "Locality": boundary.get("locality", ""),
-        "Village": boundary.get("village", ""),
-        "Username": data.get("userName", ""),
-        "Child Name": "",
-        "Age": data.get("age", ""),
-        "Gender": data.get("gender", ""),
-        "Beneficiary ID (Child)": "",
-        "Household Client Reference ID": "",
-        "Household Head Name": "",
-        "Quantity Administered": 0,
-        "Redose Quantity Administered": 0,
-        "BENEFICIARY_INELIGIBLE": "no",
-        "BENEFICIARY_REFERRED": "no",
-        "BENEFICIARY_REFUSED": "no",
-        "CLOSED_HOUSEHOLD": "no",
-        "Date of Registration": data.get("taskDates", ""),
-        "Date of Administration": convert_ts_to_date(data.get("additionalDetails", {}).get("dateOfAdministration"))
-    }
+                "Province": boundary.get("province", ""),
+                "District": boundary.get("district", ""),
+                "POSTADMINISTRATIVE": boundary.get("POSTADMINISTRATIVE", ""),
+                "Locality": boundary.get("locality", ""),
+                "Village": boundary.get("village", ""),
+                "Username": data.get("userName", ""),
+                "Child Name": additional_details.get("name", ""),
+                "Age": additional_details.get("age", ""),
+                "Gender": additional_details.get("gender", ""),
+                "Beneficiary ID (Child)": "",
+                "Household Client Reference ID": "",
+                "Household Head Name": "",
+                "Quantity Administered": 0,
+                "Redose Quantity Administered": 0,
+                "BENEFICIARY_INELIGIBLE": "no",
+                "BENEFICIARY_REFERRED": "no",
+                "BENEFICIARY_REFUSED": "no",
+                "CLOSED_HOUSEHOLD": "no",
+                "Date of Registration": data.get("taskDates", ""),
+                "Date of Administration": convert_ts_to_date(additional_details.get("dateOfAdministration"))
+              }
 
 
             status = data.get("administrationStatus", "")
