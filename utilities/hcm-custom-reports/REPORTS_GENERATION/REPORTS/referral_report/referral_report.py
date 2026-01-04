@@ -77,17 +77,17 @@ referral_payload = {
 # ===== FETCH REFERRALS (SCROLL) =====
 print("Fetching referral data using scroll API...")
 
-response = get_resp("POST", f"{REFERRAL_INDEX}?scroll={SCROLL_TIME}", referral_payload)
+response = get_resp(f"{REFERRAL_INDEX}?scroll={SCROLL_TIME}", referral_payload, True)
 scroll_id = response["_scroll_id"]
 hits = response["hits"]["hits"]
 
 all_hits = hits[:]
 
 while hits:
-    scroll_resp = get_resp("POST", SCROLL_API, {
+    scroll_resp = get_resp( SCROLL_API, {
         "scroll": SCROLL_TIME,
         "scroll_id": scroll_id
-    })
+    }, es=True)
     hits = scroll_resp["hits"]["hits"]
     all_hits.extend(hits)
 
@@ -127,7 +127,7 @@ for ind_id in individual_ids:
         }
     }
 
-    resp = get_resp("POST", INDIVIDUAL_INDEX, payload)
+    resp = get_resp( INDIVIDUAL_INDEX, payload, True)
     hits = resp.get("hits", {}).get("hits", [])
 
     if not hits:
