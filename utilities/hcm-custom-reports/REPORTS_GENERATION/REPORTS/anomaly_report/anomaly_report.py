@@ -309,9 +309,18 @@ with concurrent.futures.ThreadPoolExecutor(max_workers=30) as executor:
 
 final_list = list(result_obj.values())
 
+EXPECTED_COLUMNS = ['Province', 'District', 'userName']
+
 df = pd.DataFrame(final_list)
 
-df_sorted = df.sort_values(by=['Province', 'District', 'userName'], ascending=[True, True, True])
+# ensure expected columns exist but do NOT drop others
+for col in EXPECTED_COLUMNS:
+    if col not in df.columns:
+        df[col] = None
+
+print(df.size)
+
+df_sorted = df.sort_values(by=EXPECTED_COLUMNS, ascending=[True, True, True])
 
 df_sorted.to_excel(f"{FILE_NAME}.xlsx", index=False)
 
