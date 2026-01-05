@@ -1,5 +1,4 @@
 import pandas as pd
-from elasticsearch import Elasticsearch
 from geopy.distance import geodesic
 import concurrent.futures
 import time
