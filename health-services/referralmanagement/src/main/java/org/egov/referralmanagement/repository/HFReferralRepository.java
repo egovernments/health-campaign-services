@@ -85,6 +85,7 @@ public class HFReferralRepository extends GenericRepository<HFReferral> {
         query = GenericQueryBuilder.generateQuery(query, whereFields).toString();
         query = query.replace("id IN (:id)", "hf.id IN (:id)");
         query = query.replace("clientReferenceId IN (:clientReferenceId)", "hf.clientReferenceId IN (:clientReferenceId)");
+        query = query.replace("facilityId IN (:facilityId)", "hf.projectfacilityid IN (:facilityId)");
 
         // Add additional conditions based on tenant ID, includeDeleted, and lastChangedSince.
         if(CollectionUtils.isEmpty(whereFields)) {
