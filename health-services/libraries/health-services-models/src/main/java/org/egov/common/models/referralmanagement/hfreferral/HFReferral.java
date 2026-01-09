@@ -49,6 +49,10 @@ public class HFReferral extends EgovOfflineModel {
     @Size(max=100)
     private String nationalLevelId;
 
+    @JsonProperty("localityCode")
+    @Size(max=100)
+    private String localityCode;
+
     //TODO remove this
     @JsonProperty("isDeleted")
     private Boolean isDeleted = Boolean.FALSE;

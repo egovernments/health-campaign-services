@@ -35,4 +35,7 @@ public class HFReferralSearch extends EgovOfflineSearchModel {
 
     @JsonProperty("nationalLevelId")
     private List<String> nationalLevelId;
+
+    @JsonProperty("localityCode")
+    private List<String> localityCode;
 }
