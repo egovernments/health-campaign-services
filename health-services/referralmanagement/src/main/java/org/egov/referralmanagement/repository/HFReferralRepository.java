@@ -73,7 +73,7 @@ public class HFReferralRepository extends GenericRepository<HFReferral> {
     public SearchResponse<HFReferral> find(HFReferralSearch searchObject, Integer limit, Integer offset, String tenantId,
                                  Long lastChangedSince, Boolean includeDeleted) throws InvalidTenantIdException {
         // Initial query to select HFReferral fields from the table.
-        String query = String.format("SELECT hf.id, hf.clientreferenceid, hf.tenantid, hf.projectid, hf.projectfacilityid, hf.symptom, hf.symptomsurveyid,  hf.beneficiaryid,  hf.referralcode,  hf.nationallevelid,  hf.createdby,  hf.createdtime,  hf.lastmodifiedby,  hf.lastmodifiedtime,  hf.clientcreatedby,  hf.clientcreatedtime,  hf.clientlastmodifiedby,  hf.clientlastmodifiedtime,  hf.rowversion,  hf.isdeleted,  hf.additionaldetails from %s.hf_referral hf",
+        String query = String.format("SELECT hf.id, hf.clientreferenceid, hf.tenantid, hf.projectid, hf.projectfacilityid, hf.symptom, hf.symptomsurveyid,  hf.beneficiaryid,  hf.referralcode,  hf.nationallevelid,  hf.localitycode,  hf.createdby,  hf.createdtime,  hf.lastmodifiedby,  hf.lastmodifiedtime,  hf.clientcreatedby,  hf.clientcreatedtime,  hf.clientlastmodifiedby,  hf.clientlastmodifiedtime,  hf.rowversion,  hf.isdeleted,  hf.additionaldetails from %s.hf_referral hf",
                 SCHEMA_REPLACE_STRING);
         Map<String, Object> paramsMap = new HashMap<>();
 
@@ -86,6 +86,9 @@ public class HFReferralRepository extends GenericRepository<HFReferral> {
         query = query.replace("id IN (:id)", "hf.id IN (:id)");
         query = query.replace("clientReferenceId IN (:clientReferenceId)", "hf.clientReferenceId IN (:clientReferenceId)");
         query = query.replace("facilityId IN (:facilityId)", "hf.projectfacilityid IN (:facilityId)");
+        query = query.replace("localityCode IN (:localityCode)", "hf.localitycode IN (:localityCode)");
+        query = query.replace("projectId = :projectId", "hf.projectid = :projectId");
+        log.info("Generated HFReferral search query: {}", query);
 
         // Add additional conditions based on tenant ID, includeDeleted, and lastChangedSince.
         if(CollectionUtils.isEmpty(whereFields)) {
@@ -153,7 +156,7 @@ public class HFReferralRepository extends GenericRepository<HFReferral> {
         }
 
         // Generate a SELECT query based on the provided IDs and column name.
-        String query = String.format("SELECT hf.id, hf.clientreferenceid, hf.tenantid, hf.projectid, hf.projectfacilityid, hf.symptom, hf.symptomsurveyid,  hf.beneficiaryid,  hf.referralcode,  hf.nationallevelid,  hf.createdby,  hf.createdtime,  hf.lastmodifiedby,  hf.lastmodifiedtime,  hf.clientcreatedby,  hf.clientcreatedtime,  hf.clientlastmodifiedby,  hf.clientlastmodifiedtime,  hf.rowversion,  hf.isdeleted,  hf.additionaldetails from %s.hf_referral hf WHERE hf.%s IN (:ids) ", SCHEMA_REPLACE_STRING, columnName);
+        String query = String.format("SELECT hf.id, hf.clientreferenceid, hf.tenantid, hf.projectid, hf.projectfacilityid, hf.symptom, hf.symptomsurveyid,  hf.beneficiaryid,  hf.referralcode,  hf.nationallevelid,  hf.localitycode,  hf.createdby,  hf.createdtime,  hf.lastmodifiedby,  hf.lastmodifiedtime,  hf.clientcreatedby,  hf.clientcreatedtime,  hf.clientlastmodifiedby,  hf.clientlastmodifiedtime,  hf.rowversion,  hf.isdeleted,  hf.additionaldetails from %s.hf_referral hf WHERE hf.%s IN (:ids) ", SCHEMA_REPLACE_STRING, columnName);
 
         // Add conditions to exclude deleted records if includeDeleted is false.
         if (includeDeleted == null || !includeDeleted) {
@@ -172,4 +175,5 @@ public class HFReferralRepository extends GenericRepository<HFReferral> {
         putInCache(objFound);
         return SearchResponse.<HFReferral>builder().response(objFound).build();
     }
+
 }
