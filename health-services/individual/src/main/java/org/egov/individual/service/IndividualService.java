@@ -399,11 +399,13 @@ public class IndividualService {
         if (StringUtils.isNotBlank(wardCode)) {
             return individual -> individual.getAddress()
                     .stream()
-                    .anyMatch(address -> (StringUtils.compare(wardCode, address.getWard().getCode()) == 0));
+                    .anyMatch(address -> address.getWard() != null
+                            && StringUtils.compare(wardCode, address.getWard().getCode()) == 0);
         }
         return individual -> individual.getAddress()
                 .stream()
-                .anyMatch(address -> address.getLocality().getCode().equalsIgnoreCase(boundaryCode));
+                .anyMatch(address -> address.getLocality() != null
+                        && address.getLocality().getCode().equalsIgnoreCase(boundaryCode));
 
     }
 
