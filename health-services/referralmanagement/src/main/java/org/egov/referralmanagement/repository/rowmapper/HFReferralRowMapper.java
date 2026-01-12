@@ -63,6 +63,7 @@ public class HFReferralRowMapper implements RowMapper<HFReferral> {
                     .beneficiaryId(resultSet.getString("beneficiaryid"))
                     .referralCode(resultSet.getString("referralcode"))
                     .nationalLevelId(resultSet.getString("nationallevelid"))
+                    .localityCode(resultSet.getString("localitycode"))
                     .additionalFields(resultSet.getString("additionalDetails") == null ? null : objectMapper
                             .readValue(resultSet.getString("additionalDetails"), AdditionalFields.class))
                     .rowVersion(resultSet.getInt("rowversion"))

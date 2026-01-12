@@ -51,7 +51,7 @@
 		<dependency>
 			<groupId>org.egov.common</groupId>
 			<artifactId>health-services-models</artifactId>
-			<version>1.0.27-SNAPSHOT</version>
+			<version>1.0.30-SNAPSHOT</version>
 			<scope>compile</scope>
 		</dependency>
 		<dependency>
@@ -67,11 +67,6 @@
 		<dependency>
 			<groupId>redis.clients</groupId>
 			<artifactId>jedis</artifactId>
-		</dependency>
-		<!-- https://mvnrepository.com/artifact/org.springframework.boot/spring-boot-devtools -->
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-devtools</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>org.flywaydb</groupId>
