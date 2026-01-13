@@ -270,7 +270,7 @@ config:
         image-name: "health-hrms"
         dockerfile: "build/maven-java17/Dockerfile"
       - work-dir: "core-services/egov-hrms/src/main/resources/db"
-        image-name: "health-hrms-db"s
+        image-name: "health-hrms-db"
   - name: "builds/health-campaign-services/core-services/egov-hrms"
     build:
       - work-dir: "core-services/egov-hrms"
