@@ -22,7 +22,7 @@ export async function sendNotificationEmail(
 
         logger.info(`Step 2: Extracted locale: ${locale}, tenantId: ${tenantId}`);
 
-        const localizationMap = await getLocalizedMessagesHandlerViaLocale(locale, tenantId);
+        const localizationMap = await getLocalizedMessagesHandlerViaLocale(locale, tenantId,"hcm-admin-notification");
         logger.info("Step 3: Fetched localization map");
         
         const MdmsCriteria: MDMSModels.MDMSv2RequestCriteria = {
