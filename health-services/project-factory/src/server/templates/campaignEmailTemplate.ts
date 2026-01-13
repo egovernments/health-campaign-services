@@ -131,7 +131,7 @@ export function generateCampaignEmailTemplate(params: EmailTemplateParams): stri
             color: #2c5282;
             font-size: 15px;
             font-weight: 600;
-            text-align: left;
+            text-align: center;
             white-space: nowrap;
         }
 
@@ -139,7 +139,7 @@ export function generateCampaignEmailTemplate(params: EmailTemplateParams): stri
             color: #0066cc;
             font-size: 15px;
             font-weight: 400;
-            text-align: left;
+            text-align: center;
         }
 
         .button-container {
@@ -185,8 +185,9 @@ export function generateCampaignEmailTemplate(params: EmailTemplateParams): stri
         }
 
         .icon {
-            width: 20px;
-            height: 20px;
+            font-size: 18px;
+            display: inline-block;
+            vertical-align: middle;
         }
 
         .important-box {
@@ -209,8 +210,9 @@ export function generateCampaignEmailTemplate(params: EmailTemplateParams): stri
         }
 
         .important-list {
-            list-style: none;
-            padding-left: 0;
+            list-style-type: disc;
+            padding-left: 25px;
+            margin: 0;
         }
 
         .important-list li {
@@ -218,15 +220,6 @@ export function generateCampaignEmailTemplate(params: EmailTemplateParams): stri
             font-size: 14px;
             line-height: 1.6;
             margin-bottom: 8px;
-            padding-left: 20px;
-            position: relative;
-        }
-
-        .important-list li:before {
-            content: "•";
-            position: absolute;
-            left: 5px;
-            color: #f59e0b;
         }
 
         .contact-info {
@@ -376,18 +369,11 @@ export function generateCampaignEmailTemplate(params: EmailTemplateParams): stri
 
             <div class="button-container">
                 <a href="${accessLink}" class="action-button access-button">
-                    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-                    </svg>
+                    <span class="icon">🔒</span>
                     ${userCredentialLabel}
                 </a>
                 <a href="${appLink}" class="action-button download-button">
-                    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                        <polyline points="7 10 12 15 17 10"></polyline>
-                        <line x1="12" y1="15" x2="12" y2="3"></line>
-                    </svg>
+                    <span class="icon">📥</span>
                     ${mobileApp}
                 </a>
             </div>
@@ -395,15 +381,13 @@ export function generateCampaignEmailTemplate(params: EmailTemplateParams): stri
 
         <div class="important-box">
             <div class="important-header">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-                </svg>
+                <span style="font-size: 20px;">⚠️</span>
                 ${instructionHeader}!
             </div>
-            <ul class="important-list">
-                <li>${instruction1}</li>
-                <li>${instruction2}</li>
-                <li>${instruction3}</li>
+            <ul class="important-list" style="list-style-type: disc; padding-left: 25px; margin: 0;">
+                <li style="color: #666; font-size: 14px; line-height: 1.6; margin-bottom: 8px;">${instruction1}</li>
+                <li style="color: #666; font-size: 14px; line-height: 1.6; margin-bottom: 8px;">${instruction2}</li>
+                <li style="color: #666; font-size: 14px; line-height: 1.6; margin-bottom: 8px;">${instruction3}</li>
             </ul>
         </div>
 
