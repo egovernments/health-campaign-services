@@ -66,34 +66,10 @@ export function generateCampaignEmailTemplate(params: EmailTemplateParams): stri
           <td align="center" style="padding: 15px 20px;">
             <table border="0" cellspacing="0" cellpadding="0">
               <tr>
-                <td valign="middle" style="padding-right: 8px;">
-                  <!-- Logo icon -->
-                  <table border="0" cellspacing="0" cellpadding="0">
-                    <tr>
-                      <td width="6" height="6" style="background-color: white; border-radius: 50%; line-height: 0; font-size: 0;">&nbsp;</td>
-                      <td width="2"></td>
-                      <td width="6" height="6" style="background-color: white; border-radius: 50%; line-height: 0; font-size: 0;">&nbsp;</td>
-                      <td width="2"></td>
-                      <td width="6" height="6" style="background-color: white; border-radius: 50%; line-height: 0; font-size: 0;">&nbsp;</td>
-                    </tr>
-                    <tr height="4"><td colspan="5"></td></tr>
-                    <tr>
-                      <td colspan="2"></td>
-                      <td width="6" height="6" style="background-color: white; border-radius: 50%; line-height: 0; font-size: 0;">&nbsp;</td>
-                      <td width="2"></td>
-                      <td width="6" height="6" style="background-color: white; border-radius: 50%; line-height: 0; font-size: 0;">&nbsp;</td>
-                    </tr>
-                    <tr height="4"><td colspan="5"></td></tr>
-                    <tr>
-                      <td colspan="4"></td>
-                      <td width="6" height="6" style="background-color: white; border-radius: 50%; line-height: 0; font-size: 0;">&nbsp;</td>
-                    </tr>
-                  </table>
-                </td>
                 <td valign="middle">
                   <img src="https://egov-dev-assets.s3.ap-south-1.amazonaws.com/digit.png" alt="DIGIT" height="26" border="0" style="height: 26px; vertical-align: middle; display: inline-block; border: 0;" />
-                  <span style="color: #8a9ba8; font-size: 22px; font-weight: 300; margin: 0 8px; line-height: 1.2;">|</span>
-                  <span style="font-size: 22px; color: white; font-weight: 300; line-height: 1.2;">${headerContent}</span>
+                  <span style="color: #8a9ba8; font-size: 24px; font-weight: 300; margin: 0 8px; line-height: 1; vertical-align: middle;">|</span>
+                  <span style="font-size: 24px; color: white; font-weight: 300; line-height: 1; vertical-align: middle;">${headerContent}</span>
                 </td>
               </tr>
             </table>
