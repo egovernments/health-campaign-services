@@ -121,7 +121,7 @@ export async function sendNotificationEmail(
         const instruction3 = replacePlaceholders(getLocalizedName(instruction3Code, localizationMap), replacements);
 
         const subjectCode = emailTemplate?.data?.subject;
-        const subject = replacePlaceholders(getLocalizedName(subjectCode, localizationMap), replacements);
+        const subject = replacements.campaignName +" - " +replacePlaceholders(getLocalizedName(subjectCode, localizationMap), replacements);
 
         logger.info("Step 6: Constructed localized subject and all email fields");
 
