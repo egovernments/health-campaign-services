@@ -17,6 +17,8 @@ interface EmailTemplateParams {
     footerLink1: string;
     footerLink2: string;
     footerContent: string;
+    regardsTeam:String;
+    supportEmail: string;
 }
 
 export function generateCampaignEmailTemplate(params: EmailTemplateParams): string {
@@ -38,7 +40,9 @@ export function generateCampaignEmailTemplate(params: EmailTemplateParams): stri
         regards,
         footerLink1,
         footerLink2,
-        footerContent
+        footerContent,
+        regardsTeam,
+        supportEmail
     } = params;
 
     return `
@@ -47,7 +51,7 @@ export function generateCampaignEmailTemplate(params: EmailTemplateParams): stri
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DIGIT HCM Console</title>
+    <title>${logoLabel} ${headerContent}</title>
 </head>
 <body style="margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; background-color: #f5f5f5;">
 
@@ -87,7 +91,7 @@ export function generateCampaignEmailTemplate(params: EmailTemplateParams): stri
                   </table>
                 </td>
                 <td valign="middle">
-                  <span style="font-size: 22px; font-weight: 700; color: white; line-height: 1.2;">${logoLabel}</span>
+                  <img src="https://egov-dev-assets.s3.ap-south-1.amazonaws.com/digit.png" alt="DIGIT" height="26" border="0" style="height: 26px; vertical-align: middle; display: inline-block; border: 0;" />
                   <span style="color: #8a9ba8; font-size: 22px; font-weight: 300; margin: 0 8px; line-height: 1.2;">|</span>
                   <span style="font-size: 22px; color: white; font-weight: 300; line-height: 1.2;">${headerContent}</span>
                 </td>
@@ -232,7 +236,7 @@ export function generateCampaignEmailTemplate(params: EmailTemplateParams): stri
             <table width="100%" border="0" cellspacing="0" cellpadding="0" style="margin-top: 30px;">
               <tr>
                 <td style="color: #666; font-size: 14px; line-height: 1.6; padding-bottom: 15px; font-family: Arial, Helvetica, sans-serif;">
-                  ${regards} <a href="mailto:support@egov.org.in" style="color: #007bff; text-decoration: none; font-family: Arial, Helvetica, sans-serif;">support@egov.org.in</a>
+                  ${regards} <a href="mailto:${supportEmail}" style="color: #007bff; text-decoration: none; font-family: Arial, Helvetica, sans-serif;">${supportEmail}</a>
                 </td>
               </tr>
               <tr>
@@ -242,7 +246,7 @@ export function generateCampaignEmailTemplate(params: EmailTemplateParams): stri
               </tr>
               <tr>
                 <td style="color: #666; font-size: 14px; line-height: 1.6; font-family: Arial, Helvetica, sans-serif;">
-                  HCM Console Team
+                  ${regardsTeam}
                 </td>
               </tr>
             </table>
@@ -260,7 +264,7 @@ export function generateCampaignEmailTemplate(params: EmailTemplateParams): stri
             <table width="100%" border="0" cellspacing="0" cellpadding="0">
               <tr>
                 <td align="center" style="padding-bottom: 15px;">
-                  <img src="https://digit-sandbox-prod-s3.s3.ap-south-1.amazonaws.com/assets/Reverse+Orange+%26+White.png" alt="eGov" width="80" style="display: block; border: 0;"/>
+                  <img src="https://egov-qa-assets.s3.ap-south-1.amazonaws.com/hcm/eGov-logo.png" alt="eGov" width="80" style="display: block; border: 0;"/>
                 </td>
               </tr>
             </table>

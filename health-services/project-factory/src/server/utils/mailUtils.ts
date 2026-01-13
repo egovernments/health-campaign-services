@@ -105,8 +105,11 @@ export async function sendNotificationEmail(
         const footerContentCode = emailTemplate?.data?.footer?.content;
         const footerContent = replacePlaceholders(getLocalizedName(footerContentCode, localizationMap), replacements);
 
-        const regardsCode = emailTemplate?.data?.regards;
+        const regardsCode = emailTemplate?.data?.regards?.[0];
         const regards = replacePlaceholders(getLocalizedName(regardsCode, localizationMap), replacements);
+
+        const regardsTeamCode = emailTemplate?.data?.regards?.[1];
+        const regardsTeam = replacePlaceholders(getLocalizedName(regardsTeamCode, localizationMap), replacements);
 
         const instructionHeaderCode = emailTemplate?.data?.instructions?.[0];
         const instructionHeader = replacePlaceholders(getLocalizedName(instructionHeaderCode, localizationMap), replacements);
@@ -144,7 +147,9 @@ export async function sendNotificationEmail(
             regards,
             footerLink1,
             footerLink2,
-            footerContent
+            footerContent,
+            regardsTeam,
+            supportEmail: config.values.emailNotificationId
         });
 
         // const fileUrls = await Promise.all(
