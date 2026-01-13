@@ -359,7 +359,6 @@ export function generateCampaignEmailTemplate(params: EmailTemplateParams): stri
 
 <div class="container">
     <div class="content">
-        <div class="celebration-emoji">🎉</div>
         <h1 class="main-title">${header}</h1>
         <div class="subtitle">${campaignName}</div>
 
@@ -410,7 +409,7 @@ export function generateCampaignEmailTemplate(params: EmailTemplateParams): stri
 
         <div class="contact-info">
             <div class="contact-text">
-                ${regards} <a href="mailto:contact@egovernments.org" class="contact-email">contact@egovernments.org</a>
+                ${regards} <a href="mailto:support@egov.org.in" class="contact-email">support@egov.org.in</a>
             </div>
             <div class="signature">
                 <div class="contact-text">Regards,</div>
@@ -432,7 +431,7 @@ export function generateCampaignEmailTemplate(params: EmailTemplateParams): stri
               <span style="color: #8a9ba8; font-size: 12px; display: inline-block; padding: 0 5px;">|</span>
 
               <span style="color: white; text-decoration: none; font-size: 12px; font-weight: 300; display: inline-block; padding: 0 5px;">
-                <a href="https://www.linkedin.com/company/egovernments-foundation" style="color: white; text-decoration: none; font-size: 12px; font-weight: 300;">${footerLink2}</a>
+                <a href="https://www.linkedin.com/company/egovfoundation" style="color: white; text-decoration: none; font-size: 12px; font-weight: 300;">${footerLink2}</a>
               </span>
             </td>
           </tr>

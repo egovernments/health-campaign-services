@@ -34,7 +34,7 @@ export async function sendNotificationEmail(
 
         logger.info("Step 4: Calling MDMS API with criteria: " + JSON.stringify(MdmsCriteria));
         const mdmsResponse = await searchMDMSDataViaV2Api(MdmsCriteria);
-        const bednetCampaign = true;
+        const bednetCampaign = false;
 
         const emailTemplate = bednetCampaign ? mdmsResponse?.mdms?.[1] : mdmsResponse?.mdms?.[2];
 
