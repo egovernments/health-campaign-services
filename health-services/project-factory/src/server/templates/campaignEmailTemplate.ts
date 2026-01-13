@@ -116,6 +116,19 @@ export function generateCampaignEmailTemplate(params: EmailTemplateParams): stri
               </tr>
             </table>
 
+            <!-- Horizontal Line -->
+            <table width="100%" border="0" cellspacing="0" cellpadding="0">
+              <tr>
+                <td align="center" style="padding: 0 0 25px 0;">
+                  <table border="0" cellspacing="0" cellpadding="0" width="75%">
+                    <tr>
+                      <td style="background-color: #8a9ba8; height: 1px; line-height: 1px; font-size: 1px;">&nbsp;</td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </table>
+
             <!-- Intro Text -->
             <table width="100%" border="0" cellspacing="0" cellpadding="0">
               <tr>
@@ -196,17 +209,17 @@ export function generateCampaignEmailTemplate(params: EmailTemplateParams): stri
                   <table width="100%" border="0" cellspacing="0" cellpadding="0">
                     <tr>
                       <td style="color: #666; font-size: 14px; line-height: 1.6; padding-bottom: 8px; font-family: Arial, Helvetica, sans-serif;">
-                        • ${instruction1}
+                        &bull; ${instruction1}
                       </td>
                     </tr>
                     <tr>
                       <td style="color: #666; font-size: 14px; line-height: 1.6; padding-bottom: 8px; font-family: Arial, Helvetica, sans-serif;">
-                        • ${instruction2}
+                        &bull; ${instruction2}
                       </td>
                     </tr>
                     <tr>
                       <td style="color: #666; font-size: 14px; line-height: 1.6; font-family: Arial, Helvetica, sans-serif;">
-                        • ${instruction3}
+                        &bull; ${instruction3}
                       </td>
                     </tr>
                   </table>
