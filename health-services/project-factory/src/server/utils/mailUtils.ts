@@ -6,7 +6,8 @@ import { MDMSModels } from "../models";
 import { getLocalizedName } from "./campaignUtils";
 import { getLocalizedMessagesHandlerViaLocale } from "./genericUtils";
 import { getFileUrl } from "./onGoingCampaignUpdateUtils";
-import { logger } from "./logger"; // if you use a custom logger
+import { logger } from "./logger";
+import { generateCampaignEmailTemplate } from "../templates/campaignEmailTemplate";
 
 export async function sendNotificationEmail(
     fileStoreIdMap: Record<string, string>, requestBody: any , createdByEmail?: string
@@ -21,20 +22,22 @@ export async function sendNotificationEmail(
 
         logger.info(`Step 2: Extracted locale: ${locale}, tenantId: ${tenantId}`);
 
-        const localizationMap = await getLocalizedMessagesHandlerViaLocale(locale, tenantId);
+        const localizationMap = await getLocalizedMessagesHandlerViaLocale(locale, tenantId,"hcm-admin-notification");
         logger.info("Step 3: Fetched localization map");
         
         const MdmsCriteria: MDMSModels.MDMSv2RequestCriteria = {
             MdmsCriteria: {
                 tenantId: tenantId,
-                schemaCode: "HCM-ADMIN-CONSOLE.emailTemplate"
+                schemaCode: "HCM-ADMIN-CONSOLE.emailTemplateV2"
             }
         };
 
         logger.info("Step 4: Calling MDMS API with criteria: " + JSON.stringify(MdmsCriteria));
         const mdmsResponse = await searchMDMSDataViaV2Api(MdmsCriteria);
+        const bednetCampaign = false;
 
-        const emailTemplate = mdmsResponse?.mdms?.[0];
+        const emailTemplate = bednetCampaign ? mdmsResponse?.mdms?.[1] : mdmsResponse?.mdms?.[2];
+
         if (!emailTemplate) {
             logger.error("Step 5: Email template not found in MDMS response");
             throw new Error("Email template not found in MDMS");
@@ -72,15 +75,83 @@ export async function sendNotificationEmail(
             appLink
         };
 
-        const subjectCode = emailTemplate?.data?.subjectCode;
-        const subject = replacePlaceholders(getLocalizedName(subjectCode, localizationMap), replacements);
+        const headerCode = emailTemplate?.data?.body?.header;
+        const header = replacePlaceholders(getLocalizedName(headerCode, localizationMap), replacements);
 
-        const bodyCodes = emailTemplate?.data?.bodyCodes || [];
-        const bodyLines = bodyCodes.map((code: string) =>
-            replacePlaceholders(getLocalizedName(code, localizationMap), replacements)
-        );
-        logger.info("Step 6: Constructed localized subject and body lines");
-        const fullBody = bodyLines.join("<br/><br/>");
+        const greetingCode = emailTemplate?.data?.body?.greeting;
+        const greeting = replacePlaceholders(getLocalizedName(greetingCode, localizationMap), replacements);
+
+        const mobileAppCode = emailTemplate?.data?.body?.mobileApp;
+        const mobileApp = replacePlaceholders(getLocalizedName(mobileAppCode, localizationMap), replacements);
+
+        const campaignNameLabelCode = emailTemplate?.data?.body?.campaignName;
+        const campaignNameLabel = replacePlaceholders(getLocalizedName(campaignNameLabelCode, localizationMap), replacements);
+
+        const userCredentialLabelCode = emailTemplate?.data?.body?.userCredentialLabel;
+        const userCredentialLabel = replacePlaceholders(getLocalizedName(userCredentialLabelCode, localizationMap), replacements);
+
+        const headerContentCode = emailTemplate?.data?.header?.content;
+        const headerContent = replacePlaceholders(getLocalizedName(headerContentCode, localizationMap), replacements);
+
+        const logoLabelCode = emailTemplate?.data?.header?.logoLabel;
+        const logoLabel = replacePlaceholders(getLocalizedName(logoLabelCode, localizationMap), replacements);
+
+        const footerLink1Code = emailTemplate?.data?.footer?.links?.[0];
+        const footerLink1 = replacePlaceholders(getLocalizedName(footerLink1Code, localizationMap), replacements);
+
+        const footerLink2Code = emailTemplate?.data?.footer?.links?.[1];
+        const footerLink2 = replacePlaceholders(getLocalizedName(footerLink2Code, localizationMap), replacements);
+
+        const footerContentCode = emailTemplate?.data?.footer?.content;
+        const footerContent = replacePlaceholders(getLocalizedName(footerContentCode, localizationMap), replacements);
+
+        const regardsCode = emailTemplate?.data?.regards?.[0];
+        const regards = replacePlaceholders(getLocalizedName(regardsCode, localizationMap), replacements);
+
+        const regardsTeamCode = emailTemplate?.data?.regards?.[1];
+        const regardsTeam = replacePlaceholders(getLocalizedName(regardsTeamCode, localizationMap), replacements);
+
+        const instructionHeaderCode = emailTemplate?.data?.instructions?.[0];
+        const instructionHeader = replacePlaceholders(getLocalizedName(instructionHeaderCode, localizationMap), replacements);
+
+        const instruction1Code = emailTemplate?.data?.instructions?.[1];
+        const instruction1 = replacePlaceholders(getLocalizedName(instruction1Code, localizationMap), replacements);
+
+        const instruction2Code = emailTemplate?.data?.instructions?.[2];
+        const instruction2 = replacePlaceholders(getLocalizedName(instruction2Code, localizationMap), replacements);
+
+        const instruction3Code = emailTemplate?.data?.instructions?.[3];
+        const instruction3 = replacePlaceholders(getLocalizedName(instruction3Code, localizationMap), replacements);
+
+        const subjectCode = emailTemplate?.data?.subject;
+        const subject = replacements.campaignName +" - " +replacePlaceholders(getLocalizedName(subjectCode, localizationMap), replacements);
+
+        logger.info("Step 6: Constructed localized subject and all email fields");
+
+        // Generate the complete HTML email template
+        const fullBody = generateCampaignEmailTemplate({
+            logoLabel,
+            headerContent,
+            header,
+            greeting,
+            campaignNameLabel,
+            campaignName: replacements.campaignName,
+            userCredentialLabel,
+            accessLink: replacements.accessLink,
+            mobileApp,
+            appLink: replacements.appLink,
+            instructionHeader,
+            instruction1,
+            instruction2,
+            instruction3,
+            regards,
+            footerLink1,
+            footerLink2,
+            footerContent,
+            regardsTeam,
+            supportEmail: config.values.emailNotificationId,
+            egovLogoLink: config.values.egovLogoLink
+        });
 
         // const fileUrls = await Promise.all(
         //     Object.entries(fileStoreIdMap).map(async ([fileId, fileName]) => {
