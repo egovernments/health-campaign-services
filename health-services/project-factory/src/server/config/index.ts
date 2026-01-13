@@ -182,7 +182,7 @@ const config = {
     formConfigTemplateName: process.env.FORM_CONFIG_TEMPLATE_NAME || "FormConfigTemplate",
     formConfigName: process.env.FORM_CONFIG_NAME || "FormConfig",
     emailNotificationId: process.env.EMAIL_NOTIFICATION_ID || "support@egov.org.in" ,
-    egovLogoLink: process.env.EGOV_LOGO_LINK || "https://egov-dev-assets.s3.ap-south-1.amazonaws.com/digit.png",
+    egovLogoLink: process.env.EGOV_LOGO_LINK || "https://digit-sandbox-prod-s3.s3.ap-south-1.amazonaws.com/assets/Reverse+Orange+%26+White.png",
     readMeTab: process.env.READ_ME_TAB || "HCM_README_SHEETNAME",
     userMainBoundary: process.env.USER_MAIN_BOUNDARY || "mz",
     userMainBoundaryType: process.env.USER_MAIN_BOUNDARY_TYPE || "Country",
