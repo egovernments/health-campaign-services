@@ -214,7 +214,6 @@ config:
     build:
       - work-dir: "health-services/libraries/health-services-models"
         image-name: "health-services-models"
-
   - name: "builds/health-campaign-services/core-services/pgr-services"
     build:
       - work-dir: "core-services/pgr-services"
@@ -271,7 +270,7 @@ config:
         image-name: "health-hrms"
         dockerfile: "build/maven-java17/Dockerfile"
       - work-dir: "core-services/egov-hrms/src/main/resources/db"
-        image-name: "health-hrms-db"
+        image-name: "health-hrms-db"s
   - name: "builds/health-campaign-services/core-services/egov-hrms"
     build:
       - work-dir: "core-services/egov-hrms"
@@ -297,7 +296,7 @@ config:
     build:
       - work-dir: "health-services/resource-generator"
         image-name: "resource-generator"
-        dockerfile: "build/maven-java17/Dockerfile"     
+        dockerfile: "build/maven-java17/Dockerfile"
   - name: "builds/health-campaign-services/analytics/auth-proxy"
     build:
       - work-dir: "analytics/auth-proxy"
@@ -339,5 +338,8 @@ config:
     build:
       - work-dir: "health-services/project-factory"
         image-name: "project-factory"
+        dockerfile: "health-services/project-factory/Dockerfile"
       - work-dir: "health-services/project-factory/migration"
         image-name: "project-factory-db"
+        dockerfile: "health-services/project-factory/migration/Dockerfile"
+

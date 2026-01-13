@@ -1,8 +1,10 @@
 package org.egov.individual.validators;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -16,11 +18,14 @@ import org.egov.common.validator.Validator;
 import org.egov.individual.config.IndividualProperties;
 import org.egov.tracer.model.CustomException;
 import org.springframework.core.annotation.Order;
+import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 
+import static org.egov.common.utils.CommonUtils.isValidPattern;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.individual.Constants.*;
+import static org.egov.individual.validators.IdPoolValidatorForCreate.validateDuplicateIDs;
 
 /**
  * Validator class for validating beneficiary IDs during update operations on Individual records.
@@ -34,7 +39,7 @@ import static org.egov.individual.Constants.*;
 @Order(value = 12) // Determines execution order among multiple validators
 public class IdPoolValidatorForUpdate implements Validator<IndividualBulkRequest, Individual> {
 
-    private final BeneficiaryIdGenService beneficiaryIdGenService;
+    private final @Nullable BeneficiaryIdGenService beneficiaryIdGenService;
     private final IndividualProperties individualProperties;
 
     /**
@@ -57,9 +62,14 @@ public class IdPoolValidatorForUpdate implements Validator<IndividualBulkRequest
 
         List<Individual> individuals = request.getIndividuals();
 
+        validateDuplicateIDs(errorDetailsMap, individuals);
+
         // Retrieve existing ID records for the individuals
         Map<String, IdRecord> idRecordMap = IdPoolValidatorForCreate
                 .getIdRecords(beneficiaryIdGenService, individuals, null, request.getRequestInfo());
+
+        // Existing Unique Beneficiary ID
+        Set<String> usedUniqueBeneficiaryIdSet = new HashSet<>();
 
         // Iterate through individuals and validate beneficiary IDs
         for (Individual individual : individuals) {
@@ -72,15 +82,27 @@ public class IdPoolValidatorForUpdate implements Validator<IndividualBulkRequest
 
                 if (identifier != null && StringUtils.isNotBlank(identifier.getIdentifierId())) {
                     String beneficiaryId = identifier.getIdentifierId();
-
+                    if(IdPoolValidatorForCreate.isMaskedId(beneficiaryId)) {
+                        if (!isValidMaskedId(beneficiaryId, individualProperties.getBeneficiaryIdLength())) {
+                            updateError(errorDetailsMap, individual, INVALID_BENEFICIARY_ID, "The masked beneficiary id '" + beneficiaryId + "' is invalid.");
+                        }
+                        continue;
+                    }
                     // Check if ID exists in the fetched ID records
                     if (!idRecordMap.containsKey(beneficiaryId)) {
-                        updateError(errorDetailsMap, individual, INVALID_BENEFICIARY_ID, "Invalid beneficiary id");
+                        updateError(errorDetailsMap, individual, INVALID_BENEFICIARY_ID, "The beneficiary id '" + beneficiaryId + "' does not exist");
                     }
                     // Ensure that the ID is associated with the requesting user
                     else if (!userId.equals(idRecordMap.get(beneficiaryId).getLastModifiedBy())) {
-                        updateError(errorDetailsMap, individual, INVALID_USER_ID, "This beneficiary id is dispatched to another user");
+                        updateError(errorDetailsMap, individual, INVALID_USER_ID, "This beneficiary id '" + beneficiaryId + "' is dispatched to another user");
                     }
+                    // Validate that ID was not used by other individuals in the bulk request
+                    else if (usedUniqueBeneficiaryIdSet.contains(beneficiaryId)) {
+                        updateError(errorDetailsMap, individual,
+                                INVALID_BENEFICIARY_ID,
+                                "This beneficiary id '" + beneficiaryId + "' is duplicated for multiple individuals");
+                    }
+                    usedUniqueBeneficiaryIdSet.add(beneficiaryId);
                 }
             }
         }
@@ -115,5 +137,18 @@ public class IdPoolValidatorForUpdate implements Validator<IndividualBulkRequest
 
         // Add error to the individual's error map
         populateErrorDetails(individual, error, errorDetailsMap);
+    }
+
+    public static boolean isValidMaskedId(String beneficiaryId, Integer length) {
+        // Check minimum length first
+        if (beneficiaryId == null || beneficiaryId.length() < 4) {
+            return false;
+        }
+        // get the last 4 digits
+        String last4Digits = beneficiaryId
+                .substring(beneficiaryId.length() - 4);
+        // regex to check if last 4 digits are numbers
+        String regex = "[0-9]+";
+        return isValidPattern(last4Digits, regex) && beneficiaryId.length() == length;
     }
 }

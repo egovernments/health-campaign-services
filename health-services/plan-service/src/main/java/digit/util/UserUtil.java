@@ -1,8 +1,9 @@
 package digit.util;
 
 import digit.config.Configuration;
+import digit.web.models.PlanEmployeeAssignment;
+import digit.web.models.PlanEmployeeAssignmentRequest;
 import lombok.extern.slf4j.Slf4j;
-import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.contract.user.UserDetailResponse;
 import org.egov.common.contract.user.UserSearchRequest;
 import org.springframework.stereotype.Component;
@@ -10,7 +11,7 @@ import org.springframework.web.client.RestTemplate;
 
 import java.util.Collections;
 
-import static digit.config.ServiceConstants.ERROR_WHILE_FETCHING_FROM_USER_SERVICE;
+import static digit.config.ErrorConstants.ERROR_WHILE_FETCHING_FROM_USER_SERVICE;
 
 @Slf4j
 @Component
@@ -55,18 +56,17 @@ public class UserUtil {
     /**
      * This method creates the search request body for user detail search
      *
-     * @param requestInfo Request Info from the request body
-     * @param employeeId  Employee id for the provided plan employee assignment request
-     * @param tenantId    Tenant id from the plan employee assignment request
+     * @param request Plan employee assignment request for creating search request.
      * @return Search request body for user detail search
      */
-    public UserSearchRequest getUserSearchReq(RequestInfo requestInfo, String employeeId, String tenantId) {
+    public UserSearchRequest getUserSearchReq(PlanEmployeeAssignmentRequest request) {
 
+        PlanEmployeeAssignment planEmployeeAssignment = request.getPlanEmployeeAssignment();
         UserSearchRequest userSearchRequest = new UserSearchRequest();
 
-        userSearchRequest.setRequestInfo(requestInfo);
-        userSearchRequest.setTenantId(tenantId);
-        userSearchRequest.setUuid(Collections.singletonList(employeeId));
+        userSearchRequest.setRequestInfo(request.getRequestInfo());
+        userSearchRequest.setTenantId(planEmployeeAssignment.getTenantId());
+        userSearchRequest.setUuid(Collections.singletonList(planEmployeeAssignment.getEmployeeId()));
 
         return userSearchRequest;
     }

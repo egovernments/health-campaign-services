@@ -18,7 +18,8 @@ export const downloadRequestSchema = {
                 "facilityWithBoundary",
                 "userWithBoundary",
                 "boundaryManagement",
-                "boundaryGeometryManagement"
+                "boundaryGeometryManagement",
+                "userCredential"
             ]
         },
         "hierarchyType": {
@@ -40,6 +41,9 @@ export const downloadRequestSchema = {
             "type": "string",
             "maxLength": 128,
             "minLength": 1
+        },
+        "forceUpdate": {
+            "type": "string"
         }
     },
     "required": ["tenantId", "type", "hierarchyType"],

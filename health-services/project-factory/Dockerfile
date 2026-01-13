@@ -1,4 +1,4 @@
-# Use Node.js base image with version 16
+# Use Node.js base image with version 20
 FROM node:20 AS build
 
 # Set working directory
@@ -8,12 +8,15 @@ WORKDIR /app
 ARG BRANCH_NAME
 ARG ACTION_NUMBER
 ARG COMMIT_ID
+ARG WORK_DIR
 
 # Set environment variables based on build arguments
 ENV BRANCH_NAME=$BRANCH_NAME
 ENV ACTION_NUMBER=$ACTION_NUMBER
 ENV COMMIT_ID=$COMMIT_ID
-ENV NODE_OPTIONS="--max-old-space-size=2048"
+
+# Remove heap limit: let Node.js use all available memory
+ENV NODE_OPTIONS="--max-old-space-size=3072"
 
 # Copy package.json and yarn.lock (if exists)
 COPY package.json ./
@@ -30,5 +33,5 @@ COPY . .
 # Expose the port your app runs on
 EXPOSE 3000
 
+# Start the app
 CMD ["yarn", "prod"]
-# Replaced by CMD ["yarn", "prod"]

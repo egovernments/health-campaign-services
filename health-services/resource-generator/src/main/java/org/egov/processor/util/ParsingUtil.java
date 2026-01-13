@@ -26,6 +26,7 @@ import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
+import static org.egov.processor.config.ErrorConstants.*;
 import static org.egov.processor.config.ServiceConstants.*;
 
 @Slf4j
@@ -67,7 +68,7 @@ public class ParsingUtil {
                 continue;
             if (!columnNamesList.contains(attributeName)) {
                 log.error("Attribute mapping is invalid.");
-                log.info("Plan configuration doesn't contain a mapping for attribute -> " + attributeName);
+                log.debug("Plan configuration doesn't contain a mapping for attribute -> " + attributeName);
                 throw new CustomException("Attribute mapping is invalid.", "Plan configuration doesn't contain a mapping for attribute -> " + attributeName);
             }
         }
@@ -156,7 +157,7 @@ public class ParsingUtil {
      * @return The File object representing the byte array.
      */
     public File getFileFromByteArray(PlanConfiguration planConfig, String fileStoreId) {
-        byte[] byteArray = filestoreUtil.getFile(planConfig.getTenantId(), fileStoreId);
+        byte[] byteArray = filestoreUtil.getFileByteArray(planConfig.getTenantId(), fileStoreId);
         return convertByteArrayToFile(byteArray, "geojson");
     }
 
@@ -168,7 +169,7 @@ public class ParsingUtil {
      * @return The String representation of the byte array.
      */
     public String convertByteArrayToString(PlanConfiguration planConfig, String fileStoreId) {
-        byte[] byteArray = filestoreUtil.getFile(planConfig.getTenantId(), fileStoreId);
+        byte[] byteArray = filestoreUtil.getFileByteArray(planConfig.getTenantId(), fileStoreId);
         return new String(byteArray, StandardCharsets.UTF_8);
     }
 
@@ -237,7 +238,7 @@ public class ParsingUtil {
      */
     public File extractShapeFilesFromZip(PlanConfiguration planConfig, String fileStoreId, String fileName) throws IOException {
         File shpFile = null;
-        byte[] zipFileBytes = filestoreUtil.getFile(planConfig.getTenantId(), fileStoreId);
+        byte[] zipFileBytes = filestoreUtil.getFileByteArray(planConfig.getTenantId(), fileStoreId);
 
         try (ByteArrayInputStream bais = new ByteArrayInputStream(zipFileBytes); ZipInputStream zis = new ZipInputStream(bais)) {
             ZipEntry entry;
@@ -392,35 +393,42 @@ public class ParsingUtil {
     }
 
     /**
-     * Extracts provided field from the additional details object
+     * Extracts a specific field from a given JSON object and converts it into the specified return type.
      *
-     * @param additionalDetails the additionalDetails object from PlanConfigurationRequest
-     * @param fieldToExtract    the name of the field to be extracted from the additional details
-     * @return the value of the specified field as a string
-     * @throws CustomException if the field does not exist
+     * @param <T>           The expected return type of the extracted field.
+     * @param additionalDetails The JSON object from which the field is to be extracted.
+     * @param fieldToExtract The key of the field to extract from the JSON object.
+     * @param returnType     The class type of the expected return value.
+     * @return The extracted value cast to the specified return type, or {@code null} if the field is missing or not compatible.
+     * @throws CustomException If the field is not found or if an error occurs during extraction.
      */
-    public Object extractFieldsFromJsonObject(Object additionalDetails, String fieldToExtract) {
+    public <T> T extractFieldsFromJsonObject(Object additionalDetails, String fieldToExtract, Class<T> returnType) {
         try {
             String jsonString = objectMapper.writeValueAsString(additionalDetails);
             JsonNode rootNode = objectMapper.readTree(jsonString);
-
             JsonNode node = rootNode.get(fieldToExtract);
+
             if (node != null && !node.isNull()) {
+                // Handle List<String> case separately
+                if (returnType == List.class && node.isArray()) {
+                    List<String> list = new ArrayList<>();
+                    for (JsonNode idNode : node) {
+                        list.add(idNode.asText());
+                    }
+                    return returnType.cast(list);
+                }
 
                 // Check for different types of JSON nodes
-                if (node.isDouble() || node.isFloat()) {
-                    return BigDecimal.valueOf(node.asDouble()); // Convert Double to BigDecimal
-                } else if (node.isLong() || node.isInt()) {
-                    return BigDecimal.valueOf(node.asLong()); // Convert Long to BigDecimal
-                } else if (node.isBoolean()) {
-                    return node.asBoolean();
-                } else if (node.isTextual()) {
-                    return node.asText();
-                } else if (node.isObject()) {
-                    return objectMapper.convertValue(node, Map.class); // Return the object node as a Map
+                if (returnType == BigDecimal.class && (node.isDouble() || node.isFloat() || node.isLong() || node.isInt())) {
+                    return returnType.cast(BigDecimal.valueOf(node.asDouble()));
+                } else if (returnType == Boolean.class && node.isBoolean()) {
+                    return returnType.cast(node.asBoolean());
+                } else if (returnType == String.class && node.isTextual()) {
+                    return returnType.cast(node.asText());
+                } else if (returnType == Object.class && node.isObject()) {
+                    return returnType.cast(objectMapper.convertValue(node, Map.class));
                 }
             }
-            log.debug("The field to be extracted - " + fieldToExtract + " is not present in additional details.");
             return null;
         } catch (Exception e) {
             log.error(e.getMessage() + fieldToExtract);
@@ -451,5 +459,30 @@ public class ParsingUtil {
         } catch (Exception e) {
             throw new CustomException(ERROR_WHILE_UPDATING_ADDITIONAL_DETAILS_CODE, ERROR_WHILE_UPDATING_ADDITIONAL_DETAILS_MESSAGE + e);
         }
+    }
+
+    /**
+     * Converts the provided workbook to XLS format.
+     *
+     * @param workbook The workbook to convert.
+     * @return The converted XLS file, or null if an error occurred.
+     */
+    public File convertWorkbookToXls(Workbook workbook) {
+        try {
+            // Create a temporary file for the output XLS file
+            File outputFile = File.createTempFile("output", ".xls");
+
+            // Write the XLS file
+            try (FileOutputStream fos = new FileOutputStream(outputFile)) {
+                workbook.write(fos);
+                log.info("XLS file saved successfully.");
+                return outputFile;
+            } catch (IOException e) {
+                log.error(ERROR_SAVING_EXCEL_FILE + LOG_PLACEHOLDER, e.getMessage());
+            }
+        } catch (IOException e) {
+            log.error(ERROR_CONVERTING_TO_EXCEL_FILE + LOG_PLACEHOLDER, e.getMessage());
+        }
+        return null;
     }
 }

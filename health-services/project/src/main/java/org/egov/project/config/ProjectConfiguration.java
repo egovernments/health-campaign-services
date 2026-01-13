@@ -225,4 +225,13 @@ public class ProjectConfiguration {
 
     @Value("${project.attendance.feature.enabled:true}")
     private Boolean isAttendanceFeatureEnabled;
+
+    @Value("${project.create.cache.key}")
+    private String projectCacheKey;
+
+    @Value("${project.cache.ttl.seconds:86400}") // Default 1 day
+    private long projectCacheTtl;
+
+    @Value("${project.kafka.batch.size:100}") // Default 100 projects per batch
+    private int kafkaBatchSize;
 }
