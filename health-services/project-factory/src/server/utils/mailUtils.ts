@@ -149,7 +149,8 @@ export async function sendNotificationEmail(
             footerLink2,
             footerContent,
             regardsTeam,
-            supportEmail: config.values.emailNotificationId
+            supportEmail: config.values.emailNotificationId,
+            egovLogoLink: config.values.egovLogoLink
         });
 
         // const fileUrls = await Promise.all(

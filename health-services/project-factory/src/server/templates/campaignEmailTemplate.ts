@@ -17,8 +17,9 @@ interface EmailTemplateParams {
     footerLink1: string;
     footerLink2: string;
     footerContent: string;
-    regardsTeam:String;
+    regardsTeam: String;
     supportEmail: string;
+    egovLogoLink: string;
 }
 
 export function generateCampaignEmailTemplate(params: EmailTemplateParams): string {
@@ -42,7 +43,8 @@ export function generateCampaignEmailTemplate(params: EmailTemplateParams): stri
         footerLink2,
         footerContent,
         regardsTeam,
-        supportEmail
+        supportEmail,
+        egovLogoLink
     } = params;
 
     return `
@@ -240,7 +242,7 @@ export function generateCampaignEmailTemplate(params: EmailTemplateParams): stri
             <table width="100%" border="0" cellspacing="0" cellpadding="0">
               <tr>
                 <td align="center" style="padding-bottom: 15px;">
-                  <img src="https://egov-qa-assets.s3.ap-south-1.amazonaws.com/hcm/eGov-logo.png" alt="eGov" width="80" style="display: block; border: 0;"/>
+                  <img src="${egovLogoLink}" alt="eGov" width="80" style="display: block; border: 0;"/>
                 </td>
               </tr>
             </table>
