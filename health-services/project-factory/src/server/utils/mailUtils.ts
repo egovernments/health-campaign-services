@@ -17,7 +17,7 @@ export async function sendNotificationEmail(
         const requestInfo = requestBody?.RequestInfo;
         logger.info("Step 1: Starting sendNotificationEmail");
 
-        const locale = requestInfo?.msgId?.split("|")?.[1] || "en-IN";
+        const locale = config?.localisation?.defaultLocale || "en-IN";
         const tenantId = requestInfo?.userInfo?.tenantId;
 
         logger.info(`Step 2: Extracted locale: ${locale}, tenantId: ${tenantId}`);
