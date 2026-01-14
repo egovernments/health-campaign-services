@@ -31,16 +31,16 @@ export async function sendNotificationEmail(
                 schemaCode: "HCM-ADMIN-CONSOLE.emailTemplateV2"
             }
         };
-        let requiredIdentifier = "campaign-create";
+        let requiredIdentifier = config?.values?.IS_BEDNET_CAMPAIGN_TYPE_FALSE;
 
         logger.info("Step 4: Calling MDMS API with criteria: " + JSON.stringify(MdmsCriteria));
         const mdmsResponse = await searchMDMSDataViaV2Api(MdmsCriteria);
         const bednetCampaign = false;
 
         if (bednetCampaign) {
-            requiredIdentifier = "campaign-create-bednet";
+            requiredIdentifier = config?.values?.IS_BEDNET_CAMPAIGN_TYPE_TRUE;
         } else {
-            requiredIdentifier = "campaign-create";
+            requiredIdentifier = config?.values?.IS_BEDNET_CAMPAIGN_TYPE_FALSE;
           }
 
         const emailTemplate = mdmsResponse?.mdms?.find((obj: any) => obj?.uniqueIdentifier === requiredIdentifier);
