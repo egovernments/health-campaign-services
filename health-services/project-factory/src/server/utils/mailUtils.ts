@@ -31,12 +31,19 @@ export async function sendNotificationEmail(
                 schemaCode: "HCM-ADMIN-CONSOLE.emailTemplateV2"
             }
         };
+        let requiredIdentifier = "campaign-create";
 
         logger.info("Step 4: Calling MDMS API with criteria: " + JSON.stringify(MdmsCriteria));
         const mdmsResponse = await searchMDMSDataViaV2Api(MdmsCriteria);
         const bednetCampaign = false;
 
-        const emailTemplate = bednetCampaign ? mdmsResponse?.mdms?.[1] : mdmsResponse?.mdms?.[2];
+        if (bednetCampaign) {
+            requiredIdentifier = "campaign-create-bednet";
+        } else {
+            requiredIdentifier = "campaign-create";
+          }
+
+        const emailTemplate = mdmsResponse?.mdms?.find((obj: any) => obj?.uniqueIdentifier === requiredIdentifier);
 
         if (!emailTemplate) {
             logger.error("Step 5: Email template not found in MDMS response");
