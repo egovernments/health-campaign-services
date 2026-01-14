@@ -6,7 +6,6 @@ on:
       - allValidations
       - master
       - console
-      - email-template-fix
 
 env:
   DOCKER_USERNAME: ${{ vars.DOCKER_USERNAME }}
