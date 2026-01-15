@@ -120,11 +120,13 @@ public class ServiceRequestValidator {
                 if(!(attributeValue.getValue() instanceof String)){
                     throw new CustomException(SERVICE_REQUEST_ATTRIBUTE_INVALID_VALUE_CODE, SERVICE_REQUEST_ATTRIBUTE_INVALID_SINGLE_VALUE_LIST_VALUE_MSG);
                 }
-            }else if(attributeCodeVsDataType.get(attributeValue.getAttributeCode()).equals(AttributeDefinition.DataTypeEnum.MULTIVALUELIST)){
-                if(!(attributeValue.getValue() instanceof List)){
-                    throw new CustomException(SERVICE_REQUEST_ATTRIBUTE_INVALID_VALUE_CODE, SERVICE_REQUEST_ATTRIBUTE_INVALID_MULTI_VALUE_LIST_VALUE_MSG);
-                }
-            }else if(attributeCodeVsDataType.get(attributeValue.getAttributeCode()).equals(AttributeDefinition.DataTypeEnum.BOOLEAN)){
+            }
+//            else if(attributeCodeVsDataType.get(attributeValue.getAttributeCode()).equals(AttributeDefinition.DataTypeEnum.MULTIVALUELIST)){
+//                if(!(attributeValue.getValue() instanceof List)){
+//                    throw new CustomException(SERVICE_REQUEST_ATTRIBUTE_INVALID_VALUE_CODE, SERVICE_REQUEST_ATTRIBUTE_INVALID_MULTI_VALUE_LIST_VALUE_MSG);
+//                }
+//            }
+            else if(attributeCodeVsDataType.get(attributeValue.getAttributeCode()).equals(AttributeDefinition.DataTypeEnum.BOOLEAN)){
                 if(!(attributeValue.getValue() instanceof Boolean)){
                     throw new CustomException(SERVICE_REQUEST_ATTRIBUTE_INVALID_VALUE_CODE, SERVICE_REQUEST_ATTRIBUTE_INVALID_BOOLEAN_VALUE_MSG);
                 }
@@ -141,14 +143,15 @@ public class ServiceRequestValidator {
                     if(!attributeCodeVsValues.get(attributeValue.getAttributeCode()).contains(attributeValue.getValue())){
                         throw new CustomException(SERVICE_REQUEST_ATTRIBUTE_INVALID_VALUE_CODE, SERVICE_REQUEST_ATTRIBUTE_INVALID_VALUE_SINGLEVALUELIST_MSG);
                     }
-                } else if(attributeCodeVsDataType.get(attributeValue.getAttributeCode()).equals(AttributeDefinition.DataTypeEnum.MULTIVALUELIST)){
-                    List<String> providedAttributeValues = (List<String>) attributeValue.getValue();
-                    providedAttributeValues.forEach(providedAttributeValue -> {
-                        if(!attributeCodeVsValues.get(attributeValue.getAttributeCode()).contains(providedAttributeValue)){
-                            throw new CustomException(SERVICE_REQUEST_ATTRIBUTE_INVALID_VALUE_CODE, SERVICE_REQUEST_ATTRIBUTE_INVALID_VALUE_MULTIVALUELIST_MSG);
-                        }
-                    });
                 }
+//                else if(attributeCodeVsDataType.get(attributeValue.getAttributeCode()).equals(AttributeDefinition.DataTypeEnum.MULTIVALUELIST)){
+//                    List<String> providedAttributeValues = (List<String>) attributeValue.getValue();
+//                    providedAttributeValues.forEach(providedAttributeValue -> {
+//                        if(!attributeCodeVsValues.get(attributeValue.getAttributeCode()).contains(providedAttributeValue)){
+//                            throw new CustomException(SERVICE_REQUEST_ATTRIBUTE_INVALID_VALUE_CODE, SERVICE_REQUEST_ATTRIBUTE_INVALID_VALUE_MULTIVALUELIST_MSG);
+//                        }
+//                    });
+//                }
             }
         });
 
