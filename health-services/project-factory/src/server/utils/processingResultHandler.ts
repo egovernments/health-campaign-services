@@ -415,11 +415,14 @@ function mapTargetsToEnrichedBoundaries(enrichedBoundaries: any[], sheetTargetDa
     const datas: any[] = [];
     sheetTargetData.forEach(({ boundaryCode, data }) => {
         const targetData: any = { [BOUNDARY_CODE_COLUMN]: boundaryCode };
-        
+
         targetColumns.forEach(col => {
-            targetData[col] = data[col] || 0;
+            // Only add column if it has a value (not empty, undefined, or null)
+            if (data[col] !== undefined && data[col] !== null && data[col] !== '') {
+                targetData[col] = data[col];
+            }
         });
-        
+
         datas.push(targetData);
     });
     
