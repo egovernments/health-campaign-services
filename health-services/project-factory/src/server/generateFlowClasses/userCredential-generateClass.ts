@@ -39,11 +39,11 @@ export class TemplateClass {
             const boundaryCode = localizedData["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"] ;
             // Add localized boundary code
             if (boundaryCode && !localizedData["HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY"]){
-                localizedData["HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY"] = getLocalizedName(boundaryCode, localizationMap);
+                localizedData["HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY"] = localizedData["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"];
             }
-            // Add boundary code
+            // Add boundary Name
             if (!localizedData["HCM_ADMIN_CONSOLE_BOUNDARY_NAME"]) {
-                localizedData["HCM_ADMIN_CONSOLE_BOUNDARY_NAME"] = localizedData["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"];
+                localizedData["HCM_ADMIN_CONSOLE_BOUNDARY_NAME"] = getLocalizedName(boundaryCode, localizationMap);
             }
             return localizedData;
         }));
@@ -53,7 +53,8 @@ export class TemplateClass {
             ["HCM_ADMIN_CONSOLE_USER_LIST"]: {
                 data: userData,
                 dynamicColumns: {
-                    ["Password"]: { hideColumn: false }
+                    ["Password"]: { hideColumn: false },
+                    ["HCM_ADMIN_CONSOLE_BOUNDARY_NAME"]: { hideColumn: false }
                 }
             }
         };
