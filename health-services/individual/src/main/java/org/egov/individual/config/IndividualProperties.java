@@ -96,4 +96,20 @@ public class IndividualProperties {
     @Value("${individual.beneficiary.id.length}")
     private Integer beneficiaryIdLength;
 
+    @Value("${register.individual.role}")
+    private String role;
+
+    // User OTP Configuration
+    @Value("${egov.user.otp.host}")
+    private String userOtpHost;
+
+    @Value("${egov.user.otp.send.endpoint}")
+    private String userOtpSendEndpoint;
+
+    @Value("${egov.otp.host}")
+    private String egovOtpServiceHost;
+
+    @Value("${egov.services.otp.validate_otp}")
+    private String otpValidateEndpoint;
+
 }
