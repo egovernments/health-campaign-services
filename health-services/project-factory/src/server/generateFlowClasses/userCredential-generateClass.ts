@@ -41,9 +41,10 @@ export class TemplateClass {
             if (boundaryCode && !localizedData["HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY"]){
                 localizedData["HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY"] = localizedData["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"];
             }
+            const boundaryMandatoryCode = localizedData["HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY"] ;
             // Add boundary Name
             if (!localizedData["HCM_ADMIN_CONSOLE_BOUNDARY_NAME"]) {
-                localizedData["HCM_ADMIN_CONSOLE_BOUNDARY_NAME"] = getLocalizedName(boundaryCode, localizationMap);
+                localizedData["HCM_ADMIN_CONSOLE_BOUNDARY_NAME"] = getLocalizedName(boundaryMandatoryCode, localizationMap);
             }
             return localizedData;
         }));
