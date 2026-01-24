@@ -19,6 +19,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 
+import java.util.Collections;
+
 @Slf4j
 @Controller
 @RequestMapping("/beneficiary-downsync")
@@ -42,7 +44,10 @@ public class BeneficiaryDownsyncController {
     	Downsync.builder().
     	downsyncCriteria(request.getDownsyncCriteria())
     	.build();
-    	Downsync downsync = downsyncService.prepareDownsyncData(request);
+    	Downsync downsync = new Downsync();
+		downsync.setDownsyncCriteria(request.getDownsyncCriteria());
+		downsync.setHouseholds(Collections.emptyList());
+		downsync.getDownsyncCriteria().setTotalCount(0L);
         DownsyncResponse response = DownsyncResponse.builder()
                 .downsync(downsync)
                 .responseInfo(ResponseInfoFactory
