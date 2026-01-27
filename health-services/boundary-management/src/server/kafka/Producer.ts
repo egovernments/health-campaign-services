@@ -6,53 +6,68 @@ import config from '../config';
 let kafka: Kafka;
 let producer: ReturnType<Kafka['producer']>;
 let isProducerReady = false;
+let initializationPromise: Promise<void> | null = null;
 
 const createKafkaClientAndProducer = async () => {
-    kafka = new Kafka({
-        retry: {
-            retries: 5,
-            initialRetryTime: 300,
-            maxRetryTime: 30000
-        },
-        clientId: 'boundary-management-producer',
-        brokers: config?.host?.KAFKA_BROKER_HOST?.split(',').map(b => b.trim()),
-        logLevel: logLevel.INFO,
-        logCreator: (level) => (log: LogEntry) => {
-            if (log.namespace === 'kafka.network' && log.log.message && log.log.message.includes('retry')) {
-                logger.info(`[KafkaJS Retry] ${log.log.message}`);
-            }
-            // Optionally, log all KafkaJS logs at INFO or higher
-            if (level >= logLevel.INFO && log.log.message) {
-                logger.info(`[KafkaJS] ${log.log.message}`);
-            }
-        }
-    });
-    producer = kafka.producer();
-    try {
-        await producer.connect();
-        isProducerReady = true;
-        logger.info('Producer is ready');
-        await checkBrokerAvailability();
-    } catch (err) {
-        logger.error('Producer connection error:', err);
-        shutdownGracefully();
+    // Single-flight pattern: if initialization is already in progress, wait for it
+    if (initializationPromise) {
+        return initializationPromise;
     }
-    // Listen for disconnects/errors
-    producer.on('producer.disconnect', () => {
-        logger.error('Producer disconnected');
-        isProducerReady = false;
-        shutdownGracefully();
-    });
-    producer.on('producer.network.request_timeout', (err: any) => {
-        logger.error('Producer network request timeout:', err);
-        shutdownGracefully();
-    });
+
+    initializationPromise = (async () => {
+        kafka = new Kafka({
+            retry: {
+                retries: 5,
+                initialRetryTime: 300,
+                maxRetryTime: 30000
+            },
+            clientId: 'boundary-management-producer',
+            brokers: config?.host?.KAFKA_BROKER_HOST?.split(',').map(b => b.trim()),
+            logLevel: logLevel.INFO,
+            logCreator: (level) => (log: LogEntry) => {
+                if (log.namespace === 'kafka.network' && log.log.message && log.log.message.includes('retry')) {
+                    logger.info(`[KafkaJS Retry] ${log.log.message}`);
+                }
+                // Optionally, log all KafkaJS logs at INFO or higher
+                if (level >= logLevel.INFO && log.log.message) {
+                    logger.info(`[KafkaJS] ${log.log.message}`);
+                }
+            }
+        });
+        producer = kafka.producer();
+        try {
+            await producer.connect();
+            isProducerReady = true;
+            logger.info('Producer is ready');
+            await checkBrokerAvailability();
+        } catch (err) {
+            logger.error('Producer connection error:', err);
+            shutdownGracefully();
+        }
+        // Listen for disconnects/errors
+        producer.on('producer.disconnect', () => {
+            logger.error('Producer disconnected');
+            isProducerReady = false;
+            shutdownGracefully();
+        });
+        producer.on('producer.network.request_timeout', (err: any) => {
+            logger.error('Producer network request timeout:', err);
+            shutdownGracefully();
+        });
+    })();
+
+    try {
+        await initializationPromise;
+    } finally {
+        // Clear the promise after initialization completes (success or failure)
+        initializationPromise = null;
+    }
 };
 
 // Function to check broker availability by listing all brokers
 const checkBrokerAvailability = async () => {
+    const admin = kafka.admin();
     try {
-        const admin = kafka.admin();
         await admin.connect();
         const brokerMetadata = await admin.describeCluster();
         const brokers = brokerMetadata.brokers || [];
@@ -60,15 +75,20 @@ const checkBrokerAvailability = async () => {
         logger.info('Broker count:' + String(brokerCount));
         if (brokerCount <= 0) {
             logger.error('No brokers found. Shutting down the service.');
-            await admin.disconnect();
             shutdownGracefully();
         } else {
             logger.info('Brokers are available:', brokers);
-            await admin.disconnect();
         }
     } catch (err) {
         logger.error('Error checking broker availability:', err);
         shutdownGracefully();
+    } finally {
+        // Always disconnect admin client to prevent connection leaks
+        try {
+            await admin.disconnect();
+        } catch (disconnectErr) {
+            logger.error('Error disconnecting admin client:', disconnectErr);
+        }
     }
 };
 
