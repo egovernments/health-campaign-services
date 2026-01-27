@@ -95,8 +95,18 @@ const checkBrokerAvailability = async () => {
 // Initialize producer on module load
 createKafkaClientAndProducer();
 
+/**
+ * Sends Kafka messages with automatic reconnection handling.
+ * @param payloads - Array of message payloads. For API compatibility, accepts an array
+ *                   but currently only processes the first element (payloads[0]).
+ *                   All production callers pass single-element arrays.
+ */
 const sendWithReconnect = async (payloads: any[]): Promise<void> => {
-    // payloads: [{ topic, messages, key }]
+    // Runtime guard: warn if multiple payloads are passed
+    if (payloads.length > 1) {
+        logger.warn(`sendWithReconnect received ${payloads.length} payloads but only the first will be processed. This may indicate unintended usage.`);
+    }
+
     if (!isProducerReady) {
         logger.error('Producer is not ready. Attempting to reconnect...');
         await createKafkaClientAndProducer();
