@@ -1,9 +1,8 @@
 # Excel Ingestion Service
 
-### Excel Ingestion Service
 Excel Ingestion Service is a comprehensive Health Campaign Service that facilitates Excel template generation, processing, and sheet data management. The service supports full workflow including Excel template creation, file processing with validation, and temporary sheet data management. All functionality is exposed via REST APIs with async processing support.
 
-### Service Architecture Diagrams
+## Service Architecture Diagrams
 
 ## 1. Excel Generation Flow (Async)
 
