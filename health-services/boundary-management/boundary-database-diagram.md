@@ -1,3 +1,6 @@
+# Boundary Management Service Database Schema
+
+```dbml
 // Boundary Management Service Database Schema
 // Compatible with dbdiagram.io
 
@@ -14,7 +17,7 @@ Table eg_bm_generated_template {
   lastmodifiedtime bigint [note: 'Last modification timestamp']
   additionaldetails jsonb [note: 'Additional metadata in JSON format']
   referenceid varchar(128) [note: 'Reference ID for tracking']
-  
+
   note: 'Stores generated boundary template information for download API'
 }
 
@@ -32,7 +35,7 @@ Table eg_bm_processed_template {
   lastmodifiedtime bigint [note: 'Last modification timestamp']
   additionaldetails jsonb [note: 'Additional metadata including error details']
   referenceid varchar(128) [note: 'Reference ID for tracking']
-  
+
   note: 'Stores processed boundary data information for process API'
 }
 
@@ -47,3 +50,6 @@ Recommended indexes:
 - CREATE INDEX idx_eg_bm_processed_template_status ON eg_bm_processed_template(status);
 - CREATE INDEX idx_eg_bm_processed_template_referenceid ON eg_bm_processed_template(referenceid);
 '''
+```
+
+Run above dbml code in https://dbdiagram.io/ to get db diagram.
