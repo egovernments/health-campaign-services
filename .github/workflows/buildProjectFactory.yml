@@ -5,8 +5,6 @@ on:
     branches:
       - allValidations
       - master
-      - console
-      - excel-validation-fix
 
 env:
   DOCKER_USERNAME: ${{ vars.DOCKER_USERNAME }}
