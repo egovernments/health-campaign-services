@@ -41,4 +41,7 @@ public class FacilityConfiguration {
 
     @Value("${egov.boundary.search.url}")
     private String boundarySearchUrl;
+
+    @Value("${facility.search.limit}")
+    private Integer searchLimit;
 }

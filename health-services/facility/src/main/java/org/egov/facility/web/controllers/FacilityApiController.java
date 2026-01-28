@@ -114,7 +114,7 @@ public class FacilityApiController {
     ) throws Exception {
         SearchResponse<Facility> searchResponse = facilityService.search(
                 request,
-                urlParams.getLimit(),
+                facilityConfiguration.getSearchLimit(),
                 urlParams.getOffset(),
                 urlParams.getTenantId(),
                 urlParams.getLastChangedSince(),
