@@ -26,6 +26,7 @@ import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class GenericRepositorySaveTest {
@@ -64,11 +65,12 @@ class GenericRepositorySaveTest {
     @Test
     @DisplayName("should save and return saved objects back")
     void shouldSaveAndReturnSavedObjectsBack() {
+        someObjects.forEach(someObject -> someObject.setTenantId("default"));
         List<SomeObject> result = someRepository
                 .save(someObjects, TOPIC);
 
         assertEquals(result, someObjects);
-        verify(producer, times(1)).push(any(String.class), any(Object.class));
+        verify(producer, times(1)).push(any(String.class), any(String.class), any(Object.class));
     }
 
     @Test

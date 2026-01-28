@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static com.tarento.analytics.constant.Constants.PostAggregationTheories.RESPONSE_DIFF_DATES;
+import static com.tarento.analytics.handler.IResponseHandler.IS_CAPPED_BY_CAMPAIGN_PERIOD;
 
 @Component
 public class NoOpsComputedField implements IComputedField<ObjectNode>{
@@ -37,6 +38,7 @@ public class NoOpsComputedField implements IComputedField<ObjectNode>{
     public void add(ObjectNode data, List<String> fields, String newField, JsonNode chartNode ) {
         ObjectNode noOpsNode = JsonNodeFactory.instance.objectNode();
         List<Data> dataList = new ArrayList<>();
+        List<Data> capDataList = new ArrayList<>();
         try {
             List<JsonNode> values = data.findValues(fields.get(0));
             if (postAggrTheoryName.equalsIgnoreCase(RESPONSE_DIFF_DATES)) {
@@ -45,8 +47,14 @@ public class NoOpsComputedField implements IComputedField<ObjectNode>{
                     Data dataNode = new Data(fields.get(0), val.doubleValue(), chartNode.get(IResponseHandler.VALUE_TYPE).asText());
                     dataList.add(dataNode);
                 }
+
+                if (chartNode.has(IS_CAPPED_BY_CAMPAIGN_PERIOD) && data.has((chartNode.get(IS_CAPPED_BY_CAMPAIGN_PERIOD).get(0).asText()))) {
+                    Long capValue = data.findValues(chartNode.get(IS_CAPPED_BY_CAMPAIGN_PERIOD).get(0).asText()).get(0).get(IResponseHandler.VALUE).asLong();
+                    Data dataNode = new Data(fields.get(0), capValue.doubleValue(), chartNode.get(IResponseHandler.VALUE_TYPE).asText());
+                    capDataList.add(dataNode);
+                }
                 ComputeHelper computeHelper = computeHelperFactory.getInstance(RESPONSE_DIFF_DATES);
-                List<Data> computedData = computeHelper.compute(aggregateRequestDto, dataList);
+                List<Data> computedData = computeHelper.compute(aggregateRequestDto, dataList, capDataList);
                 noOpsNode.put(IResponseHandler.VALUE, ((Double) computedData.get(0).getHeaderValue()).longValue());
                 data.set(newField, noOpsNode);
             }

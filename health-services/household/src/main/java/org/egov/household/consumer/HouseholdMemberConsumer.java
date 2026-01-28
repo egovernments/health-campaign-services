@@ -2,6 +2,7 @@ package org.egov.household.consumer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.models.household.HouseholdMember;
 import org.egov.common.models.household.HouseholdMemberBulkRequest;
 import org.egov.household.service.HouseholdMemberService;
@@ -38,7 +39,7 @@ public class HouseholdMemberConsumer {
             HouseholdMemberBulkRequest request = objectMapper.convertValue(consumerRecord, HouseholdMemberBulkRequest.class);
             return householdMemberService.create(request, true);
         } catch (Exception exception) {
-            log.error("error in household member consumer bulk create", exception);
+            log.error("error in household member consumer bulk create: {}", ExceptionUtils.getStackTrace(exception));
             return Collections.emptyList();
         }
     }
@@ -50,7 +51,7 @@ public class HouseholdMemberConsumer {
             HouseholdMemberBulkRequest request = objectMapper.convertValue(consumerRecord, HouseholdMemberBulkRequest.class);
             return householdMemberService.update(request, true);
         } catch (Exception exception) {
-            log.error("error in household member consumer bulk update", exception);
+            log.error("error in household member consumer bulk update: {}", ExceptionUtils.getStackTrace(exception));
             return Collections.emptyList();
         }
     }
@@ -62,7 +63,7 @@ public class HouseholdMemberConsumer {
             HouseholdMemberBulkRequest request = objectMapper.convertValue(consumerRecord, HouseholdMemberBulkRequest.class);
             return householdMemberService.delete(request, true);
         } catch (Exception exception) {
-            log.error("error in household member consumer bulk delete", exception);
+            log.error("error in household member consumer bulk delete: {}", ExceptionUtils.getStackTrace(exception));
             return Collections.emptyList();
         }
     }

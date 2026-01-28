@@ -1,18 +1,21 @@
 package org.egov.individual.repository.rowmapper;
 
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.List;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import digit.models.coremodels.AuditDetails;
-import org.egov.common.models.individual.AdditionalFields;
+import org.egov.common.contract.models.AuditDetails;
+import org.egov.common.contract.user.enums.UserType;
+import org.egov.common.models.core.AdditionalFields;
 import org.egov.common.models.individual.BloodGroup;
 import org.egov.common.models.individual.Gender;
 import org.egov.common.models.individual.Individual;
 import org.egov.common.models.individual.Name;
+import org.egov.common.models.individual.UserDetails;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Component;
-
-import java.sql.ResultSet;
-import java.sql.SQLException;
 
 @Component
 public class IndividualRowMapper implements RowMapper<Individual> {
@@ -22,11 +25,24 @@ public class IndividualRowMapper implements RowMapper<Individual> {
     @Override
     public Individual mapRow(ResultSet resultSet, int i) throws SQLException {
         try {
+            String tenantId = resultSet.getString("tenantId");
+            AuditDetails auditDetails = AuditDetails.builder()
+                    .createdBy(resultSet.getString("createdBy"))
+                    .lastModifiedBy(resultSet.getString("lastModifiedBy"))
+                    .createdTime(resultSet.getLong("createdTime"))
+                    .lastModifiedTime(resultSet.getLong("lastModifiedTime"))
+                    .build();
+            AuditDetails clientAuditDetails = AuditDetails.builder()
+                    .createdTime(resultSet.getLong("clientCreatedTime"))
+                    .createdBy(resultSet.getString("clientCreatedBy"))
+                    .lastModifiedTime(resultSet.getLong("clientLastModifiedTime"))
+                    .lastModifiedBy(resultSet.getString("clientLastModifiedBy"))
+                    .build();
             return Individual.builder().id(resultSet.getString("id"))
                     .individualId(resultSet.getString("individualid"))
                     .userId(resultSet.getString("userId"))
                     .clientReferenceId(resultSet.getString("clientReferenceId"))
-                    .tenantId(resultSet.getString("tenantId"))
+                    .tenantId(tenantId)
                     .name(Name.builder().givenName(resultSet.getString("givenName"))
                             .familyName(resultSet.getString("familyName"))
                             .otherNames(resultSet.getString("otherNames")).build())
@@ -43,16 +59,23 @@ public class IndividualRowMapper implements RowMapper<Individual> {
                     .photo(resultSet.getString("photo"))
                     .additionalFields(resultSet.getString("additionalDetails") == null ? null :
                             objectMapper.readValue(resultSet.getString("additionalDetails"),
-                                    AdditionalFields.class))
-                            .auditDetails(AuditDetails.builder()
-                                    .createdBy(resultSet.getString("createdBy"))
-                                    .lastModifiedBy(resultSet.getString("lastModifiedBy"))
-                                    .createdTime(resultSet.getLong("createdTime"))
-                                    .lastModifiedTime(resultSet.getLong("lastModifiedTime"))
-                                    .build())
+                                    AdditionalFields.class)
+                    )
+                    .auditDetails(auditDetails)
                     .rowVersion(resultSet.getInt("rowVersion"))
                     .isDeleted(resultSet.getBoolean("isDeleted"))
                     .isSystemUser(resultSet.getBoolean("isSystemUser"))
+                    .isSystemUserActive(resultSet.getBoolean("isSystemUserActive"))
+                    .userDetails(UserDetails.builder()
+                            .username(resultSet.getString("username"))
+                            .userType(UserType.fromValue(resultSet.getString("type")))
+                            .roles(resultSet.getString("roles") == null ? null :
+                                    objectMapper.readValue(resultSet.getString("roles"),
+                                            List.class))
+                            .tenantId(tenantId)
+                            .build())
+                    .userUuid(resultSet.getString("userUuid"))
+                    .clientAuditDetails(clientAuditDetails)
                     .build();
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);

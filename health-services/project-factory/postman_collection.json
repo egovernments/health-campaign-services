@@ -1,0 +1,1088 @@
+{
+	"info": {
+		"_postman_id": "42be4494-a788-4977-b8f2-e14894cce42b",
+		"name": "Project-Factory Collection",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "28207698"
+	},
+	"item": [
+		{
+			"name": "campain-manage-create Copy",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "authority",
+						"value": "unified-dev.digit.org"
+					},
+					{
+						"key": "accept",
+						"value": "application/json, text/plain, */*"
+					},
+					{
+						"key": "accept-language",
+						"value": "en-GB,en-US;q=0.9,en;q=0.8"
+					},
+					{
+						"key": "content-type",
+						"value": "application/json"
+					},
+					{
+						"key": "cookie",
+						"value": "_ga_XBQP06FR8V=GS1.1.1691570094.3.1.1691570094.60.0.0; _ga=GA1.1.2124364284.1689669598; _ga_P1TZCPKF6S=GS1.1.1691648339.2.0.1691648339.60.0.0; __cuid=fe28d9c8c84c4d2487b9cb6c9e4cdec1; amp_fef1e8=f4a3f3ed-50f2-409b-be4f-a1ce1dbb59f2R...1hgs4r9gr.1hgs4robc.nu.1r.pp; _ga_H9YC8FEN6F=GS1.1.1701751656.77.1.1701751677.39.0.0"
+					},
+					{
+						"key": "origin",
+						"value": "https://unified-dev.digit.org"
+					},
+					{
+						"key": "referer",
+						"value": "https://unified-dev.digit.org/works-ui/employee/measurement/update?tenantId=pg.citya&workOrderNumber=WO/2023-24/000894&mbNumber=MB/2023-24/001252"
+					},
+					{
+						"key": "sec-ch-ua",
+						"value": "\"Chromium\";v=\"116\", \"Not)A;Brand\";v=\"24\", \"Google Chrome\";v=\"116\""
+					},
+					{
+						"key": "sec-ch-ua-mobile",
+						"value": "?0"
+					},
+					{
+						"key": "sec-ch-ua-platform",
+						"value": "\"Linux\""
+					},
+					{
+						"key": "sec-fetch-dest",
+						"value": "empty"
+					},
+					{
+						"key": "sec-fetch-mode",
+						"value": "cors"
+					},
+					{
+						"key": "sec-fetch-site",
+						"value": "same-origin"
+					},
+					{
+						"key": "user-agent",
+						"value": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    //  43cfaf3f-f31f-492f-afeb-cebe4f4301e8\n    // d71a1963-27a8-4300-a1c4-2ec99e95331b   multiplesheet\n    // 6c091ddb-523e-4afd-8a81-afe94196d080 without matching sheetName\n    // for unifieddev\n    // 1d27af7d-3736-408d-b9bc-796c92fd5f4b multiplesheet\n    \"Campaign\": {\n        // \"id\": \"string\",\n        // \"campaignNo\": \"string\",\n        \"hierarchyType\": \"string\",\n        \"tenantId\": \"mz\",\n        \"campaignName\": \"string\",\n        \"boundaryCode\": \"mz\",\n        \"startDate\": 1677594987,\n        // \"endDate\": 9776881655,\n        \"endDate\": 1677594987,\n        \"projectType\": \"Household Based Project\",\n        \"CampaignDetails\": [\n            {\n                \"boundaryCode\": \"f5F6xAskA05\",\n                \"boundaryType\": \"Provincia\",\n                \"startDate\": 1665497225000,\n                \"endDate\": 1666497225000,\n                \"targets\": [\n                    {\n                        \"total\": 300,\n                        \"target\": 250,\n                        \"type\": \"household|individual\"\n                    }\n                ],\n                \"description\": \"test\",\n                \"department\": \"test\",\n                \"referenceID\": \" 3fa85f64-5717-4562-b3fc-2c963f66afa6\",\n                \"projectSubType\": \"test\",\n                \"parentBoundaryCode\": \"mz\",\n                // \"projectId\": \"string\",\n                \"resources\": [\n                    {\n                        \"resourceIds\": [\n                            \"867ba408-1b82-4746-8274-eb916e625fea\"\n                        ],\n                        \"count\": 0,\n                        \"active\": true,\n                        \"type\": \"staff\"\n                    }\n                ]\n            },\n            {\n                \"boundaryCode\": \"f5F6xAskA05\",\n                \"boundaryType\": \"Provincia\",\n                \"startDate\": 1665497225000,\n                \"endDate\": 1666497225000,\n                \"targets\": [\n                    {\n                        \"total\": 700,\n                        \"target\": 600,\n                        \"type\": \"household|individual\"\n                    }\n                ],\n                \"description\": \"test\",\n                \"department\": \"test\",\n                \"referenceID\": \" 3fa85f64-5717-4562-b3fc-2c963f66afa6\",\n                \"projectSubType\": \"test\",\n                \"parentBoundaryCode\": \"mz\",\n                // \"projectId\": \"string\",\n                \"resources\": [\n                    {\n                        \"resourceIds\": [\n                            \"867ba408-1b82-4746-8274-eb916e625fea\"\n                        ],\n                        \"count\": 0,\n                        \"active\": true,\n                        \"type\": \"staff\"\n                    }\n                ]\n            },\n            {\n                \"boundaryCode\": \"mz\",\n                \"boundaryType\": \"Country\",\n                \"startDate\": 1665497225000,\n                \"endDate\": 1666497225000,\n                \"targets\": [\n                    {\n                        \"total\": 1000,\n                        \"target\": 800,\n                        \"type\": \"household|individual\"\n                    }\n                ],\n                \"description\": \"test\",\n                \"department\": \"test\",\n                \"referenceID\": \" 3fa85f64-5717-4562-b3fc-2c963f66afa6\",\n                \"projectSubType\": \"test\",\n                \"parentBoundaryCode\": null,\n                // \"projectId\": \"string\",\n                \"resources\": [\n                    {\n                        \"resourceIds\": [\n                            \"F-2024-03-21-000882\"\n                        ],\n                        \"count\": 0,\n                        \"active\": true,\n                        \"type\": \"facility\"\n                    }\n                ]\n            },\n            {\n                \"boundaryCode\": \"mz\",\n                \"boundaryType\": \"Country\",\n                \"startDate\": 1665497225000,\n                \"endDate\": 1666497225000,\n                \"targets\": [\n                    {\n                        \"total\": 450,\n                        \"target\": 350,\n                        \"type\": \"household|individual\"\n                    }\n                ],\n                \"description\": \"test\",\n                \"department\": \"test\",\n                \"referenceID\": \" 3fa85f64-5717-4562-b3fc-2c963f66afa6\",\n                \"projectSubType\": \"test\",\n                \"parentBoundaryCode\": null,\n                // \"projectId\": \"string\",\n                \"resources\": [\n                    {\n                        \"resourceIds\": [\n                            // \"e82c3f49-da7c-459c-86a5-a56ac2d4f5b1\"\n                            \"PVAR-2024-03-21-000052\"\n                        ],\n                        \"count\": 0,\n                        \"active\": true,\n                        \"type\": \"resource\"\n                        // \"type\": \"staff|resource|facility\"\n                    }\n                ]\n            }\n            // Add more entries as needed...\n        ],\n        \"deliveryRules\": [\n            {\n                \"startDate\": \"string\",\n                \"endDate\": \"string\",\n                \"cycle\": \"string\"\n            }\n        ],\n        \"additionalDetails\": {}\n    },\n    \"RequestInfo\": {\n    \"apiId\": \"Rainmaker\",\n    \"authToken\": \"e45445a1-6891-4a76-a4e6-528e1dd24946\",\n    \"userInfo\": {\n        \"id\": 1284,\n        \"uuid\": \"867ba408-1b82-4746-8274-eb916e625fea\",\n        \"userName\": \"EMP57\",\n        \"name\": \"Jagan\",\n        \"mobileNumber\": \"6667776662\",\n        \"emailId\": \"xyz@egovernments.org\",\n        \"locale\": \"string\",\n        \"type\": \"EMPLOYEE\",\n        \"roles\": [\n            {\n                \"name\": \"System Administrator\",\n                \"code\": \"SYSTEM_ADMINISTRATOR\",\n                \"tenantId\": \"mz\"\n            },\n            {\n                \"name\": \"Campaign Manager\",\n                \"code\": \"CAMPAIGN_MANAGER\",\n                \"tenantId\": \"mz\"\n            },\n            {\n                \"name\": \"Localisation admin\",\n                \"code\": \"LOC_ADMIN\",\n                \"tenantId\": \"mz\"\n            },\n            {\n                \"name\": \"MDMS Admin\",\n                \"code\": \"MDMS_ADMIN\",\n                \"tenantId\": \"mz\"\n            }\n        ],\n        \"active\": true,\n        \"tenantId\": \"mz\",\n        \"permanentCity\": \"Amritsar\"\n    },\n    \"msgId\": \"1710912592752|en_MZ\",\n    \"plainAccessRequest\": {}\n}\n}"
+				},
+				"url": {
+					"raw": "http://localhost:8080/project-factory/v1/project-type/createCampaign",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"project-factory",
+						"v1",
+						"project-type",
+						"createCampaign"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "mdms bulk search Copy",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "authority",
+						"value": "unified-dev.digit.org"
+					},
+					{
+						"key": "accept",
+						"value": "application/json, text/plain, */*"
+					},
+					{
+						"key": "accept-language",
+						"value": "en-GB,en-US;q=0.9,en;q=0.8"
+					},
+					{
+						"key": "content-type",
+						"value": "application/json"
+					},
+					{
+						"key": "cookie",
+						"value": "_ga_XBQP06FR8V=GS1.1.1691570094.3.1.1691570094.60.0.0; _ga=GA1.1.2124364284.1689669598; _ga_P1TZCPKF6S=GS1.1.1691648339.2.0.1691648339.60.0.0; __cuid=fe28d9c8c84c4d2487b9cb6c9e4cdec1; amp_fef1e8=f4a3f3ed-50f2-409b-be4f-a1ce1dbb59f2R...1hgs4r9gr.1hgs4robc.nu.1r.pp; _ga_H9YC8FEN6F=GS1.1.1701751656.77.1.1701751677.39.0.0"
+					},
+					{
+						"key": "origin",
+						"value": "https://unified-dev.digit.org"
+					},
+					{
+						"key": "referer",
+						"value": "https://unified-dev.digit.org/works-ui/employee/measurement/update?tenantId=pg.citya&workOrderNumber=WO/2023-24/000894&mbNumber=MB/2023-24/001252"
+					},
+					{
+						"key": "sec-ch-ua",
+						"value": "\"Chromium\";v=\"116\", \"Not)A;Brand\";v=\"24\", \"Google Chrome\";v=\"116\""
+					},
+					{
+						"key": "sec-ch-ua-mobile",
+						"value": "?0"
+					},
+					{
+						"key": "sec-ch-ua-platform",
+						"value": "\"Linux\""
+					},
+					{
+						"key": "sec-fetch-dest",
+						"value": "empty"
+					},
+					{
+						"key": "sec-fetch-mode",
+						"value": "cors"
+					},
+					{
+						"key": "sec-fetch-site",
+						"value": "same-origin"
+					},
+					{
+						"key": "user-agent",
+						"value": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"RequestInfo\": {\n        \"apiId\": \"Rainmaker\",\n        \"authToken\": \"{{Auth}}\",\n        \"userInfo\": {\n            \"id\": 1284,\n            \"uuid\": \"867ba408-1b82-4746-8274-eb916e625fea\",\n            \"userName\": \"EMP57\",\n            \"name\": \"Jagan\",\n            \"mobileNumber\": \"6667776662\",\n            \"emailId\": \"xyz@egovernments.org\",\n            \"locale\": \"string\",\n            \"type\": \"EMPLOYEE\",\n            \"roles\": [\n                {\n                    \"name\": \"System Administrator\",\n                    \"code\": \"SYSTEM_ADMINISTRATOR\",\n                    \"tenantId\": \"mz\"\n                },\n                {\n                    \"name\": \"Campaign Manager\",\n                    \"code\": \"CAMPAIGN_MANAGER\",\n                    \"tenantId\": \"mz\"\n                },\n                {\n                    \"name\": \"Localisation admin\",\n                    \"code\": \"LOC_ADMIN\",\n                    \"tenantId\": \"mz\"\n                },\n                {\n                    \"name\": \"MDMS Admin\",\n                    \"code\": \"MDMS_ADMIN\",\n                    \"tenantId\": \"mz\"\n                }\n            ],\n            \"active\": true,\n            \"tenantId\": \"mz\",\n            \"permanentCity\": \"Amritsar\"\n        },\n        \"msgId\": \"1710912592752|en_MZ\",\n        \"plainAccessRequest\": {}\n    }\n}"
+				},
+				"url": {
+					"raw": "http://localhost:8080/mdms-bff/v1/mdmsbulk/search?tenantId=mz&schemaName=Dummy.dummy",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"mdms-bff",
+						"v1",
+						"mdmsbulk",
+						"search"
+					],
+					"query": [
+						{
+							"key": "tenantId",
+							"value": "mz"
+						},
+						{
+							"key": "schemaName",
+							"value": "Dummy.dummy"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "campaign-generate Copy",
+			"protocolProfileBehavior": {
+				"disabledSystemHeaders": {
+					"content-type": true
+				}
+			},
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "authority",
+						"value": "unified-uat.digit.org"
+					},
+					{
+						"key": "accept",
+						"value": "application/json, text/plain, */*"
+					},
+					{
+						"key": "accept-language",
+						"value": "en-GB,en-US;q=0.9,en;q=0.8"
+					},
+					{
+						"key": "content-type",
+						"value": "application/json;charset=UTF-8"
+					},
+					{
+						"key": "cookie",
+						"value": "_ga_XBQP06FR8V=GS1.1.1691570094.3.1.1691570094.60.0.0; _ga=GA1.1.2124364284.1689669598; _ga_P1TZCPKF6S=GS1.1.1691648339.2.0.1691648339.60.0.0; __cuid=fe28d9c8c84c4d2487b9cb6c9e4cdec1; amp_fef1e8=f4a3f3ed-50f2-409b-be4f-a1ce1dbb59f2R...1ho6v1de2.1ho6v2ouk.ot.21.qu; _ga_H9YC8FEN6F=GS1.1.1709630860.87.1.1709630957.60.0.0; PGADMIN_LANGUAGE=en"
+					},
+					{
+						"key": "origin",
+						"value": "https://unified-uat.digit.org"
+					},
+					{
+						"key": "referer",
+						"value": "https://unified-uat.digit.org/workbench-ui/employee/campaign/setup-campaign?id=22f77798-3645-44b3-98ee-cc5c0ff2888c&draft=true&fetchBoundary=true&key=8&preview=false&skip=false"
+					},
+					{
+						"key": "sec-ch-ua",
+						"value": "\"Chromium\";v=\"116\", \"Not)A;Brand\";v=\"24\", \"Google Chrome\";v=\"116\""
+					},
+					{
+						"key": "sec-ch-ua-mobile",
+						"value": "?0"
+					},
+					{
+						"key": "sec-ch-ua-platform",
+						"value": "\"Linux\""
+					},
+					{
+						"key": "sec-fetch-dest",
+						"value": "empty"
+					},
+					{
+						"key": "sec-fetch-mode",
+						"value": "cors"
+					},
+					{
+						"key": "sec-fetch-site",
+						"value": "same-origin"
+					},
+					{
+						"key": "user-agent",
+						"value": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"ResourceDetails\": {\n        \"type\": \"facility\",\n        \"hierarchyType\": \"ADMIN\",\n        \"tenantId\": \"mz\",\n        \"fileStoreId\": \"fd451260-67e8-4d57-a7bf-81734b0dccc7\",\n        \"action\": \"validate\",\n        \"campaignId\": \"22f77798-3645-44b3-98ee-cc5c0ff2888c\",\n        \"additionalDetails\": {}\n    },\n    \"RequestInfo\": {\n        \"apiId\": \"Rainmaker\",\n        \"authToken\": \"{{Auth}}\",\n        \"userInfo\": {\n            \"id\": 1052,\n            \"uuid\": \"8b110055-330f-4e7b-b4c0-f618f29b9d47\",\n            \"userName\": \"UATMZ\",\n            \"name\": \"UATMZ\",\n            \"mobileNumber\": \"8998988112\",\n            \"emailId\": null,\n            \"locale\": null,\n            \"type\": \"EMPLOYEE\",\n            \"roles\": [\n                {\n                    \"name\": \"System Administrator\",\n                    \"code\": \"SYSTEM_ADMINISTRATOR\",\n                    \"tenantId\": \"mz\"\n                },\n                {\n                    \"name\": \"Campaign Manager\",\n                    \"code\": \"CAMPAIGN_MANAGER\",\n                    \"tenantId\": \"mz\"\n                },\n                {\n                    \"name\": \"Localisation admin\",\n                    \"code\": \"LOC_ADMIN\",\n                    \"tenantId\": \"mz\"\n                },\n                {\n                    \"name\": \"MDMS ADMIN\",\n                    \"code\": \"MDMS_ADMIN\",\n                    \"tenantId\": \"mz\"\n                }\n            ],\n            \"active\": true,\n            \"tenantId\": \"mz\",\n            \"permanentCity\": null\n        },\n        \"msgId\": \"1716899532287|en_IN\",\n        \"plainAccessRequest\": {}\n    }\n}"
+				},
+				"url": {
+					"raw": "http://localhost:8080/project-factory/v1/data/_generate?tenantId=mz&type=userWithBoundary&forceUpdate=true&hierarchyType=ADMIN&campaignId=3b331cd6-c0e9-4fd4-9d15-9212ba51706c",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"project-factory",
+						"v1",
+						"data",
+						"_generate"
+					],
+					"query": [
+						{
+							"key": "tenantId",
+							"value": "mz"
+						},
+						{
+							"key": "type",
+							"value": "userWithBoundary"
+						},
+						{
+							"key": "forceUpdate",
+							"value": "true"
+						},
+						{
+							"key": "hierarchyType",
+							"value": "ADMIN"
+						},
+						{
+							"key": "campaignId",
+							"value": "3b331cd6-c0e9-4fd4-9d15-9212ba51706c"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "download-generated Copy",
+			"protocolProfileBehavior": {
+				"disabledSystemHeaders": {
+					"content-type": true
+				}
+			},
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "authority",
+						"value": "unified-dev.digit.org"
+					},
+					{
+						"key": "accept",
+						"value": "application/json, text/plain, */*"
+					},
+					{
+						"key": "accept-language",
+						"value": "en-GB,en-US;q=0.9,en;q=0.8"
+					},
+					{
+						"key": "content-type",
+						"value": "application/json",
+						"disabled": true
+					},
+					{
+						"key": "cookie",
+						"value": "_ga_XBQP06FR8V=GS1.1.1691570094.3.1.1691570094.60.0.0; _ga=GA1.1.2124364284.1689669598; _ga_P1TZCPKF6S=GS1.1.1691648339.2.0.1691648339.60.0.0; __cuid=fe28d9c8c84c4d2487b9cb6c9e4cdec1; amp_fef1e8=f4a3f3ed-50f2-409b-be4f-a1ce1dbb59f2R...1hgs4r9gr.1hgs4robc.nu.1r.pp; _ga_H9YC8FEN6F=GS1.1.1701751656.77.1.1701751677.39.0.0"
+					},
+					{
+						"key": "origin",
+						"value": "https://unified-dev.digit.org"
+					},
+					{
+						"key": "referer",
+						"value": "https://unified-dev.digit.org/works-ui/employee/measurement/update?tenantId=pg.citya&workOrderNumber=WO/2023-24/000894&mbNumber=MB/2023-24/001252"
+					},
+					{
+						"key": "sec-ch-ua",
+						"value": "\"Chromium\";v=\"116\", \"Not)A;Brand\";v=\"24\", \"Google Chrome\";v=\"116\""
+					},
+					{
+						"key": "sec-ch-ua-mobile",
+						"value": "?0"
+					},
+					{
+						"key": "sec-ch-ua-platform",
+						"value": "\"Linux\""
+					},
+					{
+						"key": "sec-fetch-dest",
+						"value": "empty"
+					},
+					{
+						"key": "sec-fetch-mode",
+						"value": "cors"
+					},
+					{
+						"key": "sec-fetch-site",
+						"value": "same-origin"
+					},
+					{
+						"key": "user-agent",
+						"value": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"RequestInfo\":{\n    \"apiId\": \"Rainmaker\",\n    \"authToken\": \"b902a184-4582-41f8-8144-99930548631d\",\n    \"userInfo\": {\n        \"id\": 1284,\n        \"uuid\": \"867ba408-1b82-4746-8274-eb916e625fea\",\n        \"userName\": \"EMP57\",\n        \"name\": \"Jagan\",\n        \"mobileNumber\": \"6667776662\",\n        \"emailId\": \"xyz@egovernments.org\",\n        \"locale\": \"string\",\n        \"type\": \"EMPLOYEE\",\n        \"roles\": [\n            {\n                \"name\": \"System Administrator\",\n                \"code\": \"SYSTEM_ADMINISTRATOR\",\n                \"tenantId\": \"mz\"\n            },\n            {\n                \"name\": \"Campaign Manager\",\n                \"code\": \"CAMPAIGN_MANAGER\",\n                \"tenantId\": \"mz\"\n            },\n            {\n                \"name\": \"Localisation admin\",\n                \"code\": \"LOC_ADMIN\",\n                \"tenantId\": \"mz\"\n            },\n            {\n                \"name\": \"MDMS Admin\",\n                \"code\": \"MDMS_ADMIN\",\n                \"tenantId\": \"mz\"\n            }\n        ],\n        \"active\": true,\n        \"tenantId\": \"mz\",\n        \"permanentCity\": \"Amritsar\"\n    },\n    \"msgId\": \"1716457221446|en_MZ\",\n    \"plainAccessRequest\": {}\n}\n}"
+				},
+				"url": {
+					"raw": "https://unified-uat.digit.org/project-factory/v1/data/_download?tenantId=mz&hierarchyType=ADMIN&id=9a857a1b-ea6f-49ac-aaca-354de76f7cf3&type=boundary",
+					"protocol": "https",
+					"host": [
+						"unified-uat",
+						"digit",
+						"org"
+					],
+					"path": [
+						"project-factory",
+						"v1",
+						"data",
+						"_download"
+					],
+					"query": [
+						{
+							"key": "tenantId",
+							"value": "mz"
+						},
+						{
+							"key": "hierarchyType",
+							"value": "ADMIN"
+						},
+						{
+							"key": "forecUpdate",
+							"value": "true",
+							"disabled": true
+						},
+						{
+							"key": "id",
+							"value": "9a857a1b-ea6f-49ac-aaca-354de76f7cf3"
+						},
+						{
+							"key": "type",
+							"value": "boundary"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "project-factory/v1/data/_create Copy",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "authority",
+						"value": "unified-uat.digit.org"
+					},
+					{
+						"key": "accept",
+						"value": "application/json, text/plain, */*"
+					},
+					{
+						"key": "accept-language",
+						"value": "en-GB,en-US;q=0.9,en;q=0.8"
+					},
+					{
+						"key": "content-type",
+						"value": "application/json;charset=UTF-8"
+					},
+					{
+						"key": "cookie",
+						"value": "_ga_XBQP06FR8V=GS1.1.1691570094.3.1.1691570094.60.0.0; _ga=GA1.1.2124364284.1689669598; _ga_P1TZCPKF6S=GS1.1.1691648339.2.0.1691648339.60.0.0; __cuid=fe28d9c8c84c4d2487b9cb6c9e4cdec1; amp_fef1e8=f4a3f3ed-50f2-409b-be4f-a1ce1dbb59f2R...1ho6v1de2.1ho6v2ouk.ot.21.qu; _ga_H9YC8FEN6F=GS1.1.1709630860.87.1.1709630957.60.0.0; PGADMIN_LANGUAGE=en"
+					},
+					{
+						"key": "origin",
+						"value": "https://unified-uat.digit.org"
+					},
+					{
+						"key": "referer",
+						"value": "https://unified-uat.digit.org/workbench-ui/employee/campaign/setup-campaign?id=3a567d66-9de5-4812-9441-240ae6ccb674&draft=true&fetchBoundary=true&key=9&preview=false"
+					},
+					{
+						"key": "sec-ch-ua",
+						"value": "\"Chromium\";v=\"116\", \"Not)A;Brand\";v=\"24\", \"Google Chrome\";v=\"116\""
+					},
+					{
+						"key": "sec-ch-ua-mobile",
+						"value": "?0"
+					},
+					{
+						"key": "sec-ch-ua-platform",
+						"value": "\"Linux\""
+					},
+					{
+						"key": "sec-fetch-dest",
+						"value": "empty"
+					},
+					{
+						"key": "sec-fetch-mode",
+						"value": "cors"
+					},
+					{
+						"key": "sec-fetch-site",
+						"value": "same-origin"
+					},
+					{
+						"key": "user-agent",
+						"value": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"ResourceDetails\": {\n        \"type\": \"boundary\",\n        \"hierarchyType\": \"TEST15\",\n        \"tenantId\": \"mz\",\n        \"fileStoreId\": \"{{fileId}}\",\n        \"action\": \"create\",\n        // \"campaignId\": \"56cd8661-9d4b-4946-80e9-d50bdcfcce60\",\n        \"additionalDetails\": {}\n    },\n    \"RequestInfo\": {\n    \"apiId\": \"Rainmaker\",\n    \"authToken\": \"{{Auth}}\",\n    \"userInfo\": {\n        \"id\": 1052,\n        \"uuid\": \"8b110055-330f-4e7b-b4c0-f618f29b9d47\",\n        \"userName\": \"UATMZ\",\n        \"name\": \"UATMZ\",\n        \"mobileNumber\": \"8998988112\",\n        \"emailId\": null,\n        \"locale\": null,\n        \"type\": \"EMPLOYEE\",\n        \"roles\": [\n            {\n                \"name\": \"System Administrator\",\n                \"code\": \"SYSTEM_ADMINISTRATOR\",\n                \"tenantId\": \"mz\"\n            },\n            {\n                \"name\": \"Campaign Manager\",\n                \"code\": \"CAMPAIGN_MANAGER\",\n                \"tenantId\": \"mz\"\n            },\n            {\n                \"name\": \"Localisation admin\",\n                \"code\": \"LOC_ADMIN\",\n                \"tenantId\": \"mz\"\n            },\n            {\n                \"name\": \"MDMS ADMIN\",\n                \"code\": \"MDMS_ADMIN\",\n                \"tenantId\": \"mz\"\n            }\n        ],\n        \"active\": true,\n        \"tenantId\": \"mz\",\n        \"permanentCity\": null\n    },\n    \"msgId\": \"1717482930188|en_IN\",\n    \"plainAccessRequest\": {}\n}\n}"
+				},
+				"url": {
+					"raw": "http://localhost:8080/project-factory/v1/data/_create",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"project-factory",
+						"v1",
+						"data",
+						"_create"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "project-factory/v1/project-type/search Copy",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "authority",
+						"value": "unified-qa.digit.org"
+					},
+					{
+						"key": "accept",
+						"value": "application/json, text/plain, */*"
+					},
+					{
+						"key": "accept-language",
+						"value": "en-GB,en-US;q=0.9,en;q=0.8"
+					},
+					{
+						"key": "content-type",
+						"value": "application/json;charset=UTF-8"
+					},
+					{
+						"key": "cookie",
+						"value": "_ga_XBQP06FR8V=GS1.1.1691570094.3.1.1691570094.60.0.0; _ga=GA1.1.2124364284.1689669598; _ga_P1TZCPKF6S=GS1.1.1691648339.2.0.1691648339.60.0.0; __cuid=fe28d9c8c84c4d2487b9cb6c9e4cdec1; amp_fef1e8=f4a3f3ed-50f2-409b-be4f-a1ce1dbb59f2R...1ho6v1de2.1ho6v2ouk.ot.21.qu; _ga_H9YC8FEN6F=GS1.1.1709630860.87.1.1709630957.60.0.0"
+					},
+					{
+						"key": "origin",
+						"value": "https://unified-qa.digit.org"
+					},
+					{
+						"key": "referer",
+						"value": "https://unified-qa.digit.org/workbench-ui/employee/campaign/my-campaign"
+					},
+					{
+						"key": "sec-ch-ua",
+						"value": "\"Chromium\";v=\"116\", \"Not)A;Brand\";v=\"24\", \"Google Chrome\";v=\"116\""
+					},
+					{
+						"key": "sec-ch-ua-mobile",
+						"value": "?0"
+					},
+					{
+						"key": "sec-ch-ua-platform",
+						"value": "\"Linux\""
+					},
+					{
+						"key": "sec-fetch-dest",
+						"value": "empty"
+					},
+					{
+						"key": "sec-fetch-mode",
+						"value": "cors"
+					},
+					{
+						"key": "sec-fetch-site",
+						"value": "same-origin"
+					},
+					{
+						"key": "user-agent",
+						"value": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"RequestInfo\": {\n        \"apiId\": \"Rainmaker\",\n        \"authToken\": \"{{Auth}}\",\n        \"userInfo\": {\n            \"id\": 6152,\n            \"uuid\": \"63a21269-d40d-4c26-878f-4f4486b1f44b\",\n            \"userName\": \"MDMSMZ\",\n            \"name\": \"MDMSMZ\",\n            \"mobileNumber\": \"8998989222\",\n            \"emailId\": null,\n            \"locale\": null,\n            \"type\": \"EMPLOYEE\",\n            \"roles\": [\n                {\n                    \"name\": \"System Administrator\",\n                    \"code\": \"SYSTEM_ADMINISTRATOR\",\n                    \"tenantId\": \"mz\"\n                },\n                {\n                    \"name\": \"Localisation admin\",\n                    \"code\": \"LOC_ADMIN\",\n                    \"tenantId\": \"mz\"\n                },\n                {\n                    \"name\": \"MDMS Admin\",\n                    \"code\": \"MDMS_ADMIN\",\n                    \"tenantId\": \"mz\"\n                },\n                {\n                    \"name\": \"Campaign Manager\",\n                    \"code\": \"CAMPAIGN_MANAGER\",\n                    \"tenantId\": \"mz\"\n                }\n            ],\n            \"active\": true,\n            \"tenantId\": \"mz\",\n            \"permanentCity\": null\n        },\n        \"msgId\": \"1716986778045|en_MZ\",\n        \"plainAccessRequest\": {}\n    },\n    \"CampaignDetails\": {\n        \"tenantId\": \"mz\",\n        \"ids\":[\"{{campaignId}}\"],\n        // \"status\": [\n        //     \"creating\",\n        //     \"created\"\n        // ],\n        // \"createdBy\": \"63a21269-d40d-4c26-878f-4f4486b1f44b\",\n        // \"campaignsIncludeDates\": true,\n        // \"startDate\": 1716986778045,\n        // \"endDate\": 1716986778045,\n        // \"campaignName\":\"Performance Test Campaign Jun 17 id 00051\",\n        \"pagination\": {\n            \"sortBy\": \"createdTime\",\n            \"sortOrder\": \"desc\",\n            \"limit\": 10,\n            \"offset\": 0\n        }\n    }\n}"
+				},
+				"url": {
+					"raw": "http://localhost:8080/project-fctory/v1/project-type/search",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"project-fctory",
+						"v1",
+						"project-type",
+						"search"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "project-factory/v1/project-type/search Copy 2",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "authority",
+						"value": "unified-dev.digit.org"
+					},
+					{
+						"key": "accept",
+						"value": "application/json, text/plain, */*"
+					},
+					{
+						"key": "accept-language",
+						"value": "en-GB,en-US;q=0.9,en;q=0.8"
+					},
+					{
+						"key": "content-type",
+						"value": "application/json"
+					},
+					{
+						"key": "cookie",
+						"value": "_ga_XBQP06FR8V=GS1.1.1691570094.3.1.1691570094.60.0.0; _ga=GA1.1.2124364284.1689669598; _ga_P1TZCPKF6S=GS1.1.1691648339.2.0.1691648339.60.0.0; __cuid=fe28d9c8c84c4d2487b9cb6c9e4cdec1; amp_fef1e8=f4a3f3ed-50f2-409b-be4f-a1ce1dbb59f2R...1hgs4r9gr.1hgs4robc.nu.1r.pp; _ga_H9YC8FEN6F=GS1.1.1701751656.77.1.1701751677.39.0.0"
+					},
+					{
+						"key": "origin",
+						"value": "https://unified-dev.digit.org"
+					},
+					{
+						"key": "referer",
+						"value": "https://unified-dev.digit.org/works-ui/employee/measurement/update?tenantId=pg.citya&workOrderNumber=WO/2023-24/000894&mbNumber=MB/2023-24/001252"
+					},
+					{
+						"key": "sec-ch-ua",
+						"value": "\"Chromium\";v=\"116\", \"Not)A;Brand\";v=\"24\", \"Google Chrome\";v=\"116\""
+					},
+					{
+						"key": "sec-ch-ua-mobile",
+						"value": "?0"
+					},
+					{
+						"key": "sec-ch-ua-platform",
+						"value": "\"Linux\""
+					},
+					{
+						"key": "sec-fetch-dest",
+						"value": "empty"
+					},
+					{
+						"key": "sec-fetch-mode",
+						"value": "cors"
+					},
+					{
+						"key": "sec-fetch-site",
+						"value": "same-origin"
+					},
+					{
+						"key": "user-agent",
+						"value": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"RequestInfo\": {\n    \"apiId\": \"Rainmaker\",\n    \"authToken\": \"49109c15-ca23-4399-931c-3df81c114302\",\n    \"userInfo\": {\n        \"id\": 6152,\n        \"uuid\": \"63a21269-d40d-4c26-878f-4f4486b1f44b\",\n        \"userName\": \"MDMSMZ\",\n        \"name\": \"MDMSMZ\",\n        \"mobileNumber\": \"8998989222\",\n        \"emailId\": null,\n        \"locale\": null,\n        \"type\": \"EMPLOYEE\",\n        \"roles\": [\n            {\n                \"name\": \"System Administrator\",\n                \"code\": \"SYSTEM_ADMINISTRATOR\",\n                \"tenantId\": \"mz\"\n            },\n            {\n                \"name\": \"Campaign Manager\",\n                \"code\": \"CAMPAIGN_MANAGER\",\n                \"tenantId\": \"mz\"\n            },\n            {\n                \"name\": \"Localisation admin\",\n                \"code\": \"LOC_ADMIN\",\n                \"tenantId\": \"mz\"\n            },\n            {\n                \"name\": \"MDMS Admin\",\n                \"code\": \"MDMS_ADMIN\",\n                \"tenantId\": \"mz\"\n            }\n        ],\n        \"active\": true,\n        \"tenantId\": \"mz\",\n        \"permanentCity\": null\n    },\n    \"msgId\": \"1713364121714|en_MZ\",\n    \"plainAccessRequest\": {}\n},\n    \"SearchCriteria\": {\n        \"id\": [\n            \"636faa32-661c-42bb-b955-837111f63773\"\n        ],\n        \"tenantId\": \"mz\",\n        \"type\": \"facility\",\n        \"status\": \"completed\"\n    }\n}"
+				},
+				"url": {
+					"raw": "http://localhost:8080/project-factory/v1/data/_search",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"project-factory",
+						"v1",
+						"data",
+						"_search"
+					],
+					"query": [
+						{
+							"key": "tenantId",
+							"value": "",
+							"disabled": true
+						}
+					]
+				}
+			},
+			"response": [
+				{
+					"name": "project-factory/v1/project-type/search Copy",
+					"originalRequest": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "authority",
+								"value": "unified-dev.digit.org"
+							},
+							{
+								"key": "accept",
+								"value": "application/json, text/plain, */*"
+							},
+							{
+								"key": "accept-language",
+								"value": "en-GB,en-US;q=0.9,en;q=0.8"
+							},
+							{
+								"key": "content-type",
+								"value": "application/json"
+							},
+							{
+								"key": "cookie",
+								"value": "_ga_XBQP06FR8V=GS1.1.1691570094.3.1.1691570094.60.0.0; _ga=GA1.1.2124364284.1689669598; _ga_P1TZCPKF6S=GS1.1.1691648339.2.0.1691648339.60.0.0; __cuid=fe28d9c8c84c4d2487b9cb6c9e4cdec1; amp_fef1e8=f4a3f3ed-50f2-409b-be4f-a1ce1dbb59f2R...1hgs4r9gr.1hgs4robc.nu.1r.pp; _ga_H9YC8FEN6F=GS1.1.1701751656.77.1.1701751677.39.0.0"
+							},
+							{
+								"key": "origin",
+								"value": "https://unified-dev.digit.org"
+							},
+							{
+								"key": "referer",
+								"value": "https://unified-dev.digit.org/works-ui/employee/measurement/update?tenantId=pg.citya&workOrderNumber=WO/2023-24/000894&mbNumber=MB/2023-24/001252"
+							},
+							{
+								"key": "sec-ch-ua",
+								"value": "\"Chromium\";v=\"116\", \"Not)A;Brand\";v=\"24\", \"Google Chrome\";v=\"116\""
+							},
+							{
+								"key": "sec-ch-ua-mobile",
+								"value": "?0"
+							},
+							{
+								"key": "sec-ch-ua-platform",
+								"value": "\"Linux\""
+							},
+							{
+								"key": "sec-fetch-dest",
+								"value": "empty"
+							},
+							{
+								"key": "sec-fetch-mode",
+								"value": "cors"
+							},
+							{
+								"key": "sec-fetch-site",
+								"value": "same-origin"
+							},
+							{
+								"key": "user-agent",
+								"value": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"RequestInfo\": {\n        \"apiId\": \"Rainmaker\",\n        \"authToken\": \"4d18d41f-bf61-4a50-9382-c7728d57b076\",\n        \"userInfo\": {\n            \"id\": 947,\n            \"uuid\": \"e82c3f49-da7c-459c-86a5-a56ac2d4f5b1\",\n            \"userName\": \"EMP44\",\n            \"name\": \"Jagan\",\n            \"mobileNumber\": \"6667776662\",\n            \"emailId\": \"xyz@egovernments.org\",\n            \"locale\": \"string\",\n            \"type\": \"EMPLOYEE\",\n            \"roles\": [\n                {\n                    \"name\": \"Localisation admin\",\n                    \"code\": \"LOC_ADMIN\",\n                    \"tenantId\": \"pg\"\n                },\n                {\n                    \"name\": \"HCM SYSTEM ADMINISTRATOR\",\n                    \"code\": \"SYSTEM_ADMINISTRATOR\",\n                    \"tenantId\": \"pg\"\n                },\n                {\n                    \"name\": \"MDMS Admin\",\n                    \"code\": \"MDMS_ADMIN\",\n                    \"tenantId\": \"pg\"\n                },\n                {\n                    \"name\": \"SUPER USER\",\n                    \"code\": \"SUPERUSER\",\n                    \"tenantId\": \"pg\"\n                },\n                {\n                    \"name\": \"HRMS Admin\",\n                    \"code\": \"HRMS_ADMIN\",\n                    \"tenantId\": \"pg\"\n                }\n            ],\n            \"active\": true,\n            \"tenantId\": \"pg\",\n            \"permanentCity\": \"Amritsar\"\n        },\n        \"msgId\": \"1709110250993|en_IN\",\n        \"plainAccessRequest\": {}\n    },\n    \"SearchCriteria\": {\n        \"id\": [\n             \"fb34e006-0435-4565-acac-988a6992da54\"\n        ],\n        \"tenantId\": \"mz\",\n        \"type\": \"facility\",\n        \"status\": \"data-accepted\",\n        \"action\": \"create\",\n        \"createdBy\": \"e82c3f49-da7c-459c-86a5-a56ac2d4f5b1\"\n    }\n}"
+						},
+						"url": {
+							"raw": "http://localhost:8095/project-factory/v1/data/_search",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8095",
+							"path": [
+								"project-factory",
+								"v1",
+								"data",
+								"_search"
+							]
+						}
+					},
+					"status": "OK",
+					"code": 200,
+					"_postman_previewlanguage": "json",
+					"header": [
+						{
+							"key": "X-Powered-By",
+							"value": "Express"
+						},
+						{
+							"key": "Content-Type",
+							"value": "application/json; charset=utf-8"
+						},
+						{
+							"key": "Content-Length",
+							"value": "563"
+						},
+						{
+							"key": "ETag",
+							"value": "W/\"233-jv57E1Q5Yt5KHhUp7M2vxbi5Abg\""
+						},
+						{
+							"key": "Date",
+							"value": "Tue, 02 Apr 2024 05:35:08 GMT"
+						},
+						{
+							"key": "Connection",
+							"value": "keep-alive"
+						},
+						{
+							"key": "Keep-Alive",
+							"value": "timeout=5"
+						}
+					],
+					"cookie": [],
+					"body": "{\n    \"ResponseInfo\": {\n        \"apiId\": \"egov-bff\",\n        \"ver\": \"0.0.1\",\n        \"ts\": 1712036108718,\n        \"status\": \"successful\",\n        \"desc\": \"new-response\"\n    },\n    \"ResourceDetails\": [\n        {\n            \"id\": \"fb34e006-0435-4565-acac-988a6992da54\",\n            \"tenantId\": \"mz\",\n            \"status\": \"data-accepted\",\n            \"action\": \"create\",\n            \"fileStoreId\": \"d5a6f652-37da-49a2-9284-e867b9e4de83\",\n            \"processedFilestoreId\": \"5f1fcf05-e6d1-47e0-a96f-019a454cc7d2\",\n            \"type\": \"facility\",\n            \"createdBy\": \"e82c3f49-da7c-459c-86a5-a56ac2d4f5b1\",\n            \"lastModifiedBy\": \"e82c3f49-da7c-459c-86a5-a56ac2d4f5b1\",\n            \"createdTime\": 1710921693188,\n            \"lastModifiedTime\": 1710921693188,\n            \"additionalDetails\": {}\n        }\n    ]\n}"
+				}
+			]
+		},
+		{
+			"name": "/project-factory/v1/project-type/create Copy",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"var response=pm.response.json();",
+							"pm.environment.set(\"campaignId\", response.CampaignDetails.id);",
+							"pm.environment.set(\"campaignNum\",response.CampaignDetails.campaignNumber)"
+						],
+						"type": "text/javascript",
+						"packages": {}
+					}
+				}
+			],
+			"protocolProfileBehavior": {
+				"disabledSystemHeaders": {
+					"content-type": true
+				}
+			},
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "authority",
+						"value": "unified-dev.digit.org"
+					},
+					{
+						"key": "accept",
+						"value": "application/json, text/plain, */*"
+					},
+					{
+						"key": "accept-language",
+						"value": "en-GB,en-US;q=0.9,en;q=0.8"
+					},
+					{
+						"key": "content-type",
+						"value": "application/json"
+					},
+					{
+						"key": "cookie",
+						"value": "_ga_XBQP06FR8V=GS1.1.1691570094.3.1.1691570094.60.0.0; _ga=GA1.1.2124364284.1689669598; _ga_P1TZCPKF6S=GS1.1.1691648339.2.0.1691648339.60.0.0; __cuid=fe28d9c8c84c4d2487b9cb6c9e4cdec1; amp_fef1e8=f4a3f3ed-50f2-409b-be4f-a1ce1dbb59f2R...1hgs4r9gr.1hgs4robc.nu.1r.pp; _ga_H9YC8FEN6F=GS1.1.1701751656.77.1.1701751677.39.0.0"
+					},
+					{
+						"key": "origin",
+						"value": "https://unified-dev.digit.org"
+					},
+					{
+						"key": "referer",
+						"value": "https://unified-dev.digit.org/works-ui/employee/measurement/update?tenantId=pg.citya&workOrderNumber=WO/2023-24/000894&mbNumber=MB/2023-24/001252"
+					},
+					{
+						"key": "sec-ch-ua",
+						"value": "\"Chromium\";v=\"116\", \"Not)A;Brand\";v=\"24\", \"Google Chrome\";v=\"116\""
+					},
+					{
+						"key": "sec-ch-ua-mobile",
+						"value": "?0"
+					},
+					{
+						"key": "sec-ch-ua-platform",
+						"value": "\"Linux\""
+					},
+					{
+						"key": "sec-fetch-dest",
+						"value": "empty"
+					},
+					{
+						"key": "sec-fetch-mode",
+						"value": "cors"
+					},
+					{
+						"key": "sec-fetch-site",
+						"value": "same-origin"
+					},
+					{
+						"key": "user-agent",
+						"value": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"RequestInfo\": {\n        \"apiId\": \"Rainmaker\",\n        \"authToken\": \"{{Auth}}\",\n        \"userInfo\": {\n            \"id\": 1284,\n            \"uuid\": \"867ba408-1b82-4746-8274-eb916e625fea\",\n            \"userName\": \"EMP57\",\n            \"name\": \"Jagan\",\n            \"mobileNumber\": \"6667776662\",\n            \"emailId\": \"xyz@egovernments.org\",\n            \"locale\": \"string\",\n            \"type\": \"EMPLOYEE\",\n            \"roles\": [\n                {\n                    \"name\": \"System Administrator\",\n                    \"code\": \"SYSTEM_ADMINISTRATOR\",\n                    \"tenantId\": \"mz\"\n                },\n                {\n                    \"name\": \"Localisation admin\",\n                    \"code\": \"LOC_ADMIN\",\n                    \"tenantId\": \"mz\"\n                },\n                {\n                    \"name\": \"MDMS Admin\",\n                    \"code\": \"MDMS_ADMIN\",\n                    \"tenantId\": \"mz\"\n                },\n                {\n                    \"name\": \"Campaign Manager\",\n                    \"code\": \"CAMPAIGN_MANAGER\",\n                    \"tenantId\": \"mz\"\n                }\n            ],\n            \"active\": true,\n            \"tenantId\": \"mz\",\n            \"permanentCity\": \"Amritsar\"\n        },\n        \"msgId\": \"1713593588138|en_MZ\",\n        \"plainAccessRequest\": {}\n    },\n    \"CampaignDetails\": {\n        // \"id\": \"992f8c27-7dde-43f8-9dad-e6ec9d821d39\",\n        \"tenantId\": \"mz\",\n        // \"status\": \"created\",\n        \"action\": \"draft\",\n        // \"campaignNumber\": \"CMP-2024-07-30-001374\",\n        \"campaignName\": \"jul31_3\",\n        \"projectType\": \"LLIN-mz\",\n        \"hierarchyType\": \"Health\",\n        \"boundaryCode\": \"HEALTH_MO\",\n        // \"projectId\": \"baeadf90-ded8-47eb-a02a-c4c9c4527321\",\n        \"startDate\": 1722450600000,\n        \"endDate\": 1725560999000,\n        \"additionalDetails\": {\n            \"key\": 10,\n            \"beneficiaryType\": \"HOUSEHOLD\"\n        },\n        \"resources\": [\n            {\n                \"type\": \"facility\",\n                \"filename\": \"Facility Template (56).xlsx\",\n                \"resourceId\": \"31a528c6-1345-4587-ad21-7bafcbe3b28f\",\n                \"filestoreId\": \"6aebec94-463d-4f81-bb13-5c42ac848c25\",\n                \"createResourceId\": \"628b0382-4964-441a-a687-9391b92fa5e5\"\n            },\n            {\n                \"type\": \"boundaryWithTarget\",\n                \"filename\": \"Target Template (84).xlsx\",\n                \"resourceId\": \"7244300a-dd01-49ca-a39f-27845e84f28c\",\n                \"filestoreId\": \"dc3c52ea-96b0-49b4-b38e-6360f09b98e3\"\n            },\n            {\n                \"type\": \"user\",\n                \"filename\": \"User Template (30).xlsx\",\n                \"resourceId\": \"3fa115c9-a394-48a9-8c53-c9929b0abd0e\",\n                \"filestoreId\": \"a0254f2e-1ed0-4255-b471-9a912230eb96\",\n                \"createResourceId\": \"ebeaf8e1-e185-4b64-98f1-43b9eb8cc095\"\n            }\n        ],\n        \"boundaries\": [\n            {\n                \"code\": \"HEALTH_MO\",\n                \"type\": \"Country\",\n                \"isRoot\": true,\n                \"includeAllChildren\": false\n            },\n            {\n                \"code\": \"HEALTH_MO_13_NAMPULA\",\n                \"type\": \"Province\",\n                \"isRoot\": false,\n                \"parent\": \"HEALTH_MO\",\n                \"includeAllChildren\": false\n            },\n            {\n                \"code\": \"HEALTH_MO_13_02_MOSSURILEE\",\n                \"type\": \"District\",\n                \"isRoot\": false,\n                \"parent\": \"HEALTH_MO_13_NAMPULA\",\n                \"includeAllChildren\": false\n            },\n            {\n                \"code\": \"HEALTH_MO_13_02_02_CHITIMA-01\",\n                \"type\": \"Post Administrative\",\n                \"isRoot\": false,\n                \"parent\": \"HEALTH_MO_13_02_MOSSURILEE\",\n                \"includeAllChildren\": true\n            },\n            {\n                \"code\": \"HEALTH_MO_13_02_01_NSADZO\",\n                \"type\": \"Post Administrative\",\n                \"isRoot\": false,\n                \"parent\": \"HEALTH_MO_13_02_MOSSURILEE\",\n                \"includeAllChildren\": true\n            },\n            {\n                \"code\": \"HEALTH_MO_13_01_MURRUPULA\",\n                \"type\": \"District\",\n                \"isRoot\": false,\n                \"parent\": \"HEALTH_MO_13_NAMPULA\",\n                \"includeAllChildren\": false\n            },\n            {\n                \"code\": \"HEALTH_MO_13_01_04_NIHESSIUE\",\n                \"type\": \"Post Administrative\",\n                \"isRoot\": false,\n                \"parent\": \"HEALTH_MO_13_01_MURRUPULA\",\n                \"includeAllChildren\": true\n            },\n            {\n                \"code\": \"HEALTH_MO_13_01_03_CHITEEIMA\",\n                \"type\": \"Post Administrative\",\n                \"isRoot\": false,\n                \"parent\": \"HEALTH_MO_13_01_MURRUPULA\",\n                \"includeAllChildren\": true\n            },\n            {\n                \"code\": \"HEALTH_MO_13_01_02_CHIFUNDE-01\",\n                \"type\": \"Post Administrative\",\n                \"isRoot\": false,\n                \"parent\": \"HEALTH_MO_13_01_MURRUPULA\",\n                \"includeAllChildren\": true\n            },\n            {\n                \"code\": \"HEALTH_MO_13_01_01_MUALDZI\",\n                \"type\": \"Post Administrative\",\n                \"isRoot\": false,\n                \"parent\": \"HEALTH_MO_13_01_MURRUPULA\",\n                \"includeAllChildren\": true\n            }\n        ],\n        \"deliveryRules\": [\n            {\n                \"endDate\": 1723573799000,\n                \"products\": [\n                    {\n                        \"name\": \"SP 500mg\",\n                        \"count\": 1,\n                        \"value\": \"PVAR-2024-03-15-000043\"\n                    }\n                ],\n                \"startDate\": 1722537000000,\n                \"conditions\": [\n                    {\n                        \"value\": 3,\n                        \"operator\": \"LESS_THAN_EQUAL_TO\",\n                        \"attribute\": \"CAMPAIGN_BEDNET_INDIVIDUAL_LABEL\"\n                    },\n                    {\n                        \"value\": 1.8,\n                        \"operator\": \"LESS_THAN_EQUAL_TO\",\n                        \"attribute\": \"CAMPAIGN_BEDNET_HOUSEHOLD_LABEL\"\n                    }\n                ],\n                \"cycleNumber\": 1,\n                \"deliveryNumber\": 1,\n                \"deliveryRuleNumber\": 1\n            }\n        ],\n        \"auditDetails\": {\n            \"createdBy\": \"bfab6822-ec28-40f0-aef1-efd1cda8fcd5\",\n            \"lastModifiedBy\": \"bfab6822-ec28-40f0-aef1-efd1cda8fcd5\",\n            \"createdTime\": 1722324752043,\n            \"lastModifiedTime\": 1722324899659\n        }\n    }\n}"
+				},
+				"url": {
+					"raw": "https://unified-dev.digit.org/project-factory/v1/project-type/create",
+					"protocol": "https",
+					"host": [
+						"unified-dev",
+						"digit",
+						"org"
+					],
+					"path": [
+						"project-factory",
+						"v1",
+						"project-type",
+						"create"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "/project-factory/v1/project-type/update Copy",
+			"protocolProfileBehavior": {
+				"disabledSystemHeaders": {
+					"content-type": true
+				}
+			},
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "authority",
+						"value": "unified-dev.digit.org"
+					},
+					{
+						"key": "accept",
+						"value": "application/json, text/plain, */*"
+					},
+					{
+						"key": "accept-language",
+						"value": "en-GB,en-US;q=0.9,en;q=0.8"
+					},
+					{
+						"key": "content-type",
+						"value": "application/json"
+					},
+					{
+						"key": "cookie",
+						"value": "_ga_XBQP06FR8V=GS1.1.1691570094.3.1.1691570094.60.0.0; _ga=GA1.1.2124364284.1689669598; _ga_P1TZCPKF6S=GS1.1.1691648339.2.0.1691648339.60.0.0; __cuid=fe28d9c8c84c4d2487b9cb6c9e4cdec1; amp_fef1e8=f4a3f3ed-50f2-409b-be4f-a1ce1dbb59f2R...1hgs4r9gr.1hgs4robc.nu.1r.pp; _ga_H9YC8FEN6F=GS1.1.1701751656.77.1.1701751677.39.0.0"
+					},
+					{
+						"key": "origin",
+						"value": "https://unified-dev.digit.org"
+					},
+					{
+						"key": "referer",
+						"value": "https://unified-dev.digit.org/works-ui/employee/measurement/update?tenantId=pg.citya&workOrderNumber=WO/2023-24/000894&mbNumber=MB/2023-24/001252"
+					},
+					{
+						"key": "sec-ch-ua",
+						"value": "\"Chromium\";v=\"116\", \"Not)A;Brand\";v=\"24\", \"Google Chrome\";v=\"116\""
+					},
+					{
+						"key": "sec-ch-ua-mobile",
+						"value": "?0"
+					},
+					{
+						"key": "sec-ch-ua-platform",
+						"value": "\"Linux\""
+					},
+					{
+						"key": "sec-fetch-dest",
+						"value": "empty"
+					},
+					{
+						"key": "sec-fetch-mode",
+						"value": "cors"
+					},
+					{
+						"key": "sec-fetch-site",
+						"value": "same-origin"
+					},
+					{
+						"key": "user-agent",
+						"value": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"RequestInfo\": {\n        \"apiId\": \"Rainmaker\",\n        \"authToken\": \"44cb5589-8dc2-4182-b5a4-afdb692ce831\",\n        \"userInfo\": {\n            \"id\": 6152,\n            \"uuid\": \"63a21269-d40d-4c26-878f-4f4486b1f44b\",\n            \"userName\": \"MDMSMZ\",\n            \"name\": \"MDMSMZ\",\n            \"mobileNumber\": \"8998989222\",\n            \"emailId\": null,\n            \"locale\": null,\n            \"type\": \"EMPLOYEE\",\n            \"roles\": [\n                {\n                    \"name\": \"System Administrator\",\n                    \"code\": \"SYSTEM_ADMINISTRATOR\",\n                    \"tenantId\": \"mz\"\n                },\n                {\n                    \"name\": \"Campaign Manager\",\n                    \"code\": \"CAMPAIGN_MANAGER\",\n                    \"tenantId\": \"mz\"\n                },\n                {\n                    \"name\": \"Localisation admin\",\n                    \"code\": \"LOC_ADMIN\",\n                    \"tenantId\": \"mz\"\n                },\n                {\n                    \"name\": \"MDMS Admin\",\n                    \"code\": \"MDMS_ADMIN\",\n                    \"tenantId\": \"mz\"\n                }\n            ],\n            \"active\": true,\n            \"tenantId\": \"mz\",\n            \"permanentCity\": null\n        },\n        \"msgId\": \"1713364121714|en_MZ\",\n        \"plainAccessRequest\": {}\n    },\n    \"CampaignDetails\": {\n        \"id\": \"{{campaignId}}\",\n        \"tenantId\": \"mz\",\n        \"status\": \"drafted\",\n        \"action\": \"create\",\n        \"campaignNumber\": \"{{campaignNum}}\",\n        \"campaignName\": \"{{campaignName}}\",\n        \"projectType\": \"LLIN-mz\",\n        \"hierarchyType\": \"Health\",\n        \"boundaryCode\": \"HEALTH_MO\",\n        // \"projectId\": \"baeadf90-ded8-47eb-a02a-c4c9c4527321\",\n        \"startDate\": 1722450600000,\n        \"endDate\": 1725560999000,\n        \"additionalDetails\": {\n            \"key\": 10,\n            \"beneficiaryType\": \"HOUSEHOLD\"\n        },\n        \"resources\": [\n            {\n                \"type\": \"facility\",\n                \"filename\": \"Facility Template (56).xlsx\",\n                \"resourceId\": \"31a528c6-1345-4587-ad21-7bafcbe3b28f\",\n                \"filestoreId\": \"6aebec94-463d-4f81-bb13-5c42ac848c25\",\n                \"createResourceId\": \"628b0382-4964-441a-a687-9391b92fa5e5\"\n            },\n            {\n                \"type\": \"boundaryWithTarget\",\n                \"filename\": \"Target Template (84).xlsx\",\n                \"resourceId\": \"7244300a-dd01-49ca-a39f-27845e84f28c\",\n                \"filestoreId\": \"dc3c52ea-96b0-49b4-b38e-6360f09b98e3\"\n            },\n            {\n                \"type\": \"user\",\n                \"filename\": \"User Template (30).xlsx\",\n                \"resourceId\": \"3fa115c9-a394-48a9-8c53-c9929b0abd0e\",\n                \"filestoreId\": \"a0254f2e-1ed0-4255-b471-9a912230eb96\",\n                \"createResourceId\": \"ebeaf8e1-e185-4b64-98f1-43b9eb8cc095\"\n            }\n        ],\n        \"boundaries\": [\n            {\n                \"code\": \"HEALTH_MO\",\n                \"type\": \"Country\",\n                \"isRoot\": true,\n                \"includeAllChildren\": false\n            },\n            {\n                \"code\": \"HEALTH_MO_13_NAMPULA\",\n                \"type\": \"Province\",\n                \"isRoot\": false,\n                \"parent\": \"HEALTH_MO\",\n                \"includeAllChildren\": false\n            },\n            {\n                \"code\": \"HEALTH_MO_13_02_MOSSURILEE\",\n                \"type\": \"District\",\n                \"isRoot\": false,\n                \"parent\": \"HEALTH_MO_13_NAMPULA\",\n                \"includeAllChildren\": false\n            },\n            {\n                \"code\": \"HEALTH_MO_13_02_02_CHITIMA-01\",\n                \"type\": \"Post Administrative\",\n                \"isRoot\": false,\n                \"parent\": \"HEALTH_MO_13_02_MOSSURILEE\",\n                \"includeAllChildren\": true\n            },\n            {\n                \"code\": \"HEALTH_MO_13_02_01_NSADZO\",\n                \"type\": \"Post Administrative\",\n                \"isRoot\": false,\n                \"parent\": \"HEALTH_MO_13_02_MOSSURILEE\",\n                \"includeAllChildren\": true\n            },\n            {\n                \"code\": \"HEALTH_MO_13_01_MURRUPULA\",\n                \"type\": \"District\",\n                \"isRoot\": false,\n                \"parent\": \"HEALTH_MO_13_NAMPULA\",\n                \"includeAllChildren\": false\n            },\n            {\n                \"code\": \"HEALTH_MO_13_01_04_NIHESSIUE\",\n                \"type\": \"Post Administrative\",\n                \"isRoot\": false,\n                \"parent\": \"HEALTH_MO_13_01_MURRUPULA\",\n                \"includeAllChildren\": true\n            },\n            {\n                \"code\": \"HEALTH_MO_13_01_03_CHITEEIMA\",\n                \"type\": \"Post Administrative\",\n                \"isRoot\": false,\n                \"parent\": \"HEALTH_MO_13_01_MURRUPULA\",\n                \"includeAllChildren\": true\n            },\n            {\n                \"code\": \"HEALTH_MO_13_01_02_CHIFUNDE-01\",\n                \"type\": \"Post Administrative\",\n                \"isRoot\": false,\n                \"parent\": \"HEALTH_MO_13_01_MURRUPULA\",\n                \"includeAllChildren\": true\n            },\n            {\n                \"code\": \"HEALTH_MO_13_01_01_MUALDZI\",\n                \"type\": \"Post Administrative\",\n                \"isRoot\": false,\n                \"parent\": \"HEALTH_MO_13_01_MURRUPULA\",\n                \"includeAllChildren\": true\n            }\n        ],\n        \"deliveryRules\": [\n            {\n                \"endDate\": 1723573799000,\n                \"products\": [\n                    {\n                        \"name\": \"SP 500mg\",\n                        \"count\": 1,\n                        \"value\": \"PVAR-2024-03-15-000043\"\n                    }\n                ],\n                \"startDate\": 1722537000000,\n                \"conditions\": [\n                    {\n                        \"value\": 3,\n                        \"operator\": \"LESS_THAN_EQUAL_TO\",\n                        \"attribute\": \"CAMPAIGN_BEDNET_INDIVIDUAL_LABEL\"\n                    },\n                    {\n                        \"value\": 1.8,\n                        \"operator\": \"LESS_THAN_EQUAL_TO\",\n                        \"attribute\": \"CAMPAIGN_BEDNET_HOUSEHOLD_LABEL\"\n                    }\n                ],\n                \"cycleNumber\": 1,\n                \"deliveryNumber\": 1,\n                \"deliveryRuleNumber\": 1\n            }\n        ],\n        \"auditDetails\": {\n            \"createdBy\": \"bfab6822-ec28-40f0-aef1-efd1cda8fcd5\",\n            \"lastModifiedBy\": \"bfab6822-ec28-40f0-aef1-efd1cda8fcd5\",\n            \"createdTime\": 1722324752043,\n            \"lastModifiedTime\": 1722324899659\n        }\n    }\n}"
+				},
+				"url": {
+					"raw": "https://unified-dev.digit.org/project-factory/v1/project-type/update",
+					"protocol": "https",
+					"host": [
+						"unified-dev",
+						"digit",
+						"org"
+					],
+					"path": [
+						"project-factory",
+						"v1",
+						"project-type",
+						"update"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "getProcessTracks Copy",
+			"protocolProfileBehavior": {
+				"disabledSystemHeaders": {
+					"content-type": true
+				}
+			},
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "authority",
+						"value": "unified-dev.digit.org"
+					},
+					{
+						"key": "accept",
+						"value": "application/json, text/plain, */*"
+					},
+					{
+						"key": "accept-language",
+						"value": "en-GB,en-US;q=0.9,en;q=0.8"
+					},
+					{
+						"key": "content-type",
+						"value": "application/json"
+					},
+					{
+						"key": "cookie",
+						"value": "_ga_XBQP06FR8V=GS1.1.1691570094.3.1.1691570094.60.0.0; _ga=GA1.1.2124364284.1689669598; _ga_P1TZCPKF6S=GS1.1.1691648339.2.0.1691648339.60.0.0; __cuid=fe28d9c8c84c4d2487b9cb6c9e4cdec1; amp_fef1e8=f4a3f3ed-50f2-409b-be4f-a1ce1dbb59f2R...1hgs4r9gr.1hgs4robc.nu.1r.pp; _ga_H9YC8FEN6F=GS1.1.1701751656.77.1.1701751677.39.0.0"
+					},
+					{
+						"key": "origin",
+						"value": "https://unified-dev.digit.org"
+					},
+					{
+						"key": "referer",
+						"value": "https://unified-dev.digit.org/works-ui/employee/measurement/update?tenantId=pg.citya&workOrderNumber=WO/2023-24/000894&mbNumber=MB/2023-24/001252"
+					},
+					{
+						"key": "sec-ch-ua",
+						"value": "\"Chromium\";v=\"116\", \"Not)A;Brand\";v=\"24\", \"Google Chrome\";v=\"116\""
+					},
+					{
+						"key": "sec-ch-ua-mobile",
+						"value": "?0"
+					},
+					{
+						"key": "sec-ch-ua-platform",
+						"value": "\"Linux\""
+					},
+					{
+						"key": "sec-fetch-dest",
+						"value": "empty"
+					},
+					{
+						"key": "sec-fetch-mode",
+						"value": "cors"
+					},
+					{
+						"key": "sec-fetch-site",
+						"value": "same-origin"
+					},
+					{
+						"key": "user-agent",
+						"value": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"RequestInfo\": {\n    \"apiId\": \"Rainmaker\",\n    \"authToken\": \"{{Auth}}\",\n    \"userInfo\": {\n        \"id\": 1284,\n        \"uuid\": \"867ba408-1b82-4746-8274-eb916e625fea\",\n        \"userName\": \"EMP57\",\n        \"name\": \"Jagan\",\n        \"mobileNumber\": \"6667776662\",\n        \"emailId\": \"xyz@egovernments.org\",\n        \"locale\": \"string\",\n        \"type\": \"EMPLOYEE\",\n        \"roles\": [\n            {\n                \"name\": \"System Administrator\",\n                \"code\": \"SYSTEM_ADMINISTRATOR\",\n                \"tenantId\": \"mz\"\n            },\n            {\n                \"name\": \"Localisation admin\",\n                \"code\": \"LOC_ADMIN\",\n                \"tenantId\": \"mz\"\n            },\n            {\n                \"name\": \"MDMS Admin\",\n                \"code\": \"MDMS_ADMIN\",\n                \"tenantId\": \"mz\"\n            },\n            {\n                \"name\": \"Campaign Manager\",\n                \"code\": \"CAMPAIGN_MANAGER\",\n                \"tenantId\": \"mz\"\n            }\n        ],\n        \"active\": true,\n        \"tenantId\": \"mz\",\n        \"permanentCity\": \"Amritsar\"\n    },\n    \"msgId\": \"1713593588138|en_MZ\",\n    \"plainAccessRequest\": {}\n}\n}"
+				},
+				"url": {
+					"raw": "https://unified-dev.digit.org/project-factory/v1/project-type/getProcessTrack?campaignId=eeded5f1-e779-454f-9cc7-2b20ba4839e0",
+					"protocol": "https",
+					"host": [
+						"unified-dev",
+						"digit",
+						"org"
+					],
+					"path": [
+						"project-factory",
+						"v1",
+						"project-type",
+						"getProcessTrack"
+					],
+					"query": [
+						{
+							"key": "campaignId",
+							"value": "eeded5f1-e779-454f-9cc7-2b20ba4839e0"
+						}
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}

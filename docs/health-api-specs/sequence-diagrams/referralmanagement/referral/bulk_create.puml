@@ -1,0 +1,204 @@
+@startuml
+title Referral - Bulk Create
+!theme vibrant
+participant Client as c
+participant ReferralManagement as rm
+participant FacilityService as fs
+participant HouseholdService as hs
+participant IndividualService as inds
+participant ProjectService as ps
+participant UserService as us
+participant RedisCache as rc
+queue Kafka as k
+participant PersisterService as prs
+participant IndexerService as idx
+participant ErrorService as es
+participant ElasticSearch as el
+database Database as db
+
+c -> rm : /referralmanagement/v1/bulk/_create
+activate rm
+rm -> rm : Validate request body
+
+alt request validation fails
+    rm -> rm: Request validation failed
+    rm -> k: Referral Data /error_topic
+    note left
+        This will be marked as unrecoverable right away
+        and require manual intervention
+    end note
+    activate k
+    group async
+        es -> k: Consume Referral Data
+        activate es
+        deactivate k
+        es -> db: Persist Referral Data /error_table
+        activate db
+        deactivate db
+        deactivate es
+    end
+    rm -> c: HttpStatus: 400 with appropriate error code
+    note left
+      Error Code: REQUEST_VALIDATION_FAILED
+    end note
+end
+rm -> rm: Request validation successful
+loop for each referral
+    alt record already exists
+        alt record found in cache
+          rm -> rc: Check using clientReferenceId/serverGeneratedId
+          activate rc
+          rc -> rm: 1 row
+          deactivate rc
+          rm -> c: HttpStatus: 400 with appropriate error code
+          note left
+              Error Code: RECORD_ALREADY_EXISTS
+          end note
+        end
+        rm -> rc: Check using clientReferenceId/serverGeneratedId
+        activate rc
+        rc -> rm: 0 rows
+        deactivate rc
+        rm -> db: Check if record already exists
+        activate db
+        db -> rm: 1 row
+        deactivate db
+        rm -> rc: Put data in cache using clientReferenceId/serverGeneratedId
+        activate rc
+        deactivate rc
+        rm -> c: HttpStatus: 400 with appropriate error code
+        note left
+            Error Code: RECORD_ALREADY_EXISTS
+        end note
+    end
+    alt projectBeneficiaryId invalid
+        rm -> ps: Check if projectBeneficiaryId exists
+        activate ps
+        ps -> db: Check if projectBeneficiaryId exists
+        activate db
+        db -> ps: 0 rows
+        deactivate db
+        ps -> rm: 0 rows
+        deactivate ps
+        rm -> c: HttpStatus: 400 with appropriate error code
+        note left
+           Error Code: DEPENDENCY_ERROR
+        end note
+    end
+    rm -> ps: Check if projectBeneficiaryId exists
+    activate ps
+    ps -> db: Check if projectBeneficiaryId exists
+    activate db
+    db -> ps: 1 row
+    deactivate db
+    ps -> rm: 1 row
+    deactivate ps
+    alt referrerId invalid
+        rm -> us: Check if referrerId exists
+        activate us
+        us -> db: Check if referrerId exists
+        activate db
+        db -> us: 0 rows
+        deactivate db
+        us -> rm: 0 rows
+        deactivate us
+        rm -> c: HttpStatus: 400 with appropriate error code
+        note left
+          Error Code: DEPENDENCY_ERROR
+        end note
+    end
+    rm -> us: Check if referrerId exists
+    activate us
+    us -> db: Check if referrerId exists
+    activate db
+    db -> us: 1 row
+    deactivate db
+    us -> rm: 1 row
+    deactivate us
+    alt recipientId invalid
+        alt recipientType is STAFF
+            rm -> us: Check if recipientId exists
+            activate us
+            us -> db: Check if recipientId exists
+            activate db
+            db -> us: 0 rows
+            deactivate db
+            us -> rm: 0 rows
+            deactivate us
+        end
+        alt recipientType is  FACILITY
+            rm -> fs: Check if recipientId exists
+            activate fs
+            fs -> db: Check if recipientId exists
+            activate db
+            db -> fs: 0 rows
+            deactivate db
+            fs -> rm: 0 rows
+            deactivate fs
+        end
+        rm -> c: HttpStatus: 400 with appropriate error code
+        note left
+          Error Code: DEPENDENCY_ERROR
+        end note
+    end
+    alt recipientType is STAFF
+        rm -> us: Check if recipientId exists
+        activate us
+        us -> db: Check if recipientId exists
+        activate db
+        db -> us: 1 row
+        deactivate db
+        us -> rm: 1 row
+        deactivate us
+    end
+    alt recipientType is FACILITY
+        rm -> fs: Check if recipientId exists
+        activate fs
+        fs -> db: Check if recipientId exists
+        activate db
+        db -> fs: 1 row
+        deactivate db
+        fs -> rm: 1 row
+        deactivate fs
+    end
+    alt sideEffectId invalid
+        rm -> db: Check if sideEffectId exists
+        activate db
+        db -> rm: 0 rows
+        deactivate db
+        rm -> c: HttpStatus: 400 with appropriate error code
+        note left
+          Error Code: DEPENDENCY_ERROR
+        end note
+    end
+    rm -> db: Check if referrerId exists
+    activate db
+    db -> rm: 1 row
+    deactivate db
+
+    rm -> k: Referral Data /persist_topic
+    activate k
+    rm -> rc: Put Referral Data against clientReferenceId/serverGeneratedId in cache
+    activate rc
+    deactivate rc
+    group async
+        prs -> k: Consume Referral Data
+        activate prs
+        idx -> k: Consume Referral Data
+        activate idx
+        idx -> el: Store Referral Data
+        activate el
+        deactivate el
+        deactivate idx
+        prs -> db: Persist Referral Data
+        activate db
+        deactivate db
+        deactivate prs
+    end
+    deactivate k
+end
+
+rm -> c : HttpStatus: 202 ACCEPTED
+deactivate rm
+
+@enduml

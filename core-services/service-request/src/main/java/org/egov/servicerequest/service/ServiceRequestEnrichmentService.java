@@ -4,17 +4,20 @@ import digit.models.coremodels.AuditDetails;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.servicerequest.constants.Constants;
 import org.egov.servicerequest.web.models.AttributeDefinition;
+import org.egov.servicerequest.web.models.AttributeValue;
 import org.egov.servicerequest.web.models.Service;
 import org.egov.servicerequest.web.models.ServiceDefinition;
 import org.egov.servicerequest.web.models.ServiceDefinitionRequest;
 import org.egov.servicerequest.web.models.ServiceRequest;
 import org.springframework.stereotype.Component;
+import org.springframework.util.ObjectUtils;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Component
 public class ServiceRequestEnrichmentService {
@@ -73,6 +76,7 @@ public class ServiceRequestEnrichmentService {
             attributeValue.setId(UUID.randomUUID().toString());
             attributeValue.setAuditDetails(auditDetails);
             attributeValue.setReferenceId(service.getId());
+            attributeValue.setServiceClientReferenceId(service.getClientId());
         });
 
         // Enrich audit details for service
@@ -82,6 +86,49 @@ public class ServiceRequestEnrichmentService {
         Map<String, Object> attributeCodeVsValueMap = convertAttributeValuesIntoJson(serviceRequest);
 
         return attributeCodeVsValueMap;
+
+    }
+
+    public Map<String, Object> enrichServiceRequestUpdate(ServiceRequest serviceRequest, Service existingFromDB) {
+        Service service = serviceRequest.getService();
+        String serviceId = service.getId();
+        String serviceClientId = service.getClientId();
+        RequestInfo requestInfo = serviceRequest.getRequestInfo();
+
+        // Enrich audit details for service
+        AuditDetails auditDetails = existingFromDB.getAuditDetails();
+        AuditDetails auditDetailsUpdated = AuditDetails.builder()
+                .createdBy(auditDetails.getCreatedBy())
+                .createdTime(auditDetails.getCreatedTime())
+                .lastModifiedBy(requestInfo.getUserInfo().getUuid())
+                .lastModifiedTime(System.currentTimeMillis())
+                .build();
+        service.setAuditDetails(auditDetailsUpdated);
+
+        Map<String, AttributeValue> existingAttributeValues = existingFromDB.getAttributes()
+                .stream().collect(Collectors.toMap(
+                        AttributeValue::getId,
+                        attributeValue -> attributeValue
+                ));
+
+        // Enrich audit details in attribute values
+        service.getAttributes().forEach(attributeValue -> {
+            if (ObjectUtils.isEmpty(attributeValue.getId())) attributeValue.setId(UUID.randomUUID().toString());
+            AttributeValue existingAttributeValue = existingAttributeValues.get(attributeValue.getId());
+            if (ObjectUtils.isEmpty(attributeValue.getAdditionalDetails()) && !ObjectUtils.isEmpty(existingAttributeValue)) {
+                attributeValue.setAdditionalDetails(existingAttributeValue.getAdditionalDetails());
+            }
+            if(!ObjectUtils.isEmpty(serviceClientId)) {
+                attributeValue.setServiceClientReferenceId(serviceClientId);
+            }
+            attributeValue.setReferenceId(serviceId);
+            attributeValue.setAuditDetails(auditDetailsUpdated);
+        });
+
+
+
+        // Convert incoming attribute value into JSON object
+        return convertAttributeValuesIntoJson(serviceRequest);
 
     }
 
@@ -109,5 +156,69 @@ public class ServiceRequestEnrichmentService {
         serviceRequest.getService().getAttributes().forEach(attributeValue -> {
             attributeValue.setValue(attributeCodeVsValueMap.get(attributeValue.getAttributeCode()));
         });
+    }
+
+    private void updateAttributeDefinition(AttributeDefinition attributeDefinition, AttributeDefinition existingAttributeDefinition, RequestInfo requestInfo){
+
+        attributeDefinition.setId(existingAttributeDefinition.getId());
+
+        attributeDefinition.setAuditDetails(existingAttributeDefinition.getAuditDetails());
+
+        attributeDefinition.setReferenceId(existingAttributeDefinition.getReferenceId());
+
+        attributeDefinition.getAuditDetails().setLastModifiedTime(System.currentTimeMillis());
+
+        attributeDefinition.getAuditDetails().setLastModifiedBy(requestInfo.getUserInfo().getUuid());
+
+    }
+    private void upsertAttributeDefinition(AttributeDefinition attributeDefinition, ServiceDefinitionRequest serviceDefinitionRequest){
+        RequestInfo requestInfo = serviceDefinitionRequest.getRequestInfo();
+
+        attributeDefinition.setId(UUID.randomUUID().toString());
+
+        attributeDefinition.setAuditDetails(
+          AuditDetails.builder()
+            .createdBy(requestInfo.getUserInfo().getUuid())
+            .createdTime(System.currentTimeMillis())
+            .lastModifiedBy(requestInfo.getUserInfo().getUuid())
+            .lastModifiedTime(System.currentTimeMillis())
+            .build()
+        );
+
+        attributeDefinition.setReferenceId(serviceDefinitionRequest.getServiceDefinition().getId());
+    }
+    public void enrichServiceDefinitionUpdateRequest(ServiceDefinitionRequest serviceDefinitionRequest, ServiceDefinition definitionFromDb) {
+        List<AttributeDefinition> attributeDefinitions = serviceDefinitionRequest.getServiceDefinition().getAttributes();
+
+        //For quick lookup of Attribute Definition with Code
+        Map<String,AttributeDefinition> existingAttributeCode = definitionFromDb
+          .getAttributes()
+          .stream()
+          .collect(Collectors.toMap(AttributeDefinition::getCode, a->a));
+
+        RequestInfo requestInfo = serviceDefinitionRequest.getRequestInfo();
+
+        ServiceDefinition serviceDefinition = serviceDefinitionRequest.getServiceDefinition();
+
+        serviceDefinition.setId(definitionFromDb.getId());
+        serviceDefinition.setAuditDetails(definitionFromDb.getAuditDetails());
+        serviceDefinition.getAuditDetails().setLastModifiedBy(requestInfo.getUserInfo().getUuid());
+        serviceDefinition.getAuditDetails().setLastModifiedTime(System.currentTimeMillis());
+
+        attributeDefinitions.forEach(attributeDefinition -> {
+            if(existingAttributeCode.containsKey(attributeDefinition.getCode())){
+                updateAttributeDefinition(attributeDefinition, existingAttributeCode.get(attributeDefinition.getCode()), requestInfo);
+            }
+            else{
+                upsertAttributeDefinition(attributeDefinition, serviceDefinitionRequest);
+            }
+
+            if(!(attributeDefinition.getDataType().equals(AttributeDefinition.DataTypeEnum.SINGLEVALUELIST) || attributeDefinition.getDataType().equals(AttributeDefinition.DataTypeEnum.MULTIVALUELIST))){
+                List<String> emptyStringList = new ArrayList<>();
+                emptyStringList.add("");
+                attributeDefinition.setValues(emptyStringList);
+            }
+        });
+
     }
 }
