@@ -44,7 +44,6 @@ export class TemplateClass {
 
         await this.persistMappingData(currentMappingData, mappingDataFromSheet, resourceDetails);
         currentBoundaryData = await getRelatedDataWithCampaign(resourceDetails?.type, campaignNumber, resourceDetails?.tenantId);
-        currentBoundaryData.push(...await getRelatedDataWithCampaign(resourceDetails?.type, campaignNumber, resourceDetails?.tenantId));
         await this.createAndUpdateProjects(currentBoundaryData, campaignDetails, boundaries, targetConfig);
         return {};
     }

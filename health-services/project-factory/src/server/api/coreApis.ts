@@ -12,7 +12,8 @@ export const defaultRequestInfo: any = {
     ...(config.isProduction && config.token && { authToken: config.token }),
     ...{
       userInfo: {
-        tenantId: config?.app?.defaultTenantId
+        tenantId: config?.app?.defaultTenantId,
+        id: 1
       }
     },
   },

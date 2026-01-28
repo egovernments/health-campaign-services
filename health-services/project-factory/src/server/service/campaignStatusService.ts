@@ -17,6 +17,12 @@ interface CampaignRow {
 interface ProcessRow {
     processname: string;
     status: string;
+    auditDetails?: {
+        createdBy?: string;
+        lastModifiedBy?: string;
+        createdTime?: number;
+        lastModifiedTime?: number;
+    };
 }
 
 interface CampaignStatusResponse {
@@ -58,7 +64,7 @@ async function getCampaignStatusService(
 
         // 3. Process Data Query (no tenantid column in this table)
         const processQuery = `
-            SELECT processname, status
+            SELECT processname, status, createdby, lastmodifiedby, createdtime, lastmodifiedtime
             FROM ${processTableName}
             WHERE campaignnumber = $1
         `;
@@ -83,10 +89,22 @@ async function getCampaignStatusService(
             summary[row.type][row.status] = parseInt(row.status_count, 10);
         });
 
+        // Transform process rows to include audit details
+        const processesWithAudit = processResult.rows.map((row: any) => ({
+            processname: row.processname,
+            status: row.status,
+            auditDetails: {
+                createdBy: row.createdby,
+                lastModifiedBy: row.lastmodifiedby,
+                createdTime: row.createdtime,
+                lastModifiedTime: row.lastmodifiedtime
+            }
+        }));
+
         const response: CampaignStatusResponse = {
             campaignNumber,
             summary,
-            processes: processResult.rows
+            processes: processesWithAudit
         };
 
         logger.info(`Successfully fetched campaign status for campaign: ${campaignNumber}`);
