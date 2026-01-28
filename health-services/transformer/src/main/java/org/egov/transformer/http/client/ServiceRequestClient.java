@@ -21,7 +21,7 @@ public class ServiceRequestClient {
 
 
     @Autowired
-    public ServiceRequestClient(@Qualifier("objectMapper") ObjectMapper objectMapper, RestTemplate restTemplate) {
+    public ServiceRequestClient(@Qualifier("objectMapper") ObjectMapper objectMapper, @Qualifier("customRestTemplate") RestTemplate restTemplate) {
         this.objectMapper = objectMapper;
         this.restTemplate = restTemplate;
     }
