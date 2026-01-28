@@ -531,7 +531,7 @@ const autoGenerateBoundaryCodes = async (
     headers = [
       ...headers,
       getLocalizedName("HCM_ADMIN_CONSOLE_FRENCH_LOCALIZATION_MESSAGE", localizationMap),
-      getLocalizedName("HCM_ADMIN_CONSOLE_FRENCH_LOCALIZATION_MESSAGE", localizationMap),
+      getLocalizedName("HCM_ADMIN_CONSOLE_PORTUGESE_LOCALIZATION_MESSAGE", localizationMap),
       getLocalizedName("HCM_ADMIN_CONSOLE_LAT", localizationMap),
       getLocalizedName("HCM_ADMIN_CONSOLE_LONG", localizationMap)
     ];
