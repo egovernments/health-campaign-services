@@ -275,9 +275,21 @@ public class ProjectTaskTransformationService {
                     additionalDetails.set(key, null);
                 }
             } else if (scannerKey.equalsIgnoreCase(key)) {
-                ArrayNode codesScanned = objectMapper.valueToTree(value.split(COMMA));
+                ArrayNode codesScanned = objectMapper.createArrayNode();
+                ArrayNode manualCodes = objectMapper.createArrayNode();
+
+                for (String code : value.split(COMMA)) {
+                    String trimmed = code.trim();
+                    if (trimmed.startsWith("(01)")) {
+                        manualCodes.add(trimmed);
+                    } else {
+                        codesScanned.add(trimmed);
+                    }
+                }
                 additionalDetails.put("codesScanned", codesScanned.size());
-                additionalDetails.put("codesScannedList", codesScanned);
+                additionalDetails.set("codesScannedList", codesScanned);
+                additionalDetails.put("manualCodes", manualCodes.size());
+                additionalDetails.set("manualCodesList", manualCodes);
             } else {
                 additionalDetails.put(key, value);
             }
