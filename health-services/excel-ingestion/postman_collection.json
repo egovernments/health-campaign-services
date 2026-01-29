@@ -1,0 +1,170 @@
+{
+	"info": {
+		"_postman_id": "bcdb7c9d-1f74-4353-854c-a36180aebbe5",
+		"name": "Excel-ingestion",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "42782008"
+	},
+	"item": [
+		{
+			"name": "generate/_init",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n\"RequestInfo\": {\n  \"apiId\": \"Rainmaker\",\n  \"authToken\": \"cc00e006-50b2-46c7-8c48-1da47eab037e\",\n  \"userInfo\": {\n    \"id\": 34602,\n    \"uuid\": \"dd885ccb-f91d-4bf2-adb8-46fb66217797\",\n    \"userName\": \"CAPTAIN\",\n    \"name\": \"Ritik Verma\",\n    \"mobileNumber\": \"9437584392\",\n    \"emailId\": \"ritik.kumar@egovernments.org\",\n    \"locale\": null,\n    \"type\": \"EMPLOYEE\",\n    \"roles\": [\n      {\n        \"name\": \"Campaign Managers\",\n        \"code\": \"CAMPAIGN_MANAGER\",\n        \"tenantId\": \"dev\"\n      }\n    ],\n    \"active\": true,\n    \"tenantId\": \"dev\",\n    \"permanentCity\": null\n  },\n  \"msgId\": \"1761036073664|en_IN\",\n  \"plainAccessRequest\": {}\n}\n,\n    \"GenerateResource\": {\n        \n        \"tenantId\": \"dev\",\n        \"type\": \"unified-console\",\n        \"hierarchyType\": \"TEST_45678\",\n        \"referenceId\": \"ef7065e6-7161-4efa-bc3b-06ec8a82aa7e\",\n        \"referenceType\": \"campaign\",\n        \"locale\" : \"en_IN\"\n    }\n}"
+				},
+				"url": {
+					"raw": "http://localhost:8079/excel-ingestion/v1/data/generate/_init",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8079",
+					"path": [
+						"excel-ingestion",
+						"v1",
+						"data",
+						"generate",
+						"_init"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "process/_validation",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n   \"RequestInfo\": {\n  \"apiId\": \"Rainmaker\",\n  \"authToken\": \"cc00e006-50b2-46c7-8c48-1da47eab037e\",\n  \"userInfo\": {\n    \"id\": 34602,\n    \"uuid\": \"dd885ccb-f91d-4bf2-adb8-46fb66217797\",\n    \"userName\": \"CAPTAIN\",\n    \"name\": \"Ritik Verma\",\n    \"mobileNumber\": \"9437584392\",\n    \"emailId\": \"ritik.kumar@egovernments.org\",\n    \"locale\": null,\n    \"type\": \"EMPLOYEE\",\n    \"roles\": [\n      {\n        \"name\": \"Campaign Managers\",\n        \"code\": \"CAMPAIGN_MANAGER\",\n        \"tenantId\": \"dev\"\n      }\n    ],\n    \"active\": true,\n    \"tenantId\": \"dev\",\n    \"permanentCity\": null\n  },\n  \"msgId\": \"1761036073664|en_IN\",\n  \"plainAccessRequest\": {}\n},\n   \"ResourceDetails\": {\n      \"tenantId\": \"dev\",\n      \"type\": \"unified-console-validation\",\n      \"locale\" : \"en_IN\",\n      \"hierarchyType\": \"NEWTEST00222\",\n      \"referenceId\": \"ef7065e6-7161-4efa-bc3b-06ec8a82aa7e\",\n      \"referenceType\": \"campaign\",\n      \"fileStoreId\":\"290ec4b1-7013-47af-9696-23bf1c657a67\"\n\n    }\n}"
+				},
+				"url": {
+					"raw": "http://localhost:8079/excel-ingestion/v1/data/process/_validation",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8079",
+					"path": [
+						"excel-ingestion",
+						"v1",
+						"data",
+						"process",
+						"_validation"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "process/_create",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n   \"RequestInfo\": {\n  \"apiId\": \"Rainmaker\",\n  \"authToken\": \"906988a7-32f8-459f-9527-48341f24cf4d\",\n  \"userInfo\": {\n    \"id\": 34602,\n    \"uuid\": \"dd885ccb-f91d-4bf2-adb8-46fb66217797\",\n    \"userName\": \"CAPTAIN\",\n    \"name\": \"Ritik Verma\",\n    \"mobileNumber\": \"9437584392\",\n    \"emailId\": \"ritik.kumar@egovernments.org\",\n    \"locale\": null,\n    \"type\": \"EMPLOYEE\",\n    \"roles\": [\n      {\n        \"name\": \"Campaign Managers\",\n        \"code\": \"CAMPAIGN_MANAGER\",\n        \"tenantId\": \"dev\"\n      }\n    ],\n    \"active\": true,\n    \"tenantId\": \"dev\",\n    \"permanentCity\": null\n  },\n  \"msgId\": \"1761036073664|en_IN\",\n  \"plainAccessRequest\": {}\n},\n   \"ResourceDetails\": {\n      \"tenantId\": \"dev\",\n      \"type\": \"unified-console-parse\",\n      \"locale\" : \"en_IN\",\n      \"hierarchyType\": \"NEWTEST00222\",\n      \"referenceId\": \"9401ca0b-220d-441c-b7d5-2167aea2a765\",\n      \"referenceType\": \"campaign\",\n      \"fileStoreId\":\"eabe0aa2-323f-41a4-abe1-715fff722b08\"\n\n    }\n}"
+				},
+				"url": {
+					"raw": "http://localhost:8079/excel-ingestion/v1/data/process/_create",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8079",
+					"path": [
+						"excel-ingestion",
+						"v1",
+						"data",
+						"process",
+						"_create"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "generate/_search",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"RequestInfo\": {\n  \"apiId\": \"Rainmaker\",\n  \"authToken\": \"cc00e006-50b2-46c7-8c48-1da47eab037e\",\n  \"userInfo\": {\n    \"id\": 34602,\n    \"uuid\": \"dd885ccb-f91d-4bf2-adb8-46fb66217797\",\n    \"userName\": \"CAPTAIN\",\n    \"name\": \"Ritik Verma\",\n    \"mobileNumber\": \"9437584392\",\n    \"emailId\": \"ritik.kumar@egovernments.org\",\n    \"locale\": null,\n    \"type\": \"EMPLOYEE\",\n    \"roles\": [\n      {\n        \"name\": \"Campaign Managers\",\n        \"code\": \"CAMPAIGN_MANAGER\",\n        \"tenantId\": \"dev\"\n      }\n    ],\n    \"active\": true,\n    \"tenantId\": \"dev\",\n    \"permanentCity\": null\n  },\n  \"msgId\": \"1761036073664|en_IN\",\n  \"plainAccessRequest\": {}\n},\n    \"GenerationSearchCriteria\": {\n        \"tenantId\": \"dev\",\n        \"referenceIds\": [\n            \"ef7065e6-7161-4efa-bc3b-06ec8a82aa7e\"\n        ],\n        \"referenceTypes\" : [\"campaign\"],\n      \n        \n        \"limit\": 5,\n        \"offset\": 0\n    }\n}"
+				},
+				"url": {
+					"raw": "http://localhost:8079/excel-ingestion/v1/data/generate/_search",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8079",
+					"path": [
+						"excel-ingestion",
+						"v1",
+						"data",
+						"generate",
+						"_search"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "process/_search",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n\"RequestInfo\": {\n  \"apiId\": \"Rainmaker\",\n  \"authToken\": \"0d0fa3e7-61e6-4b2e-8f61-c0f05053d327\",\n  \"userInfo\": {\n    \"id\": 34602,\n    \"uuid\": \"dd885ccb-f91d-4bf2-adb8-46fb66217797\",\n    \"userName\": \"CAPTAIN\",\n    \"name\": \"Ritik Verma\",\n    \"mobileNumber\": \"9437584392\",\n    \"emailId\": \"ritik.kumar@egovernments.org\",\n    \"locale\": null,\n    \"type\": \"EMPLOYEE\",\n    \"roles\": [\n      {\n        \"name\": \"Campaign Managers\",\n        \"code\": \"CAMPAIGN_MANAGER\",\n        \"tenantId\": \"dev\"\n      }\n    ],\n    \"active\": true,\n    \"tenantId\": \"dev\",\n    \"permanentCity\": null\n  },\n  \"msgId\": \"1761036073664|en_IN\",\n  \"plainAccessRequest\": {}\n},\n      \"ProcessingSearchCriteria\": {\n        \"tenantId\": \"dev\",\n        \"ids\": [\"79bbfacb-0f69-434a-b954-7f706b7db160\"],\n        \n        \"limit\": 5,\n        \"offset\": 0\n      }\n    }"
+				},
+				"url": {
+					"raw": "http://localhost:8079/excel-ingestion/v1/data/process/_search",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8079",
+					"path": [
+						"excel-ingestion",
+						"v1",
+						"data",
+						"process",
+						"_search"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}
