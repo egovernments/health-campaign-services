@@ -11,10 +11,10 @@ servers:
     description: Staging server
 
 paths:
-  /excel-ingestion/v1/data/_generate:
+  /excel-ingestion/v1/data/generate/_init:
     post:
       summary: Generate Excel template
-      description: Generates an Excel template based on hierarchy type and boundaries, then uploads it to filestore
+      description: Initiates async Excel template generation based on hierarchy type and boundaries, then uploads it to filestore
       operationId: generateExcelTemplate
       tags:
         - Excel Generation
@@ -39,6 +39,7 @@ paths:
                 type: "boundary"
                 hierarchyType: "ADMIN"
                 referenceId: "REF-2023-001"
+                referenceType: "campaign"
                 additionalDetails: {}
       responses:
         '202':
@@ -59,6 +60,7 @@ paths:
                   type: "boundary"
                   hierarchyType: "ADMIN"
                   referenceId: "REF-2023-001"
+                  referenceType: "campaign"
                   status: "PENDING"
                   fileStoreId: "f47ac10b-58cc-4372-a567-0e02b2c3d479"
                   additionalDetails: {}
@@ -75,10 +77,77 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /excel-ingestion/v1/data/_process:
+  /excel-ingestion/v1/data/process/_validation:
+    post:
+      summary: Validate Excel file
+      description: Validates an uploaded Excel file according to configured rules without creating records
+      operationId: processExcelValidation
+      tags:
+        - Excel Processing
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProcessResourceRequest'
+            example:
+              RequestInfo:
+                apiId: "excel-ingestion"
+                ver: "1.0"
+                ts: 1690371438000
+                msgId: "1234567890"
+                userInfo:
+                  uuid: "11b0e02b-0145-4de2-bc42-c97b96264807"
+                  userName: "testuser"
+                  tenantId: "pg.citya"
+              ResourceDetails:
+                tenantId: "pg.citya"
+                type: "boundary"
+                hierarchyType: "ADMIN"
+                referenceId: "REF-2023-001"
+                referenceType: "campaign"
+                fileStoreId: "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+                additionalDetails: {}
+      responses:
+        '202':
+          description: Excel validation initiated successfully (async processing)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProcessResourceResponse'
+              example:
+                ResponseInfo:
+                  apiId: "excel-ingestion"
+                  ver: "1.0"
+                  ts: 1690371438000
+                  status: "successful"
+                ProcessResource:
+                  id: "550e8400-e29b-41d4-a716-446655440001"
+                  tenantId: "pg.citya"
+                  type: "boundary"
+                  hierarchyType: "ADMIN"
+                  referenceId: "REF-2023-001"
+                  referenceType: "campaign"
+                  fileStoreId: "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+                  status: "PENDING"
+                  additionalDetails: {}
+        '400':
+          description: Bad Request - Invalid input parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /excel-ingestion/v1/data/process/_create:
     post:
       summary: Process Excel file
-      description: Processes an uploaded Excel file and validates data according to configured rules
+      description: Processes an uploaded Excel file, validates data and creates records according to configured rules
       operationId: processExcel
       tags:
         - Excel Processing
@@ -103,6 +172,7 @@ paths:
                 type: "boundary"
                 hierarchyType: "ADMIN"
                 referenceId: "REF-2023-001"
+                referenceType: "campaign"
                 fileStoreId: "f47ac10b-58cc-4372-a567-0e02b2c3d479"
                 additionalDetails: {}
       responses:
@@ -124,6 +194,7 @@ paths:
                   type: "boundary"
                   hierarchyType: "ADMIN"
                   referenceId: "REF-2023-001"
+                  referenceType: "campaign"
                   fileStoreId: "f47ac10b-58cc-4372-a567-0e02b2c3d479"
                   status: "PENDING"
                   additionalDetails: {}
@@ -140,7 +211,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /excel-ingestion/v1/data/_generationSearch:
+  /excel-ingestion/v1/data/generate/_search:
     post:
       summary: Search generation records
       description: Search for Excel generation records based on criteria
@@ -192,7 +263,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /excel-ingestion/v1/data/_processSearch:
+  /excel-ingestion/v1/data/process/_search:
     post:
       summary: Search processing records
       description: Search for Excel processing records based on criteria
@@ -397,6 +468,7 @@ components:
         - type
         - hierarchyType
         - referenceId
+        - referenceType
       properties:
         id:
           type: string
@@ -422,6 +494,9 @@ components:
           description: Reference identifier for tracking
           minLength: 1
           maxLength: 255
+        referenceType:
+          type: string
+          description: Type of reference (e.g., campaign, project)
         status:
           type: string
           description: Processing status
@@ -438,6 +513,14 @@ components:
           description: Additional metadata for the generation request
         auditDetails:
           $ref: '#/components/schemas/AuditDetails'
+          readOnly: true
+        createdBy:
+          type: string
+          description: User ID who created the record
+          readOnly: true
+        lastModifiedBy:
+          type: string
+          description: User ID who last modified the record
           readOnly: true
         createdTime:
           type: integer
@@ -643,6 +726,7 @@ components:
         - type
         - hierarchyType
         - referenceId
+        - referenceType
         - fileStoreId
       properties:
         id:
@@ -669,12 +753,23 @@ components:
           description: Reference identifier for tracking
           minLength: 1
           maxLength: 255
+        referenceType:
+          type: string
+          description: Type of reference (e.g., campaign, project)
         fileStoreId:
           type: string
           description: File store ID of the Excel file to process
         status:
           type: string
           description: Processing status
+          readOnly: true
+        processedFileStoreId:
+          type: string
+          description: File store ID of the processed/validated Excel file
+          readOnly: true
+        processedStatus:
+          type: string
+          description: Status of the processed file
           readOnly: true
         locale:
           type: string
@@ -684,16 +779,6 @@ components:
           description: Additional metadata for processing
         auditDetails:
           $ref: '#/components/schemas/AuditDetails'
-          readOnly: true
-        createdTime:
-          type: integer
-          format: int64
-          description: Created timestamp
-          readOnly: true
-        lastModifiedTime:
-          type: integer
-          format: int64
-          description: Last modified timestamp
           readOnly: true
 
     # Search related schemas
