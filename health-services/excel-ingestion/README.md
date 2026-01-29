@@ -15,7 +15,7 @@ sequenceDiagram
     participant egov-mdms-service
     participant filestore-service
     
-    Client->>ExcelIngestionService: POST /v1/data/_generate<br/>(GenerateResourceRequest)
+    Client->>ExcelIngestionService: POST /v1/data/generate/_init<br/>(GenerateResourceRequest)
     
     Note over ExcelIngestionService: Validate Request & Store in DB
     Note over ExcelIngestionService: Create Generation ID
@@ -55,7 +55,7 @@ sequenceDiagram
     participant project-factory
     participant Database
     
-    Client->>ExcelIngestionService: POST /v1/data/_process<br/>(ProcessResourceRequest with fileStoreId)
+    Client->>ExcelIngestionService: POST /v1/data/process/_create<br/>(ProcessResourceRequest with fileStoreId)
     
     Note over ExcelIngestionService: Validate Request & Store in DB
     Note over ExcelIngestionService: Create Processing ID
@@ -90,7 +90,7 @@ sequenceDiagram
     participant ExcelIngestionService
     participant Database
     
-    Client->>ExcelIngestionService: POST /v1/data/_generationSearch<br/>(GenerationSearchRequest)
+    Client->>ExcelIngestionService: POST /v1/data/generate/_search<br/>(GenerationSearchRequest)
     
     Note over ExcelIngestionService: Validate Search Criteria
     Note over ExcelIngestionService: Build Query with Arrays<br/>(ids[], referenceIds[], types[], statuses[])
@@ -112,7 +112,7 @@ sequenceDiagram
     participant ExcelIngestionService
     participant Database
     
-    Client->>ExcelIngestionService: POST /v1/data/_processSearch<br/>(ProcessingSearchRequest)
+    Client->>ExcelIngestionService: POST /v1/data/process/_search<br/>(ProcessingSearchRequest)
     
     Note over ExcelIngestionService: Validate Search Criteria
     Note over ExcelIngestionService: Build Query with Arrays<br/>(ids[], referenceIds[], types[], statuses[])
@@ -175,7 +175,7 @@ sequenceDiagram
     participant Service
     participant Database
     
-    Client->>ExcelIngestionService: POST /v1/data/_generate or _process
+    Client->>ExcelIngestionService: POST /v1/data/generate/_init or<br/>/v1/data/process/_create or<br/>/v1/data/process/_validation
     
     alt Validation Error
         ExcelIngestionService-->>Client: 400 Bad Request<br/>(ValidationException)
@@ -312,12 +312,13 @@ BasePath `/excel-ingestion/v1/data`
 Excel Ingestion service APIs - comprehensive suite for Excel workflow management
 
 **Generation APIs:**
-* POST `/v1/data/_generate` - Generate Excel Template (Async), generates Excel template and uploads to filestore
-* POST `/v1/data/_generationSearch` - Search generation records with status tracking
+* POST `/v1/data/generate/_init` - Initiate Excel Template Generation (Async), generates Excel template and uploads to filestore
+* POST `/v1/data/generate/_search` - Search generation records with status tracking
 
-**Processing APIs:**  
-* POST `/v1/data/_process` - Process Excel File (Async), validates uploaded Excel files 
-* POST `/v1/data/_processSearch` - Search processing records with detailed results
+**Processing APIs:**
+* POST `/v1/data/process/_validation` - Validate Excel File (Async), validates uploaded Excel files without creating records
+* POST `/v1/data/process/_create` - Process Excel File (Async), validates and parses uploaded Excel files, stores data
+* POST `/v1/data/process/_search` - Search processing records with detailed results
 
 **Sheet Data Management APIs:**
 * POST `/v1/data/sheet/_search` - Search temporary sheet data by various criteria
@@ -340,6 +341,7 @@ Excel Ingestion service APIs - comprehensive suite for Excel workflow management
     "type": "boundary",
     "hierarchyType": "ADMIN",
     "referenceId": "REF-2023-001",
+    "referenceType": "campaign",
     "additionalDetails": {}
   }
 }
@@ -360,6 +362,7 @@ Excel Ingestion service APIs - comprehensive suite for Excel workflow management
     "type": "boundary",
     "hierarchyType": "ADMIN",
     "referenceId": "REF-2023-001",
+    "referenceType": "campaign",
     "status": "PENDING",
     "fileStoreId": null,
     "additionalDetails": {}
@@ -432,7 +435,7 @@ Contains the complete boundary hierarchy with dynamic columns based on hierarchy
 ### Generate Excel Template
 ```bash
 curl -X POST \
-  http://localhost:8080/excel-ingestion/v1/data/_generate \
+  http://localhost:8080/excel-ingestion/v1/data/generate/_init \
   -H 'Content-Type: application/json' \
   -d '{
     "RequestInfo": {
@@ -448,15 +451,16 @@ curl -X POST \
       "type": "boundary",
       "hierarchyType": "ADMIN",
       "referenceId": "REF-2023-001",
+      "referenceType": "campaign",
       "additionalDetails": {}
     }
   }'
 ```
 
-### Process Excel File
+### Validate Excel File
 ```bash
 curl -X POST \
-  http://localhost:8080/excel-ingestion/v1/data/_process \
+  http://localhost:8080/excel-ingestion/v1/data/process/_validation \
   -H 'Content-Type: application/json' \
   -d '{
     "RequestInfo": {
@@ -472,6 +476,33 @@ curl -X POST \
       "type": "boundary",
       "hierarchyType": "ADMIN",
       "referenceId": "REF-2023-001",
+      "referenceType": "campaign",
+      "fileStoreId": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+      "additionalDetails": {}
+    }
+  }'
+```
+
+### Process Excel File (Create)
+```bash
+curl -X POST \
+  http://localhost:8080/excel-ingestion/v1/data/process/_create \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "RequestInfo": {
+      "apiId": "excel-ingestion",
+      "ver": "1.0",
+      "ts": 1690371438000,
+      "userInfo": {
+        "uuid": "11b0e02b-0145-4de2-bc42-c97b96264807"
+      }
+    },
+    "ResourceDetails": {
+      "tenantId": "pg.citya",
+      "type": "boundary",
+      "hierarchyType": "ADMIN",
+      "referenceId": "REF-2023-001",
+      "referenceType": "campaign",
       "fileStoreId": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
       "additionalDetails": {}
     }
@@ -481,7 +512,7 @@ curl -X POST \
 ### Search Generation Records
 ```bash
 curl -X POST \
-  http://localhost:8080/excel-ingestion/v1/data/_generationSearch \
+  http://localhost:8080/excel-ingestion/v1/data/generate/_search \
   -H 'Content-Type: application/json' \
   -d '{
     "RequestInfo": {
@@ -508,7 +539,7 @@ curl -X POST \
 ### Search Processing Records
 ```bash
 curl -X POST \
-  http://localhost:8080/excel-ingestion/v1/data/_processSearch \
+  http://localhost:8080/excel-ingestion/v1/data/process/_search \
   -H 'Content-Type: application/json' \
   -d '{
     "RequestInfo": {
