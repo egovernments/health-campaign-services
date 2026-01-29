@@ -10,6 +10,7 @@ import org.egov.common.models.facility.Facility;
 import org.egov.common.models.project.ProjectStaff;
 import org.egov.common.models.stock.AdditionalFields;
 import org.egov.common.models.project.Project;
+import org.egov.common.models.stock.Field;
 import org.egov.common.models.stock.Stock;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.models.boundary.BoundaryHierarchyResult;
@@ -39,7 +40,7 @@ public class StockTransformationService {
     private final BoundaryService boundaryService;
     private final ProductService productService;
     private static final Set<String> ADDITIONAL_DETAILS_DOUBLE_FIELDS = new HashSet<>(Arrays.asList(LAT, LNG));
-    private static final Set<String> ADDITIONAL_DETAILS_INTEGER_FIELDS = new HashSet<>(Arrays.asList(PARTIAL_BLISTERS_RETURNED, WASTED_BLISTERS_RETURNED));
+    private static final Set<String> ADDITIONAL_DETAILS_INTEGER_FIELDS = new HashSet<>(Arrays.asList(PARTIAL_BLISTERS_RETURNED, WASTED_BLISTERS_RETURNED, BALES_QUANTITY));
 
     public StockTransformationService(Producer producer, FacilityService facilityService, TransformerProperties transformerProperties, CommonUtils commonUtils, ProjectService projectService, UserService userService, ObjectMapper objectMapper, ProductService productService, BoundaryService boundaryService) {
         this.producer = producer;
@@ -211,7 +212,11 @@ public class StockTransformationService {
                 stock.getReceiverType().toString();
     }
     private void addAdditionalDetails(AdditionalFields additionalFields, ObjectNode additionalDetails) {
-        additionalFields.getFields().forEach(field -> {
+        List<String> actualScansKeysList = Arrays.asList(transformerProperties.getBaleScanningActualKeys().split(COMMA));
+        List<String> manualScansKeysList = Arrays.asList(transformerProperties.getBaleScanningManualKeys().split(COMMA));
+        int manualBaleScans = 0;
+        int actualBaleScans = 0;
+        for (Field field : additionalFields.getFields()) {
             String key = field.getKey();
             String value = field.getValue();
             if (ADDITIONAL_DETAILS_DOUBLE_FIELDS.contains(key)) {
@@ -230,9 +235,17 @@ public class StockTransformationService {
                     additionalDetails.put(key, (JsonNode) null);
                 }
             }
+            else if (manualScansKeysList.contains(key)) {
+                manualBaleScans++;
+            }
+            else if (actualScansKeysList.contains(key)) {
+                actualBaleScans++;
+            }
             else {
                 additionalDetails.put(key, value);
             }
-        });
+            additionalDetails.put("manualBaleScans", manualBaleScans);
+            additionalDetails.put("actualBaleScans", actualBaleScans);
+        }
     }
 }

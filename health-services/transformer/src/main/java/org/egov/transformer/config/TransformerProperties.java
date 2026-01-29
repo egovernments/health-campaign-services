@@ -236,4 +236,10 @@ public class TransformerProperties {
 
     @Value("${transformer.checklist.info.mdms.module}")
     private String transformerChecklistInfoMDMSModule;
+
+    @Value("${bale.scanning.actual.scan.keys}")
+    private String baleScanningActualKeys;
+
+    @Value("${bale.scanning.manual.scan.keys}")
+    private String baleScanningManualKeys;
 }
