@@ -117,11 +117,11 @@ public class ServiceRequestValidator {
 //                    throw new CustomException(SERVICE_REQUEST_ATTRIBUTE_INVALID_VALUE_CODE, SERVICE_REQUEST_ATTRIBUTE_INVALID_MULTI_VALUE_LIST_VALUE_MSG);
 //                }
 //            }
-            else if(attributeCodeVsDataType.get(attributeValue.getAttributeCode()).equals(AttributeDefinition.DataTypeEnum.BOOLEAN)){
-                if(!(attributeValue.getValue() instanceof Boolean)){
-                    throw new CustomException(SERVICE_REQUEST_ATTRIBUTE_INVALID_VALUE_CODE, SERVICE_REQUEST_ATTRIBUTE_INVALID_BOOLEAN_VALUE_MSG);
-                }
-            }
+//            else if(attributeCodeVsDataType.get(attributeValue.getAttributeCode()).equals(AttributeDefinition.DataTypeEnum.BOOLEAN)){
+//                if(!(attributeValue.getValue() instanceof Boolean)){
+//                    throw new CustomException(SERVICE_REQUEST_ATTRIBUTE_INVALID_VALUE_CODE, SERVICE_REQUEST_ATTRIBUTE_INVALID_BOOLEAN_VALUE_MSG);
+//                }
+//            }
         });
 
         // Validate if value provided against attribute definition of single value list and multi value list is the same as the list of values provided during creation
