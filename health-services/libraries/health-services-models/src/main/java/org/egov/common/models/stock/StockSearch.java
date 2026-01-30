@@ -59,7 +59,7 @@ public class StockSearch extends EgovOfflineSearchModel {
     private String transactingPartyType = null;
 
     @JsonProperty("receiverId")
-    private List<String> receiverId = null;
+    private String receiverId = null;
 
     @JsonProperty("receiverType")
     private SenderReceiverType receiverType;
