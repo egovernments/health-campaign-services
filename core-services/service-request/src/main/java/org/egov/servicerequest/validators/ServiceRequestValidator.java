@@ -46,7 +46,7 @@ public class ServiceRequestValidator {
 
     public void validateServiceRequest(ServiceRequest serviceRequest) throws InvalidTenantIdException {
         List<ServiceDefinition> serviceDefinitions = validateServiceDefID(serviceRequest.getService().getTenantId(), serviceRequest.getService().getServiceDefId());
-        validateServiceRequestAlreadyExists(serviceRequest);
+//        validateServiceRequestAlreadyExists(serviceRequest);
         validateAttributeValuesAgainstServiceDefinition(serviceDefinitions.get(0), serviceRequest.getService().getAttributes());
         validateAccountId(serviceRequest.getService());
     }
