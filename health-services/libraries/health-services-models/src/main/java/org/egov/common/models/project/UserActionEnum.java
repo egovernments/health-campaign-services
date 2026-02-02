@@ -9,7 +9,9 @@ public enum UserActionEnum {
     TRANSIT("TRANSIT"),
     FIXED("FIXED"),
     DAILY_PLAN("DAILY_PLAN"),
-    OTHER("OTHER");
+    OTHER("OTHER"),
+    START("start"),
+    END("end");
 
     private String value;
 

@@ -81,7 +81,9 @@ public enum TaskStatus {
      * This status means that the individual or entity for whom the task
      * was intended was given a re dose
      */
-    VISITED("VISITED");
+    VISITED("VISITED"),
+
+    VACCINE_STATUS("VACCINE_STATUS");
 
     // The string value associated with the task status.
     private String value;
