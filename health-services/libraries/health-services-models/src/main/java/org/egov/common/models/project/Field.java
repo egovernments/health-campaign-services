@@ -29,7 +29,7 @@ public class Field {
 
     @JsonProperty("value")
     @NotNull
-    @Size(min = 1, max = 10000)
+    @Size(min = 0, max = 10000)
     private String value = null;
 
 }
