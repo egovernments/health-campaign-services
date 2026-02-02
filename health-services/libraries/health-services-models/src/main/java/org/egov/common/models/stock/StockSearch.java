@@ -4,6 +4,7 @@ import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
@@ -11,6 +12,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 import org.egov.common.models.core.EgovOfflineSearchModel;
+import org.egov.common.models.core.validator.CommaSeparatedStringToListDeserializer;
 import org.springframework.validation.annotation.Validated;
 
 /**
@@ -59,7 +61,8 @@ public class StockSearch extends EgovOfflineSearchModel {
     private String transactingPartyType = null;
 
     @JsonProperty("receiverId")
-    private String receiverId = null;
+    @JsonDeserialize(using = CommaSeparatedStringToListDeserializer.class)
+    private List<String> receiverId = null;
 
     @JsonProperty("receiverType")
     private SenderReceiverType receiverType;
