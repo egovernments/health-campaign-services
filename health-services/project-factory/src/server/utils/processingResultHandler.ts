@@ -106,7 +106,8 @@ export async function handleProcessingResult(messageObject: any) {
         const validationStatus = messageObject?.additionalDetails?.validationStatus;
         const totalRowsProcessed = messageObject?.additionalDetails?.totalRowsProcessed || 0;
         const totalErrors = messageObject?.additionalDetails?.totalErrors || 0;
-        const createdByEmail = messageObject?.additionalDetails?.createdByEmail ?? null;
+        var createdByEmail = null;
+        const locale = messageObject.locale || config.localisation.defaultLocale;
         
         logger.info(`Validation Status: ${validationStatus}`);
         logger.info(`Total Rows Processed: ${totalRowsProcessed}`);
@@ -121,12 +122,51 @@ export async function handleProcessingResult(messageObject: any) {
         const campaignResponse = await searchProjectTypeCampaignService(campaignSearchCriteria);
         const campaignDetails = campaignResponse?.CampaignDetails?.[0];
         
-        if (!campaignDetails) {
-            logger.error(`No campaign found with campaignId: ${messageObject.referenceId}`);
-            return;
-        }
+                if (!campaignDetails) {
+                    logger.error(`No campaign found with campaignId: ${messageObject.referenceId}`);
+                    return;
+                }
         
-        logger.info(`Found campaign: ${campaignDetails.campaignName} (${campaignDetails.id})`);
+        const campaignCreatedBy = campaignDetails?.auditDetails?.createdBy;
+                if (campaignCreatedBy) {
+                    const searchUrl = config.host.healthIndividualHost + config.paths.healthIndividualSearch;
+                    const params = {
+                        limit: 1,
+                        offset: 0,
+                        tenantId: messageObject.tenantId,
+                    };
+                    const searchBody = {
+                        RequestInfo: defaultRequestInfo.RequestInfo,
+                        Individual: {
+                            type: "EMPLOYEE",
+                            userUuid: [campaignCreatedBy],
+                        },
+                    };
+                    
+                    try {
+                        logger.info(`Making individual search call for userUuid: ${campaignCreatedBy}`);
+                        const individualResponse = await httpRequest(
+                            searchUrl,
+                            searchBody,
+                            params,
+                            undefined,
+                            undefined,
+                            undefined,
+                            undefined,
+                            true
+                        );
+                        if (individualResponse?.Individual?.length > 0) {
+                             createdByEmail =  individualResponse.Individual[0]?.email;
+                            logger.info(`Individual email found: ${createdByEmail}`);
+                        }
+                    } catch (searchError) {
+                        logger.error(`Error in individual search call for userUuid ${campaignCreatedBy}:`, searchError);
+                    }
+                } else {
+                    logger.warn('campaignCreatedBy is not available, skipping individual search call.');
+                }
+
+                logger.info(`Found campaign: ${campaignDetails.campaignName} (${campaignDetails.id})`);
         if(campaignDetails.status === campaignStatuses.failed){
             logger.warn('Campaign is already marked as failed, skipping further processing');
             return;
@@ -188,7 +228,6 @@ export async function handleProcessingResult(messageObject: any) {
         
         // Fetch localization data
         logger.info('=== FETCHING LOCALIZATION DATA ===');
-        const locale = messageObject.locale || config.localisation.defaultLocale;
         const localizationMap = await fetchLocalizationData(messageObject.tenantId, messageObject.referenceId, locale);
         logger.info(`Localization data fetched with ${Object.keys(localizationMap).length} keys`);
         

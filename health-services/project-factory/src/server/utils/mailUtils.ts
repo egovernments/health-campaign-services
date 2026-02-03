@@ -24,11 +24,14 @@ export async function sendNotificationEmail(
 
         const localizationMap = await getLocalizedMessagesHandlerViaLocale(locale, tenantId,"hcm-admin-notification");
         logger.info("Step 3: Fetched localization map");
-        
+
+        const projectType = requestBody?.CampaignDetails?.projectType ;
+
         const MdmsCriteria: MDMSModels.MDMSv2RequestCriteria = {
             MdmsCriteria: {
                 tenantId: tenantId,
-                schemaCode: "HCM-ADMIN-CONSOLE.emailTemplateV2"
+                schemaCode: "HCM-ADMIN-CONSOLE.emailTemplateV2",
+                uniqueIdentifiers: [`campaign-create-${projectType}`]
             }
         };
 
@@ -36,7 +39,7 @@ export async function sendNotificationEmail(
         const mdmsResponse = await searchMDMSDataViaV2Api(MdmsCriteria);
 
 
-        const emailTemplate = mdmsResponse?.mdms?.find((obj: any) => obj?.uniqueIdentifier === "campaign-create-bednet");
+        const emailTemplate = mdmsResponse?.mdms[0] ;
 
         if (!emailTemplate) {
             logger.error("Step 5: Email template not found in MDMS response");

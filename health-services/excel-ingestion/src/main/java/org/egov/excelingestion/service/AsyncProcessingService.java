@@ -51,20 +51,6 @@ public class AsyncProcessingService {
             // Call the actual processing service (this is the heavy operation)
             ProcessResource processedResource = excelProcessingService.processExcelFile(request);
 
-            // Add user email to additional details for email notification
-            if (requestInfo != null && requestInfo.getUserInfo() != null) {
-                String userEmail = requestInfo.getUserInfo().getEmailId();
-                if (userEmail != null) {
-                    Map<String, Object> additionalDetails =
-                            processedResource.getAdditionalDetails() != null
-                                    ? processedResource.getAdditionalDetails()
-                                    : new HashMap<>();
-
-                    additionalDetails.put("createdByEmail", userEmail);
-                    processedResource.setAdditionalDetails(additionalDetails);
-                    log.info("Added user email '{}' to additionalDetails for processId: {}", userEmail, processResource.getId());
-                }
-            }
             
             // Update with success status and processed file store ID via Kafka
             processResource.setStatus(ProcessingConstants.STATUS_COMPLETED);
