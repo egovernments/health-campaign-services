@@ -79,10 +79,10 @@ public class ServiceRequestValidator {
         });
 
         // Check if all required attributes have been provided as part of service
-        setOfRequiredAttributes.forEach(requiredAttribute -> {
-            if(!setOfAttributeValues.contains(requiredAttribute))
-                throw new CustomException(SERVICE_REQUEST_REQUIRED_ATTRIBUTE_NOT_PROVIDED_ERR_CODE, SERVICE_REQUEST_REQUIRED_ATTRIBUTE_NOT_PROVIDED_ERR_MSG);
-        });
+//        setOfRequiredAttributes.forEach(requiredAttribute -> {
+//            if(!setOfAttributeValues.contains(requiredAttribute))
+//                throw new CustomException(SERVICE_REQUEST_REQUIRED_ATTRIBUTE_NOT_PROVIDED_ERR_CODE, SERVICE_REQUEST_REQUIRED_ATTRIBUTE_NOT_PROVIDED_ERR_MSG);
+//        });
 
         // Validate if value being passed is consistent in terms of data type provided as part of service definition
         service.getAttributes().forEach(attributeValue -> {
