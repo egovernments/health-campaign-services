@@ -72,6 +72,38 @@ export async function callExcelIngestionService(requestBody: any) {
     }
 }
 
+export async function callExcelIngestionGenerateSearch(requestBody: any) {
+    try {
+        const excelIngestionSearchUrl = config.host.excelIngestionHost + config.paths.excelIngestionGenerateSearch;
+        const requestInfo = requestBody?.RequestInfo;
+        const campaignDetails = requestBody?.CampaignDetails;
+
+
+        const requestBodyToCallSearch = {
+            RequestInfo: requestInfo,
+            GenerationSearchCriteria: {
+                tenantId: campaignDetails?.tenantId,
+                referenceIds: [campaignDetails?.id],
+                statuses: ["completed"],
+            }
+        };
+
+        const response = await httpRequest(
+            excelIngestionSearchUrl,
+            requestBodyToCallSearch,
+            undefined,
+            'post',
+            undefined
+        );
+
+        logger.info(`Successfully called excel-ingestion generate search API for referenceIds: ${campaignDetails?.id}`);
+        return response;
+    } catch (error: any) {
+        logger.error(`Error calling excel-ingestion generate search API: ${error.message}`);
+        throw error;
+    }
+}
+
 async function callGenerateIfBoundariesOrCampaignTypeDiffer(request: any) {
     try {
         // Apply 2-second timeout after the condition check

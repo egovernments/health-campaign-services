@@ -8,6 +8,7 @@ import { getLocalizedMessagesHandlerViaLocale } from "./genericUtils";
 import { getFileUrl } from "./onGoingCampaignUpdateUtils";
 import { logger } from "./logger";
 import { generateCampaignEmailTemplate } from "../templates/campaignEmailTemplate";
+import {callExcelIngestionGenerateSearch} from "./generateUtils";
 
 export async function sendNotificationEmail(
     fileStoreIdMap: Record<string, string>, requestBody: any , createdByEmail?: string
@@ -16,8 +17,9 @@ export async function sendNotificationEmail(
     try {
         const requestInfo = requestBody?.RequestInfo;
         logger.info("Step 1: Starting sendNotificationEmail");
-
-        const locale = config?.localisation?.defaultLocale || "en-IN";
+        const GenerateSearchResponse = await callExcelIngestionGenerateSearch(requestBody);
+        
+        const locale = GenerateSearchResponse?.GenerationDetails[0]?.locale || "en-IN";
         const tenantId = requestInfo?.userInfo?.tenantId;
 
         logger.info(`Step 2: Extracted locale: ${locale}, tenantId: ${tenantId}`);

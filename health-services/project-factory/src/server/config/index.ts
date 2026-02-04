@@ -170,7 +170,8 @@ const config = {
     censusSearch: process.env.EGOV_CENSUS_SEARCH || "census-service/_search",
     excelIngestionSheetSearch: process.env.EXCEL_INGESTION_SHEET_SEARCH || "excel-ingestion/v1/data/sheet/_search",
     excelIngestionProcess: process.env.EXCEL_INGESTION_PROCESS || "excel-ingestion/v1/data/process/_create",
-    excelIngestionGenerate: process.env.EXCEL_INGESTION_GENERATE || "excel-ingestion/v1/data/generate/_init"
+    excelIngestionGenerate: process.env.EXCEL_INGESTION_GENERATE || "excel-ingestion/v1/data/generate/_init",
+    excelIngestionGenerateSearch:process.env.EXCEL_INGESTION_GENERATE_SEARCH || "excel-ingestion/v1/data/generate/_search",
   },
   // Values configuration
   values: {
