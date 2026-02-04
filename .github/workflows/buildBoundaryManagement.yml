@@ -3,7 +3,6 @@ name: Auto Trigger for boundary-management Multi-Arch Build
 on:
   push:
     branches:
-      - boundary-service-code-fix
       - master
       - console
 
