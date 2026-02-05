@@ -6,7 +6,7 @@ import { getCampaignSearchResponse, getHeadersOfBoundarySheet, getHierarchy, han
 import { campaignDetailsSchema } from "../config/models/campaignDetails";
 import Ajv from "ajv";
 import { getDifferentDistrictTabs, getLocalizedHeaders, getMdmsDataBasedOnCampaignType, throwError } from "../utils/genericUtils";
-import { createBoundaryMap, enrichInnerCampaignDetails, generateProcessedFileAndPersist, getFinalValidHeadersForTargetSheetAsPerCampaignType, getLocalizedName, searchProjectCampaignResourcData } from "../utils/campaignUtils";
+import { generateProcessedFileAndPersist, getFinalValidHeadersForTargetSheetAsPerCampaignType, getLocalizedName, searchProjectCampaignResourcData } from "../utils/campaignUtils";
 import { validateBodyViaSchema, validateCampaignBodyViaSchema, validateHierarchyType } from "./genericValidator";
 import { searchCriteriaSchema } from "../config/models/SearchCriteria";
 import { searchCampaignDetailsSchema } from "../config/models/searchCampaignDetails";
@@ -22,7 +22,6 @@ import addAjvErrors from "ajv-errors";
 import { generateTargetColumnsBasedOnDeliveryConditions, isDynamicTargetTemplateForProjectType, modifyDeliveryConditions } from "../utils/targetUtils";
 import { getBoundariesFromCampaignSearchResponse, validateMissingBoundaryFromParent } from "../utils/onGoingCampaignUpdateUtils";
 import { validateExtraBoundariesForMicroplan, validateLatLongForMicroplanCampaigns, validatePhoneNumberSheetWise, validateRequiredTargetsForMicroplanCampaigns, validateUniqueSheetWise, validateUserForMicroplan } from "./microplanValidators";
-import { produceModifiedMessages } from "../kafka/Producer";
 import { isMicroplanRequest, planConfigSearch, planFacilitySearch } from "../utils/microplanUtils";
 import { getPvarIds } from "../utils/campaignMappingUtils";
 import { fetchProductVariants } from "../api/healthApis";
@@ -56,7 +55,10 @@ async function fetchBoundariesFromCampaignDetails(request: any) {
         cachekey: `boundaryRelationShipSearch${params?.hierarchyType}${params?.tenantId}${params.codes || ''}${params?.includeChildren || ''}`,
     }
     const responseBoundaries: any[] = [];
-    var response = await httpRequest(config.host.boundaryHost + config.paths.boundaryRelationship, request.body, params, undefined, undefined, header);
+    const requestBody: any = {
+        RequestInfo: request?.body?.RequestInfo
+    }
+    var response = await httpRequest(config.host.boundaryHost + config.paths.boundaryRelationship, requestBody, params, undefined, undefined, header);
     const TenantBoundary = response.TenantBoundary;
     TenantBoundary.forEach((tenantBoundary: any) => {
         const { boundary } = tenantBoundary;
@@ -536,41 +538,6 @@ async function validateHeadersOfTargetSheet(request: any, differentTabsBasedOnLe
 }
 
 
-function validateBooleanField(obj: any, fieldName: any, index: any) {
-    if (!obj.hasOwnProperty(fieldName)) {
-        throwError("COMMON", 400, "VALIDATION_ERROR", `Object at index ${index} is missing field "${fieldName}".`);
-    }
-
-    if (typeof obj[fieldName] !== 'boolean') {
-        throwError("COMMON", 400, "VALIDATION_ERROR", `Object at index ${index} has invalid type for field "${fieldName}". It should be a boolean.`);
-    }
-}
-
-function validateStringField(obj: any, fieldName: any, index: any) {
-    if (!obj.hasOwnProperty(fieldName)) {
-        throwError("COMMON", 400, "VALIDATION_ERROR", `Object at index ${index} is missing field "${fieldName}".`);
-    }
-    if (typeof obj[fieldName] !== 'string') {
-        throwError("COMMON", 400, "VALIDATION_ERROR", `Object at index ${index} has invalid type for field "${fieldName}". It should be a string.`);
-    }
-    if (obj[fieldName].length < 1) {
-        throwError("COMMON", 400, "VALIDATION_ERROR", `Object at index ${index} has empty value for field "${fieldName}".`);
-    }
-    if (obj[fieldName].length > 128) {
-        throwError("COMMON", 400, "VALIDATION_ERROR", `Object at index ${index} has value for field "${fieldName}" that exceeds the maximum length of 128 characters.`);
-    }
-}
-
-function validateStorageCapacity(obj: any, index: any) {
-    if (!obj.hasOwnProperty('storageCapacity')) {
-        throwError("COMMON", 400, "VALIDATION_ERROR", `Object at index ${index} is missing field "storageCapacity".`);
-    }
-    if (typeof obj.storageCapacity !== 'number') {
-        throwError("COMMON", 400, "VALIDATION_ERROR", `Object at index ${index} has invalid type for field "storageCapacity". It should be a number.`);
-    }
-}
-
-
 async function validateCampaignId(request: any) {
     const { campaignId, tenantId, type, additionalDetails } = request?.body?.ResourceDetails;
     if (type == "boundary") {
@@ -614,10 +581,10 @@ async function validateCreateRequest(request: any, localizationMap?: any) {
         throwError("COMMON", 400, "VALIDATION_ERROR", "ResourceDetails is missing or empty or null");
     }
     else {
-        const type = request?.body?.ResourceDetails?.type;
+        // const type = request?.body?.ResourceDetails?.type;
         // validate create request body 
         validateBodyViaSchema(createRequestSchema, request.body.ResourceDetails);
-        if (type !== "boundaryManagement" && request?.body?.ResourceDetails.campaignId !== "default") {
+        if (request?.body?.ResourceDetails.campaignId !== "default") {
             await validateCampaignId(request);
         }
         await validateHierarchyType(request, request?.body?.ResourceDetails?.hierarchyType, request?.body?.ResourceDetails?.tenantId);
@@ -627,7 +594,7 @@ async function validateCreateRequest(request: any, localizationMap?: any) {
         const fileUrl = await validateFile(request);
         await validateFileMetaDataViaFileUrl(fileUrl, getLocaleFromRequest(request), request?.body?.ResourceDetails?.campaignId, request?.body?.ResourceDetails?.action);
         // const localizationMap = await getLocalizedMessagesHandler(request, request?.body?.ResourceDetails?.tenantId);
-        if (request.body.ResourceDetails.type == 'boundary' || request.body.ResourceDetails.type == 'boundaryManagement') {
+        if (request.body.ResourceDetails.type == 'boundary') {
             await validateBoundarySheetData(request, fileUrl, localizationMap);
         }
     }
@@ -712,25 +679,6 @@ async function validateFile(request: any) {
     else {
         return (fileResponse?.fileStoreIds?.[0]?.url);
     }
-}
-
-function validateFacilityCreateData(data: any) {
-    data.forEach((obj: any) => {
-        const originalIndex = obj.originalIndex;
-
-        // Validate string fields
-        const stringFields = ['tenantId', 'name', 'usage'];
-        stringFields.forEach(field => {
-            validateStringField(obj, field, originalIndex);
-        });
-
-        // Validate storageCapacity
-        validateStorageCapacity(obj, originalIndex);
-
-        // Validate isPermanent
-        validateBooleanField(obj, 'isPermanent', originalIndex);
-    });
-
 }
 
 function throwMissingCodesError(missingCodes: any, hierarchyType: any) {
@@ -857,43 +805,14 @@ async function validateBoundaryOfResouces(CampaignDetails: any, request: any, lo
     }
 }
 
-
-// async function validateResources(resources: any, request: any) {
-//     for (const resource of resources) {
-//         if (resource?.resourceId) {
-//             // var searchBody = {
-//             //     RequestInfo: request?.body?.RequestInfo,
-//             //     SearchCriteria: {
-//             //         id: [resource?.resourceId],
-//             //         tenantId: request?.body?.CampaignDetails?.tenantId
-//             //     }
-//             // }
-//             // const req: any = replicateRequest(request, searchBody);
-//             // const res: any = await searchDataService(req);
-//             // if (res?.[0]) {
-//             //     if (!(res?.[0]?.status == resourceDataStatuses.completed && res?.[0]?.action == "validate")) {
-//             //         logger.error(`Error during validation of type ${resource.type}, validation is not successful or not completed. Resource id : ${resource?.resourceId}`);
-//             //         throwError("COMMON", 400, "VALIDATION_ERROR", `Error during validation of type ${resource.type}, validation is not successful or not completed.`);
-//             //     }
-//             //     if (res?.[0]?.fileStoreId != resource?.filestoreId) {
-//             //         logger.error(`fileStoreId doesn't match for resource with Id ${resource?.resourceId}. Expected fileStoreId ${resource?.filestoreId} but received ${res?.[0]?.fileStoreId}`);
-//             //         throwError("COMMON", 400, "VALIDATION_ERROR", `Uploaded file doesn't match for resource of type ${resource.type}.`)
-//             //     }
-//             // }
-//             // else {
-//             //     logger.error(`No resource data found for resource with Id ${resource?.resourceId}`);
-//             //     throwError("COMMON", 400, "VALIDATION_ERROR", `No resource data found for validation of resource type ${resource.type}.`);
-//             // }
-//         }
-//     }
-// }
-
 async function validateProjectCampaignResources(resources: any, request: any) {
     const requiredTypes = ["user", "facility", "boundary"];
+    const allowedTypes = [...requiredTypes, "unified-console-resources"];
     const typeCounts: any = {
         "user": 0,
         "facility": 0,
-        "boundary": 0
+        "boundary": 0,
+        "unified-console-resources": 0
     };
 
     const missingTypes: string[] = [];
@@ -902,19 +821,29 @@ async function validateProjectCampaignResources(resources: any, request: any) {
         throwError("COMMON", 400, "VALIDATION_ERROR", "resources should be a non-empty array");
     }
 
+    // Check if this is a unified template campaign
+    const hasUnifiedResource = resources.some((resource: any) => resource?.type === "unified-console-resources");
+
     for (const resource of resources) {
         const { type } = resource;
-        if (!type || !requiredTypes.includes(type)) {
+        if (!type || !allowedTypes.includes(type)) {
             throwError(
                 "COMMON",
                 400,
                 "VALIDATION_ERROR",
-                `Invalid resource type. Allowed types are: ${requiredTypes.join(', ')}`
+                `Invalid resource type. Allowed types are: ${allowedTypes.join(', ')}`
             );
         }
         typeCounts[type]++;
     }
 
+    // If unified-console-resources is present, it's valid on its own
+    if (hasUnifiedResource) {
+        logger.info("Unified template campaign detected - skipping traditional resource validation");
+        return;
+    }
+
+    // For regular campaigns, check for required types
     for (const type of requiredTypes) {
         if (typeCounts[type] === 0) {
             missingTypes.push(type);
@@ -945,11 +874,6 @@ async function validateProjectCampaignResources(resources: any, request: any) {
             }
         }
     }
-
-    // if (request?.body?.CampaignDetails?.action === "create" && request?.body?.CampaignDetails?.resources) {
-    //     logger.info(`skipResourceCheckValidationBeforeCreateForLocalTesting flag is ${config.values.skipResourceCheckValidationBeforeCreateForLocalTesting }`);
-    //     // !config.values.skipResourceCheckValidationBeforeCreateForLocalTesting && await validateResources(request.body.CampaignDetails.resources, request);
-    // }
 }
 
 
@@ -1201,65 +1125,6 @@ async function validateProjectCampaignRequest(request: any, actionInUrl: any) {
     await validateCampaignBody(request, CampaignDetails, actionInUrl);
 }
 
-async function validateForRetry(request: any) {
-    if (!request.body || !request.body.CampaignDetails) {
-        throwError("COMMON", 400, "VALIDATION_ERROR", "CampaignDetails are missing in the request body");
-    }
-    const { id, tenantId } = request.body.CampaignDetails;
-    if (!id) {
-        throwError("COMMON", 400, "VALIDATION_ERROR", "id is required");
-    }
-    if (!tenantId) {
-        throwError("COMMON", 400, "VALIDATION_ERROR", "tenantId is required");
-    }
-    // const searchBody = {
-    //     RequestInfo: request.body.RequestInfo,
-        const CampaignDetails= {
-            tenantId: tenantId,
-            ids: [id]
-        }
-    // }
-    // const req: any = replicateRequest(request, searchBody)
-    const searchResponse: any = await searchProjectTypeCampaignService(CampaignDetails)
-    if (Array.isArray(searchResponse?.CampaignDetails)) {
-        if (searchResponse?.CampaignDetails?.length > 0) {
-            logger.debug(`CampaignDetails : ${getFormattedStringForDebug(searchResponse?.CampaignDetails)}`);
-            request.body.ExistingCampaignDetails = searchResponse?.CampaignDetails[0];
-            if (request.body.ExistingCampaignDetails?.status != campaignStatuses?.failed) {
-                throwError("COMMON", 400, "VALIDATION_ERROR", `Campaign can only be retried in failed state.`);
-            }
-            request.body.CampaignDetails.status = campaignStatuses?.drafted;
-            request.body.CampaignDetails.parentId = request?.body?.CampaignDetails?.parentId || null;
-            var updatedInnerCampaignDetails = {}
-            enrichInnerCampaignDetails(request, updatedInnerCampaignDetails)
-            request.body.CampaignDetails.campaignDetails = updatedInnerCampaignDetails;
-            const producerMessage: any = {
-                RequestInfo: request?.body?.RequestInfo,
-                CampaignDetails: request?.body?.CampaignDetails
-            }
-            await produceModifiedMessages(producerMessage, config?.kafka?.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC, request?.body?.CampaignDetails?.tenantId);
-
-            if (!request.body.CampaignDetails?.additionalDetails?.retryCycle) {
-                // If not present, initialize it as an empty array
-                request.body.CampaignDetails.additionalDetails.retryCycle = [];
-            }
-
-            // Step 2: Push new data to the `retryCycle` array
-            request.body.CampaignDetails?.additionalDetails?.retryCycle.push({
-                error: request.body.CampaignDetails.additionalDetails.error,
-                retriedAt: Date.now(),
-                failedAt: request.body.CampaignDetails.auditDetails.lastModifiedTime
-            });
-        }
-        else {
-            throwError("CAMPAIGN", 400, "CAMPAIGN_NOT_FOUND");
-        }
-    }
-    else {
-        throwError("CAMPAIGN", 500, "CAMPAIGN_SEARCH_ERROR");
-    }
-}
-
 async function validateProductVariant(request: any) {
     const deliveryRules = request?.body?.CampaignDetails?.deliveryRules;
     const tenantId = request?.body?.CampaignDetails?.tenantId;
@@ -1278,7 +1143,7 @@ async function validateProductVariant(request: any) {
         }
     });
     const pvarIds= getPvarIds(request?.body);
-    await validatePvarIds(pvarIds as string[] ,tenantId);
+    await validatePvarIds(pvarIds as string[],tenantId);
     logger.info("Validated product variants successfully");
 }
 
@@ -1289,7 +1154,7 @@ async function validatePvarIds(pvarIds: string[] , tenantId?: string) {
     }
 
     // Fetch product variants using the fetchProductVariants function
-    const allProductVariants = await fetchProductVariants(pvarIds ,tenantId);
+    const allProductVariants = await fetchProductVariants(pvarIds,tenantId);
 
     // Extract the ids of the fetched product variants
     const fetchedIds = new Set(allProductVariants.map((pvar: any) => pvar?.id));
@@ -1337,69 +1202,6 @@ async function validateSearchRequest(request: any) {
     }
     validateBodyViaSchema(searchCriteriaSchema, SearchCriteria);
 }
-
-
-async function validateFilters(request: any, boundaryData: any[]) {
-    // boundaries should be present under filters object 
-    if (!request?.body?.Filters?.boundaries) {
-        throwError("COMMON", 400, "VALIDATION_ERROR", "Invalid Filter Criteria: 'boundaries' should be present under filters ");
-    }
-    const boundaries = request?.body?.Filters?.boundaries;
-    // boundaries should be an array and not empty
-    if (!Array.isArray(boundaries) || boundaries?.length == 0) {
-        throwError("COMMON", 400, "VALIDATION_ERROR", "Invalid Filter Criteria: 'boundaries' should be an array and should not be empty.");
-    }
-
-    const boundaryMap = new Map<string, string>();
-    // map boundary code and type 
-    createBoundaryMap(boundaryData, boundaryMap);
-    const hierarchy = await getHierarchy(request?.query?.tenantId, request?.query?.hierarchyType);
-    // validation of filters object
-    validateBoundariesOfFilters(boundaries, boundaryMap, hierarchy);
-
-    const rootBoundaries = boundaries.filter((boundary: any) => boundary.isRoot);
-
-    if (rootBoundaries.length !== 1) {
-        throwError("COMMON", 400, "VALIDATION_ERROR", `Invalid Filter Criteria: Exactly one root boundary can be there, but found "${rootBoundaries.length}`);
-    }
-
-    const boundaryTypeOfRoot = rootBoundaries[0]?.boundaryType;
-
-    const boundariesOfTypeOfSameAsRoot = boundaries.filter((boundary: any) => boundary.boundaryType === boundaryTypeOfRoot);
-
-    if (boundariesOfTypeOfSameAsRoot.length > 1) {
-        throwError("COMMON", 400, "VALIDATION_ERROR", `"Invalid Filter Criteria: Multiple boundaries of the same type as the root found. Only one is allowed.`);
-    }
-}
-
-function validateBoundariesOfFilters(boundaries: any[], boundaryMap: Map<string, string>, hierarchy: any) {
-    for (const boundary of boundaries) {
-        if (!boundary.code) {
-            throwError("COMMON", 400, "VALIDATION_ERROR", "Boundary Code is null or empty or undefined in Filters of Request Body");
-        }
-        if (!boundary.boundaryType) {
-            throwError("COMMON", 400, "VALIDATION_ERROR", "Boundary Type is null or empty or undefined in Filters of Request Body");
-        }
-        if (typeof boundary.isRoot !== 'boolean') {
-            throwError("COMMON", 400, "VALIDATION_ERROR", `isRoot can only be true or false. It is invalid for '${boundary.code}'`);
-        }
-        if (typeof boundary.includeAllChildren !== 'boolean') {
-            throwError("COMMON", 400, "VALIDATION_ERROR", `includeAllChildren can only be true or false. It is invalid for '${boundary.code}'`);
-        }
-        if (!boundaryMap.has(boundary?.code)) {
-            throwError("COMMON", 400, "VALIDATION_ERROR", `Boundary data with code '${boundary.code}' specified in 'Filters' of the request body was not found for the given hierarchy.`);
-        }
-        if (!hierarchy.includes(boundary?.boundaryType)) {
-            throwError("COMMON", 400, "VALIDATION_ERROR", `${boundary.boundaryType} boundary Type not found for given hierachy`);
-        }
-        if (boundaryMap.get(boundary.code) !== boundary.boundaryType) {
-            throwError("COMMON", 400, "VALIDATION_ERROR", `Boundary type mismatch for code '${boundary.code}' specified in 'Filters' of the request body. Expected type: ${boundaryMap.get(boundary.code)}, but found a different type.`);
-        }
-    }
-}
-
-
-
 
 async function validateHeaders(hierarchy: any[], headersOfBoundarySheet: any, request: any, localizationMap?: any) {
     validateBoundarySheetHeaders(headersOfBoundarySheet, hierarchy, request, localizationMap);
@@ -1498,11 +1300,6 @@ function validateAllDistrictTabsPresentOrNot(request: any, dataFromSheet: any, d
 
 }
 
-function validateSearchProcessTracksRequest(request: any) {
-    if (!request?.query?.campaignId) {
-        throwError("COMMON", 400, "VALIDATION_ERROR", "CampaignId is required in params");
-    }
-}
 
 async function validateMicroplanRequest(request: any) {
     const { tenantId, campaignId, planConfigurationId } = request.body.MicroplanDetails;
@@ -1555,36 +1352,6 @@ async function validateCampaignFromId(request: any) {
     request.body.CampaignDetails = searchResponse?.CampaignDetails[0];
 }
 
-
-function validateBoundarySheetDataInCreateFlow(boundarySheetData: any, localizedHeadersOfBoundarySheet: any) {
-    const firstColumnValues = new Set();
-    const firstColumn = localizedHeadersOfBoundarySheet[0];
-
-    boundarySheetData.forEach((obj: any, index: number) => {
-        let firstEmptyFound = false;
-        // Collect value from the first column
-        if (obj[firstColumn]) {
-            firstColumnValues.add(obj[firstColumn]);
-        }
-        if (firstColumnValues.size > 1) {
-            throwError("BOUNDARY", 400, "BOUNDARY_SHEET_FIRST_COLUMN_INVALID_ERROR",
-                `Data is invalid: The "${firstColumn}" column must contain only one unique value across all rows.`);
-        }
-
-        for (const header of localizedHeadersOfBoundarySheet) {
-            const value = obj[header];
-
-            if (!value) {
-                // Mark that an empty value has been found for the first time
-                firstEmptyFound = true;
-            } else if (firstEmptyFound) {
-                // If a non-empty value is found after an empty value in the expected order, throw an error
-                throwError("BOUNDARY", 400, "BOUNDARY_SHEET_UPLOADED_INVALID_ERROR",
-                    `Data is invalid in object at index ${index + 2}: Non-empty value for key "${header}" found after an empty value in the left.`);
-            }
-        }
-    });
-}
 
 export function validateEmptyActive(data: any, type: string, localizationMap?: { [key: string]: string }) {
     let isActiveRowsZero = true;
@@ -1797,20 +1564,15 @@ export function validateMultiSelectUniqueness(datas : any[], schema : any, local
 export {
     validateSheetData,
     validateCreateRequest,
-    validateFacilityCreateData,
     validateProjectCampaignRequest,
     validateSearchProjectCampaignRequest,
     validateSearchRequest,
-    validateFilters,
     validateHierarchyType,
     validateBoundarySheetData,
     validateDownloadRequest,
     validateTargetSheetData,
     immediateValidationForTargetSheet,
     validateBoundaryOfResouces,
-    validateSearchProcessTracksRequest,
     validateParent,
-    validateForRetry,
-    validateBoundarySheetDataInCreateFlow,
     validateMicroplanRequest
 }

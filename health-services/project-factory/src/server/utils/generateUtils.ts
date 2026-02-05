@@ -1,4 +1,4 @@
-import { getLocalizedMessagesHandler, processGenerate, replicateRequest } from "./genericUtils";
+import { getLocalizedMessagesHandler, processGenerate } from "./genericUtils";
 import _ from 'lodash';
 import { logger } from "./logger";
 import { generateDataService } from "../service/sheetManageService";
@@ -6,6 +6,7 @@ import config from "../config";
 import { getLocaleFromRequestInfo, getLocalisationModuleName } from "./localisationUtils";
 import { getBoundarySheetData } from "../api/genericApis";
 import { checkIfSourceIsMicroplan } from "./campaignUtils";
+import { httpRequest } from "./request";
 
 // Now you can use Lodash functions with the "_" prefix, e.g., _.isEqual(), _.sortBy(), etc.
 function extractProperties(obj: any) {
@@ -34,6 +35,75 @@ function isCampaignTypeSame(request: any) {
     return _.isEqual(existingCampaignType, currentCampaignType);
 }
 
+export async function callExcelIngestionService(requestBody: any) {
+    try {
+        const campaignDetails = requestBody?.CampaignDetails;
+        const tenantId = campaignDetails?.tenantId;
+        const campaignId = campaignDetails?.id;
+        const hierarchyType = campaignDetails?.hierarchyType;
+        const excelIngestionUrl = config.host.excelIngestionHost + config.paths.excelIngestionGenerate;
+
+        const generateResource = {
+            tenantId: tenantId,
+            type: 'unified-console',
+            hierarchyType: hierarchyType,
+            locale: getLocaleFromRequestInfo (requestBody?.RequestInfo),
+            referenceId: campaignId,
+            referenceType: 'campaign',
+            additionalDetails: {}
+        };
+
+        const requestBodyToCallGenerate = {
+            RequestInfo: requestBody?.RequestInfo,
+            GenerateResource: generateResource
+        };
+
+        await httpRequest(
+            excelIngestionUrl,
+            requestBodyToCallGenerate,
+            undefined,
+            'post',
+            undefined
+        );
+        logger.info(`Successfully called excel-ingestion generate API for campaign ${campaignId}`);
+    } catch (error: any) {
+        logger.error(`Error calling excel-ingestion generate API: ${error.message}`);
+        // Decide if we want to throw the error or just log it
+    }
+}
+
+export async function callExcelIngestionGenerateSearch(requestBody: any) {
+    try {
+        const excelIngestionSearchUrl = config.host.excelIngestionHost + config.paths.excelIngestionGenerateSearch;
+        const requestInfo = requestBody?.RequestInfo;
+        const campaignDetails = requestBody?.CampaignDetails;
+
+
+        const requestBodyToCallSearch = {
+            RequestInfo: requestInfo,
+            GenerationSearchCriteria: {
+                tenantId: campaignDetails?.tenantId,
+                referenceIds: [campaignDetails?.id],
+                statuses: ["completed"],
+            }
+        };
+
+        const response = await httpRequest(
+            excelIngestionSearchUrl,
+            requestBodyToCallSearch,
+            undefined,
+            'post',
+            undefined
+        );
+
+        logger.info(`Successfully called excel-ingestion generate search API for referenceIds: ${campaignDetails?.id}`);
+        return response;
+    } catch (error: any) {
+        logger.error(`Error calling excel-ingestion generate search API: ${error.message}`);
+        throw error;
+    }
+}
+
 async function callGenerateIfBoundariesOrCampaignTypeDiffer(request: any) {
     try {
         // Apply 2-second timeout after the condition check
@@ -46,6 +116,11 @@ async function callGenerateIfBoundariesOrCampaignTypeDiffer(request: any) {
         const locale = getLocaleFromRequestInfo(request?.body?.RequestInfo);
 
         const isMicroplan = checkIfSourceIsMicroplan(campaignDetails);
+        const isUnifiedCampaign = campaignDetails?.additionalDetails?.isUnifiedCampaign;
+        if(isUnifiedCampaign){
+            await callExcelIngestionService(request?.body);
+            return;
+        }
 
         if (isMicroplan) {
             // For microplan, trigger all three types
@@ -123,21 +198,21 @@ export async function triggerGenerate(type: string, tenantId: string, hierarchyT
 
 
 
-const buildGenerateRequest = (request: any) => {
-    const newRequestBody = {
-        RequestInfo: request?.body?.RequestInfo
-    };
+// const buildGenerateRequest = (request: any) => {
+//     const newRequestBody = {
+//         RequestInfo: request?.body?.RequestInfo
+//     };
 
-    const params = {
-        type: request?.query?.type,
-        tenantId: request?.query?.tenantId,
-        forceUpdate: 'true',
-        hierarchyType: request?.query?.hierarchyType,
-        campaignId: request?.query?.campaignId
-    };
+//     const params = {
+//         type: request?.query?.type,
+//         tenantId: request?.query?.tenantId,
+//         forceUpdate: 'true',
+//         hierarchyType: request?.query?.hierarchyType,
+//         campaignId: request?.query?.campaignId
+//     };
 
-    return replicateRequest(request, newRequestBody, params);
-};
+//     return replicateRequest(request, newRequestBody, params);
+// };
 
 export const isGenerationTriggerNeeded = (request: any) => {
     const ExistingCampaignDetails = request?.body?.ExistingCampaignDetails;
@@ -154,4 +229,4 @@ export const isGenerationTriggerNeeded = (request: any) => {
 
 
 
-export { callGenerateIfBoundariesOrCampaignTypeDiffer, areBoundariesSame, buildGenerateRequest }
+export { callGenerateIfBoundariesOrCampaignTypeDiffer, areBoundariesSame }

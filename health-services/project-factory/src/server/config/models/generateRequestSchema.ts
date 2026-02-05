@@ -15,10 +15,8 @@ export const generateRequestSchema = {
         "facility",
         "user",
         "boundary",
-        "boundaryManagement",
         "facilityWithBoundary",
-        "userWithBoundary",
-        "boundaryGeometryManagement"
+        "userWithBoundary"
       ]
     },
     "hierarchyType": {

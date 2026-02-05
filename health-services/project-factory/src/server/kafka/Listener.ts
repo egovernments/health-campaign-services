@@ -2,8 +2,13 @@ import { Kafka, logLevel, EachMessagePayload } from 'kafkajs';
 import config from '../config';
 import { getFormattedStringForDebug, logger } from '../utils/logger';
 import { shutdownGracefully } from '../utils/genericUtils';
-import { handleCampaignMapping, handleMappingTaskForCampaign } from '../utils/campaignMappingUtils';
+import { handleMappingTaskForCampaign } from '../utils/campaignMappingUtils';
 import { handleTaskForCampaign } from '../utils/taskUtils';
+import { handleProcessingResult } from '../utils/processingResultHandler';
+import { handleFacilityBatch } from '../utils/facilityBatchHandler';
+import { handleUserBatch } from '../utils/userBatchHandler';
+import { handleMappingBatch } from '../utils/mappingBatchHandler';
+import { handleCampaignFailure } from '../utils/campaignFailureHandler';
 
 
 const kafka = new Kafka({
@@ -16,10 +21,14 @@ const groupId = 'project-factory';
 
 
 const topicNames = [
-    config.kafka.KAFKA_START_CAMPAIGN_MAPPING_TOPIC,
     config.kafka.KAFKA_START_ADMIN_CONSOLE_TASK_TOPIC,
     config.kafka.KAFKA_START_ADMIN_CONSOLE_MAPPING_TASK_TOPIC,
-    config.kafka.KAFKA_TEST_TOPIC
+    config.kafka.KAFKA_TEST_TOPIC,
+    config.kafka.KAFKA_HCM_PROCESSING_RESULT_TOPIC,
+    config.kafka.KAFKA_FACILITY_CREATE_BATCH_TOPIC,
+    config.kafka.KAFKA_USER_CREATE_BATCH_TOPIC,
+    config.kafka.KAFKA_MAPPING_BATCH_TOPIC,
+    config.kafka.KAFKA_CAMPAIGN_MARK_FAILED_TOPIC
 ];
 
 
@@ -89,14 +98,26 @@ async function processMessageKJS(topic: string, message: { value: Buffer | null 
         const messageObject = JSON.parse(message.value?.toString() || '{}');
 
         switch (topic) {
-            case config.kafka.KAFKA_START_CAMPAIGN_MAPPING_TOPIC:
-                await handleCampaignMapping(messageObject);
-                break;
             case config.kafka.KAFKA_START_ADMIN_CONSOLE_TASK_TOPIC:
                 await handleTaskForCampaign(messageObject);
                 break;
             case config.kafka.KAFKA_START_ADMIN_CONSOLE_MAPPING_TASK_TOPIC:
                 await handleMappingTaskForCampaign(messageObject);
+                break;
+            case config.kafka.KAFKA_HCM_PROCESSING_RESULT_TOPIC:
+                await handleProcessingResult(messageObject);
+                break;
+            case config.kafka.KAFKA_FACILITY_CREATE_BATCH_TOPIC:
+                await handleFacilityBatch(messageObject);
+                break;
+            case config.kafka.KAFKA_USER_CREATE_BATCH_TOPIC:
+                await handleUserBatch(messageObject);
+                break;
+            case config.kafka.KAFKA_MAPPING_BATCH_TOPIC:
+                await handleMappingBatch(messageObject);
+                break;
+            case config.kafka.KAFKA_CAMPAIGN_MARK_FAILED_TOPIC:
+                await handleCampaignFailure(messageObject);
                 break;
             default:
                 logger.warn(`Unhandled topic: ${topic}`);

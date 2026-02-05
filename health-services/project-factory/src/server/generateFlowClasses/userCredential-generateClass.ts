@@ -36,7 +36,16 @@ export class TemplateClass {
             localizedData["#status#"] = sheetDataRowStatuses.CREATED;
             localizedData["UserName"] = decrypt(rawData["UserName"]);
             localizedData["Password"] = decrypt(rawData["Password"]);
-
+            const boundaryCode = localizedData["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"] ;
+            // Add localized boundary code
+            if (boundaryCode && !localizedData["HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY"]){
+                localizedData["HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY"] = localizedData["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"];
+            }
+            const boundaryMandatoryCode = localizedData["HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY"] ;
+            // Add boundary Name
+            if (!localizedData["HCM_ADMIN_CONSOLE_BOUNDARY_NAME"]) {
+                localizedData["HCM_ADMIN_CONSOLE_BOUNDARY_NAME"] = getLocalizedName(boundaryMandatoryCode, localizationMap);
+            }
             return localizedData;
         }));
 
@@ -45,7 +54,8 @@ export class TemplateClass {
             ["HCM_ADMIN_CONSOLE_USER_LIST"]: {
                 data: userData,
                 dynamicColumns: {
-                    ["Password"]: { hideColumn: false }
+                    ["Password"]: { hideColumn: false },
+                    ["HCM_ADMIN_CONSOLE_BOUNDARY_NAME"]: { hideColumn: false }
                 }
             }
         };

@@ -6,35 +6,43 @@ import { MDMSModels } from "../models";
 import { getLocalizedName } from "./campaignUtils";
 import { getLocalizedMessagesHandlerViaLocale } from "./genericUtils";
 import { getFileUrl } from "./onGoingCampaignUpdateUtils";
-import { logger } from "./logger"; // if you use a custom logger
+import { logger } from "./logger";
+import { generateCampaignEmailTemplate } from "../templates/campaignEmailTemplate";
+import {callExcelIngestionGenerateSearch} from "./generateUtils";
 
 export async function sendNotificationEmail(
-    fileStoreIdMap: Record<string, string>, request: any
+    fileStoreIdMap: Record<string, string>, requestBody: any , createdByEmail?: string
 ): Promise<void> {
 
     try {
-        const requestInfo = request?.body?.RequestInfo;
+        const requestInfo = requestBody?.RequestInfo;
         logger.info("Step 1: Starting sendNotificationEmail");
-
-        const locale = requestInfo?.msgId?.split("|")?.[1] || "en-IN";
+        const GenerateSearchResponse = await callExcelIngestionGenerateSearch(requestBody);
+        
+        const locale = GenerateSearchResponse?.GenerationDetails[0]?.locale || "en-IN";
         const tenantId = requestInfo?.userInfo?.tenantId;
 
         logger.info(`Step 2: Extracted locale: ${locale}, tenantId: ${tenantId}`);
 
-        const localizationMap = await getLocalizedMessagesHandlerViaLocale(locale, tenantId);
+        const localizationMap = await getLocalizedMessagesHandlerViaLocale(locale, tenantId,"hcm-admin-notification");
         logger.info("Step 3: Fetched localization map");
-        
+
+        const projectType = requestBody?.CampaignDetails?.projectType ;
+
         const MdmsCriteria: MDMSModels.MDMSv2RequestCriteria = {
             MdmsCriteria: {
                 tenantId: tenantId,
-                schemaCode: "HCM-ADMIN-CONSOLE.emailTemplate"
+                schemaCode: "HCM-ADMIN-CONSOLE.emailTemplateV2",
+                uniqueIdentifiers: [`campaign-create-${projectType}`]
             }
         };
 
         logger.info("Step 4: Calling MDMS API with criteria: " + JSON.stringify(MdmsCriteria));
         const mdmsResponse = await searchMDMSDataViaV2Api(MdmsCriteria);
 
-        const emailTemplate = mdmsResponse?.mdms?.[0];
+
+        const emailTemplate = mdmsResponse?.mdms[0] ;
+
         if (!emailTemplate) {
             logger.error("Step 5: Email template not found in MDMS response");
             throw new Error("Email template not found in MDMS");
@@ -58,7 +66,7 @@ export async function sendNotificationEmail(
 
 
         // Step 3: Prepare replacements
-        const campaignName = request?.body?.CampaignDetails?.campaignName || "";
+        const campaignName = requestBody?.CampaignDetails?.campaignName || "";
         const campaignManagerName = requestInfo?.userInfo?.userName || "Campaign Manager";
 
         // Extracting download link (use only the first file ID)
@@ -72,15 +80,83 @@ export async function sendNotificationEmail(
             appLink
         };
 
-        const subjectCode = emailTemplate?.data?.subjectCode;
-        const subject = replacePlaceholders(getLocalizedName(subjectCode, localizationMap), replacements);
+        const headerCode = emailTemplate?.data?.body?.header;
+        const header = replacePlaceholders(getLocalizedName(headerCode, localizationMap), replacements);
 
-        const bodyCodes = emailTemplate?.data?.bodyCodes || [];
-        const bodyLines = bodyCodes.map((code: string) =>
-            replacePlaceholders(getLocalizedName(code, localizationMap), replacements)
-        );
-        logger.info("Step 6: Constructed localized subject and body lines");
-        const fullBody = bodyLines.join("<br/><br/>");
+        const greetingCode = emailTemplate?.data?.body?.greeting;
+        const greeting = replacePlaceholders(getLocalizedName(greetingCode, localizationMap), replacements);
+
+        const mobileAppCode = emailTemplate?.data?.body?.mobileApp;
+        const mobileApp = replacePlaceholders(getLocalizedName(mobileAppCode, localizationMap), replacements);
+
+        const campaignNameLabelCode = emailTemplate?.data?.body?.campaignName;
+        const campaignNameLabel = replacePlaceholders(getLocalizedName(campaignNameLabelCode, localizationMap), replacements);
+
+        const userCredentialLabelCode = emailTemplate?.data?.body?.userCredentialLabel;
+        const userCredentialLabel = replacePlaceholders(getLocalizedName(userCredentialLabelCode, localizationMap), replacements);
+
+        const headerContentCode = emailTemplate?.data?.header?.content;
+        const headerContent = replacePlaceholders(getLocalizedName(headerContentCode, localizationMap), replacements);
+
+        const logoLabelCode = emailTemplate?.data?.header?.logoLabel;
+        const logoLabel = replacePlaceholders(getLocalizedName(logoLabelCode, localizationMap), replacements);
+
+        const footerLink1Code = emailTemplate?.data?.footer?.links?.[0];
+        const footerLink1 = replacePlaceholders(getLocalizedName(footerLink1Code, localizationMap), replacements);
+
+        const footerLink2Code = emailTemplate?.data?.footer?.links?.[1];
+        const footerLink2 = replacePlaceholders(getLocalizedName(footerLink2Code, localizationMap), replacements);
+
+        const footerContentCode = emailTemplate?.data?.footer?.content;
+        const footerContent = replacePlaceholders(getLocalizedName(footerContentCode, localizationMap), replacements);
+
+        const regardsCode = emailTemplate?.data?.regards?.[0];
+        const regards = replacePlaceholders(getLocalizedName(regardsCode, localizationMap), replacements);
+
+        const regardsTeamCode = emailTemplate?.data?.regards?.[1];
+        const regardsTeam = replacePlaceholders(getLocalizedName(regardsTeamCode, localizationMap), replacements);
+
+        const instructionHeaderCode = emailTemplate?.data?.instructions?.[0];
+        const instructionHeader = replacePlaceholders(getLocalizedName(instructionHeaderCode, localizationMap), replacements);
+
+        const instruction1Code = emailTemplate?.data?.instructions?.[1];
+        const instruction1 = replacePlaceholders(getLocalizedName(instruction1Code, localizationMap), replacements);
+
+        const instruction2Code = emailTemplate?.data?.instructions?.[2];
+        const instruction2 = replacePlaceholders(getLocalizedName(instruction2Code, localizationMap), replacements);
+
+        const instruction3Code = emailTemplate?.data?.instructions?.[3];
+        const instruction3 = replacePlaceholders(getLocalizedName(instruction3Code, localizationMap), replacements);
+
+        const subjectCode = emailTemplate?.data?.subject;
+        const subject = replacements.campaignName +" - " +replacePlaceholders(getLocalizedName(subjectCode, localizationMap), replacements);
+
+        logger.info("Step 6: Constructed localized subject and all email fields");
+
+        // Generate the complete HTML email template
+        const fullBody = generateCampaignEmailTemplate({
+            logoLabel,
+            headerContent,
+            header,
+            greeting,
+            campaignNameLabel,
+            campaignName: replacements.campaignName,
+            userCredentialLabel,
+            accessLink: replacements.accessLink,
+            mobileApp,
+            appLink: replacements.appLink,
+            instructionHeader,
+            instruction1,
+            instruction2,
+            instruction3,
+            regards,
+            footerLink1,
+            footerLink2,
+            footerContent,
+            regardsTeam,
+            supportEmail: config.values.emailNotificationId,
+            egovLogoLink: config.values.egovLogoLink
+        });
 
         // const fileUrls = await Promise.all(
         //     Object.entries(fileStoreIdMap).map(async ([fileId, fileName]) => {
@@ -97,7 +173,8 @@ export async function sendNotificationEmail(
         const message = {
             requestInfo: requestInfo,
             email: {
-                emailTo: [requestInfo?.userInfo?.emailId],
+                emailTo: requestInfo?.userInfo?.emailId ? [requestInfo.userInfo.emailId] : createdByEmail 
+                        ? [createdByEmail] : null,
                 subject,
                 body: fullBody,
                 fileStoreId: fileStoreIdMap,
@@ -122,16 +199,16 @@ function replacePlaceholders(template: string, replacements: Record<string, stri
   return template.replace(/\{(.*?)\}/g, (_, key) => replacements[key.trim()] ?? '');
 }
 
-export async function getUserCredentialFileMap(request: any): Promise<Record<string, string>> {
+export async function getUserCredentialFileMap(requestBody: any): Promise<Record<string, string>> {
   try {
-    const campaignId = request?.body?.CampaignDetails?.id;
-    const tenantId = request?.body?.CampaignDetails?.tenantId;
-    const hierarchy = request?.body?.CampaignDetails?.hierarchyType;
+    const campaignId = requestBody?.CampaignDetails?.id;
+    const tenantId = requestBody?.CampaignDetails?.tenantId;
+    const hierarchy = requestBody?.CampaignDetails?.hierarchyType;
     const type = "userCredential";
 
     logger.info(`getUserCredentialFileMap: Initiating downloadTemplate for campaign ID: ${campaignId}`);
 
-    const downloadResponse = await downloadTemplate(campaignId, tenantId, type, hierarchy, request?.body);
+    const downloadResponse = await downloadTemplate(campaignId, tenantId, type, hierarchy, requestBody);
 
     const fileStoreId = downloadResponse?.[0]?.fileStoreid;
     if (!fileStoreId) {
@@ -152,12 +229,14 @@ export async function getUserCredentialFileMap(request: any): Promise<Record<str
   }
 }
 
-export async function triggerUserCredentialEmailFlow(request: any): Promise<void> {
+export async function triggerUserCredentialEmailFlow(requestBody: any , createdByEmail?: string): Promise<void> {
   logger.info("triggerUserCredentialEmailFlow: Email flow started...");
-  
+  // waiting for 3 seconds to ensure that user credentials are ready
+  logger.info("triggerUserCredentialEmailFlow: Waiting for 3 seconds before proceeding with email flow...");
+  await new Promise(resolve => setTimeout(resolve, 3000));
   try {
-    const userCredentialFileMap = await getUserCredentialFileMap(request);
-    await sendNotificationEmail(userCredentialFileMap, request);
+    const userCredentialFileMap = await getUserCredentialFileMap(requestBody);
+    await sendNotificationEmail(userCredentialFileMap, requestBody , createdByEmail);
     logger.info("triggerUserCredentialEmailFlow: Email flow completed successfully.");
   } catch (emailError) {
     logger.error("triggerUserCredentialEmailFlow: Email flow failed — continuing main flow", emailError);

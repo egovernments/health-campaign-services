@@ -20,7 +20,6 @@ import {
 } from "../validators/campaignValidators";
 import { getCampaignNumber } from "./genericApis";
 import {
-  boundaryBulkUpload,
   convertToTypeData,
   generateHierarchy,
   generateProcessedFileAndPersist,
@@ -30,7 +29,6 @@ import {
   checkIfSourceIsMicroplan,
   createIdRequests,
   createUniqueUserNameViaIdGen,
-  boundaryGeometryManagement,
   getBoundaryCodeAndBoundaryTypeMapping,
   getSchema,
   validateUsernamesFormat,
@@ -811,6 +809,7 @@ async function getEmployeesBasedOnUserName(dataToCreate: any[], request: any) {
   return foundUsernames;
 }
 
+
 // Confirms the creation of resources by matching created and searched data.
 async function confirmCreation(
   createAndSearchConfig: any,
@@ -1460,8 +1459,7 @@ async function processGenericRequest(
 ) {
   // Process generic requests
   if (
-    request?.body?.ResourceDetails?.type != "boundary" &&
-    request?.body?.ResourceDetails?.type != "boundaryManagement"
+    request?.body?.ResourceDetails?.type != "boundary"
   ) {
     const responseFromCampaignSearch = await getCampaignSearchResponse(request);
     const campaignObject = responseFromCampaignSearch?.CampaignDetails?.[0];
@@ -1499,6 +1497,7 @@ async function handleResouceDetailsError(request: any, error: any) {
       stringifiedError = error;
     }
   }
+
   const tenantId = request?.body?.ResourceDetails?.tenantId;
   logger.error("Error while processing after validation : " + error);
   if (request?.body?.ResourceDetails) {
@@ -1637,11 +1636,10 @@ async function performAndSaveResourceActivityByChangingBody(
 async function processCreate(request: any, localizationMap?: any) {
   // Process creation of resources
   const type: string = request.body.ResourceDetails.type;
-  if (type == "boundary" || type == "boundaryManagement") {
-    boundaryBulkUpload(request, localizationMap);
-  } else if (type == "boundaryGeometryManagement") {
-    await boundaryGeometryManagement(request, localizationMap);
-  } else {
+  if (type == "boundary") {
+    // boundaryBulkUpload(request, localizationMap);
+  }  
+  else {
     // console.log(`Source is MICROPLAN -->`, source);
     let createAndSearchConfig: any;
     createAndSearchConfig = createAndSearch[type];
@@ -1815,50 +1813,6 @@ async function confirmProjectParentCreation(tenantId: string, uuid: string, proj
   }
 }
 
-async function projectCreate(projectCreateBody: any, request: any) {
-  logger.info("Project creation API started");
-  logger.debug(
-    "Project creation body " + getFormattedStringForDebug(projectCreateBody)
-  );
-  if (!request.body.newlyCreatedBoundaryProjectMap) {
-    request.body.newlyCreatedBoundaryProjectMap = {};
-  }
-  const projectCreateResponse = await httpRequest(
-    config.host.projectHost + config.paths.projectCreate,
-    projectCreateBody,
-    undefined,
-    undefined,
-    undefined,
-    undefined,
-    undefined,
-    true
-  );
-  logger.debug(
-    "Project creation response" +
-    getFormattedStringForDebug(projectCreateResponse)
-  );
-  if (projectCreateResponse?.Project[0]?.id) {
-    logger.info(
-      "Project created successfully with name " +
-      JSON.stringify(projectCreateResponse?.Project[0]?.name)
-    );
-    logger.info(
-      `for boundary type ${projectCreateResponse?.Project[0]?.address?.boundaryType} and code ${projectCreateResponse?.Project[0]?.address?.boundary}`
-    );
-    request.body.boundaryProjectMapping[
-      projectCreateBody?.Projects?.[0]?.address?.boundary
-    ].projectId = projectCreateResponse?.Project[0]?.id;
-  } else {
-    throwError(
-      "PROJECT",
-      500,
-      "PROJECT_CREATION_FAILED",
-      "Project creation failed, for the request: " +
-      JSON.stringify(projectCreateBody)
-    );
-  }
-}
-
 async function projectUpdateForTargets(projectUpdateBody: any, request: any, boundaryCode: any) {
   logger.info("Project Update For Targets started");
 
@@ -1977,12 +1931,11 @@ export {
   processGenericRequest,
   createProjectCampaignResourcData,
   processCreate,
-  projectCreate,
   generateHierarchyList,
   getHierarchy,
   getHeadersOfBoundarySheet,
   handleResouceDetailsError,
   getCampaignSearchResponse,
   confirmProjectParentCreation,
-  projectUpdateForTargets
+  projectUpdateForTargets,
 };

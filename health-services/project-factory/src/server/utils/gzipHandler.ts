@@ -12,7 +12,7 @@ export const handleGzipRequest = async (req: Request): Promise<void> => {
     });
 
     // Concatenate and decompress the data
-    const gzipBuffer = Buffer.concat(buffers);
+    const gzipBuffer = Buffer.concat(buffers as Uint8Array[]);
     try {
         const decompressedData = await decompressGzip(gzipBuffer);
         req.body = decompressedData; // Assign the parsed data to req.body
@@ -24,7 +24,7 @@ export const handleGzipRequest = async (req: Request): Promise<void> => {
 // Helper function to decompress Gzip data
 const decompressGzip = (gzipBuffer: Buffer): Promise<any> => {
     return new Promise((resolve, reject) => {
-        zlib.gunzip(gzipBuffer, (err, result) => {
+        zlib.gunzip(gzipBuffer as Uint8Array, (err, result) => {
             if (err) return reject(err);
             try {
                 resolve(JSON.parse(result.toString()));
