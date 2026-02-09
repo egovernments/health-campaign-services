@@ -35,7 +35,7 @@ from typing import List, Dict, Optional, Tuple
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.operators.empty import EmptyOperator
-from airflow.utils.dates import days_ago
+from airflow.utils.timezone import utcnow
 import clickhouse_connect
 
 logger = logging.getLogger(__name__)
@@ -493,7 +493,7 @@ with DAG(
     default_args=default_args,
     description='Daily raw JSON -> CollapsingMergeTree silver tables',
     schedule_interval='30 1 * * *',
-    start_date=days_ago(1),
+    start_date=utcnow() - timedelta(days=1),
     catchup=False,
     tags=['property_tax', 'clickhouse', 'raw_to_silver'],
     max_active_runs=1,
