@@ -10,13 +10,13 @@ Window:   data_interval_start .. data_interval_end (by event_time column)
 Architecture:
   property_events_raw (JSON String)
       -> Airflow (parse + sign)
-          -> property_address_collapsing
-          -> unit_collapsing
-          -> owner_collapsing
+          -> property_address_fact
+          -> property_unit_fact
+          -> property_owner_fact
 
   demand_events_raw (JSON String)
       -> Airflow (parse + pivot + sign)
-          -> demand_with_details_collapsing
+          -> demand_with_details_fact
 
 Sign Logic (CollapsingMergeTree):
   Sort keys are immutable, so cancel rows only need sort key values + sign=-1.
@@ -413,14 +413,14 @@ def process_property_events(**context):
                 owner_new_rows.append(o_row)
 
         # Batch inserts: cancel rows first, then new rows
-        batch_insert(client, 'property_address_collapsing', prop_cancel_rows)
-        batch_insert(client, 'property_address_collapsing', prop_new_rows)
+        batch_insert(client, 'property_address_fact', prop_cancel_rows)
+        batch_insert(client, 'property_address_fact', prop_new_rows)
 
-        batch_insert(client, 'unit_collapsing', unit_cancel_rows)
-        batch_insert(client, 'unit_collapsing', unit_new_rows)
+        batch_insert(client, 'property_unit_fact', unit_cancel_rows)
+        batch_insert(client, 'property_unit_fact', unit_new_rows)
 
-        batch_insert(client, 'owner_collapsing', owner_cancel_rows)
-        batch_insert(client, 'owner_collapsing', owner_new_rows)
+        batch_insert(client, 'property_owner_fact', owner_cancel_rows)
+        batch_insert(client, 'property_owner_fact', owner_new_rows)
 
         counts = {
             'properties': len(prop_new_rows),
@@ -435,7 +435,7 @@ def process_property_events(**context):
 
 
 def process_demand_events(**context):
-    """Process demand_events_raw -> demand_with_details_collapsing for one daily window."""
+    """Process demand_events_raw -> demand_with_details_fact for one daily window."""
     window_start = context['data_interval_start']
     window_end = context['data_interval_end']
     logger.info(f"Demand window: [{window_start}, {window_end})")
@@ -476,8 +476,8 @@ def process_demand_events(**context):
             demand_new_rows.append(d_row)
 
         # Cancel first, then new
-        batch_insert(client, 'demand_with_details_collapsing', demand_cancel_rows)
-        batch_insert(client, 'demand_with_details_collapsing', demand_new_rows)
+        batch_insert(client, 'demand_with_details_fact', demand_cancel_rows)
+        batch_insert(client, 'demand_with_details_fact', demand_new_rows)
 
         logger.info(f"Demand processing complete: {len(demand_new_rows)} new rows")
         return {'demands': len(demand_new_rows)}
@@ -492,7 +492,7 @@ with DAG(
     'property_tax_raw_to_silver',
     default_args=default_args,
     description='Daily raw JSON -> CollapsingMergeTree silver tables',
-    schedule_interval='30 1 * * *',
+    schedule='30 1 * * *',
     start_date=utcnow() - timedelta(days=1),
     catchup=False,
     tags=['property_tax', 'clickhouse', 'raw_to_silver'],
