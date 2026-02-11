@@ -2,6 +2,7 @@ package org.egov.pgr.validator;
 
 import com.jayway.jsonpath.JsonPath;
 import org.egov.common.contract.request.RequestInfo;
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.pgr.config.PGRConfiguration;
 import org.egov.pgr.repository.PGRRepository;
 import org.egov.pgr.util.HRMSUtil;
@@ -22,6 +23,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.egov.pgr.util.PGRConstants.INVALID_TENANT_ID_ERR_CODE;
 import static org.egov.pgr.util.PGRConstants.MDMS_DEPARTMENT_SEARCH;
 import static org.egov.pgr.util.PGRConstants.MDMS_SERVICEDEF_SEARCH;
 import static org.egov.pgr.util.PGRConstants.PGR_WF_REOPEN;
@@ -73,16 +75,23 @@ public class ServiceRequestValidator {
      * @param request The request to update complaint
      * @param mdmsData The master data for pgr
      */
-    public void validateUpdate(ServiceRequest request, Object mdmsData){
+    public void validateUpdate(ServiceRequest request, Object mdmsData) {
 
         String id = request.getService().getId();
+        String tenantId = request.getService().getTenantId();
         validateSource(request.getService().getSource());
         validateMDMS(request, mdmsData);
         validateDepartment(request, mdmsData);
         validateReOpen(request);
         RequestSearchCriteria criteria = RequestSearchCriteria.builder().ids(Collections.singleton(id)).build();
         criteria.setIsPlainSearch(false);
-        List<ServiceWrapper> serviceWrappers = repository.getServiceWrappers(criteria);
+        criteria.setTenantId(tenantId);
+        List<ServiceWrapper> serviceWrappers = null;
+        try {
+            serviceWrappers = repository.getServiceWrappers(criteria);
+        } catch (InvalidTenantIdException e) {
+            throw new CustomException(INVALID_TENANT_ID_ERR_CODE, e.getMessage());
+        }
 
         if(CollectionUtils.isEmpty(serviceWrappers))
             throw new CustomException("INVALID_UPDATE","The record that you are trying to update does not exists");
@@ -157,12 +166,15 @@ public class ServiceRequestValidator {
     private void validateDepartment(ServiceRequest request, Object mdmsData){
 
         String serviceCode = request.getService().getServiceCode();
+        String tenantId = request.getService().getTenantId();
         List<String> assignes = request.getWorkflow().getAssignes();
+
+        List<String> hrmsAssignes = request.getWorkflow().getHrmsAssignees();
 
         if(CollectionUtils.isEmpty(assignes))
             return;
 
-        List<String> departments = hrmsUtil.getDepartment(assignes, request.getRequestInfo());
+        List<String> departments = hrmsUtil.getDepartment(tenantId, assignes, hrmsAssignes, request.getRequestInfo());
 
         String jsonPath = MDMS_DEPARTMENT_SEARCH.replace("{SERVICEDEF}",serviceCode);
 

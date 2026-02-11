@@ -1,6 +1,7 @@
 package org.egov.facility.validator;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.Error;
 import org.egov.common.models.facility.Facility;
 import org.egov.common.models.facility.FacilityBulkRequest;
@@ -20,8 +21,11 @@ import static org.egov.common.utils.CommonUtils.getEntitiesWithMismatchedRowVers
 import static org.egov.common.utils.CommonUtils.getIdFieldName;
 import static org.egov.common.utils.CommonUtils.getIdMethod;
 import static org.egov.common.utils.CommonUtils.getIdToObjMap;
+import static org.egov.common.utils.CommonUtils.getTenantId;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
+import static org.egov.common.utils.ValidatorUtils.getErrorForInvalidTenantId;
+import static org.egov.common.utils.ValidatorUtils.getErrorForNonExistentEntity;
 import static org.egov.common.utils.ValidatorUtils.getErrorForRowVersionMismatch;
 
 @Component
@@ -42,19 +46,31 @@ public class FRowVersionValidator implements Validator<FacilityBulkRequest, Faci
         List<Facility> validEntities = request.getFacilities().stream()
                 .filter(notHavingErrors())
                 .collect(Collectors.toList());
+        String tenantId = getTenantId(validEntities);
         if (!validEntities.isEmpty()) {
             Method idMethod = getIdMethod(validEntities);
             Map<String, Facility> eMap = getIdToObjMap(validEntities, idMethod);
             if (!eMap.isEmpty()) {
                 List<String> entityIds = new ArrayList<>(eMap.keySet());
-                List<Facility> existingEntities = facilityRepository.findById(entityIds, getIdFieldName(idMethod), false);
-                List<Facility> entitiesWithMismatchedRowVersion =
-                        getEntitiesWithMismatchedRowVersion(eMap, existingEntities, idMethod);
-                entitiesWithMismatchedRowVersion.forEach(facility -> {
-                    Error error = getErrorForRowVersionMismatch();
-                    log.info("validation failed for facility row version: {} with error :{}", idMethod, error);
-                    populateErrorDetails(facility, error, errorDetailsMap);
-                });
+                List<Facility> existingEntities = null;
+                try {
+                    existingEntities = facilityRepository.findById(tenantId, entityIds, getIdFieldName(idMethod), false).getResponse();
+                    List<Facility> entitiesWithMismatchedRowVersion =
+                            getEntitiesWithMismatchedRowVersion(eMap, existingEntities, idMethod);
+                    entitiesWithMismatchedRowVersion.forEach(facility -> {
+                        Error error = getErrorForRowVersionMismatch();
+                        log.error("validation failed for facility row version: {} with error :{}", idMethod, error);
+                        populateErrorDetails(facility, error, errorDetailsMap);
+                    });
+                } catch (InvalidTenantIdException exception) {
+                    // Populating InvalidTenantIdException for all entities
+                    validEntities.forEach(facility -> {
+                        Error error = getErrorForInvalidTenantId(tenantId, exception);
+                        log.error("validation failed for facility tenantId: {} with error :{}", facility.getTenantId(), error);
+                        populateErrorDetails(facility, error, errorDetailsMap);
+                    });
+                }
+
             }
         }
         log.info("facility row version validation completed successfully, total errors: "+errorDetailsMap.size());

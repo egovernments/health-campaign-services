@@ -1,6 +1,7 @@
 package org.egov.project.validator.facility;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.Error;
 import org.egov.common.models.project.ProjectFacility;
 import org.egov.common.models.project.ProjectFacilityBulkRequest;
@@ -22,8 +23,10 @@ import static org.egov.common.utils.CommonUtils.getIdFieldName;
 import static org.egov.common.utils.CommonUtils.getIdToObjMap;
 import static org.egov.common.utils.CommonUtils.getMethod;
 import static org.egov.common.utils.CommonUtils.getObjClass;
+import static org.egov.common.utils.CommonUtils.getTenantId;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
+import static org.egov.common.utils.ValidatorUtils.getErrorForInvalidTenantId;
 import static org.egov.common.utils.ValidatorUtils.getErrorForNonExistentEntity;
 import static org.egov.project.Constants.GET_ID;
 
@@ -49,17 +52,28 @@ public class PfNonExistentEntityValidator implements Validator<ProjectFacilityBu
         if (!validEntities.isEmpty()) {
             Class<?> objClass = getObjClass(validEntities);
             Method idMethod = getMethod(GET_ID, objClass);
+            String tenantId = getTenantId(validEntities);
             Map<String, ProjectFacility> eMap = getIdToObjMap(validEntities, idMethod);
             if (!eMap.isEmpty()) {
                 List<String> entityIds = new ArrayList<>(eMap.keySet());
-                List<ProjectFacility> existingEntities = repository.findById(entityIds, false,
-                        getIdFieldName(idMethod));
-                List<ProjectFacility> nonExistentEntities = checkNonExistentEntities(eMap,
-                        existingEntities, idMethod);
-                nonExistentEntities.forEach(projectFacility -> {
-                    Error error = getErrorForNonExistentEntity();
-                    populateErrorDetails(projectFacility, error, errorDetailsMap);
-                });
+                List<ProjectFacility> existingEntities = null;
+                try {
+                    existingEntities = repository.findById(tenantId, entityIds, false,
+                            getIdFieldName(idMethod));
+                    List<ProjectFacility> nonExistentEntities = checkNonExistentEntities(eMap,
+                            existingEntities, idMethod);
+                    nonExistentEntities.forEach(projectFacility -> {
+                        Error error = getErrorForNonExistentEntity();
+                        populateErrorDetails(projectFacility, error, errorDetailsMap);
+                    });
+                } catch (InvalidTenantIdException exception) {
+                    // Populating InvalidTenantIdException for all entities
+                    validEntities.forEach(projectFacility -> {
+                        Error error = getErrorForInvalidTenantId(tenantId, exception);
+                        populateErrorDetails(projectFacility, error, errorDetailsMap);
+                    });
+                }
+
             }
         }
         return errorDetailsMap;

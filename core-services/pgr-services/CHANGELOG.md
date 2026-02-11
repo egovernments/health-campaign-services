@@ -1,6 +1,13 @@
 # Changelog
 All notable changes to this module will be documented in this file.
 
+### 1.2.0 - 2025-05-07
+* Upgraded Java version from 8 to 17 and updated pom.xml accordingly.
+* Integrated MultiStateInstanceUtil for schema-based multi-tenancy across repository, producer, and query builder layers.
+* Added InvalidTenantIdException handling for robust multi-tenant error validation.
+* Modified workflow configurations and updated multiple model classes with minor adjustments.
+* Refactored tests to align with Java 17 and multi-tenant support changes.
+
 ## 1.1.7 - 2023-02-01
 
 - Transition from 1.1.7-beta version to 1.1.7 version

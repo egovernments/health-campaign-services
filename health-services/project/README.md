@@ -130,7 +130,6 @@ Project service APIs - contains create, update, delete and search end point
 - update-project-resource-bulk-topic
 - delete-project-resource-bulk-topic
 
-
 ### Kafka Producers
 
 - save-project-staff-topic
@@ -153,7 +152,20 @@ Project service APIs - contains create, update, delete and search end point
 - update-project-resource-topic
 - delete-project-resource-topic
 
-
 ## Pre commit script
 
 [commit-msg](https://gist.github.com/jayantp-egov/14f55deb344f1648503c6be7e580fa12)
+
+## Updates 
+- Project Staff Search 
+  - `staffId`, and `projectId` now accepts a list of entities instead of single entity to search project staff
+- Project Task Search 
+  - `projectId`, `projectBeneficiaryId`, and `projectBeneficiaryClientReferenceId` now accepts list of entities instead of single entity to search project task 
+- Project Beneficiary Search 
+  - `projectId`, and  `beneficiaryId` now accepts a list of entities instead of single entity to search project beneficiary
+- Project Resource Search
+  - `projectId` now accepts a list of entities instead of single entity to search project resources
+## Usage
+- Start the service
+- Access the API endpoints for searching various project entities
+- Pass list parameters for the search fields mentioned in updates 

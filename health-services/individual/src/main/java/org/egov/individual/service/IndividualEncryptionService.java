@@ -2,15 +2,16 @@ package org.egov.individual.service;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.models.Error;
 import org.egov.common.models.ErrorDetails;
 import org.egov.common.models.individual.Identifier;
 import org.egov.common.models.individual.Individual;
 import org.egov.common.models.individual.IndividualBulkRequest;
+import org.egov.common.models.individual.IndividualSearch;
 import org.egov.individual.repository.IndividualRepository;
 import org.egov.individual.util.EncryptionDecryptionUtil;
-import org.egov.individual.web.models.IndividualSearch;
 import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
@@ -109,9 +110,9 @@ public class IndividualEncryptionService {
                         List<Individual> individualsList = null;
                         try {
                             individualsList = individualRepository.find(individualSearch,null,
-                                    null,tenantId,null,false);
+                                    null,tenantId,null,false).getResponse();
                         } catch (Exception exception) {
-                            log.error("database error occurred", exception);
+                            log.error("database error occurred", ExceptionUtils.getStackTrace(exception));
                             throw new CustomException("DATABASE_ERROR", exception.getMessage());
                         }
                         if (!CollectionUtils.isEmpty(individualsList)) {

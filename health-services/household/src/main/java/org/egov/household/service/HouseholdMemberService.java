@@ -1,37 +1,42 @@
 package org.egov.household.service;
 
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
+
 import lombok.extern.slf4j.Slf4j;
-import org.egov.common.data.query.exception.QueryBuilderException;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.ds.Tuple;
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.common.models.ErrorDetails;
+import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.household.HouseholdMember;
 import org.egov.common.models.household.HouseholdMemberBulkRequest;
 import org.egov.common.models.household.HouseholdMemberRequest;
+import org.egov.common.models.household.HouseholdMemberSearch;
 import org.egov.common.utils.CommonUtils;
 import org.egov.common.validator.Validator;
 import org.egov.household.config.HouseholdMemberConfiguration;
+import org.egov.household.household.member.validators.HmExistentEntityValidator;
 import org.egov.household.household.member.validators.HmHouseholdHeadValidator;
 import org.egov.household.household.member.validators.HmHouseholdValidator;
 import org.egov.household.household.member.validators.HmIndividualValidator;
 import org.egov.household.household.member.validators.HmIsDeletedValidator;
 import org.egov.household.household.member.validators.HmNonExistentEntityValidator;
 import org.egov.household.household.member.validators.HmNullIdValidator;
+import org.egov.household.household.member.validators.HmRelationshipTypeValidator;
+import org.egov.household.household.member.validators.HmRelativeExistentValidator;
 import org.egov.household.household.member.validators.HmRowVersionValidator;
 import org.egov.household.household.member.validators.HmUniqueEntityValidator;
 import org.egov.household.household.member.validators.HmUniqueIndividualValidator;
 import org.egov.household.repository.HouseholdMemberRepository;
-import org.egov.household.web.models.HouseholdMemberSearch;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ReflectionUtils;
-
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.function.Predicate;
-import java.util.stream.Collectors;
 
 import static org.egov.common.utils.CommonUtils.getIdFieldName;
 import static org.egov.common.utils.CommonUtils.getIdMethod;
@@ -42,8 +47,7 @@ import static org.egov.common.utils.CommonUtils.isSearchByIdOnly;
 import static org.egov.common.utils.CommonUtils.lastChangedSince;
 import static org.egov.common.utils.CommonUtils.notHavingErrors;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
-import static org.egov.household.Constants.SET_HOUSEHOLD_MEMBERS;
-import static org.egov.household.Constants.VALIDATION_ERROR;
+import static org.egov.household.Constants.*;
 
 @Service
 @Slf4j
@@ -69,12 +73,17 @@ public class HouseholdMemberService {
                     || validator.getClass().equals(HmUniqueEntityValidator.class)
                     || validator.getClass().equals(HmHouseholdValidator.class)
                     || validator.getClass().equals(HmIndividualValidator.class)
-                    || validator.getClass().equals(HmHouseholdHeadValidator.class);
+                    || validator.getClass().equals(HmHouseholdHeadValidator.class)
+                    || validator.getClass().equals(HmRelationshipTypeValidator.class)
+                    || validator.getClass().equals(HmRelativeExistentValidator.class);
 
     private final Predicate<Validator<HouseholdMemberBulkRequest, HouseholdMember>> isApplicableForCreate = validator ->
             validator.getClass().equals(HmHouseholdValidator.class)
+                    || validator.getClass().equals(HmExistentEntityValidator.class)
                     || validator.getClass().equals(HmUniqueIndividualValidator.class)
-                    || validator.getClass().equals(HmHouseholdHeadValidator.class);
+                    || validator.getClass().equals(HmHouseholdHeadValidator.class)
+                    || validator.getClass().equals(HmRelationshipTypeValidator.class)
+                    || validator.getClass().equals(HmRelativeExistentValidator.class);
 
     private final Predicate<Validator<HouseholdMemberBulkRequest, HouseholdMember>> isApplicableForDelete = validator ->
             validator.getClass().equals(HmNullIdValidator.class)
@@ -124,7 +133,7 @@ public class HouseholdMemberService {
                 log.info("household members data saved successfully");
             }
         } catch (Exception exception) {
-            log.error("error occurred while creating household members: ", exception);
+            log.error("error occurred while creating household members: {}", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(householdMemberBulkRequest, errorDetailsMap, validHouseholdMembers,
                     exception, SET_HOUSEHOLD_MEMBERS);
         }
@@ -134,28 +143,37 @@ public class HouseholdMemberService {
     }
 
 
-    public List<HouseholdMember> search(HouseholdMemberSearch householdMemberSearch, Integer limit, Integer offset, String tenantId,
-                                        Long lastChangedSince, Boolean includeDeleted) {
+    public SearchResponse<HouseholdMember> search(HouseholdMemberSearch householdMemberSearch, Integer limit, Integer offset, String tenantId,
+                                                  Long lastChangedSince, Boolean includeDeleted) {
 
         String idFieldName = getIdFieldName(householdMemberSearch);
         if (isSearchByIdOnly(householdMemberSearch, idFieldName)) {
             List<String> ids = (List<String>) ReflectionUtils.invokeMethod(getIdMethod(Collections
                             .singletonList(householdMemberSearch)),
                     householdMemberSearch);
-            List<HouseholdMember> householdMembers = householdMemberRepository.findById(ids,
-                            idFieldName, includeDeleted).stream()
+            SearchResponse<HouseholdMember> searchResponse = null;
+            try {
+                searchResponse = householdMemberRepository.findById(tenantId, ids,
+                        idFieldName, includeDeleted);
+            } catch (InvalidTenantIdException e) {
+                throw new CustomException(TENANT_ID_EXCEPTION, e.getMessage());
+            }
+            List<HouseholdMember> householdMembers = searchResponse.getResponse().stream()
                                 .filter(lastChangedSince(lastChangedSince))
                                 .filter(havingTenantId(tenantId))
                                 .filter(includeDeleted(includeDeleted))
                                 .collect(Collectors.toList());
             log.info("found {} household members for search by id", householdMembers.size());
-            return householdMembers;
+
+            searchResponse.setResponse(householdMembers);
+
+            return searchResponse;
         }
         try {
             return householdMemberRepository.find(householdMemberSearch, limit, offset,
                     tenantId, lastChangedSince, includeDeleted);
-        } catch (QueryBuilderException e) {
-            log.error("error in building query for household member search", e);
+        } catch (Exception e) {
+            log.error("error in building query for household member search: {}", ExceptionUtils.getStackTrace(e));
             throw new CustomException("ERROR_IN_QUERY", e.getMessage());
         }
     }
@@ -186,7 +204,7 @@ public class HouseholdMemberService {
                 log.info("household member data updated successfully");
             }
         } catch (Exception exception) {
-            log.error("error occurred", exception);
+            log.error("error occurred: {}", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(householdMemberBulkRequest, errorDetailsMap, validHouseholdMembers,
                     exception, SET_HOUSEHOLD_MEMBERS);
         }
@@ -218,7 +236,7 @@ public class HouseholdMemberService {
                 log.info("deleted Household Members: {}", validHouseholdMembers);
             }
         } catch (Exception exception) {
-            log.error("error occurred while deleting household members", exception);
+            log.error("error occurred while deleting household members: {}", ExceptionUtils.getStackTrace(exception));
             populateErrorDetails(householdMemberBulkRequest, errorDetailsMap, validHouseholdMembers,
                     exception, SET_HOUSEHOLD_MEMBERS);
         }

@@ -1,0 +1,309 @@
+{
+	"info": {
+		"_postman_id": "bbf398e2-eeac-407e-891a-cf4f89c22ad9",
+		"name": "pgr-services",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "24751924"
+	},
+	"item": [
+		{
+			"name": "pgr search",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"RequestInfo\": {\n    \"apiId\": \"Rainmaker\",\n    \"authToken\": \"{{devAuth}}\",\n    \"userInfo\": {\n      \"id\": 93,\n      \"uuid\": \"56b5c31b-b843-426c-b8d5-64a4c80286aa\",\n      \"userName\": \"sysadmin\",\n      \"name\": null,\n      \"mobileNumber\": \"3989999999\",\n      \"emailId\": null,\n      \"locale\": null,\n      \"type\": \"EMPLOYEE\",\n      \"roles\": [\n        {\n          \"name\": \"CSR\",\n          \"code\": \"CSR\",\n          \"tenantId\": \"default\"\n        },\n        {\n          \"name\": \"System Administrator\",\n          \"code\": \"SYSTEM_ADMINISTRATOR\",\n          \"tenantId\": \"default\"\n        }\n      ],\n      \"active\": true,\n      \"tenantId\": \"default\",\n      \"permanentCity\": null\n    },\n    \"msgId\": \"1683099938019|en_MZ\"\n  }\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{dev}}/pgr-services/v2/request/_search?serviceRequestId=PGR-2023-05-03-000193&tenantId=default",
+					"host": [
+						"{{dev}}"
+					],
+					"path": [
+						"pgr-services",
+						"v2",
+						"request",
+						"_search"
+					],
+					"query": [
+						{
+							"key": "ids",
+							"value": "39a07047-9759-4503-91ad-14cbeaa8df20",
+							"disabled": true
+						},
+						{
+							"key": "mobileNumber",
+							"value": "8004376134",
+							"disabled": true
+						},
+						{
+							"key": "serviceCode",
+							"value": "StreetLightNotWorking",
+							"disabled": true
+						},
+						{
+							"key": "limit",
+							"value": "10",
+							"disabled": true
+						},
+						{
+							"key": "applicationStatus",
+							"value": "RESOLVED",
+							"disabled": true
+						},
+						{
+							"key": "serviceRequestId",
+							"value": "PGR-2023-05-03-000193"
+						},
+						{
+							"key": "sortBy",
+							"value": "serviceRequestId",
+							"disabled": true
+						},
+						{
+							"key": "sortOrder",
+							"value": "ASC",
+							"disabled": true
+						},
+						{
+							"key": "locality",
+							"value": "SUN04",
+							"disabled": true
+						},
+						{
+							"key": "tenantId",
+							"value": "default"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "pgr create",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"service\": {\n    \"active\": true,\n    \"tenantId\": \"default\",\n    \"serviceCode\": \"SyncNotWorking\",\n    \"description\": \"sync issue\",\n    \"applicationStatus\": \"CREATED\",\n    \"source\": \"web\",\n    \"user\": {\n      \"userName\": \"3989999999\",\n      \"name\": \"Syadmin\",\n      \"type\": \"EMPLOYEE\",\n      \"mobileNumber\": \"3989999999\",\n      \"roles\": [],\n      \"tenantId\": \"default\",\n      \"uuid\": \"56b5c31b-b843-426c-b8d5-64a4c80286aa\",\n      \"active\": true,\n      \"isDeleted\": false,\n      \"rowVersion\": 1,\n      \"auditDetails\": {\n        \"createdBy\": \"56b5c31b-b843-426c-b8d5-64a4c80286aa\",\n        \"createdTime\": 1683072000,\n        \"lastModifiedBy\": \"56b5c31b-b843-426c-b8d5-64a4c80286aa\",\n        \"lastModifiedTime\": 1683072000\n      }\n    },\n    \"isDeleted\": false,\n    \"rowVersion\": 1,\n    \"address\": {\n      \"landmark\": \"\",\n      \"buildingName\": \"\",\n      \"street\": \"\",\n      \"pincode\": \"\",\n      \"locality\": {\n        \"code\": \"VFTw0jbRf1y\",\n        \"name\": \"CAVINA1\"\n      },\n      \"geoLocation\": {}\n    },\n    \"additionalDetail\": \"{\\\"supervisorName\\\":\\\"ad\\\",\\\"supervisorMobileNumber\\\":\\\"3333333333\\\"}\",\n    \"auditDetails\": {\n      \"createdBy\": \"56b5c31b-b843-426c-b8d5-64a4c80286aa\",\n      \"createdTime\": 1683072000,\n      \"lastModifiedBy\": \"56b5c31b-b843-426c-b8d5-64a4c80286aa\",\n      \"lastModifiedTime\": 1683072000\n    }\n  },\n  \"workflow\": {\n    \"action\": \"CREATE\",\n    \"assignes\": [],\n    \"comments\": \"\"\n  },\n  \"RequestInfo\": {\n    \"apiId\": \"Rainmaker\",\n    \"authToken\": \"{{devAuth}}\",\n    \"userInfo\": {\n      \"id\": 93,\n      \"uuid\": \"56b5c31b-b843-426c-b8d5-64a4c80286aa\",\n      \"userName\": \"sysadmin\",\n      \"name\": null,\n      \"mobileNumber\": \"3989999999\",\n      \"emailId\": null,\n      \"locale\": null,\n      \"type\": \"EMPLOYEE\",\n      \"roles\": [\n        {\n          \"name\": \"CSR\",\n          \"code\": \"CSR\",\n          \"tenantId\": \"default\"\n        },\n        {\n          \"name\": \"System Administrator\",\n          \"code\": \"SYSTEM_ADMINISTRATOR\",\n          \"tenantId\": \"default\"\n        }\n      ],\n      \"active\": true,\n      \"tenantId\": \"default\",\n      \"permanentCity\": null\n    },\n    \"msgId\": \"1683093762211|en_MZ\"\n  }\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{dev}}/pgr-services/v2/request/_create",
+					"host": [
+						"{{dev}}"
+					],
+					"path": [
+						"pgr-services",
+						"v2",
+						"request",
+						"_create"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "pgr update",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"RequestInfo\": {\n        \"apiId\": \"Rainmaker\",\n        \"action\": \"\",\n        \"did\": 1,\n        \"key\": \"\",\n        \"msgId\": \"20170310130900|en_IN\",\n        \"requesterId\": \"\",\n        \"ts\": 1513579888683,\n        \"ver\": \".01\",\n        \"authToken\": \"{{devAuth}}\",\n        \"userInfo\": {\n        \"id\": 23287,\n        \"uuid\": \"4632c941-cb1e-4b83-b2d4-200022c1a137\",\n        \"userName\": \"PalashS\",\n        \"name\": \"Palash S\",\n        \"mobileNumber\": \"9949032246\",\n        \"emailId\": null,\n        \"locale\": null,\n        \"type\": \"EMPLOYEE\",\n        \"roles\": [\n            {\n                \"name\": \"PGR Last Mile Employee\",\n                \"code\": \"PGR_LME\",\n                \"tenantId\": \"pb.amritsar\"\n            },\n            {\n                \"name\": \"Employee\",\n                \"code\": \"EMPLOYEE\",\n                \"tenantId\": \"pb\"\n            },\n            {\n                \"name\": \"Employee\",\n                \"code\": \"EMPLOYEE\",\n                \"tenantId\": \"pb.amritsar\"\n            }\n        ],\n        \"active\": true,\n        \"tenantId\": \"pb.amritsar\"\n    }\n    },\n     \"service\": {\n                \"active\": true,\n                \"user\": {\n                    \"id\": 29678,\n                    \"userName\": \"9916210028\",\n                    \"name\": \"Vinoth Rallapalli\",\n                    \"type\": \"CITIZEN\",\n                    \"mobileNumber\": \"9916210028\",\n                    \"emailId\": \"ddd@fff.com\",\n                    \"roles\": [\n                        {\n                            \"id\": null,\n                            \"name\": \"Citizen\",\n                            \"code\": \"CITIZEN\",\n                            \"tenantId\": \"pb\"\n                        },\n                        {\n                            \"id\": null,\n                            \"name\": \"BPA Town Planner\",\n                            \"code\": \"BPA_TOWNPLANNER\",\n                            \"tenantId\": \"pb\"\n                        }\n                    ],\n                    \"tenantId\": \"pb\",\n                    \"uuid\": \"47babcd6-2823-43c2-a64f-bf146b6c408d\",\n                    \"active\": true\n                },\n                \"id\": \"a8143375-bd9b-4eea-bf45-68996f676fc9\",\n                \"tenantId\": \"pb.amritsar\",\n                \"serviceCode\": \"OverflowingOrBlockedDrain\",\n                \"serviceRequestId\": \"PB-PGR-2021-09-14-001175\",\n                \"description\": \"overflowing drain\",\n                \"accountId\": \"47babcd6-2823-43c2-a64f-bf146b6c408d\",\n                \"rating\": null,\n                \"additionalDetail\": {\n                    \"sdsadsadsad\": \"asdsadsadsadsa\"\n                },\n                \"applicationStatus\": \"PENDINGFORASSIGNMENT\",\n                \"source\": \"whatsapp\",\n                \"address\": {\n                    \"tenantId\": \"pb.amritsar\",\n                    \"doorNo\": \"2\",\n                    \"plotNo\": \"10\",\n                    \"id\": \"c073f0eb-c8bd-484b-ae20-d7c87321bec0\",\n                    \"landmark\": \"Near City Hall\",\n                    \"city\": \"Amritsar\",\n                    \"district\": \"Amritsar\",\n                    \"region\": \"Amritsar\",\n                    \"state\": \"Punjab\",\n                    \"country\": \"India\",\n                    \"pincode\": \"111111\",\n                    \"additionDetails\": null,\n                    \"buildingName\": \"Safalya\",\n                    \"street\": \"10th main\",\n                    \"locality\": {\n                        \"code\": \"SUN01\",\n                        \"name\": null,\n                        \"label\": null,\n                        \"latitude\": null,\n                        \"longitude\": null,\n                        \"children\": null,\n                        \"materializedPath\": null\n                    },\n                    \"geoLocation\": {\n                        \"latitude\": 21.0,\n                        \"longitude\": 56.0,\n                        \"additionalDetails\": null\n                    }\n                },\n                \"auditDetails\": {\n                    \"createdBy\": \"47babcd6-2823-43c2-a64f-bf146b6c408d\",\n                    \"lastModifiedBy\": \"47babcd6-2823-43c2-a64f-bf146b6c408d\",\n                    \"createdTime\": 1631603018031,\n                    \"lastModifiedTime\": 1631603018031\n                }\n            },\n            \"workflow\": {\n                \"action\": \"ASSIGN\",\n                \"assignes\": [\"4632c941-cb1e-4b83-b2d4-200022c1a137\"],\n                \"comments\": \"Drain Overflowing. Please check\"\n            }\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{dev}}/pgr-services/v2/request/_update",
+					"host": [
+						"{{dev}}"
+					],
+					"path": [
+						"pgr-services",
+						"v2",
+						"request",
+						"_update"
+					],
+					"query": [
+						{
+							"key": null,
+							"value": "",
+							"disabled": true
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "count API",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n     \"RequestInfo\": {\n    \"apiId\": \"Rainmaker\",\n    \"ver\": \".01\",\n    \"action\": \"\",\n    \"did\": \"1\",\n    \"key\": \"\",\n    \"msgId\": \"20170310130900|en_IN\",\n    \"requesterId\": \"\",\n    \"authToken\": \"{{devAuth}}\"\n  }\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{dev}}/pgr-services/v2/request/_count?tenantId=pb.amritsar&applicationStatus=REJECTED",
+					"host": [
+						"{{dev}}"
+					],
+					"path": [
+						"pgr-services",
+						"v2",
+						"request",
+						"_count"
+					],
+					"query": [
+						{
+							"key": "tenantId",
+							"value": "pb.amritsar"
+						},
+						{
+							"key": "serviceCode",
+							"value": "StreetLightNotWorking",
+							"disabled": true
+						},
+						{
+							"key": "applicationStatus",
+							"value": "REJECTED"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "pgr old plain search",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n     \"RequestInfo\": {\n    \"apiId\": \"Rainmaker\",\n    \"ver\": \".01\",\n    \"action\": \"\",\n    \"did\": \"1\",\n    \"key\": \"\",\n    \"msgId\": \"20170310130900|en_IN\",\n    \"requesterId\": \"\",\n    \"authToken\": \"{{devAuth}}\",\n    \"userInfo\": {\n            \"id\": 23349,\n            \"userName\": \"9404052047\",\n            \"salutation\": null,\n            \"name\": \"at\",\n            \"gender\": \"MALE\",\n            \"mobileNumber\": \"9404052047\",\n            \"emailId\": \"xc@gmail.com\",\n            \"altContactNumber\": null,\n            \"pan\": null,\n            \"aadhaarNumber\": null,\n            \"permanentAddress\": \",,,lucknow,lucknow\",\n            \"permanentCity\": \"jalandhar\",\n            \"permanentPinCode\": \"343434\",\n            \"correspondenceAddress\": \"address \",\n            \"correspondenceCity\": null,\n            \"correspondencePinCode\": null,\n            \"active\": true,\n            \"locale\": null,\n            \"type\": \"CITIZEN\",\n            \"accountLocked\": false,\n            \"accountLockedDate\": 0,\n            \"fatherOrHusbandName\": \"st\",\n            \"signature\": null,\n            \"bloodGroup\": null,\n            \"photo\": null,\n            \"identificationMark\": null,\n            \"createdBy\": 23311,\n            \"lastModifiedBy\": 1,\n            \"tenantId\": \"pb\",\n            \"roles\": [\n                {\n                    \"code\": \"CITIZEN\",\n                    \"name\": \"Citizen\",\n                    \"tenantId\": \"pb\"\n                }\n            ],\n            \"uuid\": \"530968f3-76b3-4fd1-b09d-9e22eb1f85df\",\n            \"createdDate\": \"05-07-2018 11:42:01\",\n            \"lastModifiedDate\": \"25-03-2020 01:47:14\",\n            \"dob\": \"1993-02-25\",\n            \"pwdExpiryDate\": \"04-10-2018 04:12:00\"\n        }\n  }\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{local}}/rainmaker-pgr/v1/requests/_plainsearch?offset=0&noOfRecords=10&tenantId=pb.phagwara",
+					"host": [
+						"{{local}}"
+					],
+					"path": [
+						"rainmaker-pgr",
+						"v1",
+						"requests",
+						"_plainsearch"
+					],
+					"query": [
+						{
+							"key": "offset",
+							"value": "0"
+						},
+						{
+							"key": "noOfRecords",
+							"value": "10"
+						},
+						{
+							"key": "tenantId",
+							"value": "pb.phagwara"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "transform",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"ResponseInfo\": {\n    \"apiId\": \"Rainmaker\",\n    \"ver\": \".01\",\n    \"ts\": null,\n    \"resMsgId\": \"uief87324\",\n    \"msgId\": \"20170310130900|en_IN\",\n    \"status\": \"successful\"\n  },\n  \"services\": [\n    {\n      \"citizen\": {\n        \"id\": 23914,\n        \"uuid\": \"206f4c7b-ab04-4730-acc7-4aa0d29506e6\",\n        \"name\": \"name .updat\",\n        \"mobileNumber\": \"9987106368\",\n        \"aadhaarNumber\": null,\n        \"pan\": null,\n        \"emailId\": \"xvyz@gmail.com\",\n        \"userName\": \"9987106368\",\n        \"password\": null,\n        \"active\": true,\n        \"type\": \"CITIZEN\",\n        \"gender\": \"MALE\",\n        \"tenantId\": \"pb\",\n        \"permanentAddress\": \"PB_AMRITSAR_REVENUE_SUN18, amritsar\",\n        \"roles\": [\n          {\n            \"name\": \"Citizen\",\n            \"code\": \"CITIZEN\",\n            \"tenantId\": \"pb\"\n          }\n        ]\n      },\n      \"tenantId\": \"pb.jalandhar\",\n      \"serviceCode\": \"DamagedGarbageBin\",\n      \"serviceRequestId\": \"04/03/2020/006099\",\n      \"description\": \"3\",\n      \"addressId\": \"da8af2cd-cdfa-489e-8828-bce515d41f61\",\n      \"accountId\": \"23914\",\n      \"phone\": \"9987106368\",\n      \"addressDetail\": {\n        \"uuid\": \"da8af2cd-cdfa-489e-8828-bce515d41f61\",\n        \"mohalla\": \"JLC468\",\n        \"locality\": \"GTB Nagar\",\n        \"city\": \"pb.jalandhar\",\n        \"tenantId\": \"pb.jalandhar\"\n      },\n      \"active\": true,\n      \"status\": \"assigned\",\n      \"source\": \"whatsapp\",\n      \"auditDetails\": {\n        \"createdBy\": \"23914\",\n        \"lastModifiedBy\": \"23370\",\n        \"createdTime\": 1583314541457,\n        \"lastModifiedTime\": 1583327412746\n      }\n    }\n  ],\n  \"actionHistory\": [\n    {\n      \"actions\": [\n        {\n          \"uuid\": \"261f5bea-b293-493c-8572-d4af6b807981\",\n          \"tenantId\": \"pb.jalandhar\",\n          \"by\": \"23370:GRO\",\n          \"when\": 1583327412746,\n          \"businessKey\": \"04/03/2020/006099\",\n          \"action\": \"assign\",\n          \"status\": \"assigned\",\n          \"assignee\": \"28258\"\n        },\n        {\n          \"uuid\": \"6c87870a-48ce-4d1d-9fa8-a8649a6e9add\",\n          \"tenantId\": \"pb.jalandhar\",\n          \"by\": \"23370:GRO\",\n          \"when\": 1583327361714,\n          \"businessKey\": \"04/03/2020/006099\",\n          \"comments\": \"dff\"\n        },\n        {\n          \"uuid\": \"b78255ef-333a-4419-bbbb-962becaa2a5c\",\n          \"tenantId\": \"pb.jalandhar\",\n          \"by\": \"23914:BPA Architect\",\n          \"when\": 1583314541457,\n          \"businessKey\": \"04/03/2020/006099\",\n          \"action\": \"open\",\n          \"status\": \"open\",\n          \"media\": [\n            \"https://minio-egov-micro-dev.egovernments.org/egov-rainmaker/pb/chatbot/March/4/1583314533928pgr-whatsapp-1583314533825.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAIOSFODNN7EXAMPLE%2F20201014%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20201014T052552Z&X-Amz-Expires=86400&X-Amz-SignedHeaders=host&X-Amz-Signature=360c179db1c6d21e95146a31a1b68a39b09e7b96e15cc881357289dac89e8771,https://minio-egov-micro-dev.egovernments.org/egov-rainmaker/pb/chatbot/March/4/1583314533928pgr-whatsapp-1583314533825_large.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAIOSFODNN7EXAMPLE%2F20201014%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20201014T052552Z&X-Amz-Expires=86400&X-Amz-SignedHeaders=host&X-Amz-Signature=3188d9d15e1ff94e459cdcef93c116621a26bb34f9b89183192273ebd8b97981,https://minio-egov-micro-dev.egovernments.org/egov-rainmaker/pb/chatbot/March/4/1583314533928pgr-whatsapp-1583314533825_medium.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAIOSFODNN7EXAMPLE%2F20201014%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20201014T052552Z&X-Amz-Expires=86400&X-Amz-SignedHeaders=host&X-Amz-Signature=681373c0758c92a6d00e30ef2c36ff58384de030c021599908305909ca70e79e,https://minio-egov-micro-dev.egovernments.org/egov-rainmaker/pb/chatbot/March/4/1583314533928pgr-whatsapp-1583314533825_small.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAIOSFODNN7EXAMPLE%2F20201014%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20201014T052552Z&X-Amz-Expires=86400&X-Amz-SignedHeaders=host&X-Amz-Signature=89eab9c8e2e3fdff1039d0a95fce4fce1f3c5d2c6248b9577877a52d14565fc1\"\n          ]\n        }\n      ]\n    }\n  ]\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{local}}/pgr-services/migration/_transform",
+					"host": [
+						"{{local}}"
+					],
+					"path": [
+						"pgr-services",
+						"migration",
+						"_transform"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "pgr migration",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n     \"RequestInfo\": {\n        \"apiId\": \"Rainmaker\",\n        \"action\": \"\",\n        \"did\": 1,\n        \"key\": \"\",\n        \"msgId\": \"20170310130900|en_IN\",\n        \"requesterId\": \"\",\n        \"ts\": 1513579888683,\n        \"ver\": \".01\",\n        \"authToken\": \"{{devAuth}}\",\n        \"userInfo\": {\n        \"id\": 23287,\n        \"uuid\": \"4632c941-cb1e-4b83-b2d4-200022c1a137\",\n        \"userName\": \"PalashS\",\n        \"name\": \"Palash S\",\n        \"mobileNumber\": \"9949032246\",\n        \"emailId\": null,\n        \"locale\": null,\n        \"type\": \"EMPLOYEE\",\n        \"roles\": [\n            {\n                \"name\": \"PGR Last Mile Employee\",\n                \"code\": \"PGR_LME\",\n                \"tenantId\": \"pb.amritsar\"\n            },\n            {\n                \"name\": \"Employee\",\n                \"code\": \"EMPLOYEE\",\n                \"tenantId\": \"pb\"\n            },\n            {\n                \"name\": \"Employee\",\n                \"code\": \"EMPLOYEE\",\n                \"tenantId\": \"pb.amritsar\"\n            }\n        ],\n        \"active\": true,\n        \"tenantId\": \"pb.amritsar\"\n    }\n    }\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:8083/rainmaker-pgr/v2/_migrate?tenantIds=pb.bathinda&serviceRequestIds=17/12/2018/005891",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8083",
+					"path": [
+						"rainmaker-pgr",
+						"v2",
+						"_migrate"
+					],
+					"query": [
+						{
+							"key": "tenantIds",
+							"value": "pb.bathinda"
+						},
+						{
+							"key": "serviceRequestIds",
+							"value": "17/12/2018/005891"
+						}
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}

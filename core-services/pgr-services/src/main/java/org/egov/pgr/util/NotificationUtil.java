@@ -131,17 +131,18 @@ public class NotificationUtil {
 
     /**
      * Send the SMSRequest on the SMSNotification kafka topic
+     * @param tenantId the ID of the tenant
      * @param smsRequestList The list of SMSRequest to be sent
      */
-    public void sendSMS(List<SMSRequest> smsRequestList) {
+    public void sendSMS(String tenantId, List<SMSRequest> smsRequestList) {
         if (config.getIsSMSEnabled()) {
             if (CollectionUtils.isEmpty(smsRequestList)) {
                 log.info("Messages from localization couldn't be fetched!");
                 return;
             }
             for (SMSRequest smsRequest : smsRequestList) {
-                producer.push(config.getSmsNotifTopic(), smsRequest);
-                log.info("Messages: " + smsRequest.getMessage());
+                producer.push(tenantId, config.getSmsNotifTopic(), smsRequest);
+                log.info("Messages: {}", smsRequest.getMessage());
             }
         }
     }
@@ -149,10 +150,11 @@ public class NotificationUtil {
     /**
      * Pushes the event request to Kafka Queue.
      *
+     * @param tenantId the ID of the tenant
      * @param request EventRequest Object
      */
-    public void sendEventNotification(EventRequest request) {
-        producer.push(config.getSaveUserEventsTopic(), request);
+    public void sendEventNotification(String tenantId, EventRequest request) {
+        producer.push(tenantId, config.getSaveUserEventsTopic(), request);
     }
 
     /**

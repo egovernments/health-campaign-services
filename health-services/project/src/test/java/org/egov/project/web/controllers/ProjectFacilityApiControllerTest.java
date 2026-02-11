@@ -2,6 +2,7 @@ package org.egov.project.web.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.egov.common.helper.RequestInfoTestBuilder;
+import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.project.ProjectFacility;
 import org.egov.common.models.project.ProjectFacilityBulkRequest;
 import org.egov.common.models.project.ProjectFacilityBulkResponse;
@@ -18,8 +19,8 @@ import org.egov.project.service.ProjectFacilityService;
 import org.egov.project.service.ProjectService;
 import org.egov.project.service.ProjectStaffService;
 import org.egov.project.service.ProjectTaskService;
-import org.egov.project.web.models.ProjectFacilitySearch;
-import org.egov.project.web.models.ProjectFacilitySearchRequest;
+import org.egov.common.models.project.ProjectFacilitySearch;
+import org.egov.common.models.project.ProjectFacilitySearchRequest;
 import org.egov.tracer.model.ErrorRes;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -193,8 +194,9 @@ class ProjectFacilityApiControllerTest {
                 any(Integer.class),
                 any(String.class),
                 any(Long.class),
-                any(Boolean.class))).thenReturn(Arrays.asList(ProjectFacilityTestBuilder.builder()
-                .withId().withAuditDetails().build()));
+                any(Boolean.class))).thenReturn(SearchResponse.<ProjectFacility>builder()
+                .response(Arrays.asList(ProjectFacilityTestBuilder.builder()
+                        .withId().withAuditDetails().build())).build());
 
         final MvcResult result = mockMvc.perform(post(
                         "/facility/v1/_search?limit=10&offset=100&tenantId=default&lastChangedSince=1234322&includeDeleted=false")

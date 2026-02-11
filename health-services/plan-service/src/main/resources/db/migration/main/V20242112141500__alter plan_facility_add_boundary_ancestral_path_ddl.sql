@@ -1,0 +1,1 @@
+ALTER TABLE plan_facility_linkage ADD boundary_ancestral_path TEXT;

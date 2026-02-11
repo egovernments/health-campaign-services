@@ -1,6 +1,7 @@
 package org.egov.product.service;
 
 import org.egov.common.data.query.exception.QueryBuilderException;
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.helper.RequestInfoTestBuilder;
 import org.egov.common.models.product.Product;
 import org.egov.product.helper.ProductTestBuilder;
@@ -21,10 +22,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.ArgumentMatchers.anyList;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
@@ -40,7 +38,7 @@ class ProductServiceSearchTest {
     private ArrayList<Product> products;
 
     @BeforeEach
-    void setUp() throws QueryBuilderException {
+    void setUp() throws QueryBuilderException, InvalidTenantIdException {
         products = new ArrayList<>();
         lenient().when(productRepository.find(any(ProductSearch.class), any(Integer.class),
                any(Integer.class), any(String.class), eq(null), any(Boolean.class)))
@@ -81,7 +79,7 @@ class ProductServiceSearchTest {
         ProductSearch productSearch = ProductSearch.builder().id(Collections.singletonList("ID101")).build();
         ProductSearchRequest productSearchRequest = ProductSearchRequest.builder().product(productSearch)
                 .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build()).build();
-        when(productRepository.findById(anyList(), anyBoolean())).thenReturn(products);
+        when(productRepository.findById(anyString(), anyList(), anyBoolean())).thenReturn(products);
 
         List<Product> products = productService.search(productSearchRequest, 10, 0, "default", null, false);
 

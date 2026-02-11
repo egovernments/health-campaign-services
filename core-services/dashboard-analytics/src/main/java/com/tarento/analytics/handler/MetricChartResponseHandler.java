@@ -59,7 +59,7 @@ public class MetricChartResponseHandler implements IResponseHandler{
     @Override
     public AggregateDto translate(AggregateRequestDto request, ObjectNode aggregations) throws IOException {
         List<Data> dataList = new ArrayList<>();
-        String requestId = request.getRequestId(); 
+        String requestId = request.getRequestId();
         String visualizationCode = request.getVisualizationCode();
 
         JsonNode aggregationNode = aggregations.get(AGGREGATIONS);
@@ -203,9 +203,20 @@ public class MetricChartResponseHandler implements IResponseHandler{
 			data.setPlots( Arrays.asList(latestDateplot,lastUpdatedTime));
             request.getResponseRecorder().put(visualizationCode, request.getModuleLevel(), data);
             dataList.add(data);
-            if(chartNode.get(POST_AGGREGATION_THEORY) != null) { 
+            if(chartNode.get(POST_AGGREGATION_THEORY) != null) {
             	ComputeHelper computeHelper = computeHelperFactory.getInstance(chartNode.get(POST_AGGREGATION_THEORY).asText());
-            	computeHelper.compute(request, dataList); 
+//				computeHelper.compute(request, dataList);
+				List<Data> capDataList = new ArrayList<>();
+
+				if (chartNode.has(IS_CAPPED_BY_CAMPAIGN_PERIOD)) {
+					List<JsonNode> valueNode = aggregationNode.findValues(chartNode.get(IS_CAPPED_BY_CAMPAIGN_PERIOD).get(0).asText());
+					if(valueNode.size() > 0) {
+						Long val = valueNode.get(0).get(IResponseHandler.VALUE).asLong();
+						Data dataNode = new Data(aggrsPaths.get(0).asText(), val.doubleValue(), chartNode.get(IResponseHandler.VALUE_TYPE).asText());
+						capDataList.add(dataNode);
+					}
+				}
+				computeHelper.compute(request, dataList, capDataList);
             }
         }catch (Exception e){
             logger.info("data chart name = "+chartName +" ex occurred "+e.getMessage());

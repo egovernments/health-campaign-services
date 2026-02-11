@@ -53,3 +53,11 @@ g) POST `/individual/v1/_search` - Search Individual, This API is internally cal
 ## Pre commit script
 
 [commit-msg](https://gist.github.com/jayantp-egov/14f55deb344f1648503c6be7e580fa12)
+
+## Updates
+- Individual Search 
+  - `individualId`, and `mobileNumber` now accepts a list of entities instead of single entity to search individual
+## Usage
+- Start the service
+- Access the API endpoints for searching `individual`
+- Pass list parameters for the search fields mentioned in updates 
