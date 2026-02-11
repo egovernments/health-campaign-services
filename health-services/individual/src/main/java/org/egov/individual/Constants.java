@@ -24,4 +24,5 @@ public interface Constants {
     String INVALID_BENEFICIARY_ID = "INVALID_BENEFICIARY_ID";
     String INVALID_USER_ID = "INVALID_USER_ID";
     String BENEFICIARY_ID_ALREADY_ASSIGNED = "BENEFICIARY_ID_ALREADY_ASSIGNED";
+    public static final String OTP_TYPE_LOGIN = "LOGIN";
 }

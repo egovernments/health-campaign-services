@@ -21,6 +21,10 @@ public class IndividualMapper {
     private IndividualMapper() {}
 
     public static UserRequest toUserRequest(Individual individual, IndividualProperties properties) {
+        return toUserRequest(individual, properties, true);
+    }
+
+    public static UserRequest toUserRequest(Individual individual, IndividualProperties properties, boolean generateDummyMobile) {
         Long id = individual.getUserId() != null ? Long.parseLong(individual.getUserId()) : null;
         String addressLine1 = individual.getAddress() != null && !individual.getAddress().isEmpty()
                 ? individual.getAddress().stream().filter(address -> address.getType()
@@ -35,7 +39,7 @@ public class IndividualMapper {
                         individual.getName().getFamilyName()) : individual.getName().getGivenName())
                 .correspondenceAddress(addressLine1)
                 .emailId(individual.getEmail())
-                .mobileNumber(generateDummyMobileNumber(individual.getMobileNumber()))
+                .mobileNumber(generateDummyMobile ? generateDummyMobileNumber(individual.getMobileNumber()) : individual.getMobileNumber())
                 .type(UserType.valueOf(properties.getUserServiceUserType()))
                 .accountLocked(properties.isUserServiceAccountLocked())
                 .active(individual.getIsSystemUserActive())
