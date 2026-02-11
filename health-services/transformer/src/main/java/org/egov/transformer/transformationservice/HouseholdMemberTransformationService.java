@@ -143,11 +143,13 @@ public class HouseholdMemberTransformationService {
         String projectIdProjectTypeId = commonUtils.projectDetailsFromUserId(householdMember.getClientAuditDetails().getCreatedBy(), householdMember.getTenantId());
 
         String projectTypeId = null;
+        String projectId = null;
         if (!StringUtils.isEmpty(projectIdProjectTypeId)) {
+            projectId = projectIdProjectTypeId.split(":")[0];
             projectTypeId = projectIdProjectTypeId.split(":")[1];
         }
         log.info("HOUSEHOLD MEMBER ADD INFO {}, {}", additionalDetails, additionalDetails.get(PROJECT_TYPE_ID));
-        String cycleIndex = commonUtils.fetchCycleIndexFromTime(householdMember.getTenantId(), projectTypeId, householdMember.getClientAuditDetails().getCreatedTime());
+        String cycleIndex = commonUtils.fetchCycleIndexFromProjectAdditionalDetails(householdMember.getTenantId(), projectId, projectTypeId, householdMember.getClientAuditDetails().getCreatedTime());
         additionalDetails.put(CYCLE_INDEX, cycleIndex);
         HouseholdMemberIndexV1 householdMemberIndexV1 = HouseholdMemberIndexV1.builder()
                 .householdMember(householdMember)

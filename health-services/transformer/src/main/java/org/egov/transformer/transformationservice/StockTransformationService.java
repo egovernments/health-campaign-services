@@ -135,7 +135,7 @@ public class StockTransformationService {
         List<String> variantList = new ArrayList<>(Collections.singleton(stock.getProductVariantId()));
         String productName = String.join(COMMA, productService.getProductVariantNames(variantList, tenantId));
         Map<String, String> userInfoMap = userService.getUserInfo(stock.getTenantId(), stock.getClientAuditDetails().getCreatedBy());
-        String cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectTypeId, stock.getAuditDetails());
+        String cycleIndex = commonUtils.fetchCycleIndexFromTime(tenantId, projectTypeId, stock.getAuditDetails().getCreatedTime());
         ObjectNode additionalDetails = objectMapper.createObjectNode();
         additionalDetails.put(CYCLE_INDEX, cycleIndex);
 

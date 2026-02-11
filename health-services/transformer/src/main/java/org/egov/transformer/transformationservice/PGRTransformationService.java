@@ -64,6 +64,7 @@ public class PGRTransformationService {
         Map<String, String> boundaryHierarchyCode = null;
         String tenantId = service.getTenantId();
         String localityCode = null;
+        String projectId = null;
         String projectTypeId = null;
         Optional<String> localityCodeOptional = Optional.ofNullable(service)
                 .map(Service::getAddress)
@@ -87,9 +88,10 @@ public class PGRTransformationService {
         String projectIdProjectTypeId = commonUtils.projectDetailsFromUserId(service.getAuditDetails().getLastModifiedBy(), tenantId);
 
         if (!StringUtils.isEmpty(projectIdProjectTypeId)) {
+            projectId = projectIdProjectTypeId.split(":")[0];
             projectTypeId = projectIdProjectTypeId.split(":")[1];
         }
-        String cycleIndex = commonUtils.fetchCycleIndexFromTime(service.getTenantId(), projectTypeId, service.getAuditDetails().getCreatedTime());
+        String cycleIndex = commonUtils.fetchCycleIndexFromProjectAdditionalDetails(service.getTenantId(), projectId, projectTypeId, service.getAuditDetails().getCreatedTime());
         additionalDetails.put(CYCLE_INDEX, cycleIndex);
         additionalDetails.put(PROJECT_TYPE_ID, projectTypeId);
 

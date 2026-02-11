@@ -78,11 +78,12 @@ public class ReferralTransformationService {
         Map<String, String> boundaryHierarchy = new HashMap<>();
         Map<String, String> boundaryHierarchyCode = new HashMap<>();
 
-        String projectTypeId = "";
+        String projectId = null;
+        String projectTypeId = null;
         if (!CollectionUtils.isEmpty(projectBeneficiaryList)) {
             ProjectBeneficiary projectBeneficiary = projectBeneficiaryList.get(0);
             individualDetails = individualService.getIndividualInfo(projectBeneficiary.getBeneficiaryClientReferenceId(), tenantId);
-            String projectId = projectBeneficiary.getProjectId();
+            projectId = projectBeneficiary.getProjectId();
             String projectTypeIdAndType = projectService.getProjectTypeInfoByProjectId(projectId, tenantId);
             if (!StringUtils.isEmpty(projectTypeIdAndType)) {
                 String[] parts = projectTypeIdAndType.split(COLON);
@@ -106,7 +107,7 @@ public class ReferralTransformationService {
 
         Map<String, String> userInfoMap = userService.getUserInfo(tenantId, referral.getClientAuditDetails().getCreatedBy());
 
-        String cycleIndex = commonUtils.fetchCycleIndexFromTime(tenantId, projectTypeId, referral.getClientAuditDetails().getCreatedTime());
+        String cycleIndex = commonUtils.fetchCycleIndexFromProjectAdditionalDetails(tenantId, projectId, projectTypeId, referral.getClientAuditDetails().getCreatedTime());
         ObjectNode additionalDetails = objectMapper.createObjectNode();
         additionalDetails.put(CYCLE_INDEX, cycleIndex);
         additionalDetails.put(PROJECT_TYPE_ID, projectTypeId);

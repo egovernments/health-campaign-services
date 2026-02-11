@@ -99,7 +99,7 @@ public class StockReconciliationTransformationService {
         if (!StringUtils.isEmpty(projectIdProjectTypeId)) {
             projectTypeId = projectIdProjectTypeId.split(":")[1];
         }
-        String cycleIndex = commonUtils.fetchCycleIndex(tenantId, projectTypeId, stockReconciliation.getAuditDetails());
+        String cycleIndex = commonUtils.fetchCycleIndexFromTime(tenantId, projectTypeId, stockReconciliation.getAuditDetails().getCreatedTime());
         additionalDetails.put(PROJECT_TYPE_ID, projectTypeId);
         additionalDetails.put(CYCLE_INDEX, cycleIndex);
 

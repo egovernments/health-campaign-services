@@ -112,7 +112,7 @@ public class UserActionTransformationService {
 
         // Build combined additionalDetails with additionalFields as key-value pairs and MDMS data if applicable
         ObjectNode combinedAdditionalDetails = buildCombinedAdditionalDetails(userAction, projectAdditionalDetails, tenantId);
-        String cycleIndex = commonUtils.fetchCycleIndexFromTime(userAction.getTenantId(), projectTypeId, userAction.getClientAuditDetails().getCreatedTime());
+        String cycleIndex = commonUtils.fetchCycleIndexFromProjectAdditionalDetails(userAction.getTenantId(), projectId, projectTypeId, userAction.getClientAuditDetails().getCreatedTime());
         combinedAdditionalDetails.put(CYCLE_INDEX, cycleIndex);
 
         Map<String, String> userInfoMap = userService.getUserInfo(userAction.getTenantId(), userAction.getClientAuditDetails().getCreatedBy());

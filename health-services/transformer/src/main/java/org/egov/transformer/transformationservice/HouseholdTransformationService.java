@@ -45,21 +45,20 @@ public class HouseholdTransformationService {
     }
 
     public void transform(List<Household> householdList) {
-        log.info("transforming for HOUSEHOLD id's {}", householdList.stream()
-                .map(Household::getId).collect(Collectors.toList()));
+        log.info("transforming for HOUSEHOLD clrefid's {}", householdList.stream()
+                .map(Household::getClientReferenceId).collect(Collectors.toList()));
         String topic = transformerProperties.getTransformerProducerBulkHouseholdIndexV1Topic();
         List<HouseholdIndexV1> householdIndexV1List = householdList.stream()
                 .map(this::transform)
                 .collect(Collectors.toList());
-        log.info("transformation success for HOUSEHOLD id's {}", householdIndexV1List.stream()
+        log.info("transformation success for HOUSEHOLD clrefid's {}", householdIndexV1List.stream()
                 .map(HouseholdIndexV1::getHousehold)
-                .map(Household::getId)
+                .map(Household::getClientReferenceId)
                 .collect(Collectors.toList()));
         producer.push(topic, householdIndexV1List);
     }
 
     private HouseholdIndexV1 transform(Household household) {
-        householdService.searchHousehold(household.getClientReferenceId(), household.getTenantId());
         Map<String, String> boundaryHierarchy = null;
         Map<String, String> boundaryHierarchyCode = null;
 
@@ -94,11 +93,13 @@ public class HouseholdTransformationService {
         String projectIdProjectTypeId = commonUtils.projectDetailsFromUserId(household.getClientAuditDetails().getCreatedBy(), household.getTenantId());
 
         String projectTypeId = null;
+        String projectId = null;
         if (!StringUtils.isEmpty(projectIdProjectTypeId)) {
             projectTypeId = projectIdProjectTypeId.split(":")[1];
+            projectId = projectIdProjectTypeId.split(":")[0];
         }
-        log.info("HOUSEHOLD ADD INFO {}, {}", additionalDetails, additionalDetails.get(PROJECT_TYPE_ID));
-        String cycleIndex = commonUtils.fetchCycleIndexFromTime(household.getTenantId(), projectTypeId, household.getClientAuditDetails().getCreatedTime());
+
+        String cycleIndex = commonUtils.fetchCycleIndexFromProjectAdditionalDetails(household.getTenantId(), projectId, projectTypeId, household.getClientAuditDetails().getCreatedTime());
         additionalDetails.put(CYCLE_INDEX, cycleIndex);
 
         return HouseholdIndexV1.builder()

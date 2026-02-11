@@ -104,7 +104,6 @@ public class AttendanceTransformationService {
 
         Individual individual = individualService.getIndividualById(attendanceLog.getIndividualId(), attendanceLog.getTenantId());
         String individualUsername;
-        String projectTypeId = null;
         if(individual.getUserDetails() != null) {
             individualUsername = individual.getUserDetails().getUsername();
             attendanceLog.setUserName(individualUsername);
@@ -112,10 +111,13 @@ public class AttendanceTransformationService {
         ObjectNode additionalDetails = objectMapper.createObjectNode();
         String projectIdProjectTypeId = commonUtils.projectDetailsFromUserId(attendanceLog.getAuditDetails().getCreatedBy(), attendanceLog.getTenantId());
 
+        String projectId = null;
+        String projectTypeId = null;
         if (!StringUtils.isEmpty(projectIdProjectTypeId)) {
+            projectId = projectIdProjectTypeId.split(":")[0];
             projectTypeId = projectIdProjectTypeId.split(":")[1];
         }
-        String cycleIndex = commonUtils.fetchCycleIndex(attendanceLog.getTenantId(), projectTypeId, attendanceLog.getAuditDetails());
+        String cycleIndex = commonUtils.fetchCycleIndexFromProjectAdditionalDetails(attendanceLog.getTenantId(), projectId, projectTypeId, attendanceLog.getAuditDetails().getCreatedTime());
         additionalDetails.put(CYCLE_INDEX, cycleIndex);
         additionalDetails.put(PROJECT_TYPE_ID, projectTypeId);
 

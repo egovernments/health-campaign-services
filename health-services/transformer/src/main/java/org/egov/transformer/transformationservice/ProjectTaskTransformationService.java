@@ -7,7 +7,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.egov.common.models.household.Household;
-import org.egov.common.models.project.*;
+//import org.egov.common.models.project.*;
+import org.egov.common.models.project.AdditionalFields;
+import org.egov.common.models.project.Field;
+import org.egov.common.models.project.ProjectBeneficiary;
+import org.egov.transformer.models.upstream.TaskResource;
+import org.egov.transformer.models.upstream.Task;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.models.boundary.BoundaryHierarchyResult;
 import org.egov.transformer.models.downstream.ProjectTaskIndexV1;
@@ -205,13 +210,13 @@ public class ProjectTaskTransformationService {
         ObjectNode additionalDetails = objectMapper.createObjectNode();
         if (task.getAdditionalFields() != null) {
             addAdditionalDetails(task.getAdditionalFields(), additionalDetails);
-            addCycleIndex(additionalDetails, task.getClientAuditDetails(), tenantId, projectTypeId);
+            addCycleIndex(additionalDetails, task.getClientAuditDetails(), tenantId, projectTypeId, task.getProjectId());
         }
         // TODO below code is commented because the additionalFields is removed from taskResource but his has to be added back
-//        if (taskResource.getAdditionalFields() != null) {
-//            addAdditionalDetails(taskResource.getAdditionalFields(), additionalDetails);
-//            addCycleIndex(additionalDetails, taskResource.getAuditDetails(), tenantId, projectTypeId);
-//        }
+        if (taskResource.getAdditionalFields() != null) {
+            addAdditionalDetails(taskResource.getAdditionalFields(), additionalDetails);
+            addCycleIndex(additionalDetails, taskResource.getAuditDetails(), tenantId, projectTypeId, task.getProjectId());
+        }
 //        if (beneficiaryInfo.containsKey(HEIGHT) && beneficiaryInfo.containsKey(DISABILITY_TYPE)) {
 //            additionalDetails.put(HEIGHT, (Integer) beneficiaryInfo.get(HEIGHT));
 //            additionalDetails.put(DISABILITY_TYPE, (String) beneficiaryInfo.get(DISABILITY_TYPE));
@@ -264,9 +269,9 @@ public class ProjectTaskTransformationService {
     }
 
     //This cycleIndex logic has to be changed if we send all required additionalDetails from app
-    private void addCycleIndex(ObjectNode additionalDetails, AuditDetails auditDetails, String tenantId, String projectTypeId) {
+    private void addCycleIndex(ObjectNode additionalDetails, AuditDetails auditDetails, String tenantId, String projectTypeId, String projectId) {
         if (!additionalDetails.has(CYCLE_INDEX)) {
-            String cycleIndex = commonUtils.fetchCycleIndexFromTime(tenantId, projectTypeId, auditDetails.getCreatedTime());
+            String cycleIndex = commonUtils.fetchCycleIndexFromProjectAdditionalDetails(tenantId, projectId, projectTypeId, auditDetails.getCreatedTime());
             additionalDetails.put(CYCLE_INDEX, cycleIndex);
         }
     }
