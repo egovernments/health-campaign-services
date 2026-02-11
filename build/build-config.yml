@@ -102,10 +102,10 @@ config:
   - name: "builds/health-campaign-services/health-services/individual-java-17"
     build:
       - work-dir: "health-services/individual"
-        image-name: "individual"
+        image-name: "studio-individual"
         dockerfile: "build/maven-java17/Dockerfile"
       - work-dir: "health-services/individual/src/main/resources/db"
-        image-name: "individual-db"
+        image-name: "studio-individual-db"
   - name: "builds/health-campaign-services/health-services/health-individual"
     build:
       - work-dir: "health-services/individual"
@@ -206,10 +206,10 @@ config:
   - name: "builds/health-campaign-services/core-services/service-request-17"
     build:
       - work-dir: "core-services/service-request"
-        image-name: "service-request"
+        image-name: "studio-service-request"
         dockerfile: "build/maven-java17/Dockerfile"
       - work-dir: "core-services/service-request/src/main/resources/db"
-        image-name: "service-request-db"
+        image-name: "studio-service-request-db"
   - name: "builds/health-campaign-services/health-services/libraries/health-services-models"
     build:
       - work-dir: "health-services/libraries/health-services-models"
