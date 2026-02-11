@@ -1,0 +1,196 @@
+name: Build Custom Services Pipeline
+
+on:
+  workflow_dispatch:
+    inputs:
+      service:
+        description: 'Name of the custom service to build'
+        required: true
+        type: choice
+        options:
+          - egov-hrms
+          - egov-notification-sms
+          - egov-user
+          - egov-workflow-v2
+          - inbox
+          - individual
+          - service-request
+          - user-otp
+        default: egov-hrms
+      java_version:
+        description: 'Java version (use 8 for egov-user and service-request)'
+        required: true
+        type: choice
+        options:
+          - '17'
+          - '8'
+        default: '17'
+
+env:
+  DOCKER_USERNAME: ${{ vars.DOCKER_USERNAME }}
+  DOCKER_PASSWORD: ${{ secrets.DOCKER_ACCESS_TOKEN }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        service: [ "${{ github.event.inputs.service }}" ]
+
+    outputs:
+      docker_image: ${{ steps.save_docker_image.outputs.docker_image }}
+      db_image:     ${{ steps.save_db_image.outputs.db_image }}
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Install yq
+        run: |
+          VERSION="4.30.8"
+          URL="https://github.com/mikefarah/yq/releases/download/v${VERSION}/yq_linux_amd64"
+          sudo curl -sSL "$URL" -o /usr/local/bin/yq
+          sudo chmod +x /usr/local/bin/yq
+
+      - name: Derive image name with studio- prefix
+        id: image_name
+        run: |
+          SERVICE="${{ matrix.service }}"
+          # Strip "egov-" prefix if present, then add "studio-" prefix
+          STRIPPED="${SERVICE#egov-}"
+          IMAGE_NAME="studio-${STRIPPED}"
+          echo "image_name=$IMAGE_NAME" >> "$GITHUB_OUTPUT"
+          echo "IMAGE_NAME=$IMAGE_NAME" >> "$GITHUB_ENV"
+          echo "Image name: $IMAGE_NAME"
+
+      - name: Determine Dockerfile path from build-config.yml
+        id: pick_dockerfile
+        run: |
+          IMAGE_NAME="${{ steps.image_name.outputs.image_name }}"
+          DEFAULT_DOCKERFILE="build/java/Dockerfile"
+
+          echo "All build entries from build-config.yml:"
+          yq eval '.config[].build[] | "image-name: \(.["image-name"]) -> dockerfile: \(.dockerfile // "N/A")"' build/build-config.yml || true
+
+          DF=$(yq eval ".config[].build[] | select(.\"image-name\" == \"${IMAGE_NAME}\") | .dockerfile // \"\"" build/build-config.yml)
+
+          if [ -z "$DF" ] || [ "$DF" = "null" ]; then
+            echo "No dockerfile entry found for \"$IMAGE_NAME\" in build-config.yml; using default"
+            DF="$DEFAULT_DOCKERFILE"
+          else
+            echo "Found dockerfile \"$DF\" for image \"$IMAGE_NAME\"."
+          fi
+
+          echo "dockerfile_path=$DF" >> "$GITHUB_OUTPUT"
+          echo "DOCKERFILE_PATH=$DF" >> "$GITHUB_ENV"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Cache Docker Layers
+        uses: actions/cache@v3
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ matrix.service }}-${{ github.ref_name }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ env.DOCKER_USERNAME }}
+          password: ${{ env.DOCKER_PASSWORD }}
+
+      - name: Generate the Next Tag
+        id: tag
+        run: |
+          set -euxo pipefail
+
+          BRANCH="${GITHUB_REF##*/}"
+          COMMIT_HASH=$(git rev-parse --short HEAD)
+          SERVICE_NAME="${{ env.IMAGE_NAME }}"
+
+          TOKEN=$(curl -s -X POST "https://hub.docker.com/v2/users/login/" \
+            -H "Content-Type: application/json" \
+            -d "{\"username\": \"$DOCKER_USERNAME\", \"password\": \"$DOCKER_PASSWORD\"}" \
+            | jq -r .token)
+
+          if [ -z "$TOKEN" ]; then
+            echo "Failed to authenticate with Docker Hub." >&2
+            exit 1
+          fi
+
+          REPO_CHECK=$(curl -s -o /dev/null -w '%{http_code}' \
+            -H "Authorization: JWT $TOKEN" \
+            "https://hub.docker.com/v2/repositories/$DOCKER_USERNAME/$SERVICE_NAME/")
+
+          if [ "$REPO_CHECK" -ne 200 ]; then
+            NEXT_TAG="${BRANCH}-${COMMIT_HASH}"
+          else
+            EXISTING_TAGS=$(curl -s -H "Authorization: JWT $TOKEN" \
+              "https://hub.docker.com/v2/repositories/$DOCKER_USERNAME/$SERVICE_NAME/tags?page_size=100" \
+              | jq -r '.results[].name')
+            LATEST_TAG=$(echo "$EXISTING_TAGS" | grep "^${BRANCH}-${COMMIT_HASH}" || true | sort -V | tail -n 1)
+            NEXT_TAG="${LATEST_TAG:-${BRANCH}-${COMMIT_HASH}}"
+          fi
+
+          echo "tag=$NEXT_TAG" >> "$GITHUB_OUTPUT"
+          echo "NEXT_TAG=$NEXT_TAG" >> "$GITHUB_ENV"
+
+      - name: Build and Push Application Docker Image
+        id: build_push_docker
+        uses: docker/build-push-action@v5
+        with:
+          platforms: linux/amd64,linux/arm64
+          context: .
+          file: ${{ env.DOCKERFILE_PATH }}
+          push: true
+          tags: |
+            egovio/${{ env.IMAGE_NAME }}:${{ steps.tag.outputs.tag }}
+          build-args: |
+            WORK_DIR=custom-services/${{ matrix.service }}
+            JAVA_VERSION=${{ github.event.inputs.java_version }}
+
+      - name: Check if DB folder exists
+        id: check-db-folder
+        run: |
+          FOLDER_PATH="custom-services/${{ matrix.service }}/src/main/resources/db"
+          if [ -d "$FOLDER_PATH" ]; then
+            echo "folder_exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "folder_exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build and Push Database Docker Image
+        if: ${{ steps.check-db-folder.outputs.folder_exists == 'true' }}
+        id: build_push_db_docker
+        uses: docker/build-push-action@v5
+        with:
+          platforms: linux/amd64,linux/arm64
+          context: custom-services/${{ matrix.service }}/src/main/resources/db
+          file: custom-services/${{ matrix.service }}/src/main/resources/db/Dockerfile
+          push: true
+          tags: |
+            egovio/${{ env.IMAGE_NAME }}-db:${{ steps.tag.outputs.tag }}
+
+      - name: Save Application Docker Image
+        id: save_docker_image
+        run: |
+          IMG="egovio/${{ env.IMAGE_NAME }}:${{ steps.tag.outputs.tag }}"
+          echo "$IMG"
+          echo "docker_image=$IMG" >> "$GITHUB_OUTPUT"
+
+          echo "### Application Docker Image" >> "$GITHUB_STEP_SUMMARY"
+          echo "$IMG" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Save Database Docker Image
+        id: save_db_image
+        if: ${{ steps.check-db-folder.outputs.folder_exists == 'true' }}
+        run: |
+          IMG="egovio/${{ env.IMAGE_NAME }}-db:${{ steps.tag.outputs.tag }}"
+          echo "$IMG"
+          echo "db_image=$IMG" >> "$GITHUB_OUTPUT"
+
+          echo "### Database Docker Image" >> "$GITHUB_STEP_SUMMARY"
+          echo "$IMG" >> "$GITHUB_STEP_SUMMARY"
