@@ -2,27 +2,25 @@
 Property Tax Raw-to-Silver DAG
 
 Reads raw JSON events from ClickHouse raw tables, parses JSON,
-handles CollapsingMergeTree sign logic, and inserts into silver tables.
+and inserts into silver tables using ReplacingMergeTree.
 
 Schedule: Daily at 1:30 AM
 Window:   data_interval_start .. data_interval_end (by event_time column)
 
 Architecture:
   property_events_raw (JSON String)
-      -> Airflow (parse + sign)
-          -> property_address_fact
-          -> property_unit_fact
-          -> property_owner_fact
+      -> Airflow (parse)
+          -> property_address_entity
+          -> property_unit_entity
+          -> property_owner_entity
 
   demand_events_raw (JSON String)
-      -> Airflow (parse + pivot + sign)
-          -> demand_with_details_fact
+      -> Airflow (parse + pivot)
+          -> demand_with_details_entity
 
-Sign Logic (CollapsingMergeTree):
-  Sort keys are immutable, so cancel rows only need sort key values + sign=-1.
-  - INSERT (createdTime == lastModifiedTime): single row with sign=+1
-  - UPDATE (createdTime != lastModifiedTime): sort-key-only row with sign=-1,
-    then full row with sign=+1
+ReplacingMergeTree Logic:
+  Uses last_modified_time as the version key. Latest version of each record
+  (based on last_modified_time) is automatically kept after merges.
 """
 
 import os
@@ -46,7 +44,7 @@ CLICKHOUSE_HOST = os.getenv('CLICKHOUSE_HOST', 'clickhouse')
 CLICKHOUSE_PORT = int(os.getenv('CLICKHOUSE_PORT', '8123'))
 CLICKHOUSE_USER = os.getenv('CLICKHOUSE_USER', 'default')
 CLICKHOUSE_PASSWORD = os.getenv('CLICKHOUSE_PASSWORD', '')
-CLICKHOUSE_DB = os.getenv('CLICKHOUSE_DB', 'collapsing_test')
+CLICKHOUSE_DB = os.getenv('CLICKHOUSE_DB', 'replacing_test')
 
 default_args = {
     'owner': 'property_tax',
@@ -108,23 +106,35 @@ def safe_int(val, default=0) -> int:
         return default
 
 
-def is_insert(audit: dict) -> bool:
-    """INSERT if createdTime == lastModifiedTime (within 1s tolerance)."""
-    ct = parse_ts(audit.get('createdTime'))
-    mt = parse_ts(audit.get('lastModifiedTime'))
-    if ct is None or mt is None:
-        return True
-    return abs((mt - ct).total_seconds()) < 1
-
-
-def batch_insert(client, table: str, rows: List[dict]):
-    """Insert a list of dicts into a table. Column names from first row."""
+def batch_insert(client, table: str, rows: List[dict], chunk_size: int = 10000):
+    """Insert rows in chunks to manage memory and handle large datasets.
+    
+    Args:
+        client: ClickHouse client connection
+        table: Target table name
+        rows: List of dictionaries to insert
+        chunk_size: Number of rows to insert per batch (default: 10000)
+    """
     if not rows:
         return
+    
     cols = list(rows[0].keys())
-    data = [[r.get(c) for c in cols] for r in rows]
-    client.insert(table, data=data, column_names=cols)
-    logger.info(f"Inserted {len(rows)} rows into {table}")
+    total_inserted = 0
+    
+    # Process in chunks
+    for i in range(0, len(rows), chunk_size):
+        chunk = rows[i:i + chunk_size]
+        data = [[r.get(c) for c in cols] for r in chunk]
+        
+        try:
+            client.insert(table, data=data, column_names=cols)
+            total_inserted += len(chunk)
+            logger.info(f"Inserted {len(chunk)} rows into {table} (progress: {total_inserted}/{len(rows)})")
+        except Exception as e:
+            logger.error(f"Failed to insert chunk into {table} at offset {i}: {e}")
+            raise
+    
+    logger.info(f"Completed: {total_inserted} rows inserted into {table}")
 
 
 # -- Fetch by lastModifiedTime window ----------------------------------------
@@ -202,7 +212,6 @@ def extract_property_address(event: dict, prop: dict) -> dict:
         'pin_code': addr.get('pincode', ''),
         'latitude': safe_dec(addr.get('latitude'), 6),
         'longitude': safe_dec(addr.get('longitude'), 7),
-        'sign': 1,
     }
 
 
@@ -241,7 +250,6 @@ def extract_units(event: dict, prop: dict) -> List[dict]:
             'ownership_category': prop.get('ownershipCategory', ''),
             'property_status': prop.get('status', ''),
             'no_of_floors': safe_int(prop.get('noOfFloors', 0)),
-            'sign': 1,
         })
     return rows
 
@@ -275,7 +283,6 @@ def extract_owners(event: dict, prop: dict) -> List[dict]:
             'ownership_category': prop.get('ownershipCategory', ''),
             'property_status': prop.get('status', ''),
             'no_of_floors': safe_int(prop.get('noOfFloors', 0)),
-            'sign': 1,
         })
     return rows
 
@@ -311,6 +318,10 @@ def extract_demand(event: dict, demand: dict) -> dict:
     fy = explicit_fy if explicit_fy else compute_financial_year(
         demand.get('taxPeriodFrom'))
 
+    # Calculate outstanding_amount and is_paid
+    outstanding_amount = round(total_tax - total_collection, 2)
+    is_paid = 1 if outstanding_amount > 0 else 0
+
     return {
         'tenant_id': event.get('tenantId', ''),
         'demand_id': demand.get('id', ''),
@@ -334,11 +345,12 @@ def extract_demand(event: dict, demand: dict) -> dict:
         'pt_roundoff': safe_dec(tax_totals.get('PT_ROUNDOFF', 0), 4),
         'pt_owner_exemption': safe_dec(tax_totals.get('PT_OWNER_EXEMPTION', 0), 4),
         'pt_unit_usage_exemption': safe_dec(tax_totals.get('PT_UNIT_USAGE_EXEMPTION', 0), 4),
+        'outstanding_amount': outstanding_amount,
+        'is_paid': is_paid,
         'created_by': audit.get('createdBy', ''),
         'created_time': parse_ts(audit.get('createdTime')) or EPOCH,
         'last_modified_by': audit.get('lastModifiedBy', ''),
         'last_modified_time': parse_ts(audit.get('lastModifiedTime')) or EPOCH,
-        'sign': 1,
     }
 
 
@@ -346,7 +358,7 @@ def extract_demand(event: dict, demand: dict) -> dict:
 
 
 def process_property_events(**context):
-    """Process property_events_raw -> collapsing tables for one daily window."""
+    """Process property_events_raw -> ReplacingMergeTree tables for one daily window."""
     window_start = context['data_interval_start']
     window_end = context['data_interval_end']
     logger.info(f"Property window: [{window_start}, {window_end})")
@@ -360,13 +372,9 @@ def process_property_events(**context):
 
         logger.info(f"Fetched {len(raw_jsons)} property events")
 
-        # Cancel rows (sort-key-only, sign=-1) and new rows (full, sign=+1)
-        prop_cancel_rows = []
-        prop_new_rows = []
-        unit_cancel_rows = []
-        unit_new_rows = []
-        owner_cancel_rows = []
-        owner_new_rows = []
+        prop_rows = []
+        unit_rows = []
+        owner_rows = []
 
         for raw_json in raw_jsons:
             try:
@@ -380,52 +388,27 @@ def process_property_events(**context):
             if not pid:
                 continue
 
-            tid = event.get('tenantId', '')
-            audit = prop.get('auditDetails', {}) or {}
-            insert_op = is_insert(audit)
-
             # -- Property + Address --
             p_row = extract_property_address(event, prop)
-            if not insert_op:
-                prop_cancel_rows.append({
-                    'tenant_id': tid, 'property_id': pid, 'sign': -1,
-                })
-            prop_new_rows.append(p_row)
+            prop_rows.append(p_row)
 
             # -- Units --
             for u_row in extract_units(event, prop):
-                if not insert_op:
-                    unit_cancel_rows.append({
-                        'tenant_id': tid,
-                        'unit_id': u_row['unit_id'],
-                        'sign': -1,
-                    })
-                unit_new_rows.append(u_row)
+                unit_rows.append(u_row)
 
             # -- Owners --
             for o_row in extract_owners(event, prop):
-                if not insert_op:
-                    owner_cancel_rows.append({
-                        'tenant_id': tid,
-                        'owner_info_uuid': o_row['owner_info_uuid'],
-                        'sign': -1,
-                    })
-                owner_new_rows.append(o_row)
+                owner_rows.append(o_row)
 
-        # Batch inserts: cancel rows first, then new rows
-        batch_insert(client, 'property_address_fact', prop_cancel_rows)
-        batch_insert(client, 'property_address_fact', prop_new_rows)
-
-        batch_insert(client, 'property_unit_fact', unit_cancel_rows)
-        batch_insert(client, 'property_unit_fact', unit_new_rows)
-
-        batch_insert(client, 'property_owner_fact', owner_cancel_rows)
-        batch_insert(client, 'property_owner_fact', owner_new_rows)
+        # Batch inserts with chunking
+        batch_insert(client, 'property_address_entity', prop_rows, chunk_size=10000)
+        batch_insert(client, 'property_unit_entity', unit_rows, chunk_size=10000)
+        batch_insert(client, 'property_owner_entity', owner_rows, chunk_size=10000)
 
         counts = {
-            'properties': len(prop_new_rows),
-            'units': len(unit_new_rows),
-            'owners': len(owner_new_rows),
+            'properties': len(prop_rows),
+            'units': len(unit_rows),
+            'owners': len(owner_rows),
         }
         logger.info(f"Property processing complete: {counts}")
         return counts
@@ -435,7 +418,7 @@ def process_property_events(**context):
 
 
 def process_demand_events(**context):
-    """Process demand_events_raw -> demand_with_details_fact for one daily window."""
+    """Process demand_events_raw -> demand_with_details_entity for one daily window."""
     window_start = context['data_interval_start']
     window_end = context['data_interval_end']
     logger.info(f"Demand window: [{window_start}, {window_end})")
@@ -449,8 +432,7 @@ def process_demand_events(**context):
 
         logger.info(f"Fetched {len(raw_jsons)} demand events")
 
-        demand_cancel_rows = []
-        demand_new_rows = []
+        demand_rows = []
 
         for raw_json in raw_jsons:
             try:
@@ -464,23 +446,14 @@ def process_demand_events(**context):
             if not did:
                 continue
 
-            tid = event.get('tenantId', '')
-            audit = demand.get('auditDetails', {}) or {}
-            insert_op = is_insert(audit)
-
             d_row = extract_demand(event, demand)
-            if not insert_op:
-                demand_cancel_rows.append({
-                    'tenant_id': tid, 'demand_id': did, 'sign': -1,
-                })
-            demand_new_rows.append(d_row)
+            demand_rows.append(d_row)
 
-        # Cancel first, then new
-        batch_insert(client, 'demand_with_details_fact', demand_cancel_rows)
-        batch_insert(client, 'demand_with_details_fact', demand_new_rows)
+        # Batch insert with chunking
+        batch_insert(client, 'demand_with_details_entity', demand_rows, chunk_size=10000)
 
-        logger.info(f"Demand processing complete: {len(demand_new_rows)} new rows")
-        return {'demands': len(demand_new_rows)}
+        logger.info(f"Demand processing complete: {len(demand_rows)} new rows")
+        return {'demands': len(demand_rows)}
 
     finally:
         client.close()
@@ -491,7 +464,7 @@ def process_demand_events(**context):
 with DAG(
     'property_tax_raw_to_silver',
     default_args=default_args,
-    description='Daily raw JSON -> CollapsingMergeTree silver tables',
+    description='Daily raw JSON -> ReplacingMergeTree silver tables',
     schedule='30 1 * * *',
     start_date=utcnow() - timedelta(days=1),
     catchup=False,
