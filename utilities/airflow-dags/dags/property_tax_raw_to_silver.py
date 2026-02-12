@@ -106,14 +106,35 @@ def safe_int(val, default=0) -> int:
         return default
 
 
-def batch_insert(client, table: str, rows: List[dict]):
-    """Insert a list of dicts into a table. Column names from first row."""
+def batch_insert(client, table: str, rows: List[dict], chunk_size: int = 10000):
+    """Insert rows in chunks to manage memory and handle large datasets.
+    
+    Args:
+        client: ClickHouse client connection
+        table: Target table name
+        rows: List of dictionaries to insert
+        chunk_size: Number of rows to insert per batch (default: 10000)
+    """
     if not rows:
         return
+    
     cols = list(rows[0].keys())
-    data = [[r.get(c) for c in cols] for r in rows]
-    client.insert(table, data=data, column_names=cols)
-    logger.info(f"Inserted {len(rows)} rows into {table}")
+    total_inserted = 0
+    
+    # Process in chunks
+    for i in range(0, len(rows), chunk_size):
+        chunk = rows[i:i + chunk_size]
+        data = [[r.get(c) for c in cols] for r in chunk]
+        
+        try:
+            client.insert(table, data=data, column_names=cols)
+            total_inserted += len(chunk)
+            logger.info(f"Inserted {len(chunk)} rows into {table} (progress: {total_inserted}/{len(rows)})")
+        except Exception as e:
+            logger.error(f"Failed to insert chunk into {table} at offset {i}: {e}")
+            raise
+    
+    logger.info(f"Completed: {total_inserted} rows inserted into {table}")
 
 
 # -- Fetch by lastModifiedTime window ----------------------------------------
@@ -379,10 +400,10 @@ def process_property_events(**context):
             for o_row in extract_owners(event, prop):
                 owner_rows.append(o_row)
 
-        # Batch inserts
-        batch_insert(client, 'property_address_fact', prop_rows)
-        batch_insert(client, 'property_unit_fact', unit_rows)
-        batch_insert(client, 'property_owner_fact', owner_rows)
+        # Batch inserts with chunking
+        batch_insert(client, 'property_address_fact', prop_rows, chunk_size=10000)
+        batch_insert(client, 'property_unit_fact', unit_rows, chunk_size=10000)
+        batch_insert(client, 'property_owner_fact', owner_rows, chunk_size=10000)
 
         counts = {
             'properties': len(prop_rows),
@@ -428,8 +449,8 @@ def process_demand_events(**context):
             d_row = extract_demand(event, demand)
             demand_rows.append(d_row)
 
-        # Batch insert
-        batch_insert(client, 'demand_with_details_fact', demand_rows)
+        # Batch insert with chunking
+        batch_insert(client, 'demand_with_details_fact', demand_rows, chunk_size=10000)
 
         logger.info(f"Demand processing complete: {len(demand_rows)} new rows")
         return {'demands': len(demand_rows)}
