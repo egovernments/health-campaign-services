@@ -10,13 +10,13 @@ Window:   data_interval_start .. data_interval_end (by event_time column)
 Architecture:
   property_events_raw (JSON String)
       -> Airflow (parse)
-          -> property_address_fact
-          -> property_unit_fact
-          -> property_owner_fact
+          -> property_address_entity
+          -> property_unit_entity
+          -> property_owner_entity
 
   demand_events_raw (JSON String)
       -> Airflow (parse + pivot)
-          -> demand_with_details_fact
+          -> demand_with_details_entity
 
 ReplacingMergeTree Logic:
   Uses last_modified_time as the version key. Latest version of each record
@@ -401,9 +401,9 @@ def process_property_events(**context):
                 owner_rows.append(o_row)
 
         # Batch inserts with chunking
-        batch_insert(client, 'property_address_fact', prop_rows, chunk_size=10000)
-        batch_insert(client, 'property_unit_fact', unit_rows, chunk_size=10000)
-        batch_insert(client, 'property_owner_fact', owner_rows, chunk_size=10000)
+        batch_insert(client, 'property_address_entity', prop_rows, chunk_size=10000)
+        batch_insert(client, 'property_unit_entity', unit_rows, chunk_size=10000)
+        batch_insert(client, 'property_owner_entity', owner_rows, chunk_size=10000)
 
         counts = {
             'properties': len(prop_rows),
@@ -418,7 +418,7 @@ def process_property_events(**context):
 
 
 def process_demand_events(**context):
-    """Process demand_events_raw -> demand_with_details_fact for one daily window."""
+    """Process demand_events_raw -> demand_with_details_entity for one daily window."""
     window_start = context['data_interval_start']
     window_end = context['data_interval_end']
     logger.info(f"Demand window: [{window_start}, {window_end})")
@@ -450,7 +450,7 @@ def process_demand_events(**context):
             demand_rows.append(d_row)
 
         # Batch insert with chunking
-        batch_insert(client, 'demand_with_details_fact', demand_rows, chunk_size=10000)
+        batch_insert(client, 'demand_with_details_entity', demand_rows, chunk_size=10000)
 
         logger.info(f"Demand processing complete: {len(demand_rows)} new rows")
         return {'demands': len(demand_rows)}
