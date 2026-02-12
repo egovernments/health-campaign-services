@@ -145,4 +145,7 @@ public class ReferralManagementConfiguration {
     @Value("${egov.service.request.service.search.url}")
     private String serviceRequestServiceSearchUrl;
 
+    @Value("${referralmanagement.project.id.validator.enabled:true}")
+    private Boolean projectIdValidatorEnabled;
+
 }

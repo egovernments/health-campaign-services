@@ -29,6 +29,7 @@ import org.egov.referralmanagement.validator.RmIsDeletedValidator;
 import org.egov.referralmanagement.validator.RmNonExistentEntityValidator;
 import org.egov.referralmanagement.validator.RmNullIdValidator;
 import org.egov.referralmanagement.validator.RmProjectBeneficiaryIdValidator;
+import org.egov.referralmanagement.validator.RmProjectIdValidator;
 import org.egov.referralmanagement.validator.RmRecipientIdValidator;
 import org.egov.referralmanagement.validator.RmReferrerIdValidator;
 import org.egov.referralmanagement.validator.RmRowVersionValidator;
@@ -64,6 +65,7 @@ public class ReferralManagementService {
 
     private final Predicate<Validator<ReferralBulkRequest, Referral>> isApplicableForCreate = validator ->
             validator.getClass().equals(RmProjectBeneficiaryIdValidator.class)
+                || validator.getClass().equals(RmProjectIdValidator.class)
                 || validator.getClass().equals(RmExistentEntityValidator.class)
                 || validator.getClass().equals(RmReferrerIdValidator.class)
                 || validator.getClass().equals(RmRecipientIdValidator.class)
@@ -71,6 +73,7 @@ public class ReferralManagementService {
 
     private final Predicate<Validator<ReferralBulkRequest, Referral>> isApplicableForUpdate = validator ->
             validator.getClass().equals(RmProjectBeneficiaryIdValidator.class)
+                || validator.getClass().equals(RmProjectIdValidator.class)
                 || validator.getClass().equals(RmReferrerIdValidator.class)
                 || validator.getClass().equals(RmRecipientIdValidator.class)
                 || validator.getClass().equals(RmSideEffectIdValidator.class)
