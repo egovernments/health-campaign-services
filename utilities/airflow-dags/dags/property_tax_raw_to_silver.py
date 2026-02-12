@@ -44,7 +44,7 @@ CLICKHOUSE_HOST = os.getenv('CLICKHOUSE_HOST', 'clickhouse')
 CLICKHOUSE_PORT = int(os.getenv('CLICKHOUSE_PORT', '8123'))
 CLICKHOUSE_USER = os.getenv('CLICKHOUSE_USER', 'default')
 CLICKHOUSE_PASSWORD = os.getenv('CLICKHOUSE_PASSWORD', '')
-CLICKHOUSE_DB = os.getenv('CLICKHOUSE_DB', 'replacing_test')
+CLICKHOUSE_DB = os.getenv('CLICKHOUSE_DB', 'airflow_test')
 
 default_args = {
     'owner': 'property_tax',
