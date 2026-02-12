@@ -2,6 +2,12 @@
 
 All notable changes to this module will be documented in this file.
 
+# 1.2.2 - 2026-02-11
+
+* Added projectId column to eg_referral table via migration V20260211164600
+* Updated Referral model to include projectId field for project association
+* Upgraded health-services-models dependency to 1.0.30
+
 # 1.2.1 - 2025-07-01
 
 * Fixed downsync limit issue by fetching the data in batches

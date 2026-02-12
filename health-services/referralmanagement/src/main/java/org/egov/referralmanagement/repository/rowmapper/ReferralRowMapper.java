@@ -101,6 +101,7 @@ public class ReferralRowMapper implements RowMapper<Referral> {
                     .sideEffect(sideEffect)
                     .referralCode(resultSet.getString("referralCode"))
                     .tenantId(resultSet.getString("tenantid"))
+                    .projectId(resultSet.getString("projectid"))
                     .reasons(resultSet.getString("reasons") == null ? null : objectMapper.readValue(resultSet.getString("reasons"), ArrayList.class))
                     .build();
         } catch (JsonProcessingException e) {
