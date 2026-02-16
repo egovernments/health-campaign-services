@@ -34,6 +34,7 @@ from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.operators.empty import EmptyOperator
 from airflow.utils.timezone import utcnow
+from airflow.utils.timezone import make_aware
 import clickhouse_connect
 
 logger = logging.getLogger(__name__)
@@ -68,25 +69,29 @@ def get_client():
 
 
 def parse_ts(val) -> Optional[datetime]:
-    """Parse epoch-millis, datetime, or ISO string into Python datetime."""
+    """Parse epoch-millis, datetime, or ISO string into timezone-aware datetime."""
     if val is None:
         return None
+
     if isinstance(val, datetime):
-        return val
+        return make_aware(val) if val.tzinfo is None else val
+
     if isinstance(val, (int, float)):
         if val == 0:
             return None
-        return datetime.fromtimestamp(val / 1000)
+        return make_aware(datetime.fromtimestamp(val / 1000))
+
     if isinstance(val, str):
         try:
-            return datetime.fromisoformat(val.replace('Z', '+00:00'))
+            dt = datetime.fromisoformat(val.replace('Z', '+00:00'))
+            return make_aware(dt) if dt.tzinfo is None else dt
         except ValueError:
             try:
-                return datetime.fromtimestamp(int(val) / 1000)
+                return make_aware(datetime.fromtimestamp(int(val) / 1000))
             except (ValueError, OSError):
                 return None
-    return None
 
+    return None
 
 def safe_dec(val, scale=2) -> Decimal:
     if val is None:
@@ -104,6 +109,29 @@ def safe_int(val, default=0) -> int:
         return int(val)
     except (ValueError, TypeError):
         return default
+
+def get_window(context):
+    """
+    Scheduled Run:
+        Uses Airflow's data interval
+
+    All other runs (manual/backfill/etc):
+        Processes last 24 hours minus overlap
+    """
+
+    dag_run = context.get("dag_run")
+
+    # Scheduled runs use Airflow interval
+    if dag_run and dag_run.run_type == "scheduled":
+        return dag_run.data_interval_start, dag_run.data_interval_end
+
+    # Manual/backfill/etc → rolling 24 hr window
+    end_time = utcnow()
+    start_time = end_time - timedelta(hours=24) + timedelta(milliseconds=1)
+
+    logger.info(f"Manual window: [{start_time}, {end_time})")
+
+    return start_time, end_time
 
 
 def batch_insert(client, table: str, rows: List[dict], chunk_size: int = 10000):
@@ -169,7 +197,7 @@ def fetch_demand_events(client, window_start: datetime,
 # -- Extraction helpers -------------------------------------------------------
 
 
-EPOCH = datetime(1970, 1, 1)
+EPOCH = make_aware(datetime(1970, 1, 1))
 
 
 def extract_property_address(event: dict, prop: dict) -> dict:
@@ -232,7 +260,7 @@ def extract_units(event: dict, prop: dict) -> List[dict]:
             'unit_type': u.get('unitType', ''),
             'usage_category': u.get('usageCategory', ''),
             'occupancy_type': u.get('occupancyType', ''),
-            'occupancy_date': (parse_ts(u.get('occupancyDate')) or EPOCH).strftime('%Y-%m-%d'),
+            'occupancy_date': (parse_ts(u.get('occupancyDate')) or EPOCH).date(),
             'carpet_area': safe_dec(u.get('carpetArea')),
             'built_up_area': safe_dec(u.get('builtUpArea')),
             'plinth_area': safe_dec(u.get('plinthArea')),
@@ -320,7 +348,7 @@ def extract_demand(event: dict, demand: dict) -> dict:
 
     # Calculate outstanding_amount and is_paid
     outstanding_amount = round(total_tax - total_collection, 2)
-    is_paid = 1 if outstanding_amount > 0 else 0
+    is_paid = 1 if outstanding_amount >= 0 else 0
 
     return {
         'tenant_id': event.get('tenantId', ''),
@@ -359,8 +387,9 @@ def extract_demand(event: dict, demand: dict) -> dict:
 
 def process_property_events(**context):
     """Process property_events_raw -> ReplacingMergeTree tables for one daily window."""
-    window_start = context['data_interval_start']
-    window_end = context['data_interval_end']
+    window_start, window_end = get_window(context)
+    logger.info(f"Run type: {context['dag_run'].run_type}")
+    logger.info(f"Logical date: {context['logical_date']}")
     logger.info(f"Property window: [{window_start}, {window_end})")
 
     client = get_client()
@@ -419,8 +448,9 @@ def process_property_events(**context):
 
 def process_demand_events(**context):
     """Process demand_events_raw -> demand_with_details_entity for one daily window."""
-    window_start = context['data_interval_start']
-    window_end = context['data_interval_end']
+    window_start, window_end = get_window(context)
+    logger.info(f"Run type: {context['dag_run'].run_type}")
+    logger.info(f"Logical date: {context['logical_date']}")
     logger.info(f"Demand window: [{window_start}, {window_end})")
 
     client = get_client()
@@ -466,7 +496,7 @@ with DAG(
     default_args=default_args,
     description='Daily raw JSON -> ReplacingMergeTree silver tables',
     schedule='30 1 * * *',
-    start_date=utcnow() - timedelta(days=1),
+    start_date=make_aware(datetime(2025, 1, 1)),
     catchup=False,
     tags=['property_tax', 'clickhouse', 'raw_to_silver'],
     max_active_runs=1,
