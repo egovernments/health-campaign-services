@@ -245,6 +245,7 @@ def extract_property_address(event: dict, prop: dict) -> dict:
 
 def extract_units(event: dict, prop: dict) -> List[dict]:
     tenant_id = event.get('tenantId', '')
+    property_uuid = prop.get('id', '')
     property_id = prop.get('propertyId', '')
     rows = []
     for u in (prop.get('units', []) or []):
@@ -254,7 +255,7 @@ def extract_units(event: dict, prop: dict) -> List[dict]:
         u_audit = u.get('auditDetails', {}) or {}
         rows.append({
             'tenant_id': tenant_id,
-            'property_uuid': property_id,
+            'property_uuid': property_uuid,
             'unit_id': uid,
             'floor_no': safe_int(u.get('floorNo', 0)),
             'unit_type': u.get('unitType', ''),
@@ -284,6 +285,7 @@ def extract_units(event: dict, prop: dict) -> List[dict]:
 
 def extract_owners(event: dict, prop: dict) -> List[dict]:
     tenant_id = event.get('tenantId', '')
+    property_uuid = prop.get('id', '')
     property_id = prop.get('propertyId', '')
     rows = []
     for o in (prop.get('owners', []) or []):
@@ -293,7 +295,7 @@ def extract_owners(event: dict, prop: dict) -> List[dict]:
         o_audit = o.get('auditDetails', {}) or {}
         rows.append({
             'tenant_id': tenant_id,
-            'property_uuid': property_id,
+            'property_uuid': property_uuid,
             'owner_info_uuid': oid,
             'user_id': o.get('userId', ''),
             'status': o.get('status', ''),
