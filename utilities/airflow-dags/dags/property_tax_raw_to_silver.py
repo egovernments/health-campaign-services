@@ -350,7 +350,7 @@ def extract_demand(event: dict, demand: dict) -> dict:
 
     # Calculate outstanding_amount and is_paid
     outstanding_amount = round(total_tax - total_collection, 2)
-    is_paid = 1 if outstanding_amount >= 0 else 0
+    is_paid = 1 if outstanding_amount <= 0 else 0
 
     return {
         'tenant_id': event.get('tenantId', ''),
