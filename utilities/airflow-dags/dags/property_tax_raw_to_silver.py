@@ -48,7 +48,7 @@ CLICKHOUSE_PASSWORD = os.getenv('CLICKHOUSE_PASSWORD', '')
 CLICKHOUSE_DB = os.getenv('CLICKHOUSE_DB', 'airflow_test')
 
 # Streaming configuration for large datasets
-STREAM_BATCH_SIZE = 10000  # Process records in batches of 10k
+STREAM_BATCH_SIZE = 50000  # Process records in batches of 50k
 
 default_args = {
     'owner': 'property_tax',
