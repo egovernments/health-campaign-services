@@ -147,6 +147,7 @@ def run_sql_chunked(client, sql, raw_table, window_start, window_end, label):
 PROPERTY_ADDRESS_SQL = """
 INSERT INTO property_address_entity
 SELECT
+    now64(3)                                                           AS _ingested_at,
     JSONExtractString(raw, 'property', 'id')                          AS id,
     JSONExtractString(raw, 'tenantId')                                AS tenant_id,
     JSONExtractString(raw, 'property', 'propertyId')                  AS property_id,
@@ -201,6 +202,7 @@ WHERE event_time >= {start:DateTime64(3)}
 PROPERTY_UNIT_SQL = """
 INSERT INTO property_unit_entity
 SELECT
+    now64(3)                                                           AS _ingested_at,
     JSONExtractString(raw, 'tenantId')                                AS tenant_id,
     JSONExtractString(raw, 'property', 'id')                          AS property_uuid,
     JSONExtractString(u, 'id')                                        AS unit_id,
@@ -246,6 +248,7 @@ WHERE event_time >= {start:DateTime64(3)}
 PROPERTY_OWNER_SQL = """
 INSERT INTO property_owner_entity
 SELECT
+    now64(3)                                                           AS _ingested_at,
     JSONExtractString(raw, 'tenantId')                                AS tenant_id,
     JSONExtractString(raw, 'property', 'id')                          AS property_uuid,
     JSONExtractString(o, 'ownerInfoUuid')                              AS owner_info_uuid,
@@ -288,6 +291,7 @@ WHERE event_time >= {start:DateTime64(3)}
 DEMAND_SQL = """
 INSERT INTO demand_with_details_entity
 SELECT
+    now64(3)                                                            AS _ingested_at,
     tenant_id, demand_id, consumer_code, consumer_type,
     business_service, payer, tax_period_from, tax_period_to,
     demand_status, is_payment_completed, financial_year,
