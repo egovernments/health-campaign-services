@@ -47,6 +47,9 @@ CLICKHOUSE_USER = os.getenv('CLICKHOUSE_USER', 'default')
 CLICKHOUSE_PASSWORD = os.getenv('CLICKHOUSE_PASSWORD', '')
 CLICKHOUSE_DB = os.getenv('CLICKHOUSE_DB', 'airflow_test')
 
+# Streaming configuration for large datasets
+STREAM_BATCH_SIZE = 10000  # Process records in batches of 10k
+
 default_args = {
     'owner': 'property_tax',
     'depends_on_past': False,
@@ -169,29 +172,73 @@ def batch_insert(client, table: str, rows: List[dict], chunk_size: int = 10000):
 
 
 def fetch_property_events(client, window_start: datetime,
-                          window_end: datetime) -> List[str]:
+                          window_end: datetime, limit: int = None,
+                          offset: int = 0) -> List[str]:
     """Fetch raw JSON strings where event_time falls within
-    [window_start, window_end)."""
-    result = client.query(
+    [window_start, window_end) with optional pagination."""
+    query = (
         "SELECT raw FROM property_events_raw "
+        "WHERE event_time >= {start:DateTime64(3)} "
+        "AND event_time < {end:DateTime64(3)} "
+        "ORDER BY event_time "
+    )
+
+    params = {'start': window_start, 'end': window_end}
+
+    if limit is not None:
+        query += "LIMIT {limit:UInt64} OFFSET {offset:UInt64}"
+        params['limit'] = limit
+        params['offset'] = offset
+
+    result = client.query(query, parameters=params)
+    return [r[0] for r in result.result_rows]
+
+
+def count_property_events(client, window_start: datetime,
+                          window_end: datetime) -> int:
+    """Count total property events in the time window."""
+    result = client.query(
+        "SELECT count() FROM property_events_raw "
         "WHERE event_time >= {start:DateTime64(3)} "
         "AND event_time < {end:DateTime64(3)}",
         parameters={'start': window_start, 'end': window_end},
     )
-    return [r[0] for r in result.result_rows]
+    return result.result_rows[0][0]
 
 
 def fetch_demand_events(client, window_start: datetime,
-                        window_end: datetime) -> List[str]:
+                        window_end: datetime, limit: int = None,
+                        offset: int = 0) -> List[str]:
     """Fetch raw JSON strings where event_time falls within
-    [window_start, window_end)."""
-    result = client.query(
+    [window_start, window_end) with optional pagination."""
+    query = (
         "SELECT raw FROM demand_events_raw "
+        "WHERE event_time >= {start:DateTime64(3)} "
+        "AND event_time < {end:DateTime64(3)} "
+        "ORDER BY event_time "
+    )
+
+    params = {'start': window_start, 'end': window_end}
+
+    if limit is not None:
+        query += "LIMIT {limit:UInt64} OFFSET {offset:UInt64}"
+        params['limit'] = limit
+        params['offset'] = offset
+
+    result = client.query(query, parameters=params)
+    return [r[0] for r in result.result_rows]
+
+
+def count_demand_events(client, window_start: datetime,
+                        window_end: datetime) -> int:
+    """Count total demand events in the time window."""
+    result = client.query(
+        "SELECT count() FROM demand_events_raw "
         "WHERE event_time >= {start:DateTime64(3)} "
         "AND event_time < {end:DateTime64(3)}",
         parameters={'start': window_start, 'end': window_end},
     )
-    return [r[0] for r in result.result_rows]
+    return result.result_rows[0][0]
 
 
 # -- Extraction helpers -------------------------------------------------------
@@ -388,7 +435,7 @@ def extract_demand(event: dict, demand: dict) -> dict:
 
 
 def process_property_events(**context):
-    """Process property_events_raw -> ReplacingMergeTree tables for one daily window."""
+    """Process property_events_raw -> ReplacingMergeTree tables with streaming."""
     window_start, window_end = get_window(context)
     logger.info(f"Run type: {context['dag_run'].run_type}")
     logger.info(f"Logical date: {context['logical_date']}")
@@ -396,50 +443,72 @@ def process_property_events(**context):
 
     client = get_client()
     try:
-        raw_jsons = fetch_property_events(client, window_start, window_end)
-        if not raw_jsons:
+        # Count total records first
+        total_count = count_property_events(client, window_start, window_end)
+        if total_count == 0:
             logger.info("No property events in window")
             return {'properties': 0, 'units': 0, 'owners': 0}
 
-        logger.info(f"Fetched {len(raw_jsons)} property events")
+        logger.info(f"Total property events to process: {total_count}")
 
-        prop_rows = []
-        unit_rows = []
-        owner_rows = []
+        # Process in streaming batches
+        offset = 0
+        total_props = 0
+        total_units = 0
+        total_owners = 0
 
-        for raw_json in raw_jsons:
-            try:
-                event = json.loads(raw_json)
-            except json.JSONDecodeError:
-                logger.warning("Skipping invalid JSON")
-                continue
+        while offset < total_count:
+            logger.info(f"Processing batch: {offset} to {offset + STREAM_BATCH_SIZE} of {total_count}")
 
-            prop = event.get('property', {}) or {}
-            pid = prop.get('propertyId', '')
-            if not pid:
-                continue
+            # Fetch batch
+            raw_jsons = fetch_property_events(
+                client, window_start, window_end,
+                limit=STREAM_BATCH_SIZE, offset=offset
+            )
 
-            # -- Property + Address --
-            p_row = extract_property_address(event, prop)
-            prop_rows.append(p_row)
+            if not raw_jsons:
+                break
 
-            # -- Units --
-            for u_row in extract_units(event, prop):
-                unit_rows.append(u_row)
+            # Process batch
+            prop_rows = []
+            unit_rows = []
+            owner_rows = []
 
-            # -- Owners --
-            for o_row in extract_owners(event, prop):
-                owner_rows.append(o_row)
+            for raw_json in raw_jsons:
+                try:
+                    event = json.loads(raw_json)
+                except json.JSONDecodeError:
+                    logger.warning("Skipping invalid JSON")
+                    continue
 
-        # Batch inserts with chunking
-        batch_insert(client, 'property_address_entity', prop_rows, chunk_size=10000)
-        batch_insert(client, 'property_unit_entity', unit_rows, chunk_size=10000)
-        batch_insert(client, 'property_owner_entity', owner_rows, chunk_size=10000)
+                prop = event.get('property', {}) or {}
+                pid = prop.get('propertyId', '')
+                if not pid:
+                    continue
+
+                # Extract data
+                prop_rows.append(extract_property_address(event, prop))
+                unit_rows.extend(extract_units(event, prop))
+                owner_rows.extend(extract_owners(event, prop))
+
+            # Insert batch
+            batch_insert(client, 'property_address_entity', prop_rows, chunk_size=10000)
+            batch_insert(client, 'property_unit_entity', unit_rows, chunk_size=10000)
+            batch_insert(client, 'property_owner_entity', owner_rows, chunk_size=10000)
+
+            # Update counters
+            total_props += len(prop_rows)
+            total_units += len(unit_rows)
+            total_owners += len(owner_rows)
+
+            logger.info(f"Batch complete: {len(prop_rows)} properties, {len(unit_rows)} units, {len(owner_rows)} owners")
+
+            offset += STREAM_BATCH_SIZE
 
         counts = {
-            'properties': len(prop_rows),
-            'units': len(unit_rows),
-            'owners': len(owner_rows),
+            'properties': total_props,
+            'units': total_units,
+            'owners': total_owners,
         }
         logger.info(f"Property processing complete: {counts}")
         return counts
@@ -449,7 +518,7 @@ def process_property_events(**context):
 
 
 def process_demand_events(**context):
-    """Process demand_events_raw -> demand_with_details_entity for one daily window."""
+    """Process demand_events_raw -> demand_with_details_entity with streaming."""
     window_start, window_end = get_window(context)
     logger.info(f"Run type: {context['dag_run'].run_type}")
     logger.info(f"Logical date: {context['logical_date']}")
@@ -457,35 +526,57 @@ def process_demand_events(**context):
 
     client = get_client()
     try:
-        raw_jsons = fetch_demand_events(client, window_start, window_end)
-        if not raw_jsons:
+        # Count total records first
+        total_count = count_demand_events(client, window_start, window_end)
+        if total_count == 0:
             logger.info("No demand events in window")
             return {'demands': 0}
 
-        logger.info(f"Fetched {len(raw_jsons)} demand events")
+        logger.info(f"Total demand events to process: {total_count}")
 
-        demand_rows = []
+        # Process in streaming batches
+        offset = 0
+        total_demands = 0
 
-        for raw_json in raw_jsons:
-            try:
-                event = json.loads(raw_json)
-            except json.JSONDecodeError:
-                logger.warning("Skipping invalid JSON")
-                continue
+        while offset < total_count:
+            logger.info(f"Processing batch: {offset} to {offset + STREAM_BATCH_SIZE} of {total_count}")
 
-            demand = event.get('demand', {}) or {}
-            did = demand.get('id', '')
-            if not did:
-                continue
+            # Fetch batch
+            raw_jsons = fetch_demand_events(
+                client, window_start, window_end,
+                limit=STREAM_BATCH_SIZE, offset=offset
+            )
 
-            d_row = extract_demand(event, demand)
-            demand_rows.append(d_row)
+            if not raw_jsons:
+                break
 
-        # Batch insert with chunking
-        batch_insert(client, 'demand_with_details_entity', demand_rows, chunk_size=10000)
+            # Process batch
+            demand_rows = []
 
-        logger.info(f"Demand processing complete: {len(demand_rows)} new rows")
-        return {'demands': len(demand_rows)}
+            for raw_json in raw_jsons:
+                try:
+                    event = json.loads(raw_json)
+                except json.JSONDecodeError:
+                    logger.warning("Skipping invalid JSON")
+                    continue
+
+                demand = event.get('demand', {}) or {}
+                did = demand.get('id', '')
+                if not did:
+                    continue
+
+                demand_rows.append(extract_demand(event, demand))
+
+            # Insert batch
+            batch_insert(client, 'demand_with_details_entity', demand_rows, chunk_size=10000)
+
+            total_demands += len(demand_rows)
+            logger.info(f"Batch complete: {len(demand_rows)} demands")
+
+            offset += STREAM_BATCH_SIZE
+
+        logger.info(f"Demand processing complete: {total_demands} new rows")
+        return {'demands': total_demands}
 
     finally:
         client.close()
