@@ -41,7 +41,6 @@ REFRESH_ORDER = [
     'rmv_mart_collections_by_fy',
     'rmv_mart_collections_by_month',
     'rmv_mart_defaulters',
-    'rmv_mart_defaulters_partition',
     'rmv_mart_new_properties_by_fy',
     'rmv_mart_properties_with_demand_by_fy',
     'rmv_mart_property_agg',
