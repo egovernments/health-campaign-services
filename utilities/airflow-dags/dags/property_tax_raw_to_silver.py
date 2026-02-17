@@ -123,7 +123,12 @@ def get_time_chunks(client, table, window_start, window_end):
     return chunks, total
 
 
-def run_sql_chunked(client, sql, raw_table, window_start, window_end, label):
+def count_table(client, table):
+    """Return current row count for a table."""
+    return client.query(f"SELECT count() FROM {table}").result_rows[0][0]
+
+
+def run_sql_chunked(client, sql, raw_table, target_table, window_start, window_end, label):
     """Execute an INSERT...SELECT in time-based chunks with progress logging."""
     chunks, total = get_time_chunks(client, raw_table, window_start, window_end)
 
@@ -131,15 +136,20 @@ def run_sql_chunked(client, sql, raw_table, window_start, window_end, label):
         logger.info(f"[{label}] No records in window")
         return 0
 
-    logger.info(f"[{label}] Total: {total} records, {len(chunks)} chunk(s)")
+    logger.info(f"[{label}] Total raw events: {total}, {len(chunks)} chunk(s)")
+
+    count_before = count_table(client, target_table)
 
     for idx, (cs, ce) in enumerate(chunks):
         logger.info(f"[{label}] Chunk {idx + 1}/{len(chunks)}: [{cs}, {ce})")
         client.command(sql, parameters={'start': cs, 'end': ce})
         logger.info(f"[{label}] Chunk {idx + 1}/{len(chunks)} complete")
 
-    logger.info(f"[{label}] All chunks done. Total records: {total}")
-    return total
+    count_after = count_table(client, target_table)
+    inserted = count_after - count_before
+
+    logger.info(f"[{label}] All chunks done. Raw events: {total}, rows inserted: {inserted}")
+    return inserted
 
 
 # -- SQL: property_address_entity --------------------------------------------
@@ -399,21 +409,20 @@ def process_property_events(**context):
     try:
         addr_count = run_sql_chunked(
             client, PROPERTY_ADDRESS_SQL, 'property_events_raw',
-            window_start, window_end, 'property_address')
+            'property_address_entity', window_start, window_end, 'property_address')
 
         unit_count = run_sql_chunked(
             client, PROPERTY_UNIT_SQL, 'property_events_raw',
-            window_start, window_end, 'property_unit')
+            'property_unit_entity', window_start, window_end, 'property_unit')
 
         owner_count = run_sql_chunked(
             client, PROPERTY_OWNER_SQL, 'property_events_raw',
-            window_start, window_end, 'property_owner')
+            'property_owner_entity', window_start, window_end, 'property_owner')
 
         counts = {
-            'raw_events': addr_count,
             'address_rows': addr_count,
-            'unit_source_events': unit_count,
-            'owner_source_events': owner_count,
+            'unit_rows': unit_count,
+            'owner_rows': owner_count,
         }
         logger.info(f"Property processing complete: {counts}")
         return counts
@@ -432,7 +441,7 @@ def process_demand_events(**context):
     try:
         demand_count = run_sql_chunked(
             client, DEMAND_SQL, 'demand_events_raw',
-            window_start, window_end, 'demand')
+            'demand_with_details_entity', window_start, window_end, 'demand')
 
         logger.info(f"Demand processing complete: {demand_count} records")
         return {'demands': demand_count}
