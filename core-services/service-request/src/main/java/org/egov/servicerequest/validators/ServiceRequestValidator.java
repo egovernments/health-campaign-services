@@ -65,6 +65,10 @@ public class ServiceRequestValidator {
                 setOfRequiredAttributes.add(attributeDefinition.getCode());
         });
 
+        service.getAttributes().removeIf(attributeValue ->
+                !attributeCodeVsDataType.containsKey(attributeValue.getAttributeCode())
+        );
+
         // Check if service has all the attribute values required as part of service definition
         Set<String> setOfAttributeValues = new HashSet<>();
         service.getAttributes().forEach(attributeValue -> {
