@@ -32,13 +32,13 @@ CLICKHOUSE_HOST = os.getenv('CLICKHOUSE_HOST', 'clickstack-clickhouse.clickhouse
 CLICKHOUSE_PORT = int(os.getenv('CLICKHOUSE_PORT', '8123'))
 CLICKHOUSE_USER = os.getenv('CLICKHOUSE_USER', 'default')
 CLICKHOUSE_PASSWORD = os.getenv('CLICKHOUSE_PASSWORD', '')
-CLICKHOUSE_DB = os.getenv('CLICKHOUSE_DB', 'replacing_test')
+CLICKHOUSE_DB = os.getenv('CLICKHOUSE_DB', 'airflow_test')
 
 POLL_INTERVAL_SECONDS = int(os.getenv('RMV_POLL_INTERVAL', '60'))
 REFRESH_TIMEOUT_SECONDS = int(os.getenv('RMV_REFRESH_TIMEOUT', '3600'))
 
 REFRESH_ORDER = [
-    'rmv_mart_collections_by_fy',
+    'rmv_mart_demand_values_by_fy',
     'rmv_mart_collections_by_month',
     'rmv_mart_defaulters',
     'rmv_mart_new_properties_by_fy',

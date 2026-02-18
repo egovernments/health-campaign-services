@@ -33,6 +33,7 @@ from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.operators.empty import EmptyOperator
+from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 from airflow.utils.timezone import utcnow, make_aware
 import clickhouse_connect
 
@@ -474,6 +475,12 @@ with DAG(
         python_callable=process_demand_events,
     )
 
+    trigger_rmv_refresh = TriggerDagRunOperator(
+        task_id='trigger_rmv_refresh',
+        trigger_dag_id='clickhouse_rmv_sequential_refresh',
+        wait_for_completion=False,
+    )
+
     end = EmptyOperator(task_id='end')
 
-    start >> [process_properties, process_demands] >> end
+    start >> [process_properties, process_demands] >> trigger_rmv_refresh >> end
