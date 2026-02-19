@@ -477,7 +477,7 @@ with DAG(
 
     trigger_rmv_refresh = TriggerDagRunOperator(
         task_id='trigger_rmv_refresh',
-        trigger_dag_id='clickhouse_rmv_sequential_refresh',
+        trigger_dag_id='clickhouse_rmv_parallel_refresh',
         wait_for_completion=False,
     )
 
