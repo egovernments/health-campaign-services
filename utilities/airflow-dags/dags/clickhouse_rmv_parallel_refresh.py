@@ -37,7 +37,7 @@ CLICKHOUSE_HOST = os.getenv(
 CLICKHOUSE_PORT = int(os.getenv('CLICKHOUSE_PORT', '8123'))
 CLICKHOUSE_USER = os.getenv('CLICKHOUSE_USER', 'default')
 CLICKHOUSE_PASSWORD = os.getenv('CLICKHOUSE_PASSWORD', '')
-CLICKHOUSE_DB = os.getenv('CLICKHOUSE_DB', 'airflow_test')
+CLICKHOUSE_DB = os.getenv('CLICKHOUSE_DB', 'replacing_test')
 
 POLL_INTERVAL_SECONDS = int(os.getenv('RMV_POLL_INTERVAL', '60'))
 REFRESH_TIMEOUT_SECONDS = int(os.getenv('RMV_REFRESH_TIMEOUT', '3600'))
