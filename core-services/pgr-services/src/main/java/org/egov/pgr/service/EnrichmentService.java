@@ -3,6 +3,7 @@ package org.egov.pgr.service;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.pgr.config.PGRConfiguration;
 import org.egov.pgr.repository.IdGenRepository;
+import org.egov.pgr.util.BoundaryUtil;
 import org.egov.pgr.util.PGRUtils;
 import org.egov.pgr.web.models.AuditDetails;
 import org.egov.pgr.web.models.Idgen.IdResponse;
@@ -33,12 +34,15 @@ public class EnrichmentService {
 
     private UserService userService;
 
+    private BoundaryUtil boundaryUtil;
+
     @Autowired
-    public EnrichmentService(PGRUtils utils, IdGenRepository idGenRepository, PGRConfiguration config, UserService userService) {
+    public EnrichmentService(PGRUtils utils, IdGenRepository idGenRepository, PGRConfiguration config, UserService userService, BoundaryUtil boundaryUtil) {
         this.utils = utils;
         this.idGenRepository = idGenRepository;
         this.config = config;
         this.userService = userService;
+        this.boundaryUtil = boundaryUtil;
     }
 
 
@@ -65,6 +69,7 @@ public class EnrichmentService {
         service.setId(UUID.randomUUID().toString());
         service.getAddress().setId(UUID.randomUUID().toString());
         service.getAddress().setTenantId(tenantId);
+        boundaryUtil.enrichLocalityCode(requestInfo, service);
         service.setActive(true);
 
         if(workflow.getVerificationDocuments()!=null){
@@ -93,6 +98,7 @@ public class EnrichmentService {
         AuditDetails auditDetails = utils.getAuditDetails(requestInfo.getUserInfo().getUuid(), service,false);
 
         service.setAuditDetails(auditDetails);
+        boundaryUtil.enrichLocalityCode(requestInfo, service);
 
         userService.callUserService(serviceRequest);
     }

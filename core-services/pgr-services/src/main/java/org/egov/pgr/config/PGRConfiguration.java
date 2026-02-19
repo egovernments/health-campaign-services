@@ -218,5 +218,11 @@ public class PGRConfiguration {
     @Value("${egov.complaints.category}")
     private String complaintTypes;
 
+    // Boundary Service
+    @Value("${egov.boundary.service.host}")
+    private String boundaryServiceHost;
+
+    @Value("${egov.boundary.relationship.search.endpoint}")
+    private String boundaryRelationshipSearchEndPoint;
 
 }
