@@ -1,0 +1,157 @@
+{
+  "_comment": "Examples showing how the simplified mapping works",
+
+  "basePaths": {
+    "createUpdate": {
+      "fhir": "$.Patient",
+      "egov": "$.Individuals[*]"
+    },
+    "searchResponse": {
+      "fhir": "$.Bundle.entry[*].resource",
+      "egov": "$.Individuals[*]"
+    },
+    "searchRequest": {
+      "fhir": "FHIR search params",
+      "egov": "$.Individual"
+    }
+  },
+
+  "createOperation": {
+    "fhirRequest": {
+      "_comment": "POST /fhir/Patient",
+      "resourceType": "Patient",
+      "name": [{ "family": "Kumar", "given": ["Rajesh"] }],
+      "gender": "male",
+      "birthDate": "1990-02-17",
+      "telecom": [
+        { "system": "phone", "use": "mobile", "value": "+919876543210" }
+      ]
+    },
+    "egovRequest": {
+      "_comment": "POST /individual/v1/_create",
+      "RequestInfo": { "apiId": "fhir-adapter", "ver": "1.0" },
+      "Individuals": [
+        {
+          "name": {
+            "givenName": "Rajesh",
+            "familyName": "Kumar"
+          },
+          "gender": "MALE",
+          "dateOfBirth": 635212800000,
+          "mobileNumber": "9876543210"
+        }
+      ]
+    },
+    "egovResponse": {
+      "ResponseInfo": { "status": "successful" },
+      "Individuals": [
+        {
+          "id": "7b1c2c2e-8b6e-4c7a-9b1c-2d3e4f5a6b7c",
+          "individualId": "IND-2024-001234",
+          "name": { "givenName": "Rajesh", "familyName": "Kumar" },
+          "gender": "MALE",
+          "dateOfBirth": 635212800000,
+          "mobileNumber": "9876543210",
+          "tenantId": "pb.amritsar",
+          "isDeleted": false
+        }
+      ]
+    },
+    "fhirResponse": {
+      "_comment": "201 Created with Patient resource",
+      "resourceType": "Patient",
+      "id": "7b1c2c2e-8b6e-4c7a-9b1c-2d3e4f5a6b7c",
+      "meta": {
+        "tag": [{ "system": "urn:egov:tenant", "code": "pb.amritsar" }]
+      },
+      "identifier": [
+        { "system": "urn:egov:individual", "value": "IND-2024-001234", "use": "official" }
+      ],
+      "active": true,
+      "name": [{ "family": "Kumar", "given": ["Rajesh"] }],
+      "gender": "male",
+      "birthDate": "1990-02-17",
+      "telecom": [
+        { "system": "phone", "use": "mobile", "value": "+919876543210" }
+      ]
+    }
+  },
+
+  "searchOperation": {
+    "fhirRequest": {
+      "_comment": "GET /fhir/Patient?name=Rajesh&gender=male&_count=10"
+    },
+    "egovRequest": {
+      "_comment": "POST /individual/v1/_search",
+      "RequestInfo": { "apiId": "fhir-adapter", "ver": "1.0" },
+      "Individual": {
+        "name": { "givenName": "Rajesh" },
+        "gender": "MALE"
+      },
+      "limit": 10,
+      "offset": 0
+    },
+    "egovResponse": {
+      "ResponseInfo": { "status": "successful" },
+      "Individuals": [
+        {
+          "id": "7b1c2c2e-8b6e-4c7a-9b1c-2d3e4f5a6b7c",
+          "individualId": "IND-2024-001234",
+          "name": { "givenName": "Rajesh", "familyName": "Kumar" },
+          "gender": "MALE",
+          "dateOfBirth": 635212800000,
+          "mobileNumber": "9876543210",
+          "tenantId": "pb.amritsar",
+          "isDeleted": false
+        }
+      ],
+      "TotalCount": 1
+    },
+    "fhirResponse": {
+      "resourceType": "Bundle",
+      "type": "searchset",
+      "total": 1,
+      "entry": [
+        {
+          "resource": {
+            "resourceType": "Patient",
+            "id": "7b1c2c2e-8b6e-4c7a-9b1c-2d3e4f5a6b7c",
+            "meta": {
+              "tag": [{ "system": "urn:egov:tenant", "code": "pb.amritsar" }]
+            },
+            "identifier": [
+              { "system": "urn:egov:individual", "value": "IND-2024-001234", "use": "official" }
+            ],
+            "active": true,
+            "name": [{ "family": "Kumar", "given": ["Rajesh"] }],
+            "gender": "male",
+            "birthDate": "1990-02-17",
+            "telecom": [
+              { "system": "phone", "use": "mobile", "value": "+919876543210" }
+            ]
+          }
+        }
+      ]
+    }
+  },
+
+  "fieldMappingResolution": {
+    "_comment": "How fhirField/egovField resolve with basePaths",
+
+    "forCreate": {
+      "mapping": { "fhirField": "gender", "egovField": "gender" },
+      "resolvedPaths": {
+        "fhir": "$.Patient.gender",
+        "egov": "$.Individuals[*].gender"
+      }
+    },
+
+    "forSearchResponse": {
+      "mapping": { "fhirField": "gender", "egovField": "gender" },
+      "resolvedPaths": {
+        "fhir": "$.Bundle.entry[*].resource.gender",
+        "egov": "$.Individuals[*].gender"
+      }
+    }
+  }
+}

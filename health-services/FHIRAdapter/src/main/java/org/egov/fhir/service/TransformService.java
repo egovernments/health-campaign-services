@@ -1,0 +1,353 @@
+package org.egov.fhir.service;
+
+import com.jayway.jsonpath.JsonPath;
+import com.jayway.jsonpath.PathNotFoundException;
+import lombok.extern.slf4j.Slf4j;
+import org.egov.fhir.config.MappingConfig;
+import org.egov.fhir.config.MappingConfig.*;
+import org.springframework.stereotype.Service;
+
+import java.time.*;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
+import java.util.Arrays;
+
+@Slf4j
+@Service
+public class TransformService {
+
+    // TODO: Later extract tenantId from FHIR meta.tag or request context
+    @org.springframework.beans.factory.annotation.Value("${egov.default.tenantId:mz}")
+    private String defaultTenantId;
+
+    // FHIR Patient -> eGov Individual (for create/update)
+    public Map<String, Object> fhirToEgov(Map<String, Object> fhirResource, MappingConfig config, String operation, String authToken) {
+        Map<String, Object> egovObject = new HashMap<>();
+
+        egovObject.put("tenantId", defaultTenantId);
+
+        // Apply field mappings
+        for (FieldMapping mapping : config.getFieldMappings()) {
+            Object value = getValueByPath(fhirResource, mapping.getFhirField());
+            if (value != null) {
+                // Handle nested array mappings (like address)
+                if (Boolean.TRUE.equals(mapping.getIsArray()) && mapping.getFieldMappings() != null && value instanceof List) {
+                    List<Map<String, Object>> transformedList = new ArrayList<>();
+                    for (Object item : (List<?>) value) {
+                        if (item instanceof Map) {
+                            Map<String, Object> transformedItem = new HashMap<>();
+                            transformedItem.put("tenantId", defaultTenantId);
+                            for (FieldMapping nestedMapping : mapping.getFieldMappings()) {
+                                Object nestedValue = getValueByPath((Map<String, Object>) item, nestedMapping.getFhirField());
+                                if (nestedValue != null) {
+                                    // Handle array fields like line[0], line[1]
+                                    if (nestedValue instanceof List && !Boolean.TRUE.equals(nestedMapping.getIsArray())) {
+                                        List<?> list = (List<?>) nestedValue;
+                                        if (!list.isEmpty()) {
+                                            nestedValue = list.get(0);
+                                        }
+                                    }
+                                    nestedValue = applyTransform(nestedValue, nestedMapping, "toEgov");
+                                    setValueByPath(transformedItem, nestedMapping.getEgovField(), nestedValue);
+                                }
+                            }
+                            transformedList.add(transformedItem);
+                        }
+                    }
+                    value = transformedList;
+                }
+                // If FHIR field is array but eGov expects scalar (no nested mappings), take first element
+                else if (Boolean.TRUE.equals(mapping.getIsArray()) && value instanceof List && mapping.getFieldMappings() == null) {
+                    List<?> list = (List<?>) value;
+                    if (!list.isEmpty()) {
+                        value = list.get(0);
+                    }
+                    value = applyTransform(value, mapping, "toEgov");
+                } else {
+                    value = applyTransform(value, mapping, "toEgov");
+                }
+                setValueByPath(egovObject, mapping.getEgovField(), value);
+            }
+        }
+
+        // Build request wrapper
+        ApiMapping apiMapping = config.getApiMapping().get(operation);
+        ModelDef modelDef = config.getRequestModels().get(apiMapping.getRequestModel());
+
+        Map<String, Object> request = new HashMap<>();
+        request.put("RequestInfo", createRequestInfo(authToken));
+
+        String wrapperKey = extractWrapperKey(modelDef.getBasePath());
+        if (Boolean.TRUE.equals(modelDef.getIsArray())) {
+            request.put(wrapperKey, List.of(egovObject));
+        } else {
+            request.put(wrapperKey, egovObject);
+        }
+
+        return request;
+    }
+
+    // eGov Individual -> FHIR Patient (for response)
+    public Map<String, Object> egovToFhir(Map<String, Object> egovResponse, MappingConfig config, String operation) {
+        ApiMapping apiMapping = config.getApiMapping().get(operation);
+        ModelDef modelDef = config.getResponseModels().get(apiMapping.getResponseModel());
+
+        // Extract data from response using basePath
+        List<Map<String, Object>> egovObjects = extractFromPath(egovResponse, modelDef.getBasePath());
+
+        List<Map<String, Object>> fhirResources = new ArrayList<>();
+        for (Map<String, Object> egovObject : egovObjects) {
+            Map<String, Object> fhirResource = new HashMap<>();
+            fhirResource.put("resourceType", config.getFhirResource());
+
+            // Apply field mappings
+            for (FieldMapping mapping : config.getFieldMappings()) {
+                Object value = getValueByPath(egovObject, mapping.getEgovField());
+                if (value != null) {
+                    value = applyTransform(value, mapping, "toFhir");
+                    setValueByPath(fhirResource, mapping.getFhirField(), value);
+                }
+            }
+
+            // Apply identifier mappings
+            applyIdentifierMappings(egovObject, fhirResource, config.getIdentifierMappings());
+
+            fhirResources.add(fhirResource);
+        }
+
+        // For single resource operations (read/create/update)
+        if (!operation.equals("search") && !fhirResources.isEmpty()) {
+            return fhirResources.get(0);
+        }
+
+        // For search - return Bundle
+        return createBundle(fhirResources, egovResponse, modelDef);
+    }
+
+    // Search params -> eGov search request
+    public Map<String, Object> searchParamsToEgov(Map<String, String> params, MappingConfig config, String authToken) {
+        Map<String, Object> searchCriteria = new HashMap<>();
+
+        // TODO: tenantId should come from request context
+        searchCriteria.put("tenantId", defaultTenantId);
+
+        for (FieldMapping mapping : config.getSearchParamMappings()) {
+            String value = params.get(mapping.getFhirKey());
+            if (value != null) {
+                Object transformed = applyTransform(value, mapping, "toEgov");
+                // individualId should be an array in search model - split comma-separated values
+                if ("individualId".equals(mapping.getEgovField())) {
+                    if (transformed instanceof String) {
+                        String strValue = (String) transformed;
+                        if (strValue.contains(",")) {
+                            transformed = Arrays.asList(strValue.split("\\s*,\\s*"));
+                        } else {
+                            transformed = List.of(transformed);
+                        }
+                    } else {
+                        transformed = List.of(transformed);
+                    }
+                }
+                setValueByPath(searchCriteria, mapping.getEgovField(), transformed);
+            }
+        }
+
+        ApiMapping apiMapping = config.getApiMapping().get("search");
+        ModelDef modelDef = config.getRequestModels().get(apiMapping.getRequestModel());
+
+        Map<String, Object> request = new HashMap<>();
+        request.put("RequestInfo", createRequestInfo(authToken));
+        request.put(extractWrapperKey(modelDef.getBasePath()), searchCriteria);
+
+        // Add pagination
+        if (params.containsKey("_count")) {
+            request.put("limit", Integer.parseInt(params.get("_count")));
+        }
+        if (params.containsKey("_offset")) {
+            request.put("offset", Integer.parseInt(params.get("_offset")));
+        }
+
+        return request;
+    }
+
+    // --- Transform helpers ---
+
+    private Object applyTransform(Object value, FieldMapping mapping, String direction) {
+        if (mapping.getTransform() == null) return value;
+
+        Map<String, Object> config = mapping.getTransformConfig();
+
+        return switch (mapping.getTransform()) {
+            case "codeMap" -> {
+                Map<String, String> codeMap = (Map<String, String>) config.get(direction);
+                yield codeMap.getOrDefault(value.toString(), value.toString());
+            }
+            case "epochToDate" -> {
+                if (direction.equals("toFhir") && value instanceof Number) {
+                    long epoch = ((Number) value).longValue();
+                    yield LocalDate.ofInstant(Instant.ofEpochMilli(epoch), ZoneOffset.UTC).toString();
+                }
+                // toFhir: convert DD/MM/YYYY to ISO format
+                if (direction.equals("toFhir") && value instanceof String) {
+                    try {
+                        LocalDate date = LocalDate.parse((String) value, DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+                        yield date.toString(); // ISO format YYYY-MM-DD
+                    } catch (Exception e) {
+                        yield value;
+                    }
+                }
+                // toEgov: convert ISO YYYY-MM-DD to DD/MM/YYYY
+                if (direction.equals("toEgov") && value instanceof String) {
+                    try {
+                        LocalDate date = LocalDate.parse((String) value);
+                        yield date.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+                    } catch (Exception e) {
+                        yield value;
+                    }
+                }
+                yield value;
+            }
+            case "dateToEpoch" -> {
+                if (direction.equals("toEgov") && value instanceof String) {
+                    yield LocalDate.parse((String) value).atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli();
+                }
+                yield value;
+            }
+            case "epochToIso" -> {
+                if (direction.equals("toFhir") && value instanceof Number) {
+                    long epoch = ((Number) value).longValue();
+                    yield Instant.ofEpochMilli(epoch).atOffset(ZoneOffset.UTC).format(DateTimeFormatter.ISO_INSTANT);
+                }
+                yield value;
+            }
+            case "negate" -> {
+                if (value instanceof Boolean) {
+                    yield !(Boolean) value;
+                }
+                yield value;
+            }
+            default -> value;
+        };
+    }
+
+    private void applyIdentifierMappings(Map<String, Object> egov, Map<String, Object> fhir, List<IdentifierMapping> mappings) {
+        if (mappings == null) return;
+
+        List<Map<String, Object>> identifiers = new ArrayList<>();
+        for (IdentifierMapping mapping : mappings) {
+            Object value = getValueByPath(egov, mapping.getEgovField());
+            if (value != null) {
+                Map<String, Object> identifier = new HashMap<>();
+                identifier.put("system", mapping.getSystem());
+                identifier.put("value", value);
+                if (mapping.getUse() != null) {
+                    identifier.put("use", mapping.getUse());
+                }
+                identifiers.add(identifier);
+            }
+        }
+        if (!identifiers.isEmpty()) {
+            fhir.put("identifier", identifiers);
+        }
+    }
+
+    // --- Path helpers ---
+
+    private Object getValueByPath(Map<String, Object> obj, String path) {
+        try {
+            // Handle simple dot notation paths manually for reliability
+            String[] parts = path.split("\\.");
+            Object current = obj;
+
+            for (String part : parts) {
+                if (current == null) return null;
+
+                // Check for array index like "name[0]"
+                if (part.contains("[")) {
+                    String fieldName = part.substring(0, part.indexOf("["));
+                    int index = Integer.parseInt(part.substring(part.indexOf("[") + 1, part.indexOf("]")));
+
+                    if (current instanceof Map) {
+                        current = ((Map<?, ?>) current).get(fieldName);
+                    }
+                    if (current instanceof List) {
+                        List<?> list = (List<?>) current;
+                        current = index < list.size() ? list.get(index) : null;
+                    }
+                } else {
+                    if (current instanceof Map) {
+                        current = ((Map<?, ?>) current).get(part);
+                    }
+                }
+            }
+            return current;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private void setValueByPath(Map<String, Object> obj, String path, Object value) {
+        String[] parts = path.split("\\.");
+        Map<String, Object> current = obj;
+
+        for (int i = 0; i < parts.length - 1; i++) {
+            String part = parts[i];
+            current.computeIfAbsent(part, k -> new HashMap<String, Object>());
+            current = (Map<String, Object>) current.get(part);
+        }
+        current.put(parts[parts.length - 1], value);
+    }
+
+    private String extractWrapperKey(String basePath) {
+        // $.Individuals[*] -> Individuals
+        return basePath.replaceAll("^\\$\\.", "").replaceAll("\\[\\*\\]$", "");
+    }
+
+    private List<Map<String, Object>> extractFromPath(Map<String, Object> response, String basePath) {
+        try {
+            Object result = JsonPath.read(response, basePath);
+            if (result instanceof List) {
+                return (List<Map<String, Object>>) result;
+            }
+            return List.of((Map<String, Object>) result);
+        } catch (PathNotFoundException e) {
+            return Collections.emptyList();
+        }
+    }
+
+    private Map<String, Object> createRequestInfo(String authToken) {
+        Map<String, Object> requestInfo = new HashMap<>();
+        requestInfo.put("apiId", "fhir-adapter");
+        requestInfo.put("ver", "1.0");
+        requestInfo.put("ts", System.currentTimeMillis());
+        requestInfo.put("msgId", UUID.randomUUID().toString());
+        if (authToken != null && !authToken.isEmpty()) {
+            requestInfo.put("authToken", authToken);
+        }
+        return requestInfo;
+    }
+
+    private Map<String, Object> createBundle(List<Map<String, Object>> resources, Map<String, Object> egovResponse, ModelDef modelDef) {
+        Map<String, Object> bundle = new HashMap<>();
+        bundle.put("resourceType", "Bundle");
+        bundle.put("type", "searchset");
+
+        // Get total count
+        if (modelDef.getTotalCountPath() != null) {
+            try {
+                Object total = JsonPath.read(egovResponse, modelDef.getTotalCountPath());
+                bundle.put("total", total);
+            } catch (PathNotFoundException ignored) {}
+        }
+
+        List<Map<String, Object>> entries = new ArrayList<>();
+        for (Map<String, Object> resource : resources) {
+            Map<String, Object> entry = new HashMap<>();
+            entry.put("resource", resource);
+            entries.add(entry);
+        }
+        bundle.put("entry", entries);
+
+        return bundle;
+    }
+}

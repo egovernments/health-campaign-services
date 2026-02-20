@@ -1,0 +1,11 @@
+{
+  "resourceType": "Patient",
+  "name": [{"family": "Kumar", "given": ["Rajesh", "Singh"]}],
+  "gender": "male",
+  "birthDate": "1990-02-17",
+  "telecom": [
+    {"system": "phone", "use": "mobile", "value": "+919876543210"},
+    {"system": "email", "value": "rajesh@example.com"}
+  ],
+  "active": true
+}
