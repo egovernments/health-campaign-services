@@ -143,6 +143,7 @@ const config = {
     censusServiceHost: process.env.EGOV_CENSUS_HOST || "https://unified-dev.digit.org/",
     workerRegistryHost: process.env.EGOV_WORKER_REGISTRY_HOST || "https://unified-dev.digit.org/",
     attendanceHost: process.env.EGOV_ATTENDANCE_HOST || "https://unified-dev.digit.org/",
+    serviceRequestHost: process.env.EGOV_SERVICE_REQUEST_HOST || "https://unified-dev.digit.org/"
   },
   // Paths for different services
   paths: {
@@ -200,6 +201,8 @@ const config = {
     attendanceStaffCreate: process.env.ATTENDANCE_STAFF_CREATE_PATH || "health-attendance/staff/v1/_create",
     attendanceStaffDelete: process.env.ATTENDANCE_STAFF_DELETE_PATH || "health-attendance/staff/v1/_delete",
     attendanceStaffSearch: process.env.ATTENDANCE_STAFF_SEARCH_PATH || "health-attendance/staff/v1/_search",
+    serviceDefinitionSearch: process.env.EGOV_SERVICE_DEFINITION_SEARCH_PATH || "health-service-request/service/definition/v1/_search",
+    serviceDefinitionCreate: process.env.EGOV_SERVICE_DEFINITION_CREATE_PATH || "health-service-request/service/definition/v1/_create",
   },
   // Values configuration
   values: {
