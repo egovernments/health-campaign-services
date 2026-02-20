@@ -85,6 +85,7 @@ import { changeCreateDataForMicroplan, lockSheet } from "./microplanUtils";
 const _ = require("lodash");
 import { searchDataService } from "../service/dataManageService";
 import { createMdmsData, defaultRequestInfo, searchBoundaryRelationshipData, searchMDMSDataViaV2Api } from "../api/coreApis";
+import { createServiceDefinition, searchServiceDefinitions } from "../api/serviceRequestApis";
 import {
   fetchFacilityData,
   fetchTargetData,
@@ -1097,7 +1098,7 @@ async function processAppConfig(campaignDetails: any, RequestInfo: any) {
   try {
     if (!campaignDetails?.parentId) {
       if (campaignDetails?.additionalDetails?.cloneFrom) {
-        await createAppConfigFromClone(campaignDetails?.tenantId, campaignDetails?.campaignNumber, campaignDetails?.additionalDetails?.cloneFrom, RequestInfo);
+        await createAppConfigFromClone(campaignDetails?.tenantId, campaignDetails?.campaignNumber, campaignDetails?.additionalDetails?.cloneFrom, RequestInfo, campaignDetails?.projectType, campaignDetails?.campaignName);
       }
       else {
         await createAppConfig(campaignDetails?.tenantId, campaignDetails?.campaignNumber, campaignDetails?.projectType, RequestInfo);
@@ -2880,7 +2881,9 @@ export async function createAppConfigFromClone(
   tenantId: string,
   newCampaignNumber: string,
   cloneFromCampaignNumber: string,
-  RequestInfo: any
+  RequestInfo: any,
+  projectType: string,
+  newCampaignName: string
 ): Promise<void> {
   try {
     logger.info("Started creating app config from clone...");
@@ -2933,6 +2936,17 @@ export async function createAppConfigFromClone(
       };
 
       await createMdmsData(tenantId, configSchema, newModule, useruuid);
+
+
+      //clone the checklist from parent campaign
+      const clonedChecklists = await fetchCloneChecklist(projectType, cloneFromCampaignNumber, tenantId);
+      if (clonedChecklists.length) {
+        //creation of cloned checklist
+        await createClonedChecklist(clonedChecklists, newCampaignName, tenantId);
+        //upsert localisation for cloned checklist
+        await upsertChecklistLocalization(newCampaignNumber, newCampaignName, cloneFromCampaignNumber, tenantId, locales, localisation, RequestInfo);
+      }
+
     }
 
     logger.info("App configuration cloned successfully.");
@@ -2967,6 +2981,137 @@ async function getLocalizedHierarchy(request: any, localizationMap: any) {
   );
   var resultHierarchy = getLocalizedHeaders(modifiedHierarchy, localizationMap);
   return resultHierarchy;
+}
+
+function generateChecklistKeys(
+  mdmsData: any,
+  cloneFromCampaignNumber: string
+): string[] {
+  if (!Array.isArray(mdmsData)) return [];
+
+  const checklistArray = mdmsData
+    .filter((item: any) => item?.data?.checklistType && item?.data?.role)
+    .map((item: any) => {
+      return `${cloneFromCampaignNumber}.${item.data.checklistType}.${item.data.role}`;
+    });
+
+  return checklistArray;
+}
+
+function sanitizeServiceDefinitions(serviceDefinitions: any[]): any[] {
+  return serviceDefinitions.map((def: any) => {
+    const { id, auditDetails, ...rest } = def;
+    return rest;
+  });
+}
+
+
+async function upsertChecklistLocalization(
+  newCampaignNumber: string,
+  newCampaignName: string,
+  cloneFromCampaignNumber: string,
+  tenantId: string,
+  locales: string[],
+  localisation: any,
+  RequestInfo: any
+): Promise<void> {
+  const cloneModule = `hcm-checklist-${cloneFromCampaignNumber}`;
+  const newModule = `hcm-checklist-${newCampaignNumber}`;
+  const chunkSize = 100;
+
+  for (const locale of locales) {
+    let messages: any[] = [];
+    try {
+      messages = await localisation.getLocalizationResponseMessages(cloneModule, locale, tenantId);
+    } catch (e: any) {
+      logger.error(`upsertChecklistLocalization: failed to fetch localization for ${cloneModule} (${locale}): ${e?.message}`);
+      continue;
+    }
+
+    // Step 1: Replace the campaign name prefix in each code with newCampaignName
+    const updatedMessages = messages.map((entry: any) => {
+      const dotIndex = (entry.code as string).indexOf(".");
+      const newCode = dotIndex !== -1
+        ? `${newCampaignName}${(entry.code as string).slice(dotIndex)}`
+        : entry.code;
+      return { ...entry, code: newCode, module: newModule, locale };
+    });
+
+    // Step 2: Upsert to new module in chunks
+    for (let i = 0; i < updatedMessages.length; i += chunkSize) {
+      const chunk = updatedMessages.slice(i, i + chunkSize);
+      await localisation.createLocalisation(chunk, tenantId, RequestInfo);
+      logger.info(`upsertChecklistLocalization: upserted ${chunk.length} messages to ${newModule} (${locale}) — chunk ${Math.floor(i / chunkSize) + 1}`);
+    }
+  }
+}
+
+async function createClonedChecklist(
+  clonedServiceDefinitions: any[],
+  newCampaignName: string,
+  tenantId: string
+): Promise<void> {
+  if (!clonedServiceDefinitions.length) return;
+
+  for (const def of clonedServiceDefinitions) {
+    const oldCode: string = def.code;
+    const dotIndex = oldCode.indexOf(".");
+    const newCode = dotIndex !== -1
+      ? `${newCampaignName}${oldCode.slice(dotIndex)}`
+      : oldCode;
+    const newDef = { ...def, code: newCode };
+    await createServiceDefinition(tenantId, newDef);
+    logger.info(`createClonedChecklist: created service definition ${newCode}`);
+  }
+}
+
+async function fetchCloneChecklist(
+  projectType: string,
+  cloneFromCampaignNumber: string,
+  tenantId: string
+): Promise<any[]> {
+  // Step 1: Fetch checklist templates from MDMS v2 filtered by campaignType
+  logger.info(`fetchCloneChecklist: fetching MDMS checklist templates for projectType=${projectType}, tenant=${tenantId}`);
+  const mdmsCriteria = {
+    tenantId,
+    schemaCode: "HCM-ADMIN-CONSOLE.ChecklistTemplates",
+    filters: {
+      campaignType: projectType,
+    },
+  };
+  const mdmsResponse: any = await searchMDMSDataViaV2Api({ MdmsCriteria: mdmsCriteria });
+  const mdmsData = mdmsResponse?.mdms || [];
+  if (!mdmsData.length) {
+    logger.warn(`fetchCloneChecklist: no MDMS checklist templates found for projectType=${projectType}, skipping further steps`);
+    return [];
+  }
+
+  //search the campaign name for the cloneFromCampaignNumber to generate the checklist keys
+  const campaignSearchResponse = await searchProjectTypeCampaignService({ tenantId, campaignNumber: cloneFromCampaignNumber });
+  const cloneFromCampaignName: string = campaignSearchResponse?.CampaignDetails?.[0]?.campaignName;
+  if (!cloneFromCampaignName) {
+    logger.warn(`fetchCloneChecklist: could not resolve campaignName for campaignNumber=${cloneFromCampaignNumber}`);
+    return [];
+  }
+
+  // Step 3: Generate checklist keys using the resolved campaign name
+  logger.info(`fetchCloneChecklist: generating checklist keys from ${mdmsData.length} MDMS records for campaignName=${cloneFromCampaignName}`);
+  const checklistKeys: string[] = generateChecklistKeys(mdmsData, cloneFromCampaignName);
+
+  if (!checklistKeys.length) {
+    logger.warn(`fetchCloneChecklist: no checklist keys generated for projectType=${projectType}, campaignName=${cloneFromCampaignName}`);
+    return [];
+  }
+
+  // Step 4: Search service definitions using the generated checklist keys
+  logger.info(`fetchCloneChecklist: searching service definitions for ${checklistKeys.length} keys`);
+  const serviceDefinitions = await searchServiceDefinitions(tenantId, checklistKeys, true);
+
+  // Step 5: Strip top-level id and auditDetails from each service definition
+  const sanitized = sanitizeServiceDefinitions(serviceDefinitions);
+
+  logger.info(`fetchCloneChecklist: found ${sanitized.length} service definitions`);
+  return sanitized;
 }
 
 async function appendSheetsToWorkbook(
