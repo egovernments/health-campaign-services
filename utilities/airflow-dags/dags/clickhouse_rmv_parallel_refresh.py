@@ -51,6 +51,15 @@ REFRESH_VIEWS = [
     'rmv_mart_property_agg',
 ]
 
+# Views that depend on other views completing first.
+# Key: view name, Value: list of views it depends on.
+DEPENDENT_VIEWS = {
+    'rmv_mart_property_demand_coverage_by_fy': [
+        'rmv_mart_properties_with_demand_by_fy',
+        'rmv_mart_new_properties_by_fy',
+    ],
+}
+
 default_args = {
     'owner': 'property_tax',
     'depends_on_past': False,
@@ -176,8 +185,10 @@ with DAG(
     )
 
     # -----------------------------------------------------------------------
-    # Dynamically create one task per MV
+    # Dynamically create one task per MV (parallel group)
     # -----------------------------------------------------------------------
+
+    tasks = {}
 
     for view_name in REFRESH_VIEWS:
 
@@ -188,3 +199,21 @@ with DAG(
         )
 
         start >> task >> end
+        tasks[view_name] = task
+
+    # -----------------------------------------------------------------------
+    # Dependent views – wait for upstream MV refreshes before running
+    # -----------------------------------------------------------------------
+
+    for view_name, upstream_views in DEPENDENT_VIEWS.items():
+
+        dep_task = PythonOperator(
+            task_id=f'refresh_{view_name}',
+            python_callable=refresh_single_mv,
+            op_kwargs={'view_name': view_name},
+        )
+
+        for upstream in upstream_views:
+            tasks[upstream] >> dep_task
+
+        dep_task >> end
