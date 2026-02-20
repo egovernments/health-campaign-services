@@ -7,22 +7,23 @@ and inserts into silver tables using ReplacingMergeTree.
 Schedule: Daily at 1:30 AM
 Window:   data_interval_start .. data_interval_end (by event_time column)
 
-Architecture (separate Extract, Transform, Load tasks per pipeline):
+Architecture (Dynamic Task Mapping — separate E/T/L per chunk):
   Property pipeline (runs in parallel with Demand pipeline):
-    extract_property_events  (fetch raw JSON from property_events_raw)
-        -> transform_property_events  (parse JSON, extract fields)
-            -> load_property_events  (insert into silver tables)
+    extract_property_chunks  (count rows, emit chunk offsets)
+        -> transform_property_chunk  [mapped per chunk]  (fetch + parse + extract)
+            -> load_property_chunk  [mapped per chunk]  (insert into silver tables)
                 -> property_address_entity
                 -> property_unit_entity
                 -> property_owner_entity
 
   Demand pipeline:
-    extract_demand_events  (fetch raw JSON from demand_events_raw)
-        -> transform_demand_events  (parse JSON, pivot details)
-            -> load_demand_events  (insert into silver table)
+    extract_demand_chunks  (count rows, emit chunk offsets)
+        -> transform_demand_chunk  [mapped per chunk]  (fetch + parse + pivot)
+            -> load_demand_chunk  [mapped per chunk]  (insert into silver table)
                 -> demand_with_details_entity
 
-  Data is passed between tasks via XCom.
+  Each chunk processes STREAM_BATCH_SIZE rows (default 10k) with bounded
+  memory. Data is passed between Transform -> Load via XCom per chunk.
 
 ReplacingMergeTree Logic:
   Uses last_modified_time as the version key. Latest version of each record
@@ -37,7 +38,7 @@ from decimal import Decimal, InvalidOperation
 from typing import List, Dict, Optional, Tuple
 
 from airflow import DAG
-from airflow.operators.python import PythonOperator
+from airflow.decorators import task
 from airflow.operators.empty import EmptyOperator
 from airflow.utils.timezone import utcnow
 from airflow.utils.timezone import make_aware
@@ -441,11 +442,12 @@ def extract_demand(event: dict, demand: dict) -> dict:
 # -- Extract task functions ----------------------------------------------------
 
 
-def extract_property_events(**context):
-    """Extract raw JSON strings from property_events_raw in batches.
+@task
+def extract_property_chunks(**context):
+    """Count property events and emit chunk offsets (lightweight metadata).
 
-    Fetches data in chunks of STREAM_BATCH_SIZE and passes the collected
-    raw JSON strings to the next task via XCom.
+    Returns a list of dicts, each describing one chunk to process.
+    Airflow dynamically maps one Transform+Load task per chunk.
     """
     window_start, window_end = get_window(context)
     logger.info(f"Run type: {context['dag_run'].run_type}")
@@ -459,37 +461,28 @@ def extract_property_events(**context):
             logger.info("No property events in window")
             return []
 
-        logger.info(f"Total property events to extract: {total_count}")
+        chunks = []
+        for offset in range(0, total_count, STREAM_BATCH_SIZE):
+            chunks.append({
+                'offset': offset,
+                'limit': STREAM_BATCH_SIZE,
+                'window_start': window_start.isoformat(),
+                'window_end': window_end.isoformat(),
+            })
 
-        all_raw_jsons = []
-        offset = 0
-
-        while offset < total_count:
-            logger.info(f"Extracting batch: {offset} to {offset + STREAM_BATCH_SIZE} of {total_count}")
-
-            raw_jsons = fetch_property_events(
-                client, window_start, window_end,
-                limit=STREAM_BATCH_SIZE, offset=offset
-            )
-
-            if not raw_jsons:
-                break
-
-            all_raw_jsons.extend(raw_jsons)
-            offset += STREAM_BATCH_SIZE
-
-        logger.info(f"Property extraction complete: {len(all_raw_jsons)} raw events")
-        return all_raw_jsons
+        logger.info(f"Property: {total_count} rows -> {len(chunks)} chunks of {STREAM_BATCH_SIZE}")
+        return chunks
 
     finally:
         client.close()
 
 
-def extract_demand_events(**context):
-    """Extract raw JSON strings from demand_events_raw in batches.
+@task
+def extract_demand_chunks(**context):
+    """Count demand events and emit chunk offsets (lightweight metadata).
 
-    Fetches data in chunks of STREAM_BATCH_SIZE and passes the collected
-    raw JSON strings to the next task via XCom.
+    Returns a list of dicts, each describing one chunk to process.
+    Airflow dynamically maps one Transform+Load task per chunk.
     """
     window_start, window_end = get_window(context)
     logger.info(f"Run type: {context['dag_run'].run_type}")
@@ -503,27 +496,17 @@ def extract_demand_events(**context):
             logger.info("No demand events in window")
             return []
 
-        logger.info(f"Total demand events to extract: {total_count}")
+        chunks = []
+        for offset in range(0, total_count, STREAM_BATCH_SIZE):
+            chunks.append({
+                'offset': offset,
+                'limit': STREAM_BATCH_SIZE,
+                'window_start': window_start.isoformat(),
+                'window_end': window_end.isoformat(),
+            })
 
-        all_raw_jsons = []
-        offset = 0
-
-        while offset < total_count:
-            logger.info(f"Extracting batch: {offset} to {offset + STREAM_BATCH_SIZE} of {total_count}")
-
-            raw_jsons = fetch_demand_events(
-                client, window_start, window_end,
-                limit=STREAM_BATCH_SIZE, offset=offset
-            )
-
-            if not raw_jsons:
-                break
-
-            all_raw_jsons.extend(raw_jsons)
-            offset += STREAM_BATCH_SIZE
-
-        logger.info(f"Demand extraction complete: {len(all_raw_jsons)} raw events")
-        return all_raw_jsons
+        logger.info(f"Demand: {total_count} rows -> {len(chunks)} chunks of {STREAM_BATCH_SIZE}")
+        return chunks
 
     finally:
         client.close()
@@ -532,110 +515,118 @@ def extract_demand_events(**context):
 # -- Transform task functions -------------------------------------------------
 
 
-def transform_property_events(**context):
-    """Transform raw JSON strings into structured rows for silver tables.
+@task
+def transform_property_chunk(chunk_info):
+    """Fetch and transform a single chunk of property events.
 
-    Pulls raw JSONs from the extract task via XCom, parses each event,
-    and returns structured rows for property_address, unit, and owner entities.
+    Reads STREAM_BATCH_SIZE raw JSONs from ClickHouse, parses them,
+    and returns structured rows for the 3 property silver tables.
+    Memory usage is bounded to one chunk at a time.
     """
-    ti = context['ti']
-    raw_jsons = ti.xcom_pull(task_ids='extract_property_events') or []
+    ws = datetime.fromisoformat(chunk_info['window_start'])
+    we = datetime.fromisoformat(chunk_info['window_end'])
+    offset = chunk_info['offset']
+    limit = chunk_info['limit']
 
-    if not raw_jsons:
-        logger.info("No raw property events to transform")
-        return {'property_rows': [], 'unit_rows': [], 'owner_rows': []}
+    logger.info(f"Transform property chunk: offset={offset}, limit={limit}")
 
-    logger.info(f"Transforming {len(raw_jsons)} raw property events")
+    client = get_client()
+    try:
+        raw_jsons = fetch_property_events(client, ws, we, limit=limit, offset=offset)
 
-    prop_rows = []
-    unit_rows = []
-    owner_rows = []
+        prop_rows = []
+        unit_rows = []
+        owner_rows = []
 
-    for raw_json in raw_jsons:
-        try:
-            event = json.loads(raw_json)
-        except json.JSONDecodeError:
-            logger.warning("Skipping invalid JSON")
-            continue
+        for raw_json in raw_jsons:
+            try:
+                event = json.loads(raw_json)
+            except json.JSONDecodeError:
+                logger.warning("Skipping invalid JSON")
+                continue
 
-        prop = event.get('property', {}) or {}
-        pid = prop.get('propertyId', '')
-        if not pid:
-            continue
+            prop = event.get('property', {}) or {}
+            if not prop.get('propertyId', ''):
+                continue
 
-        prop_rows.append(extract_property_address(event, prop))
-        unit_rows.extend(extract_units(event, prop))
-        owner_rows.extend(extract_owners(event, prop))
+            prop_rows.append(extract_property_address(event, prop))
+            unit_rows.extend(extract_units(event, prop))
+            owner_rows.extend(extract_owners(event, prop))
 
-    logger.info(
-        f"Property transform complete: {len(prop_rows)} properties, "
-        f"{len(unit_rows)} units, {len(owner_rows)} owners"
-    )
-    return {
-        'property_rows': prop_rows,
-        'unit_rows': unit_rows,
-        'owner_rows': owner_rows,
-    }
+        logger.info(
+            f"Property chunk done: {len(prop_rows)} props, "
+            f"{len(unit_rows)} units, {len(owner_rows)} owners"
+        )
+        return {
+            'property_rows': prop_rows,
+            'unit_rows': unit_rows,
+            'owner_rows': owner_rows,
+        }
+
+    finally:
+        client.close()
 
 
-def transform_demand_events(**context):
-    """Transform raw JSON strings into structured rows for demand silver table.
+@task
+def transform_demand_chunk(chunk_info):
+    """Fetch and transform a single chunk of demand events.
 
-    Pulls raw JSONs from the extract task via XCom, parses each event,
+    Reads STREAM_BATCH_SIZE raw JSONs from ClickHouse, parses them,
     and returns structured demand rows.
+    Memory usage is bounded to one chunk at a time.
     """
-    ti = context['ti']
-    raw_jsons = ti.xcom_pull(task_ids='extract_demand_events') or []
+    ws = datetime.fromisoformat(chunk_info['window_start'])
+    we = datetime.fromisoformat(chunk_info['window_end'])
+    offset = chunk_info['offset']
+    limit = chunk_info['limit']
 
-    if not raw_jsons:
-        logger.info("No raw demand events to transform")
-        return {'demand_rows': []}
+    logger.info(f"Transform demand chunk: offset={offset}, limit={limit}")
 
-    logger.info(f"Transforming {len(raw_jsons)} raw demand events")
+    client = get_client()
+    try:
+        raw_jsons = fetch_demand_events(client, ws, we, limit=limit, offset=offset)
 
-    demand_rows = []
+        demand_rows = []
 
-    for raw_json in raw_jsons:
-        try:
-            event = json.loads(raw_json)
-        except json.JSONDecodeError:
-            logger.warning("Skipping invalid JSON")
-            continue
+        for raw_json in raw_jsons:
+            try:
+                event = json.loads(raw_json)
+            except json.JSONDecodeError:
+                logger.warning("Skipping invalid JSON")
+                continue
 
-        demand = event.get('demand', {}) or {}
-        did = demand.get('id', '')
-        if not did:
-            continue
+            demand = event.get('demand', {}) or {}
+            if not demand.get('id', ''):
+                continue
 
-        demand_rows.append(extract_demand(event, demand))
+            demand_rows.append(extract_demand(event, demand))
 
-    logger.info(f"Demand transform complete: {len(demand_rows)} demands")
-    return {'demand_rows': demand_rows}
+        logger.info(f"Demand chunk done: {len(demand_rows)} demands")
+        return {'demand_rows': demand_rows}
+
+    finally:
+        client.close()
 
 
 # -- Load task functions ------------------------------------------------------
 
 
-def load_property_events(**context):
-    """Load transformed property rows into ClickHouse silver tables.
+@task
+def load_property_chunk(transformed_data):
+    """Load a single chunk of transformed property data into ClickHouse.
 
-    Pulls structured rows from the transform task via XCom and inserts
-    them into property_address_entity, property_unit_entity, and
-    property_owner_entity tables in chunks.
+    Receives structured rows from the corresponding transform task
+    and batch-inserts into the 3 property silver tables.
     """
-    ti = context['ti']
-    transformed = ti.xcom_pull(task_ids='transform_property_events') or {}
-
-    prop_rows = transformed.get('property_rows', [])
-    unit_rows = transformed.get('unit_rows', [])
-    owner_rows = transformed.get('owner_rows', [])
+    prop_rows = transformed_data.get('property_rows', [])
+    unit_rows = transformed_data.get('unit_rows', [])
+    owner_rows = transformed_data.get('owner_rows', [])
 
     if not prop_rows and not unit_rows and not owner_rows:
-        logger.info("No property data to load")
         return {'properties': 0, 'units': 0, 'owners': 0}
 
     logger.info(
-        f"Loading {len(prop_rows)} properties, "
+        f"Loading property chunk: {len(prop_rows)} props, "
         f"{len(unit_rows)} units, {len(owner_rows)} owners"
     )
 
@@ -645,40 +636,33 @@ def load_property_events(**context):
         batch_insert(client, 'property_unit_entity', unit_rows, chunk_size=10000)
         batch_insert(client, 'property_owner_entity', owner_rows, chunk_size=10000)
 
-        counts = {
+        return {
             'properties': len(prop_rows),
             'units': len(unit_rows),
             'owners': len(owner_rows),
         }
-        logger.info(f"Property load complete: {counts}")
-        return counts
 
     finally:
         client.close()
 
 
-def load_demand_events(**context):
-    """Load transformed demand rows into ClickHouse silver table.
+@task
+def load_demand_chunk(transformed_data):
+    """Load a single chunk of transformed demand data into ClickHouse.
 
-    Pulls structured rows from the transform task via XCom and inserts
-    them into demand_with_details_entity table in chunks.
+    Receives structured rows from the corresponding transform task
+    and batch-inserts into the demand silver table.
     """
-    ti = context['ti']
-    transformed = ti.xcom_pull(task_ids='transform_demand_events') or {}
-
-    demand_rows = transformed.get('demand_rows', [])
+    demand_rows = transformed_data.get('demand_rows', [])
 
     if not demand_rows:
-        logger.info("No demand data to load")
         return {'demands': 0}
 
-    logger.info(f"Loading {len(demand_rows)} demands")
+    logger.info(f"Loading demand chunk: {len(demand_rows)} demands")
 
     client = get_client()
     try:
         batch_insert(client, 'demand_with_details_entity', demand_rows, chunk_size=10000)
-
-        logger.info(f"Demand load complete: {len(demand_rows)} rows")
         return {'demands': len(demand_rows)}
 
     finally:
@@ -690,7 +674,7 @@ def load_demand_events(**context):
 with DAG(
     'property_tax_raw_to_silver',
     default_args=default_args,
-    description='Daily raw JSON -> ReplacingMergeTree silver tables',
+    description='Daily raw JSON -> ReplacingMergeTree silver tables (dynamic task mapping)',
     schedule='30 1 * * *',
     start_date=make_aware(datetime(2025, 1, 1)),
     catchup=False,
@@ -700,45 +684,28 @@ with DAG(
 
     start = EmptyOperator(task_id='start')
 
-    # Property pipeline: Extract -> Transform -> Load
-    extract_props = PythonOperator(
-        task_id='extract_property_events',
-        python_callable=extract_property_events,
-    )
-    transform_props = PythonOperator(
-        task_id='transform_property_events',
-        python_callable=transform_property_events,
-    )
-    load_props = PythonOperator(
-        task_id='load_property_events',
-        python_callable=load_property_events,
-    )
+    # Property pipeline: Extract chunk offsets -> Transform per chunk -> Load per chunk
+    property_chunks = extract_property_chunks()
+    transformed_props = transform_property_chunk.expand(chunk_info=property_chunks)
+    loaded_props = load_property_chunk.expand(transformed_data=transformed_props)
 
-    # Demand pipeline: Extract -> Transform -> Load
-    extract_demands = PythonOperator(
-        task_id='extract_demand_events',
-        python_callable=extract_demand_events,
-    )
-    transform_demands = PythonOperator(
-        task_id='transform_demand_events',
-        python_callable=transform_demand_events,
-    )
-    load_demands = PythonOperator(
-        task_id='load_demand_events',
-        python_callable=load_demand_events,
-    )
+    # Demand pipeline: Extract chunk offsets -> Transform per chunk -> Load per chunk
+    demand_chunks = extract_demand_chunks()
+    transformed_demands = transform_demand_chunk.expand(chunk_info=demand_chunks)
+    loaded_demands = load_demand_chunk.expand(transformed_data=transformed_demands)
 
     trigger_rmv_refresh = TriggerDagRunOperator(
         task_id='trigger_rmv_refresh',
         trigger_dag_id='clickhouse_rmv_sequential_refresh',
         wait_for_completion=False,
+        trigger_rule='none_failed_min_one_success',
     )
 
     end = EmptyOperator(task_id='end')
 
-    # Property pipeline
-    start >> extract_props >> transform_props >> load_props >> trigger_rmv_refresh
-    # Demand pipeline (runs in parallel with property pipeline)
-    start >> extract_demands >> transform_demands >> load_demands >> trigger_rmv_refresh
-    # Final
+    # Wire pipelines (both run in parallel)
+    start >> property_chunks
+    start >> demand_chunks
+    loaded_props >> trigger_rmv_refresh
+    loaded_demands >> trigger_rmv_refresh
     trigger_rmv_refresh >> end
