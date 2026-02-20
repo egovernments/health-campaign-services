@@ -128,6 +128,7 @@ const config = {
     healthIndividualHost: process.env.EGOV_HEALTH_INDIVIDUAL_HOST || "https://unified-dev.digit.org/",
     planServiceHost: process.env.EGOV_PLAN_SERVICE_HOST || "https://unified-dev.digit.org/",
     censusServiceHost: process.env.EGOV_CENSUS_HOST || "https://unified-dev.digit.org/",
+    serviceRequestHost: process.env.EGOV_SERVICE_REQUEST_HOST || "https://unified-dev.digit.org/"
   },
   // Paths for different services
   paths: {
@@ -172,6 +173,8 @@ const config = {
     excelIngestionProcess: process.env.EXCEL_INGESTION_PROCESS || "excel-ingestion/v1/data/process/_create",
     excelIngestionGenerate: process.env.EXCEL_INGESTION_GENERATE || "excel-ingestion/v1/data/generate/_init",
     excelIngestionGenerateSearch:process.env.EXCEL_INGESTION_GENERATE_SEARCH || "excel-ingestion/v1/data/generate/_search",
+    serviceDefinitionSearch: process.env.EGOV_SERVICE_DEFINITION_SEARCH_PATH || "health-service-request/service/definition/v1/_search",
+    serviceDefinitionCreate: process.env.EGOV_SERVICE_DEFINITION_CREATE_PATH || "health-service-request/service/definition/v1/_create",
   },
   // Values configuration
   values: {
