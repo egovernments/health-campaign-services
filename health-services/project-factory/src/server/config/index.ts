@@ -173,8 +173,8 @@ const config = {
     excelIngestionProcess: process.env.EXCEL_INGESTION_PROCESS || "excel-ingestion/v1/data/process/_create",
     excelIngestionGenerate: process.env.EXCEL_INGESTION_GENERATE || "excel-ingestion/v1/data/generate/_init",
     excelIngestionGenerateSearch:process.env.EXCEL_INGESTION_GENERATE_SEARCH || "excel-ingestion/v1/data/generate/_search",
-    serviceDefinitionSearch: process.env.EGOV_SERVICE_DEFINITION_SEARCH_PATH || "service-request/service/definition/v1/_search",
-    serviceDefinitionCreate: process.env.EGOV_SERVICE_DEFINITION_CREATE_PATH || "service-request/service/definition/v1/_create",
+    serviceDefinitionSearch: process.env.EGOV_SERVICE_DEFINITION_SEARCH_PATH || "health-service-request/service/definition/v1/_search",
+    serviceDefinitionCreate: process.env.EGOV_SERVICE_DEFINITION_CREATE_PATH || "health-service-request/service/definition/v1/_create",
   },
   // Values configuration
   values: {
