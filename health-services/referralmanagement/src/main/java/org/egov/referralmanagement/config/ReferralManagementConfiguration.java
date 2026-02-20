@@ -118,4 +118,6 @@ public class ReferralManagementConfiguration {
     @Value("${egov.enable.matview.search}")
     private boolean enableMatviewSearch;
 
+    @Value("${redis.downsync.cache.ttl}")
+    private Long redisDownsyncCacheTtl;
 }

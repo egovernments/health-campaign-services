@@ -540,7 +540,7 @@ public class DownsyncService {
     private void cacheByKey(Downsync downsync, String key) {
         try {
             redisTemplate.opsForValue().set(key, downsync);
-            redisTemplate.expire(key, 600l, TimeUnit.SECONDS);
+            redisTemplate.expire(key, configs.getRedisDownsyncCacheTtl(), TimeUnit.SECONDS);
         } catch (Exception exception) {
             log.warn("Error while saving to cache: {}", ExceptionUtils.getStackTrace(exception));
         }
