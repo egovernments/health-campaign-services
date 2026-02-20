@@ -32,7 +32,7 @@ export async function searchServiceDefinitions(
 
   const res = await httpRequest(url, requestBody, undefined, "post", "", { ...defaultheader });
   // response shape: { serviceDefinition: [...] } (as per ServiceDefinitionResponse)
-  return (res?.serviceDefinition || res?.ServiceDefinition || []) as ServiceDefinition[];
+  return (res?.ServiceDefinitions || res?.ServiceDefinitions || []) as ServiceDefinition[];
 }
 
 export async function createServiceDefinition(
