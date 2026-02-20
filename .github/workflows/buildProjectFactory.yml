@@ -5,7 +5,7 @@ on:
     branches:
       - allValidations
       - master
-      - checklist-clone-fix
+      - hcm-console
 
 env:
   DOCKER_USERNAME: ${{ vars.DOCKER_USERNAME }}
