@@ -1054,6 +1054,7 @@ async function enrichAndPersistCampaignForCreate(
         request.body.parentCampaign?.campaignName;
       request.body.CampaignDetails.isActive = true; // Set isActive to true for child campaigns
     }
+    processClonedChecklist(request?.body?.CampaignDetails, request?.body?.RequestInfo)
     processAppConfig(request?.body?.CampaignDetails, request?.body?.RequestInfo);
   }
   request.body.CampaignDetails.campaignDetails = {
@@ -1108,6 +1109,48 @@ async function processAppConfig(campaignDetails: any, RequestInfo: any) {
     logger.warn("Error while processing app config", error);
   }
 }
+async function processClonedChecklist(campaignDetails: any, RequestInfo: any) {
+  try {
+    if (!campaignDetails?.parentId) {
+      if (campaignDetails?.additionalDetails?.cloneFrom) {
+        // Clone the checklist from parent campaign
+        const clonedChecklists = await fetchCloneChecklist(
+          campaignDetails?.projectType,
+          campaignDetails?.additionalDetails?.cloneFrom,
+          campaignDetails?.tenantId
+        );
+
+        if (clonedChecklists.length) {
+          // Creation of cloned checklist
+          await createClonedChecklist(
+            clonedChecklists,
+            campaignDetails?.campaignName,
+            campaignDetails?.tenantId
+          );
+
+          // Upsert localisation for cloned checklist
+          const [locales, localisation] = await Promise.all([
+            getLocalesFromStateInfo(campaignDetails?.tenantId),
+            Localisation.getInstance(),
+          ]);
+
+          await upsertChecklistLocalization(
+            campaignDetails?.campaignNumber,
+            campaignDetails?.campaignName,
+            campaignDetails?.additionalDetails?.cloneFrom,
+            campaignDetails?.tenantId,
+            locales,
+            localisation,
+            RequestInfo
+          );
+        }
+      }
+    }
+  } catch (error) {
+    logger.warn("Error while processing cloned checklist", error);
+  }
+}
+
 
 export async function enrichAndPersistCampaignForCreateViaFlow2(
   campaignDetails: any,
@@ -2936,16 +2979,6 @@ export async function createAppConfigFromClone(
       };
 
       await createMdmsData(tenantId, configSchema, newModule, useruuid);
-
-
-      //clone the checklist from parent campaign
-      const clonedChecklists = await fetchCloneChecklist(projectType, cloneFromCampaignNumber, tenantId);
-      if (clonedChecklists.length) {
-        //creation of cloned checklist
-        await createClonedChecklist(clonedChecklists, newCampaignName, tenantId);
-        //upsert localisation for cloned checklist
-        await upsertChecklistLocalization(newCampaignNumber, newCampaignName, cloneFromCampaignNumber, tenantId, locales, localisation, RequestInfo);
-      }
 
     }
 
