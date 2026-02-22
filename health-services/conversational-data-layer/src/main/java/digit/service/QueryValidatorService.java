@@ -7,7 +7,6 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import digit.config.CdlConfiguration;
 import digit.web.models.QueryValidationResult;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.Iterator;
@@ -22,7 +21,6 @@ public class QueryValidatorService {
     private final ObjectMapper objectMapper;
     private final CdlConfiguration config;
 
-    @Autowired
     public QueryValidatorService(ObjectMapper objectMapper, CdlConfiguration config) {
         this.objectMapper = objectMapper;
         this.config = config;

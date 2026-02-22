@@ -1,54 +1,24 @@
 package digit.service;
 
-import com.anthropic.client.AnthropicClient;
-import com.anthropic.models.messages.ContentBlock;
-import com.anthropic.models.messages.Message;
-import com.anthropic.models.messages.MessageCreateParams;
-import com.anthropic.models.messages.TextBlock;
-import digit.config.CdlConfiguration;
+import digit.service.llm.LlmClient;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
 @Slf4j
 public class LlmTranslationService {
 
-    private final AnthropicClient anthropicClient;
-    private final CdlConfiguration config;
+    private final LlmClient llmClient;
 
-    @Autowired
-    public LlmTranslationService(AnthropicClient anthropicClient, CdlConfiguration config) {
-        this.anthropicClient = anthropicClient;
-        this.config = config;
+    public LlmTranslationService(LlmClient llmClient) {
+        this.llmClient = llmClient;
     }
 
     /**
-     * Sends the system prompt and user query to Claude and returns the raw response text.
+     * Sends the system prompt and user query to the LLM and returns the raw response text.
      */
     public String translate(String systemPrompt, String userMessage) {
-        log.info("Sending query to LLM model: {}", config.getAnthropicModel());
-
-        MessageCreateParams params = MessageCreateParams.builder()
-                .model(config.getAnthropicModel())
-                .maxTokens(config.getAnthropicMaxTokens())
-                .temperature(config.getAnthropicTemperature())
-                .system(systemPrompt)
-                .addUserMessage(userMessage)
-                .build();
-
-        Message message = anthropicClient.messages().create(params);
-
-        StringBuilder responseText = new StringBuilder();
-        for (ContentBlock block : message.content()) {
-            if (block.isText()) {
-                responseText.append(block.asText().text());
-            }
-        }
-
-        String rawResponse = responseText.toString().trim();
-        log.debug("LLM raw response: {}", rawResponse);
-        return rawResponse;
+        return llmClient.generate(systemPrompt, userMessage);
     }
 
     /**

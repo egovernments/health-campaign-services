@@ -6,7 +6,6 @@ import digit.web.models.CdlQueryRequest;
 import digit.web.models.CdlQueryResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.response.ResponseInfo;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -22,7 +21,6 @@ public class CdlQueryController {
     private final QueryOrchestrationService orchestrationService;
     private final ResponseInfoFactory responseInfoFactory;
 
-    @Autowired
     public CdlQueryController(QueryOrchestrationService orchestrationService,
                                ResponseInfoFactory responseInfoFactory) {
         this.orchestrationService = orchestrationService;

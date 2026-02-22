@@ -2,7 +2,6 @@ package digit.service;
 
 import digit.web.models.IndexSchema;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -11,7 +10,6 @@ public class PromptBuilderService {
 
     private final SchemaService schemaService;
 
-    @Autowired
     public PromptBuilderService(SchemaService schemaService) {
         this.schemaService = schemaService;
     }

@@ -1,7 +1,7 @@
 package digit.config;
 
-import com.anthropic.client.AnthropicClient;
-import com.anthropic.client.okhttp.AnthropicOkHttpClient;
+import digit.service.llm.LlmClient;
+import digit.service.llm.OllamaLlmClient;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -11,6 +11,8 @@ import org.elasticsearch.client.RestClient;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.web.client.RestTemplate;
 
 @Configuration
 @Data
@@ -19,18 +21,21 @@ import org.springframework.context.annotation.Configuration;
 @Builder
 public class CdlConfiguration {
 
-    // Anthropic
-    @Value("${cdl.anthropic.api.key}")
-    private String anthropicApiKey;
+    // LLM (Ollama)
+    @Value("${cdl.llm.provider}")
+    private String llmProvider;
 
-    @Value("${cdl.anthropic.model}")
-    private String anthropicModel;
+    @Value("${cdl.llm.ollama.base-url}")
+    private String ollamaBaseUrl;
 
-    @Value("${cdl.anthropic.max.tokens}")
-    private long anthropicMaxTokens;
+    @Value("${cdl.llm.ollama.model}")
+    private String ollamaModel;
 
-    @Value("${cdl.anthropic.temperature}")
-    private double anthropicTemperature;
+    @Value("${cdl.llm.ollama.temperature}")
+    private double ollamaTemperature;
+
+    @Value("${cdl.llm.ollama.timeout-ms}")
+    private long ollamaTimeoutMs;
 
     // Elasticsearch
     @Value("${cdl.elasticsearch.host}")
@@ -60,10 +65,16 @@ public class CdlConfiguration {
     private String defaultIndexName;
 
     @Bean
-    public AnthropicClient anthropicClient() {
-        return AnthropicOkHttpClient.builder()
-                .apiKey(anthropicApiKey)
-                .build();
+    public RestTemplate llmRestTemplate() {
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout((int) ollamaTimeoutMs);
+        factory.setReadTimeout((int) ollamaTimeoutMs);
+        return new RestTemplate(factory);
+    }
+
+    @Bean
+    public LlmClient llmClient(RestTemplate llmRestTemplate) {
+        return new OllamaLlmClient(llmRestTemplate, ollamaBaseUrl, ollamaModel, ollamaTemperature);
     }
 
     @Bean

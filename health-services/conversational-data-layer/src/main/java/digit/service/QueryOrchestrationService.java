@@ -5,7 +5,6 @@ import digit.config.CdlConfiguration;
 import digit.web.models.*;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.tracer.model.CustomException;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -26,7 +25,6 @@ public class QueryOrchestrationService {
     private final CdlConfiguration config;
     private final ObjectMapper objectMapper;
 
-    @Autowired
     public QueryOrchestrationService(PiiSanitizerService piiSanitizerService,
                                      SchemaService schemaService,
                                      PromptBuilderService promptBuilderService,

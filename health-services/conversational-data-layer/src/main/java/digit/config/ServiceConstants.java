@@ -38,6 +38,10 @@ public class ServiceConstants {
             "_update", "_delete", "_bulk", "_index"
     );
 
+    // Ollama
+    public static final String OLLAMA_GENERATE_PATH = "/api/generate";
+    public static final String OLLAMA_OPTION_TEMPERATURE = "temperature";
+
     // Allowed top-level DSL keys
     public static final Set<String> ALLOWED_TOP_LEVEL_KEYS = Set.of(
             "query", "size", "from", "sort", "timeout",

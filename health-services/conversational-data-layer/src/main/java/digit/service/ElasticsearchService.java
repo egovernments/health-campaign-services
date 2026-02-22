@@ -6,7 +6,6 @@ import org.apache.http.util.EntityUtils;
 import org.elasticsearch.client.Request;
 import org.elasticsearch.client.Response;
 import org.elasticsearch.client.RestClient;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.Map;
@@ -18,7 +17,6 @@ public class ElasticsearchService {
     private final RestClient restClient;
     private final ObjectMapper objectMapper;
 
-    @Autowired
     public ElasticsearchService(RestClient restClient, ObjectMapper objectMapper) {
         this.restClient = restClient;
         this.objectMapper = objectMapper;
