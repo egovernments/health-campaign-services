@@ -5,6 +5,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
@@ -27,7 +28,6 @@ import static org.egov.common.utils.ValidatorUtils.getErrorForNonExistentEntity;
 
 /**
  * Validator for checking the existence of Project entities based on their IDs in Referral objects.
- *
  * Author: hruthvikl-egov
  */
 @Component
@@ -55,80 +55,69 @@ public class RmProjectIdValidator implements Validator<ReferralBulkRequest, Refe
         Map<Referral, List<Error>> errorDetailsMap = new HashMap<>();
         List<Referral> entities = request.getReferrals();
 
-        if (!referralManagementConfiguration.getProjectIdValidatorEnabled()) {
-            return errorDetailsMap;
-        }
-
         // Grouping Referrals by tenantId to fetch projects for each tenant
         Map<String, List<Referral>> tenantIdReferralMap = entities.stream().collect(Collectors.groupingBy(Referral::getTenantId));
         tenantIdReferralMap.forEach((tenantId, referralList) -> {
             // Get all the existing projects in the referral list from Project Service
             List<Project> existingProjects = getExistingProjects(tenantId, referralList, request);
             // Validate projects and populate error map if invalid entities are found
-            validateAndPopulateErrors(existingProjects, entities, errorDetailsMap);
+            validateAndPopulateErrors(existingProjects, referralList, errorDetailsMap);
         });
 
         return errorDetailsMap;
     }
 
-    // Helper method to add an item to a list if it is not null
-    private void addIgnoreNull(List<String> list, String item) {
-        if (Objects.nonNull(item)) list.add(item);
-    }
-
     // Fetches existing projects from Project Service based on their IDs
     private List<Project> getExistingProjects(String tenantId, List<Referral> referrals, ReferralBulkRequest request) {
-        List<Project> existingProjects = null;
-        final List<String> projectIdList = new ArrayList<>();
+        // Collecting distinct project IDs from Referrals
+        List<String> projectIdList = referrals.stream()
+                .map(Referral::getProjectId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
 
-        // Collecting project IDs from Referrals
-        referrals.forEach(referral -> {
-            addIgnoreNull(projectIdList, referral.getProjectId());
-        });
-
-        if (!projectIdList.isEmpty()) {
-            List<Project> projects = new ArrayList<>();
-            projectIdList.forEach(projectId -> projects.add(Project.builder().id(projectId).tenantId(tenantId).build()));
-
-            try {
-                // Using project search and fetching the valid IDs.
-                ProjectResponse projectResponse = serviceRequestClient.fetchResult(
-                        new StringBuilder(referralManagementConfiguration.getProjectHost()
-                                + referralManagementConfiguration.getProjectSearchUrl()
-                                + "?limit=" + referrals.size()
-                                + "&offset=0&tenantId=" + tenantId),
-                        ProjectRequest.builder()
-                                .requestInfo(request.getRequestInfo())
-                                .projects(projects)
-                                .build(),
-                        ProjectResponse.class
-                );
-                existingProjects = projectResponse.getProject();
-            } catch (Exception e) {
-                throw new CustomException("Projects failed to fetch", "Exception : " + e.getMessage());
-            }
+        if (projectIdList.isEmpty()) {
+            return new ArrayList<>();
         }
 
-        return existingProjects;
+        List<Project> projects = projectIdList.stream()
+                .map(projectId -> Project.builder().id(projectId).tenantId(tenantId).build())
+                .toList();
+
+        try {
+            // Using project search and fetching the valid IDs.
+            ProjectResponse projectResponse = serviceRequestClient.fetchResult(
+                    new StringBuilder(referralManagementConfiguration.getProjectHost()
+                            + referralManagementConfiguration.getProjectSearchUrl()
+                            + "?limit=" + projectIdList.size()
+                            + "&offset=0&tenantId=" + tenantId),
+                    ProjectRequest.builder()
+                            .requestInfo(request.getRequestInfo())
+                            .projects(projects)
+                            .build(),
+                    ProjectResponse.class
+            );
+            return projectResponse.getProject();
+        } catch (Exception e) {
+            throw new CustomException("Projects failed to fetch", "Exception : " + e.getMessage());
+        }
     }
 
     // Validates projects and populates the error map if invalid entities are found
     private void validateAndPopulateErrors(List<Project> existingProjects, List<Referral> entities, Map<Referral, List<Error>> errorDetailsMap) {
-        final List<String> existingProjectIds = new ArrayList<>();
-
-        // Extracting IDs from existing projects
-        existingProjects.forEach(project -> {
-            existingProjectIds.add(project.getId());
-        });
+        // Extracting IDs from existing projects into a Set for O(1) lookups
+        final Set<String> existingProjectIds = existingProjects.stream()
+                .map(Project::getId)
+                .collect(Collectors.toSet());
 
         // Filtering invalid entities
         List<Referral> invalidEntities = entities.stream().filter(notHavingErrors()).filter(entity ->
                 Objects.nonNull(entity.getProjectId()) && !existingProjectIds.contains(entity.getProjectId())
-        ).collect(Collectors.toList());
+        ).toList();
 
         // Populating error details for invalid entities
         invalidEntities.forEach(referral -> {
-            log.error("Project doesn't exist for Referral: {}", referral.getProjectId());
+            log.warn("Project doesn't exist for Referral: {}", referral.getProjectId());
             Error error = getErrorForNonExistentEntity();
             populateErrorDetails(referral, error, errorDetailsMap);
         });
