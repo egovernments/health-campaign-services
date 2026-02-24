@@ -22,6 +22,10 @@ import java.util.List;
 @SuperBuilder
 public class Referral extends EgovOfflineModel {
 
+    @JsonProperty("projectId")
+    @Size(min = 2, max = 64)
+    private String projectId;
+
     @JsonProperty("projectBeneficiaryId")
     @Size(min = 2, max = 64)
     private String projectBeneficiaryId;

@@ -1,5 +1,9 @@
 All notable changes to this module will be documented in this file.
 
+## 1.0.30 - 2026-02-11
+
+- Added projectId field to Referral model for project tracking
+
 ## 1.0.28 - 2025-07-23
 
 - updated generated beneficiary id model
