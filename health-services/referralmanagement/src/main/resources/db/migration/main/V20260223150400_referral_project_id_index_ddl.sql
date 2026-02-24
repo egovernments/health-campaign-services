@@ -1,1 +1,0 @@
-CREATE INDEX IF NOT EXISTS idx_referral_projectid ON REFERRAL(projectid);
