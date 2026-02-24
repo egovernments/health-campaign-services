@@ -532,6 +532,31 @@ class CommonUtilsTest {
     }
 
     @Test
+    @DisplayName("should populate error details map for DataAccessException")
+    void shouldPopulateErrorDetailsMapForDataAccessException() {
+        RequestInfo requestInfo = RequestInfoTestBuilder.builder()
+                .withCompleteRequestInfo().build();
+        SomeObject someObject = SomeObject.builder().otherField("other-field")
+                .requestInfo(requestInfo).build();
+        OtherObject otherObject = OtherObject.builder().someOtherField("some").build();
+        List<OtherObject> validPayloads = Arrays.asList(otherObject);
+        Map<OtherObject, ErrorDetails> errorDetailsMap = new HashMap<>();
+        DataAccessException exception = new BadSqlGrammarException(
+                "test", "SELECT * FROM invalid_table",
+                new java.sql.SQLException("relation \"invalid_table\" does not exist"));
+        CommonUtils.populateErrorDetails(someObject, errorDetailsMap, validPayloads,
+                exception, "setOtherObject");
+
+        assertEquals(1, errorDetailsMap.size());
+        assertEquals("QUERY_EXECUTION_ERROR",
+                errorDetailsMap.get(otherObject).getErrors().get(0).getErrorCode());
+        assertEquals(Error.ErrorType.NON_RECOVERABLE,
+                errorDetailsMap.get(otherObject).getErrors().get(0).getType());
+        assertTrue(errorDetailsMap.get(otherObject).getErrors().get(0)
+                .getErrorMessage().startsWith("Database query failed:"));
+    }
+
+    @Test
     @DisplayName("should not return clientReferenceId field if clientReferenceId field is not null and id is present")
     void shouldNotReturnClientRefIdIfNotNullAndIdIsPresent() {
         SomeObjectWithClientRefId someObject =SomeObjectWithClientRefId.builder()
