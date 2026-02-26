@@ -120,6 +120,13 @@ config:
         dockerfile: "build/maven-java17/Dockerfile"
       - work-dir: "health-services/individual/src/main/resources/db"
         image-name: "health-individual-db"
+  - name: "builds/health-campaign-services/health-services/worker-registry-java-17"
+    build:
+      - work-dir: "health-services/worker-registry"
+        image-name: "worker-registry"
+        dockerfile: "build/maven-java17/Dockerfile"
+      - work-dir: "health-services/worker-registry/src/main/resources/db"
+        image-name: "worker-registry-db"
   - name: "builds/health-campaign-services/health-services/health-attendance"
     build:
       - work-dir: "health-services/attendance"
