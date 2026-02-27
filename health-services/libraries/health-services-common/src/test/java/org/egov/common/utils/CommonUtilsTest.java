@@ -862,11 +862,9 @@ class CommonUtilsTest {
                                                 .build()))
                                 .build());
 
-                try {
-                        CommonUtils.handleErrors(errorDetailsMap, false, "some-error-code");
-                } catch (CustomException e) {
-                        assertEquals(e.getCode(), "some-error-code");
-                }
+                CustomException e = assertThrows(CustomException.class,
+                        () -> CommonUtils.handleErrors(errorDetailsMap, false, "some-error-code"));
+                assertEquals("some-error-code", e.getCode());
 
         }
 
