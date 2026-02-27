@@ -36,7 +36,10 @@ public class OllamaLlmClient implements LlmClient {
                 .build();
 
         String url = baseUrl + OLLAMA_GENERATE_PATH;
+        long start = System.currentTimeMillis();
         OllamaResponse response = restTemplate.postForObject(url, request, OllamaResponse.class);
+        long latencyMs = System.currentTimeMillis() - start;
+        log.info("Ollama response received in {}ms", latencyMs);
 
         if (response == null || response.getResponse() == null) {
             throw new IllegalStateException("Ollama returned a null response");

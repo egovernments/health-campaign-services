@@ -1,24 +1,40 @@
 package digit.service;
 
+import digit.config.CdlConfiguration;
 import digit.service.llm.LlmClient;
 import lombok.extern.slf4j.Slf4j;
+import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Service;
+
+import static digit.config.ErrorConstants.PROMPT_TOO_LONG_CODE;
+import static digit.config.ErrorConstants.PROMPT_TOO_LONG_MSG;
 
 @Service
 @Slf4j
 public class LlmTranslationService {
 
     private final LlmClient llmClient;
+    private final CdlConfiguration config;
 
-    public LlmTranslationService(LlmClient llmClient) {
+    public LlmTranslationService(LlmClient llmClient, CdlConfiguration config) {
         this.llmClient = llmClient;
+        this.config = config;
     }
 
     /**
      * Sends the system prompt and user query to the LLM and returns the raw response text.
      */
     public String translate(String systemPrompt, String userMessage) {
-        return llmClient.generate(systemPrompt, userMessage);
+        int promptLength = systemPrompt.length() + userMessage.length();
+        if (promptLength > config.getMaxPromptLength()) {
+            throw new CustomException(PROMPT_TOO_LONG_CODE,
+                    PROMPT_TOO_LONG_MSG + " (" + promptLength + " > " + config.getMaxPromptLength() + ")");
+        }
+
+        long start = System.currentTimeMillis();
+        String result = llmClient.generate(systemPrompt, userMessage);
+        log.info("LLM translation completed in {}ms", System.currentTimeMillis() - start);
+        return result;
     }
 
     /**

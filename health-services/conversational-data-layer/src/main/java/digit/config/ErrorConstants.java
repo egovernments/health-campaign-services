@@ -24,4 +24,19 @@ public class ErrorConstants {
 
     public static final String PARSE_ERROR_CODE = "CDL_PARSE_ERROR";
     public static final String PARSE_ERROR_MSG = "Failed to parse LLM response as valid JSON";
+
+    public static final String OPENAI_KEY_MISSING_CODE = "CDL_OPENAI_KEY_MISSING";
+    public static final String OPENAI_KEY_MISSING_MSG = "OpenAI API key is required when provider is set to openai";
+
+    public static final String GROQ_KEY_MISSING_CODE = "CDL_GROQ_KEY_MISSING";
+    public static final String GROQ_KEY_MISSING_MSG = "Groq API key is required when provider is set to groq";
+
+    public static final String ANTHROPIC_KEY_MISSING_CODE = "CDL_ANTHROPIC_KEY_MISSING";
+    public static final String ANTHROPIC_KEY_MISSING_MSG = "Anthropic API key is required when provider is set to anthropic";
+
+    public static final String PROMPT_TOO_LONG_CODE = "CDL_PROMPT_TOO_LONG";
+    public static final String PROMPT_TOO_LONG_MSG = "Combined prompt length exceeds maximum allowed length";
+
+    public static final String LLM_PROVIDER_UNKNOWN_CODE = "CDL_UNKNOWN_PROVIDER";
+    public static final String LLM_PROVIDER_UNKNOWN_MSG = "Unknown LLM provider: ";
 }

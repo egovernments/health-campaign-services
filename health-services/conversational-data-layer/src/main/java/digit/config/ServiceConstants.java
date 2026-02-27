@@ -38,9 +38,43 @@ public class ServiceConstants {
             "_update", "_delete", "_bulk", "_index"
     );
 
+    // LLM providers
+    public static final String LLM_PROVIDER_OLLAMA = "ollama";
+    public static final String LLM_PROVIDER_OPENAI = "openai";
+    public static final String LLM_PROVIDER_GROQ = "groq";
+    public static final String LLM_PROVIDER_ANTHROPIC = "anthropic";
+
     // Ollama
     public static final String OLLAMA_GENERATE_PATH = "/api/generate";
     public static final String OLLAMA_OPTION_TEMPERATURE = "temperature";
+
+    // OpenAI
+    public static final String OPENAI_CHAT_COMPLETIONS_PATH = "/v1/chat/completions";
+    public static final String OPENAI_ROLE_SYSTEM = "system";
+    public static final String OPENAI_ROLE_USER = "user";
+    public static final String OPENAI_AUTH_HEADER = "Authorization";
+    public static final String OPENAI_BEARER_PREFIX = "Bearer ";
+
+    // Groq (OpenAI-compatible)
+    public static final String GROQ_CHAT_COMPLETIONS_PATH = "/openai/v1/chat/completions";
+    public static final String GROQ_ROLE_SYSTEM = "system";
+    public static final String GROQ_ROLE_USER = "user";
+    public static final String GROQ_AUTH_HEADER = "Authorization";
+    public static final String GROQ_BEARER_PREFIX = "Bearer ";
+
+    // Anthropic
+    public static final String ANTHROPIC_MESSAGES_PATH = "/v1/messages";
+    public static final String ANTHROPIC_API_KEY_HEADER = "x-api-key";
+    public static final String ANTHROPIC_VERSION_HEADER = "anthropic-version";
+    public static final String ANTHROPIC_VERSION_VALUE = "2023-06-01";
+    public static final String ANTHROPIC_ROLE_USER = "user";
+
+    // Elasticsearch auth types
+    public static final String ES_AUTH_NONE = "none";
+    public static final String ES_AUTH_BASIC = "basic";
+    public static final String ES_AUTH_API_KEY = "api-key";
+    public static final String ES_AUTH_HEADER = "Authorization";
+    public static final String ES_API_KEY_PREFIX = "ApiKey ";
 
     // Allowed top-level DSL keys
     public static final Set<String> ALLOWED_TOP_LEVEL_KEYS = Set.of(
