@@ -3,7 +3,11 @@ package org.egov.healthnotification.consumer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.egov.common.models.core.AdditionalFields;
+import org.egov.common.models.core.Field;
 import org.egov.common.models.project.Task;
+import org.egov.common.models.project.TaskStatus;
+import org.egov.healthnotification.Constants;
 import org.egov.healthnotification.service.PostDistributionService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -14,6 +18,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Kafka consumer for Project Task events.
@@ -53,15 +58,73 @@ public class ProjectTaskConsumer {
                     (String) payload.value(),
                     Task[].class));
 
-            log.info("Processing {} tasks for notification scheduling", tasks.size());
+            log.info("Received {} tasks from Kafka", tasks.size());
 
-            // Process distribution tasks and schedule notifications
-            postDistributionService.processDistributionTasks(tasks);
+            // Filter tasks based on status and deliveryStrategy
+            List<Task> filteredTasks = tasks.stream()
+                    .filter(task -> isTaskEligibleForNotification(task))
+                    .collect(Collectors.toList());
 
-            log.info("Successfully processed {} tasks", tasks.size());
+            log.info("Filtered {} tasks out of {} for notification scheduling (status=ADMINISTRATION_SUCCESS, deliveryStrategy=DIRECT)",
+                    filteredTasks.size(), tasks.size());
+
+            if (!filteredTasks.isEmpty()) {
+                // Process distribution tasks and schedule notifications
+                postDistributionService.processDistributionTasks(filteredTasks);
+                log.info("Successfully processed {} filtered tasks", filteredTasks.size());
+            } else {
+                log.info("No tasks match the filtering criteria. Skipping notification processing.");
+            }
 
         } catch (Exception exception) {
             log.error("Error processing task create event from topic: {}", topic, exception);
         }
+    }
+
+    /**
+     * Checks if a task is eligible for notification processing.
+     * A task is eligible if:
+     * 1. Status is ADMINISTRATION_SUCCESS
+     * 2. deliveryStrategy in additionalFields is "DIRECT"
+     *
+     * @param task The task to check
+     * @return true if task meets both conditions, false otherwise
+     */
+    private boolean isTaskEligibleForNotification(Task task) {
+        // Check if status is ADMINISTRATION_SUCCESS
+        if (task.getStatus() != TaskStatus.ADMINISTRATION_SUCCESS) {
+            log.debug("Task {} skipped: status is {} (expected ADMINISTRATION_SUCCESS)",
+                    task.getId(), task.getStatus());
+            return false;
+        }
+
+        // Check if deliveryStrategy is DIRECT
+        if (!hasDeliveryStrategyDirect(task)) {
+            log.debug("Task {} skipped: deliveryStrategy is not DIRECT", task.getId());
+            return false;
+        }
+
+        log.debug("Task {} is eligible for notification", task.getId());
+        return true;
+    }
+
+    /**
+     * Checks if the task has deliveryStrategy set to "DIRECT" in additionalFields.
+     *
+     * @param task The task to check
+     * @return true if deliveryStrategy is DIRECT, false otherwise
+     */
+    private boolean hasDeliveryStrategyDirect(Task task) {
+        AdditionalFields additionalFields = task.getAdditionalFields();
+
+        // Check if additionalFields exists
+        if (additionalFields == null || additionalFields.getFields() == null) {
+            return false;
+        }
+
+        // Search for deliveryStrategy field with value "DIRECT"
+        return additionalFields.getFields().stream()
+                .anyMatch(field -> Constants.DELIVERY_STRATEGY_KEY.equals(field.getKey())
+                        && Constants.DELIVERY_STRATEGY_DIRECT.equals(field.getValue()));
     }
 }
