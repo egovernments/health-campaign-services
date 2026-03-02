@@ -280,7 +280,7 @@ public class ProjectTaskTransformationService {
 
                 for (String code : value.split(COMMA)) {
                     String trimmed = code.trim();
-                    if (trimmed.startsWith("(01)")) {
+                    if (trimmed.startsWith("("+ transformerProperties.getBednetScanningManualCodePrefix()+")")) {
                         manualCodes.add(trimmed);
                     } else {
                         codesScanned.add(trimmed);

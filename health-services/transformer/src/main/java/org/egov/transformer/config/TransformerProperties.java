@@ -242,4 +242,7 @@ public class TransformerProperties {
 
     @Value("${bale.scanning.manual.scan.keys}")
     private String baleScanningManualKeys;
+
+    @Value("${bednet.scanning.manual.code.prefix}")
+    private String bednetScanningManualCodePrefix;
 }
