@@ -37,7 +37,7 @@ public class IndividualService {
      *
      * @param individualId The individual ID to search for
      * @param tenantId The tenant ID
-     * @return The Individual object, or null if not found
+     * @return The Individual object
      */
     public Individual searchIndividualById(String individualId, String tenantId) {
         log.info("Searching individual by ID: {} for tenant: {}", individualId, tenantId);
@@ -64,13 +64,17 @@ public class IndividualService {
 
             if (response != null && response.getIndividual() != null
                     && !response.getIndividual().isEmpty()) {
-                log.info("Found individual: {}", individualId);
-                return response.getIndividual().get(0);
+                Individual individual = response.getIndividual().get(0);
+                log.info("Successfully fetched individual: {}", individualId);
+                return individual;
             }
 
-            log.warn("Individual not found: {}", individualId);
-            return null;
+            log.error("Individual not found for id: {}", individualId);
+            throw new CustomException("INDIVIDUAL_NOT_FOUND",
+                    String.format("Individual not found for id: %s, tenantId: %s", individualId, tenantId));
 
+        } catch (CustomException e) {
+            throw e;
         } catch (Exception e) {
             log.error("Error fetching individual: {}", individualId, e);
             throw new CustomException("INDIVIDUAL_FETCH_ERROR",
