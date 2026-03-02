@@ -14,4 +14,7 @@ public class Constants {
     // Task filtering constants
     public static final String DELIVERY_STRATEGY_KEY = "deliveryStrategy";
     public static final String DELIVERY_STRATEGY_DIRECT = "DIRECT";
+
+    // Event notification constants
+    public static final String EVENT_TYPE_SUFFIX_POST_DISTRIBUTION = "_POST_DISTRIBUTION";
 }

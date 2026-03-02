@@ -4,15 +4,21 @@ package org.egov.healthnotification.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.models.household.HouseholdMember;
+import org.egov.common.models.individual.Individual;
 import org.egov.common.models.project.Project;
+import org.egov.common.models.project.ProjectBeneficiary;
 import org.egov.common.models.project.Task;
+import org.egov.healthnotification.Constants;
 import org.egov.healthnotification.web.models.MdmsV2Data;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 
 @Service
@@ -21,14 +27,20 @@ public class PostDistributionService {
 
     private final ProjectService projectService;
     private final MdmsService mdmsService;
+    private final HouseholdService householdService;
+    private final IndividualService individualService;
     private final ObjectMapper objectMapper;
 
     @Autowired
     public PostDistributionService(ProjectService projectService,
                                    MdmsService mdmsService,
+                                   HouseholdService householdService,
+                                   IndividualService individualService,
                                    ObjectMapper objectMapper) {
         this.projectService = projectService;
         this.mdmsService = mdmsService;
+        this.householdService = householdService;
+        this.individualService = individualService;
         this.objectMapper = objectMapper;
     }
 
@@ -99,11 +111,14 @@ public class PostDistributionService {
 
                 // Step 4: Fetch household/beneficiary details based on beneficiaryType
                 String projectBeneficiaryClientRefId = task.getProjectBeneficiaryClientReferenceId();
-                Object householdDetails = fetchHouseHoldDetails(beneficiaryType, projectBeneficiaryClientRefId, projectType, tenantId);
+                Map<String, String> householdDetails = fetchHouseHoldDetails(beneficiaryType, projectBeneficiaryClientRefId, projectType, tenantId);
 
                 log.info("Fetched household details for task: {}, beneficiaryType: {}", task.getId(), beneficiaryType);
 
-                // TODO: Step 5 onwards - Continue processing SMS notification with household details
+                // Step 5: Process event notification for ITN_POST_DISTRIBUTION
+                processEventNotification(notificationConfig, projectType, task.getId(), householdDetails);
+
+                // TODO: Step 6 onwards - Continue with notification processing
             } catch (Exception e) {
                 log.error("Error processing distribution task: {}", task.getId(), e);
             }
@@ -114,23 +129,109 @@ public class PostDistributionService {
 
     /**
      * Fetches household or individual details based on the beneficiary type.
-     * This method will retrieve the appropriate beneficiary information needed for SMS notification.
+     * For HOUSEHOLD type: Retrieves household head's individual details for notification.
+     * For INDIVIDUAL type: Implementation pending.
      *
-     * @param beneficiaryType The type of beneficiary (e.g., "HOUSEHOLD", "INDIVIDUAL")
+     * @param beneficiaryType The type of beneficiary (HOUSEHOLD/INDIVIDUAL)
      * @param projectBeneficiaryClientRefId The client reference ID of the project beneficiary
      * @param projectType The type of project
      * @param tenantId The tenant ID
-     * @return Object containing household/individual details
+     * @return Map containing individual details (givenName, mobileNumber, altContactNumber, emailId, individualId)
      */
-    private Object fetchHouseHoldDetails(String beneficiaryType, String projectBeneficiaryClientRefId,
+    private Map<String, String> fetchHouseHoldDetails(String beneficiaryType, String projectBeneficiaryClientRefId,
                                          String projectType, String tenantId) {
-        log.info("Fetching household details for beneficiaryType: {}, clientRefId: {}, projectType: {}, tenantId: {}",
-                beneficiaryType, projectBeneficiaryClientRefId, projectType, tenantId);
+        log.info("Fetching household details for beneficiaryType: {}, tenantId: {}", beneficiaryType, tenantId);
 
-        // TODO: Implement logic to fetch household or individual details
+        Map<String, String> househeaddetails = new HashMap<>();
 
+        // Step 1: Fetch project beneficiary details by client reference ID
+        log.info("Fetching project beneficiary for clientRefId: {}", projectBeneficiaryClientRefId);
+        ProjectBeneficiary projectBeneficiary = projectService.searchProjectBeneficiaryByClientRefId(
+                projectBeneficiaryClientRefId, tenantId);
 
-        log.debug("fetchHouseHoldDetails implementation pending");
-        return null;
+        String beneficiaryClientReferenceId = projectBeneficiary.getBeneficiaryClientReferenceId();
+        log.info("Successfully fetched project beneficiary with beneficiaryClientRefId: {}", beneficiaryClientReferenceId);
+
+        if ("HOUSEHOLD".equals(beneficiaryType)) {
+            log.info("Beneficiary type is HOUSEHOLD, fetching household head details");
+
+            // Step 2: Fetch household head member by household client reference ID
+            HouseholdMember householdHead = householdService.searchHouseholdHeadByClientRefId(
+                    beneficiaryClientReferenceId, tenantId);
+
+            String individualId = householdHead.getIndividualId();
+            log.info("Successfully fetched household head with individualId: {}", individualId);
+
+            // Step 3: Fetch individual details using individual ID
+            Individual individual = individualService.searchIndividualById(individualId, tenantId);
+
+            // Step 4: Extract required fields and populate HashMap
+            househeaddetails.put("givenName", individual.getName() != null ? individual.getName().getGivenName() : null);
+            househeaddetails.put("mobileNumber", individual.getMobileNumber());
+            househeaddetails.put("altContactNumber", individual.getAltContactNumber());
+            househeaddetails.put("emailId", individual.getEmail());
+            househeaddetails.put("individualId", individualId);
+
+            log.info("Successfully populated household head details for individualId: {}", individualId);
+        }
+
+        return househeaddetails;
+    }
+
+    /**
+     * Processes event notification for POST_DISTRIBUTION.
+     * Filters eventNotifications array by eventType and extracts placeholders and scheduledNotifications.
+     *
+     * @param notificationConfig MDMS notification configuration
+     * @param projectType The project type (e.g., ITN, LLIN, SMC)
+     * @param taskId The task ID for logging
+     * @param householdDetails The household head details
+     */
+    private void processEventNotification(MdmsV2Data notificationConfig, String projectType,
+                                          String taskId, Map<String, String> householdDetails) {
+        String eventType = projectType + Constants.EVENT_TYPE_SUFFIX_POST_DISTRIBUTION;
+        log.info("Processing event notification for eventType: {}, taskId: {}", eventType, taskId);
+
+        JsonNode eventNotificationsNode = notificationConfig.getData().get("eventNotifications");
+        if (eventNotificationsNode == null || !eventNotificationsNode.isArray()) {
+            log.error("eventNotifications array not found for projectType: {}", projectType);
+            return;
+        }
+
+        // Filter: Find event by eventType
+        JsonNode eventNode = null;
+        for (JsonNode event : eventNotificationsNode) {
+            if (eventType.equals(event.path("eventType").asText())) {
+                eventNode = event;
+                break;
+            }
+        }
+
+        if (eventNode == null) {
+            log.info("Event type {} not found. Skipping notification.", eventType);
+            return;
+        }
+
+        // Check if event is enabled
+        if (!eventNode.path("enabled").asBoolean()) {
+            log.info("Event type {} is disabled. Skipping notification.", eventType);
+            return;
+        }
+
+        log.info("Event type {} is enabled. Processing notification.", eventType);
+
+        // Extract placeholders array
+        JsonNode placeholders = eventNode.get("placeholders");
+
+        // Extract scheduledNotifications array
+        JsonNode scheduledNotifications = eventNode.get("scheduledNotifications");
+        if (scheduledNotifications == null || !scheduledNotifications.isArray()) {
+            log.error("scheduledNotifications array not found for eventType: {}", eventType);
+            return;
+        }
+
+        log.info("Found {} scheduled notifications for eventType: {}", scheduledNotifications.size(), eventType);
+
+        // TODO: Process scheduled notifications
     }
 }

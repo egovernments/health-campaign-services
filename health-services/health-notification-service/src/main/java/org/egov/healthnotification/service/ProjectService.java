@@ -35,7 +35,7 @@ public class ProjectService {
      *
      * @param beneficiaryId The project beneficiary ID
      * @param tenantId The tenant ID
-     * @return ProjectBeneficiary object, or null if not found
+     * @return ProjectBeneficiary object
      */
     public ProjectBeneficiary searchProjectBeneficiaryById(String beneficiaryId, String tenantId) {
         log.info("Searching project beneficiary by ID: {} for tenant: {}", beneficiaryId, tenantId);
@@ -62,17 +62,75 @@ public class ProjectService {
 
             if (response != null && response.getProjectBeneficiaries() != null
                     && !response.getProjectBeneficiaries().isEmpty()) {
-                log.info("Found project beneficiary: {}", beneficiaryId);
-                return response.getProjectBeneficiaries().get(0);
+                ProjectBeneficiary projectBeneficiary = response.getProjectBeneficiaries().get(0);
+                log.info("Successfully fetched project beneficiary: {}", beneficiaryId);
+                return projectBeneficiary;
             }
 
-            log.warn("Project beneficiary not found: {}", beneficiaryId);
-            return null;
+            log.error("Project beneficiary not found for id: {}", beneficiaryId);
+            throw new CustomException("PROJECT_BENEFICIARY_NOT_FOUND",
+                    String.format("Project beneficiary not found for id: %s, tenantId: %s", beneficiaryId, tenantId));
 
+        } catch (CustomException e) {
+            throw e;
         } catch (Exception e) {
             log.error("Error fetching project beneficiary: {}", beneficiaryId, e);
             throw new CustomException("PROJECT_BENEFICIARY_FETCH_ERROR",
                     "Error while fetching project beneficiary details for id: " + beneficiaryId);
+        }
+    }
+
+    /**
+     * Searches for a project beneficiary by client reference ID.
+     * The client reference ID corresponds to the household or individual ID.
+     *
+     * @param clientReferenceId The project beneficiary client reference ID
+     * @param tenantId The tenant ID
+     * @return ProjectBeneficiary object
+     */
+    public ProjectBeneficiary searchProjectBeneficiaryByClientRefId(String clientReferenceId, String tenantId) {
+        log.info("Searching project beneficiary by clientReferenceId: {} for tenant: {}",
+                clientReferenceId, tenantId);
+
+        BeneficiarySearchRequest request = BeneficiarySearchRequest.builder()
+                .requestInfo(RequestInfoUtil.buildSystemRequestInfo())
+                .projectBeneficiary(ProjectBeneficiarySearch.builder()
+                        .clientReferenceId(Collections.singletonList(clientReferenceId))
+                        .build())
+                .build();
+
+        try {
+            StringBuilder uri = new StringBuilder();
+            uri.append(properties.getProjectHost())
+                    .append(properties.getProjectBeneficiarySearchUrl())
+                    .append("?limit=1000")
+                    .append("&offset=0")
+                    .append("&tenantId=").append(tenantId);
+
+            BeneficiaryBulkResponse response = serviceRequestClient.fetchResult(
+                    uri,
+                    request,
+                    BeneficiaryBulkResponse.class);
+
+            if (response != null && response.getProjectBeneficiaries() != null
+                    && !response.getProjectBeneficiaries().isEmpty()) {
+                ProjectBeneficiary projectBeneficiary = response.getProjectBeneficiaries().get(0);
+                log.info("Successfully fetched project beneficiary: {}, beneficiaryClientRefId: {}",
+                        projectBeneficiary.getId(), projectBeneficiary.getBeneficiaryClientReferenceId());
+                return projectBeneficiary;
+            }
+
+            log.error("Project beneficiary not found for clientRefId: {}", clientReferenceId);
+            throw new CustomException("PROJECT_BENEFICIARY_NOT_FOUND",
+                    String.format("Project beneficiary not found for clientReferenceId: %s, tenantId: %s",
+                            clientReferenceId, tenantId));
+
+        } catch (CustomException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Error fetching project beneficiary by clientReferenceId: {}", clientReferenceId, e);
+            throw new CustomException("PROJECT_BENEFICIARY_FETCH_ERROR",
+                    "Error while fetching project beneficiary details for clientReferenceId: " + clientReferenceId);
         }
     }
 
@@ -94,12 +152,11 @@ public class ProjectService {
      *
      * @param projectId The project ID to search for
      * @param tenantId The tenant ID
-     * @return Project object, or null if not found
+     * @return Project object
      */
     public Project searchProjectById(String projectId, String tenantId) {
         log.info("Searching project by ID: {} for tenant: {}", projectId, tenantId);
 
-        // Create a minimal project object with just ID and tenantId for search
         Project searchCriteria = Project.builder()
                 .id(projectId)
                 .tenantId(tenantId)
@@ -126,14 +183,18 @@ public class ProjectService {
 
             if (response != null && response.getProject() != null
                     && !response.getProject().isEmpty()) {
-                log.info("Found project: {} with projectType: {}",
-                        projectId, response.getProject().get(0).getProjectType());
-                return response.getProject().get(0);
+                Project project = response.getProject().get(0);
+                log.info("Successfully fetched project: {}, projectType: {}",
+                        projectId, project.getProjectType());
+                return project;
             }
 
-            log.warn("Project not found: {}", projectId);
-            return null;
+            log.error("Project not found for id: {}", projectId);
+            throw new CustomException("PROJECT_NOT_FOUND",
+                    String.format("Project not found for id: %s, tenantId: %s", projectId, tenantId));
 
+        } catch (CustomException e) {
+            throw e;
         } catch (Exception e) {
             log.error("Error fetching project: {}", projectId, e);
             throw new CustomException("PROJECT_FETCH_ERROR",
