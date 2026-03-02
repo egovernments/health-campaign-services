@@ -42,19 +42,15 @@ public class HealthNotificationProperties {
     @Value("${egov.individual.search.url}")
     private String individualSearchUrl;
 
-    // Project Beneficiary Service
-    @Value("${egov.project.beneficiary.host}")
-    private String projectBeneficiaryHost;
-
-    @Value("${egov.project.beneficiary.search.url}")
-    private String projectBeneficiarySearchUrl;
-
-    // Project Service
+    // Project Service (includes project and beneficiary endpoints)
     @Value("${egov.project.host}")
     private String projectHost;
 
     @Value("${egov.project.search.url}")
     private String projectSearchUrl;
+
+    @Value("${egov.project.beneficiary.search.url}")
+    private String projectBeneficiarySearchUrl;
 
     // MDMS Configuration
     @Value("${egov.mdms.host}")
@@ -62,6 +58,9 @@ public class HealthNotificationProperties {
 
     @Value("${egov.mdms.search.endpoint}")
     private String mdmsSearchEndpoint;
+
+    @Value("${egov.mdms.search.v2.endpoint}")
+    private String mdmsSearchV2Endpoint;
 
     @Value("${mdms.notification.module}")
     private String notificationModule;

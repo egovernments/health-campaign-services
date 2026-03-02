@@ -30,9 +30,7 @@ CREATE TABLE IF NOT EXISTS scheduled_notification
     -- Audit fields
     createdBy            character varying(64),
     lastModifiedBy       character varying(64),
-    lastModifiedTime     bigint,
-
-    CONSTRAINT uk_scheduled_notification_id PRIMARY KEY (id)
+    lastModifiedTime     bigint
 );
 
 -- Index for scheduled time and status queries (main query for picking pending notifications)
