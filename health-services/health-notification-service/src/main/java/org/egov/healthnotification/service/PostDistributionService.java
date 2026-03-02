@@ -1,6 +1,8 @@
 package org.egov.healthnotification.service;
 
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.models.project.Project;
 import org.egov.common.models.project.Task;
@@ -19,12 +21,15 @@ public class PostDistributionService {
 
     private final ProjectService projectService;
     private final MdmsService mdmsService;
+    private final ObjectMapper objectMapper;
 
     @Autowired
     public PostDistributionService(ProjectService projectService,
-                                   MdmsService mdmsService) {
+                                   MdmsService mdmsService,
+                                   ObjectMapper objectMapper) {
         this.projectService = projectService;
         this.mdmsService = mdmsService;
+        this.objectMapper = objectMapper;
     }
 
     /**
@@ -55,7 +60,24 @@ public class PostDistributionService {
 
                 String projectType = project.getProjectType();
 
-                log.info("Task: {} belongs to project type: {}", task.getId(), projectType);
+                // Fetch beneficiaryType from additionalDetails.projectType.beneficiaryType
+                String beneficiaryType = null;
+                try {
+                    if (project.getAdditionalDetails() != null) {
+                        JsonNode additionalDetailsNode = objectMapper.valueToTree(project.getAdditionalDetails());
+                        JsonNode projectTypeNode = additionalDetailsNode.get("projectType");
+                        if (projectTypeNode != null && !projectTypeNode.isNull()) {
+                            JsonNode beneficiaryTypeNode = projectTypeNode.get("beneficiaryType");
+                            if (beneficiaryTypeNode != null && !beneficiaryTypeNode.isNull()) {
+                                beneficiaryType = beneficiaryTypeNode.asText();
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    log.error("Error extracting beneficiaryType from additionalDetails for task: {}", task.getId(), e);
+                }
+
+                log.info("Task: {} belongs to project type: {}, beneficiaryType: {}", task.getId(), projectType, beneficiaryType);
 
                 // Step 2: Fetch MDMS notification configuration for this project type
                 MdmsV2Data notificationConfig = mdmsService.fetchNotificationConfigByProjectType(projectType, tenantId);
@@ -75,13 +97,40 @@ public class PostDistributionService {
                 log.info("SMS notification is enabled for projectType: {}, task: {}. Continuing with notification flow.",
                         projectType, task.getId());
 
-                // TODO: Step 4 onwards - Continue processing SMS notification
+                // Step 4: Fetch household/beneficiary details based on beneficiaryType
+                String projectBeneficiaryClientRefId = task.getProjectBeneficiaryClientReferenceId();
+                Object householdDetails = fetchHouseHoldDetails(beneficiaryType, projectBeneficiaryClientRefId, projectType, tenantId);
 
+                log.info("Fetched household details for task: {}, beneficiaryType: {}", task.getId(), beneficiaryType);
+
+                // TODO: Step 5 onwards - Continue processing SMS notification with household details
             } catch (Exception e) {
                 log.error("Error processing distribution task: {}", task.getId(), e);
             }
         });
 
         log.info("Completed processing {} distribution tasks", tasks.size());
+    }
+
+    /**
+     * Fetches household or individual details based on the beneficiary type.
+     * This method will retrieve the appropriate beneficiary information needed for SMS notification.
+     *
+     * @param beneficiaryType The type of beneficiary (e.g., "HOUSEHOLD", "INDIVIDUAL")
+     * @param projectBeneficiaryClientRefId The client reference ID of the project beneficiary
+     * @param projectType The type of project
+     * @param tenantId The tenant ID
+     * @return Object containing household/individual details
+     */
+    private Object fetchHouseHoldDetails(String beneficiaryType, String projectBeneficiaryClientRefId,
+                                         String projectType, String tenantId) {
+        log.info("Fetching household details for beneficiaryType: {}, clientRefId: {}, projectType: {}, tenantId: {}",
+                beneficiaryType, projectBeneficiaryClientRefId, projectType, tenantId);
+
+        // TODO: Implement logic to fetch household or individual details
+
+
+        log.debug("fetchHouseHoldDetails implementation pending");
+        return null;
     }
 }
