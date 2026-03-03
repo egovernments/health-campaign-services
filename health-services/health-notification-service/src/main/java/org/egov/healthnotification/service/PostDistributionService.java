@@ -61,7 +61,7 @@ public class PostDistributionService {
         tasks.forEach(task -> {
             try {
                 log.info("Processing distribution task: {} for project: {}, beneficiary: {}",
-                        task.getId(),
+                            task.getId(),
                         task.getProjectId(),
                         task.getProjectBeneficiaryId());
 
@@ -130,7 +130,8 @@ public class PostDistributionService {
                     return;
                 }
 
-                log.info("Fetched household details for task: {}, beneficiaryType: {}", task.getId(), beneficiaryType);
+                log.info("Fetched household details for task: {}, beneficiaryType: {}, details: {}",
+                        task.getId(), beneficiaryType, householdDetails);
 
                 // Step 5: Fetch event notification configuration for the given event type
                 String eventType = projectType + Constants.EVENT_TYPE_SUFFIX_POST_DISTRIBUTION;
@@ -163,11 +164,17 @@ public class PostDistributionService {
     }
 
     /**
-     * Fetches household or individual details based on the beneficiary type.
-     * For HOUSEHOLD type: Retrieves household head's individual details for notification.
-     * For INDIVIDUAL type: Implementation pending.
+     * Resolves the household head's Individual record based on the beneficiary type.
      *
-     * @param beneficiaryType The type of beneficiary (HOUSEHOLD/INDIVIDUAL)
+     * For HOUSEHOLD type:
+     *   clientRefId is a Household ID → find head member → get Individual by head's individualId
+     *
+     * For INDIVIDUAL type:
+     *   clientRefId is an Individual ID → reverse-lookup household member record
+     *   → if this individual IS the head, use their details directly
+     *   → if NOT the head, find the household's actual head and use their details
+     *
+     * @param beneficiaryType The type of beneficiary ("HOUSEHOLD" or "INDIVIDUAL")
      * @param projectBeneficiaryClientRefId The client reference ID of the project beneficiary
      * @param projectType The type of project
      * @param tenantId The tenant ID
@@ -208,6 +215,56 @@ public class PostDistributionService {
             househeaddetails.put("individualId", individualId);
 
             log.info("Successfully populated household head details for individualId: {}", individualId);
+
+        } else if ("INDIVIDUAL".equals(beneficiaryType)) {
+            log.info("Beneficiary type is INDIVIDUAL, resolving household head");
+
+            // Step 2: Reverse lookup — find which household this individual belongs to
+            HouseholdMember member = householdService.searchMemberByIndividualClientRefId(
+                    beneficiaryClientReferenceId, tenantId);
+
+            String headIndividualId;
+
+            if (Boolean.TRUE.equals(member.getIsHeadOfHousehold())) {
+                // This individual IS the head — use their details directly
+                log.info("Individual {} is the household head", beneficiaryClientReferenceId);
+                headIndividualId = member.getIndividualId();
+            } else {
+                // Not the head — this is a child/dependent. Find the actual head of this household.
+                String householdId = member.getHouseholdId();
+                log.info("Individual {} is NOT the head (child/dependent), looking up head for householdId: {}",
+                        beneficiaryClientReferenceId, householdId);
+
+                // Fetch the child's details for their name
+                Individual child = individualService.searchIndividualById(member.getIndividualId(), tenantId);
+                String childName = child.getName() != null ? child.getName().getGivenName() : null;
+                log.info("Child name resolved: {}", childName);
+
+                HouseholdMember head = householdService.searchHouseholdHead(householdId, tenantId);
+                headIndividualId = head.getIndividualId();
+
+                // Store child name for SMS template placeholder
+                househeaddetails.put("childName", childName);
+            }
+
+            log.info("Resolved household head individualId: {}", headIndividualId);
+
+            // Step 3: Fetch individual details using head's individual ID
+            Individual individual = individualService.searchIndividualById(headIndividualId, tenantId);
+
+            // Step 4: Extract required fields and populate HashMap
+            househeaddetails.put("givenName", individual.getName() != null ? individual.getName().getGivenName() : null);
+            househeaddetails.put("mobileNumber", individual.getMobileNumber());
+            househeaddetails.put("altContactNumber", individual.getAltContactNumber());
+            househeaddetails.put("emailId", individual.getEmail());
+            househeaddetails.put("individualId", headIndividualId);
+
+            log.info("Successfully populated household head details for individualId: {}", headIndividualId);
+
+        } else {
+            log.error("Unknown beneficiaryType: {} for clientRefId: {}", beneficiaryType, projectBeneficiaryClientRefId);
+            throw new CustomException("UNKNOWN_BENEFICIARY_TYPE",
+                    "Unsupported beneficiaryType: " + beneficiaryType + ". Expected HOUSEHOLD or INDIVIDUAL.");
         }
 
         return househeaddetails;
