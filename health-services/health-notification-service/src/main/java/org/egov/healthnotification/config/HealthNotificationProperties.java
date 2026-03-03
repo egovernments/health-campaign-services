@@ -21,6 +21,13 @@ public class HealthNotificationProperties {
     @Value("${kafka.topics.notification.sms}")
     private String smsNotificationTopic;
 
+    // Scheduled Notification Persister Topics
+    @Value("${scheduled.notification.save.topic}")
+    private String scheduledNotificationSaveTopic;
+
+    @Value("${scheduled.notification.update.topic}")
+    private String scheduledNotificationUpdateTopic;
+
     // Tenant Configuration
     @Value("${state.level.tenant.id}")
     private String stateLevelTenantId;
