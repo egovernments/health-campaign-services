@@ -40,11 +40,8 @@ public class ProjectTaskConsumer {
     }
 
     /**
-     * Consumes task creation events from Kafka topic.
-     * The topic contains an array of Task objects (Task[]) which is deserialized
-     * and converted to a List for processing.
-     *
-     * @param payload The Kafka ConsumerRecord containing Task[] array
+
+     * @param payload The Kafka ConsumerRecord containing the raw JSON string
      * @param topic The Kafka topic from which the message was received
      */
     @KafkaListener(topics = "${project.task.consumer.create.topic}")
@@ -53,10 +50,14 @@ public class ProjectTaskConsumer {
         try {
             log.info("Received task create event from topic: {}", topic);
 
-            // Deserialize Task array from Kafka message
             List<Task> tasks = Arrays.asList(objectMapper.readValue(
                     (String) payload.value(),
                     Task[].class));
+
+            if (tasks == null || tasks.isEmpty()) {
+                log.info("No tasks found in the message. Skipping notification processing.");
+                return;
+            }
 
             log.info("Received {} tasks from Kafka", tasks.size());
 
@@ -65,7 +66,7 @@ public class ProjectTaskConsumer {
                     .filter(task -> isTaskEligibleForNotification(task))
                     .collect(Collectors.toList());
 
-            log.info("Filtered {} tasks out of {} for notification scheduling (status=ADMINISTRATION_SUCCESS, deliveryStrategy=DIRECT)",
+            log.info("Filtered {} tasks out of {} for notification scheduling (status=ADMINISTRATION_SUCCESS, deliveryStrategy=DIRECT if present)",
                     filteredTasks.size(), tasks.size());
 
             if (!filteredTasks.isEmpty()) {
@@ -85,10 +86,13 @@ public class ProjectTaskConsumer {
      * Checks if a task is eligible for notification processing.
      * A task is eligible if:
      * 1. Status is ADMINISTRATION_SUCCESS
-     * 2. deliveryStrategy in additionalFields is "DIRECT"
+     * 2. deliveryStrategy in additionalFields is "DIRECT" (only checked if deliveryStrategy field exists)
+     *
+     * If deliveryStrategy field is not present (e.g., HOUSEHOLD beneficiaries),
+     * only the status check is applied.
      *
      * @param task The task to check
-     * @return true if task meets both conditions, false otherwise
+     * @return true if task meets the conditions, false otherwise
      */
     private boolean isTaskEligibleForNotification(Task task) {
         // Check if status is ADMINISTRATION_SUCCESS
@@ -110,21 +114,38 @@ public class ProjectTaskConsumer {
 
     /**
      * Checks if the task has deliveryStrategy set to "DIRECT" in additionalFields.
+     * If deliveryStrategy field is not present (e.g., for HOUSEHOLD beneficiaries),
+     * returns true to allow status-only filtering.
      *
      * @param task The task to check
-     * @return true if deliveryStrategy is DIRECT, false otherwise
+     * @return true if deliveryStrategy is DIRECT or not present, false if deliveryStrategy exists but is not DIRECT
      */
     private boolean hasDeliveryStrategyDirect(Task task) {
         AdditionalFields additionalFields = task.getAdditionalFields();
 
         // Check if additionalFields exists
         if (additionalFields == null || additionalFields.getFields() == null) {
-            return false;
+            // No additionalFields, allow task through (status-only filter)
+            return true;
         }
 
-        // Search for deliveryStrategy field with value "DIRECT"
-        return additionalFields.getFields().stream()
+        // Check if deliveryStrategy field exists
+        boolean deliveryStrategyExists = additionalFields.getFields().stream()
+                .anyMatch(field -> Constants.DELIVERY_STRATEGY_KEY.equals(field.getKey()));
+
+        if (!deliveryStrategyExists) {
+            // deliveryStrategy field not present (HOUSEHOLD case), allow task through
+            log.debug("Task {} has no deliveryStrategy field, allowing through (status-only filter)", task.getId());
+            return true;
+        }
+
+        // deliveryStrategy exists, check if value is "DIRECT"
+        boolean isDirect = additionalFields.getFields().stream()
                 .anyMatch(field -> Constants.DELIVERY_STRATEGY_KEY.equals(field.getKey())
                         && Constants.DELIVERY_STRATEGY_DIRECT.equals(field.getValue()));
+
+        log.debug("Task {} has deliveryStrategy field, value is {}",
+                task.getId(), isDirect ? "DIRECT" : "not DIRECT");
+        return isDirect;
     }
 }
