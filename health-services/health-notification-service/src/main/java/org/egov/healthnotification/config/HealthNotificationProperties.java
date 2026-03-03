@@ -81,6 +81,9 @@ public class HealthNotificationProperties {
     @Value("${egov.localization.statelevel}")
     private Boolean localizationStateLevel;
 
+    @Value("${egov.localization.notification.module}")
+    private String localizationNotificationModule;
+
     // SMS Configuration
     @Value("${notification.sms.enabled}")
     private Boolean smsNotificationEnabled;
