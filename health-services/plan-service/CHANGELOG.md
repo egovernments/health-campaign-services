@@ -1,6 +1,10 @@
 # Changelog
 All notable changes to this module will be documented in this file.
 
+## 1.0.3 - 2026-03-04
+
+- Added `DataAccessExceptionHandler` to handle data access exceptions at the controller level and return standardized DIGIT error responses.
+
 ## 1.0.2 - 2025-05-07
 
 1. Added indexes to the Plan, Plan Facility, and Plan Employee Assignment tables to improve lookup performance on large datasets.

@@ -2,6 +2,10 @@
 
 All notable changes to this module will be documented in this file.
 
+## 1.2.3 - 2026-03-04
+
+- Upgraded `health-services-common` which includes `DataAccessExceptionHandler` for handling data access exceptions at the controller level and returning standardized DIGIT error responses.
+
 # 1.2.2 - 2026-02-11
 
 * Added projectId column to REFERRAL table via migration V20260211164600

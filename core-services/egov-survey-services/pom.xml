@@ -10,7 +10,7 @@
 	</parent>
 	<groupId>org.egov</groupId>
 	<artifactId>egov-survey-services</artifactId>
-	<version>0.0.1-data-access-error-SNAPSHOT</version>
+	<version>0.0.2-SNAPSHOT</version>
 	<name>egov-survey-services</name>
 	<description>Survey Service</description>
 	<properties>

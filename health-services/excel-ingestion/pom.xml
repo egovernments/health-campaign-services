@@ -6,7 +6,7 @@
     <artifactId>excel-ingestion</artifactId>
     <packaging>jar</packaging>
     <name>excel-ingestion</name>
-    <version>1.0.0-data-access-error-SNAPSHOT</version>
+    <version>1.0.1-SNAPSHOT</version>
     <properties>
         <java.version>17</java.version>
         <maven.compiler.source>${java.version}</maven.compiler.source>

@@ -5,7 +5,7 @@
     <artifactId>product</artifactId>
     <packaging>jar</packaging>
     <name>product</name>
-    <version>1.2.0-data-access-error</version>
+    <version>1.2.1</version>
     <properties>
         <log4j2.version>2.17.1</log4j2.version>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>

@@ -1,5 +1,9 @@
 All notable changes to this module will be documented in this file.
 
+## 1.2.1 - 2026-03-04
+
+- Upgraded `health-services-common` which includes `DataAccessExceptionHandler` for handling data access exceptions at the controller level and returning standardized DIGIT error responses.
+
 # 1.2.0 - 2025-05-07
 * Added tenant-aware schema resolution using MultiStateInstanceUtil and schema placeholders in queries.
 * Updated repository methods to require tenant ID and handle InvalidTenantIdException.

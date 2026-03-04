@@ -1,5 +1,9 @@
 All notable changes to this module will be documented in this file.
 
+## 1.2.1 - 2026-03-04
+
+- Upgraded tracer version which now handles data access exception errors through the controller advisor, returning standardized DIGIT error responses.
+
 ## 1.2.0 - 2025-05-07
 
 * Upgraded service-request module to Java 17 with updated pom.xml

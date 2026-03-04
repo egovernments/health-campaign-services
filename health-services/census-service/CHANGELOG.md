@@ -1,6 +1,10 @@
 # Changelog
 All notable changes to this module will be documented in this file.
 
+## 1.0.2 - 2026-03-04
+
+- Upgraded tracer version which now handles data access exception errors through the controller advisor, returning standardized DIGIT error responses.
+
 ## 1.0.1 - 2025-05-07
 
 1. Added indexes to the Census table to improve lookup performance on large datasets.

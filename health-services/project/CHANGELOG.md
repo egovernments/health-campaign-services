@@ -2,6 +2,10 @@
 
 All notable changes to this module will be documented in this file.
 
+## 1.2.2 - 2026-03-04
+
+- Upgraded `health-services-common` which includes `DataAccessExceptionHandler` for handling data access exceptions at the controller level and returning standardized DIGIT error responses.
+
 ## 1.2.1 - 2025-07-15
 - Enabled Redis caching for project-create-cache-{id} after project creation.
 - Optimized project ID validation in ProjectStaff and ProjectFacility using Redis (fallback to DB).

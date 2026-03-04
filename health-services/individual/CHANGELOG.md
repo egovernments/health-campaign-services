@@ -1,5 +1,9 @@
 All notable changes to this module will be documented in this file.
 
+## 1.2.2 - 2026-03-04
+
+- Upgraded `health-services-common` which includes `DataAccessExceptionHandler` for handling data access exceptions at the controller level and returning standardized DIGIT error responses.
+
 ## 1.2.1 - 2025-08-11
 
 - Added configurability for beneficiary ID size

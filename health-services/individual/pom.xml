@@ -5,7 +5,7 @@
     <artifactId>individual</artifactId>
     <packaging>jar</packaging>
     <name>individual</name>
-    <version>1.2.1-data-access-error</version>
+    <version>1.2.2</version>
     <properties>
         <java.version>17</java.version>
         <maven.compiler.source>${java.version}</maven.compiler.source>
