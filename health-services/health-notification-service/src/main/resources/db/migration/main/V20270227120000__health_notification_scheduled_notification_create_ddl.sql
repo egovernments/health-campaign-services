@@ -1,6 +1,7 @@
 CREATE TABLE IF NOT EXISTS scheduled_notification
 (
     id                   character varying(64) PRIMARY KEY,
+    clientReferenceId    character varying(64),
     tenantId             character varying(64) NOT NULL,
 
     -- Trigger context
@@ -27,8 +28,13 @@ CREATE TABLE IF NOT EXISTS scheduled_notification
     lastAttemptAt        bigint,
     errorMessage         text,
 
+    -- GenericRepository contract fields
+    isDeleted            boolean DEFAULT false,
+    rowVersion           integer DEFAULT 1,
+
     -- Audit fields
     createdBy            character varying(64),
+    createdTime          bigint,
     lastModifiedBy       character varying(64),
     lastModifiedTime     bigint
 );
@@ -48,3 +54,7 @@ CREATE INDEX IF NOT EXISTS idx_scheduled_notification_entity
 -- Index for tenant queries
 CREATE INDEX IF NOT EXISTS idx_scheduled_notification_tenant
     ON scheduled_notification (tenantId);
+
+-- Index for clientReferenceId (used by GenericRepository cache)
+CREATE INDEX IF NOT EXISTS idx_scheduled_notification_client_ref_id
+    ON scheduled_notification (clientReferenceId);
