@@ -76,8 +76,35 @@ public class PostDistributionService {
                             String.format("Project not found for projectId: %s, tenantId: %s", projectId, tenantId));
                 }
 
-                String projectType = project.getProjectType();
+                // Fetch dateOfRegistration from task's additionalFields
+                String DistributionDate = null;
+                try {
+                    if (task.getAdditionalFields() != null) {
+                        JsonNode additionalFieldsNode = objectMapper.valueToTree(task.getAdditionalFields());
+                        JsonNode fieldsArray = additionalFieldsNode.get("fields");
+                        if (fieldsArray != null && !fieldsArray.isNull() && fieldsArray.isArray()) {
+                            for (JsonNode field : fieldsArray) {
+                                JsonNode keyNode = field.get("key");
+                                if (keyNode != null && !keyNode.isNull() && "dateOfRegistration".equals(keyNode.asText())) {
+                                    JsonNode valueNode = field.get("value");
+                                    if (valueNode != null && !valueNode.isNull()) {
+                                        DistributionDate = valueNode.asText();
+                                    }
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    log.error("Error extracting dateOfRegistration from additionalFields for task: {}", task.getId(), e);
+                }
 
+                log.info("Extracted DistributionDate: {} for task: {}", DistributionDate, task.getId());
+
+                String campaignName = project.getName();
+
+
+                String projectType = "ITN";
                 // Fetch beneficiaryType from additionalDetails.projectType.beneficiaryType
                 String beneficiaryType = null;
                 try {
@@ -120,10 +147,13 @@ public class PostDistributionService {
                 Map<String, String> householdDetails = fetchHouseHoldDetails(
                         beneficiaryType, projectBeneficiaryClientRefId, projectType, tenantId);
 
+                // Add DistributionDate to householdDetails for placeholder mapping
+                householdDetails.put("DistributionDate", DistributionDate);
+
                 String mobileNumber = householdDetails.get("mobileNumber");
                 String altContactNumber = householdDetails.get("altContactNumber");
                 if ((mobileNumber == null || mobileNumber.isBlank())
-                        || (altContactNumber == null || altContactNumber.isBlank())) {
+                        && (altContactNumber == null || altContactNumber.isBlank())) {
                     log.info("Household/beneficiary does not have any mobileNumber or altContactNumber. " +
                                     "Skipping notification scheduling for task: {}",
                             task.getId());
@@ -556,8 +586,20 @@ public class PostDistributionService {
 
             // Task related placeholders
             case "DistributionDate":
-            case "DeliveryDate":
             case "DistributedDate":
+                String distributionDate = householdDetails.get("DistributionDate");
+                log.info("Mapping DistributionDate/DistributedDate placeholder, value from householdDetails: {}", distributionDate);
+                return distributionDate != null ? distributionDate : "";
+
+            case "DistributionTime":
+            case "DistributedTime":
+                return "";
+
+            case "DistributionPoint":
+            case "DistributedPoint":
+                return "";
+
+            case "DeliveryDate":
                 return formatDate(task.getPlannedStartDate());
 
             case "TaskId":
@@ -568,6 +610,10 @@ public class PostDistributionService {
                 return task.getStatus() != null ? task.getStatus().toString() : "";
 
             // Project related placeholders
+            case "CampaignName":
+                String campaignName = project.getName();
+                return campaignName != null ? campaignName : "";
+
             case "ProjectType":
             case "CampaignType":
                 String projectType = project.getProjectType();
