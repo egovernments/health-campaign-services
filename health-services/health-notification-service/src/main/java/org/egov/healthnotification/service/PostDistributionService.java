@@ -12,7 +12,12 @@ import org.egov.common.models.project.Project;
 import org.egov.common.models.project.ProjectBeneficiary;
 import org.egov.common.models.project.Task;
 import org.egov.healthnotification.Constants;
+import org.egov.healthnotification.config.HealthNotificationProperties;
+import org.egov.healthnotification.repository.ScheduledNotificationRepository;
 import org.egov.healthnotification.web.models.MdmsV2Data;
+import org.egov.healthnotification.web.models.ScheduledNotification;
+import org.egov.healthnotification.web.models.enums.NotificationStatus;
+import org.egov.healthnotification.web.models.enums.RecipientType;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -34,6 +39,10 @@ public class PostDistributionService {
     private final IndividualService individualService;
     private final LocalizationService localizationService;
     private final ObjectMapper objectMapper;
+    private final ScheduledNotificationRepository repository;
+    private final ScheduledNotificationEnrichmentService enrichmentService;
+    private final ScheduledNotificationValidator validator;
+    private final HealthNotificationProperties properties;
 
     @Autowired
     public PostDistributionService(ProjectService projectService,
@@ -41,13 +50,21 @@ public class PostDistributionService {
                                    HouseholdService householdService,
                                    IndividualService individualService,
                                    LocalizationService localizationService,
-                                   ObjectMapper objectMapper) {
+                                   ObjectMapper objectMapper,
+                                   ScheduledNotificationRepository repository,
+                                   ScheduledNotificationEnrichmentService enrichmentService,
+                                   ScheduledNotificationValidator validator,
+                                   HealthNotificationProperties properties) {
         this.projectService = projectService;
         this.mdmsService = mdmsService;
         this.householdService = householdService;
         this.individualService = individualService;
         this.localizationService = localizationService;
         this.objectMapper = objectMapper;
+        this.repository = repository;
+        this.enrichmentService = enrichmentService;
+        this.validator = validator;
+        this.properties = properties;
     }
 
     /**
@@ -61,7 +78,7 @@ public class PostDistributionService {
         tasks.forEach(task -> {
             try {
                 log.info("Processing distribution task: {} for project: {}, beneficiary: {}",
-                        task.getId(),
+                            task.getId(),
                         task.getProjectId(),
                         task.getProjectBeneficiaryId());
 
@@ -160,7 +177,8 @@ public class PostDistributionService {
                     return;
                 }
 
-                log.info("Fetched household details for task: {}, beneficiaryType: {}", task.getId(), beneficiaryType);
+                log.info("Fetched household details for task: {}, beneficiaryType: {}, details: {}",
+                        task.getId(), beneficiaryType, householdDetails);
 
                 // Step 5: Fetch event notification configuration for the given event type
                 String eventType = projectType + Constants.EVENT_TYPE_SUFFIX_POST_DISTRIBUTION;
@@ -177,10 +195,35 @@ public class PostDistributionService {
                     log.info("Successfully built {} finalized notification message(s) for task: {}",
                             finalMessages.size(), task.getId());
 
-                    // Log sample message data for debugging
-                    log.debug("Sample message data: {}", finalMessages.get(0));
+                    // Step 7: Convert messages → ScheduledNotification objects → validate → enrich → save
+                    String recipientMobileNumber = determineRecipientMobileNumber(householdDetails);
+                    String recipientId = householdDetails.get("individualId");
+                    String recipientTypeStr = eventNotificationConfig.path("recipientType").asText("HOUSEHOLD_HEAD");
 
-                    // TODO: Step 7 - Implement repository layer to persist notification
+                    List<ScheduledNotification> notificationsToSave = buildScheduledNotifications(
+                            finalMessages, task, project, eventNotificationConfig,
+                            tenantId, recipientId, recipientMobileNumber, recipientTypeStr);
+
+                    if (!notificationsToSave.isEmpty()) {
+                        // Validate — soft-filters out duplicates and missing mobile numbers
+                        validator.validateForCreate(notificationsToSave);
+
+                        // Re-check: validator may have filtered out all notifications
+                        if (notificationsToSave.isEmpty()) {
+                            log.info("All notifications were filtered out during validation " +
+                                    "(duplicates or missing mobile numbers) for task: {}", task.getId());
+                        } else {
+                            // Enrich (generate IDs, auditDetails, set status=PENDING)
+                            enrichmentService.enrichForCreate(notificationsToSave, null);
+
+                            // Save → Kafka → persister → DB
+                            repository.save(notificationsToSave,
+                                    properties.getScheduledNotificationSaveTopic());
+
+                            log.info("Successfully persisted {} scheduled notifications for task: {}",
+                                    notificationsToSave.size(), task.getId());
+                        }
+                    }
                 } else {
                     log.info("No notification messages created for task: {}", task.getId());
                 }
@@ -193,11 +236,17 @@ public class PostDistributionService {
     }
 
     /**
-     * Fetches household or individual details based on the beneficiary type.
-     * For HOUSEHOLD type: Retrieves household head's individual details for notification.
-     * For INDIVIDUAL type: Implementation pending.
+     * Resolves the household head's Individual record based on the beneficiary type.
      *
-     * @param beneficiaryType The type of beneficiary (HOUSEHOLD/INDIVIDUAL)
+     * For HOUSEHOLD type:
+     *   clientRefId is a Household ID → find head member → get Individual by head's individualId
+     *
+     * For INDIVIDUAL type:
+     *   clientRefId is an Individual ID → reverse-lookup household member record
+     *   → if this individual IS the head, use their details directly
+     *   → if NOT the head, find the household's actual head and use their details
+     *
+     * @param beneficiaryType The type of beneficiary ("HOUSEHOLD" or "INDIVIDUAL")
      * @param projectBeneficiaryClientRefId The client reference ID of the project beneficiary
      * @param projectType The type of project
      * @param tenantId The tenant ID
@@ -238,6 +287,56 @@ public class PostDistributionService {
             househeaddetails.put("individualId", individualId);
 
             log.info("Successfully populated household head details for individualId: {}", individualId);
+
+        } else if ("INDIVIDUAL".equals(beneficiaryType)) {
+            log.info("Beneficiary type is INDIVIDUAL, resolving household head");
+
+            // Step 2: Reverse lookup — find which household this individual belongs to
+            HouseholdMember member = householdService.searchMemberByIndividualClientRefId(
+                    beneficiaryClientReferenceId, tenantId);
+
+            String headIndividualId;
+
+            if (Boolean.TRUE.equals(member.getIsHeadOfHousehold())) {
+                // This individual IS the head — use their details directly
+                log.info("Individual {} is the household head", beneficiaryClientReferenceId);
+                headIndividualId = member.getIndividualId();
+            } else {
+                // Not the head — this is a child/dependent. Find the actual head of this household.
+                String householdId = member.getHouseholdId();
+                log.info("Individual {} is NOT the head (child/dependent), looking up head for householdId: {}",
+                        beneficiaryClientReferenceId, householdId);
+
+                // Fetch the child's details for their name
+                Individual child = individualService.searchIndividualById(member.getIndividualId(), tenantId);
+                String childName = child.getName() != null ? child.getName().getGivenName() : null;
+                log.info("Child name resolved: {}", childName);
+
+                HouseholdMember head = householdService.searchHouseholdHead(householdId, tenantId);
+                headIndividualId = head.getIndividualId();
+
+                // Store child name for SMS template placeholder
+                househeaddetails.put("childName", childName);
+            }
+
+            log.info("Resolved household head individualId: {}", headIndividualId);
+
+            // Step 3: Fetch individual details using head's individual ID
+            Individual individual = individualService.searchIndividualById(headIndividualId, tenantId);
+
+            // Step 4: Extract required fields and populate HashMap
+            househeaddetails.put("givenName", individual.getName() != null ? individual.getName().getGivenName() : null);
+            househeaddetails.put("mobileNumber", individual.getMobileNumber());
+            househeaddetails.put("altContactNumber", individual.getAltContactNumber());
+            househeaddetails.put("emailId", individual.getEmail());
+            househeaddetails.put("individualId", headIndividualId);
+
+            log.info("Successfully populated household head details for individualId: {}", headIndividualId);
+
+        } else {
+            log.error("Unknown beneficiaryType: {} for clientRefId: {}", beneficiaryType, projectBeneficiaryClientRefId);
+            throw new CustomException("UNKNOWN_BENEFICIARY_TYPE",
+                    "Unsupported beneficiaryType: " + beneficiaryType + ". Expected HOUSEHOLD or INDIVIDUAL.");
         }
 
         return househeaddetails;
@@ -623,6 +722,108 @@ public class PostDistributionService {
                 log.debug("Unknown placeholder: {}. Returning empty string.", placeholder);
                 return "";
         }
+    }
+
+    /**
+     * Converts finalized message maps into ScheduledNotification domain objects.
+     * Each message map (containing templateCode, locale, message) becomes a
+     * ScheduledNotification entity with all the context needed for persistence.
+     *
+     * scheduledAt is calculated from MDMS config:
+     *   - If scheduledNode has "scheduledAfterMinutes", adds that delay to current time
+     *   - Otherwise defaults to immediate (current time)
+     *
+     * @param finalMessages       List of maps with templateCode, locale, message
+     * @param task                The source Task
+     * @param project             The source Project
+     * @param eventNotificationConfig The event notification config from MDMS
+     * @param tenantId            The tenant ID
+     * @param recipientId         The individual ID of the recipient
+     * @param recipientMobileNumber The resolved mobile number
+     * @param recipientTypeStr    The recipient type string from MDMS config
+     * @return List of ScheduledNotification objects ready for validation and enrichment
+     */
+    private List<ScheduledNotification> buildScheduledNotifications(
+            List<Map<String, String>> finalMessages,
+            Task task,
+            Project project,
+            JsonNode eventNotificationConfig,
+            String tenantId,
+            String recipientId,
+            String recipientMobileNumber,
+            String recipientTypeStr) {
+
+        List<ScheduledNotification> notifications = new ArrayList<>();
+        long currentTimeMillis = System.currentTimeMillis();
+
+        String eventType = eventNotificationConfig.path("eventType").asText();
+
+        // Parse recipientType from MDMS config, default to HOUSEHOLD_HEAD
+        RecipientType recipientType;
+        try {
+            recipientType = RecipientType.fromValue(recipientTypeStr);
+            if (recipientType == null) {
+                recipientType = RecipientType.HOUSEHOLD_HEAD;
+            }
+        } catch (Exception e) {
+            recipientType = RecipientType.HOUSEHOLD_HEAD;
+        }
+
+        // Build a mapping of templateCode → scheduledNode for delay lookup
+        Map<String, JsonNode> templateToScheduledNode = new HashMap<>();
+        JsonNode scheduledNotificationsArray = eventNotificationConfig.get("scheduledNotifications");
+        if (scheduledNotificationsArray != null && scheduledNotificationsArray.isArray()) {
+            for (JsonNode scheduledNode : scheduledNotificationsArray) {
+                String tc = scheduledNode.path("templateCode").asText();
+                templateToScheduledNode.put(tc, scheduledNode);
+            }
+        }
+
+        for (Map<String, String> messageData : finalMessages) {
+            String templateCode = messageData.get("templateCode");
+            String locale = messageData.get("locale");
+            String message = messageData.get("message");
+
+            // Calculate scheduledAt from MDMS config
+            long scheduledAt = currentTimeMillis; // default: immediate
+            JsonNode scheduledNode = templateToScheduledNode.get(templateCode);
+            if (scheduledNode != null && scheduledNode.has("scheduledAfterMinutes")) {
+                int delayMinutes = scheduledNode.path("scheduledAfterMinutes").asInt(0);
+                scheduledAt = currentTimeMillis + ((long) delayMinutes * 60 * 1000);
+                log.debug("Scheduling notification {} minutes from now for templateCode: {}",
+                        delayMinutes, templateCode);
+            }
+
+            // Store message, locale, and other context in contextData (persisted as JSONB)
+            Map<String, Object> contextData = new HashMap<>();
+            contextData.put("message", message);
+            contextData.put("locale", locale);
+            contextData.put("taskId", task.getId());
+            contextData.put("projectId", project.getId());
+            contextData.put("entityType", "TASK");
+
+            ScheduledNotification notification = ScheduledNotification.builder()
+                    .tenantId(tenantId)
+                    .entityId(task.getId())
+                    .entityType("TASK")
+                    .eventType(eventType)
+                    .templateCode(templateCode)
+                    .recipientId(recipientId)
+                    .recipientType(recipientType)
+                    .mobileNumber(recipientMobileNumber)
+                    .contextData(contextData)
+                    .scheduledAt(scheduledAt)
+                    .status(NotificationStatus.PENDING)
+                    .build();
+
+            notifications.add(notification);
+
+            log.debug("Built ScheduledNotification for task: {}, templateCode: {}, locale: {}, scheduledAt: {}",
+                    task.getId(), templateCode, locale, scheduledAt);
+        }
+
+        log.info("Built {} ScheduledNotification objects for task: {}", notifications.size(), task.getId());
+        return notifications;
     }
 
     /**

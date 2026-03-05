@@ -1,0 +1,167 @@
+package org.egov.healthnotification.service;
+
+import lombok.extern.slf4j.Slf4j;
+import org.egov.common.exception.InvalidTenantIdException;
+import org.egov.healthnotification.repository.ScheduledNotificationRepository;
+import org.egov.healthnotification.web.models.ScheduledNotification;
+import org.egov.tracer.model.CustomException;
+import org.springframework.stereotype.Component;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * Validator for ScheduledNotification entities.
+ * Performs:
+ *   1. Required field validation — HARD FAIL (throws CustomException)
+ *      Missing tenantId, entityId, eventType, templateCode, recipientId, recipientType
+ *      are programming errors that should never happen.
+ *
+ *   2. Mobile number check — SOFT SKIP (filters out, logs warning)
+ *      Matches the upstream PostDistributionService behavior which skips
+ *      beneficiaries without a mobile number rather than failing the entire batch.
+ *
+ *   3. Duplicate detection — SOFT SKIP (filters out, logs info)
+ *      If a notification for the same entity+event+template+recipient
+ *      already exists, skip it rather than failing. This supports
+ *      idempotent reprocessing of Kafka messages.
+ *
+ * Follows DIGIT validator pattern — collects hard errors and throws at the end,
+ * while soft issues silently filter out the affected notifications.
+ */
+@Component
+@Slf4j
+public class ScheduledNotificationValidator {
+
+    private final ScheduledNotificationRepository repository;
+
+    public ScheduledNotificationValidator(ScheduledNotificationRepository repository) {
+        this.repository = repository;
+    }
+
+    /**
+     * Validates a list of ScheduledNotification objects before creation.
+     *
+     * Phase 1: Required fields — throws CustomException if any are missing (hard fail).
+     * Phase 2: Mobile number — removes notifications without mobile number (soft skip).
+     * Phase 3: Duplicates — removes notifications that already exist in DB (soft skip).
+     *
+     * @param notifications The list of notifications to validate (modified in-place — invalid
+     *                      entries are removed so only valid ones remain for enrichment + save)
+     * @throws CustomException if required fields are missing
+     */
+    public void validateForCreate(List<ScheduledNotification> notifications) {
+        log.info("Validating {} scheduled notifications for create", notifications.size());
+
+        // ═══ Phase 1: Required field validation (HARD FAIL) ═══
+        Map<String, String> errorMap = new HashMap<>();
+        for (int i = 0; i < notifications.size(); i++) {
+            validateRequiredFields(notifications.get(i), "notifications[" + i + "]", errorMap);
+        }
+
+        if (!errorMap.isEmpty()) {
+            log.error("Validation failed with {} error(s): {}", errorMap.size(), errorMap);
+            throw new CustomException(errorMap);
+        }
+
+        // ═══ Phase 2: Mobile number check (SOFT SKIP) ═══
+        // Same behavior as PostDistributionService — skip if no mobile number
+        int beforeMobileFilter = notifications.size();
+        Iterator<ScheduledNotification> iterator = notifications.iterator();
+        while (iterator.hasNext()) {
+            ScheduledNotification notification = iterator.next();
+            if (isBlank(notification.getMobileNumber())) {
+                log.info("Skipping notification for recipientId={}: no mobile number available. " +
+                                "entityId={}, templateCode={}",
+                        notification.getRecipientId(), notification.getEntityId(),
+                        notification.getTemplateCode());
+                iterator.remove();
+            }
+        }
+        if (notifications.size() < beforeMobileFilter) {
+            log.info("Filtered out {} notification(s) with missing mobile number",
+                    beforeMobileFilter - notifications.size());
+        }
+
+        // ═══ Phase 3: Duplicate check (SOFT SKIP) ═══
+        // Skip duplicates gracefully — supports idempotent Kafka reprocessing
+        int beforeDupFilter = notifications.size();
+        iterator = notifications.iterator();
+        while (iterator.hasNext()) {
+            ScheduledNotification notification = iterator.next();
+            try {
+                boolean isDuplicate = repository.isDuplicate(
+                        notification.getTenantId(),
+                        notification.getEntityId(),
+                        notification.getEventType(),
+                        notification.getTemplateCode(),
+                        notification.getRecipientId());
+
+                if (isDuplicate) {
+                    log.info("Skipping duplicate notification: entityId={}, eventType={}, " +
+                                    "templateCode={}, recipientId={}",
+                            notification.getEntityId(), notification.getEventType(),
+                            notification.getTemplateCode(), notification.getRecipientId());
+                    iterator.remove();
+                }
+            } catch (InvalidTenantIdException e) {
+                log.error("Invalid tenant ID during duplicate check: {}. Skipping notification.",
+                        notification.getTenantId(), e);
+                iterator.remove();
+            }
+        }
+        if (notifications.size() < beforeDupFilter) {
+            log.info("Filtered out {} duplicate notification(s)",
+                    beforeDupFilter - notifications.size());
+        }
+
+        log.info("Validation complete: {} notification(s) passed out of original batch",
+                notifications.size());
+    }
+
+    /**
+     * Validates required fields for a ScheduledNotification.
+     * These are hard requirements — if any are missing, it's a programming error.
+     */
+    private void validateRequiredFields(ScheduledNotification notification,
+                                         String prefix,
+                                         Map<String, String> errorMap) {
+        if (isBlank(notification.getTenantId())) {
+            errorMap.put(prefix + ".tenantId", "tenantId is required");
+        }
+
+        if (isBlank(notification.getEntityId())) {
+            errorMap.put(prefix + ".entityId", "entityId is required");
+        }
+
+        if (isBlank(notification.getEntityType())) {
+            errorMap.put(prefix + ".entityType", "entityType is required");
+        }
+
+        if (isBlank(notification.getEventType())) {
+            errorMap.put(prefix + ".eventType", "eventType is required");
+        }
+
+        if (isBlank(notification.getTemplateCode())) {
+            errorMap.put(prefix + ".templateCode", "templateCode is required");
+        }
+
+        if (isBlank(notification.getRecipientId())) {
+            errorMap.put(prefix + ".recipientId", "recipientId is required");
+        }
+
+        if (notification.getRecipientType() == null) {
+            errorMap.put(prefix + ".recipientType", "recipientType is required");
+        }
+    }
+
+    /**
+     * Utility: checks if a string is null or blank.
+     */
+    private boolean isBlank(String value) {
+        return value == null || value.isBlank();
+    }
+}

@@ -193,4 +193,56 @@ public class HouseholdService {
                     "Error while fetching household head for householdClientReferenceId: " + householdClientReferenceId);
         }
     }
+
+    /**
+     * Searches for a household member by individual client reference ID (reverse lookup).
+     * Used to find which household an individual belongs to and whether they are the head.
+     *
+     * @param individualClientRefId The individual client reference ID
+     * @param tenantId The tenant ID
+     * @return The HouseholdMember record
+     */
+    public HouseholdMember searchMemberByIndividualClientRefId(String individualClientRefId, String tenantId) {
+        log.info("Searching household member by individual client ref ID: {} for tenant: {}",
+                individualClientRefId, tenantId);
+
+        HouseholdMemberSearchRequest request = HouseholdMemberSearchRequest.builder()
+                .requestInfo(RequestInfoUtil.buildSystemRequestInfo())
+                .householdMemberSearch(HouseholdMemberSearch.builder()
+                        .individualClientReferenceId(Collections.singletonList(individualClientRefId))
+                        .build())
+                .build();
+
+        try {
+            StringBuilder uri = new StringBuilder();
+            uri.append(properties.getHouseholdServiceHost())
+                    .append(properties.getHouseholdMemberSearchUrl())
+                    .append("?limit=1")
+                    .append("&offset=0")
+                    .append("&tenantId=").append(tenantId);
+
+            HouseholdMemberBulkResponse response = serviceRequestClient.fetchResult(uri, request,
+                    HouseholdMemberBulkResponse.class);
+
+            if (response != null && response.getHouseholdMembers() != null
+                    && !response.getHouseholdMembers().isEmpty()) {
+                HouseholdMember member = response.getHouseholdMembers().get(0);
+                log.info("Successfully fetched household member for individual client ref: {}, isHead: {}",
+                        individualClientRefId, member.getIsHeadOfHousehold());
+                return member;
+            }
+
+            log.error("Household member not found for individual client ref: {}", individualClientRefId);
+            throw new CustomException("HOUSEHOLD_MEMBER_NOT_FOUND",
+                    String.format("Household member not found for individualClientRefId: %s, tenantId: %s",
+                            individualClientRefId, tenantId));
+
+        } catch (CustomException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Error fetching household member for individual client ref: {}", individualClientRefId, e);
+            throw new CustomException("HOUSEHOLD_MEMBER_FETCH_ERROR",
+                    "Error while fetching household member for individualClientRefId: " + individualClientRefId);
+        }
+    }
 }
