@@ -9,8 +9,8 @@ import org.egov.common.models.project.Task;
 import org.egov.healthnotification.Constants;
 import org.egov.healthnotification.config.HealthNotificationProperties;
 import org.egov.healthnotification.repository.ScheduledNotificationRepository;
+import org.egov.healthnotification.service.enrichment.ScheduledNotificationEnrichmentService;
 import org.egov.healthnotification.util.HealthNotificationUtils;
-import org.egov.healthnotification.validators.ScheduledNotificationEnrichmentService;
 import org.egov.healthnotification.validators.ScheduledNotificationValidator;
 import org.egov.healthnotification.web.models.MdmsV2Data;
 import org.egov.healthnotification.web.models.ScheduledNotification;
@@ -87,8 +87,8 @@ public class PostDistributionService {
                 Project project = projectService.searchProjectById(projectId, tenantId);
                 if (project == null) {
                     log.error("Project not found for task: {}, projectId: {}", task.getId(), projectId);
-                    throw new CustomException("PROJECT_NOT_FOUND",
-                            String.format("Project not found for projectId: %s, tenantId: %s", projectId, tenantId));
+                    throw new CustomException(Constants.ERROR_PROJECT_NOT_FOUND,
+                            String.format(Constants.MSG_PROJECT_NOT_FOUND, projectId, tenantId));
                 }
 
                 // Fetch distribution date from task's clientAuditDetails.createdTime (epoch format)
@@ -99,15 +99,15 @@ public class PostDistributionService {
                 String campaignName = project.getName();
 
 
-                String projectType = "SMC";
+                String projectType = project.getProjectType();
                 // Fetch beneficiaryType from additionalDetails.projectType.beneficiaryType
                 String beneficiaryType = null;
                 try {
                     if (project.getAdditionalDetails() != null) {
                         JsonNode additionalDetailsNode = objectMapper.valueToTree(project.getAdditionalDetails());
-                        JsonNode projectTypeNode = additionalDetailsNode.get("projectType");
+                        JsonNode projectTypeNode = additionalDetailsNode.get(Constants.FIELD_PROJECT_TYPE);
                         if (projectTypeNode != null && !projectTypeNode.isNull()) {
-                            JsonNode beneficiaryTypeNode = projectTypeNode.get("beneficiaryType");
+                            JsonNode beneficiaryTypeNode = projectTypeNode.get(Constants.FIELD_BENEFICIARY_TYPE);
                             if (beneficiaryTypeNode != null && !beneficiaryTypeNode.isNull()) {
                                 beneficiaryType = beneficiaryTypeNode.asText();
                             }
@@ -125,8 +125,8 @@ public class PostDistributionService {
                         task.getId(), projectType);
 
                 // Step 3: Check if SMS is enabled in the notification config
-                boolean smsEnabled = notificationConfig.getData().has("smsEnabled")
-                        && notificationConfig.getData().get("smsEnabled").asBoolean();
+                boolean smsEnabled = notificationConfig.getData().has(Constants.FIELD_SMS_ENABLED)
+                        && notificationConfig.getData().get(Constants.FIELD_SMS_ENABLED).asBoolean();
 
                 if (!smsEnabled) {
                     log.info("SMS notification is not enabled for projectType: {}, task: {}. Skipping notification.",
@@ -144,10 +144,10 @@ public class PostDistributionService {
                         projectService, householdService, individualService);
 
                 // Add distributionDate to householdDetails for placeholder mapping
-                householdDetails.put("distributionDate", distributionDate);
+                householdDetails.put(Constants.FIELD_DISTRIBUTION_DATE, distributionDate);
 
-                String mobileNumber = householdDetails.get("mobileNumber");
-                String altContactNumber = householdDetails.get("altContactNumber");
+                String mobileNumber = householdDetails.get(Constants.FIELD_MOBILE_NUMBER);
+                String altContactNumber = householdDetails.get(Constants.FIELD_ALT_CONTACT_NUMBER);
                 if ((mobileNumber == null || mobileNumber.isBlank())
                         && (altContactNumber == null || altContactNumber.isBlank())) {
                     log.info("Household/beneficiary does not have any mobileNumber or altContactNumber. " +
@@ -178,8 +178,8 @@ public class PostDistributionService {
 
                     // Step 7: Convert messages → ScheduledNotification objects → validate → enrich → save
                     String recipientMobileNumber = HealthNotificationUtils.determineRecipientMobileNumber(householdDetails);
-                    String recipientId = householdDetails.get("individualId");
-                    String recipientTypeStr = eventNotificationConfig.path("recipientType").asText("HOUSEHOLD_HEAD");
+                    String recipientId = householdDetails.get(Constants.FIELD_INDIVIDUAL_ID);
+                    String recipientTypeStr = eventNotificationConfig.path(Constants.FIELD_RECIPIENT_TYPE).asText(Constants.RECIPIENT_TYPE_HOUSEHOLD_HEAD);
 
                     List<ScheduledNotification> notificationsToSave = buildScheduledNotifications(
                             finalMessages, task, project, eventNotificationConfig,
@@ -254,7 +254,7 @@ public class PostDistributionService {
         List<ScheduledNotification> notifications = new ArrayList<>();
         long currentTimeMillis = System.currentTimeMillis();
 
-        String eventType = eventNotificationConfig.path("eventType").asText();
+        String eventType = eventNotificationConfig.path(Constants.FIELD_EVENT_TYPE).asText();
 
         // Parse recipientType from MDMS config, default to HOUSEHOLD_HEAD
         RecipientType recipientType;
@@ -269,24 +269,24 @@ public class PostDistributionService {
 
         // Build a mapping of templateCode → scheduledNode for delay lookup
         Map<String, JsonNode> templateToScheduledNode = new HashMap<>();
-        JsonNode scheduledNotificationsArray = eventNotificationConfig.get("scheduledNotifications");
+        JsonNode scheduledNotificationsArray = eventNotificationConfig.get(Constants.FIELD_SCHEDULED_NOTIFICATIONS);
         if (scheduledNotificationsArray != null && scheduledNotificationsArray.isArray()) {
             for (JsonNode scheduledNode : scheduledNotificationsArray) {
-                String tc = scheduledNode.path("templateCode").asText();
+                String tc = scheduledNode.path(Constants.FIELD_TEMPLATE_CODE).asText();
                 templateToScheduledNode.put(tc, scheduledNode);
             }
         }
 
         for (Map<String, String> messageData : finalMessages) {
-            String templateCode = messageData.get("templateCode");
-            String locale = messageData.get("locale");
-            String message = messageData.get("message");
+            String templateCode = messageData.get(Constants.FIELD_TEMPLATE_CODE);
+            String locale = messageData.get(Constants.FIELD_LOCALE);
+            String message = messageData.get(Constants.FIELD_MESSAGE);
 
             // Calculate scheduledAt from MDMS config
             long scheduledAt = currentTimeMillis; // default: immediate
             JsonNode scheduledNode = templateToScheduledNode.get(templateCode);
-            if (scheduledNode != null && scheduledNode.has("scheduledAfterMinutes")) {
-                int delayMinutes = scheduledNode.path("scheduledAfterMinutes").asInt(0);
+            if (scheduledNode != null && scheduledNode.has(Constants.FIELD_SCHEDULED_AFTER_MINUTES)) {
+                int delayMinutes = scheduledNode.path(Constants.FIELD_SCHEDULED_AFTER_MINUTES).asInt(0);
                 scheduledAt = currentTimeMillis + ((long) delayMinutes * 60 * 1000);
                 log.debug("Scheduling notification {} minutes from now for templateCode: {}",
                         delayMinutes, templateCode);
@@ -294,16 +294,16 @@ public class PostDistributionService {
 
             // Store message, locale, and other context in contextData (persisted as JSONB)
             Map<String, Object> contextData = new HashMap<>();
-            contextData.put("message", message);
-            contextData.put("locale", locale);
-            contextData.put("taskId", task.getId());
-            contextData.put("projectId", project.getId());
-            contextData.put("entityType", "TASK");
+            contextData.put(Constants.FIELD_MESSAGE, message);
+            contextData.put(Constants.FIELD_LOCALE, locale);
+            contextData.put(Constants.FIELD_TASK_ID, task.getId());
+            contextData.put(Constants.FIELD_PROJECT_ID, project.getId());
+            contextData.put(Constants.FIELD_ENTITY_TYPE, Constants.ENTITY_TYPE_TASK);
 
             ScheduledNotification notification = ScheduledNotification.builder()
                     .tenantId(tenantId)
                     .entityId(task.getId())
-                    .entityType("TASK")
+                    .entityType(Constants.ENTITY_TYPE_TASK)
                     .eventType(eventType)
                     .templateCode(templateCode)
                     .recipientId(recipientId)

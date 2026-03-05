@@ -6,15 +6,92 @@ public class Constants {
         throw new IllegalStateException("Constants class");
     }
 
-    // Validation error constants
+    // ========== Beneficiary Type Constants ==========
+    public static final String BENEFICIARY_TYPE_HOUSEHOLD = "HOUSEHOLD";
+    public static final String BENEFICIARY_TYPE_INDIVIDUAL = "INDIVIDUAL";
+
+    // ========== Entity Type Constants ==========
+    public static final String ENTITY_TYPE_TASK = "TASK";
+
+
+    // ========== Recipient Type Constants ==========
+    public static final String RECIPIENT_TYPE_HOUSEHOLD_HEAD = "HOUSEHOLD_HEAD";
+
+    // ========== Field/Key Constants ==========
+    // Household/Individual fields
+    public static final String FIELD_GIVEN_NAME = "givenName";
+    public static final String FIELD_MOBILE_NUMBER = "mobileNumber";
+    public static final String FIELD_ALT_CONTACT_NUMBER = "altContactNumber";
+    public static final String FIELD_EMAIL_ID = "emailId";
+    public static final String FIELD_INDIVIDUAL_ID = "individualId";
+    public static final String FIELD_CHILD_NAME = "childName";
+    public static final String FIELD_DISTRIBUTION_DATE = "distributionDate";
+
+    // Project/Task fields
+    public static final String FIELD_PROJECT_TYPE = "projectType";
+    public static final String FIELD_BENEFICIARY_TYPE = "beneficiaryType";
+
+    // MDMS fields
+    public static final String FIELD_SMS_ENABLED = "smsEnabled";
+    public static final String FIELD_EVENT_NOTIFICATIONS = "eventNotifications";
+    public static final String FIELD_EVENT_TYPE = "eventType";
+    public static final String FIELD_ENABLED = "enabled";
+    public static final String FIELD_SCHEDULED_NOTIFICATIONS = "scheduledNotifications";
+    public static final String FIELD_RECIPIENT_TYPE = "recipientType";
+    public static final String FIELD_PLACEHOLDERS = "placeholders";
+    public static final String FIELD_TEMPLATE_CODE = "templateCode";
+    public static final String FIELD_LOCALE = "locale";
+    public static final String FIELD_MESSAGE = "message";
+    public static final String FIELD_TASK_ID = "taskId";
+    public static final String FIELD_PROJECT_ID = "projectId";
+    public static final String FIELD_ENTITY_TYPE = "entityType";
+    public static final String FIELD_SCHEDULED_AFTER_MINUTES = "scheduledAfterMinutes";
+
+    // ========== Placeholder Key Constants ==========
+    public static final String PLACEHOLDER_HOUSEHOLD_HEAD_NAME = "HouseholdHeadName";
+    public static final String PLACEHOLDER_MOBILE_NUMBER = "MobileNumber";
+    public static final String PLACEHOLDER_EMAIL_ID = "EmailId";
+    public static final String PLACEHOLDER_INDIVIDUAL_ID = "IndividualId";
+    public static final String PLACEHOLDER_DISTRIBUTION_DATE = "DistributionDate";
+    public static final String PLACEHOLDER_DISTRIBUTED_DATE = "DistributedDate";
+    public static final String PLACEHOLDER_DISTRIBUTION_TIME = "DistributionTime";
+    public static final String PLACEHOLDER_DISTRIBUTED_TIME = "DistributedTime";
+    public static final String PLACEHOLDER_DISTRIBUTION_POINT = "DistributionPoint";
+    public static final String PLACEHOLDER_DISTRIBUTED_POINT = "DistributedPoint";
+    public static final String PLACEHOLDER_DELIVERY_DATE = "DeliveryDate";
+    public static final String PLACEHOLDER_TASK_ID = "TaskId";
+    public static final String PLACEHOLDER_TASK_STATUS = "TaskStatus";
+    public static final String PLACEHOLDER_CAMPAIGN_NAME = "CampaignName";
+    public static final String PLACEHOLDER_PROJECT_TYPE = "ProjectType";
+    public static final String PLACEHOLDER_CAMPAIGN_TYPE = "CampaignType";
+
+    // ========== Error Code Constants ==========
+    public static final String ERROR_PROJECT_NOT_FOUND = "PROJECT_NOT_FOUND";
+    public static final String ERROR_UNKNOWN_BENEFICIARY_TYPE = "UNKNOWN_BENEFICIARY_TYPE";
     public static final String VALIDATION_ERROR = "VALIDATION_ERROR";
     public static final String INVALID_TENANT_ID = "INVALID_TENANT_ID";
-    public static final String INVALID_TENANT_ID_MSG = "Tenant ID is not valid";
 
-    // Task filtering constants
+    // ========== Error Message Constants ==========
+    public static final String MSG_PROJECT_NOT_FOUND = "Project not found for projectId: %s, tenantId: %s";
+    public static final String MSG_UNKNOWN_BENEFICIARY_TYPE = "Unsupported beneficiaryType: %s. Expected HOUSEHOLD or INDIVIDUAL.";
+    public static final String MSG_INVALID_TENANT_ID = "Tenant ID is not valid";
+
+    // ========== Validation Message Constants ==========
+    public static final String MSG_TENANT_ID_REQUIRED = "tenantId is required";
+    public static final String MSG_ENTITY_ID_REQUIRED = "entityId is required";
+    public static final String MSG_ENTITY_TYPE_REQUIRED = "entityType is required";
+    public static final String MSG_EVENT_TYPE_REQUIRED = "eventType is required";
+    public static final String MSG_TEMPLATE_CODE_REQUIRED = "templateCode is required";
+    public static final String MSG_RECIPIENT_ID_REQUIRED = "recipientId is required";
+    public static final String MSG_RECIPIENT_TYPE_REQUIRED = "recipientType is required";
+
+    // ========== Task Filtering Constants ==========
     public static final String DELIVERY_STRATEGY_KEY = "deliveryStrategy";
     public static final String DELIVERY_STRATEGY_DIRECT = "DIRECT";
 
-    // Event notification constants
+    // ========== Event Notification Constants ==========
     public static final String EVENT_TYPE_SUFFIX_POST_DISTRIBUTION = "_POST_DISTRIBUTION";
+
+    // ========== System User Constants ==========
+    public static final String SYSTEM_USER = "SYSTEM";
 }
