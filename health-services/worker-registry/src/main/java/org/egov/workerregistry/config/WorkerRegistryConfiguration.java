@@ -27,4 +27,17 @@ public class WorkerRegistryConfiguration {
     // State-level tenant
     @Value("${state.level.tenant.id}")
     private String stateLevelTenantId;
+
+    // Individual Service
+    @Value("${individual.service.host:http://localhost:8084}")
+    private String individualServiceHost;
+
+    @Value("${individual.service.search.url:/individual/v1/_search}")
+    private String individualServiceSearchUrl;
+
+    @Value("${individual.service.search.limit:100}")
+    private Integer individualServiceSearchLimit;
+
+    @Value("${individual.validation.enabled:true}")
+    private Boolean individualValidationEnabled;
 }
