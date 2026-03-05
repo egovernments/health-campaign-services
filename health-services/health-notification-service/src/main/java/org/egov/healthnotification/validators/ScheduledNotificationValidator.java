@@ -2,6 +2,7 @@ package org.egov.healthnotification.validators;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.exception.InvalidTenantIdException;
+import org.egov.healthnotification.Constants;
 import org.egov.healthnotification.repository.ScheduledNotificationRepository;
 import org.egov.healthnotification.web.models.ScheduledNotification;
 import org.egov.tracer.model.CustomException;
@@ -117,31 +118,31 @@ public class ScheduledNotificationValidator {
                                          String prefix,
                                          Map<String, String> errorMap) {
         if (isBlank(notification.getTenantId())) {
-            errorMap.put(prefix + ".tenantId", "tenantId is required");
+            errorMap.put(prefix + ".tenantId", Constants.MSG_TENANT_ID_REQUIRED);
         }
 
         if (isBlank(notification.getEntityId())) {
-            errorMap.put(prefix + ".entityId", "entityId is required");
+            errorMap.put(prefix + ".entityId", Constants.MSG_ENTITY_ID_REQUIRED);
         }
 
         if (isBlank(notification.getEntityType())) {
-            errorMap.put(prefix + ".entityType", "entityType is required");
+            errorMap.put(prefix + ".entityType", Constants.MSG_ENTITY_TYPE_REQUIRED);
         }
 
         if (isBlank(notification.getEventType())) {
-            errorMap.put(prefix + ".eventType", "eventType is required");
+            errorMap.put(prefix + ".eventType", Constants.MSG_EVENT_TYPE_REQUIRED);
         }
 
         if (isBlank(notification.getTemplateCode())) {
-            errorMap.put(prefix + ".templateCode", "templateCode is required");
+            errorMap.put(prefix + ".templateCode", Constants.MSG_TEMPLATE_CODE_REQUIRED);
         }
 
         if (isBlank(notification.getRecipientId())) {
-            errorMap.put(prefix + ".recipientId", "recipientId is required");
+            errorMap.put(prefix + ".recipientId", Constants.MSG_RECIPIENT_ID_REQUIRED);
         }
 
         if (notification.getRecipientType() == null) {
-            errorMap.put(prefix + ".recipientType", "recipientType is required");
+            errorMap.put(prefix + ".recipientType", Constants.MSG_RECIPIENT_TYPE_REQUIRED);
         }
     }
 

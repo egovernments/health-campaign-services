@@ -10,6 +10,7 @@ import org.egov.common.models.individual.Individual;
 import org.egov.common.models.project.Project;
 import org.egov.common.models.project.ProjectBeneficiary;
 import org.egov.common.models.project.Task;
+import org.egov.healthnotification.Constants;
 import org.egov.healthnotification.service.HouseholdService;
 import org.egov.healthnotification.service.IndividualService;
 import org.egov.healthnotification.service.LocalizationService;
@@ -63,7 +64,7 @@ public class HealthNotificationUtils {
         String beneficiaryClientReferenceId = projectBeneficiary.getBeneficiaryClientReferenceId();
         log.info("Successfully fetched project beneficiary with beneficiaryClientRefId: {}", beneficiaryClientReferenceId);
 
-        if ("HOUSEHOLD".equals(beneficiaryType)) {
+        if (Constants.BENEFICIARY_TYPE_HOUSEHOLD.equals(beneficiaryType)) {
             log.info("Beneficiary type is HOUSEHOLD, fetching household head details");
 
             // Step 2: Fetch household head member by household client reference ID
@@ -77,15 +78,15 @@ public class HealthNotificationUtils {
             Individual individual = individualService.searchIndividualById(individualId, tenantId);
 
             // Step 4: Extract required fields and populate HashMap
-            househeaddetails.put("givenName", individual.getName() != null ? individual.getName().getGivenName() : null);
-            househeaddetails.put("mobileNumber", individual.getMobileNumber());
-            househeaddetails.put("altContactNumber", individual.getAltContactNumber());
-            househeaddetails.put("emailId", individual.getEmail());
-            househeaddetails.put("individualId", individualId);
+            househeaddetails.put(Constants.FIELD_GIVEN_NAME, individual.getName() != null ? individual.getName().getGivenName() : null);
+            househeaddetails.put(Constants.FIELD_MOBILE_NUMBER, individual.getMobileNumber());
+            househeaddetails.put(Constants.FIELD_ALT_CONTACT_NUMBER, individual.getAltContactNumber());
+            househeaddetails.put(Constants.FIELD_EMAIL_ID, individual.getEmail());
+            househeaddetails.put(Constants.FIELD_INDIVIDUAL_ID, individualId);
 
             log.info("Successfully populated household head details for individualId: {}", individualId);
 
-        } else if ("INDIVIDUAL".equals(beneficiaryType)) {
+        } else if (Constants.BENEFICIARY_TYPE_INDIVIDUAL.equals(beneficiaryType)) {
             log.info("Beneficiary type is INDIVIDUAL, resolving household head");
 
             // Step 2: Reverse lookup — find which household this individual belongs to
@@ -113,7 +114,7 @@ public class HealthNotificationUtils {
                 headIndividualId = head.getIndividualId();
 
                 // Store child name for SMS template placeholder
-                househeaddetails.put("childName", childName);
+                househeaddetails.put(Constants.FIELD_CHILD_NAME, childName);
             }
 
             log.info("Resolved household head individualId: {}", headIndividualId);
@@ -122,18 +123,18 @@ public class HealthNotificationUtils {
             Individual individual = individualService.searchIndividualById(headIndividualId, tenantId);
 
             // Step 4: Extract required fields and populate HashMap
-            househeaddetails.put("givenName", individual.getName() != null ? individual.getName().getGivenName() : null);
-            househeaddetails.put("mobileNumber", individual.getMobileNumber());
-            househeaddetails.put("altContactNumber", individual.getAltContactNumber());
-            househeaddetails.put("emailId", individual.getEmail());
-            househeaddetails.put("individualId", headIndividualId);
+            househeaddetails.put(Constants.FIELD_GIVEN_NAME, individual.getName() != null ? individual.getName().getGivenName() : null);
+            househeaddetails.put(Constants.FIELD_MOBILE_NUMBER, individual.getMobileNumber());
+            househeaddetails.put(Constants.FIELD_ALT_CONTACT_NUMBER, individual.getAltContactNumber());
+            househeaddetails.put(Constants.FIELD_EMAIL_ID, individual.getEmail());
+            househeaddetails.put(Constants.FIELD_INDIVIDUAL_ID, headIndividualId);
 
             log.info("Successfully populated household head details for individualId: {}", headIndividualId);
 
         } else {
             log.error("Unknown beneficiaryType: {} for clientRefId: {}", beneficiaryType, projectBeneficiaryClientRefId);
-            throw new CustomException("UNKNOWN_BENEFICIARY_TYPE",
-                    "Unsupported beneficiaryType: " + beneficiaryType + ". Expected HOUSEHOLD or INDIVIDUAL.");
+            throw new CustomException(Constants.ERROR_UNKNOWN_BENEFICIARY_TYPE,
+                    String.format(Constants.MSG_UNKNOWN_BENEFICIARY_TYPE, beneficiaryType));
         }
 
         return househeaddetails;
@@ -158,7 +159,7 @@ public class HealthNotificationUtils {
             return null;
         }
 
-        JsonNode eventNotifications = notificationConfig.getData().get("eventNotifications");
+        JsonNode eventNotifications = notificationConfig.getData().get(Constants.FIELD_EVENT_NOTIFICATIONS);
 
         if (eventNotifications == null || !eventNotifications.isArray()) {
             log.info("eventNotifications array not found. Skipping notification for task: {}", taskId);
@@ -168,12 +169,12 @@ public class HealthNotificationUtils {
         // Step 1: Find matching eventType
         for (JsonNode eventNode : eventNotifications) {
 
-            JsonNode eventTypeNode = eventNode.get("eventType");
+            JsonNode eventTypeNode = eventNode.get(Constants.FIELD_EVENT_TYPE);
 
             if (eventTypeNode != null && eventType.equals(eventTypeNode.asText())) {
 
                 // Step 2: Check if event is enabled
-                boolean eventEnabled = eventNode.path("enabled").asBoolean(false);
+                boolean eventEnabled = eventNode.path(Constants.FIELD_ENABLED).asBoolean(false);
 
                 if (!eventEnabled) {
                     log.info("Event type {} is disabled. Skipping notification for task: {}", eventType, taskId);
@@ -181,7 +182,7 @@ public class HealthNotificationUtils {
                 }
 
                 // Step 3: Filter scheduledNotifications
-                JsonNode scheduledArray = eventNode.get("scheduledNotifications");
+                JsonNode scheduledArray = eventNode.get(Constants.FIELD_SCHEDULED_NOTIFICATIONS);
 
                 if (scheduledArray == null || !scheduledArray.isArray()) {
                     log.info("No scheduledNotifications found for eventType: {}. Skipping task: {}", eventType, taskId);
@@ -191,7 +192,7 @@ public class HealthNotificationUtils {
                 ArrayNode enabledScheduledNotifications = objectMapper.createArrayNode();
 
                 for (JsonNode scheduledNode : scheduledArray) {
-                    if (scheduledNode.path("enabled").asBoolean(false)) {
+                    if (scheduledNode.path(Constants.FIELD_ENABLED).asBoolean(false)) {
                         enabledScheduledNotifications.add(scheduledNode);
                     }
                 }
@@ -203,11 +204,11 @@ public class HealthNotificationUtils {
 
                 // Step 4: Create filtered response object
                 ObjectNode resultNode = objectMapper.createObjectNode();
-                resultNode.set("eventType", eventNode.get("eventType"));
-                resultNode.set("enabled", eventNode.get("enabled"));
-                resultNode.set("recipientType", eventNode.get("recipientType"));
-                resultNode.set("placeholders", eventNode.get("placeholders"));
-                resultNode.set("scheduledNotifications", enabledScheduledNotifications);
+                resultNode.set(Constants.FIELD_EVENT_TYPE, eventNode.get(Constants.FIELD_EVENT_TYPE));
+                resultNode.set(Constants.FIELD_ENABLED, eventNode.get(Constants.FIELD_ENABLED));
+                resultNode.set(Constants.FIELD_RECIPIENT_TYPE, eventNode.get(Constants.FIELD_RECIPIENT_TYPE));
+                resultNode.set(Constants.FIELD_PLACEHOLDERS, eventNode.get(Constants.FIELD_PLACEHOLDERS));
+                resultNode.set(Constants.FIELD_SCHEDULED_NOTIFICATIONS, enabledScheduledNotifications);
 
                 log.info("Returning enabled notification config for eventType: {} with {} scheduled notifications for task: {}",
                         eventType, enabledScheduledNotifications.size(), taskId);
@@ -254,7 +255,7 @@ public class HealthNotificationUtils {
         log.info("Found {} locale(s) for task: {}", locales.size(), taskId);
 
         // Step 2: Extract scheduledNotifications array from eventNotificationConfig
-        JsonNode scheduledNotificationsArray = eventNotificationConfig.get("scheduledNotifications");
+        JsonNode scheduledNotificationsArray = eventNotificationConfig.get(Constants.FIELD_SCHEDULED_NOTIFICATIONS);
         if (scheduledNotificationsArray == null || !scheduledNotificationsArray.isArray() || scheduledNotificationsArray.isEmpty()) {
             log.info("No scheduledNotifications found in eventNotificationConfig. Skipping task: {}", taskId);
             return finalMessagesList;
@@ -263,7 +264,7 @@ public class HealthNotificationUtils {
         // Step 3: Extract all template codes from scheduledNotifications
         List<String> templateCodes = new ArrayList<>();
         for (JsonNode scheduledNode : scheduledNotificationsArray) {
-            JsonNode templateCodeNode = scheduledNode.get("templateCode");
+            JsonNode templateCodeNode = scheduledNode.get(Constants.FIELD_TEMPLATE_CODE);
             if (templateCodeNode != null && !templateCodeNode.isNull()) {
                 templateCodes.add(templateCodeNode.asText());
             }
@@ -318,7 +319,7 @@ public class HealthNotificationUtils {
 
         // Step 6: Process each scheduled notification for each locale and build finalized messages
         for (JsonNode scheduledNode : scheduledNotificationsArray) {
-            String templateCode = scheduledNode.path("templateCode").asText();
+            String templateCode = scheduledNode.path(Constants.FIELD_TEMPLATE_CODE).asText();
 
             // Get all localized message templates for this templateCode
             Map<String, String> messagesForAllLocales = localizationMessages.get(templateCode);
@@ -342,9 +343,9 @@ public class HealthNotificationUtils {
 
                 // Create a map to hold the message data
                 Map<String, String> messageData = new HashMap<>();
-                messageData.put("templateCode", templateCode);
-                messageData.put("locale", locale);
-                messageData.put("message", finalMessage);
+                messageData.put(Constants.FIELD_TEMPLATE_CODE, templateCode);
+                messageData.put(Constants.FIELD_LOCALE, locale);
+                messageData.put(Constants.FIELD_MESSAGE, finalMessage);
 
                 // Add to the list
                 finalMessagesList.add(messageData);
@@ -373,12 +374,12 @@ public class HealthNotificationUtils {
 
         try {
             JsonNode dataNode = notificationConfig.getData();
-            if (dataNode == null || !dataNode.has("locale")) {
+            if (dataNode == null || !dataNode.has(Constants.FIELD_LOCALE)) {
                 log.warn("No locale field found in notification config for task: {}", taskId);
                 return locales;
             }
 
-            JsonNode localeNode = dataNode.get("locale");
+            JsonNode localeNode = dataNode.get(Constants.FIELD_LOCALE);
             if (localeNode.isArray() && localeNode.size() > 0) {
                 for (JsonNode localeElement : localeNode) {
                     String locale = localeElement.asText();
@@ -417,7 +418,7 @@ public class HealthNotificationUtils {
         Map<String, String> placeholderMap = new HashMap<>();
 
         // Extract placeholders array from eventNotificationConfig
-        JsonNode placeholdersArray = eventNotificationConfig.get("placeholders");
+        JsonNode placeholdersArray = eventNotificationConfig.get(Constants.FIELD_PLACEHOLDERS);
         if (placeholdersArray == null || !placeholdersArray.isArray()) {
             log.warn("No placeholders array found in eventNotificationConfig for task: {}", taskId);
             return placeholderMap;
@@ -459,54 +460,54 @@ public class HealthNotificationUtils {
         // Map known placeholders to their actual values
         switch (key) {
             // Household/Individual related placeholders
-            case "HouseholdHeadName":
-                String givenName = householdDetails.get("givenName");
+            case Constants.PLACEHOLDER_HOUSEHOLD_HEAD_NAME:
+                String givenName = householdDetails.get(Constants.FIELD_GIVEN_NAME);
                 return givenName != null ? givenName : "";
 
-            case "MobileNumber":
+            case Constants.PLACEHOLDER_MOBILE_NUMBER:
                 String mobileNumber = determineRecipientMobileNumber(householdDetails);
                 return mobileNumber != null ? mobileNumber : "";
 
-            case "EmailId":
-                String emailId = householdDetails.get("emailId");
+            case Constants.PLACEHOLDER_EMAIL_ID:
+                String emailId = householdDetails.get(Constants.FIELD_EMAIL_ID);
                 return emailId != null ? emailId : "";
 
-            case "IndividualId":
-                String individualId = householdDetails.get("individualId");
+            case Constants.PLACEHOLDER_INDIVIDUAL_ID:
+                String individualId = householdDetails.get(Constants.FIELD_INDIVIDUAL_ID);
                 return individualId != null ? individualId : "";
 
             // Task related placeholders
-            case "DistributionDate":
-            case "DistributedDate":
-                String distributionDateValue = householdDetails.get("distributionDate");
+            case Constants.PLACEHOLDER_DISTRIBUTION_DATE:
+            case Constants.PLACEHOLDER_DISTRIBUTED_DATE:
+                String distributionDateValue = householdDetails.get(Constants.FIELD_DISTRIBUTION_DATE);
                 log.info("Mapping DistributionDate/DistributedDate placeholder, value from householdDetails: {}", distributionDateValue);
                 return distributionDateValue != null ? distributionDateValue : "";
 
-            case "DistributionTime":
-            case "DistributedTime":
+            case Constants.PLACEHOLDER_DISTRIBUTION_TIME:
+            case Constants.PLACEHOLDER_DISTRIBUTED_TIME:
                 return "";
 
-            case "DistributionPoint":
-            case "DistributedPoint":
+            case Constants.PLACEHOLDER_DISTRIBUTION_POINT:
+            case Constants.PLACEHOLDER_DISTRIBUTED_POINT:
                 return "";
 
-            case "DeliveryDate":
+            case Constants.PLACEHOLDER_DELIVERY_DATE:
                 return formatDate(task.getPlannedStartDate());
 
-            case "TaskId":
+            case Constants.PLACEHOLDER_TASK_ID:
                 String taskId = task.getId();
                 return taskId != null ? taskId : "";
 
-            case "TaskStatus":
+            case Constants.PLACEHOLDER_TASK_STATUS:
                 return task.getStatus() != null ? task.getStatus().toString() : "";
 
             // Project related placeholders
-            case "CampaignName":
+            case Constants.PLACEHOLDER_CAMPAIGN_NAME:
                 String campaignName = project.getName();
                 return campaignName != null ? campaignName : "";
 
-            case "ProjectType":
-            case "CampaignType":
+            case Constants.PLACEHOLDER_PROJECT_TYPE:
+            case Constants.PLACEHOLDER_CAMPAIGN_TYPE:
                 String projectType = project.getProjectType();
                 return projectType != null ? projectType : "";
 
@@ -547,12 +548,12 @@ public class HealthNotificationUtils {
      * @return The mobile number to use, or null if neither is available
      */
     public static String determineRecipientMobileNumber(Map<String, String> householdDetails) {
-        String mobileNumber = householdDetails.get("mobileNumber");
+        String mobileNumber = householdDetails.get(Constants.FIELD_MOBILE_NUMBER);
         if (mobileNumber != null && !mobileNumber.isBlank()) {
             return mobileNumber;
         }
 
-        String altContactNumber = householdDetails.get("altContactNumber");
+        String altContactNumber = householdDetails.get(Constants.FIELD_ALT_CONTACT_NUMBER);
         if (altContactNumber != null && !altContactNumber.isBlank()) {
             return altContactNumber;
         }

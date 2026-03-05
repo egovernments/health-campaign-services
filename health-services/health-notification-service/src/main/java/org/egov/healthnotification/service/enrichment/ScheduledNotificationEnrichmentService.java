@@ -1,8 +1,9 @@
-package org.egov.healthnotification.validators;
+package org.egov.healthnotification.service.enrichment;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.models.AuditDetails;
 import org.egov.common.contract.request.RequestInfo;
+import org.egov.healthnotification.Constants;
 import org.egov.healthnotification.web.models.ScheduledNotification;
 import org.egov.healthnotification.web.models.enums.NotificationStatus;
 import org.springframework.stereotype.Component;
@@ -120,6 +121,6 @@ public class ScheduledNotificationEnrichmentService {
                 && requestInfo.getUserInfo().getUuid() != null) {
             return requestInfo.getUserInfo().getUuid();
         }
-        return "SYSTEM";
+        return Constants.SYSTEM_USER;
     }
 }
