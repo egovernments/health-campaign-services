@@ -1,4 +1,4 @@
-package org.egov.healthnotification.service;
+package org.egov.healthnotification.validators;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.models.AuditDetails;
@@ -10,34 +10,25 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 import java.util.UUID;
 
-/**
- * Enrichment service for ScheduledNotification entities.
- * Follows the DIGIT Household/Individual pattern:
- *   - enrichForCreate: generates IDs, sets auditDetails, rowVersion, isDeleted, status
- *   - enrichForUpdate: updates auditDetails, increments rowVersion
- *
- * Unlike Household which uses IdGenService for sequential IDs,
- * notifications use UUID since they are internal entities
- * and don't require human-readable IDs.
- */
 @Component
 @Slf4j
 public class ScheduledNotificationEnrichmentService {
 
     /**
-     * Enriches a list of ScheduledNotification objects for creation.
-     * Sets:
-     *   - id (UUID)
-     *   - clientReferenceId (UUID)
+     * Enriches a list of ScheduledNotification objects for create.
+     * Updates:
+     *   - id → a UUID
+     *   - clientReferenceId → a UUID
      *   - status → PENDING
      *   - isDeleted → false
      *   - rowVersion → 1
      *   - attempts → 0
      *   - createdAt → current time
-     *   - auditDetails (createdBy, createdTime, lastModifiedBy, lastModifiedTime)
+     *   - auditDetails → createdBy, createdTime, lastModifiedBy, lastModifiedTime
+     *   - if scheduledAt is not set, default to now (immediate)
      *
      * @param notifications The list of notifications to enrich
-     * @param requestInfo   The request info containing user details (may be null for Kafka-driven flows)
+     * @param requestInfo   The request info containing user details
      */
     public void enrichForCreate(List<ScheduledNotification> notifications, RequestInfo requestInfo) {
         log.info("Enriching {} scheduled notifications for create", notifications.size());

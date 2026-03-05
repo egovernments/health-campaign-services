@@ -1,4 +1,4 @@
-package org.egov.healthnotification.service;
+package org.egov.healthnotification.validators;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.exception.InvalidTenantIdException;
@@ -13,25 +13,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Validator for ScheduledNotification entities.
- * Performs:
- *   1. Required field validation — HARD FAIL (throws CustomException)
- *      Missing tenantId, entityId, eventType, templateCode, recipientId, recipientType
- *      are programming errors that should never happen.
- *
- *   2. Mobile number check — SOFT SKIP (filters out, logs warning)
- *      Matches the upstream PostDistributionService behavior which skips
- *      beneficiaries without a mobile number rather than failing the entire batch.
- *
- *   3. Duplicate detection — SOFT SKIP (filters out, logs info)
- *      If a notification for the same entity+event+template+recipient
- *      already exists, skip it rather than failing. This supports
- *      idempotent reprocessing of Kafka messages.
- *
- * Follows DIGIT validator pattern — collects hard errors and throws at the end,
- * while soft issues silently filter out the affected notifications.
- */
+
 @Component
 @Slf4j
 public class ScheduledNotificationValidator {
@@ -43,15 +25,20 @@ public class ScheduledNotificationValidator {
     }
 
     /**
-     * Validates a list of ScheduledNotification objects before creation.
-     *
-     * Phase 1: Required fields — throws CustomException if any are missing (hard fail).
-     * Phase 2: Mobile number — removes notifications without mobile number (soft skip).
-     * Phase 3: Duplicates — removes notifications that already exist in DB (soft skip).
-     *
-     * @param notifications The list of notifications to validate (modified in-place — invalid
-     *                      entries are removed so only valid ones remain for enrichment + save)
-     * @throws CustomException if required fields are missing
+     * Validates a list of scheduled notifications for create.
+     * 
+     * Phase 1: Required field validation (HARD FAIL)
+     *   - Validates that all required fields are present for each notification
+     *   - Throws a CustomException with error details if any notification fails
+     * 
+     * Phase 2: Mobile number check (SOFT SKIP)
+     *   - Skips notifications with missing mobile number
+     * 
+     * Phase 3: Duplicate check (SOFT SKIP)
+     *   - Skips duplicate notifications gracefully — supports idempotent Kafka reprocessing
+     *   - Throws a CustomException with error details if any notification fails
+     * 
+     * @param notifications List of scheduled notifications to validate
      */
     public void validateForCreate(List<ScheduledNotification> notifications) {
         log.info("Validating {} scheduled notifications for create", notifications.size());
