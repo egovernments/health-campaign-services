@@ -1,0 +1,134 @@
+import { logger } from './logger';
+import { httpRequest } from './request';
+import config from '../config';
+
+interface WorkerData {
+    name: string;
+    payeePhoneNumber: string;
+    paymentProvider: string;
+    payeeName: string;
+    bankAccount: string;
+    bankCode: string;
+    individualId: string;
+    tenantId: string;
+}
+
+/**
+ * Search workers by individual IDs
+ */
+async function searchWorkersByIndividualIds(
+    individualIds: string[],
+    tenantId: string,
+    requestInfo: any
+): Promise<any[]> {
+    if (!individualIds.length) return [];
+
+    const url = config.host.workerRegistryHost + config.paths.workerRegistrySearch;
+    const requestBody = {
+        RequestInfo: requestInfo,
+        workerSearch: {
+            individualId: individualIds,
+            tenantId,
+        },
+    };
+
+    try {
+        const response = await httpRequest(url, requestBody);
+        return response?.workers || [];
+    } catch (error: any) {
+        logger.error("Worker registry search failed:", error);
+        throw new Error(`Worker search failed: ${error.message || error}`);
+    }
+}
+
+/**
+ * Create or update workers in the worker registry based on whether they already exist.
+ * Uses O(n) lookup via Map for existing workers.
+ */
+async function createOrUpdateWorkers(
+    workerDataList: WorkerData[],
+    requestInfo: any
+): Promise<void> {
+    if (!workerDataList.length) return;
+
+    const individualIds = workerDataList.map(w => w.individualId);
+    const tenantId = workerDataList[0].tenantId;
+
+    const existingWorkers = await searchWorkersByIndividualIds(individualIds, tenantId, requestInfo);
+
+    // O(n) map: individualId → existing worker
+    const existingWorkerMap = new Map<string, any>();
+    for (const worker of existingWorkers) {
+        if (worker.individualIds?.length) {
+            for (const id of worker.individualIds) {
+                existingWorkerMap.set(id, worker);
+            }
+        }
+    }
+
+    const workersToCreate: any[] = [];
+    const workersToUpdate: any[] = [];
+
+    for (const data of workerDataList) {
+        const existingWorker = existingWorkerMap.get(data.individualId);
+
+        if (existingWorker) {
+            workersToUpdate.push({
+                ...existingWorker,
+                ...(data.name != null ? { name: data.name } : {}),
+                ...(!!data.payeePhoneNumber ? { payeePhoneNumber: data.payeePhoneNumber } : {}),
+                ...(!!data.paymentProvider ? { paymentProvider: data.paymentProvider } : {}),
+                ...(!!data.payeeName ? { payeeName: data.payeeName } : {}),
+                ...(!!data.bankAccount ? { bankAccount: data.bankAccount } : {}),
+                ...(!!data.bankCode ? { bankCode: data.bankCode } : {}),
+                rowVersion: (existingWorker.rowVersion || 0) + 1,
+            });
+        } else {
+            workersToCreate.push({
+                name: data.name,
+                payeePhoneNumber: data.payeePhoneNumber,
+                paymentProvider: data.paymentProvider,
+                payeeName: data.payeeName,
+                bankAccount: data.bankAccount,
+                bankCode: data.bankCode,
+                individualIds: [data.individualId],
+                tenantId: data.tenantId,
+                additionalDetails: {},
+            });
+        }
+    }
+
+    if (workersToCreate.length) {
+        const url = config.host.workerRegistryHost + config.paths.workerRegistryBulkCreate;
+        const requestBody = {
+            RequestInfo: requestInfo,
+            workers: workersToCreate,
+        };
+
+        try {
+            await httpRequest(url, requestBody);
+            logger.info(`Created ${workersToCreate.length} workers in worker registry`);
+        } catch (error: any) {
+            logger.error("Worker registry bulk create failed:", error);
+            throw new Error(`Worker bulk create failed: ${error.message || error}`);
+        }
+    }
+
+    if (workersToUpdate.length) {
+        const url = config.host.workerRegistryHost + config.paths.workerRegistryBulkUpdate;
+        const requestBody = {
+            RequestInfo: requestInfo,
+            workers: workersToUpdate,
+        };
+
+        try {
+            await httpRequest(url, requestBody);
+            logger.info(`Updated ${workersToUpdate.length} workers in worker registry`);
+        } catch (error: any) {
+            logger.error("Worker registry bulk update failed:", error);
+            throw new Error(`Worker bulk update failed: ${error.message || error}`);
+        }
+    }
+}
+
+export { WorkerData, searchWorkersByIndividualIds, createOrUpdateWorkers };

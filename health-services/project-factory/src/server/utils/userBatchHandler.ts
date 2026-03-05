@@ -9,6 +9,7 @@ import { DataTransformer } from './transFormUtil';
 import { transformConfigs } from '../config/transformConfigs';
 import { encrypt } from './cryptUtils';
 import config from '../config';
+import { WorkerData, createOrUpdateWorkers } from './workerRegistryUtils';
 
 /**
  * Interface for user batch message
@@ -77,18 +78,22 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
         
         // Create users via HRMS API
         const createResult = await createUsersViaHrmsApi(transformedUsers, useruuid);
-        
+
+        // Build worker data for worker registry integration
+        const workerDataList: WorkerData[] = [];
+
         // Process results and update campaign data
         let successCount = 0;
         let failureCount = 0;
         const updatedUsers: any[] = [];
-        
+
         uniqueIdentifiers.forEach((uniqueIdentifier, index) => {
             const campaignRecord = userData[uniqueIdentifier];
             const phoneNumber = String(uniqueIdentifier);
             const serviceUuid = createResult.mobileToUserServiceMap[phoneNumber];
+            const individualId = createResult.mobileToIndividualIdMap[phoneNumber];
             const transformedUser = transformedUsers[index];
-            
+
             if (serviceUuid) {
                 // Success - user created
                 campaignRecord.status = dataRowStatuses.completed;
@@ -103,17 +108,45 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
                 campaignRecord.uniqueIdAfterProcess = serviceUuid;
                 updatedUsers.push(campaignRecord);
                 successCount++;
-                
-                logger.info(`✅ User created: ${transformedUser?.user?.userName} with service UUID: ${serviceUuid}`);
+
+                // Collect worker data from campaign record
+                if (individualId) {
+                    const recordData = campaignRecord.data;
+                    workerDataList.push({
+                        name: recordData["HCM_ADMIN_CONSOLE_USER_NAME"] || "",
+                        payeePhoneNumber: recordData["HCM_ADMIN_CONSOLE_USER_PAYEE_PHONE_NUMBER"] || "",
+                        paymentProvider: recordData["HCM_ADMIN_CONSOLE_USER_PAYMENT_PROVIDER"] || "",
+                        payeeName: recordData["HCM_ADMIN_CONSOLE_USER_PAYEE_NAME"] || "",
+                        bankAccount: recordData["HCM_ADMIN_CONSOLE_USER_BANK_ACCOUNT"] || "",
+                        bankCode: recordData["HCM_ADMIN_CONSOLE_USER_BANK_CODE"] || "",
+                        individualId,
+                        tenantId,
+                    });
+                }
+
+                logger.info(`User created: ${transformedUser?.user?.userName} with service UUID: ${serviceUuid}`);
             } else {
                 // Failure - mark user as failed
                 campaignRecord.status = dataRowStatuses.failed;
                 updatedUsers.push(campaignRecord);
                 failureCount++;
-                
-                logger.error(`❌ Failed to create user with phone: ${phoneNumber}`);
+
+                logger.error(`Failed to create user with phone: ${phoneNumber}`);
             }
         });
+
+        // Create/update workers in worker registry
+        if (workerDataList.length > 0) {
+            try {
+                const RequestInfo = { ...defaultRequestInfo?.RequestInfo };
+                RequestInfo.userInfo.uuid = useruuid;
+                RequestInfo.userInfo.tenantId = tenantId;
+                await createOrUpdateWorkers(workerDataList, RequestInfo);
+                logger.info(`Worker registry integration completed for ${workerDataList.length} workers`);
+            } catch (workerError) {
+                logger.error("Worker registry integration failed (non-blocking):", workerError);
+            }
+        }
         
         logger.info(`User batch ${batchNumber}/${totalBatches} completed: ${successCount} success, ${failureCount} failed`);
         
@@ -153,43 +186,48 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
  * Create users via HRMS API in batch
  */
 async function createUsersViaHrmsApi(
-    transformedUsers: any[], 
+    transformedUsers: any[],
     userUuid: string
-): Promise<{ mobileToUserServiceMap: Record<string, string> }> {
+): Promise<{ mobileToUserServiceMap: Record<string, string>; mobileToIndividualIdMap: Record<string, string> }> {
     try {
         if (transformedUsers.length === 0) {
-            return { mobileToUserServiceMap: {} };
+            return { mobileToUserServiceMap: {}, mobileToIndividualIdMap: {} };
         }
-        
+
         const url = config.host.hrmsHost + config.paths.hrmsEmployeeCreate;
         const RequestInfo = { ...defaultRequestInfo?.RequestInfo };
         RequestInfo.userInfo.uuid = userUuid;
-        
+
         const requestBody = {
             RequestInfo,
             Employees: transformedUsers,
         };
-        
+
         logger.info(`Creating ${transformedUsers.length} employees via HRMS API`);
-        
+
         const response = await httpRequest(url, requestBody);
-        
-        // Build mobile to service UUID mapping
+
+        // Build mobile to service UUID and individualId mappings
         const mobileToUserServiceMap: Record<string, string> = {};
+        const mobileToIndividualIdMap: Record<string, string> = {};
         if (response?.Employees) {
             for (const employee of response.Employees) {
                 const mobileNumber = employee?.user?.mobileNumber;
                 const serviceUuid = employee?.user?.userServiceUuid;
+                const individualId = employee?.user?.uuid;
                 if (mobileNumber && serviceUuid) {
                     mobileToUserServiceMap[String(mobileNumber)] = serviceUuid;
                 }
+                if (mobileNumber && individualId) {
+                    mobileToIndividualIdMap[String(mobileNumber)] = individualId;
+                }
             }
         }
-        
+
         logger.info(`Successfully created ${Object.keys(mobileToUserServiceMap).length} users via HRMS`);
-        
-        return { mobileToUserServiceMap };
-        
+
+        return { mobileToUserServiceMap, mobileToIndividualIdMap };
+
     } catch (error: any) {
         logger.error("HRMS employee creation failed:", error);
         throw new Error(`HRMS API failed: ${error.message || error}`);

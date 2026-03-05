@@ -168,6 +168,26 @@ const createAndSearch: any = {
                 },
                 "Employment Type (Mandatory)": {
                     "enum": ["Temporary", "Permanent"]
+                },
+                "Payee Phone Number": {
+                    "type": "string",
+                    "maxLength": 20
+                },
+                "Payment Provider": {
+                    "type": "string",
+                    "maxLength": 128
+                },
+                "Payee Name": {
+                    "type": "string",
+                    "maxLength": 128
+                },
+                "Bank Account": {
+                    "type": "string",
+                    "maxLength": 64
+                },
+                "Bank Code": {
+                    "type": "string",
+                    "maxLength": 64
                 }
             },
             "required": [
@@ -217,13 +237,43 @@ const createAndSearch: any = {
                     type: "string"
                 },
                 {
-                    sheetColumn: "L",
+                    sheetColumn: "F",
+                    sheetColumnName: "HCM_ADMIN_CONSOLE_USER_PAYEE_PHONE_NUMBER",
+                    resultantPath: "payeePhoneNumber",
+                    type: "string"
+                },
+                {
+                    sheetColumn: "G",
+                    sheetColumnName: "HCM_ADMIN_CONSOLE_USER_PAYMENT_PROVIDER",
+                    resultantPath: "paymentProvider",
+                    type: "string"
+                },
+                {
+                    sheetColumn: "H",
+                    sheetColumnName: "HCM_ADMIN_CONSOLE_USER_PAYEE_NAME",
+                    resultantPath: "payeeName",
+                    type: "string"
+                },
+                {
+                    sheetColumn: "I",
+                    sheetColumnName: "HCM_ADMIN_CONSOLE_USER_BANK_ACCOUNT",
+                    resultantPath: "bankAccount",
+                    type: "string"
+                },
+                {
+                    sheetColumn: "J",
+                    sheetColumnName: "HCM_ADMIN_CONSOLE_USER_BANK_CODE",
+                    resultantPath: "bankCode",
+                    type: "string"
+                },
+                {
+                    sheetColumn: "Q",
                     sheetColumnName: "UserName",
                     resultantPath: "user.userName",
                     type: "string"
                 },
                 {
-                    sheetColumn: "M",
+                    sheetColumn: "R",
                     sheetColumnName: "Password",
                     resultantPath: "user.password",
                     type: "string"
@@ -235,9 +285,9 @@ const createAndSearch: any = {
             }
         },
         uniqueIdentifier: "user.userServiceUuid",
-        uniqueIdentifierColumn: "P",
+        uniqueIdentifierColumn: "U",
         uniqueIdentifierColumnName: "UserService Uuids",
-        activeColumn: "J",
+        activeColumn: "O",
         activeColumnName: "HCM_ADMIN_CONSOLE_USER_USAGE",
         createBulkDetails: {
             limit: 50,

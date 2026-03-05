@@ -12,6 +12,7 @@ import { defaultRequestInfo } from "../api/coreApis";
 import { httpRequest } from "../utils/request";
 import { decrypt, encrypt } from "../utils/cryptUtils";
 import { validateResourceDetailsBeforeProcess } from "../utils/sheetManageUtils";
+import { WorkerData, createOrUpdateWorkers } from "../utils/workerRegistryUtils";
 
 // This will be a dynamic template class for different types
 export class TemplateClass {
@@ -336,8 +337,9 @@ export class TemplateClass {
 
     static async createUserFromTableData(resourceDetails: any): Promise<any> {
         logger.info("Fetching campaign details...");
+        const tenantId = resourceDetails.tenantId;
         const response = await searchProjectTypeCampaignService({
-            tenantId: resourceDetails.tenantId,
+            tenantId: tenantId,
             ids: [resourceDetails?.campaignId],
         });
 
@@ -356,7 +358,7 @@ export class TemplateClass {
         const userRowDatas = usersToCreate?.map((u: any) => u?.data);
 
         const transformConfig = { ...transformConfigs?.["employeeHrms"] };
-        transformConfig.metadata.tenantId = resourceDetails.tenantId;
+        transformConfig.metadata.tenantId = tenantId;
         transformConfig.metadata.hierarchy = resourceDetails.hierarchyType;
 
         const transformer = new DataTransformer(transformConfig);
@@ -370,12 +372,15 @@ export class TemplateClass {
         for (let i = 0; i < transformedUsers.length; i += BATCH_SIZE) {
             const batch = transformedUsers.slice(i, i + BATCH_SIZE);
             try {
-                const mobileToUserServiceMap = await this.createEmployeesAndGetServiceUuid(batch, userUuid);
+                const { mobileToServiceMap, mobileToIndividualIdMap } = await this.createEmployeesAndGetServiceUuid(batch, userUuid);
 
                 const successfulUsers = [];
+                const workerDataList: WorkerData[] = [];
+
                 for (const user of batch) {
                     const mobile = String(user?.user?.mobileNumber);
-                    const serviceUuid = mobileToUserServiceMap[mobile];
+                    const serviceUuid = mobileToServiceMap[mobile];
+                    const individualId = mobileToIndividualIdMap[mobile];
                     const existing = mobileToCampaignMap[mobile];
                     if (existing) {
                         existing.status = dataRowStatuses.completed;
@@ -384,11 +389,37 @@ export class TemplateClass {
                         existing.data["Password"] = encrypt(user?.user?.password);
                         existing.uniqueIdAfterProcess = serviceUuid;
                         successfulUsers.push(existing);
+
+                        // Collect worker data
+                        if (individualId) {
+                            workerDataList.push({
+                                name: existing.data["HCM_ADMIN_CONSOLE_USER_NAME"] || "",
+                                payeePhoneNumber: existing.data["HCM_ADMIN_CONSOLE_USER_PAYEE_PHONE_NUMBER"] || "",
+                                paymentProvider: existing.data["HCM_ADMIN_CONSOLE_USER_PAYMENT_PROVIDER"] || "",
+                                payeeName: existing.data["HCM_ADMIN_CONSOLE_USER_PAYEE_NAME"] || "",
+                                bankAccount: existing.data["HCM_ADMIN_CONSOLE_USER_BANK_ACCOUNT"] || "",
+                                bankCode: existing.data["HCM_ADMIN_CONSOLE_USER_BANK_CODE"] || "",
+                                individualId,
+                                tenantId: resourceDetails.tenantId,
+                            });
+                        }
                     }
                 }
 
                 logger.info(`Successfully created ${successfulUsers.length} users`);
                 await this.persistInBatches(successfulUsers, config.kafka.KAFKA_UPDATE_SHEET_DATA_TOPIC, resourceDetails.tenantId);
+
+                // Create/update workers in worker registry
+                if (workerDataList.length > 0) {
+                    try {
+                        const RequestInfo: any = defaultRequestInfo?.RequestInfo;
+                        RequestInfo.userInfo.tenantId = tenantId;
+                        await createOrUpdateWorkers(workerDataList, RequestInfo);
+                        logger.info(`Worker registry integration completed for ${workerDataList.length} workers`);
+                    } catch (workerError) {
+                        logger.error("Worker registry integration failed (non-blocking):", workerError);
+                    }
+                }
             } catch (err) {
                 console.error("Error in batch creation:", err);
                 await this.handleBatchFailure(batch, usersToCreate, resourceDetails.tenantId);
@@ -421,7 +452,7 @@ export class TemplateClass {
 
 
 
-    static async createEmployeesAndGetServiceUuid(users: any[], userUuid: string) {
+    static async createEmployeesAndGetServiceUuid(users: any[], userUuid: string): Promise<{ mobileToServiceMap: Record<string, string>; mobileToIndividualIdMap: Record<string, string> }> {
         const url = config.host.hrmsHost + config.paths.hrmsEmployeeCreate;
         const RequestInfo : any = defaultRequestInfo?.RequestInfo;
         RequestInfo.userInfo.uuid = userUuid;
@@ -432,11 +463,16 @@ export class TemplateClass {
 
         try {
             const response = await httpRequest(url, requestBody);
-            const map: any = {};
-            for (const user of response?.Employees) {
-                map[user?.user?.mobileNumber] = user?.user?.userServiceUuid;
+            const mobileToServiceMap: Record<string, string> = {};
+            const mobileToIndividualIdMap: Record<string, string> = {};
+            for (const employee of response?.Employees) {
+                const mobile = String(employee?.user?.mobileNumber);
+                mobileToServiceMap[mobile] = employee?.user?.userServiceUuid;
+                if (employee?.user?.uuid) {
+                    mobileToIndividualIdMap[mobile] = employee?.user?.uuid;
+                }
             }
-            return map;
+            return { mobileToServiceMap, mobileToIndividualIdMap };
         } catch (error: any) {
             console.error("Employee creation API failed:", error);
             throw new Error(error);
