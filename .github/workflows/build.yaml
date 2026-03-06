@@ -139,7 +139,7 @@ jobs:
           
           DB_IMAGE_NAME=$(echo "$DB_BUILD_CONFIG" | yq eval -r '.["image-name"] // ""' -)
           DB_WORK_DIR=$(echo "$DB_BUILD_CONFIG" | yq eval -r '.["work-dir"] // ""' -)
-          DB_DOCKERFILE=$(echo "$DB_BUILD_CONFIG" | yq eval -r '.["work-dir"] // ""' -)/Dockerfile
+          DB_DOCKERFILE=$(echo "$DB_BUILD_CONFIG" | yq eval -r '.dockerfile // ""' -)
           
           # Step 8: Set Default Dockerfile if service dockerfile config is missing
           if [ -z "$SERVICE_DOCKERFILE" ]; then
