@@ -117,6 +117,9 @@ public class StockIndexV1 {
     @JsonProperty("taskDates")
     private String taskDates;
 
+    @JsonProperty("projectId")
+    private String projectId;
+
     @JsonProperty("syncedDate")
     private String syncedDate;
 
