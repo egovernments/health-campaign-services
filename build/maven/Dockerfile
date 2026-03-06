@@ -1,27 +1,25 @@
-FROM egovio/maven:3.9.6-amazoncorretto-17 AS build
+# ──────────────── BUILD STAGE ────────────────
+FROM maven:3.9.6-amazoncorretto-8-debian AS build
 ARG WORK_DIR
 WORKDIR /app
 
-# Copy project files
-COPY ${WORK_DIR}/pom.xml ./pom.xml
+# Copy POM, entrypoint script, and source
+COPY ${WORK_DIR}/pom.xml       ./pom.xml
 COPY build/maven/start.sh ./start.sh
-COPY ${WORK_DIR}/src ./src
+COPY ${WORK_DIR}/src           ./src
 
-# Build the project
-RUN mvn -B -f /app/pom.xml package
+RUN mvn -B -f pom.xml package
 
-# Runtime image – using a multi-arch base image
-FROM egovio/amazoncorretto:17-alpine
 
+# ─────────────── RUNTIME STAGE ───────────────
+FROM openjdk:8-jdk-alpine AS runtime
 WORKDIR /opt/egov
 
-# Copy artifacts from the build stage
-COPY --from=build /app/target/*.jar /app/start.sh /opt/egov/
+# Pull in the fat JAR and our startup script
+COPY --from=build /app/target/*.jar ./application.jar
+COPY --from=build /app/start.sh    ./start.sh
 
-# Ensure the start script has correct line endings and is executable
-RUN dos2unix /opt/egov/start.sh && chmod +x /opt/egov/start.sh
+RUN chmod +x ./start.sh
 
-# Verify architecture inside the container
-RUN uname -m
-
-CMD ["/opt/egov/start.sh"]
+# Override any Alpine tini entrypoint and launch via shell
+ENTRYPOINT ["sh", "./start.sh"]
