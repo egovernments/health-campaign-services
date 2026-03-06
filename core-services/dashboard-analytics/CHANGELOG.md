@@ -1,6 +1,9 @@
 #Changelog
 
 All notable changes to this module will be documented in this file.
+## 1.1.9_beta - 2026-03-04
+
+- Added `DataAccessExceptionHandler` to handle data access exceptions at the controller level and return standardized DIGIT error responses.
 
 ## 1.1.8-beta - 2022-11-04
 
