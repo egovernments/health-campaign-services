@@ -96,7 +96,7 @@
         <dependency>
             <groupId>org.egov.services</groupId>
             <artifactId>tracer</artifactId>
-            <version>2.9.0-SNAPSHOT</version>
+            <version>2.9.2-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>org.egov.services</groupId>
@@ -134,6 +134,17 @@
         </dependency>
         <!-- Bean Validation API support -->
     </dependencies>
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>io.opentelemetry</groupId>
+                <artifactId>opentelemetry-bom</artifactId>
+                <version>1.35.0</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
     <repositories>
         <repository>
             <id>repo.egovernments.org</id>
