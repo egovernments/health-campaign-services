@@ -94,4 +94,15 @@ public class HealthNotificationProperties {
     // SMS Configuration
     @Value("${notification.sms.enabled}")
     private Boolean smsNotificationEnabled;
+
+    // Notification Timezone — ALL LocalDate conversions MUST use this
+    @Value("${notification.timezone:UTC}")
+    private String notificationTimezone;
+
+    // Scheduler Configuration
+    @Value("${notification.scheduler.batch.size:100}")
+    private Integer schedulerBatchSize;
+
+    @Value("${notification.scheduler.max.fetch:10000}")
+    private Integer schedulerMaxFetch;
 }

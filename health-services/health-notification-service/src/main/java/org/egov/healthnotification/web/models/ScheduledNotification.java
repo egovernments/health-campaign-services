@@ -15,6 +15,7 @@ import org.egov.common.contract.models.AuditDetails;
 import org.egov.healthnotification.web.models.enums.NotificationStatus;
 import org.egov.healthnotification.web.models.enums.RecipientType;
 
+import java.time.LocalDate;
 import java.util.Map;
 
 /**
@@ -62,13 +63,13 @@ public class ScheduledNotification {
     @Size(max = 64)
     private String entityType;
 
-    // Scheduling
+    // Scheduling (DATE only — no time component; scheduler picks by date)
     @JsonProperty("scheduledAt")
     @NotNull
-    private Long scheduledAt;
+    private LocalDate scheduledAt;
 
     @JsonProperty("createdAt")
-    private Long createdAt;
+    private LocalDate createdAt;
 
     // Notification details
     @JsonProperty("templateCode")

@@ -10,8 +10,8 @@ CREATE TABLE IF NOT EXISTS scheduled_notification
     entityType           character varying(64) NOT NULL,
 
     -- Scheduling
-    scheduledAt          bigint NOT NULL,
-    createdAt            bigint NOT NULL,
+    scheduledAt          date NOT NULL,
+    createdAt            date NOT NULL,
 
     -- Notification details
     templateCode         character varying(128) NOT NULL,

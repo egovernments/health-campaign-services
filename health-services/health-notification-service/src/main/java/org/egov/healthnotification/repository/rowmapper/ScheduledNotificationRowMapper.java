@@ -11,8 +11,10 @@ import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
 
+import java.sql.Date;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -62,8 +64,8 @@ public class ScheduledNotificationRowMapper implements RowMapper<ScheduledNotifi
                 .eventType(rs.getString("eventType"))
                 .entityId(rs.getString("entityId"))
                 .entityType(rs.getString("entityType"))
-                .scheduledAt(rs.getLong("scheduledAt"))
-                .createdAt(rs.getLong("createdAt"))
+                .scheduledAt(toLocalDate(rs.getDate("scheduledAt")))
+                .createdAt(toLocalDate(rs.getDate("createdAt")))
                 .templateCode(rs.getString("templateCode"))
                 .recipientType(RecipientType.fromValue(rs.getString("recipientType")))
                 .recipientId(rs.getString("recipientId"))
@@ -77,5 +79,9 @@ public class ScheduledNotificationRowMapper implements RowMapper<ScheduledNotifi
                 .rowVersion(rs.getInt("rowVersion"))
                 .auditDetails(auditDetails)
                 .build();
+    }
+
+    private LocalDate toLocalDate(Date sqlDate) {
+        return sqlDate != null ? sqlDate.toLocalDate() : null;
     }
 }
