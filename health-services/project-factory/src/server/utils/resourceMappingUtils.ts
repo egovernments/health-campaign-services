@@ -20,35 +20,38 @@ export async function startResourceMapping(campaignDetails : any, useruuid : str
     const endDate = campaignDetails.endDate;
     const RequestInfo = JSON.parse(JSON.stringify(defaultRequestInfo?.RequestInfo));
     RequestInfo.userInfo.uuid = useruuid || campaignDetails?.auditDetails?.createdBy;
-    for(let i = 0; i < allCurrentMappingsToDo.length; i++){
-        try {
-            const projectId = boundaryToProjectIdMapping[allCurrentMappingsToDo[i]?.boundaryCode];
+    const BATCH_SIZE = config?.batchConfig?.mappingBatchSize || 10;
+    for (let batchStart = 0; batchStart < allCurrentMappingsToDo.length; batchStart += BATCH_SIZE) {
+        const batch = allCurrentMappingsToDo.slice(batchStart, batchStart + BATCH_SIZE);
+        const results = await Promise.allSettled(batch.map(async (mapping: any) => {
+            const projectId = boundaryToProjectIdMapping[mapping?.boundaryCode];
             const ProjectResource = {
-              tenantId: campaignDetails.tenantId,
-              projectId,
-              resource: {
-                productVariantId: allCurrentMappingsToDo[i]?.uniqueIdentifierForData,
-                type: "DRUG",
-                isBaseUnitVariant: false,
-              },
-              startDate,
-              endDate,
+                tenantId: campaignDetails.tenantId,
+                projectId,
+                resource: {
+                    productVariantId: mapping?.uniqueIdentifierForData,
+                    type: "DRUG",
+                    isBaseUnitVariant: false,
+                },
+                startDate,
+                endDate,
             };
             const newResourceBody = { RequestInfo, ProjectResource };
             const projectResourceResponse = await createProjectResource(newResourceBody);
-            allCurrentMappingsToDo[i].status = mappingStatuses.mapped;
-            if(projectResourceResponse?.ProjectResource?.id){
-                allCurrentMappingsToDo[i].mappingId = projectResourceResponse?.ProjectResource?.id;
+            mapping.status = mappingStatuses.mapped;
+            if (projectResourceResponse?.ProjectResource?.id) {
+                mapping.mappingId = projectResourceResponse?.ProjectResource?.id;
+            } else {
+                throw new Error("Failed to create project resource for resourceId " + mapping?.uniqueIdentifierForData);
             }
-            else{
-                throw new Error("Failed to create project resource for resourceId " + allCurrentMappingsToDo[i]?.uniqueIdentifierForData);
+            await produceModifiedMessages({ datas: [mapping] }, config.kafka.KAFKA_UPDATE_MAPPING_DATA_TOPIC, campaignDetails.tenantId);
+        }));
+        const failures = results.filter((r): r is PromiseRejectedResult => r.status === "rejected");
+        if (failures.length > 0) {
+            for (const f of failures) {
+                logger.error(`Resource mapping failed in batch: `, f.reason);
             }
-            await produceModifiedMessages({ datas: [allCurrentMappingsToDo[i]] }, config.kafka.KAFKA_UPDATE_MAPPING_DATA_TOPIC, campaignDetails.tenantId);
-          }
-          catch (error) {
-            // Log the error if the API call fails
-            logger.error(`Failed to create project resource for resourceId ${allCurrentMappingsToDo[i]?.uniqueIdentifierForData}:`, error);
-            throw error; // Rethrow the error to propagate it
-          }
+            throw failures[0].reason;
+        }
     }
 }

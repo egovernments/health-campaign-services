@@ -949,8 +949,6 @@ async function generateProcessedFileAndPersist(
   ) {
     logger.info("Activities to persist : ");
     logger.debug(getFormattedStringForDebug(request?.body?.Activities));
-    logger.info(`Waiting for 2 seconds`);
-    await new Promise((resolve) => setTimeout(resolve, 2000));
     const activities = request?.body?.Activities;
     for (let i = 0; i < activities.length; i += 10) {
       const chunk = activities.slice(i, Math.min(i + 10, activities.length));
@@ -1018,12 +1016,9 @@ async function enrichAndPersistCampaignWithError(requestBody: any, error: any) {
       : error?.message || error?.description || "Internal server error",
   };
   const topic = config?.kafka?.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC;
-  // wait for 2 seconds
-  logger.info(`Waiting for 2 seconds to persist errors`);
-  await new Promise((resolve) => setTimeout(resolve, 2000));
-  const produceMessage: any = { 
+  const produceMessage: any = {
     RequestInfo: requestBody?.RequestInfo,
-    CampaignDetails: requestBody.CampaignDetails 
+    CampaignDetails: requestBody.CampaignDetails
   };
   await produceModifiedMessages(produceMessage, topic, requestBody?.CampaignDetails?.tenantId);
   delete requestBody.CampaignDetails.campaignDetails;
@@ -1075,12 +1070,9 @@ export async function enrichAndPersistCampaignWithErrorProcessingTask(campaignDe
       : error?.message || error?.description || "Internal server error",
   };
   const topic = config?.kafka?.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC;
-  // wait for 2 seconds
-  logger.info(`Waiting for 2 seconds to persist errors`);
-  await new Promise((resolve) => setTimeout(resolve, 2000));
-  const produceMessage: any = { 
+  const produceMessage: any = {
     RequestInfo,
-    CampaignDetails: campaignDetails 
+    CampaignDetails: campaignDetails
   };
   await produceModifiedMessages(produceMessage, topic, campaignDetails?.tenantId);
 }
@@ -2602,8 +2594,8 @@ async function userCredGeneration(campaignDetails: any, useruuid: string, locale
     }
     const response = await generateDataService(generateTemplateQuery, useruuid, locale);
     if (response && response?.id) {
-      logger.info(`Waiting for 10 seconds for user cred to template to persist...`);
-      await new Promise(resolve => setTimeout(resolve, 10000));
+      logger.info(`Waiting for 2 seconds for user cred template to persist...`);
+      await new Promise(resolve => setTimeout(resolve, 2000));
       let status = response?.status;
       let attempts = 0
       while (
@@ -2624,8 +2616,8 @@ async function userCredGeneration(campaignDetails: any, useruuid: string, locale
         else {
           throwError("COMMON", 400, "USER_CREDENTIAL_GENERATION_ERROR", "User credential generation failed");
         }
-        logger.info(`Attempts : ${attempts + 1} | Status : ${status} | Waiting for 20 seconds for user cred generation to get completed...`);
-        await new Promise(resolve => setTimeout(resolve, 20000));
+        logger.info(`Attempts : ${attempts + 1} | Status : ${status} | Waiting for 5 seconds for user cred generation to get completed...`);
+        await new Promise(resolve => setTimeout(resolve, 5000));
         const campaignResp = await searchProjectTypeCampaignService({ tenantId: campaignDetails?.tenantId, ids: [campaignDetails?.id] });
         const campaignDetailsStatus = campaignResp?.CampaignDetails?.[0]?.status;
         if (campaignDetailsStatus == campaignStatuses.failed || !campaignDetailsStatus) {
@@ -2722,8 +2714,8 @@ async function createAllResources(campaignDetails: any, parentCampaign: any, use
   else if (!allTaskCompleted) {
     throwError("COMMON", 400, "RESOURCE_CREATION_TIMED_OUT", "Resources creation timed out.");
   }
-  logger.info(`Waiting for 20 seconds for all resources to get persisted...`);
-  await new Promise(resolve => setTimeout(resolve, 20000));
+  logger.info(`Waiting for 5 seconds for all resources to get persisted...`);
+  await new Promise(resolve => setTimeout(resolve, 5000));
 }
 
 async function createAllMappings(campaignDetails: any, parentCampaign: any, useruuid: string) {
@@ -3781,28 +3773,15 @@ export function calculateTargetsAtCurrentLevel(row: any, rowData: any, beneficia
 async function getResourceDetails(request: any) {
   const { tenantId, type, hierarchyType } =
     request?.body?.ResourceDetails || request?.query;
-  const resourceDetails = request?.body?.ResourceDetails;
 
-  request.body.SearchCriteria = request.body.SearchCriteria || {};
+  // Direct DB query — skip full searchDataService validation overhead
+  const tableName = getTableName(config?.DB_CONFIG.DB_RESOURCE_DETAILS_TABLE_NAME, tenantId);
+  const query = `SELECT * FROM ${tableName} WHERE tenantId = $1 AND type = $2 AND hierarchyType = $3 AND status = $4 ORDER BY lastModifiedTime DESC LIMIT 1`;
+  const values = [tenantId, type, hierarchyType, resourceDataStatuses.completed];
+  const queryResult = await executeQuery(query, values);
+  const response = genericResourceTransformer(queryResult?.rows);
 
-  request.body.SearchCriteria = {
-    tenantId: tenantId,
-    type: type,
-    hierarchyType: hierarchyType,
-    status: resourceDataStatuses.completed,
-  };
-
-  const response = await searchDataService(request);
-  request.body.ResourceDetails = resourceDetails;
-  if (response.length > 0) {
-    response.sort(
-      (a: any, b: any) =>
-        b.auditDetails.lastModifiedTime - a.auditDetails.lastModifiedTime
-    );
-    return response[0];
-  } else {
-    return null;
-  }
+  return response.length > 0 ? response[0] : null;
 }
 const addBoundaryCodeToGeoJsonData = (
   boundaryData: any,

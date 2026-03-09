@@ -31,32 +31,35 @@ export async function startUserMapping(campaignDetails: any, useruuid: string) {
     const endDate = campaignDetails.endDate;
     const RequestInfo = JSON.parse(JSON.stringify(defaultRequestInfo?.RequestInfo));
     RequestInfo.userInfo.uuid = useruuid || campaignDetails?.auditDetails?.createdBy;
-    for (let i = 0; i < allCurrentMappingsToDo.length; i++) {
-        try {
-            const projectId = boundaryToProjectIdMapping[allCurrentMappingsToDo[i]?.boundaryCode];
-            const userId = phoneToUserIdMapping[allCurrentMappingsToDo[i]?.uniqueIdentifierForData];
+    const BATCH_SIZE = config?.batchConfig?.mappingBatchSize || 10;
+    for (let batchStart = 0; batchStart < allCurrentMappingsToDo.length; batchStart += BATCH_SIZE) {
+        const batch = allCurrentMappingsToDo.slice(batchStart, batchStart + BATCH_SIZE);
+        const results = await Promise.allSettled(batch.map(async (mapping: any) => {
+            const projectId = boundaryToProjectIdMapping[mapping?.boundaryCode];
+            const userId = phoneToUserIdMapping[mapping?.uniqueIdentifierForData];
             const ProjectStaff = {
                 tenantId: campaignDetails.tenantId,
                 projectId,
-                userId ,
+                userId,
                 startDate,
                 endDate,
             };
             const newResourceBody = { RequestInfo, ProjectStaff };
             const projectStaffResponse = await createStaff(newResourceBody);
-            allCurrentMappingsToDo[i].status = mappingStatuses.mapped;
+            mapping.status = mappingStatuses.mapped;
             if (projectStaffResponse?.ProjectStaff?.id) {
-                allCurrentMappingsToDo[i].mappingId = projectStaffResponse?.ProjectStaff?.id;
+                mapping.mappingId = projectStaffResponse?.ProjectStaff?.id;
+            } else {
+                throw new Error("Failed to create project staff for user with phone " + mapping?.uniqueIdentifierForData);
             }
-            else {
-                throw new Error("Failed to create project staff for user with phone " + allCurrentMappingsToDo[i]?.uniqueIdentifierForData);
+            await produceModifiedMessages({ datas: [mapping] }, config.kafka.KAFKA_UPDATE_MAPPING_DATA_TOPIC, campaignDetails.tenantId);
+        }));
+        const failures = results.filter((r): r is PromiseRejectedResult => r.status === "rejected");
+        if (failures.length > 0) {
+            for (const f of failures) {
+                logger.error(`User mapping failed in batch: `, f.reason);
             }
-            await produceModifiedMessages({ datas: [allCurrentMappingsToDo[i]] }, config.kafka.KAFKA_UPDATE_MAPPING_DATA_TOPIC, campaignDetails.tenantId);
-        }
-        catch (error) {
-            // Log the error if the API call fails
-            logger.error(`Failed to create project staff for user with phone ${allCurrentMappingsToDo[i]?.uniqueIdentifierForData}:`, error);
-            throw error; // Rethrow the error to propagate it
+            throw failures[0].reason;
         }
     }
 }
@@ -78,20 +81,24 @@ export async function startUserDemapping(campaignDetails: any, useruuid: string)
     }
     const RequestInfo = JSON.parse(JSON.stringify(defaultRequestInfo?.RequestInfo));
     RequestInfo.userInfo.uuid = useruuid || campaignDetails?.auditDetails?.createdBy;
-    for (let i = 0; i < allCurrentMappingsToDeMap.length; i++) {
-        try {
-            const projectId = boundaryToProjectIdMapping[allCurrentMappingsToDeMap[i]?.boundaryCode];
-            const userId = phoneToUserIdMapping[allCurrentMappingsToDeMap[i]?.uniqueIdentifierForData];
-            if(!userId || !projectId || !allCurrentMappingsToDeMap[i]?.mappingId){
-                await produceModifiedMessages({ datas: [allCurrentMappingsToDeMap[i]] }, config.kafka.KAFKA_DELETE_MAPPING_DATA_TOPIC, campaignDetails.tenantId);
+    const BATCH_SIZE = config?.batchConfig?.mappingBatchSize || 10;
+    for (let batchStart = 0; batchStart < allCurrentMappingsToDeMap.length; batchStart += BATCH_SIZE) {
+        const batch = allCurrentMappingsToDeMap.slice(batchStart, batchStart + BATCH_SIZE);
+        const results = await Promise.allSettled(batch.map(async (mapping: any) => {
+            const projectId = boundaryToProjectIdMapping[mapping?.boundaryCode];
+            const userId = phoneToUserIdMapping[mapping?.uniqueIdentifierForData];
+            if (!userId || !projectId || !mapping?.mappingId) {
+                await produceModifiedMessages({ datas: [mapping] }, config.kafka.KAFKA_DELETE_MAPPING_DATA_TOPIC, campaignDetails.tenantId);
             }
             await fetchProjectStaffWsearchProjectStaff(RequestInfo, campaignDetails.tenantId, projectId, userId);
-            await produceModifiedMessages({ datas: [allCurrentMappingsToDeMap[i]] }, config.kafka.KAFKA_DELETE_MAPPING_DATA_TOPIC, campaignDetails.tenantId);
-        }
-        catch (error) {
-            // Log the error if the API call fails
-            logger.error(`Failed to demap project staff for user with phone ${allCurrentMappingsToDeMap[i]?.uniqueIdentifierForData}:`, error);
-            throw error; // Rethrow the error to propagate it
+            await produceModifiedMessages({ datas: [mapping] }, config.kafka.KAFKA_DELETE_MAPPING_DATA_TOPIC, campaignDetails.tenantId);
+        }));
+        const failures = results.filter((r): r is PromiseRejectedResult => r.status === "rejected");
+        if (failures.length > 0) {
+            for (const f of failures) {
+                logger.error(`User demapping failed in batch: `, f.reason);
+            }
+            throw failures[0].reason;
         }
     }
 }

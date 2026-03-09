@@ -6,6 +6,7 @@ import {
   errorLogger,
   errorResponder,
   invalidPathHandler,
+  shutdownGracefully,
 } from "./utils/genericUtils";
 import { tracingMiddleware } from "./tracing";
 import { createProxyMiddleware } from "http-proxy-middleware";
@@ -31,12 +32,14 @@ class App {
 
     // Global error handling for uncaught exceptions
     process.on("uncaughtException", (err) => {
-      console.error("Unhandled Exception:", err);
+      logger.error("Uncaught Exception — shutting down:", err);
+      shutdownGracefully();
     });
 
     // Global error handling for unhandled promise rejections
     process.on("unhandledRejection", (reason, promise) => {
-      console.error("Unhandled Rejection at:", promise, "reason:", reason);
+      logger.error("Unhandled Rejection at:", promise, "reason:", reason);
+      shutdownGracefully();
     });
   }
 

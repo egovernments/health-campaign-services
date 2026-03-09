@@ -8,6 +8,16 @@ let producer: ReturnType<Kafka['producer']>;
 let isProducerReady = false;
 
 const createKafkaClientAndProducer = async () => {
+    // Disconnect old producer and remove its listeners before creating a new one
+    if (producer) {
+        producer.removeAllListeners();
+        try {
+            await producer.disconnect();
+        } catch {
+            // ignore disconnect errors during cleanup
+        }
+    }
+
     kafka = new Kafka({
         retry: {
             retries: 5,
@@ -21,7 +31,6 @@ const createKafkaClientAndProducer = async () => {
             if (log.namespace === 'kafka.network' && log.log.message && log.log.message.includes('retry')) {
                 logger.info(`[KafkaJS Retry] ${log.log.message}`);
             }
-            // Optionally, log all KafkaJS logs at INFO or higher
             if (level >= logLevel.INFO && log.log.message) {
                 logger.info(`[KafkaJS] ${log.log.message}`);
             }
@@ -37,7 +46,7 @@ const createKafkaClientAndProducer = async () => {
         logger.error('Producer connection error:', err);
         shutdownGracefully();
     }
-    // Listen for disconnects/errors
+    // Listen for disconnects/errors (fresh listeners on the new producer)
     producer.on('producer.disconnect', () => {
         logger.error('Producer disconnected');
         isProducerReady = false;
@@ -75,43 +84,41 @@ const checkBrokerAvailability = async () => {
 // Initialize producer on module load
 createKafkaClientAndProducer();
 
+const MAX_SEND_RETRIES = 3;
+const INITIAL_RETRY_DELAY_MS = 1000;
+
 const sendWithReconnect = async (payloads: any[]): Promise<void> => {
-    // payloads: [{ topic, messages, key }]
-    if (!isProducerReady) {
-        logger.error('Producer is not ready. Attempting to reconnect...');
-        await createKafkaClientAndProducer();
-    }
     const { topic, messages, key } = payloads[0];
-    try {
-        await producer.send({
-            topic,
-            messages: [
-                key ? { key, value: messages } : { value: messages }
-            ],
-        });
-        logger.info('Message sent successfully');
-    } catch (err) {
-        logger.error('Error sending message:', err);
-        logger.debug(`Was trying to send: ${getFormattedStringForDebug(payloads)}`);
-        // Attempt to reconnect and retry
-        logger.error('Reconnecting producer and retrying...');
+    const msgPayload = [key ? { key, value: messages } : { value: messages }];
+
+    for (let attempt = 1; attempt <= MAX_SEND_RETRIES; attempt++) {
+        if (!isProducerReady) {
+            logger.error(`Producer is not ready. Reconnecting (attempt ${attempt}/${MAX_SEND_RETRIES})...`);
+            await createKafkaClientAndProducer();
+        }
         try {
-            await producer.disconnect();
-        } catch {}
-    
-        await createKafkaClientAndProducer();
-        await new Promise(res => setTimeout(res, 2000));
-        try {
-            await producer.send({
-                topic,
-                messages: [
-                    key ? { key, value: messages } : { value: messages }
-                ],
-            });
-            logger.info('Message sent successfully after reconnection');
-        } catch (err2) {
-            logger.error('Failed to send message after reconnection:', err2);
-            throw err2;
+            await producer.send({ topic, messages: msgPayload });
+            logger.info('Message sent successfully');
+            return;
+        } catch (err) {
+            logger.error(`Error sending message (attempt ${attempt}/${MAX_SEND_RETRIES}):`, err);
+            logger.debug(`Was trying to send: ${getFormattedStringForDebug(payloads)}`);
+
+            if (attempt >= MAX_SEND_RETRIES) {
+                logger.error('Max send retries exhausted. Giving up.');
+                throw err;
+            }
+
+            // Reconnect before next attempt with exponential backoff
+            const delay = INITIAL_RETRY_DELAY_MS * Math.pow(2, attempt - 1);
+            logger.info(`Waiting ${delay}ms before retry...`);
+            await new Promise(res => setTimeout(res, delay));
+            try {
+                await producer.disconnect();
+            } catch {
+                // ignore disconnect errors during cleanup
+            }
+            await createKafkaClientAndProducer();
         }
     }
 };

@@ -35,8 +35,10 @@ export async function startFacilityMapping(campaignDetails: any, useruuid: strin
         userInfo: { uuid: useruuid || campaignDetails?.auditDetails?.createdBy }
     };
 
-    for (const row of facilitiesToMap) {
-        try {
+    const BATCH_SIZE = config?.batchConfig?.mappingBatchSize || 10;
+    for (let batchStart = 0; batchStart < facilitiesToMap.length; batchStart += BATCH_SIZE) {
+        const batch = facilitiesToMap.slice(batchStart, batchStart + BATCH_SIZE);
+        const results = await Promise.allSettled(batch.map(async (row: any) => {
             const projectId = boundaryToProjectId[row?.boundaryCode];
             const facilityId = facilityMap[row?.uniqueIdentifierForData];
 
@@ -59,9 +61,13 @@ export async function startFacilityMapping(campaignDetails: any, useruuid: strin
             }
 
             await produceModifiedMessages({ datas: [row] }, config.kafka.KAFKA_UPDATE_MAPPING_DATA_TOPIC, campaignDetails?.tenantId);
-        } catch (err) {
-            logger.error(`Facility Mapping Failed for ${row?.uniqueIdentifierForData}: `, err);
-            throw err;
+        }));
+        const failures = results.filter((r): r is PromiseRejectedResult => r.status === "rejected");
+        if (failures.length > 0) {
+            for (const f of failures) {
+                logger.error(`Facility mapping failed in batch: `, f.reason);
+            }
+            throw failures[0].reason;
         }
     }
 }
@@ -88,23 +94,28 @@ export async function startFacilityDemapping(campaignDetails: any, useruuid: str
         userInfo: { uuid: useruuid || campaignDetails?.auditDetails?.createdBy }
     };
 
-    for (const row of facilitiesToDeMap) {
-        try {
+    const BATCH_SIZE = config?.batchConfig?.mappingBatchSize || 10;
+    for (let batchStart = 0; batchStart < facilitiesToDeMap.length; batchStart += BATCH_SIZE) {
+        const batch = facilitiesToDeMap.slice(batchStart, batchStart + BATCH_SIZE);
+        const results = await Promise.allSettled(batch.map(async (row: any) => {
             const projectId = boundaryToProjectId[row?.boundaryCode];
             const facilityId = facilityMap[row?.uniqueIdentifierForData];
             const mappingId = row?.mappingId;
 
             if (!projectId || !facilityId || !mappingId) {
-                // Invalid or missing mapping — just mark as deleted
                 await produceModifiedMessages({ datas: [row] }, config.kafka.KAFKA_DELETE_MAPPING_DATA_TOPIC, campaignDetails?.tenantId);
-                continue;
+                return;
             }
 
             await fetchAndDeleteProjectFacility(RequestInfo, campaignDetails.tenantId, projectId, facilityId);
             await produceModifiedMessages({ datas: [row] }, config.kafka.KAFKA_DELETE_MAPPING_DATA_TOPIC, campaignDetails?.tenantId);
-        } catch (err) {
-            logger.error(`Facility Demapping Failed for ${row?.uniqueIdentifierForData}: `, err);
-            throw err;
+        }));
+        const failures = results.filter((r): r is PromiseRejectedResult => r.status === "rejected");
+        if (failures.length > 0) {
+            for (const f of failures) {
+                logger.error(`Facility demapping failed in batch: `, f.reason);
+            }
+            throw failures[0].reason;
         }
     }
 }

@@ -1217,7 +1217,7 @@ async function updateAndPersistGenerateRequest(newEntryResponse: any, oldEntryRe
     request.body.generatedResource = oldEntryResponse;
   }
   if (responseData.length === 0 || forceUpdateBool) {
-    processGenerateForNew(request, generatedResource, newEntryResponse, enableCaching, filteredBoundary)
+    await processGenerateForNew(request, generatedResource, newEntryResponse, enableCaching, filteredBoundary);
   }
   else {
     request.body.generatedResource = responseData

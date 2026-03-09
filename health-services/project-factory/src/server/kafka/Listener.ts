@@ -59,13 +59,15 @@ export async function listener() {
         }
 
         await consumer.run({
+            partitionsConsumedConcurrently: MAX_CONCURRENT,
             eachMessage: async (payload: EachMessagePayload) => {
                 const { topic, message } = payload;
                 await acquireSemaphore();
-                processMessageKJS(topic, message)
-                    .finally(() => {
-                        releaseSemaphore();
-                    });
+                try {
+                    await processMessageKJS(topic, message);
+                } finally {
+                    releaseSemaphore();
+                }
             },
         });
 

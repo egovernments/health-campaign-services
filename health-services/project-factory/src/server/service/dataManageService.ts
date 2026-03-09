@@ -31,9 +31,11 @@ const downloadDataService = async (request: express.Request) => {
     logger.info("VALIDATED THE DATA DOWNLOAD REQUEST");
 
     var type = String(request.query.type);
-    // Get response data from the database
-    const responseData = await searchGeneratedResources(request?.query, getLocaleFromRequestInfo(request?.body?.RequestInfo));
-    const resourceDetails = await getResourceDetails(request);
+    // Get response data and resource details in parallel
+    const [responseData, resourceDetails] = await Promise.all([
+        searchGeneratedResources(request?.query, getLocaleFromRequestInfo(request?.body?.RequestInfo)),
+        getResourceDetails(request)
+    ]);
 
 
 
@@ -78,12 +80,25 @@ const downloadDataService = async (request: express.Request) => {
                 };
                 await callGenerate(newRequestToGenerate, type);
             } else {
-                triggerGenerate(type, tenantId, hierarchyType, campaignId, request?.body?.RequestInfo?.userInfo?.uuid || "null", locale);
+                await triggerGenerate(type, tenantId, hierarchyType, campaignId, request?.body?.RequestInfo?.userInfo?.uuid || "null", locale);
             }
         }
         else{
             const newRequestToGenerate = buildGenerateRequest(request);
-            callGenerate(newRequestToGenerate, request?.query?.type);
+            await callGenerate(newRequestToGenerate, request?.query?.type);
+        }
+        // Return the generated resource directly from the generation flow
+        // (avoids depending on Kafka consumer lag to update DB status)
+        const generatedResource = request?.body?.generatedResource;
+        if (generatedResource && (Array.isArray(generatedResource) ? generatedResource.length > 0 : true)) {
+            const freshData = Array.isArray(generatedResource) ? generatedResource : [generatedResource];
+            if (resourceDetails != null && freshData.length > 0) {
+                freshData[0].additionalDetails = {
+                    ...(freshData[0].additionalDetails || {}),
+                    ...(resourceDetails?.additionalDetails || {})
+                };
+            }
+            return freshData;
         }
     }
 

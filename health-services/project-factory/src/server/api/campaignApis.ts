@@ -1388,13 +1388,13 @@ async function createBulkData(
         newRequestBody
       );
     }
-    // wait for 5 seconds after each chunk
-    logger.info(`Waiting for 5 seconds after each chunk`);
-    await new Promise((resolve) => setTimeout(resolve, 5000));
+    // brief delay between chunks to avoid overwhelming downstream services
+    const chunkDelayMs = config?.batchConfig?.chunkDelayMs || 1000;
+    if (i + 1 < chunks) {
+      await new Promise((resolve) => setTimeout(resolve, chunkDelayMs));
+    }
   }
   await enrichAlreadyExsistingUser(request);
-  logger.info(`Final waiting for 10 seconds`);
-  await new Promise((resolve) => setTimeout(resolve, 10000));
   await confirmCreation(
     createAndSearchConfig,
     request,
@@ -1527,16 +1527,13 @@ async function handleResouceDetailsError(request: any, error: any) {
     Array.isArray(request?.body?.Activities) &&
     request?.body?.Activities.length > 0
   ) {
-    logger.info("Waiting for 2 seconds");
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-
     const activities = request?.body?.Activities;
     const chunkPromises = [];
     for (let i = 0; i < activities.length; i += 10) {
       const chunk = activities.slice(i, Math.min(i + 10, activities.length));
       const activityObject: any = { Activities: chunk };
       chunkPromises.push(
-        await produceModifiedMessages(
+        produceModifiedMessages(
           activityObject,
           config?.kafka?.KAFKA_CREATE_RESOURCE_ACTIVITY_TOPIC,
           activities?.tenantId || config.app.defaultTenantId

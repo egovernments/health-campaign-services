@@ -6,10 +6,14 @@ import { redis, checkRedisConnection, reconnectRedis } from "./redisUtils"; // I
 
 var Axios = require("axios").default; // Importing axios library
 var get = require("lodash/get"); // Importing get function from lodash library
+
+const httpTimeoutMs = config?.values?.httpTimeoutMs || 60000; // default 60s
+const maxBytes = (config?.values?.httpMaxContentLengthMb || 50) * 1024 * 1024; // default 50MB
+
 const axiosInstance = Axios.create({
-  timeout: 0, // Set timeout to 0 to wait indefinitely
-  maxContentLength: 500 * 1024 * 1024, // 500MB
-  maxBodyLength: 500 * 1024 * 1024, // 500MB
+  timeout: httpTimeoutMs,
+  maxContentLength: maxBytes,
+  maxBodyLength: maxBytes,
 });
 
 // Axios interceptor to handle response errors
@@ -154,7 +158,7 @@ const httpRequest = async (
       logger.error(":: ERROR STACK :: " + (error?.stack || error));
       logger.warn(
         `Error occurred while making request to ${getServiceName(_url)}: with error response ${JSON.stringify(
-          errorResponse?.data || { Errors: [{ code: error.message, description: error.stack }] }
+          errorResponse?.data || { Errors: [{ code: error.message, description: "Internal error during inter-service call" }] }
         )}`
       );
       const isStreamAbortError = error?.code === 'ERR_BAD_RESPONSE' || error?.message?.includes('maxContentLength') || error?.message?.includes('aborted');
