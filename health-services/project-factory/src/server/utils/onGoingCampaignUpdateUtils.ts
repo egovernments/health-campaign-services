@@ -345,6 +345,56 @@ async function fetchProjectsWithProjectId(
 }
 
 
+const PROJECT_SEARCH_BATCH_SIZE = 200;
+
+async function fetchAllProjectsPaginated(
+  RequestInfo: any,
+  tenantId: string,
+  referenceID: string
+): Promise<any[]> {
+  const allProjects: any[] = [];
+  let offset = 0;
+  let hasMore = true;
+
+  while (hasMore) {
+    const projectSearchBody = {
+      RequestInfo,
+      Projects: [{
+        referenceID,
+        tenantId
+      }]
+    };
+    const projectSearchParams = {
+      tenantId,
+      offset,
+      limit: PROJECT_SEARCH_BATCH_SIZE,
+      includeDescendants: false
+    };
+
+    logger.info(`Fetching projects batch: offset=${offset}, limit=${PROJECT_SEARCH_BATCH_SIZE}, referenceID=${referenceID}`);
+    const response = await httpRequest(
+      config?.host?.projectHost + config?.paths?.projectSearch,
+      projectSearchBody,
+      projectSearchParams
+    );
+
+    const projects = response?.Project;
+    if (projects && Array.isArray(projects) && projects.length > 0) {
+      allProjects.push(...projects);
+      if (projects.length < PROJECT_SEARCH_BATCH_SIZE) {
+        hasMore = false;
+      } else {
+        offset += PROJECT_SEARCH_BATCH_SIZE;
+      }
+    } else {
+      hasMore = false;
+    }
+  }
+
+  logger.info(`Fetched ${allProjects.length} projects in total for referenceID=${referenceID}`);
+  return allProjects;
+}
+
 
 async function fetchProjectsWithBoundaryCodeAndReferenceId(boundaryCode: any, tenantId: any, referenceId: any, RequestInfo?: any) {
   try {
@@ -748,6 +798,7 @@ export {
     getBoundaryProjectMappingFromParentCampaign,
     fetchProjectFacilityWithProjectId,
     fetchProjectsWithBoundaryCodeAndReferenceId,
+    fetchAllProjectsPaginated,
     delinkAndLinkResourcesWithProjectCorrespondingToGivenBoundary,
     processResources,
 };

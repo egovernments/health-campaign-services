@@ -8,8 +8,8 @@ var Axios = require("axios").default; // Importing axios library
 var get = require("lodash/get"); // Importing get function from lodash library
 const axiosInstance = Axios.create({
   timeout: 0, // Set timeout to 0 to wait indefinitely
-  maxContentLength: Infinity,
-  maxBodyLength: Infinity,
+  maxContentLength: 500 * 1024 * 1024, // 500MB
+  maxBodyLength: 500 * 1024 * 1024, // 500MB
 });
 
 // Axios interceptor to handle response errors
@@ -157,8 +157,10 @@ const httpRequest = async (
           errorResponse?.data || { Errors: [{ code: error.message, description: error.stack }] }
         )}`
       );
+      const isStreamAbortError = error?.code === 'ERR_BAD_RESPONSE' || error?.message?.includes('maxContentLength') || error?.message?.includes('aborted');
       if (
         retry ||
+        isStreamAbortError ||
         (config.values.autoRetryIfHttpError &&
           config.values.autoRetryIfHttpError?.includes(
             errorResponse?.data?.Errors?.[0]?.code
