@@ -37,6 +37,21 @@ export class TemplateClass {
 
         // Prepare User List sheet
         const users = await getRelatedDataWithCampaign(type, campaignNumber, tenantId, dataRowStatuses.completed);
+        logger.info(`Decrypting ${users.length} users`);
+
+        // Batch collect encrypted values for bulk decryption
+        const encryptedUserNames: string[] = [];
+        const encryptedPasswords: string[] = [];
+        for (const u of users) {
+            const rawData = u?.data || {};
+            encryptedUserNames.push(rawData["UserName"]);
+            encryptedPasswords.push(rawData["Password"]);
+        }
+
+        // Decrypt all values in bulk
+        const decryptedUserNames = encryptedUserNames.map(decrypt);
+        const decryptedPasswords = encryptedPasswords.map(decrypt);
+
         const userData = users.map((u: any, idx: number) => {
             const rawData = u?.data || {};
             const localizedData: Record<string, any> = {};
@@ -44,9 +59,8 @@ export class TemplateClass {
                 localizedData[key] = rawData[key];
             }
             localizedData["#status#"] = sheetDataRowStatuses.CREATED;
-            logger.info(`Decrypting item number ${idx + 1}`);
-            localizedData["UserName"] = decrypt(rawData["UserName"]);
-            localizedData["Password"] = decrypt(rawData["Password"]);
+            localizedData["UserName"] = decryptedUserNames[idx];
+            localizedData["Password"] = decryptedPasswords[idx];
             return localizedData;
         });
 
