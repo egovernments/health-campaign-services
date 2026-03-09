@@ -24,7 +24,11 @@ serviceMaps:
             - jsonPath: $.*.entityId
             - jsonPath: $.*.entityType
             - jsonPath: $.*.scheduledAt
+              type: DATE
+              dbType: DATE
             - jsonPath: $.*.createdAt
+              type: DATE
+              dbType: DATE
             - jsonPath: $.*.templateCode
             - jsonPath: $.*.recipientType
             - jsonPath: $.*.recipientId

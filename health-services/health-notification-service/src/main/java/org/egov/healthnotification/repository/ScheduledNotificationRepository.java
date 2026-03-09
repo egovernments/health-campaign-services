@@ -104,26 +104,26 @@ public class ScheduledNotificationRepository extends GenericRepository<Scheduled
     }
 
     /**
-     * Fetches pending notifications that are due for sending (scheduledAt <= currentTime).
-     * Used by the notification scheduler to pick up the next batch.
+     * Fetches pending notifications scheduled for the given date.
+     * Used by the notification scheduler (runs daily) to pick up the day's batch.
      */
     public List<ScheduledNotification> fetchPendingNotifications(String tenantId,
-                                                                  Long currentTimeMillis,
+                                                                  java.time.LocalDate scheduledDate,
                                                                   Integer batchSize) throws InvalidTenantIdException {
-        log.info("Fetching pending notifications due before: {}, batchSize: {}", currentTimeMillis, batchSize);
+        log.info("Fetching pending notifications for date: {}, batchSize: {}", scheduledDate, batchSize);
 
         String query = String.format(
-                "SELECT * FROM %s.scheduled_notification WHERE status = :status AND scheduledAt <= :scheduledAt AND isDeleted = false ORDER BY scheduledAt ASC LIMIT :limit",
+                "SELECT * FROM %s.scheduled_notification WHERE status = :status AND scheduledAt = :scheduledAt AND isDeleted = false ORDER BY scheduledAt ASC LIMIT :limit",
                 SCHEMA_REPLACE_STRING);
 
         Map<String, Object> paramMap = new HashMap<>();
         paramMap.put("status", "PENDING");
-        paramMap.put("scheduledAt", currentTimeMillis);
+        paramMap.put("scheduledAt", java.sql.Date.valueOf(scheduledDate));
         paramMap.put("limit", batchSize);
 
         query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
         List<ScheduledNotification> results = this.namedParameterJdbcTemplate.query(query, paramMap, this.rowMapper);
-        log.info("Found {} pending notifications due for sending", results.size());
+        log.info("Found {} pending notifications for date: {}", results.size(), scheduledDate);
         return results;
     }
 

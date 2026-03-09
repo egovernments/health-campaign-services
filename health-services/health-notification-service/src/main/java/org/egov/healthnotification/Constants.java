@@ -45,7 +45,13 @@ public class Constants {
     public static final String FIELD_TASK_ID = "taskId";
     public static final String FIELD_PROJECT_ID = "projectId";
     public static final String FIELD_ENTITY_TYPE = "entityType";
-    public static final String FIELD_SCHEDULED_AFTER_MINUTES = "scheduledAfterMinutes";
+    public static final String FIELD_DELAY_TYPE = "delayType";
+    public static final String FIELD_DELAY_HOURS = "delayHours";
+    public static final String FIELD_SEND_TIME = "sendTime";
+
+    // ========== Delay Type Constants ==========
+    public static final String DELAY_TYPE_BEFORE_START = "BEFORE_START";
+    public static final String DELAY_TYPE_AFTER_EVENT = "AFTER_EVENT";
 
     // ========== Placeholder Key Constants ==========
     public static final String PLACEHOLDER_HOUSEHOLD_HEAD_NAME = "HouseholdHeadName";
@@ -64,6 +70,10 @@ public class Constants {
     public static final String PLACEHOLDER_CAMPAIGN_NAME = "CampaignName";
     public static final String PLACEHOLDER_PROJECT_TYPE = "ProjectType";
     public static final String PLACEHOLDER_CAMPAIGN_TYPE = "CampaignType";
+    public static final String PLACEHOLDER_CHILD_NAME = "ChildName";
+    public static final String PLACEHOLDER_ROUND_NUMBER = "RoundNumber";
+    public static final String PLACEHOLDER_DOSE_NUMBER = "DoseNumber";
+    public static final String PLACEHOLDER_HELPLINE_NUMBER = "HelplineNumber";
 
     // ========== Error Code Constants ==========
     public static final String ERROR_PROJECT_NOT_FOUND = "PROJECT_NOT_FOUND";

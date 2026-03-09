@@ -4,16 +4,27 @@ import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.models.AuditDetails;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.healthnotification.Constants;
+import org.egov.healthnotification.config.HealthNotificationProperties;
 import org.egov.healthnotification.web.models.ScheduledNotification;
 import org.egov.healthnotification.web.models.enums.NotificationStatus;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.UUID;
 
 @Component
 @Slf4j
 public class ScheduledNotificationEnrichmentService {
+
+    private final HealthNotificationProperties properties;
+
+    @Autowired
+    public ScheduledNotificationEnrichmentService(HealthNotificationProperties properties) {
+        this.properties = properties;
+    }
 
     /**
      * Enriches a list of ScheduledNotification objects for create.
@@ -36,6 +47,8 @@ public class ScheduledNotificationEnrichmentService {
 
         String userUuid = extractUserUuid(requestInfo);
         long currentTimeMillis = System.currentTimeMillis();
+        ZoneId timezone = ZoneId.of(properties.getNotificationTimezone());
+        LocalDate today = LocalDate.now(timezone);
 
         AuditDetails auditDetails = AuditDetails.builder()
                 .createdBy(userUuid)
@@ -54,15 +67,18 @@ public class ScheduledNotificationEnrichmentService {
             notification.setIsDeleted(Boolean.FALSE);
             notification.setRowVersion(1);
             notification.setAttempts(0);
-            notification.setCreatedAt(currentTimeMillis);
+            // Only set createdAt if not already set (PostDistributionService sets it to event date)
+            if (notification.getCreatedAt() == null) {
+                notification.setCreatedAt(today);
+            }
 
             // Set audit details
             notification.setAuditDetails(auditDetails);
 
-            // If scheduledAt is not set, default to now (immediate)
+            // If scheduledAt is not set, default to today
             if (notification.getScheduledAt() == null) {
-                notification.setScheduledAt(currentTimeMillis);
-                log.debug("scheduledAt not set for notification, defaulting to current time");
+                notification.setScheduledAt(today);
+                log.debug("scheduledAt not set for notification, defaulting to today");
             }
 
             log.debug("Enriched notification: id={}, entityId={}, templateCode={}",
