@@ -3,7 +3,7 @@ All notable changes to this module will be documented in this file.
 
 ## 1.1.1 - 2026-03-04
 
-- Upgraded tracer version which now handles data access exception errors through the controller advisor, returning standardized DIGIT error responses.
+- Upgraded `health-services-common` which includes `DataAccessExceptionHandler` for handling data access exceptions at the controller level and returning standardized DIGIT error responses.
 
 ## 1.1.0 - 2025-07-23
 
