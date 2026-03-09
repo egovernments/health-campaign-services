@@ -2,7 +2,6 @@
 
 All notable changes to this module will be documented in this file.
 
-
 ## 1.1.8-beta - 2022-11-04
 
 - caching added to search API for performance improvement
