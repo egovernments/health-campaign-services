@@ -26,6 +26,7 @@ export async function initializeGenerateAndGetResponse(
     locale: string = config.localisation.defaultLocale
 ) {
     const currentTime = Date.now();
+    const STALE_THRESHOLD_MS = 10 * 60 * 1000; // 10 minutes
 
     const getResourcesByStatus = (status: string) =>
         searchAllGeneratedResources({ tenantId, type, hierarchyType, status, campaignId }, locale);
@@ -35,7 +36,24 @@ export async function initializeGenerateAndGetResponse(
         getResourcesByStatus(generatedResourceStatuses.inprogress),
     ]);
 
-    const expiredResources = [...markAsExpired(completed, currentTime, userUuid), ...markAsExpired(inProgress, currentTime, userUuid)];
+    // If there's a recent in-progress resource, return it instead of creating a duplicate
+    if (inProgress && inProgress.length > 0) {
+        const recentInProgress = inProgress.find((r: any) => {
+            const createdTime = parseInt(r?.auditDetails?.createdTime ?? "0");
+            return (currentTime - createdTime) < STALE_THRESHOLD_MS;
+        });
+        if (recentInProgress) {
+            logger.info(`Skipping duplicate generation: found recent in-progress resource ${recentInProgress.id} for type=${type}, campaignId=${campaignId}`);
+            return recentInProgress;
+        }
+    }
+
+    // Expire stale in-progress and old completed resources
+    const staleInProgress = inProgress?.filter((r: any) => {
+        const createdTime = parseInt(r?.auditDetails?.createdTime ?? "0");
+        return (currentTime - createdTime) >= STALE_THRESHOLD_MS;
+    }) || [];
+    const expiredResources = [...markAsExpired(completed, currentTime, userUuid), ...markAsExpired(staleInProgress, currentTime, userUuid)];
 
     if (expiredResources.length > 0) {
         await produceModifiedMessages(

@@ -39,6 +39,22 @@ const downloadDataService = async (request: express.Request) => {
 
 
 
+    // If there's a recent in-progress resource, return it (generation is already running)
+    if (
+        responseData &&
+        responseData.length > 0 &&
+        responseData?.[0]?.status === generatedResourceStatuses.inprogress
+    ) {
+        logger.info(`Generation already in progress for campaignId=${request?.query?.campaignId}, type=${type}. Returning existing in-progress resource.`);
+        if (resourceDetails != null) {
+            responseData[0].additionalDetails = {
+                ...(responseData[0].additionalDetails || {}),
+                ...(resourceDetails?.additionalDetails || {})
+            };
+        }
+        return responseData;
+    }
+
     // Check if response data is available
     if (
         !responseData ||

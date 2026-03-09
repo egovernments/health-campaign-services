@@ -74,6 +74,17 @@ export async function decryptAsync(encryptedText: string): Promise<string> {
     return decrypted.toString('utf8');
 }
 
+const DECRYPT_CONCURRENCY = parseInt(process.env.UV_THREADPOOL_SIZE || '4', 10);
+
 export async function decryptBatch(encryptedTexts: string[]): Promise<string[]> {
-    return Promise.all(encryptedTexts.map(decryptAsync));
+    // Process in chunks matching thread pool size to avoid excessive queueing
+    const results: string[] = new Array(encryptedTexts.length);
+    for (let i = 0; i < encryptedTexts.length; i += DECRYPT_CONCURRENCY) {
+        const chunk = encryptedTexts.slice(i, i + DECRYPT_CONCURRENCY);
+        const decrypted = await Promise.all(chunk.map(decryptAsync));
+        for (let j = 0; j < decrypted.length; j++) {
+            results[i + j] = decrypted[j];
+        }
+    }
+    return results;
 }

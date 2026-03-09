@@ -372,11 +372,33 @@ async function fetchAllProjectsPaginated(
     };
 
     logger.info(`Fetching projects batch: offset=${offset}, limit=${PROJECT_SEARCH_BATCH_SIZE}, referenceID=${referenceID}`);
-    const response = await httpRequest(
-      config?.host?.projectHost + config?.paths?.projectSearch,
-      projectSearchBody,
-      projectSearchParams
-    );
+    let response;
+    try {
+      response = await httpRequest(
+        config?.host?.projectHost + config?.paths?.projectSearch,
+        projectSearchBody,
+        projectSearchParams
+      );
+    } catch (error: any) {
+      // Fallback: if referenceID is not supported, try with projectNumber instead
+      if (error?.status === 400 || error?.message?.includes("project search field")) {
+        logger.warn(`referenceID not supported by project service, falling back to projectNumber search for ${referenceID}`);
+        const fallbackBody = {
+          RequestInfo,
+          Projects: [{
+            projectNumber: referenceID,
+            tenantId
+          }]
+        };
+        response = await httpRequest(
+          config?.host?.projectHost + config?.paths?.projectSearch,
+          fallbackBody,
+          projectSearchParams
+        );
+      } else {
+        throw error;
+      }
+    }
 
     const projects = response?.Project;
     if (projects && Array.isArray(projects) && projects.length > 0) {
