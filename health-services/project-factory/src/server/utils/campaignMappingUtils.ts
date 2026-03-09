@@ -8,7 +8,7 @@ import { enrichAndPersistCampaignWithError, enrichAndPersistCampaignWithErrorPro
 import { allProcesses, campaignStatuses, processStatuses, resourceDataStatuses, usageColumnStatus } from "../config/constants";
 import { createCampaignService, searchProjectTypeCampaignService } from "../service/campaignManageService";
 import { createProjectFacilityHelper, createProjectResourceHelper, createProjectStaffHelper } from "../api/genericApis";
-import { buildSearchCriteria, delinkAndLinkResourcesWithProjectCorrespondingToGivenBoundary, fetchAllProjectsPaginated, getResourceFromResourceId, processResources } from "./onGoingCampaignUpdateUtils";
+import { buildSearchCriteria, delinkAndLinkResourcesWithProjectCorrespondingToGivenBoundary, getResourceFromResourceId, processResources } from "./onGoingCampaignUpdateUtils";
 import { searchDataService } from "../service/dataManageService";
 import { getHierarchy } from "../api/campaignApis";
 import { consolidateBoundaries } from "./boundariesConsolidationUtils";
@@ -320,34 +320,26 @@ async function enrichBoundaryCodes(resources: any[], messageObject: any, boundar
 
 async function enrichBoundaryWithProject(messageObject: any, boundaryWithProject: any, boundaryCodes: any) {
     const tenantId = messageObject?.Campaign?.tenantId;
-    const campaignNumber = messageObject?.CampaignDetails?.campaignNumber;
+    const rootProjectId = messageObject?.Campaign?.rootProjectId;
     logger.info("boundaryCodes : " + JSON.stringify(boundaryCodes));
 
-    if (campaignNumber) {
-        logger.info(`Fetching all projects paginated for campaignNumber=${campaignNumber}`);
-        const projects = await fetchAllProjectsPaginated(messageObject?.RequestInfo, tenantId, campaignNumber);
-        await createBoundaryWithProjectMapping(projects, boundaryWithProject);
-    } else {
-        // Fallback: fetch by rootProjectId with includeDescendants
-        logger.warn("campaignNumber not available, falling back to includeDescendants=true");
-        const projectSearchBody = {
-            RequestInfo: messageObject?.RequestInfo,
-            Projects: [{
-                id: messageObject?.Campaign?.rootProjectId,
-                tenantId
-            }],
-            apiOperation: "SEARCH"
-        }
-        const params = {
-            tenantId,
-            offset: 0,
-            limit: 100,
-            includeDescendants: true
-        }
-        logger.info("params : " + JSON.stringify(params));
-        const response = await httpRequest(config.host.projectHost + config.paths.projectSearch, projectSearchBody, params);
-        await createBoundaryWithProjectMapping(response?.Project, boundaryWithProject);
+    logger.info(`Fetching projects for rootProjectId=${rootProjectId} with includeDescendants=true`);
+    const projectSearchBody = {
+        RequestInfo: messageObject?.RequestInfo,
+        Projects: [{
+            id: rootProjectId,
+            tenantId
+        }],
+        apiOperation: "SEARCH"
     }
+    const params = {
+        tenantId,
+        offset: 0,
+        limit: 100,
+        includeDescendants: true
+    }
+    const response = await httpRequest(config.host.projectHost + config.paths.projectSearch, projectSearchBody, params);
+    await createBoundaryWithProjectMapping(response?.Project, boundaryWithProject);
 
     logger.debug(`boundaryWise Project mapping : ${getFormattedStringForDebug(boundaryWithProject)}`);
     logger.info("boundaryCodes mapping : " + JSON.stringify(boundaryCodes));

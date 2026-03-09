@@ -2,7 +2,7 @@ import express from "express";
 import { processGenericRequest } from "../api/campaignApis";
 import { createAndUploadFile, getBoundarySheetData } from "../api/genericApis";
 import { getLocalizedName, getResourceDetails, processDataSearchRequest } from "../utils/campaignUtils";
-import { addDataToSheet, enrichResourceDetails, getLocalizedMessagesHandler, searchGeneratedResources, processGenerate, throwError } from "../utils/genericUtils";
+import { addDataToSheet, enrichResourceDetails, getLocalizedMessagesHandler, searchGeneratedResources, processGenerate } from "../utils/genericUtils";
 import { getFormattedStringForDebug, logger } from "../utils/logger";
 import { validateCreateRequest, validateDownloadRequest, validateSearchRequest } from "../validators/campaignValidators";
 import { validateGenerateRequest } from "../validators/genericValidator";
@@ -11,9 +11,9 @@ import { getBoundaryTabName } from "../utils/boundaryUtils";
 import { getNewExcelWorkbook } from "../utils/excelUtils";
 import { redis, checkRedisConnection } from "../utils/redisUtils"; // Importing checkRedisConnection function
 import config from '../config/index'
-import { buildGenerateRequest, callGenerate, triggerGenerate } from "../utils/generateUtils";
+import { buildGenerateRequest, callGenerate } from "../utils/generateUtils";
 import { generatedResourceStatuses } from "../config/constants";
-import { isCampaignIdOfMicroplan } from "../utils/campaignUtils";
+
 
 
 const generateDataService = async (request: express.Request) => {
@@ -66,38 +66,25 @@ const downloadDataService = async (request: express.Request) => {
         // const newRequestToGenerate = buildGenerateRequest(request);
 
         // Added auto generate since no previous generate request found
-        const locale = getLocaleFromRequestInfo(request?.body?.RequestInfo);
         logger.info(`Triggering auto generate since no resources got generated for the given Campaign Id ${request?.query?.campaignId} & type ${request?.query?.type}`)
         // callGenerate(newRequestToGenerate, request?.query?.type);
         const tenantId = String(request?.query?.tenantId);
         const hierarchyType = String(request?.query?.hierarchyType);
         const campaignId = String(request?.query?.campaignId);
 
-        // Use DB-level microplan check
-        let isMicroplan = false;
-        try {
-            isMicroplan = await isCampaignIdOfMicroplan(tenantId, campaignId);
-        } catch (e) {
-            throwError("COMMON", 500, "INTERNAL_SERVER_ERROR", "Error checking if campaign id is of microplan");
-        }
-
         if(type !== 'boundaryManagement'){
-            if (isMicroplan) {
-                const newRequestToGenerate = {
-                    ...request,
-                    query: {
-                        ...request.query,
-                        type,
-                        tenantId,
-                        hierarchyType,
-                        campaignId,
-                        forceUpdate: 'true'
-                    }
-                };
-                await callGenerate(newRequestToGenerate, type);
-            } else {
-                await triggerGenerate(type, tenantId, hierarchyType, campaignId, request?.body?.RequestInfo?.userInfo?.uuid || "null", locale);
-            }
+            const newRequestToGenerate = {
+                ...request,
+                query: {
+                    ...request.query,
+                    type,
+                    tenantId,
+                    hierarchyType,
+                    campaignId,
+                    forceUpdate: 'true'
+                }
+            };
+            await callGenerate(newRequestToGenerate, type);
         }
         else{
             const newRequestToGenerate = buildGenerateRequest(request);

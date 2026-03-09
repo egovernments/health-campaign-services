@@ -90,7 +90,6 @@ import {
 } from "./targetUtils";
 import {
   fetchProjectsWithProjectId,
-  fetchAllProjectsPaginated,
   getBoundariesFromCampaignSearchResponse,
   getColumnIndexByHeader,
   hideColumnsOfProcessedFile,
@@ -2381,18 +2380,12 @@ function convertToProjectsArray(Projects: any, currentArray: any = []) {
 }
 
 async function getRelatedProjects(request: any) {
-  const { projectId, tenantId, campaignNumber } = request?.body?.CampaignDetails;
-  if (campaignNumber) {
-    logger.info(`Fetching all projects paginated for campaignNumber=${campaignNumber}`);
-    const projects = await fetchAllProjectsPaginated(request?.body?.RequestInfo, tenantId, campaignNumber);
-    if (projects.length > 0) {
-      return projects;
-    } else {
-      throwError("PROJECT", 500, "PROJECT_SEARCH_ERROR");
-      return [];
-    }
+  const { projectId, tenantId } = request?.body?.CampaignDetails;
+  if (!projectId) {
+    throwError("PROJECT", 500, "PROJECT_SEARCH_ERROR");
+    return [];
   }
-  // Fallback: fetch by projectId with includeDescendants (for backward compatibility)
+  logger.info(`Fetching related projects for projectId=${projectId}`);
   const projectSearchBody = {
     RequestInfo: request?.body?.RequestInfo,
     Projects: [
@@ -2408,7 +2401,6 @@ async function getRelatedProjects(request: any) {
     limit: 1,
     includeDescendants: true,
   };
-  logger.info("Project search params " + JSON.stringify(projectSearchParams));
   const projectSearchResponse = await httpRequest(
     config?.host?.projectHost + config?.paths?.projectSearch,
     projectSearchBody,
