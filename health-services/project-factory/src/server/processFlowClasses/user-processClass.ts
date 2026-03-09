@@ -10,7 +10,7 @@ import { DataTransformer } from "../utils/transFormUtil";
 import { transformConfigs } from "../config/transformConfigs";
 import { defaultRequestInfo } from "../api/coreApis";
 import { httpRequest } from "../utils/request";
-import { decrypt, encrypt } from "../utils/cryptUtils";
+import { decryptAsync, encrypt } from "../utils/cryptUtils";
 import { validateResourceDetailsBeforeProcess } from "../utils/sheetManageUtils";
 
 // This will be a dynamic template class for different types
@@ -51,8 +51,8 @@ export class TemplateClass {
             logger.info(`Decrypting item number ${idx + 1}`);
             const data: any = u?.data;
             data["#status#"] = sheetDataRowStatuses.CREATED;
-            data["UserName"] = decrypt(u?.data?.["UserName"]);
-            data["Password"] = decrypt(u?.data?.["Password"]);
+            data["UserName"] = await decryptAsync(u?.data?.["UserName"]);
+            data["Password"] = await decryptAsync(u?.data?.["Password"]);
             return data;
         })) : [];
         const sheetMap : SheetMap = {};

@@ -5,7 +5,7 @@ import { searchProjectTypeCampaignService } from "../service/campaignManageServi
 import { searchBoundaryRelationshipData, searchBoundaryRelationshipDefinition } from "../api/coreApis";
 import { logger } from "../utils/logger";
 import { dataRowStatuses, sheetDataRowStatuses } from "../config/constants";
-import { decrypt } from "../utils/cryptUtils";
+import { decryptBatch } from "../utils/cryptUtils";
 
 // This will be a dynamic template class for different types
 export class TemplateClass {
@@ -48,9 +48,11 @@ export class TemplateClass {
             encryptedPasswords.push(rawData["Password"]);
         }
 
-        // Decrypt all values in bulk
-        const decryptedUserNames = encryptedUserNames.map(decrypt);
-        const decryptedPasswords = encryptedPasswords.map(decrypt);
+        // Decrypt all values in parallel (async PBKDF2 offloads to libuv thread pool)
+        const [decryptedUserNames, decryptedPasswords] = await Promise.all([
+            decryptBatch(encryptedUserNames),
+            decryptBatch(encryptedPasswords),
+        ]);
 
         const userData = users.map((u: any, idx: number) => {
             const rawData = u?.data || {};
