@@ -99,7 +99,7 @@ import {
 } from "./onGoingCampaignUpdateUtils";
 import { changeCreateDataForMicroplan, lockSheet } from "./microplanUtils";
 const _ = require("lodash");
-import { searchDataService } from "../service/dataManageService";
+
 import { createMdmsData, defaultRequestInfo, searchBoundaryRelationshipData, searchMDMSDataViaV2Api } from "../api/coreApis";
 import { deleteRedisCacheKeysWithPrefix } from "./redisUtils";
 import {

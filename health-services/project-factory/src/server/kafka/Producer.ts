@@ -10,7 +10,7 @@ let isProducerReady = false;
 const createKafkaClientAndProducer = async () => {
     // Disconnect old producer and remove its listeners before creating a new one
     if (producer) {
-        producer.removeAllListeners();
+        (producer as any).removeAllListeners?.();
         try {
             await producer.disconnect();
         } catch {
