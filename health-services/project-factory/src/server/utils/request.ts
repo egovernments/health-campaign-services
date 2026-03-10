@@ -7,7 +7,7 @@ import { redis, checkRedisConnection, reconnectRedis } from "./redisUtils"; // I
 var Axios = require("axios").default; // Importing axios library
 var get = require("lodash/get"); // Importing get function from lodash library
 
-const httpTimeoutMs = config?.values?.httpTimeoutMs || 60000; // default 60s
+const httpTimeoutMs = config?.values?.httpTimeoutMs || 300000; // default 5 min
 const maxBytes = (config?.values?.httpMaxContentLengthMb || 50) * 1024 * 1024; // default 50MB
 
 const axiosInstance = Axios.create({
