@@ -258,7 +258,7 @@ export class TemplateClass {
         }
 
         try {
-            const url = config.host.attendanceHost + "/health-attendance/v1/_search";
+            const url = config.host.attendanceHost + config.paths.attendanceRegisterSearch;
             const requestBody = {
                 RequestInfo: defaultRequestInfo?.RequestInfo || {},
                 attendanceRegisterSearchCriteria: {
@@ -285,7 +285,7 @@ export class TemplateClass {
      */
     private static async createAttendanceRegisters(registers: any[], tenantId: string): Promise<void> {
         try {
-            const url = config.host.attendanceHost + "/health-attendance/v1/_create";
+            const url = config.host.attendanceHost + config.paths.attendanceRegisterCreate;
             const requestBody = {
                 RequestInfo: defaultRequestInfo?.RequestInfo || {},
                 attendanceRegister: registers

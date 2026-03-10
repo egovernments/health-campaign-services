@@ -176,7 +176,9 @@ const config = {
     excelIngestionSheetSearch: process.env.EXCEL_INGESTION_SHEET_SEARCH || "excel-ingestion/v1/data/sheet/_search",
     excelIngestionProcess: process.env.EXCEL_INGESTION_PROCESS || "excel-ingestion/v1/data/process/_create",
     excelIngestionGenerate: process.env.EXCEL_INGESTION_GENERATE || "excel-ingestion/v1/data/generate/_init",
-    excelIngestionGenerateSearch:process.env.EXCEL_INGESTION_GENERATE_SEARCH || "excel-ingestion/v1/data/generate/_search",
+    excelIngestionGenerateSearch: process.env.EXCEL_INGESTION_GENERATE_SEARCH || "excel-ingestion/v1/data/generate/_search",
+    attendanceRegisterCreate: process.env.ATTENDANCE_REGISTER_CREATE_PATH || "health-attendance/v1/_create",
+    attendanceRegisterSearch: process.env.ATTENDANCE_REGISTER_SEARCH_PATH || "health-attendance/v1/_search",
   },
   // Values configuration
   values: {

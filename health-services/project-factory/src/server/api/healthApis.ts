@@ -34,7 +34,7 @@ export async function fetchProductVariants(pvarIds: string[], tenantId?: string)
  * @returns Response from Attendance Service
  */
 export async function createAttendanceRegisters(registers: any[], requestInfo: any) {
-    const url = config.host.attendanceHost + "/health-attendance/v1/_create";
+    const url = config.host.attendanceHost + config.paths.attendanceRegisterCreate;
     const requestBody = {
         RequestInfo: requestInfo,
         attendanceRegister: registers
@@ -62,7 +62,7 @@ export async function searchAttendanceRegistersByServiceCodes(
     serviceCodes: string[],
     tenantId: string
 ): Promise<any[]> {
-    const url = config.host.attendanceHost + "/health-attendance/v1/_search";
+    const url = config.host.attendanceHost + config.paths.attendanceRegisterSearch;
     const requestBody = {
         RequestInfo: defaultRequestInfo?.RequestInfo || {},
         attendanceRegisterSearchCriteria: {
