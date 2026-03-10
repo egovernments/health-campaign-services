@@ -1024,7 +1024,7 @@ async function enrichAndPersistCampaignWithError(requestBody: any, error: any) {
 }
 
 export async function enrichAndPersistCampaignWithErrorProcessingTask(campaignDetails: any, parentCampaign: any, useruuid: string, error: any) {
-  const RequestInfo = JSON.parse(JSON.stringify(defaultRequestInfo || {}));
+  const RequestInfo = JSON.parse(JSON.stringify(defaultRequestInfo?.RequestInfo || {}));
   if (!RequestInfo.userInfo) RequestInfo.userInfo = {};
   RequestInfo.userInfo.uuid = useruuid;
   if (parentCampaign) {
@@ -1275,7 +1275,7 @@ async function makeParentInactiveOrActive(parentCampaign: any, userUuid: string,
   };
   parentCampaign.auditDetails.lastModifiedTime = Date.now();
   parentCampaign.auditDetails.lastModifiedBy = userUuid;
-  const RequestInfo = JSON.parse(JSON.stringify(defaultRequestInfo || {}));
+  const RequestInfo = JSON.parse(JSON.stringify(defaultRequestInfo?.RequestInfo || {}));
   if (!RequestInfo.userInfo) RequestInfo.userInfo = {};
   RequestInfo.userInfo.uuid = userUuid;
   const produceMessage: any = {
