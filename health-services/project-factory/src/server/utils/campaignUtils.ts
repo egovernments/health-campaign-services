@@ -1025,6 +1025,7 @@ async function enrichAndPersistCampaignWithError(requestBody: any, error: any) {
 
 export async function enrichAndPersistCampaignWithErrorProcessingTask(campaignDetails: any, parentCampaign: any, useruuid: string, error: any) {
   const RequestInfo = JSON.parse(JSON.stringify(defaultRequestInfo || {}));
+  if (!RequestInfo.userInfo) RequestInfo.userInfo = {};
   RequestInfo.userInfo.uuid = useruuid;
   if (parentCampaign) {
     parentCampaign.isActive = true;

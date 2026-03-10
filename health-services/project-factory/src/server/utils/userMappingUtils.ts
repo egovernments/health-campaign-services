@@ -45,12 +45,22 @@ export async function startUserMapping(campaignDetails: any, useruuid: string) {
                 endDate,
             };
             const newResourceBody = { RequestInfo, ProjectStaff };
-            const projectStaffResponse = await createStaff(newResourceBody);
-            mapping.status = mappingStatuses.mapped;
-            if (projectStaffResponse?.ProjectStaff?.id) {
-                mapping.mappingId = projectStaffResponse?.ProjectStaff?.id;
-            } else {
-                throw new Error("Failed to create project staff for user with phone " + mapping?.uniqueIdentifierForData);
+            try {
+                const projectStaffResponse = await createStaff(newResourceBody);
+                mapping.status = mappingStatuses.mapped;
+                if (projectStaffResponse?.ProjectStaff?.id) {
+                    mapping.mappingId = projectStaffResponse?.ProjectStaff?.id;
+                } else {
+                    throw new Error("Failed to create project staff for user with phone " + mapping?.uniqueIdentifierForData);
+                }
+            } catch (error: any) {
+                const errorMessage = error?.message || String(error);
+                if (errorMessage.includes("DUPLICATE_ENTITY") || errorMessage.includes("Duplicate entity")) {
+                    logger.info(`Project staff already exists for userId ${userId} and projectId ${projectId}, skipping`);
+                    mapping.status = mappingStatuses.mapped;
+                } else {
+                    throw error;
+                }
             }
             await produceModifiedMessages({ datas: [mapping] }, config.kafka.KAFKA_UPDATE_MAPPING_DATA_TOPIC, campaignDetails.tenantId);
         }));
