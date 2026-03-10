@@ -1,5 +1,6 @@
 package org.egov.healthnotification.web.models;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.annotations.ApiModel;
@@ -65,10 +66,12 @@ public class ScheduledNotification {
 
     // Scheduling (DATE only — no time component; scheduler picks by date)
     @JsonProperty("scheduledAt")
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
     @NotNull
     private LocalDate scheduledAt;
 
     @JsonProperty("createdAt")
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
     private LocalDate createdAt;
 
     // Notification details
