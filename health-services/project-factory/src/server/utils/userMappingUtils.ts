@@ -89,6 +89,7 @@ export async function startUserDemapping(campaignDetails: any, useruuid: string)
             const userId = phoneToUserIdMapping[mapping?.uniqueIdentifierForData];
             if (!userId || !projectId || !mapping?.mappingId) {
                 await produceModifiedMessages({ datas: [mapping] }, config.kafka.KAFKA_DELETE_MAPPING_DATA_TOPIC, campaignDetails.tenantId);
+                return;
             }
             await fetchProjectStaffWsearchProjectStaff(RequestInfo, campaignDetails.tenantId, projectId, userId);
             await produceModifiedMessages({ datas: [mapping] }, config.kafka.KAFKA_DELETE_MAPPING_DATA_TOPIC, campaignDetails.tenantId);
