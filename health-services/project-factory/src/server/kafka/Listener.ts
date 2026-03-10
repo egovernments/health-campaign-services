@@ -63,11 +63,13 @@ export async function listener() {
             eachMessage: async (payload: EachMessagePayload) => {
                 const { topic, message } = payload;
                 await acquireSemaphore();
-                try {
-                    await processMessageKJS(topic, message);
-                } finally {
-                    releaseSemaphore();
-                }
+                processMessageKJS(topic, message)
+                    .catch((err) => {
+                        logger.error(`Error processing message on topic ${topic}:`, err);
+                    })
+                    .finally(() => {
+                        releaseSemaphore();
+                    });
             },
         });
 

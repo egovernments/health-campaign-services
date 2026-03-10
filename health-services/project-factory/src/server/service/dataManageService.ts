@@ -12,6 +12,7 @@ import { getNewExcelWorkbook } from "../utils/excelUtils";
 import { redis, checkRedisConnection } from "../utils/redisUtils"; // Importing checkRedisConnection function
 import config from '../config/index'
 import { buildGenerateRequest, callGenerate } from "../utils/generateUtils";
+import { generateDataService } from "./sheetManageService";
 import { generatedResourceStatuses } from "../config/constants";
 
 
@@ -31,13 +32,16 @@ const downloadDataService = async (request: express.Request) => {
     logger.info("VALIDATED THE DATA DOWNLOAD REQUEST");
 
     var type = String(request.query.type);
+    // Search for non-expired resources (completed, inprogress, or failed)
+    const searchQuery = {
+        ...request?.query,
+        status: [generatedResourceStatuses.completed, generatedResourceStatuses.inprogress, generatedResourceStatuses.failed].join(',')
+    };
     // Get response data and resource details in parallel
     const [responseData, resourceDetails] = await Promise.all([
-        searchGeneratedResources(request?.query, getLocaleFromRequestInfo(request?.body?.RequestInfo)),
+        searchGeneratedResources(searchQuery, getLocaleFromRequestInfo(request?.body?.RequestInfo)),
         getResourceDetails(request)
     ]);
-
-
 
     // If there's a recent in-progress resource, return it (generation is already running)
     if (
@@ -55,7 +59,7 @@ const downloadDataService = async (request: express.Request) => {
         return responseData;
     }
 
-    // Check if response data is available
+    // Check if response data is available — no completed resource found
     if (
         !responseData ||
         (responseData.length === 0 && !request?.query?.id) ||
@@ -72,7 +76,10 @@ const downloadDataService = async (request: express.Request) => {
         const hierarchyType = String(request?.query?.hierarchyType);
         const campaignId = String(request?.query?.campaignId);
 
-        if(type !== 'boundaryManagement'){
+        // Types that use the callGenerate path (boundary-based generation via processGenerate)
+        const callGenerateTypes = ['boundary', 'boundaryManagement', 'boundaryGeometryManagement', 'facilityWithBoundary', 'userWithBoundary'];
+
+        if(callGenerateTypes.includes(type)){
             const newRequestToGenerate = {
                 ...request,
                 query: {
@@ -85,23 +92,39 @@ const downloadDataService = async (request: express.Request) => {
                 }
             };
             await callGenerate(newRequestToGenerate, type);
+            // Return the generated resource directly from the generation flow
+            const generatedResource = newRequestToGenerate?.body?.generatedResource;
+            if (generatedResource && (Array.isArray(generatedResource) ? generatedResource.length > 0 : true)) {
+                const freshData = Array.isArray(generatedResource) ? generatedResource : [generatedResource];
+                if (resourceDetails != null && freshData.length > 0) {
+                    freshData[0].additionalDetails = {
+                        ...(freshData[0].additionalDetails || {}),
+                        ...(resourceDetails?.additionalDetails || {})
+                    };
+                }
+                return freshData;
+            }
         }
         else{
-            const newRequestToGenerate = buildGenerateRequest(request);
-            await callGenerate(newRequestToGenerate, request?.query?.type);
-        }
-        // Return the generated resource directly from the generation flow
-        // (avoids depending on Kafka consumer lag to update DB status)
-        const generatedResource = request?.body?.generatedResource;
-        if (generatedResource && (Array.isArray(generatedResource) ? generatedResource.length > 0 : true)) {
-            const freshData = Array.isArray(generatedResource) ? generatedResource : [generatedResource];
-            if (resourceDetails != null && freshData.length > 0) {
-                freshData[0].additionalDetails = {
-                    ...(freshData[0].additionalDetails || {}),
-                    ...(resourceDetails?.additionalDetails || {})
-                };
+            // For 'user', 'facility', 'userCredential' — use the template-based generation (generateDataService)
+            // generateDataService returns the inprogress resource directly (generation runs async in background)
+            const locale = getLocaleFromRequestInfo(request?.body?.RequestInfo);
+            const userUuid = request?.body?.RequestInfo?.userInfo?.uuid || "null";
+            const generatedResource = await generateDataService(
+                { type, tenantId, hierarchyType, campaignId },
+                userUuid,
+                locale
+            );
+            if (generatedResource) {
+                const freshData = [generatedResource];
+                if (resourceDetails != null) {
+                    freshData[0].additionalDetails = {
+                        ...(freshData[0].additionalDetails || {}),
+                        ...(resourceDetails?.additionalDetails || {})
+                    };
+                }
+                return freshData;
             }
-            return freshData;
         }
     }
 

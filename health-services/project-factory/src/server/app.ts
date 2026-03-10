@@ -39,7 +39,6 @@ class App {
     // Global error handling for unhandled promise rejections
     process.on("unhandledRejection", (reason, promise) => {
       logger.error("Unhandled Rejection at:", promise, "reason:", reason);
-      shutdownGracefully();
     });
   }
 
