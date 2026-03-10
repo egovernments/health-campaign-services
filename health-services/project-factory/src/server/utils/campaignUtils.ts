@@ -2420,6 +2420,13 @@ async function getRelatedProjects(request: any) {
 
 async function updateProjectDates(request: any, actionInUrl: any) {
   const { startDate, endDate, projectId } = request?.body?.CampaignDetails;
+  const existingStartDate = request?.body?.ExistingCampaignDetails?.startDate;
+  const existingEndDate = request?.body?.ExistingCampaignDetails?.endDate;
+  const datesChanged = (startDate && startDate !== existingStartDate) || (endDate && endDate !== existingEndDate);
+  if (!datesChanged) {
+    logger.info("Project dates unchanged, skipping project update");
+    return;
+  }
   if ((startDate || endDate) && projectId && actionInUrl == "update") {
     const projects = await getRelatedProjects(request);
     for (const project of projects) {
