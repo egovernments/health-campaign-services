@@ -423,7 +423,8 @@ export class TemplateClass {
 
     static async createEmployeesAndGetServiceUuid(users: any[], userUuid: string) {
         const url = config.host.hrmsHost + config.paths.hrmsEmployeeCreate;
-        const RequestInfo : any = defaultRequestInfo?.RequestInfo;
+        const RequestInfo : any = JSON.parse(JSON.stringify(defaultRequestInfo?.RequestInfo || {}));
+        if (!RequestInfo.userInfo) RequestInfo.userInfo = {};
         RequestInfo.userInfo.uuid = userUuid;
         const requestBody = {
             RequestInfo,
@@ -438,6 +439,48 @@ export class TemplateClass {
             }
             return map;
         } catch (error: any) {
+            const errorMessage = error?.message || String(error);
+            const isRetryableError = errorMessage.includes("ERR_HRMS_USER_EXIST_MOB")
+                || errorMessage.includes("MISMATCHED_ROW_VERSION")
+                || errorMessage.includes("DUPLICATE_ENTITY")
+                || errorMessage.includes("Duplicate entity")
+                || errorMessage.includes("User already exists");
+            if (isRetryableError && users.length > 1) {
+                logger.warn(`Batch HRMS create failed with retryable error, falling back to individual creation for ${users.length} users`);
+                const map: any = {};
+                for (const user of users) {
+                    try {
+                        const singleRequestBody = { RequestInfo: JSON.parse(JSON.stringify(RequestInfo)), Employees: [user] };
+                        const response = await httpRequest(url, singleRequestBody);
+                        if (response?.Employees?.[0]?.user?.mobileNumber) {
+                            map[response.Employees[0].user.mobileNumber] = response.Employees[0].user.userServiceUuid;
+                        }
+                    } catch (singleError: any) {
+                        const singleErrorMsg = singleError?.message || String(singleError);
+                        if (singleErrorMsg.includes("ERR_HRMS_USER_EXIST_MOB") || singleErrorMsg.includes("User already exists")) {
+                            logger.info(`User with mobile ${user?.user?.mobileNumber} already exists in HRMS, searching for existing record`);
+                            try {
+                                const searchUrl = config.host.hrmsHost + config.paths.hrmsEmployeeSearch;
+                                const searchResponse = await httpRequest(searchUrl, { RequestInfo }, { tenantId: user?.tenantId, codes: user?.code }, "post");
+                                if (searchResponse?.Employees?.[0]?.user?.userServiceUuid) {
+                                    map[user?.user?.mobileNumber] = searchResponse.Employees[0].user.userServiceUuid;
+                                    logger.info(`Found existing HRMS employee for mobile ${user?.user?.mobileNumber}`);
+                                } else {
+                                    logger.warn(`Could not find existing HRMS employee for mobile ${user?.user?.mobileNumber}`);
+                                }
+                            } catch (searchError: any) {
+                                logger.error(`Failed to search existing employee for mobile ${user?.user?.mobileNumber}: ${searchError?.message}`);
+                            }
+                        } else if (singleErrorMsg.includes("MISMATCHED_ROW_VERSION") || singleErrorMsg.includes("DUPLICATE_ENTITY") || singleErrorMsg.includes("Duplicate entity")) {
+                            logger.warn(`Skipping user with mobile ${user?.user?.mobileNumber} due to: ${singleErrorMsg.substring(0, 200)}`);
+                        } else {
+                            logger.error(`Failed to create user with mobile ${user?.user?.mobileNumber}: ${singleErrorMsg.substring(0, 200)}`);
+                            throw singleError;
+                        }
+                    }
+                }
+                return map;
+            }
             console.error("Employee creation API failed:", error);
             throw new Error(error);
         }
