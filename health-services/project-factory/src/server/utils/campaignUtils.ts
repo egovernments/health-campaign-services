@@ -1276,6 +1276,7 @@ async function makeParentInactiveOrActive(parentCampaign: any, userUuid: string,
   parentCampaign.auditDetails.lastModifiedTime = Date.now();
   parentCampaign.auditDetails.lastModifiedBy = userUuid;
   const RequestInfo = JSON.parse(JSON.stringify(defaultRequestInfo || {}));
+  if (!RequestInfo.userInfo) RequestInfo.userInfo = {};
   RequestInfo.userInfo.uuid = userUuid;
   const produceMessage: any = {
     RequestInfo,
