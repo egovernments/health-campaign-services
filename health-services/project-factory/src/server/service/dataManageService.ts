@@ -11,8 +11,8 @@ import { getBoundaryTabName } from "../utils/boundaryUtils";
 import { getNewExcelWorkbook } from "../utils/excelUtils";
 import { redis, checkRedisConnection } from "../utils/redisUtils"; // Importing checkRedisConnection function
 import config from '../config/index'
-import { buildGenerateRequest, callGenerate } from "../utils/generateUtils";
-import { generateDataService } from "./sheetManageService";
+import { callGenerate } from "../utils/generateUtils";
+import { generateDataService as generateTemplateService } from "./sheetManageService";
 import { generatedResourceStatuses } from "../config/constants";
 
 
@@ -110,7 +110,7 @@ const downloadDataService = async (request: express.Request) => {
             // generateDataService returns the inprogress resource directly (generation runs async in background)
             const locale = getLocaleFromRequestInfo(request?.body?.RequestInfo);
             const userUuid = request?.body?.RequestInfo?.userInfo?.uuid || "null";
-            const generatedResource = await generateDataService(
+            const generatedResource = await generateTemplateService(
                 { type, tenantId, hierarchyType, campaignId },
                 userUuid,
                 locale
