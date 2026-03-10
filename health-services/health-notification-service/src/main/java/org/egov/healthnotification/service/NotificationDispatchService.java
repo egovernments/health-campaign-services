@@ -86,8 +86,8 @@ public class NotificationDispatchService {
         // Use state-level tenantId for localization lookup
         String localizationTenantId = tenantId != null ? tenantId : notification.getTenantId();
 
-        // Step 1: Fetch localized message template
-        String messageTemplate = localizationService.fetchLocalizationMessage(
+        // Step 1: Fetch localized message template (from cache or API)
+        String messageTemplate = localizationService.getMessageTemplate(
                 templateCode, locale, localizationTenantId);
 
         // Step 2: Replace placeholders with actual values from contextData

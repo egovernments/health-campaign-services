@@ -7,6 +7,8 @@ import lombok.NoArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
+
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
@@ -90,6 +92,9 @@ public class HealthNotificationProperties {
 
     @Value("${egov.localization.notification.module}")
     private String localizationNotificationModule;
+
+    @Value("${egov.localization.supported.locales}")
+    private List<String> supportedLocales;
 
     // SMS Configuration
     @Value("${notification.sms.enabled}")
