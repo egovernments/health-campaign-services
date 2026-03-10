@@ -2,9 +2,10 @@
 
 All notable changes to this module will be documented in this file.
 
-## 1.2.2 - 2026-03-04
+## 1.2.2 - 2026-03-10
 
-- Upgraded `health-services-common` which includes `DataAccessExceptionHandler` for handling data access exceptions at the controller level and returning standardized DIGIT error responses.
+- Upgraded tracer to 2.9.2 for `DataAccessException` handling via tracer's `ExceptionAdvise`.
+- Added OpenTelemetry BOM dependency management and OTEL exporter configuration.
 
 ## 1.2.1 - 2025-08-11
 
