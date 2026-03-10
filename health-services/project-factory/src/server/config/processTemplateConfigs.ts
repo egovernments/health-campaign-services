@@ -99,5 +99,22 @@ export const processTemplateConfigs: any = {
         ],
         enrichmentFunction: "enrichTargetProcessConfig",
         passFromController : true
+    },
+    attendanceRegister: {
+        sheets: [
+            {
+                sheetName: "HCM_ATTENDANCE_REGISTER_README",
+                lockWholeSheet: true
+            },
+            {
+                sheetName: "HCM_ATTENDANCE_REGISTER_LIST",
+                validateRowsGap: true,
+                schemaName: "attendance-register"
+            },
+            {
+                sheetName: "HCM_ADMIN_CONSOLE_BOUNDARY_DATA",
+                lockWholeSheet: true
+            }
+        ]
     }
 }

@@ -129,6 +129,7 @@ const config = {
     planServiceHost: process.env.EGOV_PLAN_SERVICE_HOST || "https://unified-dev.digit.org/",
     censusServiceHost: process.env.EGOV_CENSUS_HOST || "https://unified-dev.digit.org/",
     workerRegistryHost: process.env.EGOV_WORKER_REGISTRY_HOST || "https://unified-dev.digit.org/",
+    attendanceHost: process.env.EGOV_ATTENDANCE_HOST || "https://unified-dev.digit.org/",
   },
   // Paths for different services
   paths: {
