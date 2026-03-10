@@ -14,7 +14,7 @@ serviceMaps:
               mobileNumber, contextData, status, attempts, lastAttemptAt,
               errorMessage, isDeleted, rowVersion,
               createdBy, createdTime, lastModifiedBy, lastModifiedTime
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+            ) VALUES (?, ?, ?, ?, ?, ?, ?::DATE, ?::DATE, ?, ?, ?, ?, ?::JSONB, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
           basePath: $.*
           jsonMaps:
             - jsonPath: $.*.id
@@ -24,18 +24,16 @@ serviceMaps:
             - jsonPath: $.*.entityId
             - jsonPath: $.*.entityType
             - jsonPath: $.*.scheduledAt
-              type: DATE
-              dbType: DATE
+              dbType: STRING
             - jsonPath: $.*.createdAt
-              type: DATE
-              dbType: DATE
+              dbType: STRING
             - jsonPath: $.*.templateCode
             - jsonPath: $.*.recipientType
             - jsonPath: $.*.recipientId
             - jsonPath: $.*.mobileNumber
             - jsonPath: $.*.contextData
               type: JSON
-              dbType: JSONB
+              dbType: STRING
             - jsonPath: $.*.status
             - jsonPath: $.*.attempts
             - jsonPath: $.*.lastAttemptAt
