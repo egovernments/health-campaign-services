@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.models.AuditDetails;
+import org.egov.healthnotification.Constants;
 import org.egov.healthnotification.web.models.ScheduledNotification;
 import org.egov.healthnotification.web.models.enums.NotificationStatus;
 import org.egov.healthnotification.web.models.enums.RecipientType;
@@ -31,15 +32,26 @@ public class ScheduledNotificationRowMapper implements RowMapper<ScheduledNotifi
     @Override
     public ScheduledNotification mapRow(ResultSet rs, int rowNum) throws SQLException {
 
-        // Parse contextData JSON
-        Map<String, Object> contextData = new HashMap<>();
+        // Parse contextData JSON (can be Map or encrypted String)
+        Object contextData = null;
         String contextDataStr = rs.getString("contextData");
         if (!ObjectUtils.isEmpty(contextDataStr)) {
             try {
-                contextData = objectMapper.readValue(contextDataStr,
-                        new TypeReference<Map<String, Object>>() {});
+                // Check if it's encrypted (JSONB stores encrypted string as "prefix|base64data" with quotes)
+                // When encrypted, contextDataStr will be a JSON string like: "104227|base64..."
+                if (contextDataStr.trim().startsWith(Constants.JSON_QUOTE)
+                        && contextDataStr.contains(Constants.CIPHER_TEXT_SEPARATOR)) {
+                    // It's encrypted - remove surrounding quotes and store as String
+                    contextData = objectMapper.readValue(contextDataStr, String.class);
+                } else {
+                    // It's not encrypted - parse as Map
+                    contextData = objectMapper.readValue(contextDataStr,
+                            new TypeReference<Map<String, Object>>() {});
+                }
             } catch (Exception e) {
                 log.error("Error parsing contextData JSON for notification: {}", rs.getString("id"), e);
+                // Fallback: store as empty Map
+                contextData = new HashMap<>();
             }
         }
 

@@ -1,9 +1,12 @@
 package org.egov.healthnotification.scheduler;
 
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.contract.request.RequestInfo;
+import org.egov.healthnotification.Constants;
 import org.egov.healthnotification.config.HealthNotificationProperties;
 import org.egov.healthnotification.repository.ScheduledNotificationRepository;
 import org.egov.healthnotification.service.NotificationDispatchService;
+import org.egov.healthnotification.service.NotificationEncryptionService;
 import org.egov.healthnotification.web.models.ScheduledNotification;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -14,22 +17,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
 
-/**
- * Configurable CRON-based scheduler that picks up due notifications and dispatches them.
- *
- * Runs at the time configured by {@code notification.scheduler.cron} (default: daily 8 AM).
- * Uses the configured {@code notification.timezone} for determining "today" — never JVM default.
- *
- * Fetches PENDING notifications where scheduledAt <= today (capped at scheduler.max.fetch to
- * prevent OOM on large backlogs), then processes them in configurable batch sizes
- * via {@link NotificationDispatchService}.
- *
- * Note: Status updates go through Kafka->persister (async), so we cannot re-query between
- * batches — the DB would return the same rows. Instead we fetch once and split in-memory.
- * If more rows exist beyond max.fetch, they'll be picked up on the next scheduled run.
- *
- * Enabled/disabled via {@code notification.scheduler.enabled} property.
- */
+
 @Component
 @Slf4j
 @ConditionalOnProperty(name = "notification.scheduler.enabled", havingValue = "true", matchIfMissing = false)
@@ -38,14 +26,17 @@ public class NotificationScheduler {
     private final ScheduledNotificationRepository repository;
     private final NotificationDispatchService dispatchService;
     private final HealthNotificationProperties properties;
+    private final NotificationEncryptionService encryptionService;
 
     @Autowired
     public NotificationScheduler(ScheduledNotificationRepository repository,
                                  NotificationDispatchService dispatchService,
-                                 HealthNotificationProperties properties) {
+                                 HealthNotificationProperties properties,
+                                 NotificationEncryptionService encryptionService) {
         this.repository = repository;
         this.dispatchService = dispatchService;
         this.properties = properties;
+        this.encryptionService = encryptionService;
     }
 
     /**
@@ -79,6 +70,11 @@ public class NotificationScheduler {
             }
 
             log.info("Found {} pending notifications due for scheduledAt <= {}", allDue.size(), today);
+
+            // Decrypt PII data (mobileNumber and contextData) after fetching
+            RequestInfo requestInfo = RequestInfo.builder().build();
+            allDue = encryptionService.decrypt(allDue, Constants.ENCRYPTION_KEY_SCHEDULED_NOTIFICATION, requestInfo);
+            log.info("Decrypted {} scheduled notifications", allDue.size());
 
             // Process in batchesA
             int totalBatches = (allDue.size() + batchSize - 1) / batchSize;

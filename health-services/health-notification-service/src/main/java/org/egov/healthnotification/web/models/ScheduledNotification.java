@@ -90,13 +90,13 @@ public class ScheduledNotification {
     private String recipientId;
 
     @JsonProperty("mobileNumber")
-    @Size(max = 20)
+    @Size(max = 255)  
     private String mobileNumber;
 
-    // Message context (JSON with placeholder data)
+    
     @JsonProperty("contextData")
     @NotNull
-    private Map<String, Object> contextData;
+    private Object contextData;
 
     // Status tracking
     @JsonProperty("status")

@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS scheduled_notification
     templateCode         character varying(128) NOT NULL,
     recipientType        character varying(64) NOT NULL,
     recipientId          character varying(64) NOT NULL,
-    mobileNumber         character varying(20),
+    mobileNumber         character varying(255),
 
     -- Message context (JSON with placeholder data)
     contextData          jsonb NOT NULL,

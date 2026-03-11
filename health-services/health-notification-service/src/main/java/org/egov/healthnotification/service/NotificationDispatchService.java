@@ -74,7 +74,15 @@ public class NotificationDispatchService {
      */
     private void processNotification(ScheduledNotification notification, String tenantId) {
         String templateCode = notification.getTemplateCode();
-        Map<String, Object> contextData = notification.getContextData();
+
+        // contextData should be Map after decryption, cast it safely
+        Object contextDataObj = notification.getContextData();
+        if (!(contextDataObj instanceof Map)) {
+            throw new IllegalStateException("contextData is not a Map (possibly encrypted) for notification: " + notification.getId());
+        }
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> contextData = (Map<String, Object>) contextDataObj;
 
         if (contextData == null || contextData.isEmpty()) {
             throw new IllegalStateException("contextData is null/empty for notification: " + notification.getId());
