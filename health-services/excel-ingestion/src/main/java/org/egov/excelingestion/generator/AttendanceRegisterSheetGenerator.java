@@ -120,8 +120,13 @@ public class AttendanceRegisterSheetGenerator implements ISheetGenerator {
                     }
                 }
 
+                // Filter out boundary columns from the list passed to ExcelDataPopulator
+                List<ColumnDef> schemaOnlyColumns = columns.stream()
+                        .filter(c -> !c.getName().startsWith(hierarchyType.toUpperCase() + "_"))
+                        .collect(java.util.stream.Collectors.toList());
+
                 // Then add schema columns (Register ID) using ExcelDataPopulator
-                workbook = (XSSFWorkbook) excelDataPopulator.populateSheetWithData(workbook, sheetName, columns, null, localizationMap);
+                workbook = (XSSFWorkbook) excelDataPopulator.populateSheetWithData(workbook, sheetName, schemaOnlyColumns, null, localizationMap);
             }
 
         } catch (Exception e) {
