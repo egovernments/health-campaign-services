@@ -110,4 +110,14 @@ public class HealthNotificationProperties {
 
     @Value("${notification.scheduler.max.fetch:10000}")
     private Integer schedulerMaxFetch;
+
+    // Encryption Service
+    @Value("${egov.enc.host}")
+    private String encryptionServiceHost;
+
+    @Value("${egov.enc.encrypt.endpoint}")
+    private String encryptionEndpoint;
+
+    @Value("${egov.enc.decrypt.endpoint}")
+    private String decryptionEndpoint;
 }

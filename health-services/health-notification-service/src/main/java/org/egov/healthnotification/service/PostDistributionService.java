@@ -42,6 +42,7 @@ public class PostDistributionService {
     private final ScheduledNotificationEnrichmentService enrichmentService;
     private final ScheduledNotificationValidator validator;
     private final HealthNotificationProperties properties;
+    private final NotificationEncryptionService encryptionService;
 
     @Autowired
     public PostDistributionService(ProjectService projectService,
@@ -52,7 +53,8 @@ public class PostDistributionService {
                                    ScheduledNotificationRepository repository,
                                    ScheduledNotificationEnrichmentService enrichmentService,
                                    ScheduledNotificationValidator validator,
-                                   HealthNotificationProperties properties) {
+                                   HealthNotificationProperties properties,
+                                   NotificationEncryptionService encryptionService) {
         this.projectService = projectService;
         this.mdmsService = mdmsService;
         this.householdService = householdService;
@@ -62,6 +64,7 @@ public class PostDistributionService {
         this.enrichmentService = enrichmentService;
         this.validator = validator;
         this.properties = properties;
+        this.encryptionService = encryptionService;
     }
 
     /**
@@ -97,7 +100,7 @@ public class PostDistributionService {
 
                 String projectType = project.getProjectType();
 
-                // Extract beneficiaryType
+                        // Extract beneficiaryType
                 String beneficiaryType = extractBeneficiaryType(project, task.getId());
                 log.info("Task: {} belongs to project type: {}, beneficiaryType: {}",
                         task.getId(), projectType, beneficiaryType);
@@ -157,9 +160,14 @@ public class PostDistributionService {
 
                     if (!notificationsToSave.isEmpty()) {
                         enrichmentService.enrichForCreate(notificationsToSave, null);
-                        repository.save(notificationsToSave, properties.getScheduledNotificationSaveTopic());
-                        log.info("Persisted {} scheduled notifications for task: {}",
-                                notificationsToSave.size(), task.getId());
+
+                        // Encrypt PII data (mobileNumber and contextData) before saving
+                        List<ScheduledNotification> encryptedNotifications = encryptionService.encrypt(
+                                notificationsToSave, Constants.ENCRYPTION_KEY_SCHEDULED_NOTIFICATION);
+
+                        repository.save(encryptedNotifications, properties.getScheduledNotificationSaveTopic());
+                        log.info("Persisted {} encrypted scheduled notifications for task: {}",
+                                encryptedNotifications.size(), task.getId());
                     }
                 }
             } catch (Exception e) {

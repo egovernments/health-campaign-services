@@ -104,4 +104,24 @@ public class Constants {
 
     // ========== System User Constants ==========
     public static final String SYSTEM_USER = "SYSTEM";
+
+    // ========== Encryption/Decryption Constants ==========
+    public static final String ENCRYPTION_KEY_SCHEDULED_NOTIFICATION = "ScheduledNotification";
+    public static final String ENCRYPTION_TYPE_NORMAL = "Normal";
+    public static final String DEFAULT_USER_UUID = "no uuid";
+    public static final String DEFAULT_USER_TYPE = "EMPLOYEE";
+    public static final String CIPHER_TEXT_SEPARATOR = "|";
+    public static final String JSON_QUOTE = "\"";
+
+    // ========== Encryption Error Codes ==========
+    public static final String ERROR_ENCRYPTION_FAILED = "ENCRYPTION_ERROR";
+    public static final String ERROR_ENCRYPTION_NULL = "ENCRYPTION_NULL_ERROR";
+    public static final String ERROR_DECRYPTION_FAILED = "DECRYPTION_SERVICE_ERROR";
+    public static final String ERROR_DECRYPTION_NULL = "DECRYPTION_NULL_ERROR";
+
+    // ========== Encryption Error Messages ==========
+    public static final String MSG_ENCRYPTION_ERROR = "Error occurred in encryption process: ";
+    public static final String MSG_ENCRYPTION_NULL = "Null response from encryption service";
+    public static final String MSG_DECRYPTION_ERROR = "Error occurred in decryption process: ";
+    public static final String MSG_DECRYPTION_NULL = "Null response from decryption service";
 }

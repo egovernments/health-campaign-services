@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.FilterType;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
@@ -21,17 +22,10 @@ import org.springframework.http.converter.json.MappingJackson2HttpMessageConvert
 import jakarta.annotation.PostConstruct;
 import java.util.TimeZone;
 
-/**
- * Main configuration for health-notification-service.
- * Follows the DIGIT Household/Individual pattern:
- *   - ComponentScan on org.egov (picks up common beans)
- *   - MultiStateInstanceUtil for multi-state schema support
- *   - RedisTemplate bean (required by GenericRepository constructor,
- *     but caching is disabled via no-op override in repository)
- */
 @Import({TracerConfiguration.class, MultiStateInstanceUtil.class})
 @Configuration
-@ComponentScan(basePackages = {"org.egov"})
+@ComponentScan(basePackages = {"org.egov.healthnotification", "org.egov.common"},
+        excludeFilters = @ComponentScan.Filter(type = FilterType.REGEX, pattern = {".*\\.Producer.*"}))
 public class MainConfiguration {
 
     @Value("${app.timezone}")
