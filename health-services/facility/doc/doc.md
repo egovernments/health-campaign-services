@@ -163,4 +163,10 @@
   │ POST   │ /v1/bulk/_update │ Async │ Bulk update via Kafka       │                                      
   ├────────┼──────────────────┼───────┼─────────────────────────────┤                                      
   │ POST   │ /v1/bulk/_delete │ Async │ Bulk delete via Kafka       │                                      
-  └────────┴──────────────────┴───────┴─────────────────────────────┘         
+  └────────┴──────────────────┴───────┴─────────────────────────────┘     
+
+
+  ![alt text](<mermaid-diagram (1).png>) 
+  
+  
+  ![alt text](mermaid-diagram.png)
