@@ -1,166 +1,73 @@
- Based on my analysis, here's a 
-  comprehensive architecture diagram in Mermaid format:                                                    
-                                                                                                           
-  Facility Service Architecture Diagram                                                                    
-                                                                                                           
-  flowchart TB                                                                                             
-      subgraph Client["Client Layer"]                                                                      
-          API[REST API Requests]                                                                           
-      end                                                                                                  
-                                                                                                           
-      subgraph Controller["Controller Layer"]                                                              
-          FC[FacilityApiController]                                                                        
-      end                                                                                                  
-                                                                                                           
-      subgraph Kafka["Kafka Message Broker"]                                                               
-          direction TB                                                                                     
-          KC_CREATE[create-facility-bulk-topic]                                                            
-          KC_UPDATE[update-facility-bulk-topic]                                                            
-          KC_DELETE[delete-facility-bulk-topic]                                                            
-          KP_SAVE[save-facility-topic]                                                                     
-          KP_UPDATE[update-facility-topic]                                                                 
-          KP_DELETE[delete-facility-topic]                                                                 
-      end                                                                                                  
-                                                                                                           
-      subgraph Consumer["Consumer Layer"]                                                                  
-          FCON[FacilityConsumer]                                                                           
-      end                                                                                                  
-                                                                                                           
-      subgraph Service["Service Layer"]                                                                    
-          FS[FacilityService]                                                                              
-          FES[FacilityEnrichmentService]                                                                   
-      end                                                                                                  
-                                                                                                           
-      subgraph Validators["Validator Layer"]                                                               
-          FBV[FBoundaryValidator]                                                                          
-          FIDV[FIsDeletedValidator]                                                                        
-          FNEV[FNonExistentValidator]                                                                      
-          FNIV[FNullIdValidator]                                                                           
-          FRVV[FRowVersionValidator]                                                                       
-          FUEV[FUniqueEntityValidator]                                                                     
-      end                                                                                                  
-                                                                                                           
-      subgraph Repository["Repository Layer"]                                                              
-          FR[FacilityRepository]                                                                           
-          FRM[FacilityRowMapper]                                                                           
-      end                                                                                                  
-                                                                                                           
-      subgraph External["External Services"]                                                               
-          IDGEN[IdGen Service]                                                                             
-          REDIS[(Redis Cache)]                                                                             
-          DB[(PostgreSQL Database)]                                                                        
-      end                                                                                                  
-                                                                                                           
-      %% Sync API Flow                                                                                     
-      API -->|POST /v1/_create| FC                                                                         
-      API -->|POST /v1/_update| FC                                                                         
-      API -->|POST /v1/_delete| FC                                                                         
-      API -->|POST /v1/_search| FC                                                                         
-                                                                                                           
-      %% Bulk API Flow - Async via Kafka                                                                   
-      API -->|POST /v1/bulk/_create| FC                                                                    
-      API -->|POST /v1/bulk/_update| FC                                                                    
-      API -->|POST /v1/bulk/_delete| FC                                                                    
-                                                                                                           
-      FC -->|Sync Operations| FS                                                                           
-      FC -->|Bulk Create| KC_CREATE                                                                        
-      FC -->|Bulk Update| KC_UPDATE                                                                        
-      FC -->|Bulk Delete| KC_DELETE                                                                        
-                                                                                                           
-      %% Consumer Flow                                                                                     
-      KC_CREATE -->|Listen| FCON                                                                           
-      KC_UPDATE -->|Listen| FCON                                                                           
-      KC_DELETE -->|Listen| FCON                                                                           
-      FCON --> FS                                                                                          
-                                                                                                           
-      %% Service Flow                                                                                      
-      FS --> Validators                                                                                    
-      FS --> FES                                                                                           
-      FS --> FR                                                                                            
-                                                                                                           
-      %% Enrichment                                                                                        
-      FES -->|Generate IDs| IDGEN                                                                          
-                                                                                                           
-      %% Repository Flow                                                                                   
-      FR --> FRM                                                                                           
-      FR -->|Cache| REDIS                                                                                  
-      FR -->|Persist| DB                                                                                   
-      FR -->|Publish| KP_SAVE                                                                              
-      FR -->|Publish| KP_UPDATE                                                                            
-      FR -->|Publish| KP_DELETE                                                                            
-                                                                                                           
-  Sequence Diagram for Create Operation                                                                    
-                                                                                                           
-  sequenceDiagram                                                                                          
-      participant C as Client                                                                              
-      participant FC as FacilityApiController                                                              
-      participant FS as FacilityService                                                                    
-      participant V as Validators                                                                          
-      participant FES as FacilityEnrichmentService                                                         
-      participant IDGEN as IdGen Service                                                                   
-      participant FR as FacilityRepository                                                                 
-      participant K as Kafka                                                                               
-      participant DB as Database                                                                           
-      participant R as Redis                                                                               
-                                                                                                           
-      C->>FC: POST /v1/_create                                                                             
-      FC->>FS: create(FacilityRequest)                                                                     
-      FS->>V: validate(FBoundaryValidator)                                                                 
-      V-->>FS: validEntities, errorMap                                                                     
-      FS->>FES: create(validEntities, request)                                                             
-      FES->>IDGEN: getIdList()                                                                             
-      IDGEN-->>FES: Generated IDs                                                                          
-      FES-->>FS: Enriched entities                                                                         
-      FS->>FR: save(entities, topic)                                                                       
-      FR->>K: push(save-facility-topic)                                                                    
-      FR->>R: putInCache(entities)                                                                         
-      FR-->>FS: Saved entities                                                                             
-      FS-->>FC: Facility                                                                                   
-      FC-->>C: FacilityResponse                                                                            
-                                                                                                           
-  Component Summary                                                                                        
-  Layer: Controller                                                                                        
-  Component: FacilityApiController                                                                         
-  Responsibility: Handles REST endpoints, routes sync/async operations                                     
-  ────────────────────────────────────────                                                                 
-  Layer: Consumer                                                                                          
-  Component: FacilityConsumer                                                                              
-  Responsibility: Listens to Kafka topics for bulk operations                                              
-  ────────────────────────────────────────                                                                 
-  Layer: Service                                                                                           
-  Component: FacilityService                                                                               
-  Responsibility: Core business logic, orchestrates validation & enrichment                                
-  ────────────────────────────────────────                                                                 
-  Layer: Enrichment                                                                                        
-  Component: FacilityEnrichmentService                                                                     
-  Responsibility: ID generation, audit fields enrichment                                                   
-  ────────────────────────────────────────                                                                 
-  Layer: Validators                                                                                        
-  Component: 6 validators                                                                                  
-  Responsibility: Boundary, IsDeleted, NonExistent, NullId, RowVersion, UniqueEntity                       
-  ────────────────────────────────────────                                                                 
-  Layer: Repository                                                                                        
-  Component: FacilityRepository                                                                            
-  Responsibility: Data access, caching, Kafka publishing                                                   
-  ────────────────────────────────────────                                                                 
-  Layer: External                                                                                          
-  Component: IdGen, Redis, PostgreSQL, Kafka                                                               
-  Responsibility: ID generation, caching, persistence, messaging                                           
-  API Endpoints                                                                                            
-  ┌────────┬──────────────────┬───────┬─────────────────────────────┐                                      
-  │ Method │     Endpoint     │ Type  │         Description         │                                      
-  ├────────┼──────────────────┼───────┼─────────────────────────────┤                                      
-  │ POST   │ /v1/_create      │ Sync  │ Create single facility      │                                      
-  ├────────┼──────────────────┼───────┼─────────────────────────────┤                                      
-  │ POST   │ /v1/_update      │ Sync  │ Update single facility      │                                      
-  ├────────┼──────────────────┼───────┼─────────────────────────────┤                                      
-  │ POST   │ /v1/_delete      │ Sync  │ Soft delete single facility │                                      
-  ├────────┼──────────────────┼───────┼─────────────────────────────┤                                      
-  │ POST   │ /v1/_search      │ Sync  │ Search facilities           │                                      
-  ├────────┼──────────────────┼───────┼─────────────────────────────┤                                      
-  │ POST   │ /v1/bulk/_create │ Async │ Bulk create via Kafka       │                                      
-  ├────────┼──────────────────┼───────┼─────────────────────────────┤                                      
-  │ POST   │ /v1/bulk/_update │ Async │ Bulk update via Kafka       │                                      
-  ├────────┼──────────────────┼───────┼─────────────────────────────┤                                      
-  │ POST   │ /v1/bulk/_delete │ Async │ Bulk delete via Kafka       │                                      
-  └────────┴──────────────────┴───────┴─────────────────────────────┘         
+The Facility Registry service manages healthcare facility data including creation, updates, deletion, and search of facilities. It supports both synchronous API operations and asynchronous bulk processing using Kafka.
+
+Facility Service Architecture
+Facility Create Operation Flow
+System Components
+Controller Layer
+Component	Responsibility
+FacilityApiController	Exposes REST APIs for facility operations and routes requests to service layer
+Consumer Layer
+Component	Responsibility
+FacilityConsumer	Listens to Kafka topics and processes bulk operations asynchronously
+Service Layer
+Component	Responsibility
+FacilityService	Core business logic and orchestration of validation and enrichment
+FacilityEnrichmentService	Handles entity enrichment including ID generation and audit fields
+Validator Layer
+
+The facility service uses multiple validators to ensure data consistency.
+
+Validator	Responsibility
+FBoundaryValidator	Validates request boundaries and mandatory fields
+FIsDeletedValidator	Prevents operations on deleted entities
+FNonExistentValidator	Ensures entity exists for update/delete
+FNullIdValidator	Ensures ID is present where required
+FRowVersionValidator	Handles concurrency control
+FUniqueEntityValidator	Prevents duplicate facility creation
+Repository Layer
+Component	Responsibility
+FacilityRepository	Handles database persistence, caching, and Kafka publishing
+FacilityRowMapper	Maps database rows to entity models
+External Services
+Service	Purpose
+IdGen Service	Generates unique IDs for facilities
+Redis Cache	Stores frequently accessed facility data
+PostgreSQL Database	Persistent storage for facility records
+Kafka	Handles asynchronous messaging for bulk operations
+API Endpoints
+Method	Endpoint	Type	Description
+POST	/v1/_create	Sync	Create a single facility
+POST	/v1/_update	Sync	Update a facility
+POST	/v1/_delete	Sync	Soft delete a facility
+POST	/v1/_search	Sync	Search facilities
+POST	/v1/bulk/_create	Async	Bulk facility creation via Kafka
+POST	/v1/bulk/_update	Async	Bulk facility update via Kafka
+POST	/v1/bulk/_delete	Async	Bulk facility deletion via Kafka
+Key Architecture Characteristics
+Synchronous Operations
+
+Used for single facility operations
+
+Immediate response to the client
+
+Validation and persistence occur in the same request cycle
+
+Asynchronous Operations
+
+Used for bulk facility processing
+
+Implemented using Kafka messaging
+
+Improves scalability and resilience
+
+Data Consistency
+
+Multiple validators enforce data integrity
+
+Row version validation prevents concurrent update conflicts
+
+Performance Optimization
+
+Redis caching for frequently accessed facility records
+
+Kafka ensures decoupled processing
