@@ -3,7 +3,7 @@ All notable changes to this module will be documented in this file.
 ## 1.2.1 - 2026-03-10
 
 - Upgraded `health-services-common` to 1.1.3 with tracer 2.9.2 for `DataAccessException` handling via tracer's `ExceptionAdvise`.
-- Added OpenTelemetry BOM dependency management and OTEL exporter configuration.
+- Added OpenTelemetry BOM and Instrumentation BOM dependency management and OTEL exporter configuration.
 
 # 1.2.0 - 2025-05-07
 * Added tenant-aware schema resolution using MultiStateInstanceUtil and schema placeholders in queries.

@@ -4,7 +4,8 @@ All notable changes to this module will be documented in this file.
 ## 1.1.1 - 2026-03-10
 
 - Upgraded tracer to 2.9.2 for `DataAccessException` handling via tracer's `ExceptionAdvise`.
-- Added OpenTelemetry BOM dependency management and OTEL exporter configuration.
+- Removed direct tracer dependency; tracer is now inherited transitively via `health-services-common` 1.1.3.
+- Added OpenTelemetry BOM and Instrumentation BOM dependency management and OTEL exporter configuration.
 
 ## 1.1.0 - 2025-07-23
 

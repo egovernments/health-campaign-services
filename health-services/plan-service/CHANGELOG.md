@@ -4,6 +4,7 @@ All notable changes to this module will be documented in this file.
 ## 1.0.3 - 2026-03-04
 
 - Upgraded tracer version which now handles data access exception errors through the controller advisor, returning standardized DIGIT error responses.
+- Added OpenTelemetry BOM and Instrumentation BOM dependency management.
 
 ## 1.0.2 - 2025-05-07
 

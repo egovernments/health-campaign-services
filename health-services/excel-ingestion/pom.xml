@@ -177,22 +177,6 @@
         <artifactId>spring-kafka</artifactId>
     </dependency>
 
-    <!-- Tracer -->
-    <dependency>
-        <groupId>org.egov.services</groupId>
-        <artifactId>tracer</artifactId>
-        <version>2.9.2-SNAPSHOT</version>
-        <exclusions>
-            <exclusion>
-                <groupId>io.opentelemetry.instrumentation</groupId>
-                <artifactId>opentelemetry-instrumentation-bom-alpha</artifactId>
-            </exclusion>
-            <exclusion>
-                <groupId>io.opentelemetry.instrumentation</groupId>
-                <artifactId>opentelemetry-spring-boot-starter</artifactId>
-            </exclusion>
-        </exclusions>
-    </dependency>
 </dependencies>
     <dependencyManagement>
         <dependencies>
@@ -200,6 +184,13 @@
                 <groupId>io.opentelemetry</groupId>
                 <artifactId>opentelemetry-bom</artifactId>
                 <version>1.35.0</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>io.opentelemetry.instrumentation</groupId>
+                <artifactId>opentelemetry-instrumentation-bom-alpha</artifactId>
+                <version>2.1.0-alpha</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
