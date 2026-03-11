@@ -111,11 +111,12 @@ public class ServiceRequestValidator {
                 if(!(attributeValue.getValue() instanceof Long)){
                     throw new CustomException(SERVICE_REQUEST_ATTRIBUTE_INVALID_VALUE_CODE, SERVICE_REQUEST_ATTRIBUTE_INVALID_DATETIME_VALUE_MSG);
                 }
-            }else if(attributeCodeVsDataType.get(attributeValue.getAttributeCode()).equals(AttributeDefinition.DataTypeEnum.SINGLEVALUELIST)){
-                if(!(attributeValue.getValue() instanceof String)){
-                    throw new CustomException(SERVICE_REQUEST_ATTRIBUTE_INVALID_VALUE_CODE, SERVICE_REQUEST_ATTRIBUTE_INVALID_SINGLE_VALUE_LIST_VALUE_MSG);
-                }
             }
+//            else if(attributeCodeVsDataType.get(attributeValue.getAttributeCode()).equals(AttributeDefinition.DataTypeEnum.SINGLEVALUELIST)){
+//                if(!(attributeValue.getValue() instanceof String)){
+//                    throw new CustomException(SERVICE_REQUEST_ATTRIBUTE_INVALID_VALUE_CODE, SERVICE_REQUEST_ATTRIBUTE_INVALID_SINGLE_VALUE_LIST_VALUE_MSG);
+//                }
+//            }
 //            else if(attributeCodeVsDataType.get(attributeValue.getAttributeCode()).equals(AttributeDefinition.DataTypeEnum.MULTIVALUELIST)){
 //                if(!(attributeValue.getValue() instanceof List)){
 //                    throw new CustomException(SERVICE_REQUEST_ATTRIBUTE_INVALID_VALUE_CODE, SERVICE_REQUEST_ATTRIBUTE_INVALID_MULTI_VALUE_LIST_VALUE_MSG);
@@ -133,12 +134,12 @@ public class ServiceRequestValidator {
             if (attributeValue.getValue() == null && !setOfRequiredAttributes.contains(attributeValue.getAttributeCode())) {
                 return;
             }
-            if(attributeCodeVsValues.containsKey(attributeValue.getAttributeCode())){
-                if(attributeCodeVsDataType.get(attributeValue.getAttributeCode()).equals(AttributeDefinition.DataTypeEnum.SINGLEVALUELIST)){
-                    if(!attributeCodeVsValues.get(attributeValue.getAttributeCode()).contains(attributeValue.getValue())){
-                        throw new CustomException(SERVICE_REQUEST_ATTRIBUTE_INVALID_VALUE_CODE, SERVICE_REQUEST_ATTRIBUTE_INVALID_VALUE_SINGLEVALUELIST_MSG);
-                    }
-                }
+//            if(attributeCodeVsValues.containsKey(attributeValue.getAttributeCode())){
+//                if(attributeCodeVsDataType.get(attributeValue.getAttributeCode()).equals(AttributeDefinition.DataTypeEnum.SINGLEVALUELIST)){
+//                    if(!attributeCodeVsValues.get(attributeValue.getAttributeCode()).contains(attributeValue.getValue())){
+//                        throw new CustomException(SERVICE_REQUEST_ATTRIBUTE_INVALID_VALUE_CODE, SERVICE_REQUEST_ATTRIBUTE_INVALID_VALUE_SINGLEVALUELIST_MSG);
+//                    }
+//                }
 //                else if(attributeCodeVsDataType.get(attributeValue.getAttributeCode()).equals(AttributeDefinition.DataTypeEnum.MULTIVALUELIST)){
 //                    List<String> providedAttributeValues = (List<String>) attributeValue.getValue();
 //                    providedAttributeValues.forEach(providedAttributeValue -> {
@@ -147,7 +148,7 @@ public class ServiceRequestValidator {
 //                        }
 //                    });
 //                }
-            }
+//            }
         });
 
     }
