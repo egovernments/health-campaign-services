@@ -2,6 +2,7 @@ package org.egov.healthnotification.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.utils.MultiStateInstanceUtil;
 import org.egov.healthnotification.Constants;
 import org.egov.healthnotification.config.HealthNotificationProperties;
 import org.egov.healthnotification.producer.HealthNotificationProducer;
@@ -39,18 +40,21 @@ public class NotificationDispatchService {
     private final ScheduledNotificationEnrichmentService enrichmentService;
     private final HealthNotificationProperties properties;
     private final ObjectMapper objectMapper;
+    private final MultiStateInstanceUtil multiStateInstanceUtil;
 
     @Autowired
     public NotificationDispatchService(LocalizationService localizationService,
                                        HealthNotificationProducer producer,
                                        ScheduledNotificationEnrichmentService enrichmentService,
                                        HealthNotificationProperties properties,
-                                       ObjectMapper objectMapper) {
+                                       ObjectMapper objectMapper,
+                                       MultiStateInstanceUtil multiStateInstanceUtil) {
         this.localizationService = localizationService;
         this.producer = producer;
         this.enrichmentService = enrichmentService;
         this.properties = properties;
         this.objectMapper = objectMapper;
+        this.multiStateInstanceUtil = multiStateInstanceUtil;
     }
 
     /**
@@ -162,8 +166,19 @@ public class NotificationDispatchService {
     private void updateNotification(ScheduledNotification notification) {
         try {
             enrichmentService.enrichForUpdate(Collections.singletonList(notification), null);
-            producer.push(properties.getScheduledNotificationUpdateTopic(),
-                    Collections.singletonList(notification));
+
+            // Central instance support: Include tenantId in topic name if central instance is enabled
+            if (multiStateInstanceUtil.getIsEnvironmentCentralInstance()) {
+                log.debug("Central instance enabled. Publishing to state-specific persister topic for tenant: {}",
+                        notification.getTenantId());
+                producer.push(notification.getTenantId(),
+                        properties.getScheduledNotificationUpdateTopic(),
+                        Collections.singletonList(notification));
+            } else {
+                log.debug("Central instance disabled. Publishing to standard persister topic");
+                producer.push(properties.getScheduledNotificationUpdateTopic(),
+                        Collections.singletonList(notification));
+            }
         } catch (Exception e) {
             log.error("Failed to update notification status for id={}: {}",
                     notification.getId(), e.getMessage(), e);
