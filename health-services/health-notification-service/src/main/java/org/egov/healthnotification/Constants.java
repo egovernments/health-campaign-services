@@ -124,4 +124,7 @@ public class Constants {
     public static final String MSG_ENCRYPTION_NULL = "Null response from encryption service";
     public static final String MSG_DECRYPTION_ERROR = "Error occurred in decryption process: ";
     public static final String MSG_DECRYPTION_NULL = "Null response from decryption service";
+
+    // ========== Date Formatting Constants ==========
+    public static final String DATE_FORMAT_YYYY_MM_DD = "yyyy-MM-dd";
 }
