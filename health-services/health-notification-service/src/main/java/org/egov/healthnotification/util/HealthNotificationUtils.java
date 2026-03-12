@@ -579,4 +579,92 @@ public class HealthNotificationUtils {
 
         return result;
     }
+
+    /**
+     * Replaces {PlaceholderName} tokens in the message template with values from contextData.
+     * Automatically formats epoch timestamp values as dates (yyyy-MM-dd) for date-related placeholders.
+     *
+     * @param messageTemplate The message template with placeholders
+     * @param contextData     Map containing context data values
+     * @param zoneId          The timezone to use for date formatting
+     * @param dateFormatter   The date formatter to use
+     * @return The message with placeholders replaced
+     */
+    public static String replacePlaceholders(String messageTemplate, Map<String, Object> contextData,
+                                             java.time.ZoneId zoneId, java.time.format.DateTimeFormatter dateFormatter) {
+        String result = messageTemplate;
+
+        for (Map.Entry<String, Object> entry : contextData.entrySet()) {
+            String key = entry.getKey();
+            Object valueObj = entry.getValue();
+            String value = "";
+
+            if (valueObj != null) {
+                // Check if this is a date-related placeholder and the value is an epoch timestamp
+                if (key.contains("Date") && isEpochTimestamp(valueObj)) {
+                    value = formatEpochToDate(valueObj, zoneId, dateFormatter);
+                } else {
+                    value = valueObj.toString();
+                }
+            }
+
+            // Replace both {Key} and Key formats
+            result = result.replace("{" + key + "}", value);
+        }
+        return result;
+    }
+
+    /**
+     * Checks if the value is an epoch timestamp (Long or parseable as Long).
+     *
+     * @param value The value to check
+     * @return true if the value is an epoch timestamp, false otherwise
+     */
+    public static boolean isEpochTimestamp(Object value) {
+        if (value instanceof Long) {
+            return true;
+        }
+        if (value instanceof Integer) {
+            return true;
+        }
+        if (value instanceof String) {
+            try {
+                Long.parseLong((String) value);
+                return true;
+            } catch (NumberFormatException e) {
+                return false;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Formats epoch timestamp to date string (yyyy-MM-dd) using configured timezone.
+     *
+     * @param epochValue The epoch timestamp value
+     * @param zoneId     The timezone to use for formatting
+     * @param formatter  The date formatter to use
+     * @return The formatted date string
+     */
+    public static String formatEpochToDate(Object epochValue, java.time.ZoneId zoneId,
+                                           java.time.format.DateTimeFormatter formatter) {
+        try {
+            long epochMillis;
+            if (epochValue instanceof Long) {
+                epochMillis = (Long) epochValue;
+            } else if (epochValue instanceof Integer) {
+                epochMillis = ((Integer) epochValue).longValue();
+            } else {
+                epochMillis = Long.parseLong(epochValue.toString());
+            }
+
+            java.time.LocalDate date = java.time.Instant.ofEpochMilli(epochMillis)
+                    .atZone(zoneId)
+                    .toLocalDate();
+            return date.format(formatter);
+        } catch (Exception e) {
+            log.warn("Failed to format epoch value {} as date: {}", epochValue, e.getMessage());
+            return epochValue.toString();
+        }
+    }
 }

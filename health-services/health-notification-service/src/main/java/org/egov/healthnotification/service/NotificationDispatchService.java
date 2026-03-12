@@ -6,11 +6,14 @@ import org.egov.healthnotification.Constants;
 import org.egov.healthnotification.config.HealthNotificationProperties;
 import org.egov.healthnotification.producer.HealthNotificationProducer;
 import org.egov.healthnotification.service.enrichment.ScheduledNotificationEnrichmentService;
+import org.egov.healthnotification.util.HealthNotificationUtils;
 import org.egov.healthnotification.web.models.ScheduledNotification;
 import org.egov.healthnotification.web.models.enums.NotificationStatus;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -99,7 +102,9 @@ public class NotificationDispatchService {
                 templateCode, locale, localizationTenantId);
 
         // Step 2: Replace placeholders with actual values from contextData
-        String finalMessage = replacePlaceholders(messageTemplate, contextData);
+        ZoneId zoneId = ZoneId.of(properties.getNotificationTimezone());
+        DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern(Constants.DATE_FORMAT_YYYY_MM_DD);
+        String finalMessage = HealthNotificationUtils.replacePlaceholders(messageTemplate, contextData, zoneId, dateFormatter);
 
         // Step 3: Build and push SMSRequest to Kafka
         String mobileNumber = notification.getMobileNumber();
@@ -115,20 +120,6 @@ public class NotificationDispatchService {
 
         // Step 4: Update status to SENT
         markSent(notification);
-    }
-
-    /**
-     * Replaces {PlaceholderName} tokens in the message template with values from contextData.
-     */
-    private String replacePlaceholders(String messageTemplate, Map<String, Object> contextData) {
-        String result = messageTemplate;
-        for (Map.Entry<String, Object> entry : contextData.entrySet()) {
-            String key = entry.getKey();
-            String value = entry.getValue() != null ? entry.getValue().toString() : "";
-            // Replace both {Key} and Key formats
-            result = result.replace("{" + key + "}", value);
-        }
-        return result;
     }
 
     /**
