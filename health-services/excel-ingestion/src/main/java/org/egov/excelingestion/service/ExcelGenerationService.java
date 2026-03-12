@@ -94,7 +94,8 @@ public class ExcelGenerationService {
                     .generationClass(sheetGenerationConfig.getGenerationClass())
                     .isGenerationClassViaExcelPopulator(sheetGenerationConfig.getIsGenerationClassViaExcelPopulator() != null ? sheetGenerationConfig.getIsGenerationClassViaExcelPopulator() : false)
                     .order(sheetGenerationConfig.getOrder() != null ? sheetGenerationConfig.getOrder() : 1)
-                    .visible(sheetGenerationConfig.getVisible() != null ? sheetGenerationConfig.getVisible() : true);
+                    .visible(sheetGenerationConfig.getVisible() != null ? sheetGenerationConfig.getVisible() : true)
+                    .skipSchemaColumns(sheetGenerationConfig.getSkipSchemaColumns() != null ? sheetGenerationConfig.getSkipSchemaColumns() : false);
             
             sheets.add(builder.build());
         }

@@ -2,12 +2,20 @@ package org.egov.excelingestion.generator;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.util.CellReference;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.egov.excelingestion.config.ExcelIngestionConfig;
 import org.egov.excelingestion.config.ProcessingConstants;
 import org.egov.excelingestion.exception.CustomExceptionHandler;
-import org.egov.excelingestion.service.BoundaryService;
 import org.egov.excelingestion.service.CampaignService;
 import org.egov.excelingestion.service.MDMSService;
 import org.egov.excelingestion.util.BoundaryUtil;
+import org.egov.excelingestion.util.ExcelDataPopulator;
+import org.egov.excelingestion.util.HierarchicalBoundaryUtil;
 import org.egov.excelingestion.util.SchemaColumnDefUtil;
 import org.egov.excelingestion.web.models.*;
 import org.egov.excelingestion.web.models.excel.ColumnDef;
@@ -16,210 +24,217 @@ import org.springframework.stereotype.Component;
 import java.util.*;
 
 /**
- * Generator for attendance register sheet - uses ExcelPopulator approach
- * Generates template with:
- * 1. README sheet with instructions
- * 2. Attendance Register List sheet with Register ID column
- * 3. Boundary hierarchy data for dropdown population
+ * Generator for attendance register sheet - uses ISheetGenerator (direct workbook) approach
+ * to support cascading boundary dropdowns via HierarchicalBoundaryUtil.
  */
 @Component
 @Slf4j
-public class AttendanceRegisterSheetGenerator implements IExcelPopulatorSheetGenerator {
+public class AttendanceRegisterSheetGenerator implements ISheetGenerator {
 
-    private final BoundaryService boundaryService;
     private final BoundaryUtil boundaryUtil;
     private final MDMSService mdmsService;
     private final CampaignService campaignService;
     private final CustomExceptionHandler exceptionHandler;
     private final SchemaColumnDefUtil schemaColumnDefUtil;
+    private final ExcelDataPopulator excelDataPopulator;
+    private final HierarchicalBoundaryUtil hierarchicalBoundaryUtil;
+    private final ExcelIngestionConfig config;
 
-    public AttendanceRegisterSheetGenerator(BoundaryService boundaryService, BoundaryUtil boundaryUtil,
-                                          MDMSService mdmsService, CampaignService campaignService,
-                                          CustomExceptionHandler exceptionHandler,
-                                          SchemaColumnDefUtil schemaColumnDefUtil) {
-        this.boundaryService = boundaryService;
+    public AttendanceRegisterSheetGenerator(BoundaryUtil boundaryUtil,
+                                           MDMSService mdmsService, CampaignService campaignService,
+                                           CustomExceptionHandler exceptionHandler,
+                                           SchemaColumnDefUtil schemaColumnDefUtil,
+                                           ExcelDataPopulator excelDataPopulator,
+                                           HierarchicalBoundaryUtil hierarchicalBoundaryUtil,
+                                           ExcelIngestionConfig config) {
         this.boundaryUtil = boundaryUtil;
         this.mdmsService = mdmsService;
         this.campaignService = campaignService;
         this.exceptionHandler = exceptionHandler;
         this.schemaColumnDefUtil = schemaColumnDefUtil;
+        this.excelDataPopulator = excelDataPopulator;
+        this.hierarchicalBoundaryUtil = hierarchicalBoundaryUtil;
+        this.config = config;
     }
 
     @Override
-    public SheetGenerationResult generateSheetData(SheetGenerationConfig config,
-                                                 GenerateResource generateResource,
-                                                 RequestInfo requestInfo,
-                                                 Map<String, String> localizationMap) {
+    public XSSFWorkbook generateSheet(XSSFWorkbook workbook,
+                                      String sheetName,
+                                      SheetGenerationConfig sheetConfig,
+                                      GenerateResource generateResource,
+                                      RequestInfo requestInfo,
+                                      Map<String, String> localizationMap) {
 
-        log.info("Generating attendance register sheet data for campaign: {}", generateResource.getReferenceId());
-
-        try {
-            String tenantId = generateResource.getTenantId();
-            String campaignId = generateResource.getReferenceId();
-
-            // Precondition: Check if project creation is complete
-            checkProjectCreationComplete(campaignId, tenantId, requestInfo);
-
-            // Fetch campaign details
-            CampaignSearchResponse.CampaignDetail campaign = campaignService.searchCampaignById(campaignId, tenantId, requestInfo);
-            if (campaign == null) {
-                throw new Exception("Campaign not found");
-            }
-
-            String hierarchyType = campaign.getHierarchyType();
-
-            // Fetch boundary hierarchy
-            BoundaryHierarchyResponse hierarchyData = boundaryService.fetchBoundaryHierarchy(tenantId, hierarchyType, requestInfo);
-            List<BoundaryHierarchyChild> hierarchyRelations = hierarchyData.getBoundaryHierarchy().get(0).getBoundaryHierarchy();
-
-            // Get campaign boundaries
-            List<CampaignSearchResponse.BoundaryDetail> campaignBoundaries =
-                campaignService.getBoundariesFromCampaign(campaignId, tenantId, requestInfo);
-
-            if (campaignBoundaries == null || campaignBoundaries.isEmpty()) {
-                log.info("No campaign boundaries found for campaign: {}", campaignId);
-                return SheetGenerationResult.builder()
-                        .columnDefs(new ArrayList<>())
-                        .data(new ArrayList<>())
-                        .build();
-            }
-
-            // Fetch schema columns for Register ID
-            List<ColumnDef> schemaColumns = fetchAttendanceRegisterSchema(tenantId, requestInfo);
-
-            // Create column definitions: boundary columns + Register ID
-            List<ColumnDef> columnDefs = createAttendanceRegisterColumnDefs(hierarchyRelations, hierarchyType, schemaColumns);
-
-            // Return empty data (users fill in the template)
-            return SheetGenerationResult.builder()
-                    .columnDefs(columnDefs)
-                    .data(new ArrayList<>())
-                    .build();
-
-        } catch (Exception e) {
-            log.error("Error generating attendance register sheet data: {}", e.getMessage(), e);
-            throw new RuntimeException("Failed to generate attendance register sheet data", e);
-        }
-    }
-
-    /**
-     * Precondition: Verify project creation is complete
-     * Note: This is a placeholder - actual precondition check happens in Project Factory (TypeScript)
-     * Excel Ingestion service generates template; Project Factory enforces business rules
-     */
-    private void checkProjectCreationComplete(String campaignId, String tenantId, RequestInfo requestInfo) throws Exception {
-        try {
-            CampaignSearchResponse.CampaignDetail campaign = campaignService.searchCampaignById(campaignId, tenantId, requestInfo);
-            if (campaign == null) {
-                throw new Exception("Campaign not found");
-            }
-
-            log.info("Campaign verified for attendance register template generation: {}", campaignId);
-        } catch (Exception e) {
-            log.error("Error verifying campaign: {}", e.getMessage());
-            throw e;
-        }
-    }
-
-    /**
-     * Fetch attendance register schema from MDMS
-     * Returns columns for the register sheet
-     */
-    private List<ColumnDef> fetchAttendanceRegisterSchema(String tenantId, RequestInfo requestInfo) {
-        List<ColumnDef> columns = new ArrayList<>();
-        String schemaName = "attendance-register";
+        log.info("Generating attendance register sheet: {} for schema: {}", sheetName, sheetConfig.getSchemaName());
 
         try {
+            // Fetch schema from MDMS
             Map<String, Object> filters = new HashMap<>();
-            filters.put("title", schemaName);
+            filters.put("title", sheetConfig.getSchemaName());
 
             List<Map<String, Object>> mdmsList = mdmsService.searchMDMS(
-                    requestInfo, tenantId, ProcessingConstants.MDMS_SCHEMA_CODE, filters, 1, 0);
+                    requestInfo, generateResource.getTenantId(), ProcessingConstants.MDMS_SCHEMA_CODE, filters, 1, 0);
 
-            if (!mdmsList.isEmpty()) {
-                Map<String, Object> mdmsData = mdmsList.get(0);
-                Map<String, Object> data = (Map<String, Object>) mdmsData.get("data");
-                Map<String, Object> properties = (Map<String, Object>) data.get("properties");
+            String schemaJson = extractSchemaFromMDMSResponse(mdmsList, sheetConfig.getSchemaName());
 
-                if (properties != null) {
-                    ObjectMapper mapper = new ObjectMapper();
-                    String schemaJson = mapper.writeValueAsString(properties);
-                    columns = schemaColumnDefUtil.convertSchemaToColumnDefs(schemaJson);
-                    log.info("Successfully fetched {} schema columns for attendance-register", columns.size());
+            if (schemaJson != null && !schemaJson.isEmpty()) {
+                List<ColumnDef> columns = schemaColumnDefUtil.convertSchemaToColumnDefs(schemaJson);
+
+                // Create or recreate the sheet
+                if (workbook.getSheetIndex(sheetName) >= 0) {
+                    workbook.removeSheetAt(workbook.getSheetIndex(sheetName));
                 }
-            } else {
-                log.warn("No schema found for: {}", schemaName);
+                workbook.createSheet(sheetName);
+
+                // Add boundary dropdowns using HierarchicalBoundaryUtil (same pattern as UserSheetGenerator)
+                if (shouldAddBoundaryDropdowns(generateResource)) {
+                    List<CampaignSearchResponse.BoundaryDetail> campaignBoundaries =
+                            campaignService.getBoundariesFromCampaign(generateResource.getReferenceId(),
+                                    generateResource.getTenantId(), requestInfo);
+
+                    if (campaignBoundaries != null && !campaignBoundaries.isEmpty()) {
+                        List<Boundary> enrichedBoundaries = boundaryUtil.getEnrichedBoundariesFromCampaign(
+                                generateResource.getId(), generateResource.getReferenceId(),
+                                generateResource.getTenantId(), generateResource.getHierarchyType(), requestInfo);
+
+                        hierarchicalBoundaryUtil.addHierarchicalBoundaryColumnWithData(
+                                workbook, sheetName, localizationMap, enrichedBoundaries,
+                                generateResource.getHierarchyType(), generateResource.getTenantId(),
+                                requestInfo, null);
+                    }
+                }
+
+                // Add schema columns (Register ID, etc.) using ExcelDataPopulator
+                workbook = (XSSFWorkbook) excelDataPopulator.populateSheetWithData(
+                        workbook, sheetName, columns, null, localizationMap);
+
+                // Add Register ID auto-populate formulas
+                addRegisterIdFormulas(workbook, sheetName, generateResource.getHierarchyType());
             }
+
         } catch (Exception e) {
-            log.error("Error fetching schema for attendance-register: {}", e.getMessage());
+            log.error("Error generating attendance register sheet {}: {}", sheetName, e.getMessage(), e);
+            throw new RuntimeException("Failed to generate attendance register sheet: " + sheetName, e);
         }
 
-        return columns;
+        return workbook;
+    }
+
+    private boolean shouldAddBoundaryDropdowns(GenerateResource generateResource) {
+        return generateResource.getReferenceId() != null && !generateResource.getReferenceId().isEmpty()
+                && generateResource.getHierarchyType() != null && !generateResource.getHierarchyType().isEmpty();
+    }
+
+    private String extractSchemaFromMDMSResponse(List<Map<String, Object>> mdmsList, String title) {
+        try {
+            if (!mdmsList.isEmpty()) {
+                Map<String, Object> mdmsData = mdmsList.get(0);
+                @SuppressWarnings("unchecked")
+                Map<String, Object> data = (Map<String, Object>) mdmsData.get("data");
+                @SuppressWarnings("unchecked")
+                Map<String, Object> properties = (Map<String, Object>) data.get("properties");
+                if (properties != null) {
+                    ObjectMapper mapper = new ObjectMapper();
+                    log.info("Successfully extracted MDMS schema for: {}", title);
+                    return mapper.writeValueAsString(properties);
+                }
+            }
+            log.warn("No MDMS data found for schema: {}", title);
+        } catch (Exception e) {
+            log.error("Error extracting MDMS schema {}: {}", title, e.getMessage(), e);
+        }
+        return null;
     }
 
     /**
-     * Create column definitions for attendance register:
-     * 1. Boundary hierarchy columns (read-only, with dropdowns)
-     * 2. Register ID column (user-fillable)
+     * Add Register ID formulas that auto-populate from the rightmost non-empty boundary column.
+     * Formula: IF(lastBoundary<>"", lastBoundary, IF(secondLast<>"", secondLast, ...))
+     * Uses unlocked cell style so users can manually override.
      */
-    private List<ColumnDef> createAttendanceRegisterColumnDefs(
-            List<BoundaryHierarchyChild> hierarchyRelations,
-            String hierarchyType,
-            List<ColumnDef> schemaColumns) {
+    private void addRegisterIdFormulas(XSSFWorkbook workbook, String sheetName, String hierarchyType) {
+        Sheet sheet = workbook.getSheet(sheetName);
+        if (sheet == null) return;
 
-        List<ColumnDef> columns = new ArrayList<>();
+        Row hiddenRow = sheet.getRow(0);
+        if (hiddenRow == null) return;
 
-        // Create boundary hierarchy columns - frozen and with dropdown support
-        for (int i = 0; i < hierarchyRelations.size(); i++) {
-            String boundaryType = hierarchyRelations.get(i).getBoundaryType();
-            String columnName = (hierarchyType + "_" + boundaryType).toUpperCase();
+        // Find visible boundary column indices and Register ID column index from hidden row 0
+        String hierarchyPrefix = hierarchyType != null ? hierarchyType.toUpperCase() + "_" : "";
+        List<Integer> visibleBoundaryColIndices = new ArrayList<>();
+        int registerIdColIndex = -1;
 
-            columns.add(ColumnDef.builder()
-                    .name(columnName)
-                    .orderNumber(i + 1)
-                    .width(50)
-                    .colorHex("#93c47d")
-                    .freezeColumn(true) // Boundary columns are frozen
-                    .build());
+        for (int colIdx = 0; colIdx <= hiddenRow.getLastCellNum(); colIdx++) {
+            Cell cell = hiddenRow.getCell(colIdx);
+            if (cell == null) continue;
+            String cellValue = cell.getStringCellValue();
+            if (cellValue == null) continue;
+
+            // Check if it's a visible boundary column (has hierarchy prefix, not hidden, not a helper)
+            if (!hierarchyPrefix.isEmpty() && cellValue.startsWith(hierarchyPrefix)
+                    && !cellValue.endsWith("_HELPER") && !sheet.isColumnHidden(colIdx)) {
+                visibleBoundaryColIndices.add(colIdx);
+            }
+
+            // Check for Register ID column
+            if ("HCM_ATTENDANCE_REGISTER_ID".equals(cellValue)) {
+                registerIdColIndex = colIdx;
+            }
         }
 
-        // Add hidden boundary code column for internal processing
-        columns.add(ColumnDef.builder()
-                .name("HCM_ADMIN_CONSOLE_BOUNDARY_CODE")
-                .orderNumber(hierarchyRelations.size() + 1)
-                .width(80)
-                .hideColumn(true)
-                .freezeColumn(true)
-                .adjustHeight(true)
-                .build());
-
-        // Add schema columns (Register ID, etc.) - user fillable
-        int currentOrderNumber = hierarchyRelations.size() + 2;
-        for (ColumnDef schemaCol : schemaColumns) {
-            columns.add(ColumnDef.builder()
-                    .name(schemaCol.getName())
-                    .type(schemaCol.getType())
-                    .description(schemaCol.getDescription())
-                    .colorHex(schemaCol.getColorHex())
-                    .orderNumber(currentOrderNumber++)
-                    .freezeColumnIfFilled(schemaCol.isFreezeColumnIfFilled())
-                    .hideColumn(schemaCol.isHideColumn())
-                    .required(schemaCol.isRequired())
-                    .pattern(schemaCol.getPattern())
-                    .minimum(schemaCol.getMinimum())
-                    .maximum(schemaCol.getMaximum())
-                    .minLength(schemaCol.getMinLength())
-                    .maxLength(schemaCol.getMaxLength())
-                    .freezeColumn(schemaCol.isFreezeColumn())
-                    .adjustHeight(schemaCol.isAdjustHeight())
-                    .width(schemaCol.getWidth())
-                    .unFreezeColumnTillData(schemaCol.isUnFreezeColumnTillData())
-                    .freezeTillData(schemaCol.isFreezeTillData())
-                    .enumValues(schemaCol.getEnumValues())
-                    .multiSelectDetails(schemaCol.getMultiSelectDetails())
-                    .build());
+        if (registerIdColIndex == -1 || visibleBoundaryColIndices.isEmpty()) {
+            log.info("Register ID column or boundary columns not found, skipping formula generation");
+            return;
         }
 
-        return columns;
+        // Create unlocked cell style for formula cells (users can override)
+        CellStyle unlocked = workbook.createCellStyle();
+        unlocked.setLocked(false);
+
+        int maxRow = config.getExcelRowLimit();
+
+        // Apply formula to data rows (row 2 onwards, 0-indexed)
+        for (int r = 2; r <= maxRow; r++) {
+            Row row = sheet.getRow(r);
+            if (row == null) row = sheet.createRow(r);
+
+            Cell registerIdCell = row.getCell(registerIdColIndex, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK);
+
+            // Build nested IF formula: checks from rightmost to leftmost visible boundary
+            String formula = buildRegisterIdFormula(r + 1, visibleBoundaryColIndices);
+            registerIdCell.setCellFormula(formula);
+            registerIdCell.setCellStyle(unlocked);
+        }
+
+        log.info("Added Register ID formulas for {} rows referencing {} boundary columns",
+                maxRow - 1, visibleBoundaryColIndices.size());
+    }
+
+    /**
+     * Build nested IF formula: IF(lastCol<>"", lastCol, IF(secondLastCol<>"", secondLastCol, ...))
+     * Checks from rightmost to leftmost visible boundary column.
+     */
+    private String buildRegisterIdFormula(int excelRowNumber, List<Integer> visibleBoundaryColIndices) {
+        StringBuilder formula = new StringBuilder();
+        int nestCount = 0;
+
+        // Iterate from rightmost to leftmost
+        for (int i = visibleBoundaryColIndices.size() - 1; i >= 0; i--) {
+            String colRef = CellReference.convertNumToColString(visibleBoundaryColIndices.get(i)) + excelRowNumber;
+
+            if (i == 0) {
+                // Innermost: just reference the first boundary column
+                formula.append(colRef);
+            } else {
+                formula.append("IF(").append(colRef).append("<>\"\",").append(colRef).append(",");
+                nestCount++;
+            }
+        }
+
+        // Close all IF parentheses
+        for (int i = 0; i < nestCount; i++) {
+            formula.append(")");
+        }
+
+        return formula.toString();
     }
 }

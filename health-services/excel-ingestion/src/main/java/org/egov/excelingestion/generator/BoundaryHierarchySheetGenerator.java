@@ -94,9 +94,9 @@ public class BoundaryHierarchySheetGenerator implements IExcelPopulatorSheetGene
             String projectType = campaignService.getProjectTypeFromCampaign(
                 generateResource.getReferenceId(), generateResource.getTenantId(), requestInfo);
             
-            // Fetch schema columns if projectType exists
+            // Fetch schema columns if projectType exists (skip if config says so)
             List<ColumnDef> schemaColumns = new ArrayList<>();
-            if (projectType != null && !projectType.isEmpty()) {
+            if (!Boolean.TRUE.equals(config.getSkipSchemaColumns()) && projectType != null && !projectType.isEmpty()) {
                 schemaColumns = fetchSchemaColumns(projectType, generateResource.getTenantId(), requestInfo);
             }
             

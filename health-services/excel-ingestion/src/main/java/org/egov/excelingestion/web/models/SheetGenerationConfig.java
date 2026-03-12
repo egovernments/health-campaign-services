@@ -49,4 +49,9 @@ public class SheetGenerationConfig {
      * Whether this sheet should be visible or hidden
      */
     private Boolean visible;
+
+    /**
+     * If true, skip fetching schema columns for this sheet (e.g., boundary data sheet without target columns)
+     */
+    private Boolean skipSchemaColumns;
 }
