@@ -44,7 +44,7 @@ public class ProjectTaskConsumer {
      * @param payload The Kafka ConsumerRecord containing the raw JSON string
      * @param topic The Kafka topic from which the message was received
      */
-    @KafkaListener(topics = "${project.task.consumer.create.topic}")
+    @KafkaListener(topicPattern = "(${kafka.tenant.id.pattern}){0,1}${project.task.consumer.create.topic}")
     public void consumeTaskCreate(ConsumerRecord<String, Object> payload,
                                   @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
