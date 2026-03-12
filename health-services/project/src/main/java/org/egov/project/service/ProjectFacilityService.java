@@ -1,6 +1,8 @@
 package org.egov.project.service;
 
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
@@ -12,9 +14,12 @@ import org.egov.common.ds.Tuple;
 import org.egov.common.models.ErrorDetails;
 import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.project.ProjectFacility;
+import org.egov.common.models.project.Project;
 import org.egov.common.models.project.ProjectFacilityBulkRequest;
 import org.egov.common.models.project.ProjectFacilityRequest;
+import org.egov.common.models.project.ProjectFacilitySearch;
 import org.egov.common.models.project.ProjectFacilitySearchRequest;
+import org.egov.common.models.project.ProjectRequest;
 import org.egov.common.service.IdGenService;
 import org.egov.common.service.UserService;
 import org.egov.common.utils.CommonUtils;
@@ -237,5 +242,110 @@ public class ProjectFacilityService {
         log.info("searching project facility using criteria");
         return projectFacilityRepository.findWithCount(projectFacilitySearchRequest.getProjectFacility(),
                 limit, offset, tenantId, lastChangedSince, includeDeleted);
+    }
+
+    /**
+     * Searches for facility IDs grouped by boundary type within the project hierarchy tree.
+     *
+     * Given a project ID and a list of boundary types, this method:
+     * 1. Fetches the project with all its ancestors and descendants
+     * 2. Filters the tree by the requested boundary types
+     * 3. Finds all facility IDs mapped to those projects via PROJECT_FACILITY
+     * 4. Returns a map of boundaryType → list of facilityIds
+     */
+    public Map<String, List<String>> searchByHierarchy(
+            ProjectFacilitySearchRequest request,
+            String tenantId) {
+        log.info("received request to search project facility by hierarchy");
+        ProjectFacilitySearch searchCriteria = request.getProjectFacility();
+        List<String> boundaryTypes = searchCriteria.getBoundaryTypes();
+
+        if (searchCriteria.getProjectId() == null || searchCriteria.getProjectId().isEmpty()) {
+            throw new CustomException("INVALID_PROJECT_ID", "projectId is required for hierarchy search");
+        }
+        String projectId = searchCriteria.getProjectId().get(0);
+
+        // Step 1: Call project search with includeAncestors and includeDescendants
+        Project searchProject = Project.builder().id(projectId).tenantId(tenantId).build();
+        ProjectRequest projectRequest = ProjectRequest.builder()
+                .requestInfo(request.getRequestInfo())
+                .projects(Collections.singletonList(searchProject))
+                .build();
+
+        List<Project> projects;
+        try {
+            projects = projectService.searchProject(
+                    projectRequest,
+                    1000, 0, tenantId, null, false,
+                    true,   // includeAncestors
+                    true,   // includeDescendants
+                    null, null, false
+            );
+        } catch (Exception e) {
+            log.error("error searching projects for hierarchy: {}", e.getMessage());
+            throw new CustomException("PROJECT_SEARCH_ERROR",
+                    "Error searching projects for hierarchy: " + e.getMessage());
+        }
+
+        if (projects == null || projects.isEmpty()) {
+            log.info("no project found for id: {}", projectId);
+            return Collections.emptyMap();
+        }
+
+        // Step 2: Collect all projects from the tree (main + ancestors + descendants)
+        Project mainProject = projects.get(0);
+        List<Project> allProjects = new ArrayList<>();
+        allProjects.add(mainProject);
+        if (mainProject.getAncestors() != null) {
+            allProjects.addAll(mainProject.getAncestors());
+        }
+        if (mainProject.getDescendants() != null) {
+            allProjects.addAll(mainProject.getDescendants());
+        }
+
+        // Step 3: Filter by requested boundaryTypes and build projectId → boundaryType mapping
+        Map<String, String> projectIdToBoundaryType = new HashMap<>();
+        for (Project p : allProjects) {
+            if (p.getAddress() != null
+                    && p.getAddress().getBoundaryType() != null
+                    && boundaryTypes.contains(p.getAddress().getBoundaryType())) {
+                projectIdToBoundaryType.put(p.getId(), p.getAddress().getBoundaryType());
+            }
+        }
+
+        if (projectIdToBoundaryType.isEmpty()) {
+            log.info("no projects found matching boundary types: {}", boundaryTypes);
+            return Collections.emptyMap();
+        }
+
+        List<String> filteredProjectIds = new ArrayList<>(projectIdToBoundaryType.keySet());
+        log.info("found {} projects matching boundary types, searching facilities", filteredProjectIds.size());
+
+        // Step 4: Search PROJECT_FACILITY for all filtered project IDs
+        ProjectFacilitySearch pfSearch = ProjectFacilitySearch.builder()
+                .projectId(filteredProjectIds)
+                .build();
+
+        SearchResponse<ProjectFacility> pfResponse;
+        try {
+            pfResponse = projectFacilityRepository.findWithCount(
+                    pfSearch, filteredProjectIds.size() * 100, 0, tenantId, null, false);
+        } catch (Exception e) {
+            log.error("error searching project facilities: {}", e.getMessage());
+            throw new CustomException("PROJECT_FACILITY_SEARCH_ERROR",
+                    "Error searching project facilities: " + e.getMessage());
+        }
+
+        // Step 5: Map facilityId to boundaryType (single pass)
+        Map<String, List<String>> facilityMap = new HashMap<>();
+        for (ProjectFacility pf : pfResponse.getResponse()) {
+            String bt = projectIdToBoundaryType.get(pf.getProjectId());
+            if (bt != null) {
+                facilityMap.computeIfAbsent(bt, k -> new ArrayList<>()).add(pf.getFacilityId());
+            }
+        }
+
+        log.info("hierarchy search complete. boundary types found: {}", facilityMap.keySet());
+        return facilityMap;
     }
 }
