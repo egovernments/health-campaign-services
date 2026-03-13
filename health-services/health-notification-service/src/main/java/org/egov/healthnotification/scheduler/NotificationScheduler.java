@@ -2,6 +2,7 @@ package org.egov.healthnotification.scheduler;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.request.RequestInfo;
+import org.egov.common.models.Error;
 import org.egov.healthnotification.Constants;
 import org.egov.healthnotification.config.HealthNotificationProperties;
 import org.egov.healthnotification.repository.ScheduledNotificationRepository;
@@ -15,7 +16,9 @@ import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 
 @Component
@@ -76,19 +79,31 @@ public class NotificationScheduler {
             allDue = encryptionService.decrypt(allDue, Constants.ENCRYPTION_KEY_SCHEDULED_NOTIFICATION, requestInfo);
             log.info("Decrypted {} scheduled notifications", allDue.size());
 
-            // Process in batchesA
+            // Process in batches — one batch failure does not stop subsequent batches
             int totalBatches = (allDue.size() + batchSize - 1) / batchSize;
+            Map<ScheduledNotification, List<Error>> allErrors = new HashMap<>();
+            int batchFailures = 0;
+
             for (int i = 0; i < allDue.size(); i += batchSize) {
                 int end = Math.min(i + batchSize, allDue.size());
                 List<ScheduledNotification> batch = allDue.subList(i, end);
                 int batchNumber = (i / batchSize) + 1;
 
-                log.info("Processing batch {}/{} ({} notifications)", batchNumber, totalBatches, batch.size());
-                dispatchService.dispatchBatch(batch, tenantId);
+                try {
+                    log.info("Processing batch {}/{} ({} notifications)", batchNumber, totalBatches, batch.size());
+                    Map<ScheduledNotification, List<Error>> batchErrors =
+                            dispatchService.dispatchBatch(batch, tenantId);
+                    allErrors.putAll(batchErrors);
+                } catch (Exception e) {
+                    batchFailures++;
+                    log.error("Batch {}/{} failed entirely: {}", batchNumber, totalBatches, e.getMessage(), e);
+                    // Continue to next batch — do not stop the scheduler run
+                }
             }
 
-            log.info("Scheduler completed. Processed {} notifications in {} batches",
-                    allDue.size(), totalBatches);
+            log.info("Scheduler completed. Processed {} notifications in {} batches. " +
+                            "Errors: {} notification(s), {} batch failure(s)",
+                    allDue.size(), totalBatches, allErrors.size(), batchFailures);
 
         } catch (Exception e) {
             log.error("Scheduler failed for tenantId: {}, today: {}", tenantId, today, e);

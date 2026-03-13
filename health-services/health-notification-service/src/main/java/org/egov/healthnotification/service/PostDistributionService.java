@@ -4,6 +4,7 @@ package org.egov.healthnotification.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.models.Error;
 import org.egov.common.models.project.Project;
 import org.egov.common.models.project.Task;
 import org.egov.healthnotification.Constants;
@@ -27,6 +28,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 
 
 @Service
@@ -72,14 +75,18 @@ public class PostDistributionService {
      * Creates one ScheduledNotification row per MDMS scheduledNotification entry per task.
      * Does NOT build messages — stores templateCode + placeholder map. The scheduler builds messages at send time.
      *
+     * Uses populateErrorDetails pattern — one task failure does not block others.
+     *
      * @param tasks The list of distribution tasks from Kafka topic
      */
     public void processDistributionTasks(List<Task> tasks) {
         log.info("Processing {} distribution tasks for notification scheduling", tasks.size());
 
         ZoneId timezone = ZoneId.of(properties.getNotificationTimezone());
+        Map<ScheduledNotification, List<Error>> errorDetailsMap = new HashMap<>();
+        int successCount = 0;
 
-        tasks.forEach(task -> {
+        for (Task task : tasks) {
             try {
                 log.info("Processing distribution task: {} for project: {}, beneficiary: {}",
                         task.getId(), task.getProjectId(), task.getProjectBeneficiaryId());
@@ -100,7 +107,7 @@ public class PostDistributionService {
 
                 String projectType = project.getProjectType();
 
-                        // Extract beneficiaryType
+                // Extract beneficiaryType
                 String beneficiaryType = extractBeneficiaryType(project, task.getId());
                 log.info("Task: {} belongs to project type: {}, beneficiaryType: {}",
                         task.getId(), projectType, beneficiaryType);
@@ -113,7 +120,7 @@ public class PostDistributionService {
                         && notificationConfig.getData().get(Constants.FIELD_SMS_ENABLED).asBoolean();
                 if (!smsEnabled) {
                     log.info("SMS not enabled for projectType: {}, task: {}. Skipping.", projectType, task.getId());
-                    return;
+                    continue;
                 }
 
                 // Step 4: Fetch household/beneficiary details
@@ -129,7 +136,7 @@ public class PostDistributionService {
                 if ((mobileNumber == null || mobileNumber.isBlank())
                         && (altContactNumber == null || altContactNumber.isBlank())) {
                     log.info("No mobileNumber or altContactNumber. Skipping task: {}", task.getId());
-                    return;
+                    continue;
                 }
 
                 // Step 5: Get enabled event notification config
@@ -137,7 +144,7 @@ public class PostDistributionService {
                 JsonNode eventNotificationConfig = HealthNotificationUtils.getEnabledEventNotificationConfig(
                         notificationConfig, eventType, task.getId(), objectMapper);
                 if (eventNotificationConfig == null) {
-                    return;
+                    continue;
                 }
 
                 // Step 6: Extract locale
@@ -166,16 +173,39 @@ public class PostDistributionService {
                                 notificationsToSave, Constants.ENCRYPTION_KEY_SCHEDULED_NOTIFICATION);
 
                         repository.save(encryptedNotifications, properties.getScheduledNotificationSaveTopic());
+                        successCount += encryptedNotifications.size();
                         log.info("Persisted {} encrypted scheduled notifications for task: {}",
                                 encryptedNotifications.size(), task.getId());
                     }
                 }
             } catch (Exception e) {
                 log.error("Error processing distribution task: {}", task.getId(), e);
-            }
-        });
 
-        log.info("Completed processing {} distribution tasks", tasks.size());
+                // Build a placeholder ScheduledNotification to track the error against the task
+                ScheduledNotification errorNotification = ScheduledNotification.builder()
+                        .entityId(task.getId())
+                        .entityType(Constants.ENTITY_TYPE_TASK)
+                        .tenantId(task.getTenantId())
+                        .build();
+
+                Error error = Error.builder()
+                        .errorCode(e instanceof CustomException ? ((CustomException) e).getCode() : "TASK_PROCESSING_FAILED")
+                        .errorMessage(String.format("Task %s: %s", task.getId(), e.getMessage()))
+                        .type(e instanceof CustomException ? Error.ErrorType.NON_RECOVERABLE : Error.ErrorType.RECOVERABLE)
+                        .exception(new CustomException("TASK_PROCESSING_FAILED", e.getMessage()))
+                        .build();
+                populateErrorDetails(errorNotification, error, errorDetailsMap);
+            }
+        }
+
+        if (!errorDetailsMap.isEmpty()) {
+            log.error("Distribution task processing completed with {} error(s) out of {} tasks. " +
+                            "Successfully scheduled {} notification(s).",
+                    errorDetailsMap.size(), tasks.size(), successCount);
+        } else {
+            log.info("Completed processing {} distribution tasks. Scheduled {} notification(s).",
+                    tasks.size(), successCount);
+        }
     }
 
     /**

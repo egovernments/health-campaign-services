@@ -3,6 +3,7 @@ package org.egov.healthnotification.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.utils.MultiStateInstanceUtil;
+import org.egov.common.models.Error;
 import org.egov.healthnotification.Constants;
 import org.egov.healthnotification.config.HealthNotificationProperties;
 import org.egov.healthnotification.producer.HealthNotificationProducer;
@@ -10,6 +11,7 @@ import org.egov.healthnotification.service.enrichment.ScheduledNotificationEnric
 import org.egov.healthnotification.util.HealthNotificationUtils;
 import org.egov.healthnotification.web.models.ScheduledNotification;
 import org.egov.healthnotification.web.models.enums.NotificationStatus;
+import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -19,6 +21,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 
 /**
  * Processes a batch of ScheduledNotifications:
@@ -59,17 +63,51 @@ public class NotificationDispatchService {
 
     /**
      * Dispatches a batch of notifications: build message, push to SMS topic, update status.
+     * Uses populateErrorDetails pattern — one failure does not block others.
+     * Returns error map for caller visibility.
      */
-    public void dispatchBatch(List<ScheduledNotification> batch, String tenantId) {
+    public Map<ScheduledNotification, List<Error>> dispatchBatch(List<ScheduledNotification> batch, String tenantId) {
+        Map<ScheduledNotification, List<Error>> errorDetailsMap = new HashMap<>();
+
         for (ScheduledNotification notification : batch) {
             try {
                 processNotification(notification, tenantId);
             } catch (Exception e) {
                 log.error("Failed to dispatch notification id={}, entityId={}: {}",
                         notification.getId(), notification.getEntityId(), e.getMessage(), e);
+
+                Error error = Error.builder()
+                        .errorCode(e instanceof CustomException ? ((CustomException) e).getCode() : "DISPATCH_FAILED")
+                        .errorMessage(e.getMessage())
+                        .type(isRecoverable(e) ? Error.ErrorType.RECOVERABLE : Error.ErrorType.NON_RECOVERABLE)
+                        .exception(new CustomException("DISPATCH_FAILED", e.getMessage()))
+                        .build();
+                populateErrorDetails(notification, error, errorDetailsMap);
+
                 markFailed(notification, e.getMessage());
             }
         }
+
+        if (!errorDetailsMap.isEmpty()) {
+            log.error("Batch dispatch completed with {} errors out of {} notifications",
+                    errorDetailsMap.size(), batch.size());
+        }
+
+        return errorDetailsMap;
+    }
+
+    /**
+     * Determines if an exception is recoverable (transient) or not.
+     * Recoverable: timeouts, service unavailable, Kafka send failures
+     * Non-recoverable: bad data, missing template, null fields
+     */
+    private boolean isRecoverable(Exception e) {
+        if (e instanceof IllegalStateException) return false;
+        if (e instanceof CustomException) {
+            String code = ((CustomException) e).getCode();
+            return !"LOCALIZATION_MESSAGE_NOT_FOUND".equals(code);
+        }
+        return true;
     }
 
     /**
