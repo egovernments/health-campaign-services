@@ -42,6 +42,10 @@ public class ProductVariantResponse {
 
     private List<ProductVariant> productVariant = new ArrayList<>();
 
+    @JsonProperty("TotalCount")
+    @Valid
+    @Builder.Default
+    private Long totalCount = 0L;
 
     public ProductVariantResponse addProductVariantItem(ProductVariant productVariantItem) {
         this.productVariant.add(productVariantItem);

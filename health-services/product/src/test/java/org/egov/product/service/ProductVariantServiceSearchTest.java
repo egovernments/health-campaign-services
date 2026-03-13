@@ -2,6 +2,7 @@ package org.egov.product.service;
 
 import org.egov.common.data.query.exception.QueryBuilderException;
 import org.egov.common.helper.RequestInfoTestBuilder;
+import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.product.ProductVariant;
 import org.egov.product.helper.ProductVariantTestBuilder;
 import org.egov.product.repository.ProductVariantRepository;
@@ -43,8 +44,8 @@ class ProductVariantServiceSearchTest {
     @Test
     @DisplayName("should not raise exception if no search results are found")
     void shouldNotRaiseExceptionIfNoProductsFound() throws Exception {
-        when(productVariantRepository.find(any(ProductVariantSearch.class), any(Integer.class),
-                any(Integer.class), any(String.class), eq(null), any(Boolean.class))).thenReturn(Collections.emptyList());
+        when(productVariantRepository.findWithCount(any(ProductVariantSearch.class), any(Integer.class),
+                any(Integer.class), any(String.class), eq(null), any(Boolean.class))).thenReturn(SearchResponse.<ProductVariant>builder().response(Collections.emptyList()).build());
         ProductVariantSearch productVariantSearch = ProductVariantSearch.builder()
                 .id(Collections.singletonList("ID101")).variation("some-variation").build();
         ProductVariantSearchRequest productVariantSearchRequest = ProductVariantSearchRequest.builder()
@@ -57,8 +58,8 @@ class ProductVariantServiceSearchTest {
     @Test
     @DisplayName("should return products if search criteria is matched")
     void shouldReturnProductsIfSearchCriteriaIsMatched() throws Exception {
-        when(productVariantRepository.find(any(ProductVariantSearch.class), any(Integer.class),
-                any(Integer.class), any(String.class), eq(null), any(Boolean.class))).thenReturn(productVariants);
+        when(productVariantRepository.findWithCount(any(ProductVariantSearch.class), any(Integer.class),
+                any(Integer.class), any(String.class), eq(null), any(Boolean.class))).thenReturn(SearchResponse.<ProductVariant>builder().response(productVariants).build());
         productVariants.add(ProductVariantTestBuilder.builder().withId().withVariation().withAuditDetails().build());
         ProductVariantSearch productVariantSearch = ProductVariantSearch.builder().id(Collections.singletonList("ID101"))
                 .variation("some-variation").build();
@@ -66,9 +67,9 @@ class ProductVariantServiceSearchTest {
                 .productVariant(productVariantSearch).requestInfo(RequestInfoTestBuilder.builder()
                         .withCompleteRequestInfo().build()).build();
 
-        List<ProductVariant> products = productVariantService.search(productVariantSearchRequest, 10, 0, "default", null, false);
+        SearchResponse<ProductVariant> searchResponse = productVariantService.search(productVariantSearchRequest, 10, 0, "default", null, false);
 
-        assertEquals(1, products.size());
+        assertEquals(1, searchResponse.getResponse().size());
     }
 
     @Test
@@ -89,9 +90,9 @@ class ProductVariantServiceSearchTest {
                 eq(true)
         )).thenReturn(productVariants);
 
-        List<ProductVariant> productVariants = productVariantService.search(productVariantSearchRequest,
+        SearchResponse<ProductVariant> searchResponse = productVariantService.search(productVariantSearchRequest,
                 10, 0, null, null, true);
 
-        assertEquals(1, productVariants.size());
+        assertEquals(1, searchResponse.getResponse().size());
     }
 }

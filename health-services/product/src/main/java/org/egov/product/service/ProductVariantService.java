@@ -2,6 +2,7 @@ package org.egov.product.service;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.exception.InvalidTenantIdException;
+import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.product.ProductVariant;
 import org.egov.common.models.product.ProductVariantRequest;
 import org.egov.common.service.IdGenService;
@@ -131,7 +132,7 @@ public class ProductVariantService {
         return request.getProductVariant();
     }
 
-    public List<ProductVariant> search(ProductVariantSearchRequest productVariantSearchRequest,
+    public SearchResponse<ProductVariant> search(ProductVariantSearchRequest productVariantSearchRequest,
                                        Integer limit,
                                        Integer offset,
                                        String tenantId,
@@ -143,14 +144,15 @@ public class ProductVariantService {
             log.info("searching product variants by id");
             List<String> ids = productVariantSearchRequest.getProductVariant().getId();
             log.info("fetching product variants with ids: {}", ids);
-            return productVariantRepository.findById(tenantId, ids, includeDeleted).stream()
+            List<ProductVariant> productVariants = productVariantRepository.findById(tenantId, ids, includeDeleted).stream()
                     .filter(lastChangedSince(lastChangedSince))
                     .filter(havingTenantId(tenantId))
                     .filter(includeDeleted(includeDeleted))
                     .collect(Collectors.toList());
+            return SearchResponse.<ProductVariant>builder().response(productVariants).build();
         }
         log.info("searching product variants using criteria");
-        return productVariantRepository.find(productVariantSearchRequest.getProductVariant(),
+        return productVariantRepository.findWithCount(productVariantSearchRequest.getProductVariant(),
                 limit, offset, tenantId, lastChangedSince, includeDeleted);
     }
 }

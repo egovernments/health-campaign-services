@@ -11,7 +11,7 @@
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <java.version>17</java.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <lombok.version>1.18.22</lombok.version>
+        <lombok.version>1.18.30</lombok.version>
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
     </properties>
@@ -111,7 +111,7 @@
         <dependency>
             <groupId>org.egov.common</groupId>
             <artifactId>health-services-models</artifactId>
-            <version>1.0.29-SNAPSHOT</version>
+            <version>1.0.30-SNAPSHOT</version>
             <scope>compile</scope>
         </dependency>
         <dependency>

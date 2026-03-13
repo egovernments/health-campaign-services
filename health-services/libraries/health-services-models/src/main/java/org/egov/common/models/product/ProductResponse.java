@@ -42,6 +42,10 @@ public class ProductResponse {
 
     private List<Product> product = new ArrayList<>();
 
+    @JsonProperty("TotalCount")
+    @Valid
+    @Builder.Default
+    private Long totalCount = 0L;
 
     public ProductResponse addProductItem(Product productItem) {
         this.product.add(productItem);

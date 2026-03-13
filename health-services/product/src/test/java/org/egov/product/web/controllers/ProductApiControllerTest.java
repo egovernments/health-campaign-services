@@ -2,6 +2,7 @@ package org.egov.product.web.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.egov.common.helper.RequestInfoTestBuilder;
+import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.product.Product;
 import org.egov.common.models.product.ProductRequest;
 import org.egov.common.models.product.ProductResponse;
@@ -227,7 +228,7 @@ class ProductApiControllerTest {
                 any(Integer.class),
                 any(String.class),
                 any(Long.class),
-                any(Boolean.class))).thenReturn(Arrays.asList(ProductTestBuilder.builder().goodProduct().withId("ID101").build()));
+                any(Boolean.class))).thenReturn(SearchResponse.<Product>builder().response(Arrays.asList(ProductTestBuilder.builder().goodProduct().withId("ID101").build())).totalCount(1L).build());
 
         final MvcResult result = mockMvc.perform(post("/v1/_search?limit=10&offset=100&tenantId=default&lastChangedSince=1234322&includeDeleted=false")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -240,6 +241,7 @@ class ProductApiControllerTest {
                 ProductResponse.class);
 
         assertEquals(response.getProduct().size(), 1);
+        assertEquals(1L, response.getTotalCount());
     }
 
     @Test

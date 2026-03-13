@@ -2,6 +2,7 @@ package org.egov.product.service;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.exception.InvalidTenantIdException;
+import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.product.Product;
 import org.egov.common.models.product.ProductRequest;
 import org.egov.common.service.IdGenService;
@@ -99,7 +100,12 @@ public class ProductService {
         return productRequest.getProduct();
     }
 
-    public List<Product> search(ProductSearchRequest productSearchRequest,
+    public List<Product> getProducts(String tenantId, List<String> ids) throws InvalidTenantIdException {
+        log.info("fetching products by ids: {}", ids);
+        return productRepository.findById(tenantId, ids, false);
+    }
+
+    public SearchResponse<Product> search(ProductSearchRequest productSearchRequest,
                                 Integer limit,
                                 Integer offset,
                                 String tenantId,
@@ -112,14 +118,15 @@ public class ProductService {
             log.info("searching product by id");
             List<String> ids = productSearchRequest.getProduct().getId();
             log.info("fetching product with ids: {}", ids);
-            return productRepository.findById( tenantId, ids, includeDeleted).stream()
+            List<Product> products = productRepository.findById( tenantId, ids, includeDeleted).stream()
                     .filter(lastChangedSince(lastChangedSince))
                     .filter(havingTenantId(tenantId))
                     .filter(includeDeleted(includeDeleted))
                     .collect(Collectors.toList());
+            return SearchResponse.<Product>builder().response(products).build();
         }
         log.info("searching product using criteria");
-        return productRepository.find(productSearchRequest.getProduct(), limit,
+        return productRepository.findWithCount(productSearchRequest.getProduct(), limit,
                 offset, tenantId, lastChangedSince, includeDeleted);
     }
 }

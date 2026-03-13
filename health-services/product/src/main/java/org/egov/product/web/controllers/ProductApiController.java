@@ -3,6 +3,7 @@ package org.egov.product.web.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.annotations.ApiParam;
+import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.product.Product;
 import org.egov.common.models.product.ProductRequest;
 import org.egov.common.models.product.ProductResponse;
@@ -32,7 +33,10 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @jakarta.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2022-12-02T16:45:24.641+05:30")
 
@@ -81,10 +85,11 @@ public class ProductApiController {
                                                                @ApiParam(value = "epoch of the time since when the changes on the object should be picked up. Search results from this parameter should include both newly created objects since this time as well as any modified objects since this time. This criterion is included to help polling clients to get the changes in system since a last time they synchronized with the platform. ") @Valid @RequestParam(value = "lastChangedSince", required = false) Long lastChangedSince,
                                                                @ApiParam(value = "Used in search APIs to specify if (soft) deleted records should be included in search results.", defaultValue = "false") @Valid @RequestParam(value = "includeDeleted", required = false, defaultValue = "false") Boolean includeDeleted) throws Exception {
 
-        List<Product> products = productService.search(productSearchRequest, limit, offset, tenantId,
+        SearchResponse<Product> searchResponse = productService.search(productSearchRequest, limit, offset, tenantId,
                 lastChangedSince, includeDeleted);
         ProductResponse productResponse = ProductResponse.builder()
-                .product(products)
+                .product(searchResponse.getResponse())
+                .totalCount(searchResponse.getTotalCount())
                 .responseInfo(ResponseInfoFactory.createResponseInfo(productSearchRequest.getRequestInfo(), true))
                 .build();
         return ResponseEntity.status(HttpStatus.OK).body(productResponse);
@@ -132,10 +137,24 @@ public class ProductApiController {
                                                                              @NotNull @ApiParam(value = "Unique id for a tenant.", required = true) @Valid @Size(min = 2, max = 1000) @RequestParam(value = "tenantId", required = true) String tenantId,
                                                                              @ApiParam(value = "epoch of the time since when the changes on the object should be picked up. Search results from this parameter should include both newly created objects since this time as well as any modified objects since this time. This criterion is included to help polling clients to get the changes in system since a last time they synchronized with the platform. ") @Valid @RequestParam(value = "lastChangedSince", required = false) Long lastChangedSince,
                                                                              @ApiParam(value = "Used in search APIs to specify if (soft) deleted records should be included in search results.", defaultValue = "false") @Valid @RequestParam(value = "includeDeleted", required = false, defaultValue = "false") Boolean includeDeleted) throws Exception {
-        List<ProductVariant> productVariants = productVariantService.search(productVariantSearchRequest, limit, offset,
+        SearchResponse<ProductVariant> searchResponse = productVariantService.search(productVariantSearchRequest, limit, offset,
                 tenantId, lastChangedSince, includeDeleted);
+        List<ProductVariant> productVariants = searchResponse.getResponse();
+
+        if (productVariants != null && !productVariants.isEmpty()) {
+            List<String> productIds = productVariants.stream()
+                    .map(ProductVariant::getProductId)
+                    .distinct()
+                    .collect(Collectors.toList());
+            List<Product> products = productService.getProducts(tenantId, productIds);
+            Map<String, Product> productMap = products.stream()
+                    .collect(Collectors.toMap(Product::getId, p -> p, (a, b) -> a));
+            productVariants.forEach(pv -> pv.setProduct(productMap.get(pv.getProductId())));
+        }
+
         ProductVariantResponse productVariantResponse = ProductVariantResponse.builder()
                 .productVariant(productVariants)
+                .totalCount(searchResponse.getTotalCount())
                 .responseInfo(ResponseInfoFactory
                         .createResponseInfo(productVariantSearchRequest.getRequestInfo(), true))
                 .build();

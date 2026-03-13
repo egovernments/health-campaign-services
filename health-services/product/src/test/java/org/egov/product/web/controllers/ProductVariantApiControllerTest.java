@@ -2,6 +2,7 @@ package org.egov.product.web.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.egov.common.helper.RequestInfoTestBuilder;
+import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.product.ApiOperation;
 import org.egov.common.models.product.ProductVariant;
 import org.egov.common.models.product.ProductVariantRequest;
@@ -26,8 +27,12 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
+import org.egov.common.models.product.Product;
+import org.egov.product.helper.ProductTestBuilder;
+
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -193,18 +198,25 @@ public class ProductVariantApiControllerTest {
     }
 
     @Test
-    @DisplayName("should accept search request and return response as accepted")
+    @DisplayName("should accept search request and return response with enriched product and totalCount")
     void shouldAcceptSearchRequestAndReturnProductsVariants() throws Exception {
 
         ProductVariantSearchRequest productVariantSearchRequest = ProductVariantSearchRequest.builder().productVariant(
-                ProductVariantSearch.builder().productId("101").build()
+                ProductVariantSearch.builder().productId("PROD-001").build()
         ).requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build()).build();
+
+        ProductVariant variant = ProductVariantTestBuilder.builder().withId().withVariation().withAuditDetails().build();
         when(productVariantService.search(any(ProductVariantSearchRequest.class),
                 any(Integer.class),
                 any(Integer.class),
                 any(String.class),
                 any(Long.class),
-                any(Boolean.class))).thenReturn(Arrays.asList(ProductVariantTestBuilder.builder().withId().withVariation().withAuditDetails().build()));
+                any(Boolean.class))).thenReturn(SearchResponse.<ProductVariant>builder()
+                .response(Arrays.asList(variant)).totalCount(1L).build());
+
+        Product product = ProductTestBuilder.builder().goodProduct().withId("some-product-id").build();
+        when(productService.getProducts(any(String.class), any(List.class)))
+                .thenReturn(Collections.singletonList(product));
 
         final MvcResult result = mockMvc.perform(post("/variant/v1/_search?limit=10&offset=100&tenantId=default&lastChangedSince=1234322&includeDeleted=false")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -216,7 +228,40 @@ public class ProductVariantApiControllerTest {
         ProductVariantResponse response = objectMapper.readValue(responseStr,
                 ProductVariantResponse.class);
 
-        assertEquals(response.getProductVariant().size(), 1);
+        assertEquals(1, response.getProductVariant().size());
+        assertEquals(1L, response.getTotalCount());
+        assertNotNull(response.getProductVariant().get(0).getProduct());
+        assertEquals("some-product-id", response.getProductVariant().get(0).getProduct().getId());
+    }
+
+    @Test
+    @DisplayName("should return empty product variant list without calling product service")
+    void shouldReturnEmptyVariantListWithoutCallingProductService() throws Exception {
+
+        ProductVariantSearchRequest productVariantSearchRequest = ProductVariantSearchRequest.builder().productVariant(
+                ProductVariantSearch.builder().productId("non-existent").build()
+        ).requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build()).build();
+
+        when(productVariantService.search(any(ProductVariantSearchRequest.class),
+                any(Integer.class),
+                any(Integer.class),
+                any(String.class),
+                any(Long.class),
+                any(Boolean.class))).thenReturn(SearchResponse.<ProductVariant>builder()
+                .response(Collections.emptyList()).totalCount(0L).build());
+
+        final MvcResult result = mockMvc.perform(post("/variant/v1/_search?limit=10&offset=100&tenantId=default&lastChangedSince=1234322&includeDeleted=false")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(productVariantSearchRequest)))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andReturn();
+        String responseStr = result.getResponse().getContentAsString();
+        ProductVariantResponse response = objectMapper.readValue(responseStr,
+                ProductVariantResponse.class);
+
+        assertEquals(0, response.getProductVariant().size());
+        assertEquals(0L, response.getTotalCount());
     }
 
     @Test

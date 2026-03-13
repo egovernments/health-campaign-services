@@ -2,6 +2,7 @@ package org.egov.common.models.product;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
@@ -37,6 +38,10 @@ public class ProductVariant extends EgovModel {
     @NotNull
     @Size(min = 0, max = 1000)
     private String variation = null;
+
+    @JsonProperty("product")
+    @Valid
+    private Product product = null;
 
     //TODO remove
     @JsonProperty("isDeleted")
