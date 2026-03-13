@@ -9,6 +9,7 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.ds.Tuple;
 import org.egov.common.models.ErrorDetails;
@@ -248,10 +249,10 @@ public class ProjectFacilityService {
      * Searches for facility IDs grouped by boundary type within the project hierarchy tree.
      *
      * Given a project ID and a list of boundary types, this method:
-     * 1. Fetches the project with all its ancestors and descendants
-     * 2. Filters the tree by the requested boundary types
-     * 3. Finds all facility IDs mapped to those projects via PROJECT_FACILITY
-     * 4. Returns a map of boundaryType → list of facilityIds
+     * 1. Fetches the root project to get its projectHierarchy (for ancestor IDs)
+     * 2. Queries descendants directly via SQL join (PROJECT + PROJECT_ADDRESS + PROJECT_FACILITY)
+     * 3. Queries ancestors directly via SQL join using IDs parsed from projectHierarchy
+     * 4. Returns a merged map of boundaryType → list of facilityIds
      */
     public Map<String, List<String>> searchByHierarchy(
             ProjectFacilitySearchRequest request,
@@ -265,7 +266,7 @@ public class ProjectFacilityService {
         }
         String projectId = searchCriteria.getProjectId().get(0);
 
-        // Step 1: Call project search with includeAncestors and includeDescendants
+        // Step 1: Fetch only the root project to get its projectHierarchy
         Project searchProject = Project.builder().id(projectId).tenantId(tenantId).build();
         ProjectRequest projectRequest = ProjectRequest.builder()
                 .requestInfo(request.getRequestInfo())
@@ -276,15 +277,15 @@ public class ProjectFacilityService {
         try {
             projects = projectService.searchProject(
                     projectRequest,
-                    1000, 0, tenantId, null, false,
-                    true,   // includeAncestors
-                    true,   // includeDescendants
+                    1, 0, tenantId, null, false,
+                    false,   // no ancestors
+                    false,   // no descendants
                     null, null, false
             );
         } catch (Exception e) {
-            log.error("error searching projects for hierarchy: {}", e.getMessage());
+            log.error("error searching root project: {}", e.getMessage());
             throw new CustomException("PROJECT_SEARCH_ERROR",
-                    "Error searching projects for hierarchy: " + e.getMessage());
+                    "Error searching root project: " + e.getMessage());
         }
 
         if (projects == null || projects.isEmpty()) {
@@ -292,57 +293,37 @@ public class ProjectFacilityService {
             return Collections.emptyMap();
         }
 
-        // Step 2: Collect all projects from the tree (main + ancestors + descendants)
         Project mainProject = projects.get(0);
-        List<Project> allProjects = new ArrayList<>();
-        allProjects.add(mainProject);
-        if (mainProject.getAncestors() != null) {
-            allProjects.addAll(mainProject.getAncestors());
-        }
-        if (mainProject.getDescendants() != null) {
-            allProjects.addAll(mainProject.getDescendants());
-        }
-
-        // Step 3: Filter by requested boundaryTypes and build projectId → boundaryType mapping
-        Map<String, String> projectIdToBoundaryType = new HashMap<>();
-        for (Project p : allProjects) {
-            if (p.getAddress() != null
-                    && p.getAddress().getBoundaryType() != null
-                    && boundaryTypes.contains(p.getAddress().getBoundaryType())) {
-                projectIdToBoundaryType.put(p.getId(), p.getAddress().getBoundaryType());
-            }
-        }
-
-        if (projectIdToBoundaryType.isEmpty()) {
-            log.info("no projects found matching boundary types: {}", boundaryTypes);
-            return Collections.emptyMap();
-        }
-
-        List<String> filteredProjectIds = new ArrayList<>(projectIdToBoundaryType.keySet());
-        log.info("found {} projects matching boundary types, searching facilities", filteredProjectIds.size());
-
-        // Step 4: Search PROJECT_FACILITY for all filtered project IDs
-        ProjectFacilitySearch pfSearch = ProjectFacilitySearch.builder()
-                .projectId(filteredProjectIds)
-                .build();
-
-        SearchResponse<ProjectFacility> pfResponse;
-        try {
-            pfResponse = projectFacilityRepository.findWithCount(
-                    pfSearch, filteredProjectIds.size() * 100, 0, tenantId, null, false);
-        } catch (Exception e) {
-            log.error("error searching project facilities: {}", e.getMessage());
-            throw new CustomException("PROJECT_FACILITY_SEARCH_ERROR",
-                    "Error searching project facilities: " + e.getMessage());
-        }
-
-        // Step 5: Map facilityId to boundaryType (single pass)
         Map<String, List<String>> facilityMap = new HashMap<>();
-        for (ProjectFacility pf : pfResponse.getResponse()) {
-            String bt = projectIdToBoundaryType.get(pf.getProjectId());
-            if (bt != null) {
-                facilityMap.computeIfAbsent(bt, k -> new ArrayList<>()).add(pf.getFacilityId());
+
+        try {
+            // Step 2: Query descendants — projects whose hierarchy starts with this projectId
+            Map<String, List<String>> descendantFacilities =
+                    projectFacilityRepository.findFacilitiesByDescendants(projectId, boundaryTypes, tenantId);
+            descendantFacilities.forEach((bt, ids) ->
+                    facilityMap.computeIfAbsent(bt, k -> new ArrayList<>()).addAll(ids));
+
+            // Step 3: Query ancestors — parse IDs from projectHierarchy and include the project itself
+            List<String> ancestorIds = new ArrayList<>();
+            ancestorIds.add(projectId);
+            if (StringUtils.isNotBlank(mainProject.getProjectHierarchy())) {
+                String[] hierarchyParts = mainProject.getProjectHierarchy().split("\\.");
+                for (String part : hierarchyParts) {
+                    if (!part.equals(projectId)) {
+                        ancestorIds.add(part);
+                    }
+                }
             }
+
+            Map<String, List<String>> ancestorFacilities =
+                    projectFacilityRepository.findFacilitiesByAncestors(ancestorIds, boundaryTypes, tenantId);
+            ancestorFacilities.forEach((bt, ids) ->
+                    facilityMap.computeIfAbsent(bt, k -> new ArrayList<>()).addAll(ids));
+
+        } catch (Exception e) {
+            log.error("error searching facilities by hierarchy: {}", e.getMessage());
+            throw new CustomException("FACILITY_HIERARCHY_SEARCH_ERROR",
+                    "Error searching facilities by hierarchy: " + e.getMessage());
         }
 
         log.info("hierarchy search complete. boundary types found: {}", facilityMap.keySet());
