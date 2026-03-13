@@ -298,7 +298,7 @@ public class ConfigBasedProcessingService {
         // Process all sheets that have processors configured
         for (ProcessorSheetConfig sheetConfig : config) {
             String processorClass = sheetConfig.getProcessorClass();
-            if (processorClass == null) {
+            if (processorClass == null || processorClass.trim().isEmpty()) {
                 continue; // No processor configured for this sheet
             }
             

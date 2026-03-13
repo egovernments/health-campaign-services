@@ -8,6 +8,7 @@ import org.egov.excelingestion.service.ValidationService;
 import org.egov.excelingestion.service.BoundaryService;
 import org.egov.excelingestion.service.CampaignService;
 import org.egov.excelingestion.exception.CustomExceptionHandler;
+import org.egov.excelingestion.util.BoundaryUtil;
 import org.egov.excelingestion.util.EnrichmentUtil;
 import org.egov.excelingestion.util.ExcelUtil;
 import org.egov.excelingestion.web.models.ProcessResource;
@@ -37,19 +38,22 @@ public class AttendanceRegisterValidationProcessor implements IWorkbookProcessor
     private final EnrichmentUtil enrichmentUtil;
     private final ExcelUtil excelUtil;
     private final CustomExceptionHandler exceptionHandler;
+    private final BoundaryUtil boundaryUtil;
 
     public AttendanceRegisterValidationProcessor(ValidationService validationService,
                                                BoundaryService boundaryService,
                                                CampaignService campaignService,
                                                EnrichmentUtil enrichmentUtil,
                                                ExcelUtil excelUtil,
-                                               CustomExceptionHandler exceptionHandler) {
+                                               CustomExceptionHandler exceptionHandler,
+                                               BoundaryUtil boundaryUtil) {
         this.validationService = validationService;
         this.boundaryService = boundaryService;
         this.campaignService = campaignService;
         this.enrichmentUtil = enrichmentUtil;
         this.excelUtil = excelUtil;
         this.exceptionHandler = exceptionHandler;
+        this.boundaryUtil = boundaryUtil;
     }
 
     @Override
@@ -116,12 +120,14 @@ public class AttendanceRegisterValidationProcessor implements IWorkbookProcessor
                                                ProcessResource resource,
                                                RequestInfo requestInfo,
                                                List<ValidationError> errors,
-                                               Map<String, String> localizationMap) throws Exception {
+                                               Map<String, String> localizationMap) {
 
         log.info("Validating {} attendance register rows", sheetData.size());
 
         // Fetch valid boundary codes once - O(1) lookup
-        Set<String> validBoundaryCodes = fetchValidBoundaryCodes(resource, requestInfo);
+        Set<String> validBoundaryCodes = boundaryUtil.getEnrichedBoundaryCodesFromCampaign(
+                resource.getId(), resource.getReferenceId(), resource.getTenantId(),
+                resource.getHierarchyType(), requestInfo);
         log.info("Loaded {} valid boundary codes for validation", validBoundaryCodes.size());
 
         // Get boundary columns from sheet headers
@@ -134,34 +140,47 @@ public class AttendanceRegisterValidationProcessor implements IWorkbookProcessor
         // Single pass validation - O(n)
         int rowNumber = 2; // Excel row numbers start at 1, header is row 1
         for (Map<String, Object> row : sheetData) {
+            // Skip fully empty rows (no boundary, no register ID)
+            if (!hasAnyDataInRow(row, boundaryColumnNames)) {
+                rowNumber++;
+                continue;
+            }
+
             List<String> rowErrors = new ArrayList<>();
 
-            // Validation 1: At least one boundary filled
             boolean hasBoundary = hasBoundaryFilled(row, boundaryColumnNames);
-            if (!hasBoundary) {
-                rowErrors.add(localizationMap.getOrDefault("HCM_ATTENDANCE_REGISTER_VALIDATION_NO_BOUNDARY",
-                    "At least one boundary column must be filled"));
+            String registerId = ExcelUtil.getValueAsString(row.get("HCM_ATTENDANCE_REGISTER_ID")).trim();
+            boolean hasRegisterId = !registerId.isEmpty();
+            String boundaryCode = ExcelUtil.getValueAsString(row.get("HCM_ADMIN_CONSOLE_BOUNDARY_CODE")).trim();
+
+            // Boundary filled but no register ID
+            if (hasBoundary && !hasRegisterId) {
+                rowErrors.add(localizationMap.getOrDefault(
+                        "HCM_ATTENDANCE_REGISTER_VALIDATION_EMPTY_ID",
+                        "Register ID is required when boundary is selected"));
             }
 
-            // Validation 2: All filled boundary codes are valid
-            List<String> invalidBoundaries = validateBoundaryCodeValidity(row, boundaryColumnNames, validBoundaryCodes);
-            if (!invalidBoundaries.isEmpty()) {
-                rowErrors.add(localizationMap.getOrDefault("HCM_ATTENDANCE_REGISTER_VALIDATION_INVALID_BOUNDARY",
-                    "Invalid boundary code(s): " + String.join(", ", invalidBoundaries)));
+            // Register ID filled but no boundary
+            if (!hasBoundary && hasRegisterId) {
+                rowErrors.add(localizationMap.getOrDefault(
+                        "HCM_ATTENDANCE_REGISTER_VALIDATION_NO_BOUNDARY",
+                        "At least one boundary must be selected for the register"));
             }
 
-            // Validation 3: Register ID not empty
-            String registerId = (String) row.get("HCM_ATTENDANCE_REGISTER_ID");
-            if (registerId == null || registerId.trim().isEmpty()) {
-                rowErrors.add(localizationMap.getOrDefault("HCM_ATTENDANCE_REGISTER_VALIDATION_EMPTY_ID",
-                    "Register ID is required"));
-            } else {
-                // Validation 4: No duplicate Register IDs - O(1) lookup
-                if (!seenRegisterIds.add(registerId)) {
-                    rowErrors.add(localizationMap.getOrDefault("HCM_ATTENDANCE_REGISTER_VALIDATION_DUPLICATE_ID",
+            // Validate boundary code against campaign boundaries (same as User/Facility pattern)
+            if (!boundaryCode.isEmpty() && !validBoundaryCodes.contains(boundaryCode)) {
+                rowErrors.add(localizationMap.getOrDefault(
+                        "HCM_ATTENDANCE_REGISTER_VALIDATION_INVALID_BOUNDARY",
+                        "Invalid boundary code: " + boundaryCode));
+            }
+
+            // Duplicate check (only if register ID exists)
+            if (hasRegisterId && !seenRegisterIds.add(registerId)) {
+                rowErrors.add(localizationMap.getOrDefault(
+                        "HCM_ATTENDANCE_REGISTER_VALIDATION_DUPLICATE_ID",
                         "Duplicate Register ID found"));
-                }
             }
+
 
             // Add errors for this row
             if (!rowErrors.isEmpty()) {
@@ -179,24 +198,6 @@ public class AttendanceRegisterValidationProcessor implements IWorkbookProcessor
     }
 
     /**
-     * Fetch valid boundary codes from boundary service
-     * Used for O(1) lookup during validation
-     */
-    private Set<String> fetchValidBoundaryCodes(ProcessResource resource, RequestInfo requestInfo) throws Exception {
-        Set<String> validCodes = new HashSet<>();
-        try {
-            // This would typically call boundaryService to get all valid boundary codes
-            // For now, returning empty set - actual implementation depends on BoundaryService API
-            log.info("Fetching valid boundary codes for tenant: {}", resource.getTenantId());
-            // validCodes = boundaryService.getAllBoundaryCodes(resource.getTenantId(), requestInfo);
-        } catch (Exception e) {
-            log.error("Error fetching boundary codes: {}", e.getMessage());
-            throw e;
-        }
-        return validCodes;
-    }
-
-    /**
      * Extract boundary column names from sheet data headers
      * Boundary columns follow pattern: {HIERARCHY_TYPE}_{BOUNDARY_TYPE}
      */
@@ -210,7 +211,8 @@ public class AttendanceRegisterValidationProcessor implements IWorkbookProcessor
         for (String columnName : firstRow.keySet()) {
             // Boundary columns have underscore pattern, exclude special columns
             if (columnName != null && !columnName.startsWith("HCM_") &&
-                !columnName.startsWith("#") && !columnName.equals("uniqueKey")) {
+                    !columnName.startsWith("#") && !columnName.startsWith("__")
+                    && !columnName.equals("uniqueKey") && !columnName.endsWith("_HELPER")) {
                 boundaryColumns.add(columnName);
             }
         }
@@ -230,25 +232,16 @@ public class AttendanceRegisterValidationProcessor implements IWorkbookProcessor
         return false;
     }
 
-    /**
-     * Validate that all filled boundary codes exist in the system
-     * Returns list of invalid boundary codes
-     */
-    private List<String> validateBoundaryCodeValidity(Map<String, Object> row,
-                                                      Set<String> boundaryColumnNames,
-                                                      Set<String> validBoundaryCodes) {
-        List<String> invalidCodes = new ArrayList<>();
-
-        for (String columnName : boundaryColumnNames) {
-            Object value = row.get(columnName);
-            if (value != null && !String.valueOf(value).trim().isEmpty()) {
-                String boundaryCode = String.valueOf(value).trim();
-                if (!validBoundaryCodes.contains(boundaryCode))
-                invalidCodes.add(boundaryCode);
-            }
+    private boolean hasAnyDataInRow(Map<String, Object> row, Set<String> boundaryColumnNames) {
+        // Check boundary columns
+        for (String col : boundaryColumnNames) {
+            Object val = row.get(col);
+            if (val != null && !String.valueOf(val).trim().isEmpty()) return true;
         }
-
-        return invalidCodes;
+        // Check Register ID
+        Object registerId = row.get("HCM_ATTENDANCE_REGISTER_ID");
+        if (registerId != null && !String.valueOf(registerId).trim().isEmpty()) return true;
+        return false;
     }
 
     /**

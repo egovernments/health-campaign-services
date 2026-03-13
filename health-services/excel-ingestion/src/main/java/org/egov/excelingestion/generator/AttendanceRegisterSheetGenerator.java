@@ -190,7 +190,7 @@ public class AttendanceRegisterSheetGenerator implements ISheetGenerator {
         CellStyle unlocked = workbook.createCellStyle();
         unlocked.setLocked(false);
 
-        int maxRow = config.getExcelRowLimit();
+        int maxRow = config.getAttendanceRegisterRows();
 
         // Apply formula to data rows (row 2 onwards, 0-indexed)
         for (int r = 2; r <= maxRow; r++) {
@@ -220,15 +220,12 @@ public class AttendanceRegisterSheetGenerator implements ISheetGenerator {
         // Iterate from rightmost to leftmost
         for (int i = visibleBoundaryColIndices.size() - 1; i >= 0; i--) {
             String colRef = CellReference.convertNumToColString(visibleBoundaryColIndices.get(i)) + excelRowNumber;
-
-            if (i == 0) {
-                // Innermost: just reference the first boundary column
-                formula.append(colRef);
-            } else {
-                formula.append("IF(").append(colRef).append("<>\"\",").append(colRef).append(",");
-                nestCount++;
-            }
+            formula.append("IF(").append(colRef).append("<>\"\",").append(colRef).append(",");
+            nestCount++;
         }
+
+        // Innermost: return empty string when no boundary is filled
+        formula.append("\"\"");
 
         // Close all IF parentheses
         for (int i = 0; i < nestCount; i++) {
