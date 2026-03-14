@@ -17,6 +17,7 @@ import { getSheetData, getTargetWorkbook } from "../api/genericApis";
 const _ = require('lodash');
 import { searchProjectTypeCampaignService } from "../service/campaignManageService";
 import { campaignStatuses, resourceDataStatuses, usageColumnStatus } from "../config/constants";
+import { getAllAllowedTypes } from "../config/resourceTypeRegistry";
 import { getBoundaryColumnName, getBoundaryTabName } from "../utils/boundaryUtils";
 import addAjvErrors from "ajv-errors";
 import { generateTargetColumnsBasedOnDeliveryConditions, isDynamicTargetTemplateForProjectType, modifyDeliveryConditions } from "../utils/targetUtils";
@@ -1561,6 +1562,45 @@ export function validateMultiSelectUniqueness(datas : any[], schema : any, local
 }
 
 
+/**
+ * Validate the request body for the "Add Resources" API.
+ * Ensures campaign ID, tenantId, and resources array are present and valid.
+ */
+function validateAddResourcesRequest(request: any): void {
+    const campaignDetails = request?.body?.CampaignDetails;
+
+    if (!campaignDetails?.id) {
+        throwError("COMMON", 400, "VALIDATION_ERROR", "CampaignDetails.id is required");
+    }
+
+    if (!campaignDetails?.tenantId) {
+        throwError("COMMON", 400, "VALIDATION_ERROR", "CampaignDetails.tenantId is required");
+    }
+
+    const resources = campaignDetails?.resources;
+    if (!resources || !Array.isArray(resources) || resources.length === 0) {
+        throwError("COMMON", 400, "VALIDATION_ERROR", "CampaignDetails.resources must be a non-empty array");
+    }
+
+    const allowedTypes = getAllAllowedTypes();
+
+    for (let i = 0; i < resources.length; i++) {
+        const resource = resources[i];
+        if (!resource?.type) {
+            throwError("COMMON", 400, "VALIDATION_ERROR", `resources[${i}].type is required`);
+        }
+        if (!allowedTypes.includes(resource.type)) {
+            throwError("COMMON", 400, "VALIDATION_ERROR", `resources[${i}].type "${resource.type}" is not a valid resource type. Allowed: ${allowedTypes.join(", ")}`);
+        }
+        if (!resource?.filestoreId) {
+            throwError("COMMON", 400, "VALIDATION_ERROR", `resources[${i}].filestoreId is required`);
+        }
+        if (!resource?.filename) {
+            throwError("COMMON", 400, "VALIDATION_ERROR", `resources[${i}].filename is required`);
+        }
+    }
+}
+
 export {
     validateSheetData,
     validateCreateRequest,
@@ -1574,5 +1614,6 @@ export {
     immediateValidationForTargetSheet,
     validateBoundaryOfResouces,
     validateParent,
-    validateMicroplanRequest
+    validateMicroplanRequest,
+    validateAddResourcesRequest
 }

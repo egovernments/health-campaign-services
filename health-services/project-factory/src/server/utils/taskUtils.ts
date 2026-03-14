@@ -2,7 +2,8 @@ import { ResourceDetails } from "../config/models/resourceDetailsSchema";
 import { logger } from "./logger";
 import { getLocalizedMessagesHandlerViaLocale, throwError } from "./genericUtils";
 import { enrichAndPersistCampaignWithErrorProcessingTask } from "./campaignUtils";
-import { allProcesses, processStatuses } from "../config/constants";
+import { processStatuses } from "../config/constants";
+import { getResourceTypeByProcessName } from "../config/resourceTypeRegistry";
 import { processTemplateConfigs } from "../config/processTemplateConfigs";
 import { enrichProcessTemplateConfig, handleErrorDuringProcess, processRequest } from "./sheetManageUtils";
 import { fetchFileFromFilestore } from "../api/coreApis";
@@ -81,10 +82,7 @@ export async function handleTaskForCampaign(messageObject: any) {
 }
 
 function getResourceType(processName: string) {
-    if(processName == allProcesses.facilityCreation) return "facility";
-    if(processName == allProcesses.userCreation) return "user";
-    if(processName == allProcesses.projectCreation) return "boundary"; 
-    return "";
+    return getResourceTypeByProcessName(processName);
 }
 
 function getResorceViaResourceType(campaignDetails: any, resourceType: string) {

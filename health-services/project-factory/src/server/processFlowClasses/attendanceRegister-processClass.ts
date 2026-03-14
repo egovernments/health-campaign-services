@@ -7,7 +7,7 @@ import { httpRequest } from "../utils/request";
 import { defaultRequestInfo } from "../api/coreApis";
 import { validateResourceDetailsBeforeProcess } from "../utils/sheetManageUtils";
 import config from "../config";
-import { throwError } from "../utils/genericUtils";
+import { getRelatedDataWithCampaign, throwError } from "../utils/genericUtils";
 
 /**
  * Process class for Attendance Register creation
@@ -47,14 +47,17 @@ export class TemplateClass {
         }
 
         // Build boundary -> project mapping - O(n) construction
-        const boundaryProjectMap = await this.buildBoundaryProjectMap(campaignNumber, tenantId);
+        const boundaryProjectMap = await this.buildBoundaryProjectMap(campaignNumber, tenantId, campaign);
         logger.info("Built boundary to project mapping with {} entries", boundaryProjectMap.size);
+
+        // Validate that projects exist for all boundaries in the sheet
+        this.validateProjectsExist(sheetData, boundaryProjectMap);
 
         // Get hierarchy levels for boundary column detection
         const hierarchyLevels = campaign?.hierarchyType || "admin";
 
-        // Transform rows to register payloads - O(n)
-        const registerPayloads = this.transformRowsToRegisterPayloads(
+        // Transform rows to register payloads with per-row status - O(n)
+        const transformResults = this.transformRowsToRegisterPayloads(
             sheetData,
             boundaryProjectMap,
             campaignName,
@@ -62,15 +65,21 @@ export class TemplateClass {
             hierarchyLevels,
             localizationMap
         );
-        logger.info("Transformed {} rows to register payloads", registerPayloads.length);
+
+        // Extract valid payloads for batch creation
+        const validPayloads = transformResults
+            .filter(r => r.payload !== null)
+            .map(r => r.payload);
+        logger.info("Transformed {} valid payloads out of {} rows", validPayloads.length, sheetData.length);
 
         // Idempotent batch creation - check for existing, create new only
-        await this.idempotentBatchCreate(registerPayloads, tenantId);
+        await this.idempotentBatchCreate(validPayloads, tenantId);
 
-        // Return processed data with status
-        const processedData = sheetData.map((row: any) => ({
+        // Return processed data with per-row status and error details
+        const processedData = sheetData.map((row: any, index: number) => ({
             ...row,
-            "#status#": sheetDataRowStatuses.CREATED
+            "#status#": transformResults[index]?.status || sheetDataRowStatuses.CREATED,
+            "#errorDetails#": transformResults[index]?.error || ""
         }));
 
         const sheetMap: SheetMap = {};
@@ -99,37 +108,64 @@ export class TemplateClass {
     }
 
     /**
-     * Build boundary -> project mapping from campaign mapping data
+     * Validate that projects exist for all boundary codes in the sheet data.
+     * Fails early with descriptive errors if any boundaries lack project mappings.
+     */
+    private static validateProjectsExist(
+        sheetData: any[],
+        boundaryProjectMap: Map<string, any>
+    ): void {
+        const missingBoundaries: string[] = [];
+
+        for (const row of sheetData) {
+            const boundaryCode = row["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"];
+            if (boundaryCode && !boundaryProjectMap.has(boundaryCode)) {
+                missingBoundaries.push(boundaryCode);
+            }
+        }
+
+        if (missingBoundaries.length > 0) {
+            const uniqueMissing = Array.from(new Set(missingBoundaries));
+            const errorMsg = `No projects found for ${uniqueMissing.length} boundary code(s): ${uniqueMissing.slice(0, 10).join(", ")}${uniqueMissing.length > 10 ? "..." : ""}. Ensure project creation (Phase 1) is completed before creating attendance registers.`;
+            logger.error(errorMsg);
+            throwError("CAMPAIGN", 400, "PROJECT_CREATION_ERROR", errorMsg);
+        }
+    }
+
+    /**
+     * Build boundary -> project mapping from campaign data.
+     * Uses the campaign_data table where boundary rows store the created projectId
+     * in `uniqueIdAfterProcess` after project creation completes.
      * Returns Map<boundaryCode, { projectId, startDate, endDate }>
-     * Time Complexity: O(n) where n = number of mappings
+     * Time Complexity: O(n) where n = number of boundary data rows
      */
     private static async buildBoundaryProjectMap(
         campaignNumber: string,
-        tenantId: string
+        tenantId: string,
+        campaign: any
     ): Promise<Map<string, any>> {
         try {
-            // Fetch mapping data from campaign service
-            // This would call getMappingDataRelatedToCampaign from the campaign service
-            // For now, we'll implement a placeholder that shows the pattern
-
             logger.info("Fetching boundary to project mappings for campaign: {}", campaignNumber);
+
+            // Fetch boundary data rows from campaign_data table
+            // Each row has boundaryCode in data["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"]
+            // and projectId in uniqueIdAfterProcess (set by boundary-processClass after project creation)
+            const boundaryDataRows = await getRelatedDataWithCampaign("boundary", campaignNumber, tenantId);
 
             const boundaryProjectMap = new Map<string, any>();
 
-            // In production, would fetch from: await getMappingDataRelatedToCampaign(campaignNumber, "boundary", tenantId);
-            // Then enrich with project dates:
-            // const projectIds = [...new Set(mappings.map(m => m.mappingId))];
-            // const projects = await searchProjects({ ids: projectIds, tenantId });
-            // const projectMap = new Map(projects.map(p => [p.id, p]));
-            //
-            // for (const mapping of mappings) {
-            //     const project = projectMap.get(mapping.mappingId);
-            //     boundaryProjectMap.set(mapping.boundaryCode, {
-            //         projectId: project.id,
-            //         startDate: project.startDate,
-            //         endDate: project.endDate
-            //     });
-            // }
+            for (const row of boundaryDataRows) {
+                const boundaryCode = row?.data?.["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"];
+                const projectId = row?.uniqueIdAfterProcess;
+
+                if (boundaryCode && projectId) {
+                    boundaryProjectMap.set(boundaryCode, {
+                        projectId: projectId,
+                        startDate: campaign?.startDate,
+                        endDate: campaign?.endDate
+                    });
+                }
+            }
 
             logger.info("Loaded {} boundary to project mappings", boundaryProjectMap.size);
             return boundaryProjectMap;
@@ -140,7 +176,8 @@ export class TemplateClass {
     }
 
     /**
-     * Transform Excel rows to Attendance Register payloads
+     * Transform Excel rows to Attendance Register payloads.
+     * Returns per-row results with status and error info.
      * Time Complexity: O(n) where n = number of rows
      */
     private static transformRowsToRegisterPayloads(
@@ -150,29 +187,29 @@ export class TemplateClass {
         tenantId: string,
         hierarchyType: string,
         localizationMap: any
-    ): any[] {
-        const payloads: any[] = [];
+    ): { payload: any | null; status: string; error: string }[] {
+        const results: { payload: any | null; status: string; error: string }[] = [];
 
         for (const row of sheetData) {
             try {
                 // Get the boundary code from the hidden column
                 const boundaryCode = row["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"];
                 if (!boundaryCode) {
-                    logger.warn("No boundary code found in row: {}", JSON.stringify(row));
+                    results.push({ payload: null, status: sheetDataRowStatuses.INVALID, error: "Boundary code is missing" });
                     continue;
                 }
 
                 // Get project info from mapping - O(1) lookup
                 const projectInfo = boundaryProjectMap.get(boundaryCode);
                 if (!projectInfo) {
-                    logger.warn("No project mapping found for boundary: {}", boundaryCode);
+                    results.push({ payload: null, status: sheetDataRowStatuses.INVALID, error: `No project found for boundary: ${boundaryCode}. Ensure project creation is completed.` });
                     continue;
                 }
 
                 // Get Register ID from the sheet
                 const registerId = row["HCM_ATTENDANCE_REGISTER_ID"];
-                if (!registerId || registerId.trim().isEmpty()) {
-                    logger.warn("No register ID found in row");
+                if (!registerId || registerId.trim() === "") {
+                    results.push({ payload: null, status: sheetDataRowStatuses.INVALID, error: "Register ID is required" });
                     continue;
                 }
 
@@ -183,10 +220,10 @@ export class TemplateClass {
                 const payload = {
                     tenantId: tenantId,
                     name: `${campaignName} ${boundaryName}`,
-                    referenceId: projectInfo.projectId,  // References the project
-                    serviceCode: registerId,  // Register ID from Excel = serviceCode (unique identifier)
-                    startDate: projectInfo.startDate,  // From project mapping, not campaign
-                    endDate: projectInfo.endDate,    // From project mapping, not campaign
+                    referenceId: projectInfo.projectId,
+                    serviceCode: registerId,
+                    startDate: projectInfo.startDate,
+                    endDate: projectInfo.endDate,
                     localityCode: boundaryCode,
                     additionalDetails: {
                         campaignName: campaignName,
@@ -194,15 +231,16 @@ export class TemplateClass {
                     }
                 };
 
-                payloads.push(payload);
+                results.push({ payload, status: sheetDataRowStatuses.CREATED, error: "" });
             } catch (error: any) {
                 logger.error("Error transforming row: {}", error?.message);
-                // Continue processing other rows
+                results.push({ payload: null, status: sheetDataRowStatuses.INVALID, error: error?.message || "Unknown error during transformation" });
             }
         }
 
-        logger.info("Transformed {} payloads for attendance register creation", payloads.length);
-        return payloads;
+        const validCount = results.filter(r => r.payload !== null).length;
+        logger.info("Transformed {} valid payloads out of {} rows", validCount, sheetData.length);
+        return results;
     }
 
     /**

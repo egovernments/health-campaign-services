@@ -221,6 +221,13 @@ export const processTrackStatuses = {
     failed: "failed",
 }
 
+export const resourceStatuses = {
+    toCreate: "toCreate",
+    creating: "creating",
+    completed: "completed",
+    failed: "failed"
+}
+
 export const usageColumnStatus = {
     active: "Active",
     inactive: "Inactive"
