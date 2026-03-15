@@ -34,7 +34,7 @@ export async function handleTaskForCampaign(messageObject: any) {
             tenantId : CampaignDetails?.tenantId,
             fileStoreId: resource?.filestoreId,
             hierarchyType : CampaignDetails?.hierarchyType,
-            useruuid: messageObject?.useruuid
+            requestInfo: messageObject?.requestInfo
         }
         logger.info(`Process resource for campaign ${CampaignDetails?.id} : ${processName} started..`);
         const processTemplateConfig = JSON.parse(JSON.stringify(processTemplateConfigs?.[String(resourceType)]));

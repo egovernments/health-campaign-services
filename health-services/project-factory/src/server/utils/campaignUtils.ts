@@ -2384,6 +2384,7 @@ async function processRegularCampaign(request: any): Promise<void> {
   const useruuid =
     request?.body?.RequestInfo?.userInfo?.uuid ||
     campaignDetails?.auditDetails?.createdBy;
+  const requestInfo = request?.body?.RequestInfo;
 
   // Prepare DB setup synchronously
   await prepareProcessesInDb(campaignNumber, tenantId, useruuid);
@@ -2399,8 +2400,8 @@ async function processRegularCampaign(request: any): Promise<void> {
   // ✅ Offload the long chain into background (non-blocking)
   setImmediate(async () => {
     try {
-      await createAllResources(campaignDetails, request?.body?.parentCampaign || null, useruuid);
-      await createAllMappings(campaignDetails, request?.body?.parentCampaign || null, useruuid);
+      await createAllResources(campaignDetails, request?.body?.parentCampaign || null, useruuid, requestInfo);
+      await createAllMappings(campaignDetails, request?.body?.parentCampaign || null, useruuid, requestInfo);
       await userCredGeneration(campaignDetails, useruuid, locale);
       await enrichAndPersistCampaignForCreateViaFlow2(campaignDetails, request?.body?.RequestInfo, request?.body?.parentCampaign || null, useruuid);
       triggerUserCredentialEmailFlow(request?.body); // not awaited = background
@@ -2502,7 +2503,7 @@ async function userCredGeneration(campaignDetails: any, useruuid: string, locale
   }
 }
 
-async function createAllResources(campaignDetails: any, parentCampaign: any, useruuid: string) {
+async function createAllResources(campaignDetails: any, parentCampaign: any, useruuid: string, requestInfo?: any) {
   const { maxAttemptsForResourceCreationOrMapping, waitTimeOfEachAttemptOfResourceCreationOrMappping } = config?.resourceCreationConfig;
 
   // Phase 1: Registry-driven resource creation
@@ -2517,7 +2518,8 @@ async function createAllResources(campaignDetails: any, parentCampaign: any, use
         task,
         CampaignDetails: campaignDetails,
         parentCampaign,
-        useruuid
+        useruuid,
+        requestInfo
       }, config.kafka.KAFKA_START_ADMIN_CONSOLE_TASK_TOPIC, campaignDetails?.tenantId, cfg.kafkaKey);
     }
   }
@@ -2580,10 +2582,10 @@ async function createAllResources(campaignDetails: any, parentCampaign: any, use
   await new Promise(resolve => setTimeout(resolve, 20000));
 
   // Phase 2: Trigger dependent resource creation (e.g., attendanceRegister)
-  await createPhase2Resources(campaignDetails, parentCampaign, useruuid);
+  await createPhase2Resources(campaignDetails, parentCampaign, useruuid, requestInfo);
 }
 
-async function createPhase2Resources(campaignDetails: any, parentCampaign: any, useruuid: string) {
+async function createPhase2Resources(campaignDetails: any, parentCampaign: any, useruuid: string, requestInfo?: any) {
   const phase2Configs = getPhase2Types();
   if (phase2Configs.length === 0) {
     logger.info("No Phase 2 resource types configured. Skipping.");
@@ -2624,7 +2626,8 @@ async function createPhase2Resources(campaignDetails: any, parentCampaign: any, 
         task,
         CampaignDetails: campaignDetails,
         parentCampaign,
-        useruuid
+        useruuid,
+        requestInfo
       }, config.kafka.KAFKA_START_ADMIN_CONSOLE_TASK_TOPIC, campaignDetails?.tenantId, cfg.kafkaKey);
     }
   }
@@ -2681,7 +2684,7 @@ async function createPhase2Resources(campaignDetails: any, parentCampaign: any, 
   logger.info("Phase 2 resource creation completed successfully.");
 }
 
-async function createAllMappings(campaignDetails: any, parentCampaign: any, useruuid: string) {
+async function createAllMappings(campaignDetails: any, parentCampaign: any, useruuid: string, requestInfo?: any) {
   const { maxAttemptsForResourceCreationOrMapping, waitTimeOfEachAttemptOfResourceCreationOrMappping } = config?.resourceCreationConfig;
   logger.info(`Starting mappings...`);
   const mappingTasks = [
@@ -2707,7 +2710,8 @@ async function createAllMappings(campaignDetails: any, parentCampaign: any, user
         task,
         CampaignDetails: campaignDetails,
         parentCampaign,
-        useruuid
+        useruuid,
+        requestInfo
       }, config.kafka.KAFKA_START_ADMIN_CONSOLE_MAPPING_TASK_TOPIC, campaignDetails?.tenantId, kafkaKey);
     }
   }
