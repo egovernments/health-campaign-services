@@ -368,7 +368,7 @@ export class TemplateClass {
             logger.debug("Creating {} registers via Attendance Service", registers.length);
             const response = await httpRequest(url, requestBody);
 
-            if (response?.ResponseInfo?.status === "SUCCESSFUL") {
+            if (response?.ResponseInfo?.status?.toUpperCase() === "SUCCESSFUL") {
                 logger.info("Successfully created {} attendance registers", registers.length);
             } else {
                 logger.error("Unexpected response from Attendance Service: {}", JSON.stringify(response));
