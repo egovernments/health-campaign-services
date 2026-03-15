@@ -1,7 +1,7 @@
 import { ResourceDetails } from "../config/models/resourceDetailsSchema";
 import { logger } from "./logger";
 import { getLocalizedMessagesHandlerViaLocale, throwError } from "./genericUtils";
-import { enrichAndPersistCampaignWithErrorProcessingTask } from "./campaignUtils";
+import { enrichAndPersistCampaignWithErrorProcessingTask, updateResourceDetails, persistCampaignUpdate } from "./campaignUtils";
 import { processStatuses } from "../config/constants";
 import { getResourceTypeByProcessName } from "../config/resourceTypeRegistry";
 import { processTemplateConfigs } from "../config/processTemplateConfigs";
@@ -75,6 +75,21 @@ export async function handleTaskForCampaign(messageObject: any) {
             throw error;
         }
         logger.info(`Process resource for campaign ${CampaignDetails?.id} : ${processName} completed..`);
+
+        // Upload annotated workbook (with #status#/#errorDetails# columns) and persist resource result
+        try {
+            enrichTemplateMetaData(workBook, locale, CampaignDetails?.id);
+            const fileResponse = await createAndUploadFileWithOutRequest(workBook, resourceDetails?.tenantId);
+            const processedFileStoreId = fileResponse?.[0]?.fileStoreId;
+            if (resource && processedFileStoreId) {
+                updateResourceDetails(CampaignDetails, resource, { status: "completed", processedFileStoreId });
+                await persistCampaignUpdate(CampaignDetails, messageObject?.requestInfo);
+                logger.info(`Uploaded processed file for resource type ${resourceType}: ${processedFileStoreId}`);
+            }
+        } catch (uploadError) {
+            logger.warn(`Failed to upload processed file for resource type ${resourceType}: ${uploadError}. Continuing.`);
+        }
+
         task.status = processStatuses.completed;
         // Add audit details for update
         const currentTime = Date.now();
@@ -98,6 +113,20 @@ export async function handleTaskForCampaign(messageObject: any) {
         };
         await produceModifiedMessages({ processes: [task] }, config?.kafka?.KAFKA_UPDATE_PROCESS_DATA_TOPIC, messageObject?.CampaignDetails?.tenantId);
         logger.error(`Error in campaign creation process : ${error}`);
+        // Record error on the resource entry
+        try {
+            const failedResourceType = getResourceType(messageObject?.task?.processName);
+            const failedResource = getResorceViaResourceType(messageObject?.CampaignDetails, failedResourceType);
+            if (failedResource) {
+                updateResourceDetails(messageObject?.CampaignDetails, failedResource, {
+                    status: "failed",
+                    error: (error as any)?.code || "INTERNAL_SERVER_ERROR",
+                    errorMessage: (error as any)?.message || String(error),
+                });
+            }
+        } catch (resourceUpdateError) {
+            logger.warn(`Failed to update resource error details: ${resourceUpdateError}`);
+        }
         await enrichAndPersistCampaignWithErrorProcessingTask(messageObject?.CampaignDetails, messageObject?.parentCampaign, messageObject?.requestInfo, error);
     }
 }
@@ -107,10 +136,7 @@ function getResourceType(processName: string) {
 }
 
 function getResorceViaResourceType(campaignDetails: any, resourceType: string) {
-    for(let i = 0; i < campaignDetails?.resources?.length; i++) {
-        if(campaignDetails?.resources[i]?.type == resourceType) {
-            return campaignDetails?.resources[i];
-        }
-    }
-    return null;
+    const matching = (campaignDetails?.resources || []).filter((r: any) => r?.type === resourceType);
+    // Prefer the entry currently being created; fall back to first match
+    return matching.find((r: any) => r?.status === "creating") || matching[0] || null;
 }

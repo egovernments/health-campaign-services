@@ -1007,7 +1007,11 @@ export async function enrichAndPersistCampaignWithErrorProcessingTask(campaignDe
     );
   }
   campaignDetails.parentId = campaignDetails?.parentId || null;
-  campaignDetails.status = campaignStatuses?.failed;
+  // Only set status to failed if the campaign is still in progress (creating).
+  // Preserve "created" (inprogress) status — resource task failure should not break the campaign.
+  if (campaignDetails?.status === campaignStatuses?.started) {
+    campaignDetails.status = campaignStatuses?.failed;
+  }
   campaignDetails.campaignDetails = {
     deliveryRules: campaignDetails?.deliveryRules || [],
     resources: campaignDetails?.resources || [],
@@ -4158,6 +4162,8 @@ export {
   userCredGeneration,
   getResourceStatusMap,
   updateResourceStatus,
+  updateResourceDetails,
+  persistCampaignUpdate,
   hasResourceOfType,
 };
 
@@ -4187,6 +4193,53 @@ async function updateResourceStatus(
   }
   campaignDetails.additionalDetails.resourceStatuses[resourceType] = status;
   logger.info(`Updated resource status: ${resourceType} -> ${status}`);
+}
+
+/**
+ * Update per-resource status fields on a specific resource entry.
+ * Also keeps additionalDetails.resourceStatuses in sync for backward compatibility.
+ */
+function updateResourceDetails(
+  campaignDetails: any,
+  resourceEntry: any,
+  updates: { status?: string; processedFileStoreId?: string; error?: string; errorMessage?: string }
+): void {
+  Object.assign(resourceEntry, updates);
+  if (updates.status) {
+    if (!campaignDetails.additionalDetails) {
+      campaignDetails.additionalDetails = {};
+    }
+    if (!campaignDetails.additionalDetails.resourceStatuses) {
+      campaignDetails.additionalDetails.resourceStatuses = {};
+    }
+    campaignDetails.additionalDetails.resourceStatuses[resourceEntry.type] = updates.status;
+    logger.info(`Updated resource details for type ${resourceEntry.type}: status=${updates.status}`);
+  }
+}
+
+/**
+ * Persist campaign update to DB via Kafka without modifying campaign status.
+ */
+async function persistCampaignUpdate(campaignDetails: any, requestInfo: any): Promise<void> {
+  campaignDetails.campaignDetails = {
+    deliveryRules: campaignDetails?.deliveryRules || [],
+    resources: campaignDetails?.resources || [],
+    boundaries: campaignDetails?.boundaries || [],
+  };
+  campaignDetails.auditDetails = {
+    ...campaignDetails.auditDetails,
+    lastModifiedTime: Date.now(),
+    lastModifiedBy: requestInfo?.userInfo?.uuid,
+  };
+  const produceMessage: any = {
+    RequestInfo: requestInfo,
+    CampaignDetails: campaignDetails,
+  };
+  await produceModifiedMessages(
+    produceMessage,
+    config?.kafka?.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC,
+    campaignDetails?.tenantId
+  );
 }
 
 /**
