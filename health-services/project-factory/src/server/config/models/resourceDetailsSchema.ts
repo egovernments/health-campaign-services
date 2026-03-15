@@ -14,7 +14,8 @@ export const resourceDetailsSchema = z.object({
     fileStoreId: requiredString('fileStoreId'),
     campaignId: requiredString('campaignId'),
     additionalDetails: z.record(z.any()).optional(),
-    status : z.string().optional()
+    status : z.string().optional(),
+    useruuid: z.string().optional()
 });
 
 

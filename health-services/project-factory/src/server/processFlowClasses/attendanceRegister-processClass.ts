@@ -32,7 +32,7 @@ export class TemplateClass {
 
         const campaign = await this.getCampaignDetails(resourceDetails);
         const campaignNumber = campaign?.campaignNumber;
-        const campaignName = campaign?.name;
+        const campaignName = campaign?.campaignName;
         const tenantId = resourceDetails?.tenantId;
 
         const sheetData = wholeSheetData[getLocalizedName("HCM_ATTENDANCE_REGISTER_LIST", localizationMap)];
@@ -73,8 +73,10 @@ export class TemplateClass {
             .map(r => r.payload);
         logger.info("Transformed {} valid payloads out of {} rows", validPayloads.length, sheetData.length);
 
+        const useruuid = resourceDetails?.useruuid;
+
         // Idempotent batch creation - check for existing, create new only
-        await this.idempotentBatchCreate(validPayloads, tenantId);
+        await this.idempotentBatchCreate(validPayloads, tenantId, useruuid);
 
         // Return processed data with per-row status and error details
         const processedData = sheetData.map((row: any, index: number) => ({
@@ -283,7 +285,7 @@ export class TemplateClass {
      * Idempotent batch creation - check for existing registers, create only new ones
      * Time Complexity: O(n) where n = number of registers
      */
-    private static async idempotentBatchCreate(payloads: any[], tenantId: string): Promise<void> {
+    private static async idempotentBatchCreate(payloads: any[], tenantId: string, useruuid?: string): Promise<void> {
         if (payloads.length === 0) {
             logger.info("No registers to create");
             return;
@@ -294,7 +296,7 @@ export class TemplateClass {
             const serviceCodes = payloads.map(p => p.serviceCode);
             logger.info("Checking for existing registers with {} serviceCode(s)", serviceCodes.length);
 
-            const existingRegisters = await this.searchExistingRegisters(serviceCodes, tenantId);
+            const existingRegisters = await this.searchExistingRegisters(serviceCodes, tenantId, useruuid);
             const existingServiceCodes = new Set(existingRegisters.map((r: any) => r.serviceCode));
 
             // Step 2: Filter to only new registers - O(n)
@@ -313,7 +315,7 @@ export class TemplateClass {
                 const batch = newRegisters.slice(i, i + BATCH_SIZE);
                 logger.info("Creating batch of {} registers (batch {})", batch.length, Math.floor(i / BATCH_SIZE) + 1);
 
-                await this.createAttendanceRegisters(batch, tenantId);
+                await this.createAttendanceRegisters(batch, tenantId, useruuid);
             }
 
             logger.info("Successfully created {} new attendance registers", newRegisters.length);
@@ -326,15 +328,19 @@ export class TemplateClass {
     /**
      * Search for existing attendance registers by serviceCode
      */
-    private static async searchExistingRegisters(serviceCodes: string[], tenantId: string): Promise<any[]> {
+    private static async searchExistingRegisters(serviceCodes: string[], tenantId: string, useruuid?: string): Promise<any[]> {
         if (serviceCodes.length === 0) {
             return [];
         }
 
         try {
             const url = config.host.attendanceHost + config.paths.attendanceRegisterSearch;
+            const RequestInfo = JSON.parse(JSON.stringify(defaultRequestInfo?.RequestInfo || {}));
+            if (RequestInfo.userInfo && useruuid) {
+                RequestInfo.userInfo.uuid = useruuid;
+            }
             const requestBody = {
-                RequestInfo: defaultRequestInfo?.RequestInfo || {},
+                RequestInfo,
                 attendanceRegisterSearchCriteria: {
                     tenantId: tenantId,
                     serviceCode: serviceCodes
@@ -357,11 +363,15 @@ export class TemplateClass {
     /**
      * Create attendance registers via Attendance Service API
      */
-    private static async createAttendanceRegisters(registers: any[], tenantId: string): Promise<void> {
+    private static async createAttendanceRegisters(registers: any[], tenantId: string, useruuid?: string): Promise<void> {
         try {
             const url = config.host.attendanceHost + config.paths.attendanceRegisterCreate;
+            const RequestInfo = JSON.parse(JSON.stringify(defaultRequestInfo?.RequestInfo || {}));
+            if (RequestInfo.userInfo && useruuid) {
+                RequestInfo.userInfo.uuid = useruuid;
+            }
             const requestBody = {
-                RequestInfo: defaultRequestInfo?.RequestInfo || {},
+                RequestInfo,
                 attendanceRegister: registers
             };
 

@@ -864,9 +864,7 @@ async function generateProcessedFileAndPersist(
         : resourceDataStatuses.invalid,
     auditDetails: {
       ...request?.body?.ResourceDetails?.auditDetails,
-      lastModifiedBy: request?.body?.RequestInfo?.userInfo?.uuid
-                   || request?.body?.ResourceDetails?.auditDetails?.lastModifiedBy
-                   || request?.body?.ResourceDetails?.auditDetails?.createdBy,
+      lastModifiedBy: request?.body?.RequestInfo?.userInfo?.uuid,
       lastModifiedTime: Date.now(),
     },
     additionalDetails: {
