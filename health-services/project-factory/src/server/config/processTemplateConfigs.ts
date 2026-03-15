@@ -116,5 +116,23 @@ export const processTemplateConfigs: any = {
                 lockWholeSheet: true
             }
         ]
+    },
+    attendanceRegisterValidation: {
+        sheets: [
+            {
+                sheetName: "HCM_ATTENDANCE_REGISTER_README",
+                lockWholeSheet: true
+            },
+            {
+                sheetName: "HCM_ATTENDANCE_REGISTER_LIST",
+                validateRowsGap: true,
+                schemaName: "attendance-register"
+            },
+            {
+                sheetName: "HCM_ADMIN_CONSOLE_BOUNDARY_DATA",
+                lockWholeSheet: true
+            }
+        ],
+        passFromController: true
     }
 }

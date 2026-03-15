@@ -26,7 +26,7 @@ export class TemplateClass {
         localizationMap: Record<string, string>,
         templateConfig: any
     ): Promise<SheetMap> {
-        await validateResourceDetailsBeforeProcess("attendanceRegister", resourceDetails, localizationMap);
+        await validateResourceDetailsBeforeProcess("attendanceRegisterValidation", resourceDetails, localizationMap);
         logger.info("Processing Attendance Register file...");
         logger.info(`ResourceDetails: ${JSON.stringify(resourceDetails)}`);
 
