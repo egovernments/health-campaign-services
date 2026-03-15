@@ -41,6 +41,10 @@ const config = {
     userPasswordAutoGenerate: process.env.USER_PASSWORD_AUTO_GENERATE === "true",
     phoneNumberLength: process.env.PHONE_NUMBER_LENGTH ? parseInt(process.env.PHONE_NUMBER_LENGTH, 10) : 10,
   },
+  attendanceRegister: {
+    defaultEventType: process.env.ATTENDANCE_REGISTER_DEFAULT_EVENT_TYPE || "Training",
+    defaultSessions: process.env.ATTENDANCE_REGISTER_DEFAULT_SESSIONS ? parseInt(process.env.ATTENDANCE_REGISTER_DEFAULT_SESSIONS, 10) : 1,
+  },
   cacheValues: {
     cacheEnabled: process.env.CACHE_ENABLED,
     resetCache: process.env.RESET_CACHE,

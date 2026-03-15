@@ -63,7 +63,8 @@ export class TemplateClass {
             campaignName,
             tenantId,
             hierarchyLevels,
-            localizationMap
+            localizationMap,
+            resourceDetails
         );
 
         // Extract valid payloads for batch creation
@@ -186,7 +187,8 @@ export class TemplateClass {
         campaignName: string,
         tenantId: string,
         hierarchyType: string,
-        localizationMap: any
+        localizationMap: any,
+        resourceDetails: any
     ): { payload: any | null; status: string; error: string }[] {
         const results: { payload: any | null; status: string; error: string }[] = [];
 
@@ -216,19 +218,53 @@ export class TemplateClass {
                 // Get boundary name from localized map
                 const boundaryName = localizationMap[boundaryCode] || boundaryCode;
 
+                // Read optional fields from Excel
+                const eventType = row["HCM_ATTENDANCE_REGISTER_EVENT_TYPE"];
+                const sessions = row["HCM_ATTENDANCE_REGISTER_SESSIONS"];
+
+                // Get defaults from config
+                const defaultEventType = config.attendanceRegister.defaultEventType;
+                const defaultSessions = config.attendanceRegister.defaultSessions;
+
+                // Build additionalDetails with conditional fields
+                const additionalDetails: any = {
+                    campaignNumber: resourceDetails?.campaignNumber,
+                    campaignName: campaignName
+                };
+
+                // Add eventType: Excel value > Config default > Skip if both empty
+                if (eventType !== undefined && eventType !== null && String(eventType).trim() !== "") {
+                    additionalDetails.eventType = String(eventType).trim();
+                } else if (defaultEventType && defaultEventType !== "") {
+                    additionalDetails.eventType = defaultEventType;
+                    logger.debug("Using default eventType from config: {}", defaultEventType);
+                }
+
+                // Add sessions: Excel value > Config default (with validation)
+                if (sessions !== undefined && sessions !== null && sessions !== "") {
+                    const parsedSessions = typeof sessions === 'number' ? sessions : parseInt(sessions, 10);
+                    if (!isNaN(parsedSessions) && parsedSessions >= 0) {
+                        additionalDetails.sessions = parsedSessions;
+                    } else {
+                        logger.warn("Invalid sessions value: {}, using default: {}", sessions, defaultSessions);
+                        additionalDetails.sessions = defaultSessions;
+                    }
+                } else {
+                    additionalDetails.sessions = defaultSessions;
+                    logger.debug("Using default sessions from config: {}", defaultSessions);
+                }
+
                 // Create register payload
                 const payload = {
                     tenantId: tenantId,
                     name: `${campaignName} ${boundaryName}`,
                     referenceId: projectInfo.projectId,
+                    campaignId: resourceDetails?.campaignId,
                     serviceCode: registerId,
                     startDate: projectInfo.startDate,
                     endDate: projectInfo.endDate,
                     localityCode: boundaryCode,
-                    additionalDetails: {
-                        campaignName: campaignName,
-                        sessions: 0
-                    }
+                    additionalDetails: additionalDetails
                 };
 
                 results.push({ payload, status: sheetDataRowStatuses.CREATED, error: "" });
