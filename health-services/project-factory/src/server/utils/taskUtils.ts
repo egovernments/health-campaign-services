@@ -7,9 +7,10 @@ import { getResourceTypeByProcessName } from "../config/resourceTypeRegistry";
 import { processTemplateConfigs } from "../config/processTemplateConfigs";
 import { enrichProcessTemplateConfig, handleErrorDuringProcess, processRequest } from "./sheetManageUtils";
 import { fetchFileFromFilestore } from "../api/coreApis";
-import { getExcelWorkbookFromFileURL, getLocaleFromWorkbook } from "./excelUtils";
+import { getExcelWorkbookFromFileURL, getLocaleFromWorkbook, enrichTemplateMetaData } from "./excelUtils";
 import { getLocalisationModuleName } from "./localisationUtils";
 import { produceModifiedMessages } from "../kafka/Producer";
+import { createAndUploadFileWithOutRequest } from "../api/genericApis";
 import config from "../config";
 
 export async function handleTaskForCampaign(messageObject: any) {
@@ -39,10 +40,29 @@ export async function handleTaskForCampaign(messageObject: any) {
         await enrichProcessTemplateConfig(resourceDetails, processTemplateConfig);
         const fileUrl = await fetchFileFromFilestore(resourceDetails?.fileStoreId, resourceDetails?.tenantId);
         const workBook = await getExcelWorkbookFromFileURL(fileUrl);
-        let locale = getLocaleFromWorkbook(workBook) || "";
+
+        // Try to extract locale from workbook metadata
+        let locale: string = getLocaleFromWorkbook(workBook) || "";
+
+        // Graceful fallback: use campaign locale or default locale if metadata missing
         if (!locale) {
-            throw new Error(`Locale not found in the file metadata for resource type ${resourceType}`);
+            logger.warn(`Locale metadata not found in workbook for resource type ${resourceType}. Using fallback locale.`);
+            locale = CampaignDetails?.additionalDetails?.locale || config.localisation.defaultLocale || "en_IN";
+            logger.info(`Using fallback locale: ${locale}`);
+
+            // Enrich the workbook metadata with locale and campaign ID for future use
+            try {
+                enrichTemplateMetaData(workBook, locale, CampaignDetails?.id);
+                const updatedFileResponse = await createAndUploadFileWithOutRequest(workBook, resourceDetails?.tenantId);
+                if (updatedFileResponse?.[0]?.fileStoreId) {
+                    resourceDetails.fileStoreId = updatedFileResponse[0].fileStoreId;
+                    logger.info(`Enriched file metadata and updated fileStoreId: ${resourceDetails.fileStoreId}`);
+                }
+            } catch (enrichError) {
+                logger.warn(`Failed to enrich file metadata: ${enrichError}. Continuing with fallback locale.`);
+            }
         }
+
         const localizationMapHierarchy = resourceDetails?.hierarchyType && await getLocalizedMessagesHandlerViaLocale(locale, resourceDetails?.tenantId, getLocalisationModuleName(resourceDetails?.hierarchyType), true);
         const localizationMapModule = await getLocalizedMessagesHandlerViaLocale(locale, resourceDetails?.tenantId);
         const localizationMap = { ...(localizationMapHierarchy || {}), ...localizationMapModule };

@@ -140,10 +140,17 @@ export async function processResource(ResourceDetails: any, templateConfig: any)
     try {
         const fileUrl = await fetchFileFromFilestore(ResourceDetails?.fileStoreId, ResourceDetails?.tenantId);
         const workBook = await getExcelWorkbookFromFileURL(fileUrl);
-        let locale = getLocaleFromWorkbook(workBook) || "";
-        if(!locale){
-            throw new Error("Locale not found in the file metadata.");
+
+        // Try to extract locale from workbook metadata
+        let locale: string = getLocaleFromWorkbook(workBook) || "";
+
+        // Graceful fallback: use default locale if metadata missing
+        if (!locale) {
+            logger.warn(`Locale metadata not found in workbook for resource type ${ResourceDetails?.type}. Using default locale.`);
+            locale = config.localisation.defaultLocale || "en_IN";
+            logger.info(`Using fallback locale: ${locale}`);
         }
+
         const localizationMapHierarchy = ResourceDetails?.hierarchyType && await getLocalizedMessagesHandlerViaLocale(locale, ResourceDetails?.tenantId, getLocalisationModuleName(ResourceDetails?.hierarchyType), true);
         const localizationMapModule = await getLocalizedMessagesHandlerViaLocale(locale, ResourceDetails?.tenantId);
         const localizationMap = { ...(localizationMapHierarchy || {}), ...localizationMapModule };
@@ -708,10 +715,17 @@ export async function validateResourceDetailsBeforeProcess(validationProcessType
     await enrichProcessTemplateConfig(validationResourceDetails, processTemplateConfig);
     const fileUrl = await fetchFileFromFilestore(validationResourceDetails?.fileStoreId, validationResourceDetails?.tenantId);
     const workBook = await getExcelWorkbookFromFileURL(fileUrl);
-    let locale = getLocaleFromWorkbook(workBook) || "";
+
+    // Try to extract locale from workbook metadata
+    let locale: string = getLocaleFromWorkbook(workBook) || "";
+
+    // Graceful fallback: use default locale if metadata missing
     if (!locale) {
-        throw new Error("Locale not found in the file metadata.");
+        logger.warn(`Locale metadata not found in workbook during validation for resource type ${validationProcessType}. Using default locale.`);
+        locale = config.localisation.defaultLocale || "en_IN";
+        logger.info(`Using fallback locale for validation: ${locale}`);
     }
+
     await processRequest(validationResourceDetails, workBook, processTemplateConfig, localizationMap);
     if (validationResourceDetails?.additionalDetails?.sheetErrors?.length) {
         throwError("COMMON", 400, "VALIDATION_ERROR", JSON.stringify(validationResourceDetails?.additionalDetails?.sheetErrors));
