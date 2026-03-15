@@ -31,6 +31,7 @@ export class TemplateClass {
         logger.info(`ResourceDetails: ${JSON.stringify(resourceDetails)}`);
 
         const campaign = await this.getCampaignDetails(resourceDetails);
+        const campaignId = campaign?.id;
         const campaignNumber = campaign?.campaignNumber;
         const campaignName = campaign?.campaignName;
         const tenantId = resourceDetails?.tenantId;
@@ -76,7 +77,7 @@ export class TemplateClass {
         const requestInfo = resourceDetails?.requestInfo;
 
         // Idempotent batch creation - check for existing, create new only
-        await this.idempotentBatchCreate(validPayloads, tenantId, requestInfo);
+        await this.idempotentBatchCreate(validPayloads, campaignId, tenantId, requestInfo);
 
         // Return processed data with per-row status and error details
         const processedData = sheetData.map((row: any, index: number) => ({
@@ -285,7 +286,7 @@ export class TemplateClass {
      * Idempotent batch creation - check for existing registers, create only new ones
      * Time Complexity: O(n) where n = number of registers
      */
-    private static async idempotentBatchCreate(payloads: any[], tenantId: string, requestInfo?: any): Promise<void> {
+    private static async idempotentBatchCreate(payloads: any[], campaignId: string,  tenantId: string, requestInfo?: any): Promise<void> {
         if (payloads.length === 0) {
             logger.info("No registers to create");
             return;
@@ -296,7 +297,7 @@ export class TemplateClass {
             const serviceCodes = payloads.map(p => p.serviceCode);
             logger.info("Checking for existing registers with {} serviceCode(s)", serviceCodes.length);
 
-            const existingRegisters = await this.searchExistingRegisters(serviceCodes, tenantId, requestInfo);
+            const existingRegisters = await this.searchExistingRegisters(serviceCodes, campaignId, tenantId, requestInfo);
             const existingServiceCodes = new Set(existingRegisters.map((r: any) => r.serviceCode));
 
             // Step 2: Filter to only new registers - O(n)
@@ -328,7 +329,7 @@ export class TemplateClass {
     /**
      * Search for existing attendance registers by serviceCode
      */
-    private static async searchExistingRegisters(serviceCodes: string[], tenantId: string, requestInfo?: any): Promise<any[]> {
+    private static async searchExistingRegisters(serviceCodes: string[], campaignId: string,  tenantId: string, requestInfo?: any): Promise<any[]> {
         if (serviceCodes.length === 0) {
             return [];
         }
@@ -341,7 +342,7 @@ export class TemplateClass {
             };
 
             logger.debug("Searching for existing registers with serviceCode(s): {}", serviceCodes.join(", "));
-            const response = await httpRequest(url, requestBody, { tenantId, serviceCode: serviceCodes });
+            const response = await httpRequest(url, requestBody, { tenantId, serviceCode: serviceCodes, campaignId });
             const registers = response?.attendanceRegister || [];
 
             logger.info("Found {} existing attendance registers", registers.length);
