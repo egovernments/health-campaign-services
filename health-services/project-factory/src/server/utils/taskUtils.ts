@@ -79,9 +79,9 @@ export async function handleTaskForCampaign(messageObject: any) {
         // Add audit details for update
         const currentTime = Date.now();
         task.auditDetails = {
-            createdBy: task.auditDetails?.createdBy || messageObject?.useruuid,
+            createdBy: task.auditDetails?.createdBy || messageObject?.requestInfo?.userInfo?.uuid,
             createdTime: task.auditDetails?.createdTime || currentTime,
-            lastModifiedBy: messageObject?.useruuid,
+            lastModifiedBy: messageObject?.requestInfo?.userInfo?.uuid,
             lastModifiedTime: currentTime
         };
         await produceModifiedMessages({ processes: [task] }, config?.kafka?.KAFKA_UPDATE_PROCESS_DATA_TOPIC, CampaignDetails?.tenantId);
@@ -91,14 +91,14 @@ export async function handleTaskForCampaign(messageObject: any) {
         // Add audit details for failed status update
         const currentTime = Date.now();
         task.auditDetails = {
-            createdBy: task.auditDetails?.createdBy || messageObject?.useruuid,
+            createdBy: task.auditDetails?.createdBy || messageObject?.requestInfo?.userInfo?.uuid,
             createdTime: task.auditDetails?.createdTime || currentTime,
-            lastModifiedBy: messageObject?.useruuid,
+            lastModifiedBy: messageObject?.requestInfo?.userInfo?.uuid,
             lastModifiedTime: currentTime
         };
         await produceModifiedMessages({ processes: [task] }, config?.kafka?.KAFKA_UPDATE_PROCESS_DATA_TOPIC, messageObject?.CampaignDetails?.tenantId);
         logger.error(`Error in campaign creation process : ${error}`);
-        await enrichAndPersistCampaignWithErrorProcessingTask(messageObject?.CampaignDetails, messageObject?.parentCampaign, messageObject?.useruuid, error);
+        await enrichAndPersistCampaignWithErrorProcessingTask(messageObject?.CampaignDetails, messageObject?.parentCampaign, messageObject?.requestInfo, error);
     }
 }
 

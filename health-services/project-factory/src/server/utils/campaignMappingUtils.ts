@@ -131,8 +131,9 @@ export async function handleFacilityMapping(mappingArray: any, campaignId: any, 
 
 export async function handleMappingTaskForCampaign(messageObject: any) {
     try {
-        const { CampaignDetails, task, useruuid } = messageObject;
-        const processName = task?.processName
+        const { CampaignDetails, task, requestInfo } = messageObject;
+        const processName = task?.processName;
+        const useruuid = requestInfo?.userInfo?.uuid;
         logger.info(`Mapping for campaign ${CampaignDetails?.id} : ${processName} started..`);
         if(processName == allProcesses.resourceMapping) {
             await startResourceMapping(CampaignDetails, useruuid);
@@ -159,13 +160,13 @@ export async function handleMappingTaskForCampaign(messageObject: any) {
         // Add audit details for failed status update
         const currentTime = Date.now();
         task.auditDetails = {
-            createdBy: task.auditDetails?.createdBy || messageObject?.useruuid,
+            createdBy: task.auditDetails?.createdBy || messageObject?.requestInfo?.userInfo?.uuid,
             createdTime: task.auditDetails?.createdTime || currentTime,
-            lastModifiedBy: messageObject?.useruuid,
+            lastModifiedBy: messageObject?.requestInfo?.userInfo?.uuid,
             lastModifiedTime: currentTime
         };
         await produceModifiedMessages({ processes: [task] }, config?.kafka?.KAFKA_UPDATE_PROCESS_DATA_TOPIC, messageObject?.CampaignDetails?.tenantId);
         logger.error(`Error in campaign mapping: ${error}`);
-        await enrichAndPersistCampaignWithErrorProcessingTask(messageObject?.CampaignDetails, messageObject?.parentCampaign, messageObject?.useruuid, error);
+        await enrichAndPersistCampaignWithErrorProcessingTask(messageObject?.CampaignDetails, messageObject?.parentCampaign, messageObject?.requestInfo, error);
     }
 }

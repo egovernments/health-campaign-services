@@ -983,9 +983,9 @@ async function enrichAndPersistCampaignWithError(requestBody: any, error: any) {
   delete requestBody.CampaignDetails.campaignDetails;
 }
 
-export async function enrichAndPersistCampaignWithErrorProcessingTask(campaignDetails: any, parentCampaign: any, useruuid: string, error: any) {
-  const RequestInfo = JSON.parse(JSON.stringify(defaultRequestInfo || {}));
-  RequestInfo.userInfo.uuid = useruuid;
+export async function enrichAndPersistCampaignWithErrorProcessingTask(campaignDetails: any, parentCampaign: any, requestInfo: any, error: any) {
+  const RequestInfo = requestInfo || defaultRequestInfo || {};
+  const useruuid: string = RequestInfo?.userInfo?.uuid;
   if (parentCampaign) {
     parentCampaign.isActive = true;
     parentCampaign.parentId = parentCampaign?.parentId || null;

@@ -69,6 +69,7 @@ async function addResourcesToCampaignService(request: express.Request) {
     const tenantId = requestCampaignDetails?.tenantId;
     const campaignId = requestCampaignDetails?.id;
     const useruuid = request?.body?.RequestInfo?.userInfo?.uuid;
+    const requestInfo = request?.body?.RequestInfo;
     const newResources = requestCampaignDetails?.resources || [];
 
     // Search for the existing campaign
@@ -133,7 +134,7 @@ async function addResourcesToCampaignService(request: express.Request) {
                     task,
                     CampaignDetails: existingCampaign,
                     parentCampaign: null,
-                    useruuid
+                    requestInfo
                 }, config.kafka.KAFKA_START_ADMIN_CONSOLE_TASK_TOPIC, tenantId, registryEntry.kafkaKey);
                 updateResourceStatus(existingCampaign, type, resourceStatuses.creating, tenantId, useruuid);
             }
