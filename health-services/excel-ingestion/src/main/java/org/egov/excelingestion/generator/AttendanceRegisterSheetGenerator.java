@@ -158,10 +158,11 @@ public class AttendanceRegisterSheetGenerator implements ISheetGenerator {
         Row hiddenRow = sheet.getRow(0);
         if (hiddenRow == null) return;
 
-        // Find visible boundary column indices and Register ID column index from hidden row 0
+        // Find boundary code column, visible boundary columns, and Register ID column from hidden row 0
         String hierarchyPrefix = hierarchyType != null ? hierarchyType.toUpperCase() + "_" : "";
         List<Integer> visibleBoundaryColIndices = new ArrayList<>();
         int registerIdColIndex = -1;
+        int boundaryCodeColIndex = -1;
 
         for (int colIdx = 0; colIdx <= hiddenRow.getLastCellNum(); colIdx++) {
             Cell cell = hiddenRow.getCell(colIdx);
@@ -176,13 +177,23 @@ public class AttendanceRegisterSheetGenerator implements ISheetGenerator {
             }
 
             // Check for Register ID column
-            if ("HCM_ATTENDANCE_REGISTER_ID".equals(cellValue)) {
+            if (ProcessingConstants.REGISTER_ID_COLUMN_KEY.equals(cellValue)) {
                 registerIdColIndex = colIdx;
+            }
+
+            // Check for boundary code column (hidden column with VLOOKUP result)
+            if (ProcessingConstants.BOUNDARY_CODE_COLUMN_KEY.equals(cellValue)) {
+                boundaryCodeColIndex = colIdx;
             }
         }
 
-        if (registerIdColIndex == -1 || visibleBoundaryColIndices.isEmpty()) {
-            log.info("Register ID column or boundary columns not found, skipping formula generation");
+        if (registerIdColIndex == -1) {
+            log.info("Register ID column not found, skipping formula generation");
+            return;
+        }
+
+        if (boundaryCodeColIndex == -1 && visibleBoundaryColIndices.isEmpty()) {
+            log.info("Neither boundary code column nor visible boundary columns found, skipping formula generation");
             return;
         }
 
@@ -199,14 +210,20 @@ public class AttendanceRegisterSheetGenerator implements ISheetGenerator {
 
             Cell registerIdCell = row.getCell(registerIdColIndex, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK);
 
-            // Build nested IF formula: checks from rightmost to leftmost visible boundary
-            String formula = buildRegisterIdFormula(r + 1, visibleBoundaryColIndices);
+            String formula;
+            if (boundaryCodeColIndex != -1) {
+                // Reference the hidden boundary code column directly (contains boundary code via VLOOKUP)
+                formula = CellReference.convertNumToColString(boundaryCodeColIndex) + (r + 1);
+            } else {
+                // Fallback: build nested IF over visible boundary display-name columns
+                formula = buildRegisterIdFormula(r + 1, visibleBoundaryColIndices);
+            }
             registerIdCell.setCellFormula(formula);
             registerIdCell.setCellStyle(unlocked);
         }
 
-        log.info("Added Register ID formulas for {} rows referencing {} boundary columns",
-                maxRow - 1, visibleBoundaryColIndices.size());
+        log.info("Added Register ID formulas for {} rows using {} source",
+                maxRow - 1, boundaryCodeColIndex != -1 ? "boundary code column" : "visible boundary columns");
     }
 
     /**
