@@ -1651,7 +1651,7 @@ async function processCreate(request: any, localizationMap?: any) {
       if (createAndSearchConfig?.parseArrayConfig?.parseLogic) {
         createAndSearchConfig.parseArrayConfig.parseLogic =
           createAndSearchConfig.parseArrayConfig.parseLogic.map((item: any) => {
-            if (item.sheetColumn === "E") {
+            if (item.sheetColumnName === "HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY") {
               item.sheetColumnName += `_${campaignType}`;
             }
             return item;

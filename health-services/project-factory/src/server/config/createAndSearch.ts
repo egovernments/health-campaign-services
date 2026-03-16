@@ -238,44 +238,44 @@ const createAndSearch: any = {
                 },
                 {
                     sheetColumn: "G",
+                    sheetColumnName: "UserName",
+                    resultantPath: "user.userName",
+                    type: "string"
+                },
+                {
+                    sheetColumn: "H",
                     sheetColumnName: "HCM_ADMIN_CONSOLE_USER_WORKER_ID",
                     resultantPath: "workerId",
                     type: "string"
                 },
                 {
-                    sheetColumn: "H",
+                    sheetColumn: "I",
                     sheetColumnName: "HCM_ADMIN_CONSOLE_USER_PAYMENT_PROVIDER",
                     resultantPath: "paymentProvider",
                     type: "string"
                 },
                 {
-                    sheetColumn: "I",
+                    sheetColumn: "J",
                     sheetColumnName: "HCM_ADMIN_CONSOLE_USER_PAYEE_PHONE_NUMBER",
                     resultantPath: "payeePhoneNumber",
                     type: "string"
                 },
                 {
-                    sheetColumn: "J",
+                    sheetColumn: "K",
                     sheetColumnName: "HCM_ADMIN_CONSOLE_USER_PAYEE_NAME",
                     resultantPath: "payeeName",
                     type: "string"
                 },
                 {
-                    sheetColumn: "K",
+                    sheetColumn: "L",
                     sheetColumnName: "HCM_ADMIN_CONSOLE_USER_BANK_ACCOUNT",
                     resultantPath: "bankAccount",
                     type: "string"
                 },
                 {
-                    sheetColumn: "L",
+                    sheetColumn: "M",
                     sheetColumnName: "HCM_ADMIN_CONSOLE_USER_BANK_CODE",
                     resultantPath: "bankCode",
-                    type: "string"
-                },
-                {
-                    sheetColumn: "M",
-                    sheetColumnName: "UserName",
-                    resultantPath: "user.userName",
                     type: "string"
                 },
                 {

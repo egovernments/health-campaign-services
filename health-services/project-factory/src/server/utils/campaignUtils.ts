@@ -311,16 +311,17 @@ function deterMineLastColumnAndEnrichUserDetails(
   request: any
 ): string {
 
-  // Default columns
-  let usernameColumn = "L";
-  let passwordColumn = "M";
+  // Default columns (production user schema: UserName=G, Password=N)
+  let usernameColumn = "G";
+  let passwordColumn = "N";
 
   // Update columns if the request indicates a different source
   if (
     request?.body?.ResourceDetails?.additionalDetails?.source == "microplan"
   ) {
+    // Microplan schema (no BOUNDARY_CODE_MANDATORY): UserName=F (col 6), Password=M (col 13)
     usernameColumn = "F";
-    passwordColumn = "G";
+    passwordColumn = "M";
   }
 
   // const foundUsernameColumn = findColumnByHeader("UserName", worksheet);
