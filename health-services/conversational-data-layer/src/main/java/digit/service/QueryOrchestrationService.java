@@ -7,7 +7,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.egov.tracer.model.CustomException;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
 import java.util.Map;
 
 import static digit.config.ErrorConstants.*;
@@ -47,7 +46,7 @@ public class QueryOrchestrationService {
      * Full pipeline:
      * 1. Validate input
      * 2. Sanitize PII from query text
-     * 3. Resolve index schema
+     * 3. Resolve index (auto-select if not provided)
      * 4. Build LLM prompt
      * 5. Call LLM for translation
      * 6. Extract JSON from LLM response
@@ -69,11 +68,13 @@ public class QueryOrchestrationService {
         String sanitizedQuery = piiSanitizerService.sanitize(cdlQuery.getQueryText());
         log.info("Sanitized query: {}", sanitizedQuery);
 
-        // 3. Resolve index
+        // 3. Resolve index — auto-select if not provided
         String indexName = cdlQuery.getIndexName();
         if (indexName == null || indexName.isBlank()) {
-            indexName = config.getDefaultIndexName();
+            indexName = selectIndex(sanitizedQuery);
+            log.info("Auto-selected index: {}", indexName);
         }
+
         if (!schemaService.hasSchema(indexName)) {
             throw new CustomException(UNKNOWN_INDEX_CODE, UNKNOWN_INDEX_MSG + indexName);
         }
@@ -87,6 +88,8 @@ public class QueryOrchestrationService {
         String llmResponse;
         try {
             llmResponse = llmTranslationService.translate(systemPrompt, userMessage);
+        } catch (CustomException e) {
+            throw e;
         } catch (Exception e) {
             log.error("LLM translation failed", e);
             throw new CustomException(LLM_ERROR_CODE, LLM_ERROR_MSG + e.getMessage());
@@ -112,7 +115,7 @@ public class QueryOrchestrationService {
         }
 
         String validatedQuery = validationResult.getSanitizedQuery();
-        log.info("Validated query: {}", validatedQuery);
+        log.info("Validated query for index [{}]: {}", indexName, validatedQuery);
 
         // 9. Execute search
         Map<String, Object> esResponse;
@@ -126,19 +129,8 @@ public class QueryOrchestrationService {
         // 10. Build response
         long queryTimeMs = System.currentTimeMillis() - startTime;
 
-        // Extract total hits
-        Long totalHits = null;
-        Map<String, Object> hits = (Map<String, Object>) esResponse.get("hits");
-        if (hits != null) {
-            Object total = hits.get("total");
-            if (total instanceof Map) {
-                totalHits = ((Number) ((Map<String, Object>) total).get("value")).longValue();
-            } else if (total instanceof Number) {
-                totalHits = ((Number) total).longValue();
-            }
-        }
+        Long totalHits = extractTotalHits(esResponse);
 
-        // Parse the validated query back to a Map for the response
         Map<String, Object> generatedQueryMap;
         try {
             generatedQueryMap = objectMapper.readValue(validatedQuery, Map.class);
@@ -152,6 +144,50 @@ public class QueryOrchestrationService {
                 .totalHits(totalHits)
                 .queryTimeMs(queryTimeMs)
                 .sanitizedQueryText(sanitizedQuery)
+                .selectedIndex(indexName)
                 .build();
+    }
+
+    /**
+     * Uses the LLM to auto-select the best index for the user's query.
+     * Falls back to default index if selection fails.
+     */
+    private String selectIndex(String sanitizedQuery) {
+        try {
+            String selectionPrompt = promptBuilderService.buildIndexSelectionPrompt(sanitizedQuery);
+            String llmResponse = llmTranslationService.translateForSelection(selectionPrompt, sanitizedQuery);
+            String selectedIndex = llmResponse.trim().replaceAll("[\"'`\\s]", "");
+
+            if (schemaService.hasSchema(selectedIndex)) {
+                return selectedIndex;
+            }
+
+            // Try partial match — LLM might return something close
+            for (String knownIndex : schemaService.getAllIndexNames()) {
+                if (knownIndex.contains(selectedIndex) || selectedIndex.contains(knownIndex)) {
+                    log.info("Fuzzy matched index: {} -> {}", selectedIndex, knownIndex);
+                    return knownIndex;
+                }
+            }
+
+            log.warn("LLM selected unknown index '{}', falling back to default", selectedIndex);
+        } catch (Exception e) {
+            log.warn("Index auto-selection failed, falling back to default: {}", e.getMessage());
+        }
+        return config.getDefaultIndexName();
+    }
+
+    @SuppressWarnings("unchecked")
+    private Long extractTotalHits(Map<String, Object> esResponse) {
+        Map<String, Object> hits = (Map<String, Object>) esResponse.get("hits");
+        if (hits != null) {
+            Object total = hits.get("total");
+            if (total instanceof Map) {
+                return ((Number) ((Map<String, Object>) total).get("value")).longValue();
+            } else if (total instanceof Number) {
+                return ((Number) total).longValue();
+            }
+        }
+        return null;
     }
 }

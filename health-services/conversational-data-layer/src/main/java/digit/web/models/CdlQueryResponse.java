@@ -32,4 +32,7 @@ public class CdlQueryResponse {
 
     @JsonProperty("sanitizedQueryText")
     private String sanitizedQueryText;
+
+    @JsonProperty("selectedIndex")
+    private String selectedIndex;
 }

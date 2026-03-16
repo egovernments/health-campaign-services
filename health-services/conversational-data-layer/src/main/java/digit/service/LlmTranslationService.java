@@ -38,6 +38,23 @@ public class LlmTranslationService {
     }
 
     /**
+     * Sends the index selection prompt to the LLM. Uses a simpler message format
+     * since the system prompt already contains the user query context.
+     */
+    public String translateForSelection(String selectionPrompt, String userQuery) {
+        int promptLength = selectionPrompt.length() + userQuery.length();
+        if (promptLength > config.getMaxPromptLength()) {
+            throw new CustomException(PROMPT_TOO_LONG_CODE,
+                    PROMPT_TOO_LONG_MSG + " (" + promptLength + " > " + config.getMaxPromptLength() + ")");
+        }
+
+        long start = System.currentTimeMillis();
+        String result = llmClient.generate(selectionPrompt, "Select the best index for: " + userQuery);
+        log.info("LLM index selection completed in {}ms", System.currentTimeMillis() - start);
+        return result;
+    }
+
+    /**
      * Extracts JSON from LLM response, stripping markdown code fences if present.
      */
     public String extractJson(String llmResponse) {

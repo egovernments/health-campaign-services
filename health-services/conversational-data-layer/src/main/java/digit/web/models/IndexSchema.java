@@ -15,5 +15,7 @@ public class IndexSchema {
 
     private String indexName;
 
+    private String description;
+
     private List<IndexField> fields;
 }

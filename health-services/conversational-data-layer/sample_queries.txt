@@ -1,0 +1,86 @@
+POST ba-project-task-index-v1/_search
+{
+  "query": {
+    "bool": {
+      "must": [
+        {
+          "terms": {
+            "Data.boundaryHierarchy.lga.keyword": [
+              "Ningi",
+              "Bauchi"
+            ]
+          }
+        },
+        {
+          "term": {
+            "Data.administrationStatus.keyword": {
+              "value": "ADMINISTRATION_SUCCESS"
+            }
+          }
+        },
+        {
+          "range": {
+            "Data.createdTime": {
+              "gte": 0,
+              "lte": 1761868800000
+            }
+          }
+        },
+        {
+          "term": {
+            "Data.additionalDetails.doseIndex.keyword": {
+              "value": "01"
+            }
+          }
+        }
+      ]
+    }
+  },
+  "size": 0,
+  "aggs": {
+    "NAME": {
+      "terms": {
+        "field": "Data.additionalDetails.cycleIndex.keyword"
+      },
+      "aggs": {
+        "NAME": {
+          "terms": {
+            "field": "Data.boundaryHierarchy.lga.keyword"
+          },
+          "aggs": {
+            "NAME": {
+              "value_count": {
+                "field": "Data.id.keyword"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+Data.boundaryHierarchy.xyz.keyword has to be adjusted in aggregationQuery based on the boundary level they want to aggregate
+
+Data.additionalDetails.doseIndex.keyword  this filter is mandatory for smc type of campaign and for status ADMINISTRATION_SUCCESS
+
+Data.administrationStatus.keyword this status has to be adjusted based on the ask (
+
+if ask is success deliveries then status is ADMINISTRATION_SUCCESS
+if ask is referred children then status is BENEFICIARY_REFERRED
+if ask is ineligible children then status is BENEFICIARY_INELIGIBLE
+
+
+{
+          "terms": {
+            "Data.boundaryHierarchy.lga.keyword": [
+              "Ningi",
+              "Bauchi"
+            ]
+          }
+        },
+
+
+        this has to be passed if they ask aggregations for any specific boundaries for the query performance or if they want aggregation of all boundaries at a boundary level remove this filter and keep aggregation size as default 1000 because there might be more than 10 boundaries
+
+        Data.createdtime filter has to be applied if they ask for a certain period or remove the filter

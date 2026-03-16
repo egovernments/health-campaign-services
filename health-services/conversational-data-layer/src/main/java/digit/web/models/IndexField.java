@@ -17,5 +17,7 @@ public class IndexField {
 
     private String type;
 
+    private String description;
+
     private List<String> enumValues;
 }
