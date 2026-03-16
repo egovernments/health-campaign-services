@@ -9,18 +9,16 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 /**
  * Pushes notifications to the egov-notification-push service via Kafka.
  *
  * Sends to topic: egov.core.notification.push
- * Format matches PushNotificationRequest expected by egov-notification-push:
- *   { "title": "...", "body": "...", "deviceTokens": [...], "tenantId": "...", "data": {...} }
+ * Format:
+ *   { "title": "...", "body": "...", "facilityId": "...", "tenantId": "...", "data": {...} }
  *
- * NOTE: Currently sends userUuids as deviceTokens. The push service resolves
- * actual FCM tokens from these. This may change in future once clarified.
+ * The notification-push service resolves device tokens from facilityId and sends FCM notifications.
  */
 @Service
 @Slf4j
@@ -41,12 +39,12 @@ public class PushNotificationService {
      *
      * @param title      Notification title
      * @param body       Notification body text
-     * @param userUuids  User UUIDs (sent as deviceTokens for now)
+     * @param facilityId Recipient facility ID (notification-push resolves device tokens from this)
      * @param tenantId   Tenant ID
      * @param data       Custom metadata (screen navigation, txn ref, etc.)
      */
     public void sendPushNotification(String title, String body,
-                                      List<String> userUuids,
+                                      String facilityId,
                                       String tenantId,
                                       Map<String, String> data) {
         if (!Boolean.TRUE.equals(properties.getPushNotificationEnabled())) {
@@ -54,8 +52,8 @@ public class PushNotificationService {
             return;
         }
 
-        if (userUuids == null || userUuids.isEmpty()) {
-            log.warn("No userUuids provided for push notification. Skipping. title={}", title);
+        if (facilityId == null || facilityId.isBlank()) {
+            log.warn("No facilityId provided for push notification. Skipping. title={}", title);
             return;
         }
 
@@ -63,20 +61,22 @@ public class PushNotificationService {
             Map<String, Object> pushRequest = new HashMap<>();
             pushRequest.put("title", title);
             pushRequest.put("body", body);
-            pushRequest.put("deviceTokens", userUuids);
+            pushRequest.put("facilityId", facilityId);
             pushRequest.put("tenantId", tenantId);
             if (data != null && !data.isEmpty()) {
                 pushRequest.put("data", data);
             }
 
-            log.info("PUSH NOTIFICATION PAYLOAD: {}", pushRequest);
+            log.info("Pushing notification to topic: {}, title={}, facilityId={}, tenantId={}",
+                    properties.getPushNotificationTopic(), title, facilityId, tenantId);
 
-            // TODO: Enable Kafka push once device tokens are resolved
-            // producer.push(properties.getPushNotificationTopic(), pushRequest);
+            producer.push(properties.getPushNotificationTopic(), pushRequest);
+
+            log.info("Push notification sent to Kafka. title={}, facilityId={}", title, facilityId);
 
         } catch (Exception e) {
-            log.error("Failed to push notification to Kafka. title={}, userUuids={}: {}",
-                    title, userUuids, e.getMessage(), e);
+            log.error("Failed to push notification to Kafka. title={}, facilityId={}: {}",
+                    title, facilityId, e.getMessage(), e);
             throw new CustomException(Constants.ERROR_PUSH_NOTIFICATION_FAILED,
                     "Failed to send push notification: " + e.getMessage());
         }
