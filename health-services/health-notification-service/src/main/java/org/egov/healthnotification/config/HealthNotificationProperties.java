@@ -120,4 +120,46 @@ public class HealthNotificationProperties {
 
     @Value("${egov.enc.decrypt.endpoint}")
     private String decryptionEndpoint;
+
+    // Stock Kafka Consumer Topics
+    @Value("${stock.consumer.create.topic}")
+    private String stockCreateTopic;
+
+    @Value("${stock.consumer.update.topic}")
+    private String stockUpdateTopic;
+
+    // HFReferral Kafka Consumer Topics
+    @Value("${hfreferral.consumer.create.topic}")
+    private String hfReferralCreateTopic;
+
+    @Value("${hfreferral.consumer.update.topic}")
+    private String hfReferralUpdateTopic;
+
+    // Push Notification Kafka Topic
+    @Value("${kafka.topics.notification.push}")
+    private String pushNotificationTopic;
+
+    @Value("${notification.push.enabled:true}")
+    private Boolean pushNotificationEnabled;
+
+    // Push Notification Service (REST — reserved for future use)
+    @Value("${egov.push.notification.host}")
+    private String pushNotificationHost;
+
+    @Value("${egov.push.notification.send.url}")
+    private String pushNotificationSendUrl;
+
+    // Stock Service
+    @Value("${egov.stock.host}")
+    private String stockServiceHost;
+
+    @Value("${egov.stock.search.url}")
+    private String stockSearchUrl;
+
+    // Facility Service
+    @Value("${egov.facility.host}")
+    private String facilityServiceHost;
+
+    @Value("${egov.facility.search.url}")
+    private String facilitySearchUrl;
 }
