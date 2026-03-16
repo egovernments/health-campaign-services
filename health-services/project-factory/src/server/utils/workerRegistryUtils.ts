@@ -11,6 +11,7 @@ interface WorkerData {
     bankCode: string;
     individualId: string;
     tenantId: string;
+    id?: string;
 }
 
 /**
@@ -42,6 +43,34 @@ async function searchWorkersByIndividualIds(
 }
 
 /**
+ * Search workers by registry IDs (id field)
+ */
+async function searchWorkersByIds(
+    ids: string[],
+    tenantId: string,
+    requestInfo: any
+): Promise<any[]> {
+    if (!ids.length) return [];
+
+    const url = config.host.workerRegistryHost + config.paths.workerRegistrySearch;
+    const requestBody = {
+        RequestInfo: requestInfo,
+        workerSearch: {
+            id: ids,
+            tenantId,
+        },
+    };
+
+    try {
+        const response = await httpRequest(url, requestBody);
+        return response?.workers || [];
+    } catch (error: any) {
+        logger.error("Worker registry search by id failed:", error);
+        throw new Error(`Worker search by id failed: ${error.message || error}`);
+    }
+}
+
+/**
  * Create or update workers in the worker registry based on whether they already exist.
  * Uses O(n) lookup via Map for existing workers.
  */
@@ -51,50 +80,94 @@ async function createOrUpdateWorkers(
 ): Promise<void> {
     if (!workerDataList.length) return;
 
-    const individualIds = workerDataList.map(w => w.individualId);
     const tenantId = workerDataList[0].tenantId;
 
-    const existingWorkers = await searchWorkersByIndividualIds(individualIds, tenantId, requestInfo);
-
-    // O(n) map: individualId → existing worker
-    const existingWorkerMap = new Map<string, any>();
-    for (const worker of existingWorkers) {
-        if (worker.individualIds?.length) {
-            for (const id of worker.individualIds) {
-                existingWorkerMap.set(id, worker);
-            }
-        }
-    }
+    // Separate workers with explicit workerId from those without
+    const workersByIdList = workerDataList.filter(w => !!w.id);
+    const workersByIndividualIdList = workerDataList.filter(w => !w.id);
 
     const workersToCreate: any[] = [];
     const workersToUpdate: any[] = [];
 
-    for (const data of workerDataList) {
-        const existingWorker = existingWorkerMap.get(data.individualId);
+    // Handle workers with explicit workerId
+    if (workersByIdList.length) {
+        const workerIds = workersByIdList.map(w => w.id as string);
+        const foundWorkers = await searchWorkersByIds(workerIds, tenantId, requestInfo);
+        const foundWorkerMap = new Map<string, any>();
+        for (const worker of foundWorkers) {
+            if (worker.id) {
+                foundWorkerMap.set(worker.id, worker);
+            }
+        }
 
-        if (existingWorker) {
-            workersToUpdate.push({
-                ...existingWorker,
-                ...(data.name != null ? { name: data.name } : {}),
-                ...(!!data.payeePhoneNumber ? { payeePhoneNumber: data.payeePhoneNumber } : {}),
-                ...(!!data.paymentProvider ? { paymentProvider: data.paymentProvider } : {}),
-                ...(!!data.payeeName ? { payeeName: data.payeeName } : {}),
-                ...(!!data.bankAccount ? { bankAccount: data.bankAccount } : {}),
-                ...(!!data.bankCode ? { bankCode: data.bankCode } : {}),
-                rowVersion: (existingWorker.rowVersion || 0) + 1,
-            });
-        } else {
-            workersToCreate.push({
-                name: data.name,
-                payeePhoneNumber: data.payeePhoneNumber,
-                paymentProvider: data.paymentProvider,
-                payeeName: data.payeeName,
-                bankAccount: data.bankAccount,
-                bankCode: data.bankCode,
-                individualIds: [data.individualId],
-                tenantId: data.tenantId,
-                additionalDetails: {},
-            });
+        for (const data of workersByIdList) {
+            const existingWorker = foundWorkerMap.get(data.id as string);
+            if (existingWorker) {
+                // Merge individualId into worker's individualIds (dedup)
+                const existingIds: string[] = existingWorker.individualIds || [];
+                const mergedIds = existingIds.includes(data.individualId)
+                    ? existingIds
+                    : [...existingIds, data.individualId];
+                workersToUpdate.push({
+                    ...existingWorker,
+                    individualIds: mergedIds,
+                    ...(data.name != null ? { name: data.name } : {}),
+                    ...(!!data.payeePhoneNumber ? { payeePhoneNumber: data.payeePhoneNumber } : {}),
+                    ...(!!data.paymentProvider ? { paymentProvider: data.paymentProvider } : {}),
+                    ...(!!data.payeeName ? { payeeName: data.payeeName } : {}),
+                    ...(!!data.bankAccount ? { bankAccount: data.bankAccount } : {}),
+                    ...(!!data.bankCode ? { bankCode: data.bankCode } : {}),
+                    rowVersion: (existingWorker.rowVersion || 0) + 1,
+                });
+            } else {
+                // Worker not found by id — fall through to individualId-based path
+                workersByIndividualIdList.push(data);
+            }
+        }
+    }
+
+    // Handle workers using individualId lookup (original path)
+    if (workersByIndividualIdList.length) {
+        const individualIds = workersByIndividualIdList.map(w => w.individualId);
+        const existingWorkers = await searchWorkersByIndividualIds(individualIds, tenantId, requestInfo);
+
+        // O(n) map: individualId → existing worker
+        const existingWorkerMap = new Map<string, any>();
+        for (const worker of existingWorkers) {
+            if (worker.individualIds?.length) {
+                for (const id of worker.individualIds) {
+                    existingWorkerMap.set(id, worker);
+                }
+            }
+        }
+
+        for (const data of workersByIndividualIdList) {
+            const existingWorker = existingWorkerMap.get(data.individualId);
+
+            if (existingWorker) {
+                workersToUpdate.push({
+                    ...existingWorker,
+                    ...(data.name != null ? { name: data.name } : {}),
+                    ...(!!data.payeePhoneNumber ? { payeePhoneNumber: data.payeePhoneNumber } : {}),
+                    ...(!!data.paymentProvider ? { paymentProvider: data.paymentProvider } : {}),
+                    ...(!!data.payeeName ? { payeeName: data.payeeName } : {}),
+                    ...(!!data.bankAccount ? { bankAccount: data.bankAccount } : {}),
+                    ...(!!data.bankCode ? { bankCode: data.bankCode } : {}),
+                    rowVersion: (existingWorker.rowVersion || 0) + 1,
+                });
+            } else {
+                workersToCreate.push({
+                    name: data.name,
+                    payeePhoneNumber: data.payeePhoneNumber,
+                    paymentProvider: data.paymentProvider,
+                    payeeName: data.payeeName,
+                    bankAccount: data.bankAccount,
+                    bankCode: data.bankCode,
+                    individualIds: [data.individualId],
+                    tenantId: data.tenantId,
+                    additionalDetails: {},
+                });
+            }
         }
     }
 
@@ -131,4 +204,4 @@ async function createOrUpdateWorkers(
     }
 }
 
-export { WorkerData, searchWorkersByIndividualIds, createOrUpdateWorkers };
+export { WorkerData, searchWorkersByIndividualIds, searchWorkersByIds, createOrUpdateWorkers };

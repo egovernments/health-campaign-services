@@ -399,6 +399,7 @@ export class TemplateClass {
                                 payeeName: existing.data["HCM_ADMIN_CONSOLE_USER_PAYEE_NAME"] || "",
                                 bankAccount: existing.data["HCM_ADMIN_CONSOLE_USER_BANK_ACCOUNT"] || "",
                                 bankCode: existing.data["HCM_ADMIN_CONSOLE_USER_BANK_CODE"] || "",
+                                id: existing.data["HCM_ADMIN_CONSOLE_USER_WORKER_ID"] || "",
                                 individualId,
                                 tenantId: resourceDetails.tenantId,
                             });

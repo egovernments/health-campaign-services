@@ -231,49 +231,55 @@ const createAndSearch: any = {
                     }
                 },
                 {
-                    sheetColumn: "E",
+                    sheetColumn: "F",
                     sheetColumnName: "HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY",
                     resultantPath: "jurisdictions",
                     type: "string"
                 },
                 {
-                    sheetColumn: "F",
-                    sheetColumnName: "HCM_ADMIN_CONSOLE_USER_PAYEE_PHONE_NUMBER",
-                    resultantPath: "payeePhoneNumber",
+                    sheetColumn: "G",
+                    sheetColumnName: "HCM_ADMIN_CONSOLE_USER_WORKER_ID",
+                    resultantPath: "workerId",
                     type: "string"
                 },
                 {
-                    sheetColumn: "G",
+                    sheetColumn: "H",
                     sheetColumnName: "HCM_ADMIN_CONSOLE_USER_PAYMENT_PROVIDER",
                     resultantPath: "paymentProvider",
                     type: "string"
                 },
                 {
-                    sheetColumn: "H",
+                    sheetColumn: "I",
+                    sheetColumnName: "HCM_ADMIN_CONSOLE_USER_PAYEE_PHONE_NUMBER",
+                    resultantPath: "payeePhoneNumber",
+                    type: "string"
+                },
+                {
+                    sheetColumn: "J",
                     sheetColumnName: "HCM_ADMIN_CONSOLE_USER_PAYEE_NAME",
                     resultantPath: "payeeName",
                     type: "string"
                 },
                 {
-                    sheetColumn: "I",
+                    sheetColumn: "K",
                     sheetColumnName: "HCM_ADMIN_CONSOLE_USER_BANK_ACCOUNT",
                     resultantPath: "bankAccount",
                     type: "string"
                 },
                 {
-                    sheetColumn: "J",
+                    sheetColumn: "L",
                     sheetColumnName: "HCM_ADMIN_CONSOLE_USER_BANK_CODE",
                     resultantPath: "bankCode",
                     type: "string"
                 },
                 {
-                    sheetColumn: "Q",
+                    sheetColumn: "M",
                     sheetColumnName: "UserName",
                     resultantPath: "user.userName",
                     type: "string"
                 },
                 {
-                    sheetColumn: "R",
+                    sheetColumn: "N",
                     sheetColumnName: "Password",
                     resultantPath: "user.password",
                     type: "string"
@@ -285,9 +291,9 @@ const createAndSearch: any = {
             }
         },
         uniqueIdentifier: "user.userServiceUuid",
-        uniqueIdentifierColumn: "U",
+        uniqueIdentifierColumn: "Q",
         uniqueIdentifierColumnName: "UserService Uuids",
-        activeColumn: "O",
+        activeColumn: "E",
         activeColumnName: "HCM_ADMIN_CONSOLE_USER_USAGE",
         createBulkDetails: {
             limit: 50,

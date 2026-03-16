@@ -119,6 +119,7 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
                         payeeName: recordData["HCM_ADMIN_CONSOLE_USER_PAYEE_NAME"] || "",
                         bankAccount: recordData["HCM_ADMIN_CONSOLE_USER_BANK_ACCOUNT"] || "",
                         bankCode: recordData["HCM_ADMIN_CONSOLE_USER_BANK_CODE"] || "",
+                        id: recordData["HCM_ADMIN_CONSOLE_USER_WORKER_ID"] || "",
                         individualId,
                         tenantId,
                     });
