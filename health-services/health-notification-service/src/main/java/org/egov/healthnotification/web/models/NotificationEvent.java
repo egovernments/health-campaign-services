@@ -46,8 +46,8 @@ public class NotificationEvent {
     @JsonProperty("locale")
     private String locale;
 
-    @JsonProperty("recipientUserUuids")
-    private List<String> recipientUserUuids;
+    @JsonProperty("recipientFacilityId")
+    private String recipientFacilityId;
 
     @JsonProperty("placeholders")
     private Map<String, Object> placeholders;

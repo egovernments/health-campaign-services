@@ -96,11 +96,11 @@ public class StockNotificationAdapter {
         // Build navigation data for screen redirect
         Map<String, String> navigationData = buildNavigationData(eventType, stock);
 
-        // Determine notification recipient: the secondaryRole party
-        List<String> recipientUuids = resolveRecipientUuids(stock, tenantId);
-        if (!recipientUuids.isEmpty()) {
+        // Determine notification recipient facilityId: the secondaryRole party
+        String recipientFacilityId = resolveRecipientFacilityId(stock);
+        if (recipientFacilityId != null && !recipientFacilityId.isBlank()) {
             events.add(buildEvent(stock, eventType, tenantId, templateCode,
-                    locale, recipientUuids, placeholders, navigationData));
+                    locale, recipientFacilityId, placeholders, navigationData));
         }
 
         log.info("Built {} notification event(s) for stock id={}, eventType={}",
@@ -144,26 +144,23 @@ public class StockNotificationAdapter {
     // ═══════════════════════════════════════════════════════
 
     /**
-     * Resolves notification recipients — the secondaryRole party's facility users.
+     * Resolves the recipient facilityId — the secondaryRole party.
      *
-     *   primaryRole=SENDER   → notify receiverId's facility users
-     *   primaryRole=RECEIVER → notify senderId's facility users
+     *   primaryRole=SENDER   → notify receiverId
+     *   primaryRole=RECEIVER → notify senderId
      */
-    private List<String> resolveRecipientUuids(Stock stock, String tenantId) {
+    private String resolveRecipientFacilityId(Stock stock) {
         String primaryRole = getAdditionalFieldValue(stock, Constants.ADDITIONAL_FIELD_PRIMARY_ROLE);
 
         if (Constants.ROLE_SENDER.equals(primaryRole)) {
-            log.debug("primaryRole=SENDER → notifying receiverId={}", stock.getReceiverId());
-            return facilityUserService.resolveUserUuids(
-                    stock.getReceiverId(), stock.getReceiverType(), tenantId);
+            log.debug("primaryRole=SENDER → recipient facilityId={}", stock.getReceiverId());
+            return stock.getReceiverId();
         } else if (Constants.ROLE_RECEIVER.equals(primaryRole)) {
-            log.debug("primaryRole=RECEIVER → notifying senderId={}", stock.getSenderId());
-            return facilityUserService.resolveUserUuids(
-                    stock.getSenderId(), stock.getSenderType(), tenantId);
+            log.debug("primaryRole=RECEIVER → recipient facilityId={}", stock.getSenderId());
+            return stock.getSenderId();
         } else {
-            log.warn("Unknown primaryRole={}. Defaulting to notify receiverId={}", primaryRole, stock.getReceiverId());
-            return facilityUserService.resolveUserUuids(
-                    stock.getReceiverId(), stock.getReceiverType(), tenantId);
+            log.warn("Unknown primaryRole={}. Defaulting to receiverId={}", primaryRole, stock.getReceiverId());
+            return stock.getReceiverId();
         }
     }
 
@@ -324,7 +321,7 @@ public class StockNotificationAdapter {
 
     private NotificationEvent buildEvent(Stock stock, String eventType, String tenantId,
                                           String templateCode, String locale,
-                                          List<String> recipientUserUuids,
+                                          String recipientFacilityId,
                                           Map<String, Object> placeholders, Map<String, String> data) {
         return NotificationEvent.builder()
                 .tenantId(tenantId)
@@ -333,7 +330,7 @@ public class StockNotificationAdapter {
                 .entityId(stock.getId())
                 .templateCode(templateCode)
                 .locale(locale)
-                .recipientUserUuids(recipientUserUuids)
+                .recipientFacilityId(recipientFacilityId)
                 .placeholders(placeholders)
                 .data(data)
                 .channel(NotificationChannel.PUSH)
