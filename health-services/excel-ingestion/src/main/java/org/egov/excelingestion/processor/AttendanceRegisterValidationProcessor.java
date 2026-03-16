@@ -188,6 +188,7 @@ public class AttendanceRegisterValidationProcessor implements IWorkbookProcessor
                 errors.add(ValidationError.builder()
                         .rowNumber(rowNumber)
                         .errorDetails(errorDetails)
+                        .status(ValidationConstants.STATUS_INVALID)
                         .build());
             }
 
@@ -292,7 +293,7 @@ public class AttendanceRegisterValidationProcessor implements IWorkbookProcessor
             if (row != null) {
                 // Set status to invalid
                 Cell statusCell = row.getCell(statusColumnIndex, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK);
-                statusCell.setCellValue("invalid");
+                statusCell.setCellValue(ValidationConstants.STATUS_INVALID);
 
                 // Set error details
                 Cell errorCell = row.getCell(errorColumnIndex, Row.MissingCellPolicy.CREATE_NULL_AS_BLANK);
