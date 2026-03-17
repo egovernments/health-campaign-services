@@ -183,6 +183,11 @@ const config = {
     excelIngestionGenerateSearch: process.env.EXCEL_INGESTION_GENERATE_SEARCH || "excel-ingestion/v1/data/generate/_search",
     attendanceRegisterCreate: process.env.ATTENDANCE_REGISTER_CREATE_PATH || "health-attendance/v1/_create",
     attendanceRegisterSearch: process.env.ATTENDANCE_REGISTER_SEARCH_PATH || "health-attendance/v1/_search",
+    attendanceAttendeeCreate: process.env.ATTENDANCE_ATTENDEE_CREATE_PATH || "health-attendance/attendee/v1/_create",
+    attendanceAttendeeDelete: process.env.ATTENDANCE_ATTENDEE_DELETE_PATH || "health-attendance/attendee/v1/_delete",
+    attendanceAttendeeUpdateTag: process.env.ATTENDANCE_ATTENDEE_UPDATE_TAG_PATH || "health-attendance/attendee/v1/_updateTag",
+    attendanceStaffCreate: process.env.ATTENDANCE_STAFF_CREATE_PATH || "health-attendance/staff/v1/_create",
+    attendanceStaffDelete: process.env.ATTENDANCE_STAFF_DELETE_PATH || "health-attendance/staff/v1/_delete",
   },
   // Values configuration
   values: {

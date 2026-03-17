@@ -16,6 +16,12 @@ export async function generateDataService(generateRequestQuery: GenerateTemplate
     campaignId = String(campaignId);
     const generationTemplateConfig = JSON.parse(JSON.stringify(generationtTemplateConfigs?.[String(type)]));
     const responseToSend = await initializeGenerateAndGetResponse(tenantId, type, hierarchyType, campaignId, userUuid, locale);
+    if (generateRequestQuery.registerId) {
+        responseToSend.additionalDetails = {
+            ...responseToSend.additionalDetails,
+            registerId: generateRequestQuery.registerId
+        };
+    }
     generateResource(responseToSend, generationTemplateConfig);
     return responseToSend;
 }

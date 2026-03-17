@@ -108,22 +108,34 @@ export async function handleProcessingResult(messageObject: any) {
         const totalErrors = messageObject?.additionalDetails?.totalErrors || 0;
         var createdByEmail = null;
         const locale = messageObject.locale || config.localisation.defaultLocale;
-        
+
         logger.info(`Validation Status: ${validationStatus}`);
         logger.info(`Total Rows Processed: ${totalRowsProcessed}`);
         logger.info(`Total Errors: ${totalErrors}`);
-        
+
+        // Resolve campaignId: for attendanceRegister referenceType, campaignId is in additionalDetails
+        const referenceType = messageObject.referenceType;
+        const campaignId = referenceType === 'attendanceRegister'
+            ? messageObject?.additionalDetails?.campaignId
+            : messageObject.referenceId;
+
+        if (!campaignId) {
+            logger.error(`Cannot resolve campaignId from message: referenceType=${referenceType}, referenceId=${messageObject.referenceId}`);
+            return;
+        }
+        logger.info(`Resolved campaignId: ${campaignId} (referenceType: ${referenceType})`);
+
         // Fetch campaign details first (needed for validation failure handling)
         logger.info('=== FETCHING CAMPAIGN DETAILS ===');
         const campaignSearchCriteria = {
             tenantId: messageObject.tenantId,
-            ids: [messageObject.referenceId]
+            ids: [campaignId]
         };
         const campaignResponse = await searchProjectTypeCampaignService(campaignSearchCriteria);
         const campaignDetails = campaignResponse?.CampaignDetails?.[0];
-        
+
                 if (!campaignDetails) {
-                    logger.error(`No campaign found with campaignId: ${messageObject.referenceId}`);
+                    logger.error(`No campaign found with campaignId: ${campaignId}`);
                     return;
                 }
         
@@ -283,13 +295,18 @@ export async function handleProcessingResult(messageObject: any) {
     } catch (error) {
         logger.error('Error handling HCM processing result:', error);
         
-        // Mark campaign as failed if we have referenceId and tenantId
-        if (messageObject?.referenceId && messageObject?.tenantId) {
-            try {
-                await sendCampaignFailureMessage(messageObject.referenceId, messageObject.tenantId, error);
-                logger.info(`Campaign ${messageObject.referenceId} marked as failed due to processing error`);
-            } catch (failureError) {
-                logger.error('Error marking campaign as failed:', failureError);
+        // Mark campaign as failed if we have referenceId/campaignId and tenantId
+        if (messageObject?.tenantId) {
+            const failureCampaignId = messageObject?.referenceType === 'attendanceRegister'
+                ? messageObject?.additionalDetails?.campaignId
+                : messageObject?.referenceId;
+            if (failureCampaignId) {
+                try {
+                    await sendCampaignFailureMessage(failureCampaignId, messageObject.tenantId, error);
+                    logger.info(`Campaign ${failureCampaignId} marked as failed due to processing error`);
+                } catch (failureError) {
+                    logger.error('Error marking campaign as failed:', failureError);
+                }
             }
         }
     }

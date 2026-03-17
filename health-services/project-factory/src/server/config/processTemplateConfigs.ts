@@ -134,5 +134,47 @@ export const processTemplateConfigs: any = {
             }
         ],
         passFromController: true
+    },
+    attendanceRegisterAttendee: {
+        sheets: [
+            {
+                sheetName: "HCM_ATTENDANCE_ATTENDEE_WORKER_SHEET",
+                validateRowsGap: true,
+                schemaName: "attendance-register-attendee-worker"
+            },
+            {
+                sheetName: "HCM_ATTENDANCE_ATTENDEE_MARKER_SHEET",
+                validateRowsGap: true,
+                schemaName: "attendance-register-attendee-marker"
+            },
+            {
+                sheetName: "HCM_ATTENDANCE_ATTENDEE_APPROVER_SHEET",
+                validateRowsGap: true,
+                schemaName: "attendance-register-attendee-approver"
+            }
+        ]
+    },
+    attendanceRegisterAttendeeValidation: {
+        sheets: [
+            {
+                sheetName: "HCM_ATTENDANCE_ATTENDEE_WORKER_SHEET",
+                validateRowsGap: true,
+                schemaName: "attendance-register-attendee-worker",
+                lockWholeSheet: true
+            },
+            {
+                sheetName: "HCM_ATTENDANCE_ATTENDEE_MARKER_SHEET",
+                validateRowsGap: true,
+                schemaName: "attendance-register-attendee-marker",
+                lockWholeSheet: true
+            },
+            {
+                sheetName: "HCM_ATTENDANCE_ATTENDEE_APPROVER_SHEET",
+                validateRowsGap: true,
+                schemaName: "attendance-register-attendee-approver",
+                lockWholeSheet: true
+            }
+        ],
+        passFromController: true
     }
 }

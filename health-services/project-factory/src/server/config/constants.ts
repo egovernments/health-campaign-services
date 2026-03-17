@@ -176,7 +176,10 @@ export const allProcesses = {
 
 export const sheetDataRowStatuses = {
     INVALID: "INVALID",
-    CREATED: "CREATED"
+    CREATED: "CREATED",
+    SKIPPED: "SKIPPED",
+    NO_CHANGE: "NO_CHANGE",
+    UPDATED: "UPDATED"
 }
 
 
