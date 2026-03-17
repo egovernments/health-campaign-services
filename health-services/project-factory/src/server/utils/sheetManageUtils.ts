@@ -10,7 +10,7 @@ import { adjustRowHeight, enrichTemplateMetaData, freezeUnfreezeColumns, getExce
 import * as path from 'path';
 import { ColumnProperties, SheetMap } from "../models/SheetMap";
 import { logger } from "./logger";
-import { generatedResourceStatuses, resourceDetailsStatuses } from "../config/constants";
+import { generatedResourceStatuses, resourceStatuses } from "../config/constants";
 import fs from 'fs';
 import { ResourceDetails } from "../config/models/resourceDetailsSchema";
 import { fetchFileFromFilestore } from "../api/coreApis";
@@ -82,7 +82,10 @@ export async function initializeProcessAndGetResponse(
         id: uuidV4(),
         ...ResourceDetails,
         locale,
-        status: generatedResourceStatuses.inprogress,
+        status: resourceStatuses.creating,
+        isActive: true,
+        parentResourceId: null,
+        filename: null,
         additionalDetails: {},
         auditDetails: {
             createdTime: currentTime,
@@ -91,7 +94,7 @@ export async function initializeProcessAndGetResponse(
             lastModifiedBy: userUuid,
         },
         processedFileStoreId: null,
-        action : "process"
+        action: "create"
     };
 
     const persistMessage: any = { ResourceDetails: newResourceDetails };
@@ -159,7 +162,11 @@ export async function processResource(ResourceDetails: any, templateConfig: any)
         const fileResponse = await createAndUploadFileWithOutRequest(workBook, ResourceDetails?.tenantId);
         ResourceDetails.processedFileStoreId = fileResponse?.[0]?.fileStoreId;
         if (!ResourceDetails.processedFileStoreId) throw new Error("FileStoreId not created.");
-        ResourceDetails.status = generatedResourceStatuses.completed;
+        ResourceDetails.status = resourceStatuses.completed;
+        ResourceDetails.auditDetails = {
+            ...ResourceDetails.auditDetails,
+            lastModifiedTime: Date.now()
+        };
         await produceModifiedMessages({ ResourceDetails : ResourceDetails }, config?.kafka?.KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC, ResourceDetails?.tenantId);
     } catch (error) {
         console.log(error)
@@ -308,7 +315,8 @@ async function handleErrorDuringGenerate(responseToSend: any, error: any) {
 }
 
 export async function handleErrorDuringProcess(ResourceDetails: any, error: any) {
-    ResourceDetails.status = resourceDetailsStatuses.failed, ResourceDetails.additionalDetails = {
+    ResourceDetails.status = resourceStatuses.failed;
+    ResourceDetails.additionalDetails = {
         ...ResourceDetails.additionalDetails,
         error: {
             status: error.status,
@@ -316,8 +324,12 @@ export async function handleErrorDuringProcess(ResourceDetails: any, error: any)
             description: error.description,
             message: error.message
         }
-    }
+    };
     ResourceDetails.processedFileStoreId = ResourceDetails.processedFileStoreId || null;
+    ResourceDetails.auditDetails = {
+        ...ResourceDetails.auditDetails,
+        lastModifiedTime: Date.now()
+    };
     await produceModifiedMessages({ ResourceDetails: ResourceDetails }, config?.kafka?.KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC, ResourceDetails?.tenantId);
 }
 

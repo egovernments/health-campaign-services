@@ -171,6 +171,7 @@ export const allProcesses = {
     resourceMapping : "CAMPAIGN_RESOURCE_MAPPING_PROCESS",
     userCredGeneration : "CAMPAIGN_USER_CRED_GENERATION_PROCESS",
     attendanceRegisterCreation : "CAMPAIGN_ATTENDANCE_REGISTER_CREATION_PROCESS",
+    attendanceRegisterAttendeeCreation : "CAMPAIGN_ATTENDANCE_REGISTER_ATTENDEE_CREATION_PROCESS",
 }
 
 export const sheetDataRowStatuses = {

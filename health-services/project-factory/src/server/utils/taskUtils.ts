@@ -1,7 +1,8 @@
 import { ResourceDetails } from "../config/models/resourceDetailsSchema";
 import { logger } from "./logger";
 import { getLocalizedMessagesHandlerViaLocale, throwError } from "./genericUtils";
-import { enrichAndPersistCampaignWithErrorProcessingTask, updateResourceDetails, persistCampaignUpdate } from "./campaignUtils";
+import { enrichAndPersistCampaignWithErrorProcessingTask, updateResourceDetails } from "./campaignUtils";
+import { searchResourceDetailsFromDB } from "./resourceDetailsUtils";
 import { processStatuses } from "../config/constants";
 import { getResourceTypeByProcessName } from "../config/resourceTypeRegistry";
 import { processTemplateConfigs } from "../config/processTemplateConfigs";
@@ -24,7 +25,9 @@ export async function handleTaskForCampaign(messageObject: any) {
             throwError("COMMON", 400, "INTERNAL_SERVER_ERROR", `Resource type not found for process ${processName}`);
         }
         const resource = getResorceViaResourceType(CampaignDetails, resourceType);
-        if (!resource?.filestoreId) {
+        // Support both camelCase (table-enriched) and lowercase (request-body legacy)
+        const resolvedFileStoreId = resource?.fileStoreId || resource?.filestoreId;
+        if (!resolvedFileStoreId) {
             logger.error(`FileStoreId not found for resource type ${resourceType}`);
             throwError("COMMON", 400, "INTERNAL_SERVER_ERROR", `FileStoreId not found for resource type ${resourceType}`);
         }
@@ -32,7 +35,7 @@ export async function handleTaskForCampaign(messageObject: any) {
             campaignId : CampaignDetails?.id,
             type : resourceType,
             tenantId : CampaignDetails?.tenantId,
-            fileStoreId: resource?.filestoreId,
+            fileStoreId: resolvedFileStoreId,
             hierarchyType : CampaignDetails?.hierarchyType,
             requestInfo: messageObject?.requestInfo
         }
@@ -81,9 +84,19 @@ export async function handleTaskForCampaign(messageObject: any) {
             enrichTemplateMetaData(workBook, locale, CampaignDetails?.id);
             const fileResponse = await createAndUploadFileWithOutRequest(workBook, resourceDetails?.tenantId);
             const processedFileStoreId = fileResponse?.[0]?.fileStoreId;
-            if (resource && processedFileStoreId) {
-                updateResourceDetails(CampaignDetails, resource, { status: "completed", processedFileStoreId });
-                await persistCampaignUpdate(CampaignDetails, messageObject?.requestInfo);
+            if (processedFileStoreId) {
+                // Keep in-memory update for any downstream code reading CampaignDetails.resources
+                if (resource) {
+                    updateResourceDetails(CampaignDetails, resource, { status: "completed", processedFileStoreId });
+                }
+                // Persist to eg_cm_resource_details via update-resource-details Kafka topic
+                await persistResourceDetailUpdate(
+                    CampaignDetails?.id,
+                    CampaignDetails?.tenantId,
+                    resourceType,
+                    { status: "completed", processedFileStoreId },
+                    messageObject?.requestInfo?.userInfo?.uuid
+                );
                 logger.info(`Uploaded processed file for resource type ${resourceType}: ${processedFileStoreId}`);
             }
         } catch (uploadError) {
@@ -124,6 +137,16 @@ export async function handleTaskForCampaign(messageObject: any) {
                     errorMessage: (error as any)?.message || String(error),
                 });
             }
+            // Persist status=failed to eg_cm_resource_details via update-resource-details topic
+            if (failedResourceType) {
+                await persistResourceDetailUpdate(
+                    messageObject?.CampaignDetails?.id,
+                    messageObject?.CampaignDetails?.tenantId,
+                    failedResourceType,
+                    { status: "failed" },
+                    messageObject?.requestInfo?.userInfo?.uuid
+                );
+            }
         } catch (resourceUpdateError) {
             logger.warn(`Failed to update resource error details: ${resourceUpdateError}`);
         }
@@ -139,4 +162,63 @@ function getResorceViaResourceType(campaignDetails: any, resourceType: string) {
     const matching = (campaignDetails?.resources || []).filter((r: any) => r?.type === resourceType);
     // Prefer the entry currently being created; fall back to first match
     return matching.find((r: any) => r?.status === "creating") || matching[0] || null;
+}
+
+/**
+ * Look up the active resource in eg_cm_resource_details by (campaignId, type)
+ * and produce an update message to the update-resource-details Kafka topic.
+ * This persists status, processedFileStoreId, and other field changes correctly
+ * after (resources are no longer stored in campaign JSONB).
+ */
+async function persistResourceDetailUpdate(
+    campaignId: string,
+    tenantId: string,
+    resourceType: string,
+    updates: { status: string; processedFileStoreId?: string },
+    userUuid: string
+): Promise<void> {
+    if (!campaignId || !tenantId || !resourceType) return;
+    try {
+        const rows = await searchResourceDetailsFromDB({
+            tenantId,
+            campaignId,
+            type: [resourceType],
+            isActive: true
+        });
+        const dbRow = rows?.[0];
+        if (!dbRow) {
+            logger.warn(`persistResourceDetailUpdate: no active row found for campaignId=${campaignId} type=${resourceType}`);
+            return;
+        }
+        const now = Date.now();
+        const updatedRecord = {
+            id: dbRow.id,
+            tenantId: dbRow.tenantid,
+            campaignId: dbRow.campaignid,
+            type: dbRow.type,
+            parentResourceId: dbRow.parentresourceid || null,
+            fileStoreId: dbRow.filestoreid,
+            processedFileStoreId: updates.processedFileStoreId ?? dbRow.processedfilestoreid ?? null,
+            filename: dbRow.filename || null,
+            status: updates.status,
+            action: dbRow.action,
+            isActive: true,
+            hierarchyType: dbRow.hierarchytype || null,
+            additionalDetails: dbRow.additionaldetails || {},
+            auditDetails: {
+                createdBy: dbRow.createdby,
+                createdTime: Number(dbRow.createdtime),
+                lastModifiedBy: userUuid || dbRow.lastmodifiedby,
+                lastModifiedTime: now
+            }
+        };
+        await produceModifiedMessages(
+            { ResourceDetails: updatedRecord },
+            config.kafka.KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC,
+            tenantId
+        );
+        logger.info(`persistResourceDetailUpdate: campaignId=${campaignId} type=${resourceType} status=${updates.status}`);
+    } catch (err) {
+        logger.error(`persistResourceDetailUpdate failed for campaignId=${campaignId} type=${resourceType}: ${err}`);
+    }
 }

@@ -35,6 +35,7 @@ import {
   throwError,
 } from "./genericUtils";
 import { executeQuery, getTableName } from "./db";
+import { searchResourceDetailsFromDB, toResourceDetailsResponse } from "./resourceDetailsUtils";
 import {
   campaignDetailsTransformer,
   genericResourceTransformer,
@@ -992,7 +993,6 @@ export async function enrichAndPersistCampaignWithErrorProcessingTask(campaignDe
     parentCampaign.parentId = parentCampaign?.parentId || null;
     parentCampaign.campaignDetails = {
       deliveryRules: parentCampaign?.deliveryRules || [],
-      resources: parentCampaign?.resources || [],
       boundaries: parentCampaign?.boundaries || [],
     };
     parentCampaign.auditDetails.lastModifiedTime = Date.now();
@@ -1015,7 +1015,6 @@ export async function enrichAndPersistCampaignWithErrorProcessingTask(campaignDe
   }
   campaignDetails.campaignDetails = {
     deliveryRules: campaignDetails?.deliveryRules || [],
-    resources: campaignDetails?.resources || [],
     boundaries: campaignDetails?.boundaries || [],
   };
   const currTime = Date.now();
@@ -1127,7 +1126,6 @@ export async function enrichAndPersistCampaignForCreateViaFlow2(
 ) {
   campaignDetails.campaignDetails = {
     deliveryRules: campaignDetails?.deliveryRules || [],
-    resources: campaignDetails?.resources || [],
     boundaries: campaignDetails?.boundaries || [],
   };
   campaignDetails.parentId = campaignDetails?.parentId || null;
@@ -1163,8 +1161,7 @@ function enrichInnerCampaignDetails(
   requestBody: any,
   updatedInnerCampaignDetails: any
 ) {
-  updatedInnerCampaignDetails.resources =
-    requestBody?.CampaignDetails?.resources || [];
+  // resources are stored in eg_cm_resource_details — do NOT write to JSONB
   updatedInnerCampaignDetails.deliveryRules =
     requestBody?.CampaignDetails?.deliveryRules || [];
   updatedInnerCampaignDetails.boundaries =
@@ -1507,9 +1504,24 @@ async function searchProjectCampaignResourcData(campaignDetails: any, request?: 
       }
     }
   }
+  // Batch-enrich resources from eg_cm_resource_details table
+  const campaignIds = responseData.map((d: any) => d.id).filter(Boolean);
+  const resourcesMap = new Map<string, any[]>();
+  if (campaignIds.length > 0 && tenantId) {
+    try {
+      await Promise.all(campaignIds.map(async (cid: string) => {
+        const rows = await searchResourceDetailsFromDB({ tenantId, campaignId: cid, isActive: true });
+        resourcesMap.set(cid, rows.map(toResourceDetailsResponse));
+      }));
+    } catch (err) {
+      logger.warn(`Failed to enrich resources from table, falling back to JSONB: ${err}`);
+    }
+  }
+
   // TODO @ashish check the below code looks like duplicate
   for (const data of responseData) {
-    data.resources = data?.campaignDetails?.resources;
+    // Use enriched resources from table; fall back to JSONB if not available (backward compat)
+    data.resources = resourcesMap.has(data.id) ? resourcesMap.get(data.id) : (data?.campaignDetails?.resources || []);
     data.boundaries = data?.campaignDetails?.boundaries;
     data.deliveryRules = data?.campaignDetails?.deliveryRules;
     delete data.campaignDetails;
@@ -2597,10 +2609,28 @@ async function createPhase2Resources(campaignDetails: any, parentCampaign: any, 
     return;
   }
 
-  // Filter to types that exist in campaign resources
-  const campaignResourceTypes = new Set(
+  // Determine phase 2 types from eg_cm_resource_details table
+  // Fall back to in-memory campaignDetails.resources if table is empty (backward compat)
+  let campaignResourceTypes = new Set(
     (campaignDetails?.resources || []).map((r: any) => r?.type)
   );
+  if (campaignDetails?.id && campaignDetails?.tenantId && campaignResourceTypes.size === 0) {
+    try {
+      const phase2TypeNames = phase2Configs.map(c => c.type);
+      const tableRows = await searchResourceDetailsFromDB({
+        tenantId: campaignDetails.tenantId,
+        campaignId: campaignDetails.id,
+        type: phase2TypeNames,
+        isActive: true
+      });
+      campaignResourceTypes = new Set(tableRows.map((r: any) => r.type));
+      // Also populate resources array so task messages carry filestoreId for handlers
+      campaignDetails.resources = tableRows.map(toResourceDetailsResponse);
+      logger.info(`Loaded phase 2 resource types from table: ${Array.from(campaignResourceTypes).join(", ")}`);
+    } catch (err) {
+      logger.warn(`Could not fetch phase 2 types from table: ${err}`);
+    }
+  }
   const applicableConfigs = phase2Configs.filter(cfg => campaignResourceTypes.has(cfg.type));
 
   if (applicableConfigs.length === 0) {
@@ -4224,7 +4254,6 @@ function updateResourceDetails(
 async function persistCampaignUpdate(campaignDetails: any, requestInfo: any): Promise<void> {
   campaignDetails.campaignDetails = {
     deliveryRules: campaignDetails?.deliveryRules || [],
-    resources: campaignDetails?.resources || [],
     boundaries: campaignDetails?.boundaries || [],
   };
   campaignDetails.auditDetails = {

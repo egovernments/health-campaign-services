@@ -1,12 +1,13 @@
 import express from "express";
-import { prepareAndProduceCancelMessage, processBasedOnAction, processFetchMicroPlan, searchProjectCampaignResourcData, updateCampaignAfterSearch, validateAndFetchCampaign, updateResourceStatus, persistCampaignUpdate } from "../utils/campaignUtils";
+import { prepareAndProduceCancelMessage, processBasedOnAction, processFetchMicroPlan, searchProjectCampaignResourcData, updateCampaignAfterSearch, validateAndFetchCampaign } from "../utils/campaignUtils";
 import { logger } from "../utils/logger";
 import { validateMicroplanRequest, validateProjectCampaignRequest, validateAddResourcesRequest } from "../validators/campaignValidators";
-import { campaignStatuses, resourceStatuses } from "../config/constants";
+import { campaignStatuses, processStatuses } from "../config/constants";
+import { createResourceDetail } from "./resourceDetailsService";
 import { prepareProcessesForResourceTypes, getCurrentProcesses } from "../utils/genericUtils";
-import { getRegistryEntry, hasDependenciesMet } from "../config/resourceTypeRegistry";
-import { produceModifiedMessages } from "../kafka/Producer";
 import config from "../config";
+import { produceModifiedMessages } from "../kafka/Producer";
+import { getRegistryEntry } from "../config/resourceTypeRegistry";
 
 async function createProjectTypeCampaignService(request: express.Request) {
     // Validate the request for creating a project type campaign
@@ -57,17 +58,10 @@ async function cancelCampaignService(request: any) {
 }
 
 /**
- * Get the effective status of a resource entry.
- * Reads resource.status (new field) falling back to additionalDetails.resourceStatuses[type].
- */
-function getResourceEntryStatus(resource: any, campaignDetails: any): string | undefined {
-    return resource?.status || campaignDetails?.additionalDetails?.resourceStatuses?.[resource?.type];
-}
-
-/**
  * Add resources to an existing campaign.
- * - For "drafted" campaigns: replaces resource by type (existing behavior)
- * - For "created" campaigns: multi-record merge with status-based rules
+ * Delegates to the new resource details service.
+ * Resources are stored in eg_cm_resource_details, not in the campaign JSONB.
+ * Preserves backward-compatible request/response shape.
  */
 async function addResourcesToCampaignService(request: express.Request) {
     // Validate request
@@ -76,8 +70,7 @@ async function addResourcesToCampaignService(request: express.Request) {
     const requestCampaignDetails = request?.body?.CampaignDetails;
     const tenantId = requestCampaignDetails?.tenantId;
     const campaignId = requestCampaignDetails?.id;
-    const useruuid = request?.body?.RequestInfo?.userInfo?.uuid;
-    const requestInfo = request?.body?.RequestInfo;
+    const useruuid = request?.body?.RequestInfo?.userInfo?.uuid || "system";
     const newResources = requestCampaignDetails?.resources || [];
 
     // Search for the existing campaign
@@ -89,105 +82,65 @@ async function addResourcesToCampaignService(request: express.Request) {
     }
 
     const campaignStatus = existingCampaign?.status;
-    const newResourceTypes = newResources.map((r: any) => r.type);
-
-    if (campaignStatus === campaignStatuses.drafted) {
-        // For drafted campaigns: replace by type (existing behavior)
-        const resourceMap = new Map((existingCampaign?.resources || []).map((r: any) => [r.type, r]));
-        for (const newRes of newResources) {
-            resourceMap.set(newRes.type, { ...newRes, status: resourceStatuses.toCreate });
-        }
-        existingCampaign.resources = Array.from(resourceMap.values());
-        for (const type of newResourceTypes) {
-            updateResourceStatus(existingCampaign, type, resourceStatuses.toCreate, tenantId, useruuid);
-        }
-        await persistCampaignUpdate(existingCampaign, requestInfo);
-        logger.info(`Added ${newResourceTypes.length} resource(s) to drafted campaign ${campaignId}: ${newResourceTypes.join(", ")}`);
-        return existingCampaign;
+    if (campaignStatus !== campaignStatuses.drafted && campaignStatus !== campaignStatuses.inprogress) {
+        throw Object.assign(
+            new Error(`Cannot add resources to campaign in "${campaignStatus}" status. Campaign must be in "drafted" or "inprogress" status.`),
+            { status: 400, code: "VALIDATION_ERROR" }
+        );
     }
 
-    if (campaignStatus === campaignStatuses.inprogress) {
-        // For created campaigns: multi-record merge with status-based rules
-        for (const newRes of newResources) {
-            const existingOfType = (existingCampaign?.resources || []).filter((r: any) => r?.type === newRes.type);
-            const hasCreating = existingOfType.some((r: any) => getResourceEntryStatus(r, existingCampaign) === resourceStatuses.creating);
-
-            if (hasCreating) {
-                throw Object.assign(
-                    new Error(`Resource type "${newRes.type}" is currently being created. Cannot add.`),
-                    { status: 400, code: "VALIDATION_ERROR" }
-                );
-            }
-
-            // Remove any toCreate/failed/undefined-status entries of same type (will be replaced by newRes)
-            existingCampaign.resources = (existingCampaign?.resources || []).filter(
-                (r: any) => !(r?.type === newRes.type && [resourceStatuses.toCreate, resourceStatuses.failed, undefined].includes(getResourceEntryStatus(r, existingCampaign)))
-            );
-
-            // Add the new entry with toCreate status (completed entries are preserved above)
-            existingCampaign.resources.push({ ...newRes, status: resourceStatuses.toCreate });
+    // Delegate to resource details service — stores in eg_cm_resource_details
+    const createdResources = [];
+    const createdResourceTypes: string[] = [];
+    for (const res of newResources) {
+        if (!res.type || !res.filestoreId) {
+            logger.warn(`Skipping resource with missing type or filestoreId: ${JSON.stringify(res)}`);
+            continue;
         }
+        const created = await createResourceDetail({
+            tenantId,
+            campaignId,
+            type: res.type,
+            parentResourceId: res.parentResourceId || null,
+            fileStoreId: res.filestoreId,
+            filename: res.filename || null,
+            additionalDetails: res.additionalDetails || {}
+        }, useruuid);
+        createdResources.push(created);
+        createdResourceTypes.push(res.type);
+        logger.info(`Stored resource type=${res.type} id=${created.id} for campaign ${campaignId}`);
+    }
 
-        // Prepare processes and trigger creation for newly added resources
-        const triggerableTypes = newResourceTypes.filter((type: string) => {
-            const entry = (existingCampaign?.resources || []).find(
-                (r: any) => r?.type === type && getResourceEntryStatus(r, existingCampaign) === resourceStatuses.toCreate
-            );
-            return !!entry;
-        });
+    // Re-fetch campaign enriched with new resources from table
+    const updatedCampaignResp = await searchProjectTypeCampaignService({ tenantId, ids: [campaignId] });
+    const updatedCampaign = updatedCampaignResp?.CampaignDetails?.[0] || existingCampaign;
 
-        if (triggerableTypes.length > 0) {
-            await prepareProcessesForResourceTypes(existingCampaign.campaignNumber, tenantId, triggerableTypes, useruuid);
-
-            const allCurrentProcesses = await getCurrentProcesses(existingCampaign.campaignNumber, tenantId);
-            const completedProcessNames = new Set(
-                allCurrentProcesses
-                    .filter((p: any) => p?.status === "completed")
-                    .map((p: any) => p?.processName)
-            );
-
-            for (const type of triggerableTypes) {
-                const registryEntry = getRegistryEntry(type);
-                if (!registryEntry) {
-                    logger.warn(`No registry entry found for resource type: ${type}. Skipping.`);
-                    continue;
-                }
-
-                if (!hasDependenciesMet(type, completedProcessNames)) {
-                    logger.warn(`Dependencies not met for ${type}. Resource status set to toCreate.`);
-                    updateResourceStatus(existingCampaign, type, resourceStatuses.toCreate, tenantId, useruuid);
-                    continue;
-                }
-
+    // For in-progress campaigns, trigger processing for newly added resources.
+    // Use updatedCampaign so CampaignDetails in the task message includes the new resources.
+    if (campaignStatus === campaignStatuses.inprogress && createdResourceTypes.length > 0) {
+        const campaignNumber = existingCampaign?.campaignNumber;
+        if (campaignNumber) {
+            await prepareProcessesForResourceTypes(campaignNumber, tenantId, createdResourceTypes, useruuid);
+            const allCurrentProcesses = await getCurrentProcesses(campaignNumber, tenantId);
+            for (const resType of createdResourceTypes) {
+                const registryEntry = getRegistryEntry(resType);
+                if (!registryEntry) continue;
                 const task = allCurrentProcesses.find((p: any) => p?.processName === registryEntry.processName);
-                if (task) {
-                    logger.info(`Triggering creation for resource type: ${type} (${registryEntry.processName})`);
+                if (task && task?.status === processStatuses.pending) {
                     await produceModifiedMessages({
                         task,
-                        CampaignDetails: existingCampaign,
-                        parentCampaign: null,
-                        requestInfo
+                        CampaignDetails: updatedCampaign,
+                        useruuid,
+                        requestInfo: request?.body?.RequestInfo
                     }, config.kafka.KAFKA_START_ADMIN_CONSOLE_TASK_TOPIC, tenantId, registryEntry.kafkaKey);
-                    updateResourceStatus(existingCampaign, type, resourceStatuses.creating, tenantId, useruuid);
-                    // Also set status on the resource entry itself
-                    const resEntry = (existingCampaign?.resources || []).find(
-                        (r: any) => r?.type === type && r?.status === resourceStatuses.toCreate
-                    );
-                    if (resEntry) resEntry.status = resourceStatuses.creating;
+                    logger.info(`Triggered processing task for type=${resType} on in-progress campaign ${campaignId}`);
                 }
             }
         }
-
-        await persistCampaignUpdate(existingCampaign, requestInfo);
-        logger.info(`Added and triggered ${newResourceTypes.length} resource(s) for created campaign ${campaignId}: ${newResourceTypes.join(", ")}`);
-        return existingCampaign;
     }
 
-    // Other statuses: reject
-    throw Object.assign(
-        new Error(`Cannot add resources to campaign in "${campaignStatus}" status. Campaign must be in "drafted" or "created" status.`),
-        { status: 400, code: "VALIDATION_ERROR" }
-    );
+    logger.info(`Added ${createdResources.length} resource(s) to campaign ${campaignId}: ${createdResourceTypes.join(", ")}`);
+    return updatedCampaign;
 }
 
 export {
