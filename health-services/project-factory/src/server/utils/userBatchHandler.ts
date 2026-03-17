@@ -136,21 +136,36 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
             }
         });
 
-        // Create/update workers in worker registry
+        // Create/update workers in worker registry and capture worker IDs
         if (workerDataList.length > 0) {
             try {
                 const RequestInfo = { ...defaultRequestInfo?.RequestInfo };
                 RequestInfo.userInfo.uuid = useruuid;
                 RequestInfo.userInfo.tenantId = tenantId;
-                await createOrUpdateWorkers(workerDataList, RequestInfo);
+                const workerIdMap = await createOrUpdateWorkers(workerDataList, RequestInfo);
                 logger.info(`Worker registry integration completed for ${workerDataList.length} workers`);
+
+                // Store worker IDs back in campaign data
+                if (workerIdMap.size > 0) {
+                    for (const workerData of workerDataList) {
+                        const workerId = workerIdMap.get(workerData.individualId);
+                        if (workerId) {
+                            // Reverse lookup: individualId → phone number → campaign record
+                            for (const [phone, indId] of Object.entries(createResult.mobileToIndividualIdMap)) {
+                                if (indId === workerData.individualId && userData[phone]) {
+                                    userData[phone].data["HCM_ADMIN_CONSOLE_USER_WORKER_ID"] = workerId;
+                                }
+                            }
+                        }
+                    }
+                }
             } catch (workerError) {
                 logger.error("Worker registry integration failed (non-blocking):", workerError);
             }
         }
-        
+
         logger.info(`User batch ${batchNumber}/${totalBatches} completed: ${successCount} success, ${failureCount} failed`);
-        
+
         // Update all users in campaign data table via persister
         if (updatedUsers.length > 0) {
             await produceModifiedMessages(

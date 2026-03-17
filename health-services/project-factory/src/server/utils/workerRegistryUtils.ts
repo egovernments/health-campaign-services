@@ -77,8 +77,9 @@ async function searchWorkersByIds(
 async function createOrUpdateWorkers(
     workerDataList: WorkerData[],
     requestInfo: any
-): Promise<void> {
-    if (!workerDataList.length) return;
+): Promise<Map<string, string>> {
+    const individualIdToWorkerIdMap = new Map<string, string>();
+    if (!workerDataList.length) return individualIdToWorkerIdMap;
 
     const tenantId = workerDataList[0].tenantId;
 
@@ -179,7 +180,14 @@ async function createOrUpdateWorkers(
         };
 
         try {
-            await httpRequest(url, requestBody);
+            const response = await httpRequest(url, requestBody);
+            for (const worker of response?.workers || []) {
+                if (worker?.id && worker?.individualIds?.length) {
+                    for (const indId of worker.individualIds) {
+                        individualIdToWorkerIdMap.set(indId, worker.id);
+                    }
+                }
+            }
             logger.info(`Created ${workersToCreate.length} workers in worker registry`);
         } catch (error: any) {
             logger.error("Worker registry bulk create failed:", error);
@@ -195,13 +203,22 @@ async function createOrUpdateWorkers(
         };
 
         try {
-            await httpRequest(url, requestBody);
+            const response = await httpRequest(url, requestBody);
+            for (const worker of response?.workers || []) {
+                if (worker?.id && worker?.individualIds?.length) {
+                    for (const indId of worker.individualIds) {
+                        individualIdToWorkerIdMap.set(indId, worker.id);
+                    }
+                }
+            }
             logger.info(`Updated ${workersToUpdate.length} workers in worker registry`);
         } catch (error: any) {
             logger.error("Worker registry bulk update failed:", error);
             throw new Error(`Worker bulk update failed: ${error.message || error}`);
         }
     }
+
+    return individualIdToWorkerIdMap;
 }
 
 export { WorkerData, searchWorkersByIndividualIds, searchWorkersByIds, createOrUpdateWorkers };

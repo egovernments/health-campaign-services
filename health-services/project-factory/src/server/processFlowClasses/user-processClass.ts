@@ -408,19 +408,35 @@ export class TemplateClass {
                 }
 
                 logger.info(`Successfully created ${successfulUsers.length} users`);
-                await this.persistInBatches(successfulUsers, config.kafka.KAFKA_UPDATE_SHEET_DATA_TOPIC, resourceDetails.tenantId);
 
-                // Create/update workers in worker registry
+                // Create/update workers in worker registry BEFORE persist to capture worker IDs
                 if (workerDataList.length > 0) {
                     try {
                         const RequestInfo: any = defaultRequestInfo?.RequestInfo;
                         RequestInfo.userInfo.tenantId = tenantId;
-                        await createOrUpdateWorkers(workerDataList, RequestInfo);
+                        const workerIdMap = await createOrUpdateWorkers(workerDataList, RequestInfo);
                         logger.info(`Worker registry integration completed for ${workerDataList.length} workers`);
+
+                        // Store worker IDs back in campaign data
+                        if (workerIdMap.size > 0) {
+                            for (const workerData of workerDataList) {
+                                const workerId = workerIdMap.get(workerData.individualId);
+                                if (workerId) {
+                                    // Reverse lookup: individualId → phone number → campaign record
+                                    for (const [phone, indId] of Object.entries(mobileToIndividualIdMap)) {
+                                        if (indId === workerData.individualId && mobileToCampaignMap[phone]) {
+                                            mobileToCampaignMap[phone].data["HCM_ADMIN_CONSOLE_USER_WORKER_ID"] = workerId;
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     } catch (workerError) {
                         logger.error("Worker registry integration failed (non-blocking):", workerError);
                     }
                 }
+
+                await this.persistInBatches(successfulUsers, config.kafka.KAFKA_UPDATE_SHEET_DATA_TOPIC, resourceDetails.tenantId);
             } catch (err) {
                 console.error("Error in batch creation:", err);
                 await this.handleBatchFailure(batch, usersToCreate, resourceDetails.tenantId);
