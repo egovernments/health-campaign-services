@@ -12,11 +12,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.ds.Tuple;
+import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.models.ErrorDetails;
 import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.project.ProjectFacility;
 import org.egov.common.models.project.Project;
 import org.egov.common.models.project.ProjectFacilityBulkRequest;
+import org.egov.common.models.project.ProjectFacilityBulkResponse;
 import org.egov.common.models.project.ProjectFacilityRequest;
 import org.egov.common.models.project.ProjectFacilitySearch;
 import org.egov.common.models.project.ProjectFacilitySearchRequest;
@@ -24,6 +26,7 @@ import org.egov.common.models.project.ProjectRequest;
 import org.egov.common.service.IdGenService;
 import org.egov.common.service.UserService;
 import org.egov.common.utils.CommonUtils;
+import org.egov.common.utils.ResponseInfoFactory;
 import org.egov.common.validator.Validator;
 import org.egov.project.config.ProjectConfiguration;
 import org.egov.project.repository.ProjectFacilityRepository;
@@ -221,7 +224,26 @@ public class ProjectFacilityService {
         return new Tuple<>(validEntities, errorDetailsMap);
     }
 
-    public SearchResponse<ProjectFacility> search(ProjectFacilitySearchRequest projectFacilitySearchRequest,
+    /**
+     * Single entry point for all project facility search operations.
+     * Routes to hierarchy search when boundaryTypes is provided, otherwise delegates to normal search.
+     */
+    public ProjectFacilityBulkResponse searchFacilities(
+            ProjectFacilitySearchRequest request,
+            Integer limit,
+            Integer offset,
+            String tenantId,
+            Long lastChangedSince,
+            Boolean includeDeleted) throws Exception {
+
+        List<String> boundaryTypes = request.getProjectFacility().getBoundaryTypes();
+        if (boundaryTypes != null && !boundaryTypes.isEmpty()) {
+            return searchByHierarchy(request, tenantId);
+        }
+        return search(request, limit, offset, tenantId, lastChangedSince, includeDeleted);
+    }
+
+    private ProjectFacilityBulkResponse search(ProjectFacilitySearchRequest projectFacilitySearchRequest,
                                                   Integer limit,
                                                   Integer offset,
                                                   String tenantId,
@@ -238,11 +260,15 @@ public class ProjectFacilityService {
                     .filter(havingTenantId(tenantId))
                     .filter(includeDeleted(includeDeleted))
                     .collect(Collectors.toList());
-            return SearchResponse.<ProjectFacility>builder().response(projectfacilities).build();
+            return buildResponse(projectfacilities, (long) projectfacilities.size(), null,
+                    projectFacilitySearchRequest.getRequestInfo());
         }
         log.info("searching project facility using criteria");
-        return projectFacilityRepository.findWithCount(projectFacilitySearchRequest.getProjectFacility(),
+        SearchResponse<ProjectFacility> searchResponse = projectFacilityRepository.findWithCount(
+                projectFacilitySearchRequest.getProjectFacility(),
                 limit, offset, tenantId, lastChangedSince, includeDeleted);
+        return buildResponse(searchResponse.getResponse(), searchResponse.getTotalCount(), null,
+                projectFacilitySearchRequest.getRequestInfo());
     }
 
     /**
@@ -252,9 +278,10 @@ public class ProjectFacilityService {
      * 1. Fetches the root project to get its projectHierarchy (for ancestor IDs)
      * 2. Queries descendants directly via SQL join (PROJECT + PROJECT_ADDRESS + PROJECT_FACILITY)
      * 3. Queries ancestors directly via SQL join using IDs parsed from projectHierarchy
-     * 4. Returns a merged map of boundaryType → list of facilityIds
+     * 4. Fetches the ProjectFacility entity for the given projectId
+     * 5. Returns ProjectFacilityBulkResponse with facilityMap and the ProjectFacility object
      */
-    public Map<String, List<String>> searchByHierarchy(
+    private ProjectFacilityBulkResponse searchByHierarchy(
             ProjectFacilitySearchRequest request,
             String tenantId) {
         log.info("received request to search project facility by hierarchy");
@@ -290,11 +317,13 @@ public class ProjectFacilityService {
 
         if (projects == null || projects.isEmpty()) {
             log.info("no project found for id: {}", projectId);
-            return Collections.emptyMap();
+            return buildResponse(new ArrayList<>(), 0L, Collections.emptyMap(),
+                    request.getRequestInfo());
         }
 
         Project mainProject = projects.get(0);
         Map<String, List<String>> facilityMap = new HashMap<>();
+        List<ProjectFacility> projectFacilities;
 
         try {
             // Step 2: Query descendants — projects whose hierarchy starts with this projectId
@@ -320,6 +349,14 @@ public class ProjectFacilityService {
             ancestorFacilities.forEach((bt, ids) ->
                     facilityMap.computeIfAbsent(bt, k -> new ArrayList<>()).addAll(ids));
 
+            // Step 4: Fetch the ProjectFacility for the given projectId
+            List<String> projectIdList = new ArrayList<>();
+            projectIdList.add(projectId);
+            ProjectFacilitySearch pfSearch = ProjectFacilitySearch.builder()
+                    .projectId(projectIdList).build();
+            projectFacilities = projectFacilityRepository.findWithCount(
+                    pfSearch, 1, 0, tenantId, null, false).getResponse();
+
         } catch (Exception e) {
             log.error("error searching facilities by hierarchy: {}", e.getMessage());
             throw new CustomException("FACILITY_HIERARCHY_SEARCH_ERROR",
@@ -327,6 +364,20 @@ public class ProjectFacilityService {
         }
 
         log.info("hierarchy search complete. boundary types found: {}", facilityMap.keySet());
-        return facilityMap;
+        return buildResponse(projectFacilities, (long) projectFacilities.size(), facilityMap,
+                request.getRequestInfo());
+    }
+
+    private ProjectFacilityBulkResponse buildResponse(
+            List<ProjectFacility> projectFacilities,
+            Long totalCount,
+            Map<String, List<String>> facilityMap,
+            RequestInfo requestInfo) {
+        return ProjectFacilityBulkResponse.builder()
+                .projectFacilities(projectFacilities)
+                .totalCount(totalCount)
+                .facilityMap(facilityMap)
+                .responseInfo(ResponseInfoFactory.createResponseInfo(requestInfo, true))
+                .build();
     }
 }

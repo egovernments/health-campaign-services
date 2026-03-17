@@ -1,9 +1,7 @@
 package org.egov.project.web.controllers;
 
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.annotations.ApiParam;
@@ -226,24 +224,7 @@ public class ProjectApiController {
             @Valid @ModelAttribute URLParams urlParams,
             @ApiParam(value = "Capture details of Project facility.", required = true) @Valid @RequestBody ProjectFacilitySearchRequest projectFacilitySearchRequest
     ) throws Exception {
-        // Hierarchy search: when boundaryTypes is provided, return facilityMap grouped by boundaryType
-        List<String> boundaryTypes = projectFacilitySearchRequest.getProjectFacility().getBoundaryTypes();
-        if (boundaryTypes != null && !boundaryTypes.isEmpty()) {
-            Map<String, List<String>> facilityMap = projectFacilityService.searchByHierarchy(
-                    projectFacilitySearchRequest,
-                    urlParams.getTenantId()
-            );
-            ProjectFacilityBulkResponse response = ProjectFacilityBulkResponse.builder()
-                    .facilityMap(facilityMap)
-                    .projectFacilities(new ArrayList<>())
-                    .responseInfo(ResponseInfoFactory
-                            .createResponseInfo(projectFacilitySearchRequest.getRequestInfo(), true))
-                    .build();
-            return ResponseEntity.status(HttpStatus.OK).body(response);
-        }
-
-        // Normal search (existing flow)
-        SearchResponse<ProjectFacility> searchResponse = projectFacilityService.search(
+        ProjectFacilityBulkResponse response = projectFacilityService.searchFacilities(
                 projectFacilitySearchRequest,
                 urlParams.getLimit(),
                 urlParams.getOffset(),
@@ -251,13 +232,6 @@ public class ProjectApiController {
                 urlParams.getLastChangedSince(),
                 urlParams.getIncludeDeleted()
         );
-        ProjectFacilityBulkResponse response = ProjectFacilityBulkResponse.builder()
-                .projectFacilities(searchResponse.getResponse())
-                .totalCount(searchResponse.getTotalCount())
-                .responseInfo(ResponseInfoFactory
-                        .createResponseInfo(projectFacilitySearchRequest.getRequestInfo(), true))
-                .build();
-
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }
 
