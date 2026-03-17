@@ -73,6 +73,63 @@ class ProductVariantServiceSearchTest {
     }
 
     @Test
+    @DisplayName("should return products when searched by gtin")
+    void shouldReturnProductsWhenSearchedByGtin() throws Exception {
+        productVariants.add(ProductVariantTestBuilder.builder().withId().withVariation()
+                .withSupplyChainFields().withAuditDetails().build());
+        when(productVariantRepository.findWithCount(any(ProductVariantSearch.class), any(Integer.class),
+                any(Integer.class), any(String.class), eq(null), any(Boolean.class)))
+                .thenReturn(SearchResponse.<ProductVariant>builder().response(productVariants).build());
+        ProductVariantSearch productVariantSearch = ProductVariantSearch.builder()
+                .gtin("12345678901234").build();
+        ProductVariantSearchRequest productVariantSearchRequest = ProductVariantSearchRequest.builder()
+                .productVariant(productVariantSearch).requestInfo(RequestInfoTestBuilder.builder()
+                        .withCompleteRequestInfo().build()).build();
+
+        SearchResponse<ProductVariant> searchResponse = productVariantService.search(productVariantSearchRequest, 10, 0, "default", null, false);
+
+        assertEquals(1, searchResponse.getResponse().size());
+        assertEquals("12345678901234", searchResponse.getResponse().get(0).getGtin());
+    }
+
+    @Test
+    @DisplayName("should return products when searched by batchNumber")
+    void shouldReturnProductsWhenSearchedByBatchNumber() throws Exception {
+        productVariants.add(ProductVariantTestBuilder.builder().withId().withVariation()
+                .withSupplyChainFields().withAuditDetails().build());
+        when(productVariantRepository.findWithCount(any(ProductVariantSearch.class), any(Integer.class),
+                any(Integer.class), any(String.class), eq(null), any(Boolean.class)))
+                .thenReturn(SearchResponse.<ProductVariant>builder().response(productVariants).build());
+        ProductVariantSearch productVariantSearch = ProductVariantSearch.builder()
+                .batchNumber("BATCH-001").build();
+        ProductVariantSearchRequest productVariantSearchRequest = ProductVariantSearchRequest.builder()
+                .productVariant(productVariantSearch).requestInfo(RequestInfoTestBuilder.builder()
+                        .withCompleteRequestInfo().build()).build();
+
+        SearchResponse<ProductVariant> searchResponse = productVariantService.search(productVariantSearchRequest, 10, 0, "default", null, false);
+
+        assertEquals(1, searchResponse.getResponse().size());
+        assertEquals("BATCH-001", searchResponse.getResponse().get(0).getBatchNumber());
+    }
+
+    @Test
+    @DisplayName("should return empty when searched by non-existent gtin")
+    void shouldReturnEmptyWhenSearchedByNonExistentGtin() throws Exception {
+        when(productVariantRepository.findWithCount(any(ProductVariantSearch.class), any(Integer.class),
+                any(Integer.class), any(String.class), eq(null), any(Boolean.class)))
+                .thenReturn(SearchResponse.<ProductVariant>builder().response(Collections.emptyList()).build());
+        ProductVariantSearch productVariantSearch = ProductVariantSearch.builder()
+                .gtin("99999999999999").build();
+        ProductVariantSearchRequest productVariantSearchRequest = ProductVariantSearchRequest.builder()
+                .productVariant(productVariantSearch).requestInfo(RequestInfoTestBuilder.builder()
+                        .withCompleteRequestInfo().build()).build();
+
+        SearchResponse<ProductVariant> searchResponse = productVariantService.search(productVariantSearchRequest, 10, 0, "default", null, false);
+
+        assertEquals(0, searchResponse.getResponse().size());
+    }
+
+    @Test
     @DisplayName("should return from cache if search criteria has id only")
     void shouldReturnFromCacheIfSearchCriteriaHasIdOnly() throws Exception {
         ProductVariant productVariant = ProductVariantTestBuilder.builder().withId()

@@ -39,6 +39,28 @@ public class ProductVariant extends EgovModel {
     @Size(min = 0, max = 1000)
     private String variation = null;
 
+    @JsonProperty("gtin")
+    @Size(min = 8, max = 14)
+    private String gtin = null;
+
+    @JsonProperty("batchNumber")
+    @Size(min = 1, max = 20)
+    private String batchNumber = null;
+
+    @JsonProperty("serialNumber")
+    @Size(min = 1, max = 20)
+    private String serialNumber = null;
+
+    @JsonProperty("expiryDate")
+    private Long expiryDate = null;
+
+    @JsonProperty("baseUnit")
+    @Size(max = 100)
+    private String baseUnit = null;
+
+    @JsonProperty("netContent")
+    private Long netContent = null;
+
     @JsonProperty("product")
     @Valid
     private Product product = null;

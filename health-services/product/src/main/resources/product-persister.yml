@@ -90,7 +90,7 @@ serviceMaps:
       fromTopic: save-product-variant-topic
       isTransaction: true
       queryMaps:
-        - query: INSERT INTO public.product_variant(id, tenantId, productId, sku, variation, additionalDetails, createdBy, lastModifiedBy, createdTime, lastModifiedTime, rowVersion, isDeleted) VALUES (?,?,?,?,?,?,?,?,?,?,?,?);
+        - query: INSERT INTO public.product_variant(id, tenantId, productId, sku, variation, gtin, batchNumber, serialNumber, expiryDate, baseUnit, netContent, additionalDetails, createdBy, lastModifiedBy, createdTime, lastModifiedTime, rowVersion, isDeleted) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);
           basePath: $.*
           jsonMaps:
             - jsonPath: $.*.id
@@ -98,6 +98,12 @@ serviceMaps:
             - jsonPath: $.*.productId
             - jsonPath: $.*.sku
             - jsonPath: $.*.variation
+            - jsonPath: $.*.gtin
+            - jsonPath: $.*.batchNumber
+            - jsonPath: $.*.serialNumber
+            - jsonPath: $.*.expiryDate
+            - jsonPath: $.*.baseUnit
+            - jsonPath: $.*.netContent
             - jsonPath: $.*.additionalFields
               type: JSON
               dbType: JSONB
@@ -112,7 +118,7 @@ serviceMaps:
       fromTopic: statea-save-product-variant-topic
       isTransaction: true
       queryMaps:
-        - query: INSERT INTO statea.product_variant(id, tenantId, productId, sku, variation, additionalDetails, createdBy, lastModifiedBy, createdTime, lastModifiedTime, rowVersion, isDeleted) VALUES (?,?,?,?,?,?,?,?,?,?,?,?);
+        - query: INSERT INTO statea.product_variant(id, tenantId, productId, sku, variation, gtin, batchNumber, serialNumber, expiryDate, baseUnit, netContent, additionalDetails, createdBy, lastModifiedBy, createdTime, lastModifiedTime, rowVersion, isDeleted) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);
           basePath: $.*
           jsonMaps:
             - jsonPath: $.*.id
@@ -120,6 +126,12 @@ serviceMaps:
             - jsonPath: $.*.productId
             - jsonPath: $.*.sku
             - jsonPath: $.*.variation
+            - jsonPath: $.*.gtin
+            - jsonPath: $.*.batchNumber
+            - jsonPath: $.*.serialNumber
+            - jsonPath: $.*.expiryDate
+            - jsonPath: $.*.baseUnit
+            - jsonPath: $.*.netContent
             - jsonPath: $.*.additionalFields
               type: JSON
               dbType: JSONB
@@ -135,13 +147,19 @@ serviceMaps:
       fromTopic: update-product-variant-topic
       isTransaction: true
       queryMaps:
-        - query: UPDATE public.product_variant SET tenantId = ?, productId = ?, sku = ?, variation = ?, additionalDetails = ?, lastModifiedBy = ?, lastModifiedTime = ?, rowVersion = ?, isDeleted = ? WHERE id = ?;
+        - query: UPDATE public.product_variant SET tenantId = ?, productId = ?, sku = ?, variation = ?, gtin = ?, batchNumber = ?, serialNumber = ?, expiryDate = ?, baseUnit = ?, netContent = ?, additionalDetails = ?, lastModifiedBy = ?, lastModifiedTime = ?, rowVersion = ?, isDeleted = ? WHERE id = ?;
           basePath: $.*
           jsonMaps:
             - jsonPath: $.*.tenantId
             - jsonPath: $.*.productId
             - jsonPath: $.*.sku
             - jsonPath: $.*.variation
+            - jsonPath: $.*.gtin
+            - jsonPath: $.*.batchNumber
+            - jsonPath: $.*.serialNumber
+            - jsonPath: $.*.expiryDate
+            - jsonPath: $.*.baseUnit
+            - jsonPath: $.*.netContent
             - jsonPath: $.*.additionalFields
               type: JSON
               dbType: JSONB
@@ -155,13 +173,19 @@ serviceMaps:
       fromTopic: statea-update-product-variant-topic
       isTransaction: true
       queryMaps:
-        - query: UPDATE statea.product_variant SET tenantId = ?, productId = ?, sku = ?, variation = ?, additionalDetails = ?, lastModifiedBy = ?, lastModifiedTime = ?, rowVersion = ?, isDeleted = ? WHERE id = ?;
+        - query: UPDATE statea.product_variant SET tenantId = ?, productId = ?, sku = ?, variation = ?, gtin = ?, batchNumber = ?, serialNumber = ?, expiryDate = ?, baseUnit = ?, netContent = ?, additionalDetails = ?, lastModifiedBy = ?, lastModifiedTime = ?, rowVersion = ?, isDeleted = ? WHERE id = ?;
           basePath: $.*
           jsonMaps:
             - jsonPath: $.*.tenantId
             - jsonPath: $.*.productId
             - jsonPath: $.*.sku
             - jsonPath: $.*.variation
+            - jsonPath: $.*.gtin
+            - jsonPath: $.*.batchNumber
+            - jsonPath: $.*.serialNumber
+            - jsonPath: $.*.expiryDate
+            - jsonPath: $.*.baseUnit
+            - jsonPath: $.*.netContent
             - jsonPath: $.*.additionalFields
               type: JSON
               dbType: JSONB

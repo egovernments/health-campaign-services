@@ -55,4 +55,44 @@ public class ProductVariantTestBuilder {
         this.builder.auditDetails(AuditDetailsTestBuilder.builder().withAuditDetails().build());
         return this;
     }
+
+    public ProductVariantTestBuilder withSupplyChainFields() {
+        this.builder.gtin("12345678901234")
+                .batchNumber("BATCH-001")
+                .serialNumber("SERIAL-001")
+                .expiryDate(1735689600000L)
+                .baseUnit("TAB")
+                .netContent(100L);
+        return this;
+    }
+
+    public ProductVariantTestBuilder withGtin(String gtin) {
+        this.builder.gtin(gtin);
+        return this;
+    }
+
+    public ProductVariantTestBuilder withBatchNumber(String batchNumber) {
+        this.builder.batchNumber(batchNumber);
+        return this;
+    }
+
+    public ProductVariantTestBuilder withSerialNumber(String serialNumber) {
+        this.builder.serialNumber(serialNumber);
+        return this;
+    }
+
+    public ProductVariantTestBuilder withExpiryDate(Long expiryDate) {
+        this.builder.expiryDate(expiryDate);
+        return this;
+    }
+
+    public ProductVariantTestBuilder withBaseUnit(String baseUnit) {
+        this.builder.baseUnit(baseUnit);
+        return this;
+    }
+
+    public ProductVariantTestBuilder withNetContent(Long netContent) {
+        this.builder.netContent(netContent);
+        return this;
+    }
 }
