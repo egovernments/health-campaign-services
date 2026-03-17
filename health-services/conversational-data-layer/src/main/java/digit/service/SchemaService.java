@@ -33,6 +33,8 @@ public class SchemaService {
         registerSchema(buildAttendanceLogSchema());
         registerSchema(buildAttendanceRegisterSchema());
         registerSchema(buildPgrSchema());
+        registerSchema(buildIndividualSchema());
+        registerSchema(buildProjectBeneficiarySchema());
         log.info("Initialized {} index schemas: {}", schemaRegistry.size(), schemaRegistry.keySet());
     }
 
@@ -694,6 +696,72 @@ public class SchemaService {
         fields.add(field(p + "boundaryHierarchyCode.ward", "keyword", "Ward code"));
         fields.add(field(p + "boundaryHierarchyCode.community", "keyword", "Community code"));
         fields.add(field(p + "boundaryHierarchyCode.healthFacility", "keyword", "Health facility code"));
+    }
+
+    private IndexSchema buildIndividualSchema() {
+        List<IndexField> fields = new ArrayList<>();
+
+        fields.add(field("Data.id", "keyword", "Unique individual record ID"));
+        fields.add(field("Data.individualId", "keyword", "Individual identifier"));
+        fields.add(field("Data.tenantId", "keyword", "Tenant identifier"));
+        fields.add(field("Data.clientReferenceId", "keyword", "Client-side reference ID"));
+        fields.add(field("Data.userId", "keyword", "Associated user ID"));
+        fields.add(field("Data.userUuid", "keyword", "Associated user UUID"));
+        fields.add(field("Data.name.givenName", "text", "First/given name"));
+        fields.add(field("Data.name.familyName", "text", "Family/last name"));
+        fields.add(field("Data.name.otherNames", "text", "Other/middle names"));
+        fields.add(field("Data.dateOfBirth", "date", "Date of birth (dd/MM/yyyy)"));
+        fields.add(fieldWithEnum("Data.gender", "keyword", "Gender of the individual",
+                List.of("MALE", "FEMALE", "OTHER", "TRANSGENDER")));
+        fields.add(fieldWithEnum("Data.bloodGroup", "keyword", "Blood group",
+                List.of("B+", "B-", "A+", "A-", "AB+", "AB-", "O-", "O+")));
+        fields.add(field("Data.mobileNumber", "keyword", "Mobile phone number"));
+        fields.add(field("Data.altContactNumber", "keyword", "Alternate contact number"));
+        fields.add(field("Data.email", "keyword", "Email address"));
+        fields.add(field("Data.fatherName", "text", "Father's name"));
+        fields.add(field("Data.husbandName", "text", "Husband's name"));
+        fields.add(field("Data.relationship", "keyword", "Relationship type"));
+        fields.add(field("Data.photo", "keyword", "Photo reference"));
+        fields.add(field("Data.isDeleted", "boolean", "Soft delete flag"));
+        fields.add(field("Data.isSystemUser", "boolean", "Whether individual is a system user; if true then it is not a beneficiary"));
+        fields.add(field("Data.isSystemUserActive", "boolean", "Whether system user account is active"));
+        fields.add(field("Data.address", "nested", "List of addresses (max 3)"));
+        fields.add(field("Data.identifiers", "nested", "Identity documents (type + ID)"));
+        fields.add(field("Data.skills", "nested", "Skills (type, level, experience)"));
+        fields.add(field("Data.auditDetails.createdBy", "keyword", "User who created the record"));
+        fields.add(field("Data.auditDetails.createdTime", "long", "Creation timestamp (epoch ms)"));
+        fields.add(field("Data.auditDetails.lastModifiedBy", "keyword", "User who last modified"));
+        fields.add(field("Data.auditDetails.lastModifiedTime", "long", "Last modification timestamp (epoch ms)"));
+
+        return IndexSchema.builder()
+                .indexName("oy-individual-index-v1")
+                .description("Individual/person records with demographic details including name, date of birth, gender, contact information, identifiers, and skills. Use for individual lookups, demographic queries, contact searches, identifier lookups.")
+                .fields(fields)
+                .build();
+    }
+
+    private IndexSchema buildProjectBeneficiarySchema() {
+        List<IndexField> fields = new ArrayList<>();
+
+        fields.add(field("Data.id", "keyword", "Unique record ID"));
+        fields.add(field("Data.projectId", "keyword", "Project/campaign identifier"));
+        fields.add(field("Data.beneficiaryId", "keyword", "Beneficiary entity ID"));
+        fields.add(field("Data.clientReferenceId", "keyword", "Client-side reference ID"));
+        fields.add(field("Data.beneficiaryClientReferenceId", "keyword", "Client-side beneficiary reference ID"));
+        fields.add(field("Data.dateOfRegistration", "long", "Registration date (epoch ms)"));
+        fields.add(field("Data.tenantId", "keyword", "Tenant identifier"));
+        fields.add(field("Data.tag", "keyword", "Beneficiary tag/label"));
+        fields.add(field("Data.isDeleted", "boolean", "Soft delete flag"));
+        fields.add(field("Data.auditDetails.createdBy", "keyword", "User who created the record"));
+        fields.add(field("Data.auditDetails.createdTime", "long", "Creation timestamp (epoch ms)"));
+        fields.add(field("Data.auditDetails.lastModifiedBy", "keyword", "User who last modified"));
+        fields.add(field("Data.auditDetails.lastModifiedTime", "long", "Last modification timestamp (epoch ms)"));
+
+        return IndexSchema.builder()
+                .indexName("oy-project-beneficiary-index-v1")
+                .description("Registration of beneficiaries (individuals/households) to projects/campaigns. Links beneficiary entities to specific projects with registration dates. Use for beneficiary enrollment, registration counts, project-beneficiary lookups, registration date queries.")
+                .fields(fields)
+                .build();
     }
 
     private IndexField field(String name, String type, String description) {
