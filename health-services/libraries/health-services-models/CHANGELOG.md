@@ -1,5 +1,9 @@
 All notable changes to this module will be documented in this file.
 
+## 1.0.31 - 2026-03-17
+
+- Added 6 new fields to ProductVariant model for FHIR supply chain adapter
+
 ## 1.0.30 - 2026-02-11
 
 - Added projectId field to Referral model for project tracking
