@@ -27,7 +27,7 @@ export async function handleTaskForCampaign(messageObject: any) {
         }
         const resource = getResorceViaResourceType(CampaignDetails, resourceType);
         // Support both camelCase (table-enriched) and lowercase (request-body legacy)
-        const resolvedFileStoreId = resource?.fileStoreId || resource?.filestoreId;
+        const resolvedFileStoreId = resource?.filestoreId;
         if (!resolvedFileStoreId) {
             logger.error(`FileStoreId not found for resource type ${resourceType}`);
             throwError("COMMON", 400, "INTERNAL_SERVER_ERROR", `FileStoreId not found for resource type ${resourceType}`);

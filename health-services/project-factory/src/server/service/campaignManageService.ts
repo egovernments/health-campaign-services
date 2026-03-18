@@ -19,6 +19,32 @@ async function createProjectTypeCampaignService(request: express.Request) {
 
     // Process the action based on the request type
     await processBasedOnAction(request, "create");
+
+    // Persist resources to eg_cm_resource_details table so they survive Flow 2 JSONB overwrite
+    const resources: CampaignResource[] = request?.body?.CampaignDetails?.resources || [];
+    const tenantId = request?.body?.CampaignDetails?.tenantId;
+    const campaignId = request?.body?.CampaignDetails?.id;
+    const useruuid = request?.body?.RequestInfo?.userInfo?.uuid || "system";
+    if (resources.length > 0 && tenantId && campaignId) {
+        for (const res of resources) {
+            if (!res.type || !res.filestoreId) continue;
+            try {
+                await createResourceDetail({
+                    tenantId,
+                    campaignId,
+                    type: res.type,
+                    parentResourceId: res.parentResourceId || null,
+                    fileStoreId: res.filestoreId,
+                    filename: res.filename || null,
+                    additionalDetails: res.additionalDetails || {}
+                }, useruuid);
+                logger.info(`Persisted resource type=${res.type} to eg_cm_resource_details for campaign ${campaignId}`);
+            } catch (err) {
+                logger.warn(`Failed to persist resource type=${res.type} to table: ${err}`);
+            }
+        }
+    }
+
     return request?.body?.CampaignDetails;
 }
 
@@ -37,7 +63,7 @@ async function updateProjectTypeCampaignService(request: express.Request) {
     const useruuid = request?.body?.RequestInfo?.userInfo?.uuid || "system";
     if (requestResources.length > 0 && tenantId && campaignId) {
         for (const res of requestResources as CampaignResource[]) {
-            const fileStoreId = res.fileStoreId || res.filestoreId;
+            const fileStoreId = res.filestoreId;
             if (!res.type || !fileStoreId) continue;
             try {
                 const existing = await findActiveResourceByUpsertKey(tenantId, campaignId, res.type, res.parentResourceId || null);
@@ -72,6 +98,13 @@ async function updateProjectTypeCampaignService(request: express.Request) {
         return updatedResp?.CampaignDetails?.[0] || request?.body?.CampaignDetails;
     }
 
+    // Always re-fetch so response includes resources from eg_cm_resource_details table
+    const tenantIdForSearch = request?.body?.CampaignDetails?.tenantId;
+    const campaignIdForSearch = request?.body?.CampaignDetails?.id;
+    if (tenantIdForSearch && campaignIdForSearch) {
+        const freshResp = await searchProjectTypeCampaignService({ tenantId: tenantIdForSearch, ids: [campaignIdForSearch] });
+        return freshResp?.CampaignDetails?.[0] || request?.body?.CampaignDetails;
+    }
     return request?.body?.CampaignDetails;
 }
 

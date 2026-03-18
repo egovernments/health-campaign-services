@@ -13,7 +13,7 @@ export const genericResourceTransformer = (dbRows: ResourceDetailRow[] = []) => 
     status: row?.status,
     action: row?.action,
     fileStoreId: row?.filestoreid,
-    processedFilestoreId: row?.processedfilestoreid,
+    processedFileStoreId: row?.processedfilestoreid,
     campaignId: row?.campaignid,
     type: row?.type,
     auditDetails: {

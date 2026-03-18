@@ -790,7 +790,7 @@ export async function updateCampaignDetailsAfterSearch(
           resource.filestoreId = resourceObject?.fileStoreId;
           resource.resourceId = resourceObject?.id;
           logger.info(
-            `Updated resource of type ${type} with filestoreId: ${resourceObject.filestoreId}`
+            `Updated resource of type ${type} with filestoreId: ${resourceObject.fileStoreId}`
           );
           resourceFound = true;
         }

@@ -755,7 +755,7 @@ async function validateProjectCampaignBoundaries(boundaries: any[], hierarchyTyp
     }
 }
 
-async function validateBoundariesForTabs(CampaignDetails: any, resource: CampaignResource, request: any, localizedTab: any, localizationMap?: any) {
+async function validateBoundariesForTabs(CampaignDetails: any, resource: any, request: any, localizedTab: any, localizationMap?: any) {
     const { boundaries, tenantId } = CampaignDetails;
     const boundaryCodes = new Set(boundaries.map((boundary: any) => boundary.code.trim()));
 

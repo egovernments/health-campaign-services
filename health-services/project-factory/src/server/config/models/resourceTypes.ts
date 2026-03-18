@@ -1,7 +1,7 @@
 /**
  * Represents a resource detail row transformed into the API response shape.
  * Returned by toResourceDetailsResponse() after reading from eg_cm_resource_details table.
- * Uses camelCase fileStoreId consistently.
+ * Uses camelCase fileStoreId — this is the resource-details API contract.
  */
 export interface ResourceDetailsResponse {
   id: string;
@@ -26,14 +26,13 @@ export interface ResourceDetailsResponse {
 }
 
 /**
- * Legacy resource item as it appears in the CampaignDetails.resources array
- * in the request body. Uses lowercase filestoreId per the original campaignDetailsSchema.
- * Some enrichment paths may also set fileStoreId (camelCase).
+ * Resource item as it appears in the CampaignDetails.resources array.
+ * Uses filestoreId (lowercase 's') per the campaign API swagger contract.
+ * All code reading CampaignDetails.resources should use this field name.
  */
 export interface CampaignResource {
   type: string;
   filestoreId?: string;
-  fileStoreId?: string;
   filename?: string;
   status?: string;
   processedFileStoreId?: string;
@@ -43,4 +42,21 @@ export interface CampaignResource {
   parentResourceId?: string;
   additionalDetails?: Record<string, any>;
   createResourceId?: string;
+}
+
+/**
+ * Convert a ResourceDetailsResponse (table row, camelCase fileStoreId) into a
+ * CampaignResource (campaign body contract, lowercase filestoreId).
+ * Use this at the enrichment boundary when injecting table data into CampaignDetails.resources.
+ */
+export function toCampaignResource(r: ResourceDetailsResponse): CampaignResource {
+  return {
+    type: r.type,
+    filestoreId: r.fileStoreId,
+    filename: r.filename || undefined,
+    status: r.status,
+    processedFileStoreId: r.processedFileStoreId || undefined,
+    additionalDetails: r.additionalDetails,
+    parentResourceId: r.parentResourceId || undefined,
+  };
 }

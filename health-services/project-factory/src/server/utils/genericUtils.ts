@@ -400,7 +400,7 @@ async function fullProcessFlowForNewEntry(newEntryResponse: any, generatedResour
         const searchCriteria = buildSearchCriteria(request, createdResourceId, type);
         const responseFromDataSearch = await searchDataService(replicateRequest(request, searchCriteria));
 
-        const processedFileStoreIdForUSerOrFacility = responseFromDataSearch?.[0]?.processedFilestoreId;
+        const processedFileStoreIdForUSerOrFacility = responseFromDataSearch?.[0]?.processedFileStoreId;
         fileUrlResponse = await fetchFileFromFilestore(processedFileStoreIdForUSerOrFacility, request?.query?.tenantId);
       }
 

@@ -119,7 +119,7 @@ const conditionForTermination = (downloadResponse: any) => {
 
 const conditionForTermination2 = (downloadResponse: any) => {
   logger.info(`current status ${downloadResponse?.[0]?.status}`)
-  return downloadResponse?.[0]?.status === "completed" && downloadResponse?.[0]?.processedFilestoreId;
+  return downloadResponse?.[0]?.status === "completed" && downloadResponse?.[0]?.processedFileStoreId;
 }
 
 export const createAndPollForCompletion = async (request: any) => {

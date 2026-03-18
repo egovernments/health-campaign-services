@@ -100,7 +100,7 @@ import {
 import { GenerateTemplateQuery } from "../models/GenerateTemplateQuery";
 import { getLocaleFromRequest } from "./localisationUtils";
 import { generateDataService } from "../service/sheetManageService";
-import { CampaignResource } from "../config/models/resourceTypes";
+import { CampaignResource, toCampaignResource } from "../config/models/resourceTypes";
 import Localisation from "../controllers/localisationController/localisation.controller";
 import { triggerUserCredentialEmailFlow } from "./mailUtils";
 
@@ -1513,7 +1513,7 @@ async function searchProjectCampaignResourcData(campaignDetails: any, request?: 
       await Promise.all(campaignIds.map(async (cid: string) => {
         const rows = await searchResourceDetailsFromDB({ tenantId, campaignId: cid, isActive: true, excludeTypes: ['attendanceRegisterAttendee'] });
         if (rows.length > 0) {
-          resourcesMap.set(cid, rows.map(toResourceDetailsResponse));
+          resourcesMap.set(cid, rows.map(r => toCampaignResource(toResourceDetailsResponse(r))));
         }
       }));
     } catch (err) {
@@ -2353,9 +2353,9 @@ async function processUnifiedTemplateCampaign(request: any): Promise<void> {
   if (!unifiedResource?.filestoreId) {
     throw new Error('FileStoreId not found for unified-console-resources');
   }
-  
+
   logger.info(`Calling excel-ingestion process API for unified campaign: ${campaignDetails.campaignNumber}`);
-  
+
   // Call excel-ingestion process API
   const processRequestBody = {
     RequestInfo: {
@@ -2637,7 +2637,7 @@ async function createPhase2Resources(campaignDetails: any, parentCampaign: any, 
       });
       campaignResourceTypes = new Set(tableRows.map((r: any) => r.type));
       // Also populate resources array so task messages carry filestoreId for handlers
-      campaignDetails.resources = tableRows.map(toResourceDetailsResponse);
+      campaignDetails.resources = tableRows.map(r => toCampaignResource(toResourceDetailsResponse(r)));
       logger.info(`Loaded phase 2 resource types from table: ${Array.from(campaignResourceTypes).join(", ")}`);
     } catch (err) {
       logger.warn(`Could not fetch phase 2 types from table: ${err}`);
