@@ -13,6 +13,7 @@ import { searchCampaignDetailsSchema } from "../config/models/searchCampaignDeta
 import { campaignDetailsDraftSchema } from "../config/models/campaignDetailsDraftSchema";
 import { downloadRequestSchema } from "../config/models/downloadRequestSchema";
 import { createRequestSchema } from "../config/models/createRequestSchema"
+import { CampaignResource } from "../config/models/resourceTypes";
 import { getSheetData, getTargetWorkbook } from "../api/genericApis";
 const _ = require('lodash');
 import { searchProjectTypeCampaignService } from "../service/campaignManageService";
@@ -754,7 +755,7 @@ async function validateProjectCampaignBoundaries(boundaries: any[], hierarchyTyp
     }
 }
 
-async function validateBoundariesForTabs(CampaignDetails: any, resource: any, request: any, localizedTab: any, localizationMap?: any) {
+async function validateBoundariesForTabs(CampaignDetails: any, resource: CampaignResource, request: any, localizedTab: any, localizationMap?: any) {
     const { boundaries, tenantId } = CampaignDetails;
     const boundaryCodes = new Set(boundaries.map((boundary: any) => boundary.code.trim()));
 
@@ -807,7 +808,7 @@ async function validateBoundaryOfResouces(CampaignDetails: any, request: any, lo
     }
 }
 
-async function validateProjectCampaignResources(resources: any, request: any, CampaignDetails?: any) {
+async function validateProjectCampaignResources(resources: CampaignResource[] | undefined, request: any, CampaignDetails?: any) {
     const requiredTypes = ["user", "facility", "boundary"];
     // Use registry to allow all registered types (includes attendanceRegister, attendanceRegisterAttendee, etc.)
     const allowedTypes = Array.from(new Set([...requiredTypes, "unified-console-resources", ...getAllAllowedTypes()]));
@@ -1059,7 +1060,10 @@ async function validateProjectType(request: any, projectType: any, tenantId: any
 async function validateCampaignBody(request: any, CampaignDetails: any, actionInUrl: any) {
     const { hierarchyType, action, tenantId, resources, projectType } = CampaignDetails;
     if (action == "create") {
+        const savedResources = CampaignDetails.resources;
+        delete CampaignDetails.resources;
         validateProjectCampaignMissingFields(CampaignDetails);
+        CampaignDetails.resources = savedResources;
         await validateParent(request, actionInUrl);
         await validateMissingBoundaryFromParent(request?.body);
         validateProjectDatesForCampaign(request, CampaignDetails);
@@ -1075,7 +1079,10 @@ async function validateCampaignBody(request: any, CampaignDetails: any, actionIn
         await validateProductVariant(request);
     }
     else {
+        const savedDraftResources = CampaignDetails.resources;
+        delete CampaignDetails.resources;
         validateDraftProjectCampaignMissingFields(CampaignDetails);
+        CampaignDetails.resources = savedDraftResources;
         await validateParent(request, actionInUrl);
         await validateMissingBoundaryFromParent(request?.body);
         // validateProjectDatesForCampaign(request, CampaignDetails);
@@ -1606,7 +1613,7 @@ function validateAddResourcesRequest(request: any): void {
     const allowedTypes = getAllAllowedTypes();
 
     for (let i = 0; i < resources.length; i++) {
-        const resource = resources[i];
+        const resource: CampaignResource = resources[i];
         if (!resource?.type) {
             throwError("COMMON", 400, "VALIDATION_ERROR", `resources[${i}].type is required`);
         }

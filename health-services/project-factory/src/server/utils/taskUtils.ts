@@ -1,4 +1,5 @@
 import { ResourceDetails } from "../config/models/resourceDetailsSchema";
+import { CampaignResource } from "../config/models/resourceTypes";
 import { logger } from "./logger";
 import { getLocalizedMessagesHandlerViaLocale, throwError } from "./genericUtils";
 import { enrichAndPersistCampaignWithErrorProcessingTask, updateResourceDetails } from "./campaignUtils";
@@ -35,7 +36,7 @@ export async function handleTaskForCampaign(messageObject: any) {
             campaignId : CampaignDetails?.id,
             type : resourceType,
             tenantId : CampaignDetails?.tenantId,
-            fileStoreId: resolvedFileStoreId,
+            fileStoreId: resolvedFileStoreId!,
             hierarchyType : CampaignDetails?.hierarchyType,
             requestInfo: messageObject?.requestInfo
         }
@@ -158,10 +159,10 @@ function getResourceType(processName: string) {
     return getResourceTypeByProcessName(processName);
 }
 
-function getResorceViaResourceType(campaignDetails: any, resourceType: string) {
-    const matching = (campaignDetails?.resources || []).filter((r: any) => r?.type === resourceType);
+function getResorceViaResourceType(campaignDetails: any, resourceType: string): CampaignResource | null {
+    const matching = (campaignDetails?.resources || []).filter((r: CampaignResource) => r?.type === resourceType);
     // Prefer the entry currently being created; fall back to first match
-    return matching.find((r: any) => r?.status === "creating") || matching[0] || null;
+    return matching.find((r: CampaignResource) => r?.status === "creating") || matching[0] || null;
 }
 
 /**

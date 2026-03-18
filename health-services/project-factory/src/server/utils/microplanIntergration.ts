@@ -29,6 +29,7 @@ import config from "../config";
 import { replicateRequest, throwError } from "./genericUtils";
 import { MDMSModels } from "../models";
 import { usageColumnStatus } from "../config/constants";
+import { CampaignResource } from "../config/models/resourceTypes";
 /**
  * Adds data rows to the provided worksheet.
  * @param worksheet The worksheet to which the data should be added.
@@ -784,7 +785,7 @@ export async function updateCampaignDetailsAfterSearch(
       let resourceFound = false; // Flag to track if resource is updated
 
       // Loop through resources to update or append as needed
-      searchedCamapignObject?.resources?.forEach((resource: any) => {
+      searchedCamapignObject?.resources?.forEach((resource: CampaignResource) => {
         if (resource.type === type) {
           resource.filestoreId = resourceObject?.fileStoreId;
           resource.resourceId = resourceObject?.id;
@@ -797,12 +798,13 @@ export async function updateCampaignDetailsAfterSearch(
 
       // If no resource of the given type was found, append a new one
       if (!resourceFound) {
-        searchedCamapignObject?.resources.push({
+        const newResource: CampaignResource = {
           type: type,
-          filename: `filled-${type}-data-from-microplan.xlsx`, // Dynamically naming based on type
+          filename: `filled-${type}-data-from-microplan.xlsx`,
           filestoreId: resourceObject?.fileStoreId,
           resourceId: resourceObject?.id,
-        });
+        };
+        searchedCamapignObject?.resources.push(newResource);
         logger.info(`Appended new resource of type ${type}`);
       }
       req.body.CampaignDetails = searchedCamapignObject;
@@ -826,11 +828,11 @@ export async function updateCampaignDetailsAfterSearch(
 
 export async function validateSheet(
   request: any,
-  tenantId: any,
-  type: any,
-  fileStoreId: any,
-  campaignId: any,
-  hierarchyType: any
+  tenantId: string,
+  type: string,
+  fileStoreId: string,
+  campaignId: string,
+  hierarchyType: string
 ) {
   let dataCreateBody = {
     ResourceDetails: {

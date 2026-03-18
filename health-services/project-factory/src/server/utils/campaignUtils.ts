@@ -100,6 +100,7 @@ import {
 import { GenerateTemplateQuery } from "../models/GenerateTemplateQuery";
 import { getLocaleFromRequest } from "./localisationUtils";
 import { generateDataService } from "../service/sheetManageService";
+import { CampaignResource } from "../config/models/resourceTypes";
 import Localisation from "../controllers/localisationController/localisation.controller";
 import { triggerUserCredentialEmailFlow } from "./mailUtils";
 
@@ -2263,7 +2264,7 @@ async function getCodesTarget(request: any, localizationMap?: any) {
   let boundaryCodesWhoseTargetsHasToBeUpdated: any = [];
   const { tenantId, resources } = request?.body?.CampaignDetails;
   const boundaryWithTargetResource = resources?.filter(
-    (resource: any) => resource?.type == "boundaryWithTarget"
+    (resource: CampaignResource) => resource?.type == "boundaryWithTarget"
   );
   if (boundaryWithTargetResource && boundaryWithTargetResource.length > 0) {
     const fileId = boundaryWithTargetResource[0]?.filestoreId;
@@ -2345,10 +2346,10 @@ async function processUnifiedTemplateCampaign(request: any): Promise<void> {
   const emailId = request?.body?.RequestInfo?.userInfo?.emailId || null;
   
   // Find the unified-console-resources resource to get filestoreId
-  const unifiedResource = campaignDetails.resources.find((resource: any) => 
+  const unifiedResource = campaignDetails.resources.find((resource: CampaignResource) =>
     resource?.type === "unified-console-resources"
   );
-  
+
   if (!unifiedResource?.filestoreId) {
     throw new Error('FileStoreId not found for unified-console-resources');
   }
@@ -3987,9 +3988,9 @@ async function processFetchMicroPlan(request: any) {
 
     const { tenantId } = request.body.MicroplanDetails;
     const localizationMap = await getLocalizedMessagesHandler(request, tenantId);
-    const resources: any = request?.body?.CampaignDetails?.resources || [];
+    const resources: CampaignResource[] = request?.body?.CampaignDetails?.resources || [];
     const filteredResources = resources.filter(
-      (obj: any) => obj?.filestoreId && obj?.resourceId
+      (obj: CampaignResource) => obj?.filestoreId && obj?.resourceId
     );
 
     logger.info(`Filtered resources with valid IDs: ${filteredResources?.length}`);

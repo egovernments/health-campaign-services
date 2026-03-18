@@ -9,6 +9,7 @@ import { prepareProcessesForResourceTypes, getCurrentProcesses } from "../utils/
 import config from "../config";
 import { produceModifiedMessages } from "../kafka/Producer";
 import { getRegistryEntry } from "../config/resourceTypeRegistry";
+import { CampaignResource } from "../config/models/resourceTypes";
 
 async function createProjectTypeCampaignService(request: express.Request) {
     // Validate the request for creating a project type campaign
@@ -35,7 +36,7 @@ async function updateProjectTypeCampaignService(request: express.Request) {
     const campaignId = request?.body?.CampaignDetails?.id;
     const useruuid = request?.body?.RequestInfo?.userInfo?.uuid || "system";
     if (requestResources.length > 0 && tenantId && campaignId) {
-        for (const res of requestResources) {
+        for (const res of requestResources as CampaignResource[]) {
             const fileStoreId = res.fileStoreId || res.filestoreId;
             if (!res.type || !fileStoreId) continue;
             try {
@@ -136,7 +137,7 @@ async function addResourcesToCampaignService(request: express.Request) {
     // Delegate to resource details service — stores in eg_cm_resource_details
     const createdResources = [];
     const createdResourceTypes: string[] = [];
-    for (const res of newResources) {
+    for (const res of newResources as CampaignResource[]) {
         if (!res.type || !res.filestoreId) {
             logger.warn(`Skipping resource with missing type or filestoreId: ${JSON.stringify(res)}`);
             continue;

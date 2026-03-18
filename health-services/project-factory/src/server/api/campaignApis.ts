@@ -18,6 +18,7 @@ import {
   validateTargetSheetData,
   validateViaSchemaSheetWise,
 } from "../validators/campaignValidators";
+import { CampaignResource } from "../config/models/resourceTypes";
 import { getCampaignNumber } from "./genericApis";
 import {
   convertToTypeData,
@@ -1736,7 +1737,7 @@ async function createProjectCampaignResourcData(request: any) {
       request?.body?.CampaignDetails?.action == "create" &&
       request?.body?.CampaignDetails?.resources
     ) {
-      for (const resource of request?.body?.CampaignDetails?.resources) {
+      for (const resource of request?.body?.CampaignDetails?.resources as CampaignResource[]) {
         const action =
           resource?.type === "boundaryWithTarget" ? "validate" : "create";
         // if (resource.type != "boundaryWithTarget") {

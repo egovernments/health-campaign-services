@@ -1,6 +1,7 @@
 import config from "../config";
 import { executeQuery, getTableName } from "./db";
 import { ResourceDetailsCriteria, Pagination } from "../config/models/resourceDetailsCriteria";
+import { ResourceDetailsResponse } from "../config/models/resourceTypes";
 
 export interface ResourceDetailRow {
   id: string;
@@ -22,7 +23,7 @@ export interface ResourceDetailRow {
   lastmodifiedtime: number;
 }
 
-export function toResourceDetailsResponse(row: ResourceDetailRow) {
+export function toResourceDetailsResponse(row: ResourceDetailRow): ResourceDetailsResponse {
   return {
     id: row.id,
     tenantId: row.tenantid,
