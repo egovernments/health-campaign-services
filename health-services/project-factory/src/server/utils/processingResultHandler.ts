@@ -208,13 +208,22 @@ export async function handleProcessingResult(messageObject: any) {
         // Only proceed if validation status is valid
         if (validationStatus !== 'valid' || messageObject.status !== 'completed') {
             logger.warn('=== VALIDATION STATUS IS NOT VALID - STOPPING PROCESSING ===');
-            logger.warn(`Validation Status: ${validationStatus}, cannot proceed with campaign data processing`);
-            
-            // Mark campaign as failed
+            logger.warn(`Validation Status: ${validationStatus}, Message Status: ${messageObject.status}, cannot proceed with campaign data processing`);
 
-            // const validationError = new Error(`Validation failed: ${validationStatus}, Status: ${messageObject.status}`);
+            // Log all available error details so we can debug what went wrong
+            if (messageObject.additionalDetails?.errorCode) {
+                logger.error(`Error Code: ${messageObject.additionalDetails.errorCode}`);
+                logger.error(`Error Message: ${messageObject.additionalDetails.errorMessage}`);
+            }
+            if (messageObject.additionalDetails?.sheetErrorCounts) {
+                logger.warn(`Sheet Error Counts: ${JSON.stringify(messageObject.additionalDetails.sheetErrorCounts)}`);
+            }
+            logger.warn(`Full additionalDetails: ${JSON.stringify(messageObject.additionalDetails)}`);
+
+            if (messageObject.status !== 'completed') {
+                throwError('COMMON', 400, 'PROCESSING_FAILED', `Excel ingestion processing failed with status: ${messageObject.status}. Error: ${messageObject.additionalDetails?.errorMessage || 'unknown'}`);
+            }
             throwError('COMMON', 400, 'VALIDATION_ERROR_UNIFIED_CONSOLE_TEMPLATE', "Unified console template is not valid. Please correct the errors and try again.");
-            logger.info('Campaign marked as failed due to validation failure');
             return;
         }
         
