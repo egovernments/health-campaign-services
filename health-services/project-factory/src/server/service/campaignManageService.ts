@@ -3,7 +3,8 @@ import { prepareAndProduceCancelMessage, processBasedOnAction, processFetchMicro
 import { logger } from "../utils/logger";
 import { validateMicroplanRequest, validateProjectCampaignRequest, validateAddResourcesRequest } from "../validators/campaignValidators";
 import { campaignStatuses, processStatuses } from "../config/constants";
-import { createResourceDetail } from "./resourceDetailsService";
+import { createResourceDetail, updateResourceDetail } from "./resourceDetailsService";
+import { findActiveResourceByUpsertKey } from "../utils/resourceDetailsUtils";
 import { prepareProcessesForResourceTypes, getCurrentProcesses } from "../utils/genericUtils";
 import config from "../config";
 import { produceModifiedMessages } from "../kafka/Producer";
@@ -27,6 +28,49 @@ async function updateProjectTypeCampaignService(request: express.Request) {
 
     // Process the action based on the request type
     await processBasedOnAction(request, "update");
+
+    // Backward compat: if resources are in the request body, upsert into eg_cm_resource_details
+    const requestResources = request?.body?.CampaignDetails?.resources || [];
+    const tenantId = request?.body?.CampaignDetails?.tenantId;
+    const campaignId = request?.body?.CampaignDetails?.id;
+    const useruuid = request?.body?.RequestInfo?.userInfo?.uuid || "system";
+    if (requestResources.length > 0 && tenantId && campaignId) {
+        for (const res of requestResources) {
+            const fileStoreId = res.fileStoreId || res.filestoreId;
+            if (!res.type || !fileStoreId) continue;
+            try {
+                const existing = await findActiveResourceByUpsertKey(tenantId, campaignId, res.type, res.parentResourceId || null);
+                if (existing) {
+                    // Update existing resource instead of deactivating + creating new
+                    await updateResourceDetail({
+                        id: existing.id,
+                        tenantId,
+                        campaignId,
+                        fileStoreId,
+                        filename: res.filename !== undefined ? res.filename : undefined
+                    }, useruuid);
+                    logger.info(`Updated existing resource id=${existing.id} type=${res.type} for campaign ${campaignId} via update`);
+                } else {
+                    await createResourceDetail({
+                        tenantId,
+                        campaignId,
+                        type: res.type,
+                        parentResourceId: res.parentResourceId || null,
+                        fileStoreId,
+                        filename: res.filename || null,
+                        additionalDetails: res.additionalDetails || {}
+                    }, useruuid);
+                    logger.info(`Created new resource type=${res.type} for campaign ${campaignId} via update`);
+                }
+            } catch (err) {
+                logger.warn(`Failed to upsert resource type=${res.type} for campaign ${campaignId}: ${err}`);
+            }
+        }
+        // Re-fetch campaign so response includes full resources from table
+        const updatedResp = await searchProjectTypeCampaignService({ tenantId, ids: [campaignId] });
+        return updatedResp?.CampaignDetails?.[0] || request?.body?.CampaignDetails;
+    }
+
     return request?.body?.CampaignDetails;
 }
 

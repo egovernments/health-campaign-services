@@ -17,5 +17,8 @@ export const paginationSchema = z.object({
   sortOrder: z.enum(['ASC', 'DESC']).optional()
 });
 
-export type ResourceDetailsCriteria = z.infer<typeof resourceDetailsCriteriaSchema>;
+// excludeTypes is internal-only — not accepted via public API, only passed by internal callers
+export type ResourceDetailsCriteria = z.infer<typeof resourceDetailsCriteriaSchema> & {
+  excludeTypes?: string[];
+};
 export type Pagination = z.infer<typeof paginationSchema>;

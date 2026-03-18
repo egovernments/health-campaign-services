@@ -50,7 +50,7 @@ export async function searchResourceDetailsFromDB(
   criteria: ResourceDetailsCriteria,
   pagination?: Pagination
 ): Promise<ResourceDetailRow[]> {
-  const { tenantId, campaignId, type, ids, parentResourceId, status, isActive } = criteria;
+  const { tenantId, campaignId, type, ids, parentResourceId, status, isActive, excludeTypes } = criteria;
   const conditions: string[] = [];
   const values: any[] = [];
   let idx = 1;
@@ -64,6 +64,11 @@ export async function searchResourceDetailsFromDB(
   if (type && type.length > 0) {
     conditions.push(`type = ANY($${idx++})`);
     values.push(type);
+  }
+
+  if (excludeTypes && excludeTypes.length > 0) {
+    conditions.push(`type != ALL($${idx++})`);
+    values.push(excludeTypes);
   }
 
   if (ids && ids.length > 0) {

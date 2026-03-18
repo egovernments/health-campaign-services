@@ -1510,8 +1510,10 @@ async function searchProjectCampaignResourcData(campaignDetails: any, request?: 
   if (campaignIds.length > 0 && tenantId) {
     try {
       await Promise.all(campaignIds.map(async (cid: string) => {
-        const rows = await searchResourceDetailsFromDB({ tenantId, campaignId: cid, isActive: true });
-        resourcesMap.set(cid, rows.map(toResourceDetailsResponse));
+        const rows = await searchResourceDetailsFromDB({ tenantId, campaignId: cid, isActive: true, excludeTypes: ['attendanceRegisterAttendee'] });
+        if (rows.length > 0) {
+          resourcesMap.set(cid, rows.map(toResourceDetailsResponse));
+        }
       }));
     } catch (err) {
       logger.warn(`Failed to enrich resources from table, falling back to JSONB: ${err}`);
@@ -1521,7 +1523,16 @@ async function searchProjectCampaignResourcData(campaignDetails: any, request?: 
   // TODO @ashish check the below code looks like duplicate
   for (const data of responseData) {
     // Use enriched resources from table; fall back to JSONB if not available (backward compat)
-    data.resources = resourcesMap.has(data.id) ? resourcesMap.get(data.id) : (data?.campaignDetails?.resources || []);
+    const rawResources: any[] = resourcesMap.has(data.id)
+      ? resourcesMap.get(data.id)!
+      : (data?.campaignDetails?.resources || []);
+    data.resources = rawResources
+      .filter((r: any) => r?.type !== 'attendanceRegisterAttendee')
+      .map((r: any) => ({
+        ...r,
+        status: r?.status ?? 'completed',
+        additionalDetails: r?.additionalDetails ?? {},
+      }));
     data.boundaries = data?.campaignDetails?.boundaries;
     data.deliveryRules = data?.campaignDetails?.deliveryRules;
     delete data.campaignDetails;

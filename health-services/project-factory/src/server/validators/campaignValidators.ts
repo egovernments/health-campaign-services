@@ -28,6 +28,7 @@ import { getPvarIds } from "../utils/campaignMappingUtils";
 import { fetchProductVariants } from "../api/healthApis";
 import { validateFileMetaDataViaFileUrl } from "../utils/excelUtils";
 import { getLocaleFromRequest } from "../utils/localisationUtils";
+import { searchResourceDetailsFromDB } from "../utils/resourceDetailsUtils";
 import { ResourceDetails } from "../config/models/resourceDetailsSchema";
 import { fetchFileFromFilestore, searchBoundaryRelationshipDefinition } from "../api/coreApis";
 import { processTemplateConfigs } from "../config/processTemplateConfigs";
@@ -806,26 +807,25 @@ async function validateBoundaryOfResouces(CampaignDetails: any, request: any, lo
     }
 }
 
-async function validateProjectCampaignResources(resources: any, request: any) {
+async function validateProjectCampaignResources(resources: any, request: any, CampaignDetails?: any) {
     const requiredTypes = ["user", "facility", "boundary"];
-    const allowedTypes = [...requiredTypes, "unified-console-resources"];
-    const typeCounts: any = {
-        "user": 0,
-        "facility": 0,
-        "boundary": 0,
-        "unified-console-resources": 0
-    };
+    // Use registry to allow all registered types (includes attendanceRegister, attendanceRegisterAttendee, etc.)
+    const allowedTypes = Array.from(new Set([...requiredTypes, "unified-console-resources", ...getAllAllowedTypes()]));
+    const typeCounts: any = {};
 
-    const missingTypes: string[] = [];
+    let missingTypes: string[] = [];
 
-    if (!resources || !Array.isArray(resources)) {
-        throwError("COMMON", 400, "VALIDATION_ERROR", "resources should be a non-empty array");
+    // resources may be absent when frontend uses /v1/resource-details/_create instead of body
+    const effectiveResources = Array.isArray(resources) ? resources : [];
+    // If resources was null/undefined, sync the new array back so parent fallback pushes propagate downstream
+    if (!Array.isArray(resources) && CampaignDetails) {
+        CampaignDetails.resources = effectiveResources;
     }
 
     // Check if this is a unified template campaign
-    const hasUnifiedResource = resources.some((resource: any) => resource?.type === "unified-console-resources");
+    const hasUnifiedResource = effectiveResources.some((resource: any) => resource?.type === "unified-console-resources");
 
-    for (const resource of resources) {
+    for (const resource of effectiveResources) {
         const { type } = resource;
         if (!type || !allowedTypes.includes(type)) {
             throwError(
@@ -835,7 +835,7 @@ async function validateProjectCampaignResources(resources: any, request: any) {
                 `Invalid resource type. Allowed types are: ${allowedTypes.join(', ')}`
             );
         }
-        typeCounts[type]++;
+        typeCounts[type] = (typeCounts[type] || 0) + 1;
     }
 
     // If unified-console-resources is present, it's valid on its own
@@ -846,10 +846,31 @@ async function validateProjectCampaignResources(resources: any, request: any) {
 
     // For regular campaigns, check for required types
     for (const type of requiredTypes) {
-        if (typeCounts[type] === 0) {
+        if (!typeCounts[type]) {
             missingTypes.push(type);
         }
     }
+
+    // If types are missing from request body, check eg_cm_resource_details table (new architecture)
+    if (missingTypes.length > 0 && CampaignDetails?.id && CampaignDetails?.tenantId) {
+        try {
+            const tableRows = await searchResourceDetailsFromDB({
+                tenantId: CampaignDetails.tenantId,
+                campaignId: CampaignDetails.id,
+                isActive: true,
+                excludeTypes: ['attendanceRegisterAttendee']
+            });
+            const tableTypes = new Set(tableRows.map((r: any) => r.type));
+            missingTypes = missingTypes.filter((t: string) => !tableTypes.has(t));
+            if (missingTypes.length === 0) {
+                logger.info(`All required resource types found in eg_cm_resource_details table for campaign ${CampaignDetails.id}`);
+                return;
+            }
+        } catch (err) {
+            logger.warn(`Failed to fetch resources from table during validation: ${err}`);
+        }
+    }
+
     if (!request?.body?.parentCampaign) {
         if (missingTypes.length > 0) {
             const missingTypesMessage = `Missing resources of types: ${missingTypes.join(', ')}`;
@@ -863,7 +884,7 @@ async function validateProjectCampaignResources(resources: any, request: any) {
         for (const missingType of missingTypes) {
             const fallback = parentResources.find((r: any) => r.type === missingType);
             if (fallback) {
-                resources.push(fallback);
+                effectiveResources.push(fallback);
                 console.log(`Added missing resource type "${missingType}" from parent campaign`);
             } else {
                 throwError(
@@ -1050,7 +1071,7 @@ async function validateCampaignBody(request: any, CampaignDetails: any, actionIn
         await validateHierarchyType(request, hierarchyType, tenantId);
         await validateProjectType(request, projectType, tenantId);
         await validateProjectCampaignBoundaries(request?.body?.boundariesCombined, hierarchyType, tenantId, request);
-        await validateProjectCampaignResources(resources, request);
+        await validateProjectCampaignResources(resources, request, CampaignDetails);
         await validateProductVariant(request);
     }
     else {
