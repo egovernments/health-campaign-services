@@ -41,9 +41,9 @@ public class AttendanceRegisterAttendeeSheetGenerator implements IExcelPopulator
     private static final Set<String> MARKER_ROLES = Set.of("WAREHOUSE_MANAGER", "TEAM_SUPERVISOR", "CAMPAIGN_SUPERVISOR");
     private static final Set<String> WORKER_ROLES = Set.of("DISTRIBUTOR", "REGISTRAR", "FIELD_SUPPORT", "HEALTH_FACILITY_WORKER");
 
-    private static final String WORKER_SHEET = "HCM_ATTENDANCE_ATTENDEE_WORKER_SHEET";
-    private static final String MARKER_SHEET = "HCM_ATTENDANCE_ATTENDEE_MARKER_SHEET";
-    private static final String APPROVER_SHEET = "HCM_ATTENDANCE_ATTENDEE_APPROVER_SHEET";
+    private static final String WORKER_SHEET = "HCM_REGISTER_WORKER_SHEET";
+    private static final String MARKER_SHEET = "HCM_REGISTER_MARKER_SHEET";
+    private static final String APPROVER_SHEET = "HCM_REGISTER_APPROVER_SHEET";
 
     private static final int MAX_MULTISELECT_COLUMNS = 5;
     private static final int BULK_DECRYPT_BATCH_SIZE = 500;

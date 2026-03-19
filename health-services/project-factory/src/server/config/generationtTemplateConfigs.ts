@@ -85,15 +85,15 @@ export const generationtTemplateConfigs : any = {
     attendanceRegisterAttendee: {
         sheets: [
             {
-                sheetName: "HCM_ATTENDANCE_ATTENDEE_WORKER_SHEET",
+                sheetName: "HCM_REGISTER_WORKER_SHEET",
                 schemaName: "attendance-register-attendee-worker"
             },
             {
-                sheetName: "HCM_ATTENDANCE_ATTENDEE_MARKER_SHEET",
+                sheetName: "HCM_REGISTER_MARKER_SHEET",
                 schemaName: "attendance-register-attendee-marker"
             },
             {
-                sheetName: "HCM_ATTENDANCE_ATTENDEE_APPROVER_SHEET",
+                sheetName: "HCM_REGISTER_APPROVER_SHEET",
                 schemaName: "attendance-register-attendee-approver"
             }
         ]

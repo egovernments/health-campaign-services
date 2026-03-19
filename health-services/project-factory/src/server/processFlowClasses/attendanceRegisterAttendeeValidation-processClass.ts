@@ -7,9 +7,9 @@ import { defaultRequestInfo } from "../api/coreApis";
 import config from "../config";
 
 const SHEET_NAMES = [
-    "HCM_ATTENDANCE_ATTENDEE_WORKER_SHEET",
-    "HCM_ATTENDANCE_ATTENDEE_MARKER_SHEET",
-    "HCM_ATTENDANCE_ATTENDEE_APPROVER_SHEET"
+    "HCM_REGISTER_WORKER_SHEET",
+    "HCM_REGISTER_MARKER_SHEET",
+    "HCM_REGISTER_APPROVER_SHEET"
 ];
 
 // Strict regex: dd-MM-yyyy (dash only) OR dd/MM/yyyy (slash only) — no mixed separators
