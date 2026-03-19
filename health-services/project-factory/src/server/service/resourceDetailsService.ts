@@ -158,6 +158,14 @@ export async function updateResourceDetail(
     throwError("COMMON", 409, "RESOURCE_PROCESSING", `Resource '${id}' is currently being processed`);
   }
 
+  // Inprogress guard: same rule as createResourceDetail — reject if resource is already queued
+  if (campaignStatus === campaignStatuses.inprogress) {
+    if (existing!.status === resourceStatuses.toCreate) {
+      throwError("COMMON", 409, "RESOURCE_ALREADY_QUEUED",
+        `Resource '${id}' of type '${existing!.type}' is already queued for processing. Wait for it to complete or fail before updating.`);
+    }
+  }
+
   // Deactivate old resource
   await deactivateResource(existing!, userUuid, tenantId);
 

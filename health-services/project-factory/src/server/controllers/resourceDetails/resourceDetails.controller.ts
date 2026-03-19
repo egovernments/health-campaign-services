@@ -40,7 +40,8 @@ class ResourceDetailsController {
       // Fire-and-forget: trigger processing if campaign is in "created" status
       triggerIfCampaignCreated(
         parseResult.data.campaignId, parseResult.data.tenantId, parseResult.data.type,
-        userUuid, request?.body?.RequestInfo
+        userUuid, request?.body?.RequestInfo,
+        ResourceDetails   // inject so trigger has correct filestoreId (resource not in DB yet via Kafka async)
       ).catch(err => logger.warn(`Trigger failed after resource create type=${parseResult.data.type}: ${err}`));
       return sendResponse(response, { ResourceDetails }, request);
     } catch (e: any) {
@@ -65,7 +66,8 @@ class ResourceDetailsController {
       if (ResourceDetails?.campaignId && ResourceDetails?.tenantId && ResourceDetails?.type) {
         triggerIfCampaignCreated(
           ResourceDetails.campaignId, ResourceDetails.tenantId, ResourceDetails.type,
-          userUuid, request?.body?.RequestInfo
+          userUuid, request?.body?.RequestInfo,
+          ResourceDetails   // inject so trigger has correct filestoreId (resource not in DB yet via Kafka async)
         ).catch(err => logger.warn(`Trigger failed after resource update type=${ResourceDetails.type}: ${err}`));
       }
       return sendResponse(response, { ResourceDetails }, request);

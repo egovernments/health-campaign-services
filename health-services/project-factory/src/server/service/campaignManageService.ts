@@ -9,7 +9,7 @@ import { prepareProcessesForResourceTypes, getCurrentProcesses } from "../utils/
 import config from "../config";
 import { produceModifiedMessages } from "../kafka/Producer";
 import { getRegistryEntry } from "../config/resourceTypeRegistry";
-import { CampaignResource } from "../config/models/resourceTypes";
+import { CampaignResource, ResourceDetailsResponse, toCampaignResource } from "../config/models/resourceTypes";
 
 async function createProjectTypeCampaignService(request: express.Request) {
     // Validate the request for creating a project type campaign
@@ -196,24 +196,33 @@ async function addResourcesToCampaignService(request: express.Request) {
         logger.info(`Stored resource type=${res.type} id=${created.id} for campaign ${campaignId}`);
     }
 
-    // Re-fetch campaign enriched with new resources from table
-    const updatedCampaignResp = await searchProjectTypeCampaignService({ tenantId, ids: [campaignId] });
-    const updatedCampaign = updatedCampaignResp?.CampaignDetails?.[0] || existingCampaign;
+    // Inject new resources into campaign object for task message (bypasses Kafka async lag).
+    // Re-fetching from DB would return stale data since resource is persisted via Kafka async.
+    const newCampaignResources: CampaignResource[] = createdResources.map(
+        (r: any) => toCampaignResource(r as ResourceDetailsResponse)
+    );
+    const campaignForTask = {
+        ...existingCampaign,
+        resources: [
+            ...(existingCampaign.resources || []).filter((r: any) =>
+                !createdResources.some((nr: any) => nr.type === r.type && (nr.parentResourceId || null) === (r.parentResourceId || null))
+            ),
+            ...newCampaignResources
+        ]
+    };
 
-    // For in-progress (created) campaigns, trigger processing for newly added resources.
-    // Use freshly re-fetched status to avoid triggering on a campaign that changed state mid-operation.
-    const freshCampaignStatus = updatedCampaign?.status;
-    if (freshCampaignStatus === campaignStatuses.inprogress && createdResourceTypes.length > 0) {
+    // Use existingCampaign.status (already fetched above, no extra DB call needed)
+    if (existingCampaign?.status === campaignStatuses.inprogress && createdResourceTypes.length > 0) {
         const campaignNumber = existingCampaign?.campaignNumber;
         if (campaignNumber) {
             await triggerResourceProcessingIfCreated(
-                campaignId, tenantId, campaignNumber, updatedCampaign, createdResourceTypes, useruuid, request?.body?.RequestInfo
+                campaignId, tenantId, campaignNumber, campaignForTask, createdResourceTypes, useruuid, request?.body?.RequestInfo
             );
         }
     }
 
     logger.info(`Added ${createdResources.length} resource(s) to campaign ${campaignId}: ${createdResourceTypes.join(", ")}`);
-    return updatedCampaign;
+    return campaignForTask;
 }
 
 /**
@@ -256,15 +265,32 @@ export async function triggerIfCampaignCreated(
     tenantId: string,
     resourceType: string,
     useruuid: string,
-    requestInfo: any
+    requestInfo: any,
+    newResourceDetails?: any   // optional: the just-created/updated ResourceDetails object
 ): Promise<void> {
     const campaignResp = await searchProjectTypeCampaignService({ tenantId, ids: [campaignId] });
     const campaign = campaignResp?.CampaignDetails?.[0];
     if (!campaign || campaign.status !== campaignStatuses.inprogress) return;
     const campaignNumber = campaign.campaignNumber;
     if (!campaignNumber) return;
+
+    // Inject new resource into campaign for task message (resource not in DB yet due to Kafka async)
+    let campaignForTask = campaign;
+    if (newResourceDetails) {
+        const newCampaignResource = toCampaignResource(newResourceDetails as ResourceDetailsResponse);
+        campaignForTask = {
+            ...campaign,
+            resources: [
+                ...(campaign.resources || []).filter((r: any) =>
+                    !(r.type === resourceType && (r.parentResourceId || null) === (newResourceDetails.parentResourceId || null))
+                ),
+                newCampaignResource
+            ]
+        };
+    }
+
     await triggerResourceProcessingIfCreated(
-        campaignId, tenantId, campaignNumber, campaign, [resourceType], useruuid, requestInfo
+        campaignId, tenantId, campaignNumber, campaignForTask, [resourceType], useruuid, requestInfo
     );
 }
 
