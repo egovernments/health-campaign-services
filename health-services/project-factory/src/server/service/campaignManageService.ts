@@ -160,12 +160,19 @@ async function addResourcesToCampaignService(request: express.Request) {
     }
 
     const campaignStatus = existingCampaign?.status;
-    if (campaignStatus !== campaignStatuses.drafted && campaignStatus !== campaignStatuses.inprogress) {
+    if (campaignStatus === campaignStatuses.started) {
         throw Object.assign(
-            new Error(`Cannot add resources to campaign in "${campaignStatus}" status. Campaign must be in "drafted" or "inprogress" status.`),
-            { status: 400, code: "VALIDATION_ERROR" }
+            new Error(`Cannot add resources while campaign is actively processing (status: "${campaignStatus}")`),
+            { status: 400, code: "RESOURCE_ADD_NOT_ALLOWED" }
         );
     }
+    if (campaignStatus === campaignStatuses.cancelled) {
+        throw Object.assign(
+            new Error(`Cannot add resources to a cancelled campaign`),
+            { status: 400, code: "RESOURCE_ADD_NOT_ALLOWED" }
+        );
+    }
+    // drafted, inprogress (created), failed → allowed
 
     // Delegate to resource details service — stores in eg_cm_resource_details
     const createdResources = [];
@@ -193,32 +200,72 @@ async function addResourcesToCampaignService(request: express.Request) {
     const updatedCampaignResp = await searchProjectTypeCampaignService({ tenantId, ids: [campaignId] });
     const updatedCampaign = updatedCampaignResp?.CampaignDetails?.[0] || existingCampaign;
 
-    // For in-progress campaigns, trigger processing for newly added resources.
-    // Use updatedCampaign so CampaignDetails in the task message includes the new resources.
-    if (campaignStatus === campaignStatuses.inprogress && createdResourceTypes.length > 0) {
+    // For in-progress (created) campaigns, trigger processing for newly added resources.
+    // Use freshly re-fetched status to avoid triggering on a campaign that changed state mid-operation.
+    const freshCampaignStatus = updatedCampaign?.status;
+    if (freshCampaignStatus === campaignStatuses.inprogress && createdResourceTypes.length > 0) {
         const campaignNumber = existingCampaign?.campaignNumber;
         if (campaignNumber) {
-            await prepareProcessesForResourceTypes(campaignNumber, tenantId, createdResourceTypes, useruuid);
-            const allCurrentProcesses = await getCurrentProcesses(campaignNumber, tenantId);
-            for (const resType of createdResourceTypes) {
-                const registryEntry = getRegistryEntry(resType);
-                if (!registryEntry) continue;
-                const task = allCurrentProcesses.find((p: any) => p?.processName === registryEntry.processName);
-                if (task && task?.status === processStatuses.pending) {
-                    await produceModifiedMessages({
-                        task,
-                        CampaignDetails: updatedCampaign,
-                        useruuid,
-                        requestInfo: request?.body?.RequestInfo
-                    }, config.kafka.KAFKA_START_ADMIN_CONSOLE_TASK_TOPIC, tenantId, registryEntry.kafkaKey);
-                    logger.info(`Triggered processing task for type=${resType} on in-progress campaign ${campaignId}`);
-                }
-            }
+            await triggerResourceProcessingIfCreated(
+                campaignId, tenantId, campaignNumber, updatedCampaign, createdResourceTypes, useruuid, request?.body?.RequestInfo
+            );
         }
     }
 
     logger.info(`Added ${createdResources.length} resource(s) to campaign ${campaignId}: ${createdResourceTypes.join(", ")}`);
     return updatedCampaign;
+}
+
+/**
+ * Trigger Kafka processing tasks for the given resource types on a created campaign.
+ * Resets process tasks to pending before triggering so failed processes can be retried.
+ */
+export async function triggerResourceProcessingIfCreated(
+    campaignId: string,
+    tenantId: string,
+    campaignNumber: string,
+    updatedCampaign: any,
+    resourceTypes: string[],
+    useruuid: string,
+    requestInfo: any
+): Promise<void> {
+    await prepareProcessesForResourceTypes(campaignNumber, tenantId, resourceTypes, useruuid);
+    const allCurrentProcesses = await getCurrentProcesses(campaignNumber, tenantId);
+    for (const resType of resourceTypes) {
+        const registryEntry = getRegistryEntry(resType);
+        if (!registryEntry) continue;
+        const task = allCurrentProcesses.find((p: any) => p?.processName === registryEntry.processName);
+        if (task && task?.status === processStatuses.pending) {
+            await produceModifiedMessages({
+                task,
+                CampaignDetails: updatedCampaign,
+                useruuid,
+                requestInfo
+            }, config.kafka.KAFKA_START_ADMIN_CONSOLE_TASK_TOPIC, tenantId, registryEntry.kafkaKey);
+            logger.info(`Triggered processing task for type=${resType} on created campaign ${campaignId}`);
+        }
+    }
+}
+
+/**
+ * Fire-and-forget helper: fetch campaign and trigger processing if status is "created" (inprogress).
+ * Used by the resource details controller after creating/updating a resource.
+ */
+export async function triggerIfCampaignCreated(
+    campaignId: string,
+    tenantId: string,
+    resourceType: string,
+    useruuid: string,
+    requestInfo: any
+): Promise<void> {
+    const campaignResp = await searchProjectTypeCampaignService({ tenantId, ids: [campaignId] });
+    const campaign = campaignResp?.CampaignDetails?.[0];
+    if (!campaign || campaign.status !== campaignStatuses.inprogress) return;
+    const campaignNumber = campaign.campaignNumber;
+    if (!campaignNumber) return;
+    await triggerResourceProcessingIfCreated(
+        campaignId, tenantId, campaignNumber, campaign, [resourceType], useruuid, requestInfo
+    );
 }
 
 export {

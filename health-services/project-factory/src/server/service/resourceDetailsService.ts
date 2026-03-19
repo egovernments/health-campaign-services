@@ -12,11 +12,22 @@ import {
   toResourceDetailsResponse,
   ResourceDetailRow
 } from "../utils/resourceDetailsUtils";
+import { executeQuery, getTableName } from "../utils/db";
 import { getResourceConfigOrDefault, isRegisteredType } from "../config/resourceTypeRegistry";
-import { resourceStatuses } from "../config/constants";
+import { campaignStatuses, resourceStatuses } from "../config/constants";
 import { ResourceDetailsCreateInput } from "../config/models/resourceDetailsCreateSchema";
 import { ResourceDetailsUpdateInput } from "../config/models/resourceDetailsUpdateSchema";
 import { ResourceDetailsCriteria, Pagination } from "../config/models/resourceDetailsCriteria";
+
+async function getCampaignStatusFromDB(campaignId: string, tenantId: string): Promise<{ status: string | null; campaignNumber: string | null }> {
+  const tableName = getTableName(config.DB_CONFIG.DB_CAMPAIGN_DETAILS_TABLE_NAME, tenantId);
+  const result = await executeQuery(
+    `SELECT status, campaignnumber FROM ${tableName} WHERE id = $1 AND tenantid = $2 LIMIT 1`,
+    [campaignId, tenantId]
+  );
+  const row = result?.rows?.[0];
+  return { status: row?.status || null, campaignNumber: row?.campaignnumber || null };
+}
 
 /**
  * Create or upsert a resource detail.
@@ -29,6 +40,26 @@ export async function createResourceDetail(
   userUuid: string
 ): Promise<any> {
   const { tenantId, campaignId, type, parentResourceId, fileStoreId, filename, additionalDetails } = input;
+
+  // Campaign status guard
+  const { status: campaignStatus } = await getCampaignStatusFromDB(campaignId, tenantId);
+  if (campaignStatus === campaignStatuses.started) {
+    throwError("COMMON", 400, "RESOURCE_ADD_NOT_ALLOWED", "Cannot add/update resources while campaign is processing");
+  }
+  if (campaignStatus === campaignStatuses.cancelled) {
+    throwError("COMMON", 400, "RESOURCE_ADD_NOT_ALLOWED", "Cannot add resources to a cancelled campaign");
+  }
+
+  // Upsert check: find existing active resource with same key
+  // Done before parent validation so result can be reused for the inprogress guard below
+  const existing = await findActiveResourceByUpsertKey(tenantId, campaignId, type, parentResourceId);
+
+  if (campaignStatus === campaignStatuses.inprogress) {
+    // "created" campaign: reject if a toCreate active resource is already queued for same key
+    if (existing && existing.status === resourceStatuses.toCreate) {
+      throwError("COMMON", 409, "RESOURCE_ALREADY_QUEUED", `Resource of type '${type}' is already queued for processing`);
+    }
+  }
 
   // Validate parent if type is registered with parentType
   const typeConfig = getResourceConfigOrDefault(type);
@@ -54,8 +85,7 @@ export async function createResourceDetail(
     }
   }
 
-  // Upsert check: find existing active resource with same key
-  const existing = await findActiveResourceByUpsertKey(tenantId, campaignId, type, parentResourceId);
+  // Use existing resource found above for upsert
 
   if (existing) {
     if (existing.status === resourceStatuses.creating) {
@@ -107,6 +137,15 @@ export async function updateResourceDetail(
   userUuid: string
 ): Promise<any> {
   const { id, tenantId, campaignId, fileStoreId, filename } = input;
+
+  // Campaign status guard
+  const { status: campaignStatus } = await getCampaignStatusFromDB(campaignId, tenantId);
+  if (campaignStatus === campaignStatuses.started) {
+    throwError("COMMON", 400, "RESOURCE_ADD_NOT_ALLOWED", "Cannot update resources while campaign is processing");
+  }
+  if (campaignStatus === campaignStatuses.cancelled) {
+    throwError("COMMON", 400, "RESOURCE_ADD_NOT_ALLOWED", "Cannot update resources on a cancelled campaign");
+  }
 
   const existing = await getResourceDetailById(id, tenantId);
   if (!existing) {

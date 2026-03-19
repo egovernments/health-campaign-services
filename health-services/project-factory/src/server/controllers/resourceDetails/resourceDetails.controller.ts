@@ -6,6 +6,7 @@ import {
   updateResourceDetail,
   searchResourceDetails
 } from "../../service/resourceDetailsService";
+import { triggerIfCampaignCreated } from "../../service/campaignManageService";
 import { resourceDetailsCreateSchema } from "../../config/models/resourceDetailsCreateSchema";
 import { resourceDetailsUpdateSchema } from "../../config/models/resourceDetailsUpdateSchema";
 import { resourceDetailsCriteriaSchema, paginationSchema } from "../../config/models/resourceDetailsCriteria";
@@ -36,6 +37,11 @@ class ResourceDetailsController {
       }
       const userUuid = request?.body?.RequestInfo?.userInfo?.uuid || "system";
       const ResourceDetails = await createResourceDetail(parseResult.data, userUuid);
+      // Fire-and-forget: trigger processing if campaign is in "created" status
+      triggerIfCampaignCreated(
+        parseResult.data.campaignId, parseResult.data.tenantId, parseResult.data.type,
+        userUuid, request?.body?.RequestInfo
+      ).catch(err => logger.warn(`Trigger failed after resource create type=${parseResult.data.type}: ${err}`));
       return sendResponse(response, { ResourceDetails }, request);
     } catch (e: any) {
       logger.error(String(e));
@@ -55,6 +61,13 @@ class ResourceDetailsController {
       }
       const userUuid = request?.body?.RequestInfo?.userInfo?.uuid || "system";
       const ResourceDetails = await updateResourceDetail(parseResult.data, userUuid);
+      // Fire-and-forget: trigger processing if campaign is in "created" status
+      if (ResourceDetails?.campaignId && ResourceDetails?.tenantId && ResourceDetails?.type) {
+        triggerIfCampaignCreated(
+          ResourceDetails.campaignId, ResourceDetails.tenantId, ResourceDetails.type,
+          userUuid, request?.body?.RequestInfo
+        ).catch(err => logger.warn(`Trigger failed after resource update type=${ResourceDetails.type}: ${err}`));
+      }
       return sendResponse(response, { ResourceDetails }, request);
     } catch (e: any) {
       logger.error(String(e));
