@@ -19,7 +19,7 @@ import { ResourceDetailsCreateInput } from "../config/models/resourceDetailsCrea
 import { ResourceDetailsUpdateInput } from "../config/models/resourceDetailsUpdateSchema";
 import { ResourceDetailsCriteria, Pagination } from "../config/models/resourceDetailsCriteria";
 
-async function getCampaignStatusFromDB(campaignId: string, tenantId: string): Promise<{ status: string | null; campaignNumber: string | null }> {
+export async function getCampaignStatusFromDB(campaignId: string, tenantId: string): Promise<{ status: string | null; campaignNumber: string | null }> {
   const tableName = getTableName(config.DB_CONFIG.DB_CAMPAIGN_DETAILS_TABLE_NAME, tenantId);
   const result = await executeQuery(
     `SELECT status, campaignnumber FROM ${tableName} WHERE id = $1 AND tenantid = $2 LIMIT 1`,

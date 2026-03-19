@@ -180,15 +180,25 @@ async function persistResourceDetailUpdate(
 ): Promise<void> {
     if (!campaignId || !tenantId || !resourceType) return;
     try {
-        const rows = await searchResourceDetailsFromDB({
-            tenantId,
-            campaignId,
-            type: [resourceType],
-            isActive: true
-        });
-        const dbRow = rows?.[0];
+        // Retry up to 3 times with 2s delay to handle the race where the Kafka create-consumer
+        // hasn't committed the row yet when the task processor completes.
+        let dbRow: any = null;
+        for (let attempt = 0; attempt < 3; attempt++) {
+            const rows = await searchResourceDetailsFromDB({
+                tenantId,
+                campaignId,
+                type: [resourceType],
+                isActive: true
+            });
+            dbRow = rows?.[0];
+            if (dbRow) break;
+            if (attempt < 2) {
+                logger.warn(`persistResourceDetailUpdate: row not found for campaignId=${campaignId} type=${resourceType}, retrying (attempt ${attempt + 1}/3)...`);
+                await new Promise(r => setTimeout(r, 2000));
+            }
+        }
         if (!dbRow) {
-            logger.warn(`persistResourceDetailUpdate: no active row found for campaignId=${campaignId} type=${resourceType}`);
+            logger.warn(`persistResourceDetailUpdate: no active row found after 3 attempts for campaignId=${campaignId} type=${resourceType}`);
             return;
         }
         const now = Date.now();

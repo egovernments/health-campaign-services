@@ -3,7 +3,7 @@ import { prepareAndProduceCancelMessage, processBasedOnAction, processFetchMicro
 import { logger } from "../utils/logger";
 import { validateMicroplanRequest, validateProjectCampaignRequest, validateAddResourcesRequest } from "../validators/campaignValidators";
 import { campaignStatuses, processStatuses } from "../config/constants";
-import { createResourceDetail, updateResourceDetail } from "./resourceDetailsService";
+import { createResourceDetail, updateResourceDetail, getCampaignStatusFromDB } from "./resourceDetailsService";
 import { findActiveResourceByUpsertKey } from "../utils/resourceDetailsUtils";
 import { prepareProcessesForResourceTypes, getCurrentProcesses } from "../utils/genericUtils";
 import config from "../config";
@@ -175,7 +175,7 @@ async function addResourcesToCampaignService(request: express.Request) {
     // drafted, inprogress (created), failed → allowed
 
     // Delegate to resource details service — stores in eg_cm_resource_details
-    const createdResources = [];
+    const createdResources: ResourceDetailsResponse[] = [];
     const createdResourceTypes: string[] = [];
     for (const res of newResources as CampaignResource[]) {
         if (!res.type || !res.filestoreId) {
@@ -211,12 +211,13 @@ async function addResourcesToCampaignService(request: express.Request) {
         ]
     };
 
-    // Use existingCampaign.status (already fetched above, no extra DB call needed)
-    if (existingCampaign?.status === campaignStatuses.inprogress && createdResourceTypes.length > 0) {
-        const campaignNumber = existingCampaign?.campaignNumber;
-        if (campaignNumber) {
+    // Fresh status check before triggering to avoid acting on a cancelled/completed campaign
+    // that changed state between the initial fetch and this point.
+    if (createdResourceTypes.length > 0) {
+        const { status: freshStatus, campaignNumber: freshCampaignNumber } = await getCampaignStatusFromDB(campaignId, tenantId);
+        if (freshStatus === campaignStatuses.inprogress && freshCampaignNumber) {
             await triggerResourceProcessingIfCreated(
-                campaignId, tenantId, campaignNumber, campaignForTask, createdResourceTypes, useruuid, request?.body?.RequestInfo
+                campaignId, tenantId, freshCampaignNumber, campaignForTask, createdResourceTypes, useruuid, request?.body?.RequestInfo
             );
         }
     }
