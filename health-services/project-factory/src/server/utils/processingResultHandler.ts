@@ -1,10 +1,11 @@
+import { RequestInfo } from "../config/models/requestInfoSchema";
 import { logger } from './logger';
 import { searchSheetData } from './excelIngestionUtils';
 import { searchProjectTypeCampaignService } from '../service/campaignManageService';
 import { getRelatedDataWithCampaign, getMappingDataRelatedToCampaign, prepareProcessesInDb, getRelatedDataWithUniqueIdentifiers, checkCampaignDataCompletionStatus, checkCampaignMappingCompletionStatus, throwError, getCurrentProcesses } from './genericUtils';
 import { produceModifiedMessages } from '../kafka/Producer';
 import { dataRowStatuses, mappingStatuses, usageColumnStatus, campaignStatuses, allProcesses, processStatuses } from '../config/constants';
-import { searchMDMSDataViaV2Api, searchBoundaryRelationshipData, defaultRequestInfo } from '../api/coreApis';
+import { searchMDMSDataViaV2Api, searchBoundaryRelationshipData } from '../api/coreApis';
 import { populateBoundariesRecursively, getLocalizedName, enrichAndPersistCampaignWithError, enrichAndPersistCampaignForCreateViaFlow2, userCredGeneration } from './campaignUtils';
 import { getLocalisationModuleName } from './localisationUtils';
 import Localisation from '../controllers/localisationController/localisation.controller';
@@ -148,7 +149,7 @@ export async function handleProcessingResult(messageObject: any) {
                         tenantId: messageObject.tenantId,
                     };
                     const searchBody = {
-                        RequestInfo: defaultRequestInfo.RequestInfo,
+                        RequestInfo: messageObject?.requestInfo,
                         Individual: {
                             type: "EMPLOYEE",
                             userUuid: [campaignCreatedBy],
@@ -291,7 +292,7 @@ export async function handleProcessingResult(messageObject: any) {
                 
                 // Trigger background resource creation and mapping flow
                 logger.info('=== TRIGGERING BACKGROUND RESOURCE CREATION FLOW ===');
-                await triggerBackgroundResourceCreationFlow(messageObject.tenantId, campaignDetails, parentCampaign, locale,createdByEmail);
+                await triggerBackgroundResourceCreationFlow(messageObject.tenantId, campaignDetails, parentCampaign, locale, createdByEmail, messageObject?.requestInfo);
             } else {
                 throw new Error('No temp data found to process for campaign');
             }
@@ -1569,7 +1570,8 @@ async function triggerBackgroundResourceCreationFlow(
     campaignDetails: any,
     parentCampaign: any,
     locale: string,
-    createdByEmail? : string,
+    createdByEmail?: string,
+    requestInfo?: RequestInfo,
 ): Promise<void> {
     try {
         const useruuid = campaignDetails?.auditDetails?.createdBy;
@@ -1594,9 +1596,9 @@ async function triggerBackgroundResourceCreationFlow(
                 // Create Projects, Facilities, and Users in parallel along with data completion polling
                 logger.info('Creating projects, facilities, and users in parallel with data completion monitoring...');
                 await Promise.all([
-                    createProjectsFromBoundaryData(campaignDetails, tenantId),
-                    createFacilitiesFromFacilityData(campaignDetails, tenantId),
-                    createUsersFromUserData(campaignDetails, tenantId),
+                    createProjectsFromBoundaryData(campaignDetails, tenantId, requestInfo),
+                    createFacilitiesFromFacilityData(campaignDetails, tenantId, requestInfo),
+                    createUsersFromUserData(campaignDetails, tenantId, requestInfo),
                     monitorCampaignDataCompletion(campaignDetails.campaignNumber, tenantId, campaignDetails.id, campaignAlreadyFailed, useruuid)
                 ]);
                 
@@ -1613,7 +1615,7 @@ async function triggerBackgroundResourceCreationFlow(
                 // Start mapping process for all types in batches with monitoring
                 logger.info('=== STARTING MAPPING PROCESS IN BATCHES WITH MONITORING ===');
                 await Promise.all([
-                    startAllMappingsInBatches(campaignDetails, useruuid, tenantId),
+                    startAllMappingsInBatches(campaignDetails, useruuid, tenantId, requestInfo),
                     monitorCampaignMappingCompletion(campaignDetails.campaignNumber, tenantId, campaignDetails.id, campaignAlreadyFailed, useruuid)
                 ]);
                 
@@ -1634,11 +1636,7 @@ async function triggerBackgroundResourceCreationFlow(
                 }
                 
                 logger.info('=== TRIGGERING USER CREDENTIAL EMAIL FLOW ===');
-                const requestInfoObject = JSON.parse(JSON.stringify(defaultRequestInfo || {}));
-                requestInfoObject.RequestInfo.userInfo.tenantId = tenantId;
-                requestInfoObject.RequestInfo.userInfo.uuid = useruuid;
-                const msgId = `${new Date().getTime()}|${locale || config?.localisation?.defaultLocale}`;
-                requestInfoObject.RequestInfo.msgId = msgId;
+                const requestInfoObject = { RequestInfo: { ...(requestInfo || {}), userInfo: { ...((requestInfo as any)?.userInfo || {}), tenantId, uuid: useruuid }, msgId: `${new Date().getTime()}|${locale || config?.localisation?.defaultLocale}` } };
 
                 triggerUserCredentialEmailFlow({
                     RequestInfo: requestInfoObject.RequestInfo,
@@ -1677,7 +1675,7 @@ async function triggerBackgroundResourceCreationFlow(
 /**
  * Create projects from boundary data following the same pattern as boundary-processClass
  */
-async function createProjectsFromBoundaryData(campaignDetails: any, tenantId: string): Promise<void> {
+async function createProjectsFromBoundaryData(campaignDetails: any, tenantId: string, requestInfo?: RequestInfo): Promise<void> {
     try {
         const campaignNumber = campaignDetails.campaignNumber;
         
@@ -1725,7 +1723,7 @@ async function createProjectsFromBoundaryData(campaignDetails: any, tenantId: st
         }
         
         // Create and update projects using the boundary data
-        await createAndUpdateProjects(currentBoundaryData, campaignDetails, boundaries, targetConfig);
+        await createAndUpdateProjects(currentBoundaryData, campaignDetails, boundaries, targetConfig, requestInfo);
         
         logger.info('Project creation from boundary data completed successfully');
         
@@ -1738,7 +1736,7 @@ async function createProjectsFromBoundaryData(campaignDetails: any, tenantId: st
 /**
  * Create and update projects following boundary-processClass pattern
  */
-async function createAndUpdateProjects(currentBoundaryData: any[], campaignDetails: any, boundaries: any, targetConfig: any): Promise<void> {
+async function createAndUpdateProjects(currentBoundaryData: any[], campaignDetails: any, boundaries: any, targetConfig: any, requestInfo?: RequestInfo): Promise<void> {
     try {
         logger.info('Creating and updating projects...');
         
@@ -1746,7 +1744,7 @@ async function createAndUpdateProjects(currentBoundaryData: any[], campaignDetai
         const boundaryChildrenToTypeAndParentMap: any = getBoundaryChildrenToTypeAndParentMap(boundaries, currentBoundaryData);
         
         // Prepare project creation context
-        const { projectCreateBody, Projects } = await prepareProjectCreationContext(campaignDetails);
+        const { projectCreateBody, Projects } = await prepareProjectCreationContext(campaignDetails, requestInfo);
         
         // Topologically sort boundaries to ensure parent projects are created first
         const sortedBoundaryData = topologicallySortBoundaries(currentBoundaryData, boundaryChildrenToTypeAndParentMap);
@@ -1761,10 +1759,10 @@ async function createAndUpdateProjects(currentBoundaryData: any[], campaignDetai
         logger.info(`Processing ${sortedBoundaryDataForUpdate.length} boundaries for project updates`);
         
         // Process project creation in topological order (parents first)
-        await processProjectCreationInOrder(sortedBoundaryDataForCreate, campaignDetails?.tenantId, campaignDetails?.campaignNumber, targetConfig, projectCreateBody, Projects, boundaryChildrenToTypeAndParentMap, useruuid);
+        await processProjectCreationInOrder(sortedBoundaryDataForCreate, campaignDetails?.tenantId, campaignDetails?.campaignNumber, targetConfig, projectCreateBody, Projects, boundaryChildrenToTypeAndParentMap, useruuid, requestInfo);
         
         // Process project updates
-        await processProjectUpdateInOrder(sortedBoundaryDataForUpdate, campaignDetails?.tenantId, campaignDetails?.campaignNumber, targetConfig, useruuid);
+        await processProjectUpdateInOrder(sortedBoundaryDataForUpdate, campaignDetails?.tenantId, campaignDetails?.campaignNumber, targetConfig, useruuid, requestInfo);
         
         logger.info('Project creation and updates completed successfully');
         
@@ -1809,7 +1807,7 @@ function getBoundaryChildrenToTypeAndParentMap(boundaries: any[], currentBoundar
 /**
  * Prepare project creation context with enriched project details
  */
-async function prepareProjectCreationContext(campaignDetails: any) {
+async function prepareProjectCreationContext(campaignDetails: any, requestInfo?: RequestInfo) {
     const MdmsCriteria : any = {
         tenantId: campaignDetails?.tenantId,
         schemaCode: "HCM-PROJECT-TYPES.projectTypes",
@@ -1825,7 +1823,7 @@ async function prepareProjectCreationContext(campaignDetails: any) {
 
     const Projects = enrichProjectDetailsFromCampaignDetails(campaignDetails, mdmsResponse?.mdms?.[0]?.data);
     const projectCreateBody = {
-        RequestInfo: { ...defaultRequestInfo?.RequestInfo, userInfo: { uuid: campaignDetails?.auditDetails?.createdBy } },
+        RequestInfo: { ...(requestInfo || {}), userInfo: { uuid: campaignDetails?.auditDetails?.createdBy } },
         Projects
     };
 
@@ -1883,7 +1881,8 @@ async function processProjectCreationInOrder(
     projectCreateBody: any,
     Projects: any,
     boundaryMap: Record<string, { type: string; parent: string | null; projectId?: string }>,
-    useruuid: string
+    useruuid: string,
+    requestInfo?: RequestInfo
 ) {
     logger.info("Processing project creation level-wise with batching");
     
@@ -1899,15 +1898,16 @@ async function processProjectCreationInOrder(
         
         // Process this level in batches of 20 using Promise.all
         await processLevelInBatches(
-            levelBoundaries, 
-            tenantId, 
-            campaignNumber, 
-            targetConfig, 
-            projectCreateBody, 
-            Projects, 
-            boundaryMap, 
+            levelBoundaries,
+            tenantId,
+            campaignNumber,
+            targetConfig,
+            projectCreateBody,
+            Projects,
+            boundaryMap,
             useruuid,
-            levelIndex + 1
+            levelIndex + 1,
+            requestInfo
         );
         
         logger.info(`✅ Level ${levelIndex + 1} completed`);
@@ -1973,7 +1973,8 @@ async function processLevelInBatches(
     Projects: any,
     boundaryMap: Record<string, { type: string; parent: string | null; projectId?: string }>,
     useruuid: string,
-    levelNumber: number
+    levelNumber: number,
+    requestInfo?: RequestInfo
 ) {
     const BATCH_SIZE = 20;
     
@@ -1985,7 +1986,7 @@ async function processLevelInBatches(
         logger.info(`Processing level ${levelNumber} batch ${batchNumber}/${totalBatches}: ${batch.length} projects`);
         
         // Create promises for parallel execution
-        const batchPromises = batch.map(boundaryData => 
+        const batchPromises = batch.map(boundaryData =>
             createSingleProject(
                 boundaryData,
                 tenantId,
@@ -1994,7 +1995,8 @@ async function processLevelInBatches(
                 projectCreateBody,
                 Projects,
                 boundaryMap,
-                useruuid
+                useruuid,
+                requestInfo
             )
         );
         
@@ -2035,7 +2037,8 @@ async function createSingleProject(
     projectCreateBody: any,
     Projects: any,
     boundaryMap: Record<string, { type: string; parent: string | null; projectId?: string }>,
-    useruuid: string
+    useruuid: string,
+    requestInfo?: RequestInfo
 ): Promise<void> {
     const data = boundaryData?.data;
     const boundaryCode = data?.["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"];
@@ -2055,7 +2058,7 @@ async function createSingleProject(
             const parentProjectId = boundaryMap?.[parent]?.projectId;
             projectTemplate.parent = parentProjectId;
             if(!config.values.skipParentProjectConfirmation) {
-                await confirmProjectParentCreation(tenantId, useruuid, parentProjectId);
+                await confirmProjectParentCreation(tenantId, useruuid, parentProjectId, requestInfo);
             }
         }
         else if (parent && !boundaryMap?.[parent]?.projectId) {
@@ -2126,14 +2129,14 @@ async function processProjectUpdateInOrder(
     tenantId: string,
     campaignNumber: string,
     targetConfig: any,
-    useruuid: string
+    useruuid: string,
+    requestInfo?: RequestInfo
 ) {
     logger.info("Processing project update in order");
     for (const boundaryData of sortedBoundaryData) {
         const data = boundaryData?.data;
         const boundaryCode = data?.["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"];
-        const RequestInfo = JSON.parse(JSON.stringify(defaultRequestInfo?.RequestInfo));
-        RequestInfo.userInfo.uuid = useruuid;
+        const RequestInfo = requestInfo || {};
         try {
             const projectSearchResponse =
                 await fetchProjectsWithBoundaryCodeAndReferenceId(
@@ -2208,7 +2211,7 @@ async function processProjectUpdateInOrder(
 /**
  * Create facilities via Kafka batch processing
  */
-async function createFacilitiesFromFacilityData(campaignDetails: any, tenantId: string): Promise<void> {
+async function createFacilitiesFromFacilityData(campaignDetails: any, tenantId: string, requestInfo?: RequestInfo): Promise<void> {
     try {
         const campaignNumber = campaignDetails.campaignNumber;
         const campaignId = campaignDetails.id;
@@ -2263,7 +2266,8 @@ async function createFacilitiesFromFacilityData(campaignDetails: any, tenantId: 
                 useruuid: userUuid,
                 facilityData,
                 batchNumber,
-                totalBatches
+                totalBatches,
+                requestInfo
             };
             
             logger.info(`Sending facility batch ${batchNumber}/${totalBatches} to Kafka: ${batch.length} facilities`);
@@ -2293,7 +2297,8 @@ async function createFacilitiesFromFacilityData(campaignDetails: any, tenantId: 
 async function startAllMappingsInBatches(
     campaignDetails: any,
     useruuid: string,
-    tenantId: string
+    tenantId: string,
+    requestInfo?: RequestInfo
 ): Promise<void> {
     try {
         const campaignNumber = campaignDetails.campaignNumber;
@@ -2341,7 +2346,8 @@ async function startAllMappingsInBatches(
                 useruuid,
                 mappings: batch,
                 batchNumber,
-                totalBatches
+                totalBatches,
+                requestInfo
             };
             
             logger.info(`Sending mapping batch ${batchNumber}/${totalBatches} to Kafka: ${batch.length} mappings`);
@@ -2368,7 +2374,7 @@ async function startAllMappingsInBatches(
 /**
  * Create users via Kafka batch processing
  */
-async function createUsersFromUserData(campaignDetails: any, tenantId: string): Promise<void> {
+async function createUsersFromUserData(campaignDetails: any, tenantId: string, requestInfo?: RequestInfo): Promise<void> {
     try {
         const campaignNumber = campaignDetails.campaignNumber;
         const campaignId = campaignDetails.id;
@@ -2423,7 +2429,8 @@ async function createUsersFromUserData(campaignDetails: any, tenantId: string): 
                 useruuid: userUuid,
                 userData,
                 batchNumber,
-                totalBatches
+                totalBatches,
+                requestInfo
             };
             
             logger.info(`Sending user batch ${batchNumber}/${totalBatches} to Kafka: ${batch.length} users`);

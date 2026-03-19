@@ -1,3 +1,4 @@
+import { withUserInfo } from "../config/models/requestInfoSchema";
 import { getLocalizedName } from "../utils/campaignUtils";
 import { SheetMap } from "../models/SheetMap";
 import { logger } from "../utils/logger";
@@ -8,7 +9,6 @@ import { produceModifiedMessages } from "../kafka/Producer";
 import config from "../config";
 import { DataTransformer } from "../utils/transFormUtil";
 import { transformConfigs } from "../config/transformConfigs";
-import { defaultRequestInfo } from "../api/coreApis";
 import { httpRequest } from "../utils/request";
 import { decrypt, encrypt } from "../utils/cryptUtils";
 import { validateResourceDetailsBeforeProcess } from "../utils/sheetManageUtils";
@@ -372,7 +372,7 @@ export class TemplateClass {
         for (let i = 0; i < transformedUsers.length; i += BATCH_SIZE) {
             const batch = transformedUsers.slice(i, i + BATCH_SIZE);
             try {
-                const { mobileToServiceMap, mobileToIndividualIdMap } = await this.createEmployeesAndGetServiceUuid(batch, userUuid);
+                const { mobileToServiceMap, mobileToIndividualIdMap } = await this.createEmployeesAndGetServiceUuid(batch, userUuid, resourceDetails);
 
                 const successfulUsers = [];
                 const workerDataList: WorkerData[] = [];
@@ -412,9 +412,8 @@ export class TemplateClass {
                 // Create/update workers in worker registry BEFORE persist to capture worker IDs
                 if (workerDataList.length > 0) {
                     try {
-                        const RequestInfo: any = defaultRequestInfo?.RequestInfo;
-                        RequestInfo.userInfo.tenantId = tenantId;
-                        const workerIdMap = await createOrUpdateWorkers(workerDataList, RequestInfo);
+                        const workerRequestInfo = withUserInfo(resourceDetails?.requestInfo, { tenantId });
+                        const workerIdMap = await createOrUpdateWorkers(workerDataList, workerRequestInfo);
                         logger.info(`Worker registry integration completed for ${workerDataList.length} workers`);
 
                         // Store worker IDs back in campaign data
@@ -469,10 +468,9 @@ export class TemplateClass {
 
 
 
-    static async createEmployeesAndGetServiceUuid(users: any[], userUuid: string): Promise<{ mobileToServiceMap: Record<string, string>; mobileToIndividualIdMap: Record<string, string> }> {
+    static async createEmployeesAndGetServiceUuid(users: any[], userUuid: string, resourceDetails?: any): Promise<{ mobileToServiceMap: Record<string, string>; mobileToIndividualIdMap: Record<string, string> }> {
         const url = config.host.hrmsHost + config.paths.hrmsEmployeeCreate;
-        const RequestInfo : any = defaultRequestInfo?.RequestInfo;
-        RequestInfo.userInfo.uuid = userUuid;
+        const RequestInfo = resourceDetails?.requestInfo;
         const requestBody = {
             RequestInfo,
             Employees: users,

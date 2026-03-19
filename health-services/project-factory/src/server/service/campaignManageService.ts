@@ -1,3 +1,4 @@
+import { RequestInfo } from "../config/models/requestInfoSchema";
 import express from "express";
 import { prepareAndProduceCancelMessage, processBasedOnAction, processFetchMicroPlan, searchProjectCampaignResourcData, updateCampaignAfterSearch, validateAndFetchCampaign } from "../utils/campaignUtils";
 import { logger } from "../utils/logger";
@@ -237,7 +238,7 @@ export async function triggerResourceProcessingIfCreated(
     updatedCampaign: any,
     resourceTypes: string[],
     useruuid: string,
-    requestInfo: any
+    requestInfo: RequestInfo
 ): Promise<void> {
     await prepareProcessesForResourceTypes(campaignNumber, tenantId, resourceTypes, useruuid);
     const allCurrentProcesses = await getCurrentProcesses(campaignNumber, tenantId);
@@ -266,7 +267,7 @@ export async function triggerIfCampaignCreated(
     tenantId: string,
     resourceType: string,
     useruuid: string,
-    requestInfo: any,
+    requestInfo: RequestInfo,
     newResourceDetails?: any   // optional: the just-created/updated ResourceDetails object
 ): Promise<void> {
     const campaignResp = await searchProjectTypeCampaignService({ tenantId, ids: [campaignId] });

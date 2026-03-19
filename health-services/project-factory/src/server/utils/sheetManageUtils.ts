@@ -1,3 +1,4 @@
+import { RequestInfo } from "../config/models/requestInfoSchema";
 import { v4 as uuidV4 } from "uuid";
 import config from "../config";
 import { produceModifiedMessages } from "../kafka/Producer";
@@ -23,7 +24,8 @@ export async function initializeGenerateAndGetResponse(
     hierarchyType: string,
     campaignId: string,
     userUuid: string,
-    locale: string = config.localisation.defaultLocale
+    locale: string = config.localisation.defaultLocale,
+    requestInfo?: RequestInfo
 ) {
     const currentTime = Date.now();
 
@@ -54,6 +56,7 @@ export async function initializeGenerateAndGetResponse(
         locale,
         status: generatedResourceStatuses.inprogress,
         additionalDetails: {},
+        requestInfo,
         auditDetails: {
             createdTime: currentTime,
             lastModifiedTime: currentTime,

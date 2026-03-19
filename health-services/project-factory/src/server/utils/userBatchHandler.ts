@@ -1,8 +1,8 @@
+import { RequestInfo, withUserInfo } from "../config/models/requestInfoSchema";
 import { logger } from './logger';
 import { httpRequest } from './request';
 import { produceModifiedMessages } from '../kafka/Producer';
 import { dataRowStatuses } from '../config/constants';
-import { defaultRequestInfo } from '../api/coreApis';
 import { sendCampaignFailureMessage } from './campaignFailureHandler';
 import { searchProjectTypeCampaignService } from '../service/campaignManageService';
 import { DataTransformer } from './transFormUtil';
@@ -23,6 +23,7 @@ interface UserBatchMessage {
     userData: Record<string, any>; // { uniqueIdentifier: campaignRecord }
     batchNumber: number;
     totalBatches: number;
+    requestInfo: RequestInfo;
 }
 
 /**
@@ -77,7 +78,7 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
         logger.info(`Transformed ${transformedUsers.length} users`);
         
         // Create users via HRMS API
-        const createResult = await createUsersViaHrmsApi(transformedUsers, useruuid);
+        const createResult = await createUsersViaHrmsApi(transformedUsers, useruuid, messageObject.requestInfo);
 
         // Build worker data for worker registry integration
         const workerDataList: WorkerData[] = [];
@@ -139,10 +140,8 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
         // Create/update workers in worker registry and capture worker IDs
         if (workerDataList.length > 0) {
             try {
-                const RequestInfo = { ...defaultRequestInfo?.RequestInfo };
-                RequestInfo.userInfo.uuid = useruuid;
-                RequestInfo.userInfo.tenantId = tenantId;
-                const workerIdMap = await createOrUpdateWorkers(workerDataList, RequestInfo);
+                const workerRequestInfo = withUserInfo(messageObject.requestInfo, { tenantId });
+                const workerIdMap = await createOrUpdateWorkers(workerDataList, workerRequestInfo);
                 logger.info(`Worker registry integration completed for ${workerDataList.length} workers`);
 
                 // Store worker IDs back in campaign data
@@ -203,7 +202,8 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
  */
 async function createUsersViaHrmsApi(
     transformedUsers: any[],
-    userUuid: string
+    userUuid: string,
+    requestInfo: RequestInfo
 ): Promise<{ mobileToUserServiceMap: Record<string, string>; mobileToIndividualIdMap: Record<string, string> }> {
     try {
         if (transformedUsers.length === 0) {
@@ -211,8 +211,7 @@ async function createUsersViaHrmsApi(
         }
 
         const url = config.host.hrmsHost + config.paths.hrmsEmployeeCreate;
-        const RequestInfo = { ...defaultRequestInfo?.RequestInfo };
-        RequestInfo.userInfo.uuid = userUuid;
+        const RequestInfo = requestInfo;
 
         const requestBody = {
             RequestInfo,

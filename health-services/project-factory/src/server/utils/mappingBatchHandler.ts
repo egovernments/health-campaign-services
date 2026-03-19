@@ -1,5 +1,5 @@
+import { RequestInfo } from "../config/models/requestInfoSchema";
 import { logger } from './logger';
-import { defaultRequestInfo } from '../api/coreApis';
 import { getRelatedDataWithCampaign } from './genericUtils';
 import { mappingStatuses } from '../config/constants';
 import { createProjectResource, createProjectFacility, createStaff } from '../api/genericApis';
@@ -16,7 +16,7 @@ export async function handleMappingBatch(messageObject: any) {
     try {
         logger.info('=== PROCESSING MAPPING BATCH ===');
         
-        const { tenantId, campaignNumber,  useruuid, mappings, batchNumber, totalBatches } = messageObject;
+        const { tenantId, campaignNumber, useruuid, mappings, batchNumber, totalBatches, requestInfo } = messageObject;
         
         logger.info(`Processing mapping batch ${batchNumber}/${totalBatches} with ${mappings.length} mappings`);
         
@@ -43,13 +43,13 @@ export async function handleMappingBatch(messageObject: any) {
         
         // Process toBeMapped
         if (mappingGroups.resourceToBeMapped.length > 0) {
-            promises.push(processResourceMappings(mappingGroups.resourceToBeMapped, boundaryToProjectId, tenantId, useruuid));
+            promises.push(processResourceMappings(mappingGroups.resourceToBeMapped, boundaryToProjectId, tenantId, useruuid, requestInfo));
         }
         if (mappingGroups.facilityToBeMapped.length > 0) {
-            promises.push(processFacilityMappings(mappingGroups.facilityToBeMapped, boundaryToProjectId, facilityMap, tenantId, useruuid));
+            promises.push(processFacilityMappings(mappingGroups.facilityToBeMapped, boundaryToProjectId, facilityMap, tenantId, useruuid, requestInfo));
         }
         if (mappingGroups.userToBeMapped.length > 0) {
-            promises.push(processUserMappings(mappingGroups.userToBeMapped, boundaryToProjectId, userMap, tenantId, useruuid));
+            promises.push(processUserMappings(mappingGroups.userToBeMapped, boundaryToProjectId, userMap, tenantId, useruuid, requestInfo));
         }
         
         // Process toBeDeMapped
@@ -57,10 +57,10 @@ export async function handleMappingBatch(messageObject: any) {
             promises.push(processResourceDemappings(mappingGroups.resourceToBeDeMapped, tenantId, useruuid));
         }
         if (mappingGroups.facilityToBeDeMapped.length > 0) {
-            promises.push(processFacilityDemappings(mappingGroups.facilityToBeDeMapped, boundaryToProjectId, facilityMap, tenantId, useruuid));
+            promises.push(processFacilityDemappings(mappingGroups.facilityToBeDeMapped, boundaryToProjectId, facilityMap, tenantId, useruuid, requestInfo));
         }
         if (mappingGroups.userToBeDeMapped.length > 0) {
-            promises.push(processUserDemappings(mappingGroups.userToBeDeMapped, boundaryToProjectId, userMap, tenantId, useruuid));
+            promises.push(processUserDemappings(mappingGroups.userToBeDeMapped, boundaryToProjectId, userMap, tenantId, useruuid, requestInfo));
         }
         
         // Execute all mappings in parallel
@@ -161,12 +161,12 @@ async function processResourceMappings(
     mappings: any[],
     boundaryToProjectId: Record<string, string>,
     tenantId: string,
-    useruuid: string
+    useruuid: string,
+    requestInfo: RequestInfo
 ): Promise<void> {
     logger.info(`Processing ${mappings.length} resource mappings`);
 
-    const RequestInfo = JSON.parse(JSON.stringify(defaultRequestInfo?.RequestInfo));
-    RequestInfo.userInfo.uuid = useruuid;
+    const RequestInfo = requestInfo;
 
     const updateBatch: any[] = []; // Collect all updates for batch sending
 
@@ -220,12 +220,12 @@ async function processFacilityMappings(
     boundaryToProjectId: Record<string, string>,
     facilityMap: Record<string, string>,
     tenantId: string,
-    useruuid: string
+    useruuid: string,
+    requestInfo: RequestInfo
 ): Promise<void> {
     logger.info(`Processing ${mappings.length} facility mappings`);
 
-    const RequestInfo = JSON.parse(JSON.stringify(defaultRequestInfo?.RequestInfo));
-    RequestInfo.userInfo.uuid = useruuid;
+    const RequestInfo = requestInfo;
 
     const updateBatch: any[] = []; // Collect all updates for batch sending
 
@@ -277,12 +277,12 @@ async function processUserMappings(
     boundaryToProjectId: Record<string, string>,
     userMap: Record<string, string>,
     tenantId: string,
-    useruuid: string
+    useruuid: string,
+    requestInfo: RequestInfo
 ): Promise<void> {
     logger.info(`Processing ${mappings.length} user mappings`);
 
-    const RequestInfo = JSON.parse(JSON.stringify(defaultRequestInfo?.RequestInfo));
-    RequestInfo.userInfo.uuid = useruuid;
+    const RequestInfo = requestInfo;
 
     const updateBatch: any[] = []; // Collect all updates for batch sending
 
@@ -367,12 +367,12 @@ async function processFacilityDemappings(
     boundaryToProjectId: Record<string, string>,
     facilityMap: Record<string, string>,
     tenantId: string,
-    useruuid: string
+    useruuid: string,
+    requestInfo: RequestInfo
 ): Promise<void> {
     logger.info(`Processing ${mappings.length} facility demappings`);
 
-    const RequestInfo = JSON.parse(JSON.stringify(defaultRequestInfo?.RequestInfo));
-    RequestInfo.userInfo.uuid = useruuid;
+    const RequestInfo = requestInfo;
 
     const deleteBatch: any[] = []; // Collect successful deletions
     const failedBatch: any[] = []; // Collect failed ones
@@ -415,12 +415,12 @@ async function processUserDemappings(
     boundaryToProjectId: Record<string, string>,
     userMap: Record<string, string>,
     tenantId: string,
-    useruuid: string
+    useruuid: string,
+    requestInfo: RequestInfo
 ): Promise<void> {
     logger.info(`Processing ${mappings.length} user demappings`);
 
-    const RequestInfo = JSON.parse(JSON.stringify(defaultRequestInfo?.RequestInfo));
-    RequestInfo.userInfo.uuid = useruuid;
+    const RequestInfo = requestInfo;
 
     const deleteBatch: any[] = []; // Collect successful deletions
     const failedBatch: any[] = []; // Collect failed ones

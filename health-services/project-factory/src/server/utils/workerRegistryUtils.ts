@@ -1,3 +1,4 @@
+import { RequestInfo } from "../config/models/requestInfoSchema";
 import { logger } from './logger';
 import { httpRequest } from './request';
 import config from '../config';
@@ -20,7 +21,7 @@ interface WorkerData {
 async function searchWorkersByIndividualIds(
     individualIds: string[],
     tenantId: string,
-    requestInfo: any
+    requestInfo: RequestInfo
 ): Promise<any[]> {
     if (!individualIds.length) return [];
 
@@ -48,7 +49,7 @@ async function searchWorkersByIndividualIds(
 async function searchWorkersByIds(
     ids: string[],
     tenantId: string,
-    requestInfo: any
+    requestInfo: RequestInfo
 ): Promise<any[]> {
     if (!ids.length) return [];
 
@@ -76,7 +77,7 @@ async function searchWorkersByIds(
  */
 async function createOrUpdateWorkers(
     workerDataList: WorkerData[],
-    requestInfo: any
+    requestInfo: RequestInfo
 ): Promise<Map<string, string>> {
     const individualIdToWorkerIdMap = new Map<string, string>();
     if (!workerDataList.length) return individualIdToWorkerIdMap;

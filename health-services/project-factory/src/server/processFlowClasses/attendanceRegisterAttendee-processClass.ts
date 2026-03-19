@@ -1,10 +1,10 @@
+import { RequestInfo } from "../config/models/requestInfoSchema";
 import { getLocalizedName } from "../utils/campaignUtils";
 import { SheetMap } from "../models/SheetMap";
 import { logger } from "../utils/logger";
 import { sheetDataRowStatuses } from "../config/constants";
 import { validateResourceDetailsBeforeProcess } from "../utils/sheetManageUtils";
 import { httpRequest } from "../utils/request";
-import { defaultRequestInfo } from "../api/coreApis";
 import config from "../config";
 
 const WORKER_SHEET = "HCM_REGISTER_WORKER_SHEET";
@@ -35,7 +35,7 @@ export class TemplateClass {
         logger.info("Processing attendance register attendee file...");
 
         const tenantId = resourceDetails?.tenantId;
-        const requestInfo = resourceDetails?.requestInfo || defaultRequestInfo?.RequestInfo || {};
+        const requestInfo = resourceDetails?.requestInfo || {};
 
         // Collect all rows indexed by sheet
         const sheetRows: Map<string, any[]> = new Map();
@@ -311,7 +311,7 @@ export class TemplateClass {
     private static async resolveIndividualIds(
         usernames: string[],
         rootTenantId: string,
-        requestInfo: any
+        requestInfo: RequestInfo
     ): Promise<Map<string, string>> {
         const result = new Map<string, string>();
         if (!usernames.length) return result;
@@ -349,7 +349,7 @@ export class TemplateClass {
     private static async fetchRegistersWithEnrollments(
         registerIds: string[],
         tenantId: string,
-        requestInfo: any
+        requestInfo: RequestInfo
     ): Promise<Map<string, { register: any; attendeesMap: Map<string, any>; staffMap: Map<string, any> }>> {
         const result = new Map<string, { register: any; attendeesMap: Map<string, any>; staffMap: Map<string, any> }>();
         if (!registerIds.length) return result;
@@ -381,7 +381,7 @@ export class TemplateClass {
         items: any[],
         urlPath: string,
         bodyKey: string,
-        requestInfo: any
+        requestInfo: RequestInfo
     ): Promise<void> {
         const url = config.host.attendanceHost + urlPath;
         for (let i = 0; i < items.length; i += BATCH_SIZE) {

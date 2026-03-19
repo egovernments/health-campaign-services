@@ -1,3 +1,4 @@
+import { RequestInfo } from "../config/models/requestInfoSchema";
 import createAndSearch from "../config/createAndSearch";
 import config from "../config";
 import { getFormattedStringForDebug, logger } from "../utils/logger";
@@ -1172,18 +1173,18 @@ async function validateProductVariant(request: any) {
         }
     });
     const pvarIds= getPvarIds(request?.body);
-    await validatePvarIds(pvarIds as string[],tenantId);
+    await validatePvarIds(pvarIds as string[], tenantId, request?.body?.RequestInfo);
     logger.info("Validated product variants successfully");
 }
 
-async function validatePvarIds(pvarIds: string[] , tenantId?: string) {
+async function validatePvarIds(pvarIds: string[], tenantId?: string, requestInfo?: RequestInfo) {
     // Validate that pvarIds is not null, undefined, or empty, and that no element is null or undefined
     if (!pvarIds?.length || pvarIds.some((id:any) => !id)) {
         throwError("COMMON", 400, "VALIDATION_ERROR", "productVariantId is required in every delivery rule's resources");
     }
 
     // Fetch product variants using the fetchProductVariants function
-    const allProductVariants = await fetchProductVariants(pvarIds,tenantId);
+    const allProductVariants = await fetchProductVariants(pvarIds, tenantId, requestInfo);
 
     // Extract the ids of the fetched product variants
     const fetchedIds = new Set(allProductVariants.map((pvar: any) => pvar?.id));

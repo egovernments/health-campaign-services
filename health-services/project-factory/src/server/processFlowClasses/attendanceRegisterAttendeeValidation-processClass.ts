@@ -1,9 +1,9 @@
+import { RequestInfo } from "../config/models/requestInfoSchema";
 import { getLocalizedName } from "../utils/campaignUtils";
 import { SheetMap } from "../models/SheetMap";
 import { logger } from "../utils/logger";
 import { sheetDataRowStatuses } from "../config/constants";
 import { httpRequest } from "../utils/request";
-import { defaultRequestInfo } from "../api/coreApis";
 import config from "../config";
 
 const SHEET_NAMES = [
@@ -55,7 +55,7 @@ export class TemplateClass {
         let registerStartDate: number | null = null;
         let registerEndDate: number | null = null;
         if (registerId) {
-            const register = await this.fetchRegister(registerId, tenantId);
+            const register = await this.fetchRegister(registerId, tenantId, resourceDetails?.requestInfo);
             if (register) {
                 registerStartDate = register.startDate ?? null;
                 registerEndDate = register.endDate ?? null;
@@ -124,10 +124,10 @@ export class TemplateClass {
         return this.buildSheetMap(SHEET_NAMES, wholeSheetData, localizationMap);
     }
 
-    private static async fetchRegister(registerId: string, tenantId: string): Promise<any> {
+    private static async fetchRegister(registerId: string, tenantId: string, requestInfo?: RequestInfo): Promise<any> {
         try {
             const url = config.host.attendanceHost + config.paths.attendanceRegisterSearch;
-            const RequestInfo = defaultRequestInfo?.RequestInfo || {};
+            const RequestInfo = requestInfo || {};
             // ids is an array param per API spec
             const response = await httpRequest(url, { RequestInfo }, { tenantId, ids: [registerId] });
             return response?.attendanceRegister?.[0] || null;

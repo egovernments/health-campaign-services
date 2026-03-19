@@ -136,13 +136,13 @@ export async function handleMappingTaskForCampaign(messageObject: any) {
         const useruuid = requestInfo?.userInfo?.uuid;
         logger.info(`Mapping for campaign ${CampaignDetails?.id} : ${processName} started..`);
         if(processName == allProcesses.resourceMapping) {
-            await startResourceMapping(CampaignDetails, useruuid);
+            await startResourceMapping(CampaignDetails, useruuid, requestInfo);
         }
         else if(processName == allProcesses.facilityMapping) {
-            await startFacilityMappingAndDemapping(CampaignDetails, useruuid);
+            await startFacilityMappingAndDemapping(CampaignDetails, useruuid, requestInfo);
         }
         else if (processName == allProcesses.userMapping) {
-            await startUserMappingAndDemapping(CampaignDetails, useruuid);
+            await startUserMappingAndDemapping(CampaignDetails, useruuid, requestInfo);
         }
         task.status = processStatuses.completed;
         // Add audit details for update

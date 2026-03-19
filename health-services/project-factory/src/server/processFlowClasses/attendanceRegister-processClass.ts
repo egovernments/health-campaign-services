@@ -1,10 +1,10 @@
+import { RequestInfo } from "../config/models/requestInfoSchema";
 import { getLocalizedName } from "../utils/campaignUtils";
 import { SheetMap } from "../models/SheetMap";
 import { logger } from "../utils/logger";
 import { searchProjectTypeCampaignService } from "../service/campaignManageService";
 import { sheetDataRowStatuses } from "../config/constants";
 import { httpRequest } from "../utils/request";
-import { defaultRequestInfo } from "../api/coreApis";
 import { validateResourceDetailsBeforeProcess } from "../utils/sheetManageUtils";
 import config from "../config";
 import { getRelatedDataWithCampaign, throwError } from "../utils/genericUtils";
@@ -286,7 +286,7 @@ export class TemplateClass {
      * Idempotent batch creation - check for existing registers, create only new ones
      * Time Complexity: O(n) where n = number of registers
      */
-    private static async idempotentBatchCreate(payloads: any[], campaignId: string,  tenantId: string, requestInfo?: any): Promise<void> {
+    private static async idempotentBatchCreate(payloads: any[], campaignId: string,  tenantId: string, requestInfo?: RequestInfo): Promise<void> {
         if (payloads.length === 0) {
             logger.info("No registers to create");
             return;
@@ -329,14 +329,14 @@ export class TemplateClass {
     /**
      * Search for existing attendance registers by serviceCode
      */
-    private static async searchExistingRegisters(serviceCodes: string[], campaignId: string,  tenantId: string, requestInfo?: any): Promise<any[]> {
+    private static async searchExistingRegisters(serviceCodes: string[], campaignId: string,  tenantId: string, requestInfo?: RequestInfo): Promise<any[]> {
         if (serviceCodes.length === 0) {
             return [];
         }
 
         try {
             const url = config.host.attendanceHost + config.paths.attendanceRegisterSearch;
-            const RequestInfo = requestInfo || defaultRequestInfo?.RequestInfo || {};
+            const RequestInfo = requestInfo || {};
             const requestBody = {
                 RequestInfo
             };
@@ -357,10 +357,10 @@ export class TemplateClass {
     /**
      * Create attendance registers via Attendance Service API
      */
-    private static async createAttendanceRegisters(registers: any[], tenantId: string, requestInfo?: any): Promise<void> {
+    private static async createAttendanceRegisters(registers: any[], tenantId: string, requestInfo?: RequestInfo): Promise<void> {
         try {
             const url = config.host.attendanceHost + config.paths.attendanceRegisterCreate;
-            const RequestInfo = requestInfo || defaultRequestInfo?.RequestInfo || {};
+            const RequestInfo = requestInfo || {};
             const requestBody = {
                 RequestInfo,
                 attendanceRegister: registers

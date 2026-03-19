@@ -1,3 +1,4 @@
+import { RequestInfo } from "../config/models/requestInfoSchema";
 import { getRelatedDataWithCampaign, throwError } from "../utils/genericUtils";
 import { SheetMap } from "../models/SheetMap";
 import { getLocalizedName } from "../utils/campaignUtils";
@@ -7,7 +8,6 @@ import { logger } from "../utils/logger";
 import { processStatuses, allProcesses, dataRowStatuses } from "../config/constants";
 import { decrypt } from "../utils/cryptUtils";
 import { httpRequest } from "../utils/request";
-import { defaultRequestInfo } from "../api/coreApis";
 import config from "../config";
 
 // Role codes for classifying users into sheets (priority order — first match wins)
@@ -51,7 +51,7 @@ export class TemplateClass {
         }
 
         // Fetch attendance register to get localityCode, startDate, endDate
-        const register = await this.fetchRegister(registerId, tenantId);
+        const register = await this.fetchRegister(registerId, tenantId, responseToSend?.requestInfo);
         if (!register) {
             throwError("CAMPAIGN", 400, "ATTENDANCE_REGISTER_NOT_FOUND", `Attendance register not found: ${registerId}`);
         }
@@ -122,9 +122,9 @@ export class TemplateClass {
     /**
      * Fetch attendance register by ID.
      */
-    private static async fetchRegister(registerId: string, tenantId: string): Promise<any> {
+    private static async fetchRegister(registerId: string, tenantId: string, requestInfo?: RequestInfo): Promise<any> {
         const url = config.host.attendanceHost + config.paths.attendanceRegisterSearch;
-        const RequestInfo = defaultRequestInfo?.RequestInfo || {};
+        const RequestInfo = requestInfo || {};
         // ids is an array param per API spec
         const response = await httpRequest(url, { RequestInfo }, { tenantId, ids: [registerId] });
         return response?.attendanceRegister?.[0] || null;

@@ -1,3 +1,4 @@
+import { RequestInfo } from "../config/models/requestInfoSchema";
 import { defaultheader, httpRequest } from "./request";
 import config from "../config/index";
 import { v4 as uuidv4 } from "uuid";
@@ -91,7 +92,7 @@ import {
 import { changeCreateDataForMicroplan, lockSheet } from "./microplanUtils";
 const _ = require("lodash");
 import { searchDataService } from "../service/dataManageService";
-import { createMdmsData, defaultRequestInfo, searchBoundaryRelationshipData, searchMDMSDataViaV2Api } from "../api/coreApis";
+import { createMdmsData, searchBoundaryRelationshipData, searchMDMSDataViaV2Api } from "../api/coreApis";
 import {
   fetchFacilityData,
   fetchTargetData,
@@ -986,9 +987,9 @@ async function enrichAndPersistCampaignWithError(requestBody: any, error: any) {
   delete requestBody.CampaignDetails.campaignDetails;
 }
 
-export async function enrichAndPersistCampaignWithErrorProcessingTask(campaignDetails: any, parentCampaign: any, requestInfo: any, error: any) {
-  const RequestInfo = requestInfo || defaultRequestInfo || {};
-  const useruuid: string = RequestInfo?.userInfo?.uuid;
+export async function enrichAndPersistCampaignWithErrorProcessingTask(campaignDetails: any, parentCampaign: any, requestInfo: RequestInfo, error: any) {
+  const RequestInfo = requestInfo || {};
+  const useruuid: string = RequestInfo?.userInfo?.uuid as string;
   if (parentCampaign) {
     parentCampaign.isActive = true;
     parentCampaign.parentId = parentCampaign?.parentId || null;
@@ -1146,7 +1147,7 @@ export async function enrichAndPersistCampaignForCreateViaFlow2(
   };
   await produceModifiedMessages(produceMessage, topic, campaignDetails?.tenantId);
   if(parentCampaign && campaignDetails?.status === campaignStatuses.inprogress) {
-    await makeParentInactiveOrActive(parentCampaign, useruuid, false);
+    await makeParentInactiveOrActive(parentCampaign, useruuid, false, RequestInfo);
   }
 }
 
@@ -1234,7 +1235,7 @@ async function enrichAndPersistCampaignForUpdate(
   delete request.body.CampaignDetails.campaignDetails;
 }
 
-async function makeParentInactiveOrActive(parentCampaign: any, userUuid: string, active: boolean) {
+async function makeParentInactiveOrActive(parentCampaign: any, userUuid: string, active: boolean, requestInfo?: RequestInfo) {
   parentCampaign.isActive = active;
   parentCampaign.parentId = parentCampaign?.parentId || null;
   parentCampaign.campaignDetails = {
@@ -1244,10 +1245,8 @@ async function makeParentInactiveOrActive(parentCampaign: any, userUuid: string,
   };
   parentCampaign.auditDetails.lastModifiedTime = Date.now();
   parentCampaign.auditDetails.lastModifiedBy = userUuid;
-  const requestInfoObject = JSON.parse(JSON.stringify(defaultRequestInfo || {}));
-  requestInfoObject.RequestInfo.userInfo.uuid = userUuid;
   const produceMessage: any = {
-    RequestInfo: requestInfoObject.RequestInfo,
+    RequestInfo: { ...(requestInfo || {}), userInfo: { ...((requestInfo as any)?.userInfo || {}), uuid: userUuid } },
     CampaignDetails: parentCampaign,
   };
   await produceModifiedMessages(
@@ -2532,7 +2531,7 @@ async function userCredGeneration(campaignDetails: any, useruuid: string, locale
   }
 }
 
-async function createAllResources(campaignDetails: any, parentCampaign: any, useruuid: string, requestInfo?: any) {
+async function createAllResources(campaignDetails: any, parentCampaign: any, useruuid: string, requestInfo?: RequestInfo) {
   const { maxAttemptsForResourceCreationOrMapping, waitTimeOfEachAttemptOfResourceCreationOrMappping } = config?.resourceCreationConfig;
 
   // Phase 1: Registry-driven resource creation
@@ -2614,7 +2613,7 @@ async function createAllResources(campaignDetails: any, parentCampaign: any, use
   await createPhase2Resources(campaignDetails, parentCampaign, useruuid, requestInfo);
 }
 
-async function createPhase2Resources(campaignDetails: any, parentCampaign: any, useruuid: string, requestInfo?: any) {
+async function createPhase2Resources(campaignDetails: any, parentCampaign: any, useruuid: string, requestInfo?: RequestInfo) {
   const phase2Configs = getPhase2Types();
   if (phase2Configs.length === 0) {
     logger.info("No Phase 2 resource types configured. Skipping.");
@@ -2731,7 +2730,7 @@ async function createPhase2Resources(campaignDetails: any, parentCampaign: any, 
   logger.info("Phase 2 resource creation completed successfully.");
 }
 
-async function createAllMappings(campaignDetails: any, parentCampaign: any, useruuid: string, requestInfo?: any) {
+async function createAllMappings(campaignDetails: any, parentCampaign: any, useruuid: string, requestInfo?: RequestInfo) {
   const { maxAttemptsForResourceCreationOrMapping, waitTimeOfEachAttemptOfResourceCreationOrMappping } = config?.resourceCreationConfig;
   logger.info(`Starting mappings...`);
   const mappingTasks = [
@@ -3950,13 +3949,13 @@ function createIdRequests(employees: any[]): any[] {
   }
 }
 
-async function createUniqueUserNameViaIdGen(idRequests: any) {
+async function createUniqueUserNameViaIdGen(idRequests: any, requestInfo?: RequestInfo) {
   const idgenurl = config?.host?.idGenHost + config?.paths?.idGen;
   try {
     // Make HTTP request to ID generation service
     const result = await httpRequest(
       idgenurl,
-      { RequestInfo: defaultRequestInfo?.RequestInfo, idRequests },
+      { RequestInfo: requestInfo, idRequests },
       undefined,
       undefined,
       undefined,
@@ -4151,7 +4150,7 @@ export async function validateAndFetchCampaign(request: any) {
   return campaignResponse.CampaignDetails[0];
 }
 
-export async function prepareAndProduceCancelMessage(campaignToUpdate: any, requestInfo: any, request: any) {
+export async function prepareAndProduceCancelMessage(campaignToUpdate: any, requestInfo: RequestInfo, request: any) {
   const tenantId = request.body.CampaignDetails.tenantId;
   campaignToUpdate.isActive = false;
   campaignToUpdate.status = campaignStatuses.cancelled;
@@ -4263,7 +4262,7 @@ function updateResourceDetails(
 /**
  * Persist campaign update to DB via Kafka without modifying campaign status.
  */
-async function persistCampaignUpdate(campaignDetails: any, requestInfo: any): Promise<void> {
+async function persistCampaignUpdate(campaignDetails: any, requestInfo: RequestInfo): Promise<void> {
   campaignDetails.campaignDetails = {
     deliveryRules: campaignDetails?.deliveryRules || [],
     boundaries: campaignDetails?.boundaries || [],

@@ -191,7 +191,8 @@ export const fetchFacilityData = async (request: any, localizationMap: any) => {
   );
   const planFacilityResponse = await searchPlanFacility(
     planConfigurationId,
-    tenantId
+    tenantId,
+    request?.body?.RequestInfo
   );
   logger.info(`got the facility mapping from the plan facility api`);
 
@@ -308,7 +309,8 @@ export const fetchTargetData = async (request: any, localizationMap: any) => {
   const planCensusResponse = await searchPlanCensus(
     planConfigurationId,
     tenantId,
-    getBoundariesFromCampaign(request.body.CampaignDetails)?.length
+    getBoundariesFromCampaign(request.body.CampaignDetails)?.length,
+    request?.body?.RequestInfo
   );
   logger.info(`got the target mapping from the census api`);
 
@@ -649,7 +651,8 @@ export const fetchUserData = async (request: any, localizationMap: any) => {
   const planResponse = await searchPlan(
     planConfigurationId,
     tenantId,
-    getBoundariesFromCampaign(request.body.CampaignDetails)?.length
+    getBoundariesFromCampaign(request.body.CampaignDetails)?.length,
+    request?.body?.RequestInfo
   );
   const boundariesOfCampaign = await getBoundaryInformation(
     request.body.CampaignDetails,
@@ -846,7 +849,6 @@ export async function validateSheet(
     },
   };
 
-  // Now merging defaultRequestInfo *with* dataCreateBody, so both are preserved
   const newRequest: any = {
     body: { ...request.body, ...dataCreateBody }, // Spread both objects to keep both their properties
   };

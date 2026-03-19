@@ -4,7 +4,7 @@ import { logger } from "../utils/logger";
 import config from "../config";
 import { getCampaignDataRowsWithUniqueIdentifiers, throwError } from "../utils/genericUtils";
 import { dataRowStatuses, sheetDataRowStatuses } from "../config/constants";
-import { defaultRequestInfo, searchBoundaryRelationshipData } from "../api/coreApis";
+import { searchBoundaryRelationshipData } from "../api/coreApis";
 import { httpRequest } from "../utils/request";
 import { searchProjectTypeCampaignService } from "../service/campaignManageService";
 import { validateActiveFieldMinima, validateDatasWithSchema, validateMultiSelectUniqueness } from "../validators/campaignValidators";
@@ -31,10 +31,10 @@ export class TemplateClass {
         const userSchema = templateConfig?.sheets?.filter((s: any) => s?.sheetName === "HCM_ADMIN_CONSOLE_USER_LIST")[0]?.schema;
         validateDatasWithSchema(userSheetData, userSchema, errors, localizationMap);
         validateActiveFieldMinima(userSheetData,"HCM_ADMIN_CONSOLE_USER_USAGE", errors);
-        await this.validatePhoneNumber(userSheetData, resourceDetails.tenantId, errors);
+        await this.validatePhoneNumber(userSheetData, resourceDetails.tenantId, errors, resourceDetails);
         await this.validateUserNames(userSheetData, resourceDetails, errors);
         await this.validateBoundaries(userSheetData, resourceDetails, errors);
-        await this.validateWorkerIds(userSheetData, resourceDetails.tenantId, errors);
+        await this.validateWorkerIds(userSheetData, resourceDetails.tenantId, errors, resourceDetails);
         validateMultiSelectUniqueness(userSheetData, userSchema, localizationMap, errors);
 
         this.processErrors(userSheetData, errors, resourceDetails);       
@@ -76,7 +76,7 @@ export class TemplateClass {
         }
 
 
-    private static async validatePhoneNumber(userSheetData: any, tenantId: string, errors: any[]) {
+    private static async validatePhoneNumber(userSheetData: any, tenantId: string, errors: any[], resourceDetails?: any) {
         logger.info("Validating phone numbers...");
         const phoneNumbersToRowMap: any = {};
         for (let i = 0; i < userSheetData.length; i++) {
@@ -92,7 +92,7 @@ export class TemplateClass {
         logger.info(`Number of phone numbers not in campaign data: ${allPhoneNumbersNotInCampaignData?.length}`);
         logger.info(`Phone numbers not in campaign data: ${JSON.stringify(allPhoneNumbersNotInCampaignData)}`);
         const searchBody: any = {
-            RequestInfo: defaultRequestInfo.RequestInfo,
+            RequestInfo: resourceDetails?.requestInfo,
             Individual: {
             },
         };
@@ -163,7 +163,7 @@ export class TemplateClass {
         }
         const allUserNamesToCheck = Object.keys(userNamesToRowMap);
         const searchBody: any = {
-            RequestInfo: defaultRequestInfo?.RequestInfo,
+            RequestInfo: resourceDetails?.requestInfo,
             Individual: {
                 username: []
             }
@@ -256,7 +256,7 @@ export class TemplateClass {
         logger.info("Boundary validation completed.");
     }
 
-    private static async validateWorkerIds(userSheetData: any, tenantId: string, errors: any[]) {
+    private static async validateWorkerIds(userSheetData: any, tenantId: string, errors: any[], resourceDetails?: any) {
         logger.info("Validating worker IDs...");
         const workerIdToRowMap: Record<string, number> = {};
         for (let i = 0; i < userSheetData.length; i++) {
@@ -272,7 +272,7 @@ export class TemplateClass {
         const foundIds = new Set<string>();
         for (let i = 0; i < allWorkerIds.length; i += chunkSize) {
             const chunk = allWorkerIds.slice(i, i + chunkSize);
-            const workers = await searchWorkersByIds(chunk, tenantId, defaultRequestInfo.RequestInfo);
+            const workers = await searchWorkersByIds(chunk, tenantId, resourceDetails?.requestInfo);
             for (const worker of workers) {
                 if (worker.id) foundIds.add(String(worker.id));
             }

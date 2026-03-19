@@ -1,4 +1,4 @@
-import { defaultRequestInfo } from "../api/coreApis"; // Import default request metadata
+import { RequestInfo } from "../config/models/requestInfoSchema";
 import { getFormattedStringForDebug, logger } from "./logger"; // Import logger for logging information and errors
 import { createDataService, downloadDataService, searchDataService } from "../service/dataManageService";
 import { throwError } from "./genericUtils";
@@ -19,10 +19,8 @@ export const downloadTemplate = async (
   requestBody?: any
 ) => {
   // Use request body info if provided, otherwise fall back to default
-  const searchBody = requestBody ? {
-    RequestInfo: requestBody.RequestInfo
-  } : {
-    ...defaultRequestInfo, // Include default request metadata
+  const searchBody = {
+    RequestInfo: requestBody?.RequestInfo
   };
 
   const params = {
@@ -137,7 +135,7 @@ export const createAndPollForCompletion = async (request: any) => {
 
     // Step 2: Poll for completion
     const polledResponse = await pollForTemplateGeneration(
-      () => searchData(resourceId, request?.body?.ResourceDetails?.tenantId, request?.body?.ResourceDetails?.type),
+      () => searchData(resourceId, request?.body?.ResourceDetails?.tenantId, request?.body?.ResourceDetails?.type, request?.body?.RequestInfo),
       conditionForTermination2,
       3000,
       30
@@ -153,13 +151,13 @@ export const createAndPollForCompletion = async (request: any) => {
 
 
 
-async function searchData(resourceId: any, tenantId: any, type: any) {
+async function searchData(resourceId: any, tenantId: any, type: any, requestInfo?: RequestInfo) {
   const SearchCriteria = {
     id: [resourceId],
     tenantId: tenantId,
     type: type
   };
-  const searchBody = { ...defaultRequestInfo, SearchCriteria }
+  const searchBody = { RequestInfo: requestInfo, SearchCriteria }
   const request: any = {
     body: { ...searchBody }
   }
