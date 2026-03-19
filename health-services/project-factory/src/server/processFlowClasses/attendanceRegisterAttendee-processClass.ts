@@ -149,28 +149,27 @@ export class TemplateClass {
         // Execute batched API calls in sequence: creates → deletes → updateTag
         // Row statuses are set AFTER each batch succeeds
         if (attendeesToCreate.length > 0) {
-            await this.batchApiCall(attendeesToCreate.map(e => e.payload), config.paths.attendanceAttendeeCreate, "attendees", requestInfo, false);
+            await this.batchApiCall(attendeesToCreate.map(e => e.payload), config.paths.attendanceAttendeeCreate, "attendees", requestInfo);
             attendeesToCreate.forEach(e => { e.row["#status#"] = sheetDataRowStatuses.CREATED; });
             logger.info(`Created ${attendeesToCreate.length} attendees`);
         }
         if (staffToCreate.length > 0) {
-            await this.batchApiCall(staffToCreate.map(e => e.payload), config.paths.attendanceStaffCreate, "staff", requestInfo, false);
+            await this.batchApiCall(staffToCreate.map(e => e.payload), config.paths.attendanceStaffCreate, "staff", requestInfo);
             staffToCreate.forEach(e => { e.row["#status#"] = sheetDataRowStatuses.CREATED; });
             logger.info(`Created ${staffToCreate.length} staff`);
         }
         if (attendeesToDelete.length > 0) {
-            await this.batchApiCall(attendeesToDelete.map(e => e.payload), config.paths.attendanceAttendeeDelete, "attendees", requestInfo, false);
+            await this.batchApiCall(attendeesToDelete.map(e => e.payload), config.paths.attendanceAttendeeDelete, "attendees", requestInfo);
             attendeesToDelete.forEach(e => { e.row["#status#"] = sheetDataRowStatuses.UPDATED; });
             logger.info(`Deleted ${attendeesToDelete.length} attendees`);
         }
         if (staffToDelete.length > 0) {
-            await this.batchApiCall(staffToDelete.map(e => e.payload), config.paths.attendanceStaffDelete, "staff", requestInfo, false);
+            await this.batchApiCall(staffToDelete.map(e => e.payload), config.paths.attendanceStaffDelete, "staff", requestInfo);
             staffToDelete.forEach(e => { e.row["#status#"] = sheetDataRowStatuses.UPDATED; });
             logger.info(`Deleted ${staffToDelete.length} staff`);
         }
         if (attendeesToUpdateTag.length > 0) {
-            // updateTag uses capital RequestInfo
-            await this.batchApiCall(attendeesToUpdateTag.map(e => e.payload), config.paths.attendanceAttendeeUpdateTag, "attendees", requestInfo, true);
+            await this.batchApiCall(attendeesToUpdateTag.map(e => e.payload), config.paths.attendanceAttendeeUpdateTag, "attendees", requestInfo);
             attendeesToUpdateTag.forEach(e => { e.row["#status#"] = sheetDataRowStatuses.UPDATED; });
             logger.info(`UpdateTag ${attendeesToUpdateTag.length} attendees`);
         }
@@ -376,24 +375,18 @@ export class TemplateClass {
 
     /**
      * Execute items in batches of BATCH_SIZE against an attendance API endpoint.
-     * useCapitalRequestInfo: true for updateTag (uses 'RequestInfo'), false for others (uses 'requestInfo')
+     * All attendance endpoints use 'RequestInfo' (capital R) per API contract.
      */
     private static async batchApiCall(
         items: any[],
         urlPath: string,
         bodyKey: string,
-        requestInfo: any,
-        useCapitalRequestInfo: boolean
+        requestInfo: any
     ): Promise<void> {
         const url = config.host.attendanceHost + urlPath;
         for (let i = 0; i < items.length; i += BATCH_SIZE) {
             const batch = items.slice(i, i + BATCH_SIZE);
-            const body: any = { [bodyKey]: batch };
-            if (useCapitalRequestInfo) {
-                body["RequestInfo"] = requestInfo;
-            } else {
-                body["requestInfo"] = requestInfo;
-            }
+            const body: any = { [bodyKey]: batch, RequestInfo: requestInfo };
             try {
                 await httpRequest(url, body);
             } catch (err: any) {
