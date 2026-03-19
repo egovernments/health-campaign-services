@@ -67,13 +67,12 @@ export async function createResourceDetail(
     if (!parentResourceId) {
       throwError("COMMON", 400, "VALIDATION_ERROR", `parentResourceId is required for resource type '${type}'`);
     }
-    // Validate parent resource exists and is active
-    const parentResource = await getResourceDetailById(parentResourceId!, tenantId);
-    if (!parentResource || !parentResource.isactive) {
-      throwError("COMMON", 400, "VALIDATION_ERROR", `Parent resource '${parentResourceId}' not found or inactive`);
-    }
-    if (parentResource!.type !== typeConfig.parentType) {
-      throwError("COMMON", 400, "VALIDATION_ERROR", `Parent resource must be of type '${typeConfig.parentType}'`);
+    // parentResourceId is an external reference (e.g. attendance register ID from the attendance service).
+    // Validate by confirming an active resource of the expected parentType exists for this campaign.
+    const parentResource = await findActiveResourceByUpsertKey(tenantId, campaignId, typeConfig.parentType, null);
+    if (!parentResource) {
+      throwError("COMMON", 400, "VALIDATION_ERROR",
+        `No active resource of parent type '${typeConfig.parentType}' found for campaign '${campaignId}'`);
     }
     // If not allowMultiplePerParent, check no other active resource of same type+parent
     if (!typeConfig.allowMultiplePerParent) {
