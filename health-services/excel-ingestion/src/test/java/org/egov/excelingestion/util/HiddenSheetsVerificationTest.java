@@ -55,8 +55,8 @@ public class HiddenSheetsVerificationTest {
             assertTrue(pattern.endsWith("_h_"), "Hidden sheet should end with _h_: " + pattern);
             assertTrue(pattern.length() > 6, "Hidden sheet name should have content between markers: " + pattern);
             
-            // Verify pattern can be used as sheet name (Excel has 31 char limit)
-            assertTrue(pattern.length() <= 31, "Sheet name should not exceed Excel limit: " + pattern);
+            // Verify pattern can be used as sheet name (configurable limit, default 64)
+            assertTrue(pattern.length() <= 64, "Sheet name should not exceed configured limit: " + pattern);
         }
         
         System.out.println("✅ All hidden sheet naming conventions are valid");

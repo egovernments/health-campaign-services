@@ -277,7 +277,7 @@ public class ExcelProcessingService {
     }
 
     /**
-     * Get localized sheet name with 31-char limit handling
+     * Get localized sheet name with configurable character limit
      */
     private String getLocalizedSheetName(String sheetKey, Map<String, String> localizationMap) {
         String localizedName = sheetKey;
@@ -286,9 +286,9 @@ public class ExcelProcessingService {
             localizedName = localizationMap.get(sheetKey);
         }
 
-        // Handle Excel's 31 character limit
-        if (localizedName.length() > 31) {
-            localizedName = localizedName.substring(0, 31);
+        int maxLength = config.getSheetNameMaxLength();
+        if (localizedName.length() > maxLength) {
+            localizedName = localizedName.substring(0, maxLength);
         }
 
         return localizedName;

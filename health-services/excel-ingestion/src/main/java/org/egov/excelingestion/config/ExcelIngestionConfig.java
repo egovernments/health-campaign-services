@@ -43,6 +43,9 @@ public class ExcelIngestionConfig {
     @Value("${excel.row.limit:5000}")
     private int excelRowLimit;
 
+    @Value("${excel.sheet.name.max.length:64}")
+    private int sheetNameMaxLength;
+
     @Value("${excel.attendance.register.rows:100}")
     private int attendanceRegisterRows;
 

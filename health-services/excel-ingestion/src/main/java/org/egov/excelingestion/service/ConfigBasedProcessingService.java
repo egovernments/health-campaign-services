@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.egov.excelingestion.config.ErrorConstants;
+import org.egov.excelingestion.config.ExcelIngestionConfig;
 import org.egov.excelingestion.config.KafkaTopicConfig;
 import org.egov.excelingestion.config.ProcessingConstants;
 import org.egov.excelingestion.web.models.mdms.ExcelIngestionProcessData;
@@ -44,19 +45,22 @@ public class ConfigBasedProcessingService {
     private final ApplicationContext applicationContext;
     private final Producer producer;
     private final KafkaTopicConfig kafkaTopicConfig;
+    private final ExcelIngestionConfig config;
 
     public ConfigBasedProcessingService(MDMSConfigService mdmsConfigService,
                                       CustomExceptionHandler exceptionHandler,
                                       MDMSService mdmsService,
                                       ApplicationContext applicationContext,
                                       Producer producer,
-                                      KafkaTopicConfig kafkaTopicConfig) {
+                                      KafkaTopicConfig kafkaTopicConfig,
+                                      ExcelIngestionConfig config) {
         this.mdmsConfigService = mdmsConfigService;
         this.exceptionHandler = exceptionHandler;
         this.mdmsService = mdmsService;
         this.applicationContext = applicationContext;
         this.producer = producer;
         this.kafkaTopicConfig = kafkaTopicConfig;
+        this.config = config;
     }
 
     /**
@@ -231,20 +235,20 @@ public class ConfigBasedProcessingService {
     }
 
     /**
-     * Get localized sheet name with 31-char limit handling
+     * Get localized sheet name with configurable character limit
      */
     private String getLocalizedSheetName(String sheetKey, Map<String, String> localizationMap) {
         String localizedName = sheetKey;
-        
+
         if (localizationMap != null && localizationMap.containsKey(sheetKey)) {
             localizedName = localizationMap.get(sheetKey);
         }
-        
-        // Handle Excel's 31 character limit
-        if (localizedName.length() > 31) {
-            localizedName = localizedName.substring(0, 31);
+
+        int maxLength = config.getSheetNameMaxLength();
+        if (localizedName.length() > maxLength) {
+            localizedName = localizedName.substring(0, maxLength);
         }
-        
+
         return localizedName;
     }
 

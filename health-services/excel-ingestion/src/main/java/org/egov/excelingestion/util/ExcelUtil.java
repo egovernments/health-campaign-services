@@ -109,20 +109,14 @@ public class ExcelUtil {
     }
 
     /**
-     * Get localized sheet name with 31-char limit handling
+     * Get localized sheet name with configurable character limit
      */
-    public static String getLocalizedSheetName(String sheetKey, Map<String, String> localizationMap) {
-        String localizedName = sheetKey;
-        
-        if (localizationMap != null && localizationMap.containsKey(sheetKey)) {
-            localizedName = localizationMap.get(sheetKey);
+    public static String getLocalizedSheetName(String sheetKey, Map<String, String> localizationMap, int maxLength) {
+        String localizedName = (localizationMap != null && localizationMap.containsKey(sheetKey))
+                ? localizationMap.get(sheetKey) : sheetKey;
+        if (localizedName.length() > maxLength) {
+            localizedName = localizedName.substring(0, maxLength);
         }
-        
-        // Handle Excel's 31 character limit
-        if (localizedName.length() > 31) {
-            localizedName = localizedName.substring(0, 31);
-        }
-        
         return localizedName;
     }
 
