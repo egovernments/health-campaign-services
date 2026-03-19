@@ -6,8 +6,8 @@ import org.egov.excelingestion.config.ExcelIngestionConfig;
 import org.egov.excelingestion.exception.CustomExceptionHandler;
 import org.egov.excelingestion.repository.ServiceRequestRepository;
 import org.egov.excelingestion.web.models.CampaignSearchResponse;
-import org.egov.excelingestion.web.models.RequestInfo;
-import org.egov.excelingestion.web.models.UserInfo;
+import org.egov.common.contract.request.RequestInfo;
+import org.egov.common.contract.request.User;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
@@ -302,12 +302,12 @@ public class CampaignService {
     private RequestInfo ensureTenantInRequestInfo(RequestInfo requestInfo, String tenantId) {
         if (requestInfo == null) {
             return RequestInfo.builder()
-                    .userInfo(UserInfo.builder().tenantId(tenantId).build())
+                    .userInfo(User.builder().tenantId(tenantId).build())
                     .build();
         }
-        UserInfo user = requestInfo.getUserInfo();
+        User user = requestInfo.getUserInfo();
         if (user == null) {
-            user = UserInfo.builder().tenantId(tenantId).build();
+            user = User.builder().tenantId(tenantId).build();
             requestInfo.setUserInfo(user);
             return requestInfo;
         }

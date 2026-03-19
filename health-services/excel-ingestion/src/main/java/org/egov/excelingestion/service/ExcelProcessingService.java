@@ -200,7 +200,7 @@ public class ExcelProcessingService {
      * Validates data in all sheets of the workbook using pre-fetched schemas
      */
     private List<ValidationError> validateExcelData(Workbook workbook, ProcessResource resource,
-                                                    org.egov.excelingestion.web.models.RequestInfo requestInfo, Map<String, String> localizationMap,
+                                                    org.egov.common.contract.request.RequestInfo requestInfo, Map<String, String> localizationMap,
                                                     Map<String, Map<String, Object>> preValidatedSchemas) {
         List<ValidationError> allErrors = new ArrayList<>();
 
@@ -239,7 +239,7 @@ public class ExcelProcessingService {
     private Map<String, Object> getSchemaForSheet(String sheetName, String type,
                                                   Map<String, String> localizationMap,
                                                   Map<String, Map<String, Object>> preValidatedSchemas,
-                                                  org.egov.excelingestion.web.models.RequestInfo requestInfo,
+                                                  org.egov.common.contract.request.RequestInfo requestInfo,
                                                   String tenantId) {
         try {
             // Get processor configuration

@@ -8,6 +8,7 @@ import org.egov.excelingestion.config.ErrorConstants;
 import org.egov.excelingestion.service.ValidationService;
 import org.egov.excelingestion.exception.CustomExceptionHandler;
 import org.egov.excelingestion.web.models.*;
+import org.egov.common.contract.request.RequestInfo;
 import org.egov.excelingestion.util.LocalizationUtil;
 import org.egov.excelingestion.util.BoundaryUtil;
 import org.egov.excelingestion.util.EnrichmentUtil;

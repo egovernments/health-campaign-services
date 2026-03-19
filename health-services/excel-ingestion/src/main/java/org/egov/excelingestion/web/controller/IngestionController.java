@@ -15,7 +15,7 @@ import org.egov.excelingestion.web.models.GenerateResourceResponse;
 import org.egov.excelingestion.web.models.ProcessResource;
 import org.egov.excelingestion.web.models.ProcessResourceRequest;
 import org.egov.excelingestion.web.models.ProcessResourceResponse;
-import org.egov.excelingestion.web.models.RequestInfo;
+import org.egov.common.contract.request.RequestInfo;
 import org.egov.excelingestion.web.models.GenerationSearchRequest;
 import org.egov.excelingestion.web.models.GenerationSearchResponse;
 import org.egov.excelingestion.web.models.ProcessingSearchRequest;

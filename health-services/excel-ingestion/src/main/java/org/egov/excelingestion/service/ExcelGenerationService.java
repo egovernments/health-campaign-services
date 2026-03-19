@@ -7,7 +7,7 @@ import org.egov.excelingestion.exception.CustomExceptionHandler;
 import org.egov.excelingestion.util.RequestInfoConverter;
 import org.egov.excelingestion.web.models.GenerateResource;
 import org.egov.excelingestion.web.models.ProcessorGenerationConfig;
-import org.egov.excelingestion.web.models.RequestInfo;
+import org.egov.common.contract.request.RequestInfo;
 import org.egov.excelingestion.web.models.SheetGenerationConfig;
 import org.egov.excelingestion.config.ExcelIngestionConfig;
 
