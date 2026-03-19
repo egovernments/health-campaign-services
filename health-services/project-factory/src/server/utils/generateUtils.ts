@@ -35,7 +35,7 @@ function isCampaignTypeSame(request: any) {
     return _.isEqual(existingCampaignType, currentCampaignType);
 }
 
-export async function callExcelIngestionService(requestBody: any, referenceIdOverride?: string, referenceTypeOverride?: string) {
+export async function callExcelIngestionService(requestBody: any, referenceIdOverride?: string, referenceTypeOverride?: string, typeOverride?: string, additionalDetailsOverride?: Record<string, any>) {
     try {
         const campaignDetails = requestBody?.CampaignDetails;
         const tenantId = campaignDetails?.tenantId;
@@ -45,12 +45,12 @@ export async function callExcelIngestionService(requestBody: any, referenceIdOve
 
         const generateResource = {
             tenantId: tenantId,
-            type: 'unified-console',
+            type: typeOverride || 'unified-console',
             hierarchyType: hierarchyType,
             locale: getLocaleFromRequestInfo (requestBody?.RequestInfo),
             referenceId: referenceIdOverride || campaignId,
             referenceType: referenceTypeOverride || 'campaign',
-            additionalDetails: {}
+            additionalDetails: additionalDetailsOverride || {}
         };
 
         const requestBodyToCallGenerate = {

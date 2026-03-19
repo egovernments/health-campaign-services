@@ -249,7 +249,7 @@ export async function handleProcessingResult(messageObject: any) {
         
         // Fetch localization data
         logger.info('=== FETCHING LOCALIZATION DATA ===');
-        const localizationMap = await fetchLocalizationData(messageObject.tenantId, messageObject.referenceId, locale);
+        const localizationMap = await fetchLocalizationData(messageObject.tenantId, campaignId, locale);
         logger.info(`Localization data fetched with ${Object.keys(localizationMap).length} keys`);
         
         // Search temp data and process campaign data

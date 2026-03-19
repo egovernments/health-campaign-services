@@ -265,9 +265,18 @@ public class AttendanceRegisterAttendeeValidationProcessor implements IWorkbookP
     }
 
     /**
-     * Extract registerId from resource.additionalDetails
+     * Extract registerId: use referenceId when referenceType is attendanceRegister,
+     * otherwise fall back to additionalDetails.registerId for backward compatibility.
      */
     private String extractRegisterId(ProcessResource resource) {
+        if ("attendanceRegister".equals(resource.getReferenceType())) {
+            String registerId = resource.getReferenceId();
+            if (registerId != null && !registerId.isBlank()) {
+                return registerId.trim();
+            }
+        }
+
+        // Fallback to additionalDetails.registerId
         Map<String, Object> additionalDetails = resource.getAdditionalDetails();
         if (additionalDetails != null && additionalDetails.get("registerId") != null) {
             return String.valueOf(additionalDetails.get("registerId")).trim();
