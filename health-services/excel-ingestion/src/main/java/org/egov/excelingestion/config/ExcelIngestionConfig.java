@@ -70,6 +70,12 @@ public class ExcelIngestionConfig {
     @Value("${egov.facility.search.path}")
     private String facilitySearchPath;
 
+    @Value("${egov.attendance.host}")
+    private String attendanceHost;
+
+    @Value("${egov.attendance.register.search.path}")
+    private String attendanceRegisterSearchPath;
+
     private String defaultHeaderColor = "#93c47d";
 
     public String getHierarchySearchUrl() {
@@ -90,5 +96,9 @@ public class ExcelIngestionConfig {
 
     public String getFacilitySearchUrl() {
         return facilityHost + facilitySearchPath;
+    }
+
+    public String getAttendanceRegisterSearchUrl() {
+        return attendanceHost + attendanceRegisterSearchPath;
     }
 }

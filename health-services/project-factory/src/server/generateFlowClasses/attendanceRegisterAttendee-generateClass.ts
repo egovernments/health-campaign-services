@@ -84,8 +84,10 @@ export class TemplateClass {
             const rawData = userEntry?.data || {};
             if (!rawData || !rawData["UserName"]) continue;
 
-            const roleStr: string = rawData["HCM_ADMIN_CONSOLE_USER_ROLE"] || "";
-            const roleCodes = roleStr.split(",").map((r: string) => r.trim().toUpperCase()).filter(Boolean);
+            // PRD: roles should be checked from all role columns 1-n (multiselect columns)
+            // HCM_ADMIN_CONSOLE_USER_ROLE is a CONCATENATE formula — result may not be cached in DB
+            // Fallback: collect from individual multiselect columns
+            const roleCodes = this.getRoleCodes(rawData);
 
             const sheet = this.classifyUserToSheet(roleCodes);
             if (!sheet) continue;
@@ -174,12 +176,14 @@ export class TemplateClass {
      */
     private static buildRowData(rawData: any, registerId: string, localizationMap: any, includeTeamCode: boolean): any {
         const boundaryCode = rawData["HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY"] || rawData["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"] || "";
+        // Combine roles into a single comma-separated string for display
+        const roleDisplayStr = this.getRoleCodes(rawData).join(", ");
         const row: any = {
             "HCM_ADMIN_CONSOLE_USER_WORKER_ID": rawData["HCM_ADMIN_CONSOLE_USER_WORKER_ID"] || "",
             "HCM_ADMIN_CONSOLE_USER_NAME": rawData["HCM_ADMIN_CONSOLE_USER_NAME"] || "",
             "UserName": rawData["UserName"] ? decrypt(rawData["UserName"]) : "",
             "Password": rawData["Password"] ? decrypt(rawData["Password"]) : "",
-            "HCM_ADMIN_CONSOLE_USER_ROLE": rawData["HCM_ADMIN_CONSOLE_USER_ROLE"] || "",
+            "HCM_ADMIN_CONSOLE_USER_ROLE": roleDisplayStr,
             "HCM_ADMIN_CONSOLE_BOUNDARY_NAME": rawData["HCM_ADMIN_CONSOLE_BOUNDARY_NAME"] || getLocalizedName(boundaryCode, localizationMap),
             "HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY": boundaryCode,
             "HCM_ATTENDANCE_REGISTER_ID": registerId,
@@ -190,5 +194,26 @@ export class TemplateClass {
             row["HCM_ATTENDANCE_ATTENDEE_TEAM_CODE"] = "";
         }
         return row;
+    }
+
+    /**
+     * Read role codes from user data.
+     * Tries the cached CONCATENATE column first; falls back to individual multiselect columns (1-n).
+     * PRD: "roles should be checked from all roles columns in the user sheet 1-n"
+     */
+    private static getRoleCodes(rawData: any): string[] {
+        const baseRole: string = rawData["HCM_ADMIN_CONSOLE_USER_ROLE"] || "";
+        if (baseRole.trim()) {
+            return baseRole.split(",").map((r: string) => r.trim().toUpperCase()).filter(Boolean);
+        }
+        // Fallback: read individual multiselect columns
+        const codes: string[] = [];
+        for (let i = 1; i <= 5; i++) {
+            const val = rawData[`HCM_ADMIN_CONSOLE_USER_ROLE_MULTISELECT_${i}`];
+            if (val && typeof val === "string" && val.trim()) {
+                codes.push(val.trim().toUpperCase());
+            }
+        }
+        return codes;
     }
 }

@@ -200,6 +200,94 @@ public class CampaignService {
     }
 
     /**
+     * Search campaign data by type, status, and campaignNumber (no uniqueIdentifiers required).
+     * Supports pagination to collect all matching records.
+     *
+     * @param type Type of data (e.g., "user", "facility")
+     * @param status Status to filter by (e.g., "completed")
+     * @param campaignNumber Campaign number to filter by
+     * @param tenantId Tenant ID
+     * @param requestInfo Request info
+     * @return List of all matching campaign data records
+     */
+    public java.util.List<Map<String, Object>> searchCampaignDataByType(
+            String type, String status, String campaignNumber,
+            String tenantId, RequestInfo requestInfo) {
+
+        RequestInfo sanitizedRequestInfo = ensureTenantInRequestInfo(requestInfo, tenantId);
+
+        log.info("Searching campaign data by type: {}, status: {}, campaignNumber: {} in tenant: {}",
+                type, status, campaignNumber, tenantId);
+
+        java.util.List<Map<String, Object>> allRecords = new java.util.ArrayList<>();
+        int limit = 200;
+        int offset = 0;
+
+        try {
+            while (true) {
+                Map<String, Object> searchCriteria = new HashMap<>();
+                searchCriteria.put("tenantId", tenantId);
+                searchCriteria.put("type", type);
+
+                if (status != null && !status.trim().isEmpty()) {
+                    searchCriteria.put("status", status);
+                }
+                if (campaignNumber != null && !campaignNumber.trim().isEmpty()) {
+                    searchCriteria.put("campaignNumber", campaignNumber);
+                }
+
+                Map<String, Object> pagination = new HashMap<>();
+                pagination.put("limit", limit);
+                pagination.put("offset", offset);
+                searchCriteria.put("pagination", pagination);
+
+                Map<String, Object> payload = Map.of(
+                    "RequestInfo", sanitizedRequestInfo,
+                    "SearchCriteria", searchCriteria
+                );
+
+                String url = config.getCampaignDataSearchUrl();
+
+                @SuppressWarnings("unchecked")
+                Map<String, Object> response = serviceRequestRepository.fetchResult(
+                        new StringBuilder(url), payload, Map.class);
+
+                if (response == null || response.get("CampaignData") == null) {
+                    break;
+                }
+
+                @SuppressWarnings("unchecked")
+                java.util.List<Map<String, Object>> batch =
+                    (java.util.List<Map<String, Object>>) response.get("CampaignData");
+
+                if (batch.isEmpty()) {
+                    break;
+                }
+
+                allRecords.addAll(batch);
+                log.debug("Fetched batch of {} records at offset {}", batch.size(), offset);
+
+                if (batch.size() < limit) {
+                    break;
+                }
+                offset += limit;
+            }
+
+            log.info("Total {} records fetched for type: {} in campaign: {}", allRecords.size(), type, campaignNumber);
+            return allRecords;
+
+        } catch (org.egov.tracer.model.CustomException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Error searching campaign data by type {}: {}", type, e.getMessage(), e);
+            exceptionHandler.throwCustomException(
+                    ErrorConstants.CAMPAIGN_DATA_SEARCH_ERROR,
+                    ErrorConstants.CAMPAIGN_DATA_SEARCH_ERROR_MESSAGE + ": " + e.getMessage(), e);
+            return null; // never reached
+        }
+    }
+
+    /**
      * Build campaign search URL from configuration
      */
     private String buildCampaignSearchUrl() {
