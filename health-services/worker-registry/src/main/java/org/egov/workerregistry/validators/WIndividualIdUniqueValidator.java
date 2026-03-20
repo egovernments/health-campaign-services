@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.Error;
 import org.egov.common.validator.Validator;
+import org.egov.workerregistry.constants.WorkerRegistryConstants;
 import org.egov.workerregistry.repository.WorkerIndividualMapRepository;
 import org.egov.workerregistry.web.models.WorkerIndividualMap;
 import org.egov.workerregistry.web.models.WorkerIndividualMapBulkRequest;
@@ -79,8 +80,8 @@ public class WIndividualIdUniqueValidator implements Validator<WorkerIndividualM
             log.error("Invalid tenantId: {}", tenantId, e);
             validMaps.forEach(map -> {
                 Error error = Error.builder()
-                        .errorMessage("Invalid tenant id: " + tenantId)
-                        .errorCode("INVALID_TENANT_ID")
+                        .errorMessage(WorkerRegistryConstants.MSG_INVALID_TENANT_ID_PREFIX + tenantId)
+                        .errorCode(WorkerRegistryConstants.INVALID_TENANT_ID)
                         .type(Error.ErrorType.NON_RECOVERABLE)
                         .build();
                 populateErrorDetails(map, error, errorDetailsMap);

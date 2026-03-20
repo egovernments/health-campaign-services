@@ -40,4 +40,8 @@ public class WorkerRegistryConfiguration {
 
     @Value("${individual.validation.enabled:true}")
     private Boolean individualValidationEnabled;
+
+    // Attendance log Kafka topic
+    @Value("${attendance.log.kafka.first.signature.topic}")
+    private String firstAttendanceLogTopic;
 }

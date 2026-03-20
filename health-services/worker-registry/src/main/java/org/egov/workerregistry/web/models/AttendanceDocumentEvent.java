@@ -6,23 +6,27 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.egov.common.contract.models.AuditDetails;
 
 @Data
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class PhotoSignatureUpdateRecord {
+public class AttendanceDocumentEvent {
 
     @JsonProperty("individualId")
     private String individualId;
 
-    @JsonProperty("photoId")
-    private String photoId;
-
-    @JsonProperty("signatureId")
-    private String signatureId;
-
     @JsonProperty("tenantId")
     private String tenantId;
+
+    @JsonProperty("fileStore")
+    private String fileStore;
+
+    @JsonProperty("type")
+    private String type; // "SIGNATURE" or "PHOTO"
+
+    @JsonProperty("clientAuditDetails")
+    private AuditDetails clientAuditDetails;
 }

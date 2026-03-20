@@ -10,6 +10,7 @@ import org.egov.common.validator.Validator;
 import org.egov.tracer.model.CustomException;
 import org.egov.workerregistry.repository.WorkerIndividualMapRepository;
 import org.egov.workerregistry.repository.WorkerRepository;
+import org.egov.workerregistry.constants.WorkerRegistryConstants;
 import org.egov.workerregistry.validators.*;
 import org.egov.workerregistry.web.models.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -67,13 +68,13 @@ public class WorkerService {
     public List<Worker> create(WorkerBulkRequest request) {
         Tuple<List<Worker>, Map<Worker, ErrorDetails>> validationResult = CommonUtils.validate(
                 validators, isApplicableForCreate, request,
-                "setWorkers", "getWorkers", "VALIDATION_ERROR", false);
+                "setWorkers", "getWorkers", WorkerRegistryConstants.VALIDATION_ERROR, false);
 
         List<Worker> validWorkers = validationResult.getX();
         Map<Worker, ErrorDetails> errorDetailsMap = validationResult.getY();
 
         if(!errorDetailsMap.isEmpty()) {
-            CommonUtils.handleErrors(errorDetailsMap, false, "VALIDATION_ERROR");
+            CommonUtils.handleErrors(errorDetailsMap, false, WorkerRegistryConstants.VALIDATION_ERROR);
         }
 
         if (CollectionUtils.isEmpty(validWorkers)) {
@@ -98,7 +99,7 @@ public class WorkerService {
             }
         });
 
-        List<Worker> encryptedWorkers = workerEncryptionService.encrypt(validWorkers, "WorkerEncrypt");
+        List<Worker> encryptedWorkers = workerEncryptionService.encrypt(validWorkers, WorkerRegistryConstants.ENCRYPT_WORKER);
         workerRepository.putInCache(encryptedWorkers);
         workerRepository.save(encryptedWorkers, tenantId);
 
@@ -108,20 +109,20 @@ public class WorkerService {
             workerIndividualMapRepository.save(validMaps, tenantId);
         }
 
-        CommonUtils.handleErrors(errorDetailsMap, false, "VALIDATION_ERROR");
+        CommonUtils.handleErrors(errorDetailsMap, false, WorkerRegistryConstants.VALIDATION_ERROR);
         return encryptedWorkers;
     }
 
     public List<Worker> update(WorkerBulkRequest request) {
         Tuple<List<Worker>, Map<Worker, ErrorDetails>> validationResult = CommonUtils.validate(
                 validators, isApplicableForUpdate, request,
-                "setWorkers", "getWorkers", "VALIDATION_ERROR", false);
+                "setWorkers", "getWorkers", WorkerRegistryConstants.VALIDATION_ERROR, false);
 
         List<Worker> validWorkers = validationResult.getX();
         Map<Worker, ErrorDetails> errorDetailsMap = validationResult.getY();
 
         if (CollectionUtils.isEmpty(validWorkers)) {
-            CommonUtils.handleErrors(errorDetailsMap, false, "VALIDATION_ERROR");
+            CommonUtils.handleErrors(errorDetailsMap, false, WorkerRegistryConstants.VALIDATION_ERROR);
             return new ArrayList<>();
         }
 
@@ -135,7 +136,7 @@ public class WorkerService {
             List<Worker> existing = workerRepository.find(search);
             existing.forEach(w -> existingMap.put(w.getId(), w));
         } catch (InvalidTenantIdException e) {
-            throw new CustomException("INVALID_TENANT_EXCEPTION", "The tenant id is not valid");
+            throw new CustomException(WorkerRegistryConstants.INVALID_TENANT_EXCEPTION, WorkerRegistryConstants.MSG_TENANT_ID_NOT_VALID);
         }
         validWorkers.forEach(w -> {
             Worker existing = existingMap.get(w.getId());
@@ -145,24 +146,24 @@ public class WorkerService {
         });
 
         enrichmentService.enrichUpdate(validWorkers, request.getRequestInfo());
-        List<Worker> encryptedWorkers = workerEncryptionService.encrypt(validWorkers, "WorkerEncrypt");
+        List<Worker> encryptedWorkers = workerEncryptionService.encrypt(validWorkers, WorkerRegistryConstants.ENCRYPT_WORKER);
         workerRepository.putInCache(encryptedWorkers);
         workerRepository.update(encryptedWorkers, tenantId);
 
-        CommonUtils.handleErrors(errorDetailsMap, false, "VALIDATION_ERROR");
+        CommonUtils.handleErrors(errorDetailsMap, false, WorkerRegistryConstants.VALIDATION_ERROR);
         return encryptedWorkers;
     }
 
     public List<WorkerIndividualMap> mapIndividual(WorkerIndividualMapBulkRequest request) {
         Tuple<List<WorkerIndividualMap>, Map<WorkerIndividualMap, ErrorDetails>> validationResult = CommonUtils.validate(
                 individualMapValidators, isApplicableForIndividualMap, request,
-                "setWorkerIndividualMaps", "getWorkerIndividualMaps", "VALIDATION_ERROR", false);
+                "setWorkerIndividualMaps", "getWorkerIndividualMaps", WorkerRegistryConstants.VALIDATION_ERROR, false);
 
         List<WorkerIndividualMap> validMaps = validationResult.getX();
         Map<WorkerIndividualMap, ErrorDetails> errorDetailsMap = validationResult.getY();
 
         if (CollectionUtils.isEmpty(validMaps)) {
-            CommonUtils.handleErrors(errorDetailsMap, false, "VALIDATION_ERROR");
+            CommonUtils.handleErrors(errorDetailsMap, false, WorkerRegistryConstants.VALIDATION_ERROR);
             return new ArrayList<>();
         }
 
@@ -170,17 +171,17 @@ public class WorkerService {
         enrichmentService.enrichMapIndividual(validMaps, request.getRequestInfo());
         workerIndividualMapRepository.save(validMaps, tenantId);
 
-        CommonUtils.handleErrors(errorDetailsMap, false, "VALIDATION_ERROR");
+        CommonUtils.handleErrors(errorDetailsMap, false, WorkerRegistryConstants.VALIDATION_ERROR);
         return validMaps;
     }
 
     public List<Worker> search(WorkerSearchRequest request) {
         WorkerSearch searchCriteria = request.getWorkerSearch();
         if (searchCriteria == null || searchCriteria.getTenantId() == null) {
-            throw new CustomException("INVALID_REQUEST", "TenantId is required for search");
+            throw new CustomException(WorkerRegistryConstants.INVALID_REQUEST, WorkerRegistryConstants.MSG_TENANT_ID_REQUIRED);
         }
 
-        WorkerSearch encryptedSearch = workerEncryptionService.encrypt(searchCriteria, "WorkerSearchEncrypt");
+        WorkerSearch encryptedSearch = workerEncryptionService.encrypt(searchCriteria, WorkerRegistryConstants.ENCRYPT_WORKER_SEARCH);
         request.setWorkerSearch(encryptedSearch);
         Map<String, List<String>> workerIdIndividualIdsMap = new HashMap<>();
         String tenantId = searchCriteria.getTenantId();
@@ -201,7 +202,7 @@ public class WorkerService {
                         ));
                 workerIds = workerIdIndividualIdsMap.keySet().stream().toList();
             } catch (InvalidTenantIdException e) {
-                throw new CustomException("INVALID_TENANT_EXCEPTION", "The tenant id is not valid");
+                throw new CustomException(WorkerRegistryConstants.INVALID_TENANT_EXCEPTION, WorkerRegistryConstants.MSG_TENANT_ID_NOT_VALID);
             }
             if (CollectionUtils.isEmpty(request.getWorkerSearch().getId())) {
                 request.getWorkerSearch().setId(workerIds);
@@ -228,7 +229,7 @@ public class WorkerService {
                                 )
                         ));
             } catch (InvalidTenantIdException e) {
-                throw new CustomException("INVALID_TENANT_EXCEPTION", "The tenant id is not valid");
+                throw new CustomException(WorkerRegistryConstants.INVALID_TENANT_EXCEPTION, WorkerRegistryConstants.MSG_TENANT_ID_NOT_VALID);
             }
         }
 
@@ -238,7 +239,7 @@ public class WorkerService {
             worker.setIndividualIds(indIds);
         });
 
-        return workerEncryptionService.decrypt(workers, "WorkerDecrypt", request.getRequestInfo());
+        return workerEncryptionService.decrypt(workers, WorkerRegistryConstants.DECRYPT_WORKER, request.getRequestInfo());
     }
 
     private void mergeWorker(Worker incoming, Worker existing) {
@@ -255,65 +256,56 @@ public class WorkerService {
         incoming.setRowVersion(existing.getRowVersion());
     }
 
-    public void updatePhotoSignature(List<PhotoSignatureUpdateRecord> records, String tenantId,
-                                       RequestInfo requestInfo) {
-        List<String> individualIds = records.stream().map(PhotoSignatureUpdateRecord::getIndividualId)
-                .collect(Collectors.toList());
-        if (individualIds.isEmpty()) return;
+    public void processAttendanceDocumentEvent(AttendanceDocumentEvent event, RequestInfo requestInfo) {
+        if (event == null || event.getIndividualId() == null || event.getTenantId() == null
+                || event.getFileStore() == null || event.getType() == null) {
+            log.warn("Skipping invalid AttendanceDocumentEvent: {}", event);
+            return;
+        }
 
-        Map<String, PhotoSignatureUpdateRecord> recordMap = records.stream()
-                .collect(Collectors.toMap(PhotoSignatureUpdateRecord::getIndividualId, r -> r, (r1, r2) -> r2));
+        String tenantId = event.getTenantId();
+        List<String> individualIds = List.of(event.getIndividualId());
 
         try {
             List<String> workerIds = workerIndividualMapRepository.findWorkerIdsByIndividualIds(individualIds, tenantId);
             if (workerIds.isEmpty()) {
-                log.warn("No workers found for individualIds: {}", individualIds);
+                log.warn("No workers found for individualId: {}", event.getIndividualId());
                 return;
             }
 
-            List<WorkerIndividualMap> individualMap = workerIndividualMapRepository
-                    .findIndividualIdsByWorkerIds(workerIds, tenantId);
-            Map<String, String> workerToIndividualMap = individualMap.stream()
-                    .collect(Collectors.toMap(WorkerIndividualMap::getWorkerId,
-                            WorkerIndividualMap::getIndividualId, (i1, i2) -> i2));
-
-            WorkerSearch search = WorkerSearch.builder().id(workerIds).tenantId(tenantId).build();
+            String workerId = workerIds.get(0);
+            WorkerSearch search = WorkerSearch.builder().id(List.of(workerId)).tenantId(tenantId).build();
             List<Worker> workers = workerRepository.find(search);
-
-            List<Worker> workersToUpdate = new ArrayList<>();
-
-            for (Worker worker : workers) {
-                String individualId = workerToIndividualMap.get(worker.getId());
-                PhotoSignatureUpdateRecord record = recordMap.get(individualId);
-                if (record == null) continue;
-
-                boolean needsUpdate = false;
-
-                if (record.getPhotoId() != null && (worker.getPhotoId() == null || worker.getPhotoId().isEmpty())) {
-                    worker.setPhotoId(record.getPhotoId());
-                    needsUpdate = true;
-                }
-
-                if (record.getSignatureId() != null && (worker.getSignatureId() == null || worker.getSignatureId().isEmpty())) {
-                    worker.setSignatureId(record.getSignatureId());
-                    needsUpdate = true;
-                }
-
-                if (needsUpdate) {
-                    workersToUpdate.add(worker);
-                }
+            if (workers.isEmpty()) {
+                log.warn("Worker not found for workerId: {}", workerId);
+                return;
             }
 
-            if (!workersToUpdate.isEmpty()) {
-                enrichmentService.enrichUpdate(workersToUpdate, requestInfo);
-                List<Worker> encrypted = workerEncryptionService.encrypt(workersToUpdate, "WorkerEncrypt");
+            Worker worker = workers.get(0);
+            boolean needsUpdate = false;
+
+            if (WorkerRegistryConstants.DOCUMENT_TYPE_SIGNATURE.equalsIgnoreCase(event.getType())
+                    && (worker.getSignatureId() == null || worker.getSignatureId().isEmpty())) {
+                worker.setSignatureId(event.getFileStore());
+                needsUpdate = true;
+            } else if (WorkerRegistryConstants.DOCUMENT_TYPE_PHOTO.equalsIgnoreCase(event.getType())
+                    && (worker.getPhotoId() == null || worker.getPhotoId().isEmpty())) {
+                worker.setPhotoId(event.getFileStore());
+                needsUpdate = true;
+            }
+
+            if (needsUpdate) {
+                enrichmentService.enrichUpdate(List.of(worker), requestInfo);
+                List<Worker> encrypted = workerEncryptionService.encrypt(List.of(worker), WorkerRegistryConstants.ENCRYPT_WORKER);
                 workerRepository.putInCache(encrypted);
                 workerRepository.update(encrypted, tenantId);
-                log.info("Updated photo/signature for {} workers", workersToUpdate.size());
+                log.info("Updated {} for worker: {}", event.getType(), workerId);
+            } else {
+                log.info("Worker {} already has {} set, skipping update", workerId, event.getType());
             }
 
         } catch (InvalidTenantIdException e) {
-            throw new CustomException("INVALID_TENANT_ID_EXCEPTION", "Invalid tenant ID: " + tenantId);
+            throw new CustomException(WorkerRegistryConstants.INVALID_TENANT_ID_EXCEPTION, WorkerRegistryConstants.MSG_INVALID_TENANT_ID_PREFIX + tenantId);
         }
     }
 }

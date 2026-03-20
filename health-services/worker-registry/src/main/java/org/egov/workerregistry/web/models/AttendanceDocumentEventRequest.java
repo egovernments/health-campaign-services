@@ -8,18 +8,16 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.egov.common.contract.request.RequestInfo;
 
-import java.util.List;
-
 @Data
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class PhotoSignatureUpdateRequest {
+public class AttendanceDocumentEventRequest {
 
     @JsonProperty("RequestInfo")
     private RequestInfo requestInfo;
 
-    @JsonProperty("records")
-    private List<PhotoSignatureUpdateRecord> records;
+    @JsonProperty("event")
+    private AttendanceDocumentEvent event;
 }

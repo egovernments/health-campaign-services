@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.Error;
 import org.egov.common.validator.Validator;
+import org.egov.workerregistry.constants.WorkerRegistryConstants;
 import org.egov.workerregistry.repository.WorkerRepository;
 import org.egov.workerregistry.web.models.Worker;
 import org.egov.workerregistry.web.models.WorkerBulkRequest;
@@ -65,8 +66,8 @@ public class WNonExistentEntityValidator implements Validator<WorkerBulkRequest,
                 log.error("Invalid tenant id: {}", tenantId, e);
                 entities.forEach(worker -> {
                     Error error = Error.builder()
-                            .errorMessage("Invalid tenant id: " + tenantId)
-                            .errorCode("INVALID_TENANT_ID")
+                            .errorMessage(WorkerRegistryConstants.MSG_INVALID_TENANT_ID_PREFIX + tenantId)
+                            .errorCode(WorkerRegistryConstants.INVALID_TENANT_ID)
                             .type(Error.ErrorType.NON_RECOVERABLE)
                             .build();
                     populateErrorDetails(worker, error, errorDetailsMap);
