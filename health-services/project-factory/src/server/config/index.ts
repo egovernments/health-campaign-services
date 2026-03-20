@@ -44,6 +44,10 @@ const config = {
   attendanceRegister: {
     defaultEventType: process.env.ATTENDANCE_REGISTER_DEFAULT_EVENT_TYPE || "Training",
     defaultSessions: process.env.ATTENDANCE_REGISTER_DEFAULT_SESSIONS ? parseInt(process.env.ATTENDANCE_REGISTER_DEFAULT_SESSIONS, 10) : 1,
+    batchSize: process.env.ATTENDANCE_BATCH_SIZE ? parseInt(process.env.ATTENDANCE_BATCH_SIZE, 10) : 50,
+  },
+  hrms: {
+    hrmsParallelSearchLimit: process.env.HRMS_PARALLEL_SEARCH_LIMIT ? parseInt(process.env.HRMS_PARALLEL_SEARCH_LIMIT, 10) : 100,
   },
   cacheValues: {
     cacheEnabled: process.env.CACHE_ENABLED,

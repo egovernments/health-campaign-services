@@ -17,7 +17,6 @@ const SHEET_NAMES = [WORKER_SHEET, MARKER_SHEET, APPROVER_SHEET];
 const DASH_DATE_REGEX = /^(\d{2})-(\d{2})-(\d{4})$/;
 const SLASH_DATE_REGEX = /^(\d{2})\/(\d{2})\/(\d{4})$/;
 
-const BATCH_SIZE = 50;
 
 /**
  * Process class for Attendance Register Attendee Mapping.
@@ -306,7 +305,7 @@ export class TemplateClass {
 
     /**
      * Resolve individualIds from usernames via HRMS employee search.
-     * Batches 50 usernames per request.
+     * Fires one request per username in parallel (up to hrmsParallelSearchLimit concurrency).
      */
     private static async resolveIndividualIds(
         usernames: string[],
@@ -318,26 +317,28 @@ export class TemplateClass {
 
         const searchUrl = config.host.hrmsHost + config.paths.hrmsEmployeeSearch;
         const searchBody = { RequestInfo: requestInfo };
+        const parallelLimit = Math.min(config.hrms.hrmsParallelSearchLimit, usernames.length);
 
-        for (let i = 0; i < usernames.length; i += BATCH_SIZE) {
-            const batch = usernames.slice(i, i + BATCH_SIZE);
-            const params = {
-                tenantId: rootTenantId,
-                limit: BATCH_SIZE + 1,
-                offset: 0,
-                codes: batch.join(",")
-            };
-            try {
-                const response = await httpRequest(searchUrl, searchBody, params);
-                for (const emp of response?.Employees || []) {
-                    // emp.code = username (login id), emp.user.uuid = individualId
+        for (let i = 0; i < usernames.length; i += parallelLimit) {
+            const window = usernames.slice(i, i + parallelLimit);
+            const responses = await Promise.all(
+                window.map(async (username) => {
+                    const params = { tenantId: rootTenantId, limit: 2, offset: 0, codes: username };
+                    try {
+                        const response = await httpRequest(searchUrl, searchBody, params);
+                        return response?.Employees || [];
+                    } catch (err: any) {
+                        logger.error(`HRMS search failed for user ${username}: ${err?.message}`);
+                        return [];
+                    }
+                })
+            );
+            for (const employees of responses) {
+                for (const emp of employees) {
                     if (emp?.code && emp?.user?.uuid) {
                         result.set(emp.code, emp.user.uuid);
                     }
                 }
-            } catch (err: any) {
-                logger.error(`HRMS search failed for batch ${i}: ${err?.message}`);
-                // Don't fail all — rows without resolved IDs will be marked INVALID
             }
         }
         return result;
@@ -374,7 +375,7 @@ export class TemplateClass {
     }
 
     /**
-     * Execute items in batches of BATCH_SIZE against an attendance API endpoint.
+     * Execute items in batches of config.attendanceRegister.batchSize against an attendance API endpoint.
      * All attendance endpoints use 'RequestInfo' (capital R) per API contract.
      */
     private static async batchApiCall(
@@ -384,8 +385,8 @@ export class TemplateClass {
         requestInfo: RequestInfo
     ): Promise<void> {
         const url = config.host.attendanceHost + urlPath;
-        for (let i = 0; i < items.length; i += BATCH_SIZE) {
-            const batch = items.slice(i, i + BATCH_SIZE);
+        for (let i = 0; i < items.length; i += config.attendanceRegister.batchSize) {
+            const batch = items.slice(i, i + config.attendanceRegister.batchSize);
             const body: any = { [bodyKey]: batch, RequestInfo: requestInfo };
             try {
                 await httpRequest(url, body);
