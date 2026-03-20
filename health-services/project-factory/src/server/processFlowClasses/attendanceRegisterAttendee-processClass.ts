@@ -146,30 +146,30 @@ export class TemplateClass {
         }
 
         // Execute batched API calls in sequence: creates → deletes → updateTag
-        // Row statuses are set AFTER each batch succeeds
+        // batchApiCall sets INVALID on failed rows; success status set only on rows without status
         if (attendeesToCreate.length > 0) {
-            await this.batchApiCall(attendeesToCreate.map(e => e.payload), config.paths.attendanceAttendeeCreate, "attendees", requestInfo);
-            attendeesToCreate.forEach(e => { e.row["#status#"] = sheetDataRowStatuses.CREATED; });
+            await this.batchApiCall(attendeesToCreate, config.paths.attendanceAttendeeCreate, "attendees", requestInfo);
+            attendeesToCreate.filter(e => !e.row["#status#"]).forEach(e => { e.row["#status#"] = sheetDataRowStatuses.CREATED; });
             logger.info(`Created ${attendeesToCreate.length} attendees`);
         }
         if (staffToCreate.length > 0) {
-            await this.batchApiCall(staffToCreate.map(e => e.payload), config.paths.attendanceStaffCreate, "staff", requestInfo);
-            staffToCreate.forEach(e => { e.row["#status#"] = sheetDataRowStatuses.CREATED; });
+            await this.batchApiCall(staffToCreate, config.paths.attendanceStaffCreate, "staff", requestInfo);
+            staffToCreate.filter(e => !e.row["#status#"]).forEach(e => { e.row["#status#"] = sheetDataRowStatuses.CREATED; });
             logger.info(`Created ${staffToCreate.length} staff`);
         }
         if (attendeesToDelete.length > 0) {
-            await this.batchApiCall(attendeesToDelete.map(e => e.payload), config.paths.attendanceAttendeeDelete, "attendees", requestInfo);
-            attendeesToDelete.forEach(e => { e.row["#status#"] = sheetDataRowStatuses.UPDATED; });
+            await this.batchApiCall(attendeesToDelete, config.paths.attendanceAttendeeDelete, "attendees", requestInfo);
+            attendeesToDelete.filter(e => !e.row["#status#"]).forEach(e => { e.row["#status#"] = sheetDataRowStatuses.UPDATED; });
             logger.info(`Deleted ${attendeesToDelete.length} attendees`);
         }
         if (staffToDelete.length > 0) {
-            await this.batchApiCall(staffToDelete.map(e => e.payload), config.paths.attendanceStaffDelete, "staff", requestInfo);
-            staffToDelete.forEach(e => { e.row["#status#"] = sheetDataRowStatuses.UPDATED; });
+            await this.batchApiCall(staffToDelete, config.paths.attendanceStaffDelete, "staff", requestInfo);
+            staffToDelete.filter(e => !e.row["#status#"]).forEach(e => { e.row["#status#"] = sheetDataRowStatuses.UPDATED; });
             logger.info(`Deleted ${staffToDelete.length} staff`);
         }
         if (attendeesToUpdateTag.length > 0) {
-            await this.batchApiCall(attendeesToUpdateTag.map(e => e.payload), config.paths.attendanceAttendeeUpdateTag, "attendees", requestInfo);
-            attendeesToUpdateTag.forEach(e => { e.row["#status#"] = sheetDataRowStatuses.UPDATED; });
+            await this.batchApiCall(attendeesToUpdateTag, config.paths.attendanceAttendeeUpdateTag, "attendees", requestInfo);
+            attendeesToUpdateTag.filter(e => !e.row["#status#"]).forEach(e => { e.row["#status#"] = sheetDataRowStatuses.UPDATED; });
             logger.info(`UpdateTag ${attendeesToUpdateTag.length} attendees`);
         }
 
@@ -217,7 +217,7 @@ export class TemplateClass {
 
         // Existing attendee — already de-enrolled
         if (existing.denrollmentDate) {
-            row["#status#"] = sheetDataRowStatuses.SKIPPED;
+            row["#status#"] = sheetDataRowStatuses.EXISTING;
             return;
         }
 
@@ -239,12 +239,12 @@ export class TemplateClass {
                 });
                 return;
             }
-            row["#status#"] = sheetDataRowStatuses.NO_CHANGE;
+            row["#status#"] = sheetDataRowStatuses.EXISTING;
             return;
         }
 
-        // enrollmentDate present but already enrolled — skip
-        row["#status#"] = sheetDataRowStatuses.SKIPPED;
+        // enrollmentDate present but already enrolled — existing record
+        row["#status#"] = sheetDataRowStatuses.EXISTING;
     }
 
     /**
@@ -282,7 +282,7 @@ export class TemplateClass {
 
         // Existing staff — already de-enrolled
         if (existing.denrollmentDate) {
-            row["#status#"] = sheetDataRowStatuses.SKIPPED;
+            row["#status#"] = sheetDataRowStatuses.EXISTING;
             return;
         }
 
@@ -295,12 +295,12 @@ export class TemplateClass {
         }
 
         if (!enrollmentDateEpoch) {
-            row["#status#"] = sheetDataRowStatuses.NO_CHANGE;
+            row["#status#"] = sheetDataRowStatuses.EXISTING;
             return;
         }
 
-        // enrollmentDate present but already enrolled — skip
-        row["#status#"] = sheetDataRowStatuses.SKIPPED;
+        // enrollmentDate present but already enrolled — existing record
+        row["#status#"] = sheetDataRowStatuses.EXISTING;
     }
 
     /**
@@ -376,23 +376,27 @@ export class TemplateClass {
 
     /**
      * Execute items in batches of config.attendanceRegister.batchSize against an attendance API endpoint.
+     * On batch failure, sets INVALID + errorDetails on each row in the failed batch — does NOT throw.
      * All attendance endpoints use 'RequestInfo' (capital R) per API contract.
      */
     private static async batchApiCall(
-        items: any[],
+        items: Array<{ payload: any; row: any }>,
         urlPath: string,
         bodyKey: string,
         requestInfo: RequestInfo
     ): Promise<void> {
         const url = config.host.attendanceHost + urlPath;
         for (let i = 0; i < items.length; i += config.attendanceRegister.batchSize) {
-            const batch = items.slice(i, i + config.attendanceRegister.batchSize);
-            const body: any = { [bodyKey]: batch, RequestInfo: requestInfo };
+            const batchItems = items.slice(i, i + config.attendanceRegister.batchSize);
+            const body: any = { [bodyKey]: batchItems.map(e => e.payload), RequestInfo: requestInfo };
             try {
                 await httpRequest(url, body);
             } catch (err: any) {
                 logger.error(`Attendance API call failed for ${urlPath} batch ${i}: ${err?.message}`);
-                throw err;
+                for (const item of batchItems) {
+                    item.row["#status#"] = sheetDataRowStatuses.INVALID;
+                    item.row["#errorDetails#"] = err?.message || "API call failed";
+                }
             }
         }
     }

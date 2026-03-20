@@ -76,15 +76,30 @@ export class TemplateClass {
 
         const requestInfo = resourceDetails?.requestInfo;
 
-        // Idempotent batch creation - check for existing, create new only
-        await this.idempotentBatchCreate(validPayloads, campaignId, tenantId, requestInfo);
+        // Idempotent batch creation - check for existing, create new only; classifies by campaign ownership
+        const { existingServiceCodes, conflictingServiceCodes } = await this.idempotentBatchCreate(validPayloads, campaignId, tenantId, requestInfo);
 
         // Return processed data with per-row status and error details
-        const processedData = sheetData.map((row: any, index: number) => ({
-            ...row,
-            "#status#": transformResults[index]?.status || sheetDataRowStatuses.CREATED,
-            "#errorDetails#": transformResults[index]?.error || ""
-        }));
+        const processedData = sheetData.map((row: any, index: number) => {
+            const result = transformResults[index];
+            let status = result?.status || sheetDataRowStatuses.CREATED;
+            let error = result?.error || "";
+
+            if (status === sheetDataRowStatuses.CREATED && result?.serviceCode) {
+                if (conflictingServiceCodes.has(result.serviceCode)) {
+                    status = sheetDataRowStatuses.INVALID;
+                    error = "Service code not available";
+                } else if (existingServiceCodes.has(result.serviceCode)) {
+                    status = sheetDataRowStatuses.EXISTING;
+                }
+            }
+
+            return {
+                ...row,
+                "#status#": status,
+                "#errorDetails#": error
+            };
+        });
 
         const sheetMap: SheetMap = {};
         sheetMap["HCM_ATTENDANCE_REGISTER_LIST"] = {
@@ -192,29 +207,29 @@ export class TemplateClass {
         hierarchyType: string,
         localizationMap: any,
         resourceDetails: any
-    ): { payload: any | null; status: string; error: string }[] {
-        const results: { payload: any | null; status: string; error: string }[] = [];
+    ): { payload: any | null; serviceCode: string | null; status: string; error: string }[] {
+        const results: { payload: any | null; serviceCode: string | null; status: string; error: string }[] = [];
 
         for (const row of sheetData) {
             try {
                 // Get the boundary code from the hidden column
                 const boundaryCode = row["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"];
                 if (!boundaryCode) {
-                    results.push({ payload: null, status: sheetDataRowStatuses.INVALID, error: "Boundary code is missing" });
+                    results.push({ payload: null, serviceCode: null, status: sheetDataRowStatuses.INVALID, error: "Boundary code is missing" });
                     continue;
                 }
 
                 // Get project info from mapping - O(1) lookup
                 const projectInfo = boundaryProjectMap.get(boundaryCode);
                 if (!projectInfo) {
-                    results.push({ payload: null, status: sheetDataRowStatuses.INVALID, error: `No project found for boundary: ${boundaryCode}. Ensure project creation is completed.` });
+                    results.push({ payload: null, serviceCode: null, status: sheetDataRowStatuses.INVALID, error: `No project found for boundary: ${boundaryCode}. Ensure project creation is completed.` });
                     continue;
                 }
 
                 // Get Register ID from the sheet
                 const registerId = row["HCM_ATTENDANCE_REGISTER_ID"];
                 if (!registerId || registerId.trim() === "") {
-                    results.push({ payload: null, status: sheetDataRowStatuses.INVALID, error: "Register ID is required" });
+                    results.push({ payload: null, serviceCode: null, status: sheetDataRowStatuses.INVALID, error: "Register ID is required" });
                     continue;
                 }
 
@@ -270,10 +285,10 @@ export class TemplateClass {
                     additionalDetails: additionalDetails
                 };
 
-                results.push({ payload, status: sheetDataRowStatuses.CREATED, error: "" });
+                results.push({ payload, serviceCode: registerId, status: sheetDataRowStatuses.CREATED, error: "" });
             } catch (error: any) {
                 logger.error("Error transforming row: {}", error?.message);
-                results.push({ payload: null, status: sheetDataRowStatuses.INVALID, error: error?.message || "Unknown error during transformation" });
+                results.push({ payload: null, serviceCode: null, status: sheetDataRowStatuses.INVALID, error: error?.message || "Unknown error during transformation" });
             }
         }
 
@@ -286,31 +301,46 @@ export class TemplateClass {
      * Idempotent batch creation - check for existing registers, create only new ones
      * Time Complexity: O(n) where n = number of registers
      */
-    private static async idempotentBatchCreate(payloads: any[], campaignId: string,  tenantId: string, requestInfo?: RequestInfo): Promise<void> {
+    private static async idempotentBatchCreate(payloads: any[], campaignId: string, tenantId: string, requestInfo?: RequestInfo): Promise<{ existingServiceCodes: Set<string>; conflictingServiceCodes: Set<string> }> {
         if (payloads.length === 0) {
             logger.info("No registers to create");
-            return;
+            return { existingServiceCodes: new Set<string>(), conflictingServiceCodes: new Set<string>() };
         }
 
         try {
-            // Step 1: Fetch existing registers by serviceCode - O(n) lookup after fetch
+            // Step 1: Fetch existing registers by serviceCode across all campaigns - O(n) lookup after fetch
             const serviceCodes = payloads.map(p => p.serviceCode);
             logger.info("Checking for existing registers with {} serviceCode(s)", serviceCodes.length);
 
-            const existingRegisters = await this.searchExistingRegisters(serviceCodes, campaignId, tenantId, requestInfo);
-            const existingServiceCodes = new Set(existingRegisters.map((r: any) => r.serviceCode));
+            const existingRegisters = await this.searchExistingRegisters(serviceCodes, tenantId, requestInfo);
 
-            // Step 2: Filter to only new registers - O(n)
-            const newRegisters = payloads.filter(p => !existingServiceCodes.has(p.serviceCode));
-            logger.info("Found {} existing registers, {} new registers to create",
-                existingServiceCodes.size, newRegisters.length);
+            // Step 2: Classify registers by campaign ownership
+            const existingServiceCodes = new Set<string>();    // same campaign — skip creation
+            const conflictingServiceCodes = new Set<string>(); // different campaign — mark INVALID
 
-            if (newRegisters.length === 0) {
-                logger.info("No new registers to create (all exist)");
-                return;
+            for (const r of existingRegisters) {
+                if (r.campaignId === campaignId) {
+                    existingServiceCodes.add(r.serviceCode);
+                } else {
+                    conflictingServiceCodes.add(r.serviceCode);
+                }
             }
 
-            // Step 3: Create in batches of 100 - O(n/100) batches
+            logger.info("Found {} same-campaign registers, {} cross-campaign conflicts",
+                existingServiceCodes.size, conflictingServiceCodes.size);
+
+            // Step 3: Filter to only truly new registers - O(n)
+            const newRegisters = payloads.filter(p =>
+                !existingServiceCodes.has(p.serviceCode) && !conflictingServiceCodes.has(p.serviceCode)
+            );
+            logger.info("{} new registers to create", newRegisters.length);
+
+            if (newRegisters.length === 0) {
+                logger.info("No new registers to create");
+                return { existingServiceCodes, conflictingServiceCodes };
+            }
+
+            // Step 4: Create in batches of 100 - O(n/100) batches
             const BATCH_SIZE = 100;
             for (let i = 0; i < newRegisters.length; i += BATCH_SIZE) {
                 const batch = newRegisters.slice(i, i + BATCH_SIZE);
@@ -320,6 +350,7 @@ export class TemplateClass {
             }
 
             logger.info("Successfully created {} new attendance registers", newRegisters.length);
+            return { existingServiceCodes, conflictingServiceCodes };
         } catch (error: any) {
             logger.error("Error during idempotent batch creation: {}", error?.message);
             throw error;
@@ -329,7 +360,7 @@ export class TemplateClass {
     /**
      * Search for existing attendance registers by serviceCode
      */
-    private static async searchExistingRegisters(serviceCodes: string[], campaignId: string,  tenantId: string, requestInfo?: RequestInfo): Promise<any[]> {
+    private static async searchExistingRegisters(serviceCodes: string[], tenantId: string, requestInfo?: RequestInfo): Promise<any[]> {
         if (serviceCodes.length === 0) {
             return [];
         }
@@ -342,7 +373,7 @@ export class TemplateClass {
             };
 
             logger.debug("Searching for existing registers with serviceCode(s): {}", serviceCodes.join(", "));
-            const response = await httpRequest(url, requestBody, { tenantId, serviceCode: serviceCodes, campaignId });
+            const response = await httpRequest(url, requestBody, { tenantId, serviceCode: serviceCodes });
             const registers = response?.attendanceRegister || [];
 
             logger.info("Found {} existing attendance registers", registers.length);

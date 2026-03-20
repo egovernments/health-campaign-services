@@ -178,7 +178,7 @@ export const sheetDataRowStatuses = {
     INVALID: "INVALID",
     CREATED: "CREATED",
     SKIPPED: "SKIPPED",
-    NO_CHANGE: "NO_CHANGE",
+    EXISTING: "EXISTING",
     UPDATED: "UPDATED"
 }
 
