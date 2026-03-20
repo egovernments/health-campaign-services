@@ -774,7 +774,7 @@ async function getEmployeesBasedOnUserName(dataToCreate: any[], request: any) {
 
 
     const params = {
-      tenantId: 'mz',
+      tenantId: request?.body?.RequestInfo?.userInfo?.tenantId,
       limit: 51,
       offset: 0,
       codes: userNames.join(","), // ✅ Convert array to comma-separated string

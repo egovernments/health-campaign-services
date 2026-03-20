@@ -7,6 +7,7 @@ import { getLocaleFromRequestInfo, getLocalisationModuleName } from "./localisat
 import { getBoundarySheetData } from "../api/genericApis";
 import { checkIfSourceIsMicroplan } from "./campaignUtils";
 import { httpRequest } from "./request";
+import { RequestInfo } from "../config/models/requestInfoSchema";
 
 // Now you can use Lodash functions with the "_" prefix, e.g., _.isEqual(), _.sortBy(), etc.
 function extractProperties(obj: any) {
@@ -140,9 +141,10 @@ async function callGenerateIfBoundariesOrCampaignTypeDiffer(request: any) {
                 await callGenerate(newRequestToGenerate, t);
             }
         } else {
-            triggerGenerate("boundary", tenantId, hierarchyType, campaignId, useruuid, locale);
-            triggerGenerate("user", tenantId, hierarchyType, campaignId, useruuid, locale);
-            triggerGenerate("facility", tenantId, hierarchyType, campaignId, useruuid, locale);
+            const requestInfo = request?.body?.RequestInfo;
+            triggerGenerate("boundary", tenantId, hierarchyType, campaignId, useruuid, locale, requestInfo);
+            triggerGenerate("user", tenantId, hierarchyType, campaignId, useruuid, locale, requestInfo);
+            triggerGenerate("facility", tenantId, hierarchyType, campaignId, useruuid, locale, requestInfo);
         }
     } catch (error: any) {
         logger.error(error);
@@ -178,7 +180,7 @@ export async function callGenerate(request: any, type: any, enableCaching = fals
     }
 }
 
-export async function triggerGenerate(type: string, tenantId: string, hierarchyType: string, campaignId: string, userUuid: string, locale: string = config.localisation.defaultLocale) {
+export async function triggerGenerate(type: string, tenantId: string, hierarchyType: string, campaignId: string, userUuid: string, locale: string = config.localisation.defaultLocale, requestInfo?: RequestInfo) {
 
     logger.info(`Calling generate API for type ${type}`);
 
@@ -190,7 +192,7 @@ export async function triggerGenerate(type: string, tenantId: string, hierarchyT
     };
 
     try {
-        await generateDataService(generateRequestQuery, userUuid, locale);
+        await generateDataService(generateRequestQuery, userUuid, locale, requestInfo);
     } catch (error: any) {
         logger.error(`Error in triggerGenerate for type ${type}: ${error?.message}`, error);
     }

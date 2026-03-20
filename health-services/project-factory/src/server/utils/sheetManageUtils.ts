@@ -720,7 +720,8 @@ export async function validateResourceDetailsBeforeProcess(validationProcessType
         additionalDetails : resourceDetails?.additionalDetails,
         fileStoreId : resourceDetails?.fileStoreId,
         campaignId : resourceDetails?.campaignId,
-        hierarchyType : resourceDetails?.hierarchyType
+        hierarchyType : resourceDetails?.hierarchyType,
+        requestInfo : resourceDetails?.requestInfo
     }
     await enrichProcessTemplateConfig(validationResourceDetails, processTemplateConfig);
     const fileUrl = await fetchFileFromFilestore(validationResourceDetails?.fileStoreId, validationResourceDetails?.tenantId);
