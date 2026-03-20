@@ -2,9 +2,14 @@ package com.tarento.analytics.org.service;
 
 import static com.tarento.analytics.handler.IResponseHandler.IS_CAPPED_TILL_TODAY;
 import com.tarento.analytics.constant.Constants.Interval;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Collections;
 import java.util.Date;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -17,6 +22,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Component;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -33,6 +39,7 @@ import com.tarento.analytics.handler.ResponseHandlerFactory;
 import com.tarento.analytics.model.InsightsConfiguration;
 import com.tarento.analytics.service.QueryService;
 import com.tarento.analytics.service.impl.RestService;
+import com.tarento.analytics.utils.RawResponseTransformer;
 import com.tarento.analytics.utils.ResponseRecorder;
 
 
@@ -42,6 +49,9 @@ public class TarentoServiceImpl implements ClientService {
 	public static final Logger logger = LoggerFactory.getLogger(TarentoServiceImpl.class);
 
 	ObjectMapper mapper = new ObjectMapper();
+	private static final ObjectMapper QUERY_MAPPER = new ObjectMapper().setSerializationInclusion(JsonInclude.Include.NON_NULL);
+	private static final ObjectMapper RAW_RESPONSE_MAPPER = new ObjectMapper()
+			.configure(com.fasterxml.jackson.databind.DeserializationFeature.USE_LONG_FOR_INTS, true);
 	char insightPrefix = 'i';
 
 
@@ -62,6 +72,9 @@ public class TarentoServiceImpl implements ClientService {
 
 	@Autowired
 	private MdmsApiMappings mdmsApiMappings;
+
+	@Autowired
+	private RawResponseTransformer rawResponseTransformer;
 
 
 	@Override
@@ -90,10 +103,13 @@ public class TarentoServiceImpl implements ClientService {
 			insightsConfig = mapper.treeToValue(chartNode.get(Constants.JsonPaths.INSIGHT), InsightsConfiguration.class);
 		}
 		ChartType chartType = ChartType.fromValue(chartNode.get(Constants.JsonPaths.CHART_TYPE).asText());
+
 		boolean isDefaultPresent = chartType.equals(ChartType.LINE) && chartNode.get(Constants.JsonPaths.INTERVAL)!=null;
 		boolean isRequestContainsInterval = null == request.getRequestDate() ? false : (request.getRequestDate().getInterval()!=null && !request.getRequestDate().getInterval().isEmpty()) ;
 		String interval = isRequestContainsInterval? request.getRequestDate().getInterval(): (isDefaultPresent ? chartNode.get(Constants.JsonPaths.INTERVAL).asText():"");
-
+		if (chartType == ChartType.RAW_RESPONSE) {
+			return fetchRawResponseFromEs(request, chartNode, interval);
+		}
 		if(isFilterForCurrentDayEnabled(chartNode)){
 			setDateRangeFilterForCurrentDay(request);
 		}
@@ -153,6 +169,122 @@ public class TarentoServiceImpl implements ClientService {
 				&& chartNode.get(IS_CAPPED_TILL_TODAY).asBoolean();
 	}
 
+	private AggregateDto fetchRawResponseFromEs(AggregateRequestDto request, ObjectNode chartNode, String interval) {
+		preHandle(request, chartNode, mdmsApiMappings);
+		Map<String, Object> rawResponses = new LinkedHashMap<>();
+		Map<String, String> transformDataTypes = new LinkedHashMap<>();
+		ArrayNode queries = (ArrayNode) chartNode.get(Constants.JsonPaths.QUERIES);
+		int randIndexCount = 1;
+		for (JsonNode query : queries) {
+			String module = query.get(Constants.JsonPaths.MODULE).asText();
+			if (!request.getModuleLevel().equals(Constants.Modules.HOME_REVENUE)
+					&& !request.getModuleLevel().equals(Constants.Modules.HOME_SERVICES)
+					&& !query.get(Constants.JsonPaths.MODULE).asText().equals(Constants.Modules.COMMON)
+					&& !request.getModuleLevel().equals(module)) {
+				continue;
+			}
+			String indexName = query.get(Constants.JsonPaths.INDEX_NAME).asText();
+			String transformKey = query.has(Constants.JsonPaths.TRANSFORM_KEY)
+					? query.get(Constants.JsonPaths.TRANSFORM_KEY).asText() : indexName;
+			String transformData = query.has(Constants.JsonPaths.TRANSFORM_DATA)
+					? query.get(Constants.JsonPaths.TRANSFORM_DATA).asText() : "rawDocuments";
+			ObjectNode objectNode = queryService.getChartConfigurationQueryRaw(request, query, indexName, interval);
+			try {
+				String queryStr = QUERY_MAPPER.writeValueAsString(objectNode);
+				JsonNode response = restService.search(indexName, queryStr);
+				String key = transformKey;
+				if (rawResponses.containsKey(key)) {
+					key = transformKey + "_" + randIndexCount++;
+				}
+				rawResponses.put(key, RAW_RESPONSE_MAPPER.convertValue(response != null ? response : JsonNodeFactory.instance.objectNode(), Map.class));
+				transformDataTypes.put(key, transformData);
+			} catch (JsonProcessingException e) {
+				logger.error("Failed to serialize ES query: {}", e.getMessage(), e);
+				throw new RuntimeException(e);
+			} catch (Exception e) {
+				logger.error("Error fetching raw response from ES: {}", e.getMessage(), e);
+				throw new RuntimeException(e);
+			}
+		}
+
+		// Apply transformation mappings if configured
+		JsonNode transformNode = chartNode.get(Constants.JsonPaths.TRANSFORM);
+		Map<String, Object> transformed = rawResponses;
+		if (transformNode != null && transformNode.isObject()) {
+			Map<String, List<Map<String, String>>> transformationConfigs = parseTransformationConfigs(transformNode);
+			Map<String, String> bucketsPaths = parseBucketsPaths(transformNode);
+			if (!transformationConfigs.isEmpty()) {
+				transformed = rawResponseTransformer.transformAll(rawResponses, transformationConfigs, transformDataTypes, bucketsPaths);
+			}
+		}
+
+		// Parse aggregationPaths to determine which datasets to return
+		List<String> aggregationPaths = new ArrayList<>();
+		JsonNode aggPathsNode = chartNode.get(Constants.JsonPaths.AGGREGATION_PATHS);
+		if (aggPathsNode != null && aggPathsNode.isArray()) {
+			for (JsonNode pathNode : aggPathsNode) {
+				aggregationPaths.add(pathNode.asText());
+			}
+		}
+
+		// Apply merge steps if configured (new: array of merge steps)
+		JsonNode mergesNode = chartNode.get(Constants.JsonPaths.MERGES);
+		if (mergesNode != null && mergesNode.isArray() && !mergesNode.isEmpty()) {
+			rawResponseTransformer.executeMergeSteps(transformed, mergesNode, aggregationPaths);
+		} else if (!aggregationPaths.isEmpty()) {
+			// No merges, but filter and order to match aggregationPaths
+			Map<String, Object> ordered = new LinkedHashMap<>();
+			for (String path : aggregationPaths) {
+				if (transformed.containsKey(path)) {
+					ordered.put(path, transformed.get(path));
+				}
+			}
+			transformed.clear();
+			transformed.putAll(ordered);
+		}
+
+		AggregateDto dto = new AggregateDto();
+		dto.setChartType(ChartType.RAW_RESPONSE);
+		dto.setVisualizationCode(request.getVisualizationCode());
+		dto.setCustomData(Collections.singletonMap("rawResponse", transformed));
+		return dto;
+	}
+
+	@SuppressWarnings("unchecked")
+	private Map<String, List<Map<String, String>>> parseTransformationConfigs(JsonNode transformNode) {
+		Map<String, List<Map<String, String>>> configs = new LinkedHashMap<>();
+		Iterator<Map.Entry<String, JsonNode>> fields = transformNode.fields();
+		while (fields.hasNext()) {
+			Map.Entry<String, JsonNode> field = fields.next();
+			String indexName = field.getKey();
+			JsonNode indexConfig = field.getValue();
+			JsonNode mappingsNode = indexConfig.get(Constants.JsonPaths.TRANSFORMATION_MAPPINGS);
+			if (mappingsNode != null && mappingsNode.isArray()) {
+				List<Map<String, String>> mappings = new ArrayList<>();
+				for (JsonNode mappingNode : mappingsNode) {
+					Map<String, String> mapping = mapper.convertValue(mappingNode, Map.class);
+					mappings.add(mapping);
+				}
+				configs.put(indexName, mappings);
+			}
+		}
+		return configs;
+	}
+
+	private Map<String, String> parseBucketsPaths(JsonNode transformNode) {
+		Map<String, String> paths = new LinkedHashMap<>();
+		Iterator<Map.Entry<String, JsonNode>> fields = transformNode.fields();
+		while (fields.hasNext()) {
+			Map.Entry<String, JsonNode> field = fields.next();
+			String key = field.getKey();
+			JsonNode config = field.getValue();
+			if (config.has(Constants.JsonPaths.BUCKETS_PATH)) {
+				paths.put(key, config.get(Constants.JsonPaths.BUCKETS_PATH).asText());
+			}
+		}
+		return paths;
+	}
+
 	/**
 	 * Executes queries and enriches the respons in aggrObjectNode
 	 * @param chartNode The Chart Config defined in ChartApiConfig.json
@@ -177,14 +309,19 @@ public class TarentoServiceImpl implements ClientService {
 				String indexName = query.get(Constants.JsonPaths.INDEX_NAME).asText();
 				ObjectNode objectNode = queryService.getChartConfigurationQuery(request, query, indexName, interval);
 				try {
-					JsonNode aggrNode = restService.search(indexName,objectNode.toString());
+					String queryStr = QUERY_MAPPER.writeValueAsString(objectNode);
+					JsonNode aggrNode = restService.search(indexName, queryStr);
 					if(nodes.has(indexName)) {
 						indexName = indexName + "_" + randIndexCount;
 						randIndexCount += 1;
 					}
-					nodes.set(indexName,aggrNode.get(Constants.JsonPaths.AGGREGATIONS));
-				}catch (Exception e) {
-					logger.error("Encountered an Exception while Executing the Query : " + e.getMessage());
+					boolean isRawResponse = "rawResponse".equalsIgnoreCase(chartNode.get(Constants.JsonPaths.CHART_TYPE).asText());
+					nodes.set(indexName, isRawResponse ? aggrNode : aggrNode.get(Constants.JsonPaths.AGGREGATIONS));
+				} catch (JsonProcessingException e) {
+					logger.error("Failed to serialize ES query: {}", e.getMessage(), e);
+					throw new RuntimeException(e);
+				} catch (Exception e) {
+					logger.error("Encountered an Exception while Executing the Query: {}", e.getMessage(), e);
 					throw new RuntimeException(e);
 				}
 				aggrObjectNode.set(Constants.JsonPaths.AGGREGATIONS, nodes);

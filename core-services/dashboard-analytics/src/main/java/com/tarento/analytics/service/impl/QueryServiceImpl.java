@@ -1,19 +1,14 @@
 package com.tarento.analytics.service.impl;
 
-import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import org.elasticsearch.action.search.MultiSearchResponse;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import org.elasticsearch.action.search.SearchRequest;
-import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.search.aggregations.Aggregation;
-import org.elasticsearch.search.aggregations.Aggregations;
 import org.elasticsearch.search.aggregations.bucket.terms.ParsedLongTerms;
 import org.elasticsearch.search.aggregations.bucket.terms.Terms;
 import org.elasticsearch.search.aggregations.metrics.avg.ParsedAvg;
@@ -24,8 +19,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import com.fasterxml.jackson.core.JsonParseException;
-import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -33,13 +26,9 @@ import com.tarento.analytics.ConfigurationLoader;
 import com.tarento.analytics.constant.Constants;
 import com.tarento.analytics.dao.ElasticSearchDao;
 import com.tarento.analytics.dto.AggregateRequestDto;
-import com.tarento.analytics.dto.AggregateRequestDto;
 import com.tarento.analytics.enums.ChartType;
-import com.tarento.analytics.exception.AINException;
 import com.tarento.analytics.model.ElasticSearchDictator;
 import com.tarento.analytics.model.KeyData;
-import com.tarento.analytics.model.Query;
-import com.tarento.analytics.model.ServiceQuery;
 import com.tarento.analytics.service.QueryService;
 import com.tarento.analytics.utils.ElasticProperties;
 
@@ -460,5 +449,78 @@ public class QueryServiceImpl implements QueryService {
 	    return objectNode; 
 		
 	}
+
+	@Override
+	public ObjectNode getChartConfigurationQueryRaw(AggregateRequestDto request, JsonNode query, String indexName, String interval) {
+        String aggrQuery = query.get(Constants.JsonPaths.AGGREGATION_QUERY).asText();
+        if (interval != null && !interval.isEmpty())
+            aggrQuery = aggrQuery.replace(Constants.JsonPaths.INTERVAL_VAL, interval);
+        String rqMs = query.get(Constants.JsonPaths.REQUEST_QUERY_MAP).asText();
+        String dateReferenceField = query.get(Constants.JsonPaths.DATE_REF_FIELD).asText();
+        JsonNode requestQueryMaps = null;
+        ObjectMapper mapper = new ObjectMapper();
+        Map<String, Object> esFilterMap = new HashMap<>();
+        ObjectNode aggrNode;
+        try {
+            requestQueryMaps = new ObjectMapper().readTree(rqMs);
+            request.setEsFilters(esFilterMap);
+            if (query.get(Constants.JsonPaths.MODULE).asText().equals(Constants.Modules.COMMON) &&
+                    !request.getModuleLevel().equals(Constants.Modules.HOME_REVENUE) &&
+                    !request.getModuleLevel().equals(Constants.Modules.HOME_SERVICES)) {
+                request.getFilters().put(Constants.Filters.MODULE, request.getModuleLevel());
+            }
+            Iterator<Entry<String, Object>> filtersItr = request.getFilters().entrySet().iterator();
+            while (filtersItr.hasNext()) {
+                Entry<String, Object> entry = filtersItr.next();
+                if (null != requestQueryMaps.get(entry.getKey()) && !String.valueOf(entry.getValue()).equals(Constants.Filters.FILTER_ALL)) {
+                    // Filters in put filters are added as esfilters usign mapping in requestQueryMap
+                    String esQueryKey = requestQueryMaps.get(entry.getKey()).asText();
+                    request.getEsFilters().put(esQueryKey, entry.getValue());
+                }
+            }
+
+            ElasticSearchDictator dictator = elasticSearchDao.createSearchDictatorV2(request, indexName, "", dateReferenceField);
+
+            SearchRequest searchRequest = elasticSearchDao.buildElasticSearchQuery(dictator);
+
+            ObjectNode querySegmentNode = (ObjectNode) mapper.readTree(searchRequest.source().toString());
+            aggrNode = (ObjectNode) mapper.readTree(aggrQuery);
+
+            // Navigate to bool nodes
+            ObjectNode aggrBool = (ObjectNode) aggrNode
+                    .with("query")
+                    .with("bool");
+
+            ObjectNode queryBool = (ObjectNode) querySegmentNode
+                    .with("query")
+                    .with("bool");
+
+            // ----------- HANDLE MUST -----------
+            ArrayNode aggrMust = (ArrayNode) aggrBool.withArray("must");
+            JsonNode queryMust = queryBool.get("must");
+
+            if (queryMust != null && queryMust.isArray()) {
+                for (JsonNode mustClause : queryMust) {
+                    aggrMust.add(mustClause);
+                }
+            }
+
+            // ----------- HANDLE FILTER (terms) -----------
+            ArrayNode aggrFilter = (ArrayNode) aggrBool.withArray("filter");
+            JsonNode queryFilter = queryBool.get("filter");
+
+            if (queryFilter != null && queryFilter.isArray()) {
+                for (JsonNode filterClause : queryFilter) {
+                    aggrFilter.add(filterClause);
+                }
+            }
+
+        } catch (Exception ex) {
+            logger.error("Encountered an Exception while parsing the JSON: {}", ex.getMessage(), ex);
+            throw new RuntimeException(ex);
+        }
+        return aggrNode;
+
+    }
 
 }

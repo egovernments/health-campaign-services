@@ -25,6 +25,6 @@ public interface QueryService {
 	Aggregations getAggregateDataV2(AggregateRequestDtoV2 aggregateDto, String orgId) throws AINException, JsonParseException, JsonMappingException, IOException;
 	*/
 	ObjectNode getChartConfigurationQuery(AggregateRequestDto req, JsonNode query, String indexName, String interval);
-	
-	
+
+	ObjectNode getChartConfigurationQueryRaw(AggregateRequestDto request, JsonNode query, String indexName, String interval);
 }

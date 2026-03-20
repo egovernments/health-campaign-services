@@ -67,8 +67,8 @@ public class Constants {
 		final static String CHART_API_CONFIG = "ChartApiConfig.json"; 
 	}
 	
-	public interface JsonPaths { 
-		final static String CHART_TYPE = "chartType"; 
+	public interface JsonPaths {
+		final static String CHART_TYPE = "chartType";
 		final static String QUERIES = "queries"; 
 		final static String AGGREGATION_QUERY= "aggrQuery";
 		final static String INDEX_NAME = "indexName";
@@ -84,6 +84,23 @@ public class Constants {
 		final static String DAYS = "days";
 		final static String TRANSLATE_CODE = "translateTenantCode";
 		final static String FILTER_FOR_CURRENT_DAY = "filterForCurrentDay";
+		final static String TRANSFORM = "transform";
+		final static String TRANSFORMATION_MAPPINGS = "transformationMappings";
+		final static String TRANSFORM_DATA = "transformData";
+		final static String TRANSFORM_KEY = "transformKey";
+		final static String BUCKETS_PATH = "bucketsPath";
+		final static String MERGES = "merges";
+		final static String MERGE_KEY = "mergeKey";
+		final static String BASE_DATASET = "baseDataset";
+		final static String JOIN_DATASET = "dataset";
+		final static String BASE_KEY = "baseKey";
+		final static String JOIN_KEY = "joinKey";
+		final static String JOIN_TYPE = "joinType";
+		final static String OUTPUT_MAPPINGS = "outputMappings";
+		final static String CLEAR_DATASETS = "clearDatasets";
+		final static String AGGREGATION_PATHS = "aggregationPaths";
+		final static String LINEAR_MERGE_DATASETS = "datasets";
+		final static String MERGE_TYPE = "mergeType";
 
 	}
 

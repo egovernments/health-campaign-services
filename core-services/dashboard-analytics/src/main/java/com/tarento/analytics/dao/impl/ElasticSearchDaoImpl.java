@@ -622,7 +622,7 @@ public class ElasticSearchDaoImpl implements ElasticSearchDao {
 		TermsAggregationBuilder termsAggBuilder = null;
 		NestedAggregationBuilder nestedAggBuilder = null;
 		ValueCountAggregationBuilder valueCountAggBuilder = null;
-		if(dictator.getQueryAggregationMap()==null) { 
+		if(dictator.getQueryAggregationMap()==null || dictator.getQueryAggregationMap().isEmpty()) {
 			return new SearchRequest(dictator.getIndexName()).types(dictator.getDocumentType()).source(searchBuilder);
 		}
 		

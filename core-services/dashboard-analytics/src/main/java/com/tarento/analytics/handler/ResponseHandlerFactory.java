@@ -19,11 +19,14 @@ public class ResponseHandlerFactory {
     private TableChartResponseHandler tableChartResponseHandler;
     @Autowired
     private AdvanceTableChartResponseHandler advanceTableChartResponseHandler;
-
+    @Autowired
+    private RawResponseHandler rawResponseHandler;
 
     public IResponseHandler getInstance(ChartType chartType) {
 
-        if (chartType == chartType.METRIC) {
+        if (chartType == ChartType.RAW_RESPONSE) {
+            return rawResponseHandler;
+        } else if (chartType == chartType.METRIC) {
             return metricChartResponseHandler;
 
         } else if (chartType == chartType.LINE) {
