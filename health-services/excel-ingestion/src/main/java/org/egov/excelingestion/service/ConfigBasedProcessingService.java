@@ -509,8 +509,9 @@ public class ConfigBasedProcessingService {
         ExcelIngestionProcessData processData = mdmsConfigService.getExcelIngestionProcessConfig(requestInfo, resource.getTenantId(), resource.getType());
         String topic = processData.getProcessingResultTopic(); // Assuming this method exists
         if (topic != null && !topic.trim().isEmpty()) {
+            resource.setRequestInfo(requestInfo);
             producer.push(resource.getTenantId(), topic, resource);
-            log.info("Published processing result to topic: {} for processing type: {}, resource ID: {}", 
+            log.info("Published processing result to topic: {} for processing type: {}, resource ID: {}",
                     topic, resource.getType(), resource.getId());
             log.info("Processing result sent to topic for resource: {}", resource.getId());
         } else {
