@@ -310,10 +310,9 @@ async function createMdmsData(
   tenantId: string,
   schemaCode: string,
   data: any,
-  useruuid: string,
-  requestInfo?: RequestInfo
+  requestInfo: RequestInfo
 ): Promise<void> {
-  const RequestInfo = requestInfo || {};
+  const RequestInfo = requestInfo;
 
   const requestBody = {
     RequestInfo,

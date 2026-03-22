@@ -1116,7 +1116,7 @@ async function processAppConfig(campaignDetails: any, RequestInfo: any) {
       }
     }
   } catch (error) {
-    logger.warn("Error while processing app config", error);
+    logger.error("Error while processing app config", error);
   }
 }
 
@@ -1516,7 +1516,7 @@ async function searchProjectCampaignResourcData(campaignDetails: any, request?: 
         }
       }));
     } catch (err) {
-      logger.warn(`Failed to enrich resources from table, falling back to JSONB: ${err}`);
+      logger.error(`Failed to enrich resources from table, falling back to JSONB: ${err}`);
     }
   }
 
@@ -2974,7 +2974,7 @@ async function processAndInsertModules(
         isSelected: true,
       };
 
-      return createMdmsData(tenantId, schemaCode, moduleData, useruuid);
+      return createMdmsData(tenantId, schemaCode, moduleData, RequestInfo);
     })
   );
 
@@ -3092,7 +3092,7 @@ export async function createAppConfigFromClone(
         isSelected: true,
       };
 
-      await createMdmsData(tenantId, configSchema, newModule, useruuid);
+      await createMdmsData(tenantId, configSchema, newModule, RequestInfo);
     }
 
     logger.info("App configuration cloned successfully.");
