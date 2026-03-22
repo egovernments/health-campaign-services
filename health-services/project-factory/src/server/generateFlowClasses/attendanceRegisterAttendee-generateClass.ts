@@ -68,14 +68,22 @@ export class TemplateClass {
                 `Campaign ${campaignId} has no hierarchyType set`);
         }
 
-        // Build boundary descendant set for worker filtering (boundary on or below register locality)
-        const descendantBoundaryCodes = await this.getBoundaryDescendantCodes(tenantId, hierarchyType, localityCode);
+        // Resolve allowed boundary codes per sheet from MDMS boundaryFilter config (run in parallel)
+        const getBoundaryFilter = (sheetName: string) =>
+            templateConfig?.sheets?.find((s: any) => s.sheetName === sheetName)?.boundaryFilter;
+
+        const [workerCodes, markerCodes, approverCodes] = await Promise.all([
+            this.resolveAllowedBoundaryCodes(tenantId, hierarchyType, localityCode, getBoundaryFilter(WORKER_SHEET)),
+            this.resolveAllowedBoundaryCodes(tenantId, hierarchyType, localityCode, getBoundaryFilter(MARKER_SHEET)),
+            this.resolveAllowedBoundaryCodes(tenantId, hierarchyType, localityCode, getBoundaryFilter(APPROVER_SHEET))
+        ]);
 
         // Fetch all completed user credentials for this campaign
         const users = await getRelatedDataWithCampaign("user", campaign?.campaignNumber, tenantId, dataRowStatuses.completed);
         logger.info(`Fetched ${users.length} users for campaign ${campaignId}`);
 
-        // Classify users and filter by boundary
+        // Classify users and filter by allowed boundary codes.
+        // A user appears in at most one sheet — role priority (APPROVER > MARKER > WORKER) determines which.
         const workerRows: any[] = [];
         const markerRows: any[] = [];
         const approverRows: any[] = [];
@@ -84,7 +92,6 @@ export class TemplateClass {
             const rawData = userEntry?.data || {};
             if (!rawData || !rawData["UserName"]) continue;
 
-            // PRD: roles should be checked from all role columns 1-n (multiselect columns)
             // HCM_ADMIN_CONSOLE_USER_ROLE is a CONCATENATE formula — result may not be cached in DB
             // Fallback: collect from individual multiselect columns
             const roleCodes = this.getRoleCodes(rawData);
@@ -94,14 +101,10 @@ export class TemplateClass {
 
             const boundaryCode = rawData["HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY"] || rawData["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"] || "";
 
-            // Filter by boundary
-            if (sheet === WORKER_SHEET) {
-                // Workers: boundary must be in or below register locality
-                if (!descendantBoundaryCodes.has(boundaryCode)) continue;
-            } else {
-                // Markers and Approvers: boundary must exactly match register locality
-                if (boundaryCode !== localityCode) continue;
-            }
+            // Filter by boundary using per-sheet allowed codes resolved from MDMS config
+            const allowedCodes = sheet === WORKER_SHEET ? workerCodes
+                : sheet === MARKER_SHEET ? markerCodes : approverCodes;
+            if (!allowedCodes.has(boundaryCode)) continue;
 
             const row = this.buildRowData(rawData, registerId, localizationMap, sheet === WORKER_SHEET);
             if (sheet === APPROVER_SHEET) approverRows.push(row);
@@ -131,21 +134,88 @@ export class TemplateClass {
     }
 
     /**
-     * Collect all boundary codes in the subtree rooted at localityCode (inclusive).
-     * Returns a Set<string> for O(1) membership checks.
+     * Resolve allowed boundary codes for a sheet based on its BoundaryFilterConfig.
+     *
+     * Modes:
+     * - ANCESTOR_AND_SELF: register locality + all ancestors (path from root to locality)
+     * - LEVEL_RANGE: register locality down to configured deepest boundary type
+     * - null/unknown: self only (exact locality match)
      */
-    private static async getBoundaryDescendantCodes(
+    private static async resolveAllowedBoundaryCodes(
+        tenantId: string,
+        hierarchyType: string,
+        localityCode: string,
+        filter: any
+    ): Promise<Set<string>> {
+        if (!filter || !filter.mode) return new Set([localityCode]);
+        if (filter.mode === "ANCESTOR_AND_SELF") {
+            return this.getBoundaryAncestorAndSelfCodes(tenantId, hierarchyType, localityCode);
+        }
+        if (filter.mode === "LEVEL_RANGE") {
+            return this.getBoundaryLevelRangeCodes(tenantId, hierarchyType, localityCode, filter.levelConfig);
+        }
+        logger.warn(`Unknown boundaryFilter mode '${filter.mode}', defaulting to self only`);
+        return new Set([localityCode]);
+    }
+
+    /**
+     * Collect register locality + all ancestor boundary codes.
+     * Calls boundary API with includeParents=true to get path from root to localityCode.
+     */
+    private static async getBoundaryAncestorAndSelfCodes(
         tenantId: string,
         hierarchyType: string,
         localityCode: string
     ): Promise<Set<string>> {
-        const response = await searchBoundaryRelationshipData(tenantId, hierarchyType, true, false, false, localityCode);
+        const response = await searchBoundaryRelationshipData(tenantId, hierarchyType, false, true, false, localityCode);
         const root = response?.TenantBoundary?.[0]?.boundary?.[0];
         const codes = new Set<string>();
         this.collectBoundaryCodes(root, codes);
-        return codes;
+        return codes.size > 0 ? codes : new Set([localityCode]);
     }
 
+    /**
+     * Collect boundary codes from register locality down to the configured deepest boundary type.
+     * If no levelConfig entry for the register's boundary type, returns self only.
+     */
+    private static async getBoundaryLevelRangeCodes(
+        tenantId: string,
+        hierarchyType: string,
+        localityCode: string,
+        levelConfig: Record<string, string>
+    ): Promise<Set<string>> {
+        const response = await searchBoundaryRelationshipData(tenantId, hierarchyType, true, false, false, localityCode);
+        const root = response?.TenantBoundary?.[0]?.boundary?.[0];
+        if (!root) return new Set([localityCode]);
+
+        const registerBoundaryType: string = root.boundaryType || "";
+        const deepestType = levelConfig?.[registerBoundaryType];
+        if (!deepestType) {
+            logger.info(`No levelConfig entry for boundary type '${registerBoundaryType}', using self only for locality ${localityCode}`);
+            return new Set([localityCode]);
+        }
+
+        const codes = new Set<string>();
+        this.collectDescendantsUntilLevel(root, deepestType, codes);
+        return codes.size > 0 ? codes : new Set([localityCode]);
+    }
+
+    /**
+     * DFS: collect all boundary codes from node downward, stopping at nodes of deepestType.
+     * Nodes at deepestType are included; their children are not.
+     */
+    private static collectDescendantsUntilLevel(node: any, deepestType: string, codes: Set<string>): void {
+        if (!node) return;
+        if (node.code) codes.add(node.code);
+        if (node.boundaryType === deepestType) return; // stop, don't recurse deeper
+        for (const child of node.children || []) {
+            this.collectDescendantsUntilLevel(child, deepestType, codes);
+        }
+    }
+
+    /**
+     * Collect all boundary codes from a node and its descendants (no depth limit).
+     */
     private static collectBoundaryCodes(node: any, codes: Set<string>): void {
         if (!node) return;
         if (node.code) codes.add(node.code);

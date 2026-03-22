@@ -26,11 +26,16 @@ import java.util.*;
  * Flow:
  * 1. Fetch schema → ColumnDefs
  * 2. Fetch attendance register → localityCode
- * 3. Fetch boundary tree → descendant codes for worker filtering
+ * 3. Fetch boundary tree → resolve allowed codes from BoundaryFilterConfig in sheetConfig
  * 4. Fetch all completed user data for this campaign
- * 5. Classify users by role, filter by boundary
+ * 5. Classify users by role, filter by allowed boundary codes
  * 6. Decrypt credentials
  * 7. Return SheetGenerationResult
+ *
+ * Boundary filter modes (configured per sheet in MDMS):
+ * - ANCESTOR_AND_SELF: register locality + all ancestors (Marker, Approver)
+ * - LEVEL_RANGE: register locality down to configured deepest type (Worker)
+ * - null/default: self only
  */
 @Component
 @Slf4j
@@ -110,9 +115,11 @@ public class AttendanceRegisterAttendeeSheetGenerator implements IExcelPopulator
                     new RuntimeException("campaignNumber is missing for campaign: " + campaignId));
         }
 
-        // 5. Fetch boundary descendants for worker filtering
-        Set<String> descendantCodes = fetchBoundaryDescendantCodes(
-                tenantId, hierarchyType, localityCode, requestInfo);
+        // 5. Fetch boundary tree once and resolve allowed codes for this sheet's filter config
+        BoundarySearchResponse boundaryResponse = boundaryService.fetchBoundaryRelationship(
+                tenantId, hierarchyType, requestInfo);
+        Set<String> allowedBoundaryCodes = resolveBoundaryFilterCodes(
+                boundaryResponse, localityCode, sheetConfig.getBoundaryFilter());
 
         // 6. Fetch all completed user data for this campaign
         List<Map<String, Object>> allUsers = campaignService.searchCampaignDataByType(
@@ -122,7 +129,7 @@ public class AttendanceRegisterAttendeeSheetGenerator implements IExcelPopulator
 
         // 7. Classify, filter, and build rows for this sheet
         List<Map<String, Object>> filteredUsers = classifyAndFilterUsers(
-                allUsers, sheetName, localityCode, descendantCodes);
+                allUsers, sheetName, allowedBoundaryCodes);
 
         log.info("Filtered {} users for sheet {}", filteredUsers.size(), sheetName);
 
@@ -317,34 +324,106 @@ public class AttendanceRegisterAttendeeSheetGenerator implements IExcelPopulator
     }
 
     /**
-     * Fetch all boundary codes in the subtree rooted at localityCode (inclusive)
+     * Resolve the set of allowed boundary codes for this sheet based on BoundaryFilterConfig.
+     *
+     * Modes:
+     * - ANCESTOR_AND_SELF: register locality + all ancestors (path from root to locality)
+     * - LEVEL_RANGE: register locality down to the configured deepest boundary type
+     * - null/unknown: self only (register locality exact match)
      */
-    private Set<String> fetchBoundaryDescendantCodes(String tenantId, String hierarchyType,
-                                                      String localityCode, RequestInfo requestInfo) {
-        BoundarySearchResponse boundaryResponse = boundaryService.fetchBoundaryRelationship(
-                tenantId, hierarchyType, requestInfo);
+    private Set<String> resolveBoundaryFilterCodes(BoundarySearchResponse boundaryResponse,
+                                                    String localityCode,
+                                                    BoundaryFilterConfig filter) {
+        if (filter == null || filter.getMode() == null) {
+            return Set.of(localityCode);
+        }
+        switch (filter.getMode()) {
+            case "ANCESTOR_AND_SELF":
+                return extractAncestorAndSelfCodes(boundaryResponse, localityCode);
+            case "LEVEL_RANGE":
+                return extractLevelRangeCodes(boundaryResponse, localityCode, filter.getLevelConfig());
+            default:
+                log.warn("Unknown boundaryFilter mode '{}', defaulting to self only", filter.getMode());
+                return Set.of(localityCode);
+        }
+    }
 
-        Set<String> descendantCodes = new HashSet<>();
+    /**
+     * Collect all boundary codes along the path from root to localityCode (ancestors + self).
+     * Returns Set containing the locality and all its ancestors.
+     * Fallback: Set.of(localityCode) if not found in tree.
+     */
+    private Set<String> extractAncestorAndSelfCodes(BoundarySearchResponse boundaryResponse, String localityCode) {
         if (boundaryResponse != null && boundaryResponse.getTenantBoundary() != null) {
             for (HierarchyRelation relation : boundaryResponse.getTenantBoundary()) {
                 if (relation.getBoundary() != null) {
-                    for (EnrichedBoundary rootBoundary : relation.getBoundary()) {
-                        EnrichedBoundary localityNode = findBoundaryNode(rootBoundary, localityCode);
-                        if (localityNode != null) {
-                            collectDescendantCodes(localityNode, descendantCodes);
-                            log.info("Found {} descendant boundary codes for locality {}",
-                                    descendantCodes.size(), localityCode);
-                            return descendantCodes;
+                    for (EnrichedBoundary root : relation.getBoundary()) {
+                        Set<String> ancestorCodes = new HashSet<>();
+                        if (collectAncestorPath(root, localityCode, ancestorCodes)) {
+                            log.info("Found {} ancestor+self codes for locality {}", ancestorCodes.size(), localityCode);
+                            return ancestorCodes;
                         }
                     }
                 }
             }
         }
+        log.warn("Locality {} not found in boundary tree for ANCESTOR_AND_SELF, using self only", localityCode);
+        return new HashSet<>(Set.of(localityCode));
+    }
 
-        // If locality not found in tree, at least include it
-        descendantCodes.add(localityCode);
-        log.warn("Locality {} not found in boundary tree, using exact match only", localityCode);
-        return descendantCodes;
+    /**
+     * DFS tracking path from root. Adds codes to result when target is found.
+     * Returns true if target was found in this subtree.
+     */
+    private boolean collectAncestorPath(EnrichedBoundary node, String targetCode, Set<String> result) {
+        if (node == null) return false;
+        if (targetCode.equals(node.getCode())) {
+            if (node.getCode() != null) result.add(node.getCode());
+            return true;
+        }
+        if (node.getChildren() != null) {
+            for (EnrichedBoundary child : node.getChildren()) {
+                if (collectAncestorPath(child, targetCode, result)) {
+                    if (node.getCode() != null) result.add(node.getCode()); // add self as ancestor
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Collect boundary codes from register locality down to configured deepest boundary type.
+     * If no levelConfig entry for the register's boundary type, returns self only.
+     */
+    private Set<String> extractLevelRangeCodes(BoundarySearchResponse boundaryResponse,
+                                                String localityCode,
+                                                Map<String, String> levelConfig) {
+        if (boundaryResponse != null && boundaryResponse.getTenantBoundary() != null) {
+            for (HierarchyRelation relation : boundaryResponse.getTenantBoundary()) {
+                if (relation.getBoundary() != null) {
+                    for (EnrichedBoundary root : relation.getBoundary()) {
+                        EnrichedBoundary localityNode = findBoundaryNode(root, localityCode);
+                        if (localityNode != null) {
+                            String registerBoundaryType = localityNode.getBoundaryType();
+                            String deepestType = levelConfig != null ? levelConfig.get(registerBoundaryType) : null;
+                            if (deepestType == null) {
+                                log.info("No levelConfig entry for boundary type '{}', using self only for locality {}",
+                                        registerBoundaryType, localityCode);
+                                return Set.of(localityCode);
+                            }
+                            Set<String> codes = new HashSet<>();
+                            collectDescendantsUntilLevel(localityNode, deepestType, codes);
+                            log.info("LEVEL_RANGE: {} codes for locality {} (type={}, deepest={})",
+                                    codes.size(), localityCode, registerBoundaryType, deepestType);
+                            return codes;
+                        }
+                    }
+                }
+            }
+        }
+        log.warn("Locality {} not found in boundary tree for LEVEL_RANGE, using self only", localityCode);
+        return new HashSet<>(Set.of(localityCode));
     }
 
     /**
@@ -363,24 +442,27 @@ public class AttendanceRegisterAttendeeSheetGenerator implements IExcelPopulator
     }
 
     /**
-     * Recursively collect all boundary codes from a node and its descendants
+     * DFS: collect codes from node downward, stopping recursion when deepestType is reached.
+     * Nodes at deepestType are included but their children are not.
      */
-    private void collectDescendantCodes(EnrichedBoundary node, Set<String> codes) {
+    private void collectDescendantsUntilLevel(EnrichedBoundary node, String deepestType, Set<String> codes) {
         if (node == null) return;
         if (node.getCode() != null) codes.add(node.getCode());
+        if (deepestType.equals(node.getBoundaryType())) return; // stop, don't recurse deeper
         if (node.getChildren() != null) {
             for (EnrichedBoundary child : node.getChildren()) {
-                collectDescendantCodes(child, codes);
+                collectDescendantsUntilLevel(child, deepestType, codes);
             }
         }
     }
 
     /**
-     * Classify users by role and filter by boundary for the current sheet type
+     * Classify users by role and filter by allowed boundary codes for the current sheet.
+     * A user appears in at most one sheet — role priority (APPROVER > MARKER > WORKER) determines which.
      */
     private List<Map<String, Object>> classifyAndFilterUsers(
             List<Map<String, Object>> allUsers, String sheetName,
-            String localityCode, Set<String> descendantCodes) {
+            Set<String> allowedBoundaryCodes) {
 
         List<Map<String, Object>> filtered = new ArrayList<>();
 
@@ -400,14 +482,7 @@ public class AttendanceRegisterAttendeeSheetGenerator implements IExcelPopulator
                 boundaryCode = getStringValue(rawData, "HCM_ADMIN_CONSOLE_BOUNDARY_CODE");
             }
 
-            // Boundary filtering
-            if (WORKER_SHEET.equals(sheetName)) {
-                // Workers: boundary must be in or below register locality
-                if (!descendantCodes.contains(boundaryCode)) continue;
-            } else {
-                // Markers and Approvers: boundary must exactly match register locality
-                if (!localityCode.equals(boundaryCode)) continue;
-            }
+            if (!allowedBoundaryCodes.contains(boundaryCode)) continue;
 
             filtered.add(userEntry);
         }
