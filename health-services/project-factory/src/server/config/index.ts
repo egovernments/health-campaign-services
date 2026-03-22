@@ -45,6 +45,7 @@ const config = {
     defaultEventType: process.env.ATTENDANCE_REGISTER_DEFAULT_EVENT_TYPE || "Training",
     defaultSessions: process.env.ATTENDANCE_REGISTER_DEFAULT_SESSIONS ? parseInt(process.env.ATTENDANCE_REGISTER_DEFAULT_SESSIONS, 10) : 1,
     batchSize: process.env.ATTENDANCE_BATCH_SIZE ? parseInt(process.env.ATTENDANCE_BATCH_SIZE, 10) : 50,
+    serviceCodeParallelSearchLimit: process.env.ATTENDANCE_SERVICE_CODE_PARALLEL_SEARCH_LIMIT ? parseInt(process.env.ATTENDANCE_SERVICE_CODE_PARALLEL_SEARCH_LIMIT, 10) : 50,
   },
   hrms: {
     hrmsParallelSearchLimit: process.env.HRMS_PARALLEL_SEARCH_LIMIT ? parseInt(process.env.HRMS_PARALLEL_SEARCH_LIMIT, 10) : 100,
@@ -188,10 +189,9 @@ const config = {
     attendanceRegisterCreate: process.env.ATTENDANCE_REGISTER_CREATE_PATH || "health-attendance/v1/_create",
     attendanceRegisterSearch: process.env.ATTENDANCE_REGISTER_SEARCH_PATH || "health-attendance/v1/_search",
     attendanceAttendeeCreate: process.env.ATTENDANCE_ATTENDEE_CREATE_PATH || "health-attendance/attendee/v1/_create",
-    attendanceAttendeeDelete: process.env.ATTENDANCE_ATTENDEE_DELETE_PATH || "health-attendance/attendee/v1/_delete",
-    attendanceAttendeeUpdateTag: process.env.ATTENDANCE_ATTENDEE_UPDATE_TAG_PATH || "health-attendance/attendee/v1/_updateTag",
+    attendanceAttendeeUpdate: process.env.ATTENDANCE_ATTENDEE_UPDATE_PATH || "health-attendance/attendee/v1/_update",
     attendanceStaffCreate: process.env.ATTENDANCE_STAFF_CREATE_PATH || "health-attendance/staff/v1/_create",
-    attendanceStaffDelete: process.env.ATTENDANCE_STAFF_DELETE_PATH || "health-attendance/staff/v1/_delete",
+    attendanceStaffUpdate: process.env.ATTENDANCE_STAFF_UPDATE_PATH || "health-attendance/staff/v1/_update",
   },
   // Values configuration
   values: {

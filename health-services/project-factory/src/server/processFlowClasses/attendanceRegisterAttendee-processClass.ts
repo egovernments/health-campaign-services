@@ -90,10 +90,9 @@ export class TemplateClass {
         // Per-row idempotency decision — collect operations with their row references
         // Row statuses are set AFTER API calls succeed to keep them accurate
         const attendeesToCreate: Array<{ payload: any; row: any }> = [];
-        const attendeesToDelete: Array<{ payload: any; row: any }> = [];
-        const attendeesToUpdateTag: Array<{ payload: any; row: any }> = [];
+        const attendeesToUpdate: Array<{ payload: any; row: any }> = [];
         const staffToCreate: Array<{ payload: any; row: any }> = [];
-        const staffToDelete: Array<{ payload: any; row: any }> = [];
+        const staffToUpdate: Array<{ payload: any; row: any }> = [];
 
         for (const sheetName of SHEET_NAMES) {
             const rows = sheetRows.get(sheetName) || [];
@@ -129,7 +128,7 @@ export class TemplateClass {
                     this.collectAttendeeOperation(
                         existing, enrollmentDateEpoch, deEnrollmentDateEpoch, teamCode || "",
                         tenantId, registerId, individualId, row,
-                        attendeesToCreate, attendeesToDelete, attendeesToUpdateTag
+                        attendeesToCreate, attendeesToUpdate
                     );
                 } else {
                     const staffType = isMarkerSheet ? "OWNER" : "APPROVER";
@@ -139,13 +138,13 @@ export class TemplateClass {
                     this.collectStaffOperation(
                         existing, enrollmentDateEpoch, deEnrollmentDateEpoch,
                         tenantId, registerId, individualId, staffType, row,
-                        staffToCreate, staffToDelete
+                        staffToCreate, staffToUpdate
                     );
                 }
             }
         }
 
-        // Execute batched API calls in sequence: creates → deletes → updateTag
+        // Execute batched API calls in sequence: creates → updates
         // batchApiCall sets INVALID on failed rows; success status set only on rows without status
         if (attendeesToCreate.length > 0) {
             await this.batchApiCall(attendeesToCreate, config.paths.attendanceAttendeeCreate, "attendees", requestInfo);
@@ -157,20 +156,15 @@ export class TemplateClass {
             staffToCreate.filter(e => !e.row["#status#"]).forEach(e => { e.row["#status#"] = sheetDataRowStatuses.CREATED; });
             logger.info(`Created ${staffToCreate.length} staff`);
         }
-        if (attendeesToDelete.length > 0) {
-            await this.batchApiCall(attendeesToDelete, config.paths.attendanceAttendeeDelete, "attendees", requestInfo);
-            attendeesToDelete.filter(e => !e.row["#status#"]).forEach(e => { e.row["#status#"] = sheetDataRowStatuses.UPDATED; });
-            logger.info(`Deleted ${attendeesToDelete.length} attendees`);
+        if (attendeesToUpdate.length > 0) {
+            await this.batchApiCall(attendeesToUpdate, config.paths.attendanceAttendeeUpdate, "attendees", requestInfo);
+            attendeesToUpdate.filter(e => !e.row["#status#"]).forEach(e => { e.row["#status#"] = sheetDataRowStatuses.UPDATED; });
+            logger.info(`Updated ${attendeesToUpdate.length} attendees`);
         }
-        if (staffToDelete.length > 0) {
-            await this.batchApiCall(staffToDelete, config.paths.attendanceStaffDelete, "staff", requestInfo);
-            staffToDelete.filter(e => !e.row["#status#"]).forEach(e => { e.row["#status#"] = sheetDataRowStatuses.UPDATED; });
-            logger.info(`Deleted ${staffToDelete.length} staff`);
-        }
-        if (attendeesToUpdateTag.length > 0) {
-            await this.batchApiCall(attendeesToUpdateTag, config.paths.attendanceAttendeeUpdateTag, "attendees", requestInfo);
-            attendeesToUpdateTag.filter(e => !e.row["#status#"]).forEach(e => { e.row["#status#"] = sheetDataRowStatuses.UPDATED; });
-            logger.info(`UpdateTag ${attendeesToUpdateTag.length} attendees`);
+        if (staffToUpdate.length > 0) {
+            await this.batchApiCall(staffToUpdate, config.paths.attendanceStaffUpdate, "staff", requestInfo);
+            staffToUpdate.filter(e => !e.row["#status#"]).forEach(e => { e.row["#status#"] = sheetDataRowStatuses.UPDATED; });
+            logger.info(`Updated ${staffToUpdate.length} staff`);
         }
 
         // Build SheetMap with all processed rows
@@ -183,6 +177,7 @@ export class TemplateClass {
 
     /**
      * Determine attendee operation and collect into the appropriate list.
+     * All changed fields for an existing active attendee are merged into one _update payload.
      * Row status is NOT set here — caller sets it after API calls succeed.
      */
     private static collectAttendeeOperation(
@@ -195,8 +190,7 @@ export class TemplateClass {
         individualId: string,
         row: any,
         attendeesToCreate: Array<{ payload: any; row: any }>,
-        attendeesToDelete: Array<{ payload: any; row: any }>,
-        attendeesToUpdateTag: Array<{ payload: any; row: any }>
+        attendeesToUpdate: Array<{ payload: any; row: any }>
     ): void {
         if (!existing) {
             if (!enrollmentDateEpoch && !deEnrollmentDateEpoch) {
@@ -215,40 +209,39 @@ export class TemplateClass {
             return;
         }
 
-        // Existing attendee — already de-enrolled
+        // Existing attendee — already de-enrolled, no further updates
         if (existing.denrollmentDate) {
             row["#status#"] = sheetDataRowStatuses.EXISTING;
             return;
         }
 
-        // Active attendee
-        if (deEnrollmentDateEpoch) {
-            attendeesToDelete.push({
-                payload: { id: existing.id, registerId, individualId, denrollmentDate: deEnrollmentDateEpoch, tenantId },
-                row
-            });
-            return;
+        // Active attendee — collect ALL changed fields into one update payload
+        const updatePayload: any = { id: existing.id, registerId, individualId, tenantId };
+        let hasChanges = false;
+
+        if (enrollmentDateEpoch !== null && enrollmentDateEpoch !== existing.enrollmentDate) {
+            updatePayload.enrollmentDate = enrollmentDateEpoch;
+            hasChanges = true;
+        }
+        if (deEnrollmentDateEpoch !== null) {
+            updatePayload.denrollmentDate = deEnrollmentDateEpoch;
+            hasChanges = true;
+        }
+        if (teamCode && teamCode !== (existing.tag || "")) {
+            updatePayload.tag = teamCode;
+            hasChanges = true;
         }
 
-        if (!enrollmentDateEpoch) {
-            // Check tag change
-            if (teamCode && teamCode !== (existing.tag || "")) {
-                attendeesToUpdateTag.push({
-                    payload: { id: existing.id, tenantId, tag: teamCode },
-                    row
-                });
-                return;
-            }
+        if (hasChanges) {
+            attendeesToUpdate.push({ payload: updatePayload, row });
+        } else {
             row["#status#"] = sheetDataRowStatuses.EXISTING;
-            return;
         }
-
-        // enrollmentDate present but already enrolled — existing record
-        row["#status#"] = sheetDataRowStatuses.EXISTING;
     }
 
     /**
      * Determine staff operation and collect into the appropriate list.
+     * All changed fields for an existing active staff are merged into one _update payload.
      * Row status is NOT set here — caller sets it after API calls succeed.
      */
     private static collectStaffOperation(
@@ -261,7 +254,7 @@ export class TemplateClass {
         staffType: string,
         row: any,
         staffToCreate: Array<{ payload: any; row: any }>,
-        staffToDelete: Array<{ payload: any; row: any }>
+        staffToUpdate: Array<{ payload: any; row: any }>
     ): void {
         if (!existing) {
             if (!enrollmentDateEpoch && !deEnrollmentDateEpoch) {
@@ -280,27 +273,34 @@ export class TemplateClass {
             return;
         }
 
-        // Existing staff — already de-enrolled
+        // Existing staff — already de-enrolled, no further updates
         if (existing.denrollmentDate) {
             row["#status#"] = sheetDataRowStatuses.EXISTING;
             return;
         }
 
-        if (deEnrollmentDateEpoch) {
-            staffToDelete.push({
-                payload: { id: existing.id, registerId, userId: individualId, denrollmentDate: deEnrollmentDateEpoch, tenantId },
-                row
-            });
-            return;
+        // Active staff — collect ALL changed fields into one update payload
+        const updatePayload: any = { id: existing.id, registerId, userId: individualId, tenantId, staffType: existing.staffType || staffType };
+        let hasChanges = false;
+
+        if (enrollmentDateEpoch !== null && enrollmentDateEpoch !== existing.enrollmentDate) {
+            updatePayload.enrollmentDate = enrollmentDateEpoch;
+            hasChanges = true;
+        }
+        if (deEnrollmentDateEpoch !== null) {
+            updatePayload.denrollmentDate = deEnrollmentDateEpoch;
+            hasChanges = true;
+        }
+        if (staffType !== (existing.staffType || "")) {
+            updatePayload.staffType = staffType;
+            hasChanges = true;
         }
 
-        if (!enrollmentDateEpoch) {
+        if (hasChanges) {
+            staffToUpdate.push({ payload: updatePayload, row });
+        } else {
             row["#status#"] = sheetDataRowStatuses.EXISTING;
-            return;
         }
-
-        // enrollmentDate present but already enrolled — existing record
-        row["#status#"] = sheetDataRowStatuses.EXISTING;
     }
 
     /**

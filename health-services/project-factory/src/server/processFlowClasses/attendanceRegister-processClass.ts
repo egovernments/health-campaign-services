@@ -365,24 +365,33 @@ export class TemplateClass {
             return [];
         }
 
-        try {
-            const url = config.host.attendanceHost + config.paths.attendanceRegisterSearch;
-            const RequestInfo = requestInfo || {};
-            const requestBody = {
-                RequestInfo
-            };
+        const url = config.host.attendanceHost + config.paths.attendanceRegisterSearch;
+        const RequestInfo = requestInfo || {};
+        const requestBody = { RequestInfo };
 
-            logger.debug("Searching for existing registers with serviceCode(s): {}", serviceCodes.join(", "));
-            const response = await httpRequest(url, requestBody, { tenantId, serviceCode: serviceCodes });
-            const registers = response?.attendanceRegister || [];
+        // serviceCode is type: string in swagger — send one per call, batch in parallel
+        const parallelLimit = Math.min(config.attendanceRegister.serviceCodeParallelSearchLimit, serviceCodes.length);
+        const allRegisters: any[] = [];
 
-            logger.info("Found {} existing attendance registers", registers.length);
-            return registers;
-        } catch (error: any) {
-            logger.warn("Error searching for existing registers: {}", error?.message);
-            // Don't fail the entire process if search fails - continue with creation
-            return [];
+        for (let i = 0; i < serviceCodes.length; i += parallelLimit) {
+            const window = serviceCodes.slice(i, i + parallelLimit);
+            const results = await Promise.all(
+                window.map(code =>
+                    httpRequest(url, requestBody, { tenantId, serviceCode: code })
+                        .then((r: any) => r?.attendanceRegister || [])
+                        .catch((err: any) => {
+                            logger.warn("Error searching for existing registers for serviceCode {}: {}", code, err?.message);
+                            return [];
+                        })
+                )
+            );
+            for (const registers of results) {
+                allRegisters.push(...registers);
+            }
         }
+
+        logger.info("Found {} existing attendance registers across {} serviceCode(s)", allRegisters.length, serviceCodes.length);
+        return allRegisters;
     }
 
     /**
