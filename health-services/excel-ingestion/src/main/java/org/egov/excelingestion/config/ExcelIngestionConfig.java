@@ -46,9 +46,6 @@ public class ExcelIngestionConfig {
     @Value("${excel.sheet.name.max.length:64}")
     private int sheetNameMaxLength;
 
-    @Value("${excel.attendance.register.rows:100}")
-    private int attendanceRegisterRows;
-
     @Value("${default.locale:en_IN}")
     private String defaultLocale;
 

@@ -202,7 +202,7 @@ public class AttendanceRegisterSheetGenerator implements ISheetGenerator {
         CellStyle unlocked = workbook.createCellStyle();
         unlocked.setLocked(false);
 
-        int maxRow = config.getAttendanceRegisterRows();
+        int maxRow = config.getExcelRowLimit();
 
         // Apply formula to data rows (row 2 onwards, 0-indexed)
         for (int r = 2; r <= maxRow; r++) {
