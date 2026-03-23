@@ -122,12 +122,17 @@ export class TemplateClass {
 
                 const registerData = registerDataMap.get(registerId);
 
+                // Always use the UUID from the register record for API calls.
+                // The sheet now stores serviceCode in HCM_ATTENDANCE_REGISTER_ID,
+                // but attendance APIs require the internal UUID.
+                const registerUuid: string = registerData?.register?.id || registerId;
+
                 if (isWorkerSheet) {
                     const attendeesMap: Map<string, any> = registerData?.attendeesMap || new Map();
                     const existing = attendeesMap.get(individualId);
                     this.collectAttendeeOperation(
                         existing, enrollmentDateEpoch, deEnrollmentDateEpoch, teamCode || "",
-                        tenantId, registerId, individualId, row,
+                        tenantId, registerUuid, individualId, row,
                         attendeesToCreate, attendeesToUpdate
                     );
                 } else {
@@ -137,7 +142,7 @@ export class TemplateClass {
                     const existing = staffMap.get(staffKey);
                     this.collectStaffOperation(
                         existing, enrollmentDateEpoch, deEnrollmentDateEpoch,
-                        tenantId, registerId, individualId, staffType, row,
+                        tenantId, registerUuid, individualId, staffType, row,
                         staffToCreate, staffToUpdate
                     );
                 }
