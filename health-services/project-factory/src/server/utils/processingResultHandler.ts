@@ -1749,6 +1749,14 @@ async function createAndUpdateProjects(currentBoundaryData: any[], campaignDetai
         // Topologically sort boundaries to ensure parent projects are created first
         const sortedBoundaryData = topologicallySortBoundaries(currentBoundaryData, boundaryChildrenToTypeAndParentMap);
         
+        // Log status summary to diagnose 0-boundary scenarios
+        const statusSummary = sortedBoundaryData.reduce((acc: any, d: any) => {
+            const key = `${d?.status || 'unknown'}${d?.uniqueIdAfterProcess ? '+projectId' : ''}`;
+            acc[key] = (acc[key] || 0) + 1;
+            return acc;
+        }, {});
+        logger.info(`Boundary data status summary: ${JSON.stringify(statusSummary)}`);
+
         // Filter for creation (no uniqueIdAfterProcess) and updates (has uniqueIdAfterProcess)
         const sortedBoundaryDataForCreate = sortedBoundaryData.filter((d: any) => !d?.uniqueIdAfterProcess && (d?.status == dataRowStatuses.pending || d?.status == dataRowStatuses.failed));
         const sortedBoundaryDataForUpdate = sortedBoundaryData.filter((d: any) => d?.uniqueIdAfterProcess && (d?.status == dataRowStatuses.pending || d?.status == dataRowStatuses.failed));
@@ -2376,11 +2384,14 @@ async function startAllMappingsInBatches(
  */
 async function createUsersFromUserData(campaignDetails: any, tenantId: string, requestInfo?: RequestInfo): Promise<void> {
     try {
+        if (!requestInfo?.userInfo) {
+            throw new Error('RequestInfo with userInfo is required for user creation batches');
+        }
         const campaignNumber = campaignDetails.campaignNumber;
         const campaignId = campaignDetails.id;
         const parentCampaignId = campaignDetails.parentId;
         const userUuid = campaignDetails?.auditDetails?.createdBy;
-        
+
         logger.info(`Creating users for campaign: ${campaignNumber} via Kafka batches`);
         
         // Get all existing users for this campaign from campaign data table

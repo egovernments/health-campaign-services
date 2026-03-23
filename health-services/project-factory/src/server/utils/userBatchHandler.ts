@@ -41,9 +41,13 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
             totalBatches 
         } = messageObject;
         
+        if (!messageObject.requestInfo?.userInfo) {
+            throw new Error(`User batch ${batchNumber}/${totalBatches} missing requestInfo.userInfo — cannot generate usernames via IDGen`);
+        }
+
         // Get unique identifiers from user data keys (phone numbers)
         const uniqueIdentifiers = Object.keys(userData);
-        
+
         logger.info(`=== USER BATCH PROCESSING STARTED ===`);
         logger.info(`Processing user batch ${batchNumber}/${totalBatches}: ${uniqueIdentifiers.length} users`);
         logger.info(`Campaign: ${campaignNumber}, Tenant: ${tenantId}`);
@@ -73,7 +77,7 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
         transformConfig.metadata.tenantId = tenantId;
         transformConfig.metadata.hierarchy = campaignDetails.hierarchyType;
         const transformer = new DataTransformer(transformConfig);
-        const transformedUsers = await transformer.transform(userRowDatas);
+        const transformedUsers = await transformer.transform(userRowDatas, messageObject.requestInfo);
         
         logger.info(`Transformed ${transformedUsers.length} users`);
         

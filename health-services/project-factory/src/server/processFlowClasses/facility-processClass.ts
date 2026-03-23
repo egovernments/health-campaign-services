@@ -193,7 +193,7 @@ export class TemplateClass {
         const transformer = new DataTransformer(transformConfig);
 
         logger.info("Transforming facilities...");
-        const transformedFacilities = await transformer.transform(facilityRowDatas);
+        const transformedFacilities = await transformer.transform(facilityRowDatas, requestInfo);
         logger.info(`${transformedFacilities?.length} transformed facilities`);
 
         const BATCH_SIZE = 100;

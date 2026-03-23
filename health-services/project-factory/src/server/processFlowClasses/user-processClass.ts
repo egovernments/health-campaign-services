@@ -364,7 +364,11 @@ export class TemplateClass {
         const transformer = new DataTransformer(transformConfig);
 
         logger.info("Transforming user data...");
-        const transformedUsers = await transformer.transform(userRowDatas);
+        const requestInfo = resourceDetails?.requestInfo;
+        if (!requestInfo?.userInfo) {
+            throw new Error('RequestInfo with userInfo is required in resourceDetails for user transformation');
+        }
+        const transformedUsers = await transformer.transform(userRowDatas, requestInfo);
         logger.info(`${transformedUsers.length} users transformed`);
 
         const mobileToCampaignMap = this.buildMobileNumberToCampaignUserMap(allCurrentUsers);

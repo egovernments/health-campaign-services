@@ -7,6 +7,7 @@ import {
 } from "./campaignUtils";
 import { logger } from "./logger";
 import config from "../config";
+import { RequestInfo } from "../config/models/requestInfoSchema";
 
 type RowData = Record<string, any>;
 
@@ -46,13 +47,13 @@ export class DataTransformer {
     }
 
     /** Bulk entrypoint */
-    public async transform(rows: RowData[]): Promise<any> {
+    public async transform(rows: RowData[], requestInfo: RequestInfo): Promise<any> {
         if (!Array.isArray(rows)) {
             throw new Error("Input must be an array of row objects");
         }
         const mapped = rows.map(r => this.transformSingle(r));
         if (this.cfg.transFormBulk) {
-            return await this.hooks[this.cfg.transFormBulk](mapped, this.cfg);
+            return await this.hooks[this.cfg.transFormBulk](mapped, this.cfg, requestInfo);
         }
         return mapped;
     }
@@ -291,10 +292,17 @@ export class DataTransformer {
         return data;
     }
 
-    private async transformBulkEmployee(data: any[], cfg: TransformConfig): Promise<any[]> {
+    private async transformBulkEmployee(data: any[], cfg: TransformConfig, requestInfo: RequestInfo): Promise<any[]> {
+        if (!requestInfo?.userInfo) {
+            throw new Error('RequestInfo.userInfo is required for IDGen username generation');
+        }
         const idReqs = createIdRequests(data);
-        const result = await createUniqueUserNameViaIdGen(idReqs);
+        const result = await createUniqueUserNameViaIdGen(idReqs, requestInfo);
         let idx = 0;
+
+        if (!result?.idResponses || result.idResponses.length === 0) {
+            throw new Error('IDGen failed: no ID responses returned. Check RequestInfo and IDGen service.');
+        }
 
         logger.info("Enriching boundary type in jurisdictions…");
         const resp = await searchBoundaryRelationshipData(cfg.metadata!.tenantId, cfg.metadata!.hierarchy, true);
@@ -315,7 +323,7 @@ export class DataTransformer {
             // username/id
             const userName = item?.user?.userName ? String(item?.user?.userName)?.trim() : null;
             item.user.userName = userName;
-        if (!item.user.userName) {
+            if (!item.user.userName) {
                 const id = result.idResponses[idx++].id;
                 item.user.userName = id;
                 item.code = id;

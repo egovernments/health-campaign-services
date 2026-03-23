@@ -71,7 +71,7 @@ export async function handleFacilityBatch(messageObject: FacilityBatchMessage): 
         transformConfig.metadata.tenantId = tenantId;
         transformConfig.metadata.hierarchy = campaignDetails.hierarchyType;
         const transformer = new DataTransformer(transformConfig);
-        const transformedFacilities = await transformer.transform(facilityRowDatas);
+        const transformedFacilities = await transformer.transform(facilityRowDatas, messageObject.requestInfo);
         
         logger.info(`Transformed ${transformedFacilities.length} facilities`);
         
