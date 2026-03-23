@@ -1,3 +1,4 @@
+import { RequestInfo } from "../config/models/requestInfoSchema";
 import { defaultheader, httpRequest } from "./request";
 import config from "../config/index";
 import { v4 as uuidv4 } from "uuid";
@@ -35,6 +36,7 @@ import {
   throwError,
 } from "./genericUtils";
 import { executeQuery, getTableName } from "./db";
+import { searchResourceDetailsFromDB, toResourceDetailsResponse } from "./resourceDetailsUtils";
 import {
   campaignDetailsTransformer,
   genericResourceTransformer,
@@ -47,9 +49,15 @@ import {
   headingMapping,
   processStatuses,
   resourceDataStatuses,
+  resourceStatuses,
   usageColumnStatus,
 } from "../config/constants";
 import { getBoundaryTabName } from "./boundaryUtils";
+import {
+  getResourceConfigsByPhase,
+  getPhase2Types,
+  hasDependenciesMet,
+} from "../config/resourceTypeRegistry";
 import {
   searchProjectTypeCampaignService,
   updateProjectTypeCampaignService,
@@ -84,7 +92,7 @@ import {
 import { changeCreateDataForMicroplan, lockSheet } from "./microplanUtils";
 const _ = require("lodash");
 import { searchDataService } from "../service/dataManageService";
-import { createMdmsData, defaultRequestInfo, searchBoundaryRelationshipData, searchMDMSDataViaV2Api } from "../api/coreApis";
+import { createMdmsData, searchBoundaryRelationshipData, searchMDMSDataViaV2Api } from "../api/coreApis";
 import {
   fetchFacilityData,
   fetchTargetData,
@@ -93,6 +101,7 @@ import {
 import { GenerateTemplateQuery } from "../models/GenerateTemplateQuery";
 import { getLocaleFromRequest } from "./localisationUtils";
 import { generateDataService } from "../service/sheetManageService";
+import { CampaignResource, toCampaignResource } from "../config/models/resourceTypes";
 import Localisation from "../controllers/localisationController/localisation.controller";
 import { triggerUserCredentialEmailFlow } from "./mailUtils";
 
@@ -305,16 +314,17 @@ function deterMineLastColumnAndEnrichUserDetails(
   request: any
 ): string {
 
-  // Default columns
-  let usernameColumn = "L";
-  let passwordColumn = "M";
+  // Default columns (production user schema: UserName=G, Password=N)
+  let usernameColumn = "G";
+  let passwordColumn = "N";
 
   // Update columns if the request indicates a different source
   if (
     request?.body?.ResourceDetails?.additionalDetails?.source == "microplan"
   ) {
+    // Microplan schema (no BOUNDARY_CODE_MANDATORY): UserName=F (col 6), Password=M (col 13)
     usernameColumn = "F";
-    passwordColumn = "G";
+    passwordColumn = "M";
   }
 
   // const foundUsernameColumn = findColumnByHeader("UserName", worksheet);
@@ -977,15 +987,14 @@ async function enrichAndPersistCampaignWithError(requestBody: any, error: any) {
   delete requestBody.CampaignDetails.campaignDetails;
 }
 
-export async function enrichAndPersistCampaignWithErrorProcessingTask(campaignDetails: any, parentCampaign: any, useruuid: string, error: any) {
-  const RequestInfo = JSON.parse(JSON.stringify(defaultRequestInfo || {}));
-  RequestInfo.userInfo.uuid = useruuid;
+export async function enrichAndPersistCampaignWithErrorProcessingTask(campaignDetails: any, parentCampaign: any, requestInfo: RequestInfo, error: any) {
+  const RequestInfo = requestInfo || {};
+  const useruuid: string = RequestInfo?.userInfo?.uuid as string;
   if (parentCampaign) {
     parentCampaign.isActive = true;
     parentCampaign.parentId = parentCampaign?.parentId || null;
     parentCampaign.campaignDetails = {
       deliveryRules: parentCampaign?.deliveryRules || [],
-      resources: parentCampaign?.resources || [],
       boundaries: parentCampaign?.boundaries || [],
     };
     parentCampaign.auditDetails.lastModifiedTime = Date.now();
@@ -1001,10 +1010,13 @@ export async function enrichAndPersistCampaignWithErrorProcessingTask(campaignDe
     );
   }
   campaignDetails.parentId = campaignDetails?.parentId || null;
-  campaignDetails.status = campaignStatuses?.failed;
+  // Only set status to failed if the campaign is still in progress (creating).
+  // Preserve "created" (inprogress) status — resource task failure should not break the campaign.
+  if (campaignDetails?.status === campaignStatuses?.started) {
+    campaignDetails.status = campaignStatuses?.failed;
+  }
   campaignDetails.campaignDetails = {
     deliveryRules: campaignDetails?.deliveryRules || [],
-    resources: campaignDetails?.resources || [],
     boundaries: campaignDetails?.boundaries || [],
   };
   const currTime = Date.now();
@@ -1104,7 +1116,7 @@ async function processAppConfig(campaignDetails: any, RequestInfo: any) {
       }
     }
   } catch (error) {
-    logger.warn("Error while processing app config", error);
+    logger.error("Error while processing app config", error);
   }
 }
 
@@ -1116,7 +1128,6 @@ export async function enrichAndPersistCampaignForCreateViaFlow2(
 ) {
   campaignDetails.campaignDetails = {
     deliveryRules: campaignDetails?.deliveryRules || [],
-    resources: campaignDetails?.resources || [],
     boundaries: campaignDetails?.boundaries || [],
   };
   campaignDetails.parentId = campaignDetails?.parentId || null;
@@ -1136,7 +1147,7 @@ export async function enrichAndPersistCampaignForCreateViaFlow2(
   };
   await produceModifiedMessages(produceMessage, topic, campaignDetails?.tenantId);
   if(parentCampaign && campaignDetails?.status === campaignStatuses.inprogress) {
-    await makeParentInactiveOrActive(parentCampaign, useruuid, false);
+    await makeParentInactiveOrActive(parentCampaign, useruuid, false, RequestInfo);
   }
 }
 
@@ -1152,8 +1163,7 @@ function enrichInnerCampaignDetails(
   requestBody: any,
   updatedInnerCampaignDetails: any
 ) {
-  updatedInnerCampaignDetails.resources =
-    requestBody?.CampaignDetails?.resources || [];
+  // resources are stored in eg_cm_resource_details — do NOT write to JSONB
   updatedInnerCampaignDetails.deliveryRules =
     requestBody?.CampaignDetails?.deliveryRules || [];
   updatedInnerCampaignDetails.boundaries =
@@ -1225,7 +1235,7 @@ async function enrichAndPersistCampaignForUpdate(
   delete request.body.CampaignDetails.campaignDetails;
 }
 
-async function makeParentInactiveOrActive(parentCampaign: any, userUuid: string, active: boolean) {
+async function makeParentInactiveOrActive(parentCampaign: any, userUuid: string, active: boolean, requestInfo?: RequestInfo) {
   parentCampaign.isActive = active;
   parentCampaign.parentId = parentCampaign?.parentId || null;
   parentCampaign.campaignDetails = {
@@ -1235,10 +1245,8 @@ async function makeParentInactiveOrActive(parentCampaign: any, userUuid: string,
   };
   parentCampaign.auditDetails.lastModifiedTime = Date.now();
   parentCampaign.auditDetails.lastModifiedBy = userUuid;
-  const requestInfoObject = JSON.parse(JSON.stringify(defaultRequestInfo || {}));
-  requestInfoObject.RequestInfo.userInfo.uuid = userUuid;
   const produceMessage: any = {
-    RequestInfo: requestInfoObject.RequestInfo,
+    RequestInfo: { ...(requestInfo || {}), userInfo: { ...((requestInfo as any)?.userInfo || {}), uuid: userUuid } },
     CampaignDetails: parentCampaign,
   };
   await produceModifiedMessages(
@@ -1496,9 +1504,35 @@ async function searchProjectCampaignResourcData(campaignDetails: any, request?: 
       }
     }
   }
+  // Batch-enrich resources from eg_cm_resource_details table
+  const campaignIds = responseData.map((d: any) => d.id).filter(Boolean);
+  const resourcesMap = new Map<string, any[]>();
+  if (campaignIds.length > 0 && tenantId) {
+    try {
+      await Promise.all(campaignIds.map(async (cid: string) => {
+        const rows = await searchResourceDetailsFromDB({ tenantId, campaignId: cid, isActive: true, excludeTypes: ['attendanceRegisterAttendee'] });
+        if (rows.length > 0) {
+          resourcesMap.set(cid, rows.map(r => toCampaignResource(toResourceDetailsResponse(r))));
+        }
+      }));
+    } catch (err) {
+      logger.error(`Failed to enrich resources from table, falling back to JSONB: ${err}`);
+    }
+  }
+
   // TODO @ashish check the below code looks like duplicate
   for (const data of responseData) {
-    data.resources = data?.campaignDetails?.resources;
+    // Use enriched resources from table; fall back to JSONB if not available (backward compat)
+    const rawResources: any[] = resourcesMap.has(data.id)
+      ? resourcesMap.get(data.id)!
+      : (data?.campaignDetails?.resources || []);
+    data.resources = rawResources
+      .filter((r: any) => r?.type !== 'attendanceRegisterAttendee')
+      .map((r: any) => ({
+        ...r,
+        status: r?.status ?? 'completed',
+        additionalDetails: r?.additionalDetails ?? {},
+      }));
     data.boundaries = data?.campaignDetails?.boundaries;
     data.deliveryRules = data?.campaignDetails?.deliveryRules;
     delete data.campaignDetails;
@@ -2229,7 +2263,7 @@ async function getCodesTarget(request: any, localizationMap?: any) {
   let boundaryCodesWhoseTargetsHasToBeUpdated: any = [];
   const { tenantId, resources } = request?.body?.CampaignDetails;
   const boundaryWithTargetResource = resources?.filter(
-    (resource: any) => resource?.type == "boundaryWithTarget"
+    (resource: CampaignResource) => resource?.type == "boundaryWithTarget"
   );
   if (boundaryWithTargetResource && boundaryWithTargetResource.length > 0) {
     const fileId = boundaryWithTargetResource[0]?.filestoreId;
@@ -2311,16 +2345,16 @@ async function processUnifiedTemplateCampaign(request: any): Promise<void> {
   const emailId = request?.body?.RequestInfo?.userInfo?.emailId || null;
   
   // Find the unified-console-resources resource to get filestoreId
-  const unifiedResource = campaignDetails.resources.find((resource: any) => 
+  const unifiedResource = campaignDetails.resources.find((resource: CampaignResource) =>
     resource?.type === "unified-console-resources"
   );
-  
+
   if (!unifiedResource?.filestoreId) {
     throw new Error('FileStoreId not found for unified-console-resources');
   }
-  
+
   logger.info(`Calling excel-ingestion process API for unified campaign: ${campaignDetails.campaignNumber}`);
-  
+
   // Call excel-ingestion process API
   const processRequestBody = {
     RequestInfo: {
@@ -2378,15 +2412,24 @@ async function processRegularCampaign(request: any): Promise<void> {
   const useruuid =
     request?.body?.RequestInfo?.userInfo?.uuid ||
     campaignDetails?.auditDetails?.createdBy;
+  const requestInfo = request?.body?.RequestInfo;
 
   // Prepare DB setup synchronously
   await prepareProcessesInDb(campaignNumber, tenantId, useruuid);
 
+  // Initialize resource statuses for all resource types present in campaign
+  const resources = campaignDetails?.resources || [];
+  for (const resource of resources) {
+    if (resource?.type) {
+      updateResourceStatus(campaignDetails, resource.type, resourceStatuses.creating, tenantId, useruuid);
+    }
+  }
+
   // ✅ Offload the long chain into background (non-blocking)
   setImmediate(async () => {
     try {
-      await createAllResources(campaignDetails, request?.body?.parentCampaign || null, useruuid);
-      await createAllMappings(campaignDetails, request?.body?.parentCampaign || null, useruuid);
+      await createAllResources(campaignDetails, request?.body?.parentCampaign || null, useruuid, requestInfo);
+      await createAllMappings(campaignDetails, request?.body?.parentCampaign || null, useruuid, requestInfo);
       await userCredGeneration(campaignDetails, useruuid, locale);
       await enrichAndPersistCampaignForCreateViaFlow2(campaignDetails, request?.body?.RequestInfo, request?.body?.parentCampaign || null, useruuid);
       triggerUserCredentialEmailFlow(request?.body); // not awaited = background
@@ -2488,56 +2531,48 @@ async function userCredGeneration(campaignDetails: any, useruuid: string, locale
   }
 }
 
-async function createAllResources(campaignDetails: any, parentCampaign: any, useruuid: string) {
-  const { maxAttemptsForResourceCreationOrMapping, waitTimeOfEachAttemptOfResourceCreationOrMappping } = config?.resourceCreationConfig
+async function createAllResources(campaignDetails: any, parentCampaign: any, useruuid: string, requestInfo?: RequestInfo) {
+  const { maxAttemptsForResourceCreationOrMapping, waitTimeOfEachAttemptOfResourceCreationOrMappping } = config?.resourceCreationConfig;
+
+  // Phase 1: Registry-driven resource creation
+  const phase1Configs = getResourceConfigsByPhase(1);
   let allCurrentProcesses = await getCurrentProcesses(campaignDetails?.campaignNumber, campaignDetails?.tenantId);
-  const resourcesTask = [
-    {
-      processName: allProcesses.facilityCreation,
-      kafkaKey: `facilityCreation_6f1b3a0e-d9a3-4c7f-947e-1fb82e36a10c`
-    },
-    {
-      processName: allProcesses.userCreation,
-      kafkaKey: `userCreation_d50a7c12-4569-4e63-b94f-e6219f0e8ba4`
-    },
-    {
-      processName: allProcesses.projectCreation,
-      kafkaKey: `projectCreation_a9b4826e-2ed4-4b94-9f7f-d1e921ab5a3d`
-    }
-  ];
-  for (let i = 0; i < resourcesTask?.length; i++) {
-    const {processName , kafkaKey} = resourcesTask[i];
-    const task = allCurrentProcesses.find((process: any) => process?.processName == processName);
+
+  // Produce Kafka messages for each Phase 1 resource type
+  for (const cfg of phase1Configs) {
+    const task = allCurrentProcesses.find((process: any) => process?.processName == cfg.processName);
     if (task && task?.status == processStatuses.pending) {
       await produceModifiedMessages({
         task,
         CampaignDetails: campaignDetails,
         parentCampaign,
-        useruuid
-      }, config.kafka.KAFKA_START_ADMIN_CONSOLE_TASK_TOPIC, campaignDetails?.tenantId, kafkaKey);
+        useruuid,
+        requestInfo
+      }, config.kafka.KAFKA_START_ADMIN_CONSOLE_TASK_TOPIC, campaignDetails?.tenantId, cfg.kafkaKey);
     }
   }
+
+  // Poll for Phase 1 completion
   let allTaskCompleted = false;
   let anyTaskFailed = false;
   let attempts = 0;
-  let facilityTask: any, userTask: any, projectTask: any;
+  const taskStatusMap: Record<string, any> = {};
   const startTime = Date.now();
+
   while (allTaskCompleted == false && anyTaskFailed == false && attempts < maxAttemptsForResourceCreationOrMapping) {
     logger.info(`Attempt ${attempts + 1}/${maxAttemptsForResourceCreationOrMapping}`);
     logger.info(`Waiting ${waitTimeOfEachAttemptOfResourceCreationOrMappping / 1000}s before polling resource statuses...`);
     await new Promise(resolve => setTimeout(resolve, waitTimeOfEachAttemptOfResourceCreationOrMappping));
-    let facilityTaskArray = await getCurrentProcesses(campaignDetails?.campaignNumber, campaignDetails?.tenantId, allProcesses.facilityCreation);
-    facilityTask = facilityTaskArray[0];
-    let userTaskArray = await getCurrentProcesses(campaignDetails?.campaignNumber, campaignDetails?.tenantId, allProcesses.userCreation);
-    userTask = userTaskArray[0];
-    let projectTaskArray = await getCurrentProcesses(campaignDetails?.campaignNumber, campaignDetails?.tenantId, allProcesses.projectCreation);
-    projectTask = projectTaskArray[0];
-    if (facilityTask?.status == processStatuses.completed && userTask?.status == processStatuses.completed && projectTask?.status == processStatuses.completed) {
-      allTaskCompleted = true;
+
+    // Poll each Phase 1 process
+    for (const cfg of phase1Configs) {
+      const taskArray = await getCurrentProcesses(campaignDetails?.campaignNumber, campaignDetails?.tenantId, cfg.processName);
+      taskStatusMap[cfg.processName] = taskArray[0];
     }
-    if (facilityTask?.status == processStatuses.failed || userTask?.status == processStatuses.failed || projectTask?.status == processStatuses.failed) {
-      anyTaskFailed = true;
-    }
+
+    allTaskCompleted = phase1Configs.every(c => taskStatusMap[c.processName]?.status == processStatuses.completed);
+    anyTaskFailed = phase1Configs.some(c => taskStatusMap[c.processName]?.status == processStatuses.failed);
+
     const campaignResp = await searchProjectTypeCampaignService({ tenantId: campaignDetails?.tenantId, ids: [campaignDetails?.id] });
     const campaignDetailsStatus = campaignResp?.CampaignDetails?.[0]?.status;
     if (campaignDetailsStatus == campaignStatuses.failed || campaignDetailsStatus == campaignStatuses.cancelled || !campaignDetailsStatus) {
@@ -2551,17 +2586,21 @@ async function createAllResources(campaignDetails: any, parentCampaign: any, use
   const totalTimeInMinutes = (totalTimeTakenInMs / (1000 * 60)).toFixed(2);
 
   logger.info(`⏱️ Total time taken for resource creation: ${totalTimeInSeconds}s (~${totalTimeInMinutes} minutes)`);
+
+  // Update resource statuses based on Phase 1 results
+  for (const cfg of phase1Configs) {
+    const status = taskStatusMap[cfg.processName]?.status;
+    if (status == processStatuses.completed) {
+      updateResourceStatus(campaignDetails, cfg.type, resourceStatuses.completed, campaignDetails?.tenantId, useruuid);
+    } else if (status == processStatuses.failed) {
+      updateResourceStatus(campaignDetails, cfg.type, resourceStatuses.failed, campaignDetails?.tenantId, useruuid);
+    }
+  }
+
   if (anyTaskFailed) {
-    let failedTasks = [];
-    if (facilityTask?.status == processStatuses.failed) {
-      failedTasks.push(allProcesses.facilityCreation);
-    }
-    if (userTask?.status == processStatuses.failed) {
-      failedTasks.push(allProcesses.userCreation);
-    }
-    if (projectTask?.status == processStatuses.failed) {
-      failedTasks.push(allProcesses.projectCreation);
-    }
+    const failedTasks = phase1Configs
+      .filter(c => taskStatusMap[c.processName]?.status == processStatuses.failed)
+      .map(c => c.processName);
     throwError("COMMON", 400, "RESOURCE_CREATION_ERROR", `${failedTasks.join(", ")} tasks failed.`);
   }
   else if (!allTaskCompleted) {
@@ -2569,9 +2608,129 @@ async function createAllResources(campaignDetails: any, parentCampaign: any, use
   }
   logger.info(`Waiting for 20 seconds for all resources to get persisted...`);
   await new Promise(resolve => setTimeout(resolve, 20000));
+
+  // Phase 2: Trigger dependent resource creation (e.g., attendanceRegister)
+  await createPhase2Resources(campaignDetails, parentCampaign, useruuid, requestInfo);
 }
 
-async function createAllMappings(campaignDetails: any, parentCampaign: any, useruuid: string) {
+async function createPhase2Resources(campaignDetails: any, parentCampaign: any, useruuid: string, requestInfo?: RequestInfo) {
+  const phase2Configs = getPhase2Types();
+  if (phase2Configs.length === 0) {
+    logger.info("No Phase 2 resource types configured. Skipping.");
+    return;
+  }
+
+  // Determine phase 2 types from eg_cm_resource_details table
+  // Fall back to in-memory campaignDetails.resources if table is empty (backward compat)
+  let campaignResourceTypes = new Set(
+    (campaignDetails?.resources || []).map((r: any) => r?.type)
+  );
+  if (campaignDetails?.id && campaignDetails?.tenantId && campaignResourceTypes.size === 0) {
+    try {
+      const phase2TypeNames = phase2Configs.map(c => c.type);
+      const tableRows = await searchResourceDetailsFromDB({
+        tenantId: campaignDetails.tenantId,
+        campaignId: campaignDetails.id,
+        type: phase2TypeNames,
+        isActive: true
+      });
+      campaignResourceTypes = new Set(tableRows.map((r: any) => r.type));
+      // Also populate resources array so task messages carry filestoreId for handlers
+      campaignDetails.resources = tableRows.map(r => toCampaignResource(toResourceDetailsResponse(r)));
+      logger.info(`Loaded phase 2 resource types from table: ${Array.from(campaignResourceTypes).join(", ")}`);
+    } catch (err) {
+      logger.warn(`Could not fetch phase 2 types from table: ${err}`);
+    }
+  }
+  const applicableConfigs = phase2Configs.filter(cfg => campaignResourceTypes.has(cfg.type));
+
+  if (applicableConfigs.length === 0) {
+    logger.info("No Phase 2 resources present in campaign. Skipping.");
+    return;
+  }
+
+  const { maxAttemptsForResourceCreationOrMapping, waitTimeOfEachAttemptOfResourceCreationOrMappping } = config?.resourceCreationConfig;
+
+  // All Phase 1 processes are completed at this point (dependencies met)
+  const completedProcessNames = new Set(
+    getResourceConfigsByPhase(1).map(c => c.processName)
+  );
+
+  let allCurrentProcesses = await getCurrentProcesses(campaignDetails?.campaignNumber, campaignDetails?.tenantId);
+
+  // Trigger Phase 2 resources with met dependencies
+  for (const cfg of applicableConfigs) {
+    if (!hasDependenciesMet(cfg.type, completedProcessNames)) {
+      logger.warn(`Phase 2 resource ${cfg.type} dependencies not met. Skipping.`);
+      continue;
+    }
+
+    const task = allCurrentProcesses.find((process: any) => process?.processName == cfg.processName);
+    if (task && task?.status == processStatuses.pending) {
+      logger.info(`Triggering Phase 2 resource creation: ${cfg.type} (${cfg.processName})`);
+      await produceModifiedMessages({
+        task,
+        CampaignDetails: campaignDetails,
+        parentCampaign,
+        useruuid,
+        requestInfo
+      }, config.kafka.KAFKA_START_ADMIN_CONSOLE_TASK_TOPIC, campaignDetails?.tenantId, cfg.kafkaKey);
+    }
+  }
+
+  // Poll for Phase 2 completion
+  let allCompleted = false;
+  let anyFailed = false;
+  let attempts = 0;
+  const taskStatusMap: Record<string, any> = {};
+  const startTime = Date.now();
+
+  while (!allCompleted && !anyFailed && attempts < maxAttemptsForResourceCreationOrMapping) {
+    logger.info(`Phase 2 poll attempt ${attempts + 1}/${maxAttemptsForResourceCreationOrMapping}`);
+    await new Promise(resolve => setTimeout(resolve, waitTimeOfEachAttemptOfResourceCreationOrMappping));
+
+    for (const cfg of applicableConfigs) {
+      const taskArray = await getCurrentProcesses(campaignDetails?.campaignNumber, campaignDetails?.tenantId, cfg.processName);
+      taskStatusMap[cfg.processName] = taskArray[0];
+    }
+
+    allCompleted = applicableConfigs.every(c => taskStatusMap[c.processName]?.status == processStatuses.completed);
+    anyFailed = applicableConfigs.some(c => taskStatusMap[c.processName]?.status == processStatuses.failed);
+
+    const campaignResp = await searchProjectTypeCampaignService({ tenantId: campaignDetails?.tenantId, ids: [campaignDetails?.id] });
+    const campaignDetailsStatus = campaignResp?.CampaignDetails?.[0]?.status;
+    if (campaignDetailsStatus == campaignStatuses.failed || campaignDetailsStatus == campaignStatuses.cancelled || !campaignDetailsStatus) {
+      throwError("COMMON", 400, "RESOURCE_CREATION_ERROR", "Campaign creation failed during Phase 2 resources creation.");
+    }
+    attempts++;
+  }
+
+  const totalTimeTakenInMs = Date.now() - startTime;
+  logger.info(`⏱️ Phase 2 resource creation took: ${(totalTimeTakenInMs / 1000).toFixed(2)}s`);
+
+  // Update resource statuses based on Phase 2 results
+  for (const cfg of applicableConfigs) {
+    const status = taskStatusMap[cfg.processName]?.status;
+    if (status == processStatuses.completed) {
+      updateResourceStatus(campaignDetails, cfg.type, resourceStatuses.completed, campaignDetails?.tenantId, useruuid);
+    } else if (status == processStatuses.failed) {
+      updateResourceStatus(campaignDetails, cfg.type, resourceStatuses.failed, campaignDetails?.tenantId, useruuid);
+    }
+  }
+
+  if (anyFailed) {
+    const failedTasks = applicableConfigs
+      .filter(c => taskStatusMap[c.processName]?.status == processStatuses.failed)
+      .map(c => c.processName);
+    throwError("COMMON", 400, "RESOURCE_CREATION_ERROR", `Phase 2 tasks failed: ${failedTasks.join(", ")}`);
+  }
+  else if (!allCompleted) {
+    throwError("COMMON", 400, "RESOURCE_CREATION_TIMED_OUT", "Phase 2 resources creation timed out.");
+  }
+  logger.info("Phase 2 resource creation completed successfully.");
+}
+
+async function createAllMappings(campaignDetails: any, parentCampaign: any, useruuid: string, requestInfo?: RequestInfo) {
   const { maxAttemptsForResourceCreationOrMapping, waitTimeOfEachAttemptOfResourceCreationOrMappping } = config?.resourceCreationConfig;
   logger.info(`Starting mappings...`);
   const mappingTasks = [
@@ -2597,7 +2756,8 @@ async function createAllMappings(campaignDetails: any, parentCampaign: any, user
         task,
         CampaignDetails: campaignDetails,
         parentCampaign,
-        useruuid
+        useruuid,
+        requestInfo
       }, config.kafka.KAFKA_START_ADMIN_CONSOLE_MAPPING_TASK_TOPIC, campaignDetails?.tenantId, kafkaKey);
     }
   }
@@ -2814,7 +2974,7 @@ async function processAndInsertModules(
         isSelected: true,
       };
 
-      return createMdmsData(tenantId, schemaCode, moduleData, useruuid);
+      return createMdmsData(tenantId, schemaCode, moduleData, RequestInfo);
     })
   );
 
@@ -2932,7 +3092,7 @@ export async function createAppConfigFromClone(
         isSelected: true,
       };
 
-      await createMdmsData(tenantId, configSchema, newModule, useruuid);
+      await createMdmsData(tenantId, configSchema, newModule, RequestInfo);
     }
 
     logger.info("App configuration cloned successfully.");
@@ -3789,13 +3949,13 @@ function createIdRequests(employees: any[]): any[] {
   }
 }
 
-async function createUniqueUserNameViaIdGen(idRequests: any) {
+async function createUniqueUserNameViaIdGen(idRequests: any, requestInfo?: RequestInfo) {
   const idgenurl = config?.host?.idGenHost + config?.paths?.idGen;
   try {
     // Make HTTP request to ID generation service
     const result = await httpRequest(
       idgenurl,
-      { RequestInfo: defaultRequestInfo?.RequestInfo, idRequests },
+      { RequestInfo: requestInfo, idRequests },
       undefined,
       undefined,
       undefined,
@@ -3827,9 +3987,9 @@ async function processFetchMicroPlan(request: any) {
 
     const { tenantId } = request.body.MicroplanDetails;
     const localizationMap = await getLocalizedMessagesHandler(request, tenantId);
-    const resources: any = request?.body?.CampaignDetails?.resources || [];
+    const resources: CampaignResource[] = request?.body?.CampaignDetails?.resources || [];
     const filteredResources = resources.filter(
-      (obj: any) => obj?.filestoreId && obj?.resourceId
+      (obj: CampaignResource) => obj?.filestoreId && obj?.resourceId
     );
 
     logger.info(`Filtered resources with valid IDs: ${filteredResources?.length}`);
@@ -3990,7 +4150,7 @@ export async function validateAndFetchCampaign(request: any) {
   return campaignResponse.CampaignDetails[0];
 }
 
-export async function prepareAndProduceCancelMessage(campaignToUpdate: any, requestInfo: any, request: any) {
+export async function prepareAndProduceCancelMessage(campaignToUpdate: any, requestInfo: RequestInfo, request: any) {
   const tenantId = request.body.CampaignDetails.tenantId;
   campaignToUpdate.isActive = false;
   campaignToUpdate.status = campaignStatuses.cancelled;
@@ -4041,5 +4201,91 @@ export {
   processFetchMicroPlan,
   updateCampaignAfterSearch,
   processBoundary,
-  userCredGeneration
+  userCredGeneration,
+  getResourceStatusMap,
+  updateResourceStatus,
+  updateResourceDetails,
+  persistCampaignUpdate,
+  hasResourceOfType,
 };
+
+/**
+ * Get the resource statuses map from campaign additionalDetails.
+ */
+function getResourceStatusMap(campaignDetails: any): Record<string, string> {
+  return campaignDetails?.additionalDetails?.resourceStatuses || {};
+}
+
+/**
+ * Update the status of a specific resource type in campaign additionalDetails.
+ * Persists the updated campaign to the database via Kafka.
+ */
+async function updateResourceStatus(
+  campaignDetails: any,
+  resourceType: string,
+  status: string,
+  tenantId: string,
+  useruuid: string
+): Promise<void> {
+  if (!campaignDetails.additionalDetails) {
+    campaignDetails.additionalDetails = {};
+  }
+  if (!campaignDetails.additionalDetails.resourceStatuses) {
+    campaignDetails.additionalDetails.resourceStatuses = {};
+  }
+  campaignDetails.additionalDetails.resourceStatuses[resourceType] = status;
+  logger.info(`Updated resource status: ${resourceType} -> ${status}`);
+}
+
+/**
+ * Update per-resource status fields on a specific resource entry.
+ * Also keeps additionalDetails.resourceStatuses in sync for backward compatibility.
+ */
+function updateResourceDetails(
+  campaignDetails: any,
+  resourceEntry: any,
+  updates: { status?: string; processedFileStoreId?: string; error?: string; errorMessage?: string }
+): void {
+  Object.assign(resourceEntry, updates);
+  if (updates.status) {
+    if (!campaignDetails.additionalDetails) {
+      campaignDetails.additionalDetails = {};
+    }
+    if (!campaignDetails.additionalDetails.resourceStatuses) {
+      campaignDetails.additionalDetails.resourceStatuses = {};
+    }
+    campaignDetails.additionalDetails.resourceStatuses[resourceEntry.type] = updates.status;
+    logger.info(`Updated resource details for type ${resourceEntry.type}: status=${updates.status}`);
+  }
+}
+
+/**
+ * Persist campaign update to DB via Kafka without modifying campaign status.
+ */
+async function persistCampaignUpdate(campaignDetails: any, requestInfo: RequestInfo): Promise<void> {
+  campaignDetails.campaignDetails = {
+    deliveryRules: campaignDetails?.deliveryRules || [],
+    boundaries: campaignDetails?.boundaries || [],
+  };
+  campaignDetails.auditDetails = {
+    ...campaignDetails.auditDetails,
+    lastModifiedTime: Date.now(),
+    lastModifiedBy: requestInfo?.userInfo?.uuid,
+  };
+  const produceMessage: any = {
+    RequestInfo: requestInfo,
+    CampaignDetails: campaignDetails,
+  };
+  await produceModifiedMessages(
+    produceMessage,
+    config?.kafka?.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC,
+    campaignDetails?.tenantId
+  );
+}
+
+/**
+ * Check if campaign has a resource of the given type.
+ */
+function hasResourceOfType(campaignDetails: any, resourceType: string): boolean {
+  return (campaignDetails?.resources || []).some((r: any) => r?.type === resourceType);
+}

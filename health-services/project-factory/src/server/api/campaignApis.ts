@@ -1,3 +1,4 @@
+import { RequestInfo } from "../config/models/requestInfoSchema";
 import config from "../config";
 import { v4 as uuidv4 } from "uuid";
 import { httpRequest } from "../utils/request";
@@ -18,6 +19,7 @@ import {
   validateTargetSheetData,
   validateViaSchemaSheetWise,
 } from "../validators/campaignValidators";
+import { CampaignResource } from "../config/models/resourceTypes";
 import { getCampaignNumber } from "./genericApis";
 import {
   convertToTypeData,
@@ -49,7 +51,7 @@ import {
 } from "../utils/microplanUtils";
 import { getTransformedLocale } from "../utils/localisationUtils";
 import { BoundaryModels } from "../models";
-import { defaultRequestInfo, searchBoundaryRelationshipData, searchBoundaryRelationshipDefinition } from "./coreApis";
+import { searchBoundaryRelationshipData, searchBoundaryRelationshipDefinition } from "./coreApis";
 
 /**
  * Enriches the campaign data with unique IDs and generates campaign numbers.
@@ -99,10 +101,10 @@ async function getAllFacilitiesInLoop(
  * @param requestBody The request body containing additional parameters.
  * @returns An array of facilities.
  */
-async function getAllFacilities(tenantId: string) {
+async function getAllFacilities(tenantId: string, requestInfo?: RequestInfo) {
   // Retrieve all facilities for the given tenant ID
   const facilitySearchBody = {
-    RequestInfo: defaultRequestInfo,
+    RequestInfo: requestInfo,
     Facility: { isPermanent: true },
   };
 
@@ -772,7 +774,7 @@ async function getEmployeesBasedOnUserName(dataToCreate: any[], request: any) {
 
 
     const params = {
-      tenantId: 'mz',
+      tenantId: request?.body?.RequestInfo?.userInfo?.tenantId,
       limit: 51,
       offset: 0,
       codes: userNames.join(","), // ✅ Convert array to comma-separated string
@@ -1156,7 +1158,7 @@ async function enrichJurisdictions(employee: any, request: any, boundaryCodeAndB
 }
 
 async function enrichEmployees(employees: any[], request: any) {
-  const boundaryRelationshipResponse = await searchBoundaryRelationshipData(request?.body?.ResourceDetails?.tenantId, request?.body?.ResourceDetails?.hierarchyType, true);
+  const boundaryRelationshipResponse = await searchBoundaryRelationshipData(request?.body?.ResourceDetails?.tenantId, request?.body?.ResourceDetails?.hierarchyType, true, true, undefined, undefined, request?.body?.RequestInfo);
   if (!boundaryRelationshipResponse?.TenantBoundary?.[0]?.boundary) {
     throw new Error("Boundary relationship search failed");
   }
@@ -1164,7 +1166,7 @@ async function enrichEmployees(employees: any[], request: any) {
   convertUserRoles(employees, request);
   const idRequests = createIdRequests(employees);
   request.body.idRequests = idRequests;
-  let result = await createUniqueUserNameViaIdGen(idRequests);
+  let result = await createUniqueUserNameViaIdGen(idRequests, request?.body?.RequestInfo);
   var i = 0;
   for (const employee of employees) {
     const { user } = employee;
@@ -1651,7 +1653,7 @@ async function processCreate(request: any, localizationMap?: any) {
       if (createAndSearchConfig?.parseArrayConfig?.parseLogic) {
         createAndSearchConfig.parseArrayConfig.parseLogic =
           createAndSearchConfig.parseArrayConfig.parseLogic.map((item: any) => {
-            if (item.sheetColumn === "E") {
+            if (item.sheetColumnName === "HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY") {
               item.sheetColumnName += `_${campaignType}`;
             }
             return item;
@@ -1736,7 +1738,7 @@ async function createProjectCampaignResourcData(request: any) {
       request?.body?.CampaignDetails?.action == "create" &&
       request?.body?.CampaignDetails?.resources
     ) {
-      for (const resource of request?.body?.CampaignDetails?.resources) {
+      for (const resource of request?.body?.CampaignDetails?.resources as CampaignResource[]) {
         const action =
           resource?.type === "boundaryWithTarget" ? "validate" : "create";
         // if (resource.type != "boundaryWithTarget") {
@@ -1770,9 +1772,9 @@ async function createProjectCampaignResourcData(request: any) {
   }
 }
 
-async function confirmProjectParentCreation(tenantId: string, uuid: string, projectId: any) {
+async function confirmProjectParentCreation(tenantId: string, uuid: string, projectId: any, requestInfo?: RequestInfo) {
   const searchBody = {
-    RequestInfo: JSON.parse(JSON.stringify(defaultRequestInfo?.RequestInfo)),
+    RequestInfo: requestInfo,
     Projects: [
       {
         id: projectId,
@@ -1780,7 +1782,6 @@ async function confirmProjectParentCreation(tenantId: string, uuid: string, proj
       },
     ],
   };
-  searchBody.RequestInfo.userInfo.uuid = uuid;
   const params = {
     tenantId,
     offset: 0,

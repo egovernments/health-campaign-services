@@ -12,6 +12,7 @@ import Localisation from "../controllers/localisationController/localisation.con
 import { executeQuery, getTableName } from "./db";
 import { generatedResourceTransformer } from "./transforms/searchResponseConstructor";
 import { allProcesses, generatedResourceStatuses, headingMapping, processStatuses, resourceDataStatuses } from "../config/constants";
+import { getProcessNamesForResourceTypes } from "../config/resourceTypeRegistry";
 import { getLocaleFromRequest, getLocaleFromRequestInfo, getLocalisationModuleName } from "./localisationUtils";
 import { getBoundaryColumnName, getBoundaryTabName } from "./boundaryUtils";
 import { getBoundaryDataService, searchDataService } from "../service/dataManageService";
@@ -399,7 +400,7 @@ async function fullProcessFlowForNewEntry(newEntryResponse: any, generatedResour
         const searchCriteria = buildSearchCriteria(request, createdResourceId, type);
         const responseFromDataSearch = await searchDataService(replicateRequest(request, searchCriteria));
 
-        const processedFileStoreIdForUSerOrFacility = responseFromDataSearch?.[0]?.processedFilestoreId;
+        const processedFileStoreIdForUSerOrFacility = responseFromDataSearch?.[0]?.processedFileStoreId;
         fileUrlResponse = await fetchFileFromFilestore(processedFileStoreIdForUSerOrFacility, request?.query?.tenantId);
       }
 
@@ -893,7 +894,7 @@ async function generateFacilityAndBoundarySheet(tenantId: string, request: any, 
   const typeWithoutWith = type.includes('With') ? type.split('With')[0] : type;
   // Get facility and boundary data
   logger.info("Generating facilities started");
-  const allFacilities = await getAllFacilities(tenantId);
+  const allFacilities = await getAllFacilities(tenantId, request?.body?.RequestInfo);
   request.body.generatedResourceCount = allFacilities?.length;
   logger.info(`Facilities generation completed and found ${allFacilities?.length} facilities`);
   let facilitySheetDataFinal: any;
@@ -1582,6 +1583,70 @@ export async function prepareProcessesInDb(campaignNumber: any, tenantId: string
   
   produceModifiedMessages({ processes: newProcesses }, config.kafka.KAFKA_SAVE_PROCESS_DATA_TOPIC, tenantId);
   // wait for 2 second
+  logger.info("Waiting for 10 seconds for processes to get updated...");
+  await new Promise(resolve => setTimeout(resolve, 10000));
+}
+
+/**
+ * Prepare process entries in DB for only the specified resource types.
+ * Unlike prepareProcessesInDb which creates entries for ALL process types,
+ * this creates only the process entries needed for the given resource types.
+ */
+export async function prepareProcessesForResourceTypes(
+  campaignNumber: string,
+  tenantId: string,
+  resourceTypes: string[],
+  userUuid?: string
+) {
+  const processNames = getProcessNamesForResourceTypes(resourceTypes);
+  if (processNames.length === 0) {
+    logger.warn("No process names found for resource types: {}", resourceTypes.join(", "));
+    return;
+  }
+
+  logger.info("Preparing processes for resource types: {}", resourceTypes.join(", "));
+  const allCurrentProcesses = await getCurrentProcesses(campaignNumber, tenantId);
+  const currentTime = Date.now();
+
+  // Reset existing matching processes to pending
+  const existingToUpdate = [];
+  for (const process of allCurrentProcesses) {
+    if (processNames.includes(process?.processName)) {
+      process.status = processStatuses.pending;
+      process.auditDetails = {
+        createdBy: process.auditDetails?.createdBy || userUuid,
+        createdTime: process.auditDetails?.createdTime || currentTime,
+        lastModifiedBy: userUuid,
+        lastModifiedTime: currentTime
+      };
+      existingToUpdate.push(process);
+    }
+  }
+
+  if (existingToUpdate.length > 0) {
+    await produceModifiedMessages({ processes: existingToUpdate }, config.kafka.KAFKA_UPDATE_PROCESS_DATA_TOPIC, tenantId);
+  }
+
+  // Create new process entries for those not yet in DB
+  const existingProcessNames = new Set(allCurrentProcesses.map((p: any) => p?.processName));
+  const newProcesses = processNames
+    .filter(pn => !existingProcessNames.has(pn))
+    .map(pn => ({
+      campaignNumber: campaignNumber,
+      processName: pn,
+      status: processStatuses.pending,
+      auditDetails: {
+        createdBy: userUuid,
+        createdTime: currentTime,
+        lastModifiedBy: userUuid,
+        lastModifiedTime: currentTime
+      }
+    }));
+
+  if (newProcesses.length > 0) {
+    await produceModifiedMessages({ processes: newProcesses }, config.kafka.KAFKA_SAVE_PROCESS_DATA_TOPIC, tenantId);
+  }
+
   logger.info("Waiting for 10 seconds for processes to get updated...");
   await new Promise(resolve => setTimeout(resolve, 10000));
 }

@@ -10,6 +10,20 @@ const axiosInstance = Axios.create({
   timeout: 0, // Set timeout to 0 to wait indefinitely
   maxContentLength: Infinity,
   maxBodyLength: Infinity,
+  paramsSerializer: (params: any) => {
+    const parts: string[] = [];
+    for (const key of Object.keys(params)) {
+      const value = params[key];
+      if (Array.isArray(value)) {
+        for (const v of value) {
+          parts.push(`${encodeURIComponent(key)}=${encodeURIComponent(v)}`);
+        }
+      } else if (value !== undefined && value !== null) {
+        parts.push(`${encodeURIComponent(key)}=${encodeURIComponent(value)}`);
+      }
+    }
+    return parts.join('&');
+  }
 });
 
 // Axios interceptor to handle response errors

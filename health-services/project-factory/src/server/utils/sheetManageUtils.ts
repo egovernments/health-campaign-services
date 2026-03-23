@@ -1,3 +1,4 @@
+import { RequestInfo } from "../config/models/requestInfoSchema";
 import { v4 as uuidV4 } from "uuid";
 import config from "../config";
 import { produceModifiedMessages } from "../kafka/Producer";
@@ -10,7 +11,7 @@ import { adjustRowHeight, enrichTemplateMetaData, freezeUnfreezeColumns, getExce
 import * as path from 'path';
 import { ColumnProperties, SheetMap } from "../models/SheetMap";
 import { logger } from "./logger";
-import { generatedResourceStatuses, resourceDetailsStatuses } from "../config/constants";
+import { generatedResourceStatuses, resourceStatuses } from "../config/constants";
 import fs from 'fs';
 import { ResourceDetails } from "../config/models/resourceDetailsSchema";
 import { fetchFileFromFilestore } from "../api/coreApis";
@@ -23,7 +24,8 @@ export async function initializeGenerateAndGetResponse(
     hierarchyType: string,
     campaignId: string,
     userUuid: string,
-    locale: string = config.localisation.defaultLocale
+    locale: string = config.localisation.defaultLocale,
+    requestInfo?: RequestInfo
 ) {
     const currentTime = Date.now();
 
@@ -54,6 +56,7 @@ export async function initializeGenerateAndGetResponse(
         locale,
         status: generatedResourceStatuses.inprogress,
         additionalDetails: {},
+        requestInfo,
         auditDetails: {
             createdTime: currentTime,
             lastModifiedTime: currentTime,
@@ -82,7 +85,10 @@ export async function initializeProcessAndGetResponse(
         id: uuidV4(),
         ...ResourceDetails,
         locale,
-        status: generatedResourceStatuses.inprogress,
+        status: resourceStatuses.creating,
+        isActive: true,
+        parentResourceId: null,
+        filename: null,
         additionalDetails: {},
         auditDetails: {
             createdTime: currentTime,
@@ -91,7 +97,7 @@ export async function initializeProcessAndGetResponse(
             lastModifiedBy: userUuid,
         },
         processedFileStoreId: null,
-        action : "process"
+        action: "create"
     };
 
     const persistMessage: any = { ResourceDetails: newResourceDetails };
@@ -140,10 +146,17 @@ export async function processResource(ResourceDetails: any, templateConfig: any)
     try {
         const fileUrl = await fetchFileFromFilestore(ResourceDetails?.fileStoreId, ResourceDetails?.tenantId);
         const workBook = await getExcelWorkbookFromFileURL(fileUrl);
-        let locale = getLocaleFromWorkbook(workBook) || "";
-        if(!locale){
-            throw new Error("Locale not found in the file metadata.");
+
+        // Try to extract locale from workbook metadata
+        let locale: string = getLocaleFromWorkbook(workBook) || "";
+
+        // Graceful fallback: use default locale if metadata missing
+        if (!locale) {
+            logger.warn(`Locale metadata not found in workbook for resource type ${ResourceDetails?.type}. Using default locale.`);
+            locale = config.localisation.defaultLocale || "en_IN";
+            logger.info(`Using fallback locale: ${locale}`);
         }
+
         const localizationMapHierarchy = ResourceDetails?.hierarchyType && await getLocalizedMessagesHandlerViaLocale(locale, ResourceDetails?.tenantId, getLocalisationModuleName(ResourceDetails?.hierarchyType), true);
         const localizationMapModule = await getLocalizedMessagesHandlerViaLocale(locale, ResourceDetails?.tenantId);
         const localizationMap = { ...(localizationMapHierarchy || {}), ...localizationMapModule };
@@ -152,7 +165,11 @@ export async function processResource(ResourceDetails: any, templateConfig: any)
         const fileResponse = await createAndUploadFileWithOutRequest(workBook, ResourceDetails?.tenantId);
         ResourceDetails.processedFileStoreId = fileResponse?.[0]?.fileStoreId;
         if (!ResourceDetails.processedFileStoreId) throw new Error("FileStoreId not created.");
-        ResourceDetails.status = generatedResourceStatuses.completed;
+        ResourceDetails.status = resourceStatuses.completed;
+        ResourceDetails.auditDetails = {
+            ...ResourceDetails.auditDetails,
+            lastModifiedTime: Date.now()
+        };
         await produceModifiedMessages({ ResourceDetails : ResourceDetails }, config?.kafka?.KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC, ResourceDetails?.tenantId);
     } catch (error) {
         console.log(error)
@@ -199,13 +216,8 @@ export async function processRequest(ResourceDetails: any, workBook: any, templa
         const schema = await callMdmsSchema(ResourceDetails?.tenantId, sheet?.schemaName);
         sheet.schema = schema;
     }
-    // Check for extra sheets
-    const expectedSheetNames = (templateConfig?.sheets || []).map((s: any) => getLocalizedName(s?.sheetName, localizationMap));
-    const actualSheetNames = workBook.worksheets.map((ws: any) => ws.name);
-    const extraSheets = actualSheetNames.filter((name: string) => !expectedSheetNames.includes(name));
-    if (extraSheets.length > 0) {
-        throwError("FILE", 400, "EXTRA_SHEET_ERROR", `Extra sheet(s) found in the uploaded file: ${extraSheets.join(", ")}`);
-    }
+    // Only process expected sheets - ignore any extra sheets in the workbook
+    logger.info(`Processing only required sheets, ignoring any extra sheets that may exist`);
     const className = `${ResourceDetails?.type}-processClass`;
     let classFilePath = path.join(__dirname, '..', 'processFlowClasses', `${className}.js`);
     if (!fs.existsSync(classFilePath)) {
@@ -306,7 +318,8 @@ async function handleErrorDuringGenerate(responseToSend: any, error: any) {
 }
 
 export async function handleErrorDuringProcess(ResourceDetails: any, error: any) {
-    ResourceDetails.status = resourceDetailsStatuses.failed, ResourceDetails.additionalDetails = {
+    ResourceDetails.status = resourceStatuses.failed;
+    ResourceDetails.additionalDetails = {
         ...ResourceDetails.additionalDetails,
         error: {
             status: error.status,
@@ -314,8 +327,12 @@ export async function handleErrorDuringProcess(ResourceDetails: any, error: any)
             description: error.description,
             message: error.message
         }
-    }
+    };
     ResourceDetails.processedFileStoreId = ResourceDetails.processedFileStoreId || null;
+    ResourceDetails.auditDetails = {
+        ...ResourceDetails.auditDetails,
+        lastModifiedTime: Date.now()
+    };
     await produceModifiedMessages({ ResourceDetails: ResourceDetails }, config?.kafka?.KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC, ResourceDetails?.tenantId);
 }
 
@@ -703,15 +720,23 @@ export async function validateResourceDetailsBeforeProcess(validationProcessType
         additionalDetails : resourceDetails?.additionalDetails,
         fileStoreId : resourceDetails?.fileStoreId,
         campaignId : resourceDetails?.campaignId,
-        hierarchyType : resourceDetails?.hierarchyType
+        hierarchyType : resourceDetails?.hierarchyType,
+        requestInfo : resourceDetails?.requestInfo
     }
     await enrichProcessTemplateConfig(validationResourceDetails, processTemplateConfig);
     const fileUrl = await fetchFileFromFilestore(validationResourceDetails?.fileStoreId, validationResourceDetails?.tenantId);
     const workBook = await getExcelWorkbookFromFileURL(fileUrl);
-    let locale = getLocaleFromWorkbook(workBook) || "";
+
+    // Try to extract locale from workbook metadata
+    let locale: string = getLocaleFromWorkbook(workBook) || "";
+
+    // Graceful fallback: use default locale if metadata missing
     if (!locale) {
-        throw new Error("Locale not found in the file metadata.");
+        logger.warn(`Locale metadata not found in workbook during validation for resource type ${validationProcessType}. Using default locale.`);
+        locale = config.localisation.defaultLocale || "en_IN";
+        logger.info(`Using fallback locale for validation: ${locale}`);
     }
+
     await processRequest(validationResourceDetails, workBook, processTemplateConfig, localizationMap);
     if (validationResourceDetails?.additionalDetails?.sheetErrors?.length) {
         throwError("COMMON", 400, "VALIDATION_ERROR", JSON.stringify(validationResourceDetails?.additionalDetails?.sheetErrors));

@@ -1,3 +1,4 @@
+import { withUserInfo } from "../config/models/requestInfoSchema";
 import { getLocalizedName } from "../utils/campaignUtils";
 import { SheetMap } from "../models/SheetMap";
 import { logger } from "../utils/logger";
@@ -8,10 +9,10 @@ import { produceModifiedMessages } from "../kafka/Producer";
 import config from "../config";
 import { DataTransformer } from "../utils/transFormUtil";
 import { transformConfigs } from "../config/transformConfigs";
-import { defaultRequestInfo } from "../api/coreApis";
 import { httpRequest } from "../utils/request";
 import { decrypt, encrypt } from "../utils/cryptUtils";
 import { validateResourceDetailsBeforeProcess } from "../utils/sheetManageUtils";
+import { WorkerData, createOrUpdateWorkers } from "../utils/workerRegistryUtils";
 
 // This will be a dynamic template class for different types
 export class TemplateClass {
@@ -336,8 +337,9 @@ export class TemplateClass {
 
     static async createUserFromTableData(resourceDetails: any): Promise<any> {
         logger.info("Fetching campaign details...");
+        const tenantId = resourceDetails.tenantId;
         const response = await searchProjectTypeCampaignService({
-            tenantId: resourceDetails.tenantId,
+            tenantId: tenantId,
             ids: [resourceDetails?.campaignId],
         });
 
@@ -356,7 +358,7 @@ export class TemplateClass {
         const userRowDatas = usersToCreate?.map((u: any) => u?.data);
 
         const transformConfig = { ...transformConfigs?.["employeeHrms"] };
-        transformConfig.metadata.tenantId = resourceDetails.tenantId;
+        transformConfig.metadata.tenantId = tenantId;
         transformConfig.metadata.hierarchy = resourceDetails.hierarchyType;
 
         const transformer = new DataTransformer(transformConfig);
@@ -370,12 +372,15 @@ export class TemplateClass {
         for (let i = 0; i < transformedUsers.length; i += BATCH_SIZE) {
             const batch = transformedUsers.slice(i, i + BATCH_SIZE);
             try {
-                const mobileToUserServiceMap = await this.createEmployeesAndGetServiceUuid(batch, userUuid);
+                const { mobileToServiceMap, mobileToIndividualIdMap } = await this.createEmployeesAndGetServiceUuid(batch, userUuid, resourceDetails);
 
                 const successfulUsers = [];
+                const workerDataList: WorkerData[] = [];
+
                 for (const user of batch) {
                     const mobile = String(user?.user?.mobileNumber);
-                    const serviceUuid = mobileToUserServiceMap[mobile];
+                    const serviceUuid = mobileToServiceMap[mobile];
+                    const individualId = mobileToIndividualIdMap[mobile];
                     const existing = mobileToCampaignMap[mobile];
                     if (existing) {
                         existing.status = dataRowStatuses.completed;
@@ -384,10 +389,52 @@ export class TemplateClass {
                         existing.data["Password"] = encrypt(user?.user?.password);
                         existing.uniqueIdAfterProcess = serviceUuid;
                         successfulUsers.push(existing);
+
+                        // Collect worker data
+                        if (individualId) {
+                            workerDataList.push({
+                                name: existing.data["HCM_ADMIN_CONSOLE_USER_NAME"] || "",
+                                payeePhoneNumber: existing.data["HCM_ADMIN_CONSOLE_USER_PAYEE_PHONE_NUMBER"] || "",
+                                paymentProvider: existing.data["HCM_ADMIN_CONSOLE_USER_PAYMENT_PROVIDER"] || "",
+                                payeeName: existing.data["HCM_ADMIN_CONSOLE_USER_PAYEE_NAME"] || "",
+                                bankAccount: existing.data["HCM_ADMIN_CONSOLE_USER_BANK_ACCOUNT"] || "",
+                                bankCode: existing.data["HCM_ADMIN_CONSOLE_USER_BANK_CODE"] || "",
+                                id: existing.data["HCM_ADMIN_CONSOLE_USER_WORKER_ID"] || "",
+                                individualId,
+                                tenantId: resourceDetails.tenantId,
+                            });
+                        }
                     }
                 }
 
                 logger.info(`Successfully created ${successfulUsers.length} users`);
+
+                // Create/update workers in worker registry BEFORE persist to capture worker IDs
+                if (workerDataList.length > 0) {
+                    try {
+                        const workerRequestInfo = withUserInfo(resourceDetails?.requestInfo, { tenantId });
+                        const workerIdMap = await createOrUpdateWorkers(workerDataList, workerRequestInfo);
+                        logger.info(`Worker registry integration completed for ${workerDataList.length} workers`);
+
+                        // Store worker IDs back in campaign data
+                        if (workerIdMap.size > 0) {
+                            for (const workerData of workerDataList) {
+                                const workerId = workerIdMap.get(workerData.individualId);
+                                if (workerId) {
+                                    // Reverse lookup: individualId → phone number → campaign record
+                                    for (const [phone, indId] of Object.entries(mobileToIndividualIdMap)) {
+                                        if (indId === workerData.individualId && mobileToCampaignMap[phone]) {
+                                            mobileToCampaignMap[phone].data["HCM_ADMIN_CONSOLE_USER_WORKER_ID"] = workerId;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    } catch (workerError) {
+                        logger.error("Worker registry integration failed (non-blocking):", workerError);
+                    }
+                }
+
                 await this.persistInBatches(successfulUsers, config.kafka.KAFKA_UPDATE_SHEET_DATA_TOPIC, resourceDetails.tenantId);
             } catch (err) {
                 console.error("Error in batch creation:", err);
@@ -421,10 +468,9 @@ export class TemplateClass {
 
 
 
-    static async createEmployeesAndGetServiceUuid(users: any[], userUuid: string) {
+    static async createEmployeesAndGetServiceUuid(users: any[], userUuid: string, resourceDetails?: any): Promise<{ mobileToServiceMap: Record<string, string>; mobileToIndividualIdMap: Record<string, string> }> {
         const url = config.host.hrmsHost + config.paths.hrmsEmployeeCreate;
-        const RequestInfo : any = defaultRequestInfo?.RequestInfo;
-        RequestInfo.userInfo.uuid = userUuid;
+        const RequestInfo = resourceDetails?.requestInfo;
         const requestBody = {
             RequestInfo,
             Employees: users,
@@ -432,11 +478,16 @@ export class TemplateClass {
 
         try {
             const response = await httpRequest(url, requestBody);
-            const map: any = {};
-            for (const user of response?.Employees) {
-                map[user?.user?.mobileNumber] = user?.user?.userServiceUuid;
+            const mobileToServiceMap: Record<string, string> = {};
+            const mobileToIndividualIdMap: Record<string, string> = {};
+            for (const employee of response?.Employees) {
+                const mobile = String(employee?.user?.mobileNumber);
+                mobileToServiceMap[mobile] = employee?.user?.userServiceUuid;
+                if (employee?.user?.uuid) {
+                    mobileToIndividualIdMap[mobile] = employee?.user?.uuid;
+                }
             }
-            return map;
+            return { mobileToServiceMap, mobileToIndividualIdMap };
         } catch (error: any) {
             console.error("Employee creation API failed:", error);
             throw new Error(error);

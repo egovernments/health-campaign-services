@@ -6,6 +6,7 @@ import org.egov.excelingestion.constants.GenerationConstants;
 import org.egov.excelingestion.repository.GeneratedFileRepository;
 import org.egov.excelingestion.util.RequestInfoConverter;
 import org.egov.excelingestion.web.models.*;
+import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.contract.response.ResponseInfo;
 import org.egov.common.producer.Producer;
 import org.egov.common.exception.InvalidTenantIdException;

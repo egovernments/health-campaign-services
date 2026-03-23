@@ -5,7 +5,7 @@ import org.egov.excelingestion.config.ErrorConstants;
 import org.egov.excelingestion.config.KafkaTopicConfig;
 import org.egov.excelingestion.exception.CustomExceptionHandler;
 import org.egov.excelingestion.repository.SheetDataTempRepository;
-import org.egov.excelingestion.web.models.RequestInfo;
+import org.egov.common.contract.request.RequestInfo;
 import org.egov.excelingestion.web.models.SheetDataSearchRequest;
 import org.egov.excelingestion.web.models.SheetDataSearchCriteria;
 import org.egov.excelingestion.web.models.SheetDataSearchResponse;

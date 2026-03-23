@@ -170,11 +170,16 @@ export const allProcesses = {
     userMapping : "CAMPAIGN_USER_MAPPING_PROCESS",
     resourceMapping : "CAMPAIGN_RESOURCE_MAPPING_PROCESS",
     userCredGeneration : "CAMPAIGN_USER_CRED_GENERATION_PROCESS",
+    attendanceRegisterCreation : "CAMPAIGN_ATTENDANCE_REGISTER_CREATION_PROCESS",
+    attendanceRegisterAttendeeCreation : "CAMPAIGN_ATTENDANCE_REGISTER_ATTENDEE_CREATION_PROCESS",
 }
 
 export const sheetDataRowStatuses = {
     INVALID: "INVALID",
-    CREATED: "CREATED"
+    CREATED: "CREATED",
+    SKIPPED: "SKIPPED",
+    EXISTING: "EXISTING",
+    UPDATED: "UPDATED"
 }
 
 
@@ -218,6 +223,13 @@ export const processTrackStatuses = {
     completed: "completed",
     toBeCompleted: "toBeCompleted",
     failed: "failed",
+}
+
+export const resourceStatuses = {
+    toCreate: "toCreate",
+    creating: "creating",
+    completed: "completed",
+    failed: "failed"
 }
 
 export const usageColumnStatus = {

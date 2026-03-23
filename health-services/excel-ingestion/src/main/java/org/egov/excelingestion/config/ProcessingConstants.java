@@ -5,6 +5,10 @@ public class ProcessingConstants {
     
     // MDMS Configuration
     public static final String MDMS_SCHEMA_CODE = "HCM-ADMIN-CONSOLE.schemas";
+
+    // Column Keys
+    public static final String BOUNDARY_CODE_COLUMN_KEY = "HCM_ADMIN_CONSOLE_BOUNDARY_CODE";
+    public static final String REGISTER_ID_COLUMN_KEY = "HCM_ATTENDANCE_REGISTER_ID";
     
     // Status Constants
     public static final String STATUS_GENERATED = "generated";
