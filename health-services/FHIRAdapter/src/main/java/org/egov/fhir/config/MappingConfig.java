@@ -17,6 +17,7 @@ public class MappingConfig {
     private Map<String, ModelDef> responseModels;
     private List<FieldMapping> fieldMappings;
     private List<IdentifierMapping> identifierMappings;
+    private List<ExtensionMapping> extensionMappings;
     private List<FieldMapping> searchParamMappings;
 
     @Data
@@ -63,6 +64,17 @@ public class MappingConfig {
         private String egovField;
         private String use;
         private Boolean isBusinessId;
+        private Map<String, Object> type;
         private Map<String, Object> privacy;
+    }
+
+    @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class ExtensionMapping {
+        private String url;
+        private String egovField;
+        private String valueType;  // boolean, string, dateTime, integer, decimal
+        private String transform;
+        private Map<String, Object> transformConfig;
     }
 }

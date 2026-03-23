@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.egov.fhir.config.MappingConfig.ApiMapping;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
@@ -19,8 +20,11 @@ public class EgovApiService {
     @Value("${egov.base.url:http:8080}")
     private String egovBaseUrl;
 
-    private final RestTemplate restTemplate = new RestTemplate();
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    @Autowired
+    private final RestTemplate restTemplate;
+
+    @Autowired
+    private final ObjectMapper objectMapper;
 
     // TODO: tenantId should come from request context
     @Value("${egov.default.tenantId:mz}")

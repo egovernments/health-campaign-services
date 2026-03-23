@@ -11,6 +11,7 @@ import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.Arrays;
+import java.util.regex.Pattern;
 
 @Slf4j
 @Service
@@ -40,15 +41,16 @@ public class TransformService {
                             for (FieldMapping nestedMapping : mapping.getFieldMappings()) {
                                 Object nestedValue = getValueByPath((Map<String, Object>) item, nestedMapping.getFhirField());
                                 if (nestedValue != null) {
-                                    // Handle array fields like line[0], line[1]
+                                    // Apply transform first — it may handle the array (e.g., joinArray)
+                                    nestedValue = applyTransform(nestedValue, nestedMapping, "toEgov");
+                                    // If transform didn't collapse the array, take first element
                                     if (nestedValue instanceof List && !Boolean.TRUE.equals(nestedMapping.getIsArray())) {
                                         List<?> list = (List<?>) nestedValue;
-                                        if (!list.isEmpty()) {
-                                            nestedValue = list.get(0);
-                                        }
+                                        nestedValue = !list.isEmpty() ? list.get(0) : null;
                                     }
-                                    nestedValue = applyTransform(nestedValue, nestedMapping, "toEgov");
-                                    setValueByPath(transformedItem, nestedMapping.getEgovField(), nestedValue);
+                                    if (nestedValue != null) {
+                                        setValueByPath(transformedItem, nestedMapping.getEgovField(), nestedValue);
+                                    }
                                 }
                             }
                             transformedList.add(transformedItem);
@@ -56,16 +58,19 @@ public class TransformService {
                     }
                     value = transformedList;
                 }
-                // If FHIR field is array but eGov expects scalar (no nested mappings), take first element
+                // If FHIR field is array but eGov expects scalar (no nested mappings)
                 else if (Boolean.TRUE.equals(mapping.getIsArray()) && value instanceof List && mapping.getFieldMappings() == null) {
-                    List<?> list = (List<?>) value;
-                    if (!list.isEmpty()) {
-                        value = list.get(0);
-                    }
+                    // Apply transform first — it may handle the array itself (e.g., joinArray)
                     value = applyTransform(value, mapping, "toEgov");
+                    // If transform didn't collapse the array, take first element
+                    if (value instanceof List) {
+                        List<?> list = (List<?>) value;
+                        value = !list.isEmpty() ? list.get(0) : null;
+                    }
                 } else {
                     value = applyTransform(value, mapping, "toEgov");
                 }
+                if (value == null) continue;
                 setValueByPath(egovObject, mapping.getEgovField(), value);
             }
         }
@@ -105,12 +110,33 @@ public class TransformService {
                 Object value = getValueByPath(egovObject, mapping.getEgovField());
                 if (value != null) {
                     value = applyTransform(value, mapping, "toFhir");
-                    setValueByPath(fhirResource, mapping.getFhirField(), value);
+                    if (value != null) {
+                        // For telecomEntry: accumulate into an array on the fhirField
+                        if ("telecomEntry".equals(mapping.getTransform())) {
+                            Object existing = fhirResource.get(mapping.getFhirField());
+                            if (existing instanceof List) {
+                                ((List<Object>) existing).add(value);
+                            } else {
+                                List<Object> list = new ArrayList<>();
+                                list.add(value);
+                                fhirResource.put(mapping.getFhirField(), list);
+                            }
+                        } else {
+                            // Wrap in array if mapping expects array (e.g., name[0].given)
+                            if (Boolean.TRUE.equals(mapping.getIsArray()) && !(value instanceof List)) {
+                                value = new ArrayList<>(List.of(value));
+                            }
+                            setValueByPath(fhirResource, mapping.getFhirField(), value);
+                        }
+                    }
                 }
             }
 
             // Apply identifier mappings
             applyIdentifierMappings(egovObject, fhirResource, config.getIdentifierMappings());
+
+            // Apply extension mappings
+            applyExtensionMappings(egovObject, fhirResource, config.getExtensionMappings());
 
             fhirResources.add(fhirResource);
         }
@@ -226,6 +252,87 @@ public class TransformService {
                 }
                 yield value;
             }
+            case "staticValue" -> {
+                if (direction.equals("toFhir") && config != null && config.get("toFhir") != null) {
+                    yield config.get("toFhir");
+                }
+                yield null;
+            }
+            case "concatFields" -> {
+                if (direction.equals("toFhir") && value instanceof Map) {
+                    Map<?, ?> map = (Map<?, ?>) value;
+                    List<String> fields = config != null ? (List<String>) config.get("fields") : List.of();
+                    String sep = config != null && config.get("separator") != null
+                            ? (String) config.get("separator") : " ";
+                    String result = fields.stream()
+                            .map(f -> map.get(f))
+                            .filter(Objects::nonNull)
+                            .map(Object::toString)
+                            .filter(s -> !s.isEmpty())
+                            .reduce((a, b) -> a + sep + b)
+                            .orElse(null);
+                    yield result;
+                }
+                // toEgov: skip — individual fields are mapped separately
+                yield null;
+            }
+            case "joinArray" -> {
+                String separator = config != null && config.get("separator") != null
+                        ? (String) config.get("separator") : ", ";
+                if (direction.equals("toEgov")) {
+                    // Array -> joined string
+                    if (value instanceof List) {
+                        List<?> list = (List<?>) value;
+                        yield list.stream()
+                                .filter(Objects::nonNull)
+                                .map(Object::toString)
+                                .reduce((a, b) -> a + separator + b)
+                                .orElse("");
+                    }
+                    yield value;
+                }
+                if (direction.equals("toFhir")) {
+                    // Joined string -> array
+                    if (value instanceof String) {
+                        yield Arrays.asList(((String) value).split(Pattern.quote(separator)));
+                    }
+                    yield value;
+                }
+                yield value;
+            }
+            case "telecomEntry" -> {
+                if (direction.equals("toFhir")) {
+                    // Build full FHIR telecom object from plain value using config for system/use
+                    Map<String, Object> telecom = new HashMap<>();
+                    if (config != null && config.get("system") != null) {
+                        telecom.put("system", config.get("system"));
+                    }
+                    if (config != null && config.get("use") != null) {
+                        telecom.put("use", config.get("use"));
+                    }
+                    telecom.put("value", value);
+                    yield telecom;
+                }
+                if (direction.equals("toEgov")) {
+                    // value is the full telecom array — find entry matching system/use from config
+                    if (value instanceof List) {
+                        for (Object item : (List<?>) value) {
+                            if (item instanceof Map) {
+                                Map<?, ?> entry = (Map<?, ?>) item;
+                                String system = config != null ? (String) config.get("system") : null;
+                                String use = config != null ? (String) config.get("use") : null;
+                                boolean systemMatch = system == null || system.equals(entry.get("system"));
+                                boolean useMatch = use == null || use.equals(entry.get("use"));
+                                if (systemMatch && useMatch) {
+                                    yield entry.get("value");
+                                }
+                            }
+                        }
+                    }
+                    yield null;
+                }
+                yield value;
+            }
             default -> value;
         };
     }
@@ -243,11 +350,49 @@ public class TransformService {
                 if (mapping.getUse() != null) {
                     identifier.put("use", mapping.getUse());
                 }
+                if (mapping.getType() != null) {
+                    identifier.put("type", mapping.getType());
+                }
                 identifiers.add(identifier);
             }
         }
         if (!identifiers.isEmpty()) {
             fhir.put("identifier", identifiers);
+        }
+    }
+
+    private void applyExtensionMappings(Map<String, Object> egov, Map<String, Object> fhir, List<MappingConfig.ExtensionMapping> mappings) {
+        if (mappings == null) return;
+
+        List<Map<String, Object>> extensions = new ArrayList<>();
+        for (MappingConfig.ExtensionMapping mapping : mappings) {
+            Object value = getValueByPath(egov, mapping.getEgovField());
+            if (value != null) {
+                // Apply transform if configured (reuse via a temporary FieldMapping)
+                if (mapping.getTransform() != null) {
+                    FieldMapping fm = new FieldMapping();
+                    fm.setTransform(mapping.getTransform());
+                    fm.setTransformConfig(mapping.getTransformConfig());
+                    value = applyTransform(value, fm, "toFhir");
+                }
+
+                Map<String, Object> ext = new HashMap<>();
+                ext.put("url", mapping.getUrl());
+
+                // Set typed value based on valueType from config
+                String valueKey = switch (mapping.getValueType()) {
+                    case "boolean" -> "valueBoolean";
+                    case "dateTime" -> "valueDateTime";
+                    case "integer" -> "valueInteger";
+                    case "decimal" -> "valueDecimal";
+                    default -> "valueString";
+                };
+                ext.put(valueKey, value);
+                extensions.add(ext);
+            }
+        }
+        if (!extensions.isEmpty()) {
+            fhir.put("extension", extensions);
         }
     }
 
@@ -288,14 +433,42 @@ public class TransformService {
 
     private void setValueByPath(Map<String, Object> obj, String path, Object value) {
         String[] parts = path.split("\\.");
-        Map<String, Object> current = obj;
+        Object current = obj;
 
         for (int i = 0; i < parts.length - 1; i++) {
             String part = parts[i];
-            current.computeIfAbsent(part, k -> new HashMap<String, Object>());
-            current = (Map<String, Object>) current.get(part);
+            if (part.contains("[")) {
+                String fieldName = part.substring(0, part.indexOf("["));
+                int index = Integer.parseInt(part.substring(part.indexOf("[") + 1, part.indexOf("]")));
+                Map<String, Object> currentMap = (Map<String, Object>) current;
+                currentMap.computeIfAbsent(fieldName, k -> new ArrayList<>());
+                List<Object> list = (List<Object>) currentMap.get(fieldName);
+                while (list.size() <= index) {
+                    list.add(new HashMap<String, Object>());
+                }
+                current = list.get(index);
+            } else {
+                Map<String, Object> currentMap = (Map<String, Object>) current;
+                currentMap.computeIfAbsent(part, k -> new HashMap<String, Object>());
+                current = currentMap.get(part);
+            }
         }
-        current.put(parts[parts.length - 1], value);
+
+        // Handle last part
+        String lastPart = parts[parts.length - 1];
+        if (lastPart.contains("[")) {
+            String fieldName = lastPart.substring(0, lastPart.indexOf("["));
+            int index = Integer.parseInt(lastPart.substring(lastPart.indexOf("[") + 1, lastPart.indexOf("]")));
+            Map<String, Object> currentMap = (Map<String, Object>) current;
+            currentMap.computeIfAbsent(fieldName, k -> new ArrayList<>());
+            List<Object> list = (List<Object>) currentMap.get(fieldName);
+            while (list.size() <= index) {
+                list.add(null);
+            }
+            list.set(index, value);
+        } else {
+            ((Map<String, Object>) current).put(lastPart, value);
+        }
     }
 
     private String extractWrapperKey(String basePath) {

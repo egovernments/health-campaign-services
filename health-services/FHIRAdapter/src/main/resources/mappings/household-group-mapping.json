@@ -1,0 +1,196 @@
+{
+  "version": "1.0",
+  "fhirResource": "Group",
+  "egovModel": "Household",
+  "egovService": "household-service",
+
+  "apiMapping": {
+    "create": {
+      "endpoint": "/household/v1/_create",
+      "method": "POST",
+      "requestModel": "HouseholdRequest",
+      "responseModel": "HouseholdResponse",
+      "headers": { "Content-Type": "application/json" }
+    },
+    "update": {
+      "endpoint": "/household/v1/bulk/_update",
+      "method": "POST",
+      "requestModel": "HouseholdBulkRequest",
+      "responseModel": "HouseholdBulkResponse",
+      "headers": { "Content-Type": "application/json" }
+    },
+    "search": {
+      "endpoint": "/household/v1/_search",
+      "method": "POST",
+      "requestModel": "HouseholdSearchRequest",
+      "responseModel": "HouseholdBulkResponse",
+      "headers": { "Content-Type": "application/json" }
+    },
+    "delete": {
+      "endpoint": "/household/v1/bulk/_delete",
+      "method": "POST",
+      "requestModel": "HouseholdBulkRequest",
+      "responseModel": "HouseholdBulkResponse",
+      "softDelete": true
+    }
+  },
+
+  "requestModels": {
+    "HouseholdRequest": { "basePath": "$.Household", "isArray": false },
+    "HouseholdBulkRequest": { "basePath": "$.Households[*]", "isArray": true },
+    "HouseholdSearchRequest": { "basePath": "$.Household", "isArray": false }
+  },
+
+  "responseModels": {
+    "HouseholdResponse": { "basePath": "$.Household", "isArray": false },
+    "HouseholdBulkResponse": { "basePath": "$.Households[*]", "isArray": true, "totalCountPath": "$.TotalCount" }
+  },
+
+  "fieldMappings": [
+    { "fhirField": "id", "egovField": "id" },
+    { "fhirField": "meta.lastUpdated", "egovField": "auditDetails.lastModifiedTime", "transform": "epochToIso" },
+    {
+      "fhirField": "status", "egovField": "isDeleted",
+      "transform": "codeMap",
+      "transformConfig": {
+        "toFhir": { "false": "active", "true": "retired" },
+        "toEgov": { "active": "false", "retired": "true" }
+      }
+    },
+    { "fhirField": "quantity", "egovField": "memberCount" },
+    {
+      "fhirField": "type", "egovField": "id",
+      "transform": "staticValue",
+      "transformConfig": { "toFhir": "person" }
+    },
+    {
+      "fhirField": "membership", "egovField": "id",
+      "transform": "staticValue",
+      "transformConfig": { "toFhir": "enumerated" }
+    },
+    {
+      "fhirField": "name", "egovField": "id",
+      "transform": "staticValue",
+      "transformConfig": { "toFhir": "Household" }
+    }
+  ],
+
+  "identifierMappings": [
+    {
+      "name": "egovHouseholdId",
+      "system": "urn:egov:household",
+      "egovField": "id",
+      "use": "official",
+      "isBusinessId": true,
+      "type": { "coding": [{ "system": "http://terminology.hl7.org/CodeSystem/v2-0203", "code": "AN", "display": "Account number" }] }
+    }
+  ],
+
+  "extensionMappings": [
+    {
+      "url": "https://digit.org/extensions/isDeleted",
+      "egovField": "isDeleted",
+      "valueType": "boolean"
+    },
+    {
+      "url": "https://digit.org/extensions/audit/createdTime",
+      "egovField": "auditDetails.createdTime",
+      "valueType": "dateTime",
+      "transform": "epochToIso"
+    },
+    {
+      "url": "https://digit.org/extensions/rowVersion",
+      "egovField": "rowVersion",
+      "valueType": "integer"
+    },
+    {
+      "url": "https://digit.org/extensions/household/addressLine1",
+      "egovField": "address.addressLine1",
+      "valueType": "string"
+    },
+    {
+      "url": "https://digit.org/extensions/household/addressLine2",
+      "egovField": "address.addressLine2",
+      "valueType": "string"
+    },
+    {
+      "url": "https://digit.org/extensions/household/doorNo",
+      "egovField": "address.doorNo",
+      "valueType": "string"
+    },
+    {
+      "url": "https://digit.org/extensions/household/city",
+      "egovField": "address.city",
+      "valueType": "string"
+    },
+    {
+      "url": "https://digit.org/extensions/household/district",
+      "egovField": "address.district",
+      "valueType": "string"
+    },
+    {
+      "url": "https://digit.org/extensions/household/state",
+      "egovField": "address.state",
+      "valueType": "string"
+    },
+    {
+      "url": "https://digit.org/extensions/household/pincode",
+      "egovField": "address.pincode",
+      "valueType": "string"
+    },
+    {
+      "url": "https://digit.org/extensions/household/country",
+      "egovField": "address.country",
+      "valueType": "string"
+    },
+    {
+      "url": "https://digit.org/extensions/household/landmark",
+      "egovField": "address.landmark",
+      "valueType": "string"
+    },
+    {
+      "url": "https://digit.org/extensions/household/buildingName",
+      "egovField": "address.buildingName",
+      "valueType": "string"
+    },
+    {
+      "url": "https://digit.org/extensions/household/street",
+      "egovField": "address.street",
+      "valueType": "string"
+    },
+    {
+      "url": "https://digit.org/extensions/household/latitude",
+      "egovField": "address.latitude",
+      "valueType": "decimal"
+    },
+    {
+      "url": "https://digit.org/extensions/household/longitude",
+      "egovField": "address.longitude",
+      "valueType": "decimal"
+    },
+    {
+      "url": "https://digit.org/extensions/household/locationAccuracy",
+      "egovField": "address.locationAccuracy",
+      "valueType": "decimal"
+    },
+    {
+      "url": "https://digit.org/extensions/household/localityCode",
+      "egovField": "address.locality.code",
+      "valueType": "string"
+    },
+    {
+      "url": "https://digit.org/extensions/household/addressType",
+      "egovField": "address.type",
+      "valueType": "string"
+    }
+  ],
+
+  "searchParamMappings": [
+    { "fhirParam": "_id", "egovField": "id" },
+    { "fhirParam": "identifier", "egovField": "id" },
+    { "fhirParam": "type", "egovField": "id" },
+    { "fhirParam": "_tag", "egovField": "tenantId", "transformConfig": { "extractFromSystem": "urn:egov:tenant" } },
+    { "fhirParam": "_count", "egovField": "limit" },
+    { "fhirParam": "_offset", "egovField": "offset" }
+  ]
+}

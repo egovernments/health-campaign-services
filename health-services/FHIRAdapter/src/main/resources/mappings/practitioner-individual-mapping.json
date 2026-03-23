@@ -1,0 +1,161 @@
+{
+  "version": "1.0",
+  "fhirResource": "Practitioner",
+  "egovModel": "Individual",
+  "egovService": "individual-service",
+
+  "apiMapping": {
+    "create": {
+      "endpoint": "/health-individual/v1/_create",
+      "method": "POST",
+      "requestModel": "IndividualRequest",
+      "responseModel": "IndividualResponse",
+      "headers": { "Content-Type": "application/json" }
+    },
+    "update": {
+      "endpoint": "/health-individual/v1/bulk/_update",
+      "method": "POST",
+      "requestModel": "IndividualBulkRequest",
+      "responseModel": "IndividualBulkResponse",
+      "headers": { "Content-Type": "application/json" }
+    },
+    "search": {
+      "endpoint": "/health-individual/v1/_search",
+      "method": "POST",
+      "requestModel": "IndividualSearchRequest",
+      "responseModel": "IndividualBulkResponse",
+      "headers": { "Content-Type": "application/json" }
+    },
+    "delete": {
+      "endpoint": "/health-individual/v1/bulk/_delete",
+      "method": "POST",
+      "requestModel": "IndividualBulkRequest",
+      "responseModel": "IndividualBulkResponse",
+      "softDelete": true
+    }
+  },
+
+  "requestModels": {
+    "IndividualRequest": { "basePath": "$.Individual", "isArray": false },
+    "IndividualBulkRequest": { "basePath": "$.Individuals[*]", "isArray": true },
+    "IndividualSearchRequest": { "basePath": "$.Individual", "isArray": false }
+  },
+
+  "responseModels": {
+    "IndividualResponse": { "basePath": "$.Individual", "isArray": false },
+    "IndividualBulkResponse": { "basePath": "$.Individual[*]", "isArray": true, "totalCountPath": "$.TotalCount" }
+  },
+
+  "fieldMappings": [
+    { "fhirField": "id", "egovField": "id" },
+    { "fhirField": "meta.lastUpdated", "egovField": "auditDetails.lastModifiedTime", "transform": "epochToIso" },
+    { "fhirField": "active", "egovField": "isDeleted", "transform": "negate" },
+    {
+      "fhirField": "name[0].use", "egovField": "id",
+      "transform": "staticValue",
+      "transformConfig": { "toFhir": "official" }
+    },
+    {
+      "fhirField": "name[0].text", "egovField": "name",
+      "transform": "concatFields",
+      "transformConfig": { "fields": ["givenName", "familyName"], "separator": " " }
+    },
+    {
+      "fhirField": "name[0].given", "egovField": "name.givenName",
+      "isArray": true,
+      "transform": "joinArray",
+      "transformConfig": { "separator": " " }
+    },
+    { "fhirField": "name[0].family", "egovField": "name.familyName" },
+    { "fhirField": "birthDate", "egovField": "dateOfBirth", "transform": "epochToDate" },
+    {
+      "fhirField": "gender", "egovField": "gender",
+      "transform": "codeMap",
+      "transformConfig": {
+        "toFhir": { "MALE": "male", "FEMALE": "female", "TRANSGENDER": "other", "OTHER": "other" },
+        "toEgov": { "male": "MALE", "female": "FEMALE", "other": "OTHER", "unknown": "OTHER" }
+      }
+    },
+    {
+      "fhirField": "telecom", "egovField": "mobileNumber",
+      "transform": "telecomEntry",
+      "transformConfig": { "system": "phone", "use": "mobile" }
+    },
+    {
+      "fhirField": "telecom", "egovField": "email",
+      "transform": "telecomEntry",
+      "transformConfig": { "system": "email" }
+    },
+    {
+      "fhirField": "telecom", "egovField": "altContactNumber",
+      "transform": "telecomEntry",
+      "transformConfig": { "system": "phone", "use": "work" }
+    },
+    {
+      "fhirField": "address", "egovField": "address",
+      "isArray": true,
+      "fieldMappings": [
+        { "fhirField": "line", "egovField": "addressLine1", "transform": "joinArray", "transformConfig": { "separator": ", " } },
+        { "fhirField": "city", "egovField": "city" },
+        { "fhirField": "district", "egovField": "district" },
+        { "fhirField": "state", "egovField": "state" },
+        { "fhirField": "postalCode", "egovField": "pincode" },
+        { "fhirField": "country", "egovField": "country" },
+        { "fhirField": "extension[0].extension[0].valueDecimal", "egovField": "latitude" },
+        { "fhirField": "extension[0].extension[1].valueDecimal", "egovField": "longitude" },
+        {
+          "fhirField": "use", "egovField": "type",
+          "transform": "codeMap",
+          "transformConfig": {
+            "toFhir": { "PERMANENT": "home", "CORRESPONDENCE": "work" },
+            "toEgov": { "home": "PERMANENT", "work": "CORRESPONDENCE" }
+          }
+        }
+      ]
+    }
+  ],
+
+  "identifierMappings": [
+    {
+      "name": "egovIndividualId",
+      "system": "urn:egov:individual",
+      "egovField": "individualId",
+      "use": "official",
+      "isBusinessId": true,
+      "type": { "coding": [{ "system": "http://terminology.hl7.org/CodeSystem/v2-0203", "code": "EN", "display": "Employer number" }] }
+    }
+  ],
+
+  "extensionMappings": [
+    {
+      "url": "https://digit.org/extensions/isDeleted",
+      "egovField": "isDeleted",
+      "valueType": "boolean"
+    },
+    {
+      "url": "https://digit.org/extensions/audit/createdTime",
+      "egovField": "auditDetails.createdTime",
+      "valueType": "dateTime",
+      "transform": "epochToIso"
+    }
+  ],
+
+  "searchParamMappings": [
+    { "fhirParam": "_id", "egovField": "id" },
+    { "fhirParam": "identifier", "egovField": "individualId" },
+    { "fhirParam": "name", "egovField": "name.givenName" },
+    { "fhirParam": "family", "egovField": "name.familyName" },
+    { "fhirParam": "given", "egovField": "name.givenName" },
+    { "fhirParam": "birthdate", "egovField": "dateOfBirth", "transform": "dateToEpoch" },
+    { "fhirParam": "gender", "egovField": "gender", "transform": "codeMap" },
+    { "fhirParam": "phone", "egovField": "mobileNumber" },
+    { "fhirParam": "email", "egovField": "email" },
+    { "fhirParam": "address-city", "egovField": "address.city" },
+    { "fhirParam": "address-state", "egovField": "address.state" },
+    { "fhirParam": "address-postalcode", "egovField": "address.pincode" },
+    { "fhirParam": "active", "egovField": "isDeleted", "transform": "negate" },
+    { "fhirParam": "_tag", "egovField": "tenantId", "transformConfig": { "extractFromSystem": "urn:egov:tenant" } },
+    { "fhirParam": "_count", "egovField": "limit" },
+    { "fhirParam": "_offset", "egovField": "offset" }
+  ]
+}

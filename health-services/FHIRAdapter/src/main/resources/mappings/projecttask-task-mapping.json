@@ -1,0 +1,191 @@
+{
+  "version": "1.0",
+  "fhirResource": "Task",
+  "egovModel": "Task",
+  "egovService": "project-service",
+
+  "apiMapping": {
+    "create": {
+      "endpoint": "/project/task/v1/_create",
+      "method": "POST",
+      "requestModel": "TaskRequest",
+      "responseModel": "TaskResponse",
+      "headers": { "Content-Type": "application/json" }
+    },
+    "update": {
+      "endpoint": "/project/task/v1/bulk/_update",
+      "method": "POST",
+      "requestModel": "TaskBulkRequest",
+      "responseModel": "TaskBulkResponse",
+      "headers": { "Content-Type": "application/json" }
+    },
+    "search": {
+      "endpoint": "/project/task/v1/_search",
+      "method": "POST",
+      "requestModel": "TaskSearchRequest",
+      "responseModel": "TaskBulkResponse",
+      "headers": { "Content-Type": "application/json" }
+    },
+    "delete": {
+      "endpoint": "/project/task/v1/bulk/_delete",
+      "method": "POST",
+      "requestModel": "TaskBulkRequest",
+      "responseModel": "TaskBulkResponse",
+      "softDelete": true
+    }
+  },
+
+  "requestModels": {
+    "TaskRequest": { "basePath": "$.Task", "isArray": false },
+    "TaskBulkRequest": { "basePath": "$.Tasks[*]", "isArray": true },
+    "TaskSearchRequest": { "basePath": "$.Task", "isArray": false }
+  },
+
+  "responseModels": {
+    "TaskResponse": { "basePath": "$.Task", "isArray": false },
+    "TaskBulkResponse": { "basePath": "$.Tasks[*]", "isArray": true, "totalCountPath": "$.TotalCount" }
+  },
+
+  "fieldMappings": [
+    { "fhirField": "id", "egovField": "id" },
+    {
+      "fhirField": "status", "egovField": "status",
+      "transform": "codeMap",
+      "transformConfig": {
+        "toFhir": {
+          "DELIVERED": "completed",
+          "ADMINISTRATION_SUCCESS": "completed",
+          "BENEFICIARY_REFUSED": "rejected",
+          "NOT_ADMINISTERED": "ready",
+          "ADMINISTRATION_FAILED": "failed",
+          "CLOSED_HOUSEHOLD": "cancelled"
+        },
+        "toEgov": {
+          "completed": "DELIVERED",
+          "rejected": "BENEFICIARY_REFUSED",
+          "ready": "NOT_ADMINISTERED",
+          "failed": "ADMINISTRATION_FAILED",
+          "cancelled": "CLOSED_HOUSEHOLD"
+        }
+      }
+    },
+    {
+      "fhirField": "businessStatus.text", "egovField": "status"
+    },
+    {
+      "fhirField": "intent", "egovField": "id",
+      "transform": "staticValue",
+      "transformConfig": { "toFhir": "order" }
+    },
+    {
+      "fhirField": "code.text", "egovField": "id",
+      "transform": "staticValue",
+      "transformConfig": { "toFhir": "medicine-delivery" }
+    },
+    { "fhirField": "authoredOn", "egovField": "createdDate", "transform": "epochToIso" },
+    { "fhirField": "lastModified", "egovField": "auditDetails.lastModifiedTime", "transform": "epochToIso" },
+    { "fhirField": "requestedPeriod.start", "egovField": "plannedStartDate", "transform": "epochToIso" },
+    { "fhirField": "requestedPeriod.end", "egovField": "plannedEndDate", "transform": "epochToIso" },
+    { "fhirField": "executionPeriod.start", "egovField": "actualStartDate", "transform": "epochToIso" },
+    { "fhirField": "executionPeriod.end", "egovField": "actualEndDate", "transform": "epochToIso" },
+    { "fhirField": "for.reference", "egovField": "projectBeneficiaryId" },
+    { "fhirField": "basedOn[0].reference", "egovField": "projectId" }
+  ],
+
+  "identifierMappings": [
+    {
+      "name": "egovTaskId",
+      "system": "urn:egov:project:task",
+      "egovField": "id",
+      "use": "official",
+      "isBusinessId": true,
+      "type": { "coding": [{ "system": "http://terminology.hl7.org/CodeSystem/v2-0203", "code": "PLAC", "display": "Placer identifier" }] }
+    }
+  ],
+
+  "extensionMappings": [
+    {
+      "url": "https://digit.org/extensions/isDeleted",
+      "egovField": "isDeleted",
+      "valueType": "boolean"
+    },
+    {
+      "url": "https://digit.org/extensions/audit/createdTime",
+      "egovField": "auditDetails.createdTime",
+      "valueType": "dateTime",
+      "transform": "epochToIso"
+    },
+    {
+      "url": "https://digit.org/extensions/rowVersion",
+      "egovField": "rowVersion",
+      "valueType": "integer"
+    },
+    {
+      "url": "https://digit.org/extensions/task/createdBy",
+      "egovField": "createdBy",
+      "valueType": "string"
+    },
+    {
+      "url": "https://digit.org/extensions/task/projectBeneficiaryClientReferenceId",
+      "egovField": "projectBeneficiaryClientReferenceId",
+      "valueType": "string"
+    },
+    {
+      "url": "https://digit.org/extensions/task/address/addressLine1",
+      "egovField": "address.addressLine1",
+      "valueType": "string"
+    },
+    {
+      "url": "https://digit.org/extensions/task/address/city",
+      "egovField": "address.city",
+      "valueType": "string"
+    },
+    {
+      "url": "https://digit.org/extensions/task/address/pincode",
+      "egovField": "address.pincode",
+      "valueType": "string"
+    },
+    {
+      "url": "https://digit.org/extensions/task/address/latitude",
+      "egovField": "address.latitude",
+      "valueType": "decimal"
+    },
+    {
+      "url": "https://digit.org/extensions/task/address/longitude",
+      "egovField": "address.longitude",
+      "valueType": "decimal"
+    },
+    {
+      "url": "https://digit.org/extensions/task/address/localityCode",
+      "egovField": "address.locality.code",
+      "valueType": "string"
+    },
+    {
+      "url": "https://digit.org/extensions/task/address/boundary",
+      "egovField": "address.boundary",
+      "valueType": "string"
+    }
+  ],
+
+  "searchParamMappings": [
+    { "fhirParam": "_id", "egovField": "id" },
+    { "fhirParam": "identifier", "egovField": "id" },
+    { "fhirParam": "status", "egovField": "status",
+      "transform": "codeMap",
+      "transformConfig": {
+        "toEgov": {
+          "completed": "DELIVERED",
+          "rejected": "BENEFICIARY_REFUSED",
+          "ready": "NOT_ADMINISTERED",
+          "failed": "ADMINISTRATION_FAILED",
+          "cancelled": "CLOSED_HOUSEHOLD"
+        }
+      }
+    },
+    { "fhirParam": "patient", "egovField": "projectBeneficiaryId" },
+    { "fhirParam": "based-on", "egovField": "projectId" },
+    { "fhirParam": "_tag", "egovField": "tenantId", "transformConfig": { "extractFromSystem": "urn:egov:tenant" } },
+    { "fhirParam": "_count", "egovField": "limit" },
+    { "fhirParam": "_offset", "egovField": "offset" }
+  ]
+}
