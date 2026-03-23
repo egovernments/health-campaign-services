@@ -24,6 +24,24 @@ public class ValidationConstants {
     public static final String INGEST_INVALID_LIMIT = "INGEST_INVALID_LIMIT";
     public static final String INGEST_INVALID_OFFSET = "INGEST_INVALID_OFFSET";
     
+    // Attendance Register Attendee — Localization Keys
+    public static final String LOC_ATTENDANCE_INVALID_DATE = "HCM_ATTENDANCE_ATTENDEE_INVALID_DATE_FORMAT";
+    public static final String LOC_ATTENDANCE_DATE_OUT_OF_RANGE = "HCM_ATTENDANCE_ATTENDEE_DATE_OUT_OF_RANGE";
+    public static final String LOC_ATTENDANCE_DEENROLL_WITHOUT_ENROLL = "HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_WITHOUT_ENROLLMENT";
+    public static final String LOC_ATTENDANCE_DEENROLL_BEFORE_ENROLL = "HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_BEFORE_ENROLLMENT";
+    public static final String LOC_ATTENDANCE_REGISTER_ID_EMPTY = "HCM_ATTENDANCE_ATTENDEE_REGISTER_ID_EMPTY";
+    public static final String LOC_ATTENDANCE_REGISTER_ID_MISMATCH = "HCM_ATTENDANCE_ATTENDEE_REGISTER_ID_MISMATCH";
+    public static final String LOC_ATTENDANCE_REGISTER_WRONG_CAMPAIGN = "HCM_ATTENDANCE_ATTENDEE_REGISTER_BELONGS_TO_DIFFERENT_CAMPAIGN";
+
+    // Attendance Register Attendee — Default Error Messages
+    public static final String DEFAULT_ATTENDANCE_INVALID_DATE = "Invalid date format. Use dd-MM-yyyy or dd/MM/yyyy";
+    public static final String DEFAULT_ATTENDANCE_DATE_OUT_OF_RANGE = "Date must be between register start and end dates";
+    public static final String DEFAULT_ATTENDANCE_DEENROLL_WITHOUT_ENROLL = "De-enrollment date requires enrollment date";
+    public static final String DEFAULT_ATTENDANCE_DEENROLL_BEFORE_ENROLL = "De-enrollment date cannot be before enrollment date";
+    public static final String DEFAULT_ATTENDANCE_REGISTER_ID_EMPTY = "Register ID is required";
+    public static final String DEFAULT_ATTENDANCE_REGISTER_ID_MISMATCH = "Register ID does not match expected register";
+    public static final String DEFAULT_ATTENDANCE_REGISTER_WRONG_CAMPAIGN = "Register already exists in a different campaign";
+
     private ValidationConstants() {
         // Private constructor to prevent instantiation
     }

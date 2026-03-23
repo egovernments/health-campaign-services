@@ -14,6 +14,7 @@ import org.egov.excelingestion.web.models.ProcessResource;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.excelingestion.web.models.ValidationColumnInfo;
 import org.egov.excelingestion.web.models.ValidationError;
+import org.egov.excelingestion.config.ProcessingConstants;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
@@ -44,27 +45,29 @@ public class AttendanceRegisterAttendeeValidationProcessor implements IWorkbookP
     private static final DateTimeFormatter FORMAT_DASH = DateTimeFormatter.ofPattern("dd-MM-yyyy");
     private static final DateTimeFormatter FORMAT_SLASH = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
-    // Column keys
-    private static final String COL_REGISTER_ID = "HCM_ATTENDANCE_REGISTER_ID";
-    private static final String COL_ENROLLMENT_DATE = "HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE";
-    private static final String COL_DEENROLLMENT_DATE = "HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE";
-    private static final String COL_USERNAME = "UserName";
+    // Column keys — sourced from ProcessingConstants
+    private static final String COL_REGISTER_ID = ProcessingConstants.REGISTER_ID_COLUMN_KEY;
+    private static final String COL_ENROLLMENT_DATE = ProcessingConstants.ENROLLMENT_DATE_COLUMN_KEY;
+    private static final String COL_DEENROLLMENT_DATE = ProcessingConstants.DEENROLLMENT_DATE_COLUMN_KEY;
+    private static final String COL_USERNAME = ProcessingConstants.USERNAME_COLUMN_KEY;
 
-    // Localization keys for error messages
-    private static final String LOC_INVALID_DATE = "HCM_ATTENDANCE_ATTENDEE_INVALID_DATE_FORMAT";
-    private static final String LOC_DATE_OUT_OF_RANGE = "HCM_ATTENDANCE_ATTENDEE_DATE_OUT_OF_RANGE";
-    private static final String LOC_DEENROLL_WITHOUT_ENROLL = "HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_WITHOUT_ENROLLMENT";
-    private static final String LOC_DEENROLL_BEFORE_ENROLL = "HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_BEFORE_ENROLLMENT";
-    private static final String LOC_REGISTER_ID_EMPTY = "HCM_ATTENDANCE_ATTENDEE_REGISTER_ID_EMPTY";
-    private static final String LOC_REGISTER_ID_MISMATCH = "HCM_ATTENDANCE_ATTENDEE_REGISTER_ID_MISMATCH";
+    // Localization keys — sourced from ValidationConstants
+    private static final String LOC_INVALID_DATE = ValidationConstants.LOC_ATTENDANCE_INVALID_DATE;
+    private static final String LOC_DATE_OUT_OF_RANGE = ValidationConstants.LOC_ATTENDANCE_DATE_OUT_OF_RANGE;
+    private static final String LOC_DEENROLL_WITHOUT_ENROLL = ValidationConstants.LOC_ATTENDANCE_DEENROLL_WITHOUT_ENROLL;
+    private static final String LOC_DEENROLL_BEFORE_ENROLL = ValidationConstants.LOC_ATTENDANCE_DEENROLL_BEFORE_ENROLL;
+    private static final String LOC_REGISTER_ID_EMPTY = ValidationConstants.LOC_ATTENDANCE_REGISTER_ID_EMPTY;
+    private static final String LOC_REGISTER_ID_MISMATCH = ValidationConstants.LOC_ATTENDANCE_REGISTER_ID_MISMATCH;
+    private static final String LOC_REGISTER_WRONG_CAMPAIGN = ValidationConstants.LOC_ATTENDANCE_REGISTER_WRONG_CAMPAIGN;
 
-    // Default error messages (used when localization not available)
-    private static final String DEFAULT_INVALID_DATE = "Invalid date format. Use dd-MM-yyyy or dd/MM/yyyy";
-    private static final String DEFAULT_DATE_OUT_OF_RANGE = "Date must be between register start and end dates";
-    private static final String DEFAULT_DEENROLL_WITHOUT_ENROLL = "De-enrollment date requires enrollment date";
-    private static final String DEFAULT_DEENROLL_BEFORE_ENROLL = "De-enrollment date cannot be before enrollment date";
-    private static final String DEFAULT_REGISTER_ID_EMPTY = "Register ID is required";
-    private static final String DEFAULT_REGISTER_ID_MISMATCH = "Register ID does not match expected register";
+    // Default error messages — sourced from ValidationConstants
+    private static final String DEFAULT_INVALID_DATE = ValidationConstants.DEFAULT_ATTENDANCE_INVALID_DATE;
+    private static final String DEFAULT_DATE_OUT_OF_RANGE = ValidationConstants.DEFAULT_ATTENDANCE_DATE_OUT_OF_RANGE;
+    private static final String DEFAULT_DEENROLL_WITHOUT_ENROLL = ValidationConstants.DEFAULT_ATTENDANCE_DEENROLL_WITHOUT_ENROLL;
+    private static final String DEFAULT_DEENROLL_BEFORE_ENROLL = ValidationConstants.DEFAULT_ATTENDANCE_DEENROLL_BEFORE_ENROLL;
+    private static final String DEFAULT_REGISTER_ID_EMPTY = ValidationConstants.DEFAULT_ATTENDANCE_REGISTER_ID_EMPTY;
+    private static final String DEFAULT_REGISTER_ID_MISMATCH = ValidationConstants.DEFAULT_ATTENDANCE_REGISTER_ID_MISMATCH;
+    private static final String DEFAULT_REGISTER_WRONG_CAMPAIGN = ValidationConstants.DEFAULT_ATTENDANCE_REGISTER_WRONG_CAMPAIGN;
 
     private final ValidationService validationService;
     private final EnrichmentUtil enrichmentUtil;
@@ -113,6 +116,20 @@ public class AttendanceRegisterAttendeeValidationProcessor implements IWorkbookP
             // Fetch attendance register to get start/end dates
             RegisterDateRange dateRange = fetchRegisterDateRange(expectedRegisterId,
                     resource.getTenantId(), requestInfo);
+
+            // Validate campaign ownership — register must belong to the current campaign
+            String expectedCampaignId = extractCampaignId(resource);
+            if (dateRange != null && !expectedCampaignId.isEmpty()
+                    && !dateRange.campaignId.isEmpty()
+                    && !dateRange.campaignId.equals(expectedCampaignId)) {
+                List<ValidationError> campaignErrors = buildCampaignMismatchErrors(sheetData, localizationMap);
+                if (!campaignErrors.isEmpty()) {
+                    ValidationColumnInfo columnInfo = checkAndAddErrorColumns(sheet, localizationMap);
+                    processValidationErrors(sheet, campaignErrors, columnInfo);
+                }
+                enrichmentUtil.enrichErrorAndStatusInAdditionalDetails(resource, campaignErrors);
+                return workbook;
+            }
 
             // Single-pass O(n) validation
             List<ValidationError> errors = new ArrayList<>();
@@ -276,7 +293,7 @@ public class AttendanceRegisterAttendeeValidationProcessor implements IWorkbookP
      * otherwise fall back to additionalDetails.registerId for backward compatibility.
      */
     private String extractRegisterId(ProcessResource resource) {
-        if ("attendanceRegister".equals(resource.getReferenceType())) {
+        if (ProcessingConstants.REFERENCE_TYPE_ATTENDANCE_REGISTER.equals(resource.getReferenceType())) {
             String registerId = resource.getReferenceId();
             if (registerId != null && !registerId.isBlank()) {
                 return registerId.trim();
@@ -285,8 +302,8 @@ public class AttendanceRegisterAttendeeValidationProcessor implements IWorkbookP
 
         // Fallback to additionalDetails.registerId
         Map<String, Object> additionalDetails = resource.getAdditionalDetails();
-        if (additionalDetails != null && additionalDetails.get("registerId") != null) {
-            return String.valueOf(additionalDetails.get("registerId")).trim();
+        if (additionalDetails != null && additionalDetails.get(ProcessingConstants.ADDITIONAL_DETAILS_REGISTER_ID) != null) {
+            return String.valueOf(additionalDetails.get(ProcessingConstants.ADDITIONAL_DETAILS_REGISTER_ID)).trim();
         }
         return "";
     }
@@ -312,14 +329,14 @@ public class AttendanceRegisterAttendeeValidationProcessor implements IWorkbookP
             @SuppressWarnings("unchecked")
             Map<String, Object> response = (Map<String, Object>) serviceRequestRepository.fetchResult(url, payload);
 
-            if (response == null || response.get("attendanceRegister") == null) {
+            if (response == null || response.get(ProcessingConstants.ATTENDANCE_REGISTER_RESPONSE_KEY) == null) {
                 log.warn("Attendance register not found: {}", registerId);
                 return null;
             }
 
             @SuppressWarnings("unchecked")
             List<Map<String, Object>> registers =
-                    (List<Map<String, Object>>) response.get("attendanceRegister");
+                    (List<Map<String, Object>>) response.get(ProcessingConstants.ATTENDANCE_REGISTER_RESPONSE_KEY);
 
             if (registers.isEmpty()) {
                 log.warn("Attendance register not found: {}", registerId);
@@ -338,13 +355,17 @@ public class AttendanceRegisterAttendeeValidationProcessor implements IWorkbookP
             long startEpoch = ((Number) startDateObj).longValue();
             long endEpoch = ((Number) endDateObj).longValue();
 
-            String serviceCode = register.get("serviceCode") != null
-                    ? String.valueOf(register.get("serviceCode")).trim() : "";
+            String serviceCode = register.get(ProcessingConstants.ATTENDANCE_REGISTER_SERVICE_CODE_KEY) != null
+                    ? String.valueOf(register.get(ProcessingConstants.ATTENDANCE_REGISTER_SERVICE_CODE_KEY)).trim() : "";
+
+            String campaignId = register.get(ProcessingConstants.ATTENDANCE_REGISTER_CAMPAIGN_ID_KEY) != null
+                    ? String.valueOf(register.get(ProcessingConstants.ATTENDANCE_REGISTER_CAMPAIGN_ID_KEY)).trim() : "";
 
             RegisterDateRange range = new RegisterDateRange(
                     epochMillisToLocalDate(startEpoch),
                     epochMillisToLocalDate(endEpoch),
-                    serviceCode);
+                    serviceCode,
+                    campaignId);
 
             log.info("Register {} date range: {} to {}, serviceCode: {}", registerId, range.startDate, range.endDate, range.serviceCode);
             return range;
@@ -417,17 +438,59 @@ public class AttendanceRegisterAttendeeValidationProcessor implements IWorkbookP
     }
 
     /**
+     * Extract campaignId from the resource.
+     * - referenceType "campaign": campaignId is the referenceId itself.
+     * - referenceType "attendanceRegister": campaignId is in additionalDetails.
+     */
+    private String extractCampaignId(ProcessResource resource) {
+        if (ProcessingConstants.REFERENCE_TYPE_CAMPAIGN.equals(resource.getReferenceType())) {
+            String referenceId = resource.getReferenceId();
+            return (referenceId != null && !referenceId.isBlank()) ? referenceId.trim() : "";
+        }
+        Map<String, Object> additionalDetails = resource.getAdditionalDetails();
+        if (additionalDetails != null && additionalDetails.get(ProcessingConstants.ADDITIONAL_DETAILS_CAMPAIGN_ID) != null) {
+            return String.valueOf(additionalDetails.get(ProcessingConstants.ADDITIONAL_DETAILS_CAMPAIGN_ID)).trim();
+        }
+        return "";
+    }
+
+    /**
+     * Build validation errors for all non-empty data rows when register belongs to a different campaign.
+     */
+    private List<ValidationError> buildCampaignMismatchErrors(List<Map<String, Object>> sheetData,
+                                                               Map<String, String> localizationMap) {
+        String errorMsg = getLocalizedMessage(localizationMap, LOC_REGISTER_WRONG_CAMPAIGN, DEFAULT_REGISTER_WRONG_CAMPAIGN);
+        List<ValidationError> errors = new ArrayList<>();
+        int rowNumber = 2;
+        for (Map<String, Object> row : sheetData) {
+            String registerId = getVal(row, COL_REGISTER_ID);
+            String userName = getVal(row, COL_USERNAME);
+            if (!userName.isEmpty() || !registerId.isEmpty()) {
+                errors.add(ValidationError.builder()
+                        .rowNumber(rowNumber)
+                        .errorDetails(errorMsg)
+                        .status(ValidationConstants.STATUS_INVALID)
+                        .build());
+            }
+            rowNumber++;
+        }
+        return errors;
+    }
+
+    /**
      * Simple record to hold register start/end dates and service code
      */
     private static class RegisterDateRange {
         final LocalDate startDate;
         final LocalDate endDate;
         final String serviceCode;
+        final String campaignId;
 
-        RegisterDateRange(LocalDate startDate, LocalDate endDate, String serviceCode) {
+        RegisterDateRange(LocalDate startDate, LocalDate endDate, String serviceCode, String campaignId) {
             this.startDate = startDate;
             this.endDate = endDate;
             this.serviceCode = serviceCode;
+            this.campaignId = campaignId;
         }
     }
 }

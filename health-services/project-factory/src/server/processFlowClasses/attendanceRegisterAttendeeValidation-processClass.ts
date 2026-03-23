@@ -57,6 +57,14 @@ export class TemplateClass {
         if (registerId) {
             const register = await this.fetchRegister(registerId, tenantId, resourceDetails?.requestInfo);
             if (register) {
+                // Validate that register belongs to the current campaign
+                const campaignId = resourceDetails?.campaignId;
+                if (campaignId && register.campaignId && register.campaignId !== campaignId) {
+                    for (const { row } of allRows) {
+                        this.addError(row, "HCM_ATTENDANCE_ATTENDEE_REGISTER_BELONGS_TO_DIFFERENT_CAMPAIGN", localizationMap);
+                    }
+                    return this.buildSheetMap(SHEET_NAMES, wholeSheetData, localizationMap);
+                }
                 registerStartDate = register.startDate ?? null;
                 registerEndDate = register.endDate ?? null;
             } else {
