@@ -1,0 +1,41 @@
+serviceMaps:
+  serviceName: egov-notification-push
+  mappings:
+
+    - version: 1.0
+      description: Save/override device token
+      fromTopic: save-push-device-token
+      isTransaction: true
+      queryMaps:
+        # HRUTHVIK: Added facilityid column to INSERT and ON CONFLICT UPDATE
+        - query: >-
+            INSERT INTO eg_push_device_tokens
+            (id, userid, devicetoken, devicetype, tenantid, facilityid, createdby, createdtime, lastmodifiedby, lastmodifiedtime)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT (devicetoken) DO UPDATE SET
+            userid = EXCLUDED.userid, devicetype = EXCLUDED.devicetype, tenantid = EXCLUDED.tenantid,
+            facilityid = EXCLUDED.facilityid,
+            lastmodifiedby = EXCLUDED.lastmodifiedby, lastmodifiedtime = EXCLUDED.lastmodifiedtime
+          basePath: $.deviceTokens.*
+          jsonMaps:
+            - jsonPath: $.deviceTokens.*.id
+            - jsonPath: $.deviceTokens.*.userId
+            - jsonPath: $.deviceTokens.*.deviceToken
+            - jsonPath: $.deviceTokens.*.deviceType
+            - jsonPath: $.deviceTokens.*.tenantId
+            - jsonPath: $.deviceTokens.*.facilityId
+            - jsonPath: $.deviceTokens.*.auditDetails.createdBy
+            - jsonPath: $.deviceTokens.*.auditDetails.createdTime
+            - jsonPath: $.deviceTokens.*.auditDetails.lastModifiedBy
+            - jsonPath: $.deviceTokens.*.auditDetails.lastModifiedTime
+
+    - version: 1.0
+      description: Delete device token
+      fromTopic: delete-push-device-token
+      isTransaction: true
+      queryMaps:
+        - query: DELETE FROM eg_push_device_tokens WHERE userid = ? AND devicetoken = ?
+          basePath: $.deviceTokens.*
+          jsonMaps:
+            - jsonPath: $.deviceTokens.*.userId
+            - jsonPath: $.deviceTokens.*.deviceToken
