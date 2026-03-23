@@ -172,10 +172,17 @@ public class AttendanceRegisterAttendeeValidationProcessor implements IWorkbookP
             if (registerId.isEmpty()) {
                 rowErrors.add(getLocalizedMessage(localizationMap, LOC_REGISTER_ID_EMPTY,
                         DEFAULT_REGISTER_ID_EMPTY));
-            } else if (!registerId.equals(expectedRegisterId)) {
-                // 2. Register ID must match expected
-                rowErrors.add(getLocalizedMessage(localizationMap, LOC_REGISTER_ID_MISMATCH,
-                        DEFAULT_REGISTER_ID_MISMATCH));
+            } else {
+                // 2. Register ID must match expected UUID or service code
+                // Template writes serviceCode; UUID is the fallback for backward compatibility
+                String expectedServiceCode = (dateRange != null && !dateRange.serviceCode.isEmpty())
+                        ? dateRange.serviceCode : null;
+                boolean matchesUuid = registerId.equals(expectedRegisterId);
+                boolean matchesServiceCode = expectedServiceCode != null && registerId.equals(expectedServiceCode);
+                if (!matchesUuid && !matchesServiceCode) {
+                    rowErrors.add(getLocalizedMessage(localizationMap, LOC_REGISTER_ID_MISMATCH,
+                            DEFAULT_REGISTER_ID_MISMATCH));
+                }
             }
 
             // 3. Validate enrollment date
@@ -331,11 +338,15 @@ public class AttendanceRegisterAttendeeValidationProcessor implements IWorkbookP
             long startEpoch = ((Number) startDateObj).longValue();
             long endEpoch = ((Number) endDateObj).longValue();
 
+            String serviceCode = register.get("serviceCode") != null
+                    ? String.valueOf(register.get("serviceCode")).trim() : "";
+
             RegisterDateRange range = new RegisterDateRange(
                     epochMillisToLocalDate(startEpoch),
-                    epochMillisToLocalDate(endEpoch));
+                    epochMillisToLocalDate(endEpoch),
+                    serviceCode);
 
-            log.info("Register {} date range: {} to {}", registerId, range.startDate, range.endDate);
+            log.info("Register {} date range: {} to {}, serviceCode: {}", registerId, range.startDate, range.endDate, range.serviceCode);
             return range;
 
         } catch (Exception e) {
@@ -406,15 +417,17 @@ public class AttendanceRegisterAttendeeValidationProcessor implements IWorkbookP
     }
 
     /**
-     * Simple record to hold register start/end dates
+     * Simple record to hold register start/end dates and service code
      */
     private static class RegisterDateRange {
         final LocalDate startDate;
         final LocalDate endDate;
+        final String serviceCode;
 
-        RegisterDateRange(LocalDate startDate, LocalDate endDate) {
+        RegisterDateRange(LocalDate startDate, LocalDate endDate, String serviceCode) {
             this.startDate = startDate;
             this.endDate = endDate;
+            this.serviceCode = serviceCode;
         }
     }
 }
