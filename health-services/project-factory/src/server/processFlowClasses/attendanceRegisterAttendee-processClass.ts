@@ -74,18 +74,18 @@ export class TemplateClass {
             }
         });
 
-        // Collect unique registerIds
-        const registerIds = new Set<string>();
+        // Collect unique register service codes
+        const registerServiceCodes = new Set<string>();
         for (const name of SHEET_NAMES) {
             for (const row of sheetRows.get(name) || []) {
                 if (row["#status#"] === sheetDataRowStatuses.INVALID) continue;
                 const rid = this.getCellAsString(row["HCM_ATTENDANCE_REGISTER_ID"]);
-                if (rid) registerIds.add(rid);
+                if (rid) registerServiceCodes.add(rid);
             }
         }
 
         // Fetch registers with existing attendees/staff
-        const registerDataMap = await this.fetchRegistersWithEnrollments(Array.from(registerIds), tenantId, requestInfo);
+        const registerDataMap = await this.fetchRegistersWithEnrollments(Array.from(registerServiceCodes), tenantId, requestInfo);
 
         // Per-row idempotency decision — collect operations with their row references
         // Row statuses are set AFTER API calls succeed to keep them accurate
@@ -348,28 +348,42 @@ export class TemplateClass {
      * Fetch attendance registers and build attendeesMap and staffMap for each.
      */
     private static async fetchRegistersWithEnrollments(
-        registerIds: string[],
+        registerServiceCodes: string[],
         tenantId: string,
         requestInfo: RequestInfo
     ): Promise<Map<string, { register: any; attendeesMap: Map<string, any>; staffMap: Map<string, any> }>> {
         const result = new Map<string, { register: any; attendeesMap: Map<string, any>; staffMap: Map<string, any> }>();
-        if (!registerIds.length) return result;
+        if (!registerServiceCodes.length) return result;
 
-        // ids is an array param per API spec — do not join to comma string
+        // serviceCode param accepts one value at a time — search in parallel batches
         const url = config.host.attendanceHost + config.paths.attendanceRegisterSearch;
         const RequestInfo = requestInfo;
-        const response = await httpRequest(url, { RequestInfo }, { tenantId, ids: registerIds });
-        for (const register of response?.attendanceRegister || []) {
-            const attendeesMap = new Map<string, any>();
-            for (const attendee of register.attendees || []) {
-                if (attendee.individualId) attendeesMap.set(attendee.individualId, attendee);
+        const parallelLimit = config.attendanceRegister.serviceCodeParallelSearchLimit;
+
+        for (let i = 0; i < registerServiceCodes.length; i += parallelLimit) {
+            const window = registerServiceCodes.slice(i, i + parallelLimit);
+            const responses = await Promise.all(
+                window.map(code =>
+                    httpRequest(url, { RequestInfo }, { tenantId, serviceCode: code }).catch(err => {
+                        logger.warn(`Error fetching register for serviceCode ${code}: ${err?.message}`);
+                        return null;
+                    })
+                )
+            );
+            for (const response of responses) {
+                for (const register of response?.attendanceRegister || []) {
+                    const attendeesMap = new Map<string, any>();
+                    for (const attendee of register.attendees || []) {
+                        if (attendee.individualId) attendeesMap.set(attendee.individualId, attendee);
+                    }
+                    const staffMap = new Map<string, any>();
+                    for (const staff of register.staff || []) {
+                        const type = staff.staffType || "OWNER";
+                        if (staff.userId) staffMap.set(`${staff.userId}_${type}`, staff);
+                    }
+                    result.set(register.serviceCode, { register, attendeesMap, staffMap });
+                }
             }
-            const staffMap = new Map<string, any>();
-            for (const staff of register.staff || []) {
-                const type = staff.staffType || "OWNER";
-                if (staff.userId) staffMap.set(`${staff.userId}_${type}`, staff);
-            }
-            result.set(register.id, { register, attendeesMap, staffMap });
         }
         return result;
     }

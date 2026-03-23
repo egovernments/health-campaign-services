@@ -135,7 +135,7 @@ public class AttendanceRegisterAttendeeSheetGenerator implements IExcelPopulator
 
         // 8. Decrypt credentials and build data rows
         List<Map<String, Object>> dataRows = buildDataRows(
-                filteredUsers, registerId, localizationMap, requestInfo,
+                filteredUsers, registerDetails.serviceCode, localizationMap, requestInfo,
                 WORKER_SHEET.equals(sheetName));
 
         return SheetGenerationResult.builder()
@@ -254,8 +254,10 @@ public class AttendanceRegisterAttendeeSheetGenerator implements IExcelPopulator
                     new RuntimeException("campaignId missing on attendance register: " + registerId));
         }
 
-        log.info("Attendance register {} has localityCode: {}, campaignId: {}", registerId, localityCode, campaignId);
-        return new RegisterDetails(localityCode, campaignId);
+        String serviceCode = register.get("serviceCode") != null ? String.valueOf(register.get("serviceCode")).trim() : "";
+
+        log.info("Attendance register {} has localityCode: {}, campaignId: {}, serviceCode: {}", registerId, localityCode, campaignId, serviceCode);
+        return new RegisterDetails(localityCode, campaignId, serviceCode);
     }
 
     /**
@@ -284,15 +286,17 @@ public class AttendanceRegisterAttendeeSheetGenerator implements IExcelPopulator
     }
 
     /**
-     * Holds localityCode and campaignId extracted from an attendance register
+     * Holds localityCode, campaignId, and serviceCode extracted from an attendance register
      */
     private static class RegisterDetails {
         final String localityCode;
         final String campaignId;
+        final String serviceCode;
 
-        RegisterDetails(String localityCode, String campaignId) {
+        RegisterDetails(String localityCode, String campaignId, String serviceCode) {
             this.localityCode = localityCode;
             this.campaignId = campaignId;
+            this.serviceCode = serviceCode;
         }
     }
 
@@ -494,7 +498,7 @@ public class AttendanceRegisterAttendeeSheetGenerator implements IExcelPopulator
      * Build data rows from filtered users with decrypted credentials
      */
     private List<Map<String, Object>> buildDataRows(
-            List<Map<String, Object>> filteredUsers, String registerId,
+            List<Map<String, Object>> filteredUsers, String registerServiceCode,
             Map<String, String> localizationMap, RequestInfo requestInfo,
             boolean includeTeamCode) {
 
@@ -543,7 +547,7 @@ public class AttendanceRegisterAttendeeSheetGenerator implements IExcelPopulator
                     getStringValueOrLocalized(rawData, "HCM_ADMIN_CONSOLE_BOUNDARY_NAME",
                             boundaryCode, localizationMap));
             row.put("HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY", boundaryCode);
-            row.put("HCM_ATTENDANCE_REGISTER_ID", registerId);
+            row.put("HCM_ATTENDANCE_REGISTER_ID", registerServiceCode);
             row.put("HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE", "");
             row.put("HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE", "");
 

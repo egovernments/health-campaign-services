@@ -129,7 +129,7 @@ export class TemplateClass {
             const url = config.host.attendanceHost + config.paths.attendanceRegisterSearch;
             const RequestInfo = requestInfo || {};
             // ids is an array param per API spec
-            const response = await httpRequest(url, { RequestInfo }, { tenantId, ids: [registerId] });
+            const response = await httpRequest(url, { RequestInfo }, { tenantId, serviceCode: registerId });
             return response?.attendanceRegister?.[0] || null;
         } catch (err: any) {
             logger.warn(`Failed to fetch register ${registerId}: ${err?.message}`);

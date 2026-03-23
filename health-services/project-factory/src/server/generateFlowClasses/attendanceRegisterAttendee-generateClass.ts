@@ -57,6 +57,7 @@ export class TemplateClass {
         }
 
         const localityCode: string = register?.localityCode || "";
+        const registerServiceCode: string = register?.serviceCode || "";
         const hierarchyType: string = campaign?.hierarchyType || "";
 
         if (!localityCode) {
@@ -106,7 +107,7 @@ export class TemplateClass {
                 : sheet === MARKER_SHEET ? markerCodes : approverCodes;
             if (!allowedCodes.has(boundaryCode)) continue;
 
-            const row = this.buildRowData(rawData, registerId, localizationMap, sheet === WORKER_SHEET);
+            const row = this.buildRowData(rawData, registerServiceCode, localizationMap, sheet === WORKER_SHEET);
             if (sheet === APPROVER_SHEET) approverRows.push(row);
             else if (sheet === MARKER_SHEET) markerRows.push(row);
             else workerRows.push(row);
@@ -244,7 +245,7 @@ export class TemplateClass {
     /**
      * Build row data object for a user, with prefilled and empty editable columns.
      */
-    private static buildRowData(rawData: any, registerId: string, localizationMap: any, includeTeamCode: boolean): any {
+    private static buildRowData(rawData: any, registerServiceCode: string, localizationMap: any, includeTeamCode: boolean): any {
         const boundaryCode = rawData["HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY"] || rawData["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"] || "";
         // Combine roles into a single comma-separated string for display
         const roleDisplayStr = this.getRoleCodes(rawData).join(", ");
@@ -256,7 +257,7 @@ export class TemplateClass {
             "HCM_ADMIN_CONSOLE_USER_ROLE": roleDisplayStr,
             "HCM_ADMIN_CONSOLE_BOUNDARY_NAME": rawData["HCM_ADMIN_CONSOLE_BOUNDARY_NAME"] || getLocalizedName(boundaryCode, localizationMap),
             "HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY": boundaryCode,
-            "HCM_ATTENDANCE_REGISTER_ID": registerId,
+            "HCM_ATTENDANCE_REGISTER_ID": registerServiceCode,
             "HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE": "",
             "HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE": ""
         };
