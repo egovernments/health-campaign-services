@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
 
 @Controller
-@RequestMapping(value = "/v1/device-token/")
+@RequestMapping(value = "/device-token/v1/")
 public class DeviceTokenController {
 
 	@Autowired

@@ -37,7 +37,6 @@ public class DeviceTokenRepository {
 		}
 	}
 
-	// HRUTHVIK: Fetch device tokens by facilityId for facility-based push notifications
 	public List<DeviceToken> fetchTokensByFacilityId(String facilityId) {
 		if (facilityId == null || facilityId.isEmpty()) {
 			return Collections.emptyList();
