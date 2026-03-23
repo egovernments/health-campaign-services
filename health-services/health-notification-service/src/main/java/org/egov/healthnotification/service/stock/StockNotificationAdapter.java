@@ -208,6 +208,7 @@ public class StockNotificationAdapter {
 
     private Map<String, String> buildNavigationData(String eventType, Stock stock) {
         Map<String, String> data = new HashMap<>();
+        data.put("notificationType", Constants.NOTIFICATION_TYPE_STOCK);
         data.put("eventType", eventType);
 
         String mrnNumber = getAdditionalFieldValue(stock, Constants.ADDITIONAL_FIELD_MRN_NUMBER);

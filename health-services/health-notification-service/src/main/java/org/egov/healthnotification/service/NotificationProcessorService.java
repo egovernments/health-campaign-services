@@ -56,19 +56,30 @@ public class NotificationProcessorService {
         String locale = event.getLocale() != null ? event.getLocale() : "en_NG";
 
         // 1. Fetch and build body
-        String bodyTemplate = localizationService.getMessageTemplate(
-                event.getTemplateCode(), locale, tenantId);
-
-        ZoneId zoneId = ZoneId.of(properties.getNotificationTimezone());
-        DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern(Constants.DATE_FORMAT_YYYY_MM_DD);
-        String body = HealthNotificationUtils.replacePlaceholders(bodyTemplate, event.getPlaceholders(), zoneId, dateFormatter);
+        String body;
+        try {
+            String bodyTemplate = localizationService.getMessageTemplate(
+                    event.getTemplateCode(), locale, tenantId);
+            ZoneId zoneId = ZoneId.of(properties.getNotificationTimezone());
+            DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern(Constants.DATE_FORMAT_YYYY_MM_DD);
+            body = HealthNotificationUtils.replacePlaceholders(bodyTemplate, event.getPlaceholders(), zoneId, dateFormatter);
+        } catch (Exception e) {
+            log.warn("Localization template not found for templateCode={}. Using placeholders as fallback body.", event.getTemplateCode());
+            body = event.getPlaceholders() != null ? event.getPlaceholders().toString() : event.getEventType();
+        }
 
         // 2. Fetch and build title (for push notifications)
         String title = null;
         if (event.getTitleTemplateCode() != null && !event.getTitleTemplateCode().isBlank()) {
-            String titleTemplate = localizationService.getMessageTemplate(
-                    event.getTitleTemplateCode(), locale, tenantId);
-            title = HealthNotificationUtils.replacePlaceholders(titleTemplate, event.getPlaceholders(), zoneId, dateFormatter);
+            try {
+                String titleTemplate = localizationService.getMessageTemplate(
+                        event.getTitleTemplateCode(), locale, tenantId);
+                ZoneId zoneId = ZoneId.of(properties.getNotificationTimezone());
+                DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern(Constants.DATE_FORMAT_YYYY_MM_DD);
+                title = HealthNotificationUtils.replacePlaceholders(titleTemplate, event.getPlaceholders(), zoneId, dateFormatter);
+            } catch (Exception e) {
+                log.warn("Localization title template not found for titleTemplateCode={}. Will use eventType as title.", event.getTitleTemplateCode());
+            }
         }
 
         // 3. Send based on channel

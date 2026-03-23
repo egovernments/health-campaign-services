@@ -157,6 +157,10 @@ public class Constants {
     public static final String ENTITY_TYPE_STOCK = "STOCK";
     public static final String ENTITY_TYPE_HF_REFERRAL = "HF_REFERRAL";
 
+    // ========== Notification Type Constants (for UI routing in data payload) ==========
+    public static final String NOTIFICATION_TYPE_STOCK = "STOCK";
+    public static final String NOTIFICATION_TYPE_REFERRAL = "REFERRAL";
+
     // ========== Stock Event Types (mapped from stockEntryType, aligned with MDMS eventType) ==========
     public static final String EVENT_TYPE_STOCK_ISSUE = "STOCK_ISSUE_PUSH_NOTIFICATION";
     public static final String EVENT_TYPE_STOCK_RECEIPT = "STOCK_RECEIVE_PUSH_NOTIFICATION";
