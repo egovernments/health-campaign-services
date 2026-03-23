@@ -30,7 +30,7 @@ public class PushNotificationListener {
     @Autowired
     private DeviceTokenService deviceTokenService;
 
-    @KafkaListener(topics = "${kafka.topics.notification.push}")
+    @KafkaListener(topicPattern = "(${kafka.tenant.id.pattern}){0,1}${kafka.topics.notification.push}")
     public void processPushNotification(HashMap<String, Object> consumerRecord) {
         try {
             PushNotificationRequest request = objectMapper.convertValue(consumerRecord, PushNotificationRequest.class);

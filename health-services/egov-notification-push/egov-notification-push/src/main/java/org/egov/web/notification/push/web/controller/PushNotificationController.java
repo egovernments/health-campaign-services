@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
 
 @Controller
-@RequestMapping(value = "/v1/push/")
+@RequestMapping(value = "/push/v1/")
 public class PushNotificationController {
 
 	@Autowired

@@ -13,6 +13,9 @@ import lombok.Setter;
 @NoArgsConstructor
 public class PushProperties {
 
+    @Value("${state.level.tenant.id}")
+    private String stateLevelTenantId;
+
     @Value("${fcm.enabled}")
     private Boolean fcmEnabled;
 
