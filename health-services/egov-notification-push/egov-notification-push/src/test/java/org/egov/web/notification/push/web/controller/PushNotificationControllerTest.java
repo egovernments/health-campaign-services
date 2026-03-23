@@ -58,7 +58,7 @@ class PushNotificationControllerTest {
                 }
                 """;
 
-        mockMvc.perform(post("/v1/push/_send")
+        mockMvc.perform(post("/push/v1/_send")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
                 .andExpect(status().isOk())
@@ -86,7 +86,7 @@ class PushNotificationControllerTest {
                 }
                 """;
 
-        mockMvc.perform(post("/v1/push/_send")
+        mockMvc.perform(post("/push/v1/_send")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
                 .andExpect(status().isOk())

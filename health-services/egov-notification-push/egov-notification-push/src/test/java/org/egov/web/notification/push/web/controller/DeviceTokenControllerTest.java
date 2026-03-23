@@ -68,7 +68,7 @@ class DeviceTokenControllerTest {
                 }
                 """;
 
-        mockMvc.perform(post("/v1/device-token/_register")
+        mockMvc.perform(post("/device-token/v1/_register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
                 .andExpect(status().isOk())
@@ -96,7 +96,7 @@ class DeviceTokenControllerTest {
                 }
                 """;
 
-        mockMvc.perform(post("/v1/device-token/_delete")
+        mockMvc.perform(post("/device-token/v1/_delete")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
                 .andExpect(status().isOk());
