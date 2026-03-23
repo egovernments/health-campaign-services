@@ -87,7 +87,6 @@ public class DeviceTokenService {
 		return repository.fetchTokensByUserIds(userIds);
 	}
 
-	// HRUTHVIK: Fetch device tokens by facilityId for facility-based push notifications
 	public List<DeviceToken> getTokensByFacilityId(String facilityId) {
 		return repository.fetchTokensByFacilityId(facilityId);
 	}

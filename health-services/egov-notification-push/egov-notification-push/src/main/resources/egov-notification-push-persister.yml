@@ -34,8 +34,9 @@ serviceMaps:
       fromTopic: delete-push-device-token
       isTransaction: true
       queryMaps:
-        - query: DELETE FROM eg_push_device_tokens WHERE userid = ? AND devicetoken = ?
+        - query: DELETE FROM eg_push_device_tokens WHERE userid = ? AND devicetoken = ? AND tenantid = ?
           basePath: $.deviceTokens.*
           jsonMaps:
             - jsonPath: $.deviceTokens.*.userId
             - jsonPath: $.deviceTokens.*.deviceToken
+            - jsonPath: $.deviceTokens.*.tenantId
