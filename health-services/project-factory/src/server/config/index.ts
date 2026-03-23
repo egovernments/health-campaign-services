@@ -188,6 +188,7 @@ const config = {
     excelIngestionGenerateSearch: process.env.EXCEL_INGESTION_GENERATE_SEARCH || "excel-ingestion/v1/data/generate/_search",
     attendanceRegisterCreate: process.env.ATTENDANCE_REGISTER_CREATE_PATH || "health-attendance/v1/_create",
     attendanceRegisterSearch: process.env.ATTENDANCE_REGISTER_SEARCH_PATH || "health-attendance/v1/_search",
+    attendanceRegisterUpdate: process.env.ATTENDANCE_REGISTER_UPDATE_PATH || "health-attendance/v1/_update",
     attendanceAttendeeCreate: process.env.ATTENDANCE_ATTENDEE_CREATE_PATH || "health-attendance/attendee/v1/_create",
     attendanceAttendeeUpdate: process.env.ATTENDANCE_ATTENDEE_UPDATE_PATH || "health-attendance/attendee/v1/_update",
     attendanceStaffCreate: process.env.ATTENDANCE_STAFF_CREATE_PATH || "health-attendance/staff/v1/_create",

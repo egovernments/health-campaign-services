@@ -90,7 +90,7 @@ export class TemplateClass {
                     status = sheetDataRowStatuses.INVALID;
                     error = "Service code not available";
                 } else if (existingServiceCodes.has(result.serviceCode)) {
-                    status = sheetDataRowStatuses.EXISTING;
+                    status = sheetDataRowStatuses.UPDATED;
                 }
             }
 
@@ -298,7 +298,7 @@ export class TemplateClass {
     }
 
     /**
-     * Idempotent batch creation - check for existing registers, create only new ones
+     * Idempotent batch create/update - check for existing registers, create new ones and update existing same-campaign ones
      * Time Complexity: O(n) where n = number of registers
      */
     private static async idempotentBatchCreate(payloads: any[], campaignId: string, tenantId: string, requestInfo?: RequestInfo): Promise<{ existingServiceCodes: Set<string>; conflictingServiceCodes: Set<string> }> {
@@ -314,8 +314,14 @@ export class TemplateClass {
 
             const existingRegisters = await this.searchExistingRegisters(serviceCodes, tenantId, requestInfo);
 
+            // Build a map from serviceCode -> existing register for O(1) lookup
+            const existingByServiceCode = new Map<string, any>();
+            for (const r of existingRegisters) {
+                existingByServiceCode.set(r.serviceCode, r);
+            }
+
             // Step 2: Classify registers by campaign ownership
-            const existingServiceCodes = new Set<string>();    // same campaign — skip creation
+            const existingServiceCodes = new Set<string>();    // same campaign — update
             const conflictingServiceCodes = new Set<string>(); // different campaign — mark INVALID
 
             for (const r of existingRegisters) {
@@ -326,35 +332,68 @@ export class TemplateClass {
                 }
             }
 
-            logger.info("Found {} same-campaign registers, {} cross-campaign conflicts",
+            logger.info("Found {} same-campaign registers to update, {} cross-campaign conflicts",
                 existingServiceCodes.size, conflictingServiceCodes.size);
 
-            // Step 3: Filter to only truly new registers - O(n)
+            // Step 3: Separate new vs existing same-campaign registers - O(n)
             const newRegisters = payloads.filter(p =>
                 !existingServiceCodes.has(p.serviceCode) && !conflictingServiceCodes.has(p.serviceCode)
             );
-            logger.info("{} new registers to create", newRegisters.length);
+            const registersToUpdate = payloads
+                .filter(p => existingServiceCodes.has(p.serviceCode))
+                .map(p => this.mergeWithExistingRegister(p, existingByServiceCode.get(p.serviceCode)));
 
-            if (newRegisters.length === 0) {
-                logger.info("No new registers to create");
-                return { existingServiceCodes, conflictingServiceCodes };
-            }
+            logger.info("{} new registers to create, {} existing to update", newRegisters.length, registersToUpdate.length);
 
-            // Step 4: Create in batches of 100 - O(n/100) batches
             const BATCH_SIZE = 100;
-            for (let i = 0; i < newRegisters.length; i += BATCH_SIZE) {
-                const batch = newRegisters.slice(i, i + BATCH_SIZE);
-                logger.info("Creating batch of {} registers (batch {})", batch.length, Math.floor(i / BATCH_SIZE) + 1);
 
-                await this.createAttendanceRegisters(batch, tenantId, requestInfo);
+            // Step 4: Create new registers in batches of 100
+            if (newRegisters.length > 0) {
+                for (let i = 0; i < newRegisters.length; i += BATCH_SIZE) {
+                    const batch = newRegisters.slice(i, i + BATCH_SIZE);
+                    logger.info("Creating batch of {} registers (batch {})", batch.length, Math.floor(i / BATCH_SIZE) + 1);
+                    await this.createAttendanceRegisters(batch, tenantId, requestInfo);
+                }
+                logger.info("Successfully created {} new attendance registers", newRegisters.length);
             }
 
-            logger.info("Successfully created {} new attendance registers", newRegisters.length);
+            // Step 5: Update existing same-campaign registers in batches of 100
+            if (registersToUpdate.length > 0) {
+                for (let i = 0; i < registersToUpdate.length; i += BATCH_SIZE) {
+                    const batch = registersToUpdate.slice(i, i + BATCH_SIZE);
+                    logger.info("Updating batch of {} registers (batch {})", batch.length, Math.floor(i / BATCH_SIZE) + 1);
+                    await this.updateAttendanceRegisters(batch, requestInfo);
+                }
+                logger.info("Successfully updated {} existing attendance registers", registersToUpdate.length);
+            }
+
             return { existingServiceCodes, conflictingServiceCodes };
         } catch (error: any) {
-            logger.error("Error during idempotent batch creation: {}", error?.message);
+            logger.error("Error during idempotent batch create/update: {}", error?.message);
             throw error;
         }
+    }
+
+    /**
+     * Merge incoming payload with existing register for update.
+     * Preserves existing register identity fields (id, auditDetails, rowVersion, etc.)
+     * and fully replaces mutable fields (name, startDate, endDate, status, additionalDetails,
+     * localityCode, reviewStatus, periodStatuses, campaignId) from the new payload.
+     */
+    private static mergeWithExistingRegister(payload: any, existingRegister: any): any {
+        return {
+            ...existingRegister,
+            name: payload.name,
+            startDate: payload.startDate,
+            endDate: payload.endDate,
+            referenceId: payload.referenceId,
+            status: payload.status !== undefined ? payload.status : existingRegister.status,
+            additionalDetails: payload.additionalDetails,
+            localityCode: payload.localityCode,
+            reviewStatus: payload.reviewStatus !== undefined ? payload.reviewStatus : existingRegister.reviewStatus,
+            periodStatuses: payload.periodStatuses !== undefined ? payload.periodStatuses : existingRegister.periodStatuses,
+            campaignId: payload.campaignId,
+        };
     }
 
     /**
@@ -417,6 +456,34 @@ export class TemplateClass {
             }
         } catch (error: any) {
             logger.error("Error creating attendance registers: {}", error?.message);
+            throw error;
+        }
+    }
+
+    /**
+     * Update existing attendance registers via Attendance Service API.
+     * Sends full updated payload including all mutable fields.
+     */
+    private static async updateAttendanceRegisters(registers: any[], requestInfo?: RequestInfo): Promise<void> {
+        try {
+            const url = config.host.attendanceHost + config.paths.attendanceRegisterUpdate;
+            const RequestInfo = requestInfo || {};
+            const requestBody = {
+                RequestInfo,
+                attendanceRegister: registers
+            };
+
+            logger.debug("Updating {} registers via Attendance Service", registers.length);
+            const response = await httpRequest(url, requestBody);
+
+            if (response?.ResponseInfo?.status?.toUpperCase() === "SUCCESSFUL") {
+                logger.info("Successfully updated {} attendance registers", registers.length);
+            } else {
+                logger.error("Unexpected response from Attendance Service update: {}", JSON.stringify(response));
+                throw new Error("Failed to update attendance registers");
+            }
+        } catch (error: any) {
+            logger.error("Error updating attendance registers: {}", error?.message);
             throw error;
         }
     }
