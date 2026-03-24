@@ -5,29 +5,36 @@
   "egovService": "project-service",
 
   "apiMapping": {
+    "read": {
+      "endpoint": "/health-project/task/v1/_search",
+      "method": "POST",
+      "requestModel": "TaskSearchRequest",
+      "responseModel": "TaskBulkResponse",
+      "headers": { "Content-Type": "application/json" }
+    },
     "create": {
-      "endpoint": "/project/task/v1/_create",
+      "endpoint": "/health-project/task/v1/_create",
       "method": "POST",
       "requestModel": "TaskRequest",
       "responseModel": "TaskResponse",
       "headers": { "Content-Type": "application/json" }
     },
     "update": {
-      "endpoint": "/project/task/v1/bulk/_update",
+      "endpoint": "/health-project/task/v1/bulk/_update",
       "method": "POST",
       "requestModel": "TaskBulkRequest",
       "responseModel": "TaskBulkResponse",
       "headers": { "Content-Type": "application/json" }
     },
     "search": {
-      "endpoint": "/project/task/v1/_search",
+      "endpoint": "/health-project/task/v1/_search",
       "method": "POST",
       "requestModel": "TaskSearchRequest",
       "responseModel": "TaskBulkResponse",
       "headers": { "Content-Type": "application/json" }
     },
     "delete": {
-      "endpoint": "/project/task/v1/bulk/_delete",
+      "endpoint": "/health-project/task/v1/bulk/_delete",
       "method": "POST",
       "requestModel": "TaskBulkRequest",
       "responseModel": "TaskBulkResponse",
@@ -48,6 +55,8 @@
 
   "fieldMappings": [
     { "fhirField": "id", "egovField": "id" },
+    { "fhirField": "meta.lastUpdated", "egovField": "auditDetails.lastModifiedTime", "transform": "epochToIso" },
+    { "fhirField": "meta.versionId", "egovField": "rowVersion" },
     {
       "fhirField": "status", "egovField": "status",
       "transform": "codeMap",
@@ -116,11 +125,6 @@
       "transform": "epochToIso"
     },
     {
-      "url": "https://digit.org/extensions/rowVersion",
-      "egovField": "rowVersion",
-      "valueType": "integer"
-    },
-    {
       "url": "https://digit.org/extensions/task/createdBy",
       "egovField": "createdBy",
       "valueType": "string"
@@ -168,8 +172,8 @@
   ],
 
   "searchParamMappings": [
-    { "fhirParam": "_id", "egovField": "id" },
-    { "fhirParam": "identifier", "egovField": "id" },
+    { "fhirParam": "_id", "egovField": "id", "isArray": true },
+    { "fhirParam": "identifier", "egovField": "id", "isArray": true },
     { "fhirParam": "status", "egovField": "status",
       "transform": "codeMap",
       "transformConfig": {
@@ -182,8 +186,8 @@
         }
       }
     },
-    { "fhirParam": "patient", "egovField": "projectBeneficiaryId" },
-    { "fhirParam": "based-on", "egovField": "projectId" },
+    { "fhirParam": "patient", "egovField": "projectBeneficiaryId", "isArray": true },
+    { "fhirParam": "based-on", "egovField": "projectId", "isArray": true },
     { "fhirParam": "_tag", "egovField": "tenantId", "transformConfig": { "extractFromSystem": "urn:egov:tenant" } },
     { "fhirParam": "_count", "egovField": "limit" },
     { "fhirParam": "_offset", "egovField": "offset" }

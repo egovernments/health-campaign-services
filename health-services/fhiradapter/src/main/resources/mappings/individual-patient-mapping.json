@@ -79,6 +79,10 @@
       "transform": "epochToIso"
     },
     {
+      "fhirField": "meta.versionId",
+      "egovField": "rowVersion"
+    },
+    {
       "fhirField": "active",
       "egovField": "isDeleted",
       "transform": "negate"
@@ -231,6 +235,7 @@
     {
       "fhirParam": "identifier",
       "egovField": "individualId",
+      "isArray": true,
       "description": "When system not specified, searches individualId. With system, routes to appropriate identifier."
     },
     {

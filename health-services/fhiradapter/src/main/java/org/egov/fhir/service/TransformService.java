@@ -161,8 +161,8 @@ public class TransformService {
             String value = params.get(mapping.getFhirKey());
             if (value != null) {
                 Object transformed = applyTransform(value, mapping, "toEgov");
-                // individualId should be an array in search model - split comma-separated values
-                if ("individualId".equals(mapping.getEgovField())) {
+                // Wrap in array if mapping declares isArray (e.g., id, individualId fields that backend expects as lists)
+                if (Boolean.TRUE.equals(mapping.getIsArray())) {
                     if (transformed instanceof String) {
                         String strValue = (String) transformed;
                         if (strValue.contains(",")) {
@@ -170,7 +170,7 @@ public class TransformService {
                         } else {
                             transformed = List.of(transformed);
                         }
-                    } else {
+                    } else if (!(transformed instanceof List)) {
                         transformed = List.of(transformed);
                     }
                 }
@@ -243,6 +243,18 @@ public class TransformService {
                 if (direction.equals("toFhir") && value instanceof Number) {
                     long epoch = ((Number) value).longValue();
                     yield Instant.ofEpochMilli(epoch).atOffset(ZoneOffset.UTC).format(DateTimeFormatter.ISO_INSTANT);
+                }
+                if (direction.equals("toEgov") && value instanceof String) {
+                    try {
+                        yield Instant.parse((String) value).toEpochMilli();
+                    } catch (Exception e) {
+                        // Try parsing as local date if not full ISO instant
+                        try {
+                            yield LocalDate.parse((String) value).atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli();
+                        } catch (Exception e2) {
+                            yield value;
+                        }
+                    }
                 }
                 yield value;
             }

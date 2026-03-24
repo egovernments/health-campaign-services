@@ -49,6 +49,7 @@
   "fieldMappings": [
     { "fhirField": "id", "egovField": "id" },
     { "fhirField": "meta.lastUpdated", "egovField": "auditDetails.lastModifiedTime", "transform": "epochToIso" },
+    { "fhirField": "meta.versionId", "egovField": "rowVersion" },
     { "fhirField": "active", "egovField": "isDeleted", "transform": "negate" },
     {
       "fhirField": "name[0].use", "egovField": "id",
@@ -142,7 +143,7 @@
 
   "searchParamMappings": [
     { "fhirParam": "_id", "egovField": "id" },
-    { "fhirParam": "identifier", "egovField": "individualId" },
+    { "fhirParam": "identifier", "egovField": "individualId", "isArray": true },
     { "fhirParam": "name", "egovField": "name.givenName" },
     { "fhirParam": "family", "egovField": "name.familyName" },
     { "fhirParam": "given", "egovField": "name.givenName" },

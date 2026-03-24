@@ -5,6 +5,13 @@
   "egovService": "household-service",
 
   "apiMapping": {
+    "read": {
+      "endpoint": "/household/v1/_search",
+      "method": "POST",
+      "requestModel": "HouseholdSearchRequest",
+      "responseModel": "HouseholdBulkResponse",
+      "headers": { "Content-Type": "application/json" }
+    },
     "create": {
       "endpoint": "/household/v1/_create",
       "method": "POST",
@@ -49,6 +56,7 @@
   "fieldMappings": [
     { "fhirField": "id", "egovField": "id" },
     { "fhirField": "meta.lastUpdated", "egovField": "auditDetails.lastModifiedTime", "transform": "epochToIso" },
+    { "fhirField": "meta.versionId", "egovField": "rowVersion" },
     {
       "fhirField": "status", "egovField": "isDeleted",
       "transform": "codeMap",
@@ -97,11 +105,6 @@
       "egovField": "auditDetails.createdTime",
       "valueType": "dateTime",
       "transform": "epochToIso"
-    },
-    {
-      "url": "https://digit.org/extensions/rowVersion",
-      "egovField": "rowVersion",
-      "valueType": "integer"
     },
     {
       "url": "https://digit.org/extensions/household/addressLine1",
@@ -186,8 +189,8 @@
   ],
 
   "searchParamMappings": [
-    { "fhirParam": "_id", "egovField": "id" },
-    { "fhirParam": "identifier", "egovField": "id" },
+    { "fhirParam": "_id", "egovField": "id", "isArray": true },
+    { "fhirParam": "identifier", "egovField": "id", "isArray": true },
     { "fhirParam": "type", "egovField": "id" },
     { "fhirParam": "_tag", "egovField": "tenantId", "transformConfig": { "extractFromSystem": "urn:egov:tenant" } },
     { "fhirParam": "_count", "egovField": "limit" },
