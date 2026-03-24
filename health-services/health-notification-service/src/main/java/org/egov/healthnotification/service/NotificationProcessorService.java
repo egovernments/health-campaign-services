@@ -58,11 +58,7 @@ public class NotificationProcessorService {
         // 1. Fetch and build body
         String body;
         try {
-            String bodyTemplate = localizationService.getMessageTemplate(
-                    event.getTemplateCode(), locale, tenantId);
-            ZoneId zoneId = ZoneId.of(properties.getNotificationTimezone());
-            DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern(Constants.DATE_FORMAT_YYYY_MM_DD);
-            body = HealthNotificationUtils.replacePlaceholders(bodyTemplate, event.getPlaceholders(), zoneId, dateFormatter);
+            body = resolveTemplate(event.getTemplateCode(), locale, tenantId, event.getPlaceholders());
         } catch (Exception e) {
             log.warn("Localization template not found for templateCode={}. Using placeholders as fallback body.", event.getTemplateCode());
             body = event.getPlaceholders() != null ? event.getPlaceholders().toString() : event.getEventType();
@@ -72,11 +68,7 @@ public class NotificationProcessorService {
         String title = null;
         if (event.getTitleTemplateCode() != null && !event.getTitleTemplateCode().isBlank()) {
             try {
-                String titleTemplate = localizationService.getMessageTemplate(
-                        event.getTitleTemplateCode(), locale, tenantId);
-                ZoneId zoneId = ZoneId.of(properties.getNotificationTimezone());
-                DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern(Constants.DATE_FORMAT_YYYY_MM_DD);
-                title = HealthNotificationUtils.replacePlaceholders(titleTemplate, event.getPlaceholders(), zoneId, dateFormatter);
+                title = resolveTemplate(event.getTitleTemplateCode(), locale, tenantId, event.getPlaceholders());
             } catch (Exception e) {
                 log.warn("Localization title template not found for titleTemplateCode={}. Will use eventType as title.", event.getTitleTemplateCode());
             }
@@ -99,6 +91,17 @@ public class NotificationProcessorService {
 
         log.info("Notification processed successfully: eventType={}, entityId={}",
                 event.getEventType(), event.getEntityId());
+    }
+
+    /**
+     * Fetches a localization template and replaces placeholders.
+     */
+    private String resolveTemplate(String templateCode, String locale, String tenantId,
+                                   Map<String, Object> placeholders) {
+        String template = localizationService.getMessageTemplate(templateCode, locale, tenantId);
+        ZoneId zoneId = ZoneId.of(properties.getNotificationTimezone());
+        DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern(Constants.DATE_FORMAT_YYYY_MM_DD);
+        return HealthNotificationUtils.replacePlaceholders(template, placeholders, zoneId, dateFormatter);
     }
 
     /**
