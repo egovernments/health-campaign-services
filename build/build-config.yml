@@ -47,7 +47,7 @@ config:
     build:
       - work-dir: "health-services/fhiradapter"
         image-name: "fhiradapter"
-        dockerfile: "build/maven17/Dockerfile"
+        dockerfile: "build/17/maven/Dockerfile"
   - name: "builds/health-campaign-services/health-services/referralmanagement"
     build:
       - work-dir: "health-services/referralmanagement"
