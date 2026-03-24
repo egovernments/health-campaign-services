@@ -61,6 +61,7 @@ on:
           - project-factory
           - excel-ingestion
           - boundary-management
+          - egov-notification-push
 
 env:
   DOCKER_USERNAME: ${{ vars.DOCKER_USERNAME }}
