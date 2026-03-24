@@ -1,6 +1,7 @@
 package org.egov.household.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.common.models.Error;
@@ -82,7 +83,7 @@ public class IndividualService {
                     individualSearchRequest,
                     IndividualBulkResponse.class);
         } catch (Exception e) {
-            log.error("error while fetching individuals list: {}", e.getMessage());
+            log.error("error while fetching individuals list: {}", ExceptionUtils.getStackTrace(e));
             throw new CustomException(INTERNAL_SERVER_ERROR, "Error while fetching individuals list");
         }
     }

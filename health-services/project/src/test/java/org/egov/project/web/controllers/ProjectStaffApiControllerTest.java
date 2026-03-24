@@ -2,6 +2,7 @@ package org.egov.project.web.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.egov.common.helper.RequestInfoTestBuilder;
+import org.egov.common.models.core.SearchResponse;
 import org.egov.common.models.project.ProjectStaff;
 import org.egov.common.models.project.ProjectStaffBulkResponse;
 import org.egov.common.models.project.ProjectStaffRequest;
@@ -16,8 +17,8 @@ import org.egov.project.service.ProjectFacilityService;
 import org.egov.project.service.ProjectService;
 import org.egov.project.service.ProjectStaffService;
 import org.egov.project.service.ProjectTaskService;
-import org.egov.project.web.models.ProjectStaffSearch;
-import org.egov.project.web.models.ProjectStaffSearchRequest;
+import org.egov.common.models.project.ProjectStaffSearch;
+import org.egov.common.models.project.ProjectStaffSearchRequest;
 import org.egov.tracer.model.ErrorRes;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -168,14 +169,14 @@ class ProjectStaffApiControllerTest {
     void shouldAcceptSearchRequestAndReturnProjectStaff() throws Exception {
 
         ProjectStaffSearchRequest projectStaffSearchRequest = ProjectStaffSearchRequest.builder().projectStaff(
-                ProjectStaffSearch.builder().projectId("12").build()
+                ProjectStaffSearch.builder().projectId(Arrays.asList("12","11")).build()
         ).requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build()).build();
         when(projectStaffService.search(any(ProjectStaffSearchRequest.class),
                 any(Integer.class),
                 any(Integer.class),
                 any(String.class),
                 any(Long.class),
-                any(Boolean.class))).thenReturn(Arrays.asList(ProjectStaffTestBuilder.builder().withId().withAuditDetails().build()));
+                any(Boolean.class))).thenReturn(SearchResponse.<ProjectStaff>builder().response(Arrays.asList(ProjectStaffTestBuilder.builder().withId().withAuditDetails().build())).build());
 
         final MvcResult result = mockMvc.perform(post(
                         "/staff/v1/_search?limit=10&offset=100&tenantId=default&lastChangedSince=1234322&includeDeleted=false")

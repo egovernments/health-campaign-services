@@ -2,6 +2,7 @@ package org.egov.product.web.controllers;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.egov.common.helper.RequestInfoTestBuilder;
+import org.egov.common.models.product.ApiOperation;
 import org.egov.common.models.product.ProductVariant;
 import org.egov.common.models.product.ProductVariantRequest;
 import org.egov.common.models.product.ProductVariantResponse;
@@ -17,6 +18,7 @@ import org.egov.tracer.model.ErrorRes;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
@@ -60,7 +62,8 @@ public class ProductVariantApiControllerTest {
                 .withOneProductVariant()
                 .withApiOperationNotUpdate()
                 .build();
-        ProductVariant productVariant = ProductVariantTestBuilder.builder().withId().build();
+        ProductVariant productVariant = ProductVariantTestBuilder.builder()
+                .withId().withVariation().build();
         List<ProductVariant> productVariants = new ArrayList<>();
         productVariants.add(productVariant);
         when(productVariantService.create(any(ProductVariantRequest.class))).thenReturn(productVariants);
@@ -124,7 +127,8 @@ public class ProductVariantApiControllerTest {
                 .withOneProductVariantHavingId()
                 .withApiOperationNotNullAndNotCreate()
                 .build();
-        ProductVariant productVariant = ProductVariantTestBuilder.builder().withId().build();
+        ProductVariant productVariant = ProductVariantTestBuilder.builder()
+                .withId().withVariation().build();
         List<ProductVariant> productVariants = new ArrayList<>();
         productVariants.add(productVariant);
         when(productVariantService.update(any(ProductVariantRequest.class))).thenReturn(productVariants);
@@ -147,17 +151,24 @@ public class ProductVariantApiControllerTest {
     @Test
     @DisplayName("should send error response with error details with 400 bad request for update")
     void shouldSendErrorResWithErrorDetailsWith400BadRequestForUpdate() throws Exception {
+        ProductVariantRequest request = ProductVariantRequestTestBuilder.builder()
+                .withOneProductVariantHavingId()
+                .withBadTenantIdInOneProductVariant()
+                .build();
+        request.setApiOperation(ApiOperation.UPDATE);
+
+        // Mock the service to simulate validation failure
+        when(productVariantService.update(any(ProductVariantRequest.class)))
+                .thenThrow(new CustomException("tenantId", "tenantId is invalid"));
+
         final MvcResult result = mockMvc.perform(post("/variant/v1/_update")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(ProductVariantRequestTestBuilder.builder()
-                                .withOneProductVariantHavingId()
-                                .withBadTenantIdInOneProductVariant()
-                                .build())))
-                .andExpect(status().isBadRequest())
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())  // expect 400
                 .andReturn();
+
         String responseStr = result.getResponse().getContentAsString();
-        ErrorRes response = objectMapper.readValue(responseStr,
-                ErrorRes.class);
+        ErrorRes response = objectMapper.readValue(responseStr, ErrorRes.class);
 
         assertEquals(1, response.getErrors().size());
         assertTrue(response.getErrors().get(0).getCode().contains("tenantId"));
@@ -193,7 +204,7 @@ public class ProductVariantApiControllerTest {
                 any(Integer.class),
                 any(String.class),
                 any(Long.class),
-                any(Boolean.class))).thenReturn(Arrays.asList(ProductVariantTestBuilder.builder().withId().withAuditDetails().build()));
+                any(Boolean.class))).thenReturn(Arrays.asList(ProductVariantTestBuilder.builder().withId().withVariation().withAuditDetails().build()));
 
         final MvcResult result = mockMvc.perform(post("/variant/v1/_search?limit=10&offset=100&tenantId=default&lastChangedSince=1234322&includeDeleted=false")
                         .contentType(MediaType.APPLICATION_JSON)

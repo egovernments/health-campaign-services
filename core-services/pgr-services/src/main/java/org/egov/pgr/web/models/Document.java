@@ -7,7 +7,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.hibernate.validator.constraints.SafeHtml;
+import org.egov.tracer.annotations.CustomSafeHtml;
 import org.springframework.validation.annotation.Validated;
 
 /**
@@ -15,7 +15,7 @@ import org.springframework.validation.annotation.Validated;
  */
 @ApiModel(description = "This object holds list of documents attached during the transaciton for a property")
 @Validated
-@javax.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2020-07-15T11:35:33.568+05:30")
+@jakarta.annotation.Generated(value = "org.egov.codegen.SpringBootCodegen", date = "2020-07-15T11:35:33.568+05:30")
 
 @Getter
 @Setter
@@ -23,19 +23,19 @@ import org.springframework.validation.annotation.Validated;
 @NoArgsConstructor
 @Builder
 public class Document   {
-        @SafeHtml
+        @CustomSafeHtml
         @JsonProperty("id")
         private String id = null;
 
-        @SafeHtml
+        @CustomSafeHtml
         @JsonProperty("documentType")
         private String documentType = null;
 
-        @SafeHtml
+        @CustomSafeHtml
         @JsonProperty("fileStoreId")
         private String fileStoreId = null;
 
-        @SafeHtml
+        @CustomSafeHtml
         @JsonProperty("documentUid")
         private String documentUid = null;
 

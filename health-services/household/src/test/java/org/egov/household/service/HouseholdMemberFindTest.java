@@ -1,10 +1,13 @@
 package org.egov.household.service;
 
 import org.egov.common.data.query.exception.QueryBuilderException;
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.helper.RequestInfoTestBuilder;
+import org.egov.common.models.core.SearchResponse;
+import org.egov.common.models.household.HouseholdMember;
 import org.egov.household.repository.HouseholdMemberRepository;
-import org.egov.household.web.models.HouseholdMemberSearch;
-import org.egov.household.web.models.HouseholdMemberSearchRequest;
+import org.egov.common.models.household.HouseholdMemberSearch;
+import org.egov.common.models.household.HouseholdMemberSearchRequest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -35,49 +38,49 @@ class HouseholdMemberFindTest {
 
     @Test
     @DisplayName("should search only by id if only id is present")
-    void shouldOnlySearchByIdIfOnlyIdIsPresent() {
+    void shouldOnlySearchByIdIfOnlyIdIsPresent() throws InvalidTenantIdException {
         HouseholdMemberSearchRequest householdSearchRequest = HouseholdMemberSearchRequest.builder()
                 .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
                 .householdMemberSearch(HouseholdMemberSearch.builder()
                         .id(Collections.singletonList("some-id")).build()).build();
-        when(householdMemberRepository.findById(anyList(), eq("id"), anyBoolean()))
-                .thenReturn(Collections.emptyList());
+        when(householdMemberRepository.findById( anyString(), anyList(), eq("id"), anyBoolean()))
+                .thenReturn(SearchResponse.<HouseholdMember>builder().build());
 
         householdMemberService.search(householdSearchRequest.getHouseholdMemberSearch(), 10, 0, "default",
                 null, false);
 
         verify(householdMemberRepository, times(1))
-                .findById(anyList(), eq("id"), anyBoolean());
+                .findById( anyString(), anyList(), eq("id"), anyBoolean());
     }
 
 
     @Test
     @DisplayName("should not call findById if more search parameters are available")
-    void shouldNotCallFindByIfIfMoreParametersAreAvailable() throws QueryBuilderException {
+    void shouldNotCallFindByIfIfMoreParametersAreAvailable() throws QueryBuilderException, InvalidTenantIdException {
         HouseholdMemberSearchRequest householdMemberSearchRequest = HouseholdMemberSearchRequest.builder()
                 .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
                 .householdMemberSearch(HouseholdMemberSearch.builder()
-                        .id(Collections.singletonList("some-id")).householdId("household-id").build()).build();
+                        .id(Collections.singletonList("some-id")).householdId(Collections.singletonList("household-id")).build()).build();
         when(householdMemberRepository.find(any(HouseholdMemberSearch.class), anyInt(),
-                anyInt(), anyString(), anyLong(), anyBoolean())).thenReturn(Collections.emptyList());
+                anyInt(), anyString(), anyLong(), anyBoolean())).thenReturn(SearchResponse.<HouseholdMember>builder().build());
 
         householdMemberService.search(householdMemberSearchRequest.getHouseholdMemberSearch(), 10, 0,
                 "", 0L, false);
 
         verify(householdMemberRepository, times(0))
-                .findById(anyList(), anyString(), anyBoolean());
+                .findById(anyString() ,anyList(), anyString(), anyBoolean());
     }
 
 
     @Test
     @DisplayName("should call find if more parameters are available")
-    void shouldCallFindIfMoreParametersAreAvailable() throws QueryBuilderException {
+    void shouldCallFindIfMoreParametersAreAvailable() throws QueryBuilderException, InvalidTenantIdException {
         HouseholdMemberSearchRequest householdMemberSearchRequest = HouseholdMemberSearchRequest.builder()
                 .requestInfo(RequestInfoTestBuilder.builder().withCompleteRequestInfo().build())
                 .householdMemberSearch(HouseholdMemberSearch.builder()
-                        .id(Collections.singletonList("some-id")).householdId("household-id").build()).build();
+                        .id(Collections.singletonList("some-id")).householdId(Collections.singletonList("household-id")).build()).build();
         when(householdMemberRepository.find(any(HouseholdMemberSearch.class), anyInt(),
-                anyInt(), anyString(), anyLong(), anyBoolean())).thenReturn(Collections.emptyList());
+                anyInt(), anyString(), anyLong(), anyBoolean())).thenReturn(SearchResponse.<HouseholdMember>builder().build());
 
         householdMemberService.search(householdMemberSearchRequest.getHouseholdMemberSearch(), 10, 0,
                 "default", 0L, false);

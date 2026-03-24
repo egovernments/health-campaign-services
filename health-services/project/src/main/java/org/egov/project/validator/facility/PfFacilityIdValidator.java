@@ -1,6 +1,7 @@
 package org.egov.project.validator.facility;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.http.client.ServiceRequestClient;
 import org.egov.common.models.Error;
@@ -98,7 +99,7 @@ public class PfFacilityIdValidator implements Validator<ProjectFacilityBulkReque
                     FacilityBulkResponse.class);
             return response.getFacilities().stream().map(Facility::getId).collect(Collectors.toList());
         } catch (Exception e) {
-            log.error("error while fetching facility list", e);
+            log.error("error while fetching facility list", ExceptionUtils.getStackTrace(e));
             projectFacilities.forEach(b -> {
                 Error error = getErrorForEntityWithNetworkError();
                 populateErrorDetails(b, error, errorDetailsMap);

@@ -7,6 +7,8 @@ import lombok.NoArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
+
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
@@ -63,6 +65,9 @@ public class IndividualProperties {
     @Value("${kafka.topics.notification.sms}")
     private String smsNotifTopic;
 
+    @Value("${notification.sms.disabled.roles}")
+    private List<String> smsDisabledRoles;
+
     //Localization
     @Value("${egov.localization.host}")
     private String localizationHost;
@@ -75,4 +80,20 @@ public class IndividualProperties {
 
     @Value("${egov.localization.statelevel}")
     private Boolean isLocalizationStateLevel;
+
+    @Value("${egov.boundary.host}")
+    private String boundaryServiceHost;
+
+    @Value("${egov.boundary.search.url}")
+    private String boundarySearchUrl;
+
+    @Value("${individual.beneficiary.id.validation.enabled:false}")
+    private Boolean beneficiaryIdValidationEnabled;
+
+    @Value("${egov.beneficiary.idgen.integration.enabled:false}")
+    private Boolean beneficiaryIdGenIntegrationEnabled;
+
+    @Value("${individual.beneficiary.id.length}")
+    private Integer beneficiaryIdLength;
+
 }

@@ -1,5 +1,6 @@
 package org.egov.product.service;
 
+import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.product.Product;
 import org.egov.common.models.product.ProductRequest;
 import org.egov.common.producer.Producer;
@@ -21,6 +22,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
@@ -46,22 +48,22 @@ class ProductServiceUpdateTest {
 
     @Test
     @DisplayName("should throw exception if product ids are null or empty")
-    void shouldThrowExceptionIfProductIdNotFound() {
+    void shouldThrowExceptionIfProductIdNotFound() throws InvalidTenantIdException {
         Product product = ProductTestBuilder.builder().goodProduct().withId("123").build();
         product.setRowVersion(123);
         ProductRequest productRequest = ProductRequestTestBuilder.builder().add(product).withRequestInfo().build();
-        when(productRepository.findById(any(List.class))).thenReturn(Arrays.asList());
+        when(productRepository.findById(anyString(), any(List.class))).thenReturn(Arrays.asList());
 
         assertThrows(Exception.class, () -> productService.update(productRequest));
     }
 
     @Test
     @DisplayName("should throw exception for row versions mismatch")
-    void shouldThrowExceptionIfRowVersionIsNotSimilar() {
+    void shouldThrowExceptionIfRowVersionIsNotSimilar() throws InvalidTenantIdException {
         Product product = ProductTestBuilder.builder().goodProduct().withId("123").build();
         product.setRowVersion(123);
         ProductRequest productRequest = ProductRequestTestBuilder.builder().add(product).withRequestInfo().build();
-        when(productRepository.findById(any(List.class))).thenReturn(Arrays.asList(ProductTestBuilder.builder().goodProduct().withId("213").build()));
+        when(productRepository.findById(anyString(), any(List.class))).thenReturn(Arrays.asList(ProductTestBuilder.builder().goodProduct().withId("213").build()));
 
         assertThrows(Exception.class, () -> productService.update(productRequest));
     }

@@ -2,6 +2,7 @@ package org.egov.project.consumer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.models.project.Task;
 import org.egov.common.models.project.TaskBulkRequest;
 import org.egov.project.service.ProjectTaskService;
@@ -38,7 +39,7 @@ public class ProjectTaskConsumer {
             TaskBulkRequest request = objectMapper.convertValue(consumerRecord, TaskBulkRequest.class);
             return projectTaskService.create(request, true);
         }  catch (Exception exception) {
-            log.error("error in project task consumer bulk create", exception);
+            log.error("error in project task consumer bulk create", ExceptionUtils.getStackTrace(exception));
             return Collections.emptyList();
         }
     }
@@ -50,7 +51,7 @@ public class ProjectTaskConsumer {
             TaskBulkRequest request = objectMapper.convertValue(consumerRecord, TaskBulkRequest.class);
             return projectTaskService.update(request, true);
         } catch (Exception exception) {
-            log.error("error in project task consumer bulk update", exception);
+            log.error("error in project task consumer bulk update", ExceptionUtils.getStackTrace(exception));
             return Collections.emptyList();
         }
     }
@@ -62,7 +63,7 @@ public class ProjectTaskConsumer {
             TaskBulkRequest request = objectMapper.convertValue(consumerRecord, TaskBulkRequest.class);
             return projectTaskService.delete(request, true);
         } catch (Exception exception) {
-            log.error("error in project task consumer bulk delete", exception);
+            log.error("error in project task consumer bulk delete", ExceptionUtils.getStackTrace(exception));
             return Collections.emptyList();
         }
     }
