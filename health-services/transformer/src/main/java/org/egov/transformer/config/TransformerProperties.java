@@ -62,6 +62,9 @@ public class TransformerProperties {
     @Value("${transformer.producer.stock.reconciliation.index.v1.topic}")
     private String transformerProducerStockReconciliationRegisterIndexV1Topic;
 
+    @Value("${transformer.producer.error.details.index.v1.topic}")
+    private String transformerProducerErrorDetailsIndexV1Topic;
+
     @Value("${egov.project.host}")
     private String projectHost;
 
@@ -218,4 +221,17 @@ public class TransformerProperties {
 
     @Value("${egov.project.factory.search.endpoint}")
     private String projectFactorySearchUrl;
+
+    @Value("${transformer.error.skip.error.messages:}")
+    private String skipErrorMessages;
+
+    @Value("${transformer.error.skip.error.codes:}")
+    private String skipErrorCodes;
+
+    @Value("${transformer.error.skip.url.contains:}")
+    private String skipUrlContains;
+
+    @Value("${state.level.tenantid:}")
+    private String stateLevelTenantId;
+
 }

@@ -1,7 +1,5 @@
 package org.egov.transformer;
 
-import org.apache.kafka.common.protocol.types.Field;
-
 public interface Constants {
     String PROJECT_TYPES = "projectTypes";
     String INDIVIDUAL = "INDIVIDUAL";
@@ -111,6 +109,7 @@ public interface Constants {
     String ADDITIONAL_FIELDS_FIELDS_KEY = "fields";
     String ADDITIONAL_FIELDS_FIELDS_KEY_KEY = "key";
     String ADDITIONAL_FIELDS_FIELDS_VALUE_KEY = "value";
+    String ERROR_STRING = " error";
 
     String PROJECT_TYPE = "projectType";
 
