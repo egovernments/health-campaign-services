@@ -1,12 +1,8 @@
 package org.egov.web.notification.push.web.contract;
 
-import java.util.List;
-
 import jakarta.validation.constraints.NotNull;
 
 import org.springframework.validation.annotation.Validated;
-
-import com.fasterxml.jackson.annotation.JsonInclude;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -24,7 +20,6 @@ import lombok.ToString;
 @Setter
 @ToString
 @Builder
-@JsonInclude(JsonInclude.Include.NON_NULL)
 public class DeviceToken {
 
 	private String id;
@@ -41,14 +36,8 @@ public class DeviceToken {
 	@NotNull
 	private String tenantId;
 
-	// Internal field used by persister (one row per facilityId)
+	// HRUTHVIK: Added facilityId to link device tokens to a facility for facility-based push notifications
 	private String facilityId;
-
-	// API field — accepts/returns multiple facilityIds per device token
-	private List<String> facilityIds;
-
-	// Comma-separated role codes stored in DB (e.g. "WAREHOUSE_MANAGER,DISTRIBUTOR")
-	private String userRoles;
 
 	private AuditDetails auditDetails;
 

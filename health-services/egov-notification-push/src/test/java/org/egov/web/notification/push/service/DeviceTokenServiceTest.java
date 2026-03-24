@@ -60,7 +60,7 @@ class DeviceTokenServiceTest {
         assertEquals("user-uuid-1", result.get(0).getUserId());
         assertNotNull(result.get(0).getAuditDetails());
         assertEquals("user-uuid-1", result.get(0).getAuditDetails().getCreatedBy());
-        verify(producer).push(eq("tenant1"), eq("save-topic"), any());
+        verify(producer).push(eq("save-topic"), any());
     }
 
     @Test
@@ -77,17 +77,34 @@ class DeviceTokenServiceTest {
     }
 
     @Test
-    void getLatestTokenForUsers_delegatesToRepository() {
-        List<String> userIds = List.of("u1", "u2");
-        List<DeviceToken> expected = List.of(
-                DeviceToken.builder().deviceToken("t1").build()
-        );
-        when(repository.fetchLatestTokenByUserIds(userIds, "t1")).thenReturn(expected);
+    void registerDeviceTokens_invalidDeviceType_throwsCustomException() {
+        DeviceToken token = DeviceToken.builder()
+                .deviceToken("valid-token")
+                .deviceType("DESKTOP")
+                .build();
 
-        List<DeviceToken> result = deviceTokenService.getLatestTokenForUsers(userIds, "t1");
+        RequestInfo requestInfo = createRequestInfo("user-1");
 
-        assertEquals(expected, result);
-        verify(repository).fetchLatestTokenByUserIds(userIds, "t1");
+        assertThrows(CustomException.class,
+                () -> deviceTokenService.registerDeviceTokens(requestInfo, List.of(token)));
+    }
+
+    @Test
+    void registerDeviceTokens_validDeviceTypes_accepted() {
+        when(properties.getSaveDeviceTokenTopic()).thenReturn("save-topic");
+        RequestInfo requestInfo = createRequestInfo("user-1");
+
+        for (String type : Arrays.asList("ANDROID", "IOS", "WEB", "android", "ios", "web")) {
+            DeviceToken token = DeviceToken.builder()
+                    .deviceToken("token-" + type)
+                    .deviceType(type)
+                    .tenantId("t1")
+                    .build();
+
+            assertDoesNotThrow(
+                    () -> deviceTokenService.registerDeviceTokens(requestInfo, List.of(token)),
+                    "Device type " + type + " should be accepted");
+        }
     }
 
     @Test
@@ -119,7 +136,7 @@ class DeviceTokenServiceTest {
         RequestInfo requestInfo = createRequestInfo("user-1");
         deviceTokenService.deleteDeviceTokens(requestInfo, List.of(token));
 
-        verify(producer).push(any(), eq("delete-topic"), any());
+        verify(producer).push(eq("delete-topic"), any());
     }
 
     @Test
@@ -154,12 +171,12 @@ class DeviceTokenServiceTest {
         List<DeviceToken> expected = List.of(
                 DeviceToken.builder().deviceToken("t1").build()
         );
-        when(repository.fetchTokensByUserIds(userIds, "t1")).thenReturn(expected);
+        when(repository.fetchTokensByUserIds(userIds)).thenReturn(expected);
 
-        List<DeviceToken> result = deviceTokenService.getActiveTokensForUsers(userIds, "t1");
+        List<DeviceToken> result = deviceTokenService.getActiveTokensForUsers(userIds);
 
         assertEquals(expected, result);
-        verify(repository).fetchTokensByUserIds(userIds, "t1");
+        verify(repository).fetchTokensByUserIds(userIds);
     }
 
     @Test
@@ -167,54 +184,11 @@ class DeviceTokenServiceTest {
         List<DeviceToken> expected = List.of(
                 DeviceToken.builder().deviceToken("ft1").facilityId("fac-1").build()
         );
-        when(repository.fetchTokensByFacilityId("fac-1", "t1")).thenReturn(expected);
+        when(repository.fetchTokensByFacilityId("fac-1")).thenReturn(expected);
 
-        List<DeviceToken> result = deviceTokenService.getTokensByFacilityId("fac-1", "t1");
+        List<DeviceToken> result = deviceTokenService.getTokensByFacilityId("fac-1");
 
         assertEquals(expected, result);
-        verify(repository).fetchTokensByFacilityId("fac-1", "t1");
-    }
-
-    @Test
-    void unregisterDeviceTokens_validRequest_publishesToUnregisterTopic() {
-        when(properties.getUnregisterDeviceTokenTopic()).thenReturn("unregister-topic");
-
-        DeviceToken token = DeviceToken.builder()
-                .deviceToken("tok-to-unregister")
-                .userId("user-1")
-                .tenantId("t1")
-                .build();
-
-        RequestInfo requestInfo = createRequestInfo("user-1");
-        deviceTokenService.unregisterDeviceTokens(requestInfo, List.of(token));
-
-        verify(producer).push(eq("t1"), eq("unregister-topic"), any());
-    }
-
-    @Test
-    void unregisterDeviceTokens_emptyDeviceToken_throwsCustomException() {
-        DeviceToken token = DeviceToken.builder()
-                .deviceToken("")
-                .build();
-
-        RequestInfo requestInfo = createRequestInfo("user-1");
-
-        assertThrows(CustomException.class,
-                () -> deviceTokenService.unregisterDeviceTokens(requestInfo, List.of(token)));
-    }
-
-    @Test
-    void unregisterDeviceTokens_noUserId_setsFromRequestInfo() {
-        when(properties.getUnregisterDeviceTokenTopic()).thenReturn("unregister-topic");
-
-        DeviceToken token = DeviceToken.builder()
-                .deviceToken("tok")
-                .tenantId("t1")
-                .build();
-
-        RequestInfo requestInfo = createRequestInfo("requester-uuid");
-        deviceTokenService.unregisterDeviceTokens(requestInfo, List.of(token));
-
-        assertEquals("requester-uuid", token.getUserId());
+        verify(repository).fetchTokensByFacilityId("fac-1");
     }
 }

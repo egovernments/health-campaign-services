@@ -38,7 +38,6 @@ public class PushNotificationApiRequest {
 
 	private List<String> deviceTokens;
 
-	@NotNull
 	private String tenantId;
 
 }

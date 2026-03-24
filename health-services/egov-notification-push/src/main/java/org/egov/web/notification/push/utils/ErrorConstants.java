@@ -17,6 +17,4 @@ public class ErrorConstants {
 	public static final String PUSH_MISSING_RECIPIENTS_CODE = "PUSH_MISSING_RECIPIENTS";
 	public static final String PUSH_MISSING_RECIPIENTS_MSG = "At least one of userUuids or deviceTokens must be provided.";
 
-	public static final String FCM_ERROR_UNREGISTERED = "UNREGISTERED";
-
 }

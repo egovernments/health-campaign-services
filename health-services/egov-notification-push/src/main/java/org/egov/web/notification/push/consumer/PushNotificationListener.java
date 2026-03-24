@@ -26,6 +26,7 @@ public class PushNotificationListener {
     @Autowired
     private ObjectMapper objectMapper;
 
+    //Added DeviceTokenService to resolve device tokens from facilityId
     @Autowired
     private DeviceTokenService deviceTokenService;
 
@@ -35,27 +36,16 @@ public class PushNotificationListener {
             PushNotificationRequest request = objectMapper.convertValue(consumerRecord, PushNotificationRequest.class);
             log.info("Received push notification request for tenant: {}", request.getTenantId());
 
-            // If facilityId is present and deviceTokens are absent,
-            // resolve device tokens from DB using facilityId and recipientRoles
+            //If facilityId is present and deviceTokens are absent,
+            // resolve device tokens from DB using facilityId
             if ((request.getDeviceTokens() == null || request.getDeviceTokens().isEmpty())
                     && request.getFacilityId() != null && !request.getFacilityId().isEmpty()) {
 
-                String facilityId = request.getFacilityId();
-                String tenantId = request.getTenantId();
-                List<String> roles = request.getRecipientRoles();
-
-                List<DeviceToken> tokens;
-                if (roles != null && !roles.isEmpty()) {
-                    log.info("Resolving device tokens for facilityId: {} with roles: {}", facilityId, roles);
-                    tokens = deviceTokenService.getTokensByFacilityIdAndRoles(facilityId, roles, tenantId);
-                } else {
-                    log.info("No recipientRoles in request. Resolving all tokens for facilityId: {}", facilityId);
-                    tokens = deviceTokenService.getTokensByFacilityId(facilityId, tenantId);
-                }
+                log.info("No deviceTokens in request. Resolving from facilityId: {}", request.getFacilityId());
+                List<DeviceToken> tokens = deviceTokenService.getTokensByFacilityId(request.getFacilityId());
 
                 if (tokens == null || tokens.isEmpty()) {
-                    log.warn("No device tokens found for facilityId: {}, roles: {}. Skipping push notification.",
-                            facilityId, roles);
+                    log.warn("No device tokens found for facilityId: {}. Skipping push notification.", request.getFacilityId());
                     return;
                 }
 
@@ -63,9 +53,9 @@ public class PushNotificationListener {
                         .map(DeviceToken::getDeviceToken)
                         .collect(Collectors.toList());
                 request.setDeviceTokens(resolvedTokens);
-                log.info("Resolved {} device token(s) for facilityId: {}, roles: {}",
-                        resolvedTokens.size(), facilityId, roles);
+                log.info("Resolved {} device token(s) for facilityId: {}", resolvedTokens.size(), request.getFacilityId());
             }
+            //END facility-based token resolution
 
             pushNotificationService.sendPushNotification(request);
         } catch (Exception e) {

@@ -29,10 +29,6 @@ public class PushNotificationRequest {
     //Added facilityId — when present, the listener resolves device tokens from DB by facilityId
     private String facilityId;
 
-    // Recipient roles from MDMS for role-based filtering (e.g. ["WAREHOUSE_MANAGER", "DISTRIBUTOR"]).
-    // When present, tokens matching ANY of these roles are resolved.
-    private List<String> recipientRoles;
-
     private String tenantId;
 
 }
