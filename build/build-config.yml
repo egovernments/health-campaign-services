@@ -324,7 +324,7 @@ config:
     build:
       - work-dir: "health-services/egov-notification-push/egov-notification-push"
         image-name: "egov-notification-push"
-        dockerfile: "build/maven-java17/Dockerfile"
+        dockerfile: "health-services/egov-notification-push/egov-notification-push/build/maven-java17/Dockerfile"
       - work-dir: "health-services/egov-notification-push/egov-notification-push/src/main/resources/db"
         image-name: "egov-notification-push-db"
 # frontend
