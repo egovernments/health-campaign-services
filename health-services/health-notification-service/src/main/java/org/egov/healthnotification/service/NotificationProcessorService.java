@@ -85,7 +85,9 @@ public class NotificationProcessorService {
         // 3. Send based on channel
         if (event.getChannel() == NotificationChannel.PUSH) {
             if (title == null || title.isBlank()) {
-                title = event.getEventType();
+                title = (event.getTitle() != null && !event.getTitle().isBlank())
+                        ? event.getTitle()
+                        : event.getEventType();
             }
             pushNotificationService.sendPushNotification(
                     title, body, event.getRecipientFacilityId(),

@@ -168,6 +168,13 @@ public class Constants {
     public static final String EVENT_TYPE_STOCK_REVERSE_ACCEPT = "STOCK_REVERSE_ACCEPT_PUSH_NOTIFICATION";
     public static final String EVENT_TYPE_STOCK_REVERSE_REJECT = "STOCK_REVERSE_REJECT_PUSH_NOTIFICATION";
 
+    // ========== Stock Push Notification Titles (human-readable) ==========
+    public static final String TITLE_STOCK_ISSUE = "Stock Issued";
+    public static final String TITLE_STOCK_RECEIPT = "Stock Received";
+    public static final String TITLE_STOCK_REVERSE_ISSUE = "Stock Return Initiated";
+    public static final String TITLE_STOCK_REVERSE_ACCEPT = "Stock Return Accepted";
+    public static final String TITLE_STOCK_REVERSE_REJECT = "Stock Return Rejected";
+
     // ========== Stock Placeholder Keys (matching MDMS template variables) ==========
     public static final String PLACEHOLDER_SENDING_FACILITY = "Sending_Facility_Name";
     public static final String PLACEHOLDER_RECEIVING_FACILITY = "Receiving_Facility_Name";

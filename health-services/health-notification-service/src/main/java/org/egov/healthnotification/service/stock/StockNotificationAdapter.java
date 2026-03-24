@@ -96,11 +96,14 @@ public class StockNotificationAdapter {
         // Build navigation data for screen redirect
         Map<String, String> navigationData = buildNavigationData(eventType, stock);
 
+        // Map eventType to a human-readable title for the push notification
+        String title = mapEventTypeToTitle(eventType);
+
         // Determine notification recipient facilityId: the secondaryRole party
         String recipientFacilityId = resolveRecipientFacilityId(stock);
         if (recipientFacilityId != null && !recipientFacilityId.isBlank()) {
             events.add(buildEvent(stock, eventType, tenantId, templateCode,
-                    locale, recipientFacilityId, placeholders, navigationData));
+                    locale, recipientFacilityId, placeholders, navigationData, title));
         }
 
         log.info("Built {} notification event(s) for stock id={}, eventType={}",
@@ -122,6 +125,26 @@ public class StockNotificationAdapter {
      *   RETURN_ACCEPTED  → STOCK_REVERSE_ACCEPT_PUSH_NOTIFICATION
      *   RETURN_REJECTED  → STOCK_REVERSE_REJECT_PUSH_NOTIFICATION
      */
+    /**
+     * Maps eventType to a human-readable push notification title.
+     */
+    String mapEventTypeToTitle(String eventType) {
+        switch (eventType) {
+            case Constants.EVENT_TYPE_STOCK_ISSUE:
+                return Constants.TITLE_STOCK_ISSUE;
+            case Constants.EVENT_TYPE_STOCK_RECEIPT:
+                return Constants.TITLE_STOCK_RECEIPT;
+            case Constants.EVENT_TYPE_STOCK_REVERSE_ISSUE:
+                return Constants.TITLE_STOCK_REVERSE_ISSUE;
+            case Constants.EVENT_TYPE_STOCK_REVERSE_ACCEPT:
+                return Constants.TITLE_STOCK_REVERSE_ACCEPT;
+            case Constants.EVENT_TYPE_STOCK_REVERSE_REJECT:
+                return Constants.TITLE_STOCK_REVERSE_REJECT;
+            default:
+                return eventType;
+        }
+    }
+
     String mapStockEntryTypeToEventType(String stockEntryType) {
         switch (stockEntryType) {
             case Constants.STOCK_ENTRY_TYPE_ISSUED:
@@ -323,13 +346,15 @@ public class StockNotificationAdapter {
     private NotificationEvent buildEvent(Stock stock, String eventType, String tenantId,
                                           String templateCode, String locale,
                                           String recipientFacilityId,
-                                          Map<String, Object> placeholders, Map<String, String> data) {
+                                          Map<String, Object> placeholders, Map<String, String> data,
+                                          String title) {
         return NotificationEvent.builder()
                 .tenantId(tenantId)
                 .eventType(eventType)
                 .entityType(Constants.ENTITY_TYPE_STOCK)
                 .entityId(stock.getId())
                 .templateCode(templateCode)
+                .title(title)
                 .locale(locale)
                 .recipientFacilityId(recipientFacilityId)
                 .placeholders(placeholders)
