@@ -121,11 +121,16 @@ export class TemplateClass {
                 const deEnrollmentDateEpoch = hasDeEnrollmentDate ? this.parseDate(deEnrollmentDateRaw) : null;
 
                 const registerData = registerDataMap.get(registerId);
+                if (!registerData) {
+                    row["#status#"] = sheetDataRowStatuses.INVALID;
+                    row["#errorDetails#"] = getLocalizedName("HCM_ATTENDANCE_ATTENDEE_REGISTER_NOT_FOUND", localizationMap) || "Register not found";
+                    continue;
+                }
 
                 // Always use the UUID from the register record for API calls.
-                // The sheet now stores serviceCode in HCM_ATTENDANCE_REGISTER_ID,
+                // The sheet stores serviceCode in HCM_ATTENDANCE_REGISTER_ID,
                 // but attendance APIs require the internal UUID.
-                const registerUuid: string = registerData?.register?.id || registerId;
+                const registerUuid: string = registerData.register.id;
 
                 if (isWorkerSheet) {
                     const attendeesMap: Map<string, any> = registerData?.attendeesMap || new Map();
@@ -369,25 +374,30 @@ export class TemplateClass {
             const window = registerServiceCodes.slice(i, i + parallelLimit);
             const responses = await Promise.all(
                 window.map(code =>
-                    httpRequest(url, { RequestInfo }, { tenantId, serviceCode: code }).catch(err => {
-                        logger.warn(`Error fetching register for serviceCode ${code}: ${err?.message}`);
-                        return null;
-                    })
+                    httpRequest(url, { RequestInfo }, { tenantId, serviceCode: code })
+                        .then((res: any) => ({ code, res }))
+                        .catch((err: any) => {
+                            logger.warn(`Error fetching register for serviceCode ${code}: ${err?.message}`);
+                            return { code, res: null };
+                        })
                 )
             );
-            for (const response of responses) {
-                for (const register of response?.attendanceRegister || []) {
-                    const attendeesMap = new Map<string, any>();
-                    for (const attendee of register.attendees || []) {
-                        if (attendee.individualId) attendeesMap.set(attendee.individualId, attendee);
-                    }
-                    const staffMap = new Map<string, any>();
-                    for (const staff of register.staff || []) {
-                        const type = staff.staffType || "OWNER";
-                        if (staff.userId) staffMap.set(`${staff.userId}_${type}`, staff);
-                    }
-                    result.set(register.serviceCode, { register, attendeesMap, staffMap });
+            for (const { code, res } of responses) {
+                const register = res?.attendanceRegister?.[0];
+                if (!register) {
+                    logger.warn(`No register found for serviceCode ${code}`);
+                    continue;
                 }
+                const attendeesMap = new Map<string, any>();
+                for (const attendee of register.attendees || []) {
+                    if (attendee.individualId) attendeesMap.set(attendee.individualId, attendee);
+                }
+                const staffMap = new Map<string, any>();
+                for (const staff of register.staff || []) {
+                    const type = staff.staffType || "OWNER";
+                    if (staff.userId) staffMap.set(`${staff.userId}_${type}`, staff);
+                }
+                result.set(code, { register, attendeesMap, staffMap });
             }
         }
         return result;

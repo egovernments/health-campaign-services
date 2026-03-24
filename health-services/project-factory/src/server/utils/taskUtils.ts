@@ -95,6 +95,7 @@ export async function handleTaskForCampaign(messageObject: any) {
                     CampaignDetails?.id,
                     CampaignDetails?.tenantId,
                     resourceType,
+                    resource?.parentResourceId,
                     { status: "completed", processedFileStoreId },
                     messageObject?.requestInfo?.userInfo?.uuid
                 );
@@ -144,6 +145,7 @@ export async function handleTaskForCampaign(messageObject: any) {
                     messageObject?.CampaignDetails?.id,
                     messageObject?.CampaignDetails?.tenantId,
                     failedResourceType,
+                    failedResource?.parentResourceId,
                     { status: "failed" },
                     messageObject?.requestInfo?.userInfo?.uuid
                 );
@@ -175,6 +177,7 @@ async function persistResourceDetailUpdate(
     campaignId: string,
     tenantId: string,
     resourceType: string,
+    parentResourceId: string | null | undefined,
     updates: { status: string; processedFileStoreId?: string },
     userUuid: string
 ): Promise<void> {
@@ -184,12 +187,18 @@ async function persistResourceDetailUpdate(
         // hasn't committed the row yet when the task processor completes.
         let dbRow: any = null;
         for (let attempt = 0; attempt < 3; attempt++) {
-            const rows = await searchResourceDetailsFromDB({
+            const criteria: any = {
                 tenantId,
                 campaignId,
                 type: [resourceType],
                 isActive: true
-            });
+            };
+            // Filter by parentResourceId when present to pick the correct record
+            // for types that allow multiple per parent (e.g. attendanceRegisterAttendee)
+            if (parentResourceId !== undefined) {
+                criteria.parentResourceId = parentResourceId;
+            }
+            const rows = await searchResourceDetailsFromDB(criteria);
             dbRow = rows?.[0];
             if (dbRow) break;
             if (attempt < 2) {
