@@ -84,7 +84,7 @@ export class TemplateClass {
         logger.info("Found {} existing campaign_data rows for attendanceRegister", existingDataMap.size);
 
         // Idempotent batch creation - check for existing, create new only; classifies by campaign ownership
-        const { existingServiceCodes, conflictingServiceCodes, serviceCodeToUuidMap } =
+        const { existingServiceCodes, conflictingServiceCodes, boundaryChangedServiceCodes, serviceCodeToUuidMap } =
             await this.idempotentBatchCreate(validPayloads, campaignId, tenantId, requestInfo);
 
         // Build processed data with per-row status and error details (same as before, used for persistence)
@@ -97,6 +97,11 @@ export class TemplateClass {
                 if (conflictingServiceCodes.has(result.serviceCode)) {
                     status = sheetDataRowStatuses.INVALID;
                     error = "Service code not available";
+                } else if (boundaryChangedServiceCodes.has(result.serviceCode)) {
+                    status = sheetDataRowStatuses.INVALID;
+                    const originalBoundaryCode = boundaryChangedServiceCodes.get(result.serviceCode);
+                    const originalBoundaryName = (originalBoundaryCode && localizationMap[originalBoundaryCode]) || originalBoundaryCode;
+                    error = `Boundary code has changed for this Register ID. Original boundary: '${originalBoundaryName}'. Cannot re-ingest with a different boundary.`;
                 } else if (existingServiceCodes.has(result.serviceCode)) {
                     status = sheetDataRowStatuses.UPDATED;
                 }
@@ -116,6 +121,7 @@ export class TemplateClass {
             processedData,
             existingDataMap,
             conflictingServiceCodes,
+            boundaryChangedServiceCodes,
             serviceCodeToUuidMap,
             campaignNumber,
             tenantId
@@ -176,6 +182,7 @@ export class TemplateClass {
         processedData: any[],
         existingDataMap: Map<string, any>,
         conflictingServiceCodes: Set<string>,
+        boundaryChangedServiceCodes: Map<string, string>,
         serviceCodeToUuidMap: Map<string, string>,
         campaignNumber: string,
         tenantId: string
@@ -193,10 +200,10 @@ export class TemplateClass {
             // and cannot be re-identified on a subsequent upload.
             if (!serviceCode) continue;
 
-            const isConflicting = conflictingServiceCodes.has(serviceCode);
-            const dbStatus = isConflicting ? dataRowStatuses.failed : dataRowStatuses.completed;
-            // Only store the UUID for registers that belong to this campaign (not foreign-campaign conflicts)
-            const uniqueIdAfterProcess = isConflicting ? null : (serviceCodeToUuidMap.get(serviceCode) || null);
+            const isInvalid = conflictingServiceCodes.has(serviceCode) || boundaryChangedServiceCodes.has(serviceCode);
+            const dbStatus = isInvalid ? dataRowStatuses.failed : dataRowStatuses.completed;
+            // Only store the UUID for registers that are valid (not cross-campaign conflicts or boundary-changed)
+            const uniqueIdAfterProcess = isInvalid ? null : (serviceCodeToUuidMap.get(serviceCode) || null);
 
             const payload = {
                 campaignNumber,
@@ -427,6 +434,7 @@ export class TemplateClass {
     ): Promise<{
         existingServiceCodes: Set<string>;
         conflictingServiceCodes: Set<string>;
+        boundaryChangedServiceCodes: Map<string, string>;
         serviceCodeToUuidMap: Map<string, string>;
     }> {
         const serviceCodeToUuidMap = new Map<string, string>();
@@ -436,6 +444,7 @@ export class TemplateClass {
             return {
                 existingServiceCodes: new Set<string>(),
                 conflictingServiceCodes: new Set<string>(),
+                boundaryChangedServiceCodes: new Map<string, string>(),
                 serviceCodeToUuidMap
             };
         }
@@ -457,24 +466,44 @@ export class TemplateClass {
                 }
             }
 
-            // Step 2: Classify registers by campaign ownership
-            const existingServiceCodes = new Set<string>();    // same campaign — update
-            const conflictingServiceCodes = new Set<string>(); // different campaign — mark INVALID
+            // Build a map from serviceCode -> incoming payload localityCode for O(1) lookup
+            const incomingLocalityByServiceCode = new Map<string, string>();
+            for (const p of payloads) {
+                incomingLocalityByServiceCode.set(p.serviceCode, p.localityCode);
+            }
+
+            // Step 2: Classify registers by campaign ownership and boundary match
+            const existingServiceCodes = new Set<string>();                    // same campaign, same boundary — update
+            const conflictingServiceCodes = new Set<string>();                 // different campaign — mark INVALID
+            const boundaryChangedServiceCodes = new Map<string, string>();     // serviceCode -> original boundary code
 
             for (const r of existingRegisters) {
-                if (r.campaignId === campaignId) {
-                    existingServiceCodes.add(r.serviceCode);
-                } else {
+                if (r.campaignId !== campaignId) {
                     conflictingServiceCodes.add(r.serviceCode);
+                } else {
+                    const incomingLocality = incomingLocalityByServiceCode.get(r.serviceCode);
+                    if (incomingLocality && r.localityCode && incomingLocality !== r.localityCode) {
+                        boundaryChangedServiceCodes.set(r.serviceCode, r.localityCode);
+                        logger.warn(
+                            "Boundary changed for register '{}': existing='{}', incoming='{}' — marking INVALID",
+                            r.serviceCode, r.localityCode, incomingLocality
+                        );
+                    } else {
+                        existingServiceCodes.add(r.serviceCode);
+                    }
                 }
             }
 
-            logger.info("Found {} same-campaign registers to update, {} cross-campaign conflicts",
-                existingServiceCodes.size, conflictingServiceCodes.size);
+            logger.info(
+                "Found {} same-campaign registers to update, {} cross-campaign conflicts, {} boundary-changed",
+                existingServiceCodes.size, conflictingServiceCodes.size, boundaryChangedServiceCodes.size
+            );
 
             // Step 3: Separate new vs existing same-campaign registers - O(n)
             const newRegisters = payloads.filter(p =>
-                !existingServiceCodes.has(p.serviceCode) && !conflictingServiceCodes.has(p.serviceCode)
+                !existingServiceCodes.has(p.serviceCode) &&
+                !conflictingServiceCodes.has(p.serviceCode) &&
+                !boundaryChangedServiceCodes.has(p.serviceCode)
             );
             const registersToUpdate = payloads
                 .filter(p => existingServiceCodes.has(p.serviceCode))
@@ -510,7 +539,7 @@ export class TemplateClass {
                 logger.info("Successfully updated {} existing attendance registers", registersToUpdate.length);
             }
 
-            return { existingServiceCodes, conflictingServiceCodes, serviceCodeToUuidMap };
+            return { existingServiceCodes, conflictingServiceCodes, boundaryChangedServiceCodes, serviceCodeToUuidMap };
         } catch (error: any) {
             logger.error("Error during idempotent batch create/update: {}", error?.message);
             throw error;
