@@ -361,7 +361,7 @@ config:
   - name: "builds/health-campaign-services/health-services/health-notification-service"
     build:
       - work-dir: "health-services/health-notification-service"
-        image-name: "health-notification-servicen"
+        image-name: "health-notification-service"
         dockerfile: "build/maven-java17/Dockerfile"
       - work-dir: "health-services/health-notification-service/src/main/resources/db"
         image-name: "health-notification-service-db"
