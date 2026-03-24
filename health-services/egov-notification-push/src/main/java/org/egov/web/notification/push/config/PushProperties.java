@@ -19,8 +19,8 @@ public class PushProperties {
     @Value("${fcm.enabled}")
     private Boolean fcmEnabled;
 
-    @Value("${fcm.service-account-key-path}")
-    private String fcmServiceAccountKeyPath;
+    @Value("${fcm.service-account-key-json}")
+    private String fcmServiceAccountKeyJson;
 
     @Value("${fcm.batch.size}")
     private Integer fcmBatchSize;
