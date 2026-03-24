@@ -169,7 +169,6 @@ public class AttendanceRegisterAttendeeValidationProcessor implements IWorkbookP
 
         log.info("Validating {} attendee rows", sheetData.size());
 
-        int rowNumber = 2; // Excel row 1 is header, data starts at row 2
         for (Map<String, Object> row : sheetData) {
             String registerId = getVal(row, COL_REGISTER_ID);
             String enrollmentStr = getVal(row, COL_ENROLLMENT_DATE);
@@ -179,9 +178,10 @@ public class AttendanceRegisterAttendeeValidationProcessor implements IWorkbookP
             // Skip fully empty rows (no user data and no dates)
             if (userName.isEmpty() && registerId.isEmpty()
                     && enrollmentStr.isEmpty() && deEnrollmentStr.isEmpty()) {
-                rowNumber++;
                 continue;
             }
+
+            int rowNumber = ((Number) row.get("__actualRowNumber__")).intValue();
 
             List<String> rowErrors = new ArrayList<>();
 
@@ -250,8 +250,6 @@ public class AttendanceRegisterAttendeeValidationProcessor implements IWorkbookP
                         .status(ValidationConstants.STATUS_INVALID)
                         .build());
             }
-
-            rowNumber++;
         }
 
         log.info("Attendee validation completed. Total errors: {}", errors.size());
@@ -398,7 +396,7 @@ public class AttendanceRegisterAttendeeValidationProcessor implements IWorkbookP
         }
 
         if (errorColumnIndex != -1 && statusColumnIndex != -1) {
-            return new ValidationColumnInfo(errorColumnIndex, statusColumnIndex);
+            return new ValidationColumnInfo(statusColumnIndex, errorColumnIndex);
         }
 
         return validationService.addValidationColumns(sheet, localizationMap);
@@ -461,18 +459,17 @@ public class AttendanceRegisterAttendeeValidationProcessor implements IWorkbookP
                                                                Map<String, String> localizationMap) {
         String errorMsg = getLocalizedMessage(localizationMap, LOC_REGISTER_WRONG_CAMPAIGN, DEFAULT_REGISTER_WRONG_CAMPAIGN);
         List<ValidationError> errors = new ArrayList<>();
-        int rowNumber = 2;
         for (Map<String, Object> row : sheetData) {
             String registerId = getVal(row, COL_REGISTER_ID);
             String userName = getVal(row, COL_USERNAME);
             if (!userName.isEmpty() || !registerId.isEmpty()) {
+                int rowNumber = ((Number) row.get("__actualRowNumber__")).intValue();
                 errors.add(ValidationError.builder()
                         .rowNumber(rowNumber)
                         .errorDetails(errorMsg)
                         .status(ValidationConstants.STATUS_INVALID)
                         .build());
             }
-            rowNumber++;
         }
         return errors;
     }

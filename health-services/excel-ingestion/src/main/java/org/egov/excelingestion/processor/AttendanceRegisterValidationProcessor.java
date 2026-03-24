@@ -102,8 +102,8 @@ public class AttendanceRegisterValidationProcessor implements IWorkbookProcessor
 
         } catch (Exception e) {
             log.error("Error processing attendance register validation sheet: {}", e.getMessage(), e);
-            exceptionHandler.throwCustomException(ErrorConstants.USER_VALIDATION_FAILED,
-                ErrorConstants.USER_VALIDATION_FAILED_MESSAGE + ": " + e.getMessage(), e);
+            exceptionHandler.throwCustomException(ErrorConstants.ATTENDANCE_REGISTER_VALIDATION_FAILED,
+                ErrorConstants.ATTENDANCE_REGISTER_VALIDATION_FAILED_MESSAGE + ": " + e.getMessage(), e);
             return workbook;
         }
     }
@@ -138,13 +138,13 @@ public class AttendanceRegisterValidationProcessor implements IWorkbookProcessor
         Set<String> seenRegisterIds = new HashSet<>();
 
         // Single pass validation - O(n)
-        int rowNumber = 2; // Excel row numbers start at 1, header is row 1
         for (Map<String, Object> row : sheetData) {
             // Skip fully empty rows (no boundary, no register ID)
             if (!hasAnyDataInRow(row, boundaryColumnNames)) {
-                rowNumber++;
                 continue;
             }
+
+            int rowNumber = ((Number) row.get("__actualRowNumber__")).intValue();
 
             List<String> rowErrors = new ArrayList<>();
 
@@ -191,8 +191,6 @@ public class AttendanceRegisterValidationProcessor implements IWorkbookProcessor
                         .status(ValidationConstants.STATUS_INVALID)
                         .build());
             }
-
-            rowNumber++;
         }
 
         log.info("Validation completed. Total errors: {}", errors.size());
@@ -271,7 +269,7 @@ public class AttendanceRegisterValidationProcessor implements IWorkbookProcessor
         }
 
         if (hasErrorColumn && hasStatusColumn) {
-            return new ValidationColumnInfo(errorColumnIndex, statusColumnIndex);
+            return new ValidationColumnInfo(statusColumnIndex, errorColumnIndex);
         }
 
         return validationService.addValidationColumns(sheet, localizationMap);

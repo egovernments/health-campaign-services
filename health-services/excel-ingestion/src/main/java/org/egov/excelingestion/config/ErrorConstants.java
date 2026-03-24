@@ -199,6 +199,9 @@ public class ErrorConstants {
     public static final String ATTENDANCE_REGISTER_NOT_FOUND = "ATTENDANCE_REGISTER_NOT_FOUND";
     public static final String ATTENDANCE_REGISTER_NOT_FOUND_MESSAGE = "Attendance register not found with ID: {0}";
 
+    public static final String ATTENDANCE_REGISTER_VALIDATION_FAILED = "ATTENDANCE_REGISTER_VALIDATION_FAILED";
+    public static final String ATTENDANCE_REGISTER_VALIDATION_FAILED_MESSAGE = "Attendance register validation failed";
+
     public static final String ATTENDEE_VALIDATION_FAILED = "ATTENDEE_VALIDATION_FAILED";
     public static final String ATTENDEE_VALIDATION_FAILED_MESSAGE = "Attendance register attendee validation failed";
 
