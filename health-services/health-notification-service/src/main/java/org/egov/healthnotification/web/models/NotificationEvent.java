@@ -43,6 +43,9 @@ public class NotificationEvent {
     @JsonProperty("titleTemplateCode")
     private String titleTemplateCode;
 
+    @JsonProperty("title")
+    private String title;
+
     @JsonProperty("locale")
     private String locale;
 
