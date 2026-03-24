@@ -116,16 +116,6 @@ public class StockNotificationAdapter {
     // ═══════════════════════════════════════════════════════
 
     /**
-     * Maps stockEntryType (from additionalFields) to MDMS eventType.
-     *
-     * stockEntryType → MDMS eventType:
-     *   ISSUED          → STOCK_ISSUE_PUSH_NOTIFICATION
-     *   RECEIPT          → STOCK_RECEIVE_PUSH_NOTIFICATION
-     *   RETURNED         → STOCK_REVERSE_ISSUE_PUSH_NOTIFICATION
-     *   RETURN_ACCEPTED  → STOCK_REVERSE_ACCEPT_PUSH_NOTIFICATION
-     *   RETURN_REJECTED  → STOCK_REVERSE_REJECT_PUSH_NOTIFICATION
-     */
-    /**
      * Maps eventType to a human-readable push notification title.
      */
     String mapEventTypeToTitle(String eventType) {
@@ -145,6 +135,16 @@ public class StockNotificationAdapter {
         }
     }
 
+    /**
+     * Maps stockEntryType (from additionalFields) to MDMS eventType.
+     *
+     * stockEntryType → MDMS eventType:
+     *   ISSUED          → STOCK_ISSUE_PUSH_NOTIFICATION
+     *   RECEIPT          → STOCK_RECEIVE_PUSH_NOTIFICATION
+     *   RETURNED         → STOCK_REVERSE_ISSUE_PUSH_NOTIFICATION
+     *   RETURN_ACCEPTED  → STOCK_REVERSE_ACCEPT_PUSH_NOTIFICATION
+     *   RETURN_REJECTED  → STOCK_REVERSE_REJECT_PUSH_NOTIFICATION
+     */
     String mapStockEntryTypeToEventType(String stockEntryType) {
         switch (stockEntryType) {
             case Constants.STOCK_ENTRY_TYPE_ISSUED:
