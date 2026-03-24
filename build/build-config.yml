@@ -320,6 +320,13 @@ config:
         dockerfile: "build/maven-java17/Dockerfile"
       - work-dir: "core-services/beneficiary-idgen/src/main/resources/db"
         image-name: "beneficiary-idgen-db"
+   - name: "builds/health-campaign-services/health-services/egov-notification-push"
+    build:
+      - work-dir: "health-services/egov-notification-push/egov-notification-push"
+        image-name: "egov-notification-push"
+        dockerfile: "build/maven-java17/Dockerfile"
+      - work-dir: "health-services/egov-notification-push/egov-notification-push/src/main/resources/db"
+        image-name: "egov-notification-push-db"
 # frontend
   - name: builds/health-campaign-services/frontend/workbench-ui
     build:
