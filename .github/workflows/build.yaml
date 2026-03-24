@@ -11,6 +11,7 @@ on:
         options:
           - health-services-common
           - health-services-models
+          - fhiradapter
           - product-17
           - product
           - project
