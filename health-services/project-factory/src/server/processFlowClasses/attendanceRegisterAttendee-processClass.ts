@@ -2,10 +2,13 @@ import { RequestInfo } from "../config/models/requestInfoSchema";
 import { getLocalizedName } from "../utils/campaignUtils";
 import { SheetMap } from "../models/SheetMap";
 import { logger } from "../utils/logger";
-import { sheetDataRowStatuses } from "../config/constants";
+import { sheetDataRowStatuses, dataRowStatuses } from "../config/constants";
 import { validateResourceDetailsBeforeProcess } from "../utils/sheetManageUtils";
 import { httpRequest } from "../utils/request";
 import config from "../config";
+import { getRelatedDataWithCampaign, throwError } from "../utils/genericUtils";
+import { produceModifiedMessages } from "../kafka/Producer";
+import { searchProjectTypeCampaignService } from "../service/campaignManageService";
 
 const WORKER_SHEET = "HCM_REGISTER_WORKER_SHEET";
 const MARKER_SHEET = "HCM_REGISTER_MARKER_SHEET";
@@ -17,11 +20,19 @@ const SHEET_NAMES = [WORKER_SHEET, MARKER_SHEET, APPROVER_SHEET];
 const DASH_DATE_REGEX = /^(\d{2})-(\d{2})-(\d{4})$/;
 const SLASH_DATE_REGEX = /^(\d{2})\/(\d{2})\/(\d{4})$/;
 
+/** Maps sheet name constant to a short slug used in uniqueIdentifier and _sheetName */
+function sheetTypeOf(sheetName: string): string {
+    if (sheetName === WORKER_SHEET) return "worker";
+    if (sheetName === MARKER_SHEET) return "marker";
+    return "approver";
+}
 
 /**
  * Process class for Attendance Register Attendee Mapping.
  * Resolves individualIds via HRMS, then creates/updates/deletes attendees and staff
  * with idempotency checks.
+ * After all API calls, persists rows to campaign_data table keyed by
+ * `${registerServiceCode}_${username}_${sheetType}` and re-fetches to build SheetMap.
  */
 export class TemplateClass {
     static async process(
@@ -35,6 +46,10 @@ export class TemplateClass {
 
         const tenantId = resourceDetails?.tenantId;
         const requestInfo = resourceDetails?.requestInfo || {};
+
+        // Fetch campaign details for campaignNumber (not in resourceDetails)
+        const campaign = await this.getCampaignDetails(resourceDetails);
+        const campaignNumber = campaign?.campaignNumber;
 
         // Collect all rows indexed by sheet
         const sheetRows: Map<string, any[]> = new Map();
@@ -74,7 +89,16 @@ export class TemplateClass {
             }
         });
 
-        // Collect unique register service codes
+        // Collect ALL register service codes across all rows (for re-fetch filter — includes INVALID rows)
+        const allUploadRegisterServiceCodes = new Set<string>();
+        for (const name of SHEET_NAMES) {
+            for (const row of sheetRows.get(name) || []) {
+                const rid = this.getCellAsString(row["HCM_ATTENDANCE_REGISTER_ID"]);
+                if (rid) allUploadRegisterServiceCodes.add(rid);
+            }
+        }
+
+        // Collect non-INVALID register service codes for attendance API calls only
         const registerServiceCodes = new Set<string>();
         for (const name of SHEET_NAMES) {
             for (const row of sheetRows.get(name) || []) {
@@ -177,18 +201,147 @@ export class TemplateClass {
             logger.info(`Updated ${staffToUpdate.length} staff`);
         }
 
-        // Build SheetMap with all processed rows
+        // ── Persist rows to campaign_data ──────────────────────────────────────
+        // Fetch existing rows for this campaign (for upsert decision)
+        const existingAttendeeDataMap = await this.buildExistingAttendeeDataMap(campaignNumber, tenantId);
+
+        await this.persistAttendeesToCampaignData(
+            sheetRows,
+            existingAttendeeDataMap,
+            campaignNumber,
+            tenantId
+        );
+
+        // Wait for Kafka persistence (same pattern as user-processClass)
+        const totalRows = SHEET_NAMES.reduce((sum, name) => sum + (sheetRows.get(name)?.length || 0), 0);
+        const waitTime = Math.max(3000, totalRows * 5);
+        logger.info(`Waiting ${waitTime}ms for campaign_data attendee persistence...`);
+        await new Promise(res => setTimeout(res, waitTime));
+
+        // Re-fetch all attendee rows for this campaign, filter by ALL registers in this upload
+        // (uses allUploadRegisterServiceCodes to include rows from INVALID rows too, e.g. HRMS-fail with valid register ID)
+        const allStoredRows = await getRelatedDataWithCampaign("attendanceRegisterAttendee", campaignNumber, tenantId);
+        const filteredRows = allStoredRows.filter(
+            (r: any) => r.data?._registerServiceCode && allUploadRegisterServiceCodes.has(r.data._registerServiceCode)
+        );
+        logger.info("Re-fetched {} rows from campaign_data for {} registers", filteredRows.length, allUploadRegisterServiceCodes.size);
+
+        // Group by _sheetName and build SheetMap — strip internal fields before output
         const sheetMap: SheetMap = {};
         for (const name of SHEET_NAMES) {
-            sheetMap[name] = { data: sheetRows.get(name) || [], dynamicColumns: null };
+            const rowsForSheet = filteredRows
+                .filter((r: any) => r.data._sheetName === name)
+                .map((r: any) => {
+                    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                    const { _registerServiceCode, _sheetName, ...outputRow } = r.data;
+                    return outputRow;
+                });
+            // Fall back to in-memory sheetRows if nothing stored yet (should not happen after persistence+wait)
+            sheetMap[name] = {
+                data: rowsForSheet.length > 0 ? rowsForSheet : (sheetRows.get(name) || []),
+                dynamicColumns: null
+            };
         }
         return sheetMap;
     }
 
     /**
+     * Fetch campaign details to obtain campaignNumber (not present in resourceDetails).
+     */
+    private static async getCampaignDetails(resourceDetails: any): Promise<any> {
+        const response = await searchProjectTypeCampaignService({
+            tenantId: resourceDetails.tenantId,
+            ids: [resourceDetails?.campaignId],
+        });
+        const campaign = response?.CampaignDetails?.[0];
+        if (!campaign) throwError("CAMPAIGN", 400, "CAMPAIGN_NOT_FOUND", "Campaign not found");
+        return campaign;
+    }
+
+    /**
+     * Returns a Map<uniqueIdentifier, existingRow> for all stored attendanceRegisterAttendee
+     * rows for this campaign — used to decide SAVE vs UPDATE Kafka topic.
+     */
+    private static async buildExistingAttendeeDataMap(campaignNumber: string, tenantId: string): Promise<Map<string, any>> {
+        const rows = await getRelatedDataWithCampaign("attendanceRegisterAttendee", campaignNumber, tenantId);
+        const map = new Map<string, any>();
+        for (const row of rows) {
+            map.set(row.uniqueIdentifier, row);
+        }
+        return map;
+    }
+
+    /**
+     * Persist all processed attendee/staff rows to campaign_data via Kafka.
+     * uniqueIdentifier = `${registerServiceCode}_${username}_${sheetType}`
+     * data stores `_registerServiceCode` and `_sheetName` for later filtering/grouping.
+     * - NEW rows → KAFKA_SAVE_SHEET_DATA_TOPIC
+     * - EXISTING rows → KAFKA_UPDATE_SHEET_DATA_TOPIC
+     */
+    private static async persistAttendeesToCampaignData(
+        sheetRows: Map<string, any[]>,
+        existingDataMap: Map<string, any>,
+        campaignNumber: string,
+        tenantId: string
+    ): Promise<void> {
+        const toSave: any[] = [];
+        const toUpdate: any[] = [];
+
+        for (const sheetName of SHEET_NAMES) {
+            const sheetType = sheetTypeOf(sheetName);
+            const rows = sheetRows.get(sheetName) || [];
+
+            for (const row of rows) {
+                const username = this.getCellAsString(row["UserName"]);
+                const registerServiceCode = this.getCellAsString(row["HCM_ATTENDANCE_REGISTER_ID"]);
+
+                if (!username || !registerServiceCode) continue;
+
+                const uniqueIdentifier = `${registerServiceCode}_${username}_${sheetType}`;
+                const rowStatus = row["#status#"];
+                const dbStatus = rowStatus === sheetDataRowStatuses.INVALID || rowStatus === sheetDataRowStatuses.SKIPPED
+                    ? dataRowStatuses.failed
+                    : dataRowStatuses.completed;
+
+                const dataToStore = {
+                    ...row,
+                    _registerServiceCode: registerServiceCode,
+                    _sheetName: sheetName
+                };
+
+                const payload = {
+                    campaignNumber,
+                    type: "attendanceRegisterAttendee",
+                    uniqueIdentifier,
+                    data: dataToStore,
+                    status: dbStatus,
+                    uniqueIdAfterProcess: null
+                };
+
+                if (existingDataMap.has(uniqueIdentifier)) {
+                    toUpdate.push(payload);
+                } else {
+                    toSave.push(payload);
+                }
+            }
+        }
+
+        const BATCH_SIZE = 100;
+
+        for (let i = 0; i < toSave.length; i += BATCH_SIZE) {
+            const batch = toSave.slice(i, i + BATCH_SIZE);
+            await produceModifiedMessages({ datas: batch }, config.kafka.KAFKA_SAVE_SHEET_DATA_TOPIC, tenantId);
+        }
+        for (let i = 0; i < toUpdate.length; i += BATCH_SIZE) {
+            const batch = toUpdate.slice(i, i + BATCH_SIZE);
+            await produceModifiedMessages({ datas: batch }, config.kafka.KAFKA_UPDATE_SHEET_DATA_TOPIC, tenantId);
+        }
+
+        logger.info("Persisted {} new and {} updated attendee rows to campaign_data", toSave.length, toUpdate.length);
+    }
+
+    /**
      * Determine attendee operation and collect into the appropriate list.
-     * All changed fields for an existing active attendee are merged into one _update payload.
-     * Row status is NOT set here — caller sets it after API calls succeed.
      */
     private static collectAttendeeOperation(
         existing: any,
@@ -251,8 +404,6 @@ export class TemplateClass {
 
     /**
      * Determine staff operation and collect into the appropriate list.
-     * All changed fields for an existing active staff are merged into one _update payload.
-     * Row status is NOT set here — caller sets it after API calls succeed.
      */
     private static collectStaffOperation(
         existing: any,
@@ -315,7 +466,6 @@ export class TemplateClass {
 
     /**
      * Resolve individualIds from usernames via HRMS employee search.
-     * Fires one request per username in parallel (up to hrmsParallelSearchLimit concurrency).
      */
     private static async resolveIndividualIds(
         usernames: string[],
@@ -365,7 +515,6 @@ export class TemplateClass {
         const result = new Map<string, { register: any; attendeesMap: Map<string, any>; staffMap: Map<string, any> }>();
         if (!registerServiceCodes.length) return result;
 
-        // serviceCode param accepts one value at a time — search in parallel batches
         const url = config.host.attendanceHost + config.paths.attendanceRegisterSearch;
         const RequestInfo = requestInfo;
         const parallelLimit = config.attendanceRegister.serviceCodeParallelSearchLimit;
@@ -404,9 +553,8 @@ export class TemplateClass {
     }
 
     /**
-     * Execute items in batches of config.attendanceRegister.batchSize against an attendance API endpoint.
-     * On batch failure, sets INVALID + errorDetails on each row in the failed batch — does NOT throw.
-     * All attendance endpoints use 'RequestInfo' (capital R) per API contract.
+     * Execute items in batches against an attendance API endpoint.
+     * On batch failure, sets INVALID + errorDetails on each row in the failed batch.
      */
     private static async batchApiCall(
         items: Array<{ payload: any; row: any }>,
@@ -432,15 +580,12 @@ export class TemplateClass {
 
     /**
      * Parse date string in dd-MM-yyyy or dd/MM/yyyy format (strict — no mixed separators).
-     * Returns UTC epoch ms or null if invalid format or impossible date.
      */
     private static parseDate(value: any): number | null {
-        // Handle Date objects (ExcelJS may parse date cells as Date)
         if (value instanceof Date) {
             if (isNaN(value.getTime())) return null;
             return Date.UTC(value.getFullYear(), value.getMonth(), value.getDate());
         }
-        // Handle epoch numbers passed directly
         if (typeof value === "number") return value;
         const str = String(value).trim();
         const match = DASH_DATE_REGEX.exec(str) || SLASH_DATE_REGEX.exec(str);
@@ -448,10 +593,8 @@ export class TemplateClass {
         const day = parseInt(match[1], 10);
         const month = parseInt(match[2], 10) - 1;
         const year = parseInt(match[3], 10);
-        // Use UTC to avoid server-timezone-dependent boundary comparisons
         const ts = Date.UTC(year, month, day);
         const check = new Date(ts);
-        // Validate the date is real (catches impossible dates like 31-02-2024)
         if (check.getUTCFullYear() !== year || check.getUTCMonth() !== month || check.getUTCDate() !== day) {
             return null;
         }

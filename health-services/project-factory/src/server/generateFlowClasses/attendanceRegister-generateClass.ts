@@ -1,10 +1,10 @@
-import { getReadMeConfig, throwError } from "../utils/genericUtils";
+import { getReadMeConfig, getRelatedDataWithCampaign, throwError } from "../utils/genericUtils";
 import { SheetMap } from "../models/SheetMap";
 import { getLocalizedName, populateBoundariesRecursively } from "../utils/campaignUtils";
 import { searchProjectTypeCampaignService } from "../service/campaignManageService";
 import { searchBoundaryRelationshipData, searchBoundaryRelationshipDefinition } from "../api/coreApis";
 import { logger } from "../utils/logger";
-import { processStatuses, allProcesses } from "../config/constants";
+import { processStatuses, allProcesses, dataRowStatuses } from "../config/constants";
 
 /**
  * Template generator for Attendance Register
@@ -46,8 +46,12 @@ export class TemplateClass {
         const boundaryData = await this.getBoundaryData(campaignDetails, localizationMap);
         const boundaryDynamicColumns = await this.getBoundaryDynamicColumns(tenantId, hierarchyType);
 
-        // Prepare Attendance Register List sheet (empty for user fill)
-        const attendanceRegisterData: any[] = [];
+        // Prepare Attendance Register List sheet — populate from campaign_data if registers exist
+        const existingRegisterRows = await getRelatedDataWithCampaign(
+            "attendanceRegister", campaignDetails.campaignNumber, tenantId, dataRowStatuses.completed
+        );
+        const attendanceRegisterData = existingRegisterRows.map((r: any) => r.data || {});
+        logger.info("Loaded {} existing attendance registers from campaign_data for template", attendanceRegisterData.length);
 
         // Construct the final SheetMap
         const sheetMap: SheetMap = {

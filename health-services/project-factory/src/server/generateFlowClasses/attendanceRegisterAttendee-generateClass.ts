@@ -69,6 +69,34 @@ export class TemplateClass {
                 `Campaign ${campaignId} has no hierarchyType set`);
         }
 
+        // ── DB-first population ────────────────────────────────────────────────
+        // If attendees have been processed and stored in campaign_data, return them
+        // directly rather than re-generating from HRMS (shows real processed state).
+        const storedAttendeeRows = await getRelatedDataWithCampaign(
+            "attendanceRegisterAttendee", campaign?.campaignNumber, tenantId, dataRowStatuses.completed
+        );
+        const filteredStoredRows = storedAttendeeRows.filter(
+            (r: any) => r.data?._registerServiceCode === registerServiceCode
+        );
+
+        if (filteredStoredRows.length > 0) {
+            logger.info(`Found ${filteredStoredRows.length} stored attendee rows for register ${registerServiceCode} — using DB data`);
+            const sheetMap: SheetMap = {};
+            for (const sheetName of [WORKER_SHEET, MARKER_SHEET, APPROVER_SHEET]) {
+                const rowsForSheet = filteredStoredRows
+                    .filter((r: any) => r.data?._sheetName === sheetName)
+                    .map((r: any) => {
+                        // Strip internal persistence fields before returning in output
+                        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                        const { _registerServiceCode, _sheetName: _sn, ...outputRow } = r.data;
+                        return outputRow;
+                    });
+                sheetMap[sheetName] = { data: rowsForSheet, dynamicColumns: null };
+            }
+            return sheetMap;
+        }
+        logger.info(`No stored attendee rows found for register ${registerServiceCode} — falling back to HRMS generation`);
+
         // Resolve allowed boundary codes per sheet from MDMS boundaryFilter config (run in parallel)
         const getBoundaryFilter = (sheetName: string) =>
             templateConfig?.sheets?.find((s: any) => s.sheetName === sheetName)?.boundaryFilter;
