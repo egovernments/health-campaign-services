@@ -4,7 +4,7 @@ WORKDIR /app
 
 # Copy project files
 COPY ${WORK_DIR}/pom.xml ./pom.xml
-COPY build/maven/start.sh ./start.sh
+COPY ./build/maven/start.sh ./start.sh
 COPY ${WORK_DIR}/src ./src
 
 # Build the project
