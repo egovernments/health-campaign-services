@@ -1,6 +1,7 @@
 package org.egov.web.notification.push.config;
 
-import java.io.FileInputStream;
+import java.io.ByteArrayInputStream;
+import java.nio.charset.StandardCharsets;
 
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.firebase.FirebaseApp;
@@ -28,7 +29,11 @@ public class FirebaseConfig {
     public void initFirebase() {
         try {
             if (FirebaseApp.getApps().isEmpty()) {
-                FileInputStream serviceAccount = new FileInputStream(pushProperties.getFcmServiceAccountKeyPath());
+                String json = pushProperties.getFcmServiceAccountKeyJson();
+                if (json == null || json.isBlank()) {
+                    throw new IllegalStateException("fcm.service-account-key-json is not set");
+                }
+                ByteArrayInputStream serviceAccount = new ByteArrayInputStream(json.getBytes(StandardCharsets.UTF_8));
                 FirebaseOptions options = FirebaseOptions.builder()
                         .setCredentials(GoogleCredentials.fromStream(serviceAccount))
                         .build();
