@@ -59,7 +59,8 @@ public class DeviceTokenService {
 				.requestInfo(requestInfo)
 				.deviceTokens(deviceTokens)
 				.build();
-		producer.push(properties.getSaveDeviceTokenTopic(), request);
+		String tenantId = deviceTokens.get(0).getTenantId();
+		producer.push(tenantId, properties.getSaveDeviceTokenTopic(), request);
 
 		return deviceTokens;
 	}
@@ -80,15 +81,16 @@ public class DeviceTokenService {
 				.requestInfo(requestInfo)
 				.deviceTokens(deviceTokens)
 				.build();
-		producer.push(properties.getDeleteDeviceTokenTopic(), request);
+		String tenantId = deviceTokens.get(0).getTenantId();
+		producer.push(tenantId, properties.getDeleteDeviceTokenTopic(), request);
 	}
 
-	public List<DeviceToken> getActiveTokensForUsers(List<String> userIds) {
-		return repository.fetchTokensByUserIds(userIds);
+	public List<DeviceToken> getActiveTokensForUsers(List<String> userIds, String tenantId) {
+		return repository.fetchTokensByUserIds(userIds, tenantId);
 	}
 
-	public List<DeviceToken> getTokensByFacilityId(String facilityId) {
-		return repository.fetchTokensByFacilityId(facilityId);
+	public List<DeviceToken> getTokensByFacilityId(String facilityId, String tenantId) {
+		return repository.fetchTokensByFacilityId(facilityId, tenantId);
 	}
 
 	private boolean isValidDeviceType(String deviceType) {

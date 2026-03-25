@@ -55,7 +55,7 @@ class PushNotificationListenerTest {
         listener.processPushNotification(record);
 
         verify(pushNotificationService).sendPushNotification(any(PushNotificationRequest.class));
-        verify(deviceTokenService, never()).getTokensByFacilityId(any());
+        verify(deviceTokenService, never()).getTokensByFacilityId(any(), any());
     }
 
     @Test
@@ -74,11 +74,11 @@ class PushNotificationListenerTest {
                 DeviceToken.builder().deviceToken("resolved-token-1").build(),
                 DeviceToken.builder().deviceToken("resolved-token-2").build()
         );
-        when(deviceTokenService.getTokensByFacilityId("facility-123")).thenReturn(tokens);
+        when(deviceTokenService.getTokensByFacilityId("facility-123", "tenant1")).thenReturn(tokens);
 
         listener.processPushNotification(record);
 
-        verify(deviceTokenService).getTokensByFacilityId("facility-123");
+        verify(deviceTokenService).getTokensByFacilityId("facility-123", "tenant1");
         ArgumentCaptor<PushNotificationRequest> captor = ArgumentCaptor.forClass(PushNotificationRequest.class);
         verify(pushNotificationService).sendPushNotification(captor.capture());
 
@@ -95,12 +95,12 @@ class PushNotificationListenerTest {
         record.put("body", "Body");
         record.put("facilityId", "facility-empty");
 
-        when(deviceTokenService.getTokensByFacilityId("facility-empty"))
+        when(deviceTokenService.getTokensByFacilityId("facility-empty", null))
                 .thenReturn(Collections.emptyList());
 
         listener.processPushNotification(record);
 
-        verify(deviceTokenService).getTokensByFacilityId("facility-empty");
+        verify(deviceTokenService).getTokensByFacilityId("facility-empty", null);
         verify(pushNotificationService, never()).sendPushNotification(any());
     }
 
@@ -114,7 +114,7 @@ class PushNotificationListenerTest {
         listener.processPushNotification(record);
 
         verify(pushNotificationService).sendPushNotification(any(PushNotificationRequest.class));
-        verify(deviceTokenService, never()).getTokensByFacilityId(any());
+        verify(deviceTokenService, never()).getTokensByFacilityId(any(), any());
     }
 
     @Test
@@ -124,7 +124,7 @@ class PushNotificationListenerTest {
         record.put("body", "Body");
         record.put("facilityId", "facility-err");
 
-        when(deviceTokenService.getTokensByFacilityId("facility-err"))
+        when(deviceTokenService.getTokensByFacilityId("facility-err", null))
                 .thenThrow(new RuntimeException("DB error"));
 
         assertDoesNotThrow(() -> listener.processPushNotification(record));
