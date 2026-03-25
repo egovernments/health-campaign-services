@@ -56,7 +56,7 @@ serviceMaps:
               status = ?, attempts = ?, lastAttemptAt = ?, errorMessage = ?,
               isDeleted = ?, rowVersion = ?,
               lastModifiedBy = ?, lastModifiedTime = ?
-            WHERE id = ?;
+            WHERE id = ? AND tenantId = ?;
           basePath: $.*
           jsonMaps:
             - jsonPath: $.*.status
@@ -68,3 +68,4 @@ serviceMaps:
             - jsonPath: $.*.auditDetails.lastModifiedBy
             - jsonPath: $.*.auditDetails.lastModifiedTime
             - jsonPath: $.*.id
+            - jsonPath: $.*.tenantId
