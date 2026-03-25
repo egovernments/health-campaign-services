@@ -1,5 +1,6 @@
 import { RequestInfo } from "../config/models/requestInfoSchema";
 import express from "express";
+import { v4 as uuidv4 } from "uuid";
 import { prepareAndProduceCancelMessage, processBasedOnAction, processFetchMicroPlan, searchProjectCampaignResourcData, updateCampaignAfterSearch, validateAndFetchCampaign } from "../utils/campaignUtils";
 import { logger } from "../utils/logger";
 import { validateMicroplanRequest, validateProjectCampaignRequest, validateAddResourcesRequest } from "../validators/campaignValidators";
@@ -18,10 +19,16 @@ async function createProjectTypeCampaignService(request: express.Request) {
     await validateProjectCampaignRequest(request, "create");
     logger.info("VALIDATED:: THE PROJECT TYPE CREATE REQUEST");
 
-    // Process the action based on the request type
-    await processBasedOnAction(request, "create");
+    // Generate campaign ID before resource upsert so resources can reference it.
+    // processBasedOnAction will skip ID generation if already set.
+    if (!request.body.CampaignDetails.id) {
+        request.body.CampaignDetails.id = uuidv4();
+    }
 
-    // Persist resources to eg_cm_resource_details table so they survive Flow 2 JSONB overwrite
+    // Persist resources to eg_cm_resource_details BEFORE processBasedOnAction.
+    // processBasedOnAction sets campaign status to "creating" — resource guards would
+    // block after that. At this point the campaign doesn't exist in DB yet (status=null),
+    // so guards pass safely.
     const resources: CampaignResource[] = request?.body?.CampaignDetails?.resources || [];
     const tenantId = request?.body?.CampaignDetails?.tenantId;
     const campaignId = request?.body?.CampaignDetails?.id;
@@ -29,23 +36,21 @@ async function createProjectTypeCampaignService(request: express.Request) {
     if (resources.length > 0 && tenantId && campaignId) {
         for (const res of resources) {
             if (!res.type || !res.filestoreId) continue;
-            try {
-                await createResourceDetail({
-                    tenantId,
-                    campaignId,
-                    type: res.type,
-                    parentResourceId: res.parentResourceId || null,
-                    fileStoreId: res.filestoreId,
-                    filename: res.filename || null,
-                    additionalDetails: res.additionalDetails || {}
-                }, useruuid);
-                logger.info(`Persisted resource type=${res.type} to eg_cm_resource_details for campaign ${campaignId}`);
-            } catch (err) {
-                logger.warn(`Failed to persist resource type=${res.type} to table: ${err instanceof Error ? err.message : err}`);
-                if (err instanceof Error) logger.debug(err);
-            }
+            await createResourceDetail({
+                tenantId,
+                campaignId,
+                type: res.type,
+                parentResourceId: res.parentResourceId || null,
+                fileStoreId: res.filestoreId,
+                filename: res.filename || null,
+                additionalDetails: res.additionalDetails || {}
+            }, useruuid);
+            logger.info(`Persisted resource type=${res.type} to eg_cm_resource_details for campaign ${campaignId}`);
         }
     }
+
+    // Now transition campaign status to "creating" and start processing
+    await processBasedOnAction(request, "create");
 
     return request?.body?.CampaignDetails;
 }
@@ -55,10 +60,10 @@ async function updateProjectTypeCampaignService(request: express.Request) {
     await validateProjectCampaignRequest(request, "update");
     logger.info("VALIDATED THE PROJECT TYPE UPDATE REQUEST");
 
-    // Process the action based on the request type
-    await processBasedOnAction(request, "update");
-
-    // Backward compat: if resources are in the request body, upsert into eg_cm_resource_details
+    // Upsert resources BEFORE processBasedOnAction.
+    // processBasedOnAction sets campaign status to "creating" (when action=create) —
+    // resource guards would block after that. At this point the campaign still has its
+    // current status ("drafted" or "created"), so guards pass safely.
     const requestResources = request?.body?.CampaignDetails?.resources || [];
     const tenantId = request?.body?.CampaignDetails?.tenantId;
     const campaignId = request?.body?.CampaignDetails?.id;
@@ -67,45 +72,37 @@ async function updateProjectTypeCampaignService(request: express.Request) {
         for (const res of requestResources as CampaignResource[]) {
             const fileStoreId = res.filestoreId;
             if (!res.type || !fileStoreId) continue;
-            try {
-                const existing = await findActiveResourceByUpsertKey(tenantId, campaignId, res.type, res.parentResourceId || null);
-                if (existing) {
-                    // Update existing resource instead of deactivating + creating new
-                    await updateResourceDetail({
-                        id: existing.id,
-                        tenantId,
-                        campaignId,
-                        fileStoreId,
-                        filename: res.filename !== undefined ? res.filename : undefined
-                    }, useruuid);
-                    logger.info(`Updated existing resource id=${existing.id} type=${res.type} for campaign ${campaignId} via update`);
-                } else {
-                    await createResourceDetail({
-                        tenantId,
-                        campaignId,
-                        type: res.type,
-                        parentResourceId: res.parentResourceId || null,
-                        fileStoreId,
-                        filename: res.filename || null,
-                        additionalDetails: res.additionalDetails || {}
-                    }, useruuid);
-                    logger.info(`Created new resource type=${res.type} for campaign ${campaignId} via update`);
-                }
-            } catch (err) {
-                logger.warn(`Failed to upsert resource type=${res.type} for campaign ${campaignId}: ${err instanceof Error ? err.message : err}`);
-                if (err instanceof Error) logger.debug(err);
+            const existing = await findActiveResourceByUpsertKey(tenantId, campaignId, res.type, res.parentResourceId || null);
+            if (existing) {
+                await updateResourceDetail({
+                    id: existing.id,
+                    tenantId,
+                    campaignId,
+                    fileStoreId,
+                    filename: res.filename !== undefined ? res.filename : undefined
+                }, useruuid);
+                logger.info(`Updated existing resource id=${existing.id} type=${res.type} for campaign ${campaignId} via update`);
+            } else {
+                await createResourceDetail({
+                    tenantId,
+                    campaignId,
+                    type: res.type,
+                    parentResourceId: res.parentResourceId || null,
+                    fileStoreId,
+                    filename: res.filename || null,
+                    additionalDetails: res.additionalDetails || {}
+                }, useruuid);
+                logger.info(`Created new resource type=${res.type} for campaign ${campaignId} via update`);
             }
         }
-        // Re-fetch campaign so response includes full resources from table
-        const updatedResp = await searchProjectTypeCampaignService({ tenantId, ids: [campaignId] });
-        return updatedResp?.CampaignDetails?.[0] || request?.body?.CampaignDetails;
     }
 
-    // Always re-fetch so response includes resources from eg_cm_resource_details table
-    const tenantIdForSearch = request?.body?.CampaignDetails?.tenantId;
-    const campaignIdForSearch = request?.body?.CampaignDetails?.id;
-    if (tenantIdForSearch && campaignIdForSearch) {
-        const freshResp = await searchProjectTypeCampaignService({ tenantId: tenantIdForSearch, ids: [campaignIdForSearch] });
+    // Now transition campaign status and start processing
+    await processBasedOnAction(request, "update");
+
+    // Re-fetch campaign so response includes full resources from eg_cm_resource_details table
+    if (tenantId && campaignId) {
+        const freshResp = await searchProjectTypeCampaignService({ tenantId, ids: [campaignId] });
         return freshResp?.CampaignDetails?.[0] || request?.body?.CampaignDetails;
     }
     return request?.body?.CampaignDetails;

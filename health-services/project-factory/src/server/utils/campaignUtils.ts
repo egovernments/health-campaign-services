@@ -972,10 +972,10 @@ async function enrichAndPersistCampaignWithError(requestBody: any, error: any) {
   await enrichRootProjectIdAndBoundaryCode(requestBody?.CampaignDetails);
   requestBody.CampaignDetails.additionalDetails = {
     ...requestBody?.CampaignDetails?.additionalDetails,
-    error: error?.code || "INTERNAL_SERVER_ERROR",
-    errorMessage: error?.message && error?.description
-      ? `${error.message} : ${error.description}`
-      : error?.message || error?.description || "Internal server error",
+    error: error?.code || error?.name || "INTERNAL_SERVER_ERROR",
+    errorMessage: error?.description
+      ? `${error?.message || "Error"} : ${error.description}`
+      : error?.message || "Internal server error",
   };
   const topic = config?.kafka?.KAFKA_UPDATE_PROJECT_CAMPAIGN_DETAILS_TOPIC;
   // wait for 2 seconds
@@ -2817,7 +2817,7 @@ async function createAllMappings(campaignDetails: any, parentCampaign: any, user
 }
 
 async function processBasedOnAction(request: any, actionInUrl: any) {
-  if (actionInUrl === "create") {
+  if (actionInUrl === "create" && !request.body.CampaignDetails.id) {
     request.body.CampaignDetails.id = uuidv4();
   }
 
