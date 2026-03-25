@@ -34,4 +34,13 @@ public class PushProperties {
     @Value("${kafka.topics.persister.delete.device.token}")
     private String deleteDeviceTokenTopic;
 
+    @Value("${state.level.tenantid.length:1}")
+    private int tenantIdLength;
+
+    @Value("${state.schema.index.position.tenantid:0}")
+    private int schemaIndexPosition;
+
+    @Value("${is.environment.central.instance:false}")
+    private Boolean isCentralInstance;
+
 }
