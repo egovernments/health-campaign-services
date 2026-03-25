@@ -41,7 +41,8 @@ async function createProjectTypeCampaignService(request: express.Request) {
                 }, useruuid);
                 logger.info(`Persisted resource type=${res.type} to eg_cm_resource_details for campaign ${campaignId}`);
             } catch (err) {
-                logger.warn(`Failed to persist resource type=${res.type} to table: ${err}`);
+                logger.warn(`Failed to persist resource type=${res.type} to table: ${err instanceof Error ? err.message : err}`);
+                if (err instanceof Error) logger.debug(err);
             }
         }
     }
@@ -91,7 +92,8 @@ async function updateProjectTypeCampaignService(request: express.Request) {
                     logger.info(`Created new resource type=${res.type} for campaign ${campaignId} via update`);
                 }
             } catch (err) {
-                logger.warn(`Failed to upsert resource type=${res.type} for campaign ${campaignId}: ${err}`);
+                logger.warn(`Failed to upsert resource type=${res.type} for campaign ${campaignId}: ${err instanceof Error ? err.message : err}`);
+                if (err instanceof Error) logger.debug(err);
             }
         }
         // Re-fetch campaign so response includes full resources from table

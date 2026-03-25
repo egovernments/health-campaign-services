@@ -5,7 +5,7 @@ import { getLocalizedName } from "../utils/campaignUtils";
 import { searchProjectTypeCampaignService } from "../service/campaignManageService";
 import { searchBoundaryRelationshipData } from "../api/coreApis";
 import { logger } from "../utils/logger";
-import { processStatuses, allProcesses, dataRowStatuses } from "../config/constants";
+import { processStatuses, allProcesses, dataRowStatuses, errorKeys, errorModules } from "../config/constants";
 import { decrypt } from "../utils/cryptUtils";
 import { httpRequest } from "../utils/request";
 import config from "../config";
@@ -31,14 +31,14 @@ export class TemplateClass {
         const registerId = responseToSend?.additionalDetails?.registerId;
 
         if (!registerId) {
-            throwError("CAMPAIGN", 400, "REGISTER_ID_REQUIRED", "registerId is required for attendanceRegisterAttendee generation");
+            throwError(errorModules.CAMPAIGN, 400, errorKeys.REGISTER_ID_REQUIRED, "registerId is required for attendanceRegisterAttendee generation");
         }
 
         // Fetch campaign details and verify attendance register creation is complete
         const campaignResp = await searchProjectTypeCampaignService({ tenantId, ids: [campaignId] });
         const campaign = campaignResp?.CampaignDetails?.[0];
         if (!campaign) {
-            throwError("CAMPAIGN", 400, "CAMPAIGN_NOT_FOUND", "Campaign not found");
+            throwError(errorModules.CAMPAIGN, 400, errorKeys.CAMPAIGN_NOT_FOUND, "Campaign not found");
         }
 
         const processes = campaign?.processes || [];
@@ -46,14 +46,14 @@ export class TemplateClass {
             (p: any) => p.processName === allProcesses.attendanceRegisterCreation
         );
         if (!registerProcess || registerProcess.status !== processStatuses.completed) {
-            throwError("CAMPAIGN", 400, "ATTENDANCE_REGISTER_NOT_COMPLETE",
+            throwError(errorModules.CAMPAIGN, 400, errorKeys.ATTENDANCE_REGISTER_NOT_COMPLETE,
                 "Attendance registers must be created before mapping attendees");
         }
 
         // Fetch attendance register to get localityCode, startDate, endDate
         const register = await this.fetchRegister(registerId, tenantId, responseToSend?.requestInfo);
         if (!register) {
-            throwError("CAMPAIGN", 400, "ATTENDANCE_REGISTER_NOT_FOUND", `Attendance register not found: ${registerId}`);
+            throwError(errorModules.CAMPAIGN, 400, errorKeys.ATTENDANCE_REGISTER_NOT_FOUND, `Attendance register not found: ${registerId}`);
         }
 
         const localityCode: string = register?.localityCode || "";
@@ -61,11 +61,11 @@ export class TemplateClass {
         const hierarchyType: string = campaign?.hierarchyType || "";
 
         if (!localityCode) {
-            throwError("CAMPAIGN", 400, "ATTENDANCE_REGISTER_LOCALITY_MISSING",
+            throwError(errorModules.CAMPAIGN, 400, errorKeys.ATTENDANCE_REGISTER_LOCALITY_MISSING,
                 `Attendance register ${registerId} has no localityCode set`);
         }
         if (!hierarchyType) {
-            throwError("CAMPAIGN", 400, "CAMPAIGN_HIERARCHY_MISSING",
+            throwError(errorModules.CAMPAIGN, 400, errorKeys.CAMPAIGN_HIERARCHY_MISSING,
                 `Campaign ${campaignId} has no hierarchyType set`);
         }
 

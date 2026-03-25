@@ -51,6 +51,8 @@ import {
   resourceDataStatuses,
   resourceStatuses,
   usageColumnStatus,
+  errorKeys,
+  errorModules,
 } from "../config/constants";
 import { getBoundaryTabName } from "./boundaryUtils";
 import {
@@ -2434,8 +2436,7 @@ async function processRegularCampaign(request: any): Promise<void> {
       await enrichAndPersistCampaignForCreateViaFlow2(campaignDetails, request?.body?.RequestInfo, request?.body?.parentCampaign || null, useruuid);
       triggerUserCredentialEmailFlow(request?.body); // not awaited = background
     } catch (e) {
-      console.log(e);
-      logger.error("Async Background Flow Error:", e);
+      logger.error(e instanceof Error ? e : new Error(String(e)));
       await enrichAndPersistCampaignWithError(request?.body, e);
     }
   });
@@ -2456,8 +2457,7 @@ export async function processAfterPersistNew(request: any, actionInUrl: any) {
     }
     delete request.body?.boundariesCombined;
   } catch (error: any) {
-    console.log(error);
-    logger.error(error);
+    logger.error(error instanceof Error ? error : new Error(String(error)));
     await enrichAndPersistCampaignWithError(request?.body, error);
   }
 }
@@ -2497,14 +2497,14 @@ async function userCredGeneration(campaignDetails: any, useruuid: string, locale
           }
         }
         else {
-          throwError("COMMON", 400, "USER_CREDENTIAL_GENERATION_ERROR", "User credential generation failed");
+          throwError(errorModules.COMMON, 400, errorKeys.USER_CREDENTIAL_GENERATION_ERROR, "User credential generation failed");
         }
         logger.info(`Attempts : ${attempts + 1} | Status : ${status} | Waiting for 20 seconds for user cred generation to get completed...`);
         await new Promise(resolve => setTimeout(resolve, 20000));
         const campaignResp = await searchProjectTypeCampaignService({ tenantId: campaignDetails?.tenantId, ids: [campaignDetails?.id] });
         const campaignDetailsStatus = campaignResp?.CampaignDetails?.[0]?.status;
         if (campaignDetailsStatus == campaignStatuses.failed || !campaignDetailsStatus) {
-          throwError("COMMON", 400, "USER_CREDENTIAL_GENERATION_ERROR", "Campaign creation failed during user credential generation");
+          throwError(errorModules.COMMON, 400, errorKeys.USER_CREDENTIAL_GENERATION_ERROR, "Campaign creation failed during user credential generation");
         }
         attempts++;
       }
@@ -2522,11 +2522,11 @@ async function userCredGeneration(campaignDetails: any, useruuid: string, locale
         await produceModifiedMessages({ processes: [task] }, config?.kafka?.KAFKA_UPDATE_PROCESS_DATA_TOPIC, campaignDetails?.tenantId);
       }
       if (status != generatedResourceStatuses.completed) {
-        throwError("COMMON", 400, "USER_CREDENTIAL_GENERATION_ERROR", "User credential generation failed");
+        throwError(errorModules.COMMON, 400, errorKeys.USER_CREDENTIAL_GENERATION_ERROR, "User credential generation failed");
       }
     }
     else {
-      throwError("COMMON", 400, "USER_CREDENTIAL_GENERATION_ERROR", "User credential generation failed");
+      throwError(errorModules.COMMON, 400, errorKeys.USER_CREDENTIAL_GENERATION_ERROR, "User credential generation failed");
     }
   }
 }
@@ -2865,7 +2865,7 @@ async function tryTriggerGenerateIfBoundariesSynced(request: any, expectedBounda
   }
 
   logger.error("Persisted boundaries did not match after 4 retries. Possible DB sync issue.");
-  throwError("PERSISTENCE", 500, "BOUNDARY_SYNC_ERROR", "Boundaries could not be synced from DB after multiple retries.");
+  throwError(errorModules.PERSISTENCE, 500, errorKeys.BOUNDARY_SYNC_ERROR, "Boundaries could not be synced from DB after multiple retries.");
 }
 
 async function getLocalesFromStateInfo(tenantId: string): Promise<string[]> {

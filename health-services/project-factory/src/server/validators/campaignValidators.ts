@@ -18,7 +18,7 @@ import { CampaignResource } from "../config/models/resourceTypes";
 import { getSheetData, getTargetWorkbook } from "../api/genericApis";
 const _ = require('lodash');
 import { searchProjectTypeCampaignService } from "../service/campaignManageService";
-import { campaignStatuses, resourceDataStatuses, usageColumnStatus } from "../config/constants";
+import { campaignStatuses, resourceDataStatuses, usageColumnStatus, errorKeys, errorModules } from "../config/constants";
 import { getAllAllowedTypes } from "../config/resourceTypeRegistry";
 import { getBoundaryColumnName, getBoundaryTabName } from "../utils/boundaryUtils";
 import addAjvErrors from "ajv-errors";
@@ -1353,7 +1353,7 @@ async function validatePlanFacility(request: any) {
     const planFacilitySearchResponse = await planFacilitySearch(request);
 
     if (planFacilitySearchResponse.PlanFacility.length === 0) {
-        throwError("COMMAN", 400, "Plan facilities not found");
+        throwError(errorModules.COMMON, 400, errorKeys.PLAN_FACILITIES_NOT_FOUND, "Plan facilities not found");
     }
 
     request.body.PlanFacility = planFacilitySearchResponse.PlanFacility;

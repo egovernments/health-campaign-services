@@ -28,7 +28,7 @@ import { getLocalizedName } from "./campaignUtils";
 import config from "../config";
 import { replicateRequest, throwError } from "./genericUtils";
 import { MDMSModels } from "../models";
-import { usageColumnStatus } from "../config/constants";
+import { usageColumnStatus, errorKeys, errorModules } from "../config/constants";
 import { CampaignResource } from "../config/models/resourceTypes";
 /**
  * Adds data rows to the provided worksheet.
@@ -563,7 +563,7 @@ function findAndChangeTargetData(
   );
 
   if (headers == null || headers.length == 0) {
-    throwError("Error", 500, "Mapping not found in MDMS for Campaign");
+    throwError(errorModules.COMMON, 500, errorKeys.MDMS_MAPPING_NOT_FOUND, "Mapping not found in MDMS for Campaign");
   }
   logger.info(
     `Received for Target mapping, headers count : ${

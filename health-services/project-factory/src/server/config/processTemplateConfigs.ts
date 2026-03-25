@@ -115,7 +115,8 @@ export const processTemplateConfigs: any = {
                 sheetName: "HCM_ADMIN_CONSOLE_BOUNDARY_DATA",
                 lockWholeSheet: true
             }
-        ]
+        ],
+        passFromController: true
     },
     attendanceRegisterValidation: {
         sheets: [

@@ -1,5 +1,6 @@
 import { searchProjectTypeCampaignService } from "../service/campaignManageService";
 import { getLocalizedHeaders, throwError } from "./genericUtils";
+import { errorModules, errorKeys } from "../config/constants";
 import { httpRequest } from "./request";
 import config from "../config/index";
 import { getLocalizedName, populateBoundariesRecursively } from "./campaignUtils";
@@ -20,7 +21,7 @@ async function getParentCampaignObject(request: any, parentId: any) {
     return parentSearchResponse?.CampaignDetails?.[0];
   } catch (error) {
     logger.error("Error fetching parent campaign object:", error);
-    throwError("CAMPAIGN", 400, "PARENT_CAMPAIGN_ERROR", "Parent Campaign fetching error ");
+    throwError(errorModules.CAMPAIGN, 400, errorKeys.PARENT_CAMPAIGN_ERROR, "Parent Campaign fetching error ");
   }
 }
 
@@ -407,7 +408,7 @@ async function fetchProjectFacilityWithProjectId(request: any, projectId: any, f
       return null
     }
   } catch (error: any) {
-    throwError("PROJECT", 500, "PROJECT_FACILTY_SEARCH_ERROR")
+    throwError(errorModules.PROJECT, 500, errorKeys.PROJECT_FACILITY_SEARCH_ERROR, "Error in project facility search")
   }
 }
 
@@ -420,7 +421,7 @@ export async function getFileUrl(fileStoreId: string, tenantId: string) {
   );
 
   if (!fileResponse || !fileResponse.fileStoreIds || !fileResponse.fileStoreIds[0] || !fileResponse.fileStoreIds[0].url) {
-    throwError("FILE", 400, "INVALID_FILE");
+    throwError(errorModules.FILE, 400, errorKeys.INVALID_FILE);
   } else {
     return fileResponse.fileStoreIds[0].url;
   }
