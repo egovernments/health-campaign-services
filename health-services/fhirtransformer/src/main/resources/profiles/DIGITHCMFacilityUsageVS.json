@@ -1,0 +1,41 @@
+{
+  "resourceType": "ValueSet",
+  "url": "http://digit.org/fhir/ValueSet/facilityUsage",
+  "title": "DIGITHCMFacilityUsageVS",
+  "status": "active",
+  "contact": [
+    {
+      "telecom": [
+        {
+          "system": "email",
+          "value": "contact@egovernments.org"
+        }
+      ],
+      "name": "eGov Foundation"
+    },
+    {
+      "telecom": [
+        {
+          "system": "email",
+          "value": "pmmrunal@gmail.com"
+        }
+      ],
+      "name": "Mrunal Surve"
+    }
+  ],
+  "compose": {
+    "include": [
+      {
+        "system": "http://digit.org/fhir/CodeSystem/facilityUsage"
+      }
+    ]
+  },
+  "text": {
+    "status": "generated",
+    "div": "<div xmlns=\"http://www.w3.org/1999/xhtml\"><h2>DIGITHCMFacilityUsageVS</h2><tt>http://digit.org/fhir/ValueSet/facilityUsage</tt></div>"
+  },
+  "experimental": false,
+  "date": "2025-07-13T00:00:00Z",
+  "publisher": "eGov Foundation",
+  "name": "DIGITHCMFacilityUsageVS"
+}

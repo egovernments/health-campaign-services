@@ -1,0 +1,53 @@
+{
+  "resourceType": "CodeSystem",
+  "title": "DIGITHCMProductAssociationType",
+  "url": "https://digit.org/CodeSystem/ProductAssociationType",
+  "status": "draft",
+  "contact": [
+    {
+      "telecom": [
+        {
+          "system": "email",
+          "value": "contact@egovernments.org"
+        }
+      ],
+      "name": "eGov Foundation"
+    },
+    {
+      "telecom": [
+        {
+          "system": "email",
+          "value": "pmmrunal@gmail.com"
+        }
+      ],
+      "name": "Mrunal Surve"
+    }
+  ],
+  "compositional": false,
+  "content": "complete",
+  "concept": [
+    {
+      "code": "packaged within",
+      "display": "packaged within"
+    },
+    {
+      "code": "used with",
+      "display": "used with"
+    },
+    {
+      "code": "to be mixed with",
+      "display": "to be mixed with"
+    }
+  ],
+  "text": {
+    "status": "generated",
+    "div": "<div xmlns=\"http://www.w3.org/1999/xhtml\"><h2>DIGITHCMProductAssociationType</h2><tt>https://digit.org/CodeSystem/ProductAssociationType</tt><p></p></div>"
+  },
+  "valueSet": "http://digit.org/fhir/ValueSet/ProductAssociationType-vs",
+  "caseSensitive": false,
+  "experimental": true,
+  "date": "2025-07-13T00:00:00Z",
+  "publisher": "eGov Foundation",
+  "count": 3,
+  "name": "DIGITHCMProductAssociationType"
+}

@@ -1,0 +1,43 @@
+{
+  "resourceType": "ValueSet",
+  "url": "https://digit.org/ValueSet/DIGITHCM.Location.Types",
+  "title": "DIGIT HCM Types for Locations",
+  "status": "active",
+  "contact": [
+    {
+      "telecom": [
+        {
+          "system": "email",
+          "value": "contact@egovernments.org"
+        }
+      ],
+      "name": "eGov Foundation"
+    },
+    {
+      "telecom": [
+        {
+          "system": "email",
+          "value": "pmmrunal@gmail.com"
+        }
+      ],
+      "name": "Mrunal Surve"
+    }
+  ],
+  "compose": {
+    "include": [
+      {
+        "system": "https://digit.org/CodeSystem/DIGITHCM.Location.Types"
+      }
+    ]
+  },
+  "description": "DIGIT HCM Types for specialized Location resources",
+  "text": {
+    "status": "generated",
+    "div": "<div xmlns=\"http://www.w3.org/1999/xhtml\"><h2>DIGIT HCM Types for Locations</h2><tt>https://digit.org/ValueSet/DIGITHCM.Location.Types</tt><p>DIGIT HCM Types for specialized Location resources</p></div>"
+  },
+  "experimental": false,
+  "publisher": "eGov Foundation",
+  "date": "2025-07-06T00:00:00Z",
+  "copyright": "Systems are not required to have markdown support, so the text should be readable without markdown processing. The markdown syntax is GFM - see https://github.github.com/gfm/\\r\\n Sometimes, the copyright differs between the code system and the codes that are included. The copyright statement should clearly differentiate between these when required.\\r\\n Sometimes, the copyright differs between the code system and the codes that are included. The copyright statement should clearly differentiate between these when required.\\r\\n Sometimes, the copyright differs between the code system and the codes that are included. The copyright statement should clearly differentiate between these when required",
+  "name": "DIGIT_HCM_Types_for_Locations"
+}

@@ -1,0 +1,66 @@
+{
+  "resourceType": "CodeSystem",
+  "title": "DIGIT Units",
+  "url": "https://digit.org/CodeSystem/units",
+  "status": "active",
+  "contact": [
+    {
+      "telecom": [
+        {
+          "system": "email",
+          "value": "contact@egovernments.org"
+        }
+      ],
+      "name": "eGov Foundation"
+    },
+    {
+      "telecom": [
+        {
+          "system": "email",
+          "value": "pmmrunal@gmail.com"
+        }
+      ],
+      "name": "Mrunal Surve"
+    }
+  ],
+  "description": "Measurement units for supply chain transaction",
+  "compositional": false,
+  "content": "complete",
+  "concept": [
+    {
+      "code": "bale",
+      "display": "bale"
+    },
+    {
+      "code": "each",
+      "display": "each"
+    },
+    {
+      "code": "blister packs",
+      "display": "blister packs"
+    },
+    {
+      "code": "vials",
+      "display": "vials"
+    },
+    {
+      "code": "cartons",
+      "display": "cartons"
+    },
+    {
+      "code": "pallets",
+      "display": "pallets"
+    }
+  ],
+  "text": {
+    "status": "generated",
+    "div": "<div xmlns=\"http://www.w3.org/1999/xhtml\"><h2>DIGIT Units</h2><tt>https://digit.org/CodeSystem/units</tt><p>Measurement units for supply chain transaction</p></div>"
+  },
+  "name": "DIGITHCMUnits",
+  "caseSensitive": false,
+  "versionNeeded": false,
+  "valueSet": "https://digit.org/fhir/ValueSet/Units",
+  "experimental": false,
+  "publisher": "eGov Foundation",
+  "count": 6
+}

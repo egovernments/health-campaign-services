@@ -1,0 +1,40 @@
+{
+  "resourceType": "ValueSet",
+  "url": "http://digit.org/fhir/ValueSet/ProductAssociationType-vs",
+  "title": "DIGITHCMProductAssociation",
+  "status": "draft",
+  "contact": [
+    {
+      "telecom": [
+        {
+          "system": "email",
+          "value": "contact@egovernments.org"
+        }
+      ],
+      "name": "eGov Foundation"
+    },
+    {
+      "telecom": [
+        {
+          "system": "email",
+          "value": "pmmrunal@gmail.com"
+        }
+      ],
+      "name": "Mrunal Surve"
+    }
+  ],
+  "compose": {
+    "include": [
+      {
+        "system": "https://digit.org/CodeSystem/ProductAssociationType"
+      }
+    ]
+  },
+  "text": {
+    "status": "generated",
+    "div": "<div xmlns=\"http://www.w3.org/1999/xhtml\"><h2>DIGITHCMProductAssociation</h2><tt>http://digit.org/fhir/ValueSet/ProductAssociationType-vs</tt></div>"
+  },
+  "date": "2025-07-13T00:00:00Z",
+  "publisher": "eGov Foundation",
+  "name": "DIGITHCMProductAssociation"
+}

@@ -1,0 +1,27 @@
+{
+  "resourceType": "ValueSet",
+  "url": "http://digit.org/fhir/ValueSet/transactiontype-vs",
+  "title": "DIGITHCMTransactionTypeVS",
+  "status": "draft",
+  "contact": [
+    {
+      "telecom": [
+        {
+          "system": "email"
+        }
+      ]
+    }
+  ],
+  "compose": {
+    "include": [
+      {
+        "system": "http://digit.org/fhir/CodeSystem/transactiontype"
+      }
+    ]
+  },
+  "text": {
+    "status": "generated",
+    "div": "<div xmlns=\"http://www.w3.org/1999/xhtml\"><h2>DIGITHCMTransactionTypeVS</h2><tt>http://digit.org/fhir/ValueSet/transactiontype-vs</tt></div>"
+  },
+  "name": "DIGITHCMTransactionTypeVS"
+}
