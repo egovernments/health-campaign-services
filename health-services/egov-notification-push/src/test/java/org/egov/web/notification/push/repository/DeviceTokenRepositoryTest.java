@@ -36,14 +36,8 @@ class DeviceTokenRepositoryTest {
     @Mock
     private PushProperties properties;
 
-    private void setupSchemaProperties() {
-        when(properties.getSchemaIndexPosition()).thenReturn(0);
-        when(properties.getTenantIdLength()).thenReturn(1);
-    }
-
     @Test
     void fetchTokensByUserIds_validUserIds_returnsTokens() {
-        setupSchemaProperties();
         List<String> userIds = List.of("user-1", "user-2");
         List<DeviceToken> expected = List.of(
                 DeviceToken.builder().deviceToken("tok1").userId("user-1").build()
@@ -77,7 +71,6 @@ class DeviceTokenRepositoryTest {
 
     @Test
     void fetchTokensByUserIds_dbException_returnsEmpty() {
-        setupSchemaProperties();
         List<String> userIds = List.of("user-1");
 
         when(namedParameterJdbcTemplate.query(
@@ -93,7 +86,6 @@ class DeviceTokenRepositoryTest {
 
     @Test
     void fetchTokensByFacilityId_validFacilityId_returnsTokens() {
-        setupSchemaProperties();
         List<DeviceToken> expected = List.of(
                 DeviceToken.builder().deviceToken("ftok1").facilityId("fac-1").build(),
                 DeviceToken.builder().deviceToken("ftok2").facilityId("fac-1").build()
@@ -126,7 +118,6 @@ class DeviceTokenRepositoryTest {
 
     @Test
     void fetchTokensByFacilityId_dbException_returnsEmpty() {
-        setupSchemaProperties();
         when(namedParameterJdbcTemplate.query(
                 anyString(),
                 any(Map.class),

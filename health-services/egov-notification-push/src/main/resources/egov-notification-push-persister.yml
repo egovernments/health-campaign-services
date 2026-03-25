@@ -7,14 +7,12 @@ serviceMaps:
       fromTopic: save-push-device-token
       isTransaction: true
       queryMaps:
-        # HRUTHVIK: Added facilityid column to INSERT and ON CONFLICT UPDATE
         - query: >-
             INSERT INTO eg_push_device_tokens
             (id, userid, devicetoken, devicetype, tenantid, facilityid, createdby, createdtime, lastmodifiedby, lastmodifiedtime)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT (devicetoken) DO UPDATE SET
+            ON CONFLICT (devicetoken, facilityid) DO UPDATE SET
             userid = EXCLUDED.userid, devicetype = EXCLUDED.devicetype, tenantid = EXCLUDED.tenantid,
-            facilityid = EXCLUDED.facilityid,
             lastmodifiedby = EXCLUDED.lastmodifiedby, lastmodifiedtime = EXCLUDED.lastmodifiedtime
           basePath: $.deviceTokens.*
           jsonMaps:
@@ -34,9 +32,12 @@ serviceMaps:
       fromTopic: delete-push-device-token
       isTransaction: true
       queryMaps:
-        - query: DELETE FROM eg_push_device_tokens WHERE userid = ? AND devicetoken = ? AND tenantid = ?
+        - query: >-
+            DELETE FROM eg_push_device_tokens
+            WHERE userid = ? AND devicetoken = ? AND tenantid = ? AND facilityid = ?
           basePath: $.deviceTokens.*
           jsonMaps:
             - jsonPath: $.deviceTokens.*.userId
             - jsonPath: $.deviceTokens.*.deviceToken
             - jsonPath: $.deviceTokens.*.tenantId
+            - jsonPath: $.deviceTokens.*.facilityId
