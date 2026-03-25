@@ -3,7 +3,9 @@ package org.egov.web.notification.push.repository.rowmappers;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.egov.web.notification.push.web.contract.AuditDetails;
 import org.egov.web.notification.push.web.contract.DeviceToken;
@@ -19,26 +21,33 @@ public class DeviceTokenRowMapper implements ResultSetExtractor<List<DeviceToken
 
 	@Override
 	public List<DeviceToken> extractData(ResultSet resultSet) throws SQLException, DataAccessException {
-		List<DeviceToken> deviceTokens = new ArrayList<>();
+		Map<String, DeviceToken> tokenMap = new LinkedHashMap<>();
 		while (resultSet.next()) {
-			AuditDetails audit = AuditDetails.builder()
-					.createdBy(resultSet.getString("createdby"))
-					.createdTime(resultSet.getLong("createdtime"))
-					.lastModifiedBy(resultSet.getString("lastmodifiedby"))
-					.lastModifiedTime(resultSet.getLong("lastmodifiedtime")).build();
+			String deviceTokenStr = resultSet.getString("devicetoken");
+			DeviceToken token = tokenMap.get(deviceTokenStr);
+			if (token == null) {
+				AuditDetails audit = AuditDetails.builder()
+						.createdBy(resultSet.getString("createdby"))
+						.createdTime(resultSet.getLong("createdtime"))
+						.lastModifiedBy(resultSet.getString("lastmodifiedby"))
+						.lastModifiedTime(resultSet.getLong("lastmodifiedtime")).build();
 
-			DeviceToken token = DeviceToken.builder()
-					.id(resultSet.getString("id"))
-					.userId(resultSet.getString("userid"))
-					.deviceToken(resultSet.getString("devicetoken"))
-					.deviceType(resultSet.getString("devicetype"))
-					.tenantId(resultSet.getString("tenantid"))
-					.facilityId(resultSet.getString("facilityid")) // HRUTHVIK: Added facilityId mapping
-					.auditDetails(audit).build();
-
-			deviceTokens.add(token);
+				token = DeviceToken.builder()
+						.id(resultSet.getString("id"))
+						.userId(resultSet.getString("userid"))
+						.deviceToken(deviceTokenStr)
+						.deviceType(resultSet.getString("devicetype"))
+						.tenantId(resultSet.getString("tenantid"))
+						.facilityIds(new ArrayList<>())
+						.auditDetails(audit).build();
+				tokenMap.put(deviceTokenStr, token);
+			}
+			String facilityId = resultSet.getString("facilityid");
+			if (facilityId != null) {
+				token.getFacilityIds().add(facilityId);
+			}
 		}
-		return deviceTokens;
+		return new ArrayList<>(tokenMap.values());
 	}
 
 }
