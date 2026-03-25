@@ -1,5 +1,6 @@
 package org.egov.web.notification.push.service;
 
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.UUID;
@@ -35,6 +36,7 @@ public class DeviceTokenService {
 	public List<DeviceToken> registerDeviceTokens(RequestInfo requestInfo, List<DeviceToken> deviceTokens) {
 		String userUuid = requestInfo.getUserInfo().getUuid();
 		Long now = new Date().getTime();
+		List<DeviceToken> expandedTokens = new ArrayList<>();
 
 		for (DeviceToken token : deviceTokens) {
 			if (StringUtils.isEmpty(token.getDeviceToken())) {
@@ -45,7 +47,6 @@ public class DeviceTokenService {
 				throw new CustomException(ErrorConstants.INVALID_DEVICE_TYPE_CODE, ErrorConstants.INVALID_DEVICE_TYPE_MSG);
 			}
 
-			token.setId(UUID.randomUUID().toString());
 			if (StringUtils.isEmpty(token.getUserId())) {
 				token.setUserId(userUuid);
 			}
@@ -53,20 +54,42 @@ public class DeviceTokenService {
 					.createdBy(userUuid).createdTime(now)
 					.lastModifiedBy(userUuid).lastModifiedTime(now).build();
 			token.setAuditDetails(audit);
+
+			// Expand facilityIds into individual rows for the persister
+			List<String> facilityIds = token.getFacilityIds();
+			if (facilityIds != null && !facilityIds.isEmpty()) {
+				for (String facilityId : facilityIds) {
+					expandedTokens.add(DeviceToken.builder()
+							.id(UUID.randomUUID().toString())
+							.userId(token.getUserId())
+							.deviceToken(token.getDeviceToken())
+							.deviceType(token.getDeviceType())
+							.tenantId(token.getTenantId())
+							.facilityId(facilityId)
+							.auditDetails(audit)
+							.build());
+				}
+			} else {
+				token.setId(UUID.randomUUID().toString());
+				expandedTokens.add(token);
+			}
 		}
 
+		// Send expanded (one row per facilityId) to persister via Kafka
 		DeviceTokenRequest request = DeviceTokenRequest.builder()
 				.requestInfo(requestInfo)
-				.deviceTokens(deviceTokens)
+				.deviceTokens(expandedTokens)
 				.build();
 		String tenantId = deviceTokens.get(0).getTenantId();
 		producer.push(tenantId, properties.getSaveDeviceTokenTopic(), request);
 
+		// Return original tokens with facilityIds intact
 		return deviceTokens;
 	}
 
 	public void deleteDeviceTokens(RequestInfo requestInfo, List<DeviceToken> deviceTokens) {
 		String userUuid = requestInfo.getUserInfo().getUuid();
+		List<DeviceToken> expandedTokens = new ArrayList<>();
 
 		for (DeviceToken token : deviceTokens) {
 			if (StringUtils.isEmpty(token.getDeviceToken())) {
@@ -75,11 +98,27 @@ public class DeviceTokenService {
 			if (StringUtils.isEmpty(token.getUserId())) {
 				token.setUserId(userUuid);
 			}
+
+			// If facilityIds provided, expand into individual deletes per facilityId.
+			// If not provided, facilityId stays null → persister deletes all rows for the device token.
+			List<String> facilityIds = token.getFacilityIds();
+			if (facilityIds != null && !facilityIds.isEmpty()) {
+				for (String facilityId : facilityIds) {
+					expandedTokens.add(DeviceToken.builder()
+							.userId(token.getUserId())
+							.deviceToken(token.getDeviceToken())
+							.tenantId(token.getTenantId())
+							.facilityId(facilityId)
+							.build());
+				}
+			} else {
+				expandedTokens.add(token);
+			}
 		}
 
 		DeviceTokenRequest request = DeviceTokenRequest.builder()
 				.requestInfo(requestInfo)
-				.deviceTokens(deviceTokens)
+				.deviceTokens(expandedTokens)
 				.build();
 		String tenantId = deviceTokens.get(0).getTenantId();
 		producer.push(tenantId, properties.getDeleteDeviceTokenTopic(), request);
