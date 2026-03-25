@@ -41,7 +41,7 @@ class PushNotificationApiServiceTest {
                 DeviceToken.builder().deviceToken("tok-1").build(),
                 DeviceToken.builder().deviceToken("tok-2").build()
         );
-        when(deviceTokenService.getActiveTokensForUsers(userUuids)).thenReturn(resolved);
+        when(deviceTokenService.getActiveTokensForUsers(userUuids, "tenant1")).thenReturn(resolved);
 
         PushNotificationApiRequest request = PushNotificationApiRequest.builder()
                 .title("Title")
@@ -76,7 +76,7 @@ class PushNotificationApiServiceTest {
         int count = apiService.sendNotification(request);
 
         assertEquals(1, count);
-        verify(deviceTokenService, never()).getActiveTokensForUsers(any());
+        verify(deviceTokenService, never()).getActiveTokensForUsers(any(), any());
         verify(pushNotificationService).sendPushNotification(any(PushNotificationRequest.class));
     }
 
@@ -85,7 +85,7 @@ class PushNotificationApiServiceTest {
         List<DeviceToken> resolved = List.of(
                 DeviceToken.builder().deviceToken("shared-token").build()
         );
-        when(deviceTokenService.getActiveTokensForUsers(List.of("uuid-1"))).thenReturn(resolved);
+        when(deviceTokenService.getActiveTokensForUsers(List.of("uuid-1"), "tenant1")).thenReturn(resolved);
 
         PushNotificationApiRequest request = PushNotificationApiRequest.builder()
                 .title("Title")
@@ -103,7 +103,7 @@ class PushNotificationApiServiceTest {
 
     @Test
     void sendNotification_noTokensResolved_returnsZero() {
-        when(deviceTokenService.getActiveTokensForUsers(List.of("uuid-no-tokens")))
+        when(deviceTokenService.getActiveTokensForUsers(List.of("uuid-no-tokens"), "tenant1"))
                 .thenReturn(Collections.emptyList());
 
         PushNotificationApiRequest request = PushNotificationApiRequest.builder()

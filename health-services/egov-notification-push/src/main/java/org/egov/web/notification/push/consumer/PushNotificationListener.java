@@ -42,7 +42,7 @@ public class PushNotificationListener {
                     && request.getFacilityId() != null && !request.getFacilityId().isEmpty()) {
 
                 log.info("No deviceTokens in request. Resolving from facilityId: {}", request.getFacilityId());
-                List<DeviceToken> tokens = deviceTokenService.getTokensByFacilityId(request.getFacilityId());
+                List<DeviceToken> tokens = deviceTokenService.getTokensByFacilityId(request.getFacilityId(), request.getTenantId());
 
                 if (tokens == null || tokens.isEmpty()) {
                     log.warn("No device tokens found for facilityId: {}. Skipping push notification.", request.getFacilityId());

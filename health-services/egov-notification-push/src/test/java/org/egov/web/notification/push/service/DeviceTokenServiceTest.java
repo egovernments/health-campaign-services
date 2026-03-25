@@ -60,7 +60,7 @@ class DeviceTokenServiceTest {
         assertEquals("user-uuid-1", result.get(0).getUserId());
         assertNotNull(result.get(0).getAuditDetails());
         assertEquals("user-uuid-1", result.get(0).getAuditDetails().getCreatedBy());
-        verify(producer).push(eq("save-topic"), any());
+        verify(producer).push(eq("tenant1"), eq("save-topic"), any());
     }
 
     @Test
@@ -136,7 +136,7 @@ class DeviceTokenServiceTest {
         RequestInfo requestInfo = createRequestInfo("user-1");
         deviceTokenService.deleteDeviceTokens(requestInfo, List.of(token));
 
-        verify(producer).push(eq("delete-topic"), any());
+        verify(producer).push(any(), eq("delete-topic"), any());
     }
 
     @Test
@@ -171,12 +171,12 @@ class DeviceTokenServiceTest {
         List<DeviceToken> expected = List.of(
                 DeviceToken.builder().deviceToken("t1").build()
         );
-        when(repository.fetchTokensByUserIds(userIds)).thenReturn(expected);
+        when(repository.fetchTokensByUserIds(userIds, "t1")).thenReturn(expected);
 
-        List<DeviceToken> result = deviceTokenService.getActiveTokensForUsers(userIds);
+        List<DeviceToken> result = deviceTokenService.getActiveTokensForUsers(userIds, "t1");
 
         assertEquals(expected, result);
-        verify(repository).fetchTokensByUserIds(userIds);
+        verify(repository).fetchTokensByUserIds(userIds, "t1");
     }
 
     @Test
@@ -184,11 +184,11 @@ class DeviceTokenServiceTest {
         List<DeviceToken> expected = List.of(
                 DeviceToken.builder().deviceToken("ft1").facilityId("fac-1").build()
         );
-        when(repository.fetchTokensByFacilityId("fac-1")).thenReturn(expected);
+        when(repository.fetchTokensByFacilityId("fac-1", "t1")).thenReturn(expected);
 
-        List<DeviceToken> result = deviceTokenService.getTokensByFacilityId("fac-1");
+        List<DeviceToken> result = deviceTokenService.getTokensByFacilityId("fac-1", "t1");
 
         assertEquals(expected, result);
-        verify(repository).fetchTokensByFacilityId("fac-1");
+        verify(repository).fetchTokensByFacilityId("fac-1", "t1");
     }
 }

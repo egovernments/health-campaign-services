@@ -34,7 +34,7 @@ public class PushNotificationApiService {
 		Set<String> tokenSet = new LinkedHashSet<>();
 
 		if (!CollectionUtils.isEmpty(request.getUserUuids())) {
-			List<DeviceToken> resolved = deviceTokenService.getActiveTokensForUsers(request.getUserUuids());
+			List<DeviceToken> resolved = deviceTokenService.getActiveTokensForUsers(request.getUserUuids(), request.getTenantId());
 			List<String> resolvedTokens = resolved.stream()
 					.map(DeviceToken::getDeviceToken)
 					.collect(Collectors.toList());

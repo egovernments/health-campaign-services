@@ -5,12 +5,15 @@ import org.springframework.stereotype.Component;
 @Component
 public class DeviceTokenQueryBuilder {
 
-	public static final String FETCH_TOKENS_BY_USERIDS = "SELECT id, userid, devicetoken, devicetype, tenantid, facilityid, "
-			+ "createdby, createdtime, lastmodifiedby, lastmodifiedtime "
-			+ "FROM eg_push_device_tokens WHERE userid IN (:userIds)";
+	private static final String COLUMNS = "id, userid, devicetoken, devicetype, tenantid, facilityid, "
+			+ "createdby, createdtime, lastmodifiedby, lastmodifiedtime";
 
-	public static final String FETCH_TOKENS_BY_FACILITY_ID = "SELECT id, userid, devicetoken, devicetype, tenantid, facilityid, "
-			+ "createdby, createdtime, lastmodifiedby, lastmodifiedtime "
-			+ "FROM eg_push_device_tokens WHERE facilityid = :facilityId";
+	public static String fetchTokensByUserIds(String schema) {
+		return "SELECT " + COLUMNS + " FROM " + schema + ".eg_push_device_tokens WHERE userid IN (:userIds)";
+	}
+
+	public static String fetchTokensByFacilityId(String schema) {
+		return "SELECT " + COLUMNS + " FROM " + schema + ".eg_push_device_tokens WHERE facilityid = :facilityId";
+	}
 
 }
