@@ -1,7 +1,7 @@
 package org.egov.excelingestion.service;
 
-import org.egov.excelingestion.web.models.RequestInfo;
-import org.egov.excelingestion.web.models.UserInfo;
+import org.egov.common.contract.request.RequestInfo;
+import org.egov.common.contract.request.User;
 import org.egov.common.producer.Producer;
 import org.egov.excelingestion.config.ErrorConstants;
 import org.egov.excelingestion.config.KafkaTopicConfig;
@@ -142,7 +142,7 @@ class ProcessorClassNotFoundTest {
             .apiId("test-api")
             .ver("1.0")
             .ts(System.currentTimeMillis())
-            .userInfo(UserInfo.builder().uuid("test-user").build())
+            .userInfo(User.builder().uuid("test-user").build())
             .build();
 
         return ProcessResourceRequest.builder()

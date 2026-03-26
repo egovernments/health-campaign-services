@@ -1,8 +1,8 @@
 package org.egov.excelingestion.util;
 
 import org.egov.excelingestion.config.ExcelIngestionConfig;
-import org.egov.excelingestion.web.models.RequestInfo;
-import org.egov.excelingestion.web.models.UserInfo;
+import org.egov.common.contract.request.RequestInfo;
+import org.egov.common.contract.request.User;
 import org.springframework.stereotype.Component;
 
 @Component

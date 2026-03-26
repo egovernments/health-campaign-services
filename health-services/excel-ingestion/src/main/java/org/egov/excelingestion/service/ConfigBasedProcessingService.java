@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.egov.excelingestion.config.ErrorConstants;
+import org.egov.excelingestion.config.ExcelIngestionConfig;
 import org.egov.excelingestion.config.KafkaTopicConfig;
 import org.egov.excelingestion.config.ProcessingConstants;
 import org.egov.excelingestion.web.models.mdms.ExcelIngestionProcessData;
@@ -14,7 +15,7 @@ import org.apache.poi.ss.usermodel.Workbook;
 import org.egov.excelingestion.processor.IWorkbookProcessor;
 import org.egov.excelingestion.processor.ISheetDataProcessor;
 import org.egov.excelingestion.web.models.ProcessResource;
-import org.egov.excelingestion.web.models.RequestInfo;
+import org.egov.common.contract.request.RequestInfo;
 import org.egov.excelingestion.web.models.ParsingCompleteEvent;
 import org.egov.excelingestion.web.models.SheetDataTemp;
 import org.egov.excelingestion.web.models.SheetGenerationResult;
@@ -44,19 +45,22 @@ public class ConfigBasedProcessingService {
     private final ApplicationContext applicationContext;
     private final Producer producer;
     private final KafkaTopicConfig kafkaTopicConfig;
+    private final ExcelIngestionConfig config;
 
     public ConfigBasedProcessingService(MDMSConfigService mdmsConfigService,
                                       CustomExceptionHandler exceptionHandler,
                                       MDMSService mdmsService,
                                       ApplicationContext applicationContext,
                                       Producer producer,
-                                      KafkaTopicConfig kafkaTopicConfig) {
+                                      KafkaTopicConfig kafkaTopicConfig,
+                                      ExcelIngestionConfig config) {
         this.mdmsConfigService = mdmsConfigService;
         this.exceptionHandler = exceptionHandler;
         this.mdmsService = mdmsService;
         this.applicationContext = applicationContext;
         this.producer = producer;
         this.kafkaTopicConfig = kafkaTopicConfig;
+        this.config = config;
     }
 
     /**
@@ -231,20 +235,20 @@ public class ConfigBasedProcessingService {
     }
 
     /**
-     * Get localized sheet name with 31-char limit handling
+     * Get localized sheet name with configurable character limit
      */
     private String getLocalizedSheetName(String sheetKey, Map<String, String> localizationMap) {
         String localizedName = sheetKey;
-        
+
         if (localizationMap != null && localizationMap.containsKey(sheetKey)) {
             localizedName = localizationMap.get(sheetKey);
         }
-        
-        // Handle Excel's 31 character limit
-        if (localizedName.length() > 31) {
-            localizedName = localizedName.substring(0, 31);
+
+        int maxLength = config.getSheetNameMaxLength();
+        if (localizedName.length() > maxLength) {
+            localizedName = localizedName.substring(0, maxLength);
         }
-        
+
         return localizedName;
     }
 
@@ -298,7 +302,7 @@ public class ConfigBasedProcessingService {
         // Process all sheets that have processors configured
         for (ProcessorSheetConfig sheetConfig : config) {
             String processorClass = sheetConfig.getProcessorClass();
-            if (processorClass == null) {
+            if (processorClass == null || processorClass.trim().isEmpty()) {
                 continue; // No processor configured for this sheet
             }
             
@@ -505,8 +509,9 @@ public class ConfigBasedProcessingService {
         ExcelIngestionProcessData processData = mdmsConfigService.getExcelIngestionProcessConfig(requestInfo, resource.getTenantId(), resource.getType());
         String topic = processData.getProcessingResultTopic(); // Assuming this method exists
         if (topic != null && !topic.trim().isEmpty()) {
+            resource.setRequestInfo(requestInfo);
             producer.push(resource.getTenantId(), topic, resource);
-            log.info("Published processing result to topic: {} for processing type: {}, resource ID: {}", 
+            log.info("Published processing result to topic: {} for processing type: {}, resource ID: {}",
                     topic, resource.getType(), resource.getId());
             log.info("Processing result sent to topic for resource: {}", resource.getId());
         } else {

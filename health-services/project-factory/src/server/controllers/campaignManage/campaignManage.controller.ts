@@ -1,5 +1,6 @@
 import * as express from "express";
 import {
+  addResourcesToCampaignService,
   cancelCampaignService,
   createProjectTypeCampaignService,
   fetchFromMicroplanService,
@@ -33,6 +34,7 @@ class campaignManageController {
         this.router.post(`${this.path}/fetch-from-microplan`, this.fetchFromMicroplan);
         this.router.post(`${this.path}/cancel-campaign`, this.cancelCampaign);
         this.router.post(`${this.path}/status`, this.getCampaignStatus);
+        this.router.post(`${this.path}/add-resources`, this.addResources);
     }
     
     
@@ -133,6 +135,21 @@ class campaignManageController {
             return errorResponder({ message: String(e), code: e?.code, description: e?.description }, request, response, e?.status || 500);
         }
     }
+
+    addResources = async (
+        request: express.Request,
+        response: express.Response
+    ) => {
+        try {
+            logger.info("RECEIVED AN ADD RESOURCES REQUEST");
+            const CampaignDetails = await addResourcesToCampaignService(request);
+            return sendResponse(response, { CampaignDetails }, request);
+        } catch (e: any) {
+            console.log(e);
+            logger.error(String(e));
+            return errorResponder({ message: String(e), code: e?.code, description: e?.description }, request, response, e?.status || 500);
+        }
+    };
 
     getCampaignStatus = async (
         request: express.Request,

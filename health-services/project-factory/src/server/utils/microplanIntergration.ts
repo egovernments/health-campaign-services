@@ -28,7 +28,8 @@ import { getLocalizedName } from "./campaignUtils";
 import config from "../config";
 import { replicateRequest, throwError } from "./genericUtils";
 import { MDMSModels } from "../models";
-import { usageColumnStatus } from "../config/constants";
+import { usageColumnStatus, errorKeys, errorModules } from "../config/constants";
+import { CampaignResource } from "../config/models/resourceTypes";
 /**
  * Adds data rows to the provided worksheet.
  * @param worksheet The worksheet to which the data should be added.
@@ -190,7 +191,8 @@ export const fetchFacilityData = async (request: any, localizationMap: any) => {
   );
   const planFacilityResponse = await searchPlanFacility(
     planConfigurationId,
-    tenantId
+    tenantId,
+    request?.body?.RequestInfo
   );
   logger.info(`got the facility mapping from the plan facility api`);
 
@@ -307,7 +309,8 @@ export const fetchTargetData = async (request: any, localizationMap: any) => {
   const planCensusResponse = await searchPlanCensus(
     planConfigurationId,
     tenantId,
-    getBoundariesFromCampaign(request.body.CampaignDetails)?.length
+    getBoundariesFromCampaign(request.body.CampaignDetails)?.length,
+    request?.body?.RequestInfo
   );
   logger.info(`got the target mapping from the census api`);
 
@@ -560,7 +563,7 @@ function findAndChangeTargetData(
   );
 
   if (headers == null || headers.length == 0) {
-    throwError("Error", 500, "Mapping not found in MDMS for Campaign");
+    throwError(errorModules.COMMON, 500, errorKeys.MDMS_MAPPING_NOT_FOUND, "Mapping not found in MDMS for Campaign");
   }
   logger.info(
     `Received for Target mapping, headers count : ${
@@ -648,7 +651,8 @@ export const fetchUserData = async (request: any, localizationMap: any) => {
   const planResponse = await searchPlan(
     planConfigurationId,
     tenantId,
-    getBoundariesFromCampaign(request.body.CampaignDetails)?.length
+    getBoundariesFromCampaign(request.body.CampaignDetails)?.length,
+    request?.body?.RequestInfo
   );
   const boundariesOfCampaign = await getBoundaryInformation(
     request.body.CampaignDetails,
@@ -784,12 +788,12 @@ export async function updateCampaignDetailsAfterSearch(
       let resourceFound = false; // Flag to track if resource is updated
 
       // Loop through resources to update or append as needed
-      searchedCamapignObject?.resources?.forEach((resource: any) => {
+      searchedCamapignObject?.resources?.forEach((resource: CampaignResource) => {
         if (resource.type === type) {
           resource.filestoreId = resourceObject?.fileStoreId;
           resource.resourceId = resourceObject?.id;
           logger.info(
-            `Updated resource of type ${type} with filestoreId: ${resourceObject.filestoreId}`
+            `Updated resource of type ${type} with filestoreId: ${resourceObject.fileStoreId}`
           );
           resourceFound = true;
         }
@@ -797,12 +801,13 @@ export async function updateCampaignDetailsAfterSearch(
 
       // If no resource of the given type was found, append a new one
       if (!resourceFound) {
-        searchedCamapignObject?.resources.push({
+        const newResource: CampaignResource = {
           type: type,
-          filename: `filled-${type}-data-from-microplan.xlsx`, // Dynamically naming based on type
+          filename: `filled-${type}-data-from-microplan.xlsx`,
           filestoreId: resourceObject?.fileStoreId,
           resourceId: resourceObject?.id,
-        });
+        };
+        searchedCamapignObject?.resources.push(newResource);
         logger.info(`Appended new resource of type ${type}`);
       }
       req.body.CampaignDetails = searchedCamapignObject;
@@ -826,11 +831,11 @@ export async function updateCampaignDetailsAfterSearch(
 
 export async function validateSheet(
   request: any,
-  tenantId: any,
-  type: any,
-  fileStoreId: any,
-  campaignId: any,
-  hierarchyType: any
+  tenantId: string,
+  type: string,
+  fileStoreId: string,
+  campaignId: string,
+  hierarchyType: string
 ) {
   let dataCreateBody = {
     ResourceDetails: {
@@ -844,7 +849,6 @@ export async function validateSheet(
     },
   };
 
-  // Now merging defaultRequestInfo *with* dataCreateBody, so both are preserved
   const newRequest: any = {
     body: { ...request.body, ...dataCreateBody }, // Spread both objects to keep both their properties
   };

@@ -21,7 +21,7 @@ export class TemplateClass {
         const readMeSchema = templateConfig?.sheets?.filter((s: any) => s?.sheetName === "HCM_README_SHEETNAME")[0]?.schema;
         const readMeColumnHeader = Object.keys(readMeSchema?.properties || {})?.[0];
         const readMeData: any = this.getReadMeData(readMeConfig, readMeColumnHeader, localizationMap);
-        const allPermanentFacilities = await getAllFacilities(responseToSend?.tenantId);
+        const allPermanentFacilities = await getAllFacilities(responseToSend?.tenantId, responseToSend?.requestInfo);
         const completedFacilitiesRow = await getRelatedDataWithCampaign(responseToSend.type, campaignDetails.campaignNumber, responseToSend?.tenantId, dataRowStatuses.completed);
         const permanentCodes = new Set(
             allPermanentFacilities.map(f => f?.id)

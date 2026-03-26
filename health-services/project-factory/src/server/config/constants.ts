@@ -19,6 +19,13 @@ export const CONSTANTS: any = {
             VALIDATION_ERROR_MISSING_TARGET_FILE: "A new boundary file must be provided when changing boundaries from the parent campaign.",
             VALIDATION_ERROR_UNIFIED_CONSOLE_TEMPLATE: "Unified console template is not valid. Please correct the errors and try again.",
             PROCESS_UPDATE_ERROR: "Error updating the process status",
+            RESOURCE_ADD_NOT_ALLOWED: "Resource add or update not allowed",
+            RESOURCE_ALREADY_QUEUED: "Resource already queued for processing",
+            RESOURCE_PROCESSING: "Resource is currently being processed",
+            NOT_FOUND: "Resource not found",
+            USER_CREDENTIAL_GENERATION_ERROR: "Error during user credential generation",
+            MDMS_MAPPING_NOT_FOUND: "Mapping not found in MDMS for Campaign",
+            PLAN_FACILITIES_NOT_FOUND: "Plan facilities not found",
         },
         FILE: {
             SHEET_MISSING_ERROR: "Some sheet or empty in Uploaded file, please check the file",
@@ -57,7 +64,12 @@ export const CONSTANTS: any = {
             VALIDATION_ERROR_CAMPAIGN_ID: "CampaignId not found or invalid",
             VALIDATION_ERROR_UPDATE_CAMPAIGN: "Campaign can only be updated in drafted or failed state",
             END_DATE_BEFORE_START_DATE: "endDate must be at least one day after startDate",
-            START_DATE_IN_PAST: "startDate cannot be today or past date"
+            START_DATE_IN_PAST: "startDate cannot be today or past date",
+            REGISTER_ID_REQUIRED: "Register ID is required",
+            ATTENDANCE_REGISTER_NOT_COMPLETE: "Attendance register creation not complete",
+            ATTENDANCE_REGISTER_NOT_FOUND: "Attendance register not found",
+            ATTENDANCE_REGISTER_LOCALITY_MISSING: "Attendance register locality not set",
+            CAMPAIGN_HIERARCHY_MISSING: "Campaign hierarchy type not set",
         },
         BOUNDARY: {
             BOUNDARY_DATA_NOT_FOUND: "No boundary data found in the system.",
@@ -89,6 +101,9 @@ export const CONSTANTS: any = {
         },
         DATA:{
             DATA_CREATE_ERROR : "Error while creating resource data"
+        },
+        PERSISTENCE: {
+            BOUNDARY_SYNC_ERROR: "Boundary sync error"
         }
     }
 }
@@ -170,11 +185,16 @@ export const allProcesses = {
     userMapping : "CAMPAIGN_USER_MAPPING_PROCESS",
     resourceMapping : "CAMPAIGN_RESOURCE_MAPPING_PROCESS",
     userCredGeneration : "CAMPAIGN_USER_CRED_GENERATION_PROCESS",
+    attendanceRegisterCreation : "CAMPAIGN_ATTENDANCE_REGISTER_CREATION_PROCESS",
+    attendanceRegisterAttendeeCreation : "CAMPAIGN_ATTENDANCE_REGISTER_ATTENDEE_CREATION_PROCESS",
 }
 
 export const sheetDataRowStatuses = {
     INVALID: "INVALID",
-    CREATED: "CREATED"
+    CREATED: "CREATED",
+    SKIPPED: "SKIPPED",
+    EXISTING: "EXISTING",
+    UPDATED: "UPDATED"
 }
 
 
@@ -218,6 +238,46 @@ export const processTrackStatuses = {
     completed: "completed",
     toBeCompleted: "toBeCompleted",
     failed: "failed",
+}
+
+export const resourceStatuses = {
+    toCreate: "toCreate",
+    creating: "creating",
+    completed: "completed",
+    failed: "failed"
+}
+
+export const errorModules = {
+    COMMON: "COMMON",
+    FILE: "FILE",
+    FACILITY: "FACILITY",
+    CAMPAIGN: "CAMPAIGN",
+    BOUNDARY: "BOUNDARY",
+    PROJECT: "PROJECT",
+    MDMS: "MDMS",
+    DATA: "DATA",
+    PERSISTENCE: "PERSISTENCE",
+}
+
+export const errorKeys = {
+    RESOURCE_ADD_NOT_ALLOWED: "RESOURCE_ADD_NOT_ALLOWED",
+    RESOURCE_ALREADY_QUEUED: "RESOURCE_ALREADY_QUEUED",
+    RESOURCE_PROCESSING: "RESOURCE_PROCESSING",
+    NOT_FOUND: "NOT_FOUND",
+    USER_CREDENTIAL_GENERATION_ERROR: "USER_CREDENTIAL_GENERATION_ERROR",
+    MDMS_MAPPING_NOT_FOUND: "MDMS_MAPPING_NOT_FOUND",
+    PLAN_FACILITIES_NOT_FOUND: "PLAN_FACILITIES_NOT_FOUND",
+    REGISTER_ID_REQUIRED: "REGISTER_ID_REQUIRED",
+    ATTENDANCE_REGISTER_NOT_COMPLETE: "ATTENDANCE_REGISTER_NOT_COMPLETE",
+    ATTENDANCE_REGISTER_NOT_FOUND: "ATTENDANCE_REGISTER_NOT_FOUND",
+    ATTENDANCE_REGISTER_LOCALITY_MISSING: "ATTENDANCE_REGISTER_LOCALITY_MISSING",
+    CAMPAIGN_HIERARCHY_MISSING: "CAMPAIGN_HIERARCHY_MISSING",
+    BOUNDARY_SYNC_ERROR: "BOUNDARY_SYNC_ERROR",
+    PARENT_CAMPAIGN_ERROR: "PARENT_CAMPAIGN_ERROR",
+    PROJECT_FACILITY_SEARCH_ERROR: "PROJECT_FACILITY_SEARCH_ERROR",
+    INVALID_FILE: "INVALID_FILE",
+    CAMPAIGN_NOT_FOUND: "CAMPAIGN_NOT_FOUND",
+    VALIDATION_ERROR: "VALIDATION_ERROR",
 }
 
 export const usageColumnStatus = {
