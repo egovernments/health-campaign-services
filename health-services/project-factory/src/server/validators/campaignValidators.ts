@@ -975,9 +975,9 @@ async function validateCampaignName(request: any, actionInUrl: any) {
                         if (!request.body.CampaignDetails?.parentId) {
                             throwError("CAMPAIGN", 400, "CAMPAIGN_NAME_ERROR");
                         }
-                        else if (campaignWithMatchingName?.id != request.body.CampaignDetails?.parentId && campaignWithMatchingName?.id != request.body.CampaignDetails?.id) {
-                            throwError("CAMPAIGN", 400, "CAMPAIGN_NAME_ERROR");
-                        }
+                        // Child campaigns share the name of their parent (enforced above at parentCampaign name check).
+                        // Name conflicts for siblings are handled by validateMaxOneChildCampaign.
+                        // Skipping global name uniqueness check for child campaigns to allow deep hierarchies.
                     }
                     else if (campaignWithMatchingName && actionInUrl == "update" && campaignWithMatchingName?.id != request.body.CampaignDetails?.id && campaignWithMatchingName?.id != request.body.CampaignDetails?.parentId) {
                         throwError("CAMPAIGN", 400, "CAMPAIGN_NAME_ERROR");
