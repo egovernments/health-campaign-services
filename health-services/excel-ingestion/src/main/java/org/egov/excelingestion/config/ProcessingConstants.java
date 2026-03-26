@@ -8,6 +8,7 @@ public class ProcessingConstants {
 
     // Column Keys
     public static final String BOUNDARY_CODE_COLUMN_KEY = "HCM_ADMIN_CONSOLE_BOUNDARY_CODE";
+    public static final String WORKER_ID_COLUMN_KEY = "HCM_ADMIN_CONSOLE_USER_WORKER_ID";
     public static final String REGISTER_ID_COLUMN_KEY = "HCM_ATTENDANCE_REGISTER_ID";
     public static final String ENROLLMENT_DATE_COLUMN_KEY = "HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE";
     public static final String DEENROLLMENT_DATE_COLUMN_KEY = "HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE";
