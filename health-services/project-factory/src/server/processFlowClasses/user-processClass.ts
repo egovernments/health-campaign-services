@@ -13,6 +13,7 @@ import { httpRequest } from "../utils/request";
 import { decrypt, encrypt } from "../utils/cryptUtils";
 import { validateResourceDetailsBeforeProcess } from "../utils/sheetManageUtils";
 import { WorkerData, createOrUpdateWorkers } from "../utils/workerRegistryUtils";
+import type { CampaignRecord } from "../utils/userBatchHandler";
 
 // This will be a dynamic template class for different types
 export class TemplateClass {
@@ -415,27 +416,65 @@ export class TemplateClass {
 
                 // Create/update workers in worker registry BEFORE persist to capture worker IDs
                 if (workerDataList.length > 0) {
+                    // Build individualId → campaignRecords map (multiple phones can map to same individualId)
+                    const individualIdToRecords = new Map<string, CampaignRecord[]>();
+                    for (const [phone, indId] of Object.entries(mobileToIndividualIdMap)) {
+                        const record = mobileToCampaignMap[phone] as CampaignRecord | undefined;
+                        if (record) {
+                            const list = individualIdToRecords.get(indId) || [];
+                            list.push(record);
+                            individualIdToRecords.set(indId, list);
+                        }
+                    }
+
                     try {
                         const workerRequestInfo = withUserInfo(resourceDetails?.requestInfo, { tenantId });
-                        const workerIdMap = await createOrUpdateWorkers(workerDataList, workerRequestInfo);
+                        const { individualIdToWorkerIdMap, errors } = await createOrUpdateWorkers(workerDataList, workerRequestInfo);
                         logger.info(`Worker registry integration completed for ${workerDataList.length} workers`);
 
-                        // Store worker IDs back in campaign data
-                        if (workerIdMap.size > 0) {
-                            for (const workerData of workerDataList) {
-                                const workerId = workerIdMap.get(workerData.individualId);
-                                if (workerId) {
-                                    // Reverse lookup: individualId → phone number → campaign record
-                                    for (const [phone, indId] of Object.entries(mobileToIndividualIdMap)) {
-                                        if (indId === workerData.individualId && mobileToCampaignMap[phone]) {
-                                            mobileToCampaignMap[phone].data["HCM_ADMIN_CONSOLE_USER_WORKER_ID"] = workerId;
-                                        }
+                        // Store worker IDs back in campaign data for successfully processed workers
+                        for (const workerData of workerDataList) {
+                            const workerId = individualIdToWorkerIdMap.get(workerData.individualId);
+                            if (workerId) {
+                                const records = individualIdToRecords.get(workerData.individualId) || [];
+                                for (const record of records) {
+                                    record.data["HCM_ADMIN_CONSOLE_USER_WORKER_ID"] = workerId;
+                                }
+                            }
+                        }
+
+                        // Mark rows as failed for workers that didn't get an ID back (partial failure)
+                        if (errors.length > 0) {
+                            const errMsg = errors.join("; ");
+                            logger.error("Worker registry integration had errors:", errMsg);
+                            const processedIds = new Set<string>();
+                            for (const w of workerDataList) {
+                                if (processedIds.has(w.individualId)) continue;
+                                processedIds.add(w.individualId);
+                                if (!individualIdToWorkerIdMap.has(w.individualId)) {
+                                    const records = individualIdToRecords.get(w.individualId) || [];
+                                    for (const record of records) {
+                                        record.status = dataRowStatuses.failed;
+                                        record.data["#status#"] = sheetDataRowStatuses.INVALID;
+                                        record.data["#errorDetails#"] = errMsg;
                                     }
                                 }
                             }
                         }
-                    } catch (workerError) {
-                        logger.error("Worker registry integration failed (non-blocking):", workerError);
+                    } catch (workerError: unknown) {
+                        const errMsg = workerError instanceof Error ? workerError.message : String(workerError);
+                        logger.error("Worker registry integration failed:", errMsg);
+                        const processedIds = new Set<string>();
+                        for (const w of workerDataList) {
+                            if (processedIds.has(w.individualId)) continue;
+                            processedIds.add(w.individualId);
+                            const records = individualIdToRecords.get(w.individualId) || [];
+                            for (const record of records) {
+                                record.status = dataRowStatuses.failed;
+                                record.data["#status#"] = sheetDataRowStatuses.INVALID;
+                                record.data["#errorDetails#"] = errMsg;
+                            }
+                        }
                     }
                 }
 
