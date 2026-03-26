@@ -12,6 +12,8 @@ public class ProcessingConstants {
     public static final String REGISTER_ID_COLUMN_KEY = "HCM_ATTENDANCE_REGISTER_ID";
     public static final String ENROLLMENT_DATE_COLUMN_KEY = "HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE";
     public static final String DEENROLLMENT_DATE_COLUMN_KEY = "HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE";
+    public static final String EVENT_TYPE_COLUMN_KEY = "HCM_ATTENDANCE_REGISTER_EVENT_TYPE";
+    public static final String SESSIONS_COLUMN_KEY = "HCM_ATTENDANCE_REGISTER_SESSIONS";
     public static final String USERNAME_COLUMN_KEY = "UserName";
 
     // Reference Type Constants

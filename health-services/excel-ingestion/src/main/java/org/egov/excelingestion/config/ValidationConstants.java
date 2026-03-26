@@ -46,6 +46,24 @@ public class ValidationConstants {
     public static final String DEFAULT_ATTENDANCE_REGISTER_ID_MISMATCH = "Register ID does not match expected register";
     public static final String DEFAULT_ATTENDANCE_REGISTER_WRONG_CAMPAIGN = "Register already exists in a different campaign";
 
+    public static final String LOC_ATTENDANCE_REGISTER_ID_ALREADY_TAKEN = "HCM_ATTENDANCE_REGISTER_VALIDATION_ID_ALREADY_TAKEN";
+    public static final String DEFAULT_ATTENDANCE_REGISTER_ID_ALREADY_TAKEN = "Register ID is already taken or not available. Use another Register ID";
+
+    public static final String LOC_ATTENDANCE_REGISTER_INCOMPLETE_ROW = "HCM_ATTENDANCE_REGISTER_VALIDATION_INCOMPLETE_ROW";
+    public static final String DEFAULT_ATTENDANCE_REGISTER_INCOMPLETE_ROW = "Register ID is required when boundary, event type, or sessions is filled";
+
+    // Attendance Register — No Boundary
+    public static final String LOC_ATTENDANCE_REGISTER_NO_BOUNDARY = "HCM_ATTENDANCE_REGISTER_VALIDATION_NO_BOUNDARY";
+    public static final String DEFAULT_ATTENDANCE_REGISTER_NO_BOUNDARY = "At least one boundary must be selected for the register";
+
+    // Attendance Register — Invalid Boundary
+    public static final String LOC_ATTENDANCE_REGISTER_INVALID_BOUNDARY = "HCM_ATTENDANCE_REGISTER_VALIDATION_INVALID_BOUNDARY";
+    public static final String DEFAULT_ATTENDANCE_REGISTER_INVALID_BOUNDARY = "Invalid boundary code";
+
+    // Attendance Register — Duplicate ID in Sheet
+    public static final String LOC_ATTENDANCE_REGISTER_DUPLICATE_ID = "HCM_ATTENDANCE_REGISTER_VALIDATION_DUPLICATE_ID";
+    public static final String DEFAULT_ATTENDANCE_REGISTER_DUPLICATE_ID = "Duplicate Register ID found in the sheet";
+
     private ValidationConstants() {
         // Private constructor to prevent instantiation
     }

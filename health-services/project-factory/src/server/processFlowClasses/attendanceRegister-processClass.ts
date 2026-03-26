@@ -423,7 +423,12 @@ export class TemplateClass {
     }
 
     /**
-     * Idempotent batch create/update - check for existing registers, create new ones and update existing same-campaign ones
+     * Idempotent batch create/update - check for existing registers, create new ones and update existing same-campaign ones.
+     *
+     * Design decision: Same-campaign registers ARE updated on re-upload (name, dates, sessions).
+     * Cross-campaign registers are NEVER updated (marked INVALID).
+     * Boundary-changed registers are NEVER updated (marked INVALID).
+     *
      * Returns existingServiceCodes, conflictingServiceCodes, and serviceCodeToUuidMap (serviceCode -> UUID)
      */
     private static async idempotentBatchCreate(

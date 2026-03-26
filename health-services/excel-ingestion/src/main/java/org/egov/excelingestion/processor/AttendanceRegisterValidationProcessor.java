@@ -2,8 +2,11 @@ package org.egov.excelingestion.processor;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
+import org.egov.excelingestion.config.ExcelIngestionConfig;
+import org.egov.excelingestion.config.ProcessingConstants;
 import org.egov.excelingestion.config.ValidationConstants;
 import org.egov.excelingestion.config.ErrorConstants;
+import org.egov.excelingestion.repository.ServiceRequestRepository;
 import org.egov.excelingestion.service.ValidationService;
 import org.egov.excelingestion.service.BoundaryService;
 import org.egov.excelingestion.service.CampaignService;
@@ -17,6 +20,8 @@ import org.egov.excelingestion.web.models.ValidationColumnInfo;
 import org.egov.excelingestion.web.models.ValidationError;
 import org.springframework.stereotype.Component;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -39,6 +44,8 @@ public class AttendanceRegisterValidationProcessor implements IWorkbookProcessor
     private final ExcelUtil excelUtil;
     private final CustomExceptionHandler exceptionHandler;
     private final BoundaryUtil boundaryUtil;
+    private final ServiceRequestRepository serviceRequestRepository;
+    private final ExcelIngestionConfig config;
 
     public AttendanceRegisterValidationProcessor(ValidationService validationService,
                                                BoundaryService boundaryService,
@@ -46,7 +53,9 @@ public class AttendanceRegisterValidationProcessor implements IWorkbookProcessor
                                                EnrichmentUtil enrichmentUtil,
                                                ExcelUtil excelUtil,
                                                CustomExceptionHandler exceptionHandler,
-                                               BoundaryUtil boundaryUtil) {
+                                               BoundaryUtil boundaryUtil,
+                                               ServiceRequestRepository serviceRequestRepository,
+                                               ExcelIngestionConfig config) {
         this.validationService = validationService;
         this.boundaryService = boundaryService;
         this.campaignService = campaignService;
@@ -54,6 +63,8 @@ public class AttendanceRegisterValidationProcessor implements IWorkbookProcessor
         this.excelUtil = excelUtil;
         this.exceptionHandler = exceptionHandler;
         this.boundaryUtil = boundaryUtil;
+        this.serviceRequestRepository = serviceRequestRepository;
+        this.config = config;
     }
 
     @Override
@@ -77,8 +88,18 @@ public class AttendanceRegisterValidationProcessor implements IWorkbookProcessor
 
             List<ValidationError> errors = new ArrayList<>();
 
+            // Collect unique Register IDs for global existence check
+            List<String> registerIdsToCheck = sheetData.stream()
+                .map(row -> ExcelUtil.getValueAsString(row.get(ProcessingConstants.REGISTER_ID_COLUMN_KEY)).trim())
+                .filter(id -> !id.isEmpty())
+                .distinct()
+                .collect(Collectors.toList());
+
+            // Pre-fetch existing serviceCodes from attendance service - O(m) where m = unique IDs
+            Set<String> existingServiceCodes = fetchExistingServiceCodes(registerIdsToCheck, resource.getTenantId(), requestInfo);
+
             // Validate sheet data - O(n) single pass
-            validateAttendanceRegisterData(sheetData, resource, requestInfo, errors, localizationMap);
+            validateAttendanceRegisterData(sheetData, resource, requestInfo, errors, localizationMap, existingServiceCodes);
 
             log.info("Attendance register validation completed with {} errors", errors.size());
 
@@ -120,7 +141,8 @@ public class AttendanceRegisterValidationProcessor implements IWorkbookProcessor
                                                ProcessResource resource,
                                                RequestInfo requestInfo,
                                                List<ValidationError> errors,
-                                               Map<String, String> localizationMap) {
+                                               Map<String, String> localizationMap,
+                                               Set<String> existingServiceCodes) {
 
         log.info("Validating {} attendance register rows", sheetData.size());
 
@@ -149,38 +171,50 @@ public class AttendanceRegisterValidationProcessor implements IWorkbookProcessor
             List<String> rowErrors = new ArrayList<>();
 
             boolean hasBoundary = hasBoundaryFilled(row, boundaryColumnNames);
-            String registerId = ExcelUtil.getValueAsString(row.get("HCM_ATTENDANCE_REGISTER_ID")).trim();
+            String registerId = ExcelUtil.getValueAsString(row.get(ProcessingConstants.REGISTER_ID_COLUMN_KEY)).trim();
             boolean hasRegisterId = !registerId.isEmpty();
-            String boundaryCode = ExcelUtil.getValueAsString(row.get("HCM_ADMIN_CONSOLE_BOUNDARY_CODE")).trim();
+            String boundaryCode = ExcelUtil.getValueAsString(row.get(ProcessingConstants.BOUNDARY_CODE_COLUMN_KEY)).trim();
 
-            // Boundary filled but no register ID
-            if (hasBoundary && !hasRegisterId) {
+            // Read optional fields
+            String eventType = ExcelUtil.getValueAsString(row.get(ProcessingConstants.EVENT_TYPE_COLUMN_KEY)).trim();
+            String sessions = ExcelUtil.getValueAsString(row.get(ProcessingConstants.SESSIONS_COLUMN_KEY)).trim();
+
+            // Register ID empty but other fields filled
+            if (!hasRegisterId && (hasBoundary || !eventType.isEmpty() || !sessions.isEmpty())) {
                 rowErrors.add(localizationMap.getOrDefault(
-                        "HCM_ATTENDANCE_REGISTER_VALIDATION_EMPTY_ID",
-                        "Register ID is required when boundary is selected"));
+                        ValidationConstants.LOC_ATTENDANCE_REGISTER_INCOMPLETE_ROW,
+                        ValidationConstants.DEFAULT_ATTENDANCE_REGISTER_INCOMPLETE_ROW));
             }
 
             // Register ID filled but no boundary
             if (!hasBoundary && hasRegisterId) {
                 rowErrors.add(localizationMap.getOrDefault(
-                        "HCM_ATTENDANCE_REGISTER_VALIDATION_NO_BOUNDARY",
-                        "At least one boundary must be selected for the register"));
+                        ValidationConstants.LOC_ATTENDANCE_REGISTER_NO_BOUNDARY,
+                        ValidationConstants.DEFAULT_ATTENDANCE_REGISTER_NO_BOUNDARY));
             }
 
             // Validate boundary code against campaign boundaries (same as User/Facility pattern)
             if (!boundaryCode.isEmpty() && !validBoundaryCodes.contains(boundaryCode)) {
                 rowErrors.add(localizationMap.getOrDefault(
-                        "HCM_ATTENDANCE_REGISTER_VALIDATION_INVALID_BOUNDARY",
-                        "Invalid boundary code: " + boundaryCode));
+                        ValidationConstants.LOC_ATTENDANCE_REGISTER_INVALID_BOUNDARY,
+                        ValidationConstants.DEFAULT_ATTENDANCE_REGISTER_INVALID_BOUNDARY + ": " + boundaryCode));
             }
 
             // Duplicate check (only if register ID exists)
-            if (hasRegisterId && !seenRegisterIds.add(registerId)) {
+            boolean isDuplicateInSheet = hasRegisterId && !seenRegisterIds.add(registerId);
+            if (isDuplicateInSheet) {
                 rowErrors.add(localizationMap.getOrDefault(
-                        "HCM_ATTENDANCE_REGISTER_VALIDATION_DUPLICATE_ID",
-                        "Duplicate Register ID found"));
+                        ValidationConstants.LOC_ATTENDANCE_REGISTER_DUPLICATE_ID,
+                        ValidationConstants.DEFAULT_ATTENDANCE_REGISTER_DUPLICATE_ID));
             }
 
+            // Check if Register ID already exists in attendance service (global uniqueness)
+            // Skip if already flagged as duplicate-in-sheet to avoid redundant/confusing double errors
+            if (hasRegisterId && !isDuplicateInSheet && existingServiceCodes.contains(registerId)) {
+                rowErrors.add(localizationMap.getOrDefault(
+                        ValidationConstants.LOC_ATTENDANCE_REGISTER_ID_ALREADY_TAKEN,
+                        ValidationConstants.DEFAULT_ATTENDANCE_REGISTER_ID_ALREADY_TAKEN));
+            }
 
             // Add errors for this row
             if (!rowErrors.isEmpty()) {
@@ -238,8 +272,14 @@ public class AttendanceRegisterValidationProcessor implements IWorkbookProcessor
             if (val != null && !String.valueOf(val).trim().isEmpty()) return true;
         }
         // Check Register ID
-        Object registerId = row.get("HCM_ATTENDANCE_REGISTER_ID");
+        Object registerId = row.get(ProcessingConstants.REGISTER_ID_COLUMN_KEY);
         if (registerId != null && !String.valueOf(registerId).trim().isEmpty()) return true;
+        // Check EventType
+        Object eventType = row.get(ProcessingConstants.EVENT_TYPE_COLUMN_KEY);
+        if (eventType != null && !String.valueOf(eventType).trim().isEmpty()) return true;
+        // Check Sessions
+        Object sessions = row.get(ProcessingConstants.SESSIONS_COLUMN_KEY);
+        if (sessions != null && !String.valueOf(sessions).trim().isEmpty()) return true;
         return false;
     }
 
@@ -300,5 +340,47 @@ public class AttendanceRegisterValidationProcessor implements IWorkbookProcessor
                 log.debug("Added validation errors to row {}: {}", excelRowNumber, error.getErrorDetails());
             }
         }
+    }
+
+    /**
+     * Fetch existing serviceCodes from attendance service.
+     * Searches by serviceCode (without campaignId filter) to check global uniqueness.
+     * On HTTP failure for any code, logs warning and skips (does not block validation).
+     */
+    private Set<String> fetchExistingServiceCodes(List<String> serviceCodes, String tenantId, RequestInfo requestInfo) {
+        Set<String> existing = new HashSet<>();
+        if (serviceCodes.isEmpty()) {
+            return existing;
+        }
+
+        log.info("Checking global existence for {} unique Register ID(s)", serviceCodes.size());
+
+        for (String serviceCode : serviceCodes) {
+            try {
+                StringBuilder url = new StringBuilder(config.getAttendanceRegisterSearchUrl());
+                url.append("?tenantId=").append(URLEncoder.encode(tenantId, StandardCharsets.UTF_8))
+                   .append("&serviceCode=").append(URLEncoder.encode(serviceCode, StandardCharsets.UTF_8));
+
+                Map<String, Object> payload = new HashMap<>();
+                payload.put("RequestInfo", requestInfo);
+
+                @SuppressWarnings("unchecked")
+                Map<String, Object> response = (Map<String, Object>) serviceRequestRepository.fetchResult(url, payload);
+
+                if (response != null && response.get(ProcessingConstants.ATTENDANCE_REGISTER_RESPONSE_KEY) != null) {
+                    @SuppressWarnings("unchecked")
+                    List<Map<String, Object>> registers =
+                        (List<Map<String, Object>>) response.get(ProcessingConstants.ATTENDANCE_REGISTER_RESPONSE_KEY);
+                    if (registers != null && !registers.isEmpty()) {
+                        existing.add(serviceCode);
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("Error checking serviceCode '{}' existence: {}", serviceCode, e.getMessage());
+            }
+        }
+
+        log.info("Found {} existing Register ID(s) in attendance service", existing.size());
+        return existing;
     }
 }
