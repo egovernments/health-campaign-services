@@ -1,5 +1,6 @@
 package org.egov.project.helper;
 
+import org.egov.common.contract.models.AuditDetails;
 import org.egov.common.helper.AuditDetailsTestBuilder;
 import org.egov.common.models.core.AdditionalFields;
 import org.egov.common.models.project.ProjectBeneficiary;
@@ -66,7 +67,12 @@ public class ProjectBeneficiaryTestBuilder {
     }
 
     public ProjectBeneficiaryTestBuilder withAuditDetails() {
-        this.builder.auditDetails(AuditDetailsTestBuilder.builder().withAuditDetails().build());
+        this.builder.auditDetails(AuditDetails.builder()
+                .createdTime(1L)
+                .createdBy("some-uuid")
+                .lastModifiedTime(1L)
+                .lastModifiedBy("some-uuid")
+                .build());
         return this;
     }
 
