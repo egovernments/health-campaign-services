@@ -34,7 +34,7 @@ import java.util.List;
 @Component
 @Slf4j
 @ConditionalOnProperty(name = "notification.push.enabled", havingValue = "true", matchIfMissing = true)
-public class StockNotificationConsumer {
+public class NotificationConsumer {
 
     private final StockNotificationAdapter stockAdapter;
     private final HFReferralNotificationAdapter hfReferralAdapter;
@@ -42,10 +42,10 @@ public class StockNotificationConsumer {
     private final ObjectMapper objectMapper;
 
     @Autowired
-    public StockNotificationConsumer(StockNotificationAdapter stockAdapter,
-                                      HFReferralNotificationAdapter hfReferralAdapter,
-                                      NotificationProcessorService processor,
-                                      @Qualifier("objectMapper") ObjectMapper objectMapper) {
+    public NotificationConsumer(StockNotificationAdapter stockAdapter,
+                                HFReferralNotificationAdapter hfReferralAdapter,
+                                NotificationProcessorService processor,
+                                @Qualifier("objectMapper") ObjectMapper objectMapper) {
         this.stockAdapter = stockAdapter;
         this.hfReferralAdapter = hfReferralAdapter;
         this.processor = processor;

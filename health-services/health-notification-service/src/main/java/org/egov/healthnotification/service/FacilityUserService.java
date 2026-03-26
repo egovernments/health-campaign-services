@@ -123,6 +123,54 @@ public class FacilityUserService {
     }
 
     /**
+     * Resolves a projectFacilityId to the actual facilityId by calling
+     * the project facility search API.
+     *
+     * @param projectFacilityId The project-facility mapping ID
+     * @param tenantId          The tenant ID
+     * @return The actual facilityId, or null if not found
+     */
+    public String resolveProjectFacilityId(String projectFacilityId, String tenantId) {
+        if (projectFacilityId == null || projectFacilityId.isBlank()) {
+            log.warn("projectFacilityId is null/blank. Cannot resolve facilityId.");
+            return null;
+        }
+
+        try {
+            Map<String, Object> request = new HashMap<>();
+            request.put("RequestInfo", RequestInfoUtil.buildSystemRequestInfo());
+
+            Map<String, Object> projectFacility = new HashMap<>();
+            projectFacility.put("id", List.of(projectFacilityId));
+            request.put("ProjectFacility", projectFacility);
+
+            StringBuilder uri = new StringBuilder(properties.getProjectHost())
+                    .append(properties.getProjectFacilitySearchUrl())
+                    .append("?limit=1&offset=0&tenantId=").append(tenantId);
+
+            JsonNode response = serviceRequestClient.fetchResult(uri, request, JsonNode.class);
+
+            if (response != null && response.has("ProjectFacilities")
+                    && response.get("ProjectFacilities").isArray()
+                    && response.get("ProjectFacilities").size() > 0) {
+                String facilityId = response.get("ProjectFacilities").get(0)
+                        .path("facilityId").asText(null);
+                log.info("Resolved projectFacilityId={} to facilityId={}", projectFacilityId, facilityId);
+                return facilityId;
+            }
+
+            log.warn("No ProjectFacility found for projectFacilityId={}, tenantId={}",
+                    projectFacilityId, tenantId);
+            return null;
+
+        } catch (Exception e) {
+            log.error("Error resolving projectFacilityId={} to facilityId: {}",
+                    projectFacilityId, e.getMessage());
+            return null;
+        }
+    }
+
+    /**
      * Resolves facility ID to assigned user UUIDs.
      * Calls facility service to get users assigned to a warehouse.
      */

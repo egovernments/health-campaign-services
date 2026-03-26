@@ -88,7 +88,7 @@ public class StockNotificationAdapter {
 
         // Extract locale
         List<String> locales = extractLocales(notificationConfig);
-        String locale = (locales != null && !locales.isEmpty()) ? locales.get(0) : "en_NG";
+        String locale = (locales != null && !locales.isEmpty()) ? locales.get(0) : Constants.DEFAULT_LOCALE;
 
         // Build placeholders from stock + additionalFields
         Map<String, Object> placeholders = buildPlaceholders(stock, tenantId);

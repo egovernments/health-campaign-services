@@ -181,6 +181,9 @@ public class Constants {
     public static final String PLACEHOLDER_TRANSACTION_ID = "Transaction_ID";
     public static final String PLACEHOLDER_QUANTITY_OF_SKU = "quantity_of_sku";
 
+    // ========== Locale Defaults ==========
+    public static final String DEFAULT_LOCALE = "en_NG";
+
     // ========== MDMS Campaign Type for Push Notifications ==========
     public static final String CAMPAIGN_TYPE_PUSH_NOTIFICATION = "PUSH-NOTIFICATION";
 
@@ -189,7 +192,37 @@ public class Constants {
     public static final String SCREEN_TRANSACTION_DETAILS = "TRANSACTION_DETAILS";
     public static final String SCREEN_RECORD_RECEIPT = "RECORD_RECEIPT_SCREEN";
 
+    // ========== HFReferral Event Types (aligned with MDMS eventType) ==========
+    public static final String EVENT_TYPE_REFERRAL_CREATED = "HF_REFERRAL_PUSH_NOTIFICATION";
+
+    // ========== HFReferral Push Notification Titles ==========
+    public static final String TITLE_REFERRAL_CREATED = "New Referral Created";
+
+    // ========== HFReferral Placeholder Keys (matching MDMS template variables) ==========
+    public static final String PLACEHOLDER_REFERRAL_NAME = "Referral_Name";
+    public static final String PLACEHOLDER_REFERRAL_CODE = "Referral_Code";
+    public static final String PLACEHOLDER_SYMPTOM = "Symptom";
+    public static final String PLACEHOLDER_GENDER = "Gender";
+    public static final String PLACEHOLDER_AGE_IN_MONTHS = "Age_In_Months";
+    public static final String PLACEHOLDER_REFERRAL_CYCLE = "Referral_Cycle";
+    public static final String PLACEHOLDER_REFERRED_BY = "Referred_By";
+    public static final String PLACEHOLDER_DATE_OF_EVALUATION = "Date_Of_Evaluation";
+    public static final String PLACEHOLDER_FACILITY_NAME = "Facility_Name";
+    public static final String PLACEHOLDER_ADMINISTRATIVE_AREA = "Administrative_Area";
+
+    // ========== HFReferral AdditionalFields Key Constants ==========
+    public static final String ADDITIONAL_FIELD_NAME_OF_REFERRAL = "nameOfReferral";
+    public static final String ADDITIONAL_FIELD_REFERRAL_CYCLE = "referralCycle";
+    public static final String ADDITIONAL_FIELD_GENDER = "gender";
+    public static final String ADDITIONAL_FIELD_AGE_IN_MONTHS = "ageInMonths";
+    public static final String ADDITIONAL_FIELD_DATE_OF_EVALUATION = "dateOfEvaluation";
+    public static final String ADDITIONAL_FIELD_REFERRED_BY = "referredBy";
+
+    // ========== HFReferral Screen Navigation Constants ==========
+    public static final String SCREEN_REFERRAL_DETAILS = "REFERRAL_DETAILS_SCREEN";
+
     // ========== Push Notification Error Codes ==========
     public static final String ERROR_PUSH_NOTIFICATION_FAILED = "PUSH_NOTIFICATION_FAILED";
     public static final String ERROR_STOCK_EVENT_PROCESSING_FAILED = "STOCK_EVENT_PROCESSING_FAILED";
+    public static final String ERROR_REFERRAL_EVENT_PROCESSING_FAILED = "REFERRAL_EVENT_PROCESSING_FAILED";
 }
