@@ -521,6 +521,14 @@ function processDynamicColumns(
     const keyRow = worksheet.getRow(1);       // Row 1: Original keys
     const headerRow = worksheet.getRow(2);    // Row 2: Localized values
 
+    // Clear existing cells in rows 1 and 2 to prevent stale columns from a previous
+    // template layout (e.g. after schema changes or column count decreases).
+    const existingColumnCount = worksheet.columnCount;
+    for (let i = 1; i <= existingColumnCount; i++) {
+        keyRow.getCell(i).value = null;
+        headerRow.getCell(i).value = null;
+    }
+
     let columnIndex = 1;
 
     for (const [columnName, columnConfig] of sheetData?.dynamicColumns) {

@@ -9,6 +9,7 @@ import { validateResourceDetailsBeforeProcess } from "../utils/sheetManageUtils"
 import config from "../config";
 import { getRelatedDataWithCampaign, throwError } from "../utils/genericUtils";
 import { produceModifiedMessages } from "../kafka/Producer";
+import { searchBoundaryRelationshipDefinition } from "../api/coreApis";
 
 /**
  * Process class for Attendance Register creation
@@ -41,10 +42,11 @@ export class TemplateClass {
         const sheetData = wholeSheetData[getLocalizedName("HCM_ATTENDANCE_REGISTER_LIST", localizationMap)];
         if (!sheetData || sheetData.length === 0) {
             logger.warn("No attendance register data found in sheet");
+            const emptyBoundaryColumns = await this.getRegisterListBoundaryDynamicColumns(tenantId, campaign.hierarchyType);
             return {
                 ["HCM_ATTENDANCE_REGISTER_LIST"]: {
                     data: [],
-                    dynamicColumns: null
+                    dynamicColumns: emptyBoundaryColumns
                 }
             };
         }
@@ -148,10 +150,14 @@ export class TemplateClass {
             logger.info("Appended {} unpersistable INVALID rows to output", unpersistableRows.length);
         }
 
+        const registerListBoundaryColumns = await this.getRegisterListBoundaryDynamicColumns(
+            tenantId, campaign.hierarchyType
+        );
+
         const sheetMap: SheetMap = {};
         sheetMap["HCM_ATTENDANCE_REGISTER_LIST"] = {
             data: outputData,
-            dynamicColumns: null
+            dynamicColumns: registerListBoundaryColumns
         };
 
         logger.info(`SheetMap generated for attendance register processing`);
@@ -655,6 +661,44 @@ export class TemplateClass {
         } catch (error: any) {
             logger.error("Error updating attendance registers: {}", error?.message);
             throw error;
+        }
+    }
+
+    /**
+     * Build boundary dynamic columns for the Attendance Register List sheet.
+     * Identical to the generate class method — must stay in sync so generate and process
+     * produce the same column layout and no stale cells accumulate on re-upload.
+     *
+     * Column order after merge with MDMS schema:
+     *   boundary levels (negative orderNumbers) → boundary code (0, hidden) → schema cols (8+)
+     */
+    private static async getRegisterListBoundaryDynamicColumns(tenantId: string, hierarchyType: string) {
+        const response = await searchBoundaryRelationshipDefinition({
+            BoundaryTypeHierarchySearchCriteria: {
+                tenantId: tenantId,
+                hierarchyType: hierarchyType
+            }
+        });
+
+        if (response?.BoundaryHierarchy?.[0]?.boundaryHierarchy?.length > 0) {
+            const boundaryTypes = response.BoundaryHierarchy[0].boundaryHierarchy.map(
+                (hierarchy: any) => hierarchy?.boundaryType
+            );
+
+            const total = boundaryTypes.length;
+            const result: Record<string, any> = {};
+
+            boundaryTypes.forEach((type: string, index: number) => {
+                const key = `${hierarchyType}_${type}`.toUpperCase();
+                result[key] = { orderNumber: -1 * (total - index), adjustHeight: true, color: '#f3842d' };
+            });
+
+            // orderNumber 0: after boundary hierarchy levels (negative), before Register ID (8)
+            result["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"] = { orderNumber: 0, width: 80, hideColumn: true, adjustHeight: true };
+            logger.info(`Register list boundary columns prepared for attendance register processing.`);
+            return result;
+        } else {
+            throw new Error("Boundary Hierarchy not found");
         }
     }
 }

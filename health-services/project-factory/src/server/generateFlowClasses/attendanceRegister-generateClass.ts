@@ -45,6 +45,7 @@ export class TemplateClass {
         // Prepare Boundary sheet for dropdown population
         const boundaryData = await this.getBoundaryData(campaignDetails, localizationMap);
         const boundaryDynamicColumns = await this.getBoundaryDynamicColumns(tenantId, hierarchyType);
+        const registerListBoundaryColumns = await this.getRegisterListBoundaryDynamicColumns(tenantId, hierarchyType);
 
         // Prepare Attendance Register List sheet — populate from campaign_data if registers exist
         const existingRegisterRows = await getRelatedDataWithCampaign(
@@ -67,7 +68,7 @@ export class TemplateClass {
             },
             ["HCM_ATTENDANCE_REGISTER_LIST"]: {
                 data: attendanceRegisterData,
-                dynamicColumns: null
+                dynamicColumns: registerListBoundaryColumns
             }
         };
 
@@ -231,6 +232,42 @@ export class TemplateClass {
             });
             result["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"] = { adjustHeight: true, width: 80, freezeColumn: true };
             logger.info(`Dynamic columns prepared for boundary data.`);
+            return result;
+        } else {
+            throw new Error("Boundary Hierarchy not found");
+        }
+    }
+
+    /**
+     * Build boundary dynamic columns for the Attendance Register List sheet.
+     * Uses negative orderNumbers so boundary columns sort before all schema columns
+     * (min schema orderNumber = 8 for Register ID).
+     * Column order: boundary levels (negative) → boundary code at 0 (hidden) → schema cols (8+)
+     */
+    static async getRegisterListBoundaryDynamicColumns(tenantId: any, hierarchyType: any) {
+        const response = await searchBoundaryRelationshipDefinition({
+            BoundaryTypeHierarchySearchCriteria: {
+                tenantId: tenantId,
+                hierarchyType: hierarchyType
+            }
+        });
+
+        if (response?.BoundaryHierarchy?.[0]?.boundaryHierarchy?.length > 0) {
+            const boundaryTypes = response.BoundaryHierarchy[0].boundaryHierarchy.map(
+                (hierarchy: any) => hierarchy?.boundaryType
+            );
+
+            const total = boundaryTypes.length;
+            const result: Record<string, any> = {};
+
+            boundaryTypes.forEach((type: string, index: number) => {
+                const key = `${hierarchyType}_${type}`.toUpperCase();
+                result[key] = { orderNumber: -1 * (total - index), adjustHeight: true, color: '#f3842d' };
+            });
+
+            // orderNumber 0: after boundary hierarchy levels (negative), before Register ID (8)
+            result["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"] = { orderNumber: 0, width: 80, hideColumn: true, adjustHeight: true };
+            logger.info(`Register list boundary columns prepared for attendance register.`);
             return result;
         } else {
             throw new Error("Boundary Hierarchy not found");
