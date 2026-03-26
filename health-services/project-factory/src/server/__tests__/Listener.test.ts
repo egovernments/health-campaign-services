@@ -37,7 +37,6 @@ jest.mock('../config', () => {
         KAFKA_BROKER_HOST: 'localhost:9092',
       },
       app: {
-        defaultTenantId: 'ng.kaduna',
       },
       kafka: {
         KAFKA_START_ADMIN_CONSOLE_TASK_TOPIC: 'start-admin-console-task',

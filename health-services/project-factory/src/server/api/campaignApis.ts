@@ -1540,7 +1540,7 @@ async function handleResouceDetailsError(request: any, error: any) {
         await produceModifiedMessages(
           activityObject,
           config?.kafka?.KAFKA_CREATE_RESOURCE_ACTIVITY_TOPIC,
-          tenantId || config.app.defaultTenantId
+          tenantId
         )
       );
     }

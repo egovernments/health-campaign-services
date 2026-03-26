@@ -177,30 +177,6 @@ class Localisation {
     return this.cachedResponse[cacheKey];
   };
 
-
-  
-  
-  // Calls the cache burst API of localization
-  public cacheBurst = async (
-  ) => {
-    logger.info(`Calling localization cache burst api`);
-    const requestBody = {
-      RequestInfo: {
-        apiId: "PROJECTFACTORY",
-        msgId: `${new Date().getTime()}|${config.localisation?.defaultLocale}`,
-        ...(config.isProduction && config.token && { authToken: config.token }),
-        userInfo: {
-          tenantId: config?.app?.defaultTenantId,
-          id: 1
-        }
-      }
-    }
-    await httpRequest(
-      this.localizationHost + config.paths.cacheBurst,
-      requestBody)
-  };
-
-
   private checkCacheAndDeleteIfExists = (module: string, locale: "string") => {
     logger.info(
       `Received to checkCacheAndDeleteIfExists for module ${module}, locale ${locale}`
