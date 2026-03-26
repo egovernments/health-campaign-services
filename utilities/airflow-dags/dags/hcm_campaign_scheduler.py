@@ -320,7 +320,7 @@ default_args = {
 with DAG(
     dag_id="hcm_campaign_scheduler",
     default_args=default_args,
-    schedule="0 * * * *",  # run hourly at minute 0 UTC
+    schedule="*/20 * * * *",  # run hourly at minute 0 UTC
     start_date=datetime(2025, 1, 1, tzinfo=UTC),
     catchup=False,
     tags=["hcm", "scheduler"],
@@ -337,7 +337,7 @@ with DAG(
         now = datetime.now(UTC)
 
         # Calculate window (backward-looking 1 hour)
-        window_start = now - timedelta(hours=1) + timedelta(minutes=WINDOW_GRACE_MINUTES)
+        window_start = now - timedelta(minutes=20) + timedelta(minutes=WINDOW_GRACE_MINUTES)
         window_end = now
 
         logger.info("=" * 80)
