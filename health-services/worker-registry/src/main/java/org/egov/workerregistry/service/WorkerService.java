@@ -134,7 +134,8 @@ public class WorkerService {
         try {
             WorkerSearch search = WorkerSearch.builder().id(ids).tenantId(tenantId).build();
             List<Worker> existing = workerRepository.find(search);
-            existing.forEach(w -> existingMap.put(w.getId(), w));
+            List<Worker> decryptedExisting = workerEncryptionService.decrypt(existing, WorkerRegistryConstants.DECRYPT_WORKER, request.getRequestInfo());
+            decryptedExisting.forEach(w -> existingMap.put(w.getId(), w));
         } catch (InvalidTenantIdException e) {
             throw new CustomException(WorkerRegistryConstants.INVALID_TENANT_EXCEPTION, WorkerRegistryConstants.MSG_TENANT_ID_NOT_VALID);
         }
