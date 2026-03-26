@@ -15,6 +15,48 @@ interface WorkerData {
     id?: string;
 }
 
+/** Shape of a worker record returned by the worker registry API */
+interface WorkerRegistryRecord {
+    id: string;
+    individualIds: string[];
+    name?: string;
+    payeePhoneNumber?: string;
+    paymentProvider?: string;
+    payeeName?: string;
+    bankAccount?: string;
+    bankCode?: string;
+    rowVersion: number;
+    tenantId: string;
+    additionalDetails?: Record<string, unknown>;
+    auditDetails?: Record<string, unknown>;
+    isDeleted?: boolean;
+    photoId?: string;
+    signatureId?: string;
+}
+
+/** Payload for creating a new worker (no id/rowVersion yet) */
+interface WorkerCreatePayload {
+    name: string;
+    payeePhoneNumber: string;
+    paymentProvider: string;
+    payeeName: string;
+    bankAccount: string;
+    bankCode: string;
+    individualIds: string[];
+    tenantId: string;
+    additionalDetails: Record<string, unknown>;
+}
+
+/** Result of createOrUpdateWorkers — includes partial successes and errors */
+interface WorkerRegistryResult {
+    individualIdToWorkerIdMap: Map<string, string>;
+    errors: string[];
+}
+
+function toErrorMessage(error: unknown): string {
+    return error instanceof Error ? error.message : String(error);
+}
+
 /**
  * Search workers by individual IDs
  */
@@ -22,7 +64,7 @@ async function searchWorkersByIndividualIds(
     individualIds: string[],
     tenantId: string,
     requestInfo: RequestInfo
-): Promise<any[]> {
+): Promise<WorkerRegistryRecord[]> {
     if (!individualIds.length) return [];
 
     const url = config.host.workerRegistryHost + config.paths.workerRegistrySearch;
@@ -37,9 +79,9 @@ async function searchWorkersByIndividualIds(
     try {
         const response = await httpRequest(url, requestBody);
         return response?.workers || [];
-    } catch (error: any) {
+    } catch (error: unknown) {
         logger.error("Worker registry search failed:", error);
-        throw new Error(`Worker search failed: ${error.message || error}`);
+        throw new Error(`Worker search failed: ${toErrorMessage(error)}`);
     }
 }
 
@@ -50,7 +92,7 @@ async function searchWorkersByIds(
     ids: string[],
     tenantId: string,
     requestInfo: RequestInfo
-): Promise<any[]> {
+): Promise<WorkerRegistryRecord[]> {
     if (!ids.length) return [];
 
     const url = config.host.workerRegistryHost + config.paths.workerRegistrySearch;
@@ -65,9 +107,9 @@ async function searchWorkersByIds(
     try {
         const response = await httpRequest(url, requestBody);
         return response?.workers || [];
-    } catch (error: any) {
+    } catch (error: unknown) {
         logger.error("Worker registry search by id failed:", error);
-        throw new Error(`Worker search by id failed: ${error.message || error}`);
+        throw new Error(`Worker search by id failed: ${toErrorMessage(error)}`);
     }
 }
 
@@ -78,9 +120,10 @@ async function searchWorkersByIds(
 async function createOrUpdateWorkers(
     workerDataList: WorkerData[],
     requestInfo: RequestInfo
-): Promise<Map<string, string>> {
+): Promise<WorkerRegistryResult> {
     const individualIdToWorkerIdMap = new Map<string, string>();
-    if (!workerDataList.length) return individualIdToWorkerIdMap;
+    const errors: string[] = [];
+    if (!workerDataList.length) return { individualIdToWorkerIdMap, errors };
 
     const tenantId = workerDataList[0].tenantId;
 
@@ -88,88 +131,100 @@ async function createOrUpdateWorkers(
     const workersByIdList = workerDataList.filter(w => !!w.id);
     const workersByIndividualIdList = workerDataList.filter(w => !w.id);
 
-    const workersToCreate: any[] = [];
-    const workersToUpdate: any[] = [];
+    const workersToCreate: WorkerCreatePayload[] = [];
+    const workersToUpdate: WorkerRegistryRecord[] = [];
 
     // Handle workers with explicit workerId
     if (workersByIdList.length) {
-        const workerIds = workersByIdList.map(w => w.id as string);
-        const foundWorkers = await searchWorkersByIds(workerIds, tenantId, requestInfo);
-        const foundWorkerMap = new Map<string, any>();
-        for (const worker of foundWorkers) {
-            if (worker.id) {
-                foundWorkerMap.set(worker.id, worker);
+        try {
+            const workerIds = workersByIdList.map(w => w.id as string);
+            const foundWorkers = await searchWorkersByIds(workerIds, tenantId, requestInfo);
+            const foundWorkerMap = new Map<string, WorkerRegistryRecord>();
+            for (const worker of foundWorkers) {
+                if (worker.id) {
+                    foundWorkerMap.set(worker.id, worker);
+                }
             }
-        }
 
-        for (const data of workersByIdList) {
-            const existingWorker = foundWorkerMap.get(data.id as string);
-            if (existingWorker) {
-                // Merge individualId into worker's individualIds (dedup)
-                const existingIds: string[] = existingWorker.individualIds || [];
-                const mergedIds = existingIds.includes(data.individualId)
-                    ? existingIds
-                    : [...existingIds, data.individualId];
-                workersToUpdate.push({
-                    ...existingWorker,
-                    individualIds: mergedIds,
-                    ...(data.name != null ? { name: data.name } : {}),
-                    ...(!!data.payeePhoneNumber ? { payeePhoneNumber: data.payeePhoneNumber } : {}),
-                    ...(!!data.paymentProvider ? { paymentProvider: data.paymentProvider } : {}),
-                    ...(!!data.payeeName ? { payeeName: data.payeeName } : {}),
-                    ...(!!data.bankAccount ? { bankAccount: data.bankAccount } : {}),
-                    ...(!!data.bankCode ? { bankCode: data.bankCode } : {}),
-                    rowVersion: (existingWorker.rowVersion || 0) + 1,
-                });
-            } else {
-                // Worker not found by id — fall through to individualId-based path
-                workersByIndividualIdList.push(data);
+            for (const data of workersByIdList) {
+                const existingWorker = foundWorkerMap.get(data.id as string);
+                if (existingWorker) {
+                    // Merge individualId into worker's individualIds (dedup)
+                    const existingIds: string[] = existingWorker.individualIds || [];
+                    const mergedIds = existingIds.includes(data.individualId)
+                        ? existingIds
+                        : [...existingIds, data.individualId];
+                    workersToUpdate.push({
+                        ...existingWorker,
+                        individualIds: mergedIds,
+                        ...(data.name != null ? { name: data.name } : {}),
+                        ...(!!data.payeePhoneNumber ? { payeePhoneNumber: data.payeePhoneNumber } : {}),
+                        ...(!!data.paymentProvider ? { paymentProvider: data.paymentProvider } : {}),
+                        ...(!!data.payeeName ? { payeeName: data.payeeName } : {}),
+                        ...(!!data.bankAccount ? { bankAccount: data.bankAccount } : {}),
+                        ...(!!data.bankCode ? { bankCode: data.bankCode } : {}),
+                        rowVersion: existingWorker.rowVersion || 1,
+                    });
+                } else {
+                    // Worker not found by id — fall through to individualId-based path
+                    workersByIndividualIdList.push(data);
+                }
             }
+        } catch (error: unknown) {
+            const msg = `Worker search by id failed: ${toErrorMessage(error)}`;
+            logger.error(msg, error);
+            errors.push(msg);
         }
     }
 
     // Handle workers using individualId lookup (original path)
     if (workersByIndividualIdList.length) {
-        const individualIds = workersByIndividualIdList.map(w => w.individualId);
-        const existingWorkers = await searchWorkersByIndividualIds(individualIds, tenantId, requestInfo);
+        try {
+            const individualIds = workersByIndividualIdList.map(w => w.individualId);
+            const existingWorkers = await searchWorkersByIndividualIds(individualIds, tenantId, requestInfo);
 
-        // O(n) map: individualId → existing worker
-        const existingWorkerMap = new Map<string, any>();
-        for (const worker of existingWorkers) {
-            if (worker.individualIds?.length) {
-                for (const id of worker.individualIds) {
-                    existingWorkerMap.set(id, worker);
+            // O(n) map: individualId → existing worker
+            const existingWorkerMap = new Map<string, WorkerRegistryRecord>();
+            for (const worker of existingWorkers) {
+                if (worker.individualIds?.length) {
+                    for (const id of worker.individualIds) {
+                        existingWorkerMap.set(id, worker);
+                    }
                 }
             }
-        }
 
-        for (const data of workersByIndividualIdList) {
-            const existingWorker = existingWorkerMap.get(data.individualId);
+            for (const data of workersByIndividualIdList) {
+                const existingWorker = existingWorkerMap.get(data.individualId);
 
-            if (existingWorker) {
-                workersToUpdate.push({
-                    ...existingWorker,
-                    ...(data.name != null ? { name: data.name } : {}),
-                    ...(!!data.payeePhoneNumber ? { payeePhoneNumber: data.payeePhoneNumber } : {}),
-                    ...(!!data.paymentProvider ? { paymentProvider: data.paymentProvider } : {}),
-                    ...(!!data.payeeName ? { payeeName: data.payeeName } : {}),
-                    ...(!!data.bankAccount ? { bankAccount: data.bankAccount } : {}),
-                    ...(!!data.bankCode ? { bankCode: data.bankCode } : {}),
-                    rowVersion: (existingWorker.rowVersion || 0) + 1,
-                });
-            } else {
-                workersToCreate.push({
-                    name: data.name,
-                    payeePhoneNumber: data.payeePhoneNumber,
-                    paymentProvider: data.paymentProvider,
-                    payeeName: data.payeeName,
-                    bankAccount: data.bankAccount,
-                    bankCode: data.bankCode,
-                    individualIds: [data.individualId],
-                    tenantId: data.tenantId,
-                    additionalDetails: {},
-                });
+                if (existingWorker) {
+                    workersToUpdate.push({
+                        ...existingWorker,
+                        ...(data.name != null ? { name: data.name } : {}),
+                        ...(!!data.payeePhoneNumber ? { payeePhoneNumber: data.payeePhoneNumber } : {}),
+                        ...(!!data.paymentProvider ? { paymentProvider: data.paymentProvider } : {}),
+                        ...(!!data.payeeName ? { payeeName: data.payeeName } : {}),
+                        ...(!!data.bankAccount ? { bankAccount: data.bankAccount } : {}),
+                        ...(!!data.bankCode ? { bankCode: data.bankCode } : {}),
+                        rowVersion: existingWorker.rowVersion || 1,
+                    });
+                } else {
+                    workersToCreate.push({
+                        name: data.name,
+                        payeePhoneNumber: data.payeePhoneNumber,
+                        paymentProvider: data.paymentProvider,
+                        payeeName: data.payeeName,
+                        bankAccount: data.bankAccount,
+                        bankCode: data.bankCode,
+                        individualIds: [data.individualId],
+                        tenantId: data.tenantId,
+                        additionalDetails: {},
+                    });
+                }
             }
+        } catch (error: unknown) {
+            const msg = `Worker search by individualId failed: ${toErrorMessage(error)}`;
+            logger.error(msg, error);
+            errors.push(msg);
         }
     }
 
@@ -190,9 +245,10 @@ async function createOrUpdateWorkers(
                 }
             }
             logger.info(`Created ${workersToCreate.length} workers in worker registry`);
-        } catch (error: any) {
-            logger.error("Worker registry bulk create failed:", error);
-            throw new Error(`Worker bulk create failed: ${error.message || error}`);
+        } catch (error: unknown) {
+            const msg = `Worker bulk create failed: ${toErrorMessage(error)}`;
+            logger.error(msg, error);
+            errors.push(msg);
         }
     }
 
@@ -213,13 +269,14 @@ async function createOrUpdateWorkers(
                 }
             }
             logger.info(`Updated ${workersToUpdate.length} workers in worker registry`);
-        } catch (error: any) {
-            logger.error("Worker registry bulk update failed:", error);
-            throw new Error(`Worker bulk update failed: ${error.message || error}`);
+        } catch (error: unknown) {
+            const msg = `Worker bulk update failed: ${toErrorMessage(error)}`;
+            logger.error(msg, error);
+            errors.push(msg);
         }
     }
 
-    return individualIdToWorkerIdMap;
+    return { individualIdToWorkerIdMap, errors };
 }
 
-export { WorkerData, searchWorkersByIndividualIds, searchWorkersByIds, createOrUpdateWorkers };
+export { WorkerData, WorkerRegistryRecord, WorkerRegistryResult, WorkerCreatePayload, searchWorkersByIndividualIds, searchWorkersByIds, createOrUpdateWorkers };
