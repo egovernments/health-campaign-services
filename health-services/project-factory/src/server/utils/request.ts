@@ -152,24 +152,12 @@ const httpRequest = async (
       logger.error(
         "INTER-SERVICE :: FAILURE :: " +
         getServiceName(_url) +
-        ":: CODE :: " +
+        " :: CODE :: " +
         errorResponse?.status +
-        ":: ERROR :: " +
-        (errorResponse?.data?.Errors?.[0]?.code || error) +
-        ":: DESCRIPTION :: " +
-        errorResponse?.data?.Errors?.[0]?.description
-      );
-      logger.error(
-        "error occurred while making request to " +
-        getServiceName(_url) +
-        ": error response :" +
-        (errorResponse ? parseInt(errorResponse?.status, 10) : error?.message)
-      );
-      logger.error(":: ERROR STACK :: " + (error?.stack || error));
-      logger.warn(
-        `Error occurred while making request to ${getServiceName(_url)}: with error response ${JSON.stringify(
-          errorResponse?.data || { Errors: [{ code: error.message, description: error.stack }] }
-        )}`
+        " :: COMPLETE RESPONSE :: " +
+        JSON.stringify(errorResponse?.data) +
+        " :: STACK :: " +
+        (error?.stack || error)
       );
       if (
         retry ||

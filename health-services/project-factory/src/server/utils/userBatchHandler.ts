@@ -298,7 +298,7 @@ async function createUsersViaHrmsApi(
         return { mobileToUserServiceMap, mobileToIndividualIdMap };
 
     } catch (error: any) {
-        logger.error("HRMS employee creation failed:", error);
+        logger.error("HRMS employee creation failed :: " + (error?.stack || error?.message || error));
         throw new Error(`HRMS API failed: ${error.message || error}`);
     }
 }

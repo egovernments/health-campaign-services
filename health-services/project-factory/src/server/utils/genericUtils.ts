@@ -45,9 +45,12 @@ Send The Error Response back to client with proper response code
 */
 const throwErrorViaRequest = (message: any = "Internal Server Error") => {
   if (message?.message || message?.code) {
-    let error: any = new Error(message?.message || message?.code);
+    const errorMsg = message?.description
+      ? `${message?.message || message?.code}: ${message.description}`
+      : (message?.message || message?.code);
+    let error: any = new Error(errorMsg);
     error = Object.assign(error, { status: message?.status || 500 });
-    logger.error("Error : " + error + " " + (message?.description || ""));
+    logger.error("Error : " + errorMsg + " :: complete details: " + JSON.stringify(message));
     throw error;
   }
   else {
