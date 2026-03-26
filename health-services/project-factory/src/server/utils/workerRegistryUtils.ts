@@ -239,12 +239,9 @@ async function createOrUpdateWorkers(
         try {
             const response = await httpRequest(url, requestBody);
             for (const worker of response?.workers || []) {
-                if (worker?.id) {
-                    individualIdToWorkerIdMap.set(worker.id, worker.id);
-                    if (worker?.individualIds?.length) {
-                        for (const indId of worker.individualIds) {
-                            individualIdToWorkerIdMap.set(indId, worker.id);
-                        }
+                if (worker?.id && worker?.individualIds?.length) {
+                    for (const indId of worker.individualIds) {
+                        individualIdToWorkerIdMap.set(indId, worker.id);
                     }
                 }
             }
@@ -266,12 +263,9 @@ async function createOrUpdateWorkers(
         try {
             const response = await httpRequest(url, requestBody);
             for (const worker of response?.workers || []) {
-                if (worker?.id) {
-                    individualIdToWorkerIdMap.set(worker.id, worker.id);
-                    if (worker?.individualIds?.length) {
-                        for (const indId of worker.individualIds) {
-                            individualIdToWorkerIdMap.set(indId, worker.id);
-                        }
+                if (worker?.id && worker?.individualIds?.length) {
+                    for (const indId of worker.individualIds) {
+                        individualIdToWorkerIdMap.set(indId, worker.id);
                     }
                 }
             }

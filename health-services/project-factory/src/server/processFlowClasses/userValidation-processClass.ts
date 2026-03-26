@@ -60,6 +60,10 @@ export class TemplateClass {
     private static processErrors(sheetData : any, errors : any[], resourceDetails : ResourceDetails) {
             for (const error of errors) {
                 const row = error.row - 3;
+                if (isNaN(row) || row < 0 || row >= sheetData.length || !sheetData[row]) {
+                    logger.warn(`processErrors: skipping error with invalid row index (raw=${error.row}): ${error.message}`);
+                    continue;
+                }
                 const existingError = sheetData[row]["#errorDetails#"];
     
                 if (existingError) {
@@ -164,7 +168,7 @@ export class TemplateClass {
                     `User with mobileNumber ${user?.mobileNumber} already exists in campaign data`
                 );
                 errors.push({
-                    row: phoneNumbersToRowMap[user?.mobileNumber],
+                    row: phoneNumbersToRowMap[String(user?.mobileNumber)],
                     message: `User with mobileNumber ${user?.mobileNumber} already exists and is not suitable for this campaign.`
                 });
             }
@@ -289,14 +293,17 @@ export class TemplateClass {
 
     private static async validateWorkerIds(userSheetData: any, tenantId: string, errors: any[], resourceDetails?: any) {
         logger.info("Validating worker IDs...");
-        const workerIdToRowMap: Record<string, number> = {};
+        // Map workerId → all row numbers that reference it (handles duplicate IDs across rows)
+        const workerIdToRowsMap: Record<string, number[]> = {};
         for (let i = 0; i < userSheetData.length; i++) {
             const workerId = userSheetData[i]["HCM_ADMIN_CONSOLE_USER_WORKER_ID"];
             if (workerId) {
-                workerIdToRowMap[String(workerId)] = i + 3;
+                const key = String(workerId);
+                if (!workerIdToRowsMap[key]) workerIdToRowsMap[key] = [];
+                workerIdToRowsMap[key].push(i + 3);
             }
         }
-        const allWorkerIds = Object.keys(workerIdToRowMap);
+        const allWorkerIds = Object.keys(workerIdToRowsMap);
         if (!allWorkerIds.length) return;
 
         const chunkSize = 50;
@@ -311,10 +318,12 @@ export class TemplateClass {
 
         for (const workerId of allWorkerIds) {
             if (!foundIds.has(workerId)) {
-                errors.push({
-                    row: workerIdToRowMap[workerId],
-                    message: `Worker with ID ${workerId} does not exist in the worker registry.`
-                });
+                for (const row of workerIdToRowsMap[workerId]) {
+                    errors.push({
+                        row,
+                        message: `Worker with ID ${workerId} does not exist in the worker registry.`
+                    });
+                }
             }
         }
         logger.info("Worker ID validation completed.");

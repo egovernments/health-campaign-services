@@ -457,15 +457,18 @@ export class TemplateClass {
         for (const [mobile, row ] of Object.entries(userMap) as [string, any]) {
             if (existingMap?.[String(mobile)]) continue;
             if(existingMapWithAnotherCampaigns?.[String(mobile)]){
-                const data = existingMapWithAnotherCampaigns?.[String(mobile)]?.data;
-                data["HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY"] = row?.["HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY"];
-                data["HCM_ADMIN_CONSOLE_USER_USAGE"] = row?.["HCM_ADMIN_CONSOLE_USER_USAGE"];
+                const existingEntry = existingMapWithAnotherCampaigns?.[String(mobile)];
+                const data = {
+                    ...existingEntry?.data,
+                    "HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY": row?.["HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY"],
+                    "HCM_ADMIN_CONSOLE_USER_USAGE": row?.["HCM_ADMIN_CONSOLE_USER_USAGE"],
+                };
                 newEntries.push({
                     campaignNumber,
-                    data: existingMapWithAnotherCampaigns?.[String(mobile)]?.data,
+                    data,
                     type: resourceDetails?.type,
                     uniqueIdentifier: String(mobile),
-                    uniqueIdAfterProcess: existingMapWithAnotherCampaigns?.[String(mobile)]?.uniqueIdAfterProcess,
+                    uniqueIdAfterProcess: existingEntry?.uniqueIdAfterProcess,
                     status: dataRowStatuses.completed
                 });
             }
@@ -514,7 +517,10 @@ export class TemplateClass {
         logger.info(`${usersToCreate?.length} users to create`);
         const userRowDatas = usersToCreate?.map((u: any) => u?.data);
 
-        const transformConfig = { ...transformConfigs?.["employeeHrms"] };
+        const transformConfig = {
+            ...transformConfigs?.["employeeHrms"],
+            metadata: { ...transformConfigs?.["employeeHrms"]?.metadata }
+        };
         transformConfig.metadata.tenantId = tenantId;
         transformConfig.metadata.hierarchy = resourceDetails.hierarchyType;
 
@@ -544,26 +550,38 @@ export class TemplateClass {
                     const individualId = mobileToIndividualIdMap[mobile];
                     const existing = mobileToCampaignMap[mobile];
                     if (existing) {
-                        existing.status = dataRowStatuses.completed;
-                        existing.data["UserService Uuids"] = serviceUuid;
-                        existing.data["UserName"] = encrypt(user?.user?.userName);
-                        existing.data["Password"] = encrypt(user?.user?.password);
-                        existing.uniqueIdAfterProcess = serviceUuid;
-                        successfulUsers.push(existing);
+                        if (serviceUuid) {
+                            // HRMS confirmed creation — mark completed
+                            existing.status = dataRowStatuses.completed;
+                            existing.data["UserService Uuids"] = serviceUuid;
+                            const userName = user?.user?.userName;
+                            const password = user?.user?.password;
+                            existing.data["UserName"] = userName ? encrypt(userName) : existing.data["UserName"];
+                            existing.data["Password"] = password ? encrypt(password) : existing.data["Password"];
+                            existing.uniqueIdAfterProcess = serviceUuid;
+                            successfulUsers.push(existing);
 
-                        // Collect worker data
-                        if (individualId) {
-                            workerDataList.push({
-                                name: existing.data["HCM_ADMIN_CONSOLE_USER_NAME"] || "",
-                                payeePhoneNumber: existing.data["HCM_ADMIN_CONSOLE_USER_PAYEE_PHONE_NUMBER"] || "",
-                                paymentProvider: existing.data["HCM_ADMIN_CONSOLE_USER_PAYMENT_PROVIDER"] || "",
-                                payeeName: existing.data["HCM_ADMIN_CONSOLE_USER_PAYEE_NAME"] || "",
-                                bankAccount: existing.data["HCM_ADMIN_CONSOLE_USER_BANK_ACCOUNT"] || "",
-                                bankCode: existing.data["HCM_ADMIN_CONSOLE_USER_BANK_CODE"] || "",
-                                id: existing.data["HCM_ADMIN_CONSOLE_USER_WORKER_ID"] || "",
-                                individualId,
-                                tenantId: resourceDetails.tenantId,
-                            });
+                            // Collect worker data
+                            if (individualId) {
+                                workerDataList.push({
+                                    name: existing.data["HCM_ADMIN_CONSOLE_USER_NAME"] || "",
+                                    payeePhoneNumber: existing.data["HCM_ADMIN_CONSOLE_USER_PAYEE_PHONE_NUMBER"] || "",
+                                    paymentProvider: existing.data["HCM_ADMIN_CONSOLE_USER_PAYMENT_PROVIDER"] || "",
+                                    payeeName: existing.data["HCM_ADMIN_CONSOLE_USER_PAYEE_NAME"] || "",
+                                    bankAccount: existing.data["HCM_ADMIN_CONSOLE_USER_BANK_ACCOUNT"] || "",
+                                    bankCode: existing.data["HCM_ADMIN_CONSOLE_USER_BANK_CODE"] || "",
+                                    id: existing.data["HCM_ADMIN_CONSOLE_USER_WORKER_ID"] || "",
+                                    individualId,
+                                    tenantId: resourceDetails.tenantId,
+                                });
+                            } else {
+                                logger.warn(`User created in HRMS (mobile: ${mobile}) but individualId (user.uuid) missing in response — worker registry skipped`);
+                            }
+                        } else {
+                            // HRMS did not return this user — partial failure
+                            existing.status = dataRowStatuses.failed;
+                            logger.error(`HRMS did not return serviceUuid for mobile ${mobile} — marking user as failed`);
+                            successfulUsers.push(existing);
                         }
                     }
                 }

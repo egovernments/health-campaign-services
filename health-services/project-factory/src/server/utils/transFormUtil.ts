@@ -98,8 +98,11 @@ export class DataTransformer {
                 }
             }
 
-            // if no source fields produced anything, still emit one slot
-            if (maxLen === 0) maxLen = 1;
+            // if no source fields produced any data, emit an empty array (no null objects)
+            if (maxLen === 0) {
+                this.assignByPath(out, `${base}[*]`, []);
+                continue;
+            }
 
             const arrOut: any[] = [];
             for (let i = 0; i < maxLen; i++) {
@@ -297,12 +300,14 @@ export class DataTransformer {
             throw new Error('RequestInfo.userInfo is required for IDGen username generation');
         }
         const idReqs = createIdRequests(data);
-        const result = await createUniqueUserNameViaIdGen(idReqs, requestInfo);
-        let idx = 0;
-
-        if (!result?.idResponses || result.idResponses.length === 0) {
-            throw new Error('IDGen failed: no ID responses returned. Check RequestInfo and IDGen service.');
+        let result: any = null;
+        if (idReqs.length > 0) {
+            result = await createUniqueUserNameViaIdGen(idReqs, requestInfo);
+            if (!result?.idResponses || result.idResponses.length === 0) {
+                throw new Error('IDGen failed: no ID responses returned. Check RequestInfo and IDGen service.');
+            }
         }
+        let idx = 0;
 
         logger.info("Enriching boundary type in jurisdictions…");
         const resp = await searchBoundaryRelationshipData(cfg.metadata!.tenantId, cfg.metadata!.hierarchy, true);
