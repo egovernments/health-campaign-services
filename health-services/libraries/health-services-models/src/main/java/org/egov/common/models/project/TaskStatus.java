@@ -63,7 +63,28 @@ public enum TaskStatus {
      * represents a system-determined ineligibility rather than
      * beneficiary choice.
      */
-    INELIGIBLE("INELIGIBLE");
+    INELIGIBLE("INELIGIBLE"),
+
+    /**
+     * Indicates that the beneficiary has died.
+     * This status signifies that the task cannot be completed because
+     * the beneficiary is deceased.
+     */
+    BENEFICIARY_DIED("BENEFICIARY_DIED"),
+
+    /**
+     * Indicates that the beneficiary has migrated.
+     * This status signifies that the task cannot be completed because
+     * the beneficiary has relocated to a different area.
+     */
+    BENEFICIARY_MIGRATED("BENEFICIARY_MIGRATED"),
+
+    /**
+     * Indicates that the beneficiary was absent.
+     * This status signifies that the task could not be completed because
+     * the beneficiary was not present at the time of the visit.
+     */
+    BENEFICIARY_ABSENT("BENEFICIARY_ABSENT");
 
     // The string value associated with the task status.
     private String value;
