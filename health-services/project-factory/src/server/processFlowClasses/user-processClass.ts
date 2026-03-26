@@ -38,6 +38,80 @@ export class TemplateClass {
 
         const userDataWithMobileNumberButNotOfThisCampaign = await this.getUserDataWithMobileNumberButNotOfThisCampaign(campaign.campaignNumber, mobileNumbersInSheet, resourceDetails);
         const newUsers = await this.extractNewUsers(userSheetData, mobileKey, existingUsersForCampaign, userDataWithMobileNumberButNotOfThisCampaign, campaign.campaignNumber, resourceDetails);
+
+        // Update worker registry payment fields for cross-campaign users BEFORE persist
+        // so error fields are included in the initial SAVE
+        const crossCampaignWorkerUpdates: WorkerData[] = [];
+        const crossCampaignWorkerIdToEntries = new Map<string, any[]>();
+        const sheetRowByPhone: Record<string, any> = {};
+        for (const row of userSheetData) {
+            if (row?.[mobileKey]) sheetRowByPhone[String(row[mobileKey])] = row;
+        }
+        for (const entry of newUsers) {
+            if (entry.status !== dataRowStatuses.completed) continue;
+            const workerId = entry.data?.["HCM_ADMIN_CONSOLE_USER_WORKER_ID"];
+            if (!workerId) continue;
+            const sheetRow = sheetRowByPhone[String(entry.uniqueIdentifier)];
+            if (!sheetRow) continue;
+
+            const name = sheetRow["HCM_ADMIN_CONSOLE_USER_NAME"] || "";
+            const paymentProvider = sheetRow["HCM_ADMIN_CONSOLE_USER_PAYMENT_PROVIDER"] || "";
+            const payeePhoneNumber = sheetRow["HCM_ADMIN_CONSOLE_USER_PAYEE_PHONE_NUMBER"] || "";
+            const payeeName = sheetRow["HCM_ADMIN_CONSOLE_USER_PAYEE_NAME"] || "";
+            const bankAccount = sheetRow["HCM_ADMIN_CONSOLE_USER_BANK_ACCOUNT"] || "";
+            const bankCode = sheetRow["HCM_ADMIN_CONSOLE_USER_BANK_CODE"] || "";
+
+            if (name || paymentProvider || payeePhoneNumber || payeeName || bankAccount || bankCode) {
+                crossCampaignWorkerUpdates.push({
+                    name, paymentProvider, payeePhoneNumber, payeeName, bankAccount, bankCode,
+                    id: workerId, individualId: "", tenantId: resourceDetails.tenantId,
+                });
+                const entries = crossCampaignWorkerIdToEntries.get(workerId) || [];
+                entries.push(entry);
+                crossCampaignWorkerIdToEntries.set(workerId, entries);
+            }
+        }
+        const crossCampaignDedupMap = new Map<string, WorkerData>();
+        for (const w of crossCampaignWorkerUpdates) {
+            if (w.id) crossCampaignDedupMap.set(w.id, w);
+        }
+        const dedupedCrossCampaignUpdates = Array.from(crossCampaignDedupMap.values());
+        if (dedupedCrossCampaignUpdates.length > 0) {
+            try {
+                const workerRequestInfo = withUserInfo(resourceDetails.requestInfo, { tenantId: resourceDetails.tenantId });
+                const { individualIdToWorkerIdMap, errors } = await createOrUpdateWorkers(dedupedCrossCampaignUpdates, workerRequestInfo);
+                const updatedWorkerIds = new Set(individualIdToWorkerIdMap.values());
+                const errMsg = errors.length > 0 ? errors.join("; ") : "Worker not found in registry";
+                let failCount = 0;
+                for (const wu of dedupedCrossCampaignUpdates) {
+                    if (!updatedWorkerIds.has(wu.id as string)) {
+                        const entries = crossCampaignWorkerIdToEntries.get(wu.id as string) || [];
+                        for (const entry of entries) {
+                            entry.data["#status#"] = sheetDataRowStatuses.INVALID;
+                            entry.data["#errorDetails#"] = errMsg;
+                            failCount++;
+                        }
+                    }
+                }
+                if (failCount > 0) {
+                    logger.error(`Cross-campaign worker registry update: ${failCount} rows failed — ${errMsg}`);
+                } else {
+                    logger.info(`Updated payment fields for ${dedupedCrossCampaignUpdates.length} cross-campaign workers`);
+                }
+            } catch (err: unknown) {
+                const errMsg = err instanceof Error ? err.message : String(err);
+                logger.error("Cross-campaign worker registry update failed", err);
+                for (const wu of dedupedCrossCampaignUpdates) {
+                    const entries = crossCampaignWorkerIdToEntries.get(wu.id as string) || [];
+                    for (const entry of entries) {
+                        entry.data["#status#"] = sheetDataRowStatuses.INVALID;
+                        entry.data["#errorDetails#"] = errMsg;
+                    }
+                }
+            }
+        }
+
+        // Persist newUsers (with error fields already set on failed cross-campaign entries)
         await this.persistInBatches(newUsers, config.kafka.KAFKA_SAVE_SHEET_DATA_TOPIC, resourceDetails?.tenantId);
 
         await this.processBoundaryChanges(userSheetData, existingUsersForCampaign, newUsers, campaign.campaignNumber, resourceDetails);
@@ -52,7 +126,9 @@ export class TemplateClass {
         const allData = allCurrentUsers ? await Promise.all(allCurrentUsers.map(async (u: any, idx: number) => {
             logger.info(`Decrypting item number ${idx + 1}`);
             const data: any = u?.data;
-            data["#status#"] = sheetDataRowStatuses.CREATED;
+            if (!data["#errorDetails#"]) {
+                data["#status#"] = sheetDataRowStatuses.CREATED;
+            }
             data["UserName"] = decrypt(u?.data?.["UserName"]);
             data["Password"] = decrypt(u?.data?.["Password"]);
             return data;
@@ -89,7 +165,7 @@ export class TemplateClass {
             boundaryUniqueIdentifierToCurrentMapping[`${mapping?.uniqueIdentifierForData}#${mapping?.boundaryCode}`] = mapping;
         }
 
-        await this.processActiveRows(boundaryKey, usageKey, phoneKey, userSheetData, existingUserMobileToDataMapping, boundaryUniqueIdentifierToCurrentMapping, campaignNumber, tenantId);
+        await this.processActiveRows(boundaryKey, usageKey, phoneKey, userSheetData, existingUserMobileToDataMapping, boundaryUniqueIdentifierToCurrentMapping, campaignNumber, tenantId, resourceDetails);
         await this.processInactiveRows(boundaryKey, usageKey, phoneKey, userSheetData, existingUserMobileToDataMapping, boundaryUniqueIdentifierToCurrentMapping, campaignNumber, tenantId);
     }
 
@@ -101,12 +177,15 @@ export class TemplateClass {
         existingUserMobileToDataMapping: any,
         boundaryUniqueIdentifierToCurrentMapping: any,
         campaignNumber: string,
-        tenantId: string
+        tenantId: string,
+        resourceDetails: any
     ) {
         logger.info(`Processing active rows for user sheet...`);
         const newMappingRow: any[] = [];
         const demappingRows: any[] = [];
         const usersToBeUpdated: any[] = [];
+        const workerUpdates: WorkerData[] = [];
+        const workerIdToEntries = new Map<string, any[]>();
 
         for (const data of userSheetData) {
             const phone = String(data?.[phoneKey]);
@@ -179,6 +258,34 @@ export class TemplateClass {
                         usersToBeUpdated.push(existingEntry); // ✅ Push full entry
                     }
                 }
+
+                // Collect payment field updates from sheet row for worker-registry
+                const workerId = existingData?.["HCM_ADMIN_CONSOLE_USER_WORKER_ID"];
+                if (workerId) {
+                    const sheetName = data?.["HCM_ADMIN_CONSOLE_USER_NAME"] || "";
+                    const sheetPaymentProvider = data?.["HCM_ADMIN_CONSOLE_USER_PAYMENT_PROVIDER"] || "";
+                    const sheetPayeePhone = data?.["HCM_ADMIN_CONSOLE_USER_PAYEE_PHONE_NUMBER"] || "";
+                    const sheetPayeeName = data?.["HCM_ADMIN_CONSOLE_USER_PAYEE_NAME"] || "";
+                    const sheetBankAccount = data?.["HCM_ADMIN_CONSOLE_USER_BANK_ACCOUNT"] || "";
+                    const sheetBankCode = data?.["HCM_ADMIN_CONSOLE_USER_BANK_CODE"] || "";
+
+                    if (sheetName || sheetPaymentProvider || sheetPayeePhone || sheetPayeeName || sheetBankAccount || sheetBankCode) {
+                        workerUpdates.push({
+                            name: sheetName,
+                            paymentProvider: sheetPaymentProvider,
+                            payeePhoneNumber: sheetPayeePhone,
+                            payeeName: sheetPayeeName,
+                            bankAccount: sheetBankAccount,
+                            bankCode: sheetBankCode,
+                            id: workerId,
+                            individualId: "",
+                            tenantId,
+                        });
+                        const entries = workerIdToEntries.get(workerId) || [];
+                        entries.push(existingEntry);
+                        workerIdToEntries.set(workerId, entries);
+                    }
+                }
             }
             else{
                 for (const boundary of sheetBoundaries) {
@@ -193,6 +300,54 @@ export class TemplateClass {
                 }
             }
         }
+        // Send payment field updates to worker registry BEFORE Kafka sends
+        // so error fields are set on entries before boundary updates go out
+        const workerUpdateMap = new Map<string, WorkerData>();
+        for (const w of workerUpdates) {
+            if (w.id) workerUpdateMap.set(w.id, w);
+        }
+        const dedupedWorkerUpdates = Array.from(workerUpdateMap.values());
+        if (dedupedWorkerUpdates.length > 0) {
+            try {
+                const workerRequestInfo = withUserInfo(resourceDetails?.requestInfo, { tenantId });
+                const { individualIdToWorkerIdMap, errors } = await createOrUpdateWorkers(dedupedWorkerUpdates, workerRequestInfo);
+                const updatedWorkerIds = new Set(individualIdToWorkerIdMap.values());
+                const errMsg = errors.length > 0 ? errors.join("; ") : "Worker not found in registry";
+                let failCount = 0;
+                for (const wu of dedupedWorkerUpdates) {
+                    if (!updatedWorkerIds.has(wu.id as string)) {
+                        const entries = workerIdToEntries.get(wu.id as string) || [];
+                        for (const entry of entries) {
+                            entry.data["#status#"] = sheetDataRowStatuses.INVALID;
+                            entry.data["#errorDetails#"] = errMsg;
+                            if (!usersToBeUpdated.includes(entry)) {
+                                usersToBeUpdated.push(entry);
+                            }
+                            failCount++;
+                        }
+                    }
+                }
+                if (failCount > 0) {
+                    logger.error(`Worker registry payment update: ${failCount} rows failed — ${errMsg}`);
+                } else {
+                    logger.info(`Updated payment fields for ${dedupedWorkerUpdates.length} workers in worker registry`);
+                }
+            } catch (workerError: unknown) {
+                const errMsg = workerError instanceof Error ? workerError.message : String(workerError);
+                logger.error("Worker registry payment update failed", workerError);
+                for (const wu of dedupedWorkerUpdates) {
+                    const entries = workerIdToEntries.get(wu.id as string) || [];
+                    for (const entry of entries) {
+                        entry.data["#status#"] = sheetDataRowStatuses.INVALID;
+                        entry.data["#errorDetails#"] = errMsg;
+                        if (!usersToBeUpdated.includes(entry)) {
+                            usersToBeUpdated.push(entry);
+                        }
+                    }
+                }
+            }
+        }
+
         let batchSize = 100;
         for(let i = 0; i < newMappingRow.length; i += batchSize){
             const batch = newMappingRow.slice(i, i + batchSize);
@@ -206,9 +361,10 @@ export class TemplateClass {
             const batch = usersToBeUpdated.slice(i, i + batchSize);
             await produceModifiedMessages({ datas: batch }, config.kafka.KAFKA_UPDATE_SHEET_DATA_TOPIC, tenantId);
         }
+
         logger.info(`Done processing active rows for user sheet...`);
     }
-    
+
 
     private static async processInactiveRows(
         boundaryKey: string,
@@ -463,7 +619,7 @@ export class TemplateClass {
                         }
                     } catch (workerError: unknown) {
                         const errMsg = workerError instanceof Error ? workerError.message : String(workerError);
-                        logger.error("Worker registry integration failed:", errMsg);
+                        logger.error("Worker registry integration failed", workerError);
                         const processedIds = new Set<string>();
                         for (const w of workerDataList) {
                             if (processedIds.has(w.individualId)) continue;

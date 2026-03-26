@@ -149,15 +149,15 @@ async function createOrUpdateWorkers(
             for (const data of workersByIdList) {
                 const existingWorker = foundWorkerMap.get(data.id as string);
                 if (existingWorker) {
-                    // Merge individualId into worker's individualIds (dedup)
+                    // Merge individualId into worker's individualIds (dedup, skip empty)
                     const existingIds: string[] = existingWorker.individualIds || [];
-                    const mergedIds = existingIds.includes(data.individualId)
+                    const mergedIds = (!data.individualId || existingIds.includes(data.individualId))
                         ? existingIds
                         : [...existingIds, data.individualId];
                     workersToUpdate.push({
                         ...existingWorker,
                         individualIds: mergedIds,
-                        ...(data.name != null ? { name: data.name } : {}),
+                        ...(!!data.name ? { name: data.name } : {}),
                         ...(!!data.payeePhoneNumber ? { payeePhoneNumber: data.payeePhoneNumber } : {}),
                         ...(!!data.paymentProvider ? { paymentProvider: data.paymentProvider } : {}),
                         ...(!!data.payeeName ? { payeeName: data.payeeName } : {}),
@@ -178,9 +178,10 @@ async function createOrUpdateWorkers(
     }
 
     // Handle workers using individualId lookup (original path)
-    if (workersByIndividualIdList.length) {
+    const workersByValidIndividualId = workersByIndividualIdList.filter(w => !!w.individualId);
+    if (workersByValidIndividualId.length) {
         try {
-            const individualIds = workersByIndividualIdList.map(w => w.individualId);
+            const individualIds = workersByValidIndividualId.map(w => w.individualId);
             const existingWorkers = await searchWorkersByIndividualIds(individualIds, tenantId, requestInfo);
 
             // O(n) map: individualId → existing worker
@@ -193,13 +194,13 @@ async function createOrUpdateWorkers(
                 }
             }
 
-            for (const data of workersByIndividualIdList) {
+            for (const data of workersByValidIndividualId) {
                 const existingWorker = existingWorkerMap.get(data.individualId);
 
                 if (existingWorker) {
                     workersToUpdate.push({
                         ...existingWorker,
-                        ...(data.name != null ? { name: data.name } : {}),
+                        ...(!!data.name ? { name: data.name } : {}),
                         ...(!!data.payeePhoneNumber ? { payeePhoneNumber: data.payeePhoneNumber } : {}),
                         ...(!!data.paymentProvider ? { paymentProvider: data.paymentProvider } : {}),
                         ...(!!data.payeeName ? { payeeName: data.payeeName } : {}),
@@ -215,7 +216,7 @@ async function createOrUpdateWorkers(
                         payeeName: data.payeeName,
                         bankAccount: data.bankAccount,
                         bankCode: data.bankCode,
-                        individualIds: [data.individualId],
+                        individualIds: data.individualId ? [data.individualId] : [],
                         tenantId: data.tenantId,
                         additionalDetails: {},
                     });
@@ -238,9 +239,12 @@ async function createOrUpdateWorkers(
         try {
             const response = await httpRequest(url, requestBody);
             for (const worker of response?.workers || []) {
-                if (worker?.id && worker?.individualIds?.length) {
-                    for (const indId of worker.individualIds) {
-                        individualIdToWorkerIdMap.set(indId, worker.id);
+                if (worker?.id) {
+                    individualIdToWorkerIdMap.set(worker.id, worker.id);
+                    if (worker?.individualIds?.length) {
+                        for (const indId of worker.individualIds) {
+                            individualIdToWorkerIdMap.set(indId, worker.id);
+                        }
                     }
                 }
             }
@@ -262,9 +266,12 @@ async function createOrUpdateWorkers(
         try {
             const response = await httpRequest(url, requestBody);
             for (const worker of response?.workers || []) {
-                if (worker?.id && worker?.individualIds?.length) {
-                    for (const indId of worker.individualIds) {
-                        individualIdToWorkerIdMap.set(indId, worker.id);
+                if (worker?.id) {
+                    individualIdToWorkerIdMap.set(worker.id, worker.id);
+                    if (worker?.individualIds?.length) {
+                        for (const indId of worker.individualIds) {
+                            individualIdToWorkerIdMap.set(indId, worker.id);
+                        }
                     }
                 }
             }

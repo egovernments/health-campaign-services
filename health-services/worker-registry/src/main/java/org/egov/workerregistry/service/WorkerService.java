@@ -282,7 +282,8 @@ public class WorkerService {
                 return;
             }
 
-            Worker worker = workers.get(0);
+            List<Worker> decryptedWorkers = workerEncryptionService.decrypt(workers, WorkerRegistryConstants.DECRYPT_WORKER, requestInfo);
+            Worker worker = decryptedWorkers.get(0);
             boolean needsUpdate = false;
 
             if (WorkerRegistryConstants.DOCUMENT_TYPE_SIGNATURE.equalsIgnoreCase(event.getType())
