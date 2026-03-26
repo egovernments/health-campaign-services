@@ -71,6 +71,8 @@ public class IBoundaryValidator implements Validator<IndividualBulkRequest, Indi
             Map<String, List<Individual>> boundaryCodeIndividualsMap = individuals.stream()
                     .flatMap(individual -> individual.getAddress().stream()
                             .filter(address -> Objects.nonNull(address.getLocality())) // Filter out addresses with null locality
+                            .filter(address -> Objects.nonNull(address.getLocality().getCode())) // Filter out addresses with null locality code
+                            .filter(address -> !address.getLocality().getCode().trim().isEmpty()) // Filter out empty locality codes
                             .map(address -> new AbstractMap.SimpleEntry<>(address.getLocality().getCode(), individual))) // Map each address to its locality code and individual
                     .collect(Collectors.groupingBy(Map.Entry::getKey, // Group by locality code
                             Collectors.mapping(Map.Entry::getValue, Collectors.toList()))); // Collect individuals into a list for each locality code
