@@ -510,10 +510,10 @@ public class ConfigBasedProcessingService {
         String topic = processData.getProcessingResultTopic(); // Assuming this method exists
         if (topic != null && !topic.trim().isEmpty()) {
             resource.setRequestInfo(requestInfo);
+            String resolvedTopic = producer.getResolvedTopicName(resource.getTenantId(), topic);
             producer.push(resource.getTenantId(), topic, resource);
             log.info("Published processing result to topic: {} for processing type: {}, resource ID: {}",
-                    topic, resource.getType(), resource.getId());
-            log.info("Processing result sent to topic for resource: {}", resource.getId());
+                    resolvedTopic, resource.getType(), resource.getId());
         } else {
             log.debug("No processing result topic configured for processing type: {}", resource.getType());
         }
@@ -577,13 +577,14 @@ public class ConfigBasedProcessingService {
             message.put("sheetData", chunkDataList);
             
             // Push chunk to save-sheet-data-temp topic
+            String resolvedSheetDataTopic = producer.getResolvedTopicName(resource.getTenantId(), kafkaTopicConfig.getSheetDataSaveTopic());
             producer.push(resource.getTenantId(), kafkaTopicConfig.getSheetDataSaveTopic(), message);
-            
-            log.info("Published chunk {}/{} with {} records to save-sheet-data-temp topic for sheet: {}", 
-                    chunkIndex + 1, totalChunks, chunkDataList.size(), sheetName);
+
+            log.info("Published chunk {}/{} with {} records to topic: {} for sheet: {}",
+                    chunkIndex + 1, totalChunks, chunkDataList.size(), resolvedSheetDataTopic, sheetName);
         }
-        
-        log.info("Successfully published all {} records in {} chunks to save-sheet-data-temp topic for sheet: {}", 
-                totalRecords, totalChunks, sheetName);
+
+        log.info("Successfully published all {} records in {} chunks to topic: {} for sheet: {}",
+                totalRecords, totalChunks, producer.getResolvedTopicName(resource.getTenantId(), kafkaTopicConfig.getSheetDataSaveTopic()), sheetName);
     }
 }

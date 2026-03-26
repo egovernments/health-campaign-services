@@ -83,6 +83,7 @@ export async function listener() {
         for (const baseTopic of baseTopics) {
             const topicPattern = getConsumerTopicPattern(baseTopic);
             await consumer.subscribe({ topic: topicPattern, fromBeginning: false });
+            logger.info(`KAFKA :: LISTENER :: Subscribed to topic: ${String(topicPattern)}`);
         }
 
         await consumer.run({

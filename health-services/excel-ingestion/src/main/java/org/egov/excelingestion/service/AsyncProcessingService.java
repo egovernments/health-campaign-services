@@ -76,7 +76,8 @@ public class AsyncProcessingService {
                 }
             }
             
-            log.info("Pushing COMPLETED update to Kafka - ID: {}, Status: {}", 
+            log.info("Pushing COMPLETED update to Kafka topic: {} - ID: {}, Status: {}",
+                    producer.getResolvedTopicName(processResource.getTenantId(), kafkaTopicConfig.getProcessingUpdateTopic()),
                     processResource.getId(), processResource.getStatus());
             producer.push(processResource.getTenantId(), kafkaTopicConfig.getProcessingUpdateTopic(), processResource);
             
@@ -114,7 +115,8 @@ public class AsyncProcessingService {
                 }
             }
             
-            log.info("Pushing FAILED update to Kafka - ID: {}, Status: {}", 
+            log.info("Pushing FAILED update to Kafka topic: {} - ID: {}, Status: {}",
+                    producer.getResolvedTopicName(processResource.getTenantId(), kafkaTopicConfig.getProcessingUpdateTopic()),
                     processResource.getId(), processResource.getStatus());
             producer.push(processResource.getTenantId(), kafkaTopicConfig.getProcessingUpdateTopic(), processResource);
         } finally {

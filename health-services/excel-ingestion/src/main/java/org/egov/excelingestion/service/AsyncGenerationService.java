@@ -66,7 +66,8 @@ public class AsyncGenerationService {
                 }
             }
 
-            log.info("Pushing COMPLETED update to Kafka - ID: {}, Status: {}, LastModifiedBy: {}",
+            log.info("Pushing COMPLETED update to Kafka topic: {} - ID: {}, Status: {}, LastModifiedBy: {}",
+                    producer.getResolvedTopicName(generateResource.getTenantId(), kafkaTopicConfig.getGenerationUpdateTopic()),
                     generateResource.getId(), generateResource.getStatus(),
                     generateResource.getAuditDetails() != null ? generateResource.getAuditDetails().getLastModifiedBy() : null);
             producer.push(generateResource.getTenantId(), kafkaTopicConfig.getGenerationUpdateTopic(), generateResource);
@@ -88,7 +89,8 @@ public class AsyncGenerationService {
                     generateResource.getAuditDetails().setLastModifiedBy(requestInfo.getUserInfo().getUuid());
                 }
             }
-            log.info("Pushing FAILED update to Kafka - ID: {}, Status: {}, LastModifiedBy: {}",
+            log.info("Pushing FAILED update to Kafka topic: {} - ID: {}, Status: {}, LastModifiedBy: {}",
+                    producer.getResolvedTopicName(generateResource.getTenantId(), kafkaTopicConfig.getGenerationUpdateTopic()),
                     generateResource.getId(), generateResource.getStatus(),
                     generateResource.getAuditDetails() != null ? generateResource.getAuditDetails().getLastModifiedBy() : null);
             producer.push(generateResource.getTenantId(), kafkaTopicConfig.getGenerationUpdateTopic(), generateResource);
