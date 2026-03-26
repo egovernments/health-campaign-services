@@ -162,4 +162,8 @@ public class HealthNotificationProperties {
 
     @Value("${egov.facility.search.url}")
     private String facilitySearchUrl;
+
+    // Project Facility Service (resolves projectFacilityId → facilityId)
+    @Value("${egov.project.facility.search.url}")
+    private String projectFacilitySearchUrl;
 }

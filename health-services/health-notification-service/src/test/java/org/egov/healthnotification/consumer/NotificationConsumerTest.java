@@ -24,10 +24,10 @@ import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
-class StockNotificationConsumerTest {
+class NotificationConsumerTest {
 
     @InjectMocks
-    private StockNotificationConsumer consumer;
+    private NotificationConsumer consumer;
 
     @Mock
     private StockNotificationAdapter stockAdapter;
