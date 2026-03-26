@@ -3,7 +3,7 @@ hcm_dynamic_campaigns_test.py
 
 TEST DAG: Same flow as hcm_dynamic_campaigns but instead of spinning up
 KubernetesPodOperator pods with REPORT_IMAGE, it runs a PythonOperator that:
-1. Generates a sample Excel file with dummy data
+1. Generates a sample CSV file with dummy data
 2. Zips it
 3. Uploads to FileStore
 4. Publishes metadata to Kafka
@@ -157,7 +157,7 @@ default_args = {
 with DAG(
     dag_id="hcm_dynamic_campaigns_test",
     default_args=default_args,
-    description="TEST: generates sample Excel, uploads to FileStore, publishes to Kafka",
+    description="TEST: generates sample CSV, uploads to FileStore, publishes to Kafka",
     schedule=None,
     start_date=datetime(2025, 1, 1, tzinfo=UTC),
     catchup=False,
@@ -209,10 +209,10 @@ with DAG(
     @task(task_id="process_campaign")
     def process_campaign(env_dict):
         """
-        Replace KubernetesPodOperator: generate sample Excel, zip, upload to FileStore, publish to Kafka.
-        Runs as a PythonOperator inside the Airflow worker pod (no separate image needed).
+        Replace KubernetesPodOperator: generate sample CSV, zip, upload to FileStore, publish to Kafka.
+        Uses only standard library (no openpyxl needed).
         """
-        import openpyxl
+        import csv
 
         campaign_id = env_dict["CAMPAIGN_IDENTIFIER"]
         report_name = env_dict["REPORT_NAME"]
@@ -223,49 +223,41 @@ with DAG(
         logger.info("PROCESSING: %s - %s (%s)", campaign_id, report_name, frequency)
         logger.info("=" * 60)
 
-        # ----- Step 1: Generate sample Excel -----
+        # ----- Step 1: Generate sample CSV report -----
         with tempfile.TemporaryDirectory() as tmpdir:
-            # Create folder structure matching production: campaign/report/frequency/
             report_dir = os.path.join(tmpdir, campaign_id, report_name, frequency)
             os.makedirs(report_dir, exist_ok=True)
 
             timestamp = datetime.now(UTC).strftime("%Y-%m-%d_%H-%M-%S")
-            xlsx_filename = f"{report_name.upper()}_{timestamp}.xlsx"
-            xlsx_path = os.path.join(report_dir, xlsx_filename)
+            csv_filename = f"{report_name.upper()}_{timestamp}.csv"
+            csv_path = os.path.join(report_dir, csv_filename)
 
-            # Generate sample workbook
-            wb = openpyxl.Workbook()
-            ws = wb.active
-            ws.title = "Sample Report"
-
-            # Header row
+            # Generate sample CSV
             headers = ["Province", "District", "UserName", "Registrations", "Deliveries", "Anomaly_Score"]
-            ws.append(headers)
-
-            # Sample data rows
             sample_data = [
-                ["Province A", "District 1", "user_001", 150, 120, 0.85],
-                ["Province A", "District 2", "user_002", 200, 180, 0.92],
-                ["Province B", "District 3", "user_003", 80, 75, 0.45],
-                ["Province B", "District 4", "user_004", 300, 50, 3.20],
-                ["Province C", "District 5", "user_005", 100, 95, 0.70],
+                ["Province A", "District 1", "user_001", "150", "120", "0.85"],
+                ["Province A", "District 2", "user_002", "200", "180", "0.92"],
+                ["Province B", "District 3", "user_003", "80", "75", "0.45"],
+                ["Province B", "District 4", "user_004", "300", "50", "3.20"],
+                ["Province C", "District 5", "user_005", "100", "95", "0.70"],
             ]
-            for row in sample_data:
-                ws.append(row)
+            with open(csv_path, "w", newline="") as f:
+                writer = csv.writer(f)
+                writer.writerow(headers)
+                writer.writerows(sample_data)
 
-            # Add metadata sheet
-            ws2 = wb.create_sheet("Metadata")
-            ws2.append(["Field", "Value"])
-            ws2.append(["Campaign", campaign_id])
-            ws2.append(["Report", report_name])
-            ws2.append(["Frequency", frequency])
-            ws2.append(["Start Date", env_dict["START_DATE"]])
-            ws2.append(["End Date", env_dict["END_DATE"]])
-            ws2.append(["Generated At", datetime.now(UTC).isoformat()])
-            ws2.append(["Mode", "TEST (sample data)"])
+            # Write metadata file
+            meta_path = os.path.join(report_dir, "metadata.txt")
+            with open(meta_path, "w") as f:
+                f.write(f"Campaign: {campaign_id}\n")
+                f.write(f"Report: {report_name}\n")
+                f.write(f"Frequency: {frequency}\n")
+                f.write(f"Start Date: {env_dict['START_DATE']}\n")
+                f.write(f"End Date: {env_dict['END_DATE']}\n")
+                f.write(f"Generated At: {datetime.now(UTC).isoformat()}\n")
+                f.write(f"Mode: TEST (sample data)\n")
 
-            wb.save(xlsx_path)
-            logger.info("Generated sample Excel: %s", xlsx_path)
+            logger.info("Generated sample CSV: %s", csv_path)
 
             # ----- Step 2: Create ZIP -----
             zip_filename = f"{report_name}_{campaign_id}_{timestamp}.zip"
