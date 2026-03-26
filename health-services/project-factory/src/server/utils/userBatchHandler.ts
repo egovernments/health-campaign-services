@@ -79,11 +79,14 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
             return campaignRecord?.data;
         });
         
-        const transformConfig = { ...transformConfigs?.["employeeHrmsUnified"] };
+        const transformConfig = {
+            ...transformConfigs?.["employeeHrmsUnified"],
+            metadata: { ...transformConfigs?.["employeeHrmsUnified"]?.metadata }
+        };
         if (!transformConfig) {
             throw new Error('User transform configuration not found');
         }
-        
+
         transformConfig.metadata.tenantId = tenantId;
         transformConfig.metadata.hierarchy = campaignDetails.hierarchyType;
         const transformer = new DataTransformer(transformConfig);
@@ -138,6 +141,8 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
                         individualId,
                         tenantId,
                     });
+                } else {
+                    logger.warn(`User created in HRMS (phone: ${phoneNumber}, uuid: ${serviceUuid}) but individualId (user.uuid) missing in HRMS response — worker registry skipped`);
                 }
 
                 logger.info(`User created: ${transformedUser?.user?.userName} with service UUID: ${serviceUuid}`);
@@ -194,6 +199,7 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
                                 record.status = dataRowStatuses.failed;
                                 record.data["#status#"] = sheetDataRowStatuses.INVALID;
                                 record.data["#errorDetails#"] = errMsg;
+                                successCount--;
                                 failureCount++;
                             }
                         }
@@ -211,6 +217,7 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
                         record.status = dataRowStatuses.failed;
                         record.data["#status#"] = sheetDataRowStatuses.INVALID;
                         record.data["#errorDetails#"] = errMsg;
+                        successCount--;
                         failureCount++;
                     }
                 }

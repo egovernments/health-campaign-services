@@ -1347,7 +1347,7 @@ async function processCampaignUsersFromExcelData(
         logger.info(`Processing users for campaign: ${campaignDetails.campaignName}`);
 
         // Search users sheet data
-        const userSheetName = getLocalizedSheetName('HCM_ADMIN_CONSOLE_USERS_LIST', localizationMap);
+        const userSheetName = getLocalizedSheetName('HCM_ADMIN_CONSOLE_USER_LIST', localizationMap);
         logger.info(`Searching ${userSheetName} sheet data...`);
         const userSheetData = await searchSheetData(
             tenantId, 
@@ -1403,6 +1403,7 @@ async function processUsersSimple(
     const PHONE_KEY = 'HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER';
     const BOUNDARY_KEY = 'HCM_ADMIN_CONSOLE_BOUNDARY_CODE';
     const USAGE_KEY = 'HCM_ADMIN_CONSOLE_USER_USAGE';
+    const ROLE_KEY = 'HCM_ADMIN_CONSOLE_USER_ROLE';
     
     // Step 1: Get existing users from current campaign
     const currentCampaignUsers = await getRelatedDataWithCampaign("user", campaignNumber, tenantId);
@@ -1414,11 +1415,17 @@ async function processUsersSimple(
     const otherCampaignUsers = await getRelatedDataWithUniqueIdentifiers(
         "user", phoneNumbers, tenantId, dataRowStatuses.completed
     );
-    const otherUserMap = new Map(
-        otherCampaignUsers
-            .filter((u: any) => u.campaignNumber !== campaignNumber)
-            .map((u: any) => [String(u?.data?.[PHONE_KEY]), u])
-    );
+    // Use "keep first" semantics so the same phone in multiple campaigns deterministically
+    // maps to the first-returned entry rather than silently overwriting with the last.
+    const otherUserMap = new Map<string, any>();
+    otherCampaignUsers
+        .filter((u: any) => u.campaignNumber !== campaignNumber)
+        .forEach((u: any) => {
+            const phone = String(u?.data?.[PHONE_KEY]);
+            if (!otherUserMap.has(phone)) {
+                otherUserMap.set(phone, u);
+            }
+        });
     
     // Step 3: Process each user from sheet
     const usersToSave: any[] = [];
@@ -1437,20 +1444,40 @@ async function processUsersSimple(
         const otherUser = otherUserMap.get(phoneNumber);
         
         if (currentUser) {
-            // User exists in current campaign - check if boundary and usage need to be updated
+            // User exists in current campaign - check if boundary, usage or role need to be updated
             const existingBoundary = currentUser.data[BOUNDARY_KEY];
             const existingUsage = currentUser.data[USAGE_KEY];
-            if (boundaryCode !== existingBoundary || usage !== existingUsage) {
-                const updatedData = { ...currentUser.data, [BOUNDARY_KEY]: boundaryCode, [USAGE_KEY]: usage };
+            const existingRole = currentUser.data[ROLE_KEY];
+            const newRole = rowJson[ROLE_KEY];
+            if (boundaryCode !== existingBoundary || usage !== existingUsage || newRole !== existingRole) {
+                const updatedData = { ...currentUser.data, [BOUNDARY_KEY]: boundaryCode, [USAGE_KEY]: usage, [ROLE_KEY]: newRole };
+                // If the user previously failed (e.g. first upload had bad data), reset to pending
+                // so it gets re-processed on this corrective upload. Completed users keep their status.
+                const updatedStatus = currentUser.status === dataRowStatuses.completed
+                    ? dataRowStatuses.completed
+                    : dataRowStatuses.pending;
                 usersToUpdate.push({
                     ...currentUser,
                     data: updatedData,
+                    status: updatedStatus,
                 });
-                logger.info(`Updated boundary for user ${phoneNumber}: ${existingBoundary} -> ${boundaryCode}`);
+                logger.info(`Updated boundary/usage/role for user ${phoneNumber}: boundary ${existingBoundary} -> ${boundaryCode}, role ${existingRole} -> ${newRole}`);
             }
         } else if (otherUser) {
-            // User exists in other campaign - reuse with all fields preserved except boundary and usage
-            const reusedData = { ...otherUser.data, [BOUNDARY_KEY]: boundaryCode, [USAGE_KEY]: usage };
+            // User exists in other campaign - preserve system-set fields, override all user-editable fields from new sheet
+            const reusedData = {
+                ...otherUser.data,
+                [BOUNDARY_KEY]: boundaryCode,
+                [USAGE_KEY]: usage,
+                [ROLE_KEY]: rowJson[ROLE_KEY],
+                "HCM_ADMIN_CONSOLE_USER_NAME": rowJson["HCM_ADMIN_CONSOLE_USER_NAME"],
+                "HCM_ADMIN_CONSOLE_USER_EMPLOYMENT_TYPE": rowJson["HCM_ADMIN_CONSOLE_USER_EMPLOYMENT_TYPE"],
+                "HCM_ADMIN_CONSOLE_USER_PAYMENT_PROVIDER": rowJson["HCM_ADMIN_CONSOLE_USER_PAYMENT_PROVIDER"],
+                "HCM_ADMIN_CONSOLE_USER_PAYEE_PHONE_NUMBER": rowJson["HCM_ADMIN_CONSOLE_USER_PAYEE_PHONE_NUMBER"],
+                "HCM_ADMIN_CONSOLE_USER_PAYEE_NAME": rowJson["HCM_ADMIN_CONSOLE_USER_PAYEE_NAME"],
+                "HCM_ADMIN_CONSOLE_USER_BANK_ACCOUNT": rowJson["HCM_ADMIN_CONSOLE_USER_BANK_ACCOUNT"],
+                "HCM_ADMIN_CONSOLE_USER_BANK_CODE": rowJson["HCM_ADMIN_CONSOLE_USER_BANK_CODE"],
+            };
             
             usersToSave.push({
                 campaignNumber,
@@ -1514,8 +1541,13 @@ async function handleUserBoundaryMappings(
 ): Promise<void> {
     // Get existing mappings for this campaign
     const existingMappings = await getMappingDataRelatedToCampaign('user', campaignNumber, tenantId);
+    // Exclude mappings that are pending demap or already demapped so that re-adding a user to the same
+    // boundary creates a fresh mapping rather than being silently blocked by the stale record.
+    const activeStatuses = new Set([mappingStatuses.toBeMapped, mappingStatuses.mapped]);
     const existingMappingSet = new Set(
-        existingMappings.map((m: any) => `${m.uniqueIdentifierForData}#${m.boundaryCode}`)
+        existingMappings
+            .filter((m: any) => activeStatuses.has(m.status))
+            .map((m: any) => `${m.uniqueIdentifierForData}#${m.boundaryCode}`)
     );
     
     // Prepare new mappings to be created
@@ -1638,12 +1670,12 @@ async function triggerBackgroundResourceCreationFlow(
                 logger.info('=== TRIGGERING USER CREDENTIAL EMAIL FLOW ===');
                 const requestInfoObject = { RequestInfo: { ...(requestInfo || {}), userInfo: { ...((requestInfo as any)?.userInfo || {}), tenantId, uuid: useruuid }, msgId: `${new Date().getTime()}|${locale || config?.localisation?.defaultLocale}` } };
 
-                triggerUserCredentialEmailFlow({
+                await triggerUserCredentialEmailFlow({
                     RequestInfo: requestInfoObject.RequestInfo,
                     CampaignDetails: campaignDetails,
                     parentCampaign: parentCampaign
                 },  createdByEmail
-            );
+                );
                 
                 logger.info('=== BACKGROUND RESOURCE CREATION FLOW COMPLETED SUCCESSFULLY ===');
                 
