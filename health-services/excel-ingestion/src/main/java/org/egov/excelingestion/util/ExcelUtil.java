@@ -3,6 +3,9 @@ package org.egov.excelingestion.util;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
 
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import org.springframework.cache.annotation.Cacheable;
@@ -18,6 +21,9 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 @Component
 public class ExcelUtil {
 
+    // Thread-safe, immutable — safe to share as static constant
+    private static final DateTimeFormatter CELL_DATE_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+
     /**
      * Get cell value as string with proper formula evaluation
      * 
@@ -32,7 +38,9 @@ public class ExcelUtil {
                 return cell.getStringCellValue();
             case NUMERIC:
                 if (DateUtil.isCellDateFormatted(cell)) {
-                    return cell.getDateCellValue().toString();
+                    return cell.getDateCellValue().toInstant()
+                            .atZone(ZoneId.systemDefault()).toLocalDate()
+                            .format(CELL_DATE_FORMATTER);
                 } else {
                     return String.valueOf((long) cell.getNumericCellValue());
                 }
@@ -48,6 +56,11 @@ public class ExcelUtil {
                         case STRING:
                             return cellValue.getStringValue();
                         case NUMERIC:
+                            if (DateUtil.isCellDateFormatted(cell)) {
+                                return DateUtil.getJavaDate(cellValue.getNumberValue())
+                                        .toInstant().atZone(ZoneId.systemDefault()).toLocalDate()
+                                        .format(CELL_DATE_FORMATTER);
+                            }
                             return String.valueOf((long) cellValue.getNumberValue());
                         case BOOLEAN:
                             return String.valueOf(cellValue.getBooleanValue());
@@ -151,12 +164,7 @@ public class ExcelUtil {
             headers[i] = cell != null ? getCellValueAsString(cell) : "";
         }
 
-        final int lastRowNum = ExcelUtil.findActualLastRowWithData(sheet);
-        if (lastRowNum < 2) { // No data rows
-            return Collections.emptyList();
-        }
-        
-        // Find actual last row with data (ignore formula-only rows) - SMART OPTIMIZATION
+        // Find actual last row with data (ignore formula-only rows)
         int actualLastRow = findActualLastRowWithData(sheet);
         if (actualLastRow < 2) {
             return Collections.emptyList();
@@ -439,6 +447,11 @@ public class ExcelUtil {
     public static String getValueAsString(Object value) {
         if (value == null) {
             return "";
+        }
+        if (value instanceof Date) {
+            return ((Date) value).toInstant()
+                    .atZone(ZoneId.systemDefault()).toLocalDate()
+                    .format(CELL_DATE_FORMATTER);
         }
         return value.toString();
     }

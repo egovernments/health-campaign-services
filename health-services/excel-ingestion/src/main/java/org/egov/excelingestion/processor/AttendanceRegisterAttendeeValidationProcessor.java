@@ -31,7 +31,7 @@ import java.util.*;
  * Validations (O(n) single pass):
  * 1. Register ID not empty on data rows
  * 2. Register ID matches expected registerId
- * 3. Enrollment date format (dd-MM-yyyy or dd/MM/yyyy)
+ * 3. Enrollment date format (dd/MM/yyyy, dd-MM-yyyy, yyyy-MM-dd, yyyy/MM/dd)
  * 4. De-enrollment date format
  * 5. Enrollment date within register date range
  * 6. De-enrollment date within register date range
@@ -44,6 +44,8 @@ public class AttendanceRegisterAttendeeValidationProcessor implements IWorkbookP
 
     private static final DateTimeFormatter FORMAT_DASH = DateTimeFormatter.ofPattern("dd-MM-yyyy");
     private static final DateTimeFormatter FORMAT_SLASH = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+    private static final DateTimeFormatter FORMAT_ISO_DASH = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+    private static final DateTimeFormatter FORMAT_ISO_SLASH = DateTimeFormatter.ofPattern("yyyy/MM/dd");
 
     // Column keys — sourced from ProcessingConstants
     private static final String COL_REGISTER_ID = ProcessingConstants.REGISTER_ID_COLUMN_KEY;
@@ -256,20 +258,19 @@ public class AttendanceRegisterAttendeeValidationProcessor implements IWorkbookP
     }
 
     /**
-     * Parse date string in dd-MM-yyyy or dd/MM/yyyy format
+     * Parse date string — supports dd/MM/yyyy, dd-MM-yyyy, yyyy-MM-dd, yyyy/MM/dd
      */
     private LocalDate parseDate(String dateStr) {
         String trimmed = dateStr.trim();
-        try {
-            return LocalDate.parse(trimmed, FORMAT_DASH);
-        } catch (DateTimeParseException ignored) {
-            // Try next format
+        for (DateTimeFormatter fmt : new DateTimeFormatter[]{
+                FORMAT_SLASH, FORMAT_DASH, FORMAT_ISO_DASH, FORMAT_ISO_SLASH}) {
+            try {
+                return LocalDate.parse(trimmed, fmt);
+            } catch (DateTimeParseException ignored) {
+                // try next
+            }
         }
-        try {
-            return LocalDate.parse(trimmed, FORMAT_SLASH);
-        } catch (DateTimeParseException ignored) {
-            return null;
-        }
+        return null;
     }
 
     /**
@@ -280,10 +281,11 @@ public class AttendanceRegisterAttendeeValidationProcessor implements IWorkbookP
     }
 
     /**
-     * Convert epoch millis to LocalDate
+     * Convert epoch millis to LocalDate using system timezone.
+     * DIGIT stores epoch millis at local midnight, so using UTC would shift dates by hours.
      */
     private LocalDate epochMillisToLocalDate(long epochMillis) {
-        return Instant.ofEpochMilli(epochMillis).atZone(ZoneId.of("UTC")).toLocalDate();
+        return Instant.ofEpochMilli(epochMillis).atZone(ZoneId.systemDefault()).toLocalDate();
     }
 
     /**
@@ -350,6 +352,10 @@ public class AttendanceRegisterAttendeeValidationProcessor implements IWorkbookP
                 return null;
             }
 
+            if (!(startDateObj instanceof Number) || !(endDateObj instanceof Number)) {
+                log.warn("Register {} has non-numeric start/end dates, skipping date range validation", registerId);
+                return null;
+            }
             long startEpoch = ((Number) startDateObj).longValue();
             long endEpoch = ((Number) endDateObj).longValue();
 
