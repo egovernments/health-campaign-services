@@ -76,6 +76,15 @@ public class ExcelIngestionConfig {
     @Value("${egov.attendance.register.search.path}")
     private String attendanceRegisterSearchPath;
 
+    @Value("${egov.worker.registry.host}")
+    private String workerRegistryHost;
+
+    @Value("${egov.worker.registry.search.path}")
+    private String workerRegistrySearchPath;
+
+    @Value("${egov.worker.registry.search.batch.size:100}")
+    private int workerRegistrySearchBatchSize;
+
     private String defaultHeaderColor = "#93c47d";
 
     public String getHierarchySearchUrl() {
@@ -100,5 +109,9 @@ public class ExcelIngestionConfig {
 
     public String getAttendanceRegisterSearchUrl() {
         return attendanceHost + attendanceRegisterSearchPath;
+    }
+
+    public String getWorkerRegistrySearchUrl() {
+        return workerRegistryHost + workerRegistrySearchPath;
     }
 }

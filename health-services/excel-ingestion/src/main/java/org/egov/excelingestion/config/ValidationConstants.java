@@ -24,6 +24,10 @@ public class ValidationConstants {
     public static final String INGEST_INVALID_LIMIT = "INGEST_INVALID_LIMIT";
     public static final String INGEST_INVALID_OFFSET = "INGEST_INVALID_OFFSET";
     
+    // User sheet — Worker ID validation
+    public static final String LOC_USER_INVALID_WORKER_ID = "HCM_USER_WORKER_ID_NOT_FOUND";
+    public static final String DEFAULT_USER_INVALID_WORKER_ID = "User ID does not exist in the worker registry";
+
     // Attendance Register Attendee — Localization Keys
     public static final String LOC_ATTENDANCE_INVALID_DATE = "HCM_ATTENDANCE_ATTENDEE_INVALID_DATE_FORMAT";
     public static final String LOC_ATTENDANCE_DATE_OUT_OF_RANGE = "HCM_ATTENDANCE_ATTENDEE_DATE_OUT_OF_RANGE";
