@@ -62,6 +62,7 @@ on:
           - excel-ingestion
           - boundary-management
           - health-notification-service
+          - worker-registry-java-17
 
 env:
   DOCKER_USERNAME: ${{ vars.DOCKER_USERNAME }}

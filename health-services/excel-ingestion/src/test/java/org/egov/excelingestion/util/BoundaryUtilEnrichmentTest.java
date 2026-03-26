@@ -3,6 +3,7 @@ package org.egov.excelingestion.util;
 import org.egov.excelingestion.service.BoundaryService;
 import org.egov.excelingestion.service.CampaignService;
 import org.egov.excelingestion.web.models.*;
+import org.egov.common.contract.request.RequestInfo;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

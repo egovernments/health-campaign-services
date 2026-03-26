@@ -2,8 +2,11 @@ import { createLogger, format, transports } from "winston"; // Importing necessa
 import config from "../../config";
 
 // Custom log format for Winston logger
-const myFormat = format.printf(({ level, message, label, timestamp }) => {
-  return `${timestamp} [${label}] [${level}]: ${message}`; // Custom log message format
+const myFormat = format.printf(({ level, message, label, timestamp, stack }) => {
+  if (stack) {
+    return `${timestamp} [${label}] [${level}]: ${message}\n${stack}`;
+  }
+  return `${timestamp} [${label}] [${level}]: ${message}`;
 });
 
 // Creating a logger instance with specified format and transports
@@ -11,6 +14,7 @@ const logger = createLogger({
   level: config.app.logLevel, // Set the minimum level to log, in this case, DEBUG
   format: format.combine(
     // Combining different log formats
+    format.errors({ stack: true }), // Extract stack traces from Error objects
     format.label({ label: "BFF" }), // Adding label to logs
     format.timestamp({ format: " YYYY-MM-DD HH:mm:ss.SSSZZ " }), // Adding timestamp to logs
     format.simple(), // Simplifying log format

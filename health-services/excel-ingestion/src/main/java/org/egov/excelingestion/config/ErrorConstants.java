@@ -191,7 +191,20 @@ public class ErrorConstants {
     
     public static final String FACILITY_VALIDATION_FAILED = "FACILITY_VALIDATION_FAILED";
     public static final String FACILITY_VALIDATION_FAILED_MESSAGE = "Failed to process facility validation sheet";
-    
+
     public static final String TARGET_PROCESSING_FAILED = "TARGET_PROCESSING_FAILED";
     public static final String TARGET_PROCESSING_FAILED_MESSAGE = "Error processing target sheet";
+
+    // Attendance Register Errors
+    public static final String ATTENDANCE_REGISTER_NOT_FOUND = "ATTENDANCE_REGISTER_NOT_FOUND";
+    public static final String ATTENDANCE_REGISTER_NOT_FOUND_MESSAGE = "Attendance register not found with ID: {0}";
+
+    public static final String ATTENDANCE_REGISTER_VALIDATION_FAILED = "ATTENDANCE_REGISTER_VALIDATION_FAILED";
+    public static final String ATTENDANCE_REGISTER_VALIDATION_FAILED_MESSAGE = "Attendance register validation failed";
+
+    public static final String ATTENDEE_VALIDATION_FAILED = "ATTENDEE_VALIDATION_FAILED";
+    public static final String ATTENDEE_VALIDATION_FAILED_MESSAGE = "Attendance register attendee validation failed";
+
+    public static final String ATTENDANCE_REGISTER_LOCALITY_MISSING = "ATTENDANCE_REGISTER_LOCALITY_MISSING";
+    public static final String ATTENDANCE_REGISTER_LOCALITY_MISSING_MESSAGE = "Attendance register {0} has no localityCode set";
 }

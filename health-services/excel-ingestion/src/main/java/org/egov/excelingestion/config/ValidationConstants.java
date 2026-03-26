@@ -24,6 +24,46 @@ public class ValidationConstants {
     public static final String INGEST_INVALID_LIMIT = "INGEST_INVALID_LIMIT";
     public static final String INGEST_INVALID_OFFSET = "INGEST_INVALID_OFFSET";
     
+    // User sheet — Worker ID validation
+    public static final String LOC_USER_INVALID_WORKER_ID = "HCM_USER_WORKER_ID_NOT_FOUND";
+    public static final String DEFAULT_USER_INVALID_WORKER_ID = "User ID does not exist in the worker registry";
+
+    // Attendance Register Attendee — Localization Keys
+    public static final String LOC_ATTENDANCE_INVALID_DATE = "HCM_ATTENDANCE_ATTENDEE_INVALID_DATE_FORMAT";
+    public static final String LOC_ATTENDANCE_DATE_OUT_OF_RANGE = "HCM_ATTENDANCE_ATTENDEE_DATE_OUT_OF_RANGE";
+    public static final String LOC_ATTENDANCE_DEENROLL_WITHOUT_ENROLL = "HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_WITHOUT_ENROLLMENT";
+    public static final String LOC_ATTENDANCE_DEENROLL_BEFORE_ENROLL = "HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_BEFORE_ENROLLMENT";
+    public static final String LOC_ATTENDANCE_REGISTER_ID_EMPTY = "HCM_ATTENDANCE_ATTENDEE_REGISTER_ID_EMPTY";
+    public static final String LOC_ATTENDANCE_REGISTER_ID_MISMATCH = "HCM_ATTENDANCE_ATTENDEE_REGISTER_ID_MISMATCH";
+    public static final String LOC_ATTENDANCE_REGISTER_WRONG_CAMPAIGN = "HCM_ATTENDANCE_ATTENDEE_REGISTER_BELONGS_TO_DIFFERENT_CAMPAIGN";
+
+    // Attendance Register Attendee — Default Error Messages
+    public static final String DEFAULT_ATTENDANCE_INVALID_DATE = "Invalid date format. Use dd-MM-yyyy or dd/MM/yyyy";
+    public static final String DEFAULT_ATTENDANCE_DATE_OUT_OF_RANGE = "Date must be between register start and end dates";
+    public static final String DEFAULT_ATTENDANCE_DEENROLL_WITHOUT_ENROLL = "De-enrollment date requires enrollment date";
+    public static final String DEFAULT_ATTENDANCE_DEENROLL_BEFORE_ENROLL = "De-enrollment date cannot be before enrollment date";
+    public static final String DEFAULT_ATTENDANCE_REGISTER_ID_EMPTY = "Register ID is required";
+    public static final String DEFAULT_ATTENDANCE_REGISTER_ID_MISMATCH = "Register ID does not match expected register";
+    public static final String DEFAULT_ATTENDANCE_REGISTER_WRONG_CAMPAIGN = "Register already exists in a different campaign";
+
+    public static final String LOC_ATTENDANCE_REGISTER_ID_ALREADY_TAKEN = "HCM_ATTENDANCE_REGISTER_VALIDATION_ID_ALREADY_TAKEN";
+    public static final String DEFAULT_ATTENDANCE_REGISTER_ID_ALREADY_TAKEN = "Register ID is already taken or not available. Use another Register ID";
+
+    public static final String LOC_ATTENDANCE_REGISTER_INCOMPLETE_ROW = "HCM_ATTENDANCE_REGISTER_VALIDATION_INCOMPLETE_ROW";
+    public static final String DEFAULT_ATTENDANCE_REGISTER_INCOMPLETE_ROW = "Register ID is required when boundary, event type, or sessions is filled";
+
+    // Attendance Register — No Boundary
+    public static final String LOC_ATTENDANCE_REGISTER_NO_BOUNDARY = "HCM_ATTENDANCE_REGISTER_VALIDATION_NO_BOUNDARY";
+    public static final String DEFAULT_ATTENDANCE_REGISTER_NO_BOUNDARY = "At least one boundary must be selected for the register";
+
+    // Attendance Register — Invalid Boundary
+    public static final String LOC_ATTENDANCE_REGISTER_INVALID_BOUNDARY = "HCM_ATTENDANCE_REGISTER_VALIDATION_INVALID_BOUNDARY";
+    public static final String DEFAULT_ATTENDANCE_REGISTER_INVALID_BOUNDARY = "Invalid boundary code";
+
+    // Attendance Register — Duplicate ID in Sheet
+    public static final String LOC_ATTENDANCE_REGISTER_DUPLICATE_ID = "HCM_ATTENDANCE_REGISTER_VALIDATION_DUPLICATE_ID";
+    public static final String DEFAULT_ATTENDANCE_REGISTER_DUPLICATE_ID = "Duplicate Register ID found in the sheet";
+
     private ValidationConstants() {
         // Private constructor to prevent instantiation
     }

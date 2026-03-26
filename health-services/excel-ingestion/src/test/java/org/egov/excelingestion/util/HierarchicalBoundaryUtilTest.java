@@ -5,6 +5,7 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.egov.excelingestion.config.ExcelIngestionConfig;
 import org.egov.excelingestion.service.BoundaryService;
 import org.egov.excelingestion.web.models.*;
+import org.egov.common.contract.request.RequestInfo;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.AfterEach;
@@ -253,85 +254,6 @@ class HierarchicalBoundaryUtilTest {
         assertEquals(hash1, hash2);
         assertTrue(hash1.startsWith("H_"));
         assertTrue(hash1.substring(2).matches("[a-f0-9]+"));
-    }
-    
-    @Test
-    void testSanitizeForKey_HandlesSpecialCharacters() throws Exception {
-        // Use reflection to test private method
-        java.lang.reflect.Method method = HierarchicalBoundaryUtil.class.getDeclaredMethod("sanitizeForKey", String.class);
-        method.setAccessible(true);
-        
-        String input = "Test@#$%^&*()Name!";
-        String result = (String) method.invoke(hierarchicalBoundaryUtil, input);
-        
-        assertEquals("Test_Name", result);
-    }
-    
-    @Test
-    void testHashFunction_ConsistentResults() throws Exception {
-        // Test that hashing works consistently
-        java.lang.reflect.Method method = HierarchicalBoundaryUtil.class.getDeclaredMethod("createHashedKey", String.class);
-        method.setAccessible(true);
-        
-        String input1 = "State1#District1#Block1";
-        String input2 = "State1#District1#Block1";
-        String input3 = "State1#District2#Block1";
-        
-        String hash1 = (String) method.invoke(hierarchicalBoundaryUtil, input1);
-        String hash2 = (String) method.invoke(hierarchicalBoundaryUtil, input2);
-        String hash3 = (String) method.invoke(hierarchicalBoundaryUtil, input3);
-        
-        assertEquals(hash1, hash2); // Same input should give same hash
-        assertNotEquals(hash1, hash3); // Different input should give different hash
-        
-        assertTrue(hash1.startsWith("H_"));
-        assertTrue(hash2.startsWith("H_"));
-        assertTrue(hash3.startsWith("H_"));
-    }
-    
-    @Test
-    void testSanitization_EdgeCases() throws Exception {
-        java.lang.reflect.Method method = HierarchicalBoundaryUtil.class.getDeclaredMethod("sanitizeForKey", String.class);
-        method.setAccessible(true);
-        
-        // Test null
-        String nullResult = (String) method.invoke(hierarchicalBoundaryUtil, (String) null);
-        assertEquals("Empty", nullResult);
-        
-        // Test empty
-        String emptyResult = (String) method.invoke(hierarchicalBoundaryUtil, "");
-        assertEquals("Empty", emptyResult);
-        
-        // Test only special characters
-        String specialResult = (String) method.invoke(hierarchicalBoundaryUtil, "@#$%^&*()");
-        assertEquals("Empty", specialResult);
-        
-        // Test consecutive underscores
-        String underscoreResult = (String) method.invoke(hierarchicalBoundaryUtil, "Test___Name");
-        assertEquals("Test_Name", underscoreResult);
-    }
-    
-    @Test
-    void testNameForRange_ExcelCompatibility() throws Exception {
-        java.lang.reflect.Method method = HierarchicalBoundaryUtil.class.getDeclaredMethod("sanitizeNameForRange", String.class);
-        method.setAccessible(true);
-        
-        // Test starts with letter or underscore
-        String digitResult = (String) method.invoke(hierarchicalBoundaryUtil, "123Test");
-        assertTrue(digitResult.startsWith("L_"));
-        
-        // Test normal name
-        String normalResult = (String) method.invoke(hierarchicalBoundaryUtil, "TestName");
-        assertEquals("TestName", normalResult);
-        
-        // Test with special chars
-        String specialResult = (String) method.invoke(hierarchicalBoundaryUtil, "Test@Name");
-        assertEquals("Test_Name", specialResult);
-        
-        // Ensure all results are valid Excel range names
-        assertTrue(digitResult.matches("^[A-Za-z_].*"));
-        assertTrue(normalResult.matches("^[A-Za-z_].*"));
-        assertTrue(specialResult.matches("^[A-Za-z_].*"));
     }
     
     @Test

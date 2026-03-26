@@ -17,6 +17,7 @@ import org.egov.excelingestion.util.ExcelDataPopulator;
 import org.egov.excelingestion.util.HierarchicalBoundaryUtil;
 import org.egov.excelingestion.util.ExcelUtil;
 import org.egov.excelingestion.web.models.*;
+import org.egov.common.contract.request.RequestInfo;
 import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Service;
 
@@ -324,9 +325,10 @@ public class ConfigBasedGenerationService {
     }
     
     private String truncateSheetName(String sheetName) {
-        if (sheetName.length() > 31) {
-            String truncated = sheetName.substring(0, 31);
-            log.warn("Sheet name '{}' exceeds 31 character limit, trimming to '{}'", sheetName, truncated);
+        int maxLength = config.getSheetNameMaxLength();
+        if (sheetName.length() > maxLength) {
+            String truncated = sheetName.substring(0, maxLength);
+            log.warn("Sheet name '{}' exceeds {} character limit, trimming to '{}'", sheetName, maxLength, truncated);
             return truncated;
         }
         return sheetName;
