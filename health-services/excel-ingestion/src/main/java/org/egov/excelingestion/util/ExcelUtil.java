@@ -217,7 +217,49 @@ public class ExcelUtil {
             }
         }
         
+        reconstructMultiSelectValues(data);
         return data;
+    }
+
+    /**
+     * Reconstructs hidden multiselect parent column values from individual _MULTISELECT_* columns.
+     * Handles backward compatibility with sheets where the CONCATENATE formula was not applied
+     * beyond a certain row limit.
+     */
+    static void reconstructMultiSelectValues(List<Map<String, Object>> data) {
+        for (Map<String, Object> row : data) {
+            // TreeMap with suffix index as key preserves column order (_MULTISELECT_1 before _MULTISELECT_2)
+            Map<String, TreeMap<Integer, String>> parentToValues = new HashMap<>();
+
+            for (Map.Entry<String, Object> entry : row.entrySet()) {
+                String key = entry.getKey();
+                int idx = key.indexOf("_MULTISELECT_");
+                if (idx > 0) {
+                    String parent = key.substring(0, idx);
+                    String suffix = key.substring(idx + "_MULTISELECT_".length());
+                    int suffixIndex;
+                    try {
+                        suffixIndex = Integer.parseInt(suffix);
+                    } catch (NumberFormatException e) {
+                        continue;
+                    }
+                    Object val = entry.getValue();
+                    if (val != null && !val.toString().trim().isEmpty()) {
+                        parentToValues.computeIfAbsent(parent, k -> new TreeMap<>())
+                                .put(suffixIndex, val.toString().trim());
+                    }
+                }
+            }
+
+            for (Map.Entry<String, TreeMap<Integer, String>> entry : parentToValues.entrySet()) {
+                String parent = entry.getKey();
+                List<String> values = new ArrayList<>(entry.getValue().values());
+                Object existing = row.get(parent);
+                if ((existing == null || existing.toString().trim().isEmpty()) && !values.isEmpty()) {
+                    row.put(parent, String.join(",", values));
+                }
+            }
+        }
     }
 
     private static final Cache<String, Integer> lastRowCache = Caffeine.newBuilder()

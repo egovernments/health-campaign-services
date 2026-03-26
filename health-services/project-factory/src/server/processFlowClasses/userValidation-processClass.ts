@@ -27,6 +27,10 @@ export class TemplateClass {
         if (!userSheetData || !userSheetData?.length) {
             throwError("FILE", 400, "SHEET_MISSING_ERROR", `Sheet: '${getLocalizedName("HCM_ADMIN_CONSOLE_USER_LIST", localizationMap)}' is empty or not present`);
         }
+        // Reconstruct multiselect parent columns from individual _MULTISELECT_* columns
+        // Handles sheets where the CONCATENATE formula was missing beyond row 101
+        this.reconstructMultiSelectFields(userSheetData);
+
         const errors: any[] = [];
         const userSchema = templateConfig?.sheets?.filter((s: any) => s?.sheetName === "HCM_ADMIN_CONSOLE_USER_LIST")[0]?.schema;
         validateDatasWithSchema(userSheetData, userSchema, errors, localizationMap);
@@ -75,6 +79,33 @@ export class TemplateClass {
             }
         }
 
+
+    private static reconstructMultiSelectFields(rows: any[]): void {
+        for (const row of rows) {
+            // Collect {parent -> [{index, value}]} preserving column order
+            const multiSelectParents: Record<string, { index: number; value: string }[]> = {};
+            for (const key of Object.keys(row)) {
+                const idx = key.indexOf("_MULTISELECT_");
+                if (idx > 0) {
+                    const parent = key.substring(0, idx);
+                    const suffix = parseInt(key.substring(idx + "_MULTISELECT_".length), 10);
+                    if (isNaN(suffix)) continue;
+                    const val = row[key];
+                    if (val && String(val).trim()) {
+                        if (!multiSelectParents[parent]) multiSelectParents[parent] = [];
+                        multiSelectParents[parent].push({ index: suffix, value: String(val).trim() });
+                    }
+                }
+            }
+            for (const parent of Object.keys(multiSelectParents)) {
+                const entries = multiSelectParents[parent];
+                if ((!row[parent] || !String(row[parent]).trim()) && entries.length > 0) {
+                    entries.sort((a, b) => a.index - b.index);
+                    row[parent] = entries.map(e => e.value).join(",");
+                }
+            }
+        }
+    }
 
     private static async validatePhoneNumber(userSheetData: any, tenantId: string, errors: any[], resourceDetails?: any) {
         logger.info("Validating phone numbers...");
