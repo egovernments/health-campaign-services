@@ -372,9 +372,12 @@ export class TemplateClass {
             return;
         }
 
-        // Existing attendee — already de-enrolled, no further updates
+        // Existing attendee — already de-enrolled; populate row with final state
         if (existing.denrollmentDate) {
-            row["#status#"] = sheetDataRowStatuses.EXISTING;
+            if (existing.enrollmentDate != null) row["HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE"] = existing.enrollmentDate;
+            row["HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE"] = existing.denrollmentDate;
+            if (existing.tag) row["HCM_ATTENDANCE_ATTENDEE_TEAM_CODE"] = existing.tag;
+            row["#status#"] = sheetDataRowStatuses.CREATED;
             return;
         }
 
@@ -398,7 +401,7 @@ export class TemplateClass {
         if (hasChanges) {
             attendeesToUpdate.push({ payload: updatePayload, row });
         } else {
-            row["#status#"] = sheetDataRowStatuses.EXISTING;
+            row["#status#"] = sheetDataRowStatuses.CREATED;
         }
     }
 
@@ -434,9 +437,11 @@ export class TemplateClass {
             return;
         }
 
-        // Existing staff — already de-enrolled, no further updates
+        // Existing staff — already de-enrolled; populate row with final state
         if (existing.denrollmentDate) {
-            row["#status#"] = sheetDataRowStatuses.EXISTING;
+            if (existing.enrollmentDate != null) row["HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE"] = existing.enrollmentDate;
+            row["HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE"] = existing.denrollmentDate;
+            row["#status#"] = sheetDataRowStatuses.CREATED;
             return;
         }
 
@@ -460,7 +465,7 @@ export class TemplateClass {
         if (hasChanges) {
             staffToUpdate.push({ payload: updatePayload, row });
         } else {
-            row["#status#"] = sheetDataRowStatuses.EXISTING;
+            row["#status#"] = sheetDataRowStatuses.CREATED;
         }
     }
 
