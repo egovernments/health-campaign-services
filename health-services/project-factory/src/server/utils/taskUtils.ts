@@ -34,6 +34,7 @@ export async function handleTaskForCampaign(messageObject: any) {
         }
         const resourceDetails : ResourceDetails = {
             campaignId : CampaignDetails?.id,
+            campaignNumber : CampaignDetails?.campaignNumber,
             type : resourceType,
             tenantId : CampaignDetails?.tenantId,
             fileStoreId: resolvedFileStoreId!,
@@ -92,12 +93,12 @@ export async function handleTaskForCampaign(messageObject: any) {
                 }
                 // Persist to eg_cm_resource_details via update-resource-details Kafka topic
                 await persistResourceDetailUpdate(
-                    CampaignDetails?.id,
                     CampaignDetails?.tenantId,
                     resourceType,
                     resource?.parentResourceId,
                     { status: "completed", processedFileStoreId },
-                    messageObject?.requestInfo?.userInfo?.uuid
+                    messageObject?.requestInfo?.userInfo?.uuid,
+                    CampaignDetails?.campaignNumber
                 );
                 logger.info(`Uploaded processed file for resource type ${resourceType}: ${processedFileStoreId}`);
             }
@@ -142,12 +143,12 @@ export async function handleTaskForCampaign(messageObject: any) {
             // Persist status=failed to eg_cm_resource_details via update-resource-details topic
             if (failedResourceType) {
                 await persistResourceDetailUpdate(
-                    messageObject?.CampaignDetails?.id,
                     messageObject?.CampaignDetails?.tenantId,
                     failedResourceType,
                     failedResource?.parentResourceId,
                     { status: "failed" },
-                    messageObject?.requestInfo?.userInfo?.uuid
+                    messageObject?.requestInfo?.userInfo?.uuid,
+                    messageObject?.CampaignDetails?.campaignNumber
                 );
             }
         } catch (resourceUpdateError) {
@@ -173,15 +174,15 @@ function getResorceViaResourceType(campaignDetails: any, resourceType: string): 
  * This persists status, processedFileStoreId, and other field changes correctly
  * after (resources are no longer stored in campaign JSONB).
  */
-async function persistResourceDetailUpdate(
-    campaignId: string,
+export async function persistResourceDetailUpdate(
     tenantId: string,
     resourceType: string,
     parentResourceId: string | null | undefined,
     updates: { status: string; processedFileStoreId?: string },
-    userUuid: string
+    userUuid: string,
+    campaignNumber: string
 ): Promise<void> {
-    if (!campaignId || !tenantId || !resourceType) return;
+    if (!campaignNumber || !tenantId || !resourceType) return;
     try {
         // Retry up to 3 times with 2s delay to handle the race where the Kafka create-consumer
         // hasn't committed the row yet when the task processor completes.
@@ -189,7 +190,7 @@ async function persistResourceDetailUpdate(
         for (let attempt = 0; attempt < 3; attempt++) {
             const criteria: any = {
                 tenantId,
-                campaignId,
+                campaignNumber,
                 type: [resourceType],
                 isActive: true
             };
@@ -202,19 +203,20 @@ async function persistResourceDetailUpdate(
             dbRow = rows?.[0];
             if (dbRow) break;
             if (attempt < 2) {
-                logger.warn(`persistResourceDetailUpdate: row not found for campaignId=${campaignId} type=${resourceType}, retrying (attempt ${attempt + 1}/3)...`);
+                logger.warn(`persistResourceDetailUpdate: row not found for campaignNumber=${campaignNumber} type=${resourceType}, retrying (attempt ${attempt + 1}/3)...`);
                 await new Promise(r => setTimeout(r, 2000));
             }
         }
         if (!dbRow) {
-            logger.warn(`persistResourceDetailUpdate: no active row found after 3 attempts for campaignId=${campaignId} type=${resourceType}`);
+            logger.warn(`persistResourceDetailUpdate: no active row found after 3 attempts for campaignNumber=${campaignNumber} type=${resourceType}`);
             return;
         }
         const now = Date.now();
         const updatedRecord = {
             id: dbRow.id,
             tenantId: dbRow.tenantid,
-            campaignId: dbRow.campaignid,
+            campaignId: dbRow.campaignid || null,
+            campaignNumber: dbRow.campaignnumber || null,
             type: dbRow.type,
             parentResourceId: dbRow.parentresourceid || null,
             fileStoreId: dbRow.filestoreid,
@@ -237,8 +239,8 @@ async function persistResourceDetailUpdate(
             config.kafka.KAFKA_UPDATE_RESOURCE_DETAILS_TOPIC,
             tenantId
         );
-        logger.info(`persistResourceDetailUpdate: campaignId=${campaignId} type=${resourceType} status=${updates.status}`);
+        logger.info(`persistResourceDetailUpdate: campaignNumber=${campaignNumber} type=${resourceType} status=${updates.status}`);
     } catch (err) {
-        logger.error(`persistResourceDetailUpdate failed for campaignId=${campaignId} type=${resourceType}: ${err}`);
+        logger.error(`persistResourceDetailUpdate failed for campaignNumber=${campaignNumber} type=${resourceType}: ${err}`);
     }
 }

@@ -29,6 +29,16 @@ export async function getCampaignStatusFromDB(campaignId: string, tenantId: stri
   return { status: row?.status || null, campaignNumber: row?.campaignnumber || null };
 }
 
+export async function getCampaignStatusByNumber(campaignNumber: string, tenantId: string): Promise<{ status: string | null; campaignId: string | null }> {
+  const tableName = getTableName(config.DB_CONFIG.DB_CAMPAIGN_DETAILS_TABLE_NAME, tenantId);
+  const result = await executeQuery(
+    `SELECT id, status FROM ${tableName} WHERE campaignnumber = $1 AND tenantid = $2 LIMIT 1`,
+    [campaignNumber, tenantId]
+  );
+  const row = result?.rows?.[0];
+  return { status: row?.status || null, campaignId: row?.id || null };
+}
+
 /**
  * Create or upsert a resource detail.
  * - If same (campaignId, type, parentResourceId) active resource exists with status=creating → reject 409
@@ -39,10 +49,31 @@ export async function createResourceDetail(
   input: ResourceDetailsCreateInput,
   userUuid: string
 ): Promise<any> {
-  const { tenantId, campaignId, type, parentResourceId, fileStoreId, filename, additionalDetails } = input;
+  const { tenantId, campaignId, campaignNumber: inputCampaignNumber, type, parentResourceId, fileStoreId, filename, additionalDetails } = input;
 
-  // Campaign status guard
-  const { status: campaignStatus } = await getCampaignStatusFromDB(campaignId, tenantId);
+  if (!campaignId && !inputCampaignNumber) {
+    throwError("COMMON", 400, "VALIDATION_ERROR", "Either campaignId or campaignNumber must be provided");
+  }
+
+  // Resolve both campaignId and campaignNumber — all resources always store campaignNumber
+  let campaignStatus: string | null;
+  let resolvedCampaignId: string | null = campaignId || null;
+  let resolvedCampaignNumber: string | null = inputCampaignNumber || null;
+  if (campaignId) {
+    const result = await getCampaignStatusFromDB(campaignId, tenantId);
+    campaignStatus = result.status;
+    resolvedCampaignNumber = resolvedCampaignNumber || result.campaignNumber;
+  } else {
+    const result = await getCampaignStatusByNumber(inputCampaignNumber!, tenantId);
+    campaignStatus = result.status;
+    resolvedCampaignId = result.campaignId;
+  }
+  if (!resolvedCampaignNumber) {
+    throwError("COMMON", 400, "VALIDATION_ERROR", "campaignNumber could not be resolved for the given campaignId");
+  }
+  // Safe: throwError above guarantees non-null if execution reaches this point
+  const campaignNumberForQuery = resolvedCampaignNumber as string;
+
   if (campaignStatus === campaignStatuses.started) {
     throwError("COMMON", 400, "RESOURCE_ADD_NOT_ALLOWED", "Cannot add/update resources while campaign is processing");
   }
@@ -50,9 +81,9 @@ export async function createResourceDetail(
     throwError("COMMON", 400, "RESOURCE_ADD_NOT_ALLOWED", "Cannot add resources to a cancelled campaign");
   }
 
-  // Upsert check: find existing active resource with same key
+  // Upsert check: find existing active resource with same key (always by campaignNumber)
   // Done before parent validation so result can be reused for the inprogress guard below
-  const existing = await findActiveResourceByUpsertKey(tenantId, campaignId, type, parentResourceId);
+  const existing = await findActiveResourceByUpsertKey(tenantId, campaignNumberForQuery, type, parentResourceId);
 
   if (campaignStatus === campaignStatuses.inprogress) {
     // "created" campaign: reject if a toCreate active resource is already queued for same key
@@ -69,14 +100,14 @@ export async function createResourceDetail(
     }
     // parentResourceId is an external reference (e.g. attendance register ID from the attendance service).
     // Validate by confirming an active resource of the expected parentType exists for this campaign.
-    const parentResource = await findActiveResourceByUpsertKey(tenantId, campaignId, typeConfig.parentType, null);
+    const parentResource = await findActiveResourceByUpsertKey(tenantId, campaignNumberForQuery, typeConfig.parentType, null);
     if (!parentResource) {
       throwError("COMMON", 400, "VALIDATION_ERROR",
-        `No active resource of parent type '${typeConfig.parentType}' found for campaign '${campaignId}'`);
+        `No active resource of parent type '${typeConfig.parentType}' found for campaign '${campaignNumberForQuery}'`);
     }
     // If not allowMultiplePerParent, check no other active resource of same type+parent
     if (!typeConfig.allowMultiplePerParent) {
-      const existingCount = await countResourcesByType(tenantId, campaignId, type, parentResourceId);
+      const existingCount = await countResourcesByType(tenantId, campaignNumberForQuery, type, parentResourceId);
       // existingCount check will be overridden by upsert below, so just log
       if (existingCount > 0) {
         logger.info(`Found existing resource for type ${type} and parent ${parentResourceId}, will upsert`);
@@ -94,12 +125,13 @@ export async function createResourceDetail(
     await deactivateResource(existing, userUuid, tenantId);
   }
 
-  // Create new resource
+  // Create new resource — always store campaignNumber; store campaignId when provided
   const now = Date.now();
   const newResource = {
     id: uuidv4(),
     tenantId,
-    campaignId,
+    campaignId: campaignId || null,
+    campaignNumber: resolvedCampaignNumber,
     type,
     parentResourceId: parentResourceId || null,
     fileStoreId,
@@ -124,8 +156,9 @@ export async function createResourceDetail(
     tenantId
   );
 
-  logger.info(`Created resource detail id=${newResource.id} type=${type} campaignId=${campaignId}`);
-  return newResource;
+  logger.info(`Created resource detail id=${newResource.id} type=${type} campaignNumber=${resolvedCampaignNumber}`);
+  // _resolvedCampaignId is internal-only — used by controller for trigger, not persisted
+  return { ...newResource, _resolvedCampaignId: resolvedCampaignId };
 }
 
 /**
@@ -135,10 +168,28 @@ export async function updateResourceDetail(
   input: ResourceDetailsUpdateInput,
   userUuid: string
 ): Promise<any> {
-  const { id, tenantId, campaignId, fileStoreId, filename } = input;
+  const { id, tenantId, campaignId, campaignNumber: inputCampaignNumber, fileStoreId, filename } = input;
 
-  // Campaign status guard
-  const { status: campaignStatus } = await getCampaignStatusFromDB(campaignId, tenantId);
+  if (!campaignId && !inputCampaignNumber) {
+    throwError("COMMON", 400, "VALIDATION_ERROR", "Either campaignId or campaignNumber must be provided");
+  }
+
+  // Resolve both campaignId and campaignNumber
+  let campaignStatus: string | null;
+  let resolvedCampaignId: string | null = campaignId || null;
+  let resolvedCampaignNumber: string | null = inputCampaignNumber || null;
+  if (campaignId) {
+    const result = await getCampaignStatusFromDB(campaignId, tenantId);
+    campaignStatus = result.status;
+    resolvedCampaignNumber = resolvedCampaignNumber || result.campaignNumber;
+  } else {
+    const result = await getCampaignStatusByNumber(inputCampaignNumber!, tenantId);
+    campaignStatus = result.status;
+    resolvedCampaignId = result.campaignId;
+  }
+  if (!resolvedCampaignNumber) {
+    throwError("COMMON", 400, "VALIDATION_ERROR", "campaignNumber could not be resolved for the given campaignId");
+  }
   if (campaignStatus === campaignStatuses.started) {
     throwError("COMMON", 400, "RESOURCE_ADD_NOT_ALLOWED", "Cannot update resources while campaign is processing");
   }
@@ -168,12 +219,13 @@ export async function updateResourceDetail(
   // Deactivate old resource
   await deactivateResource(existing!, userUuid, tenantId);
 
-  // Create replacement resource
+  // Create replacement resource — inherit campaignNumber from existing row
   const now = Date.now();
   const newResource = {
     id: uuidv4(),
     tenantId,
-    campaignId,
+    campaignId: campaignId || existing!.campaignid || null,
+    campaignNumber: resolvedCampaignNumber,  // null guard above ensures this is always non-null
     type: existing!.type,
     parentResourceId: existing!.parentresourceid || null,
     fileStoreId,
@@ -199,16 +251,24 @@ export async function updateResourceDetail(
   );
 
   logger.info(`Updated resource detail: deactivated id=${id}, created id=${newResource.id}`);
-  return newResource;
+  return { ...newResource, _resolvedCampaignId: resolvedCampaignId };
 }
 
 /**
  * Search resource details with pagination.
+ * When campaignId is provided without campaignNumber, resolves campaignNumber and searches by it.
  */
 export async function searchResourceDetails(
   criteria: ResourceDetailsCriteria,
   pagination?: Pagination
 ): Promise<{ ResourceDetails: any[]; TotalCount: number }> {
+  // Always search by campaignNumber — resolve it from campaignId if needed
+  if (criteria.campaignId && !criteria.campaignNumber) {
+    const { campaignNumber } = await getCampaignStatusFromDB(criteria.campaignId, criteria.tenantId);
+    if (campaignNumber) {
+      criteria = { ...criteria, campaignNumber };
+    }
+  }
   const [rows, total] = await Promise.all([
     searchResourceDetailsFromDB(criteria, pagination),
     countTotalResourceDetails(criteria)
@@ -225,7 +285,8 @@ async function deactivateResource(resource: ResourceDetailRow, userUuid: string,
   const updated = {
     id: resource.id,
     tenantId: resource.tenantid,
-    campaignId: resource.campaignid,
+    campaignId: resource.campaignid || null,
+    campaignNumber: resource.campaignnumber || null,
     type: resource.type,
     parentResourceId: resource.parentresourceid || null,
     fileStoreId: resource.filestoreid,

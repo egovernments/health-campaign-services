@@ -38,11 +38,15 @@ class ResourceDetailsController {
       const userUuid = request?.body?.RequestInfo?.userInfo?.uuid || "system";
       const ResourceDetails = await createResourceDetail(parseResult.data, userUuid);
       // Fire-and-forget: trigger processing if campaign is in "created" status
-      triggerIfCampaignCreated(
-        parseResult.data.campaignId, parseResult.data.tenantId, parseResult.data.type,
-        userUuid, request?.body?.RequestInfo,
-        ResourceDetails   // inject so trigger has correct filestoreId (resource not in DB yet via Kafka async)
-      ).catch(err => logger.warn(`Trigger failed after resource create type=${parseResult.data.type}: ${err}`));
+      const resolvedCampaignId = ResourceDetails?._resolvedCampaignId || parseResult.data.campaignId || ResourceDetails?.campaignId;
+      if (resolvedCampaignId) {
+        triggerIfCampaignCreated(
+          resolvedCampaignId, parseResult.data.tenantId, parseResult.data.type,
+          userUuid, request?.body?.RequestInfo,
+          ResourceDetails   // inject so trigger has correct filestoreId (resource not in DB yet via Kafka async)
+        ).catch(err => logger.warn(`Trigger failed after resource create type=${parseResult.data.type}: ${err}`));
+      }
+      delete ResourceDetails?._resolvedCampaignId;
       return sendResponse(response, { ResourceDetails }, request);
     } catch (e: any) {
       logger.error(String(e));
@@ -63,13 +67,15 @@ class ResourceDetailsController {
       const userUuid = request?.body?.RequestInfo?.userInfo?.uuid || "system";
       const ResourceDetails = await updateResourceDetail(parseResult.data, userUuid);
       // Fire-and-forget: trigger processing if campaign is in "created" status
-      if (ResourceDetails?.campaignId && ResourceDetails?.tenantId && ResourceDetails?.type) {
+      const updateResolvedCampaignId = ResourceDetails?._resolvedCampaignId || ResourceDetails?.campaignId;
+      if (updateResolvedCampaignId && ResourceDetails?.tenantId && ResourceDetails?.type) {
         triggerIfCampaignCreated(
-          ResourceDetails.campaignId, ResourceDetails.tenantId, ResourceDetails.type,
+          updateResolvedCampaignId, ResourceDetails.tenantId, ResourceDetails.type,
           userUuid, request?.body?.RequestInfo,
           ResourceDetails   // inject so trigger has correct filestoreId (resource not in DB yet via Kafka async)
         ).catch(err => logger.warn(`Trigger failed after resource update type=${ResourceDetails.type}: ${err}`));
       }
+      delete ResourceDetails?._resolvedCampaignId;
       return sendResponse(response, { ResourceDetails }, request);
     } catch (e: any) {
       logger.error(String(e));

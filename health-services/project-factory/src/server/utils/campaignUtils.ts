@@ -1504,15 +1504,25 @@ async function searchProjectCampaignResourcData(campaignDetails: any, request?: 
       }
     }
   }
-  // Batch-enrich resources from eg_cm_resource_details table
-  const campaignIds = responseData.map((d: any) => d.id).filter(Boolean);
+  // Batch-enrich resources from eg_cm_resource_details table (all resources keyed by campaignNumber)
   const resourcesMap = new Map<string, any[]>();
-  if (campaignIds.length > 0 && tenantId) {
+  if (responseData.length > 0 && tenantId) {
     try {
-      await Promise.all(campaignIds.map(async (cid: string) => {
-        const rows = await searchResourceDetailsFromDB({ tenantId, campaignId: cid, isActive: true, excludeTypes: ['attendanceRegisterAttendee'] });
-        if (rows.length > 0) {
-          resourcesMap.set(cid, rows.map(r => toCampaignResource(toResourceDetailsResponse(r))));
+      await Promise.all(responseData.map(async (d: any) => {
+        const cid = d.id;
+        if (!cid) return;
+        // All resources are stored with campaignNumber — search by it
+        if (d.campaignNumber) {
+          const rows = await searchResourceDetailsFromDB({ tenantId, campaignNumber: d.campaignNumber, isActive: true, excludeTypes: ['attendanceRegisterAttendee'] });
+          if (rows.length > 0) {
+            resourcesMap.set(cid, rows.map(r => toCampaignResource(toResourceDetailsResponse(r))));
+          }
+        } else {
+          // Fallback for legacy resources without campaignNumber
+          const rows = await searchResourceDetailsFromDB({ tenantId, campaignId: cid, isActive: true, excludeTypes: ['attendanceRegisterAttendee'] });
+          if (rows.length > 0) {
+            resourcesMap.set(cid, rows.map(r => toCampaignResource(toResourceDetailsResponse(r))));
+          }
         }
       }));
     } catch (err) {
@@ -2628,12 +2638,11 @@ async function createPhase2Resources(campaignDetails: any, parentCampaign: any, 
   if (campaignDetails?.id && campaignDetails?.tenantId && campaignResourceTypes.size === 0) {
     try {
       const phase2TypeNames = phase2Configs.map(c => c.type);
-      const tableRows = await searchResourceDetailsFromDB({
-        tenantId: campaignDetails.tenantId,
-        campaignId: campaignDetails.id,
-        type: phase2TypeNames,
-        isActive: true
-      });
+      // All resources are stored with campaignNumber — prefer it for lookup
+      const searchKey = campaignDetails.campaignNumber
+        ? { tenantId: campaignDetails.tenantId, campaignNumber: campaignDetails.campaignNumber, type: phase2TypeNames, isActive: true }
+        : { tenantId: campaignDetails.tenantId, campaignId: campaignDetails.id, type: phase2TypeNames, isActive: true };
+      const tableRows = await searchResourceDetailsFromDB(searchKey);
       campaignResourceTypes = new Set(tableRows.map((r: any) => r.type));
       // Also populate resources array so task messages carry filestoreId for handlers
       campaignDetails.resources = tableRows.map(r => toCampaignResource(toResourceDetailsResponse(r)));

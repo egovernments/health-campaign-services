@@ -1413,7 +1413,13 @@ export async function validateResourceDetails(ResourceDetails : ResourceDetails)
     const fileStoreId = ResourceDetails?.fileStoreId;
     validateTypeForProcess(type);
     await validateHierarchyDefination(hierarchyType,tenantId);
-    await validateCampaignViaId(campaignId,tenantId);
+    if (campaignId) {
+        await validateCampaignViaId(campaignId,tenantId);
+    } else if (ResourceDetails?.campaignNumber) {
+        await validateCampaignViaNumber(ResourceDetails.campaignNumber, tenantId);
+    } else {
+        throwError("CAMPAIGN", 400, "VALIDATION_ERROR", "Either campaignId or campaignNumber must be provided");
+    }
     try {
         const fileResponse = await fetchFileFromFilestore(fileStoreId, tenantId);
         if(!fileResponse){
@@ -1451,6 +1457,19 @@ async function validateCampaignViaId(campaignId : string,tenantId : string) {
     }
     else {
         throwError(`CAMPAIGN`, 400, "VALIDATION_ERROR_CAMPAIGN_ID", `campaignId not found or invalid`);
+    }
+}
+
+async function validateCampaignViaNumber(campaignNumber: string, tenantId: string) {
+    const response = await searchProjectTypeCampaignService({
+        tenantId: tenantId,
+        campaignNumber: campaignNumber
+    });
+    if (response?.CampaignDetails?.length > 0) {
+        logger.info(`campaignNumber got validated`);
+    }
+    else {
+        throwError(`CAMPAIGN`, 400, "VALIDATION_ERROR_CAMPAIGN_NUMBER", `campaignNumber not found or invalid`);
     }
 }
 

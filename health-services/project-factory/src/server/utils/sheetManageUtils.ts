@@ -730,6 +730,7 @@ export async function validateResourceDetailsBeforeProcess(validationProcessType
         additionalDetails : resourceDetails?.additionalDetails,
         fileStoreId : resourceDetails?.fileStoreId,
         campaignId : resourceDetails?.campaignId,
+        campaignNumber : resourceDetails?.campaignNumber,
         hierarchyType : resourceDetails?.hierarchyType,
         requestInfo : resourceDetails?.requestInfo
     }

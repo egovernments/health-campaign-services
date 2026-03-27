@@ -38,6 +38,10 @@ export class TemplateClass {
         const campaignNumber = campaign?.campaignNumber;
         const campaignName = campaign?.campaignName;
         const tenantId = resourceDetails?.tenantId;
+        // Enrich resourceDetails with resolved campaignId for downstream use
+        if (!resourceDetails.campaignId && campaignId) {
+            resourceDetails.campaignId = campaignId;
+        }
 
         const sheetData = wholeSheetData[getLocalizedName("HCM_ATTENDANCE_REGISTER_LIST", localizationMap)];
         if (!sheetData || sheetData.length === 0) {
@@ -245,10 +249,16 @@ export class TemplateClass {
      * Get campaign details
      */
     private static async getCampaignDetails(resourceDetails: any): Promise<any> {
-        const response = await searchProjectTypeCampaignService({
-            tenantId: resourceDetails.tenantId,
-            ids: [resourceDetails?.campaignId],
-        });
+        if (!resourceDetails?.campaignId && !resourceDetails?.campaignNumber) {
+            throwError("CAMPAIGN", 400, "MISSING_CAMPAIGN_IDENTIFIER", "Either campaignId or campaignNumber must be present in resourceDetails");
+        }
+        const searchCriteria: any = { tenantId: resourceDetails.tenantId };
+        if (resourceDetails?.campaignId) {
+            searchCriteria.ids = [resourceDetails.campaignId];
+        } else if (resourceDetails?.campaignNumber) {
+            searchCriteria.campaignNumber = resourceDetails.campaignNumber;
+        }
+        const response = await searchProjectTypeCampaignService(searchCriteria);
         const campaign = response?.CampaignDetails?.[0];
         if (!campaign) {
             throwError("CAMPAIGN", 400, "CAMPAIGN_NOT_FOUND", "Campaign not found");
