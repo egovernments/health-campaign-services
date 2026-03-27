@@ -1,5 +1,5 @@
 // Tests for resourceDetailsUtils — Bug 4: old rows with campaignnumber=NULL invisible to upsert checks
-// RD-1..RD-7
+
 
 jest.mock('../utils/db', () => ({
   executeQuery: jest.fn(),
@@ -55,12 +55,12 @@ beforeEach(() => {
 });
 
 describe('searchResourceDetailsFromDB', () => {
-  test('RD-1: throws when no campaignNumber, campaignId, or ids provided', async () => {
+  test('throws when no campaignNumber, campaignId, or ids provided', async () => {
     await expect(searchResourceDetailsFromDB({ tenantId: 'ng' } as any))
       .rejects.toThrow('searchResourceDetailsFromDB requires campaignNumber, campaignId, or ids');
   });
 
-  test('RD-2: queries by campaignnumber column when campaignNumber provided', async () => {
+  test('queries by campaignnumber column when campaignNumber provided', async () => {
     await searchResourceDetailsFromDB({ tenantId: 'ng', campaignNumber: 'HCM-001' });
 
     expect(mockExecuteQuery).toHaveBeenCalledTimes(1);
@@ -70,7 +70,7 @@ describe('searchResourceDetailsFromDB', () => {
     expect(values).toContain('ng');
   });
 
-  test('RD-3: falls back to campaignid column when only campaignId provided', async () => {
+  test('falls back to campaignid column when only campaignId provided', async () => {
     await searchResourceDetailsFromDB({ tenantId: 'ng', campaignId: 'uuid-123' });
 
     const [sql, values] = mockExecuteQuery.mock.calls[0];
@@ -79,7 +79,7 @@ describe('searchResourceDetailsFromDB', () => {
     expect(sql).not.toContain('campaignnumber = $');
   });
 
-  test('RD-2b: ids-only criteria does not require campaign identifier', async () => {
+  test('ids-only criteria does not require campaign identifier', async () => {
     await expect(
       searchResourceDetailsFromDB({ tenantId: 'ng', ids: ['res-1'] })
     ).resolves.not.toThrow();
@@ -87,7 +87,7 @@ describe('searchResourceDetailsFromDB', () => {
 });
 
 describe('countTotalResourceDetails', () => {
-  test('RD-4: throws when no campaignNumber, campaignId, or ids provided', async () => {
+  test('throws when no campaignNumber, campaignId, or ids provided', async () => {
     mockExecuteQuery.mockResolvedValue({ rows: [{ count: '0' }] });
     await expect(countTotalResourceDetails({ tenantId: 'ng' } as any))
       .rejects.toThrow('countTotalResourceDetails requires campaignNumber, campaignId, or ids');
@@ -95,7 +95,7 @@ describe('countTotalResourceDetails', () => {
 });
 
 describe('findActiveResourceByUpsertKey', () => {
-  test('RD-5: queries by campaignnumber column, not campaignid', async () => {
+  test('queries by campaignnumber column, not campaignid', async () => {
     mockExecuteQuery.mockResolvedValue({ rows: [] });
 
     await findActiveResourceByUpsertKey('ng', 'HCM-001', 'user', null);
@@ -105,7 +105,7 @@ describe('findActiveResourceByUpsertKey', () => {
     expect(values).toEqual(['ng', 'HCM-001', 'user']);
   });
 
-  test('RD-6: returns null when DB returns row with campaignnumber=NULL (legacy row not found by value)', async () => {
+  test('returns null when DB returns row with campaignnumber=NULL (legacy row not found by value)', async () => {
     // Simulates the situation BEFORE backfill: DB query for a specific campaignnumber value
     // will NOT return rows that have campaignnumber=NULL, so we get empty result
     mockExecuteQuery.mockResolvedValue({ rows: [] });
@@ -115,7 +115,7 @@ describe('findActiveResourceByUpsertKey', () => {
     expect(result).toBeNull();
   });
 
-  test('RD-7: returns row when DB returns row with matching campaignnumber', async () => {
+  test('returns row when DB returns row with matching campaignnumber', async () => {
     const row = makeDbRow({ campaignnumber: 'HCM-001' });
     mockExecuteQuery.mockResolvedValue({ rows: [row] });
 
@@ -125,7 +125,7 @@ describe('findActiveResourceByUpsertKey', () => {
     expect(result?.campaignnumber).toBe('HCM-001');
   });
 
-  test('RD-5b: includes parentresourceid in query when non-null', async () => {
+  test('includes parentresourceid in query when non-null', async () => {
     mockExecuteQuery.mockResolvedValue({ rows: [] });
 
     await findActiveResourceByUpsertKey('ng', 'HCM-001', 'attendanceRegisterAttendee', 'parent-reg-1');
@@ -135,7 +135,7 @@ describe('findActiveResourceByUpsertKey', () => {
     expect(values).toEqual(['ng', 'HCM-001', 'attendanceRegisterAttendee', 'parent-reg-1']);
   });
 
-  test('RD-5c: uses IS NULL for parentresourceid when null', async () => {
+  test('uses IS NULL for parentresourceid when null', async () => {
     mockExecuteQuery.mockResolvedValue({ rows: [] });
 
     await findActiveResourceByUpsertKey('ng', 'HCM-001', 'user', null);

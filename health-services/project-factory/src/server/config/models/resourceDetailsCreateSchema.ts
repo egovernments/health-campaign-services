@@ -9,6 +9,14 @@ export const resourceDetailsCreateSchema = z.object({
   fileStoreId: z.string().min(1, "fileStoreId is required"),
   filename: z.string().max(256).optional().nullable(),
   additionalDetails: z.record(z.any()).optional()
+}).superRefine((data, ctx) => {
+  if (!data.campaignId && !data.campaignNumber) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Either campaignId or campaignNumber must be provided",
+      path: ["campaignId"],
+    });
+  }
 });
 
 export type ResourceDetailsCreateInput = z.infer<typeof resourceDetailsCreateSchema>;

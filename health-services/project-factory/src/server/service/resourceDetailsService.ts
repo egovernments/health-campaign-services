@@ -56,17 +56,26 @@ export async function createResourceDetail(
   }
 
   // Resolve both campaignId and campaignNumber — all resources always store campaignNumber
+  // Priority: campaignNumber when provided — avoids redundant getCampaignStatusFromDB when caller
+  // (e.g. campaignManageService) has already resolved it, reducing N+1 DB calls.
   let campaignStatus: string | null;
   let resolvedCampaignId: string | null = campaignId || null;
   let resolvedCampaignNumber: string | null = inputCampaignNumber || null;
-  if (campaignId) {
-    const result = await getCampaignStatusFromDB(campaignId, tenantId);
+  if (inputCampaignNumber) {
+    const result = await getCampaignStatusByNumber(inputCampaignNumber, tenantId);
     campaignStatus = result.status;
-    resolvedCampaignNumber = resolvedCampaignNumber || result.campaignNumber;
+    resolvedCampaignId = campaignId || result.campaignId;
+    // Campaign not found: only when no campaignId provided (pure campaignNumber path)
+    if (!campaignId && !result.campaignId) {
+      throwError("COMMON", 400, "CAMPAIGN_NOT_FOUND",
+        `Campaign with campaignNumber '${inputCampaignNumber}' not found`);
+    }
   } else {
-    const result = await getCampaignStatusByNumber(inputCampaignNumber!, tenantId);
+    // Only campaignId provided — resolve campaignNumber from DB
+    const result = await getCampaignStatusFromDB(campaignId!, tenantId);
     campaignStatus = result.status;
-    resolvedCampaignId = result.campaignId;
+    resolvedCampaignNumber = result.campaignNumber;
+    resolvedCampaignId = campaignId!;
   }
   if (!resolvedCampaignNumber) {
     throwError("COMMON", 400, "VALIDATION_ERROR", "campaignNumber could not be resolved for the given campaignId");
@@ -175,17 +184,23 @@ export async function updateResourceDetail(
   }
 
   // Resolve both campaignId and campaignNumber
+  // Priority: campaignNumber when provided — avoids redundant getCampaignStatusFromDB
   let campaignStatus: string | null;
   let resolvedCampaignId: string | null = campaignId || null;
   let resolvedCampaignNumber: string | null = inputCampaignNumber || null;
-  if (campaignId) {
-    const result = await getCampaignStatusFromDB(campaignId, tenantId);
+  if (inputCampaignNumber) {
+    const result = await getCampaignStatusByNumber(inputCampaignNumber, tenantId);
     campaignStatus = result.status;
-    resolvedCampaignNumber = resolvedCampaignNumber || result.campaignNumber;
+    resolvedCampaignId = campaignId || result.campaignId;
+    if (!campaignId && !result.campaignId) {
+      throwError("COMMON", 400, "CAMPAIGN_NOT_FOUND",
+        `Campaign with campaignNumber '${inputCampaignNumber}' not found`);
+    }
   } else {
-    const result = await getCampaignStatusByNumber(inputCampaignNumber!, tenantId);
+    const result = await getCampaignStatusFromDB(campaignId!, tenantId);
     campaignStatus = result.status;
-    resolvedCampaignId = result.campaignId;
+    resolvedCampaignNumber = result.campaignNumber;
+    resolvedCampaignId = campaignId!;
   }
   if (!resolvedCampaignNumber) {
     throwError("COMMON", 400, "VALIDATION_ERROR", "campaignNumber could not be resolved for the given campaignId");

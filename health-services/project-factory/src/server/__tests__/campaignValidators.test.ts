@@ -1,5 +1,5 @@
 // Tests for campaignValidators — Bug 3: validation silently skipped when both identifiers absent
-// CV-1..CV-4
+
 
 const mockSearchProjectTypeCampaignService = jest.fn();
 const mockSearchBoundaryRelationshipDefinition = jest.fn();
@@ -82,14 +82,14 @@ beforeEach(() => {
 });
 
 describe('validateResourceDetails', () => {
-  test('CV-1: throws 400 when both campaignId and campaignNumber absent', async () => {
+  test('throws 400 when both campaignId and campaignNumber absent', async () => {
     await expect(validateResourceDetails(makeResourceDetails() as any))
       .rejects.toMatchObject({ status: 400 });
 
     expect(mockSearchProjectTypeCampaignService).not.toHaveBeenCalled();
   });
 
-  test('CV-2: calls validateCampaignViaId when only campaignId provided', async () => {
+  test('calls validateCampaignViaId when only campaignId provided', async () => {
     mockSearchProjectTypeCampaignService.mockResolvedValue({
       CampaignDetails: [{ id: 'uuid-1' }],
     });
@@ -101,7 +101,7 @@ describe('validateResourceDetails', () => {
     );
   });
 
-  test('CV-3: calls validateCampaignViaNumber when only campaignNumber provided', async () => {
+  test('calls validateCampaignViaNumber when only campaignNumber provided', async () => {
     mockSearchProjectTypeCampaignService.mockResolvedValue({
       CampaignDetails: [{ id: 'uuid-1' }],
     });
@@ -116,7 +116,7 @@ describe('validateResourceDetails', () => {
     );
   });
 
-  test('CV-4: validateCampaignViaNumber — throws when campaign not found', async () => {
+  test('validateCampaignViaNumber — throws when campaign not found', async () => {
     mockSearchProjectTypeCampaignService.mockResolvedValue({ CampaignDetails: [] });
 
     await expect(

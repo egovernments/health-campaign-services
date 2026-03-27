@@ -9,6 +9,14 @@ export const resourceDetailsCriteriaSchema = z.object({
   parentResourceId: z.string().optional().nullable(),
   status: z.array(z.string()).optional(),
   isActive: z.boolean().optional()
+}).superRefine((data, ctx) => {
+  if (!data.campaignId && !data.campaignNumber && (!data.ids || data.ids.length === 0)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Either campaignId, campaignNumber, or ids must be provided",
+      path: ["campaignId"],
+    });
+  }
 });
 
 export const paginationSchema = z.object({

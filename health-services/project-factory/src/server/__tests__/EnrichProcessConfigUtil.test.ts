@@ -1,5 +1,5 @@
 // Tests for EnrichProcessConfigUtil — Bug 2: no guard when both campaignId and campaignNumber absent
-// EC-1..EC-5
+
 
 const mockSearchProjectTypeCampaignService = jest.fn();
 const mockSearchBoundaryRelationshipData = jest.fn();
@@ -52,7 +52,7 @@ beforeEach(() => {
 describe('EnrichProcessConfigUtil.enrichTargetProcessConfig', () => {
   const util = new EnrichProcessConfigUtil();
 
-  test('EC-1: throws when both campaignId and campaignNumber absent', async () => {
+  test('throws when both campaignId and campaignNumber absent', async () => {
     const resourceDetails = { tenantId: 'ng' } as any;
     const templateConfig = { sheets: [] };
 
@@ -62,7 +62,7 @@ describe('EnrichProcessConfigUtil.enrichTargetProcessConfig', () => {
     expect(mockSearchProjectTypeCampaignService).not.toHaveBeenCalled();
   });
 
-  test('EC-2: searches by ids when campaignId provided', async () => {
+  test('searches by ids when campaignId provided', async () => {
     mockSearchProjectTypeCampaignService.mockResolvedValue(makeCampaignResponse());
     const resourceDetails = { tenantId: 'ng', campaignId: 'uuid-1' } as any;
     const templateConfig = { sheets: [] };
@@ -74,7 +74,7 @@ describe('EnrichProcessConfigUtil.enrichTargetProcessConfig', () => {
     );
   });
 
-  test('EC-3: searches by campaignNumber when only campaignNumber provided', async () => {
+  test('searches by campaignNumber when only campaignNumber provided', async () => {
     mockSearchProjectTypeCampaignService.mockResolvedValue(makeCampaignResponse());
     const resourceDetails = { tenantId: 'ng', campaignNumber: 'HCM-001' } as any;
     const templateConfig = { sheets: [] };
@@ -91,7 +91,7 @@ describe('EnrichProcessConfigUtil.enrichTargetProcessConfig', () => {
     expect(mockGetBoundaryOnWhichWeSplit).toHaveBeenCalledWith('uuid-1', 'ng');
   });
 
-  test('EC-4: throws when campaign not found', async () => {
+  test('throws when campaign not found', async () => {
     mockSearchProjectTypeCampaignService.mockResolvedValue({ CampaignDetails: [] });
     const resourceDetails = { tenantId: 'ng', campaignId: 'uuid-missing' } as any;
 
@@ -99,7 +99,7 @@ describe('EnrichProcessConfigUtil.enrichTargetProcessConfig', () => {
       .rejects.toThrow('Campaign not found');
   });
 
-  test('EC-5: pushes matching boundary sheets to templateConfig', async () => {
+  test('pushes matching boundary sheets to templateConfig', async () => {
     mockSearchProjectTypeCampaignService.mockResolvedValue(
       makeCampaignResponse({ boundaries: [{ code: 'DISTRICT-1', type: 'district', includeAllChildren: true }] })
     );

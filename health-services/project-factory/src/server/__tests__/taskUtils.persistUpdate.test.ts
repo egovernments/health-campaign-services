@@ -1,5 +1,5 @@
 // Tests for taskUtils.persistResourceDetailUpdate — Bug 6: no-op when campaignNumber is null
-// TU-1..TU-6
+
 
 const mockSearchResourceDetailsFromDB = jest.fn();
 const mockProduceModifiedMessages = jest.fn().mockResolvedValue(undefined);
@@ -90,21 +90,21 @@ beforeEach(() => {
 });
 
 describe('persistResourceDetailUpdate', () => {
-  test('TU-1: returns early without DB call when campaignNumber is null', async () => {
+  test('returns early without DB call when campaignNumber is null', async () => {
     await persistResourceDetailUpdate('ng', 'user', null, { status: 'completed' }, 'user-1', null as any);
 
     expect(mockSearchResourceDetailsFromDB).not.toHaveBeenCalled();
     expect(mockProduceModifiedMessages).not.toHaveBeenCalled();
   });
 
-  test('TU-2: returns early without DB call when campaignNumber is empty string', async () => {
+  test('returns early without DB call when campaignNumber is empty string', async () => {
     await persistResourceDetailUpdate('ng', 'user', null, { status: 'completed' }, 'user-1', '');
 
     expect(mockSearchResourceDetailsFromDB).not.toHaveBeenCalled();
     expect(mockProduceModifiedMessages).not.toHaveBeenCalled();
   });
 
-  test('TU-3: queries DB by campaignNumber and produces update message when row found', async () => {
+  test('queries DB by campaignNumber and produces update message when row found', async () => {
     mockSearchResourceDetailsFromDB.mockResolvedValue([makeDbRow()]);
 
     await persistResourceDetailUpdate('ng', 'user', null, { status: 'completed', processedFileStoreId: 'pfs-1' }, 'user-1', 'HCM-001');
@@ -123,7 +123,7 @@ describe('persistResourceDetailUpdate', () => {
     expect(payload.ResourceDetails.processedFileStoreId).toBe('pfs-1');
   });
 
-  test('TU-4: retries 3 times when row not found, then gives up', async () => {
+  test('retries 3 times when row not found, then gives up', async () => {
     jest.useFakeTimers();
     mockSearchResourceDetailsFromDB.mockResolvedValue([]);
 
@@ -142,7 +142,7 @@ describe('persistResourceDetailUpdate', () => {
     jest.useRealTimers();
   });
 
-  test('TU-5: succeeds on second retry when first attempt returns empty', async () => {
+  test('succeeds on second retry when first attempt returns empty', async () => {
     jest.useFakeTimers();
     mockSearchResourceDetailsFromDB
       .mockResolvedValueOnce([])
@@ -161,7 +161,7 @@ describe('persistResourceDetailUpdate', () => {
     jest.useRealTimers();
   });
 
-  test('TU-6: includes parentResourceId filter in criteria when non-null', async () => {
+  test('includes parentResourceId filter in criteria when non-null', async () => {
     mockSearchResourceDetailsFromDB.mockResolvedValue([makeDbRow({ parentresourceid: 'parent-reg-1' })]);
 
     await persistResourceDetailUpdate('ng', 'attendanceRegisterAttendee', 'parent-reg-1', { status: 'completed' }, 'user-1', 'HCM-001');

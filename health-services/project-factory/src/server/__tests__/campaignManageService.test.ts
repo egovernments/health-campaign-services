@@ -1,5 +1,5 @@
 // Tests for campaignManageService — Bug 1: resource upsert silently skipped when campaignNumber absent
-// CM-1..CM-4
+
 
 const mockFindActiveResourceByUpsertKey = jest.fn();
 const mockCreateResourceDetail = jest.fn().mockResolvedValue({ id: 'new-res-1', _resolvedCampaignId: 'uuid-1' });
@@ -83,7 +83,7 @@ beforeEach(() => {
 describe('updateProjectTypeCampaignService — resource upsert block', () => {
   const resource = { type: 'user', filestoreId: 'fs-1', parentResourceId: null };
 
-  test('CM-1: skips resource upsert when campaignNumber absent AND DB resolution also fails', async () => {
+  test('skips resource upsert when campaignNumber absent AND DB resolution also fails', async () => {
     // No campaignNumber in body, and getCampaignStatusFromDB also returns null
     mockGetCampaignStatusFromDB.mockResolvedValue({ campaignNumber: null, status: 'inprogress' });
 
@@ -93,7 +93,7 @@ describe('updateProjectTypeCampaignService — resource upsert block', () => {
     expect(mockUpdateResourceDetail).not.toHaveBeenCalled();
   });
 
-  test('CM-2: resolves campaignNumber from DB when campaignNumber absent in request body', async () => {
+  test('resolves campaignNumber from DB when campaignNumber absent in request body', async () => {
     // This is the Bug 1 test — RED before fix, GREEN after fix
     // campaignNumber NOT in request body, but getCampaignStatusFromDB resolves it
     mockGetCampaignStatusFromDB.mockResolvedValue({ campaignNumber: 'HCM-001', status: 'inprogress' });
@@ -108,7 +108,7 @@ describe('updateProjectTypeCampaignService — resource upsert block', () => {
     );
   });
 
-  test('CM-3: uses campaignNumber directly from request when provided', async () => {
+  test('uses campaignNumber directly from request when provided', async () => {
     mockFindActiveResourceByUpsertKey.mockResolvedValue({ id: 'res-1', type: 'user' });
 
     await updateProjectTypeCampaignService(
@@ -119,7 +119,7 @@ describe('updateProjectTypeCampaignService — resource upsert block', () => {
     expect(mockCreateResourceDetail).not.toHaveBeenCalled();
   });
 
-  test('CM-4: continues processing remaining resources on per-resource error', async () => {
+  test('continues processing remaining resources on per-resource error', async () => {
     const resources = [
       { type: 'user', filestoreId: 'fs-1', parentResourceId: null },
       { type: 'facility', filestoreId: 'fs-2', parentResourceId: null },
@@ -138,5 +138,39 @@ describe('updateProjectTypeCampaignService — resource upsert block', () => {
 
     // Both resources should have been attempted
     expect(mockCreateResourceDetail).toHaveBeenCalledTimes(2);
+  });
+});
+
+
+
+describe('updateProjectTypeCampaignService — getCampaignStatusFromDB call count (Bug 3)', () => {
+  const resources = [
+    { type: 'user', filestoreId: 'fs-1', parentResourceId: null },
+    { type: 'facility', filestoreId: 'fs-2', parentResourceId: null },
+    { type: 'boundaryWithTarget', filestoreId: 'fs-3', parentResourceId: null },
+  ];
+
+  test('getCampaignStatusFromDB NOT called when campaignNumber already in request body', async () => {
+    mockFindActiveResourceByUpsertKey.mockResolvedValue(null);
+
+    await updateProjectTypeCampaignService(
+      makeRequest({ campaignNumber: 'HCM-001' }, resources)
+    );
+
+    // campaignNumber already resolved — initial resolution block should be skipped
+    expect(mockGetCampaignStatusFromDB).not.toHaveBeenCalled();
+  });
+
+  test('getCampaignStatusFromDB called exactly once when campaignNumber absent (not per-resource)', async () => {
+    mockGetCampaignStatusFromDB.mockResolvedValue({ campaignNumber: 'HCM-001', status: 'inprogress' });
+    mockFindActiveResourceByUpsertKey.mockResolvedValue(null);
+
+    // 3 resources — but getCampaignStatusFromDB must fire exactly once (initial resolution)
+    await updateProjectTypeCampaignService(
+      makeRequest({}, resources)
+    );
+
+    // Initial resolution: 1 call only — NOT once per resource
+    expect(mockGetCampaignStatusFromDB).toHaveBeenCalledTimes(1);
   });
 });
