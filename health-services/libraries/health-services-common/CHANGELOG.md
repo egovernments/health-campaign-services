@@ -2,6 +2,11 @@
 
 All notable changes to this module will be documented in this file.
 
+## 1.1.3 - 2026-03-10
+- Removed `DataAccessExceptionHandler` `@ControllerAdvice` as tracer 2.9.2 already handles `DataAccessException` in its `ExceptionAdvise`.
+- Upgraded tracer from 2.9.0 to 2.9.2 without OTEL exclusions; consuming services manage OTEL versions via Instrumentation BOM.
+- Enhanced `CommonUtils.populateErrorDetails` to handle `DataAccessException` with error code `QUERY_EXECUTION_ERROR` and error type `NON_RECOVERABLE` for create/update/delete operations.
+
 ## 1.1.0 - 2025-05-07
 - Enabled tenant-specific schemas in SQL queries via query builders and placeholder replacements.
 - Enhanced Redis caching to use schema-aware keys for multi-tenant isolation.
