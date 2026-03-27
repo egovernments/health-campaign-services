@@ -19,6 +19,7 @@ const config = {
   excludeHierarchyTypeFromBoundaryCodes: (process.env.EXCLUDE_HIERARCHY_TYPE_FROM_BOUNDARY_CODES === "true") || false,
   excludeBoundaryNameAtLastFromBoundaryCodes: (process.env.EXCLUDE_BOUNDARY_NAME_AT_LAST_FROM_BOUNDARY_CODES === "true") || false,
   isEnvironmentCentralInstance: process.env.IS_ENVIRONMENT_CENTRAL_INSTANCE === "true",
+  kafkaConsumerTopicPrefix: process.env.KAFKA_CONSUMER_TOPIC_PREFIX || "", // when central instance enabled use "(ng)-" for single state or "(ba|ke|cg)-" for multi-state
   masterNameForSplitBoundariesOn: "HierarchySchema",
   basesecret: process.env.BASE_SECRET,
   boundary: {
@@ -65,7 +66,7 @@ const config = {
     KAFKA_UPDATE_PROCESS_DATA_TOPIC: process.env.KAFKA_UPDATE_PROCESS_TOPIC || "update-process-data",
     KAFKA_START_ADMIN_CONSOLE_TASK_TOPIC: process.env.KAFKA_START_TASK_TOPIC || "start-admin-console-task",
     KAFKA_START_ADMIN_CONSOLE_MAPPING_TASK_TOPIC: process.env.KAFKA_START_MAPPING_TASK_TOPIC || "start-admin-console-mapping-task",
-    KAFKA_TEST_TOPIC: "test-topic-project-factory",
+    KAFKA_TEST_TOPIC: process.env.KAFKA_TEST_TOPIC || "test-topic-project-factory",
     KAFKA_HCM_PROCESSING_RESULT_TOPIC: process.env.KAFKA_HCM_PROCESSING_RESULT_TOPIC || "hcm-processing-result",
     KAFKA_FACILITY_CREATE_BATCH_TOPIC: process.env.KAFKA_FACILITY_CREATE_BATCH_TOPIC || "hcm-facility-create-batch",
     KAFKA_USER_CREATE_BATCH_TOPIC: process.env.KAFKA_USER_CREATE_BATCH_TOPIC || "hcm-user-create-batch",

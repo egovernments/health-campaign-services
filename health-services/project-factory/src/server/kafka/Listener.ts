@@ -9,6 +9,7 @@ import { handleFacilityBatch } from '../utils/facilityBatchHandler';
 import { handleUserBatch } from '../utils/userBatchHandler';
 import { handleMappingBatch } from '../utils/mappingBatchHandler';
 import { handleCampaignFailure } from '../utils/campaignFailureHandler';
+import { getConsumerTopicPattern, stripTopicPrefix, validateConsumerTopicPrefix } from '../utils/kafkaTopicUtils';
 
 
 const kafka = new Kafka({
@@ -18,19 +19,6 @@ const kafka = new Kafka({
 });
 
 const groupId = 'project-factory';
-
-
-const topicNames = [
-    config.kafka.KAFKA_START_ADMIN_CONSOLE_TASK_TOPIC,
-    config.kafka.KAFKA_START_ADMIN_CONSOLE_MAPPING_TASK_TOPIC,
-    config.kafka.KAFKA_TEST_TOPIC,
-    config.kafka.KAFKA_HCM_PROCESSING_RESULT_TOPIC,
-    config.kafka.KAFKA_FACILITY_CREATE_BATCH_TOPIC,
-    config.kafka.KAFKA_USER_CREATE_BATCH_TOPIC,
-    config.kafka.KAFKA_MAPPING_BATCH_TOPIC,
-    config.kafka.KAFKA_CAMPAIGN_MARK_FAILED_TOPIC
-];
-
 
 const consumer = kafka.consumer({ groupId });
 
@@ -59,19 +47,47 @@ function releaseSemaphore() {
     }
 }
 
+/**
+ * Builds a map of base topic name -> handler function.
+ * Message routing uses stripTopicPrefix() on the incoming topic
+ * to resolve the base topic and look up the handler.
+ */
+function buildTopicHandlerMap(): Map<string, (msg: any) => Promise<void>> {
+    const entries: [string, (msg: any) => Promise<void>][] = [
+        [config.kafka.KAFKA_START_ADMIN_CONSOLE_TASK_TOPIC, handleTaskForCampaign],
+        [config.kafka.KAFKA_START_ADMIN_CONSOLE_MAPPING_TASK_TOPIC, handleMappingTaskForCampaign],
+        [config.kafka.KAFKA_HCM_PROCESSING_RESULT_TOPIC, handleProcessingResult],
+        [config.kafka.KAFKA_FACILITY_CREATE_BATCH_TOPIC, handleFacilityBatch],
+        [config.kafka.KAFKA_USER_CREATE_BATCH_TOPIC, handleUserBatch],
+        [config.kafka.KAFKA_MAPPING_BATCH_TOPIC, handleMappingBatch],
+        [config.kafka.KAFKA_CAMPAIGN_MARK_FAILED_TOPIC, handleCampaignFailure],
+    ];
+    return new Map(entries);
+}
+
 
 export async function listener() {
+    validateConsumerTopicPrefix();
+
     try {
+        const topicHandlerMap = buildTopicHandlerMap();
+
+        const baseTopics = [
+            ...Array.from(topicHandlerMap.keys()),
+            config.kafka.KAFKA_TEST_TOPIC,
+        ];
+
         await consumer.connect();
-        for (const topic of topicNames) {
-            await consumer.subscribe({ topic, fromBeginning: false });
+        for (const baseTopic of baseTopics) {
+            const topicPattern = getConsumerTopicPattern(baseTopic);
+            await consumer.subscribe({ topic: topicPattern, fromBeginning: false });
         }
 
         await consumer.run({
             eachMessage: async (payload: EachMessagePayload) => {
                 const { topic, message } = payload;
                 await acquireSemaphore();
-                processMessageKJS(topic, message)
+                processMessageKJS(topic, message, topicHandlerMap)
                     .finally(() => {
                         releaseSemaphore();
                     });
@@ -93,34 +109,21 @@ export async function listener() {
 }
 
 
-async function processMessageKJS(topic: string, message: { value: Buffer | null }) {
+async function processMessageKJS(
+    topic: string,
+    message: { value: Buffer | null },
+    topicHandlerMap: Map<string, (msg: any) => Promise<void>>
+) {
     try {
         const messageObject = JSON.parse(message.value?.toString() || '{}');
 
-        switch (topic) {
-            case config.kafka.KAFKA_START_ADMIN_CONSOLE_TASK_TOPIC:
-                await handleTaskForCampaign(messageObject);
-                break;
-            case config.kafka.KAFKA_START_ADMIN_CONSOLE_MAPPING_TASK_TOPIC:
-                await handleMappingTaskForCampaign(messageObject);
-                break;
-            case config.kafka.KAFKA_HCM_PROCESSING_RESULT_TOPIC:
-                await handleProcessingResult(messageObject);
-                break;
-            case config.kafka.KAFKA_FACILITY_CREATE_BATCH_TOPIC:
-                await handleFacilityBatch(messageObject);
-                break;
-            case config.kafka.KAFKA_USER_CREATE_BATCH_TOPIC:
-                await handleUserBatch(messageObject);
-                break;
-            case config.kafka.KAFKA_MAPPING_BATCH_TOPIC:
-                await handleMappingBatch(messageObject);
-                break;
-            case config.kafka.KAFKA_CAMPAIGN_MARK_FAILED_TOPIC:
-                await handleCampaignFailure(messageObject);
-                break;
-            default:
-                logger.warn(`Unhandled topic: ${topic}`);
+        // Strip prefix from incoming topic to resolve the base topic for routing
+        const baseTopic = stripTopicPrefix(topic);
+        const handler = topicHandlerMap.get(baseTopic);
+        if (handler) {
+            await handler(messageObject);
+        } else {
+            logger.warn(`Unhandled topic: ${topic}`);
         }
 
         logger.info(`KAFKA :: LISTENER :: Received a message from topic ${topic}`);
