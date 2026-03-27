@@ -690,7 +690,7 @@ export class TemplateClass {
 
             boundaryTypes.forEach((type: string, index: number) => {
                 const key = `${hierarchyType}_${type}`.toUpperCase();
-                result[key] = { orderNumber: -1 * (total - index), adjustHeight: true, color: '#f3842d' };
+                result[key] = { orderNumber: -1 * (total - index), adjustHeight: true, color: '#93c47d', showInProcessed: true };
             });
 
             // orderNumber 0: after boundary hierarchy levels (negative), before Register ID (8)

@@ -179,7 +179,7 @@ export class TemplateClass {
 
             boundaryTypes.forEach((type: string, index: number) => {
                 const key = `${hierarchyType}_${type}`.toUpperCase();
-                result[key] = { orderNumber: -1 * (total - index), adjustHeight: true, color: '#f3842d', freezeColumn: true };
+                result[key] = { orderNumber: -1 * (total - index), adjustHeight: true, color: '#93c47d', freezeColumn: true };
             });
             result["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"] = { adjustHeight: true, width: 80, freezeColumn: true };
             logger.info(`Dynamic columns prepared for boundary data.`);

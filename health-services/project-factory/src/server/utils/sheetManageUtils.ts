@@ -526,7 +526,9 @@ function processDynamicColumns(
     const existingColumnCount = worksheet.columnCount;
     for (let i = 1; i <= existingColumnCount; i++) {
         keyRow.getCell(i).value = null;
-        headerRow.getCell(i).value = null;
+        const hCell = headerRow.getCell(i);
+        hCell.value = null;
+        hCell.fill = { type: 'pattern', pattern: 'none' };  // Clear old fill so applyColumnProperties wins
     }
 
     let columnIndex = 1;
