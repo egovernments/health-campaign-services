@@ -44,16 +44,15 @@ const appCache = new NodeCache({ stdTTL: 1800000, checkperiod: 300 });
 Send The Error Response back to client with proper response code 
 */
 const throwErrorViaRequest = (message: any = "Internal Server Error") => {
+  logger.error("Error : ", message);
   if (message?.message || message?.code) {
     let error: any = new Error(message?.message || message?.code);
     error = Object.assign(error, { status: message?.status || 500 });
-    logger.error("Error : " + error + " " + (message?.description || ""));
     throw error;
   }
   else {
     let error: any = new Error(message);
     error = Object.assign(error, { status: 500 });
-    logger.error("Error : " + error);
     throw error;
   }
 };

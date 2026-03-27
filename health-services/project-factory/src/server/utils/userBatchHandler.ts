@@ -166,16 +166,24 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
 
             try {
                 const workerRequestInfo = withUserInfo(messageObject.requestInfo, { tenantId });
-                const { individualIdToWorkerIdMap, errors } = await createOrUpdateWorkers(workerDataList, workerRequestInfo);
+                const { individualIdToWorkerIdMap, individualIdToWorkerMap, errors } = await createOrUpdateWorkers(workerDataList, workerRequestInfo);
                 logger.info(`Worker registry integration completed for ${workerDataList.length} workers`);
 
-                // Store worker IDs back in campaign data for successfully processed workers
+                // Store worker IDs and full worker details back in campaign data for successfully processed workers
                 for (const workerData of workerDataList) {
                     const workerId = individualIdToWorkerIdMap.get(workerData.individualId);
+                    const worker = individualIdToWorkerMap.get(workerData.individualId);
                     if (workerId) {
                         const records = individualIdToRecords.get(workerData.individualId) || [];
                         for (const record of records) {
                             record.data["HCM_ADMIN_CONSOLE_USER_WORKER_ID"] = workerId;
+                            if (worker) {
+                                if (worker.payeeName) record.data["HCM_ADMIN_CONSOLE_USER_PAYEE_NAME"] = worker.payeeName;
+                                if (worker.bankAccount) record.data["HCM_ADMIN_CONSOLE_USER_BANK_ACCOUNT"] = worker.bankAccount;
+                                if (worker.bankCode) record.data["HCM_ADMIN_CONSOLE_USER_BANK_CODE"] = worker.bankCode;
+                                if (worker.paymentProvider) record.data["HCM_ADMIN_CONSOLE_USER_PAYMENT_PROVIDER"] = worker.paymentProvider;
+                                if (worker.payeePhoneNumber) record.data["HCM_ADMIN_CONSOLE_USER_PAYEE_PHONE_NUMBER"] = worker.payeePhoneNumber;
+                            }
                         }
                     }
                 }
@@ -298,7 +306,7 @@ async function createUsersViaHrmsApi(
         return { mobileToUserServiceMap, mobileToIndividualIdMap };
 
     } catch (error: any) {
-        logger.error("HRMS employee creation failed:", error);
+        logger.error("HRMS employee creation failed :: " + (error?.stack || error?.message || error));
         throw new Error(`HRMS API failed: ${error.message || error}`);
     }
 }

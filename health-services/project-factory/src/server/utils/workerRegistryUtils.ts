@@ -50,6 +50,7 @@ interface WorkerCreatePayload {
 /** Result of createOrUpdateWorkers — includes partial successes and errors */
 interface WorkerRegistryResult {
     individualIdToWorkerIdMap: Map<string, string>;
+    individualIdToWorkerMap: Map<string, WorkerRegistryRecord>;
     errors: string[];
 }
 
@@ -122,8 +123,9 @@ async function createOrUpdateWorkers(
     requestInfo: RequestInfo
 ): Promise<WorkerRegistryResult> {
     const individualIdToWorkerIdMap = new Map<string, string>();
+    const individualIdToWorkerMap = new Map<string, WorkerRegistryRecord>();
     const errors: string[] = [];
-    if (!workerDataList.length) return { individualIdToWorkerIdMap, errors };
+    if (!workerDataList.length) return { individualIdToWorkerIdMap, individualIdToWorkerMap, errors };
 
     const tenantId = workerDataList[0].tenantId;
 
@@ -241,6 +243,7 @@ async function createOrUpdateWorkers(
                 if (worker?.id && worker?.individualIds?.length) {
                     for (const indId of worker.individualIds) {
                         individualIdToWorkerIdMap.set(indId, worker.id);
+                        individualIdToWorkerMap.set(indId, worker);
                     }
                 }
             }
@@ -265,6 +268,7 @@ async function createOrUpdateWorkers(
                 if (worker?.id && worker?.individualIds?.length) {
                     for (const indId of worker.individualIds) {
                         individualIdToWorkerIdMap.set(indId, worker.id);
+                        individualIdToWorkerMap.set(indId, worker);
                     }
                 }
             }
@@ -276,7 +280,7 @@ async function createOrUpdateWorkers(
         }
     }
 
-    return { individualIdToWorkerIdMap, errors };
+    return { individualIdToWorkerIdMap, individualIdToWorkerMap, errors };
 }
 
 export { WorkerData, WorkerRegistryRecord, WorkerRegistryResult, WorkerCreatePayload, searchWorkersByIndividualIds, searchWorkersByIds, createOrUpdateWorkers };
