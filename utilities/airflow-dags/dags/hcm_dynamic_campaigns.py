@@ -648,6 +648,9 @@ with DAG(
                 "CAMPAIGN_IDENTIFIER": campaign_identifier,
                 "IDENTIFIER_TYPE": identifier_type,
 
+                "ELASTIC_PASSWORD": os.getenv("ELASTIC_PASSWORD", ""),
+                "ELASTIC_USERNAME": os.getenv("ELASTIC_USERNAME", "elastic"),
+
                 "REPORT_NAME": report_name,
                 "TRIGGER_FREQUENCY": frequency,
                 "TRIGGER_TIME" : c.get("triggerTime", 0),
