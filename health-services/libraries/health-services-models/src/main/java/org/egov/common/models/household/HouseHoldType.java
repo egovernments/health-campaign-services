@@ -10,6 +10,8 @@ public enum HouseHoldType {
 
 	COMMUNITY("COMMUNITY"),
 
+	SCHOOL("SCHOOL"),
+
 	OTHER("OTHER");
 
 	private String value;
