@@ -422,9 +422,9 @@ def compute_range(campaign, now, is_final=False, remaining_days=0):
         try:
             start = datetime.strptime(report_start_date_str, "%d-%m-%Y %H:%M:%S%z")
             end = datetime.strptime(report_end_date_str, "%d-%m-%Y %H:%M:%S%z")
-            # Convert to UTC
-            start = start.astimezone(timezone.utc).replace(tzinfo=None)
-            end = end.astimezone(timezone.utc).replace(tzinfo=None)
+            # Convert to UTC (keep tzinfo so strftime %z produces +0000)
+            start = start.astimezone(timezone.utc)
+            end = end.astimezone(timezone.utc)
             logger.info("CUSTOM report range: %s to %s", start, end)
             return (start, end)
         except (ValueError, TypeError) as e:
