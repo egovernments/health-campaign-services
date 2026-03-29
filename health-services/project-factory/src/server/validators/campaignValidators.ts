@@ -846,6 +846,12 @@ async function validateProjectCampaignResources(resources: CampaignResource[] | 
         return;
     }
 
+    // If it's a child campaign, skip resource validation — all resources will be copied from parent in DB
+    if (CampaignDetails?.parentId) {
+        logger.info(`Child campaign detected (parentId=${CampaignDetails.parentId}) - skipping resource validation, resources will be copied from parent`);
+        return;
+    }
+
     // For regular campaigns, check for required types
     for (const type of requiredTypes) {
         if (!typeCounts[type]) {
@@ -873,30 +879,9 @@ async function validateProjectCampaignResources(resources: CampaignResource[] | 
         }
     }
 
-    if (!request?.body?.parentCampaign) {
-        if (missingTypes.length > 0) {
-            const missingTypesMessage = `Missing resources of types: ${missingTypes.join(', ')}`;
-            throwError("COMMON", 400, "VALIDATION_ERROR_MISSING_RESOURCE", missingTypesMessage);
-        }
-    }
-    else if(request?.body?.parentCampaign) {
-        logger.info(`Missing resources of types: ${missingTypes.join(', ')}`);
-        const parentResources = request.body?.parentCampaign?.resources || [];
-
-        for (const missingType of missingTypes) {
-            const fallback = parentResources.find((r: any) => r.type === missingType);
-            if (fallback) {
-                effectiveResources.push(fallback);
-                console.log(`Added missing resource type "${missingType}" from parent campaign`);
-            } else {
-                throwError(
-                    "COMMON",
-                    400,
-                    "VALIDATION_ERROR",
-                    `Missing resource of type "${missingType}" and not found in parent campaign`
-                );
-            }
-        }
+    if (missingTypes.length > 0) {
+        const missingTypesMessage = `Missing resources of types: ${missingTypes.join(', ')}`;
+        throwError("COMMON", 400, "VALIDATION_ERROR_MISSING_RESOURCE", missingTypesMessage);
     }
 }
 

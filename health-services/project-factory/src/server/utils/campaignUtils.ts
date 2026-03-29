@@ -50,6 +50,7 @@ import {
   processStatuses,
   resourceDataStatuses,
   resourceStatuses,
+  resourceTypes,
   usageColumnStatus,
 } from "../config/constants";
 import { getBoundaryTabName } from "./boundaryUtils";
@@ -2444,13 +2445,140 @@ async function processRegularCampaign(request: any): Promise<void> {
   logger.info(`Started async background flow for campaign: ${campaignNumber}`);
 }
 
+/**
+ * Search parent's eg_cm_resource_details for unified-console-resources and create
+ * a new toCreate entry for the child campaign.
+ * If child's campaignDetails.resources already has a unified-console-resources entry
+ * with a filestoreId, that overrides the parent's filestoreId.
+ */
+/**
+ * Wait for the child campaign row to appear in the DB (persisted via Kafka persister).
+ * This must complete before copying resources so the FK from resource_details → campaign is valid.
+ */
+async function waitForCampaignToBePersisted(
+  campaignId: string,
+  tenantId: string,
+  maxAttempts: number = 20,
+  waitMs: number = 3000
+): Promise<void> {
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    await new Promise(resolve => setTimeout(resolve, waitMs));
+    const resp = await searchProjectTypeCampaignService({ tenantId, ids: [campaignId] });
+    if (resp?.CampaignDetails?.[0]?.id) {
+      logger.info(`Campaign ${campaignId} found in DB after ${attempt + 1} attempt(s).`);
+      return;
+    }
+    logger.info(`Attempt ${attempt + 1}/${maxAttempts}: Campaign ${campaignId} not yet in DB. Waiting ${waitMs / 1000}s...`);
+  }
+  logger.warn(`Campaign ${campaignId} not found in DB after ${maxAttempts} attempts. Proceeding anyway.`);
+}
+
+/**
+ * Copy ALL completed resources from parent campaign to child campaign directly in DB.
+ *
+ * Steps:
+ * 1. Deactivate existing toCreate resources on child (idempotency for update+create re-entry).
+ * 2. Bulk INSERT SELECT from parent's completed resources — single SQL, handles 10k-20k+ rows.
+ * 3. Override filestoreId in DB for types provided in CampaignDetails.resources.
+ * 4. Read back unified-console-resources filestoreId from DB, update in-memory campaignDetails.resources.
+ *
+ * Returns true if unified-console-resources was among the copied rows.
+ */
+async function copyResourcesFromParentToChildInDB(
+  campaignDetails: any,
+  userUuid: string
+): Promise<boolean> {
+  const tenantId = campaignDetails?.tenantId;
+  const childCampaignId = campaignDetails?.id;
+  const parentCampaignId = campaignDetails?.parentId;
+  const tableName = getTableName(config.DB_CONFIG.DB_RESOURCE_DETAILS_TABLE_NAME, tenantId);
+  const now = Date.now();
+
+  // Step 1: Deactivate existing toCreate resources on child for idempotency
+  await executeQuery(
+    `UPDATE ${tableName} SET isactive = false, lastmodifiedby = $1, lastmodifiedtime = $2 WHERE campaignid = $3 AND tenantid = $4 AND status = $5 AND isactive = true`,
+    [userUuid, now, childCampaignId, tenantId, resourceStatuses.toCreate]
+  );
+
+  // Step 2: Bulk INSERT SELECT — single SQL for all resource types, handles 10k-20k+ rows efficiently
+  await executeQuery(
+    `INSERT INTO ${tableName} (id, tenantid, campaignid, type, parentresourceid, filestoreid, processedfilestoreid, filename, status, action, isactive, hierarchytype, additionaldetails, createdby, lastmodifiedby, createdtime, lastmodifiedtime)
+     SELECT gen_random_uuid()::text, $1, $2, type, null, filestoreid, null, filename, $3, 'create', true, null, additionaldetails, $4, $4, $5, $5
+     FROM ${tableName}
+     WHERE campaignid = $6 AND tenantid = $1 AND isactive = true AND status = $7`,
+    [tenantId, childCampaignId, resourceStatuses.toCreate, userUuid, now, parentCampaignId, resourceStatuses.completed]
+  );
+
+  logger.info(`Bulk copied completed resources from parent campaign ${parentCampaignId} to child campaign ${childCampaignId} in DB.`);
+
+  // Step 3: Override filestoreId in DB for types provided in CampaignDetails.resources
+  const childResources: any[] = campaignDetails?.resources || [];
+  for (const resource of childResources) {
+    if (!resource?.type || !resource?.filestoreId) continue;
+    await executeQuery(
+      `UPDATE ${tableName} SET filestoreid = $1, lastmodifiedby = $2, lastmodifiedtime = $3 WHERE campaignid = $4 AND tenantid = $5 AND type = $6 AND status = $7 AND isactive = true`,
+      [resource.filestoreId, userUuid, now, childCampaignId, tenantId, resource.type, resourceStatuses.toCreate]
+    );
+    logger.info(`Overrode filestoreId for type=${resource.type} on child campaign ${childCampaignId}.`);
+  }
+
+  // Step 4: Read back unified-console-resources and sync filestoreId into in-memory resources
+  // so processUnifiedTemplateCampaign can read it from campaignDetails.resources
+  const unifiedRows = await searchResourceDetailsFromDB({
+    tenantId,
+    campaignId: childCampaignId,
+    type: [resourceTypes.unifiedConsoleResources],
+    status: [resourceStatuses.toCreate],
+    isActive: true,
+  });
+
+  if (unifiedRows && unifiedRows.length > 0) {
+    const unifiedRow = unifiedRows[0];
+    const existingUnified = childResources.find((r: any) => r?.type === resourceTypes.unifiedConsoleResources);
+    if (existingUnified) {
+      existingUnified.filestoreId = unifiedRow.filestoreid;
+    } else {
+      campaignDetails.resources = [
+        ...childResources,
+        {
+          type: resourceTypes.unifiedConsoleResources,
+          filestoreId: unifiedRow.filestoreid,
+          filename: unifiedRow.filename || null,
+          additionalDetails: unifiedRow.additionaldetails || {},
+        },
+      ];
+    }
+    logger.info(`Unified-console-resources ready in DB for child campaign ${childCampaignId}, filestoreId=${unifiedRow.filestoreid}`);
+    return true;
+  }
+
+  return false;
+}
+
 export async function processAfterPersistNew(request: any, actionInUrl: any) {
   try {
     if (request?.body?.CampaignDetails?.action == "create") {
-      if(isUnfiedTemplateCamapign(request?.body?.CampaignDetails)){
+      const campaignDetails = request?.body?.CampaignDetails;
+      const userUuid = request?.body?.RequestInfo?.userInfo?.uuid || campaignDetails?.auditDetails?.createdBy;
+
+      if (campaignDetails?.parentId) {
+        // Any child campaign (all resource types):
+        // 1. Wait for child campaign row to be persisted in eg_cm_campaign_details
+        // 2. Copy ALL completed resources from parent directly in DB (INSERT SELECT, handles 10k-20k+)
+        // 3. Override filestoreId for types in CampaignDetails.resources, read back unified filestoreId
+        // 4. Route to unified or regular process based on campaign type
+        await waitForCampaignToBePersisted(campaignDetails.id, campaignDetails.tenantId);
+        await copyResourcesFromParentToChildInDB(campaignDetails, userUuid);
+        const isUnified = Array.isArray(campaignDetails?.resources) &&
+          campaignDetails.resources.some((r: any) => r?.type === resourceTypes.unifiedConsoleResources);
+        if (isUnified) {
+          await processUnifiedTemplateCampaign(request);
+        } else {
+          await processRegularCampaign(request);
+        }
+      } else if (isUnfiedTemplateCamapign(campaignDetails)) {
         await processUnifiedTemplateCampaign(request);
-      }
-      else{
+      } else {
         await processRegularCampaign(request);
       }
     }
