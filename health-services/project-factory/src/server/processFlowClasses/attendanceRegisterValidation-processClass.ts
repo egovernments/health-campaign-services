@@ -92,16 +92,10 @@ export class TemplateClass {
     }
 
     private static async getCampaignDetails(resourceDetails: any): Promise<any> {
-        if (!resourceDetails?.campaignId && !resourceDetails?.campaignNumber) {
-            throw new Error("Either campaignId or campaignNumber must be present in resourceDetails");
-        }
-        const searchCriteria: any = { tenantId: resourceDetails.tenantId };
-        if (resourceDetails?.campaignId) {
-            searchCriteria.ids = [resourceDetails.campaignId];
-        } else if (resourceDetails?.campaignNumber) {
-            searchCriteria.campaignNumber = resourceDetails.campaignNumber;
-        }
-        const response = await searchProjectTypeCampaignService(searchCriteria);
+        const response = await searchProjectTypeCampaignService({
+            tenantId: resourceDetails.tenantId,
+            ids: [resourceDetails?.campaignId],
+        });
         const campaign = response?.CampaignDetails?.[0];
         if (!campaign) throw new Error("Campaign not found");
         return campaign;

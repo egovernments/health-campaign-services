@@ -9,12 +9,7 @@ export class EnrichProcessConfigUtil {
     async enrichTargetProcessConfig(resourceDetails: ResourceDetails, templateConfig: any) {
         logger.info("Enriching Boundary Process Config");
         const { campaignId, tenantId } = resourceDetails;
-        if (!campaignId && !resourceDetails.campaignNumber) {
-            throw new Error("Either campaignId or campaignNumber must be present in resourceDetails for enriching process config");
-        }
-        const campaignResp = campaignId
-            ? await searchProjectTypeCampaignService({ tenantId, ids: [campaignId] })
-            : await searchProjectTypeCampaignService({ tenantId, campaignNumber: resourceDetails.campaignNumber });
+        const campaignResp = await searchProjectTypeCampaignService({ tenantId, ids: [campaignId] });
         const campaignDetails = campaignResp?.CampaignDetails?.[0];
         if (!campaignDetails) throw new Error("Campaign not found");
         const boundaryRelationshipResponse: any = await searchBoundaryRelationshipData(tenantId, campaignDetails?.hierarchyType, true, true, false);
@@ -35,7 +30,7 @@ export class EnrichProcessConfigUtil {
             boundaryChildren
         );
 
-        const splitOn = await getBoundaryOnWhichWeSplit(campaignId || campaignDetails?.id, tenantId);
+        const splitOn = await getBoundaryOnWhichWeSplit(campaignId, tenantId);
         const sheetsNamesBasedOnSplit = boundaries.filter((b: any) => b.type === splitOn).map((b: any) => b.code);
         for (const sheetName of sheetsNamesBasedOnSplit) {
             templateConfig.sheets.push({

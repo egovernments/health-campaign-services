@@ -61,29 +61,19 @@ async function updateProjectTypeCampaignService(request: express.Request) {
     const requestResources = request?.body?.CampaignDetails?.resources || [];
     const tenantId = request?.body?.CampaignDetails?.tenantId;
     const campaignId = request?.body?.CampaignDetails?.id;
-    let campaignNo = request?.body?.CampaignDetails?.campaignNumber;
     const useruuid = request?.body?.RequestInfo?.userInfo?.uuid || "system";
     if (requestResources.length > 0 && tenantId && campaignId) {
-        // Resolve campaignNumber from DB if not present in request body
-        if (!campaignNo) {
-            const resolved = await getCampaignStatusFromDB(campaignId, tenantId);
-            campaignNo = resolved.campaignNumber || undefined;
-        }
         for (const res of requestResources as CampaignResource[]) {
             const fileStoreId = res.filestoreId;
             if (!res.type || !fileStoreId) continue;
             try {
-                if (!campaignNo) {
-                    logger.warn(`campaignNumber not available for resource upsert type=${res.type}, skipping`);
-                    continue;
-                }
-                const existing = await findActiveResourceByUpsertKey(tenantId, campaignNo, res.type, res.parentResourceId || null);
+                const existing = await findActiveResourceByUpsertKey(tenantId, campaignId, res.type, res.parentResourceId || null);
                 if (existing) {
+                    // Update existing resource instead of deactivating + creating new
                     await updateResourceDetail({
                         id: existing.id,
                         tenantId,
-                        campaignId: campaignId,
-                        campaignNumber: campaignNo,
+                        campaignId,
                         fileStoreId,
                         filename: res.filename !== undefined ? res.filename : undefined
                     }, useruuid);
@@ -91,8 +81,7 @@ async function updateProjectTypeCampaignService(request: express.Request) {
                 } else {
                     await createResourceDetail({
                         tenantId,
-                        campaignId: campaignId,
-                        campaignNumber: campaignNo,
+                        campaignId,
                         type: res.type,
                         parentResourceId: res.parentResourceId || null,
                         fileStoreId,

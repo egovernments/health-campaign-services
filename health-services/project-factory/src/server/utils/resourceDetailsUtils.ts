@@ -6,8 +6,7 @@ import { ResourceDetailsResponse } from "../config/models/resourceTypes";
 export interface ResourceDetailRow {
   id: string;
   tenantid: string;
-  campaignid: string | null;
-  campaignnumber: string | null;
+  campaignid: string;
   type: string;
   parentresourceid: string | null;
   filestoreid: string;
@@ -28,8 +27,7 @@ export function toResourceDetailsResponse(row: ResourceDetailRow): ResourceDetai
   return {
     id: row.id,
     tenantId: row.tenantid,
-    campaignId: row.campaignid || null,
-    campaignNumber: row.campaignnumber || null,
+    campaignId: row.campaignid,
     type: row.type,
     parentResourceId: row.parentresourceid || null,
     fileStoreId: row.filestoreid,
@@ -53,12 +51,7 @@ export async function searchResourceDetailsFromDB(
   criteria: ResourceDetailsCriteria,
   pagination?: Pagination
 ): Promise<ResourceDetailRow[]> {
-  const { tenantId, campaignId, campaignNumber, type, ids, parentResourceId, status, isActive, excludeTypes } = criteria;
-
-  if (!campaignNumber && !campaignId && (!ids || ids.length === 0)) {
-    throw new Error("searchResourceDetailsFromDB requires campaignNumber, campaignId, or ids");
-  }
-
+  const { tenantId, campaignId, type, ids, parentResourceId, status, isActive, excludeTypes } = criteria;
   const conditions: string[] = [];
   const values: any[] = [];
   let idx = 1;
@@ -66,13 +59,8 @@ export async function searchResourceDetailsFromDB(
   conditions.push(`tenantid = $${idx++}`);
   values.push(tenantId);
 
-  if (campaignNumber) {
-    conditions.push(`campaignnumber = $${idx++}`);
-    values.push(campaignNumber);
-  } else if (campaignId) {
-    conditions.push(`campaignid = $${idx++}`);
-    values.push(campaignId);
-  }
+  conditions.push(`campaignid = $${idx++}`);
+  values.push(campaignId);
 
   if (type && type.length > 0) {
     conditions.push(`type = ANY($${idx++})`);
@@ -147,7 +135,7 @@ export async function getResourceDetailById(id: string, tenantId: string): Promi
 
 export async function findActiveResourceByUpsertKey(
   tenantId: string,
-  campaignNumber: string,
+  campaignId: string,
   type: string,
   parentResourceId: string | null | undefined
 ): Promise<ResourceDetailRow | null> {
@@ -156,11 +144,11 @@ export async function findActiveResourceByUpsertKey(
   let values: any[];
 
   if (parentResourceId == null) {
-    query = `SELECT * FROM ${tableName} WHERE tenantid = $1 AND campaignnumber = $2 AND type = $3 AND parentresourceid IS NULL AND isactive = true LIMIT 1`;
-    values = [tenantId, campaignNumber, type];
+    query = `SELECT * FROM ${tableName} WHERE tenantid = $1 AND campaignid = $2 AND type = $3 AND parentresourceid IS NULL AND isactive = true LIMIT 1`;
+    values = [tenantId, campaignId, type];
   } else {
-    query = `SELECT * FROM ${tableName} WHERE tenantid = $1 AND campaignnumber = $2 AND type = $3 AND parentresourceid = $4 AND isactive = true LIMIT 1`;
-    values = [tenantId, campaignNumber, type, parentResourceId];
+    query = `SELECT * FROM ${tableName} WHERE tenantid = $1 AND campaignid = $2 AND type = $3 AND parentresourceid = $4 AND isactive = true LIMIT 1`;
+    values = [tenantId, campaignId, type, parentResourceId];
   }
 
   const result = await executeQuery(query, values);
@@ -169,7 +157,7 @@ export async function findActiveResourceByUpsertKey(
 
 export async function countResourcesByType(
   tenantId: string,
-  campaignNumber: string,
+  campaignId: string,
   type: string,
   parentResourceId: string | null | undefined
 ): Promise<number> {
@@ -178,11 +166,11 @@ export async function countResourcesByType(
   let values: any[];
 
   if (parentResourceId == null) {
-    query = `SELECT COUNT(*) FROM ${tableName} WHERE tenantid = $1 AND campaignnumber = $2 AND type = $3 AND parentresourceid IS NULL AND isactive = true`;
-    values = [tenantId, campaignNumber, type];
+    query = `SELECT COUNT(*) FROM ${tableName} WHERE tenantid = $1 AND campaignid = $2 AND type = $3 AND parentresourceid IS NULL AND isactive = true`;
+    values = [tenantId, campaignId, type];
   } else {
-    query = `SELECT COUNT(*) FROM ${tableName} WHERE tenantid = $1 AND campaignnumber = $2 AND type = $3 AND parentresourceid = $4 AND isactive = true`;
-    values = [tenantId, campaignNumber, type, parentResourceId];
+    query = `SELECT COUNT(*) FROM ${tableName} WHERE tenantid = $1 AND campaignid = $2 AND type = $3 AND parentresourceid = $4 AND isactive = true`;
+    values = [tenantId, campaignId, type, parentResourceId];
   }
 
   const result = await executeQuery(query, values);
@@ -192,12 +180,7 @@ export async function countResourcesByType(
 export async function countTotalResourceDetails(
   criteria: ResourceDetailsCriteria
 ): Promise<number> {
-  const { tenantId, campaignId, campaignNumber, type, ids, parentResourceId, status, isActive } = criteria;
-
-  if (!campaignNumber && !campaignId && (!ids || ids.length === 0)) {
-    throw new Error("countTotalResourceDetails requires campaignNumber, campaignId, or ids");
-  }
-
+  const { tenantId, campaignId, type, ids, parentResourceId, status, isActive } = criteria;
   const conditions: string[] = [];
   const values: any[] = [];
   let idx = 1;
@@ -205,13 +188,8 @@ export async function countTotalResourceDetails(
   conditions.push(`tenantid = $${idx++}`);
   values.push(tenantId);
 
-  if (campaignNumber) {
-    conditions.push(`campaignnumber = $${idx++}`);
-    values.push(campaignNumber);
-  } else if (campaignId) {
-    conditions.push(`campaignid = $${idx++}`);
-    values.push(campaignId);
-  }
+  conditions.push(`campaignid = $${idx++}`);
+  values.push(campaignId);
 
   if (type && type.length > 0) {
     conditions.push(`type = ANY($${idx++})`);

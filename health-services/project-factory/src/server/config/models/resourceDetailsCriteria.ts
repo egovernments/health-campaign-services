@@ -2,8 +2,7 @@ import { z } from 'zod';
 
 export const resourceDetailsCriteriaSchema = z.object({
   tenantId: z.string().min(1, "tenantId is required"),
-  campaignId: z.string().min(1).optional().nullable(),
-  campaignNumber: z.string().min(1).optional().nullable(),
+  campaignId: z.string().min(1, "campaignId is required"),
   type: z.array(z.string()).optional(),
   ids: z.array(z.string()).optional(),
   parentResourceId: z.string().optional().nullable(),

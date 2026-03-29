@@ -6,8 +6,7 @@
 export interface ResourceDetailsResponse {
   id: string;
   tenantId: string;
-  campaignId: string | null;
-  campaignNumber: string | null;
+  campaignId: string;
   type: string;
   parentResourceId: string | null;
   fileStoreId: string;
