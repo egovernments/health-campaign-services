@@ -94,7 +94,7 @@ const config = {
     contextPath: process.env.CONTEXT_PATH || "/project-factory",
     logLevel: process.env.APP_LOG_LEVEL || "debug",
     debugLogCharLimit: process.env.APP_MAX_DEBUG_CHAR ? Number(process.env.APP_MAX_DEBUG_CHAR) : 1000,
-    defaultTenantId: process.env.DEFAULT_TENANT_ID || "mz",
+    defaultTenantId: process.env.DEFAULT_TENANT_ID || "chad",
     incomingRequestPayloadLimit: process.env.INCOMING_REQUEST_PAYLOAD_LIMIT || "2mb",
     maxInFlight: process.env.MAX_INFLIGHT || "15",
     maxEventLoopLagMs: process.env.MAX_EVENT_LOOP_LAG_MS || "100",
@@ -180,7 +180,7 @@ const config = {
     unfrozeTillColumn: process.env.UNFROZE_TILL_COLUMN || "26",
     moduleName: process.env.MODULE_NAME || "HCM-ADMIN-CONSOLE",
     readMeTab: process.env.READ_ME_TAB || "HCM_README_SHEETNAME",
-    userMainBoundary: process.env.USER_MAIN_BOUNDARY || "mz",
+    userMainBoundary: process.env.USER_MAIN_BOUNDARY || "chad",
     userMainBoundaryType: process.env.USER_MAIN_BOUNDARY_TYPE || "Country",
     idgen: {
       format: process.env.CMP_IDGEN_FORMAT || "CMP-[cy:yyyy-MM-dd]-[SEQ_EG_CMP_ID]",
