@@ -7,7 +7,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import org.egov.common.contract.request.RequestInfo;
-import org.egov.common.models.stock.StockSearch;
 import org.springframework.validation.annotation.Validated;
 
 @Validated
@@ -31,10 +30,6 @@ public class FhirRequestBuilder {
 
     public JsonNode getFhir() {
         return fhir;
-    }
-
-    public void setRequestInfo(RequestInfo requestInfo) {
-        this.requestInfo = requestInfo;
     }
 
     public void setFhir(JsonNode fhir) {

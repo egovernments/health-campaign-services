@@ -35,8 +35,6 @@ public class LocationToBoundaryService {
     @Value("${boundary.update.url}")
     private String boundaryUpdateUrl;
 
-    private RequestInfo requestInfo;
-
     private static final Logger logger = LoggerFactory.getLogger(LocationToBoundaryService.class);
 
 
@@ -48,12 +46,10 @@ public class LocationToBoundaryService {
      * @throws Exception if transformation or API invocation fails
      */
     public HashMap<String, Integer> transformLocationToBoundary(HashMap<String, BoundaryRelation> boundaryRelationMap, RequestInfo requestInfo) throws Exception {
-        this.requestInfo = requestInfo;
-
         return genericCreateOrUpdateService.process(boundaryRelationMap,
-                this::fetchExistingBoundaryIds,
-                this::createBoundaries,
-                this::updateBoundaries,
+                (idList) -> fetchExistingBoundaryIds(idList, requestInfo),
+                (toCreate, createUrl) -> createBoundaries(toCreate, createUrl, requestInfo),
+                (toUpdate, updateUrl) -> updateBoundaries(toUpdate, updateUrl, requestInfo),
                 boundaryCreateUrl,
                 boundaryUpdateUrl,
                 requestInfo,
@@ -88,14 +84,14 @@ public class LocationToBoundaryService {
     /**
      * Adapter: fetch existing boundary codes (flat list) by calling the boundary search API and extracting codes recursively.
      */
-    public List<String> fetchExistingBoundaryIds(List<String> idList) throws Exception {
+    private List<String> fetchExistingBoundaryIds(List<String> idList, RequestInfo requestInfo) throws Exception {
         try{
             BoundaryRelationshipSearchCriteria criteria = new BoundaryRelationshipSearchCriteria();
             criteria.setCodes(idList);
             criteria.setTenantId(tenantId);
             criteria.setHierarchyType(Constants.HIERARCHY_TYPE);
             criteria.setIncludeChildren(Constants.INCLUDE_CHILDREN);
-            BoundarySearchResponse boundarySearchResponse = apiIntegrationService.fetchAllBoundaries(criteria, this.requestInfo);
+            BoundarySearchResponse boundarySearchResponse = apiIntegrationService.fetchAllBoundaries(criteria, requestInfo);
             List<String> existingIds = new ArrayList<>();
             if (!boundarySearchResponse.getTenantBoundary().isEmpty()) {
                 for (EnrichedBoundary boundary : boundarySearchResponse.getTenantBoundary().get(0).getBoundary()) {
@@ -111,12 +107,12 @@ public class LocationToBoundaryService {
     /**
      * Adapter: create boundaries by iterating and sending single BoundaryRelationshipRequest per item (keeps previous behavior).
      */
-    public void createBoundaries(List<BoundaryRelation> toCreate, String createUrl) throws Exception {
+    private void createBoundaries(List<BoundaryRelation> toCreate, String createUrl, RequestInfo requestInfo) throws Exception {
         try{
             if (toCreate == null || toCreate.isEmpty()) return;
             for (BoundaryRelation br : toCreate) {
                 BoundaryRelationshipRequest boundaryRelationshipRequest = new BoundaryRelationshipRequest();
-                boundaryRelationshipRequest.setRequestInfo(this.requestInfo);
+                boundaryRelationshipRequest.setRequestInfo(requestInfo);
                 boundaryRelationshipRequest.setBoundaryRelationship(br);
                 apiIntegrationService.sendRequestToAPI(boundaryRelationshipRequest, createUrl);
             }
@@ -128,12 +124,12 @@ public class LocationToBoundaryService {
     /**
      * Adapter: update boundaries by iterating and sending single BoundaryRelationshipRequest per item.
      */
-    public void updateBoundaries(List<BoundaryRelation> toUpdate, String updateUrl) throws Exception {
+    private void updateBoundaries(List<BoundaryRelation> toUpdate, String updateUrl, RequestInfo requestInfo) throws Exception {
         try{
             if (toUpdate == null || toUpdate.isEmpty()) return;
             for (BoundaryRelation br : toUpdate) {
                 BoundaryRelationshipRequest boundaryRelationshipRequest = new BoundaryRelationshipRequest();
-                boundaryRelationshipRequest.setRequestInfo(this.requestInfo);
+                boundaryRelationshipRequest.setRequestInfo(requestInfo);
                 boundaryRelationshipRequest.setBoundaryRelationship(br);
                 apiIntegrationService.sendRequestToAPI(boundaryRelationshipRequest, updateUrl);
             }

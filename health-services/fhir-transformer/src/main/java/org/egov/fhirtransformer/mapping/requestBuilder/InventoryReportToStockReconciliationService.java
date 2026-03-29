@@ -30,8 +30,6 @@ public class InventoryReportToStockReconciliationService {
     @Value("${stock.recon.update.url}")
     private String stockReconUpdateUrl;
 
-    private RequestInfo requestInfo;
-
     /**
      * Transforms and persists StockReconciliation records derived from InventoryReports.
      * @param stockReconciliationMap map of StockReconciliation ID to data;
@@ -40,13 +38,10 @@ public class InventoryReportToStockReconciliationService {
      * @throws Exception if transformation or API invocation fails
      */
     public HashMap<String, Integer> transformInventoryReportToStockReconciliation(HashMap<String, StockReconciliation> stockReconciliationMap, RequestInfo requestInfo) throws Exception {
-
-        this.requestInfo = requestInfo;
-
         return genericCreateOrUpdateService.process(stockReconciliationMap,
-                this::fetchExistingStockReconIds,
-                this::createStockRecon,
-                this::updateStockRecon,
+                (stockReconIds) -> fetchExistingStockReconIds(stockReconIds, requestInfo),
+                (toCreate, createUrl) -> createStockRecon(toCreate, createUrl, requestInfo),
+                (toUpdate, updateUrl) -> updateStockRecon(toUpdate, updateUrl, requestInfo),
                 stockReconCreateUrl,
                 stockReconUpdateUrl,
                 requestInfo,
@@ -54,7 +49,7 @@ public class InventoryReportToStockReconciliationService {
     }
 
     // Adapter: fetch existing stock reconciliation ids
-    public List<String> fetchExistingStockReconIds(List<String> stockReconIds) throws Exception {
+    private List<String> fetchExistingStockReconIds(List<String> stockReconIds, RequestInfo requestInfo) throws Exception {
         HashMap<String,List<String>> newandexistingids = new HashMap<>();
         try{
             URLParams urlParams = apiIntegrationService.formURLParams(stockReconIds);
@@ -62,7 +57,7 @@ public class InventoryReportToStockReconciliationService {
             stockReconciliationSearch.setId(stockReconIds);
 
             StockReconciliationSearchRequest stockReconciliationSearchRequest = new StockReconciliationSearchRequest();
-            stockReconciliationSearchRequest.setRequestInfo(this.requestInfo);
+            stockReconciliationSearchRequest.setRequestInfo(requestInfo);
             stockReconciliationSearchRequest.setStockReconciliation(stockReconciliationSearch);
 
             StockReconciliationBulkResponse stockBulkReconResponse = apiIntegrationService.fetchAllStockReconciliation(urlParams, stockReconciliationSearchRequest);
@@ -80,11 +75,11 @@ public class InventoryReportToStockReconciliationService {
     }
 
     // Adapter: create stock reconciliations
-    public void createStockRecon(List<StockReconciliation> toCreate, String createUrl) throws Exception {
+    private void createStockRecon(List<StockReconciliation> toCreate, String createUrl, RequestInfo requestInfo) throws Exception {
         try{
             if (toCreate == null || toCreate.isEmpty()) return;
             StockReconciliationBulkRequest stockReconciliationBulkRequest = new StockReconciliationBulkRequest();
-            stockReconciliationBulkRequest.setRequestInfo(this.requestInfo);
+            stockReconciliationBulkRequest.setRequestInfo(requestInfo);
             stockReconciliationBulkRequest.setStockReconciliation(toCreate);
             apiIntegrationService.sendRequestToAPI(stockReconciliationBulkRequest, createUrl);
         } catch (Exception e) {
@@ -93,11 +88,11 @@ public class InventoryReportToStockReconciliationService {
     }
 
     // Adapter: update stock reconciliations
-    public void updateStockRecon(List<StockReconciliation> toUpdate, String updateUrl) throws Exception {
+    private void updateStockRecon(List<StockReconciliation> toUpdate, String updateUrl, RequestInfo requestInfo) throws Exception {
         try{
             if (toUpdate == null || toUpdate.isEmpty()) return;
             StockReconciliationBulkRequest stockReconciliationBulkRequest = new StockReconciliationBulkRequest();
-            stockReconciliationBulkRequest.setRequestInfo(this.requestInfo);
+            stockReconciliationBulkRequest.setRequestInfo(requestInfo);
             stockReconciliationBulkRequest.setStockReconciliation(toUpdate);
             apiIntegrationService.sendRequestToAPI(stockReconciliationBulkRequest, updateUrl);
         } catch (Exception e) {

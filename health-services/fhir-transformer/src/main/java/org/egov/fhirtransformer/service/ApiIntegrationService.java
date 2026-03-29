@@ -3,7 +3,6 @@ package org.egov.fhirtransformer.service;
 import digit.web.models.BoundaryRelationshipSearchCriteria;
 import digit.web.models.BoundarySearchResponse;
 import org.egov.common.contract.request.RequestInfo;
-import org.egov.common.contract.request.User;
 import org.egov.common.contract.response.ResponseInfo;
 import org.egov.common.models.core.URLParams;
 import org.egov.common.models.facility.FacilityBulkResponse;
@@ -24,7 +23,6 @@ import java.net.URI;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 /**
  * Service responsible for integrating with external DIGIT domain services.
@@ -52,9 +50,6 @@ public class ApiIntegrationService {
 
     @Value("${boundary.relationship.search.url}")
     private String boundaryRelationshipUrl;
-
-    @Value("${app.add-request-info:false}")
-    private boolean addRequestInfo;
 
     private static final Logger logger = LoggerFactory.getLogger(FhirApiController.class);
 

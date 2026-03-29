@@ -72,21 +72,56 @@ public class FhirParseNLoadService {
         public final HashMap<String, ProductVariant> productVariantMap = new HashMap<>();
     }
 
+    @FunctionalInterface
+    private interface ThrowingSupplier<T> {
+        T get() throws Exception;
+    }
+
+    /**
+     * Processing summary with per-entity metrics and per-entity errors.
+     * status values: SUCCESS, PARTIAL_SUCCESS, FAILED.
+     */
+    public static class EntityProcessingResponse {
+        private final HashMap<String, HashMap<String, Integer>> entityResults = new HashMap<>();
+        private final HashMap<String, String> entityErrors = new HashMap<>();
+        private String status = "SUCCESS";
+
+        public HashMap<String, HashMap<String, Integer>> getEntityResults() {
+            return entityResults;
+        }
+
+        public HashMap<String, String> getEntityErrors() {
+            return entityErrors;
+        }
+
+        public String getStatus() {
+            return status;
+        }
+
+        public void setStatus(String status) {
+            this.status = status;
+        }
+    }
+
     /**
      * Parses a FHIR Bundle JSON and loads supported resources into DIGIT services
      * @param fhirJson FHIR Bundle payload as JSON
-     * @return map of entity name to processing metrics
-     * @throws Exception if downstream service invocation fails
+     * @return processing summary containing per-entity metrics and per-entity errors
      */
-    public HashMap<String, HashMap<String, Integer>> parseAndLoadFHIRResource(String fhirJson, RequestInfo requestInfo) throws Exception {
-        HashMap<String, HashMap<String, Integer>> entityResults = new HashMap<>();
+    public EntityProcessingResponse parseAndLoadFHIRResource(String fhirJson, RequestInfo requestInfo) {
+        EntityProcessingResponse response = new EntityProcessingResponse();
 
         Bundle bundle = parseBundle(fhirJson);
-        if (bundle == null) return entityResults;
+        if (bundle == null) {
+            response.getEntityErrors().put("Bundle", "Failed to parse FHIR bundle payload");
+            response.setStatus("FAILED");
+            return response;
+        }
         EntityMaps emaps = extractEntitiesFromBundle(bundle);
-        entityResults = processEntities(emaps, requestInfo);
+        processEntities(emaps, requestInfo, response);
+        finalizeStatus(response);
 
-        return entityResults;
+        return response;
     }
 
     // Parse the incoming JSON into a FHIR Bundle
@@ -169,32 +204,54 @@ public class FhirParseNLoadService {
         }
     }
 
-    // Call downstream services to create/update entities and gather metrics
-    private HashMap<String, HashMap<String, Integer>> processEntities(EntityMaps emaps,RequestInfo requestInfo) throws Exception {
-        HashMap<String, HashMap<String, Integer>> entityResults = new HashMap<>();
-
+    // Call downstream services independently so one entity failure does not block others
+    private void processEntities(EntityMaps emaps, RequestInfo requestInfo, EntityProcessingResponse response) {
         logger.info("supply delivery map: {}", emaps.supplyDeliveryMap);
-        HashMap<String, Integer> stockResults = sdToStockService.transformSupplyDeliveryToStock(emaps.supplyDeliveryMap, requestInfo);
-        entityResults.put("Stock", stockResults);
+        processEntity("Stock", response,
+                () -> sdToStockService.transformSupplyDeliveryToStock(emaps.supplyDeliveryMap, requestInfo));
 
         logger.info("facility map: {}", emaps.facilityMap);
-        HashMap<String, Integer> facilityResults = locToFacilityService.transformLocationToFacility(emaps.facilityMap, requestInfo);
-        entityResults.put("facility", facilityResults);
+        processEntity("Facility", response,
+                () -> locToFacilityService.transformLocationToFacility(emaps.facilityMap, requestInfo));
 
         logger.info("boundary relation map: {}", emaps.boundaryRelationMap);
-        HashMap<String, Integer> boundaryResults = locToBoundaryService.transformLocationToBoundary(emaps.boundaryRelationMap, requestInfo);
-        entityResults.put("boundary", boundaryResults);
+        processEntity("Boundary", response,
+                () -> locToBoundaryService.transformLocationToBoundary(emaps.boundaryRelationMap, requestInfo));
 
         logger.info("Stock Reconciliation map: {}", emaps.stockReconciliationMap);
-        HashMap<String, Integer> stockReconResults = irToStkRecService.transformInventoryReportToStockReconciliation(emaps.stockReconciliationMap, requestInfo);
-        // put under a descriptive key
-        entityResults.put("StockReconciliation", stockReconResults);
+        processEntity("StockReconciliation", response,
+                () -> irToStkRecService.transformInventoryReportToStockReconciliation(emaps.stockReconciliationMap, requestInfo));
 
         logger.info("Product Variant map: {}", emaps.productVariantMap);
-        HashMap<String, Integer> productVariantResults = invToProductService.transformInventoryItemToProductVariant(emaps.productVariantMap, requestInfo);
-        entityResults.put("Product Variant", productVariantResults);
+        processEntity("ProductVariant", response,
+                () -> invToProductService.transformInventoryItemToProductVariant(emaps.productVariantMap, requestInfo));
+    }
 
-        return entityResults;
+    private void processEntity(String entityName,
+                               EntityProcessingResponse response,
+                               ThrowingSupplier<HashMap<String, Integer>> processingFn) {
+        try {
+            HashMap<String, Integer> result = processingFn.get();
+            response.getEntityResults().put(entityName, result != null ? result : new HashMap<>());
+        } catch (Exception e) {
+            logger.error("Failed processing entity type {}: {}", entityName, e.getMessage(), e);
+            response.getEntityErrors().put(entityName, e.getMessage());
+        }
+    }
+
+    private void finalizeStatus(EntityProcessingResponse response) {
+        boolean hasResults = !response.getEntityResults().isEmpty();
+        boolean hasErrors = !response.getEntityErrors().isEmpty();
+
+        if (hasResults && hasErrors) {
+            response.setStatus("PARTIAL_SUCCESS");
+            return;
+        }
+        if (!hasResults && hasErrors) {
+            response.setStatus("FAILED");
+            return;
+        }
+        response.setStatus("SUCCESS");
     }
 
 }

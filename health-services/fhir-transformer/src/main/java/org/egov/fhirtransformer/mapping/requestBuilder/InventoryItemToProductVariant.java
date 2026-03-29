@@ -31,8 +31,6 @@ public class InventoryItemToProductVariant {
     @Value("${product.variant.update.url}")
     private String productVariantUpdateUrl;
 
-    private RequestInfo requestInfo;
-
     /**
      * Transforms and persists ProductVariants derived from InventoryItems.
      * @param productVariantMap map of ProductVariant ID to ProductVariant data;
@@ -41,13 +39,11 @@ public class InventoryItemToProductVariant {
      * @throws Exception if transformation or API invocation fails
      */
     public HashMap<String, Integer> transformInventoryItemToProductVariant(HashMap<String, ProductVariant> productVariantMap, RequestInfo requestInfo) throws Exception {
-
-        this.requestInfo=requestInfo;
         // Use the generic overloaded process: provide fetchExistingIds, create and update adapters
         return genericCreateOrUpdateService.process(productVariantMap,
-                this::fetchExistingProductVariantIds,
-                this::createProductVariants,
-                this::updateProductVariants,
+                (productVariantIds) -> fetchExistingProductVariantIds(productVariantIds, requestInfo),
+                (toCreate, createUrl) -> createProductVariants(toCreate, createUrl, requestInfo),
+                (toUpdate, updateUrl) -> updateProductVariants(toUpdate, updateUrl, requestInfo),
                 productVariantCreateUrl,
                 productVariantUpdateUrl,
                 requestInfo,
@@ -55,14 +51,14 @@ public class InventoryItemToProductVariant {
     }
 
     // Adapter: fetch existing IDs as flat list
-    public List<String> fetchExistingProductVariantIds(List<String> productVariantIds) throws Exception {
+    private List<String> fetchExistingProductVariantIds(List<String> productVariantIds, RequestInfo requestInfo) throws Exception {
         try{
             URLParams urlParams = apiIntegrationService.formURLParams(productVariantIds);
             ProductVariantSearch productVariantSearch = new ProductVariantSearch();
             productVariantSearch.setId(productVariantIds);
 
             ProductVariantSearchRequest productVariantSearchRequest = new ProductVariantSearchRequest();
-            productVariantSearchRequest.setRequestInfo(this.requestInfo);
+            productVariantSearchRequest.setRequestInfo(requestInfo);
             productVariantSearchRequest.setProductVariant(productVariantSearch);
 
             ProductVariantResponse productVariantResponse = apiIntegrationService.fetchAllProductVariants(urlParams, productVariantSearchRequest);
@@ -81,11 +77,11 @@ public class InventoryItemToProductVariant {
     }
 
     // Adapter: create list of ProductVariant using provided createUrl
-    public void createProductVariants(List<ProductVariant> toCreate, String createUrl) throws Exception {
+    private void createProductVariants(List<ProductVariant> toCreate, String createUrl, RequestInfo requestInfo) throws Exception {
         try{
             if (toCreate == null || toCreate.isEmpty()) return;
             ProductVariantRequest productVariantRequest = new ProductVariantRequest();
-            productVariantRequest.setRequestInfo(this.requestInfo);
+            productVariantRequest.setRequestInfo(requestInfo);
             productVariantRequest.setProductVariant(toCreate);
             productVariantRequest.setApiOperation(ApiOperation.CREATE);
             apiIntegrationService.sendRequestToAPI(productVariantRequest, createUrl);
@@ -95,11 +91,11 @@ public class InventoryItemToProductVariant {
     }
 
     // Adapter: update list of ProductVariant using provided updateUrl
-    public void updateProductVariants(List<ProductVariant> toUpdate, String updateUrl) throws Exception {
+    private void updateProductVariants(List<ProductVariant> toUpdate, String updateUrl, RequestInfo requestInfo) throws Exception {
         try{
             if (toUpdate == null || toUpdate.isEmpty()) return;
             ProductVariantRequest productVariantRequest = new ProductVariantRequest();
-            productVariantRequest.setRequestInfo(this.requestInfo);
+            productVariantRequest.setRequestInfo(requestInfo);
             productVariantRequest.setProductVariant(toUpdate);
             productVariantRequest.setApiOperation(ApiOperation.UPDATE);
             apiIntegrationService.sendRequestToAPI(productVariantRequest, updateUrl);

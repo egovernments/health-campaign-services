@@ -30,8 +30,6 @@ public class LocationToFacilityService {
     @Value("${facility.update.url}")
     private String facilityUpdateUrl;
 
-    private RequestInfo requestInfo;
-
     /**
      * Transforms and persists Facility records derived from Locations.
      * @param facilityMap map of Facility ID to Facility data;
@@ -40,13 +38,10 @@ public class LocationToFacilityService {
      * @throws Exception if transformation or API invocation fails
      */
     public HashMap<String, Integer> transformLocationToFacility(HashMap<String, Facility> facilityMap, RequestInfo requestInfo) throws Exception {
-
-        this.requestInfo = requestInfo;
-
         return genericCreateOrUpdateService.process(facilityMap,
-                this::fetchExistingFacilityIds,
-                this::createFacilities,
-                this::updateFacilities,
+                (idList) -> fetchExistingFacilityIds(idList, requestInfo),
+                (toCreate, createUrl) -> createFacilities(toCreate, createUrl, requestInfo),
+                (toUpdate, updateUrl) -> updateFacilities(toUpdate, updateUrl, requestInfo),
                 facilityCreateUrl,
                 facilityUpdateUrl,
                 requestInfo,
@@ -54,7 +49,7 @@ public class LocationToFacilityService {
     }
 
     // Adapter: fetch existing facility ids
-    public List<String> fetchExistingFacilityIds(List<String> idList) throws Exception {
+    private List<String> fetchExistingFacilityIds(List<String> idList, RequestInfo requestInfo) throws Exception {
         try{
             URLParams urlParams = apiIntegrationService.formURLParams(idList);
 
@@ -62,7 +57,7 @@ public class LocationToFacilityService {
             facilitySearch.setId(idList);
 
             FacilitySearchRequest facilitySearchRequest = new FacilitySearchRequest();
-            facilitySearchRequest.setRequestInfo(this.requestInfo);
+            facilitySearchRequest.setRequestInfo(requestInfo);
             facilitySearchRequest.setFacility(facilitySearch);
 
             FacilityBulkResponse facilityBulkResponse = apiIntegrationService.fetchAllFacilities(urlParams, facilitySearchRequest);
@@ -81,11 +76,11 @@ public class LocationToFacilityService {
     }
 
     // Adapter: create facilities
-    public void createFacilities(List<Facility> toCreate, String createUrl) throws Exception {
+    private void createFacilities(List<Facility> toCreate, String createUrl, RequestInfo requestInfo) throws Exception {
         try{
             if (toCreate == null || toCreate.isEmpty()) return;
             FacilityBulkRequest facilityBulkRequest = new FacilityBulkRequest();
-            facilityBulkRequest.setRequestInfo(this.requestInfo);
+            facilityBulkRequest.setRequestInfo(requestInfo);
             facilityBulkRequest.setFacilities(toCreate);
             apiIntegrationService.sendRequestToAPI(facilityBulkRequest, createUrl);
         } catch (Exception e) {
@@ -94,11 +89,11 @@ public class LocationToFacilityService {
     }
 
     // Adapter: update facilities
-    public void updateFacilities(List<Facility> toUpdate, String updateUrl) throws Exception {
+    private void updateFacilities(List<Facility> toUpdate, String updateUrl, RequestInfo requestInfo) throws Exception {
         try{
             if (toUpdate == null || toUpdate.isEmpty()) return;
             FacilityBulkRequest facilityBulkRequest = new FacilityBulkRequest();
-            facilityBulkRequest.setRequestInfo(this.requestInfo);
+            facilityBulkRequest.setRequestInfo(requestInfo);
             facilityBulkRequest.setFacilities(toUpdate);
             apiIntegrationService.sendRequestToAPI(facilityBulkRequest, updateUrl);
         } catch (Exception e) {

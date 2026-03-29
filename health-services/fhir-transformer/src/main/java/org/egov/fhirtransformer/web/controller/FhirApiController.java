@@ -20,11 +20,11 @@ import org.egov.fhirtransformer.repository.KafkaProducerService;
 import org.egov.fhirtransformer.utils.FhirRequestBuilder;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
 import digit.web.models.BoundaryRelationshipSearchCriteria;
-import java.util.HashMap;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -203,7 +203,7 @@ public class FhirApiController {
     public ResponseEntity<String> consumeFHIR(@RequestHeader(value = "Authorization", required = false) String authToken,
                                               @RequestBody FhirRequestBuilder fhirRequestBuilder) throws Exception {
 
-        HashMap<String, HashMap<String, Integer>> response = new HashMap<>();
+        FhirParseNLoadService.EntityProcessingResponse response;
         try {
             RequestInfo requestInfo = fhirRequestBuilder.getRequestInfo();
             String fhirJson = new ObjectMapper().writeValueAsString(fhirRequestBuilder.getFhir());
@@ -229,7 +229,16 @@ public class FhirApiController {
 
             // If valid → parse and load FHIR resource
             response = fpService.parseAndLoadFHIRResource(fhirJson, requestInfo);
-            return ResponseEntity.ok(response.toString());
+
+            String responseBody = new ObjectMapper().writeValueAsString(response);
+            if ("PARTIAL_SUCCESS".equalsIgnoreCase(response.getStatus())) {
+                return ResponseEntity.status(HttpStatus.MULTI_STATUS).body(responseBody);
+            }
+            if ("FAILED".equalsIgnoreCase(response.getStatus())) {
+                return ResponseEntity.badRequest().body(responseBody);
+            }
+
+            return ResponseEntity.ok(responseBody);
         } catch (JsonProcessingException e) {
             logger.error("Failed to parse FHIR JSON :", e);
             return ResponseEntity.badRequest().body("Invalid FHIR resource");

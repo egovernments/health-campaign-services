@@ -30,8 +30,6 @@ public class SupplyDeliveryToStockService {
     @Value("${stock.update.url}")
     private String stockUpdateUrl;
 
-    private RequestInfo requestInfo;
-
     /**
      * Transforms and persists Stock records derived from SupplyDelivery resources.
      * @param supplyDeliveryMap map of Stock ID to Stock data;
@@ -40,13 +38,10 @@ public class SupplyDeliveryToStockService {
      * @throws Exception if transformation or API invocation fails
      */
     public HashMap<String, Integer> transformSupplyDeliveryToStock(HashMap<String, Stock> supplyDeliveryMap, RequestInfo requestInfo) throws Exception {
-
-        this.requestInfo = requestInfo;
-
         return genericCreateOrUpdateService.process(supplyDeliveryMap,
-                this::fetchExistingStockIds,
-                this::createStocks,
-                this::updateStocks,
+                (stockIds) -> fetchExistingStockIds(stockIds, requestInfo),
+                (toCreate, createUrl) -> createStocks(toCreate, createUrl, requestInfo),
+                (toUpdate, updateUrl) -> updateStocks(toUpdate, updateUrl, requestInfo),
                 stockCreateUrl,
                 stockUpdateUrl,
                 requestInfo,
@@ -54,7 +49,7 @@ public class SupplyDeliveryToStockService {
     }
 
     // Adapter: fetch existing stock ids
-    public List<String> fetchExistingStockIds(List<String> stockIds) throws Exception {
+    private List<String> fetchExistingStockIds(List<String> stockIds, RequestInfo requestInfo) throws Exception {
         try{
             URLParams urlParams = apiIntegrationService.formURLParams(stockIds);
 
@@ -62,7 +57,7 @@ public class SupplyDeliveryToStockService {
             stockSearch.setId(stockIds);
 
             StockSearchRequest stockSearchRequest = new StockSearchRequest();
-            stockSearchRequest.setRequestInfo(this.requestInfo);
+            stockSearchRequest.setRequestInfo(requestInfo);
             stockSearchRequest.setStock(stockSearch);
 
             StockBulkResponse stockBulkResponse = apiIntegrationService.fetchAllStocks(urlParams, stockSearchRequest);
@@ -81,11 +76,11 @@ public class SupplyDeliveryToStockService {
     }
 
     // Adapter: create stocks
-    public void createStocks(List<Stock> toCreate, String createUrl) throws Exception {
+    private void createStocks(List<Stock> toCreate, String createUrl, RequestInfo requestInfo) throws Exception {
         try{
             if (toCreate == null || toCreate.isEmpty()) return;
             StockBulkRequest stockBulkRequest = new StockBulkRequest();
-            stockBulkRequest.setRequestInfo(this.requestInfo);
+            stockBulkRequest.setRequestInfo(requestInfo);
             stockBulkRequest.setStock(toCreate);
             apiIntegrationService.sendRequestToAPI(stockBulkRequest, createUrl);
         } catch (Exception e) {
@@ -94,11 +89,11 @@ public class SupplyDeliveryToStockService {
     }
 
     // Adapter: update stocks
-    public void updateStocks(List<Stock> toUpdate, String updateUrl) throws Exception {
+    private void updateStocks(List<Stock> toUpdate, String updateUrl, RequestInfo requestInfo) throws Exception {
         try{
             if (toUpdate == null || toUpdate.isEmpty()) return;
             StockBulkRequest stockBulkRequest = new StockBulkRequest();
-            stockBulkRequest.setRequestInfo(this.requestInfo);
+            stockBulkRequest.setRequestInfo(requestInfo);
             stockBulkRequest.setStock(toUpdate);
             apiIntegrationService.sendRequestToAPI(stockBulkRequest, updateUrl);
         } catch (Exception e) {
