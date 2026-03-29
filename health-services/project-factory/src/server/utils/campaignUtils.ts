@@ -1537,7 +1537,7 @@ async function searchProjectCampaignResourcData(campaignDetails: any, request?: 
       ? resourcesMap.get(data.id)!
       : (data?.campaignDetails?.resources || []);
     data.resources = rawResources
-      .filter((r: any) => r?.type !== 'attendanceRegisterAttendee')
+      .filter((r: any) => r?.type === 'unified-console-resources')
       .map((r: any) => ({
         ...r,
         status: r?.status ?? 'completed',
