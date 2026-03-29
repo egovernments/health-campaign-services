@@ -110,7 +110,7 @@ public class WorkerService {
         }
 
         CommonUtils.handleErrors(errorDetailsMap, false, WorkerRegistryConstants.VALIDATION_ERROR);
-        return encryptedWorkers;
+        return workerEncryptionService.decrypt(encryptedWorkers, WorkerRegistryConstants.DECRYPT_WORKER, request.getRequestInfo());
     }
 
     public List<Worker> update(WorkerBulkRequest request) {
@@ -152,7 +152,7 @@ public class WorkerService {
         workerRepository.update(encryptedWorkers, tenantId);
 
         CommonUtils.handleErrors(errorDetailsMap, false, WorkerRegistryConstants.VALIDATION_ERROR);
-        return encryptedWorkers;
+        return workerEncryptionService.decrypt(encryptedWorkers, WorkerRegistryConstants.DECRYPT_WORKER, request.getRequestInfo());
     }
 
     public List<WorkerIndividualMap> mapIndividual(WorkerIndividualMapBulkRequest request) {
