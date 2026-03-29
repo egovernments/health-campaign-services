@@ -93,8 +93,7 @@ export class TemplateClass {
 
     private static async getCampaignDetails(resourceDetails: any): Promise<any> {
         if (!resourceDetails?.campaignId && !resourceDetails?.campaignNumber) {
-            throwError("CAMPAIGN", 400, "MISSING_CAMPAIGN_IDENTIFIER",
-                "Either campaignId or campaignNumber must be present in resourceDetails");
+            throw new Error("Either campaignId or campaignNumber must be present in resourceDetails");
         }
         const searchCriteria: any = { tenantId: resourceDetails.tenantId };
         if (resourceDetails?.campaignId) {
@@ -104,7 +103,7 @@ export class TemplateClass {
         }
         const response = await searchProjectTypeCampaignService(searchCriteria);
         const campaign = response?.CampaignDetails?.[0];
-        if (!campaign) throwError("CAMPAIGN", 400, "CAMPAIGN_NOT_FOUND", "Campaign not found");
+        if (!campaign) throw new Error("Campaign not found");
         return campaign;
     }
 }
