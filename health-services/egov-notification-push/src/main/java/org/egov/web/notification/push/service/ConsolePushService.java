@@ -17,7 +17,7 @@ public class ConsolePushService implements PushNotificationService {
         log.info("Title: {}", request.getTitle());
         log.info("Body: {}", request.getBody());
         log.info("TenantId: {}", request.getTenantId());
-        log.info("FacilityId: {}", request.getFacilityId()); // HRUTHVIK: Log facilityId
+        log.info("FacilityId: {}", request.getFacilityId()); // Log facilityId
         log.info("Data: {}", request.getData());
         log.info("Device tokens ({}): {}",
                 request.getDeviceTokens() != null ? request.getDeviceTokens().size() : 0,

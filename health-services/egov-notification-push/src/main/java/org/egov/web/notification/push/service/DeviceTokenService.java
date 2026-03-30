@@ -42,10 +42,6 @@ public class DeviceTokenService {
 			if (StringUtils.isEmpty(token.getDeviceToken())) {
 				throw new CustomException(ErrorConstants.MISSING_DEVICE_TOKEN_CODE, ErrorConstants.MISSING_DEVICE_TOKEN_MSG);
 			}
-			if (StringUtils.isEmpty(token.getDeviceType())
-					|| !isValidDeviceType(token.getDeviceType())) {
-				throw new CustomException(ErrorConstants.INVALID_DEVICE_TYPE_CODE, ErrorConstants.INVALID_DEVICE_TYPE_MSG);
-			}
 
 			if (StringUtils.isEmpty(token.getUserId())) {
 				token.setUserId(userUuid);
@@ -126,6 +122,10 @@ public class DeviceTokenService {
 
 	public List<DeviceToken> getActiveTokensForUsers(List<String> userIds, String tenantId) {
 		return repository.fetchTokensByUserIds(userIds, tenantId);
+	}
+
+	public List<DeviceToken> getLatestTokenForUsers(List<String> userIds, String tenantId) {
+		return repository.fetchLatestTokenByUserIds(userIds, tenantId);
 	}
 
 	public List<DeviceToken> getTokensByFacilityId(String facilityId, String tenantId) {

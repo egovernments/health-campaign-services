@@ -43,6 +43,21 @@ public class DeviceTokenRepository {
 		}
 	}
 
+	public List<DeviceToken> fetchLatestTokenByUserIds(List<String> userIds, String tenantId) {
+		if (userIds == null || userIds.isEmpty()) {
+			return Collections.emptyList();
+		}
+		String schema = getSchemaFromTenantId(tenantId);
+		Map<String, Object> params = Collections.singletonMap("userIds", userIds);
+		try {
+			return namedParameterJdbcTemplate.query(
+					DeviceTokenQueryBuilder.fetchLatestTokenByUserIds(schema), params, rowMapper);
+		} catch (Exception e) {
+			log.error("Error while fetching latest device tokens: ", e);
+			return Collections.emptyList();
+		}
+	}
+
 	public List<DeviceToken> fetchTokensByFacilityId(String facilityId, String tenantId) {
 		if (facilityId == null || facilityId.isEmpty()) {
 			return Collections.emptyList();
@@ -64,10 +79,10 @@ public class DeviceTokenRepository {
 	 * Non-central: tenantId is the schema (e.g., "ba" → schema "ba")
 	 */
 	private String getSchemaFromTenantId(String tenantId) {
-		if (tenantId == null || tenantId.isEmpty()) {
-			throw new CustomException("MISSING_TENANT_ID", "TenantId is required for schema resolution");
-		}
 		if (properties.getIsCentralInstance()) {
+			if (tenantId == null || tenantId.isEmpty()) {
+				throw new CustomException("MISSING_TENANT_ID", "TenantId is required for schema resolution");
+			}
 			if (tenantId.contains(".")) {
 				String[] parts = tenantId.split("\\.");
 				int position = properties.getSchemaIndexPosition();
@@ -76,11 +91,10 @@ public class DeviceTokenRepository {
 				}
 				throw new CustomException("INVALID_TENANT_ID", "Cannot derive schema from tenantId: " + tenantId);
 			}
-			// tenantId is the state code itself (e.g., "ba")
 			return tenantId;
 		}
-		// Non-central: tenantId itself is the schema name
-		return tenantId;
+		// Non-central: use default (public) schema
+		return null;
 	}
 
 }
