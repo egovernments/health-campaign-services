@@ -12,7 +12,7 @@ import { transformConfigs } from "../config/transformConfigs";
 import { httpRequest } from "../utils/request";
 import { decrypt, encrypt } from "../utils/cryptUtils";
 import { validateResourceDetailsBeforeProcess } from "../utils/sheetManageUtils";
-import { WorkerData, createOrUpdateWorkers } from "../utils/workerRegistryUtils";
+import { WorkerData, WorkerRegistryRecord, createOrUpdateWorkers, searchWorkersByIds } from "../utils/workerRegistryUtils";
 import type { CampaignRecord } from "../utils/userBatchHandler";
 
 // This will be a dynamic template class for different types
@@ -47,6 +47,8 @@ export class TemplateClass {
         await new Promise((res) => setTimeout(res, waitTime));
 
         await this.createUserFromTableData(resourceDetails);
+
+        await this.updateWorkerRegistryForCompletedUsers(userSheetData, existingUsersForCampaign, resourceDetails);
 
         // Read all rows then filter to completed + failed only.
         // Pending users have no encrypted UserName/Password yet — decrypting undefined would throw.
@@ -276,6 +278,115 @@ export class TemplateClass {
             await produceModifiedMessages({ datas: batch }, config.kafka.KAFKA_UPDATE_SHEET_DATA_TOPIC, tenantId);
         }
         logger.info(`Done processing inactive rows for user sheet...`);
+    }
+
+    private static async updateWorkerRegistryForCompletedUsers(
+        userSheetData: any[],
+        existingUsersForCampaign: any[],
+        resourceDetails: any
+    ): Promise<void> {
+        const WORKER_BATCH_SIZE = 100;
+        const workerFieldKeys = [
+            "HCM_ADMIN_CONSOLE_USER_PAYEE_PHONE_NUMBER",
+            "HCM_ADMIN_CONSOLE_USER_PAYMENT_PROVIDER",
+            "HCM_ADMIN_CONSOLE_USER_PAYEE_NAME",
+            "HCM_ADMIN_CONSOLE_USER_BANK_ACCOUNT",
+            "HCM_ADMIN_CONSOLE_USER_BANK_CODE",
+        ];
+
+        // Build map: phone → completed existing campaign record.
+        // Use rawPhone != null guard so String(undefined) = "undefined" is never inserted as a key.
+        const completedByPhone = new Map<string, any>();
+        for (const user of existingUsersForCampaign) {
+            if (user?.status === dataRowStatuses.completed) {
+                const rawPhone = user?.data?.["HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER"];
+                const phone = rawPhone != null ? String(rawPhone) : "";
+                if (phone) completedByPhone.set(phone, user);
+            }
+        }
+
+        // Find sheet rows that are completed, have a stored workerId, and carry at least one worker field.
+        // Same null-safe phone conversion to avoid "undefined" string matching.
+        // Use a plain Record instead of Map to avoid Map-iterator issues with ES5 target.
+        const workerIdToSheetEntry: Record<string, { row: any; existingUser: any }> = {};
+        for (const row of userSheetData) {
+            const rawPhone = row?.["HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER"];
+            const phone = rawPhone != null ? String(rawPhone) : "";
+            if (!phone) continue;
+
+            const existingUser = completedByPhone.get(phone);
+            if (!existingUser) continue;
+
+            const workerId = existingUser?.data?.["HCM_ADMIN_CONSOLE_USER_WORKER_ID"];
+            if (!workerId) continue;
+
+            const hasWorkerFields = workerFieldKeys.some(key => !!row?.[key]);
+            if (!hasWorkerFields) continue;
+
+            workerIdToSheetEntry[workerId] = { row, existingUser };
+        }
+
+        const allWorkerIds = Object.keys(workerIdToSheetEntry);
+        if (!allWorkerIds.length) return;
+
+        const tenantId = resourceDetails?.tenantId;
+        const workerRequestInfo = withUserInfo(resourceDetails?.requestInfo, { tenantId });
+
+        // Fetch current worker-registry records in batches to get individualIds.
+        // Batching avoids sending thousands of IDs in a single API call (timeout / 400).
+        const workerByIdMap = new Map<string, WorkerRegistryRecord>();
+        for (let i = 0; i < allWorkerIds.length; i += WORKER_BATCH_SIZE) {
+            const idBatch = allWorkerIds.slice(i, i + WORKER_BATCH_SIZE);
+            try {
+                const batchResult = await searchWorkersByIds(idBatch, tenantId, workerRequestInfo);
+                for (const worker of batchResult) {
+                    if (worker.id) workerByIdMap.set(worker.id, worker);
+                }
+            } catch (error: unknown) {
+                logger.error(`Failed to fetch worker registry batch [${i}–${i + idBatch.length}] for completed users update — skipping this batch:`, error);
+                continue;
+            }
+        }
+
+        // Build WorkerData list directly from already-fetched registry records (avoids double search
+        // inside createOrUpdateWorkers by supplying id so it goes through the workersByIdList path,
+        // which still re-searches internally — acceptable single extra call per batch).
+        const workerDataList: WorkerData[] = [];
+        for (const workerId of allWorkerIds) {
+            const { row, existingUser } = workerIdToSheetEntry[workerId];
+            const existingWorker = workerByIdMap.get(workerId);
+            if (!existingWorker) continue;
+
+            const individualId = existingWorker.individualIds?.[0];
+            if (!individualId) continue;
+
+            workerDataList.push({
+                name: row?.["HCM_ADMIN_CONSOLE_USER_NAME"] || existingUser?.data?.["HCM_ADMIN_CONSOLE_USER_NAME"] || "",
+                payeePhoneNumber: row?.["HCM_ADMIN_CONSOLE_USER_PAYEE_PHONE_NUMBER"] || "",
+                paymentProvider: row?.["HCM_ADMIN_CONSOLE_USER_PAYMENT_PROVIDER"] || "",
+                payeeName: row?.["HCM_ADMIN_CONSOLE_USER_PAYEE_NAME"] || "",
+                bankAccount: row?.["HCM_ADMIN_CONSOLE_USER_BANK_ACCOUNT"] || "",
+                bankCode: row?.["HCM_ADMIN_CONSOLE_USER_BANK_CODE"] || "",
+                id: workerId,
+                individualId,
+                tenantId,
+            });
+        }
+
+        if (!workerDataList.length) return;
+
+        // Call createOrUpdateWorkers in batches to stay within API size limits.
+        for (let i = 0; i < workerDataList.length; i += WORKER_BATCH_SIZE) {
+            const batch = workerDataList.slice(i, i + WORKER_BATCH_SIZE);
+            try {
+                await createOrUpdateWorkers(batch, workerRequestInfo);
+                logger.info(`Updated worker registry for completed users batch [${i}–${i + batch.length}]`);
+            } catch (error: unknown) {
+                const errMsg = error instanceof Error ? error.message : String(error);
+                logger.error(`Failed to update worker registry for completed users batch [${i}–${i + batch.length}]: ${errMsg}`);
+                // Best-effort: one batch failure does not abort remaining batches or the overall upload
+            }
+        }
     }
 
     private static async getCampaignDetails(resourceDetails: any): Promise<any> {
