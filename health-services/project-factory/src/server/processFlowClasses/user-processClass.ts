@@ -48,15 +48,24 @@ export class TemplateClass {
 
         await this.createUserFromTableData(resourceDetails);
 
-        const allCurrentUsers = await getRelatedDataWithCampaign(resourceDetails?.type, campaign.campaignNumber, resourceDetails?.tenantId, dataRowStatuses.completed);
-        const allData = allCurrentUsers ? await Promise.all(allCurrentUsers.map(async (u: any, idx: number) => {
-            logger.info(`Decrypting item number ${idx + 1}`);
+        // Read all rows then filter to completed + failed only.
+        // Pending users have no encrypted UserName/Password yet — decrypting undefined would throw.
+        const allCurrentUsers = await getRelatedDataWithCampaign(resourceDetails?.type, campaign.campaignNumber, resourceDetails?.tenantId);
+        const processedUsers = (allCurrentUsers || []).filter(
+            (u: any) => u?.status === dataRowStatuses.completed || u?.status === dataRowStatuses.failed
+        );
+        const allData = await Promise.all(processedUsers.map(async (u: any, idx: number) => {
+            logger.info(`Processing item number ${idx + 1} with status ${u?.status}`);
             const data: any = u?.data;
+            if (u?.status === dataRowStatuses.failed) {
+                data["#status#"] = sheetDataRowStatuses.INVALID;
+                return data;
+            }
             data["#status#"] = sheetDataRowStatuses.CREATED;
             data["UserName"] = decrypt(u?.data?.["UserName"]);
             data["Password"] = decrypt(u?.data?.["Password"]);
             return data;
-        })) : [];
+        }));
         const sheetMap : SheetMap = {};
         sheetMap["HCM_ADMIN_CONSOLE_USER_LIST"] = {
             data : allData,
@@ -429,24 +438,18 @@ export class TemplateClass {
 
                     try {
                         const workerRequestInfo = withUserInfo(resourceDetails?.requestInfo, { tenantId });
-                        const { individualIdToWorkerIdMap, individualIdToWorkerMap, errors } = await createOrUpdateWorkers(workerDataList, workerRequestInfo);
+                        const { individualIdToWorkerIdMap, errors } = await createOrUpdateWorkers(workerDataList, workerRequestInfo);
                         logger.info(`Worker registry integration completed for ${workerDataList.length} workers`);
 
-                        // Store worker IDs and full worker details back in campaign data for successfully processed workers
+                        // Store only worker IDs back in campaign data — payee fields are fetched fresh
+                        // from worker registry at credential sheet generation time to avoid storing
+                        // potentially encrypted values that would corrupt subsequent updates.
                         for (const workerData of workerDataList) {
                             const workerId = individualIdToWorkerIdMap.get(workerData.individualId);
-                            const worker = individualIdToWorkerMap.get(workerData.individualId);
                             if (workerId) {
                                 const records = individualIdToRecords.get(workerData.individualId) || [];
                                 for (const record of records) {
                                     record.data["HCM_ADMIN_CONSOLE_USER_WORKER_ID"] = workerId;
-                                    if (worker) {
-                                        if (worker.payeeName) record.data["HCM_ADMIN_CONSOLE_USER_PAYEE_NAME"] = worker.payeeName;
-                                        if (worker.bankAccount) record.data["HCM_ADMIN_CONSOLE_USER_BANK_ACCOUNT"] = worker.bankAccount;
-                                        if (worker.bankCode) record.data["HCM_ADMIN_CONSOLE_USER_BANK_CODE"] = worker.bankCode;
-                                        if (worker.paymentProvider) record.data["HCM_ADMIN_CONSOLE_USER_PAYMENT_PROVIDER"] = worker.paymentProvider;
-                                        if (worker.payeePhoneNumber) record.data["HCM_ADMIN_CONSOLE_USER_PAYEE_PHONE_NUMBER"] = worker.payeePhoneNumber;
-                                    }
                                 }
                             }
                         }
@@ -488,9 +491,10 @@ export class TemplateClass {
 
                 await this.persistInBatches(successfulUsers, config.kafka.KAFKA_UPDATE_SHEET_DATA_TOPIC, resourceDetails.tenantId);
             } catch (err) {
+                const errMsg = err instanceof Error ? err.message : String(err);
                 console.error("Error in batch creation:", err);
-                await this.handleBatchFailure(batch, usersToCreate, resourceDetails.tenantId);
-                throw new Error(`Error in user batch creation: ${err}`);
+                await this.handleBatchFailure(batch, usersToCreate, resourceDetails.tenantId, errMsg);
+                throw new Error(`Error in user batch creation: ${errMsg}`);
             }
         }
         const waitTime = Math.max(5000, transformedUsers.length * 8);
@@ -508,11 +512,15 @@ export class TemplateClass {
     }
 
 
-    private static async handleBatchFailure(batch: any[], usersToCreate: any[], tenantId: string) {
+    private static async handleBatchFailure(batch: any[], usersToCreate: any[], tenantId: string, errMsg?: string) {
         const phoneKey = "HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER";
         const batchMobileSet = new Set(batch.map((u: any) => String(u?.user?.mobileNumber)));
         const failedUsers = usersToCreate.filter((u: any) => batchMobileSet.has(String(u?.data?.[phoneKey])));
-        failedUsers.forEach(u => u.status = dataRowStatuses.failed);
+        failedUsers.forEach(u => {
+            u.status = dataRowStatuses.failed;
+            u.data["#status#"] = sheetDataRowStatuses.INVALID;
+            if (errMsg) u.data["#errorDetails#"] = errMsg;
+        });
         logger.warn(`${failedUsers.length} users failed in batch`);
         await this.persistInBatches(failedUsers, config.kafka.KAFKA_UPDATE_SHEET_DATA_TOPIC, tenantId);
     }

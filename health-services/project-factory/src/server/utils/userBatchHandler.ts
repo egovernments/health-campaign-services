@@ -166,24 +166,18 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
 
             try {
                 const workerRequestInfo = withUserInfo(messageObject.requestInfo, { tenantId });
-                const { individualIdToWorkerIdMap, individualIdToWorkerMap, errors } = await createOrUpdateWorkers(workerDataList, workerRequestInfo);
+                const { individualIdToWorkerIdMap, errors } = await createOrUpdateWorkers(workerDataList, workerRequestInfo);
                 logger.info(`Worker registry integration completed for ${workerDataList.length} workers`);
 
-                // Store worker IDs and full worker details back in campaign data for successfully processed workers
+                // Store only worker IDs back in campaign data — payee fields are fetched fresh
+                // from worker registry at credential sheet generation time to avoid storing
+                // potentially encrypted values that would corrupt subsequent updates.
                 for (const workerData of workerDataList) {
                     const workerId = individualIdToWorkerIdMap.get(workerData.individualId);
-                    const worker = individualIdToWorkerMap.get(workerData.individualId);
                     if (workerId) {
                         const records = individualIdToRecords.get(workerData.individualId) || [];
                         for (const record of records) {
                             record.data["HCM_ADMIN_CONSOLE_USER_WORKER_ID"] = workerId;
-                            if (worker) {
-                                if (worker.payeeName) record.data["HCM_ADMIN_CONSOLE_USER_PAYEE_NAME"] = worker.payeeName;
-                                if (worker.bankAccount) record.data["HCM_ADMIN_CONSOLE_USER_BANK_ACCOUNT"] = worker.bankAccount;
-                                if (worker.bankCode) record.data["HCM_ADMIN_CONSOLE_USER_BANK_CODE"] = worker.bankCode;
-                                if (worker.paymentProvider) record.data["HCM_ADMIN_CONSOLE_USER_PAYMENT_PROVIDER"] = worker.paymentProvider;
-                                if (worker.payeePhoneNumber) record.data["HCM_ADMIN_CONSOLE_USER_PAYEE_PHONE_NUMBER"] = worker.payeePhoneNumber;
-                            }
                         }
                     }
                 }
@@ -248,9 +242,29 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
         
     } catch (error) {
         logger.error('Error in handleUserBatch:', error);
-        
-        // Send campaign failure message due to batch processing error
-        const batchError = new Error(`User batch processing error: ${error instanceof Error ? error.message : String(error)}`);
+        const errMsg = error instanceof Error ? error.message : String(error);
+
+        // Mark all non-completed rows in this batch as failed so the sheet reflects the error
+        const allRecords = Object.values(messageObject.userData);
+        const nonCompletedRecords = allRecords.filter(r => r.status !== dataRowStatuses.completed);
+        if (nonCompletedRecords.length > 0) {
+            for (const record of nonCompletedRecords) {
+                record.status = dataRowStatuses.failed;
+                record.data["#status#"] = sheetDataRowStatuses.INVALID;
+                record.data["#errorDetails#"] = errMsg;
+            }
+            try {
+                await produceModifiedMessages(
+                    { datas: nonCompletedRecords },
+                    config.kafka.KAFKA_UPDATE_SHEET_DATA_TOPIC,
+                    messageObject.tenantId
+                );
+            } catch (persistError) {
+                logger.error("Failed to persist failed row statuses after batch error:", persistError);
+            }
+        }
+
+        const batchError = new Error(`User batch processing error: ${errMsg}`);
         await sendCampaignFailureMessage(
             messageObject.campaignId,
             messageObject.tenantId,
