@@ -34,7 +34,6 @@ export class TemplateClass {
         logger.info(`ResourceDetails: ${JSON.stringify(resourceDetails)}`);
 
         const campaign = await this.getCampaignDetails(resourceDetails);
-        const campaignId = campaign?.id;
         const campaignNumber = campaign?.campaignNumber;
         const campaignName = campaign?.campaignName;
         const tenantId = resourceDetails?.tenantId;
@@ -87,7 +86,7 @@ export class TemplateClass {
 
         // Idempotent batch creation - check for existing, create new only; classifies by campaign ownership
         const { existingServiceCodes, conflictingServiceCodes, boundaryChangedServiceCodes, serviceCodeToUuidMap } =
-            await this.idempotentBatchCreate(validPayloads, campaignId, tenantId, requestInfo);
+            await this.idempotentBatchCreate(validPayloads, campaignNumber, tenantId, requestInfo);
 
         // Build processed data with per-row status and error details (same as before, used for persistence)
         const processedData = sheetData.map((row: any, index: number) => {
@@ -408,7 +407,7 @@ export class TemplateClass {
                     tenantId: tenantId,
                     name: `${campaignName} ${boundaryName}`,
                     referenceId: projectInfo.projectId,
-                    campaignId: resourceDetails?.campaignId,
+                    campaignNumber: campaignNumber,
                     serviceCode: registerId,
                     startDate: projectInfo.startDate,
                     endDate: projectInfo.endDate,
@@ -434,7 +433,7 @@ export class TemplateClass {
      */
     private static async idempotentBatchCreate(
         payloads: any[],
-        campaignId: string,
+        campaignNumber: string,
         tenantId: string,
         requestInfo?: RequestInfo
     ): Promise<{
@@ -484,7 +483,7 @@ export class TemplateClass {
             const boundaryChangedServiceCodes = new Map<string, string>();     // serviceCode -> original boundary code
 
             for (const r of existingRegisters) {
-                if (r.campaignId !== campaignId) {
+                if (r.campaignNumber !== campaignNumber) {
                     conflictingServiceCodes.add(r.serviceCode);
                 } else {
                     const incomingLocality = incomingLocalityByServiceCode.get(r.serviceCode);
@@ -567,7 +566,7 @@ export class TemplateClass {
             localityCode: payload.localityCode,
             reviewStatus: payload.reviewStatus !== undefined ? payload.reviewStatus : existingRegister.reviewStatus,
             periodStatuses: payload.periodStatuses !== undefined ? payload.periodStatuses : existingRegister.periodStatuses,
-            campaignId: payload.campaignId,
+            campaignNumber: payload.campaignNumber,
         };
     }
 
