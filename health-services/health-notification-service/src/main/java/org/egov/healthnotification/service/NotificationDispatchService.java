@@ -21,6 +21,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 
@@ -163,22 +164,6 @@ public class NotificationDispatchService {
     }
 
     /**
-     * Pushes an SMSRequest to the egov.core.notification.sms Kafka topic.
-     * Format: { "mobileNumber": "...", "message": "..." }
-     */
-    private void pushToSmsTopic(String mobileNumber, String message) {
-        Map<String, Object> smsRequest = new HashMap<>();
-        smsRequest.put("mobileNumber", mobileNumber);
-        smsRequest.put("message", message);
-
-        // TODO: Once partner SMS integration is ready, remove this log and rely on egov-notification-sms
-        log.info("Pushing SMSRequest to topic: {}",
-                properties.getSmsNotificationTopic());
-
-        producer.push(properties.getSmsNotificationTopic(), smsRequest);
-    }
-
-    /**
      * Pushes an SMSRequest to the save-final-sms-message Kafka topic (internal topic).
      * This message will be consumed by the same health-notification-service for further processing.
      * Format: { "notificationId": "...", "tenantId": "...", "mobileNumber": "...", "message": "..." }
@@ -196,6 +181,29 @@ public class NotificationDispatchService {
                 notification.getTenantId());
 
         producer.push(properties.getSaveFinalSmsMessageTopic(), smsRequest);
+    }
+
+    /**
+     * Marks a batch of notifications as IN_PROGRESS before dispatching.
+     * Prevents the scheduler from re-picking the same notifications on the next run.
+     */
+    public void markBatchInProgress(List<ScheduledNotification> batch) {
+        for (ScheduledNotification notification : batch) {
+            notification.setStatus(NotificationStatus.IN_PROGRESS);
+        }
+        enrichmentService.enrichForUpdate(batch, null);
+
+        if (multiStateInstanceUtil.getIsEnvironmentCentralInstance()) {
+            // Group by tenantId for central instance
+            Map<String, List<ScheduledNotification>> byTenant = batch.stream()
+                    .collect(Collectors.groupingBy(ScheduledNotification::getTenantId));
+            byTenant.forEach((tenantId, notifications) ->
+                    producer.push(tenantId, properties.getScheduledNotificationUpdateTopic(), notifications));
+        } else {
+            producer.push(properties.getScheduledNotificationUpdateTopic(), batch);
+        }
+
+        log.info("Marked {} notifications as IN_PROGRESS", batch.size());
     }
 
     /**
