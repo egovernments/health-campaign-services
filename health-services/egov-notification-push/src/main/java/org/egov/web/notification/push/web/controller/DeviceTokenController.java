@@ -9,6 +9,7 @@ import org.egov.web.notification.push.utils.ResponseInfoFactory;
 import org.egov.web.notification.push.web.contract.DeviceToken;
 import org.egov.web.notification.push.web.contract.DeviceTokenRequest;
 import org.egov.web.notification.push.web.contract.DeviceTokenResponse;
+import org.egov.web.notification.push.web.contract.DeviceTokenSearchRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -46,6 +47,17 @@ public class DeviceTokenController {
 		DeviceTokenResponse response = DeviceTokenResponse.builder()
 				.responseInfo(responseInfoFactory.createResponseInfoFromRequestInfo(request.getRequestInfo(), true))
 				.build();
+		return new ResponseEntity<>(response, HttpStatus.OK);
+	}
+
+	@PostMapping("_search")
+	@ResponseBody
+	public ResponseEntity<?> searchDeviceTokens(@RequestBody @Valid DeviceTokenSearchRequest request) {
+		List<DeviceToken> tokens = deviceTokenService.getLatestTokenForUsers(
+				request.getUserIds(), request.getTenantId());
+		DeviceTokenResponse response = DeviceTokenResponse.builder()
+				.responseInfo(responseInfoFactory.createResponseInfoFromRequestInfo(request.getRequestInfo(), true))
+				.deviceTokens(tokens).build();
 		return new ResponseEntity<>(response, HttpStatus.OK);
 	}
 
