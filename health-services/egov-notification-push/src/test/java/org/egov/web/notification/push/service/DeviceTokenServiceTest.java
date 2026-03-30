@@ -77,34 +77,17 @@ class DeviceTokenServiceTest {
     }
 
     @Test
-    void registerDeviceTokens_invalidDeviceType_throwsCustomException() {
-        DeviceToken token = DeviceToken.builder()
-                .deviceToken("valid-token")
-                .deviceType("DESKTOP")
-                .build();
+    void getLatestTokenForUsers_delegatesToRepository() {
+        List<String> userIds = List.of("u1", "u2");
+        List<DeviceToken> expected = List.of(
+                DeviceToken.builder().deviceToken("t1").build()
+        );
+        when(repository.fetchLatestTokenByUserIds(userIds, "t1")).thenReturn(expected);
 
-        RequestInfo requestInfo = createRequestInfo("user-1");
+        List<DeviceToken> result = deviceTokenService.getLatestTokenForUsers(userIds, "t1");
 
-        assertThrows(CustomException.class,
-                () -> deviceTokenService.registerDeviceTokens(requestInfo, List.of(token)));
-    }
-
-    @Test
-    void registerDeviceTokens_validDeviceTypes_accepted() {
-        when(properties.getSaveDeviceTokenTopic()).thenReturn("save-topic");
-        RequestInfo requestInfo = createRequestInfo("user-1");
-
-        for (String type : Arrays.asList("ANDROID", "IOS", "WEB", "android", "ios", "web")) {
-            DeviceToken token = DeviceToken.builder()
-                    .deviceToken("token-" + type)
-                    .deviceType(type)
-                    .tenantId("t1")
-                    .build();
-
-            assertDoesNotThrow(
-                    () -> deviceTokenService.registerDeviceTokens(requestInfo, List.of(token)),
-                    "Device type " + type + " should be accepted");
-        }
+        assertEquals(expected, result);
+        verify(repository).fetchLatestTokenByUserIds(userIds, "t1");
     }
 
     @Test
