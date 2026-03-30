@@ -76,6 +76,12 @@ public class ExcelIngestionConfig {
     @Value("${egov.attendance.register.search.path}")
     private String attendanceRegisterSearchPath;
 
+    @Value("${egov.attendance.register.search.batch.size:100}")
+    private int attendanceRegisterSearchBatchSize;
+
+    @Value("${egov.attendance.register.search.parallel.calls:5}")
+    private int attendanceRegisterSearchParallelCalls;
+
     @Value("${egov.worker.registry.host}")
     private String workerRegistryHost;
 

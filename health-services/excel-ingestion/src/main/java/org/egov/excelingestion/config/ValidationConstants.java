@@ -37,6 +37,10 @@ public class ValidationConstants {
     public static final String LOC_ATTENDANCE_REGISTER_ID_MISMATCH = "HCM_ATTENDANCE_ATTENDEE_REGISTER_ID_MISMATCH";
     public static final String LOC_ATTENDANCE_REGISTER_WRONG_CAMPAIGN = "HCM_ATTENDANCE_ATTENDEE_REGISTER_BELONGS_TO_DIFFERENT_CAMPAIGN";
 
+    // Attendance Register — System-level duplicate validation
+    public static final String LOC_ATTENDANCE_REGISTER_ID_ALREADY_EXISTS = "HCM_ATTENDANCE_REGISTER_VALIDATION_ID_ALREADY_EXISTS";
+    public static final String DEFAULT_ATTENDANCE_REGISTER_ID_ALREADY_EXISTS = "Register ID already exists in the system";
+
     // Attendance Register Attendee — Default Error Messages
     public static final String DEFAULT_ATTENDANCE_INVALID_DATE = "Invalid date format. Use dd-MM-yyyy or dd/MM/yyyy";
     public static final String DEFAULT_ATTENDANCE_DATE_OUT_OF_RANGE = "Date must be between register start and end dates";

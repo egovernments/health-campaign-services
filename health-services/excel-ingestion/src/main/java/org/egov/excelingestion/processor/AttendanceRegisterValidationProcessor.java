@@ -2,8 +2,11 @@ package org.egov.excelingestion.processor;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
+import org.egov.excelingestion.config.ExcelIngestionConfig;
+import org.egov.excelingestion.config.ProcessingConstants;
 import org.egov.excelingestion.config.ValidationConstants;
 import org.egov.excelingestion.config.ErrorConstants;
+import org.egov.excelingestion.repository.ServiceRequestRepository;
 import org.egov.excelingestion.service.ValidationService;
 import org.egov.excelingestion.service.BoundaryService;
 import org.egov.excelingestion.service.CampaignService;
@@ -17,7 +20,10 @@ import org.egov.excelingestion.web.models.ValidationColumnInfo;
 import org.egov.excelingestion.web.models.ValidationError;
 import org.springframework.stereotype.Component;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.concurrent.*;
 import java.util.stream.Collectors;
 
 /**
@@ -39,6 +45,8 @@ public class AttendanceRegisterValidationProcessor implements IWorkbookProcessor
     private final ExcelUtil excelUtil;
     private final CustomExceptionHandler exceptionHandler;
     private final BoundaryUtil boundaryUtil;
+    private final ServiceRequestRepository serviceRequestRepository;
+    private final ExcelIngestionConfig config;
 
     public AttendanceRegisterValidationProcessor(ValidationService validationService,
                                                BoundaryService boundaryService,
@@ -46,7 +54,9 @@ public class AttendanceRegisterValidationProcessor implements IWorkbookProcessor
                                                EnrichmentUtil enrichmentUtil,
                                                ExcelUtil excelUtil,
                                                CustomExceptionHandler exceptionHandler,
-                                               BoundaryUtil boundaryUtil) {
+                                               BoundaryUtil boundaryUtil,
+                                               ServiceRequestRepository serviceRequestRepository,
+                                               ExcelIngestionConfig config) {
         this.validationService = validationService;
         this.boundaryService = boundaryService;
         this.campaignService = campaignService;
@@ -54,6 +64,8 @@ public class AttendanceRegisterValidationProcessor implements IWorkbookProcessor
         this.excelUtil = excelUtil;
         this.exceptionHandler = exceptionHandler;
         this.boundaryUtil = boundaryUtil;
+        this.serviceRequestRepository = serviceRequestRepository;
+        this.config = config;
     }
 
     @Override
@@ -134,6 +146,17 @@ public class AttendanceRegisterValidationProcessor implements IWorkbookProcessor
         Set<String> boundaryColumnNames = extractBoundaryColumnNames(sheetData);
         log.info("Found {} boundary columns in sheet", boundaryColumnNames.size());
 
+        // Collect unique Register IDs for system-level duplicate check
+        List<String> uniqueRegisterIds = sheetData.stream()
+                .map(row -> ExcelUtil.getValueAsString(row.get(ProcessingConstants.REGISTER_ID_COLUMN_KEY)).trim())
+                .filter(id -> !id.isEmpty())
+                .distinct()
+                .collect(Collectors.toList());
+
+        Set<String> existingServiceCodes = fetchExistingServiceCodes(
+                uniqueRegisterIds, resource.getTenantId(), requestInfo);
+        log.info("Found {} existing serviceCodes in system", existingServiceCodes.size());
+
         // Track Register IDs for duplicate detection - O(1) lookup
         Set<String> seenRegisterIds = new HashSet<>();
 
@@ -181,6 +204,12 @@ public class AttendanceRegisterValidationProcessor implements IWorkbookProcessor
                         "Duplicate Register ID found"));
             }
 
+            // System-level duplicate: serviceCode already used by an existing register
+            if (hasRegisterId && existingServiceCodes.contains(registerId)) {
+                rowErrors.add(localizationMap.getOrDefault(
+                        ValidationConstants.LOC_ATTENDANCE_REGISTER_ID_ALREADY_EXISTS,
+                        ValidationConstants.DEFAULT_ATTENDANCE_REGISTER_ID_ALREADY_EXISTS));
+            }
 
             // Add errors for this row
             if (!rowErrors.isEmpty()) {
@@ -194,6 +223,113 @@ public class AttendanceRegisterValidationProcessor implements IWorkbookProcessor
         }
 
         log.info("Validation completed. Total errors: {}", errors.size());
+    }
+
+    /**
+     * Fetch existing serviceCodes from the attendance service.
+     * Splits serviceCodes into batches (configurable size), sends each batch as a comma-separated
+     * serviceCode query param, and runs batches in parallel (configurable parallelism).
+     * Returns a Set for O(1) lookup during row validation.
+     */
+    private Set<String> fetchExistingServiceCodes(List<String> serviceCodes, String tenantId,
+                                                   RequestInfo requestInfo) {
+        Set<String> existingServiceCodes = ConcurrentHashMap.newKeySet();
+
+        if (serviceCodes.isEmpty()) {
+            return existingServiceCodes;
+        }
+
+        int batchSize = config.getAttendanceRegisterSearchBatchSize();
+        int parallelCalls = config.getAttendanceRegisterSearchParallelCalls();
+
+        // Split into independent batch copies to avoid subList view issues in parallel threads
+        List<List<String>> batches = new ArrayList<>();
+        for (int i = 0; i < serviceCodes.size(); i += batchSize) {
+            batches.add(new ArrayList<>(serviceCodes.subList(i, Math.min(i + batchSize, serviceCodes.size()))));
+        }
+
+        ExecutorService executor = Executors.newFixedThreadPool(Math.min(parallelCalls, batches.size()));
+        try {
+            List<Future<?>> futures = new ArrayList<>();
+            for (List<String> batch : batches) {
+                futures.add(executor.submit(() -> searchBatch(batch, tenantId, requestInfo, existingServiceCodes)));
+            }
+            for (Future<?> future : futures) {
+                try {
+                    future.get();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    log.error("Attendance register search interrupted");
+                    break;
+                } catch (ExecutionException e) {
+                    log.error("Error in parallel attendance register search: {}", e.getCause().getMessage());
+                }
+            }
+        } finally {
+            executor.shutdown();
+            try {
+                if (!executor.awaitTermination(60, TimeUnit.SECONDS)) {
+                    executor.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                executor.shutdownNow();
+                Thread.currentThread().interrupt();
+            }
+        }
+
+        return existingServiceCodes;
+    }
+
+    /**
+     * Search attendance registers for a batch of serviceCodes (comma-separated in a single API call).
+     * Extracts serviceCodes from response and adds matches to the result set.
+     */
+    private void searchBatch(List<String> batch, String tenantId,
+                             RequestInfo requestInfo, Set<String> existingServiceCodes) {
+        try {
+            String commaSeparated = batch.stream()
+                    .map(sc -> URLEncoder.encode(sc, StandardCharsets.UTF_8))
+                    .collect(Collectors.joining(","));
+
+            StringBuilder url = new StringBuilder(config.getAttendanceRegisterSearchUrl());
+            url.append("?tenantId=").append(URLEncoder.encode(tenantId, StandardCharsets.UTF_8))
+               .append("&serviceCode=").append(commaSeparated)
+               .append("&limit=").append(batch.size())
+               .append("&offset=0")
+               .append("&includeAttendee=false")
+               .append("&includeStaff=false");
+
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("RequestInfo", requestInfo);
+
+            @SuppressWarnings("unchecked")
+            Map<String, Object> response = (Map<String, Object>) serviceRequestRepository.fetchResult(url, payload);
+
+            if (response == null || response.get(ProcessingConstants.ATTENDANCE_REGISTER_RESPONSE_KEY) == null) {
+                return;
+            }
+
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> registers =
+                    (List<Map<String, Object>>) response.get(ProcessingConstants.ATTENDANCE_REGISTER_RESPONSE_KEY);
+
+            if (registers == null || registers.isEmpty()) {
+                return;
+            }
+
+            for (Map<String, Object> register : registers) {
+                Object serviceCodeObj = register.get(ProcessingConstants.ATTENDANCE_REGISTER_SERVICE_CODE_KEY);
+                if (serviceCodeObj != null) {
+                    String serviceCode = String.valueOf(serviceCodeObj).trim();
+                    if (!serviceCode.isEmpty()) {
+                        existingServiceCodes.add(serviceCode);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.error("Error searching attendance registers for batch of {} serviceCodes: {}",
+                    batch.size(), e.getMessage());
+        }
     }
 
     /**
