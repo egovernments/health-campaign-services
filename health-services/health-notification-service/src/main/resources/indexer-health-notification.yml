@@ -7,98 +7,28 @@ ServiceMaps:
       configKey: INDEX
       indexes:
         - name: scheduled-notification-v1
-          type: scheduled_notification
-          id: $.id, $.tenantId
+          type: general
+          id: $.id
           isBulk: true
           jsonPath: $.*
           timeStampField: $.auditDetails.createdTime
-          fieldMapping:
-            - inJsonPath: $.id
-              outJsonPath: $.id
-            - inJsonPath: $.clientReferenceId
-              outJsonPath: $.clientReferenceId
-            - inJsonPath: $.tenantId
-              outJsonPath: $.tenantId
-            - inJsonPath: $.eventType
-              outJsonPath: $.eventType
-            - inJsonPath: $.entityId
-              outJsonPath: $.entityId
-            - inJsonPath: $.entityType
-              outJsonPath: $.entityType
-            - inJsonPath: $.scheduledAt
-              outJsonPath: $.scheduledAt
-            - inJsonPath: $.createdAt
-              outJsonPath: $.createdAt
-            - inJsonPath: $.templateCode
-              outJsonPath: $.templateCode
-            - inJsonPath: $.recipientType
-              outJsonPath: $.recipientType
-            - inJsonPath: $.recipientId
-              outJsonPath: $.recipientId
-            - inJsonPath: $.mobileNumber
-              outJsonPath: $.mobileNumber
-            - inJsonPath: $.contextData
-              outJsonPath: $.contextData
-            - inJsonPath: $.status
-              outJsonPath: $.status
-            - inJsonPath: $.attempts
-              outJsonPath: $.attempts
-            - inJsonPath: $.lastAttemptAt
-              outJsonPath: $.lastAttemptAt
-            - inJsonPath: $.errorMessage
-              outJsonPath: $.errorMessage
-            - inJsonPath: $.isDeleted
-              outJsonPath: $.isDeleted
-            - inJsonPath: $.rowVersion
-              outJsonPath: $.rowVersion
-            - inJsonPath: $.auditDetails.createdBy
-              outJsonPath: $.createdBy
-            - inJsonPath: $.auditDetails.createdTime
-              outJsonPath: $.createdTime
-            - inJsonPath: $.auditDetails.lastModifiedBy
-              outJsonPath: $.lastModifiedBy
-            - inJsonPath: $.auditDetails.lastModifiedTime
-              outJsonPath: $.lastModifiedTime
 
     # ── INDEX: Update scheduled notification in Elasticsearch ──
     - topic: update-scheduled-notification-topic
       configKey: INDEX
       indexes:
         - name: scheduled-notification-v1
-          type: scheduled_notification
-          id: $.id, $.tenantId
+          type: general
+          id: $.id
           isBulk: true
           jsonPath: $.*
           timeStampField: $.auditDetails.lastModifiedTime
-          fieldMapping:
-            - inJsonPath: $.id
-              outJsonPath: $.id
-            - inJsonPath: $.tenantId
-              outJsonPath: $.tenantId
-            - inJsonPath: $.status
-              outJsonPath: $.status
-            - inJsonPath: $.attempts
-              outJsonPath: $.attempts
-            - inJsonPath: $.lastAttemptAt
-              outJsonPath: $.lastAttemptAt
-            - inJsonPath: $.errorMessage
-              outJsonPath: $.errorMessage
-            - inJsonPath: $.isDeleted
-              outJsonPath: $.isDeleted
-            - inJsonPath: $.rowVersion
-              outJsonPath: $.rowVersion
-            - inJsonPath: $.auditDetails.lastModifiedBy
-              outJsonPath: $.lastModifiedBy
-            - inJsonPath: $.auditDetails.lastModifiedTime
-              outJsonPath: $.lastModifiedTime
 
-    # ── REINDEX: For re-indexing from Elasticsearch ──
-    - topic: scheduled-notification-reindex
+    # ── REINDEX: Re-index from Elasticsearch ──
+    - topic: scheduled-notification-v1
       configKey: REINDEX
       indexes:
         - name: scheduled-notification-v1
-          type: scheduled_notification
-          id: $.id, $.tenantId
-          isBulk: true
+          type: general
           jsonPath: $.hits
           timeStampField: $.lastModifiedTime
