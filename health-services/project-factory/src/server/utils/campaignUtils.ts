@@ -2505,8 +2505,8 @@ async function copyResourcesFromParentToChildInDB(
     `INSERT INTO ${tableName} (id, tenantid, campaignid, type, parentresourceid, filestoreid, processedfilestoreid, filename, status, action, isactive, hierarchytype, additionaldetails, createdby, lastmodifiedby, createdtime, lastmodifiedtime)
      SELECT gen_random_uuid()::text, $1, $2, type, null, filestoreid, null, filename, $3, 'create', true, null, additionaldetails, $4, $4, $5, $5
      FROM ${tableName}
-     WHERE campaignid = $6 AND tenantid = $1 AND isactive = true AND status = $7`,
-    [tenantId, childCampaignId, resourceStatuses.toCreate, userUuid, now, parentCampaignId, resourceStatuses.completed]
+     WHERE campaignid = $6 AND tenantid = $8 AND isactive = true AND status = $7`,
+    [tenantId, childCampaignId, resourceStatuses.toCreate, userUuid, now, parentCampaignId, resourceStatuses.completed, tenantId]
   );
 
   logger.info(`Bulk copied completed resources from parent campaign ${parentCampaignId} to child campaign ${childCampaignId} in DB.`);
