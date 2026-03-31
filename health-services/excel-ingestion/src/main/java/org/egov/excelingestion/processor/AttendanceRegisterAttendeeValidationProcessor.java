@@ -511,11 +511,10 @@ public class AttendanceRegisterAttendeeValidationProcessor implements IWorkbookP
     }
 
     /**
-     * Convert epoch millis to LocalDate using system timezone.
-     * DIGIT stores epoch millis at local midnight, so using UTC would shift dates by hours.
+     * Convert epoch millis to LocalDate using the configured server timezone.
      */
     private LocalDate epochMillisToLocalDate(long epochMillis) {
-        return Instant.ofEpochMilli(epochMillis).atZone(ZoneId.systemDefault()).toLocalDate();
+        return Instant.ofEpochMilli(epochMillis).atZone(config.getServerZoneId()).toLocalDate();
     }
 
     /**
@@ -695,7 +694,7 @@ public class AttendanceRegisterAttendeeValidationProcessor implements IWorkbookP
     }
 
     private String getVal(Map<String, Object> row, String key) {
-        return ExcelUtil.getValueAsString(row.get(key)).trim();
+        return ExcelUtil.getValueAsString(row.get(key), config.getServerZoneId()).trim();
     }
 
     private String getLocalizedMessage(Map<String, String> localizationMap, String key, String defaultMsg) {

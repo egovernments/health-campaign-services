@@ -143,7 +143,7 @@ export class TemplateClass {
                 const hasEnrollmentDate = enrollmentDateRaw !== null && enrollmentDateRaw !== undefined && enrollmentDateRaw !== "";
                 const hasDeEnrollmentDate = deEnrollmentDateRaw !== null && deEnrollmentDateRaw !== undefined && deEnrollmentDateRaw !== "";
                 const enrollmentDateEpoch = hasEnrollmentDate ? this.parseDate(enrollmentDateRaw) : null;
-                const deEnrollmentDateEpoch = hasDeEnrollmentDate ? this.parseDate(deEnrollmentDateRaw) : null;
+                const deEnrollmentDateEpoch = hasDeEnrollmentDate ? this.parseDateEndOfDay(deEnrollmentDateRaw) : null;
 
                 const registerData = registerDataMap.get(registerId);
                 if (!registerData) {
@@ -163,7 +163,8 @@ export class TemplateClass {
                     this.collectAttendeeOperation(
                         existing, enrollmentDateEpoch, deEnrollmentDateEpoch, teamCode || "",
                         tenantId, registerUuid, individualId, row,
-                        attendeesToCreate, attendeesToDelete, attendeesToUpdateTag, localizationMap
+                        attendeesToCreate, attendeesToDelete, attendeesToUpdateTag, localizationMap,
+                        registerData
                     );
                 } else {
                     const staffType = isMarkerSheet ? "OWNER" : "APPROVER";
@@ -173,7 +174,8 @@ export class TemplateClass {
                     this.collectStaffOperation(
                         existing, enrollmentDateEpoch, deEnrollmentDateEpoch,
                         tenantId, registerUuid, individualId, staffType, row,
-                        staffToCreate, staffToDelete, localizationMap
+                        staffToCreate, staffToDelete, localizationMap,
+                        registerData
                     );
                 }
             }
@@ -361,16 +363,25 @@ export class TemplateClass {
         attendeesToCreate: Array<{ payload: any; row: any }>,
         attendeesToDelete: Array<{ payload: any; row: any }>,
         attendeesToUpdateTag: Array<{ payload: any; row: any }>,
-        localizationMap: Record<string, string>
+        localizationMap: Record<string, string>,
+        registerData: { register: any; attendeesMap: Map<string, any>; staffMap: Map<string, any> }
     ): void {
+        // Clamp dates to register boundaries
+        const regStart = registerData.register.startDate;
+        const regEnd = registerData.register.endDate;
+        const clampedEnrollment = (enrollmentDateEpoch !== null && regStart != null)
+            ? Math.max(enrollmentDateEpoch, regStart) : enrollmentDateEpoch;
+        const clampedDeEnrollment = (deEnrollmentDateEpoch !== null && regEnd != null)
+            ? Math.min(deEnrollmentDateEpoch, regEnd) : deEnrollmentDateEpoch;
+
         if (!existing) {
             // Nothing provided at all — skip silently
-            if (!enrollmentDateEpoch && !deEnrollmentDateEpoch && !teamCode) {
+            if (!clampedEnrollment && !clampedDeEnrollment && !teamCode) {
                 row["#status#"] = sheetDataRowStatuses.SKIPPED;
                 return;
             }
             // EnrollmentDate is required to create — can't de-enroll or tag without enrolling first
-            if (!enrollmentDateEpoch) {
+            if (!clampedEnrollment) {
                 row["#status#"] = sheetDataRowStatuses.INVALID;
                 row["#errorDetails#"] = getLocalizedName("HCM_ATTENDANCE_ENROLLMENT_DATE_REQUIRED", localizationMap) || "Enrollment date is required to enroll a new attendee";
                 return;
@@ -378,25 +389,25 @@ export class TemplateClass {
             const payload: any = {
                 registerId,
                 individualId,
-                enrollmentDate: enrollmentDateEpoch,
+                enrollmentDate: clampedEnrollment,
                 tenantId
             };
             if (teamCode) payload.tag = teamCode;
-            if (deEnrollmentDateEpoch) payload.denrollmentDate = deEnrollmentDateEpoch;
+            if (clampedDeEnrollment) payload.denrollmentDate = clampedDeEnrollment;
             attendeesToCreate.push({ payload, row });
             return;
         }
 
         // Existing attendee — already de-enrolled
         if (existing.denrollmentDate) {
-            // Date immutability: reject if dates are changed
-            if (enrollmentDateEpoch !== null && existing.enrollmentDate != null
-                && enrollmentDateEpoch !== existing.enrollmentDate) {
+            // Date immutability: reject if calendar dates differ (tolerates epoch differences from timezone migration)
+            if (clampedEnrollment !== null && existing.enrollmentDate != null
+                && !this.sameDateInTz(clampedEnrollment, existing.enrollmentDate)) {
                 row["#status#"] = sheetDataRowStatuses.INVALID;
                 row["#errorDetails#"] = getLocalizedName("HCM_ATTENDANCE_CANNOT_CHANGE_ENROLLMENT_DATE", localizationMap) || "Cannot change enrollment date for this register";
                 return;
             }
-            if (deEnrollmentDateEpoch !== null && deEnrollmentDateEpoch !== existing.denrollmentDate) {
+            if (clampedDeEnrollment !== null && !this.sameDateInTz(clampedDeEnrollment, existing.denrollmentDate)) {
                 row["#status#"] = sheetDataRowStatuses.INVALID;
                 row["#errorDetails#"] = getLocalizedName("HCM_ATTENDANCE_CANNOT_CHANGE_DEENROLLMENT_DATE", localizationMap) || "Cannot change de-enrollment date for this register";
                 return;
@@ -420,23 +431,23 @@ export class TemplateClass {
             return;
         }
 
-        // Active attendee — date immutability: reject if enrollmentDate is changed
-        if (enrollmentDateEpoch !== null && existing.enrollmentDate != null
-            && enrollmentDateEpoch !== existing.enrollmentDate) {
+        // Active attendee — date immutability: reject if calendar date of enrollmentDate is changed
+        if (clampedEnrollment !== null && existing.enrollmentDate != null
+            && !this.sameDateInTz(clampedEnrollment, existing.enrollmentDate)) {
             row["#status#"] = sheetDataRowStatuses.INVALID;
             row["#errorDetails#"] = getLocalizedName("HCM_ATTENDANCE_CANNOT_CHANGE_ENROLLMENT_DATE", localizationMap) || "Cannot change enrollment date for this register";
             return;
         }
 
         // Merge row: new non-empty wins, else keep existing
-        row["HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE"] = enrollmentDateEpoch ?? existing.enrollmentDate ?? row["HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE"];
-        row["HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE"] = deEnrollmentDateEpoch ?? existing.denrollmentDate ?? row["HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE"];
+        row["HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE"] = clampedEnrollment ?? existing.enrollmentDate ?? row["HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE"];
+        row["HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE"] = clampedDeEnrollment ?? existing.denrollmentDate ?? row["HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE"];
         row["HCM_ATTENDANCE_ATTENDEE_TEAM_CODE"] = teamCode || existing.tag || row["HCM_ATTENDANCE_ATTENDEE_TEAM_CODE"];
 
         // Active attendee — allow de-enroll (_delete) and tag update (_updateTag) as separate operations
-        if (deEnrollmentDateEpoch !== null) {
+        if (clampedDeEnrollment !== null) {
             attendeesToDelete.push({
-                payload: { registerId, individualId, denrollmentDate: deEnrollmentDateEpoch, tenantId },
+                payload: { registerId, individualId, denrollmentDate: clampedDeEnrollment, tenantId },
                 row
             });
         }
@@ -448,7 +459,7 @@ export class TemplateClass {
         }
 
         // If neither de-enroll nor tag change, no API calls needed
-        if (deEnrollmentDateEpoch === null && !(teamCode && teamCode !== (existing.tag || ""))) {
+        if (clampedDeEnrollment === null && !(teamCode && teamCode !== (existing.tag || ""))) {
             row["#status#"] = sheetDataRowStatuses.CREATED;
         }
     }
@@ -467,16 +478,25 @@ export class TemplateClass {
         row: any,
         staffToCreate: Array<{ payload: any; row: any }>,
         staffToDelete: Array<{ payload: any; row: any }>,
-        localizationMap: Record<string, string>
+        localizationMap: Record<string, string>,
+        registerData: { register: any; attendeesMap: Map<string, any>; staffMap: Map<string, any> }
     ): void {
+        // Clamp dates to register boundaries
+        const regStart = registerData.register.startDate;
+        const regEnd = registerData.register.endDate;
+        const clampedEnrollment = (enrollmentDateEpoch !== null && regStart != null)
+            ? Math.max(enrollmentDateEpoch, regStart) : enrollmentDateEpoch;
+        const clampedDeEnrollment = (deEnrollmentDateEpoch !== null && regEnd != null)
+            ? Math.min(deEnrollmentDateEpoch, regEnd) : deEnrollmentDateEpoch;
+
         if (!existing) {
             // Nothing provided at all — skip silently
-            if (!enrollmentDateEpoch && !deEnrollmentDateEpoch) {
+            if (!clampedEnrollment && !clampedDeEnrollment) {
                 row["#status#"] = sheetDataRowStatuses.SKIPPED;
                 return;
             }
             // EnrollmentDate is required to create — can't de-enroll without enrolling first
-            if (!enrollmentDateEpoch) {
+            if (!clampedEnrollment) {
                 row["#status#"] = sheetDataRowStatuses.INVALID;
                 row["#errorDetails#"] = getLocalizedName("HCM_ATTENDANCE_ENROLLMENT_DATE_REQUIRED", localizationMap) || "Enrollment date is required to enroll new staff";
                 return;
@@ -484,7 +504,7 @@ export class TemplateClass {
             const payload: any = {
                 registerId,
                 userId: individualId,
-                enrollmentDate: enrollmentDateEpoch,
+                enrollmentDate: clampedEnrollment,
                 tenantId,
                 staffType
             };
@@ -494,14 +514,14 @@ export class TemplateClass {
 
         // Existing staff — already de-enrolled
         if (existing.denrollmentDate) {
-            // Date immutability: reject if dates are changed
-            if (enrollmentDateEpoch !== null && existing.enrollmentDate != null
-                && enrollmentDateEpoch !== existing.enrollmentDate) {
+            // Date immutability: reject if calendar dates differ (tolerates epoch differences from timezone migration)
+            if (clampedEnrollment !== null && existing.enrollmentDate != null
+                && !this.sameDateInTz(clampedEnrollment, existing.enrollmentDate)) {
                 row["#status#"] = sheetDataRowStatuses.INVALID;
                 row["#errorDetails#"] = getLocalizedName("HCM_ATTENDANCE_CANNOT_CHANGE_ENROLLMENT_DATE", localizationMap) || "Cannot change enrollment date for this register";
                 return;
             }
-            if (deEnrollmentDateEpoch !== null && deEnrollmentDateEpoch !== existing.denrollmentDate) {
+            if (clampedDeEnrollment !== null && !this.sameDateInTz(clampedDeEnrollment, existing.denrollmentDate)) {
                 row["#status#"] = sheetDataRowStatuses.INVALID;
                 row["#errorDetails#"] = getLocalizedName("HCM_ATTENDANCE_CANNOT_CHANGE_DEENROLLMENT_DATE", localizationMap) || "Cannot change de-enrollment date for this register";
                 return;
@@ -512,20 +532,20 @@ export class TemplateClass {
             return;
         }
 
-        // Active staff — date immutability: reject if enrollmentDate is changed
-        if (enrollmentDateEpoch !== null && existing.enrollmentDate != null
-            && enrollmentDateEpoch !== existing.enrollmentDate) {
+        // Active staff — date immutability: reject if calendar date of enrollmentDate is changed
+        if (clampedEnrollment !== null && existing.enrollmentDate != null
+            && !this.sameDateInTz(clampedEnrollment, existing.enrollmentDate)) {
             row["#status#"] = sheetDataRowStatuses.INVALID;
             row["#errorDetails#"] = getLocalizedName("HCM_ATTENDANCE_CANNOT_CHANGE_ENROLLMENT_DATE", localizationMap) || "Cannot change enrollment date for this register";
             return;
         }
 
         // Merge row: new non-empty wins, else keep existing
-        row["HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE"] = enrollmentDateEpoch ?? existing.enrollmentDate ?? row["HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE"];
-        row["HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE"] = deEnrollmentDateEpoch ?? existing.denrollmentDate ?? row["HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE"];
+        row["HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE"] = clampedEnrollment ?? existing.enrollmentDate ?? row["HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE"];
+        row["HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE"] = clampedDeEnrollment ?? existing.denrollmentDate ?? row["HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE"];
 
         // Active staff — allow de-enroll only (_delete)
-        if (deEnrollmentDateEpoch !== null) {
+        if (clampedDeEnrollment !== null) {
             staffToDelete.push({
                 payload: { registerId, userId: individualId, tenantId },
                 row
@@ -649,13 +669,78 @@ export class TemplateClass {
         }
     }
 
+    // ── Timezone-aware date utilities ──────────────────────────────────────
+
+    /** Cached Intl formatter for the configured server timezone */
+    private static tzFormatter: Intl.DateTimeFormat | null = null;
+
+    private static getTzFormatter(): Intl.DateTimeFormat {
+        if (!this.tzFormatter) {
+            this.tzFormatter = new Intl.DateTimeFormat('en-US', {
+                timeZone: config.serverTimezone,
+                year: 'numeric', month: '2-digit', day: '2-digit',
+                hour: '2-digit', minute: '2-digit', second: '2-digit',
+                hour12: false
+            });
+        }
+        return this.tzFormatter;
+    }
+
     /**
-     * Parse date string in dd-MM-yyyy or dd/MM/yyyy format (strict — no mixed separators).
+     * Returns epoch ms for midnight (00:00:00.000) of the given date in the configured server timezone.
+     * Uses Intl.DateTimeFormat to resolve the UTC offset for the target timezone.
+     */
+    private static midnightEpochInTz(year: number, month: number, day: number): number {
+        const utcGuess = Date.UTC(year, month, day);
+        const parts = this.getTzFormatter().formatToParts(new Date(utcGuess));
+        const get = (type: string) => parseInt(parts.find(p => p.type === type)!.value, 10);
+        const localHour = get('hour') === 24 ? 0 : get('hour');
+        const localMinute = get('minute');
+        const localSecond = get('second');
+        const localYear = get('year');
+        const localMonth = get('month') - 1;
+        const localDay = get('day');
+        const localAsUtc = Date.UTC(localYear, localMonth, localDay, localHour, localMinute, localSecond);
+        const offsetMs = utcGuess - localAsUtc;
+        return Date.UTC(year, month, day) - offsetMs;
+    }
+
+    /**
+     * Returns epoch ms for end of day (23:59:59.999) of the given date in the configured server timezone.
+     * Computed as midnight of the next day minus 1ms.
+     */
+    private static endOfDayEpochInTz(year: number, month: number, day: number): number {
+        const nextDay = new Date(Date.UTC(year, month, day + 1));
+        return this.midnightEpochInTz(nextDay.getUTCFullYear(), nextDay.getUTCMonth(), nextDay.getUTCDate()) - 1;
+    }
+
+    /**
+     * Extracts calendar date parts {year, month, day} from an epoch ms value in the configured server timezone.
+     * Used for date-based comparisons (immutability checks, range validation).
+     */
+    private static epochToDatePartsInTz(epochMs: number): { year: number; month: number; day: number } {
+        const parts = this.getTzFormatter().formatToParts(new Date(epochMs));
+        const get = (type: string) => parseInt(parts.find(p => p.type === type)!.value, 10);
+        return { year: get('year'), month: get('month'), day: get('day') };
+    }
+
+    /** Compare two date-part objects. Returns true if a and b represent the same calendar date. */
+    private static sameDateInTz(aEpoch: number, bEpoch: number): boolean {
+        const a = this.epochToDatePartsInTz(aEpoch);
+        const b = this.epochToDatePartsInTz(bEpoch);
+        return a.year === b.year && a.month === b.month && a.day === b.day;
+    }
+
+    // ── Date parsing ────────────────────────────────────────────────────────
+
+    /**
+     * Parse date value to epoch ms at start of day (midnight) in the configured server timezone.
+     * Supports Date objects, existing epoch numbers, and dd-MM-yyyy / dd/MM/yyyy strings.
      */
     private static parseDate(value: any): number | null {
         if (value instanceof Date) {
             if (isNaN(value.getTime())) return null;
-            return Date.UTC(value.getFullYear(), value.getMonth(), value.getDate());
+            return this.midnightEpochInTz(value.getFullYear(), value.getMonth(), value.getDate());
         }
         if (typeof value === "number") return value;
         const str = String(value).trim();
@@ -664,12 +749,35 @@ export class TemplateClass {
         const day = parseInt(match[1], 10);
         const month = parseInt(match[2], 10) - 1;
         const year = parseInt(match[3], 10);
-        const ts = Date.UTC(year, month, day);
-        const check = new Date(ts);
+        // Validate date is real (e.g., reject Feb 31)
+        const check = new Date(Date.UTC(year, month, day));
         if (check.getUTCFullYear() !== year || check.getUTCMonth() !== month || check.getUTCDate() !== day) {
             return null;
         }
-        return ts;
+        return this.midnightEpochInTz(year, month, day);
+    }
+
+    /**
+     * Parse date value to epoch ms at end of day (23:59:59.999) in the configured server timezone.
+     * Used for de-enrollment dates so they represent the last moment of the given day.
+     */
+    private static parseDateEndOfDay(value: any): number | null {
+        if (value instanceof Date) {
+            if (isNaN(value.getTime())) return null;
+            return this.endOfDayEpochInTz(value.getFullYear(), value.getMonth(), value.getDate());
+        }
+        if (typeof value === "number") return value;
+        const str = String(value).trim();
+        const match = DASH_DATE_REGEX.exec(str) || SLASH_DATE_REGEX.exec(str);
+        if (!match) return null;
+        const day = parseInt(match[1], 10);
+        const month = parseInt(match[2], 10) - 1;
+        const year = parseInt(match[3], 10);
+        const check = new Date(Date.UTC(year, month, day));
+        if (check.getUTCFullYear() !== year || check.getUTCMonth() !== month || check.getUTCDate() !== day) {
+            return null;
+        }
+        return this.endOfDayEpochInTz(year, month, day);
     }
 
     private static getCellAsString(value: any): string {

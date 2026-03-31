@@ -129,7 +129,11 @@ export class TemplateClass {
                 if (parsed === null) {
                     this.addError(row, attendanceErrorKeys.INVALID_DATE_FORMAT, localizationMap);
                 } else if (registerStartDate !== null && registerEndDate !== null) {
-                    if (parsed < registerStartDate || parsed > registerEndDate) {
+                    // Compare calendar dates in configured timezone (not raw epochs)
+                    const parsedParts = this.epochToDatePartsInTz(parsed);
+                    const startParts = this.epochToDatePartsInTz(registerStartDate);
+                    const endParts = this.epochToDatePartsInTz(registerEndDate);
+                    if (this.compareDateParts(parsedParts, startParts) < 0 || this.compareDateParts(parsedParts, endParts) > 0) {
                         this.addError(row, attendanceErrorKeys.DATE_OUT_OF_RANGE, localizationMap);
                     }
                 }
@@ -141,7 +145,11 @@ export class TemplateClass {
                     this.addError(row, attendanceErrorKeys.INVALID_DATE_FORMAT, localizationMap);
                 } else {
                     if (registerStartDate !== null && registerEndDate !== null) {
-                        if (parsedDeEnroll < registerStartDate || parsedDeEnroll > registerEndDate) {
+                        // Compare calendar dates in configured timezone (not raw epochs)
+                        const deEnrollParts = this.epochToDatePartsInTz(parsedDeEnroll);
+                        const startParts = this.epochToDatePartsInTz(registerStartDate);
+                        const endParts = this.epochToDatePartsInTz(registerEndDate);
+                        if (this.compareDateParts(deEnrollParts, startParts) < 0 || this.compareDateParts(deEnrollParts, endParts) > 0) {
                             this.addError(row, attendanceErrorKeys.DATE_OUT_OF_RANGE, localizationMap);
                         }
                     }
@@ -228,13 +236,14 @@ export class TemplateClass {
         if (existing.denrollmentDate) {
             // DE-ENROLLED record — Section C (attendee) or Section F (staff)
             // Enrollment date checked FIRST (per truth table C9)
+            // Compare calendar dates in configured timezone (tolerates epoch differences from timezone migration)
             if (enrollmentDateEpoch !== null && existing.enrollmentDate != null
-                && enrollmentDateEpoch !== existing.enrollmentDate) {
+                && !this.sameDateInTz(enrollmentDateEpoch, existing.enrollmentDate)) {
                 // C3/C7/C9/C13/F3/F7
                 this.addError(row, attendanceErrorKeys.CANNOT_CHANGE_ENROLLMENT_DATE, localizationMap);
                 return;
             }
-            if (deEnrollmentDateEpoch !== null && deEnrollmentDateEpoch !== existing.denrollmentDate) {
+            if (deEnrollmentDateEpoch !== null && !this.sameDateInTz(deEnrollmentDateEpoch, existing.denrollmentDate)) {
                 // C5/C8/C14/F5/F8
                 this.addError(row, attendanceErrorKeys.CANNOT_CHANGE_DEENROLLMENT_DATE, localizationMap);
             }
@@ -242,8 +251,9 @@ export class TemplateClass {
         }
 
         // ACTIVE record — Section B (attendee) or Section E (staff)
+        // Compare calendar dates in configured timezone (tolerates epoch differences from timezone migration)
         if (enrollmentDateEpoch !== null && existing.enrollmentDate != null
-            && enrollmentDateEpoch !== existing.enrollmentDate) {
+            && !this.sameDateInTz(enrollmentDateEpoch, existing.enrollmentDate)) {
             // B3/B6/B10/B13/E3/E6
             this.addError(row, attendanceErrorKeys.CANNOT_CHANGE_ENROLLMENT_DATE, localizationMap);
         }
@@ -309,17 +319,79 @@ export class TemplateClass {
         }
     }
 
+    // ── Timezone-aware date utilities ──────────────────────────────────────
+
+    /** Cached Intl formatter for the configured server timezone */
+    private static tzFormatter: Intl.DateTimeFormat | null = null;
+
+    private static getTzFormatter(): Intl.DateTimeFormat {
+        if (!this.tzFormatter) {
+            this.tzFormatter = new Intl.DateTimeFormat('en-US', {
+                timeZone: config.serverTimezone,
+                year: 'numeric', month: '2-digit', day: '2-digit',
+                hour: '2-digit', minute: '2-digit', second: '2-digit',
+                hour12: false
+            });
+        }
+        return this.tzFormatter;
+    }
+
     /**
-     * Parse date string in dd-MM-yyyy or dd/MM/yyyy format (strict — no mixed separators).
-     * Returns UTC epoch ms or null if invalid format or impossible date.
+     * Returns epoch ms for midnight (00:00:00.000) of the given date in the configured server timezone.
+     */
+    private static midnightEpochInTz(year: number, month: number, day: number): number {
+        const utcGuess = Date.UTC(year, month, day);
+        const parts = this.getTzFormatter().formatToParts(new Date(utcGuess));
+        const get = (type: string) => parseInt(parts.find(p => p.type === type)!.value, 10);
+        const localHour = get('hour') === 24 ? 0 : get('hour');
+        const localMinute = get('minute');
+        const localSecond = get('second');
+        const localYear = get('year');
+        const localMonth = get('month') - 1;
+        const localDay = get('day');
+        const localAsUtc = Date.UTC(localYear, localMonth, localDay, localHour, localMinute, localSecond);
+        const offsetMs = utcGuess - localAsUtc;
+        return Date.UTC(year, month, day) - offsetMs;
+    }
+
+    /**
+     * Extracts calendar date parts {year, month, day} from an epoch ms value in the configured server timezone.
+     */
+    private static epochToDatePartsInTz(epochMs: number): { year: number; month: number; day: number } {
+        const parts = this.getTzFormatter().formatToParts(new Date(epochMs));
+        const get = (type: string) => parseInt(parts.find(p => p.type === type)!.value, 10);
+        return { year: get('year'), month: get('month'), day: get('day') };
+    }
+
+    /** Compare two epoch values by calendar date in configured timezone. Returns true if same date. */
+    private static sameDateInTz(aEpoch: number, bEpoch: number): boolean {
+        const a = this.epochToDatePartsInTz(aEpoch);
+        const b = this.epochToDatePartsInTz(bEpoch);
+        return a.year === b.year && a.month === b.month && a.day === b.day;
+    }
+
+    /** Returns -1, 0, or 1 comparing two date-part objects chronologically. */
+    private static compareDateParts(
+        a: { year: number; month: number; day: number },
+        b: { year: number; month: number; day: number }
+    ): number {
+        if (a.year !== b.year) return a.year < b.year ? -1 : 1;
+        if (a.month !== b.month) return a.month < b.month ? -1 : 1;
+        if (a.day !== b.day) return a.day < b.day ? -1 : 1;
+        return 0;
+    }
+
+    // ── Date parsing ────────────────────────────────────────────────────────
+
+    /**
+     * Parse date value to epoch ms at start of day (midnight) in the configured server timezone.
+     * Supports Date objects, existing epoch numbers, and dd-MM-yyyy / dd/MM/yyyy strings.
      */
     private static parseDate(value: any): number | null {
-        // Handle Date objects (ExcelJS may parse date cells as Date)
         if (value instanceof Date) {
             if (isNaN(value.getTime())) return null;
-            return Date.UTC(value.getFullYear(), value.getMonth(), value.getDate());
+            return this.midnightEpochInTz(value.getFullYear(), value.getMonth(), value.getDate());
         }
-        // Handle epoch numbers passed directly
         if (typeof value === "number") {
             return value;
         }
@@ -327,16 +399,13 @@ export class TemplateClass {
         const match = DASH_DATE_REGEX.exec(str) || SLASH_DATE_REGEX.exec(str);
         if (!match) return null;
         const day = parseInt(match[1], 10);
-        const month = parseInt(match[2], 10) - 1; // JS months are 0-indexed
+        const month = parseInt(match[2], 10) - 1;
         const year = parseInt(match[3], 10);
-        // Use UTC to avoid server-timezone-dependent boundary comparisons
-        const ts = Date.UTC(year, month, day);
-        const check = new Date(ts);
-        // Validate the date is real (catches impossible dates like 31-02-2024)
+        const check = new Date(Date.UTC(year, month, day));
         if (check.getUTCFullYear() !== year || check.getUTCMonth() !== month || check.getUTCDate() !== day) {
             return null;
         }
-        return ts;
+        return this.midnightEpochInTz(year, month, day);
     }
 
     private static addError(row: any, errorKey: string, localizationMap: Record<string, string>): void {

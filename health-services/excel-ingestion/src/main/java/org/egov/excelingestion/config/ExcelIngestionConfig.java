@@ -5,6 +5,8 @@ import lombok.Setter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import java.time.ZoneId;
+
 @Component
 @Getter
 @Setter
@@ -100,7 +102,14 @@ public class ExcelIngestionConfig {
     @Value("${egov.worker.registry.search.batch.size:100}")
     private int workerRegistrySearchBatchSize;
 
+    @Value("${server.timezone:UTC}")
+    private String serverTimezone;
+
     private String defaultHeaderColor = "#93c47d";
+
+    public ZoneId getServerZoneId() {
+        return ZoneId.of(serverTimezone);
+    }
 
     public String getHierarchySearchUrl() {
         return boundaryHost + hierarchySearchPath;

@@ -31,15 +31,22 @@ public class ExcelUtil {
      * @return String value of the cell (empty string if null or error)
      */
     public static String getCellValueAsString(Cell cell) {
+        return getCellValueAsString(cell, ZoneId.systemDefault());
+    }
+
+    /**
+     * Get cell value as string using the specified timezone for date cells.
+     */
+    public static String getCellValueAsString(Cell cell, ZoneId zoneId) {
         if (cell == null) return "";
-        
+
         switch (cell.getCellType()) {
             case STRING:
                 return cell.getStringCellValue();
             case NUMERIC:
                 if (DateUtil.isCellDateFormatted(cell)) {
                     return cell.getDateCellValue().toInstant()
-                            .atZone(ZoneId.systemDefault()).toLocalDate()
+                            .atZone(zoneId).toLocalDate()
                             .format(CELL_DATE_FORMATTER);
                 } else {
                     return String.valueOf((long) cell.getNumericCellValue());
@@ -51,14 +58,14 @@ public class ExcelUtil {
                 try {
                     FormulaEvaluator evaluator = cell.getSheet().getWorkbook().getCreationHelper().createFormulaEvaluator();
                     CellValue cellValue = evaluator.evaluate(cell);
-                    
+
                     switch (cellValue.getCellType()) {
                         case STRING:
                             return cellValue.getStringValue();
                         case NUMERIC:
                             if (DateUtil.isCellDateFormatted(cell)) {
                                 return DateUtil.getJavaDate(cellValue.getNumberValue())
-                                        .toInstant().atZone(ZoneId.systemDefault()).toLocalDate()
+                                        .toInstant().atZone(zoneId).toLocalDate()
                                         .format(CELL_DATE_FORMATTER);
                             }
                             return String.valueOf((long) cellValue.getNumberValue());
@@ -445,12 +452,19 @@ public class ExcelUtil {
      * @return String representation or empty string if null
      */
     public static String getValueAsString(Object value) {
+        return getValueAsString(value, ZoneId.systemDefault());
+    }
+
+    /**
+     * Safely convert any object value to string using the specified timezone for Date values.
+     */
+    public static String getValueAsString(Object value, ZoneId zoneId) {
         if (value == null) {
             return "";
         }
         if (value instanceof Date) {
             return ((Date) value).toInstant()
-                    .atZone(ZoneId.systemDefault()).toLocalDate()
+                    .atZone(zoneId).toLocalDate()
                     .format(CELL_DATE_FORMATTER);
         }
         return value.toString();
