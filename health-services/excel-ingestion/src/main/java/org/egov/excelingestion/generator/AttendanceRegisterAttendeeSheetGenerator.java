@@ -99,41 +99,30 @@ public class AttendanceRegisterAttendeeSheetGenerator implements IExcelPopulator
         // 2. Resolve registerId (from referenceId when referenceType is attendanceRegister, else additionalDetails)
         String registerId = resolveRegisterId(generateResource);
 
-        // 3. Fetch attendance register → get localityCode AND campaignId
+        // 3. Fetch attendance register → get localityCode AND campaignNumber
         RegisterDetails registerDetails = fetchRegisterDetails(registerId, tenantId, requestInfo);
         String localityCode = registerDetails.localityCode;
-        String campaignId = registerDetails.campaignId;
+        String campaignNumber = registerDetails.campaignNumber;
 
-        // 4. Fetch campaign details → get campaignNumber
-        CampaignSearchResponse.CampaignDetail campaign =
-                campaignService.searchCampaignById(campaignId, tenantId, requestInfo);
-        String campaignNumber = campaign.getCampaignNumber();
-
-        if (campaignNumber == null || campaignNumber.isBlank()) {
-            exceptionHandler.throwCustomException(ErrorConstants.CAMPAIGN_DATA_INCOMPLETE,
-                    ErrorConstants.CAMPAIGN_DATA_INCOMPLETE_MESSAGE.replace("{0}", campaignId),
-                    new RuntimeException("campaignNumber is missing for campaign: " + campaignId));
-        }
-
-        // 5. Fetch boundary tree once and resolve allowed codes for this sheet's filter config
+        // 4. Fetch boundary tree once and resolve allowed codes for this sheet's filter config
         BoundarySearchResponse boundaryResponse = boundaryService.fetchBoundaryRelationship(
                 tenantId, hierarchyType, requestInfo);
         Set<String> allowedBoundaryCodes = resolveBoundaryFilterCodes(
                 boundaryResponse, localityCode, sheetConfig.getBoundaryFilter());
 
-        // 6. Fetch all completed user data for this campaign
+        // 5. Fetch all completed user data for this campaign
         List<Map<String, Object>> allUsers = campaignService.searchCampaignDataByType(
                 "user", ProcessingConstants.STATUS_COMPLETED, campaignNumber, tenantId, requestInfo);
 
-        log.info("Fetched {} users for campaign {} in tenant {}", allUsers.size(), campaignId, tenantId);
+        log.info("Fetched {} users for campaign {} in tenant {}", allUsers.size(), campaignNumber, tenantId);
 
-        // 7. Classify, filter, and build rows for this sheet
+        // 6. Classify, filter, and build rows for this sheet
         List<Map<String, Object>> filteredUsers = classifyAndFilterUsers(
                 allUsers, sheetName, allowedBoundaryCodes);
 
         log.info("Filtered {} users for sheet {}", filteredUsers.size(), sheetName);
 
-        // 8. Decrypt credentials and build data rows
+        // 7. Decrypt credentials and build data rows
         List<Map<String, Object>> dataRows = buildDataRows(
                 filteredUsers, registerDetails.serviceCode, localizationMap, requestInfo,
                 WORKER_SHEET.equals(sheetName));
@@ -208,7 +197,7 @@ public class AttendanceRegisterAttendeeSheetGenerator implements IExcelPopulator
     }
 
     /**
-     * Fetch attendance register by ID and extract localityCode and campaignId
+     * Fetch attendance register by ID and extract localityCode and campaignNumber
      */
     private RegisterDetails fetchRegisterDetails(String registerId, String tenantId,
                                                   RequestInfo requestInfo) {
@@ -247,38 +236,38 @@ public class AttendanceRegisterAttendeeSheetGenerator implements IExcelPopulator
                     new RuntimeException("localityCode missing on register: " + registerId));
         }
 
-        String campaignId = extractCampaignId(register);
-        if (campaignId == null || campaignId.isBlank()) {
+        String campaignNumber = extractCampaignNumber(register);
+        if (campaignNumber == null || campaignNumber.isBlank()) {
             exceptionHandler.throwCustomException(ErrorConstants.MISSING_REQUIRED_FIELD,
-                    ErrorConstants.MISSING_REQUIRED_FIELD_MESSAGE.replace("{0}", "campaignId"),
-                    new RuntimeException("campaignId missing on attendance register: " + registerId));
+                    ErrorConstants.MISSING_REQUIRED_FIELD_MESSAGE.replace("{0}", "campaignNumber"),
+                    new RuntimeException("campaignNumber missing on attendance register: " + registerId));
         }
 
         String serviceCode = register.get("serviceCode") != null ? String.valueOf(register.get("serviceCode")).trim() : "";
 
-        log.info("Attendance register {} has localityCode: {}, campaignId: {}, serviceCode: {}", registerId, localityCode, campaignId, serviceCode);
-        return new RegisterDetails(localityCode, campaignId, serviceCode);
+        log.info("Attendance register {} has localityCode: {}, campaignNumber: {}, serviceCode: {}", registerId, localityCode, campaignNumber, serviceCode);
+        return new RegisterDetails(localityCode, campaignNumber, serviceCode);
     }
 
     /**
-     * Extract campaignId from attendance register response.
-     * Checks top-level campaignId first, then additionalDetails.campaignId.
+     * Extract campaignNumber from attendance register response.
+     * Checks top-level campaignNumber first, then additionalDetails.campaignNumber.
      */
-    private String extractCampaignId(Map<String, Object> register) {
-        Object topLevel = register.get("campaignId");
+    private String extractCampaignNumber(Map<String, Object> register) {
+        Object topLevel = register.get("campaignNumber");
         if (topLevel != null) {
-            String id = String.valueOf(topLevel).trim();
-            if (!id.isEmpty()) return id;
+            String number = String.valueOf(topLevel).trim();
+            if (!number.isEmpty()) return number;
         }
 
         Object additionalDetailsObj = register.get("additionalDetails");
         if (additionalDetailsObj instanceof Map) {
             @SuppressWarnings("unchecked")
             Map<String, Object> additionalDetails = (Map<String, Object>) additionalDetailsObj;
-            Object campaignIdObj = additionalDetails.get("campaignId");
-            if (campaignIdObj != null) {
-                String id = String.valueOf(campaignIdObj).trim();
-                if (!id.isEmpty()) return id;
+            Object campaignNumberObj = additionalDetails.get("campaignNumber");
+            if (campaignNumberObj != null) {
+                String number = String.valueOf(campaignNumberObj).trim();
+                if (!number.isEmpty()) return number;
             }
         }
 
@@ -286,16 +275,16 @@ public class AttendanceRegisterAttendeeSheetGenerator implements IExcelPopulator
     }
 
     /**
-     * Holds localityCode, campaignId, and serviceCode extracted from an attendance register
+     * Holds localityCode, campaignNumber, and serviceCode extracted from an attendance register
      */
     private static class RegisterDetails {
         final String localityCode;
-        final String campaignId;
+        final String campaignNumber;
         final String serviceCode;
 
-        RegisterDetails(String localityCode, String campaignId, String serviceCode) {
+        RegisterDetails(String localityCode, String campaignNumber, String serviceCode) {
             this.localityCode = localityCode;
-            this.campaignId = campaignId;
+            this.campaignNumber = campaignNumber;
             this.serviceCode = serviceCode;
         }
     }
