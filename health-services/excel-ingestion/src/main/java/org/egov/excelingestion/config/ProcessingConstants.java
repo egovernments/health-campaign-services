@@ -9,6 +9,18 @@ public class ProcessingConstants {
     // Column Keys
     public static final String BOUNDARY_CODE_COLUMN_KEY = "HCM_ADMIN_CONSOLE_BOUNDARY_CODE";
     public static final String WORKER_ID_COLUMN_KEY = "HCM_ADMIN_CONSOLE_USER_WORKER_ID";
+
+    // Payee field column keys
+    public static final String PAYMENT_PROVIDER_COL = "HCM_ADMIN_CONSOLE_USER_PAYMENT_PROVIDER";
+    public static final String PAYEE_NAME_COL = "HCM_ADMIN_CONSOLE_USER_PAYEE_NAME";
+    public static final String BENEFICIARY_CODE_COL = "HCM_ADMIN_CONSOLE_USER_BENEFICIARY_CODE";
+    public static final String BANK_ACCOUNT_COL = "HCM_ADMIN_CONSOLE_USER_BANK_ACCOUNT";
+    public static final String BANK_CODE_COL = "HCM_ADMIN_CONSOLE_USER_BANK_CODE";
+    public static final String PAYEE_PHONE_NUMBER_COL = "HCM_ADMIN_CONSOLE_USER_PAYEE_PHONE_NUMBER";
+
+    // Payment provider values used in conditional formatting rules
+    public static final String PAYMENT_PROVIDER_BANK = "BANK";
+    public static final String PAYMENT_PROVIDER_MTN = "MTN";
     public static final String REGISTER_ID_COLUMN_KEY = "HCM_ATTENDANCE_REGISTER_ID";
     public static final String ENROLLMENT_DATE_COLUMN_KEY = "HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE";
     public static final String DEENROLLMENT_DATE_COLUMN_KEY = "HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE";

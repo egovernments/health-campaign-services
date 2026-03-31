@@ -129,11 +129,12 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
                     const recordData = campaignRecord.data;
                     workerDataList.push({
                         name: recordData["HCM_ADMIN_CONSOLE_USER_NAME"] || "",
-                        payeePhoneNumber: recordData["HCM_ADMIN_CONSOLE_USER_PAYEE_PHONE_NUMBER"] || "",
+                        payeePhoneNumber: String(recordData["HCM_ADMIN_CONSOLE_USER_PAYEE_PHONE_NUMBER"] || ""),
                         paymentProvider: recordData["HCM_ADMIN_CONSOLE_USER_PAYMENT_PROVIDER"] || "",
                         payeeName: recordData["HCM_ADMIN_CONSOLE_USER_PAYEE_NAME"] || "",
-                        bankAccount: recordData["HCM_ADMIN_CONSOLE_USER_BANK_ACCOUNT"] || "",
-                        bankCode: recordData["HCM_ADMIN_CONSOLE_USER_BANK_CODE"] || "",
+                        bankAccount: String(recordData["HCM_ADMIN_CONSOLE_USER_BANK_ACCOUNT"] || ""),
+                        bankCode: String(recordData["HCM_ADMIN_CONSOLE_USER_BANK_CODE"] || ""),
+                        beneficiaryCode: String(recordData["HCM_ADMIN_CONSOLE_USER_BENEFICIARY_CODE"] || ""),
                         id: recordData["HCM_ADMIN_CONSOLE_USER_WORKER_ID"] || "",
                         individualId,
                         tenantId,
@@ -192,12 +193,9 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
                         processedIds.add(w.individualId);
                         if (!individualIdToWorkerIdMap.has(w.individualId)) {
                             const records = individualIdToRecords.get(w.individualId) || [];
-                            for (const record of records) {
-                                record.status = dataRowStatuses.failed;
-                                record.data["#status#"] = sheetDataRowStatuses.INVALID;
-                                record.data["#errorDetails#"] = errMsg;
-                                failureCount++;
-                            }
+                            const demoted = markWorkerRecordsFailed(records, errMsg);
+                            successCount -= demoted;
+                            failureCount += demoted;
                         }
                     }
                 }
@@ -209,12 +207,9 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
                     if (processedIds.has(w.individualId)) continue;
                     processedIds.add(w.individualId);
                     const records = individualIdToRecords.get(w.individualId) || [];
-                    for (const record of records) {
-                        record.status = dataRowStatuses.failed;
-                        record.data["#status#"] = sheetDataRowStatuses.INVALID;
-                        record.data["#errorDetails#"] = errMsg;
-                        failureCount++;
-                    }
+                    const demoted = markWorkerRecordsFailed(records, errMsg);
+                    successCount -= demoted;
+                    failureCount += demoted;
                 }
             }
         }
@@ -323,4 +318,17 @@ async function createUsersViaHrmsApi(
         logger.error("HRMS employee creation failed :: " + (error?.stack || error?.message || error));
         throw new Error(`HRMS API failed: ${error.message || error}`);
     }
+}
+
+/**
+ * Marks all records as failed due to worker registry error.
+ * Returns the number of records demoted so the caller can adjust success/failure counters.
+ */
+function markWorkerRecordsFailed(records: CampaignRecord[], errMsg: string): number {
+    for (const record of records) {
+        record.status = dataRowStatuses.failed;
+        record.data["#status#"] = sheetDataRowStatuses.INVALID;
+        record.data["#errorDetails#"] = errMsg;
+    }
+    return records.length;
 }

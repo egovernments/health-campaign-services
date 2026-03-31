@@ -64,7 +64,14 @@ export class TemplateClass {
             },
             ["HCM_ADMIN_CONSOLE_USER_LIST"]: {
                 data: userData,
-                dynamicColumns: null
+                dynamicColumns: {
+                    "HCM_ADMIN_CONSOLE_USER_PAYEE_PHONE_NUMBER": { color: "#FFE599" },
+                    "HCM_ADMIN_CONSOLE_USER_PAYMENT_PROVIDER": { color: "#FFE599" },
+                    "HCM_ADMIN_CONSOLE_USER_PAYEE_NAME": { color: "#FFE599" },
+                    "HCM_ADMIN_CONSOLE_USER_BANK_ACCOUNT": { color: "#FFE599" },
+                    "HCM_ADMIN_CONSOLE_USER_BANK_CODE": { color: "#FFE599" },
+                    "HCM_ADMIN_CONSOLE_USER_BENEFICIARY_CODE": { color: "#FFE599" },
+                }
             }
         };
 

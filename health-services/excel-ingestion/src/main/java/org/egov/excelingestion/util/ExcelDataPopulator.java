@@ -8,6 +8,7 @@ import org.apache.poi.xssf.usermodel.XSSFConditionalFormattingRule;
 import org.apache.poi.xssf.usermodel.XSSFSheetConditionalFormatting;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.egov.excelingestion.config.ExcelIngestionConfig;
+import org.egov.excelingestion.config.ProcessingConstants;
 import org.egov.excelingestion.web.models.excel.ColumnDef;
 import org.egov.excelingestion.web.models.excel.ConditionalRequired;
 import org.egov.excelingestion.web.models.excel.MultiSelectDetails;
@@ -416,12 +417,10 @@ public class ExcelDataPopulator {
                     );
                     sheet.addValidationData(dv);
 
-                    // Also apply visual validation (conditional formatting) for format constraints,
-                    // but only when the trigger condition is met
-                    if (hasStringValidation(column) || hasNumberValidation(column)) {
-                        applyConditionalVisualValidation(workbook, sheet, column, colIndex,
-                                triggerColIdx, triggerValues, localizationMap);
-                    }
+                    // Apply visual validation (conditional formatting): highlight empty required cells
+                    // and cells with invalid format when the trigger condition is met
+                    applyConditionalVisualValidation(workbook, sheet, column, colIndex,
+                            triggerColIdx, triggerValues, localizationMap);
                 }
             }
 
@@ -437,6 +436,128 @@ public class ExcelDataPopulator {
                 applyPureVisualValidation(workbook, sheet, column, colIndex, localizationMap);
             }
         }
+
+        // Apply payee-field-specific conditional formatting rules (payment provider conditions)
+        int actualDataRows = ExcelUtil.findActualLastRowWithData(sheet) + 1;
+        int maxRow = Math.max(actualDataRows, config.getExcelRowLimit());
+        applyPayeeFieldConditionalFormatting(sheet, headerNameToColIndex, maxRow);
+    }
+
+    /**
+     * Applies conditional formatting rules for payee/worker detail fields based on payment provider.
+     * All rules use only sheet data (Excel formulas) — no API validation required.
+     *
+     * BANK provider:
+     *   payeeName        — required; max 35 chars when beneficiaryCode is filled, else max 100
+     *   beneficiaryCode  — required; max 35 chars
+     *   bankAccount      — required; must be exactly 10 numeric digits
+     *   bankCode         — required; must be empty, 3 digits, or 9 digits
+     *
+     * MTN provider:
+     *   payeePhoneNumber — required
+     *
+     * Non-BANK:
+     *   payeeName        — not required, but max 35 chars if filled
+     */
+    private void applyPayeeFieldConditionalFormatting(Sheet sheet, Map<String, Integer> colIndexMap, int maxRow) {
+        Integer providerIdx      = colIndexMap.get(ProcessingConstants.PAYMENT_PROVIDER_COL);
+        Integer payeeNameIdx     = colIndexMap.get(ProcessingConstants.PAYEE_NAME_COL);
+        Integer beneficiaryIdx   = colIndexMap.get(ProcessingConstants.BENEFICIARY_CODE_COL);
+        Integer bankAccountIdx   = colIndexMap.get(ProcessingConstants.BANK_ACCOUNT_COL);
+        Integer bankCodeIdx      = colIndexMap.get(ProcessingConstants.BANK_CODE_COL);
+        Integer payeePhoneIdx    = colIndexMap.get(ProcessingConstants.PAYEE_PHONE_NUMBER_COL);
+
+        if (providerIdx == null) {
+            log.debug("Payment provider column not found in sheet — skipping payee conditional formatting");
+            return;
+        }
+
+        XSSFSheetConditionalFormatting cf = (XSSFSheetConditionalFormatting) sheet.getSheetConditionalFormatting();
+        String p = columnIndexToLetter(providerIdx);
+
+        // --- payeeName ---
+        if (payeeNameIdx != null) {
+            String n = columnIndexToLetter(payeeNameIdx);
+            String b = beneficiaryIdx != null ? columnIndexToLetter(beneficiaryIdx) : null;
+
+            // Required when BANK and empty
+            addPayeeCfRule(cf, maxRow, payeeNameIdx,
+                    "AND($" + p + "3=\"BANK\",LEN(TRIM($" + n + "3))=0)");
+
+            if (b != null) {
+                // BANK + beneficiaryCode filled: max 35 chars
+                addPayeeCfRule(cf, maxRow, payeeNameIdx,
+                        "AND($" + p + "3=\"BANK\",LEN(TRIM($" + b + "3))>0,$" + n + "3<>\"\",LEN($" + n + "3)>35)");
+                // BANK + beneficiaryCode empty: max 100 chars
+                addPayeeCfRule(cf, maxRow, payeeNameIdx,
+                        "AND($" + p + "3=\"BANK\",LEN(TRIM($" + b + "3))=0,$" + n + "3<>\"\",LEN($" + n + "3)>100)");
+            } else {
+                // No beneficiaryCode column — apply single max 100 rule for BANK
+                addPayeeCfRule(cf, maxRow, payeeNameIdx,
+                        "AND($" + p + "3=\"BANK\",$" + n + "3<>\"\",LEN($" + n + "3)>100)");
+            }
+
+            // Non-BANK: not required, but max 35 chars if filled
+            addPayeeCfRule(cf, maxRow, payeeNameIdx,
+                    "AND($" + p + "3<>\"BANK\",$" + n + "3<>\"\",LEN($" + n + "3)>35)");
+        }
+
+        // --- beneficiaryCode ---
+        if (beneficiaryIdx != null) {
+            String b = columnIndexToLetter(beneficiaryIdx);
+
+            // Required when BANK and empty
+            addPayeeCfRule(cf, maxRow, beneficiaryIdx,
+                    "AND($" + p + "3=\"BANK\",LEN(TRIM($" + b + "3))=0)");
+
+            // BANK and non-empty: max 35 chars
+            addPayeeCfRule(cf, maxRow, beneficiaryIdx,
+                    "AND($" + p + "3=\"BANK\",$" + b + "3<>\"\",LEN($" + b + "3)>35)");
+        }
+
+        // --- bankAccount ---
+        if (bankAccountIdx != null) {
+            String a = columnIndexToLetter(bankAccountIdx);
+
+            // Required when BANK and empty
+            addPayeeCfRule(cf, maxRow, bankAccountIdx,
+                    "AND($" + p + "3=\"BANK\",LEN(TRIM($" + a + "3))=0)");
+
+            // BANK and non-empty: must be exactly 10 numeric digits
+            addPayeeCfRule(cf, maxRow, bankAccountIdx,
+                    "AND($" + p + "3=\"BANK\",$" + a + "3<>\"\",OR(LEN($" + a + "3)<>10,NOT(ISNUMBER(VALUE($" + a + "3)))))");
+        }
+
+        // --- bankCode ---
+        if (bankCodeIdx != null) {
+            String bc = columnIndexToLetter(bankCodeIdx);
+
+            // Required when BANK and empty
+            addPayeeCfRule(cf, maxRow, bankCodeIdx,
+                    "AND($" + p + "3=\"BANK\",LEN(TRIM($" + bc + "3))=0)");
+
+            // BANK and non-empty: must be 3 or 9 numeric digits (pattern ^$|\d{3}|\d{9})
+            addPayeeCfRule(cf, maxRow, bankCodeIdx,
+                    "AND($" + p + "3=\"BANK\",$" + bc + "3<>\"\",OR(NOT(ISNUMBER(VALUE($" + bc + "3))),AND(LEN($" + bc + "3)<>3,LEN($" + bc + "3)<>9)))");
+        }
+
+        // --- payeePhoneNumber (MTN: required) ---
+        if (payeePhoneIdx != null) {
+            String pp = columnIndexToLetter(payeePhoneIdx);
+            addPayeeCfRule(cf, maxRow, payeePhoneIdx,
+                    "AND($" + p + "3=\"MTN\",LEN(TRIM($" + pp + "3))=0)");
+        }
+
+        log.info("Applied payee field conditional formatting rules");
+    }
+
+    private void addPayeeCfRule(XSSFSheetConditionalFormatting cf, int maxRow, int colIndex, String formula) {
+        CellRangeAddress[] regions = {new CellRangeAddress(2, maxRow, colIndex, colIndex)};
+        XSSFConditionalFormattingRule rule = cf.createConditionalFormattingRule(formula);
+        PatternFormatting fill = rule.createPatternFormatting();
+        setValidationErrorColor(fill);
+        fill.setFillPattern(PatternFormatting.SOLID_FOREGROUND);
+        cf.addConditionalFormatting(regions, rule);
     }
     
     /**
@@ -736,23 +857,29 @@ public class ExcelDataPopulator {
                     .collect(Collectors.joining(","));
             String triggerCondition = triggerValues.size() == 1 ? triggerMatch : "OR(" + triggerMatch + ")";
 
-            // Build format violation formula based on field constraints
-            String violation = buildFormatViolation(column, colLetter);
-            if (violation == null) return;
-
-            // Final formula: highlight if trigger matches AND cell not empty AND format invalid
-            String formula = "AND(" + triggerCondition + "," + colLetter + "3<>\"\"," + violation + ")";
-
             XSSFSheetConditionalFormatting cf = (XSSFSheetConditionalFormatting) sheet.getSheetConditionalFormatting();
             int actualDataRows = ExcelUtil.findActualLastRowWithData(sheet) + 1;
             int maxRow = Math.max(actualDataRows, config.getExcelRowLimit());
             CellRangeAddress[] regions = {new CellRangeAddress(2, maxRow, colIndex, colIndex)};
 
-            XSSFConditionalFormattingRule rule = cf.createConditionalFormattingRule(formula);
-            PatternFormatting fill = rule.createPatternFormatting();
-            setValidationErrorColor(fill);
-            fill.setFillPattern(PatternFormatting.SOLID_FOREGROUND);
-            cf.addConditionalFormatting(regions, rule);
+            // Rule 1: required-but-empty — highlight when trigger is met and cell is empty
+            String requiredEmptyFormula = "AND(" + triggerCondition + ",LEN(TRIM(" + colLetter + "3))=0)";
+            XSSFConditionalFormattingRule emptyRule = cf.createConditionalFormattingRule(requiredEmptyFormula);
+            PatternFormatting emptyFill = emptyRule.createPatternFormatting();
+            setValidationErrorColor(emptyFill);
+            emptyFill.setFillPattern(PatternFormatting.SOLID_FOREGROUND);
+            cf.addConditionalFormatting(regions, emptyRule);
+
+            // Rule 2: format violation — highlight when trigger is met, cell is non-empty, but format is invalid
+            String violation = buildFormatViolation(column, colLetter);
+            if (violation != null) {
+                String formatFormula = "AND(" + triggerCondition + "," + colLetter + "3<>\"\"," + violation + ")";
+                XSSFConditionalFormattingRule formatRule = cf.createConditionalFormattingRule(formatFormula);
+                PatternFormatting formatFill = formatRule.createPatternFormatting();
+                setValidationErrorColor(formatFill);
+                formatFill.setFillPattern(PatternFormatting.SOLID_FOREGROUND);
+                cf.addConditionalFormatting(regions, formatRule);
+            }
 
             addCellComments(sheet, colIndex, errorMessage, localizationMap);
             log.info("Applied conditional visual validation for column '{}': {}", column.getName(), errorMessage);

@@ -171,60 +171,91 @@ public class UserValidationProcessor implements IWorkbookProcessor {
     /**
      * Process validation errors and enrich existing error data with semicolon separation
      */
-    private void processValidationErrors(Sheet sheet, List<ValidationError> errors, 
+    private void processValidationErrors(Sheet sheet, List<ValidationError> errors,
                                        ValidationColumnInfo columnInfo, Map<String, String> localizationMap) {
         // Create a map of row number to errors for quick lookup
         Map<Integer, List<ValidationError>> errorsByRow = new HashMap<>();
         for (ValidationError error : errors) {
             errorsByRow.computeIfAbsent(error.getRowNumber(), k -> new ArrayList<>()).add(error);
         }
-        
+
+        // Build localized header name → column index map (single pass, O(n))
+        Map<String, Integer> headerNameToColIndex = new HashMap<>();
+        Row headerRow = sheet.getRow(0);
+        if (headerRow != null) {
+            for (Cell cell : headerRow) {
+                String val = ExcelUtil.getCellValueAsString(cell);
+                if (val != null && !val.isEmpty()) {
+                    headerNameToColIndex.put(val, cell.getColumnIndex());
+                }
+            }
+        }
+
+        // Create cell error highlight style once (reuse across all rows)
+        CellStyle errorHighlightStyle = sheet.getWorkbook().createCellStyle();
+        errorHighlightStyle.setFillForegroundColor(IndexedColors.ROSE.getIndex());
+        errorHighlightStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+
         // Find the maximum error row number
         int maxErrorRowNumber = errors.stream()
             .filter(e -> e.getRowNumber() != null)
             .mapToInt(ValidationError::getRowNumber)
             .max()
             .orElse(0);
-        
+
         // Process each data row (skip header row) - loop up to max of actual data rows or max error row
         int maxRowToProcess = Math.max(ExcelUtil.findActualLastRowWithData(sheet), maxErrorRowNumber - 1);
         for (int i = 1; i <= maxRowToProcess; i++) {
             Row row = sheet.getRow(i);
             if (row == null) continue;
-            
+
             int actualRowNumber = i + 1; // Convert to 1-based row number
             List<ValidationError> rowErrors = errorsByRow.get(actualRowNumber);
-            
+
             if (rowErrors != null && !rowErrors.isEmpty()) {
                 // Get existing error and status values
                 Cell errorCell = row.getCell(columnInfo.getErrorColumnIndex());
                 Cell statusCell = row.getCell(columnInfo.getStatusColumnIndex());
-                
+
                 String existingErrors = errorCell != null ? ExcelUtil.getCellValueAsString(errorCell) : "";
                 String existingStatus = statusCell != null ? ExcelUtil.getCellValueAsString(statusCell) : "";
-                
+
                 // Use a Set to store unique error messages
                 Set<String> uniqueErrorMessages = new LinkedHashSet<>();
                 if (existingErrors != null && !existingErrors.trim().isEmpty()) {
                     uniqueErrorMessages.addAll(Arrays.asList(existingErrors.split("\s*;\s*")));
                 }
-                
-                String status = existingStatus != null && !existingStatus.isEmpty() ? 
+
+                String status = existingStatus != null && !existingStatus.isEmpty() ?
                     existingStatus : ValidationConstants.STATUS_VALID;
-                
+
                 for (ValidationError error : rowErrors) {
                     uniqueErrorMessages.add(error.getErrorDetails());
-                    
+
                     // Set status to the most severe error
                     if (ValidationConstants.STATUS_ERROR.equals(error.getStatus())) {
                         status = ValidationConstants.STATUS_ERROR;
-                    } else if (ValidationConstants.STATUS_INVALID.equals(error.getStatus()) && 
+                    } else if (ValidationConstants.STATUS_INVALID.equals(error.getStatus()) &&
                               !ValidationConstants.STATUS_ERROR.equals(status)) {
                         status = ValidationConstants.STATUS_INVALID;
                     }
+
+                    // Highlight specific column cell if columnName is set on the error
+                    if (error.getColumnName() != null) {
+                        String localizedColName = LocalizationUtil.getLocalizedMessage(
+                                localizationMap, error.getColumnName(), error.getColumnName());
+                        Integer colIdx = headerNameToColIndex.get(localizedColName);
+                        if (colIdx != null) {
+                            Cell targetCell = row.getCell(colIdx);
+                            if (targetCell == null) {
+                                targetCell = row.createCell(colIdx);
+                            }
+                            targetCell.setCellStyle(errorHighlightStyle);
+                        }
+                    }
                 }
                 String finalErrorMessage = String.join("; ", uniqueErrorMessages);
-                
+
                 // Create cells if they don't exist
                 if (errorCell == null) {
                     errorCell = row.createCell(columnInfo.getErrorColumnIndex());
@@ -232,7 +263,7 @@ public class UserValidationProcessor implements IWorkbookProcessor {
                 if (statusCell == null) {
                     statusCell = row.createCell(columnInfo.getStatusColumnIndex());
                 }
-                
+
                 // Set the enriched values
                 errorCell.setCellValue(finalErrorMessage);
                 statusCell.setCellValue(status);
@@ -663,6 +694,7 @@ public class UserValidationProcessor implements IWorkbookProcessor {
                             error.setRowNumber(rowNumber);
                             error.setErrorDetails(errorMsg);
                             error.setStatus(ValidationConstants.STATUS_INVALID);
+                            error.setColumnName(ProcessingConstants.WORKER_ID_COLUMN_KEY);
                             errors.add(error);
                         }
                     }
@@ -681,6 +713,7 @@ public class UserValidationProcessor implements IWorkbookProcessor {
                     error.setRowNumber(rowNumber);
                     error.setErrorDetails(errorMsg);
                     error.setStatus(ValidationConstants.STATUS_INVALID);
+                    error.setColumnName(ProcessingConstants.WORKER_ID_COLUMN_KEY);
                     errors.add(error);
                 }
             }

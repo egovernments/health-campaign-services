@@ -61,7 +61,7 @@ export class TemplateClass {
             for (const error of errors) {
                 const row = error.row - 3;
                 const existingError = sheetData[row]["#errorDetails#"];
-    
+
                 if (existingError) {
                     const trimmed = existingError.trim();
                     const separator = trimmed.endsWith(".") ? " " : ". ";

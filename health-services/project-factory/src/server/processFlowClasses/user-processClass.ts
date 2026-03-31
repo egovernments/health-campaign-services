@@ -49,7 +49,7 @@ export class TemplateClass {
 
         await this.createUserFromTableData(resourceDetails);
 
-        await this.updateWorkerRegistryForCompletedUsers(userSheetData, existingUsersForCampaign, resourceDetails);
+        await this.updateWorkerRegistryForCompletedUsers(userSheetData, existingUsersForCampaign, resourceDetails, localizationMap);
 
         // Read all rows then filter to completed + failed only.
         // Pending users have no encrypted UserName/Password yet — decrypting undefined would throw.
@@ -284,7 +284,8 @@ export class TemplateClass {
     private static async updateWorkerRegistryForCompletedUsers(
         userSheetData: any[],
         existingUsersForCampaign: any[],
-        resourceDetails: any
+        resourceDetails: any,
+        localizationMap: Record<string, string>
     ): Promise<void> {
         const WORKER_BATCH_SIZE = 100;
         const workerFieldKeys = [
@@ -293,6 +294,7 @@ export class TemplateClass {
             "HCM_ADMIN_CONSOLE_USER_PAYEE_NAME",
             "HCM_ADMIN_CONSOLE_USER_BANK_ACCOUNT",
             "HCM_ADMIN_CONSOLE_USER_BANK_CODE",
+            "HCM_ADMIN_CONSOLE_USER_BENEFICIARY_CODE",
         ];
 
         // Build map: phone → completed existing campaign record.
@@ -363,12 +365,14 @@ export class TemplateClass {
 
             workerDataList.push({
                 name: row?.["HCM_ADMIN_CONSOLE_USER_NAME"] || existingUser?.data?.["HCM_ADMIN_CONSOLE_USER_NAME"] || "",
-                payeePhoneNumber: row?.["HCM_ADMIN_CONSOLE_USER_PAYEE_PHONE_NUMBER"] || "",
+                payeePhoneNumber: String(row?.["HCM_ADMIN_CONSOLE_USER_PAYEE_PHONE_NUMBER"] || ""),
                 paymentProvider: row?.["HCM_ADMIN_CONSOLE_USER_PAYMENT_PROVIDER"] || "",
                 payeeName: row?.["HCM_ADMIN_CONSOLE_USER_PAYEE_NAME"] || "",
-                bankAccount: row?.["HCM_ADMIN_CONSOLE_USER_BANK_ACCOUNT"] || "",
-                bankCode: row?.["HCM_ADMIN_CONSOLE_USER_BANK_CODE"] || "",
-                beneficiaryCode: row?.["HCM_ADMIN_CONSOLE_USER_BENEFICIARY_CODE"] || "",
+                bankAccount: String(row?.["HCM_ADMIN_CONSOLE_USER_BANK_ACCOUNT"] || ""),
+                bankCode: String(row?.["HCM_ADMIN_CONSOLE_USER_BANK_CODE"] || ""),
+                beneficiaryCode: String(row?.["HCM_ADMIN_CONSOLE_USER_BENEFICIARY_CODE"]
+                    || row?.[getLocalizedName("HCM_ADMIN_CONSOLE_USER_BENEFICIARY_CODE", localizationMap)]
+                    || ""),
                 id: workerId,
                 individualId,
                 tenantId,
