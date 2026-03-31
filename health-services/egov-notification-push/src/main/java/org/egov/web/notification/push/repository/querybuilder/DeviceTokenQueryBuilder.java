@@ -25,4 +25,8 @@ public class DeviceTokenQueryBuilder {
 				+ " WHERE userid IN (:userIds) ORDER BY userid, lastmodifiedtime DESC";
 	}
 
+	public static String deleteByDeviceTokens(String schema) {
+		return "DELETE FROM " + table(schema) + " WHERE devicetoken IN (:deviceTokens)";
+	}
+
 }
