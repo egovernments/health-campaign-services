@@ -675,6 +675,8 @@ export class TemplateClass {
             try {
                 await httpRequest(url, body);
             } catch (err: any) {
+                const socket = (err as any)?.request?.socket;
+                if (socket && !socket.destroyed) socket.destroy();
                 logger.error(`Attendance API call failed — endpoint=${urlPath}, batchStart=${i}, batchSize=${batchItems.length}, rowNumbers=[${batchItems.map(item => item.row["!row#number!"] || "?").join(",")}]: ${err?.message}`);
                 for (const item of batchItems) {
                     item.row["#status#"] = sheetDataRowStatuses.INVALID;

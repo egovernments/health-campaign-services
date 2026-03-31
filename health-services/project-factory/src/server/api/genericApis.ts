@@ -10,6 +10,14 @@ const _ = require('lodash'); // Import lodash library
 import { enrichTemplateMetaData, getExcelWorkbookFromFileURL } from "../utils/excelUtils";
 import { searchBoundaryRelationshipData, searchMDMSDataViaV2Api } from "./coreApis";
 import { getLocaleFromRequestInfo } from "../utils/localisationUtils";
+
+// Dedicated axios instance for filestore uploads — isolated connection pool,
+// never shared with attendance or other service calls, preventing pool poisoning
+const filestoreAxiosInstance = require("axios").default.create({
+  timeout: 0,
+  maxContentLength: Infinity,
+  maxBodyLength: Infinity,
+});
 import { MDMSModels } from "../models";
 
 //Function to get Workbook with different tabs (for type target)
@@ -384,49 +392,34 @@ async function createAndUploadFile(
   request: any,
   tenantId?: any
 ) {
-  let retries: any = 3;
-  // Enrich metadatas
   if (request?.body?.RequestInfo && request?.query?.campaignId) {
     enrichTemplateMetaData(updatedWorkbook, getLocaleFromRequestInfo(request?.body?.RequestInfo), request?.query?.campaignId);
   }
-  while (retries--) {
+  const buffer = await updatedWorkbook.xlsx.writeBuffer();
+
+  const maxAttempts = parseInt(config.values.maxHttpRetries) || 4;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const formData = new FormData();
+    formData.append("file", buffer, "filename.xlsx");
+    formData.append("tenantId", tenantId ? tenantId : request?.body?.RequestInfo?.userInfo?.tenantId);
+    formData.append("module", "HCM-ADMIN-CONSOLE-SERVER");
     try {
-      // Write the updated workbook to a buffer
-      const buffer = await updatedWorkbook.xlsx.writeBuffer();
-
-      // Create form data for file upload
-      const formData = new FormData();
-      formData.append("file", buffer, "filename.xlsx");
-      formData.append(
-        "tenantId",
-        tenantId ? tenantId : request?.body?.RequestInfo?.userInfo?.tenantId
-      );
-      formData.append("module", "HCM-ADMIN-CONSOLE-SERVER");
-
-      // Make HTTP request to upload file
-      var fileCreationResult = await httpRequest(
+      logger.info(`FILESTORE :: REQUEST :: ${config.host.filestore + config.paths.filestore}`);
+      const response = await filestoreAxiosInstance.post(
         config.host.filestore + config.paths.filestore,
         formData,
-        undefined,
-        undefined,
-        undefined,
         {
-          "Content-Type": "multipart/form-data",
-          "auth-token": request?.body?.RequestInfo?.authToken || request?.RequestInfo?.authToken,
+          headers: {
+            ...formData.getHeaders(),
+            "auth-token": request?.body?.RequestInfo?.authToken || request?.RequestInfo?.authToken,
+          },
         }
       );
-
-      // Extract response data
-      const responseData = fileCreationResult?.files;
-      if (responseData) {
-        return responseData;
-      }
-    }
-    catch (error: any) {
-      console.error(`Attempt failed:`, error.message);
-
-      // Add a delay before the next retry (2 seconds)
-      await new Promise((resolve) => setTimeout(resolve, 5000));
+      const responseData = response?.data?.files;
+      if (responseData) return responseData;
+    } catch (error: any) {
+      logger.warn(`FILESTORE :: ATTEMPT ${attempt}/${maxAttempts} FAILED :: ${error?.response?.data?.Errors?.[0]?.message || error?.message}`);
+      if (attempt === maxAttempts) throw new Error("Error while uploading excel file: INTERNAL_SERVER_ERROR");
     }
   }
   throw new Error("Error while uploading excel file: INTERNAL_SERVER_ERROR");
@@ -436,46 +429,28 @@ export async function createAndUploadFileWithOutRequest(
   updatedWorkbook: any,
   tenantId: any
 ) {
-  let retries: any = 3;
-  while (retries--) {
+  logger.info("Creating form data for file upload...");
+  const buffer = await updatedWorkbook.xlsx.writeBuffer();
+  logger.info("Form data created.");
+
+  const maxAttempts = parseInt(config.values.maxHttpRetries) || 4;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const formData = new FormData();
+    formData.append("file", buffer, "filename.xlsx");
+    formData.append("tenantId", tenantId);
+    formData.append("module", "HCM-ADMIN-CONSOLE-SERVER");
     try {
-      // Write the updated workbook to a buffer
-      logger.info("Creating form data for file upload...");
-      const buffer = await updatedWorkbook.xlsx.writeBuffer();
-
-      // Create form data for file upload
-      const formData = new FormData();
-      formData.append("file", buffer, "filename.xlsx");
-      formData.append(
-        "tenantId",
-        tenantId
-      );
-      formData.append("module", "HCM-ADMIN-CONSOLE-SERVER");
-      logger.info("Form data created.");
-
-      // Make HTTP request to upload file
-      var fileCreationResult = await httpRequest(
+      logger.info(`FILESTORE :: REQUEST :: ${config.host.filestore + config.paths.filestore}`);
+      const response = await filestoreAxiosInstance.post(
         config.host.filestore + config.paths.filestore,
         formData,
-        undefined,
-        undefined,
-        undefined,
-        {
-          "Content-Type": "multipart/form-data"
-        }
+        { headers: { ...formData.getHeaders() } }
       );
-
-      // Extract response data
-      const responseData = fileCreationResult?.files;
-      if (responseData) {
-        return responseData;
-      }
-    }
-    catch (error: any) {
-      console.error(`Attempt failed:`, error.message);
-
-      // Add a delay before the next retry (2 seconds)
-      await new Promise((resolve) => setTimeout(resolve, 5000));
+      const responseData = response?.data?.files;
+      if (responseData) return responseData;
+    } catch (error: any) {
+      logger.warn(`FILESTORE :: ATTEMPT ${attempt}/${maxAttempts} FAILED :: ${error?.response?.data?.Errors?.[0]?.message || error?.message}`);
+      if (attempt === maxAttempts) throw new Error("Error while uploading excel file: INTERNAL_SERVER_ERROR");
     }
   }
   throw new Error("Error while uploading excel file: INTERNAL_SERVER_ERROR");
