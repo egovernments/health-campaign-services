@@ -162,7 +162,7 @@ export class TemplateClass {
                     this.collectAttendeeOperation(
                         existing, enrollmentDateEpoch, deEnrollmentDateEpoch, teamCode || "",
                         tenantId, registerUuid, individualId, row,
-                        attendeesToCreate, attendeesToUpdate
+                        attendeesToCreate, attendeesToUpdate, localizationMap
                     );
                 } else {
                     const staffType = isMarkerSheet ? "OWNER" : "APPROVER";
@@ -172,7 +172,7 @@ export class TemplateClass {
                     this.collectStaffOperation(
                         existing, enrollmentDateEpoch, deEnrollmentDateEpoch,
                         tenantId, registerUuid, individualId, staffType, row,
-                        staffToCreate, staffToUpdate
+                        staffToCreate, staffToUpdate, localizationMap
                     );
                 }
             }
@@ -353,7 +353,8 @@ export class TemplateClass {
         individualId: string,
         row: any,
         attendeesToCreate: Array<{ payload: any; row: any }>,
-        attendeesToUpdate: Array<{ payload: any; row: any }>
+        attendeesToUpdate: Array<{ payload: any; row: any }>,
+        localizationMap: Record<string, string>
     ): void {
         if (!existing) {
             if (!enrollmentDateEpoch && !deEnrollmentDateEpoch) {
@@ -372,23 +373,51 @@ export class TemplateClass {
             return;
         }
 
-        // Existing attendee — already de-enrolled; populate row with final state
+        // Existing attendee — already de-enrolled
         if (existing.denrollmentDate) {
+            // Date immutability: reject if dates are changed
+            if (enrollmentDateEpoch !== null && existing.enrollmentDate != null
+                && enrollmentDateEpoch !== existing.enrollmentDate) {
+                row["#status#"] = sheetDataRowStatuses.INVALID;
+                row["#errorDetails#"] = getLocalizedName("HCM_ATTENDANCE_CANNOT_CHANGE_ENROLLMENT_DATE", localizationMap) || "Cannot change enrollment date for this register";
+                return;
+            }
+            if (deEnrollmentDateEpoch !== null && deEnrollmentDateEpoch !== existing.denrollmentDate) {
+                row["#status#"] = sheetDataRowStatuses.INVALID;
+                row["#errorDetails#"] = getLocalizedName("HCM_ATTENDANCE_CANNOT_CHANGE_DEENROLLMENT_DATE", localizationMap) || "Cannot change de-enrollment date for this register";
+                return;
+            }
+
+            // Populate row with existing final state (merge)
             if (existing.enrollmentDate != null) row["HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE"] = existing.enrollmentDate;
             row["HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE"] = existing.denrollmentDate;
-            if (existing.tag) row["HCM_ATTENDANCE_ATTENDEE_TEAM_CODE"] = existing.tag;
-            row["#status#"] = sheetDataRowStatuses.CREATED;
+            const existingTag = existing.tag || "";
+            row["HCM_ATTENDANCE_ATTENDEE_TEAM_CODE"] = teamCode || existingTag || row["HCM_ATTENDANCE_ATTENDEE_TEAM_CODE"];
+
+            // Allow ONLY tag update if different
+            if (teamCode && teamCode !== existingTag) {
+                attendeesToUpdate.push({
+                    payload: { id: existing.id, registerId, individualId, tenantId, tag: teamCode },
+                    row
+                });
+            } else {
+                row["#status#"] = sheetDataRowStatuses.CREATED;
+            }
             return;
         }
 
-        // Active attendee — collect ALL changed fields into one update payload
+        // Active attendee — date immutability: reject if enrollmentDate is changed
+        if (enrollmentDateEpoch !== null && existing.enrollmentDate != null
+            && enrollmentDateEpoch !== existing.enrollmentDate) {
+            row["#status#"] = sheetDataRowStatuses.INVALID;
+            row["#errorDetails#"] = getLocalizedName("HCM_ATTENDANCE_CANNOT_CHANGE_ENROLLMENT_DATE", localizationMap) || "Cannot change enrollment date for this register";
+            return;
+        }
+
+        // Active attendee — allow de-enroll and tag update only
         const updatePayload: any = { id: existing.id, registerId, individualId, tenantId };
         let hasChanges = false;
 
-        if (enrollmentDateEpoch !== null && enrollmentDateEpoch !== existing.enrollmentDate) {
-            updatePayload.enrollmentDate = enrollmentDateEpoch;
-            hasChanges = true;
-        }
         if (deEnrollmentDateEpoch !== null) {
             updatePayload.denrollmentDate = deEnrollmentDateEpoch;
             hasChanges = true;
@@ -397,6 +426,11 @@ export class TemplateClass {
             updatePayload.tag = teamCode;
             hasChanges = true;
         }
+
+        // Merge row: new non-empty wins, else keep existing
+        row["HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE"] = enrollmentDateEpoch ?? existing.enrollmentDate ?? row["HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE"];
+        row["HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE"] = deEnrollmentDateEpoch ?? existing.denrollmentDate ?? row["HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE"];
+        row["HCM_ATTENDANCE_ATTENDEE_TEAM_CODE"] = teamCode || existing.tag || row["HCM_ATTENDANCE_ATTENDEE_TEAM_CODE"];
 
         if (hasChanges) {
             attendeesToUpdate.push({ payload: updatePayload, row });
@@ -418,7 +452,8 @@ export class TemplateClass {
         staffType: string,
         row: any,
         staffToCreate: Array<{ payload: any; row: any }>,
-        staffToUpdate: Array<{ payload: any; row: any }>
+        staffToUpdate: Array<{ payload: any; row: any }>,
+        localizationMap: Record<string, string>
     ): void {
         if (!existing) {
             if (!enrollmentDateEpoch && !deEnrollmentDateEpoch) {
@@ -437,22 +472,38 @@ export class TemplateClass {
             return;
         }
 
-        // Existing staff — already de-enrolled; populate row with final state
+        // Existing staff — already de-enrolled
         if (existing.denrollmentDate) {
+            // Date immutability: reject if dates are changed
+            if (enrollmentDateEpoch !== null && existing.enrollmentDate != null
+                && enrollmentDateEpoch !== existing.enrollmentDate) {
+                row["#status#"] = sheetDataRowStatuses.INVALID;
+                row["#errorDetails#"] = getLocalizedName("HCM_ATTENDANCE_CANNOT_CHANGE_ENROLLMENT_DATE", localizationMap) || "Cannot change enrollment date for this register";
+                return;
+            }
+            if (deEnrollmentDateEpoch !== null && deEnrollmentDateEpoch !== existing.denrollmentDate) {
+                row["#status#"] = sheetDataRowStatuses.INVALID;
+                row["#errorDetails#"] = getLocalizedName("HCM_ATTENDANCE_CANNOT_CHANGE_DEENROLLMENT_DATE", localizationMap) || "Cannot change de-enrollment date for this register";
+                return;
+            }
             if (existing.enrollmentDate != null) row["HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE"] = existing.enrollmentDate;
             row["HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE"] = existing.denrollmentDate;
             row["#status#"] = sheetDataRowStatuses.CREATED;
             return;
         }
 
-        // Active staff — collect ALL changed fields into one update payload
+        // Active staff — date immutability: reject if enrollmentDate is changed
+        if (enrollmentDateEpoch !== null && existing.enrollmentDate != null
+            && enrollmentDateEpoch !== existing.enrollmentDate) {
+            row["#status#"] = sheetDataRowStatuses.INVALID;
+            row["#errorDetails#"] = getLocalizedName("HCM_ATTENDANCE_CANNOT_CHANGE_ENROLLMENT_DATE", localizationMap) || "Cannot change enrollment date for this register";
+            return;
+        }
+
+        // Active staff — allow de-enroll and staffType update only
         const updatePayload: any = { id: existing.id, registerId, userId: individualId, tenantId, staffType: existing.staffType || staffType };
         let hasChanges = false;
 
-        if (enrollmentDateEpoch !== null && enrollmentDateEpoch !== existing.enrollmentDate) {
-            updatePayload.enrollmentDate = enrollmentDateEpoch;
-            hasChanges = true;
-        }
         if (deEnrollmentDateEpoch !== null) {
             updatePayload.denrollmentDate = deEnrollmentDateEpoch;
             hasChanges = true;
@@ -461,6 +512,10 @@ export class TemplateClass {
             updatePayload.staffType = staffType;
             hasChanges = true;
         }
+
+        // Merge row: new non-empty wins, else keep existing
+        row["HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE"] = enrollmentDateEpoch ?? existing.enrollmentDate ?? row["HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE"];
+        row["HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE"] = deEnrollmentDateEpoch ?? existing.denrollmentDate ?? row["HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE"];
 
         if (hasChanges) {
             staffToUpdate.push({ payload: updatePayload, row });
