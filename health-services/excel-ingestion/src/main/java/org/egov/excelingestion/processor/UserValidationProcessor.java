@@ -181,6 +181,7 @@ public class UserValidationProcessor implements IWorkbookProcessor {
         
         // Find the maximum error row number
         int maxErrorRowNumber = errors.stream()
+            .filter(e -> e.getRowNumber() != null)
             .mapToInt(ValidationError::getRowNumber)
             .max()
             .orElse(0);

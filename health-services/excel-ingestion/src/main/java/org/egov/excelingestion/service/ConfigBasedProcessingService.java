@@ -553,17 +553,18 @@ public class ConfigBasedProcessingService {
                 
                 // Extract actual row number
                 Integer actualRowNumber = (Integer) rowData.get("__actualRowNumber__");
-                
-                // Remove __actualRowNumber__ from rowData
-                rowData.remove("__actualRowNumber__");
-                
+
+                // Copy rowData without __actualRowNumber__ to avoid mutating the shared cache
+                Map<String, Object> rowDataForPersist = new HashMap<>(rowData);
+                rowDataForPersist.remove("__actualRowNumber__");
+
                 SheetDataTemp sheetDataTemp = SheetDataTemp.builder()
                         .referenceId(resource.getReferenceId())
                         .tenantId(resource.getTenantId())
                         .fileStoreId(resource.getFileStoreId())
                         .sheetName(sheetName)
                         .rowNumber(actualRowNumber)
-                        .rowJson(rowData)
+                        .rowJson(rowDataForPersist)
                         .createdBy(extractCreatedByFromRequestInfo(requestInfo))
                         .createdTime(currentTime)
                         .deleteTime(deleteTime)
