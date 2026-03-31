@@ -8,6 +8,8 @@
 
 // ── Mocks (must be before imports) ──────────────────────────────────────────
 
+const mockServerTimezone = { value: "Asia/Kolkata" };
+
 jest.mock('../config', () => ({
     default: {
         host: {},
@@ -15,6 +17,7 @@ jest.mock('../config', () => ({
         kafka: {},
         hrms: { hrmsParallelSearchLimit: 5 },
         attendanceRegister: { serviceCodeParallelSearchLimit: 5, batchSize: 50 },
+        get serverTimezone() { return mockServerTimezone.value; },
     },
     __esModule: true,
 }));
@@ -493,5 +496,114 @@ describe("Edge cases — data integrity", () => {
         expect(row["#status#"]).toBe(sheetDataRowStatuses.CREATED);
         expect(row["HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE"]).toBeNull(); // unchanged from makeRow
         expect(row["HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE"]).toBe(DEENROLLMENT_EPOCH);
+    });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// D. parseDate — unit tests for each input type
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe("parseDate", () => {
+    function parseDate(value: any): number | null {
+        return (TemplateClass as any).parseDate(value);
+    }
+    function epochToDatePartsInTz(epochMs: number): { year: number; month: number; day: number } {
+        return (TemplateClass as any).epochToDatePartsInTz(epochMs);
+    }
+
+    beforeEach(() => {
+        (TemplateClass as any).tzFormatter = null;
+        mockServerTimezone.value = "Asia/Kolkata";
+    });
+
+    test("D1: Date object → non-null epoch for April 5", () => {
+        const result = parseDate(new Date(2026, 3, 5));
+        expect(result).not.toBeNull();
+        const parts = epochToDatePartsInTz(result!);
+        expect(parts).toEqual({ year: 2026, month: 4, day: 5 });
+    });
+
+    test("D2: ISO string → epoch for April 5", () => {
+        const result = parseDate("2026-04-05T00:00:00.000Z");
+        expect(result).not.toBeNull();
+        const parts = epochToDatePartsInTz(result!);
+        expect(parts).toEqual({ year: 2026, month: 4, day: 5 });
+    });
+
+    test("D3: Excel serial 46117 (April 5, 2026) → correct epoch", () => {
+        const result = parseDate(46117);
+        expect(result).not.toBeNull();
+        const parts = epochToDatePartsInTz(result!);
+        expect(parts).toEqual({ year: 2026, month: 4, day: 5 });
+    });
+
+    test("D4: dd/MM/yyyy string → correct epoch", () => {
+        const result = parseDate("05/04/2026");
+        expect(result).not.toBeNull();
+        const parts = epochToDatePartsInTz(result!);
+        expect(parts).toEqual({ year: 2026, month: 4, day: 5 });
+    });
+
+    test("D5: large epoch ms → returned as-is", () => {
+        expect(parseDate(1775347200000)).toBe(1775347200000);
+    });
+
+    test("D6: invalid string → null", () => {
+        expect(parseDate("not-a-date")).toBeNull();
+    });
+
+    test("D7: NaN Date → null", () => {
+        expect(parseDate(new Date("invalid"))).toBeNull();
+    });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// E. parseDateEndOfDay — end-of-day variant
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe("parseDateEndOfDay", () => {
+    function parseDateEndOfDay(value: any): number | null {
+        return (TemplateClass as any).parseDateEndOfDay(value);
+    }
+    function epochToDatePartsInTz(epochMs: number): { year: number; month: number; day: number } {
+        return (TemplateClass as any).epochToDatePartsInTz(epochMs);
+    }
+    function parseDate(value: any): number | null {
+        return (TemplateClass as any).parseDate(value);
+    }
+
+    beforeEach(() => {
+        (TemplateClass as any).tzFormatter = null;
+        mockServerTimezone.value = "Asia/Kolkata";
+    });
+
+    test("E1: Date object → end-of-day epoch (later than midnight)", () => {
+        const midnight = parseDate(new Date(2026, 3, 5))!;
+        const endOfDay = parseDateEndOfDay(new Date(2026, 3, 5))!;
+        expect(endOfDay).toBeGreaterThan(midnight);
+        const parts = epochToDatePartsInTz(endOfDay);
+        expect(parts).toEqual({ year: 2026, month: 4, day: 5 });
+    });
+
+    test("E2: Excel serial 46117 → end-of-day for April 5", () => {
+        const midnight = parseDate(46117)!;
+        const endOfDay = parseDateEndOfDay(46117)!;
+        expect(endOfDay).toBeGreaterThan(midnight);
+        const parts = epochToDatePartsInTz(endOfDay);
+        expect(parts).toEqual({ year: 2026, month: 4, day: 5 });
+    });
+
+    test("E3: ISO string → end-of-day for April 5", () => {
+        const midnight = parseDate("2026-04-05T00:00:00.000Z")!;
+        const endOfDay = parseDateEndOfDay("2026-04-05T00:00:00.000Z")!;
+        expect(endOfDay).toBeGreaterThan(midnight);
+    });
+
+    test("E4: large epoch ms → returned as-is", () => {
+        expect(parseDateEndOfDay(1775347200000)).toBe(1775347200000);
+    });
+
+    test("E5: invalid string → null", () => {
+        expect(parseDateEndOfDay("not-a-date")).toBeNull();
     });
 });

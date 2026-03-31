@@ -24,6 +24,12 @@ const SHEET_NAMES = [WORKER_SHEET, MARKER_SHEET, APPROVER_SHEET];
 const DASH_DATE_REGEX = /^(\d{2})-(\d{2})-(\d{4})$/;
 const SLASH_DATE_REGEX = /^(\d{2})\/(\d{2})\/(\d{4})$/;
 
+// Excel serial date conversion constants
+const EXCEL_EPOCH_MS = Date.UTC(1899, 11, 30); // Excel epoch: Dec 30, 1899
+const MS_PER_DAY = 86_400_000;
+const EXCEL_SERIAL_THRESHOLD = 100_000_000; // Below = Excel serial, above = epoch ms
+const ISO_DATE_PREFIX_REGEX = /^\d{4}-\d{2}-\d{2}/; // Matches YYYY-MM-DD start
+
 /**
  * Validation process class for Attendance Register Attendee Mapping.
  * Validates date formats, date ranges, register ID presence, and truth-table business rules
@@ -449,7 +455,7 @@ export class TemplateClass {
         const localMonth = get('month') - 1;
         const localDay = get('day');
         const localAsUtc = Date.UTC(localYear, localMonth, localDay, localHour, localMinute, localSecond);
-        const offsetMs = utcGuess - localAsUtc;
+        const offsetMs = localAsUtc - utcGuess;
         return Date.UTC(year, month, day) - offsetMs;
     }
 
@@ -492,9 +498,22 @@ export class TemplateClass {
             return this.midnightEpochInTz(value.getFullYear(), value.getMonth(), value.getDate());
         }
         if (typeof value === "number") {
+            if (value < EXCEL_SERIAL_THRESHOLD) {
+                // Excel serial date: days since Dec 30, 1899
+                const utcDate = new Date(EXCEL_EPOCH_MS + value * MS_PER_DAY);
+                return this.midnightEpochInTz(utcDate.getUTCFullYear(), utcDate.getUTCMonth(), utcDate.getUTCDate());
+            }
             return value;
         }
         const str = String(value).trim();
+        // Handle ISO 8601 strings (e.g., "2026-04-05T00:00:00.000Z" from getRawCellValue)
+        if (ISO_DATE_PREFIX_REGEX.test(str)) {
+            const isoDate = new Date(str);
+            if (!isNaN(isoDate.getTime())) {
+                const parts = this.epochToDatePartsInTz(isoDate.getTime());
+                return this.midnightEpochInTz(parts.year, parts.month - 1, parts.day);
+            }
+        }
         const match = DASH_DATE_REGEX.exec(str) || SLASH_DATE_REGEX.exec(str);
         if (!match) return null;
         const day = parseInt(match[1], 10);
