@@ -8,6 +8,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 import org.egov.common.models.core.EgovOfflineSearchModel;
+import org.egov.common.models.core.Exclude;
 
 @Data
 @NoArgsConstructor
@@ -35,4 +36,8 @@ public class HFReferralSearch extends EgovOfflineSearchModel {
 
     @JsonProperty("nationalLevelId")
     private List<String> nationalLevelId;
+
+    @JsonProperty("lastSyncedTime")
+    @Exclude
+    private Long lastSyncedTime = null;
 }

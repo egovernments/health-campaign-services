@@ -8,6 +8,7 @@ import org.egov.common.models.individual.Individual;
 import org.egov.common.models.project.ProjectBeneficiary;
 import org.egov.common.models.project.Task;
 import org.egov.common.models.referralmanagement.Referral;
+import org.egov.common.models.referralmanagement.hfreferral.HFReferral;
 import org.egov.common.models.referralmanagement.sideeffect.SideEffect;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -44,6 +45,9 @@ public class Downsync {
 	
     @JsonProperty("Referrals")
     private List<Referral> Referrals;
+
+    @JsonProperty("HFReferrals")
+    private List<HFReferral> hfReferrals;
 
     @JsonProperty("Services")
     private List<Service> services;
