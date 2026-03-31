@@ -42,9 +42,8 @@ export class TemplateClass {
         localizationMap: Record<string, string>,
         templateConfig: any
     ): Promise<SheetMap> {
-        logger.info("Validating attendance register attendee file...");
-
         const tenantId = resourceDetails?.tenantId;
+        logger.info(`Validating attendance register attendee file — tenantId=${tenantId}, campaignId=${resourceDetails?.campaignId}`);
 
         // Collect all rows from all sheets
         const allRows: { row: any; sheetName: string }[] = [];
@@ -72,6 +71,7 @@ export class TemplateClass {
             ids: [resourceDetails?.campaignId],
         });
         const campaignNumber = campaignResponse?.CampaignDetails?.[0]?.campaignNumber;
+        logger.info(`Attendee validation context — campaignNumber=${campaignNumber}, registerId=${registerId}, totalRows=${allRows.length}`);
 
         // Fetch register to get start/end date only (attendees/staff fetched separately)
         let registerStartDate: number | null = null;
@@ -82,6 +82,7 @@ export class TemplateClass {
             if (register) {
                 // Validate that register belongs to the current campaign
                 if (campaignNumber && register.campaignNumber && register.campaignNumber !== campaignNumber) {
+                    logger.warn(`Register ${registerId} belongs to campaign ${register.campaignNumber}, not current campaign ${campaignNumber} — marking all ${allRows.length} rows invalid`);
                     for (const { row } of allRows) {
                         this.addError(row, attendanceErrorKeys.REGISTER_BELONGS_TO_DIFFERENT_CAMPAIGN, localizationMap);
                     }
@@ -89,8 +90,10 @@ export class TemplateClass {
                 }
                 registerStartDate = register.startDate ?? null;
                 registerEndDate = register.endDate ?? null;
+                logger.debug(`Register ${registerId} date range — startDate=${registerStartDate} (${registerStartDate ? new Date(registerStartDate).toISOString() : 'null'}), endDate=${registerEndDate} (${registerEndDate ? new Date(registerEndDate).toISOString() : 'null'})`);
             } else {
                 // Mark all rows invalid if register not found
+                logger.warn(`Register ${registerId} not found — marking all ${allRows.length} rows invalid`);
                 for (const { row } of allRows) {
                     this.addError(row, attendanceErrorKeys.REGISTER_NOT_FOUND, localizationMap);
                 }
@@ -137,6 +140,7 @@ export class TemplateClass {
             if (enrollmentDateRaw !== null && enrollmentDateRaw !== undefined && enrollmentDateRaw !== "") {
                 const parsed = this.parseDate(enrollmentDateRaw);
                 if (parsed === null) {
+                    logger.debug(`Row ${row["!row#number!"]}: invalid enrollment date format — raw='${enrollmentDateRaw}', type=${typeof enrollmentDateRaw}`);
                     this.addError(row, attendanceErrorKeys.INVALID_DATE_FORMAT, localizationMap);
                 } else if (registerStartDate !== null && registerEndDate !== null) {
                     // Compare calendar dates in configured timezone (not raw epochs)
@@ -144,6 +148,7 @@ export class TemplateClass {
                     const startParts = this.epochToDatePartsInTz(registerStartDate);
                     const endParts = this.epochToDatePartsInTz(registerEndDate);
                     if (this.compareDateParts(parsedParts, startParts) < 0 || this.compareDateParts(parsedParts, endParts) > 0) {
+                        logger.debug(`Row ${row["!row#number!"]}: enrollment date out of range — parsed=${parsedParts.day}/${parsedParts.month}/${parsedParts.year}, registerStart=${startParts.day}/${startParts.month}/${startParts.year}, registerEnd=${endParts.day}/${endParts.month}/${endParts.year}, registerId=${registerId}`);
                         this.addError(row, attendanceErrorKeys.DATE_OUT_OF_RANGE, localizationMap);
                     }
                 }
@@ -152,6 +157,7 @@ export class TemplateClass {
             if (deEnrollmentDateRaw !== null && deEnrollmentDateRaw !== undefined && deEnrollmentDateRaw !== "") {
                 const parsedDeEnroll = this.parseDate(deEnrollmentDateRaw);
                 if (parsedDeEnroll === null) {
+                    logger.debug(`Row ${row["!row#number!"]}: invalid de-enrollment date format — raw='${deEnrollmentDateRaw}', type=${typeof deEnrollmentDateRaw}`);
                     this.addError(row, attendanceErrorKeys.INVALID_DATE_FORMAT, localizationMap);
                 } else {
                     if (registerStartDate !== null && registerEndDate !== null) {
@@ -160,6 +166,7 @@ export class TemplateClass {
                         const startParts = this.epochToDatePartsInTz(registerStartDate);
                         const endParts = this.epochToDatePartsInTz(registerEndDate);
                         if (this.compareDateParts(deEnrollParts, startParts) < 0 || this.compareDateParts(deEnrollParts, endParts) > 0) {
+                            logger.debug(`Row ${row["!row#number!"]}: de-enrollment date out of range — parsed=${deEnrollParts.day}/${deEnrollParts.month}/${deEnrollParts.year}, registerStart=${startParts.day}/${startParts.month}/${startParts.year}, registerEnd=${endParts.day}/${endParts.month}/${endParts.year}, registerId=${registerId}`);
                             this.addError(row, attendanceErrorKeys.DATE_OUT_OF_RANGE, localizationMap);
                         }
                     }
@@ -167,6 +174,7 @@ export class TemplateClass {
                     if (enrollmentDateRaw !== null && enrollmentDateRaw !== undefined && enrollmentDateRaw !== "") {
                         const parsedEnroll = this.parseDate(enrollmentDateRaw);
                         if (parsedEnroll !== null && parsedDeEnroll < parsedEnroll) {
+                            logger.debug(`Row ${row["!row#number!"]}: de-enrollment date (${parsedDeEnroll}) before enrollment date (${parsedEnroll}), registerId=${registerId}`);
                             this.addError(row, attendanceErrorKeys.DEENROLLMENT_BEFORE_ENROLLMENT, localizationMap);
                         }
                     }
@@ -205,12 +213,16 @@ export class TemplateClass {
 
             // Block new enrollment if individual is already actively enrolled in another register
             if (activeInOtherRegister && !existing) {
+                logger.debug(`Row ${row["!row#number!"]}: user ${username} already enrolled in register ${activeInOtherRegister.registerId}, cannot enroll in ${registerId}`);
                 this.addError(row, attendanceErrorKeys.ALREADY_ENROLLED_IN_ANOTHER_REGISTER, localizationMap);
                 continue;
             }
 
             this.validateTruthTableRules(existing, enrollmentDateEpoch, deEnrollmentDateEpoch, teamCode, row, localizationMap);
         }
+
+        const invalidCount = allRows.filter(({ row }) => row["#status#"] === sheetDataRowStatuses.INVALID).length;
+        logger.info(`Attendee validation complete — registerId=${registerId}, totalRows=${allRows.length}, invalidRows=${invalidCount}`);
 
         // Populate sheetErrors in resourceDetails for downstream process class
         const invalidRows = allRows.filter(({ row }) => row["#status#"] === sheetDataRowStatuses.INVALID);
@@ -376,7 +388,7 @@ export class TemplateClass {
                 offset += limit;
             }
         } catch (err: any) {
-            logger.warn(`Failed to fetch attendee enrollments: ${err?.message}`);
+            logger.warn(`Failed to fetch attendee enrollments for ${individualIds.length} individuals in tenant ${tenantId}: ${err?.message}`);
         }
 
         logger.info(`Fetched attendee enrollments for ${result.size} individuals across all registers`);
@@ -417,7 +429,7 @@ export class TemplateClass {
                 offset += limit;
             }
         } catch (err: any) {
-            logger.warn(`Failed to fetch staff enrollments for types ${staffTypes.join(",")}: ${err?.message}`);
+            logger.warn(`Failed to fetch staff enrollments for types [${staffTypes.join(",")}], ${individualIds.length} individuals in tenant ${tenantId}: ${err?.message}`);
         }
 
         logger.info(`Fetched staff enrollments for types [${staffTypes.join(",")}] across all registers`);

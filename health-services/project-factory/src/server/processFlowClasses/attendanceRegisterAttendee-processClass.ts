@@ -48,9 +48,9 @@ export class TemplateClass {
         templateConfig: any
     ): Promise<SheetMap> {
         await validateResourceDetailsBeforeProcess("attendanceRegisterAttendeeValidation", resourceDetails, localizationMap);
-        logger.info("Processing attendance register attendee file...");
 
         const tenantId = resourceDetails?.tenantId;
+        logger.info(`Processing attendance register attendee file — tenantId=${tenantId}, campaignId=${resourceDetails?.campaignId}`);
         const requestInfo = resourceDetails?.requestInfo || {};
 
         // Fetch campaign details for campaignNumber (not in resourceDetails)
@@ -84,6 +84,7 @@ export class TemplateClass {
         const usernames = Array.from(usernameToRows.keys());
         const rootTenantId = tenantId.split(".")[0];
         const usernameToIndividualId = await this.resolveIndividualIds(usernames, rootTenantId, requestInfo);
+        logger.info(`Resolved ${usernameToIndividualId.size}/${usernames.length} usernames via HRMS`);
 
         // Mark rows invalid where HRMS lookup failed
         Array.from(usernameToRows.entries()).forEach(([username, rowEntries]) => {
@@ -113,6 +114,9 @@ export class TemplateClass {
                 if (rid) registerServiceCodes.add(rid);
             }
         }
+
+        const totalInputRows = SHEET_NAMES.reduce((sum, name) => sum + (sheetRows.get(name)?.length || 0), 0);
+        logger.info(`Attendee processing context — campaignNumber=${campaignNumber}, totalInputRows=${totalInputRows}, validRegisters=${registerServiceCodes.size}, allRegisters=${allUploadRegisterServiceCodes.size}`);
 
         // Fetch registers with existing attendees/staff
         const registerDataMap = await this.fetchRegistersWithEnrollments(Array.from(registerServiceCodes), tenantId, requestInfo);
@@ -153,6 +157,7 @@ export class TemplateClass {
 
                 const registerData = registerDataMap.get(registerId);
                 if (!registerData) {
+                    logger.debug(`Row ${row["!row#number!"]}: register ${registerId} not found in fetched data, sheet=${sheetName}`);
                     row["#status#"] = sheetDataRowStatuses.INVALID;
                     row["#errorDetails#"] = getLocalizedName("HCM_ATTENDANCE_ATTENDEE_REGISTER_NOT_FOUND", localizationMap) || "Register not found";
                     continue;
@@ -215,6 +220,10 @@ export class TemplateClass {
             logger.info(`Updated tag for ${attendeesToUpdateTag.length} attendees`);
         }
 
+        const skippedCount = SHEET_NAMES.reduce((sum, name) => sum + (sheetRows.get(name) || []).filter((r: any) => r["#status#"] === sheetDataRowStatuses.SKIPPED).length, 0);
+        const invalidCount = SHEET_NAMES.reduce((sum, name) => sum + (sheetRows.get(name) || []).filter((r: any) => r["#status#"] === sheetDataRowStatuses.INVALID).length, 0);
+        logger.info(`Attendee API operations complete — created: ${attendeesToCreate.length} attendees, ${staffToCreate.length} staff | de-enrolled: ${attendeesToDelete.length} attendees, ${staffToDelete.length} staff | tagUpdated: ${attendeesToUpdateTag.length} | skipped: ${skippedCount} | invalid: ${invalidCount}`);
+
         // ── Persist rows to campaign_data ──────────────────────────────────────
         // Fetch existing rows for this campaign (for upsert decision)
         const existingAttendeeDataMap = await this.buildExistingAttendeeDataMap(campaignNumber, tenantId);
@@ -238,7 +247,7 @@ export class TemplateClass {
         const filteredRows = allStoredRows.filter(
             (r: any) => r.data?._registerServiceCode && allUploadRegisterServiceCodes.has(r.data._registerServiceCode)
         );
-        logger.info("Re-fetched {} rows from campaign_data for {} registers", filteredRows.length, allUploadRegisterServiceCodes.size);
+        logger.info(`Re-fetched ${filteredRows.length} rows from campaign_data for ${allUploadRegisterServiceCodes.size} registers`);
 
         // Group by _sheetName and build SheetMap — strip internal fields before output
         const sheetMap: SheetMap = {};
@@ -351,7 +360,7 @@ export class TemplateClass {
             await produceModifiedMessages({ datas: batch }, config.kafka.KAFKA_UPDATE_SHEET_DATA_TOPIC, tenantId);
         }
 
-        logger.info("Persisted {} new and {} updated attendee rows to campaign_data", toSave.length, toUpdate.length);
+        logger.info(`Persisted ${toSave.length} new and ${toUpdate.length} updated attendee rows to campaign_data`);
     }
 
     /**
@@ -666,7 +675,7 @@ export class TemplateClass {
             try {
                 await httpRequest(url, body);
             } catch (err: any) {
-                logger.error(`Attendance API call failed for ${urlPath} batch ${i}: ${err?.message}`);
+                logger.error(`Attendance API call failed — endpoint=${urlPath}, batchStart=${i}, batchSize=${batchItems.length}, rowNumbers=[${batchItems.map(item => item.row["!row#number!"] || "?").join(",")}]: ${err?.message}`);
                 for (const item of batchItems) {
                     item.row["#status#"] = sheetDataRowStatuses.INVALID;
                     item.row["#errorDetails#"] = err?.message || "API call failed";

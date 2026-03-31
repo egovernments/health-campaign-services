@@ -14,10 +14,9 @@ export class TemplateClass {
         localizationMap: Record<string, string>,
         templateConfig: any
     ): Promise<SheetMap> {
-        logger.info("Validating Attendance Register file...");
-
         const sheetKey = getLocalizedName("HCM_ATTENDANCE_REGISTER_LIST", localizationMap);
         const registerSheetData = wholeSheetData[sheetKey];
+        logger.info(`Validating Attendance Register file — tenantId=${resourceDetails?.tenantId}, campaignId=${resourceDetails?.campaignId}, rowCount=${registerSheetData?.length || 0}`);
 
         if (!registerSheetData || registerSheetData.length === 0) {
             throwError("FILE", 400, "SHEET_MISSING_ERROR", `Sheet: '${sheetKey}' is empty or not present`);
@@ -41,7 +40,8 @@ export class TemplateClass {
             }
         };
 
-        logger.info(`Attendance Register validation completed with ${errors.length} error(s).`);
+        const invalidRowCount = registerSheetData.filter((r: any) => r["#status#"] === sheetDataRowStatuses.INVALID).length;
+        logger.info(`Attendance Register validation complete — totalRows=${registerSheetData.length}, errors=${errors.length}, invalidRows=${invalidRowCount}`);
         return sheetMap;
     }
 
@@ -72,7 +72,7 @@ export class TemplateClass {
         localizationMap: Record<string, string>,
         errors: any[]
     ) {
-        logger.info("Validating boundary codes in attendance register...");
+        logger.info(`Validating boundary codes — ${sheetData.length} rows against campaign boundaries`);
         const campaignDetails = await this.getCampaignDetails(resourceDetails);
         const campaignBoundaryCodes = new Set(
             (campaignDetails?.boundaries || []).map((b: any) => b.code)
@@ -82,13 +82,15 @@ export class TemplateClass {
         for (let i = 0; i < sheetData.length; i++) {
             const code = sheetData[i]?.[boundaryCodeKey];
             if (code && !campaignBoundaryCodes.has(code)) {
+                logger.debug(`Row ${i + 3}: boundary code '${code}' not found in campaign boundaries`);
                 errors.push({
                     row: i + 3,
                     message: `Boundary code '${code}' is not part of this campaign.`
                 });
             }
         }
-        logger.info("Boundary code validation completed.");
+        const boundaryErrors = errors.filter(e => e.message.includes("Boundary code")).length;
+        logger.info(`Boundary code validation complete — ${boundaryErrors} boundary error(s) found`);
     }
 
     private static async getCampaignDetails(resourceDetails: any): Promise<any> {
@@ -97,7 +99,10 @@ export class TemplateClass {
             ids: [resourceDetails?.campaignId],
         });
         const campaign = response?.CampaignDetails?.[0];
-        if (!campaign) throw new Error("Campaign not found");
+        if (!campaign) {
+            logger.error(`Campaign not found — tenantId=${resourceDetails.tenantId}, campaignId=${resourceDetails?.campaignId}`);
+            throw new Error("Campaign not found");
+        }
         return campaign;
     }
 }

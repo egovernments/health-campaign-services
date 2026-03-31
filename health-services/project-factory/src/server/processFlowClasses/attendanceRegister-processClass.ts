@@ -30,13 +30,11 @@ export class TemplateClass {
         templateConfig: any
     ): Promise<SheetMap> {
         await validateResourceDetailsBeforeProcess("attendanceRegisterValidation", resourceDetails, localizationMap);
-        logger.info("Processing Attendance Register file...");
-        logger.info(`ResourceDetails: ${JSON.stringify(resourceDetails)}`);
-
         const campaign = await this.getCampaignDetails(resourceDetails);
         const campaignNumber = campaign?.campaignNumber;
         const campaignName = campaign?.campaignName;
         const tenantId = resourceDetails?.tenantId;
+        logger.info(`Processing Attendance Register file — tenantId=${tenantId}, campaignId=${resourceDetails?.campaignId}, campaignNumber=${campaignNumber}`);
 
         const sheetData = wholeSheetData[getLocalizedName("HCM_ATTENDANCE_REGISTER_LIST", localizationMap)];
         if (!sheetData || sheetData.length === 0) {
@@ -52,7 +50,7 @@ export class TemplateClass {
 
         // Build boundary -> project mapping - O(n) construction
         const boundaryProjectMap = await this.buildBoundaryProjectMap(campaignNumber, tenantId, campaign);
-        logger.info("Built boundary to project mapping with {} entries", boundaryProjectMap.size);
+        logger.info(`Built boundary to project mapping with ${boundaryProjectMap.size} entries`);
 
         // Validate that projects exist for all boundaries in the sheet
         this.validateProjectsExist(sheetData, boundaryProjectMap);
@@ -76,13 +74,13 @@ export class TemplateClass {
         const validPayloads = transformResults
             .filter(r => r.payload !== null)
             .map(r => r.payload);
-        logger.info("Transformed {} valid payloads out of {} rows", validPayloads.length, sheetData.length);
+        logger.info(`Transformed ${validPayloads.length} valid payloads out of ${sheetData.length} rows`);
 
         const requestInfo = resourceDetails?.requestInfo;
 
         // Fetch existing campaign_data rows BEFORE creation for idempotent upsert decision
         const existingDataMap = await this.buildExistingCampaignDataMap(campaignNumber, tenantId);
-        logger.info("Found {} existing campaign_data rows for attendanceRegister", existingDataMap.size);
+        logger.info(`Found ${existingDataMap.size} existing campaign_data rows for attendanceRegister`);
 
         // Idempotent batch creation - check for existing, create new only; classifies by campaign ownership
         const { existingServiceCodes, conflictingServiceCodes, boundaryChangedServiceCodes, serviceCodeToUuidMap } =
@@ -135,7 +133,7 @@ export class TemplateClass {
 
         // Re-fetch ALL rows from campaign_data (includes previous uploads)
         const allRows = await getRelatedDataWithCampaign("attendanceRegister", campaignNumber, tenantId);
-        logger.info("Re-fetched {} rows from campaign_data for attendanceRegister", allRows.length);
+        logger.info(`Re-fetched ${allRows.length} rows from campaign_data for attendanceRegister`);
 
         // Rows without a serviceCode (transform failures: missing boundary code / register ID)
         // are not persisted to DB — append them from in-memory to preserve them in the output
@@ -146,7 +144,7 @@ export class TemplateClass {
 
         const outputData = [...allRows.map((r: any) => r.data), ...unpersistableRows];
         if (unpersistableRows.length > 0) {
-            logger.info("Appended {} unpersistable INVALID rows to output", unpersistableRows.length);
+            logger.info(`Appended ${unpersistableRows.length} unpersistable INVALID rows to output`);
         }
 
         const registerListBoundaryColumns = await this.getRegisterListBoundaryDynamicColumns(
@@ -237,7 +235,7 @@ export class TemplateClass {
             await produceModifiedMessages({ datas: batch }, config.kafka.KAFKA_UPDATE_SHEET_DATA_TOPIC, tenantId);
         }
 
-        logger.info("Persisted {} new and {} updated attendance register rows to campaign_data", toSave.length, toUpdate.length);
+        logger.info(`Persisted ${toSave.length} new and ${toUpdate.length} updated attendance register rows to campaign_data`);
     }
 
     /**
@@ -293,7 +291,7 @@ export class TemplateClass {
         campaign: any
     ): Promise<Map<string, any>> {
         try {
-            logger.info("Fetching boundary to project mappings for campaign: {}", campaignNumber);
+            logger.info(`Fetching boundary to project mappings for campaign: ${campaignNumber}`);
 
             // Fetch boundary data rows from campaign_data table
             // Each row has boundaryCode in data["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"]
@@ -315,10 +313,10 @@ export class TemplateClass {
                 }
             }
 
-            logger.info("Loaded {} boundary to project mappings", boundaryProjectMap.size);
+            logger.info(`Loaded ${boundaryProjectMap.size} boundary to project mappings`);
             return boundaryProjectMap;
         } catch (error: any) {
-            logger.error("Error building boundary project map: {}", error?.message);
+            logger.error(`Error building boundary project map for campaign ${campaignNumber}: ${error?.message}`);
             throw error;
         }
     }
@@ -385,7 +383,7 @@ export class TemplateClass {
                     additionalDetails.eventType = String(eventType).trim();
                 } else if (defaultEventType && defaultEventType !== "") {
                     additionalDetails.eventType = defaultEventType;
-                    logger.debug("Using default eventType from config: {}", defaultEventType);
+                    logger.debug(`Using default eventType from config: ${defaultEventType}`);
                 }
 
                 // Add sessions: Excel value > Config default (with validation)
@@ -394,12 +392,12 @@ export class TemplateClass {
                     if (!isNaN(parsedSessions) && parsedSessions >= 0) {
                         additionalDetails.sessions = parsedSessions;
                     } else {
-                        logger.warn("Invalid sessions value: {}, using default: {}", sessions, defaultSessions);
+                        logger.warn(`Invalid sessions value: ${sessions}, using default: ${defaultSessions}`);
                         additionalDetails.sessions = defaultSessions;
                     }
                 } else {
                     additionalDetails.sessions = defaultSessions;
-                    logger.debug("Using default sessions from config: {}", defaultSessions);
+                    logger.debug(`Using default sessions from config: ${defaultSessions}`);
                 }
 
                 // Create register payload
@@ -417,13 +415,13 @@ export class TemplateClass {
 
                 results.push({ payload, serviceCode: registerId, status: sheetDataRowStatuses.CREATED, error: "" });
             } catch (error: any) {
-                logger.error("Error transforming row: {}", error?.message);
+                logger.error(`Error transforming row ${row["!row#number!"] || "?"}: boundaryCode=${row["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"] || "missing"}, registerId=${row["HCM_ATTENDANCE_REGISTER_ID"] || "missing"} — ${error?.message}`);
                 results.push({ payload: null, serviceCode: null, status: sheetDataRowStatuses.INVALID, error: error?.message || "Unknown error during transformation" });
             }
         }
 
         const validCount = results.filter(r => r.payload !== null).length;
-        logger.info("Transformed {} valid payloads out of {} rows", validCount, sheetData.length);
+        logger.info(`Transformed ${validCount} valid payloads out of ${sheetData.length} rows`);
         return results;
     }
 
@@ -457,7 +455,7 @@ export class TemplateClass {
         try {
             // Step 1: Fetch existing registers by serviceCode across all campaigns - O(n) lookup after fetch
             const serviceCodes = payloads.map(p => p.serviceCode);
-            logger.info("Checking for existing registers with {} serviceCode(s)", serviceCodes.length);
+            logger.info(`Checking for existing registers with ${serviceCodes.length} serviceCode(s)`);
 
             const existingRegisters = await this.searchExistingRegisters(serviceCodes, tenantId, requestInfo);
 
@@ -489,20 +487,14 @@ export class TemplateClass {
                     const incomingLocality = incomingLocalityByServiceCode.get(r.serviceCode);
                     if (incomingLocality && r.localityCode && incomingLocality !== r.localityCode) {
                         boundaryChangedServiceCodes.set(r.serviceCode, r.localityCode);
-                        logger.warn(
-                            "Boundary changed for register '{}': existing='{}', incoming='{}' — marking INVALID",
-                            r.serviceCode, r.localityCode, incomingLocality
-                        );
+                        logger.warn(`Boundary changed for register '${r.serviceCode}': existing='${r.localityCode}', incoming='${incomingLocality}' — marking INVALID`);
                     } else {
                         existingServiceCodes.add(r.serviceCode);
                     }
                 }
             }
 
-            logger.info(
-                "Found {} same-campaign registers to update, {} cross-campaign conflicts, {} boundary-changed",
-                existingServiceCodes.size, conflictingServiceCodes.size, boundaryChangedServiceCodes.size
-            );
+            logger.info(`Found ${existingServiceCodes.size} same-campaign registers to update, ${conflictingServiceCodes.size} cross-campaign conflicts, ${boundaryChangedServiceCodes.size} boundary-changed`);
 
             // Step 3: Separate new vs existing same-campaign registers - O(n)
             const newRegisters = payloads.filter(p =>
@@ -514,7 +506,7 @@ export class TemplateClass {
                 .filter(p => existingServiceCodes.has(p.serviceCode))
                 .map(p => this.mergeWithExistingRegister(p, existingByServiceCode.get(p.serviceCode)));
 
-            logger.info("{} new registers to create, {} existing to update", newRegisters.length, registersToUpdate.length);
+            logger.info(`${newRegisters.length} new registers to create, ${registersToUpdate.length} existing to update`);
 
             const BATCH_SIZE = 100;
 
@@ -522,7 +514,7 @@ export class TemplateClass {
             if (newRegisters.length > 0) {
                 for (let i = 0; i < newRegisters.length; i += BATCH_SIZE) {
                     const batch = newRegisters.slice(i, i + BATCH_SIZE);
-                    logger.info("Creating batch of {} registers (batch {})", batch.length, Math.floor(i / BATCH_SIZE) + 1);
+                    logger.info(`Creating batch of ${batch.length} registers (batch ${Math.floor(i / BATCH_SIZE) + 1})`);
                     const createdRegisters = await this.createAttendanceRegisters(batch, tenantId, requestInfo);
                     // Capture UUIDs from created registers
                     for (const reg of createdRegisters) {
@@ -531,22 +523,22 @@ export class TemplateClass {
                         }
                     }
                 }
-                logger.info("Successfully created {} new attendance registers", newRegisters.length);
+                logger.info(`Successfully created ${newRegisters.length} new attendance registers`);
             }
 
             // Step 5: Update existing same-campaign registers in batches of 100
             if (registersToUpdate.length > 0) {
                 for (let i = 0; i < registersToUpdate.length; i += BATCH_SIZE) {
                     const batch = registersToUpdate.slice(i, i + BATCH_SIZE);
-                    logger.info("Updating batch of {} registers (batch {})", batch.length, Math.floor(i / BATCH_SIZE) + 1);
+                    logger.info(`Updating batch of ${batch.length} registers (batch ${Math.floor(i / BATCH_SIZE) + 1})`);
                     await this.updateAttendanceRegisters(batch, requestInfo);
                 }
-                logger.info("Successfully updated {} existing attendance registers", registersToUpdate.length);
+                logger.info(`Successfully updated ${registersToUpdate.length} existing attendance registers`);
             }
 
             return { existingServiceCodes, conflictingServiceCodes, boundaryChangedServiceCodes, serviceCodeToUuidMap };
         } catch (error: any) {
-            logger.error("Error during idempotent batch create/update: {}", error?.message);
+            logger.error(`Error during idempotent batch create/update: ${error?.message}`);
             throw error;
         }
     }
@@ -593,7 +585,7 @@ export class TemplateClass {
                     httpRequest(url, requestBody, { tenantId, serviceCode: code })
                         .then((r: any) => r?.attendanceRegister || [])
                         .catch((err: any) => {
-                            logger.warn("Error searching for existing registers for serviceCode {}: {}", code, err?.message);
+                            logger.warn(`Error searching for existing registers for serviceCode ${code}: ${err?.message}`);
                             return [];
                         })
                 )
@@ -603,7 +595,7 @@ export class TemplateClass {
             }
         }
 
-        logger.info("Found {} existing attendance registers across {} serviceCode(s)", allRegisters.length, serviceCodes.length);
+        logger.info(`Found ${allRegisters.length} existing attendance registers across ${serviceCodes.length} serviceCode(s)`);
         return allRegisters;
     }
 
@@ -620,18 +612,18 @@ export class TemplateClass {
                 attendanceRegister: registers
             };
 
-            logger.debug("Creating {} registers via Attendance Service", registers.length);
+            logger.debug(`Creating ${registers.length} registers via Attendance Service`);
             const response = await httpRequest(url, requestBody);
 
             if (response?.ResponseInfo?.status?.toUpperCase() === "SUCCESSFUL") {
-                logger.info("Successfully created {} attendance registers", registers.length);
+                logger.info(`Successfully created ${registers.length} attendance registers`);
                 return response?.attendanceRegister || [];
             } else {
-                logger.error("Unexpected response from Attendance Service: {}", JSON.stringify(response));
+                logger.error(`Unexpected response from Attendance Service create — status=${response?.ResponseInfo?.status}, registerCount=${registers.length}`);
                 throw new Error("Failed to create attendance registers");
             }
         } catch (error: any) {
-            logger.error("Error creating attendance registers: {}", error?.message);
+            logger.error(`Error creating attendance registers: ${error?.message}`);
             throw error;
         }
     }
@@ -648,17 +640,17 @@ export class TemplateClass {
                 attendanceRegister: registers
             };
 
-            logger.debug("Updating {} registers via Attendance Service", registers.length);
+            logger.debug(`Updating ${registers.length} registers via Attendance Service`);
             const response = await httpRequest(url, requestBody);
 
             if (response?.ResponseInfo?.status?.toUpperCase() === "SUCCESSFUL") {
-                logger.info("Successfully updated {} attendance registers", registers.length);
+                logger.info(`Successfully updated ${registers.length} attendance registers`);
             } else {
-                logger.error("Unexpected response from Attendance Service update: {}", JSON.stringify(response));
+                logger.error(`Unexpected response from Attendance Service update — status=${response?.ResponseInfo?.status}, registerCount=${registers.length}`);
                 throw new Error("Failed to update attendance registers");
             }
         } catch (error: any) {
-            logger.error("Error updating attendance registers: {}", error?.message);
+            logger.error(`Error updating attendance registers: ${error?.message}`);
             throw error;
         }
     }
