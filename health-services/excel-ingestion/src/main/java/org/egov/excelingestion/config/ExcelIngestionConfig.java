@@ -82,6 +82,15 @@ public class ExcelIngestionConfig {
     @Value("${egov.attendance.register.search.parallel.calls:5}")
     private int attendanceRegisterSearchParallelCalls;
 
+    @Value("${egov.hrms.host}")
+    private String hrmsHost;
+
+    @Value("${egov.hrms.employee.search.path}")
+    private String hrmsEmployeeSearchPath;
+
+    @Value("${egov.hrms.employee.search.parallel.calls:100}")
+    private int hrmsEmployeeSearchParallelCalls;
+
     @Value("${egov.worker.registry.host}")
     private String workerRegistryHost;
 
@@ -119,5 +128,9 @@ public class ExcelIngestionConfig {
 
     public String getWorkerRegistrySearchUrl() {
         return workerRegistryHost + workerRegistrySearchPath;
+    }
+
+    public String getHrmsEmployeeSearchUrl() {
+        return hrmsHost + hrmsEmployeeSearchPath;
     }
 }

@@ -27,6 +27,41 @@ public class ProcessingConstants {
     public static final String ATTENDANCE_REGISTER_CAMPAIGN_ID_KEY = "campaignId";
     public static final String ATTENDANCE_REGISTER_SERVICE_CODE_KEY = "serviceCode";
     
+    // Attendance Register Attendee Column Keys
+    public static final String TEAM_CODE_COLUMN_KEY = "HCM_ATTENDANCE_ATTENDEE_TEAM_CODE";
+
+    // Attendance Register Response Field Keys
+    public static final String ATTENDANCE_REGISTER_START_DATE_KEY = "startDate";
+    public static final String ATTENDANCE_REGISTER_END_DATE_KEY = "endDate";
+    public static final String ATTENDANCE_REGISTER_ATTENDEES_KEY = "attendees";
+    public static final String ATTENDANCE_REGISTER_STAFF_KEY = "staff";
+
+    // Attendee/Staff Record Field Keys
+    public static final String ATTENDEE_INDIVIDUAL_ID_KEY = "individualId";
+    public static final String STAFF_USER_ID_KEY = "userId";
+    public static final String STAFF_TYPE_KEY = "staffType";
+    public static final String ENROLLMENT_DATE_KEY = "enrollmentDate";
+    public static final String DEENROLLMENT_DATE_KEY = "denrollmentDate";
+
+    // Staff Type Values
+    public static final String STAFF_TYPE_OWNER = "OWNER";
+    public static final String STAFF_TYPE_APPROVER = "APPROVER";
+
+    // AdditionalDetails Keys — Attendance
+    public static final String ADDITIONAL_DETAILS_STAFF_TYPE = "staffType";
+
+    // HRMS API Response Keys
+    public static final String HRMS_EMPLOYEES_RESPONSE_KEY = "Employees";
+    public static final String HRMS_EMPLOYEE_CODE_KEY = "code";
+    public static final String HRMS_EMPLOYEE_USER_KEY = "user";
+    public static final String HRMS_USER_UUID_KEY = "uuid";
+
+    // Common API Keys
+    public static final String REQUEST_INFO_KEY = "RequestInfo";
+
+    // Excel Internal Keys
+    public static final String ACTUAL_ROW_NUMBER_KEY = "__actualRowNumber__";
+
     // Status Constants
     public static final String STATUS_GENERATED = "generated";
     public static final String STATUS_FAILED = "failed";

@@ -41,6 +41,16 @@ public class ValidationConstants {
     public static final String LOC_ATTENDANCE_REGISTER_ID_ALREADY_EXISTS = "HCM_ATTENDANCE_REGISTER_VALIDATION_ID_ALREADY_EXISTS";
     public static final String DEFAULT_ATTENDANCE_REGISTER_ID_ALREADY_EXISTS = "Register ID already exists in the system";
 
+    // Attendance Register Attendee — Truth-table business validation Localization Keys
+    public static final String LOC_ATTENDANCE_ENROLLMENT_DATE_REQUIRED = "HCM_ATTENDANCE_ENROLLMENT_DATE_REQUIRED";
+    public static final String LOC_ATTENDANCE_CANNOT_CHANGE_ENROLLMENT_DATE = "HCM_ATTENDANCE_CANNOT_CHANGE_ENROLLMENT_DATE";
+    public static final String LOC_ATTENDANCE_CANNOT_CHANGE_DEENROLLMENT_DATE = "HCM_ATTENDANCE_CANNOT_CHANGE_DEENROLLMENT_DATE";
+
+    // Attendance Register Attendee — Truth-table business validation Default Messages
+    public static final String DEFAULT_ATTENDANCE_ENROLLMENT_DATE_REQUIRED = "Enrollment date is required to enroll a new attendee/staff";
+    public static final String DEFAULT_ATTENDANCE_CANNOT_CHANGE_ENROLLMENT_DATE = "Cannot change enrollment date for this register";
+    public static final String DEFAULT_ATTENDANCE_CANNOT_CHANGE_DEENROLLMENT_DATE = "Cannot change de-enrollment date for this register";
+
     // Attendance Register Attendee — Default Error Messages
     public static final String DEFAULT_ATTENDANCE_INVALID_DATE = "Invalid date format. Use dd-MM-yyyy or dd/MM/yyyy";
     public static final String DEFAULT_ATTENDANCE_DATE_OUT_OF_RANGE = "Date must be between register start and end dates";
