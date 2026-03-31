@@ -114,9 +114,10 @@ export class TemplateClass {
         // Per-row idempotency decision — collect operations with their row references
         // Row statuses are set AFTER API calls succeed to keep them accurate
         const attendeesToCreate: Array<{ payload: any; row: any }> = [];
-        const attendeesToUpdate: Array<{ payload: any; row: any }> = [];
+        const attendeesToDelete: Array<{ payload: any; row: any }> = [];
+        const attendeesToUpdateTag: Array<{ payload: any; row: any }> = [];
         const staffToCreate: Array<{ payload: any; row: any }> = [];
-        const staffToUpdate: Array<{ payload: any; row: any }> = [];
+        const staffToDelete: Array<{ payload: any; row: any }> = [];
 
         for (const sheetName of SHEET_NAMES) {
             const rows = sheetRows.get(sheetName) || [];
@@ -162,7 +163,7 @@ export class TemplateClass {
                     this.collectAttendeeOperation(
                         existing, enrollmentDateEpoch, deEnrollmentDateEpoch, teamCode || "",
                         tenantId, registerUuid, individualId, row,
-                        attendeesToCreate, attendeesToUpdate, localizationMap
+                        attendeesToCreate, attendeesToDelete, attendeesToUpdateTag, localizationMap
                     );
                 } else {
                     const staffType = isMarkerSheet ? "OWNER" : "APPROVER";
@@ -172,13 +173,13 @@ export class TemplateClass {
                     this.collectStaffOperation(
                         existing, enrollmentDateEpoch, deEnrollmentDateEpoch,
                         tenantId, registerUuid, individualId, staffType, row,
-                        staffToCreate, staffToUpdate, localizationMap
+                        staffToCreate, staffToDelete, localizationMap
                     );
                 }
             }
         }
 
-        // Execute batched API calls in sequence: creates → updates
+        // Execute batched API calls in sequence: creates → deletes (de-enroll) → updateTag
         // batchApiCall sets INVALID on failed rows; success status set only on rows without status
         if (attendeesToCreate.length > 0) {
             await this.batchApiCall(attendeesToCreate, config.paths.attendanceAttendeeCreate, "attendees", requestInfo);
@@ -190,15 +191,20 @@ export class TemplateClass {
             staffToCreate.filter(e => !e.row["#status#"]).forEach(e => { e.row["#status#"] = sheetDataRowStatuses.CREATED; });
             logger.info(`Created ${staffToCreate.length} staff`);
         }
-        if (attendeesToUpdate.length > 0) {
-            await this.batchApiCall(attendeesToUpdate, config.paths.attendanceAttendeeUpdate, "attendees", requestInfo);
-            attendeesToUpdate.filter(e => !e.row["#status#"]).forEach(e => { e.row["#status#"] = sheetDataRowStatuses.UPDATED; });
-            logger.info(`Updated ${attendeesToUpdate.length} attendees`);
+        if (attendeesToDelete.length > 0) {
+            await this.batchApiCall(attendeesToDelete, config.paths.attendanceAttendeeDelete, "attendees", requestInfo);
+            attendeesToDelete.filter(e => !e.row["#status#"]).forEach(e => { e.row["#status#"] = sheetDataRowStatuses.UPDATED; });
+            logger.info(`De-enrolled ${attendeesToDelete.length} attendees`);
         }
-        if (staffToUpdate.length > 0) {
-            await this.batchApiCall(staffToUpdate, config.paths.attendanceStaffUpdate, "staff", requestInfo);
-            staffToUpdate.filter(e => !e.row["#status#"]).forEach(e => { e.row["#status#"] = sheetDataRowStatuses.UPDATED; });
-            logger.info(`Updated ${staffToUpdate.length} staff`);
+        if (staffToDelete.length > 0) {
+            await this.batchApiCall(staffToDelete, config.paths.attendanceStaffDelete, "staff", requestInfo);
+            staffToDelete.filter(e => !e.row["#status#"]).forEach(e => { e.row["#status#"] = sheetDataRowStatuses.UPDATED; });
+            logger.info(`De-enrolled ${staffToDelete.length} staff`);
+        }
+        if (attendeesToUpdateTag.length > 0) {
+            await this.batchApiCall(attendeesToUpdateTag, config.paths.attendanceAttendeeUpdateTag, "attendees", requestInfo);
+            attendeesToUpdateTag.filter(e => !e.row["#status#"]).forEach(e => { e.row["#status#"] = sheetDataRowStatuses.UPDATED; });
+            logger.info(`Updated tag for ${attendeesToUpdateTag.length} attendees`);
         }
 
         // ── Persist rows to campaign_data ──────────────────────────────────────
@@ -353,18 +359,26 @@ export class TemplateClass {
         individualId: string,
         row: any,
         attendeesToCreate: Array<{ payload: any; row: any }>,
-        attendeesToUpdate: Array<{ payload: any; row: any }>,
+        attendeesToDelete: Array<{ payload: any; row: any }>,
+        attendeesToUpdateTag: Array<{ payload: any; row: any }>,
         localizationMap: Record<string, string>
     ): void {
         if (!existing) {
-            if (!enrollmentDateEpoch && !deEnrollmentDateEpoch) {
+            // Nothing provided at all — skip silently
+            if (!enrollmentDateEpoch && !deEnrollmentDateEpoch && !teamCode) {
                 row["#status#"] = sheetDataRowStatuses.SKIPPED;
+                return;
+            }
+            // EnrollmentDate is required to create — can't de-enroll or tag without enrolling first
+            if (!enrollmentDateEpoch) {
+                row["#status#"] = sheetDataRowStatuses.INVALID;
+                row["#errorDetails#"] = getLocalizedName("HCM_ATTENDANCE_ENROLLMENT_DATE_REQUIRED", localizationMap) || "Enrollment date is required to enroll a new attendee";
                 return;
             }
             const payload: any = {
                 registerId,
                 individualId,
-                enrollmentDate: enrollmentDateEpoch || deEnrollmentDateEpoch!,
+                enrollmentDate: enrollmentDateEpoch,
                 tenantId
             };
             if (teamCode) payload.tag = teamCode;
@@ -396,8 +410,8 @@ export class TemplateClass {
 
             // Allow ONLY tag update if different
             if (teamCode && teamCode !== existingTag) {
-                attendeesToUpdate.push({
-                    payload: { id: existing.id, registerId, individualId, tenantId, tag: teamCode },
+                attendeesToUpdateTag.push({
+                    payload: { registerId, individualId, tenantId, tag: teamCode },
                     row
                 });
             } else {
@@ -414,27 +428,27 @@ export class TemplateClass {
             return;
         }
 
-        // Active attendee — allow de-enroll and tag update only
-        const updatePayload: any = { id: existing.id, registerId, individualId, tenantId };
-        let hasChanges = false;
-
-        if (deEnrollmentDateEpoch !== null) {
-            updatePayload.denrollmentDate = deEnrollmentDateEpoch;
-            hasChanges = true;
-        }
-        if (teamCode && teamCode !== (existing.tag || "")) {
-            updatePayload.tag = teamCode;
-            hasChanges = true;
-        }
-
         // Merge row: new non-empty wins, else keep existing
         row["HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE"] = enrollmentDateEpoch ?? existing.enrollmentDate ?? row["HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE"];
         row["HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE"] = deEnrollmentDateEpoch ?? existing.denrollmentDate ?? row["HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE"];
         row["HCM_ATTENDANCE_ATTENDEE_TEAM_CODE"] = teamCode || existing.tag || row["HCM_ATTENDANCE_ATTENDEE_TEAM_CODE"];
 
-        if (hasChanges) {
-            attendeesToUpdate.push({ payload: updatePayload, row });
-        } else {
+        // Active attendee — allow de-enroll (_delete) and tag update (_updateTag) as separate operations
+        if (deEnrollmentDateEpoch !== null) {
+            attendeesToDelete.push({
+                payload: { registerId, individualId, denrollmentDate: deEnrollmentDateEpoch, tenantId },
+                row
+            });
+        }
+        if (teamCode && teamCode !== (existing.tag || "")) {
+            attendeesToUpdateTag.push({
+                payload: { registerId, individualId, tenantId, tag: teamCode },
+                row
+            });
+        }
+
+        // If neither de-enroll nor tag change, no API calls needed
+        if (deEnrollmentDateEpoch === null && !(teamCode && teamCode !== (existing.tag || ""))) {
             row["#status#"] = sheetDataRowStatuses.CREATED;
         }
     }
@@ -452,22 +466,28 @@ export class TemplateClass {
         staffType: string,
         row: any,
         staffToCreate: Array<{ payload: any; row: any }>,
-        staffToUpdate: Array<{ payload: any; row: any }>,
+        staffToDelete: Array<{ payload: any; row: any }>,
         localizationMap: Record<string, string>
     ): void {
         if (!existing) {
+            // Nothing provided at all — skip silently
             if (!enrollmentDateEpoch && !deEnrollmentDateEpoch) {
                 row["#status#"] = sheetDataRowStatuses.SKIPPED;
+                return;
+            }
+            // EnrollmentDate is required to create — can't de-enroll without enrolling first
+            if (!enrollmentDateEpoch) {
+                row["#status#"] = sheetDataRowStatuses.INVALID;
+                row["#errorDetails#"] = getLocalizedName("HCM_ATTENDANCE_ENROLLMENT_DATE_REQUIRED", localizationMap) || "Enrollment date is required to enroll new staff";
                 return;
             }
             const payload: any = {
                 registerId,
                 userId: individualId,
-                enrollmentDate: enrollmentDateEpoch || deEnrollmentDateEpoch!,
+                enrollmentDate: enrollmentDateEpoch,
                 tenantId,
                 staffType
             };
-            if (deEnrollmentDateEpoch) payload.denrollmentDate = deEnrollmentDateEpoch;
             staffToCreate.push({ payload, row });
             return;
         }
@@ -500,25 +520,16 @@ export class TemplateClass {
             return;
         }
 
-        // Active staff — allow de-enroll and staffType update only
-        const updatePayload: any = { id: existing.id, registerId, userId: individualId, tenantId, staffType: existing.staffType || staffType };
-        let hasChanges = false;
-
-        if (deEnrollmentDateEpoch !== null) {
-            updatePayload.denrollmentDate = deEnrollmentDateEpoch;
-            hasChanges = true;
-        }
-        if (staffType !== (existing.staffType || "")) {
-            updatePayload.staffType = staffType;
-            hasChanges = true;
-        }
-
         // Merge row: new non-empty wins, else keep existing
         row["HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE"] = enrollmentDateEpoch ?? existing.enrollmentDate ?? row["HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE"];
         row["HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE"] = deEnrollmentDateEpoch ?? existing.denrollmentDate ?? row["HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE"];
 
-        if (hasChanges) {
-            staffToUpdate.push({ payload: updatePayload, row });
+        // Active staff — allow de-enroll only (_delete)
+        if (deEnrollmentDateEpoch !== null) {
+            staffToDelete.push({
+                payload: { registerId, userId: individualId, tenantId },
+                row
+            });
         } else {
             row["#status#"] = sheetDataRowStatuses.CREATED;
         }

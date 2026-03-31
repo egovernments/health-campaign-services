@@ -190,9 +190,10 @@ const config = {
     attendanceRegisterSearch: process.env.ATTENDANCE_REGISTER_SEARCH_PATH || "health-attendance/v1/_search",
     attendanceRegisterUpdate: process.env.ATTENDANCE_REGISTER_UPDATE_PATH || "health-attendance/v1/_update",
     attendanceAttendeeCreate: process.env.ATTENDANCE_ATTENDEE_CREATE_PATH || "health-attendance/attendee/v1/_create",
-    attendanceAttendeeUpdate: process.env.ATTENDANCE_ATTENDEE_UPDATE_PATH || "health-attendance/attendee/v1/_update",
+    attendanceAttendeeDelete: process.env.ATTENDANCE_ATTENDEE_DELETE_PATH || "health-attendance/attendee/v1/_delete",
+    attendanceAttendeeUpdateTag: process.env.ATTENDANCE_ATTENDEE_UPDATE_TAG_PATH || "health-attendance/attendee/v1/_updateTag",
     attendanceStaffCreate: process.env.ATTENDANCE_STAFF_CREATE_PATH || "health-attendance/staff/v1/_create",
-    attendanceStaffUpdate: process.env.ATTENDANCE_STAFF_UPDATE_PATH || "health-attendance/staff/v1/_update",
+    attendanceStaffDelete: process.env.ATTENDANCE_STAFF_DELETE_PATH || "health-attendance/staff/v1/_delete",
   },
   // Values configuration
   values: {
