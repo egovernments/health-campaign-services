@@ -437,8 +437,8 @@ export class TemplateClass {
             }
 
             // Populate row with existing final state (merge)
-            if (existing.enrollmentDate != null) row["HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE"] = existing.enrollmentDate;
-            row["HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE"] = existing.denrollmentDate;
+            if (existing.enrollmentDate != null) row["HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE"] = this.formatEpochAsDate(existing.enrollmentDate);
+            if (existing.denrollmentDate != null) row["HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE"] = this.formatEpochAsDate(existing.denrollmentDate);
             const existingTag = existing.tag || "";
             row["HCM_ATTENDANCE_ATTENDEE_TEAM_CODE"] = teamCode || existingTag || row["HCM_ATTENDANCE_ATTENDEE_TEAM_CODE"];
 
@@ -462,9 +462,15 @@ export class TemplateClass {
             return;
         }
 
-        // Merge row: new non-empty wins, else keep existing
-        row["HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE"] = clampedEnrollment ?? existing.enrollmentDate ?? row["HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE"];
-        row["HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE"] = clampedDeEnrollment ?? existing.denrollmentDate ?? row["HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE"];
+        // Merge row: new non-empty wins, else keep existing — format as dd/MM/yyyy for the output file
+        const mergedEnrollment = clampedEnrollment ?? existing.enrollmentDate;
+        row["HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE"] = mergedEnrollment != null
+            ? this.formatEpochAsDate(mergedEnrollment)
+            : row["HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE"];
+        const mergedDeEnrollment = clampedDeEnrollment ?? existing.denrollmentDate;
+        row["HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE"] = mergedDeEnrollment != null
+            ? this.formatEpochAsDate(mergedDeEnrollment)
+            : row["HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE"];
         row["HCM_ATTENDANCE_ATTENDEE_TEAM_CODE"] = teamCode || existing.tag || row["HCM_ATTENDANCE_ATTENDEE_TEAM_CODE"];
 
         // Active attendee — allow de-enroll (_delete) and tag update (_updateTag) as separate operations
@@ -549,8 +555,8 @@ export class TemplateClass {
                 row["#errorDetails#"] = getLocalizedName("HCM_ATTENDANCE_CANNOT_CHANGE_DEENROLLMENT_DATE", localizationMap) || "Cannot change de-enrollment date for this register";
                 return;
             }
-            if (existing.enrollmentDate != null) row["HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE"] = existing.enrollmentDate;
-            row["HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE"] = existing.denrollmentDate;
+            if (existing.enrollmentDate != null) row["HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE"] = this.formatEpochAsDate(existing.enrollmentDate);
+            if (existing.denrollmentDate != null) row["HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE"] = this.formatEpochAsDate(existing.denrollmentDate);
             row["#status#"] = sheetDataRowStatuses.CREATED;
             return;
         }
@@ -563,9 +569,15 @@ export class TemplateClass {
             return;
         }
 
-        // Merge row: new non-empty wins, else keep existing
-        row["HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE"] = clampedEnrollment ?? existing.enrollmentDate ?? row["HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE"];
-        row["HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE"] = clampedDeEnrollment ?? existing.denrollmentDate ?? row["HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE"];
+        // Merge row: new non-empty wins, else keep existing — format as dd/MM/yyyy for the output file
+        const mergedStaffEnrollment = clampedEnrollment ?? existing.enrollmentDate;
+        row["HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE"] = mergedStaffEnrollment != null
+            ? this.formatEpochAsDate(mergedStaffEnrollment)
+            : row["HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE"];
+        const mergedStaffDeEnrollment = clampedDeEnrollment ?? existing.denrollmentDate;
+        row["HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE"] = mergedStaffDeEnrollment != null
+            ? this.formatEpochAsDate(mergedStaffDeEnrollment)
+            : row["HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE"];
 
         // Active staff — allow de-enroll only (_delete)
         if (clampedDeEnrollment !== null) {
@@ -754,6 +766,14 @@ export class TemplateClass {
         const a = this.epochToDatePartsInTz(aEpoch);
         const b = this.epochToDatePartsInTz(bEpoch);
         return a.year === b.year && a.month === b.month && a.day === b.day;
+    }
+
+    /** Format epoch ms as dd/MM/yyyy in server timezone */
+    private static formatEpochAsDate(epochMs: number): string {
+        const { year, month, day } = this.epochToDatePartsInTz(epochMs);
+        const dd = String(day).padStart(2, '0');
+        const mm = String(month).padStart(2, '0');
+        return `${dd}/${mm}/${year}`;
     }
 
     // ── Date parsing ────────────────────────────────────────────────────────
