@@ -445,7 +445,7 @@ export class TemplateClass {
             // Allow ONLY tag update if different
             if (teamCode && teamCode !== existingTag) {
                 attendeesToUpdateTag.push({
-                    payload: { registerId, individualId, tenantId, tag: teamCode },
+                    payload: { id: existing.id, registerId, individualId, tenantId, tag: teamCode },
                     row
                 });
             } else {
@@ -476,7 +476,7 @@ export class TemplateClass {
         }
         if (teamCode && teamCode !== (existing.tag || "")) {
             attendeesToUpdateTag.push({
-                payload: { registerId, individualId, tenantId, tag: teamCode },
+                payload: { id: existing.id, registerId, individualId, tenantId, tag: teamCode },
                 row
             });
         }
