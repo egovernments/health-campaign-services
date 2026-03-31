@@ -61,8 +61,9 @@ K8S_NAMESPACE = os.getenv("K8S_NAMESPACE", "airflow")
 #File store env variables
 FILE_STORE_URL = os.getenv("FILE_STORE_URL") 
 FILE_STORE_UPLOAD_FILE_ENDPOINT = os.getenv("FILE_STORE_UPLOAD_FILE_ENDPOINT", "filestore/v1/files")
-TENANT_ID = os.getenv("TENANT_ID", "dev")
+TENANT_ID = os.getenv("TENANT_ID", "bi")
 MODULE_NAME = os.getenv("FILE_STORE_MODULE_NAME", "custom-reports")
+IS_CENTRAL_INSTANCE_ENABLED = os.getenv("IS_CENTRAL_INSTANCE_ENABLED", "false")
 
 # Container resource constraints
 # Requests: Minimum guaranteed resources
@@ -417,8 +418,8 @@ def compute_range(campaign, now, is_final=False, remaining_days=0):
     # CUSTOM FREQUENCY — use reportStartDate and reportEndDate directly
     # ================================================================
     if freq == "custom":
-        report_start_date_str = campaign.get("reportStartDate", "")
-        report_end_date_str = campaign.get("reportEndDate", "")
+        report_start_date_str = campaign.get("customReportStartTime", "")
+        report_end_date_str = campaign.get("customReportEndTime", "")
         try:
             start = datetime.strptime(report_start_date_str, "%d-%m-%Y %H:%M:%S%z")
             end = datetime.strptime(report_end_date_str, "%d-%m-%Y %H:%M:%S%z")
@@ -692,7 +693,7 @@ with DAG(
                 #File store configurations
                 "FILE_STORE_URL" : FILE_STORE_URL,
                 "FILE_STORE_UPLOAD_FILE_ENDPOINT" : FILE_STORE_UPLOAD_FILE_ENDPOINT,
-                "TENANT_ID" : TENANT_ID,
+                "TENANT_ID" : c.get("tenantId", TENANT_ID),
                 "FILE_STORE_MODULE_NAME" : MODULE_NAME,
 
                 #Dag information
@@ -701,7 +702,8 @@ with DAG(
 
                 #Kafka configurations
                 "CUSTOM_REPORTS_AUTOMATION_TOPIC" : os.getenv("CUSTOM_REPORTS_AUTOMATION_TOPIC"),
-                "KAFKA_BROKER" : KAFKA_BROKER
+                "KAFKA_BROKER" : KAFKA_BROKER,
+                "IS_CENTRAL_INSTANCE_ENABLED" : IS_CENTRAL_INSTANCE_ENABLED
             }
 
             env_list.append(env_dict)

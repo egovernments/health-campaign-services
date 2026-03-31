@@ -42,9 +42,11 @@ MDMS_URL = os.getenv("MDMS_URL")
 MDMS_SEARCH_ENDPOINT = os.getenv("MDMS_SEARCH_ENDPOINT", "/mdms-v2/v2/_search")
 MDMS_MODULE_NAME = os.getenv("MDMS_MODULE_NAME", "airflow-configs")
 MDMS_MASTER_NAME = os.getenv("MDMS_MASTER_NAME", "campaign-report-config")
-TENANT_ID = os.getenv("TENANT_ID", "dev")
+TENANT_ID = os.getenv("TENANT_ID", "ba")
 MDMS_LIMIT = int(os.getenv("MDMS_LIMIT", "500"))
 PROCESSOR_DAG_ID = os.getenv("PROCESSOR_DAG_ID", "hcm_dynamic_campaigns")
+IS_CENTRAL_INSTANCE_ENABLED = os.getenv("IS_CENTRAL_INSTANCE_ENABLED", "false").lower() == "true"
+CENTRAL_TENANTS = [t.strip() for t in os.getenv("CENTRAL_TENANTS", "").split(",") if t.strip()]
 
 # Window grace minutes: window = (now - 1 hour + WINDOW_GRACE_MINUTES, now]
 WINDOW_GRACE_MINUTES = int(os.getenv("WINDOW_GRACE_MINUTES", "1"))
@@ -119,19 +121,21 @@ def call_api(url, method="POST", json_body=None, headers=None, timeout=30):
         logger.exception("API call failed: %s", exc)
         return {"error": str(exc)}
 
-def fetch_campaigns_from_mdms():
+def fetch_campaigns_from_mdms(tenant_id=None):
     """Fetch campaigns from MDMS. Returns list of campaign dicts."""
     if not MDMS_URL:
         raise ValueError("MDMS_URL environment variable is required")
 
+    tenant_id = tenant_id or TENANT_ID
+
     # Construct full MDMS API URL
     full_mdms_url = f"{MDMS_URL}{MDMS_SEARCH_ENDPOINT}"
-    logger.info("Fetching campaigns from MDMS: %s", full_mdms_url)
+    logger.info("Fetching campaigns from MDMS: %s (tenant: %s)", full_mdms_url, tenant_id)
 
     body = {
         "RequestInfo": {"authToken": ""},
         "MdmsCriteria": {
-            "tenantId": TENANT_ID,
+            "tenantId": tenant_id,
             "schemaCode": f"{MDMS_MODULE_NAME}.{MDMS_MASTER_NAME}",
             "limit": MDMS_LIMIT,
             "offset": 0,
@@ -347,68 +351,86 @@ with DAG(
                    window_start.strftime("%Y-%m-%d %H:%M:%S"),
                    window_end.strftime("%Y-%m-%d %H:%M:%S"))
 
-        campaigns = fetch_campaigns_from_mdms()
+        # Determine which tenants to process
+        if IS_CENTRAL_INSTANCE_ENABLED and CENTRAL_TENANTS:
+            tenants = CENTRAL_TENANTS
+            logger.info("Central instance enabled. Processing %d tenants: %s", len(tenants), tenants)
+        else:
+            tenants = [TENANT_ID]
+
         matched = []
 
-        for c in campaigns:
+        for current_tenant in tenants:
+            logger.info("-" * 40)
+            logger.info("Processing tenant: %s", current_tenant)
+            logger.info("-" * 40)
+
             try:
-                # Get campaign identifier (can be campaignNumber or projectTypeId)
-                identifier, identifier_type = get_campaign_identifier(c)
-
-                # Check if active (support both isActive and active)
-                is_active = c.get("isActive", c.get("active", False))
-                if not is_active:
-                    logger.debug("Campaign %s: Inactive - SKIP", identifier)
-                    continue
-
-                # Check if campaign is within active date range (startDate <= today <= endDate)
-                campaign_active, active_reason = is_campaign_active(c, now)
-                if not campaign_active:
-                    logger.info("Campaign %s: %s - SKIP", identifier, active_reason)
-                    continue
-
-                # Get trigger time
-                trig = c.get("triggerTime")
-                if not trig:
-                    logger.warning("Campaign %s: Missing triggerTime - SKIP", identifier)
-                    continue
-
-                # Parse trigger time for today
-                trig_dt = parse_trigger_time_today(trig, now)
-
-                # Check if in window
-                in_window = window_start <= trig_dt <= window_end
-
-                logger.info("Campaign %s (%s):", identifier, identifier_type)
-                logger.info("  Trigger time: %s → %s", trig, trig_dt.strftime("%H:%M:%S"))
-                logger.info("  In window: %s", in_window)
-
-                # Scheduler only checks window timing; processor DAG handles all report logic
-                # (frequency, first day, final report, date ranges)
-                if in_window:
-                    logger.info("  ✓ MATCH - Adding to processing list")
-                    matched.append({
-                        # New unified identifier fields
-                        "campaignIdentifier": identifier,
-                        "identifierType": identifier_type,
-                        # Keep campaignNumber for backward compatibility
-                        "campaignNumber": identifier if identifier_type == "campaignNumber" else None,
-                        "projectTypeId": identifier if identifier_type == "projectTypeId" else None,
-                        "reportName": c.get("reportName"),
-                        "triggerFrequency": c.get("triggerFrequency"),
-                        "triggerTime": c.get("triggerTime"),
-                        "startDate": c.get("campaignStartDate"),
-                        "endDate": c.get("campaignEndDate"),
-                        # Report time bounds for data collection window
-                        "reportStartTime": c.get("reportStartTime", "00:00:00"),
-                        "reportEndTime": c.get("reportEndTime", "23:59:59")
-                    })
-                else:
-                    logger.info("  ✗ SKIP")
-
+                campaigns = fetch_campaigns_from_mdms(tenant_id=current_tenant)
             except Exception:
-                logger.exception("Error while evaluating campaign %s", c.get("campaignIdentifier", "UNKNOWN"))
+                logger.exception("Failed to fetch campaigns for tenant %s - skipping", current_tenant)
                 continue
+
+            for c in campaigns:
+                try:
+                    # Get campaign identifier (can be campaignNumber or projectTypeId)
+                    identifier, identifier_type = get_campaign_identifier(c)
+
+                    # Check if active (support both isActive and active)
+                    is_active = c.get("isActive", c.get("active", False))
+                    if not is_active:
+                        logger.debug("Campaign %s: Inactive - SKIP", identifier)
+                        continue
+
+                    # Check if campaign is within active date range (startDate <= today <= endDate)
+                    campaign_active, active_reason = is_campaign_active(c, now)
+                    if not campaign_active:
+                        logger.info("Campaign %s: %s - SKIP", identifier, active_reason)
+                        continue
+
+                    # Get trigger time
+                    trig = c.get("triggerTime")
+                    if not trig:
+                        logger.warning("Campaign %s: Missing triggerTime - SKIP", identifier)
+                        continue
+
+                    # Parse trigger time for today
+                    trig_dt = parse_trigger_time_today(trig, now)
+
+                    # Check if in window
+                    in_window = window_start <= trig_dt <= window_end
+
+                    logger.info("Campaign %s (%s):", identifier, identifier_type)
+                    logger.info("  Trigger time: %s → %s", trig, trig_dt.strftime("%H:%M:%S"))
+                    logger.info("  In window: %s", in_window)
+
+                    # Scheduler only checks window timing; processor DAG handles all report logic
+                    # (frequency, first day, final report, date ranges)
+                    if in_window:
+                        logger.info("  ✓ MATCH - Adding to processing list")
+                        matched.append({
+                            # New unified identifier fields
+                            "campaignIdentifier": identifier,
+                            "identifierType": identifier_type,
+                            # Keep campaignNumber for backward compatibility
+                            "campaignNumber": identifier if identifier_type == "campaignNumber" else None,
+                            "projectTypeId": identifier if identifier_type == "projectTypeId" else None,
+                            "reportName": c.get("reportName"),
+                            "triggerFrequency": c.get("triggerFrequency"),
+                            "triggerTime": c.get("triggerTime"),
+                            "startDate": c.get("campaignStartDate"),
+                            "endDate": c.get("campaignEndDate"),
+                            # Report time bounds for data collection window
+                            "reportStartTime": c.get("reportStartTime", "00:00:00"),
+                            "reportEndTime": c.get("reportEndTime", "23:59:59"),
+                            "tenantId": c.get("tenantId", current_tenant),
+                        })
+                    else:
+                        logger.info("  ✗ SKIP")
+
+                except Exception:
+                    logger.exception("Error while evaluating campaign %s", c.get("campaignIdentifier", "UNKNOWN"))
+                    continue
 
         logger.info("=" * 80)
         logger.info("RESULT: %d campaign(s) matched", len(matched))
