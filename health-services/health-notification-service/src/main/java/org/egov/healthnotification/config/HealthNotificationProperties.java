@@ -1,7 +1,6 @@
 package org.egov.healthnotification.config;
 
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -12,7 +11,6 @@ import java.util.List;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-@Builder
 @Component
 public class HealthNotificationProperties {
 
@@ -22,6 +20,9 @@ public class HealthNotificationProperties {
 
     @Value("${kafka.topics.notification.sms}")
     private String smsNotificationTopic;
+
+    @Value("${kafka.topics.save.final.sms.message}")
+    private String saveFinalSmsMessageTopic;
 
     // Scheduled Notification Persister Topics
     @Value("${scheduled.notification.save.topic}")

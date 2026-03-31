@@ -74,6 +74,9 @@ public class NotificationScheduler {
 
             log.info("Found {} pending notifications due for scheduledAt <= {}", allDue.size(), today);
 
+            // Mark all as IN_PROGRESS to prevent re-picking on next scheduler run
+            dispatchService.markBatchInProgress(allDue);
+
             // Decrypt PII data (mobileNumber and contextData) after fetching
             RequestInfo requestInfo = RequestInfo.builder().build();
             allDue = encryptionService.decrypt(allDue, Constants.ENCRYPTION_KEY_SCHEDULED_NOTIFICATION, requestInfo);
