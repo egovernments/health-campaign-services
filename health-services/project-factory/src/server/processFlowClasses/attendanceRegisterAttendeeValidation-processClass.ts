@@ -4,6 +4,7 @@ import { SheetMap } from "../models/SheetMap";
 import { logger } from "../utils/logger";
 import { sheetDataRowStatuses } from "../config/constants";
 import { httpRequest } from "../utils/request";
+import { searchProjectTypeCampaignService } from "../service/campaignManageService";
 import config from "../config";
 
 const SHEET_NAMES = [
@@ -51,6 +52,13 @@ export class TemplateClass {
             }
         }
 
+        // Fetch campaign details to get campaignNumber for register ownership validation
+        const campaignResponse = await searchProjectTypeCampaignService({
+            tenantId,
+            ids: [resourceDetails?.campaignId],
+        });
+        const campaignNumber = campaignResponse?.CampaignDetails?.[0]?.campaignNumber;
+
         // Fetch register to get start/end date for range validation
         let registerStartDate: number | null = null;
         let registerEndDate: number | null = null;
@@ -58,8 +66,7 @@ export class TemplateClass {
             const register = await this.fetchRegister(registerId, tenantId, resourceDetails?.requestInfo);
             if (register) {
                 // Validate that register belongs to the current campaign
-                const campaignId = resourceDetails?.campaignId;
-                if (campaignId && register.campaignId && register.campaignId !== campaignId) {
+                if (campaignNumber && register.campaignNumber && register.campaignNumber !== campaignNumber) {
                     for (const { row } of allRows) {
                         this.addError(row, "HCM_ATTENDANCE_ATTENDEE_REGISTER_BELONGS_TO_DIFFERENT_CAMPAIGN", localizationMap);
                     }
