@@ -418,7 +418,11 @@ async function createAndUploadFile(
       const responseData = response?.data?.files;
       if (responseData) return responseData;
     } catch (error: any) {
-      logger.warn(`FILESTORE :: ATTEMPT ${attempt}/${maxAttempts} FAILED :: ${error?.response?.data?.Errors?.[0]?.message || error?.message}`);
+      const apiError = error?.response?.data?.Errors?.[0]?.message;
+      const msg = apiError || error?.message;
+      const code = error?.code || error?.response?.status || "unknown";
+      const stackLine = error?.stack?.split("\n")[1]?.trim() || "";
+      logger.warn(`FILESTORE :: ATTEMPT ${attempt}/${maxAttempts} FAILED :: code=${code} :: ${msg} :: ${stackLine}`);
       if (attempt === maxAttempts) throw new Error("Error while uploading excel file: INTERNAL_SERVER_ERROR");
     }
   }
@@ -449,7 +453,11 @@ export async function createAndUploadFileWithOutRequest(
       const responseData = response?.data?.files;
       if (responseData) return responseData;
     } catch (error: any) {
-      logger.warn(`FILESTORE :: ATTEMPT ${attempt}/${maxAttempts} FAILED :: ${error?.response?.data?.Errors?.[0]?.message || error?.message}`);
+      const apiError = error?.response?.data?.Errors?.[0]?.message;
+      const msg = apiError || error?.message;
+      const code = error?.code || error?.response?.status || "unknown";
+      const stackLine = error?.stack?.split("\n")[1]?.trim() || "";
+      logger.warn(`FILESTORE :: ATTEMPT ${attempt}/${maxAttempts} FAILED :: code=${code} :: ${msg} :: ${stackLine}`);
       if (attempt === maxAttempts) throw new Error("Error while uploading excel file: INTERNAL_SERVER_ERROR");
     }
   }

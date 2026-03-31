@@ -355,8 +355,8 @@ export class TemplateClass {
                 }
 
                 // Get Register ID from the sheet
-                const registerId = row["HCM_ATTENDANCE_REGISTER_ID"];
-                if (!registerId || registerId.trim() === "") {
+                const registerId = row["HCM_ATTENDANCE_REGISTER_ID"] ? String(row["HCM_ATTENDANCE_REGISTER_ID"]).trim() : "";
+                if (!registerId) {
                     results.push({ payload: null, serviceCode: null, status: sheetDataRowStatuses.INVALID, error: "Register ID is required" });
                     continue;
                 }

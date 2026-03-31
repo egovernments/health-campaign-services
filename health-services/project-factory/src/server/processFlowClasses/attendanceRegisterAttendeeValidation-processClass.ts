@@ -76,6 +76,8 @@ export class TemplateClass {
         // Fetch register to get start/end date only (attendees/staff fetched separately)
         let registerStartDate: number | null = null;
         let registerEndDate: number | null = null;
+        // UUID of the register — attendance API returns entry.registerId as UUID, not serviceCode
+        let registerUuid: string | null = null;
 
         if (registerId) {
             const register = await this.fetchRegister(registerId, tenantId, resourceDetails?.requestInfo);
@@ -90,7 +92,8 @@ export class TemplateClass {
                 }
                 registerStartDate = register.startDate ?? null;
                 registerEndDate = register.endDate ?? null;
-                logger.debug(`Register ${registerId} date range — startDate=${registerStartDate} (${registerStartDate ? new Date(registerStartDate).toISOString() : 'null'}), endDate=${registerEndDate} (${registerEndDate ? new Date(registerEndDate).toISOString() : 'null'})`);
+                registerUuid = register.id ?? null;
+                logger.debug(`Register ${registerId} — uuid=${registerUuid}, startDate=${registerStartDate} (${registerStartDate ? new Date(registerStartDate).toISOString() : 'null'}), endDate=${registerEndDate} (${registerEndDate ? new Date(registerEndDate).toISOString() : 'null'})`);
             } else {
                 // Mark all rows invalid if register not found
                 logger.warn(`Register ${registerId} not found — marking all ${allRows.length} rows invalid`);
@@ -197,18 +200,20 @@ export class TemplateClass {
                 ? this.parseDate(deEnrollmentDateRaw) : null;
             const teamCode = isWorkerSheet ? this.getCellAsString(row[attendanceColumnKeys.TEAM_CODE]) : "";
 
-            // Look up existing record in current register and check for active enrollment in other registers
+            // Look up existing record in current register and check for active enrollment in other registers.
+            // The sheet stores serviceCode in HCM_ATTENDANCE_REGISTER_ID, but attendance API returns
+            // entry.registerId as the register UUID — use registerUuid for correct matching.
             let existing: any = null;
             let activeInOtherRegister: any = null;
             if (isWorkerSheet) {
                 const allEntries: any[] = attendeeEnrollmentsMap.get(individualId) || [];
-                existing = allEntries.find((e: any) => e.registerId === registerId) || null;
-                activeInOtherRegister = allEntries.find((e: any) => e.registerId !== registerId && !e.denrollmentDate) || null;
+                existing = registerUuid ? allEntries.find((e: any) => e.registerId === registerUuid) || null : null;
+                activeInOtherRegister = registerUuid ? allEntries.find((e: any) => e.registerId !== registerUuid && !e.denrollmentDate) || null : null;
             } else {
                 const staffType = sheetName === MARKER_SHEET ? attendanceStaffTypes.OWNER : attendanceStaffTypes.APPROVER;
                 const allStaffEntries: any[] = staffEnrollmentsMap.get(`${individualId}_${staffType}`) || [];
-                existing = allStaffEntries.find((e: any) => e.registerId === registerId) || null;
-                activeInOtherRegister = allStaffEntries.find((e: any) => e.registerId !== registerId && !e.denrollmentDate) || null;
+                existing = registerUuid ? allStaffEntries.find((e: any) => e.registerId === registerUuid) || null : null;
+                activeInOtherRegister = registerUuid ? allStaffEntries.find((e: any) => e.registerId !== registerUuid && !e.denrollmentDate) || null : null;
             }
 
             // Block new enrollment if individual is already actively enrolled in another register
