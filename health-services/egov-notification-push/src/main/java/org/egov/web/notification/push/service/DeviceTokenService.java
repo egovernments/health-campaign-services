@@ -132,6 +132,11 @@ public class DeviceTokenService {
 		return repository.fetchTokensByFacilityId(facilityId, tenantId);
 	}
 
+	public void deleteStaleTokens(List<String> deviceTokens, String tenantId) {
+		int deleted = repository.deleteByDeviceTokens(deviceTokens, tenantId);
+		log.info("Deleted {} stale device token row(s) for tokens: {}", deleted, deviceTokens);
+	}
+
 	private boolean isValidDeviceType(String deviceType) {
 		return "ANDROID".equalsIgnoreCase(deviceType)
 				|| "IOS".equalsIgnoreCase(deviceType)

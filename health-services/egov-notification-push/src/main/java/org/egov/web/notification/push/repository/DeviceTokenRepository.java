@@ -73,6 +73,21 @@ public class DeviceTokenRepository {
 		}
 	}
 
+	public int deleteByDeviceTokens(List<String> deviceTokens, String tenantId) {
+		if (deviceTokens == null || deviceTokens.isEmpty()) {
+			return 0;
+		}
+		String schema = getSchemaFromTenantId(tenantId);
+		Map<String, Object> params = Collections.singletonMap("deviceTokens", deviceTokens);
+		try {
+			return namedParameterJdbcTemplate.update(
+					DeviceTokenQueryBuilder.deleteByDeviceTokens(schema), params);
+		} catch (Exception e) {
+			log.error("Error while deleting stale device tokens: ", e);
+			return 0;
+		}
+	}
+
 	/**
 	 * Derives the DB schema name from the tenantId.
 	 * Central instance: tenantId "in.statea.tenant" with position=1 → schema "statea"
