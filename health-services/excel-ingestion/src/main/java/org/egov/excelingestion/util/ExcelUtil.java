@@ -41,8 +41,10 @@ public class ExcelUtil {
         if (cell == null) return "";
 
         switch (cell.getCellType()) {
-            case STRING:
-                return cell.getStringCellValue();
+            case STRING: {
+                String raw = cell.getStringCellValue();
+                return raw == null ? "" : raw.trim();
+            }
             case NUMERIC:
                 if (DateUtil.isCellDateFormatted(cell)) {
                     return cell.getDateCellValue().toInstant()
@@ -60,8 +62,10 @@ public class ExcelUtil {
                     CellValue cellValue = evaluator.evaluate(cell);
 
                     switch (cellValue.getCellType()) {
-                        case STRING:
-                            return cellValue.getStringValue();
+                        case STRING: {
+                            String raw = cellValue.getStringValue();
+                            return raw == null ? "" : raw.trim();
+                        }
                         case NUMERIC:
                             if (DateUtil.isCellDateFormatted(cell)) {
                                 return DateUtil.getJavaDate(cellValue.getNumberValue())
@@ -93,8 +97,10 @@ public class ExcelUtil {
         if (cell == null) return null;
         
         switch (cell.getCellType()) {
-            case STRING:
-                return cell.getStringCellValue();
+            case STRING: {
+                String raw = cell.getStringCellValue();
+                return raw == null ? null : raw.trim();
+            }
             case NUMERIC:
                 if (DateUtil.isCellDateFormatted(cell)) {
                     return cell.getDateCellValue();
@@ -108,10 +114,12 @@ public class ExcelUtil {
                 try {
                     FormulaEvaluator evaluator = cell.getSheet().getWorkbook().getCreationHelper().createFormulaEvaluator();
                     CellValue cellValue = evaluator.evaluate(cell);
-                    
+
                     switch (cellValue.getCellType()) {
-                        case STRING:
-                            return cellValue.getStringValue();
+                        case STRING: {
+                            String raw = cellValue.getStringValue();
+                            return raw == null ? null : raw.trim();
+                        }
                         case NUMERIC:
                             return (long) cellValue.getNumberValue();
                         case BOOLEAN:
@@ -200,8 +208,9 @@ public class ExcelUtil {
                     if (cellType == CellType.BLANK) {
                         value = null;
                     } else if (cellType == CellType.STRING) {
-                        String strVal = cell.getStringCellValue();
-                        value = strVal.trim().isEmpty() ? null : strVal;
+                        String rawVal = cell.getStringCellValue();
+                        String trimmedVal = rawVal == null ? "" : rawVal.trim();
+                        value = trimmedVal.isEmpty() ? null : trimmedVal;
                         if (value != null) hasData = true;
                     } else if (cellType == CellType.NUMERIC) {
                         if (DateUtil.isCellDateFormatted(cell)) {

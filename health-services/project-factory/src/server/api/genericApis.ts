@@ -102,7 +102,7 @@ function getSheetDataFromWorksheet(worksheet: any) {
 
     row.eachCell({ includeEmpty: true }, (cell: any, colNumber: any) => {
       const cellValue = getRawCellValue(cell);
-      rowData[colNumber - 1] = cellValue; // Store cell value (0-based index)
+      rowData[colNumber - 1] = typeof cellValue === 'string' ? cellValue.trim() : cellValue; // Store cell value (0-based index)
     });
 
     // Push non-empty row only
