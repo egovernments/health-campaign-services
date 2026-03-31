@@ -139,8 +139,8 @@ public class ReferralManagementConfiguration {
     @Value("${egov.referral.search.batch.size:200}")
     private Integer referralSearchBatchSize;
 
-    @Value("${egov.hfreferral.search.batch.size:200}")
-    private Integer hfReferralSearchBatchSize;
+    @Value("${referralmanagement.search.max.limit:200}")
+    private Integer searchMaxLimit;
 
     @Value("${egov.service.request.host}")
     private String serviceRequestHost;
