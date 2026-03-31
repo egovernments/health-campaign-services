@@ -280,6 +280,12 @@ const createAndSearch: any = {
                 },
                 {
                     sheetColumn: "N",
+                    sheetColumnName: "HCM_ADMIN_CONSOLE_USER_BENEFICIARY_CODE",
+                    resultantPath: "beneficiaryCode",
+                    type: "string"
+                },
+                {
+                    sheetColumn: "O",
                     sheetColumnName: "Password",
                     resultantPath: "user.password",
                     type: "string"

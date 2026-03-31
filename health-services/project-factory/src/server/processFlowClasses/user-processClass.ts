@@ -13,6 +13,7 @@ import { httpRequest } from "../utils/request";
 import { decrypt, encrypt } from "../utils/cryptUtils";
 import { validateResourceDetailsBeforeProcess } from "../utils/sheetManageUtils";
 import { WorkerData, WorkerRegistryRecord, createOrUpdateWorkers, searchWorkersByIds } from "../utils/workerRegistryUtils";
+import { validatePaymentFields } from "../utils/paymentValidationUtils";
 import type { CampaignRecord } from "../utils/userBatchHandler";
 
 // This will be a dynamic template class for different types
@@ -367,6 +368,7 @@ export class TemplateClass {
                 payeeName: row?.["HCM_ADMIN_CONSOLE_USER_PAYEE_NAME"] || "",
                 bankAccount: row?.["HCM_ADMIN_CONSOLE_USER_BANK_ACCOUNT"] || "",
                 bankCode: row?.["HCM_ADMIN_CONSOLE_USER_BANK_CODE"] || "",
+                beneficiaryCode: row?.["HCM_ADMIN_CONSOLE_USER_BENEFICIARY_CODE"] || "",
                 id: workerId,
                 individualId,
                 tenantId,
@@ -374,6 +376,14 @@ export class TemplateClass {
         }
 
         if (!workerDataList.length) return;
+
+        // Log warnings for workers with invalid payment fields (don't block — let worker-registry be the hard gate)
+        workerDataList.forEach(wd => {
+            const result = validatePaymentFields(wd);
+            if (!result.valid) {
+                logger.warn(`Worker ${wd.individualId} has payment field issues: ${result.errors.join('; ')}`);
+            }
+        });
 
         // Call createOrUpdateWorkers in batches to stay within API size limits.
         for (let i = 0; i < workerDataList.length; i += WORKER_BATCH_SIZE) {
@@ -524,6 +534,7 @@ export class TemplateClass {
                                 payeeName: existing.data["HCM_ADMIN_CONSOLE_USER_PAYEE_NAME"] || "",
                                 bankAccount: existing.data["HCM_ADMIN_CONSOLE_USER_BANK_ACCOUNT"] || "",
                                 bankCode: existing.data["HCM_ADMIN_CONSOLE_USER_BANK_CODE"] || "",
+                                beneficiaryCode: existing.data["HCM_ADMIN_CONSOLE_USER_BENEFICIARY_CODE"] || "",
                                 id: existing.data["HCM_ADMIN_CONSOLE_USER_WORKER_ID"] || "",
                                 individualId,
                                 tenantId: resourceDetails.tenantId,
@@ -533,6 +544,14 @@ export class TemplateClass {
                 }
 
                 logger.info(`Successfully created ${successfulUsers.length} users`);
+
+                // Log warnings for workers with invalid payment fields (don't block — let worker-registry be the hard gate)
+                workerDataList.forEach(wd => {
+                    const result = validatePaymentFields(wd);
+                    if (!result.valid) {
+                        logger.warn(`Worker ${wd.individualId} has payment field issues: ${result.errors.join('; ')}`);
+                    }
+                });
 
                 // Create/update workers in worker registry BEFORE persist to capture worker IDs
                 if (workerDataList.length > 0) {

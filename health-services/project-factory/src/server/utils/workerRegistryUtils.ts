@@ -10,6 +10,7 @@ interface WorkerData {
     payeeName: string;
     bankAccount: string;
     bankCode: string;
+    beneficiaryCode?: string;
     individualId: string;
     tenantId: string;
     id?: string;
@@ -25,6 +26,7 @@ interface WorkerRegistryRecord {
     payeeName?: string;
     bankAccount?: string;
     bankCode?: string;
+    beneficiaryCode?: string;
     rowVersion: number;
     tenantId: string;
     additionalDetails?: Record<string, unknown>;
@@ -42,6 +44,7 @@ interface WorkerCreatePayload {
     payeeName: string;
     bankAccount: string;
     bankCode: string;
+    beneficiaryCode?: string;
     individualIds: string[];
     tenantId: string;
     additionalDetails: Record<string, unknown>;
@@ -165,6 +168,7 @@ async function createOrUpdateWorkers(
                         ...(!!data.payeeName ? { payeeName: data.payeeName } : {}),
                         ...(!!data.bankAccount ? { bankAccount: data.bankAccount } : {}),
                         ...(!!data.bankCode ? { bankCode: data.bankCode } : {}),
+                        ...(!!data.beneficiaryCode ? { beneficiaryCode: data.beneficiaryCode } : {}),
                         rowVersion: existingWorker.rowVersion || 1,
                     });
                 } else {
@@ -207,6 +211,7 @@ async function createOrUpdateWorkers(
                         ...(!!data.payeeName ? { payeeName: data.payeeName } : {}),
                         ...(!!data.bankAccount ? { bankAccount: data.bankAccount } : {}),
                         ...(!!data.bankCode ? { bankCode: data.bankCode } : {}),
+                        ...(!!data.beneficiaryCode ? { beneficiaryCode: data.beneficiaryCode } : {}),
                         rowVersion: existingWorker.rowVersion || 1,
                     });
                 } else {
@@ -217,6 +222,7 @@ async function createOrUpdateWorkers(
                         payeeName: data.payeeName,
                         bankAccount: data.bankAccount,
                         bankCode: data.bankCode,
+                        ...(!!data.beneficiaryCode ? { beneficiaryCode: data.beneficiaryCode } : {}),
                         individualIds: [data.individualId],
                         tenantId: data.tenantId,
                         additionalDetails: {},

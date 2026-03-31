@@ -38,6 +38,9 @@ public class Worker extends EgovModel {
     @JsonProperty("bankCode")
     private String bankCode;
 
+    @JsonProperty("beneficiaryCode")
+    private String beneficiaryCode;
+
     @JsonProperty("photoId")
     private String photoId;
 

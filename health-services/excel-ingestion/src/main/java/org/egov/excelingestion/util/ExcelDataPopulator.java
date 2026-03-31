@@ -9,6 +9,7 @@ import org.apache.poi.xssf.usermodel.XSSFSheetConditionalFormatting;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.egov.excelingestion.config.ExcelIngestionConfig;
 import org.egov.excelingestion.web.models.excel.ColumnDef;
+import org.egov.excelingestion.web.models.excel.ConditionalRequired;
 import org.egov.excelingestion.web.models.excel.MultiSelectDetails;
 import org.springframework.stereotype.Component;
 
@@ -16,6 +17,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Utility class for populating Excel sheets with data
@@ -336,12 +338,24 @@ public class ExcelDataPopulator {
      */
     private void applyValidations(Workbook workbook, Sheet sheet, List<ColumnDef> columns, Map<String, String> localizationMap) {
         DataValidationHelper dvHelper = sheet.getDataValidationHelper();
-        
+
         // Find starting column index (same as headers)
         Row visibleRow = sheet.getRow(1);
         int totalExistingCols = visibleRow != null ? visibleRow.getLastCellNum() : 0;
         int startCol = Math.max(0, totalExistingCols - columns.size());
-        
+
+        // Build map: technical column name → column index (from hidden row 0)
+        Map<String, Integer> headerNameToColIndex = new HashMap<>();
+        Row technicalRow = sheet.getRow(0);
+        if (technicalRow != null) {
+            for (int i = 0; i < technicalRow.getLastCellNum(); i++) {
+                Cell cell = technicalRow.getCell(i);
+                if (cell != null && cell.getCellType() == CellType.STRING) {
+                    headerNameToColIndex.put(cell.getStringCellValue(), i);
+                }
+            }
+        }
+
         for (int i = 0; i < columns.size(); i++) {
             int colIndex = startCol + i;
             ColumnDef column = columns.get(i);
@@ -370,7 +384,40 @@ public class ExcelDataPopulator {
                 validation.setShowPromptBox(false); // No input prompt, only error on invalid data
                 sheet.addValidationData(validation);
             }
-            
+
+            // Apply conditional required validation (formula-based DataValidation with STOP style)
+            else if (column.getRequiredIf() != null) {
+                String triggerColName = column.getRequiredIf().getColumn();
+                Integer triggerColIdx = headerNameToColIndex.get(triggerColName);
+                if (triggerColIdx != null) {
+                    String triggerLetter = columnIndexToLetter(triggerColIdx);
+                    String thisLetter = columnIndexToLetter(colIndex);
+                    List<String> triggerValues = column.getRequiredIf().getValues();
+
+                    // Formula is valid when trigger column does NOT match any trigger value OR this cell is non-empty
+                    String notTriggerPart = triggerValues.stream()
+                            .map(v -> "$" + triggerLetter + "3<>\"" + v + "\"")
+                            .collect(Collectors.joining(","));
+                    String formula = "=OR(AND(" + notTriggerPart + "),LEN(TRIM($" + thisLetter + "3))>0)";
+
+                    int actualDataRows = ExcelUtil.findActualLastRowWithData(sheet) + 1;
+                    int maxRow = Math.max(actualDataRows, config.getExcelRowLimit());
+                    CellRangeAddressList range = new CellRangeAddressList(2, maxRow, colIndex, colIndex);
+                    DataValidationConstraint constraint = dvHelper.createCustomConstraint(formula);
+                    DataValidation dv = dvHelper.createValidation(constraint, range);
+                    dv.setErrorStyle(DataValidation.ErrorStyle.STOP);
+                    dv.setShowErrorBox(true);
+                    String errMsg = column.getErrorMessage() != null && !column.getErrorMessage().isEmpty()
+                            ? column.getErrorMessage()
+                            : "This field is required for the selected payment provider.";
+                    dv.createErrorBox(
+                        LocalizationUtil.getLocalizedMessage(localizationMap, "HCM_VALIDATION_CONDITIONAL_REQUIRED", "Required Field"),
+                        LocalizationUtil.getLocalizedMessage(localizationMap, column.getErrorMessage(), errMsg)
+                    );
+                    sheet.addValidationData(dv);
+                }
+            }
+
             // Apply pure visual validation for string and number fields: conditional formatting + cell comments only
             else if ("string".equals(column.getType()) && hasStringValidation(column)) {
                 // Apply only visual formatting - no data validation to avoid vanishing entries
@@ -385,6 +432,20 @@ public class ExcelDataPopulator {
         }
     }
     
+    /**
+     * Convert a 0-based column index to an Excel column letter (A, B, ..., Z, AA, AB, ...)
+     */
+    private String columnIndexToLetter(int index) {
+        StringBuilder sb = new StringBuilder();
+        index++; // 0-based to 1-based
+        while (index > 0) {
+            index--;
+            sb.insert(0, (char) ('A' + (index % 26)));
+            index /= 26;
+        }
+        return sb.toString();
+    }
+
     /**
      * Check if column has string LENGTH validation rules (only minLength/maxLength)
      */
@@ -481,6 +542,8 @@ public class ExcelDataPopulator {
                         .multipleOf(column.getMultipleOf())
                         .exclusiveMinimum(column.getExclusiveMinimum())
                         .exclusiveMaximum(column.getExclusiveMaximum())
+                        // Copy conditional required validation
+                        .requiredIf(column.getRequiredIf())
                         .build();
                 expandedColumns.add(regularCol);
             }

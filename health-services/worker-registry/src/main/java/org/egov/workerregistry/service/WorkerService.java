@@ -38,11 +38,13 @@ public class WorkerService {
     private final Predicate<Validator<WorkerBulkRequest, Worker>> isApplicableForCreate = v ->
             v.getClass().equals(WNonEmptyWorkerListValidator.class)
                     || v.getClass().equals(WTenantIdValidator.class)
+                    || v.getClass().equals(WPaymentProviderValidator.class)
                     || v.getClass().equals(WIndividualIdValidator.class);
 
     private final Predicate<Validator<WorkerBulkRequest, Worker>> isApplicableForUpdate = v ->
             v.getClass().equals(WNullIdValidator.class)
                     || v.getClass().equals(WTenantIdValidator.class)
+                    || v.getClass().equals(WPaymentProviderValidator.class)
                     || v.getClass().equals(WIndividualIdValidator.class)
                     || v.getClass().equals(WNonExistentEntityValidator.class)
                     || v.getClass().equals(WRowVersionValidator.class);
@@ -250,6 +252,7 @@ public class WorkerService {
         if (incoming.getPayeeName() == null) incoming.setPayeeName(existing.getPayeeName());
         if (incoming.getBankAccount() == null) incoming.setBankAccount(existing.getBankAccount());
         if (incoming.getBankCode() == null) incoming.setBankCode(existing.getBankCode());
+        if (incoming.getBeneficiaryCode() == null) incoming.setBeneficiaryCode(existing.getBeneficiaryCode());
         if (incoming.getPhotoId() == null) incoming.setPhotoId(existing.getPhotoId());
         if (incoming.getSignatureId() == null) incoming.setSignatureId(existing.getSignatureId());
         if (incoming.getAdditionalDetails() == null) incoming.setAdditionalDetails(existing.getAdditionalDetails());

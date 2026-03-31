@@ -76,6 +76,7 @@ export class TemplateClass {
                     if (worker.payeeName) localizedData["HCM_ADMIN_CONSOLE_USER_PAYEE_NAME"] = worker.payeeName;
                     if (worker.bankAccount) localizedData["HCM_ADMIN_CONSOLE_USER_BANK_ACCOUNT"] = worker.bankAccount;
                     if (worker.bankCode) localizedData["HCM_ADMIN_CONSOLE_USER_BANK_CODE"] = worker.bankCode;
+                    if (worker.beneficiaryCode) localizedData["HCM_ADMIN_CONSOLE_USER_BENEFICIARY_CODE"] = worker.beneficiaryCode;
                     if (worker.paymentProvider) localizedData["HCM_ADMIN_CONSOLE_USER_PAYMENT_PROVIDER"] = worker.paymentProvider;
                     if (worker.payeePhoneNumber) localizedData["HCM_ADMIN_CONSOLE_USER_PAYEE_PHONE_NUMBER"] = worker.payeePhoneNumber;
                 }

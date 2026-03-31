@@ -58,10 +58,10 @@ public class WorkerRepository {
     public void save(List<Worker> workers, String tenantId) {
         String query = String.format(
                 "INSERT INTO %s.%s (id, tenantId, name, payeePhoneNumber, paymentProvider, payeeName, " +
-                        "bankAccount, bankCode, photoId, signatureId, additionalDetails, isDeleted, " +
+                        "bankAccount, bankCode, beneficiaryCode, photoId, signatureId, additionalDetails, isDeleted, " +
                         "createdBy, lastModifiedBy, createdTime, lastModifiedTime, rowVersion) " +
                         "VALUES (:id, :tenantId, :name, :payeePhoneNumber, :paymentProvider, :payeeName, " +
-                        ":bankAccount, :bankCode, :photoId, :signatureId, :additionalDetails, :isDeleted, " +
+                        ":bankAccount, :bankCode, :beneficiaryCode, :photoId, :signatureId, :additionalDetails, :isDeleted, " +
                         ":createdBy, :lastModifiedBy, :createdTime, :lastModifiedTime, :rowVersion)",
                 SCHEMA_REPLACE_STRING, TABLE_NAME);
 
@@ -83,7 +83,7 @@ public class WorkerRepository {
         String query = String.format(
                 "UPDATE %s.%s SET name = :name, payeePhoneNumber = :payeePhoneNumber, " +
                         "paymentProvider = :paymentProvider, payeeName = :payeeName, " +
-                        "bankAccount = :bankAccount, bankCode = :bankCode, " +
+                        "bankAccount = :bankAccount, bankCode = :bankCode, beneficiaryCode = :beneficiaryCode, " +
                         "photoId = :photoId, signatureId = :signatureId, " +
                         "additionalDetails = :additionalDetails, isDeleted = :isDeleted, " +
                         "lastModifiedBy = :lastModifiedBy, lastModifiedTime = :lastModifiedTime, " +
@@ -128,6 +128,7 @@ public class WorkerRepository {
         params.addValue("payeeName", worker.getPayeeName());
         params.addValue("bankAccount", worker.getBankAccount());
         params.addValue("bankCode", worker.getBankCode());
+        params.addValue("beneficiaryCode", worker.getBeneficiaryCode());
         params.addValue("photoId", worker.getPhotoId());
         params.addValue("signatureId", worker.getSignatureId());
         params.addValue("additionalDetails", toJsonbPGobject(worker.getAdditionalDetails()));
@@ -149,6 +150,7 @@ public class WorkerRepository {
         params.addValue("payeeName", worker.getPayeeName());
         params.addValue("bankAccount", worker.getBankAccount());
         params.addValue("bankCode", worker.getBankCode());
+        params.addValue("beneficiaryCode", worker.getBeneficiaryCode());
         params.addValue("photoId", worker.getPhotoId());
         params.addValue("signatureId", worker.getSignatureId());
         params.addValue("additionalDetails", toJsonbPGobject(worker.getAdditionalDetails()));
@@ -210,6 +212,7 @@ public class WorkerRepository {
                     .payeeName(rs.getString("payeeName"))
                     .bankAccount(rs.getString("bankAccount"))
                     .bankCode(rs.getString("bankCode"))
+                    .beneficiaryCode(rs.getString("beneficiaryCode"))
                     .photoId(rs.getString("photoId"))
                     .signatureId(rs.getString("signatureId"))
                     .additionalDetails(rs.getObject("additionalDetails"))
