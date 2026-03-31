@@ -224,6 +224,14 @@ export class TemplateClass {
         const invalidCount = SHEET_NAMES.reduce((sum, name) => sum + (sheetRows.get(name) || []).filter((r: any) => r["#status#"] === sheetDataRowStatuses.INVALID).length, 0);
         logger.info(`Attendee API operations complete — created: ${attendeesToCreate.length} attendees, ${staffToCreate.length} staff | de-enrolled: ${attendeesToDelete.length} attendees, ${staffToDelete.length} staff | tagUpdated: ${attendeesToUpdateTag.length} | skipped: ${skippedCount} | invalid: ${invalidCount}`);
 
+        // Signal to processResource that some rows failed — let it upload the processed file first
+        // (so users can download and see row-level errors), then mark the resource as FAILED.
+        if (invalidCount > 0) {
+            if (!resourceDetails.additionalDetails) resourceDetails.additionalDetails = {};
+            resourceDetails.additionalDetails.processingFailed = true;
+            resourceDetails.additionalDetails.processingFailedMessage = `${invalidCount} row(s) failed during processing. Review the processed file for row-level error details.`;
+        }
+
         // ── Persist rows to campaign_data ──────────────────────────────────────
         // Fetch existing rows for this campaign (for upsert decision)
         const existingAttendeeDataMap = await this.buildExistingAttendeeDataMap(campaignNumber, tenantId);

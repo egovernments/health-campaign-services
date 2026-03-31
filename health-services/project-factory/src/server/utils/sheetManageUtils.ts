@@ -165,7 +165,18 @@ export async function processResource(ResourceDetails: any, templateConfig: any)
         const fileResponse = await createAndUploadFileWithOutRequest(workBook, ResourceDetails?.tenantId);
         ResourceDetails.processedFileStoreId = fileResponse?.[0]?.fileStoreId;
         if (!ResourceDetails.processedFileStoreId) throw new Error("FileStoreId not created.");
-        ResourceDetails.status = resourceStatuses.completed;
+        // If the process class signalled row-level failures, mark as failed (processed file is still uploaded for review)
+        if (ResourceDetails.additionalDetails?.processingFailed) {
+            ResourceDetails.status = resourceStatuses.failed;
+            ResourceDetails.additionalDetails = {
+                ...ResourceDetails.additionalDetails,
+                error: { message: ResourceDetails.additionalDetails.processingFailedMessage }
+            };
+            delete ResourceDetails.additionalDetails.processingFailed;
+            delete ResourceDetails.additionalDetails.processingFailedMessage;
+        } else {
+            ResourceDetails.status = resourceStatuses.completed;
+        }
         ResourceDetails.auditDetails = {
             ...ResourceDetails.auditDetails,
             lastModifiedTime: Date.now()
