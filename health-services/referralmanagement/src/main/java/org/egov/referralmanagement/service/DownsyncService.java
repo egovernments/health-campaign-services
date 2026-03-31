@@ -226,7 +226,7 @@ public class DownsyncService {
         RequestInfo requestInfo = downsyncRequest.getRequestInfo();
         String tenantId = criteria.getTenantId();
 
-        List<String> individualIds = getPrimaryIds(tenantId, individualClientRefIds, "clientReferenceId", "INDIVIDUAL", criteria.getLastSyncedTime());
+        List<String> individualIds = getPrimaryIds(tenantId, individualClientRefIds, Constants.FIELD_CLIENT_REFERENCE_ID, Constants.TABLE_INDIVIDUAL, criteria.getLastSyncedTime());
 
         if (CollectionUtils.isEmpty(individualIds))
             return Collections.emptyList();
@@ -337,7 +337,7 @@ public class DownsyncService {
         Long lastChangedSince = downsyncRequest.getDownsyncCriteria().getLastSyncedTime();
         String tenantId = downsyncRequest.getDownsyncCriteria().getTenantId();
 
-        List<String> memberIds = getPrimaryIds(tenantId, householdClientReferenceIds, "householdClientReferenceId","HOUSEHOLD_MEMBER",lastChangedSince);
+        List<String> memberIds = getPrimaryIds(tenantId, householdClientReferenceIds, Constants.FIELD_HOUSEHOLD_CLIENT_REFERENCE_ID, Constants.TABLE_HOUSEHOLD_MEMBER, lastChangedSince);
 
         if (CollectionUtils.isEmpty(memberIds))
             return Collections.emptyList();
@@ -392,8 +392,8 @@ public class DownsyncService {
         List<String> beneficiaryIds = getPrimaryIds(
                 tenantId,
                 beneficiaryClientRefIds,
-                "beneficiaryclientreferenceid",
-                "PROJECT_BENEFICIARY",
+                Constants.FIELD_BENEFICIARY_CLIENT_REFERENCE_ID,
+                Constants.TABLE_PROJECT_BENEFICIARY,
                 lastChangedSince
         );
 
@@ -449,7 +449,7 @@ public class DownsyncService {
         RequestInfo requestInfo = downsyncRequest.getRequestInfo();
         String tenantId = criteria.getTenantId();
 
-        List<String> taskIds = getPrimaryIds(tenantId, beneficiaryClientRefIds, "projectBeneficiaryClientReferenceId", "PROJECT_TASK",
+        List<String> taskIds = getPrimaryIds(tenantId, beneficiaryClientRefIds, Constants.FIELD_PROJECT_BENEFICIARY_CLIENT_REFERENCE_ID, Constants.TABLE_PROJECT_TASK,
                 criteria.getLastSyncedTime());
 
         if(CollectionUtils.isEmpty(taskIds))
@@ -501,7 +501,7 @@ public class DownsyncService {
         String tenantId = criteria.getTenantId();
 
         /* FIXME SHOULD BE REMOVED AND TASK SEARCH SHOULD BE enhanced with list of client-ref-beneficiary ids*/
-        List<String> SEIds = getPrimaryIds(tenantId, taskClientRefIds, "taskClientReferenceId", "SIDE_EFFECT", criteria.getLastSyncedTime());
+        List<String> SEIds = getPrimaryIds(tenantId, taskClientRefIds, Constants.FIELD_TASK_CLIENT_REFERENCE_ID, Constants.TABLE_SIDE_EFFECT, criteria.getLastSyncedTime());
 
         if(CollectionUtils.isEmpty(SEIds))
             return;
@@ -598,8 +598,8 @@ public class DownsyncService {
         List<String> hfReferralIds = getPrimaryIds(
                 criteria.getTenantId(),
                 Collections.singletonList(criteria.getProjectId()),
-                "projectid",
-                "HF_REFERRAL",
+                Constants.FIELD_PROJECT_ID,
+                Constants.TABLE_HF_REFERRAL,
                 criteria.getLastSyncedTime()
         );
 
@@ -607,7 +607,7 @@ public class DownsyncService {
             return;
 
         List<HFReferral> allHfReferrals = new ArrayList<>();
-        int batchSize = configs.getSearchMaxLimit();
+        int batchSize = configs.getHfReferralSearchBatchSize();
 
         for (int i = 0; i < hfReferralIds.size(); i += batchSize) {
             List<String> batch = getIdsForBatch(batchSize, i, hfReferralIds);
