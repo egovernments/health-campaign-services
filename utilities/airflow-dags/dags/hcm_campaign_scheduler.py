@@ -31,6 +31,7 @@ from airflow.models import DagBag
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 from airflow.operators.trigger_dagrun import TriggerDagRunOperator
+from airflow.models import Variable
 
 logger = logging.getLogger("airflow.task")
 logger.setLevel(logging.INFO)
@@ -350,9 +351,14 @@ with DAG(
         logger.info("Window: %s to %s",
                    window_start.strftime("%Y-%m-%d %H:%M:%S"),
                    window_end.strftime("%Y-%m-%d %H:%M:%S"))
+        central_tenants_str = Variable.get("CENTRAL_TENANTS", default_var="")
+        central_tenants = [t.strip() for t in central_tenants_str.split(",") if t.strip()]
 
         # Determine which tenants to process
-        if IS_CENTRAL_INSTANCE_ENABLED and CENTRAL_TENANTS:
+        if IS_CENTRAL_INSTANCE_ENABLED and central_tenants:
+            tenants = central_tenants
+            logger.info("Central instance enabled. Processing %d tenants: %s", len(tenants), tenants)
+        elif IS_CENTRAL_INSTANCE_ENABLED and CENTRAL_TENANTS:
             tenants = CENTRAL_TENANTS
             logger.info("Central instance enabled. Processing %d tenants: %s", len(tenants), tenants)
         else:
