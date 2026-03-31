@@ -78,6 +78,18 @@ public class ExcelIngestionConfig {
     @Value("${egov.attendance.register.search.path}")
     private String attendanceRegisterSearchPath;
 
+    @Value("${egov.attendance.attendee.search.path}")
+    private String attendanceAttendeeSearchPath;
+
+    @Value("${egov.attendance.staff.search.path}")
+    private String attendanceStaffSearchPath;
+
+    @Value("${egov.attendance.attendee.search.page.size:500}")
+    private int attendanceAttendeeSearchPageSize;
+
+    @Value("${egov.attendance.staff.search.page.size:100}")
+    private int attendanceStaffSearchPageSize;
+
     @Value("${egov.attendance.register.search.batch.size:100}")
     private int attendanceRegisterSearchBatchSize;
 
@@ -133,6 +145,22 @@ public class ExcelIngestionConfig {
 
     public String getAttendanceRegisterSearchUrl() {
         return attendanceHost + attendanceRegisterSearchPath;
+    }
+
+    public String getAttendanceAttendeeSearchUrl() {
+        return attendanceHost + attendanceAttendeeSearchPath;
+    }
+
+    public String getAttendanceStaffSearchUrl() {
+        return attendanceHost + attendanceStaffSearchPath;
+    }
+
+    public int getAttendanceAttendeeSearchPageSize() {
+        return attendanceAttendeeSearchPageSize;
+    }
+
+    public int getAttendanceStaffSearchPageSize() {
+        return attendanceStaffSearchPageSize;
     }
 
     public String getWorkerRegistrySearchUrl() {

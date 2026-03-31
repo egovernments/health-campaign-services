@@ -67,6 +67,7 @@ public class AttendanceRegisterAttendeeValidationProcessor implements IWorkbookP
     private static final String LOC_ENROLLMENT_DATE_REQUIRED = ValidationConstants.LOC_ATTENDANCE_ENROLLMENT_DATE_REQUIRED;
     private static final String LOC_CANNOT_CHANGE_ENROLLMENT_DATE = ValidationConstants.LOC_ATTENDANCE_CANNOT_CHANGE_ENROLLMENT_DATE;
     private static final String LOC_CANNOT_CHANGE_DEENROLLMENT_DATE = ValidationConstants.LOC_ATTENDANCE_CANNOT_CHANGE_DEENROLLMENT_DATE;
+    private static final String LOC_ALREADY_ENROLLED_IN_ANOTHER_REGISTER = ValidationConstants.LOC_ATTENDANCE_ALREADY_ENROLLED_IN_ANOTHER_REGISTER;
 
     // Default error messages — sourced from ValidationConstants
     private static final String DEFAULT_INVALID_DATE = ValidationConstants.DEFAULT_ATTENDANCE_INVALID_DATE;
@@ -78,6 +79,7 @@ public class AttendanceRegisterAttendeeValidationProcessor implements IWorkbookP
     private static final String DEFAULT_ENROLLMENT_DATE_REQUIRED = ValidationConstants.DEFAULT_ATTENDANCE_ENROLLMENT_DATE_REQUIRED;
     private static final String DEFAULT_CANNOT_CHANGE_ENROLLMENT_DATE = ValidationConstants.DEFAULT_ATTENDANCE_CANNOT_CHANGE_ENROLLMENT_DATE;
     private static final String DEFAULT_CANNOT_CHANGE_DEENROLLMENT_DATE = ValidationConstants.DEFAULT_ATTENDANCE_CANNOT_CHANGE_DEENROLLMENT_DATE;
+    private static final String DEFAULT_ALREADY_ENROLLED_IN_ANOTHER_REGISTER = ValidationConstants.DEFAULT_ATTENDANCE_ALREADY_ENROLLED_IN_ANOTHER_REGISTER;
 
     private final ValidationService validationService;
     private final EnrichmentUtil enrichmentUtil;
@@ -123,7 +125,7 @@ public class AttendanceRegisterAttendeeValidationProcessor implements IWorkbookP
             // Get expected registerId from additionalDetails
             String expectedRegisterId = extractRegisterId(resource);
 
-            // Fetch attendance register (includes attendees/staff for truth-table validation)
+            // Fetch attendance register for date range and campaign validation only
             RegisterContext registerContext = fetchRegisterContext(expectedRegisterId,
                     resource.getTenantId(), requestInfo);
 
@@ -144,8 +146,18 @@ public class AttendanceRegisterAttendeeValidationProcessor implements IWorkbookP
             // Resolve HRMS usernames → individualIds for truth-table validation
             Map<String, String> usernameToIndividualId = resolveUsernames(sheetData, resource.getTenantId(), requestInfo);
 
-            // Detect if this is a worker sheet (has team code column)
+            // Detect if this is a worker sheet (has team code column) — needed before conditional fetch
             boolean isWorkerSheet = hasTeamCodeColumn(sheetData);
+
+            // Fetch enrollment records across ALL registers for cross-register validation.
+            // Only fetch the map relevant to the current sheet type to avoid unnecessary API calls.
+            List<String> allIndividualIds = new ArrayList<>(new HashSet<>(usernameToIndividualId.values()));
+            Map<String, List<Map<String, Object>>> attendeeEnrollmentsMap = (!allIndividualIds.isEmpty() && isWorkerSheet)
+                    ? fetchAttendeeEnrollments(allIndividualIds, resource.getTenantId(), requestInfo)
+                    : new HashMap<>();
+            Map<String, List<Map<String, Object>>> staffEnrollmentsMap = (!allIndividualIds.isEmpty() && !isWorkerSheet)
+                    ? fetchStaffEnrollments(allIndividualIds, resource.getTenantId(), requestInfo)
+                    : new HashMap<>();
 
             // Determine staff type for marker/approver sheets
             String staffType = determineStaffType(sheetName, resource);
@@ -153,7 +165,8 @@ public class AttendanceRegisterAttendeeValidationProcessor implements IWorkbookP
             // Single-pass O(n) validation
             List<ValidationError> errors = new ArrayList<>();
             validateAttendeeData(sheetData, expectedRegisterId, registerContext,
-                    usernameToIndividualId, isWorkerSheet, staffType, errors, localizationMap);
+                    usernameToIndividualId, attendeeEnrollmentsMap, staffEnrollmentsMap,
+                    isWorkerSheet, staffType, errors, localizationMap);
 
             log.info("Attendee validation completed for sheet {} with {} errors", sheetName, errors.size());
 
@@ -181,12 +194,14 @@ public class AttendanceRegisterAttendeeValidationProcessor implements IWorkbookP
     /**
      * Validate attendee data - O(n) single pass.
      * Performs structural validations (format, range) and truth-table business validations
-     * (date immutability, enrollment required).
+     * (date immutability, enrollment required, cross-register enrollment).
      */
     private void validateAttendeeData(List<Map<String, Object>> sheetData,
                                        String expectedRegisterId,
                                        RegisterContext registerContext,
                                        Map<String, String> usernameToIndividualId,
+                                       Map<String, List<Map<String, Object>>> attendeeEnrollmentsMap,
+                                       Map<String, List<Map<String, Object>>> staffEnrollmentsMap,
                                        boolean isWorkerSheet,
                                        String staffType,
                                        List<ValidationError> errors,
@@ -271,7 +286,8 @@ public class AttendanceRegisterAttendeeValidationProcessor implements IWorkbookP
                 if (individualId != null && !individualId.isEmpty()) {
                     List<String> businessErrors = validateTruthTableRules(
                             individualId, enrollmentDate, deEnrollmentDate, teamCode,
-                            isWorkerSheet, staffType, registerContext, localizationMap);
+                            isWorkerSheet, staffType, expectedRegisterId,
+                            attendeeEnrollmentsMap, staffEnrollmentsMap, localizationMap);
                     rowErrors.addAll(businessErrors);
                 }
             }
@@ -291,6 +307,7 @@ public class AttendanceRegisterAttendeeValidationProcessor implements IWorkbookP
     /**
      * Apply truth-table INVALID rules based on existing record state.
      * Covers cases: A2/A4/A7, B3/B6/B10/B13, C3/C5/C7-C9/C13/C14, D3, E3/E6, F3/F5/F7/F8.
+     * Also checks cross-register active enrollment (new rule).
      */
     private List<String> validateTruthTableRules(String individualId,
                                                   LocalDate enrollmentDate,
@@ -298,17 +315,45 @@ public class AttendanceRegisterAttendeeValidationProcessor implements IWorkbookP
                                                   String teamCode,
                                                   boolean isWorkerSheet,
                                                   String staffType,
-                                                  RegisterContext registerContext,
+                                                  String currentRegisterId,
+                                                  Map<String, List<Map<String, Object>>> attendeeEnrollmentsMap,
+                                                  Map<String, List<Map<String, Object>>> staffEnrollmentsMap,
                                                   Map<String, String> localizationMap) {
         List<String> errors = new ArrayList<>();
 
-        // Look up existing record
-        Map<String, Object> existing;
+        // Look up existing record in current register and check cross-register active enrollment
+        Map<String, Object> existing = null;
+        boolean activeInOtherRegister = false;
         if (isWorkerSheet) {
-            existing = registerContext.attendeesMap.get(individualId);
+            List<Map<String, Object>> allEntries = attendeeEnrollmentsMap.getOrDefault(individualId, Collections.emptyList());
+            for (Map<String, Object> entry : allEntries) {
+                String entryRegisterId = entry.get(ProcessingConstants.ATTENDEE_REGISTER_ID_KEY) != null
+                        ? String.valueOf(entry.get(ProcessingConstants.ATTENDEE_REGISTER_ID_KEY)).trim() : "";
+                if (currentRegisterId.equals(entryRegisterId)) {
+                    existing = entry;
+                } else if (!isDeEnrolled(entry)) {
+                    activeInOtherRegister = true;
+                }
+            }
         } else {
             String staffKey = individualId + "_" + staffType;
-            existing = registerContext.staffMap.get(staffKey);
+            List<Map<String, Object>> allStaffEntries = staffEnrollmentsMap.getOrDefault(staffKey, Collections.emptyList());
+            for (Map<String, Object> entry : allStaffEntries) {
+                String entryRegisterId = entry.get(ProcessingConstants.ATTENDEE_REGISTER_ID_KEY) != null
+                        ? String.valueOf(entry.get(ProcessingConstants.ATTENDEE_REGISTER_ID_KEY)).trim() : "";
+                if (currentRegisterId.equals(entryRegisterId)) {
+                    existing = entry;
+                } else if (!isDeEnrolled(entry)) {
+                    activeInOtherRegister = true;
+                }
+            }
+        }
+
+        // Block new enrollment if individual is already actively enrolled in another register
+        if (activeInOtherRegister && existing == null) {
+            errors.add(getLocalizedMessage(localizationMap, LOC_ALREADY_ENROLLED_IN_ANOTHER_REGISTER,
+                    DEFAULT_ALREADY_ENROLLED_IN_ANOTHER_REGISTER));
+            return errors;
         }
 
         if (existing == null) {
@@ -359,6 +404,16 @@ public class AttendanceRegisterAttendeeValidationProcessor implements IWorkbookP
                     DEFAULT_CANNOT_CHANGE_ENROLLMENT_DATE));
         }
         return errors;
+    }
+
+    /**
+     * Returns true if the enrollment entry has a non-zero denrollmentDate, meaning the individual
+     * has been de-enrolled. Treats null and 0 as "not de-enrolled" — consistent with extractExistingDate.
+     */
+    private boolean isDeEnrolled(Map<String, Object> entry) {
+        Object value = entry.get(ProcessingConstants.DEENROLLMENT_DATE_KEY);
+        if (!(value instanceof Number)) return false;
+        return ((Number) value).longValue() != 0;
     }
 
     /**
@@ -538,7 +593,117 @@ public class AttendanceRegisterAttendeeValidationProcessor implements IWorkbookP
     }
 
     /**
-     * Fetch attendance register and extract dates, attendees, and staff for validation.
+     * Fetch all attendee enrollment records for the given individualIds across ALL registers.
+     * Paginates with limit=500. Returns Map&lt;individualId, List&lt;entry&gt;&gt;.
+     */
+    private Map<String, List<Map<String, Object>>> fetchAttendeeEnrollments(
+            List<String> individualIds, String tenantId, RequestInfo requestInfo) {
+        Map<String, List<Map<String, Object>>> result = new HashMap<>();
+        String url = config.getAttendanceAttendeeSearchUrl();
+        int limit = config.getAttendanceAttendeeSearchPageSize();
+        int offset = 0;
+
+        try {
+            while (true) {
+                StringBuilder requestUrl = new StringBuilder(url)
+                        .append("?tenantId=").append(tenantId)
+                        .append("&limit=").append(limit)
+                        .append("&offset=").append(offset);
+
+                Map<String, Object> criteria = new HashMap<>();
+                criteria.put(ProcessingConstants.INDIVIDUAL_IDS_CRITERIA_KEY, individualIds);
+                criteria.put("tenantId", tenantId);
+
+                Map<String, Object> payload = new HashMap<>();
+                payload.put(ProcessingConstants.REQUEST_INFO_KEY, requestInfo);
+                payload.put(ProcessingConstants.ATTENDEE_SEARCH_RESPONSE_KEY, criteria);
+
+                @SuppressWarnings("unchecked")
+                Map<String, Object> response = (Map<String, Object>) serviceRequestRepository.fetchResult(requestUrl, payload);
+
+                @SuppressWarnings("unchecked")
+                List<Map<String, Object>> entries = response != null
+                        ? (List<Map<String, Object>>) response.get(ProcessingConstants.ATTENDEE_SEARCH_RESPONSE_KEY)
+                        : null;
+
+                if (entries == null || entries.isEmpty()) break;
+
+                for (Map<String, Object> entry : entries) {
+                    String id = entry.get(ProcessingConstants.ATTENDEE_INDIVIDUAL_ID_KEY) != null
+                            ? String.valueOf(entry.get(ProcessingConstants.ATTENDEE_INDIVIDUAL_ID_KEY)).trim() : "";
+                    if (!id.isEmpty()) {
+                        result.computeIfAbsent(id, k -> new ArrayList<>()).add(entry);
+                    }
+                }
+                if (entries.size() < limit) break;
+                offset += limit;
+            }
+        } catch (Exception e) {
+            log.warn("Failed to fetch attendee enrollments: {}", e.getMessage());
+        }
+
+        log.info("Fetched attendee enrollments for {} individuals across all registers", result.size());
+        return result;
+    }
+
+    /**
+     * Fetch all staff enrollment records for the given individualIds across ALL registers.
+     * Paginates with limit=100. Returns Map&lt;userId_staffType, List&lt;entry&gt;&gt;.
+     */
+    private Map<String, List<Map<String, Object>>> fetchStaffEnrollments(
+            List<String> individualIds, String tenantId, RequestInfo requestInfo) {
+        Map<String, List<Map<String, Object>>> result = new HashMap<>();
+        String url = config.getAttendanceStaffSearchUrl();
+        int limit = config.getAttendanceStaffSearchPageSize();
+        int offset = 0;
+
+        try {
+            while (true) {
+                StringBuilder requestUrl = new StringBuilder(url)
+                        .append("?tenantId=").append(tenantId)
+                        .append("&limit=").append(limit)
+                        .append("&offset=").append(offset);
+
+                Map<String, Object> criteria = new HashMap<>();
+                criteria.put(ProcessingConstants.INDIVIDUAL_IDS_CRITERIA_KEY, individualIds);
+                criteria.put("tenantId", tenantId);
+
+                Map<String, Object> payload = new HashMap<>();
+                payload.put(ProcessingConstants.REQUEST_INFO_KEY, requestInfo);
+                payload.put(ProcessingConstants.STAFF_SEARCH_RESPONSE_KEY, criteria);
+
+                @SuppressWarnings("unchecked")
+                Map<String, Object> response = (Map<String, Object>) serviceRequestRepository.fetchResult(requestUrl, payload);
+
+                @SuppressWarnings("unchecked")
+                List<Map<String, Object>> entries = response != null
+                        ? (List<Map<String, Object>>) response.get(ProcessingConstants.STAFF_SEARCH_RESPONSE_KEY)
+                        : null;
+
+                if (entries == null || entries.isEmpty()) break;
+
+                for (Map<String, Object> entry : entries) {
+                    String userId = entry.get(ProcessingConstants.STAFF_USER_ID_KEY) != null
+                            ? String.valueOf(entry.get(ProcessingConstants.STAFF_USER_ID_KEY)).trim() : "";
+                    String type = entry.get(ProcessingConstants.STAFF_TYPE_KEY) != null
+                            ? String.valueOf(entry.get(ProcessingConstants.STAFF_TYPE_KEY)).trim() : ProcessingConstants.STAFF_TYPE_OWNER;
+                    if (!userId.isEmpty()) {
+                        result.computeIfAbsent(userId + "_" + type, k -> new ArrayList<>()).add(entry);
+                    }
+                }
+                if (entries.size() < limit) break;
+                offset += limit;
+            }
+        } catch (Exception e) {
+            log.warn("Failed to fetch staff enrollments: {}", e.getMessage());
+        }
+
+        log.info("Fetched staff enrollments across all registers, unique keys: {}", result.size());
+        return result;
+    }
+
+    /**
+     * Fetch attendance register and extract dates for validation.
      */
     private RegisterContext fetchRegisterContext(String registerId, String tenantId,
                                                  RequestInfo requestInfo) {
@@ -550,7 +715,9 @@ public class AttendanceRegisterAttendeeValidationProcessor implements IWorkbookP
         try {
             StringBuilder url = new StringBuilder(config.getAttendanceRegisterSearchUrl());
             url.append("?tenantId=").append(tenantId)
-               .append("&ids=").append(registerId);
+               .append("&ids=").append(registerId)
+               .append("&includeAttendee=false")
+               .append("&includeStaff=false");
 
             Map<String, Object> payload = new HashMap<>();
             payload.put(ProcessingConstants.REQUEST_INFO_KEY, requestInfo);
@@ -594,47 +761,14 @@ public class AttendanceRegisterAttendeeValidationProcessor implements IWorkbookP
             String campaignId = register.get(ProcessingConstants.ATTENDANCE_REGISTER_CAMPAIGN_ID_KEY) != null
                     ? String.valueOf(register.get(ProcessingConstants.ATTENDANCE_REGISTER_CAMPAIGN_ID_KEY)).trim() : "";
 
-            // Build attendeesMap from register.attendees — O(n)
-            Map<String, Map<String, Object>> attendeesMap = new HashMap<>();
-            @SuppressWarnings("unchecked")
-            List<Map<String, Object>> attendees = (List<Map<String, Object>>) register.get(ProcessingConstants.ATTENDANCE_REGISTER_ATTENDEES_KEY);
-            if (attendees != null) {
-                for (Map<String, Object> attendee : attendees) {
-                    String individualId = attendee.get(ProcessingConstants.ATTENDEE_INDIVIDUAL_ID_KEY) != null
-                            ? String.valueOf(attendee.get(ProcessingConstants.ATTENDEE_INDIVIDUAL_ID_KEY)).trim() : "";
-                    if (!individualId.isEmpty()) {
-                        attendeesMap.put(individualId, attendee);
-                    }
-                }
-            }
-
-            // Build staffMap from register.staff — O(n), keyed by "userId_staffType"
-            Map<String, Map<String, Object>> staffMap = new HashMap<>();
-            @SuppressWarnings("unchecked")
-            List<Map<String, Object>> staff = (List<Map<String, Object>>) register.get(ProcessingConstants.ATTENDANCE_REGISTER_STAFF_KEY);
-            if (staff != null) {
-                for (Map<String, Object> staffMember : staff) {
-                    String userId = staffMember.get(ProcessingConstants.STAFF_USER_ID_KEY) != null
-                            ? String.valueOf(staffMember.get(ProcessingConstants.STAFF_USER_ID_KEY)).trim() : "";
-                    String type = staffMember.get(ProcessingConstants.STAFF_TYPE_KEY) != null
-                            ? String.valueOf(staffMember.get(ProcessingConstants.STAFF_TYPE_KEY)).trim() : ProcessingConstants.STAFF_TYPE_OWNER;
-                    if (!userId.isEmpty()) {
-                        staffMap.put(userId + "_" + type, staffMember);
-                    }
-                }
-            }
-
             RegisterContext context = new RegisterContext(
                     epochMillisToLocalDate(startEpoch),
                     epochMillisToLocalDate(endEpoch),
                     serviceCode,
-                    campaignId,
-                    attendeesMap,
-                    staffMap);
+                    campaignId);
 
-            log.info("Register {} date range: {} to {}, serviceCode: {}, attendees: {}, staff: {}",
-                    registerId, context.startDate, context.endDate, context.serviceCode,
-                    attendeesMap.size(), staffMap.size());
+            log.info("Register {} date range: {} to {}, serviceCode: {}",
+                    registerId, context.startDate, context.endDate, context.serviceCode);
             return context;
 
         } catch (Exception e) {
@@ -744,24 +878,20 @@ public class AttendanceRegisterAttendeeValidationProcessor implements IWorkbookP
     }
 
     /**
-     * Holds register metadata, date range, and existing attendee/staff maps for validation.
+     * Holds register metadata and date range for structural validation.
+     * Attendee/staff enrollment data is fetched separately via dedicated search APIs.
      */
     private static class RegisterContext {
         final LocalDate startDate;
         final LocalDate endDate;
         final String serviceCode;
         final String campaignId;
-        final Map<String, Map<String, Object>> attendeesMap;
-        final Map<String, Map<String, Object>> staffMap;
 
-        RegisterContext(LocalDate startDate, LocalDate endDate, String serviceCode, String campaignId,
-                        Map<String, Map<String, Object>> attendeesMap, Map<String, Map<String, Object>> staffMap) {
+        RegisterContext(LocalDate startDate, LocalDate endDate, String serviceCode, String campaignId) {
             this.startDate = startDate;
             this.endDate = endDate;
             this.serviceCode = serviceCode;
             this.campaignId = campaignId;
-            this.attendeesMap = attendeesMap;
-            this.staffMap = staffMap;
         }
     }
 }

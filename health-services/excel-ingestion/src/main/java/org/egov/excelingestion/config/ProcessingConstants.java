@@ -38,10 +38,18 @@ public class ProcessingConstants {
 
     // Attendee/Staff Record Field Keys
     public static final String ATTENDEE_INDIVIDUAL_ID_KEY = "individualId";
+    public static final String ATTENDEE_REGISTER_ID_KEY = "registerId";
     public static final String STAFF_USER_ID_KEY = "userId";
     public static final String STAFF_TYPE_KEY = "staffType";
     public static final String ENROLLMENT_DATE_KEY = "enrollmentDate";
     public static final String DEENROLLMENT_DATE_KEY = "denrollmentDate";
+
+    // Attendee/Staff Search API Response Keys
+    public static final String ATTENDEE_SEARCH_RESPONSE_KEY = "attendees";
+    public static final String STAFF_SEARCH_RESPONSE_KEY = "staff";
+
+    // Search criteria key for passing a list of individual IDs
+    public static final String INDIVIDUAL_IDS_CRITERIA_KEY = "individualIds";
 
     // Staff Type Values
     public static final String STAFF_TYPE_OWNER = "OWNER";

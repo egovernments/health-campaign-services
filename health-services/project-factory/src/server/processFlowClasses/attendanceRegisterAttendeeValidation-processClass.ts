@@ -67,11 +67,9 @@ export class TemplateClass {
         });
         const campaignNumber = campaignResponse?.CampaignDetails?.[0]?.campaignNumber;
 
-        // Fetch register to get start/end date and existing attendees/staff
+        // Fetch register to get start/end date only (attendees/staff fetched separately)
         let registerStartDate: number | null = null;
         let registerEndDate: number | null = null;
-        let attendeesMap: Map<string, any> = new Map();
-        let staffMap: Map<string, any> = new Map();
 
         if (registerId) {
             const register = await this.fetchRegister(registerId, tenantId, resourceDetails?.requestInfo);
@@ -85,15 +83,6 @@ export class TemplateClass {
                 }
                 registerStartDate = register.startDate ?? null;
                 registerEndDate = register.endDate ?? null;
-
-                // Build attendeesMap and staffMap from register response for truth-table validation
-                for (const attendee of register.attendees || []) {
-                    if (attendee.individualId) attendeesMap.set(attendee.individualId, attendee);
-                }
-                for (const staff of register.staff || []) {
-                    const type = staff.staffType || attendanceStaffTypes.OWNER;
-                    if (staff.userId) staffMap.set(`${staff.userId}_${type}`, staff);
-                }
             } else {
                 // Mark all rows invalid if register not found
                 for (const { row } of allRows) {
@@ -103,7 +92,7 @@ export class TemplateClass {
             }
         }
 
-        // Resolve HRMS usernames → individualIds for truth-table validation
+        // Resolve HRMS usernames → individualIds
         const usernames: string[] = [];
         for (const { row } of allRows) {
             const username = this.getCellAsString(row[attendanceColumnKeys.USERNAME]);
@@ -112,6 +101,21 @@ export class TemplateClass {
             }
         }
         const usernameToIndividualId = await this.resolveIndividualIds(usernames, tenantId, resourceDetails?.requestInfo);
+        const allIndividualIds = [...new Set(usernameToIndividualId.values())];
+
+        // Fetch all enrollment records across ALL registers for cross-register validation
+        const [attendeeEnrollmentsMap, ownerStaffMap, approverStaffMap] = await Promise.all([
+            allIndividualIds.length
+                ? this.fetchAttendeeEnrollments(allIndividualIds, tenantId, resourceDetails?.requestInfo)
+                : Promise.resolve(new Map<string, any[]>()),
+            allIndividualIds.length
+                ? this.fetchStaffEnrollments(allIndividualIds, [attendanceStaffTypes.OWNER], tenantId, resourceDetails?.requestInfo)
+                : Promise.resolve(new Map<string, any[]>()),
+            allIndividualIds.length
+                ? this.fetchStaffEnrollments(allIndividualIds, [attendanceStaffTypes.APPROVER], tenantId, resourceDetails?.requestInfo)
+                : Promise.resolve(new Map<string, any[]>()),
+        ]);
+        const staffEnrollmentsMap = new Map<string, any[]>([...ownerStaffMap, ...approverStaffMap]);
 
         // Validate each row — structural + truth-table business rules
         for (const { row, sheetName } of allRows) {
@@ -179,13 +183,24 @@ export class TemplateClass {
                 ? this.parseDate(deEnrollmentDateRaw) : null;
             const teamCode = isWorkerSheet ? this.getCellAsString(row[attendanceColumnKeys.TEAM_CODE]) : "";
 
-            // Look up existing record
+            // Look up existing record in current register and check for active enrollment in other registers
             let existing: any = null;
+            let activeInOtherRegister: any = null;
             if (isWorkerSheet) {
-                existing = attendeesMap.get(individualId);
+                const allEntries: any[] = attendeeEnrollmentsMap.get(individualId) || [];
+                existing = allEntries.find((e: any) => e.registerId === registerId) || null;
+                activeInOtherRegister = allEntries.find((e: any) => e.registerId !== registerId && !e.denrollmentDate) || null;
             } else {
                 const staffType = sheetName === MARKER_SHEET ? attendanceStaffTypes.OWNER : attendanceStaffTypes.APPROVER;
-                existing = staffMap.get(`${individualId}_${staffType}`);
+                const allStaffEntries: any[] = staffEnrollmentsMap.get(`${individualId}_${staffType}`) || [];
+                existing = allStaffEntries.find((e: any) => e.registerId === registerId) || null;
+                activeInOtherRegister = allStaffEntries.find((e: any) => e.registerId !== registerId && !e.denrollmentDate) || null;
+            }
+
+            // Block new enrollment if individual is already actively enrolled in another register
+            if (activeInOtherRegister && !existing) {
+                this.addError(row, attendanceErrorKeys.ALREADY_ENROLLED_IN_ANOTHER_REGISTER, localizationMap);
+                continue;
             }
 
             this.validateTruthTableRules(existing, enrollmentDateEpoch, deEnrollmentDateEpoch, teamCode, row, localizationMap);
@@ -310,13 +325,97 @@ export class TemplateClass {
         try {
             const url = config.host.attendanceHost + config.paths.attendanceRegisterSearch;
             const RequestInfo = requestInfo || {};
-            // ids is an array param per API spec
-            const response = await httpRequest(url, { RequestInfo }, { tenantId, serviceCode: registerId });
+            const response = await httpRequest(url, { RequestInfo }, {
+                tenantId,
+                serviceCode: registerId,
+                includeAttendee: false,
+                includeStaff: false,
+            });
             return response?.attendanceRegister?.[0] || null;
         } catch (err: any) {
             logger.warn(`Failed to fetch register ${registerId}: ${err?.message}`);
             return null;
         }
+    }
+
+    /**
+     * Fetch all attendee enrollment records for the given individualIds across ALL registers.
+     * Returns Map<individualId, IndividualEntry[]>.
+     */
+    private static async fetchAttendeeEnrollments(
+        individualIds: string[],
+        tenantId: string,
+        requestInfo?: RequestInfo
+    ): Promise<Map<string, any[]>> {
+        const result = new Map<string, any[]>();
+        const url = config.host.attendanceHost + config.paths.attendanceAttendeeSearch;
+        const limit = config.attendanceRegister.attendeeSearchPageSize;
+        let offset = 0;
+
+        try {
+            while (true) {
+                const response = await httpRequest(
+                    url,
+                    { RequestInfo: requestInfo || {}, attendees: { individualIds, tenantId } },
+                    { tenantId, limit, offset }
+                );
+                const entries: any[] = response?.attendees || [];
+                for (const entry of entries) {
+                    if (!entry.individualId) continue;
+                    const existing = result.get(entry.individualId);
+                    if (existing) existing.push(entry);
+                    else result.set(entry.individualId, [entry]);
+                }
+                if (entries.length < limit) break;
+                offset += limit;
+            }
+        } catch (err: any) {
+            logger.warn(`Failed to fetch attendee enrollments: ${err?.message}`);
+        }
+
+        logger.info(`Fetched attendee enrollments for ${result.size} individuals across all registers`);
+        return result;
+    }
+
+    /**
+     * Fetch all staff records for the given individualIds + staffTypes across ALL registers.
+     * Returns Map<`${userId}_${staffType}`, StaffPermission[]>.
+     */
+    private static async fetchStaffEnrollments(
+        individualIds: string[],
+        staffTypes: string[],
+        tenantId: string,
+        requestInfo?: RequestInfo
+    ): Promise<Map<string, any[]>> {
+        const result = new Map<string, any[]>();
+        const url = config.host.attendanceHost + config.paths.attendanceStaffSearch;
+        const limit = config.attendanceRegister.staffSearchPageSize;
+        let offset = 0;
+
+        try {
+            while (true) {
+                const response = await httpRequest(
+                    url,
+                    { RequestInfo: requestInfo || {}, staff: { individualIds, staffTypes, tenantId } },
+                    { tenantId, limit, offset }
+                );
+                const entries: any[] = response?.staff || [];
+                for (const entry of entries) {
+                    if (!entry.userId || !entry.staffType) continue;
+                    const key = `${entry.userId}_${entry.staffType}`;
+                    const existing = result.get(key);
+                    if (existing) existing.push(entry);
+                    else result.set(key, [entry]);
+                }
+                if (entries.length < limit) break;
+                offset += limit;
+            }
+        } catch (err: any) {
+            logger.warn(`Failed to fetch staff enrollments for types ${staffTypes.join(",")}: ${err?.message}`);
+        }
+
+        logger.info(`Fetched staff enrollments for types [${staffTypes.join(",")}] across all registers`);
+        return result;
     }
 
     // ── Timezone-aware date utilities ──────────────────────────────────────
