@@ -185,6 +185,12 @@ public class StockService {
                                         Long lastChangedSince,
                                         Boolean includeDeleted) throws Exception  {
         log.info("starting search method for stock");
+
+        // Use lastSyncedTime from request body if provided, otherwise fall back to lastChangedSince from URL params
+        Long effectiveLastChangedSince = stockSearchRequest.getStock().getLastSyncedTime() != null
+                ? stockSearchRequest.getStock().getLastSyncedTime()
+                : lastChangedSince;
+
         String idFieldName = getIdFieldName(stockSearchRequest.getStock());
         if (isSearchByIdOnly(stockSearchRequest.getStock(), idFieldName)) {
             List<String> ids = (List<String>) ReflectionUtils.invokeMethod(getIdMethod(Collections
@@ -192,7 +198,7 @@ public class StockService {
                     stockSearchRequest.getStock());
             // fetching stock with ids
             List<Stock> stocks = stockRepository.findById(tenantId, ids, includeDeleted, idFieldName).stream()
-                    .filter(lastChangedSince(lastChangedSince))
+                    .filter(lastChangedSince(effectiveLastChangedSince))
                     .filter(havingTenantId(tenantId))
                     .filter(includeDeleted(includeDeleted))
                     .collect(Collectors.toList());
@@ -201,6 +207,6 @@ public class StockService {
 
         log.info("completed search method for stock");
         return stockRepository.findWithCount(stockSearchRequest.getStock(),
-                limit, offset, tenantId, lastChangedSince, includeDeleted);
+                limit, offset, tenantId, effectiveLastChangedSince, includeDeleted);
     }
 }

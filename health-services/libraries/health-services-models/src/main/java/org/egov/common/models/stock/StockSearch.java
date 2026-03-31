@@ -11,6 +11,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 import org.egov.common.models.core.EgovOfflineSearchModel;
+import org.egov.common.models.core.Exclude;
 import org.springframework.validation.annotation.Validated;
 
 /**
@@ -57,5 +58,9 @@ public class StockSearch extends EgovOfflineSearchModel {
 
     @JsonProperty("transactingPartyType")
     private String transactingPartyType = null;
+
+    @JsonProperty("lastSyncedTime")
+    @Exclude
+    private Long lastSyncedTime = null;
 }
 
