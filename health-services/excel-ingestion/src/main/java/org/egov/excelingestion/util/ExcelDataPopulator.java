@@ -415,6 +415,13 @@ public class ExcelDataPopulator {
                         LocalizationUtil.getLocalizedMessage(localizationMap, column.getErrorMessage(), errMsg)
                     );
                     sheet.addValidationData(dv);
+
+                    // Also apply visual validation (conditional formatting) for format constraints,
+                    // but only when the trigger condition is met
+                    if (hasStringValidation(column) || hasNumberValidation(column)) {
+                        applyConditionalVisualValidation(workbook, sheet, column, colIndex,
+                                triggerColIdx, triggerValues, localizationMap);
+                    }
                 }
             }
 
@@ -423,8 +430,8 @@ public class ExcelDataPopulator {
                 // Apply only visual formatting - no data validation to avoid vanishing entries
                 applyPureVisualValidation(workbook, sheet, column, colIndex, localizationMap);
             }
-            
-            // Apply pure visual validation for number fields: conditional formatting + cell comments only  
+
+            // Apply pure visual validation for number fields: conditional formatting + cell comments only
             else if ("number".equals(column.getType()) && hasNumberValidation(column)) {
                 // Apply only visual formatting - no data validation to avoid vanishing entries
                 applyPureVisualValidation(workbook, sheet, column, colIndex, localizationMap);
@@ -711,6 +718,74 @@ public class ExcelDataPopulator {
     }
     
     
+    /**
+     * Apply visual validation (conditional formatting) that only triggers when the requiredIf condition is met.
+     * E.g., highlight bankAccount red only when paymentProvider = BANK and the value is invalid.
+     */
+    private void applyConditionalVisualValidation(Workbook workbook, Sheet sheet, ColumnDef column, int colIndex,
+                                                   int triggerColIdx, List<String> triggerValues,
+                                                   Map<String, String> localizationMap) {
+        try {
+            String errorMessage = buildErrorMessage(column, localizationMap);
+            String colLetter = getColumnLetter(colIndex + 1);
+            String triggerLetter = columnIndexToLetter(triggerColIdx);
+
+            // Build trigger match: OR($AA3="BANK",$AA3="MTN")
+            String triggerMatch = triggerValues.stream()
+                    .map(v -> "$" + triggerLetter + "3=\"" + v + "\"")
+                    .collect(Collectors.joining(","));
+            String triggerCondition = triggerValues.size() == 1 ? triggerMatch : "OR(" + triggerMatch + ")";
+
+            // Build format violation formula based on field constraints
+            String violation = buildFormatViolation(column, colLetter);
+            if (violation == null) return;
+
+            // Final formula: highlight if trigger matches AND cell not empty AND format invalid
+            String formula = "AND(" + triggerCondition + "," + colLetter + "3<>\"\"," + violation + ")";
+
+            XSSFSheetConditionalFormatting cf = (XSSFSheetConditionalFormatting) sheet.getSheetConditionalFormatting();
+            int actualDataRows = ExcelUtil.findActualLastRowWithData(sheet) + 1;
+            int maxRow = Math.max(actualDataRows, config.getExcelRowLimit());
+            CellRangeAddress[] regions = {new CellRangeAddress(2, maxRow, colIndex, colIndex)};
+
+            XSSFConditionalFormattingRule rule = cf.createConditionalFormattingRule(formula);
+            PatternFormatting fill = rule.createPatternFormatting();
+            setValidationErrorColor(fill);
+            fill.setFillPattern(PatternFormatting.SOLID_FOREGROUND);
+            cf.addConditionalFormatting(regions, rule);
+
+            addCellComments(sheet, colIndex, errorMessage, localizationMap);
+            log.info("Applied conditional visual validation for column '{}': {}", column.getName(), errorMessage);
+        } catch (Exception e) {
+            log.warn("Failed to apply conditional visual validation for column '{}': {}", column.getName(), e.getMessage());
+        }
+    }
+
+    /**
+     * Build the format violation part of a conditional formatting formula.
+     * Returns null if no format constraints exist.
+     */
+    private String buildFormatViolation(ColumnDef column, String colLetter) {
+        if ("string".equals(column.getType())) {
+            if (column.getMinLength() != null && column.getMaxLength() != null) {
+                return "OR(LEN(" + colLetter + "3)<" + column.getMinLength()
+                        + ",LEN(" + colLetter + "3)>" + column.getMaxLength() + ")";
+            } else if (column.getMaxLength() != null) {
+                return "LEN(" + colLetter + "3)>" + column.getMaxLength();
+            } else if (column.getMinLength() != null) {
+                return "LEN(" + colLetter + "3)<" + column.getMinLength();
+            }
+        } else if ("number".equals(column.getType())) {
+            if (column.getMinimum() != null && column.getMaximum() != null) {
+                return "OR(NOT(ISNUMBER(" + colLetter + "3)),"
+                        + colLetter + "3<" + column.getMinimum() + ","
+                        + colLetter + "3>" + column.getMaximum() + ")";
+            }
+            return "NOT(ISNUMBER(" + colLetter + "3))";
+        }
+        return null;
+    }
+
     /**
      * Build error message based on column constraints
      */
