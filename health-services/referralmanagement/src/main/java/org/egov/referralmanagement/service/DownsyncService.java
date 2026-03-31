@@ -607,7 +607,7 @@ public class DownsyncService {
             return;
 
         List<HFReferral> allHfReferrals = new ArrayList<>();
-        int batchSize = configs.getHfReferralSearchBatchSize();
+        int batchSize = configs.getSearchMaxLimit();
 
         for (int i = 0; i < hfReferralIds.size(); i += batchSize) {
             List<String> batch = getIdsForBatch(batchSize, i, hfReferralIds);
