@@ -43,6 +43,9 @@ class FirebasePushServiceTest {
     @Mock
     private PushProperties pushProperties;
 
+    @Mock
+    private DeviceTokenService deviceTokenService;
+
     @Test
     void sendPushNotification_nullTokens_skips() {
         PushNotificationRequest request = PushNotificationRequest.builder()
