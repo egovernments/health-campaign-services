@@ -352,13 +352,6 @@ public class AttendanceRegisterAttendeeValidationProcessor implements IWorkbookP
             }
         }
 
-        // Block new enrollment if individual is already actively enrolled in another register
-        if (activeInOtherRegister && existing == null) {
-            errors.add(getLocalizedMessage(localizationMap, LOC_ALREADY_ENROLLED_IN_ANOTHER_REGISTER,
-                    DEFAULT_ALREADY_ENROLLED_IN_ANOTHER_REGISTER));
-            return errors;
-        }
-
         if (existing == null) {
             // NEW record — Section A (attendee) or Section D (staff)
             boolean hasEnrollment = enrollmentDate != null;
@@ -366,9 +359,17 @@ public class AttendanceRegisterAttendeeValidationProcessor implements IWorkbookP
             boolean hasTeamCode = !teamCode.isEmpty();
 
             if (!hasEnrollment && !hasDeEnrollment && !hasTeamCode) {
-                // A1/D1: skip — no error (row will be skipped during processing)
+                // A1/D1: skip — no fields provided, nothing to validate
                 return errors;
             }
+
+            // Block new enrollment if individual is already actively enrolled in another register
+            if (activeInOtherRegister) {
+                errors.add(getLocalizedMessage(localizationMap, LOC_ALREADY_ENROLLED_IN_ANOTHER_REGISTER,
+                        DEFAULT_ALREADY_ENROLLED_IN_ANOTHER_REGISTER));
+                return errors;
+            }
+
             if (!hasEnrollment) {
                 // A2/A4/A7/D3: INVALID — enrollment date required
                 errors.add(getLocalizedMessage(localizationMap, LOC_ENROLLMENT_DATE_REQUIRED,

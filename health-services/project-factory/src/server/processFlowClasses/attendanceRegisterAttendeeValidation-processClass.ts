@@ -216,6 +216,11 @@ export class TemplateClass {
                 activeInOtherRegister = registerUuid ? allStaffEntries.find((e: any) => e.registerId !== registerUuid && !e.denrollmentDate) || null : null;
             }
 
+            // A1/D1: no fields provided for new record — skip, nothing to validate
+            if (!existing && !enrollmentDateEpoch && !deEnrollmentDateEpoch && !teamCode) {
+                continue;
+            }
+
             // Block new enrollment if individual is already actively enrolled in another register
             if (activeInOtherRegister && !existing) {
                 logger.debug(`Row ${row["!row#number!"]}: user ${username} already enrolled in register ${activeInOtherRegister.registerId}, cannot enroll in ${registerId}`);
