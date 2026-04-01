@@ -47,8 +47,9 @@ public class ExcelUtil {
             }
             case NUMERIC:
                 if (DateUtil.isCellDateFormatted(cell)) {
+                    // POI creates Date in JVM default timezone — use JVM TZ to preserve calendar date
                     return cell.getDateCellValue().toInstant()
-                            .atZone(zoneId).toLocalDate()
+                            .atZone(ZoneId.systemDefault()).toLocalDate()
                             .format(CELL_DATE_FORMATTER);
                 } else {
                     return String.valueOf((long) cell.getNumericCellValue());
@@ -68,8 +69,9 @@ public class ExcelUtil {
                         }
                         case NUMERIC:
                             if (DateUtil.isCellDateFormatted(cell)) {
+                                // POI creates Date in JVM default timezone — use JVM TZ to preserve calendar date
                                 return DateUtil.getJavaDate(cellValue.getNumberValue())
-                                        .toInstant().atZone(zoneId).toLocalDate()
+                                        .toInstant().atZone(ZoneId.systemDefault()).toLocalDate()
                                         .format(CELL_DATE_FORMATTER);
                             }
                             return String.valueOf((long) cellValue.getNumberValue());
@@ -466,14 +468,18 @@ public class ExcelUtil {
 
     /**
      * Safely convert any object value to string using the specified timezone for Date values.
+     * Note: For Date objects from Apache POI (getDateCellValue), we use the JVM default timezone
+     * because POI creates Date objects representing midnight in the JVM timezone. Using a different
+     * timezone here would shift the date by ±1 day when JVM TZ ≠ server TZ.
      */
     public static String getValueAsString(Object value, ZoneId zoneId) {
         if (value == null) {
             return "";
         }
         if (value instanceof Date) {
+            // POI creates Date in JVM default timezone — extract calendar date using JVM TZ to preserve it
             return ((Date) value).toInstant()
-                    .atZone(zoneId).toLocalDate()
+                    .atZone(ZoneId.systemDefault()).toLocalDate()
                     .format(CELL_DATE_FORMATTER);
         }
         return value.toString();

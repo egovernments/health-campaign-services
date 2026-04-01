@@ -114,7 +114,7 @@ public class ExcelIngestionConfig {
     @Value("${egov.worker.registry.search.batch.size:100}")
     private int workerRegistrySearchBatchSize;
 
-    @Value("${server.timezone:UTC}")
+    @Value("${app.timezone:UTC}")
     private String serverTimezone;
 
     private String defaultHeaderColor = "#93c47d";

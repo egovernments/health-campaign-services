@@ -307,7 +307,14 @@ public class ConfigBasedProcessingService {
             }
             
             String configuredSheetName = getLocalizedSheetName(sheetConfig.getSheetNameKey(), localizationMap);
-            
+
+            // Store the non-localized sheetNameKey in additionalDetails for processors
+            // that need to determine sheet type without relying on localized names
+            if (resource.getAdditionalDetails() == null) {
+                resource.setAdditionalDetails(new java.util.HashMap<>());
+            }
+            resource.getAdditionalDetails().put("sheetNameKey", sheetConfig.getSheetNameKey());
+
             // Load and execute processor
             try {
                 log.info("Using processor {} for sheet {}", processorClass, configuredSheetName);

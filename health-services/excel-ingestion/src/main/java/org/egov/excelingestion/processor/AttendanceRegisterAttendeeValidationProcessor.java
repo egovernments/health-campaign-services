@@ -128,6 +128,9 @@ public class AttendanceRegisterAttendeeValidationProcessor implements IWorkbookP
             // Fetch attendance register for date range and campaign validation only
             RegisterContext registerContext = fetchRegisterContext(expectedRegisterId,
                     resource.getTenantId(), requestInfo);
+            if (registerContext == null && !expectedRegisterId.isEmpty()) {
+                log.warn("Register context is null for registerId={}, date range and truth-table validation will be skipped", expectedRegisterId);
+            }
 
             // Validate campaign ownership — register must belong to the current campaign
             String expectedCampaignId = extractCampaignId(resource);
@@ -408,27 +411,44 @@ public class AttendanceRegisterAttendeeValidationProcessor implements IWorkbookP
 
     /**
      * Returns true if the enrollment entry has a non-zero denrollmentDate, meaning the individual
-     * has been de-enrolled. Treats null and 0 as "not de-enrolled" — consistent with extractExistingDate.
+     * has been de-enrolled. Treats null and 0 as "not de-enrolled".
+     * Handles both Number and String types from the attendance API response.
      */
     private boolean isDeEnrolled(Map<String, Object> entry) {
         Object value = entry.get(ProcessingConstants.DEENROLLMENT_DATE_KEY);
-        if (!(value instanceof Number)) return false;
-        return ((Number) value).longValue() != 0;
+        if (value instanceof Number) return ((Number) value).longValue() != 0;
+        if (value instanceof String) {
+            try {
+                return Long.parseLong(((String) value).trim()) != 0;
+            } catch (NumberFormatException e) {
+                return false;
+            }
+        }
+        return false;
     }
 
     /**
      * Extract a date field from an existing attendee/staff record (epoch millis → LocalDate).
-     * Returns null if the field is absent or null.
+     * Returns null if the field is absent, null, or zero.
+     * Handles both Number and String types from the attendance API response.
      */
     private LocalDate extractExistingDate(Map<String, Object> existing, String fieldName) {
         Object value = existing.get(fieldName);
         if (value == null) return null;
+        long epochMillis = 0;
         if (value instanceof Number) {
-            long epochMillis = ((Number) value).longValue();
-            if (epochMillis == 0) return null;
-            return epochMillisToLocalDate(epochMillis);
+            epochMillis = ((Number) value).longValue();
+        } else if (value instanceof String) {
+            try {
+                epochMillis = Long.parseLong(((String) value).trim());
+            } catch (NumberFormatException e) {
+                return null;
+            }
+        } else {
+            return null;
         }
-        return null;
+        if (epochMillis == 0) return null;
+        return epochMillisToLocalDate(epochMillis);
     }
 
     /**
@@ -527,26 +547,37 @@ public class AttendanceRegisterAttendeeValidationProcessor implements IWorkbookP
 
     /**
      * Determine staff type (OWNER for marker, APPROVER for approver sheets).
-     * Falls back based on sheet name patterns if no explicit config is available.
+     * Uses non-localized sheetNameKey from additionalDetails to avoid locale-dependent detection.
      */
     private String determineStaffType(String sheetName, ProcessResource resource) {
-        // Check additionalDetails for explicit staffType mapping
         Map<String, Object> additionalDetails = resource.getAdditionalDetails();
+        // Check additionalDetails for explicit staffType mapping
         if (additionalDetails != null && additionalDetails.get(ProcessingConstants.ADDITIONAL_DETAILS_STAFF_TYPE) != null) {
             return String.valueOf(additionalDetails.get(ProcessingConstants.ADDITIONAL_DETAILS_STAFF_TYPE)).trim();
         }
-        // Convention: sheet name containing "approver" (case-insensitive) → APPROVER, else OWNER
-        if (sheetName.toLowerCase().contains(ProcessingConstants.STAFF_TYPE_APPROVER.toLowerCase())) {
+        // Use non-localized sheetNameKey (set by ConfigBasedProcessingService) for reliable detection
+        String sheetNameKey = (additionalDetails != null && additionalDetails.get("sheetNameKey") != null)
+                ? String.valueOf(additionalDetails.get("sheetNameKey")).trim() : "";
+        String nameToCheck = !sheetNameKey.isEmpty() ? sheetNameKey : sheetName;
+        if (nameToCheck.toLowerCase().contains(ProcessingConstants.STAFF_TYPE_APPROVER.toLowerCase())) {
             return ProcessingConstants.STAFF_TYPE_APPROVER;
         }
         return ProcessingConstants.STAFF_TYPE_OWNER;
     }
 
     /**
-     * Parse date string — supports dd/MM/yyyy, dd-MM-yyyy, yyyy-MM-dd, yyyy/MM/dd
+     * Excel serial date threshold: values below this are Excel serial dates (days since 1899-12-30),
+     * values at or above are epoch milliseconds.
+     */
+    private static final long EXCEL_SERIAL_THRESHOLD = 100_000_000L;
+
+    /**
+     * Parse date string — supports dd/MM/yyyy, dd-MM-yyyy, yyyy-MM-dd, yyyy/MM/dd,
+     * numeric epoch milliseconds, and Excel serial date numbers.
      */
     private LocalDate parseDate(String dateStr) {
         String trimmed = dateStr.trim();
+        // Try standard date formats first
         for (DateTimeFormatter fmt : new DateTimeFormatter[]{
                 FORMAT_SLASH, FORMAT_DASH, FORMAT_ISO_DASH, FORMAT_ISO_SLASH}) {
             try {
@@ -554,6 +585,18 @@ public class AttendanceRegisterAttendeeValidationProcessor implements IWorkbookP
             } catch (DateTimeParseException ignored) {
                 // try next
             }
+        }
+        // Try numeric: epoch millis or Excel serial date
+        try {
+            long numericValue = Long.parseLong(trimmed);
+            if (numericValue < EXCEL_SERIAL_THRESHOLD) {
+                // Excel serial date: days since 1899-12-30
+                return LocalDate.of(1899, 12, 30).plusDays(numericValue);
+            }
+            // Epoch milliseconds — convert using server timezone
+            return epochMillisToLocalDate(numericValue);
+        } catch (NumberFormatException ignored) {
+            // not a number
         }
         return null;
     }
@@ -713,29 +756,14 @@ public class AttendanceRegisterAttendeeValidationProcessor implements IWorkbookP
         }
 
         try {
-            StringBuilder url = new StringBuilder(config.getAttendanceRegisterSearchUrl());
-            url.append("?tenantId=").append(tenantId)
-               .append("&ids=").append(registerId)
-               .append("&includeAttendee=false")
-               .append("&includeStaff=false");
-
-            Map<String, Object> payload = new HashMap<>();
-            payload.put(ProcessingConstants.REQUEST_INFO_KEY, requestInfo);
-
-            @SuppressWarnings("unchecked")
-            Map<String, Object> response = (Map<String, Object>) serviceRequestRepository.fetchResult(url, payload);
-
-            if (response == null || response.get(ProcessingConstants.ATTENDANCE_REGISTER_RESPONSE_KEY) == null) {
-                log.warn("Attendance register not found: {}", registerId);
-                return null;
-            }
-
-            @SuppressWarnings("unchecked")
-            List<Map<String, Object>> registers =
-                    (List<Map<String, Object>>) response.get(ProcessingConstants.ATTENDANCE_REGISTER_RESPONSE_KEY);
-
+            // Try searching by ids (UUID) first, then fallback to serviceCode
+            List<Map<String, Object>> registers = searchRegister(registerId, tenantId, requestInfo, "ids");
             if (registers.isEmpty()) {
-                log.warn("Attendance register not found: {}", registerId);
+                log.info("Register not found by ids={}, retrying with serviceCode", registerId);
+                registers = searchRegister(registerId, tenantId, requestInfo, "serviceCode");
+            }
+            if (registers.isEmpty()) {
+                log.warn("Attendance register not found by ids or serviceCode: {}", registerId);
                 return null;
             }
 
@@ -774,6 +802,35 @@ public class AttendanceRegisterAttendeeValidationProcessor implements IWorkbookP
         } catch (Exception e) {
             log.error("Error fetching register context for {}: {}", registerId, e.getMessage());
             return null; // Continue validation without truth-table checks
+        }
+    }
+
+    /**
+     * Search attendance register by a specific parameter (ids or serviceCode).
+     */
+    @SuppressWarnings("unchecked")
+    private List<Map<String, Object>> searchRegister(String registerId, String tenantId,
+                                                      RequestInfo requestInfo, String searchParam) {
+        try {
+            StringBuilder url = new StringBuilder(config.getAttendanceRegisterSearchUrl());
+            url.append("?tenantId=").append(tenantId)
+               .append("&").append(searchParam).append("=").append(registerId)
+               .append("&includeAttendee=false")
+               .append("&includeStaff=false");
+
+            Map<String, Object> payload = new HashMap<>();
+            payload.put(ProcessingConstants.REQUEST_INFO_KEY, requestInfo);
+
+            Map<String, Object> response = (Map<String, Object>) serviceRequestRepository.fetchResult(url, payload);
+            if (response == null || response.get(ProcessingConstants.ATTENDANCE_REGISTER_RESPONSE_KEY) == null) {
+                return Collections.emptyList();
+            }
+            List<Map<String, Object>> registers =
+                    (List<Map<String, Object>>) response.get(ProcessingConstants.ATTENDANCE_REGISTER_RESPONSE_KEY);
+            return registers != null ? registers : Collections.emptyList();
+        } catch (Exception e) {
+            log.warn("Register search failed ({}={}): {}", searchParam, registerId, e.getMessage());
+            return Collections.emptyList();
         }
     }
 
