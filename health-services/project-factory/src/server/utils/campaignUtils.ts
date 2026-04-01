@@ -2505,7 +2505,7 @@ async function copyResourcesFromParentToChildInDB(
   // status, filestoreid, and processedfilestoreid are all copied directly from the parent row.
   await executeQuery(
     `INSERT INTO ${tableName} (id, tenantid, campaignid, type, parentresourceid, filestoreid, processedfilestoreid, filename, status, action, isactive, hierarchytype, additionaldetails, createdby, lastmodifiedby, createdtime, lastmodifiedtime)
-     SELECT gen_random_uuid()::text, $1, $2, type, null, filestoreid, processedfilestoreid, filename, status, 'create', true, null, additionaldetails, $3, $3, $4, $4
+     SELECT gen_random_uuid()::text, $1, $2, type, parentresourceid, filestoreid, processedfilestoreid, filename, status, 'create', true, null, additionaldetails, $3, $3, $4, $4
      FROM ${tableName}
      WHERE campaignid = $5 AND tenantid = $7 AND isactive = true AND status = $6`,
     [tenantId, childCampaignId, userUuid, now, parentCampaignId, resourceStatuses.completed, tenantId]
