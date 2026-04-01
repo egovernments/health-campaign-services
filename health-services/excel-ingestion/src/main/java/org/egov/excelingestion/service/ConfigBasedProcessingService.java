@@ -425,11 +425,11 @@ public class ConfigBasedProcessingService {
                 data.add(rowData);
             }
         }
-        
+
+        ExcelUtil.reconstructMultiSelectValues(data);
         log.debug("Extracted {} rows with actual data from sheet: {}", data.size(), sheetName);
         return data;
     }
-    
 
     /**
      * Handle conditional persistence and event publishing for a sheet

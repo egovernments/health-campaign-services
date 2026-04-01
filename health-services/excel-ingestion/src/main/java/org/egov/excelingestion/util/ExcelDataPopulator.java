@@ -102,9 +102,6 @@ public class ExcelDataPopulator {
         // 8. Apply Validation - reuse existing dropdown creation logic
         applyValidations(workbook, sheet, expandedColumns, localizationMap);
         
-        // 9. Apply multiselect formulas if any
-        applyMultiSelectFormulas(sheet, expandedColumns);
-
         log.info("Successfully added sheet: {} to workbook", sheetName);
         return workbook;
     }
@@ -200,6 +197,16 @@ public class ExcelDataPopulator {
             }
         }
 
+        // Build map: parent column name -> ordered list of _MULTISELECT_* column indexes
+        Map<String, List<Integer>> parentToMultiselectColIndexes = new HashMap<>();
+        for (ColumnDef col : columnProperties) {
+            if ("multiselect_item".equals(col.getType())) {
+                parentToMultiselectColIndexes
+                    .computeIfAbsent(col.getParentColumn(), k -> new ArrayList<>())
+                    .add(headerToColumnMap.getOrDefault(col.getName(), -1));
+            }
+        }
+
         // Fill data rows using header mapping
         for (int rowIdx = 0; rowIdx < dataRows.size(); rowIdx++) {
             Map<String, Object> dataRow = dataRows.get(rowIdx);
@@ -212,7 +219,24 @@ public class ExcelDataPopulator {
             for (Map.Entry<String, Object> entry : dataRow.entrySet()) {
                 String dataKey = entry.getKey();
                 Object value = entry.getValue();
-                
+
+                // If this key is a multiselect parent with comma-separated value, split into individual columns
+                List<Integer> multiselectColIndexes = parentToMultiselectColIndexes.get(dataKey);
+                if (multiselectColIndexes != null && value != null && !value.toString().trim().isEmpty()) {
+                    String[] parts = value.toString().split(",");
+                    for (int p = 0; p < parts.length && p < multiselectColIndexes.size(); p++) {
+                        int msColIdx = multiselectColIndexes.get(p);
+                        if (msColIdx < 0) continue;
+                        String part = parts[p].trim();
+                        if (!part.isEmpty()) {
+                            Cell cell = excelRow.getCell(msColIdx);
+                            if (cell == null) cell = excelRow.createCell(msColIdx);
+                            cell.setCellValue(part);
+                        }
+                    }
+                    continue;
+                }
+
                 // Find column index for this data key from header mapping
                 Integer colIdx = headerToColumnMap.get(dataKey);
                 if (colIdx != null && value != null) {
@@ -220,13 +244,13 @@ public class ExcelDataPopulator {
                     if (cell == null) {
                         cell = excelRow.createCell(colIdx);
                     }
-                    
+
                     // Find corresponding ColumnDef for validation/formatting
                     ColumnDef columnDef = columnProperties.stream()
                         .filter(col -> col.getName().equals(dataKey))
                         .findFirst()
                         .orElse(null);
-                    
+
                     setCellValue(cell, value, columnDef);
                 } else if (colIdx == null) {
                     log.debug("No header column found for data key: {}", dataKey);
@@ -360,11 +384,6 @@ public class ExcelDataPopulator {
         for (int i = 0; i < columns.size(); i++) {
             int colIndex = startCol + i;
             ColumnDef column = columns.get(i);
-            
-            // Skip multi-select hidden columns from validation
-            if ("multiselect_hidden".equals(column.getType())) {
-                continue;
-            }
             
             // Apply enum dropdown validation - keep as is (no changes for dropdowns)
             if (column.getEnumValues() != null && !column.getEnumValues().isEmpty()) {
@@ -622,21 +641,6 @@ public class ExcelDataPopulator {
                             .build();
                     expandedColumns.add(multiCol);
                 }
-                
-                // Add the hidden concatenated column
-                ColumnDef hiddenCol = ColumnDef.builder()
-                        .name(column.getName())
-                        .technicalName(column.getName())
-                        .type("multiselect_hidden")
-                        .colorHex(column.getColorHex())
-                        .orderNumber(column.getOrderNumber())
-                        .hideColumn(column.isHideColumn())
-                        .parentColumn(column.getName())
-                        .multiSelectMaxSelections(maxSelections)
-                        .freezeColumnIfFilled(column.isFreezeColumnIfFilled())
-                        .width(column.getWidth())
-                        .build();
-                expandedColumns.add(hiddenCol);
             } else {
                 // Regular column (string, number, enum)
                 ColumnDef regularCol = ColumnDef.builder()
@@ -678,106 +682,6 @@ public class ExcelDataPopulator {
         }
         
         return expandedColumns;
-    }
-
-    /**
-     * Apply multiselect formulas - copied from ExcelSchemaSheetCreator
-     */
-    private void applyMultiSelectFormulas(Sheet sheet, List<ColumnDef> columns) {
-        Map<String, List<Integer>> multiSelectGroups = new HashMap<>();
-        Map<String, Integer> hiddenColumnIndexes = new HashMap<>();
-        
-        // Find starting column index (same as headers)
-        Row visibleRow = sheet.getRow(1);
-        int totalExistingCols = visibleRow != null ? visibleRow.getLastCellNum() : 0;
-        int startCol = Math.max(0, totalExistingCols - columns.size());
-        
-        // Group columns by parent and find hidden column indexes
-        for (int i = 0; i < columns.size(); i++) {
-            ColumnDef column = columns.get(i);
-            if ("multiselect_item".equals(column.getType())) {
-                multiSelectGroups.computeIfAbsent(column.getParentColumn(), k -> new ArrayList<>()).add(startCol + i);
-            } else if ("multiselect_hidden".equals(column.getType())) {
-                hiddenColumnIndexes.put(column.getParentColumn(), startCol + i);
-            }
-        }
-        
-        // Apply CONCATENATE formula to hidden columns
-        for (Map.Entry<String, List<Integer>> entry : multiSelectGroups.entrySet()) {
-            String parentColumn = entry.getKey();
-            List<Integer> itemColumns = entry.getValue();
-            Integer hiddenColumnIndex = hiddenColumnIndexes.get(parentColumn);
-            
-            if (hiddenColumnIndex != null && !itemColumns.isEmpty()) {
-                // Build CONCATENATE formula similar to project-factory
-                List<String> colLetters = new ArrayList<>();
-                for (Integer colIndex : itemColumns) {
-                    colLetters.add(getColumnLetter(colIndex + 1)); // +1 because Excel is 1-indexed
-                }
-                
-                // Create formula for concatenating non-blank values with commas
-                // Start from row 3 to match validation expectations (row 3 = first data row)
-                StringBuilder formulaBuilder = new StringBuilder("=IF(AND(");
-                for (String colLetter : colLetters) {
-                    formulaBuilder.append("ISBLANK(").append(colLetter).append("3),");
-                }
-                // Remove last comma
-                if (colLetters.size() > 0) {
-                    formulaBuilder.setLength(formulaBuilder.length() - 1);
-                }
-                formulaBuilder.append("),\"\",TRIM(CONCATENATE(");
-                
-                for (String colLetter : colLetters) {
-                    formulaBuilder.append("IF(ISBLANK(").append(colLetter).append("3),\"\",")
-                                  .append(colLetter).append("3&\",\"),");
-                }
-                // Remove last comma
-                if (colLetters.size() > 0) {
-                    formulaBuilder.setLength(formulaBuilder.length() - 1);
-                }
-                formulaBuilder.append(")))");
-                
-                String formula = formulaBuilder.toString();
-                
-                // Apply formula to all data rows up to config limit (matching applyValidations range)
-                int actualDataRows = ExcelUtil.findActualLastRowWithData(sheet) + 1;
-                int maxRow = Math.max(actualDataRows, config.getExcelRowLimit());
-                for (int row = 3; row <= maxRow; row++) {
-                    String rowFormula = formula.replace("3", String.valueOf(row));
-                    Row excelRow = sheet.getRow(row - 1); // POI rows are 0-indexed, so row 3 = index 2
-                    if (excelRow == null) {
-                        excelRow = sheet.createRow(row - 1);
-                    }
-                    Cell cell = excelRow.getCell(hiddenColumnIndex);
-
-                    // If fillDataRows already wrote a combined value (e.g. "SUPERVISOR,DISTRIBUTOR"),
-                    // split it into the individual multiselect item columns so the formula can
-                    // reconstruct it correctly. Without this, the formula reads empty item columns
-                    // and evaluates to "".
-                    if (cell != null && cell.getCellType() == CellType.STRING) {
-                        String existing = cell.getStringCellValue();
-                        if (existing != null && !existing.trim().isEmpty()) {
-                            String[] parts = existing.split(",");
-                            for (int p = 0; p < parts.length && p < itemColumns.size(); p++) {
-                                String part = parts[p].trim();
-                                if (!part.isEmpty()) {
-                                    Cell itemCell = excelRow.getCell(itemColumns.get(p));
-                                    if (itemCell == null) {
-                                        itemCell = excelRow.createCell(itemColumns.get(p));
-                                    }
-                                    itemCell.setCellValue(part);
-                                }
-                            }
-                        }
-                    }
-
-                    if (cell == null) {
-                        cell = excelRow.createCell(hiddenColumnIndex);
-                    }
-                    cell.setCellFormula(rowFormula.substring(1)); // Remove the leading '='
-                }
-            }
-        }
     }
 
     /**

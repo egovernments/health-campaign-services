@@ -932,7 +932,6 @@ function addMultiSelectColumn(properties: any, headers: string[]) {
       for (let i = 1; i <= maxColumns; i++) {
         newHeaders.push(`${header}_MULTISELECT_${i}`);
       }
-      newHeaders.push(header);
     } else {
       newHeaders.push(header);
     }

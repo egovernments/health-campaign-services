@@ -252,7 +252,7 @@ public class ExcelUtil {
      * Handles backward compatibility with sheets where the CONCATENATE formula was not applied
      * beyond a certain row limit.
      */
-    static void reconstructMultiSelectValues(List<Map<String, Object>> data) {
+    public static void reconstructMultiSelectValues(List<Map<String, Object>> data) {
         for (Map<String, Object> row : data) {
             // TreeMap with suffix index as key preserves column order (_MULTISELECT_1 before _MULTISELECT_2)
             Map<String, TreeMap<Integer, String>> parentToValues = new HashMap<>();

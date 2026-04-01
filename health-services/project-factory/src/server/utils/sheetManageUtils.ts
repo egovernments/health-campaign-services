@@ -489,9 +489,11 @@ function mergeAndGetDynamicColumns(dynamicColumns: any, schema: any): any {
             }
         }
 
-        // Process base column
-        dynamicColumns[propertyKey] ??= {};
-        assignProps(dynamicColumns[propertyKey], property);
+        // Skip base column for multiselect parents — individual _MULTISELECT_* columns carry the data
+        if (!property?.multiSelectDetails?.maxSelections) {
+            dynamicColumns[propertyKey] ??= {};
+            assignProps(dynamicColumns[propertyKey], property);
+        }
     }
 
     const sortedArray: [string, any][] = Object.entries(dynamicColumns)
