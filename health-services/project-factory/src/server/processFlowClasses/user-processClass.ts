@@ -16,6 +16,18 @@ import { WorkerData, WorkerRegistryRecord, createOrUpdateWorkers, searchWorkersB
 import { validatePaymentFields } from "../utils/paymentValidationUtils";
 import type { CampaignRecord } from "../utils/userBatchHandler";
 
+// Worker registry fields that can be updated on re-upload for completed users.
+// HRMS properties (role, employment type) are excluded — they are set at user creation and must not change.
+const UPDATABLE_WORKER_FIELD_KEYS = [
+    "HCM_ADMIN_CONSOLE_USER_PAYMENT_PROVIDER",
+    "HCM_ADMIN_CONSOLE_USER_PAYEE_PHONE_NUMBER",
+    "HCM_ADMIN_CONSOLE_USER_PAYEE_NAME",
+    "HCM_ADMIN_CONSOLE_USER_BANK_ACCOUNT",
+    "HCM_ADMIN_CONSOLE_USER_BANK_CODE",
+    "HCM_ADMIN_CONSOLE_USER_BENEFICIARY_CODE",
+    "HCM_ADMIN_CONSOLE_USER_WORKER_ID",
+];
+
 // This will be a dynamic template class for different types
 export class TemplateClass {
     // Static generate function
@@ -152,6 +164,10 @@ export class TemplateClass {
 
                     existingData[usageKey] = usageColumnStatus.active;
                     existingData[boundaryKey] = sheetBoundaries.join(",");
+                    // Sync worker/payment fields from new sheet on inactive→active transition
+                    for (const key of UPDATABLE_WORKER_FIELD_KEYS) {
+                        if (data?.[key] !== undefined) existingData[key] = data[key];
+                    }
                     usersToBeUpdated.push(existingEntry); // ✅ Push full entry
                 } else {
                     // Case 2: Already active, update boundary diffs
@@ -185,9 +201,21 @@ export class TemplateClass {
 
                     const sortedSheet = [...sheetBoundaries].sort().join(",");
                     const sortedExisting = [...existingBoundaries].sort().join(",");
+                    let dataChanged = false;
                     if (sortedSheet !== sortedExisting) {
                         existingData[boundaryKey] = sortedSheet;
                         existingData[usageKey] = usageColumnStatus.active;
+                        dataChanged = true;
+                    }
+                    // Sync worker/payment fields from new sheet to campaign_data
+                    for (const key of UPDATABLE_WORKER_FIELD_KEYS) {
+                        const newVal = data?.[key];
+                        if (newVal !== undefined && String(newVal) !== String(existingData?.[key] ?? "")) {
+                            existingData[key] = newVal;
+                            dataChanged = true;
+                        }
+                    }
+                    if (dataChanged) {
                         usersToBeUpdated.push(existingEntry); // ✅ Push full entry
                     }
                 }
@@ -260,9 +288,12 @@ export class TemplateClass {
                 }
             }
 
-            // Update to inactive
+            // Update to inactive and sync worker/payment fields from new sheet
             existingData[usageKey] = usageColumnStatus.inactive;
             existingData[boundaryKey] = data?.[boundaryKey];
+            for (const key of UPDATABLE_WORKER_FIELD_KEYS) {
+                if (data?.[key] !== undefined) existingData[key] = data[key];
+            }
             usersToBeUpdated.push(existingEntry); // ✅ Push full entry
         }
 
@@ -308,10 +339,10 @@ export class TemplateClass {
             }
         }
 
-        // Find sheet rows that are completed, have a stored workerId, and carry at least one worker field.
-        // Same null-safe phone conversion to avoid "undefined" string matching.
-        // Use a plain Record instead of Map to avoid Map-iterator issues with ES5 target.
-        const workerIdToSheetEntry: Record<string, { row: any; existingUser: any }> = {};
+        // Collect worker entries: sheet workerId takes priority over DB workerId.
+        // Workers with no workerId but a stored individualId enter the CREATE path.
+        interface WorkerEntry { row: any; existingUser: any; workerId: string | null; storedIndividualId: string | null; }
+        const workerEntries: WorkerEntry[] = [];
         for (const row of userSheetData) {
             const rawPhone = row?.["HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER"];
             const phone = rawPhone != null ? String(rawPhone) : "";
@@ -320,26 +351,39 @@ export class TemplateClass {
             const existingUser = completedByPhone.get(phone);
             if (!existingUser) continue;
 
-            const workerId = existingUser?.data?.["HCM_ADMIN_CONSOLE_USER_WORKER_ID"];
-            if (!workerId) continue;
+            // Sheet value takes priority — user can provide workerId to link to an existing worker
+            const sheetWorkerId = row?.["HCM_ADMIN_CONSOLE_USER_WORKER_ID"]
+                ? String(row["HCM_ADMIN_CONSOLE_USER_WORKER_ID"]).trim() : null;
+            const dbWorkerId = existingUser?.data?.["HCM_ADMIN_CONSOLE_USER_WORKER_ID"]
+                ? String(existingUser.data["HCM_ADMIN_CONSOLE_USER_WORKER_ID"]).trim() : null;
+            const workerId = sheetWorkerId || dbWorkerId || null;
+
+            const storedIndividualId = existingUser?.data?.["individualId"] != null
+                ? String(existingUser.data["individualId"]).trim() : null;
+
+            // Skip if no workerId AND no stored individualId — cannot create or update
+            if (!workerId && !storedIndividualId) continue;
 
             const hasWorkerFields = workerFieldKeys.some(key => !!row?.[key]);
             if (!hasWorkerFields) continue;
 
-            workerIdToSheetEntry[workerId] = { row, existingUser };
+            workerEntries.push({ row, existingUser, workerId, storedIndividualId });
         }
 
-        const allWorkerIds = Object.keys(workerIdToSheetEntry);
-        if (!allWorkerIds.length) return;
+        if (!workerEntries.length) return;
 
         const tenantId = resourceDetails?.tenantId;
         const workerRequestInfo = withUserInfo(resourceDetails?.requestInfo, { tenantId });
 
-        // Fetch current worker-registry records in batches to get individualIds.
-        // Batching avoids sending thousands of IDs in a single API call (timeout / 400).
+        // Separate update path (known workerId) from create path (no workerId, use stored individualId)
+        const updateEntries = workerEntries.filter(e => !!e.workerId);
+        const createEntries = workerEntries.filter(e => !e.workerId && !!e.storedIndividualId);
+
+        // Fetch registry records for update entries to resolve individualIds
         const workerByIdMap = new Map<string, WorkerRegistryRecord>();
-        for (let i = 0; i < allWorkerIds.length; i += WORKER_BATCH_SIZE) {
-            const idBatch = allWorkerIds.slice(i, i + WORKER_BATCH_SIZE);
+        const allUpdateWorkerIds = updateEntries.map(e => e.workerId as string);
+        for (let i = 0; i < allUpdateWorkerIds.length; i += WORKER_BATCH_SIZE) {
+            const idBatch = allUpdateWorkerIds.slice(i, i + WORKER_BATCH_SIZE);
             try {
                 const batchResult = await searchWorkersByIds(idBatch, tenantId, workerRequestInfo);
                 for (const worker of batchResult) {
@@ -351,30 +395,44 @@ export class TemplateClass {
             }
         }
 
-        // Build WorkerData list directly from already-fetched registry records (avoids double search
-        // inside createOrUpdateWorkers by supplying id so it goes through the workersByIdList path,
-        // which still re-searches internally — acceptable single extra call per batch).
         const workerDataList: WorkerData[] = [];
-        for (const workerId of allWorkerIds) {
-            const { row, existingUser } = workerIdToSheetEntry[workerId];
-            const existingWorker = workerByIdMap.get(workerId);
-            if (!existingWorker) continue;
 
+        // UPDATE path: known workerId → update existing worker record
+        for (const entry of updateEntries) {
+            const existingWorker = workerByIdMap.get(entry.workerId!);
+            if (!existingWorker) continue;
             const individualId = existingWorker.individualIds?.[0];
             if (!individualId) continue;
-
             workerDataList.push({
-                name: row?.["HCM_ADMIN_CONSOLE_USER_NAME"] || existingUser?.data?.["HCM_ADMIN_CONSOLE_USER_NAME"] || "",
-                payeePhoneNumber: String(row?.["HCM_ADMIN_CONSOLE_USER_PAYEE_PHONE_NUMBER"] || ""),
-                paymentProvider: row?.["HCM_ADMIN_CONSOLE_USER_PAYMENT_PROVIDER"] || "",
-                payeeName: row?.["HCM_ADMIN_CONSOLE_USER_PAYEE_NAME"] || "",
-                bankAccount: String(row?.["HCM_ADMIN_CONSOLE_USER_BANK_ACCOUNT"] || ""),
-                bankCode: String(row?.["HCM_ADMIN_CONSOLE_USER_BANK_CODE"] || ""),
-                beneficiaryCode: String(row?.["HCM_ADMIN_CONSOLE_USER_BENEFICIARY_CODE"]
-                    || row?.[getLocalizedName("HCM_ADMIN_CONSOLE_USER_BENEFICIARY_CODE", localizationMap)]
+                name: entry.row?.["HCM_ADMIN_CONSOLE_USER_NAME"] || entry.existingUser?.data?.["HCM_ADMIN_CONSOLE_USER_NAME"] || "",
+                payeePhoneNumber: String(entry.row?.["HCM_ADMIN_CONSOLE_USER_PAYEE_PHONE_NUMBER"] || ""),
+                paymentProvider: entry.row?.["HCM_ADMIN_CONSOLE_USER_PAYMENT_PROVIDER"] || "",
+                payeeName: entry.row?.["HCM_ADMIN_CONSOLE_USER_PAYEE_NAME"] || "",
+                bankAccount: String(entry.row?.["HCM_ADMIN_CONSOLE_USER_BANK_ACCOUNT"] || ""),
+                bankCode: String(entry.row?.["HCM_ADMIN_CONSOLE_USER_BANK_CODE"] || ""),
+                beneficiaryCode: String(entry.row?.["HCM_ADMIN_CONSOLE_USER_BENEFICIARY_CODE"]
+                    || entry.row?.[getLocalizedName("HCM_ADMIN_CONSOLE_USER_BENEFICIARY_CODE", localizationMap)]
                     || ""),
-                id: workerId,
+                id: entry.workerId!,
                 individualId,
+                tenantId,
+            });
+        }
+
+        // CREATE path: no workerId but stored individualId → create new worker record
+        for (const entry of createEntries) {
+            workerDataList.push({
+                name: entry.row?.["HCM_ADMIN_CONSOLE_USER_NAME"] || entry.existingUser?.data?.["HCM_ADMIN_CONSOLE_USER_NAME"] || "",
+                payeePhoneNumber: String(entry.row?.["HCM_ADMIN_CONSOLE_USER_PAYEE_PHONE_NUMBER"] || ""),
+                paymentProvider: entry.row?.["HCM_ADMIN_CONSOLE_USER_PAYMENT_PROVIDER"] || "",
+                payeeName: entry.row?.["HCM_ADMIN_CONSOLE_USER_PAYEE_NAME"] || "",
+                bankAccount: String(entry.row?.["HCM_ADMIN_CONSOLE_USER_BANK_ACCOUNT"] || ""),
+                bankCode: String(entry.row?.["HCM_ADMIN_CONSOLE_USER_BANK_CODE"] || ""),
+                beneficiaryCode: String(entry.row?.["HCM_ADMIN_CONSOLE_USER_BENEFICIARY_CODE"]
+                    || entry.row?.[getLocalizedName("HCM_ADMIN_CONSOLE_USER_BENEFICIARY_CODE", localizationMap)]
+                    || ""),
+                id: "",   // empty string → createOrUpdateWorkers will create a new record
+                individualId: entry.storedIndividualId!,
                 tenantId,
             });
         }
@@ -389,17 +447,39 @@ export class TemplateClass {
             }
         });
 
-        // Call createOrUpdateWorkers in batches to stay within API size limits.
+        // Call createOrUpdateWorkers in batches and save new workerIds back to campaign_data for CREATE entries
+        const individualIdToNewWorkerId = new Map<string, string>();
         for (let i = 0; i < workerDataList.length; i += WORKER_BATCH_SIZE) {
             const batch = workerDataList.slice(i, i + WORKER_BATCH_SIZE);
             try {
-                await createOrUpdateWorkers(batch, workerRequestInfo);
-                logger.info(`Updated worker registry for completed users batch [${i}–${i + batch.length}]`);
+                const { individualIdToWorkerIdMap } = await createOrUpdateWorkers(batch, workerRequestInfo);
+                logger.info(`Updated/created worker registry for completed users batch [${i}–${i + batch.length}]`);
+                // Capture new workerIds returned from the create path
+                for (const [indId, wId] of individualIdToWorkerIdMap.entries()) {
+                    individualIdToNewWorkerId.set(indId, wId);
+                }
             } catch (error: unknown) {
                 const errMsg = error instanceof Error ? error.message : String(error);
                 logger.error(`Failed to update worker registry for completed users batch [${i}–${i + batch.length}]: ${errMsg}`);
                 // Best-effort: one batch failure does not abort remaining batches or the overall upload
             }
+        }
+
+        // Persist new workerIds back to campaign_data for CREATE entries so future re-uploads use the UPDATE path
+        const recordsWithNewWorkerId: any[] = [];
+        for (const entry of createEntries) {
+            const newWorkerId = individualIdToNewWorkerId.get(entry.storedIndividualId!);
+            if (newWorkerId) {
+                entry.existingUser.data["HCM_ADMIN_CONSOLE_USER_WORKER_ID"] = newWorkerId;
+                recordsWithNewWorkerId.push(entry.existingUser);
+            }
+        }
+        if (recordsWithNewWorkerId.length > 0) {
+            for (let i = 0; i < recordsWithNewWorkerId.length; i += WORKER_BATCH_SIZE) {
+                const batch = recordsWithNewWorkerId.slice(i, i + WORKER_BATCH_SIZE);
+                await produceModifiedMessages({ datas: batch }, config.kafka.KAFKA_UPDATE_SHEET_DATA_TOPIC, tenantId);
+            }
+            logger.info(`Saved new workerIds back to campaign_data for ${recordsWithNewWorkerId.length} created workers`);
         }
     }
 

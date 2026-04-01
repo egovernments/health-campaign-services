@@ -125,9 +125,20 @@ public class CampaignService {
     }
 
     /**
+     * Extract campaignNumber from campaign by its ID (referenceId)
+     */
+    public String getCampaignNumberByReferenceId(String campaignId, String tenantId, RequestInfo requestInfo) {
+        CampaignSearchResponse.CampaignDetail campaign = searchCampaignById(campaignId, tenantId, requestInfo);
+        if (campaign != null) {
+            return campaign.getCampaignNumber();
+        }
+        return null;
+    }
+
+    /**
      * Generic method to search campaign data by unique identifiers
      * Returns List of campaign data records that match the criteria
-     * 
+     *
      * @param uniqueIdentifiers List of unique identifiers to search for
      * @param type Type of data (e.g., "user", "facility", "boundary")
      * @param status Status to filter by (e.g., "completed", "pending", "failed") - optional

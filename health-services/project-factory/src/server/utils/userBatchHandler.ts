@@ -118,7 +118,8 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
                     ...campaignRecord.data,
                     "UserService Uuids": serviceUuid,
                     "UserName": userName ? encrypt(userName) : campaignRecord.data["UserName"],
-                    "Password": password ? encrypt(password) : campaignRecord.data["Password"]
+                    "Password": password ? encrypt(password) : campaignRecord.data["Password"],
+                    ...(individualId != null ? { "individualId": individualId } : {})
                 };
                 campaignRecord.uniqueIdAfterProcess = serviceUuid;
                 updatedUsers.push(campaignRecord);
