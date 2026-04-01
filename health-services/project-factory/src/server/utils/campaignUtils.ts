@@ -2565,10 +2565,13 @@ export async function processAfterPersistNew(request: any, actionInUrl: any) {
         // Any child campaign (all resource types):
         // 1. Wait for child campaign row to be persisted in eg_cm_campaign_details
         // 2. Copy ALL completed resources from parent directly in DB (INSERT SELECT, handles 10k-20k+)
+        //    — only on initial create, not on subsequent updates
         // 3. Override filestoreId for types in CampaignDetails.resources, read back unified filestoreId
         // 4. Route to unified or regular process based on campaign type
-        await waitForCampaignToBePersisted(campaignDetails.id, campaignDetails.tenantId);
-        await copyResourcesFromParentToChildInDB(campaignDetails, userUuid);
+        if (actionInUrl === "create") {
+          await waitForCampaignToBePersisted(campaignDetails.id, campaignDetails.tenantId);
+          await copyResourcesFromParentToChildInDB(campaignDetails, userUuid);
+        }
         const isUnified = Array.isArray(campaignDetails?.resources) &&
           campaignDetails.resources.some((r: any) => r?.type === resourceTypes.unifiedConsoleResources);
         if (isUnified) {
