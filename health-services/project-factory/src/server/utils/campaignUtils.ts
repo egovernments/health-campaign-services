@@ -4369,6 +4369,26 @@ async function updateResourceStatus(
 }
 
 /**
+ * Bulk-update all active toCreate resource detail rows for a campaign to completed.
+ * Used after unified template child campaign processing finishes to close out
+ * resource rows that were copied from the parent and never go through the task system.
+ */
+export async function markAllToCreateResourcesAsCompleted(
+  campaignId: string,
+  tenantId: string,
+  userUuid: string
+): Promise<void> {
+  const tableName = getTableName(config.DB_CONFIG.DB_RESOURCE_DETAILS_TABLE_NAME, tenantId);
+  const now = Date.now();
+  await executeQuery(
+    `UPDATE ${tableName} SET status = $1, lastmodifiedby = $2, lastmodifiedtime = $3
+     WHERE campaignid = $4 AND tenantid = $5 AND status = $6 AND isactive = true`,
+    [resourceStatuses.completed, userUuid, now, campaignId, tenantId, resourceStatuses.toCreate]
+  );
+  logger.info(`Marked all toCreate resource details as completed for campaign ${campaignId}`);
+}
+
+/**
  * Update per-resource status fields on a specific resource entry.
  * Also keeps additionalDetails.resourceStatuses in sync for backward compatibility.
  */

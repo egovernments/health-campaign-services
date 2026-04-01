@@ -6,7 +6,7 @@ import { getRelatedDataWithCampaign, getMappingDataRelatedToCampaign, preparePro
 import { produceModifiedMessages } from '../kafka/Producer';
 import { dataRowStatuses, mappingStatuses, usageColumnStatus, campaignStatuses, allProcesses, processStatuses } from '../config/constants';
 import { searchMDMSDataViaV2Api, searchBoundaryRelationshipData } from '../api/coreApis';
-import { populateBoundariesRecursively, getLocalizedName, enrichAndPersistCampaignWithError, enrichAndPersistCampaignForCreateViaFlow2, userCredGeneration } from './campaignUtils';
+import { populateBoundariesRecursively, getLocalizedName, enrichAndPersistCampaignWithError, enrichAndPersistCampaignForCreateViaFlow2, userCredGeneration, markAllToCreateResourcesAsCompleted } from './campaignUtils';
 import { getLocalisationModuleName } from './localisationUtils';
 import Localisation from '../controllers/localisationController/localisation.controller';
 import { enrichProjectDetailsFromCampaignDetails } from './transforms/projectTypeUtils';
@@ -1646,7 +1646,12 @@ async function triggerBackgroundResourceCreationFlow(
             );
                 
                 logger.info('=== BACKGROUND RESOURCE CREATION FLOW COMPLETED SUCCESSFULLY ===');
-                
+
+                // Mark any resource detail rows still at toCreate as completed.
+                // For unified template child campaigns, resources are copied from the parent
+                // with status=toCreate but never go through the task system — close them out here.
+                await markAllToCreateResourcesAsCompleted(campaignDetails.id, tenantId, useruuid);
+
                 // Mark campaign as completed if not failed
                 await markCampaignCompletedConditionally(campaignDetails, parentCampaign, useruuid, tenantId);
                 
