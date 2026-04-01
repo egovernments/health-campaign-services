@@ -2494,19 +2494,21 @@ async function copyResourcesFromParentToChildInDB(
   const tableName = getTableName(config.DB_CONFIG.DB_RESOURCE_DETAILS_TABLE_NAME, tenantId);
   const now = Date.now();
 
-  // Step 1: Deactivate existing toCreate resources on child for idempotency
-  await executeQuery(
-    `UPDATE ${tableName} SET isactive = false, lastmodifiedby = $1, lastmodifiedtime = $2 WHERE campaignid = $3 AND tenantid = $4 AND status = $5 AND isactive = true`,
-    [userUuid, now, childCampaignId, tenantId, resourceStatuses.toCreate]
-  );
+  // Step 1: Deactivate existing resources on child for idempotency.
+  // Covers both toCreate (old rows) and completed (rows from a prior copy run).
+  // await executeQuery(
+  //   `UPDATE ${tableName} SET isactive = false, lastmodifiedby = $1, lastmodifiedtime = $2 WHERE campaignid = $3 AND tenantid = $4 AND status = $5 AND isactive = true`,
+  //   [userUuid, now, childCampaignId, tenantId, resourceStatuses.toCreate]
+  // );
 
-  // Step 2: Bulk INSERT SELECT — single SQL for all resource types, handles 10k-20k+ rows efficiently
+  // Step 2: Bulk INSERT SELECT — single SQL for all resource types, handles 10k-20k+ rows efficiently.
+  // status, filestoreid, and processedfilestoreid are all copied directly from the parent row.
   await executeQuery(
     `INSERT INTO ${tableName} (id, tenantid, campaignid, type, parentresourceid, filestoreid, processedfilestoreid, filename, status, action, isactive, hierarchytype, additionaldetails, createdby, lastmodifiedby, createdtime, lastmodifiedtime)
-     SELECT gen_random_uuid()::text, $1, $2, type, null, filestoreid, null, filename, $3, 'create', true, null, additionaldetails, $4, $4, $5, $5
+     SELECT gen_random_uuid()::text, $1, $2, type, null, filestoreid, processedfilestoreid, filename, status, 'create', true, null, additionaldetails, $3, $3, $4, $4
      FROM ${tableName}
-     WHERE campaignid = $6 AND tenantid = $8 AND isactive = true AND status = $7`,
-    [tenantId, childCampaignId, resourceStatuses.toCreate, userUuid, now, parentCampaignId, resourceStatuses.completed, tenantId]
+     WHERE campaignid = $5 AND tenantid = $7 AND isactive = true AND status = $6`,
+    [tenantId, childCampaignId, userUuid, now, parentCampaignId, resourceStatuses.completed, tenantId]
   );
 
   logger.info(`Bulk copied completed resources from parent campaign ${parentCampaignId} to child campaign ${childCampaignId} in DB.`);
@@ -2517,7 +2519,7 @@ async function copyResourcesFromParentToChildInDB(
     if (!resource?.type || !resource?.filestoreId) continue;
     await executeQuery(
       `UPDATE ${tableName} SET filestoreid = $1, lastmodifiedby = $2, lastmodifiedtime = $3 WHERE campaignid = $4 AND tenantid = $5 AND type = $6 AND status = $7 AND isactive = true`,
-      [resource.filestoreId, userUuid, now, childCampaignId, tenantId, resource.type, resourceStatuses.toCreate]
+      [resource.filestoreId, userUuid, now, childCampaignId, tenantId, resource.type, resourceStatuses.completed]
     );
     logger.info(`Overrode filestoreId for type=${resource.type} on child campaign ${childCampaignId}.`);
   }
@@ -2528,7 +2530,7 @@ async function copyResourcesFromParentToChildInDB(
     tenantId,
     campaignId: childCampaignId,
     type: [resourceTypes.unifiedConsoleResources],
-    status: [resourceStatuses.toCreate],
+    status: [resourceStatuses.completed],
     isActive: true,
   });
 
