@@ -5,7 +5,7 @@ interface PaymentValidationResult {
 
 const BANK_ACCOUNT_PATTERN = /^[0-9]{10}$/;
 const BANK_CODE_PATTERN = /^$|^[0-9]{3}$|^[0-9]{9}$/;
-const ALPHANUMERIC_PATTERN = /^[A-Za-z0-9]{1,35}$/;
+export const ALPHANUMERIC_PATTERN = /^[A-Za-z0-9]{1,35}$/;
 
 export function validatePaymentFields(workerData: {
     paymentProvider?: string;

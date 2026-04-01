@@ -39,6 +39,7 @@ export class TemplateClass {
         await this.validateUserNames(userSheetData, resourceDetails, errors);
         await this.validateBoundaries(userSheetData, resourceDetails, errors);
         await this.validateWorkerIds(userSheetData, resourceDetails.tenantId, errors, resourceDetails);
+        this.validateBeneficiaryCode(userSheetData, errors);
         validateMultiSelectUniqueness(userSheetData, userSchema, localizationMap, errors);
 
         this.processErrors(userSheetData, errors, resourceDetails);       
@@ -318,6 +319,22 @@ export class TemplateClass {
             }
         }
         logger.info("Worker ID validation completed.");
+    }
+
+    private static validateBeneficiaryCode(userSheetData: any[], errors: any[]): void {
+        logger.info("Validating beneficiary codes...");
+        for (let i = 0; i < userSheetData.length; i++) {
+            const raw = userSheetData[i]["HCM_ADMIN_CONSOLE_USER_BENEFICIARY_CODE"];
+            if (raw === undefined || raw === null || raw === "") continue;
+            const value = String(raw);
+            if (/\s/.test(value)) {
+                errors.push({
+                    row: i + 3,
+                    message: `Beneficiary Code must not contain any whitespace.`
+                });
+            }
+        }
+        logger.info("Beneficiary code validation completed.");
     }
 
     private static async getCampaignDetails(resourceDetails: any): Promise<any> {
