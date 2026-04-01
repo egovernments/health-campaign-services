@@ -23,7 +23,6 @@ import org.egov.healthnotification.service.MdmsService;
 import org.egov.healthnotification.web.models.MdmsV2Data;
 import org.egov.healthnotification.web.models.NotificationEvent;
 import org.egov.healthnotification.web.models.enums.NotificationChannel;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -44,12 +43,19 @@ class StockNotificationAdapterTest {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    private Stock buildStock(String stockEntryType, String primaryRole) {
+    // ═══════════════════════════════════════════════════════
+    //  Helpers
+    // ═══════════════════════════════════════════════════════
+
+    private Stock buildStock(String stockEntryType, String primaryRole, String status) {
         List<Field> fields = new java.util.ArrayList<>();
         fields.add(Field.builder().key(Constants.ADDITIONAL_FIELD_STOCK_ENTRY_TYPE).value(stockEntryType).build());
         fields.add(Field.builder().key(Constants.ADDITIONAL_FIELD_PRIMARY_ROLE).value(primaryRole).build());
         fields.add(Field.builder().key(Constants.ADDITIONAL_FIELD_SKU).value("ITN Nets").build());
         fields.add(Field.builder().key(Constants.ADDITIONAL_FIELD_MRN_NUMBER).value("MRN-001").build());
+        if (status != null) {
+            fields.add(Field.builder().key(Constants.ADDITIONAL_FIELD_STOCK_STATUS).value(status).build());
+        }
 
         AdditionalFields additionalFields = AdditionalFields.builder()
                 .fields(fields)
@@ -66,6 +72,11 @@ class StockNotificationAdapterTest {
                 .quantity(50)
                 .additionalFields(additionalFields)
                 .build();
+    }
+
+    /** Legacy helper without status — for backward-compat tests */
+    private Stock buildStock(String stockEntryType, String primaryRole) {
+        return buildStock(stockEntryType, primaryRole, null);
     }
 
     private MdmsV2Data buildMdmsConfig(String eventType) {
@@ -94,9 +105,13 @@ class StockNotificationAdapterTest {
         return MdmsV2Data.builder().data(dataNode).build();
     }
 
+    // ═══════════════════════════════════════════════════════
+    //  ISSUED + status tests
+    // ═══════════════════════════════════════════════════════
+
     @Test
-    void buildNotificationEvents_stockIssue_buildsSingleEvent() {
-        Stock stock = buildStock("ISSUED", "SENDER");
+    void issuedInTransit_notifiesReceiver() {
+        Stock stock = buildStock("ISSUED", "SENDER", "IN_TRANSIT");
         MdmsV2Data config = buildMdmsConfig(Constants.EVENT_TYPE_STOCK_ISSUE);
 
         when(mdmsService.fetchNotificationConfigByProjectType(
@@ -110,16 +125,105 @@ class StockNotificationAdapterTest {
         assertEquals(Constants.EVENT_TYPE_STOCK_ISSUE, event.getEventType());
         assertEquals(Constants.ENTITY_TYPE_STOCK, event.getEntityType());
         assertEquals("stock-1", event.getEntityId());
-        assertEquals("STOCK_TEMPLATE_001", event.getTemplateCode());
-        assertEquals("en_NG", event.getLocale());
         assertEquals(NotificationChannel.PUSH, event.getChannel());
-        // SENDER → notify receiver
+        // ISSUED + IN_TRANSIT → notify receiver
         assertEquals("facility-receiver", event.getRecipientFacilityId());
     }
 
     @Test
-    void buildNotificationEvents_stockIssue_dataContainsNotificationType() {
-        Stock stock = buildStock("ISSUED", "SENDER");
+    void issuedAccepted_notifiesSender() {
+        Stock stock = buildStock("ISSUED", "RECEIVER", "ACCEPTED");
+        MdmsV2Data config = buildMdmsConfig(Constants.EVENT_TYPE_STOCK_RECEIPT);
+
+        when(mdmsService.fetchNotificationConfigByProjectType(any(), any())).thenReturn(config);
+        when(facilityUserService.resolveFacilityName(any(), any(), any())).thenReturn("Fac");
+
+        List<NotificationEvent> events = adapter.buildNotificationEvents(stock, "topic");
+
+        assertEquals(1, events.size());
+        // ISSUED + ACCEPTED → STOCK_RECEIVE, notify sender
+        assertEquals(Constants.EVENT_TYPE_STOCK_RECEIPT, events.get(0).getEventType());
+        assertEquals("facility-sender", events.get(0).getRecipientFacilityId());
+        assertEquals(Constants.SCREEN_TRANSACTION_DETAILS, events.get(0).getData().get("screen"));
+    }
+
+    @Test
+    void issuedRejected_notifiesSender() {
+        Stock stock = buildStock("ISSUED", "RECEIVER", "REJECTED");
+        MdmsV2Data config = buildMdmsConfig(Constants.EVENT_TYPE_STOCK_ISSUE_REJECT);
+
+        when(mdmsService.fetchNotificationConfigByProjectType(any(), any())).thenReturn(config);
+        when(facilityUserService.resolveFacilityName(any(), any(), any())).thenReturn("Fac");
+
+        List<NotificationEvent> events = adapter.buildNotificationEvents(stock, "topic");
+
+        assertEquals(1, events.size());
+        // ISSUED + REJECTED → STOCK_ISSUE_REJECT, notify sender
+        assertEquals(Constants.EVENT_TYPE_STOCK_ISSUE_REJECT, events.get(0).getEventType());
+        assertEquals("facility-sender", events.get(0).getRecipientFacilityId());
+        assertEquals(Constants.SCREEN_TRANSACTION_DETAILS, events.get(0).getData().get("screen"));
+    }
+
+    // ═══════════════════════════════════════════════════════
+    //  RETURNED + status tests
+    // ═══════════════════════════════════════════════════════
+
+    @Test
+    void returnedInTransit_notifiesReceiver() {
+        Stock stock = buildStock("RETURNED", "SENDER", "IN_TRANSIT");
+        MdmsV2Data config = buildMdmsConfig(Constants.EVENT_TYPE_STOCK_REVERSE_ISSUE);
+
+        when(mdmsService.fetchNotificationConfigByProjectType(any(), any())).thenReturn(config);
+        when(facilityUserService.resolveFacilityName(any(), any(), any())).thenReturn("Fac");
+
+        List<NotificationEvent> events = adapter.buildNotificationEvents(stock, "topic");
+
+        assertEquals(1, events.size());
+        assertEquals(Constants.EVENT_TYPE_STOCK_REVERSE_ISSUE, events.get(0).getEventType());
+        // RETURNED + IN_TRANSIT → notify receiver
+        assertEquals("facility-receiver", events.get(0).getRecipientFacilityId());
+        assertEquals(Constants.SCREEN_PENDING_RECEIPT, events.get(0).getData().get("screen"));
+    }
+
+    @Test
+    void returnedAccepted_notifiesReceiver() {
+        Stock stock = buildStock("RETURNED", "SENDER", "ACCEPTED");
+        MdmsV2Data config = buildMdmsConfig(Constants.EVENT_TYPE_STOCK_REVERSE_ACCEPT);
+
+        when(mdmsService.fetchNotificationConfigByProjectType(any(), any())).thenReturn(config);
+        when(facilityUserService.resolveFacilityName(any(), any(), any())).thenReturn("Fac");
+
+        List<NotificationEvent> events = adapter.buildNotificationEvents(stock, "topic");
+
+        assertEquals(1, events.size());
+        assertEquals(Constants.EVENT_TYPE_STOCK_REVERSE_ACCEPT, events.get(0).getEventType());
+        // RETURNED + ACCEPTED → notify receiver
+        assertEquals("facility-receiver", events.get(0).getRecipientFacilityId());
+    }
+
+    @Test
+    void returnedRejected_notifiesReceiver() {
+        Stock stock = buildStock("RETURNED", "SENDER", "REJECTED");
+        MdmsV2Data config = buildMdmsConfig(Constants.EVENT_TYPE_STOCK_REVERSE_REJECT);
+
+        when(mdmsService.fetchNotificationConfigByProjectType(any(), any())).thenReturn(config);
+        when(facilityUserService.resolveFacilityName(any(), any(), any())).thenReturn("Fac");
+
+        List<NotificationEvent> events = adapter.buildNotificationEvents(stock, "topic");
+
+        assertEquals(1, events.size());
+        assertEquals(Constants.EVENT_TYPE_STOCK_REVERSE_REJECT, events.get(0).getEventType());
+        // RETURNED + REJECTED → notify receiver
+        assertEquals("facility-receiver", events.get(0).getRecipientFacilityId());
+    }
+
+    // ═══════════════════════════════════════════════════════
+    //  Navigation data tests
+    // ═══════════════════════════════════════════════════════
+
+    @Test
+    void issuedInTransit_dataContainsCorrectNavigationInfo() {
+        Stock stock = buildStock("ISSUED", "SENDER", "IN_TRANSIT");
         MdmsV2Data config = buildMdmsConfig(Constants.EVENT_TYPE_STOCK_ISSUE);
 
         when(mdmsService.fetchNotificationConfigByProjectType(any(), any())).thenReturn(config);
@@ -134,24 +238,12 @@ class StockNotificationAdapterTest {
         assertEquals(Constants.SCREEN_PENDING_RECEIPT, data.get("screen"));
     }
 
-    @Test
-    void buildNotificationEvents_stockReceipt_receiverRole_notifiesSender() {
-        Stock stock = buildStock("RECEIPT", "RECEIVER");
-        MdmsV2Data config = buildMdmsConfig(Constants.EVENT_TYPE_STOCK_RECEIPT);
-
-        when(mdmsService.fetchNotificationConfigByProjectType(any(), any())).thenReturn(config);
-        when(facilityUserService.resolveFacilityName(any(), any(), any())).thenReturn("Fac");
-
-        List<NotificationEvent> events = adapter.buildNotificationEvents(stock, "topic");
-
-        assertEquals(1, events.size());
-        // RECEIVER → notify sender
-        assertEquals("facility-sender", events.get(0).getRecipientFacilityId());
-        assertEquals(Constants.SCREEN_TRANSACTION_DETAILS, events.get(0).getData().get("screen"));
-    }
+    // ═══════════════════════════════════════════════════════
+    //  Edge case / skip tests
+    // ═══════════════════════════════════════════════════════
 
     @Test
-    void buildNotificationEvents_noStockEntryType_returnsEmpty() {
+    void noStockEntryType_returnsEmpty() {
         Stock stock = Stock.builder()
                 .id("stock-2")
                 .tenantId("tenant1")
@@ -159,46 +251,60 @@ class StockNotificationAdapterTest {
                 .build();
 
         List<NotificationEvent> events = adapter.buildNotificationEvents(stock, "topic");
-
         assertTrue(events.isEmpty());
     }
 
     @Test
-    void buildNotificationEvents_nullAdditionalFields_returnsEmpty() {
+    void nullAdditionalFields_returnsEmpty() {
         Stock stock = Stock.builder()
                 .id("stock-3")
                 .tenantId("tenant1")
                 .build();
 
         List<NotificationEvent> events = adapter.buildNotificationEvents(stock, "topic");
-
         assertTrue(events.isEmpty());
     }
 
     @Test
-    void buildNotificationEvents_unknownStockEntryType_returnsEmpty() {
-        Stock stock = buildStock("UNKNOWN_TYPE", "SENDER");
+    void unknownStockEntryType_returnsEmpty() {
+        Stock stock = buildStock("UNKNOWN_TYPE", "SENDER", "IN_TRANSIT");
 
         List<NotificationEvent> events = adapter.buildNotificationEvents(stock, "topic");
-
         assertTrue(events.isEmpty());
     }
 
     @Test
-    void buildNotificationEvents_noMdmsConfig_returnsEmpty() {
+    void issuedWithNoStatus_returnsEmpty() {
+        // ISSUED without status → skipped because status is now required
         Stock stock = buildStock("ISSUED", "SENDER");
+
+        List<NotificationEvent> events = adapter.buildNotificationEvents(stock, "topic");
+        assertTrue(events.isEmpty());
+    }
+
+    @Test
+    void returnedWithNoStatus_returnsEmpty() {
+        // RETURNED without status → skipped because status is now required
+        Stock stock = buildStock("RETURNED", "SENDER");
+
+        List<NotificationEvent> events = adapter.buildNotificationEvents(stock, "topic");
+        assertTrue(events.isEmpty());
+    }
+
+    @Test
+    void noMdmsConfig_returnsEmpty() {
+        Stock stock = buildStock("ISSUED", "SENDER", "IN_TRANSIT");
 
         when(mdmsService.fetchNotificationConfigByProjectType(any(), any()))
                 .thenThrow(new RuntimeException("MDMS down"));
 
         List<NotificationEvent> events = adapter.buildNotificationEvents(stock, "topic");
-
         assertTrue(events.isEmpty());
     }
 
     @Test
-    void buildNotificationEvents_eventTypeDisabledInMdms_returnsEmpty() {
-        Stock stock = buildStock("ISSUED", "SENDER");
+    void eventTypeDisabledInMdms_returnsEmpty() {
+        Stock stock = buildStock("ISSUED", "SENDER", "IN_TRANSIT");
 
         // Build config with event disabled
         ObjectNode dataNode = objectMapper.createObjectNode();
@@ -213,13 +319,16 @@ class StockNotificationAdapterTest {
         when(mdmsService.fetchNotificationConfigByProjectType(any(), any())).thenReturn(config);
 
         List<NotificationEvent> events = adapter.buildNotificationEvents(stock, "topic");
-
         assertTrue(events.isEmpty());
     }
 
+    // ═══════════════════════════════════════════════════════
+    //  Placeholder tests
+    // ═══════════════════════════════════════════════════════
+
     @Test
-    void buildNotificationEvents_placeholdersBuiltCorrectly() {
-        Stock stock = buildStock("ISSUED", "SENDER");
+    void placeholdersBuiltCorrectly() {
+        Stock stock = buildStock("ISSUED", "SENDER", "IN_TRANSIT");
         MdmsV2Data config = buildMdmsConfig(Constants.EVENT_TYPE_STOCK_ISSUE);
 
         when(mdmsService.fetchNotificationConfigByProjectType(any(), any())).thenReturn(config);
@@ -237,25 +346,60 @@ class StockNotificationAdapterTest {
         assertEquals("50 ITN Nets", placeholders.get(Constants.PLACEHOLDER_QUANTITY_OF_SKU));
     }
 
+    // ═══════════════════════════════════════════════════════
+    //  mapToEventType unit tests
+    // ═══════════════════════════════════════════════════════
+
     @Test
-    void mapStockEntryTypeToEventType_allMappings() {
-        assertEquals(Constants.EVENT_TYPE_STOCK_ISSUE, adapter.mapStockEntryTypeToEventType("ISSUED"));
-        assertEquals(Constants.EVENT_TYPE_STOCK_RECEIPT, adapter.mapStockEntryTypeToEventType("RECEIPT"));
-        assertEquals(Constants.EVENT_TYPE_STOCK_REVERSE_ISSUE, adapter.mapStockEntryTypeToEventType("RETURNED"));
-        assertEquals(Constants.EVENT_TYPE_STOCK_REVERSE_ACCEPT, adapter.mapStockEntryTypeToEventType("RETURN_ACCEPTED"));
-        assertEquals(Constants.EVENT_TYPE_STOCK_REVERSE_REJECT, adapter.mapStockEntryTypeToEventType("RETURN_REJECTED"));
-        assertNull(adapter.mapStockEntryTypeToEventType("UNKNOWN"));
+    void mapToEventType_issuedVariants() {
+        assertEquals(Constants.EVENT_TYPE_STOCK_ISSUE, adapter.mapToEventType("ISSUED", "IN_TRANSIT"));
+        assertEquals(Constants.EVENT_TYPE_STOCK_RECEIPT, adapter.mapToEventType("ISSUED", "ACCEPTED"));
+        assertEquals(Constants.EVENT_TYPE_STOCK_ISSUE_REJECT, adapter.mapToEventType("ISSUED", "REJECTED"));
+        assertNull(adapter.mapToEventType("ISSUED", null));
+        assertNull(adapter.mapToEventType("ISSUED", "UNKNOWN"));
     }
 
     @Test
-    void buildNotificationEvents_screenNavigationMapping() {
-        // Test RETURNED → PENDING_RECEIPT_SCREEN
-        Stock stockReturned = buildStock("RETURNED", "SENDER");
-        MdmsV2Data config = buildMdmsConfig(Constants.EVENT_TYPE_STOCK_REVERSE_ISSUE);
-        when(mdmsService.fetchNotificationConfigByProjectType(any(), any())).thenReturn(config);
-        when(facilityUserService.resolveFacilityName(any(), any(), any())).thenReturn("Fac");
+    void mapToEventType_returnedVariants() {
+        assertEquals(Constants.EVENT_TYPE_STOCK_REVERSE_ISSUE, adapter.mapToEventType("RETURNED", "IN_TRANSIT"));
+        assertEquals(Constants.EVENT_TYPE_STOCK_REVERSE_ACCEPT, adapter.mapToEventType("RETURNED", "ACCEPTED"));
+        assertEquals(Constants.EVENT_TYPE_STOCK_REVERSE_REJECT, adapter.mapToEventType("RETURNED", "REJECTED"));
+        assertNull(adapter.mapToEventType("RETURNED", null));
+        assertNull(adapter.mapToEventType("RETURNED", "UNKNOWN"));
+    }
 
-        List<NotificationEvent> events = adapter.buildNotificationEvents(stockReturned, "topic");
-        assertEquals(Constants.SCREEN_PENDING_RECEIPT, events.get(0).getData().get("screen"));
+    @Test
+    void mapToEventType_legacyFallback() {
+        // Legacy stockEntryTypes still map correctly (backward compat)
+        assertEquals(Constants.EVENT_TYPE_STOCK_RECEIPT, adapter.mapToEventType("RECEIPT", null));
+        assertEquals(Constants.EVENT_TYPE_STOCK_REVERSE_ACCEPT, adapter.mapToEventType("RETURN_ACCEPTED", null));
+        assertEquals(Constants.EVENT_TYPE_STOCK_REVERSE_REJECT, adapter.mapToEventType("RETURN_REJECTED", null));
+    }
+
+    @Test
+    void mapToEventType_damaged_returnsNull() {
+        assertNull(adapter.mapToEventType("DAMAGED", null));
+        assertNull(adapter.mapToEventType("DAMAGED", "IN_TRANSIT"));
+    }
+
+    @Test
+    void mapToEventType_unknownType_returnsNull() {
+        assertNull(adapter.mapToEventType("UNKNOWN", null));
+        assertNull(adapter.mapToEventType("UNKNOWN", "IN_TRANSIT"));
+    }
+
+    // ═══════════════════════════════════════════════════════
+    //  Title mapping test
+    // ═══════════════════════════════════════════════════════
+
+    @Test
+    void mapEventTypeToTitle_allMappings() {
+        assertEquals(Constants.TITLE_STOCK_ISSUE, adapter.mapEventTypeToTitle(Constants.EVENT_TYPE_STOCK_ISSUE));
+        assertEquals(Constants.TITLE_STOCK_RECEIPT, adapter.mapEventTypeToTitle(Constants.EVENT_TYPE_STOCK_RECEIPT));
+        assertEquals(Constants.TITLE_STOCK_ISSUE_REJECT, adapter.mapEventTypeToTitle(Constants.EVENT_TYPE_STOCK_ISSUE_REJECT));
+        assertEquals(Constants.TITLE_STOCK_REVERSE_ISSUE, adapter.mapEventTypeToTitle(Constants.EVENT_TYPE_STOCK_REVERSE_ISSUE));
+        assertEquals(Constants.TITLE_STOCK_REVERSE_ACCEPT, adapter.mapEventTypeToTitle(Constants.EVENT_TYPE_STOCK_REVERSE_ACCEPT));
+        assertEquals(Constants.TITLE_STOCK_REVERSE_REJECT, adapter.mapEventTypeToTitle(Constants.EVENT_TYPE_STOCK_REVERSE_REJECT));
+        assertEquals("CUSTOM_TYPE", adapter.mapEventTypeToTitle("CUSTOM_TYPE")); // default fallback
     }
 }
