@@ -135,6 +135,7 @@ public class Constants {
     // ========== AdditionalFields Key Constants ==========
     public static final String ADDITIONAL_FIELD_SCHEMA = "schema";
     public static final String ADDITIONAL_FIELD_STOCK_ENTRY_TYPE = "stockEntryType";
+    public static final String ADDITIONAL_FIELD_STOCK_STATUS = "status";
     public static final String ADDITIONAL_FIELD_PRIMARY_ROLE = "primaryRole";
     public static final String ADDITIONAL_FIELD_SECONDARY_ROLE = "secondaryRole";
     public static final String ADDITIONAL_FIELD_SKU = "sku";
@@ -149,6 +150,11 @@ public class Constants {
     public static final String STOCK_ENTRY_TYPE_RETURN_ACCEPTED = "RETURN_ACCEPTED";
     public static final String STOCK_ENTRY_TYPE_RETURN_REJECTED = "RETURN_REJECTED";
 
+    // ========== Stock Status Values (from additionalFields.status) ==========
+    public static final String STOCK_STATUS_IN_TRANSIT = "IN_TRANSIT";
+    public static final String STOCK_STATUS_ACCEPTED = "ACCEPTED";
+    public static final String STOCK_STATUS_REJECTED = "REJECTED";
+
     // ========== Role Values (from additionalFields.primaryRole / secondaryRole) ==========
     public static final String ROLE_SENDER = "SENDER";
     public static final String ROLE_RECEIVER = "RECEIVER";
@@ -161,9 +167,10 @@ public class Constants {
     public static final String NOTIFICATION_TYPE_STOCK = "STOCK";
     public static final String NOTIFICATION_TYPE_REFERRAL = "REFERRAL";
 
-    // ========== Stock Event Types (mapped from stockEntryType, aligned with MDMS eventType) ==========
+    // ========== Stock Event Types (mapped from stockEntryType + status, aligned with MDMS eventType) ==========
     public static final String EVENT_TYPE_STOCK_ISSUE = "STOCK_ISSUE_PUSH_NOTIFICATION";
     public static final String EVENT_TYPE_STOCK_RECEIPT = "STOCK_RECEIVE_PUSH_NOTIFICATION";
+    public static final String EVENT_TYPE_STOCK_ISSUE_REJECT = "STOCK_ISSUE_REJECT_PUSH_NOTIFICATION";
     public static final String EVENT_TYPE_STOCK_REVERSE_ISSUE = "STOCK_REVERSE_ISSUE_PUSH_NOTIFICATION";
     public static final String EVENT_TYPE_STOCK_REVERSE_ACCEPT = "STOCK_REVERSE_ACCEPT_PUSH_NOTIFICATION";
     public static final String EVENT_TYPE_STOCK_REVERSE_REJECT = "STOCK_REVERSE_REJECT_PUSH_NOTIFICATION";
@@ -171,6 +178,7 @@ public class Constants {
     // ========== Stock Push Notification Titles (human-readable) ==========
     public static final String TITLE_STOCK_ISSUE = "Stock Issued";
     public static final String TITLE_STOCK_RECEIPT = "Stock Received";
+    public static final String TITLE_STOCK_ISSUE_REJECT = "Stock Issue Rejected";
     public static final String TITLE_STOCK_REVERSE_ISSUE = "Stock Return Initiated";
     public static final String TITLE_STOCK_REVERSE_ACCEPT = "Stock Return Accepted";
     public static final String TITLE_STOCK_REVERSE_REJECT = "Stock Return Rejected";

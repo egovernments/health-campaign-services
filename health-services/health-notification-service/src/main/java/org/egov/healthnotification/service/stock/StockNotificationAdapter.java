@@ -22,9 +22,17 @@ import java.util.Map;
  * Translates Stock events into generic NotificationEvent(s).
  *
  * Key design:
- *   - Event type is determined by additionalFields.stockEntryType
- *   - Notification recipient is the secondaryRole party:
- *     if primaryRole=SENDER → notify receiver; if primaryRole=RECEIVER → notify sender
+ *   - Event type is determined by the combination of additionalFields.stockEntryType + additionalFields.status
+ *   - For ISSUED / RETURNED entries, status (IN_TRANSIT, ACCEPTED, REJECTED) determines the notification flow:
+ *
+ *     ISSUED  + IN_TRANSIT → STOCK_ISSUE (notify receiver)
+ *     ISSUED  + ACCEPTED  → STOCK_RECEIVE (notify sender)
+ *     ISSUED  + REJECTED  → STOCK_ISSUE_REJECT (notify sender)
+ *     RETURNED + IN_TRANSIT → STOCK_REVERSE_ISSUE (notify receiver)
+ *     RETURNED + ACCEPTED  → STOCK_REVERSE_ACCEPT (notify receiver)
+ *     RETURNED + REJECTED  → STOCK_REVERSE_REJECT (notify receiver)
+ *
+ *   - DAMAGED entries retain legacy behavior (stockEntryType-only mapping)
  *   - Placeholders use sku (commodity name), mrnNumber (transaction ref) from additionalFields
  *   - MDMS campaignType is "PUSH-NOTIFICATION", template code is inside scheduledNotifications[0]
  */
@@ -57,13 +65,18 @@ public class StockNotificationAdapter {
             return events;
         }
 
-        String eventType = mapStockEntryTypeToEventType(stockEntryType);
+        // Extract status from additionalFields — used in combination with stockEntryType
+        String stockStatus = getAdditionalFieldValue(stock, Constants.ADDITIONAL_FIELD_STOCK_STATUS);
+
+        String eventType = mapToEventType(stockEntryType, stockStatus);
         if (eventType == null) {
-            log.info("No mapping for stockEntryType={} for stock id={}. Skipping.", stockEntryType, stock.getId());
+            log.info("No mapping for stockEntryType={}, status={} for stock id={}. Skipping.",
+                    stockEntryType, stockStatus, stock.getId());
             return events;
         }
 
-        log.info("Stock id={}: stockEntryType={} → eventType={}", stock.getId(), stockEntryType, eventType);
+        log.info("Stock id={}: stockEntryType={}, status={} → eventType={}",
+                stock.getId(), stockEntryType, stockStatus, eventType);
 
         // Fetch MDMS config using campaignType "PUSH-NOTIFICATION"
         MdmsV2Data notificationConfig = fetchNotificationConfig(tenantId);
@@ -99,8 +112,8 @@ public class StockNotificationAdapter {
         // Map eventType to a human-readable title for the push notification
         String title = mapEventTypeToTitle(eventType);
 
-        // Determine notification recipient facilityId: the secondaryRole party
-        String recipientFacilityId = resolveRecipientFacilityId(stock);
+        // Determine notification recipient facilityId based on stockEntryType + status
+        String recipientFacilityId = resolveRecipientFacilityId(stock, stockEntryType, stockStatus);
         if (recipientFacilityId != null && !recipientFacilityId.isBlank()) {
             events.add(buildEvent(stock, eventType, tenantId, templateCode,
                     locale, recipientFacilityId, placeholders, navigationData, title));
@@ -112,8 +125,91 @@ public class StockNotificationAdapter {
     }
 
     // ═══════════════════════════════════════════════════════
-    //  Event Type Mapping
+    //  Event Type Mapping (stockEntryType + status)
     // ═══════════════════════════════════════════════════════
+
+    /**
+     * Maps the combination of stockEntryType + status to the MDMS eventType.
+     *
+     * For ISSUED and RETURNED, status is required to determine the flow.
+     * For DAMAGED, legacy mapping is retained (status ignored).
+     *
+     * @param stockEntryType e.g. ISSUED, RETURNED, DAMAGED
+     * @param status         e.g. IN_TRANSIT, ACCEPTED, REJECTED (may be null for DAMAGED)
+     * @return the MDMS eventType string, or null if no mapping exists
+     */
+    String mapToEventType(String stockEntryType, String status) {
+        switch (stockEntryType) {
+            case Constants.STOCK_ENTRY_TYPE_ISSUED:
+                return mapIssuedStatusToEventType(status);
+
+            case Constants.STOCK_ENTRY_TYPE_RETURNED:
+                return mapReturnedStatusToEventType(status);
+
+            case Constants.STOCK_ENTRY_TYPE_DAMAGED:
+                // DAMAGED retains legacy behavior — no status check
+                return null; // No push notification event type for DAMAGED currently
+
+            // Legacy stockEntryTypes that may still arrive — keep backward compatibility
+            case Constants.STOCK_ENTRY_TYPE_RECEIPT:
+                return Constants.EVENT_TYPE_STOCK_RECEIPT;
+            case Constants.STOCK_ENTRY_TYPE_RETURN_ACCEPTED:
+                return Constants.EVENT_TYPE_STOCK_REVERSE_ACCEPT;
+            case Constants.STOCK_ENTRY_TYPE_RETURN_REJECTED:
+                return Constants.EVENT_TYPE_STOCK_REVERSE_REJECT;
+
+            default:
+                return null;
+        }
+    }
+
+    /**
+     * ISSUED + status → eventType:
+     *   IN_TRANSIT → STOCK_ISSUE_PUSH_NOTIFICATION  (receiver gets notified)
+     *   ACCEPTED   → STOCK_RECEIVE_PUSH_NOTIFICATION (sender gets confirmation)
+     *   REJECTED   → STOCK_ISSUE_REJECT_PUSH_NOTIFICATION (sender gets rejection)
+     */
+    private String mapIssuedStatusToEventType(String status) {
+        if (status == null || status.isBlank()) {
+            log.info("ISSUED entry with no status. Skipping.");
+            return null;
+        }
+        switch (status) {
+            case Constants.STOCK_STATUS_IN_TRANSIT:
+                return Constants.EVENT_TYPE_STOCK_ISSUE;
+            case Constants.STOCK_STATUS_ACCEPTED:
+                return Constants.EVENT_TYPE_STOCK_RECEIPT;
+            case Constants.STOCK_STATUS_REJECTED:
+                return Constants.EVENT_TYPE_STOCK_ISSUE_REJECT;
+            default:
+                log.info("ISSUED entry with unknown status={}. Skipping.", status);
+                return null;
+        }
+    }
+
+    /**
+     * RETURNED + status → eventType:
+     *   IN_TRANSIT → STOCK_REVERSE_ISSUE_PUSH_NOTIFICATION  (receiver gets notified)
+     *   ACCEPTED   → STOCK_REVERSE_ACCEPT_PUSH_NOTIFICATION (receiver gets notified)
+     *   REJECTED   → STOCK_REVERSE_REJECT_PUSH_NOTIFICATION (receiver gets notified)
+     */
+    private String mapReturnedStatusToEventType(String status) {
+        if (status == null || status.isBlank()) {
+            log.info("RETURNED entry with no status. Skipping.");
+            return null;
+        }
+        switch (status) {
+            case Constants.STOCK_STATUS_IN_TRANSIT:
+                return Constants.EVENT_TYPE_STOCK_REVERSE_ISSUE;
+            case Constants.STOCK_STATUS_ACCEPTED:
+                return Constants.EVENT_TYPE_STOCK_REVERSE_ACCEPT;
+            case Constants.STOCK_STATUS_REJECTED:
+                return Constants.EVENT_TYPE_STOCK_REVERSE_REJECT;
+            default:
+                log.info("RETURNED entry with unknown status={}. Skipping.", status);
+                return null;
+        }
+    }
 
     /**
      * Maps eventType to a human-readable push notification title.
@@ -124,6 +220,8 @@ public class StockNotificationAdapter {
                 return Constants.TITLE_STOCK_ISSUE;
             case Constants.EVENT_TYPE_STOCK_RECEIPT:
                 return Constants.TITLE_STOCK_RECEIPT;
+            case Constants.EVENT_TYPE_STOCK_ISSUE_REJECT:
+                return Constants.TITLE_STOCK_ISSUE_REJECT;
             case Constants.EVENT_TYPE_STOCK_REVERSE_ISSUE:
                 return Constants.TITLE_STOCK_REVERSE_ISSUE;
             case Constants.EVENT_TYPE_STOCK_REVERSE_ACCEPT:
@@ -135,44 +233,90 @@ public class StockNotificationAdapter {
         }
     }
 
+    // ═══════════════════════════════════════════════════════
+    //  Recipient Resolution (now based on stockEntryType + status)
+    // ═══════════════════════════════════════════════════════
+
     /**
-     * Maps stockEntryType (from additionalFields) to MDMS eventType.
+     * Resolves the recipient facilityId based on stockEntryType + status combination.
      *
-     * stockEntryType → MDMS eventType:
-     *   ISSUED          → STOCK_ISSUE_PUSH_NOTIFICATION
-     *   RECEIPT          → STOCK_RECEIVE_PUSH_NOTIFICATION
-     *   RETURNED         → STOCK_REVERSE_ISSUE_PUSH_NOTIFICATION
-     *   RETURN_ACCEPTED  → STOCK_REVERSE_ACCEPT_PUSH_NOTIFICATION
-     *   RETURN_REJECTED  → STOCK_REVERSE_REJECT_PUSH_NOTIFICATION
+     * ISSUED  + IN_TRANSIT → receiver gets the notification
+     * ISSUED  + ACCEPTED   → sender gets the notification (confirmation)
+     * ISSUED  + REJECTED   → sender gets the notification (rejection)
+     * RETURNED + IN_TRANSIT → receiver gets the notification
+     * RETURNED + ACCEPTED  → receiver gets the notification (the one who rejected originally)
+     * RETURNED + REJECTED  → receiver gets the notification (the one who rejected originally)
+     *
+     * Fallback: uses primaryRole-based logic for backward compatibility.
      */
-    String mapStockEntryTypeToEventType(String stockEntryType) {
-        switch (stockEntryType) {
-            case Constants.STOCK_ENTRY_TYPE_ISSUED:
-                return Constants.EVENT_TYPE_STOCK_ISSUE;
-            case Constants.STOCK_ENTRY_TYPE_RECEIPT:
-                return Constants.EVENT_TYPE_STOCK_RECEIPT;
-            case Constants.STOCK_ENTRY_TYPE_RETURNED:
-                return Constants.EVENT_TYPE_STOCK_REVERSE_ISSUE;
-            case Constants.STOCK_ENTRY_TYPE_RETURN_ACCEPTED:
-                return Constants.EVENT_TYPE_STOCK_REVERSE_ACCEPT;
-            case Constants.STOCK_ENTRY_TYPE_RETURN_REJECTED:
-                return Constants.EVENT_TYPE_STOCK_REVERSE_REJECT;
+    private String resolveRecipientFacilityId(Stock stock, String stockEntryType, String status) {
+        if (status != null && !status.isBlank()) {
+            switch (stockEntryType) {
+                case Constants.STOCK_ENTRY_TYPE_ISSUED:
+                    return resolveIssuedRecipient(stock, status);
+
+                case Constants.STOCK_ENTRY_TYPE_RETURNED:
+                    return resolveReturnedRecipient(stock, status);
+
+                default:
+                    break;
+            }
+        }
+
+        // Fallback: legacy primaryRole-based resolution
+        return resolveRecipientByPrimaryRole(stock);
+    }
+
+    /**
+     * ISSUED recipient:
+     *   IN_TRANSIT → receiver (stock is on its way to them)
+     *   ACCEPTED   → sender (confirmation that receiver accepted)
+     *   REJECTED   → sender (notification that receiver rejected)
+     */
+    private String resolveIssuedRecipient(Stock stock, String status) {
+        switch (status) {
+            case Constants.STOCK_STATUS_IN_TRANSIT:
+                log.debug("ISSUED+IN_TRANSIT → recipient=receiverId={}", stock.getReceiverId());
+                return stock.getReceiverId();
+            case Constants.STOCK_STATUS_ACCEPTED:
+                log.debug("ISSUED+ACCEPTED → recipient=senderId={}", stock.getSenderId());
+                return stock.getSenderId();
+            case Constants.STOCK_STATUS_REJECTED:
+                log.debug("ISSUED+REJECTED → recipient=senderId={}", stock.getSenderId());
+                return stock.getSenderId();
             default:
-                return null;
+                return resolveRecipientByPrimaryRole(stock);
         }
     }
 
-    // ═══════════════════════════════════════════════════════
-    //  Recipient Resolution
-    // ═══════════════════════════════════════════════════════
+    /**
+     * RETURNED recipient:
+     *   IN_TRANSIT → receiver (stock is being returned to them)
+     *   ACCEPTED   → receiver (the one who originally rejected, now accepts return)
+     *   REJECTED   → receiver (the one who originally rejected, rejects the return)
+     */
+    private String resolveReturnedRecipient(Stock stock, String status) {
+        switch (status) {
+            case Constants.STOCK_STATUS_IN_TRANSIT:
+                log.debug("RETURNED+IN_TRANSIT → recipient=receiverId={}", stock.getReceiverId());
+                return stock.getReceiverId();
+            case Constants.STOCK_STATUS_ACCEPTED:
+                log.debug("RETURNED+ACCEPTED → recipient=receiverId={}", stock.getReceiverId());
+                return stock.getReceiverId();
+            case Constants.STOCK_STATUS_REJECTED:
+                log.debug("RETURNED+REJECTED → recipient=receiverId={}", stock.getReceiverId());
+                return stock.getReceiverId();
+            default:
+                return resolveRecipientByPrimaryRole(stock);
+        }
+    }
 
     /**
-     * Resolves the recipient facilityId — the secondaryRole party.
-     *
+     * Legacy fallback: resolves recipient based on primaryRole from additionalFields.
      *   primaryRole=SENDER   → notify receiverId
      *   primaryRole=RECEIVER → notify senderId
      */
-    private String resolveRecipientFacilityId(Stock stock) {
+    private String resolveRecipientByPrimaryRole(Stock stock) {
         String primaryRole = getAdditionalFieldValue(stock, Constants.ADDITIONAL_FIELD_PRIMARY_ROLE);
 
         if (Constants.ROLE_SENDER.equals(primaryRole)) {
@@ -243,6 +387,9 @@ public class StockNotificationAdapter {
                 data.put("screen", Constants.SCREEN_PENDING_RECEIPT);
                 break;
             case Constants.EVENT_TYPE_STOCK_RECEIPT:
+                data.put("screen", Constants.SCREEN_TRANSACTION_DETAILS);
+                break;
+            case Constants.EVENT_TYPE_STOCK_ISSUE_REJECT:
                 data.put("screen", Constants.SCREEN_TRANSACTION_DETAILS);
                 break;
             case Constants.EVENT_TYPE_STOCK_REVERSE_ISSUE:
