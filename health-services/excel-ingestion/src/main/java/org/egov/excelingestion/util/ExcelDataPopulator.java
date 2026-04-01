@@ -480,9 +480,9 @@ public class ExcelDataPopulator {
             String n = columnIndexToLetter(payeeNameIdx);
             String b = beneficiaryIdx != null ? columnIndexToLetter(beneficiaryIdx) : null;
 
-            // Required when BANK and empty
+            // Required when BANK or MTN and empty (skip if provider is empty)
             addPayeeCfRule(cf, maxRow, payeeNameIdx,
-                    "AND($" + p + "3=\"BANK\",LEN(TRIM($" + n + "3))=0)");
+                    "AND(OR($" + p + "3=\"BANK\",$" + p + "3=\"MTN\"),LEN(TRIM($" + n + "3))=0)");
 
             if (b != null) {
                 // BANK + beneficiaryCode filled: max 35 chars
@@ -497,9 +497,9 @@ public class ExcelDataPopulator {
                         "AND($" + p + "3=\"BANK\",$" + n + "3<>\"\",LEN($" + n + "3)>100)");
             }
 
-            // Non-BANK: not required, but max 35 chars if filled
+            // Non-BANK, non-empty provider: not required, but max 35 chars if filled
             addPayeeCfRule(cf, maxRow, payeeNameIdx,
-                    "AND($" + p + "3<>\"BANK\",$" + n + "3<>\"\",LEN($" + n + "3)>35)");
+                    "AND($" + p + "3<>\"BANK\",$" + p + "3<>\"\",$" + n + "3<>\"\",LEN($" + n + "3)>35)");
         }
 
         // --- beneficiaryCode ---
@@ -510,9 +510,9 @@ public class ExcelDataPopulator {
             addPayeeCfRule(cf, maxRow, beneficiaryIdx,
                     "AND($" + p + "3=\"BANK\",LEN(TRIM($" + b + "3))=0)");
 
-            // BANK and non-empty: max 35 chars
+            // Non-empty: max 35 chars (BANK only) or contains whitespace (any provider)
             addPayeeCfRule(cf, maxRow, beneficiaryIdx,
-                    "AND($" + p + "3=\"BANK\",$" + b + "3<>\"\",LEN($" + b + "3)>35)");
+                    "AND($" + b + "3<>\"\",OR(AND($" + p + "3=\"BANK\",LEN($" + b + "3)>35),LEN($" + b + "3)<>LEN(SUBSTITUTE($" + b + "3,\" \",\"\"))))");
         }
 
         // --- bankAccount ---
@@ -523,9 +523,9 @@ public class ExcelDataPopulator {
             addPayeeCfRule(cf, maxRow, bankAccountIdx,
                     "AND($" + p + "3=\"BANK\",LEN(TRIM($" + a + "3))=0)");
 
-            // BANK and non-empty: must be exactly 10 numeric digits
+            // Non-empty: exactly 10 numeric digits (BANK only) or contains whitespace (any provider)
             addPayeeCfRule(cf, maxRow, bankAccountIdx,
-                    "AND($" + p + "3=\"BANK\",$" + a + "3<>\"\",OR(LEN($" + a + "3)<>10,NOT(ISNUMBER(VALUE($" + a + "3)))))");
+                    "AND($" + a + "3<>\"\",OR(AND($" + p + "3=\"BANK\",OR(LEN($" + a + "3)<>10,NOT(ISNUMBER(VALUE($" + a + "3))))),LEN($" + a + "3)<>LEN(SUBSTITUTE($" + a + "3,\" \",\"\"))))");
         }
 
         // --- bankCode ---
@@ -536,9 +536,9 @@ public class ExcelDataPopulator {
             addPayeeCfRule(cf, maxRow, bankCodeIdx,
                     "AND($" + p + "3=\"BANK\",LEN(TRIM($" + bc + "3))=0)");
 
-            // BANK and non-empty: must be 3 or 9 numeric digits (pattern ^$|\d{3}|\d{9})
+            // Non-empty: 3 or 9 numeric digits (BANK only) or contains whitespace (any provider)
             addPayeeCfRule(cf, maxRow, bankCodeIdx,
-                    "AND($" + p + "3=\"BANK\",$" + bc + "3<>\"\",OR(NOT(ISNUMBER(VALUE($" + bc + "3))),AND(LEN($" + bc + "3)<>3,LEN($" + bc + "3)<>9)))");
+                    "AND($" + bc + "3<>\"\",OR(AND($" + p + "3=\"BANK\",OR(NOT(ISNUMBER(VALUE($" + bc + "3))),AND(LEN($" + bc + "3)<>3,LEN($" + bc + "3)<>9))),LEN($" + bc + "3)<>LEN(SUBSTITUTE($" + bc + "3,\" \",\"\"))))");
         }
 
         // --- payeePhoneNumber (MTN: required) ---

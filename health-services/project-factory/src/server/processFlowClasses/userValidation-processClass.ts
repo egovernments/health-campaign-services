@@ -322,19 +322,22 @@ export class TemplateClass {
     }
 
     private static validateBeneficiaryCode(userSheetData: any[], errors: any[]): void {
-        logger.info("Validating beneficiary codes...");
-        for (let i = 0; i < userSheetData.length; i++) {
-            const raw = userSheetData[i]["HCM_ADMIN_CONSOLE_USER_BENEFICIARY_CODE"];
-            if (raw === undefined || raw === null || raw === "") continue;
-            const value = String(raw);
-            if (/\s/.test(value)) {
-                errors.push({
-                    row: i + 3,
-                    message: `Beneficiary Code must not contain any whitespace.`
-                });
+        const fields = [
+            { key: "HCM_ADMIN_CONSOLE_USER_BENEFICIARY_CODE", label: "Beneficiary Code" },
+            { key: "HCM_ADMIN_CONSOLE_USER_BANK_ACCOUNT", label: "Bank Account" },
+            { key: "HCM_ADMIN_CONSOLE_USER_BANK_CODE", label: "Bank Code" },
+        ];
+        for (const { key, label } of fields) {
+            logger.info(`Validating ${label} for whitespace...`);
+            for (let i = 0; i < userSheetData.length; i++) {
+                const raw = userSheetData[i][key];
+                if (raw === undefined || raw === null || raw === "") continue;
+                if (/\s/.test(String(raw))) {
+                    errors.push({ row: i + 3, message: `${label} must not contain any whitespace.` });
+                }
             }
         }
-        logger.info("Beneficiary code validation completed.");
+        logger.info("Whitespace validation completed.");
     }
 
     private static async getCampaignDetails(resourceDetails: any): Promise<any> {

@@ -102,6 +102,17 @@ public class UserValidationProcessor implements IWorkbookProcessor {
             // Validate worker IDs against worker registry
             validateWorkerIds(sheetData, resource.getTenantId(), requestInfo, errors, localizationMap);
 
+            // Validate beneficiary code, bank account and bank code have no whitespace
+            validateBeneficiaryCode(sheetData, errors, localizationMap);
+            validateFieldNoWhitespace(sheetData, errors, localizationMap,
+                    ProcessingConstants.BANK_ACCOUNT_COL,
+                    ValidationConstants.LOC_BANK_ACCOUNT_WHITESPACE,
+                    ValidationConstants.DEFAULT_BANK_ACCOUNT_WHITESPACE);
+            validateFieldNoWhitespace(sheetData, errors, localizationMap,
+                    ProcessingConstants.BANK_CODE_COL,
+                    ValidationConstants.LOC_BANK_CODE_WHITESPACE,
+                    ValidationConstants.DEFAULT_BANK_CODE_WHITESPACE);
+
             log.info("User validation completed with {} errors", errors.size());
 
             // Only add error columns if there are validation errors
@@ -720,6 +731,45 @@ public class UserValidationProcessor implements IWorkbookProcessor {
         }
 
         log.info("Worker ID validation completed");
+    }
+
+    /**
+     * Validate that beneficiary code does not contain any whitespace characters.
+     */
+    private void validateBeneficiaryCode(List<Map<String, Object>> sheetData,
+                                          List<ValidationError> errors,
+                                          Map<String, String> localizationMap) {
+        validateFieldNoWhitespace(sheetData, errors, localizationMap,
+                ProcessingConstants.BENEFICIARY_CODE_COL,
+                ValidationConstants.LOC_BENEFICIARY_CODE_WHITESPACE,
+                ValidationConstants.DEFAULT_BENEFICIARY_CODE_WHITESPACE);
+    }
+
+    /**
+     * Validate that the given field does not contain any whitespace characters.
+     */
+    private void validateFieldNoWhitespace(List<Map<String, Object>> sheetData,
+                                            List<ValidationError> errors,
+                                            Map<String, String> localizationMap,
+                                            String columnKey,
+                                            String localizationKey,
+                                            String defaultMessage) {
+        log.info("Validating {} for whitespace", columnKey);
+        String errorMsg = LocalizationUtil.getLocalizedMessage(localizationMap, localizationKey, defaultMessage);
+
+        for (Map<String, Object> rowData : sheetData) {
+            String value = ExcelUtil.getValueAsString(rowData.get(columnKey));
+            if (value == null || value.isEmpty()) continue;
+            if (value.chars().anyMatch(Character::isWhitespace)) {
+                ValidationError error = new ValidationError();
+                error.setRowNumber((Integer) rowData.get("__actualRowNumber__"));
+                error.setErrorDetails(errorMsg);
+                error.setStatus(ValidationConstants.STATUS_INVALID);
+                error.setColumnName(columnKey);
+                errors.add(error);
+            }
+        }
+        log.info("Whitespace validation completed for {}", columnKey);
     }
 
     private List<Map<String, Object>> searchWorkersByIds(List<String> workerIds,
