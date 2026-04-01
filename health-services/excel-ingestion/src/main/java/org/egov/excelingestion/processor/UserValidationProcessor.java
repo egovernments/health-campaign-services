@@ -315,53 +315,32 @@ public class UserValidationProcessor implements IWorkbookProcessor {
         try {
             // Search in batches to avoid large array operations
             final int SEARCH_BATCH_SIZE = 500;
-
-            // Step 1: any campaign, completed status — identifies users already processed elsewhere
             for (int i = 0; i < allPhoneNumbers.size(); i += SEARCH_BATCH_SIZE) {
                 int endIndex = Math.min(i + SEARCH_BATCH_SIZE, allPhoneNumbers.size());
                 List<String> batch = allPhoneNumbers.subList(i, endIndex);
-
+                
                 List<Map<String, Object>> campaignUsers = campaignService.searchCampaignDataByUniqueIdentifiers(
                     batch, "user", "completed", null, tenantId, requestInfo);
-
+                
                 for (Map<String, Object> campaignUser : campaignUsers) {
                     String uniqueIdentifier = (String) campaignUser.get("uniqueIdentifier");
                     if (uniqueIdentifier != null) {
                         existingInCampaign.add(uniqueIdentifier);
-                        log.debug("Phone {} already exists in a campaign with completed status", uniqueIdentifier);
+                        String existingCampaignNumber = (String) campaignUser.get("campaignNumber");
+                        log.debug("Phone number {} already exists in campaign {} with completed status", 
+                                uniqueIdentifier, existingCampaignNumber);
                     }
                 }
             }
-
-            // Step 2: current campaign, any status — ensures same-campaign re-uploads (pending/failed)
-            // never hit the individual-registry check and produce false "already exists" errors
-            String currentCampaignNumber = campaignService.getCampaignNumberByReferenceId(
-                    resource.getReferenceId(), tenantId, requestInfo);
-            if (currentCampaignNumber != null) {
-                for (int i = 0; i < allPhoneNumbers.size(); i += SEARCH_BATCH_SIZE) {
-                    int endIndex = Math.min(i + SEARCH_BATCH_SIZE, allPhoneNumbers.size());
-                    List<String> batch = allPhoneNumbers.subList(i, endIndex);
-                    List<Map<String, Object>> currentCampaignUsers = campaignService.searchCampaignDataByUniqueIdentifiers(
-                            batch, "user", null, currentCampaignNumber, tenantId, requestInfo);
-                    for (Map<String, Object> campaignUser : currentCampaignUsers) {
-                        String uniqueIdentifier = (String) campaignUser.get("uniqueIdentifier");
-                        if (uniqueIdentifier != null) {
-                            existingInCampaign.add(uniqueIdentifier);
-                            log.debug("Phone {} exists in current campaign {} (any status) - skipping individual registry check",
-                                    uniqueIdentifier, currentCampaignNumber);
-                        }
-                    }
-                }
-            }
-
+            
             if (!existingInCampaign.isEmpty()) {
-                log.info("Found {} users already existing in campaign data - will skip validation for these",
+                log.info("Found {} users already existing in any campaign with completed status - will skip validation for these", 
                         existingInCampaign.size());
             }
         } catch (Exception e) {
             log.error("Error searching campaign data: {}", e.getMessage(), e);
-            exceptionHandler.throwCustomException(
-                    ErrorConstants.CAMPAIGN_DATA_SEARCH_ERROR,
+            exceptionHandler.throwCustomException( 
+                    ErrorConstants.CAMPAIGN_DATA_SEARCH_ERROR, 
                     ErrorConstants.CAMPAIGN_DATA_SEARCH_ERROR_MESSAGE, e);
         }
         
