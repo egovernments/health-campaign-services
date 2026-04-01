@@ -330,7 +330,7 @@ export class TemplateClass {
 
                 const uniqueIdentifier = `${registerServiceCode}_${username}_${sheetType}`;
                 const rowStatus = row["#status#"];
-                const dbStatus = rowStatus === sheetDataRowStatuses.INVALID || rowStatus === sheetDataRowStatuses.SKIPPED
+                const dbStatus = rowStatus === sheetDataRowStatuses.INVALID
                     ? dataRowStatuses.failed
                     : dataRowStatuses.completed;
 
