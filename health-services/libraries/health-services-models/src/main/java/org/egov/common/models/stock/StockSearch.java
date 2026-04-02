@@ -12,6 +12,7 @@ import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 import org.egov.common.models.core.EgovOfflineSearchModel;
 import org.egov.common.models.core.Exclude;
+import org.egov.common.models.core.OrGroup;
 import org.springframework.validation.annotation.Validated;
 
 /**
@@ -58,6 +59,29 @@ public class StockSearch extends EgovOfflineSearchModel {
 
     @JsonProperty("transactingPartyType")
     private String transactingPartyType = null;
+
+    /**
+     * senderId and receiverId allow searching stock records by the actual
+     * sender/receiver columns in the database.
+     *
+     * For a facility (warehouse) that both dispatches and receives stock,
+     * passing both senderId and receiverId with the same facility ID
+     * triggers an OR condition — returning all records where the facility
+     * is either the sender or the receiver in a single query.
+     *
+     * For a CDD (Community Drug Distributor / last-mile staff), who only
+     * receives or returns stock and is never a sender, only receiverId
+     * needs to be provided with the staff's user UUID.
+     */
+    @JsonProperty("senderId")
+    @OrGroup("senderOrReceiver")
+    @Size(min=2, max=64)
+    private String senderId = null;
+
+    @JsonProperty("receiverId")
+    @OrGroup("senderOrReceiver")
+    @Size(min=2, max=64)
+    private String receiverId = null;
 
     @JsonProperty("lastSyncedTime")
     @Exclude
