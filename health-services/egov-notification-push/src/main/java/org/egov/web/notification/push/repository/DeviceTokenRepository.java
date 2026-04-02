@@ -63,10 +63,12 @@ public class DeviceTokenRepository {
 			return Collections.emptyList();
 		}
 		String schema = getSchemaFromTenantId(tenantId);
+		String query = DeviceTokenQueryBuilder.fetchTokensByFacilityId(schema);
+		log.info("fetchTokensByFacilityId: facilityId={}, tenantId={}, schema={}, query={}",
+				facilityId, tenantId, schema, query);
 		Map<String, Object> params = Collections.singletonMap("facilityId", facilityId);
 		try {
-			return namedParameterJdbcTemplate.query(
-					DeviceTokenQueryBuilder.fetchTokensByFacilityId(schema), params, rowMapper);
+			return namedParameterJdbcTemplate.query(query, params, rowMapper);
 		} catch (Exception e) {
 			log.error("Error while fetching device tokens by facilityId: ", e);
 			return Collections.emptyList();
@@ -94,7 +96,9 @@ public class DeviceTokenRepository {
 	 * Non-central: tenantId is the schema (e.g., "ba" → schema "ba")
 	 */
 	private String getSchemaFromTenantId(String tenantId) {
-		if (properties.getIsCentralInstance()) {
+		log.info("getSchemaFromTenantId: tenantId={}, isCentralInstance={}",
+				tenantId, properties.getIsCentralInstance());
+		if (Boolean.TRUE.equals(properties.getIsCentralInstance())) {
 			if (tenantId == null || tenantId.isEmpty()) {
 				throw new CustomException("MISSING_TENANT_ID", "TenantId is required for schema resolution");
 			}
@@ -102,13 +106,16 @@ public class DeviceTokenRepository {
 				String[] parts = tenantId.split("\\.");
 				int position = properties.getSchemaIndexPosition();
 				if (position < parts.length) {
+					log.info("Central instance: derived schema='{}' from tenantId='{}'", parts[position], tenantId);
 					return parts[position];
 				}
 				throw new CustomException("INVALID_TENANT_ID", "Cannot derive schema from tenantId: " + tenantId);
 			}
+			log.info("Central instance: tenantId='{}' has no dot, using as schema directly", tenantId);
 			return tenantId;
 		}
 		// Non-central: use default (public) schema
+		log.info("Non-central instance: using default (public) schema");
 		return null;
 	}
 
