@@ -24,11 +24,14 @@ public class SupplyDeliveryToStockService {
     @Autowired
     private GenericCreateOrUpdateService genericCreateOrUpdateService;
 
-    @Value("${stock.create.url}")
-    private String stockCreateUrl;
+    @Value("${stock.host}")
+    private String stockHost;
 
-    @Value("${stock.update.url}")
-    private String stockUpdateUrl;
+    @Value("${stock.create.endpoint}")
+    private String stockCreateEndpoint;
+
+    @Value("${stock.update.endpoint}")
+    private String stockUpdateEndpoint;
 
     /**
      * Transforms and persists Stock records derived from SupplyDelivery resources.
@@ -42,8 +45,8 @@ public class SupplyDeliveryToStockService {
                 (stockIds) -> fetchExistingStockIds(stockIds, requestInfo),
                 (toCreate, createUrl) -> createStocks(toCreate, createUrl, requestInfo),
                 (toUpdate, updateUrl) -> updateStocks(toUpdate, updateUrl, requestInfo),
-                stockCreateUrl,
-                stockUpdateUrl,
+                stockHost + stockCreateEndpoint,
+                stockHost + stockUpdateEndpoint,
                 requestInfo,
                 "Error in transformSupplyDeliveryToStock");
     }

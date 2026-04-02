@@ -25,11 +25,14 @@ public class InventoryItemToProductVariant {
     @Autowired
     private GenericCreateOrUpdateService genericCreateOrUpdateService;
 
-    @Value("${product.variant.create.url}")
-    private String productVariantCreateUrl;
+    @Value("${product.host}")
+    private String productHost;
 
-    @Value("${product.variant.update.url}")
-    private String productVariantUpdateUrl;
+    @Value("${product.variant.create.endpoint}")
+    private String productVariantCreateEndpoint;
+
+    @Value("${product.variant.update.endpoint}")
+    private String productVariantUpdateEndpoint;
 
     /**
      * Transforms and persists ProductVariants derived from InventoryItems.
@@ -44,8 +47,8 @@ public class InventoryItemToProductVariant {
                 (productVariantIds) -> fetchExistingProductVariantIds(productVariantIds, requestInfo),
                 (toCreate, createUrl) -> createProductVariants(toCreate, createUrl, requestInfo),
                 (toUpdate, updateUrl) -> updateProductVariants(toUpdate, updateUrl, requestInfo),
-                productVariantCreateUrl,
-                productVariantUpdateUrl,
+                productHost + productVariantCreateEndpoint,
+                productHost + productVariantUpdateEndpoint,
                 requestInfo,
                 "Error in Transforming InventoryItem To ProductVariant");
     }

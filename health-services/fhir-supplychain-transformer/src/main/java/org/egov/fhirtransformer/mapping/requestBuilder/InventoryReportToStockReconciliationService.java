@@ -24,11 +24,14 @@ public class InventoryReportToStockReconciliationService {
     @Autowired
     private GenericCreateOrUpdateService genericCreateOrUpdateService;
 
-    @Value("${stock.recon.create.url}")
-    private String stockReconCreateUrl;
+    @Value("${stock.host}")
+    private String stockHost;
 
-    @Value("${stock.recon.update.url}")
-    private String stockReconUpdateUrl;
+    @Value("${stock.recon.create.endpoint}")
+    private String stockReconCreateEndpoint;
+
+    @Value("${stock.recon.update.endpoint}")
+    private String stockReconUpdateEndpoint;
 
     /**
      * Transforms and persists StockReconciliation records derived from InventoryReports.
@@ -42,8 +45,8 @@ public class InventoryReportToStockReconciliationService {
                 (stockReconIds) -> fetchExistingStockReconIds(stockReconIds, requestInfo),
                 (toCreate, createUrl) -> createStockRecon(toCreate, createUrl, requestInfo),
                 (toUpdate, updateUrl) -> updateStockRecon(toUpdate, updateUrl, requestInfo),
-                stockReconCreateUrl,
-                stockReconUpdateUrl,
+                stockHost + stockReconCreateEndpoint,
+                stockHost + stockReconUpdateEndpoint,
                 requestInfo,
                 "Error in transformInventoryReportToStockReconciliation");
     }

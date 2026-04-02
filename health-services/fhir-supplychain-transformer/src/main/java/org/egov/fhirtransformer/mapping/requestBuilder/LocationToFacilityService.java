@@ -24,11 +24,14 @@ public class LocationToFacilityService {
     @Autowired
     private GenericCreateOrUpdateService genericCreateOrUpdateService;
 
-    @Value("${facility.create.url}")
-    private String facilityCreateUrl;
+    @Value("${facility.host}")
+    private String facilityHost;
 
-    @Value("${facility.update.url}")
-    private String facilityUpdateUrl;
+    @Value("${facility.create.endpoint}")
+    private String facilityCreateEndpoint;
+
+    @Value("${facility.update.endpoint}")
+    private String facilityUpdateEndpoint;
 
     /**
      * Transforms and persists Facility records derived from Locations.
@@ -42,8 +45,8 @@ public class LocationToFacilityService {
                 (idList) -> fetchExistingFacilityIds(idList, requestInfo),
                 (toCreate, createUrl) -> createFacilities(toCreate, createUrl, requestInfo),
                 (toUpdate, updateUrl) -> updateFacilities(toUpdate, updateUrl, requestInfo),
-                facilityCreateUrl,
-                facilityUpdateUrl,
+                facilityHost + facilityCreateEndpoint,
+                facilityHost + facilityUpdateEndpoint,
                 requestInfo,
                 "Error in transformLocationToFacility");
     }

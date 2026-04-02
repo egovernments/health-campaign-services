@@ -36,20 +36,32 @@ public class ApiIntegrationService {
     @Value("${app.tenant-id}")
     private String tenantId;
 
-    @Value("${facility.search.url}")
-    private String facilityUrl;
+    @Value("${facility.host}")
+    private String facilityHost;
 
-    @Value("${product.variant.search.url}")
-    private String productVariantUrl;
+    @Value("${facility.search.endpoint}")
+    private String facilitySearchEndpoint;
 
-    @Value("${stock.search.url}")
-    private String stockSearchUrl;
+    @Value("${product.host}")
+    private String productHost;
 
-    @Value("${stock.reconciliation.search.url}")
-    private String stockReconciliationUrl;
+    @Value("${product.variant.search.endpoint}")
+    private String productVariantSearchEndpoint;
 
-    @Value("${boundary.relationship.search.url}")
-    private String boundaryRelationshipUrl;
+    @Value("${stock.host}")
+    private String stockHost;
+
+    @Value("${stock.search.endpoint}")
+    private String stockSearchEndpoint;
+
+    @Value("${stock.reconciliation.search.endpoint}")
+    private String stockReconciliationSearchEndpoint;
+
+    @Value("${boundary.host}")
+    private String boundaryHost;
+
+    @Value("${boundary.relationship.search.endpoint}")
+    private String boundaryRelationshipSearchEndpoint;
 
     private static final Logger logger = LoggerFactory.getLogger(FhirApiController.class);
 
@@ -120,7 +132,7 @@ public class ApiIntegrationService {
      */
     public FacilityBulkResponse fetchAllFacilities(URLParams urlParams, FacilitySearchRequest facilitySearchRequest) {
 
-        URI uri = formUri(urlParams,facilityUrl);
+        URI uri = formUri(urlParams, facilityHost + facilitySearchEndpoint);
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         HttpEntity<FacilitySearchRequest> entity = new HttpEntity<>(facilitySearchRequest, headers);
@@ -147,7 +159,7 @@ public class ApiIntegrationService {
      */
     public ProductVariantResponse fetchAllProductVariants(URLParams urlParams, ProductVariantSearchRequest productVariantSearchRequest) {
 
-        URI uri = formUri(urlParams,productVariantUrl);
+        URI uri = formUri(urlParams, productHost + productVariantSearchEndpoint);
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         HttpEntity<ProductVariantSearchRequest> entity = new HttpEntity<>(productVariantSearchRequest, headers);
@@ -174,7 +186,7 @@ public class ApiIntegrationService {
      */
     public StockBulkResponse fetchAllStocks(URLParams urlParams, StockSearchRequest stockRequest) {
 
-        URI uri = formUri(urlParams,stockSearchUrl);
+        URI uri = formUri(urlParams, stockHost + stockSearchEndpoint);
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         HttpEntity<StockSearchRequest> entity = new HttpEntity<>(stockRequest, headers);
@@ -202,7 +214,7 @@ public class ApiIntegrationService {
      */
     public StockReconciliationBulkResponse fetchAllStockReconciliation(URLParams urlParams, StockReconciliationSearchRequest stockReconciliationSearchRequest) {
 
-        URI uri = formUri(urlParams,stockReconciliationUrl);
+        URI uri = formUri(urlParams, stockHost + stockReconciliationSearchEndpoint);
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         HttpEntity<StockReconciliationSearchRequest> entity = new HttpEntity<>(stockReconciliationSearchRequest, headers);
@@ -228,7 +240,7 @@ public class ApiIntegrationService {
      * @return {@link BoundarySearchResponse}, or {@code null} if the response is empty
      */
     public BoundarySearchResponse fetchAllBoundaries( BoundaryRelationshipSearchCriteria boundaryRelationshipSearchCriteria,RequestInfo requestInfo) {
-        URI uri = formBoundaryUri(boundaryRelationshipSearchCriteria, boundaryRelationshipUrl);
+        URI uri = formBoundaryUri(boundaryRelationshipSearchCriteria, boundaryHost + boundaryRelationshipSearchEndpoint);
         Map<String, Object> body = new HashMap<>();
         body.put("RequestInfo", requestInfo);
         HttpHeaders headers = new HttpHeaders();

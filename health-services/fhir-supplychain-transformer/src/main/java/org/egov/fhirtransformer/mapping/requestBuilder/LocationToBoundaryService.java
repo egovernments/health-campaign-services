@@ -29,11 +29,14 @@ public class LocationToBoundaryService {
     @Value("${app.tenant-id}")
     private String tenantId;
 
-    @Value("${boundary.create.url}")
-    private String boundaryCreateUrl;
+    @Value("${boundary.host}")
+    private String boundaryHost;
 
-    @Value("${boundary.update.url}")
-    private String boundaryUpdateUrl;
+    @Value("${boundary.create.endpoint}")
+    private String boundaryCreateEndpoint;
+
+    @Value("${boundary.update.endpoint}")
+    private String boundaryUpdateEndpoint;
 
     private static final Logger logger = LoggerFactory.getLogger(LocationToBoundaryService.class);
 
@@ -50,8 +53,8 @@ public class LocationToBoundaryService {
                 (idList) -> fetchExistingBoundaryIds(idList, requestInfo),
                 (toCreate, createUrl) -> createBoundaries(toCreate, createUrl, requestInfo),
                 (toUpdate, updateUrl) -> updateBoundaries(toUpdate, updateUrl, requestInfo),
-                boundaryCreateUrl,
-                boundaryUpdateUrl,
+                boundaryHost + boundaryCreateEndpoint,
+                boundaryHost + boundaryUpdateEndpoint,
                 requestInfo,
                 "Error in transformLocationToBoundary");
     }
