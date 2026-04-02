@@ -4,6 +4,7 @@ import ca.uhn.fhir.context.FhirContext;
 import ca.uhn.fhir.parser.IParser;
 import digit.web.models.BoundaryRelation;
 import org.egov.common.contract.request.RequestInfo;
+import org.egov.common.contract.request.User;
 import org.egov.common.models.facility.Facility;
 import org.egov.common.models.product.ProductVariant;
 import org.egov.common.models.stock.*;
@@ -63,6 +64,11 @@ public class FhirParseNLoadService {
     @Value("${app.tenant-id}")
     private String tenantID;
 
+    // TODO: Implement proper auth token transfer from incoming FHIR request to DIGIT API calls
+    //       instead of relying on a dummy system user fallback.
+    @Value("${fhir.default.user.uuid}")
+    private String defaultUserUuid;
+
     // Helper holder for entity maps extracted from a bundle
     private static class EntityMaps {
         public final HashMap<String, Stock> supplyDeliveryMap = new HashMap<>();
@@ -109,6 +115,7 @@ public class FhirParseNLoadService {
      * @return processing summary containing per-entity metrics and per-entity errors
      */
     public EntityProcessingResponse parseAndLoadFHIRResource(String fhirJson, RequestInfo requestInfo) {
+        requestInfo = ensureRequestInfo(requestInfo);
         EntityProcessingResponse response = new EntityProcessingResponse();
 
         Bundle bundle = parseBundle(fhirJson);
@@ -237,6 +244,24 @@ public class FhirParseNLoadService {
             logger.error("Failed processing entity type {}: {}", entityName, e.getMessage(), e);
             response.getEntityErrors().put(entityName, e.getMessage());
         }
+    }
+
+    private RequestInfo ensureRequestInfo(RequestInfo requestInfo) {
+        if (requestInfo == null) {
+            requestInfo = new RequestInfo();
+        }
+        if (requestInfo.getUserInfo() == null) {
+            User dummyUser = User.builder()
+                    .uuid(defaultUserUuid)
+                    .userName("fhirsupplychainfacade")
+                    .name("FHIR Supply Chain Facade")
+                    .type("SYSTEM")
+                    .id(0L)
+                    .build();
+            requestInfo.setUserInfo(dummyUser);
+            logger.info("RequestInfo or UserInfo was null — populated with dummy system user");
+        }
+        return requestInfo;
     }
 
     private void finalizeStatus(EntityProcessingResponse response) {

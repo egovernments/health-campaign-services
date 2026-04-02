@@ -131,20 +131,7 @@
 			<artifactId>spring-kafka</artifactId>
 		</dependency>
 
-		<dependency>
-			<groupId>digit.web</groupId>
-			<artifactId>boundary-service</artifactId>
-			<version>1.0.1</version>
-			<scope>system</scope>
-			<systemPath>${basedir}/lib/boundary-service-1.0.1.jar</systemPath>
-		</dependency>
-
-<!--		<dependency>-->
-<!--			<groupId>org.egov</groupId>-->
-<!--			<artifactId>boundary-service</artifactId>-->
-<!--			<version>1.0.1</version>-->
-<!--			<scope>compile</scope>-->
-<!--		</dependency>-->
+<!--  boundary-service models are now inlined under src/main/java/digit/web/models  -->
 	</dependencies>
 	<repositories>
 		<repository>
