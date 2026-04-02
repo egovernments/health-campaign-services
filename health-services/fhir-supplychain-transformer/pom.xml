@@ -9,9 +9,9 @@
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>org.egov</groupId>
-	<artifactId>fhirtransformer</artifactId>
+	<artifactId>fhir-supplychain-transformer</artifactId>
 	<version>1.0.0</version>
-	<name>fhirtransformer</name>
+	<name>fhir-supplychain-transformer</name>
 	<description>Project for FHIR Facade</description>
 	<url/>
 	<licenses>
