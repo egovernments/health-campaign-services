@@ -50,6 +50,11 @@ config:
         dockerfile: "build/maven/Dockerfile"
       - work-dir: "health-services/project/src/main/resources/db"
         image-name: "health-project-db"
+  - name: "builds/health-campaign-services/health-services/fhir-supplychain-transformer"
+    build:
+      - work-dir: "health-services/fhir-supplychain-transformer"
+        image-name: "fhir-supplychain-transformer"
+        dockerfile: "build/17/maven/Dockerfile"
   - name: "builds/health-campaign-services/health-services/referralmanagement"
     build:
       - work-dir: "health-services/referralmanagement"
