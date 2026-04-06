@@ -144,6 +144,10 @@ public class DeviceTokenService {
 		return repository.fetchTokensByFacilityIdAndRole(facilityId, role, tenantId);
 	}
 
+	public List<DeviceToken> getTokensByFacilityIdAndRoles(String facilityId, List<String> roles, String tenantId) {
+		return repository.fetchTokensByFacilityIdAndRoles(facilityId, roles, tenantId);
+	}
+
 	public void deleteStaleTokens(List<String> deviceTokens, String tenantId) {
 		int deleted = repository.deleteByDeviceTokens(deviceTokens, tenantId);
 		log.info("Deleted {} stale device token row(s) for tokens: {}", deleted, deviceTokens);
