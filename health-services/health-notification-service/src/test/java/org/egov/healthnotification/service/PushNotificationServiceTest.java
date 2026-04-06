@@ -7,6 +7,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.List;
 import java.util.Map;
 
 import org.egov.healthnotification.config.HealthNotificationProperties;
@@ -37,9 +38,10 @@ class PushNotificationServiceTest {
         when(properties.getPushNotificationTopic()).thenReturn("egov.core.notification.push");
 
         Map<String, String> data = Map.of("notificationType", "STOCK", "eventType", "STOCK_ISSUE_PUSH_NOTIFICATION");
+        List<String> roles = List.of("WAREHOUSE_MANAGER", "DISTRIBUTOR");
 
         pushNotificationService.sendPushNotification(
-                "Stock Issue", "50 ITN Nets issued", "facility-123", "WAREHOUSE_MANAGER", "tenant1", data);
+                "Stock Issue", "50 ITN Nets issued", "facility-123", roles, "tenant1", data);
 
         ArgumentCaptor<Map> captor = ArgumentCaptor.forClass(Map.class);
         verify(producer).push(eq("egov.core.notification.push"), captor.capture());
@@ -48,7 +50,7 @@ class PushNotificationServiceTest {
         assertEquals("Stock Issue", payload.get("title"));
         assertEquals("50 ITN Nets issued", payload.get("body"));
         assertEquals("facility-123", payload.get("facilityId"));
-        assertEquals("WAREHOUSE_MANAGER", payload.get("recipientRole"));
+        assertEquals(roles, payload.get("recipientRoles"));
         assertEquals("tenant1", payload.get("tenantId"));
         assertEquals(data, payload.get("data"));
     }

@@ -112,14 +112,14 @@ public class StockNotificationAdapter {
         // Map eventType to a human-readable title for the push notification
         String title = mapEventTypeToTitle(eventType);
 
-        // Extract recipientRoles from MDMS event config (first role used for filtering)
-        String recipientRole = extractRecipientRole(eventConfig);
+        // Extract recipientRoles from MDMS event config (all roles used for filtering)
+        List<String> recipientRoles = extractRecipientRoles(eventConfig);
 
         // Determine notification recipient facilityId based on stockEntryType + status
         String recipientFacilityId = resolveRecipientFacilityId(stock, stockEntryType, stockStatus);
         if (recipientFacilityId != null && !recipientFacilityId.isBlank()) {
             events.add(buildEvent(stock, eventType, tenantId, templateCode,
-                    locale, recipientFacilityId, recipientRole, placeholders, navigationData, title));
+                    locale, recipientFacilityId, recipientRoles, placeholders, navigationData, title));
         }
 
         log.info("Built {} notification event(s) for stock id={}, eventType={}",
@@ -441,17 +441,23 @@ public class StockNotificationAdapter {
     }
 
     /**
-     * Extracts the first recipientRole from the MDMS eventConfig's recipientRoles array.
-     * e.g. "recipientRoles": ["WAREHOUSE_MANAGER"] → returns "WAREHOUSE_MANAGER"
+     * Extracts all recipientRoles from the MDMS eventConfig's recipientRoles array.
+     * e.g. "recipientRoles": ["WAREHOUSE_MANAGER", "DISTRIBUTOR"] → returns ["WAREHOUSE_MANAGER", "DISTRIBUTOR"]
      * Returns null if not configured.
      */
-    private String extractRecipientRole(JsonNode eventConfig) {
-        JsonNode recipientRoles = eventConfig.path(Constants.FIELD_RECIPIENT_ROLES);
-        if (recipientRoles.isArray() && recipientRoles.size() > 0) {
-            String role = recipientRoles.get(0).asText(null);
-            if (role != null && !role.isBlank()) {
-                log.debug("Extracted recipientRole from MDMS: {}", role);
-                return role;
+    private List<String> extractRecipientRoles(JsonNode eventConfig) {
+        JsonNode recipientRolesNode = eventConfig.path(Constants.FIELD_RECIPIENT_ROLES);
+        if (recipientRolesNode.isArray() && recipientRolesNode.size() > 0) {
+            List<String> roles = new ArrayList<>();
+            for (JsonNode roleNode : recipientRolesNode) {
+                String role = roleNode.asText(null);
+                if (role != null && !role.isBlank()) {
+                    roles.add(role);
+                }
+            }
+            if (!roles.isEmpty()) {
+                log.debug("Extracted recipientRoles from MDMS: {}", roles);
+                return roles;
             }
         }
         return null;
@@ -512,7 +518,7 @@ public class StockNotificationAdapter {
 
     private NotificationEvent buildEvent(Stock stock, String eventType, String tenantId,
                                           String templateCode, String locale,
-                                          String recipientFacilityId, String recipientRole,
+                                          String recipientFacilityId, List<String> recipientRoles,
                                           Map<String, Object> placeholders, Map<String, String> data,
                                           String title) {
         return NotificationEvent.builder()
@@ -524,7 +530,7 @@ public class StockNotificationAdapter {
                 .title(title)
                 .locale(locale)
                 .recipientFacilityId(recipientFacilityId)
-                .recipientRole(recipientRole)
+                .recipientRoles(recipientRoles)
                 .placeholders(placeholders)
                 .data(data)
                 .channel(NotificationChannel.PUSH)
