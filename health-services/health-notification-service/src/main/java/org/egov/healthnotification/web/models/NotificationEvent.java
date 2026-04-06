@@ -52,8 +52,8 @@ public class NotificationEvent {
     @JsonProperty("recipientFacilityId")
     private String recipientFacilityId;
 
-    @JsonProperty("recipientRole")
-    private String recipientRole;
+    @JsonProperty("recipientRoles")
+    private List<String> recipientRoles;
 
     @JsonProperty("placeholders")
     private Map<String, Object> placeholders;

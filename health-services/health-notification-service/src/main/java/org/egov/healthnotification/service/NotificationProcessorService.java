@@ -83,7 +83,7 @@ public class NotificationProcessorService {
             }
             pushNotificationService.sendPushNotification(
                     title, body, event.getRecipientFacilityId(),
-                    event.getRecipientRole(),
+                    event.getRecipientRoles(),
                     tenantId, event.getData());
         } else {
             log.warn("SMS channel not supported in immediate push flow. eventType={}, entityId={}",

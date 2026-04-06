@@ -123,11 +123,11 @@ public class HFReferralNotificationAdapter {
         String title = Constants.TITLE_REFERRAL_CREATED;
         String entityId = recordId.equals("unknown") ? clientReferenceId : recordId;
 
-        // Extract recipientRole from MDMS event config
-        String recipientRole = extractRecipientRole(eventConfig);
+        // Extract recipientRoles from MDMS event config
+        List<String> recipientRoles = extractRecipientRoles(eventConfig);
 
         events.add(buildEvent(entityId, eventType, tenantId, templateCode,
-                locale, facilityId, recipientRole, placeholders, navigationData, title));
+                locale, facilityId, recipientRoles, placeholders, navigationData, title));
 
         log.info("Built {} notification event(s) for HFReferral id={}, eventType={}, facilityId={}",
                 events.size(), entityId, eventType, facilityId);
@@ -235,16 +235,22 @@ public class HFReferralNotificationAdapter {
     }
 
     /**
-     * Extracts the first recipientRole from the MDMS eventConfig's recipientRoles array.
+     * Extracts all recipientRoles from the MDMS eventConfig's recipientRoles array.
      * Returns null if not configured.
      */
-    private String extractRecipientRole(JsonNode eventConfig) {
-        JsonNode recipientRoles = eventConfig.path(Constants.FIELD_RECIPIENT_ROLES);
-        if (recipientRoles.isArray() && recipientRoles.size() > 0) {
-            String role = recipientRoles.get(0).asText(null);
-            if (role != null && !role.isBlank()) {
-                log.debug("Extracted recipientRole from MDMS: {}", role);
-                return role;
+    private List<String> extractRecipientRoles(JsonNode eventConfig) {
+        JsonNode recipientRolesNode = eventConfig.path(Constants.FIELD_RECIPIENT_ROLES);
+        if (recipientRolesNode.isArray() && recipientRolesNode.size() > 0) {
+            List<String> roles = new ArrayList<>();
+            for (JsonNode roleNode : recipientRolesNode) {
+                String role = roleNode.asText(null);
+                if (role != null && !role.isBlank()) {
+                    roles.add(role);
+                }
+            }
+            if (!roles.isEmpty()) {
+                log.debug("Extracted recipientRoles from MDMS: {}", roles);
+                return roles;
             }
         }
         return null;
@@ -305,7 +311,7 @@ public class HFReferralNotificationAdapter {
 
     private NotificationEvent buildEvent(String entityId, String eventType, String tenantId,
                                           String templateCode, String locale,
-                                          String facilityId, String recipientRole,
+                                          String facilityId, List<String> recipientRoles,
                                           Map<String, Object> placeholders, Map<String, String> data,
                                           String title) {
         return NotificationEvent.builder()
@@ -317,7 +323,7 @@ public class HFReferralNotificationAdapter {
                 .title(title)
                 .locale(locale)
                 .recipientFacilityId(facilityId)
-                .recipientRole(recipientRole)
+                .recipientRoles(recipientRoles)
                 .placeholders(placeholders)
                 .data(data)
                 .channel(NotificationChannel.PUSH)
