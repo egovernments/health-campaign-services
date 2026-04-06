@@ -1,6 +1,7 @@
 package org.egov.web.notification.push.repository;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -71,6 +72,23 @@ public class DeviceTokenRepository {
 			return namedParameterJdbcTemplate.query(query, params, rowMapper);
 		} catch (Exception e) {
 			log.error("Error while fetching device tokens by facilityId: ", e);
+			return Collections.emptyList();
+		}
+	}
+
+	public List<DeviceToken> fetchTokensByFacilityIdAndRole(String facilityId, String role, String tenantId) {
+		if (facilityId == null || facilityId.isEmpty() || role == null || role.isEmpty()) {
+			return Collections.emptyList();
+		}
+		String schema = getSchemaFromTenantId(tenantId);
+		Map<String, Object> params = new HashMap<>();
+		params.put("facilityId", facilityId);
+		params.put("rolePattern", "%" + role + "%");
+		try {
+			return namedParameterJdbcTemplate.query(
+					DeviceTokenQueryBuilder.fetchTokensByFacilityIdAndRole(schema), params, rowMapper);
+		} catch (Exception e) {
+			log.error("Error while fetching device tokens by facilityId and role: ", e);
 			return Collections.emptyList();
 		}
 	}

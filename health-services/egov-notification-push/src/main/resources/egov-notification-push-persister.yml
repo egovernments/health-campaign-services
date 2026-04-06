@@ -9,10 +9,11 @@ serviceMaps:
       queryMaps:
         - query: >-
             INSERT INTO eg_push_device_tokens
-            (id, userid, devicetoken, devicetype, tenantid, facilityid, createdby, createdtime, lastmodifiedby, lastmodifiedtime)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            (id, userid, devicetoken, devicetype, tenantid, facilityid, userroles, createdby, createdtime, lastmodifiedby, lastmodifiedtime)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT (devicetoken, facilityid) DO UPDATE SET
             userid = EXCLUDED.userid, devicetype = EXCLUDED.devicetype, tenantid = EXCLUDED.tenantid,
+            userroles = EXCLUDED.userroles,
             lastmodifiedby = EXCLUDED.lastmodifiedby, lastmodifiedtime = EXCLUDED.lastmodifiedtime
           basePath: $.deviceTokens.*
           jsonMaps:
@@ -22,6 +23,7 @@ serviceMaps:
             - jsonPath: $.deviceTokens.*.deviceType
             - jsonPath: $.deviceTokens.*.tenantId
             - jsonPath: $.deviceTokens.*.facilityId
+            - jsonPath: $.deviceTokens.*.userRoles
             - jsonPath: $.deviceTokens.*.auditDetails.createdBy
             - jsonPath: $.deviceTokens.*.auditDetails.createdTime
             - jsonPath: $.deviceTokens.*.auditDetails.lastModifiedBy
