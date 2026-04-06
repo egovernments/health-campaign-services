@@ -86,7 +86,7 @@ public class DIGITHCMStockMapper {
         supplyDelivery.setDestination(new Reference()
                         .setIdentifier( new Identifier()
                                 .setSystem(Constants.FACILITY_ID_SYSTEM)
-                                .setValue("F-2024-06-26-004987")));
+                                .setValue(stock.getReceiverId())));
 
         return supplyDelivery;
     }

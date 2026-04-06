@@ -143,7 +143,7 @@ public class FhirApiController {
             , @Valid @RequestBody StockSearchRequest stockRequest) {
 
         StockBulkResponse response = diService.fetchAllStocks(urlParams, stockRequest);
-        if (response.getStock() == null)
+        if (response == null || response.getStock() == null)
             return ResponseEntity.noContent().build();
 
         Integer totalCount = response.getTotalCount() != null
@@ -188,6 +188,9 @@ public class FhirApiController {
     ) {
         RequestInfo requestInfo = wrapper.getRequestInfo();
         BoundarySearchResponse response = diService.fetchAllBoundaries(boundaryRelationshipSearchCriteria, requestInfo);
+        if (response == null || response.getTenantBoundary() == null) {
+            return ResponseEntity.noContent().build();
+        }
         String boundaries = ftService.convertBoundaryRelationshipToFHIR(response.getTenantBoundary());
         return ResponseEntity.ok(boundaries);
     }
