@@ -3,6 +3,8 @@ package org.egov.web.notification.push.repository.rowmappers;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -32,6 +34,8 @@ public class DeviceTokenRowMapper implements ResultSetExtractor<List<DeviceToken
 						.lastModifiedBy(resultSet.getString("lastmodifiedby"))
 						.lastModifiedTime(resultSet.getLong("lastmodifiedtime")).build();
 
+				String userRolesStr = resultSet.getString("userroles");
+
 				token = DeviceToken.builder()
 						.id(resultSet.getString("id"))
 						.userId(resultSet.getString("userid"))
@@ -39,6 +43,7 @@ public class DeviceTokenRowMapper implements ResultSetExtractor<List<DeviceToken
 						.deviceType(resultSet.getString("devicetype"))
 						.tenantId(resultSet.getString("tenantid"))
 						.facilityIds(new ArrayList<>())
+						.userRoles(userRolesStr)
 						.auditDetails(audit).build();
 				tokenMap.put(deviceTokenStr, token);
 			}
