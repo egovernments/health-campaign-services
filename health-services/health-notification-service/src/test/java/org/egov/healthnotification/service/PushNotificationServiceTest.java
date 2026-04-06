@@ -39,7 +39,7 @@ class PushNotificationServiceTest {
         Map<String, String> data = Map.of("notificationType", "STOCK", "eventType", "STOCK_ISSUE_PUSH_NOTIFICATION");
 
         pushNotificationService.sendPushNotification(
-                "Stock Issue", "50 ITN Nets issued", "facility-123", "tenant1", data);
+                "Stock Issue", "50 ITN Nets issued", "facility-123", "WAREHOUSE_MANAGER", "tenant1", data);
 
         ArgumentCaptor<Map> captor = ArgumentCaptor.forClass(Map.class);
         verify(producer).push(eq("egov.core.notification.push"), captor.capture());
@@ -48,6 +48,7 @@ class PushNotificationServiceTest {
         assertEquals("Stock Issue", payload.get("title"));
         assertEquals("50 ITN Nets issued", payload.get("body"));
         assertEquals("facility-123", payload.get("facilityId"));
+        assertEquals("WAREHOUSE_MANAGER", payload.get("recipientRole"));
         assertEquals("tenant1", payload.get("tenantId"));
         assertEquals(data, payload.get("data"));
     }
@@ -57,7 +58,7 @@ class PushNotificationServiceTest {
         when(properties.getPushNotificationEnabled()).thenReturn(false);
 
         pushNotificationService.sendPushNotification(
-                "Title", "Body", "fac-1", "tenant1", null);
+                "Title", "Body", "fac-1", null, "tenant1", null);
 
         verify(producer, never()).push(any(), any());
     }
@@ -67,7 +68,7 @@ class PushNotificationServiceTest {
         when(properties.getPushNotificationEnabled()).thenReturn(true);
 
         pushNotificationService.sendPushNotification(
-                "Title", "Body", null, "tenant1", null);
+                "Title", "Body", null, null, "tenant1", null);
 
         verify(producer, never()).push(any(), any());
     }
@@ -77,7 +78,7 @@ class PushNotificationServiceTest {
         when(properties.getPushNotificationEnabled()).thenReturn(true);
 
         pushNotificationService.sendPushNotification(
-                "Title", "Body", "  ", "tenant1", null);
+                "Title", "Body", "  ", null, "tenant1", null);
 
         verify(producer, never()).push(any(), any());
     }
@@ -88,7 +89,7 @@ class PushNotificationServiceTest {
         when(properties.getPushNotificationTopic()).thenReturn("push-topic");
 
         pushNotificationService.sendPushNotification(
-                "Title", "Body", "fac-1", "tenant1", null);
+                "Title", "Body", "fac-1", null, "tenant1", null);
 
         ArgumentCaptor<Map> captor = ArgumentCaptor.forClass(Map.class);
         verify(producer).push(eq("push-topic"), captor.capture());
@@ -102,7 +103,7 @@ class PushNotificationServiceTest {
         when(properties.getPushNotificationTopic()).thenReturn("push-topic");
 
         pushNotificationService.sendPushNotification(
-                "Title", "Body", "fac-1", "tenant1", Map.of());
+                "Title", "Body", "fac-1", null, "tenant1", Map.of());
 
         ArgumentCaptor<Map> captor = ArgumentCaptor.forClass(Map.class);
         verify(producer).push(eq("push-topic"), captor.capture());
@@ -119,6 +120,6 @@ class PushNotificationServiceTest {
 
         assertThrows(CustomException.class, () ->
                 pushNotificationService.sendPushNotification(
-                        "Title", "Body", "fac-1", "tenant1", Map.of("key", "val")));
+                        "Title", "Body", "fac-1", null, "tenant1", Map.of("key", "val")));
     }
 }

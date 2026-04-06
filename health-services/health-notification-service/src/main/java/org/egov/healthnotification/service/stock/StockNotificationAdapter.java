@@ -112,11 +112,14 @@ public class StockNotificationAdapter {
         // Map eventType to a human-readable title for the push notification
         String title = mapEventTypeToTitle(eventType);
 
+        // Extract recipientRoles from MDMS event config (first role used for filtering)
+        String recipientRole = extractRecipientRole(eventConfig);
+
         // Determine notification recipient facilityId based on stockEntryType + status
         String recipientFacilityId = resolveRecipientFacilityId(stock, stockEntryType, stockStatus);
         if (recipientFacilityId != null && !recipientFacilityId.isBlank()) {
             events.add(buildEvent(stock, eventType, tenantId, templateCode,
-                    locale, recipientFacilityId, placeholders, navigationData, title));
+                    locale, recipientFacilityId, recipientRole, placeholders, navigationData, title));
         }
 
         log.info("Built {} notification event(s) for stock id={}, eventType={}",
@@ -438,6 +441,23 @@ public class StockNotificationAdapter {
     }
 
     /**
+     * Extracts the first recipientRole from the MDMS eventConfig's recipientRoles array.
+     * e.g. "recipientRoles": ["WAREHOUSE_MANAGER"] → returns "WAREHOUSE_MANAGER"
+     * Returns null if not configured.
+     */
+    private String extractRecipientRole(JsonNode eventConfig) {
+        JsonNode recipientRoles = eventConfig.path(Constants.FIELD_RECIPIENT_ROLES);
+        if (recipientRoles.isArray() && recipientRoles.size() > 0) {
+            String role = recipientRoles.get(0).asText(null);
+            if (role != null && !role.isBlank()) {
+                log.debug("Extracted recipientRole from MDMS: {}", role);
+                return role;
+            }
+        }
+        return null;
+    }
+
+    /**
      * Extracts templateCode from scheduledNotifications[0].templateCode
      * as per MDMS structure.
      */
@@ -492,7 +512,7 @@ public class StockNotificationAdapter {
 
     private NotificationEvent buildEvent(Stock stock, String eventType, String tenantId,
                                           String templateCode, String locale,
-                                          String recipientFacilityId,
+                                          String recipientFacilityId, String recipientRole,
                                           Map<String, Object> placeholders, Map<String, String> data,
                                           String title) {
         return NotificationEvent.builder()
@@ -504,6 +524,7 @@ public class StockNotificationAdapter {
                 .title(title)
                 .locale(locale)
                 .recipientFacilityId(recipientFacilityId)
+                .recipientRole(recipientRole)
                 .placeholders(placeholders)
                 .data(data)
                 .channel(NotificationChannel.PUSH)
