@@ -93,6 +93,25 @@ public class DeviceTokenRepository {
 		}
 	}
 
+	public List<DeviceToken> fetchTokensByFacilityIdAndRoles(String facilityId, List<String> roles, String tenantId) {
+		if (facilityId == null || facilityId.isEmpty() || roles == null || roles.isEmpty()) {
+			return Collections.emptyList();
+		}
+		String schema = getSchemaFromTenantId(tenantId);
+		Map<String, Object> params = new HashMap<>();
+		params.put("facilityId", facilityId);
+		for (int i = 0; i < roles.size(); i++) {
+			params.put("rolePattern" + i, "%" + roles.get(i) + "%");
+		}
+		try {
+			return namedParameterJdbcTemplate.query(
+					DeviceTokenQueryBuilder.fetchTokensByFacilityIdAndRoles(schema, roles.size()), params, rowMapper);
+		} catch (Exception e) {
+			log.error("Error while fetching device tokens by facilityId and roles: ", e);
+			return Collections.emptyList();
+		}
+	}
+
 	public int deleteByDeviceTokens(List<String> deviceTokens, String tenantId) {
 		if (deviceTokens == null || deviceTokens.isEmpty()) {
 			return 0;
