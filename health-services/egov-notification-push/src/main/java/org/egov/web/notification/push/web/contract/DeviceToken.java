@@ -47,6 +47,9 @@ public class DeviceToken {
 	// API field — accepts/returns multiple facilityIds per device token
 	private List<String> facilityIds;
 
+	// Comma-separated role codes stored in DB (e.g. "WAREHOUSE_MANAGER,DISTRIBUTOR")
+	private String userRoles;
+
 	private AuditDetails auditDetails;
 
 }

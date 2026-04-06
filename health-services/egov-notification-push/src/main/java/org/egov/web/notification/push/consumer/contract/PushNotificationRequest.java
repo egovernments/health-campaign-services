@@ -29,6 +29,10 @@ public class PushNotificationRequest {
     //Added facilityId — when present, the listener resolves device tokens from DB by facilityId
     private String facilityId;
 
+    // Role code for role-based filtering (e.g. "WAREHOUSE_MANAGER").
+    // When present with facilityId, only tokens with this role are resolved.
+    private String recipientRole;
+
     private String tenantId;
 
 }

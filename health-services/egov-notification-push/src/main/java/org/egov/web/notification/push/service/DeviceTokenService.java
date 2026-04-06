@@ -1,12 +1,15 @@
 package org.egov.web.notification.push.service;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
 import org.egov.common.contract.request.RequestInfo;
+import org.egov.common.contract.request.Role;
 import org.egov.tracer.model.CustomException;
 import org.egov.web.notification.push.config.PushProperties;
 import org.egov.web.notification.push.producer.DeviceTokenProducer;
@@ -38,6 +41,9 @@ public class DeviceTokenService {
 		Long now = new Date().getTime();
 		List<DeviceToken> expandedTokens = new ArrayList<>();
 
+		// Extract role codes from RequestInfo and store as comma-separated string
+		String userRoles = extractRoleCodes(requestInfo);
+
 		for (DeviceToken token : deviceTokens) {
 			if (StringUtils.isEmpty(token.getDeviceToken())) {
 				throw new CustomException(ErrorConstants.MISSING_DEVICE_TOKEN_CODE, ErrorConstants.MISSING_DEVICE_TOKEN_MSG);
@@ -62,11 +68,13 @@ public class DeviceTokenService {
 							.deviceType(token.getDeviceType())
 							.tenantId(token.getTenantId())
 							.facilityId(facilityId)
+							.userRoles(userRoles)
 							.auditDetails(audit)
 							.build());
 				}
 			} else {
 				token.setId(UUID.randomUUID().toString());
+				token.setUserRoles(userRoles);
 				expandedTokens.add(token);
 			}
 		}
@@ -132,9 +140,28 @@ public class DeviceTokenService {
 		return repository.fetchTokensByFacilityId(facilityId, tenantId);
 	}
 
+	public List<DeviceToken> getTokensByFacilityIdAndRole(String facilityId, String role, String tenantId) {
+		return repository.fetchTokensByFacilityIdAndRole(facilityId, role, tenantId);
+	}
+
 	public void deleteStaleTokens(List<String> deviceTokens, String tenantId) {
 		int deleted = repository.deleteByDeviceTokens(deviceTokens, tenantId);
 		log.info("Deleted {} stale device token row(s) for tokens: {}", deleted, deviceTokens);
+	}
+
+	/**
+	 * Extracts role codes from RequestInfo.userInfo.roles and returns as comma-separated string.
+	 * e.g. "WAREHOUSE_MANAGER,DISTRIBUTOR,SYSTEM_ADMINISTRATOR"
+	 */
+	private String extractRoleCodes(RequestInfo requestInfo) {
+		if (requestInfo.getUserInfo() == null || requestInfo.getUserInfo().getRoles() == null
+				|| requestInfo.getUserInfo().getRoles().isEmpty()) {
+			return null;
+		}
+		return requestInfo.getUserInfo().getRoles().stream()
+				.map(Role::getCode)
+				.filter(code -> code != null && !code.isBlank())
+				.collect(Collectors.joining(","));
 	}
 
 	private boolean isValidDeviceType(String deviceType) {

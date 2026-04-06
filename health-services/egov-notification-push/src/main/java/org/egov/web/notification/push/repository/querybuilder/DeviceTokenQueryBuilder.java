@@ -5,7 +5,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class DeviceTokenQueryBuilder {
 
-	private static final String COLUMNS = "id, userid, devicetoken, devicetype, tenantid, facilityid, "
+	private static final String COLUMNS = "id, userid, devicetoken, devicetype, tenantid, facilityid, userroles, "
 			+ "createdby, createdtime, lastmodifiedby, lastmodifiedtime";
 
 	private static String table(String schema) {
@@ -23,6 +23,11 @@ public class DeviceTokenQueryBuilder {
 	public static String fetchLatestTokenByUserIds(String schema) {
 		return "SELECT DISTINCT ON (userid) " + COLUMNS + " FROM " + table(schema)
 				+ " WHERE userid IN (:userIds) ORDER BY userid, lastmodifiedtime DESC";
+	}
+
+	public static String fetchTokensByFacilityIdAndRole(String schema) {
+		return "SELECT " + COLUMNS + " FROM " + table(schema)
+				+ " WHERE facilityid = :facilityId AND userroles LIKE :rolePattern";
 	}
 
 	public static String deleteByDeviceTokens(String schema) {
