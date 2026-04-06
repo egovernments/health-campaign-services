@@ -72,6 +72,7 @@ class NotificationProcessorServiceTest {
                 eq("Stock Issue"),
                 eq("Warehouse A issued 50 ITN Nets"),
                 eq("facility-123"),
+                any(),
                 eq("tenant1"),
                 eq(event.getData()));
     }
@@ -91,6 +92,7 @@ class NotificationProcessorServiceTest {
                 eq("STOCK_ISSUE_PUSH_NOTIFICATION"),
                 eq("Body text"),
                 eq("facility-123"),
+                any(),
                 eq("tenant1"),
                 any());
     }
@@ -121,7 +123,7 @@ class NotificationProcessorServiceTest {
 
         processorService.processAndSend(event);
 
-        verify(pushNotificationService, never()).sendPushNotification(any(), any(), any(), any(), any());
+        verify(pushNotificationService, never()).sendPushNotification(any(), any(), any(), any(), any(), any());
     }
 
     @Test
@@ -129,7 +131,7 @@ class NotificationProcessorServiceTest {
         processorService.processAndSendBatch(null);
         processorService.processAndSendBatch(Collections.emptyList());
 
-        verify(pushNotificationService, never()).sendPushNotification(any(), any(), any(), any(), any());
+        verify(pushNotificationService, never()).sendPushNotification(any(), any(), any(), any(), any(), any());
     }
 
     @Test
@@ -144,7 +146,7 @@ class NotificationProcessorServiceTest {
         processorService.processAndSendBatch(Arrays.asList(event1, event2));
 
         verify(pushNotificationService, times(2))
-                .sendPushNotification(any(), any(), any(), any(), any());
+                .sendPushNotification(any(), any(), any(), any(), any(), any());
     }
 
     @Test

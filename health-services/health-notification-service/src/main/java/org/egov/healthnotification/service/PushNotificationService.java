@@ -37,14 +37,16 @@ public class PushNotificationService {
     /**
      * Sends a push notification via Kafka to egov-notification-push.
      *
-     * @param title      Notification title
-     * @param body       Notification body text
-     * @param facilityId Recipient facility ID (notification-push resolves device tokens from this)
-     * @param tenantId   Tenant ID
-     * @param data       Custom metadata (screen navigation, txn ref, etc.)
+     * @param title         Notification title
+     * @param body          Notification body text
+     * @param facilityId    Recipient facility ID (notification-push resolves device tokens from this)
+     * @param recipientRole Role code for role-based filtering (e.g. "WAREHOUSE_MANAGER"); may be null
+     * @param tenantId      Tenant ID
+     * @param data          Custom metadata (screen navigation, txn ref, etc.)
      */
     public void sendPushNotification(String title, String body,
                                       String facilityId,
+                                      String recipientRole,
                                       String tenantId,
                                       Map<String, String> data) {
         if (!Boolean.TRUE.equals(properties.getPushNotificationEnabled())) {
@@ -63,6 +65,9 @@ public class PushNotificationService {
             pushRequest.put("body", body);
             pushRequest.put("facilityId", facilityId);
             pushRequest.put("tenantId", tenantId);
+            if (recipientRole != null && !recipientRole.isBlank()) {
+                pushRequest.put("recipientRole", recipientRole);
+            }
             if (data != null && !data.isEmpty()) {
                 pushRequest.put("data", data);
             }

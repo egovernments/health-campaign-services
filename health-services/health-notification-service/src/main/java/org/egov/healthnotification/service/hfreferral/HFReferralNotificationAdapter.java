@@ -123,8 +123,11 @@ public class HFReferralNotificationAdapter {
         String title = Constants.TITLE_REFERRAL_CREATED;
         String entityId = recordId.equals("unknown") ? clientReferenceId : recordId;
 
+        // Extract recipientRole from MDMS event config
+        String recipientRole = extractRecipientRole(eventConfig);
+
         events.add(buildEvent(entityId, eventType, tenantId, templateCode,
-                locale, facilityId, placeholders, navigationData, title));
+                locale, facilityId, recipientRole, placeholders, navigationData, title));
 
         log.info("Built {} notification event(s) for HFReferral id={}, eventType={}, facilityId={}",
                 events.size(), entityId, eventType, facilityId);
@@ -231,6 +234,22 @@ public class HFReferralNotificationAdapter {
         return null;
     }
 
+    /**
+     * Extracts the first recipientRole from the MDMS eventConfig's recipientRoles array.
+     * Returns null if not configured.
+     */
+    private String extractRecipientRole(JsonNode eventConfig) {
+        JsonNode recipientRoles = eventConfig.path(Constants.FIELD_RECIPIENT_ROLES);
+        if (recipientRoles.isArray() && recipientRoles.size() > 0) {
+            String role = recipientRoles.get(0).asText(null);
+            if (role != null && !role.isBlank()) {
+                log.debug("Extracted recipientRole from MDMS: {}", role);
+                return role;
+            }
+        }
+        return null;
+    }
+
     private String extractTemplateCode(JsonNode eventConfig) {
         JsonNode scheduledNotifications = eventConfig.path(Constants.FIELD_SCHEDULED_NOTIFICATIONS);
         if (scheduledNotifications.isArray() && scheduledNotifications.size() > 0) {
@@ -286,7 +305,7 @@ public class HFReferralNotificationAdapter {
 
     private NotificationEvent buildEvent(String entityId, String eventType, String tenantId,
                                           String templateCode, String locale,
-                                          String facilityId,
+                                          String facilityId, String recipientRole,
                                           Map<String, Object> placeholders, Map<String, String> data,
                                           String title) {
         return NotificationEvent.builder()
@@ -298,6 +317,7 @@ public class HFReferralNotificationAdapter {
                 .title(title)
                 .locale(locale)
                 .recipientFacilityId(facilityId)
+                .recipientRole(recipientRole)
                 .placeholders(placeholders)
                 .data(data)
                 .channel(NotificationChannel.PUSH)
