@@ -80,6 +80,29 @@
       "fhirField": "name", "egovField": "id",
       "transform": "staticValue",
       "transformConfig": { "toFhir": "Household" }
+    },
+    {
+      "fhirField": "member", "egovField": "members",
+      "isArray": true,
+      "fieldMappings": [
+        {
+          "fhirField": "entity.reference", "egovField": "individualId",
+          "transform": "concatPrefix",
+          "transformConfig": { "toFhir": "Patient/", "toEgov": "Patient/" }
+        },
+        {
+          "fhirField": "entity.type", "egovField": "individualId",
+          "transform": "staticValue",
+          "transformConfig": { "toFhir": "Patient" }
+        },
+        {
+          "fhirField": "inactive", "egovField": "isDeleted"
+        },
+        {
+          "fhirField": "period.start", "egovField": "auditDetails.createdTime",
+          "transform": "epochToIso"
+        }
+      ]
     }
   ],
 

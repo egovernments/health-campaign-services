@@ -312,6 +312,17 @@ public class TransformService {
                 }
                 yield value;
             }
+            case "concatPrefix" -> {
+                if (direction.equals("toFhir") && config != null && config.get("toFhir") != null) {
+                    yield config.get("toFhir") + value.toString();
+                }
+                if (direction.equals("toEgov") && config != null && config.get("toEgov") != null) {
+                    String prefix = (String) config.get("toEgov");
+                    String str = value.toString();
+                    yield str.startsWith(prefix) ? str.substring(prefix.length()) : str;
+                }
+                yield value;
+            }
             case "telecomEntry" -> {
                 if (direction.equals("toFhir")) {
                     // Build full FHIR telecom object from plain value using config for system/use
