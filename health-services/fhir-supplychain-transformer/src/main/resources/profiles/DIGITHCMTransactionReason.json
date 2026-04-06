@@ -1,0 +1,55 @@
+{
+  "resourceType": "CodeSystem",
+  "title": "DIGITHCMTransactionReason",
+  "url": "http://digit.org/fhir/CodeSystem/transactionReason",
+  "status": "draft",
+  "contact": [
+    {
+      "telecom": [
+        {
+          "system": "email"
+        }
+      ]
+    }
+  ],
+  "description": "Transaction reason for stock movement",
+  "compositional": false,
+  "content": "complete",
+  "concept": [
+    {
+      "code": "received",
+      "display": "RECEIVED"
+    },
+    {
+      "code": "issued",
+      "display": "ISSUED"
+    },
+    {
+      "code": "returned",
+      "display": "RETURNED"
+    },
+    {
+      "code": "lost_in_storage",
+      "display": "LOST_IN_STORAGE"
+    },
+    {
+      "code": "lost_in_transit",
+      "display": "LOST_IN_TRANSIT"
+    },
+    {
+      "code": "damaged_in_storage",
+      "display": "DAMAGED_IN_STORAGE"
+    },
+    {
+      "code": "damaged_in_transit",
+      "display": "DAMAGED_IN_TRANSIT"
+    }
+  ],
+  "text": {
+    "status": "generated",
+    "div": "<div xmlns=\"http://www.w3.org/1999/xhtml\"><h2>DIGITHCMTransactionReason</h2><tt>http://digit.org/fhir/CodeSystem/transactionReason</tt><p>Transaction reason for stock movement</p></div>"
+  },
+  "valueSet": "http://digit.org/fhir/ValueSet/transactiontype-vs",
+  "count": 7,
+  "name": "DIGITHCMTransactionReason"
+}

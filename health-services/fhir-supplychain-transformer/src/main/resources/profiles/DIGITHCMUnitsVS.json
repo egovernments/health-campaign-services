@@ -1,0 +1,43 @@
+{
+  "resourceType": "ValueSet",
+  "url": "https://digit.org/fhir/ValueSet/Units",
+  "title": "DIGIT HCM Units",
+  "status": "active",
+  "contact": [
+    {
+      "telecom": [
+        {
+          "system": "email",
+          "value": "contact@egovernments.org"
+        }
+      ],
+      "name": "eGov Foundation"
+    },
+    {
+      "telecom": [
+        {
+          "system": "email",
+          "value": "pmmrunal@gmail.com"
+        }
+      ],
+      "name": "Mrunal Surve"
+    }
+  ],
+  "compose": {
+    "include": [
+      {
+        "system": "https://digit.org/CodeSystem/units"
+      },
+      {
+        "system": "http://unitsofmeasure.org"
+      }
+    ]
+  },
+  "text": {
+    "status": "generated",
+    "div": "<div xmlns=\"http://www.w3.org/1999/xhtml\"><h2>DIGIT HCM Units</h2><tt>https://digit.org/fhir/ValueSet/Units</tt></div>"
+  },
+  "name": "DIGITHCMUnitsVS",
+  "date": "2026-01-13T00:00:00.000Z",
+  "publisher": "eGov Foundation"
+}

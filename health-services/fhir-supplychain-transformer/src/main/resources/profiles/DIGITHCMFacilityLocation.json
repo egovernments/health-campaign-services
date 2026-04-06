@@ -1,0 +1,98 @@
+{
+  "resourceType": "StructureDefinition",
+  "url": "https://digit.org/fhir/StructureDefinition/DIGITHCMFacilityLocation",
+  "name": "DIGITHCMFacilityLocation",
+  "status": "active",
+  "fhirVersion": "5.0.0",
+  "kind": "resource",
+  "abstract": false,
+  "type": "Location",
+  "baseDefinition": "http://hl7.org/fhir/StructureDefinition/Location",
+  "derivation": "constraint",
+  "differential": {
+    "element": [
+      {
+        "id": "Location.extension",
+        "path": "Location.extension",
+        "slicing": {
+          "ordered": false,
+          "rules": "open"
+        }
+      },
+      {
+        "id": "Location.identifier",
+        "path": "Location.identifier",
+        "min": 1
+      },
+      {
+        "id": "Location.identifier.system",
+        "path": "Location.identifier.system",
+        "fixedUri": "https://digit.org/fhir/facilityid"
+      },
+      {
+        "id": "Location.type",
+        "path": "Location.type",
+        "slicing": {
+          "discriminator": [
+            {
+              "type": "value",
+              "path": "$this"
+            }
+          ],
+          "rules": "open"
+        },
+        "min": 2
+      },
+      {
+        "id": "Location.type:facility",
+        "path": "Location.type",
+        "sliceName": "facility",
+        "min": 1,
+        "max": "1",
+        "patternCodeableConcept": {
+          "coding": [
+            {
+              "system": "https://digit.org/CodeSystem/DIGITHCM.Location.Types",
+              "code": "facility"
+            }
+          ]
+        },
+        "binding": {
+          "strength": "extensible",
+          "description": "Indicates the type of facility at the location."
+        }
+      },
+      {
+        "id": "Location.type:usage",
+        "path": "Location.type",
+        "sliceName": "usage",
+        "min": 1,
+        "max": "1",
+        "patternCodeableConcept": {
+          "coding": [
+            {
+              "system": "http://digit.org/fhir/CodeSystem/facilityUsage"
+            }
+          ]
+        },
+        "binding": {
+          "strength": "example",
+          "valueSet": "http://digit.org/fhir/ValueSet/facilityUsage"
+        }
+      },
+      {
+        "id": "Location.partOf",
+        "path": "Location.partOf",
+        "type": [
+          {
+            "code": "Reference",
+            "targetProfile": [
+              "https://digit.org/fhir/StructureDefinition/DIGITHCMBoundary",
+              "https://digit.org/fhir/StructureDefinition/DIGITHCMFacilityLocation"
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

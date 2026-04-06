@@ -1,0 +1,58 @@
+{
+  "resourceType": "CodeSystem",
+  "title": "DIGITHCMTransactionType",
+  "url": "http://digit.org/fhir/CodeSystem/transactiontype",
+  "status": "active",
+  "contact": [
+    {
+      "telecom": [
+        {
+          "system": "email",
+          "value": "contact@egovernments.org"
+        }
+      ],
+      "name": "eGov Foundation"
+    },
+    {
+      "telecom": [
+        {
+          "system": "email",
+          "value": "pmmrunal@gmail.com"
+        }
+      ],
+      "name": "Mrunal Surve"
+    }
+  ],
+  "description": "Transaction types for stock movement",
+  "compositional": false,
+  "content": "complete",
+  "concept": [
+    {
+      "code": "received",
+      "display": "RECEIVED"
+    },
+    {
+      "code": "dispatched",
+      "display": "DISPATCHED"
+    },
+    {
+      "code": "RECEIVED",
+      "display": "RECEIVED"
+    },
+    {
+      "code": "DISPATCHED",
+      "display": "DISPATCHED"
+    }
+  ],
+  "text": {
+    "status": "generated",
+    "div": "<div xmlns=\"http://www.w3.org/1999/xhtml\"><h2>DIGITHCMTransactionType</h2><tt>http://digit.org/fhir/CodeSystem/transactiontype</tt><p>Transaction types for stock movement</p></div>"
+  },
+  "caseSensitive": true,
+  "publisher": "eGov Foundation",
+  "date": "2025-07-06T00:00:00Z",
+  "experimental": false,
+  "valueSet": "http://digit.org/fhir/ValueSet/transactiontype-vs",
+  "count": 2,
+  "name": "DIGITHCMTransactionType"
+}

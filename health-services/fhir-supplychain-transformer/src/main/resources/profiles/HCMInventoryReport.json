@@ -1,0 +1,101 @@
+{
+  "resourceType": "StructureDefinition",
+  "url": "https://digit.org/fhir/StructureDefinition/HCMInventoryReport",
+  "name": "HCMInventoryReport",
+  "status": "active",
+  "fhirVersion": "5.0.0",
+  "kind": "resource",
+  "abstract": false,
+  "type": "InventoryReport",
+  "baseDefinition": "http://hl7.org/fhir/StructureDefinition/InventoryReport",
+  "derivation": "constraint",
+  "differential": {
+    "element": [
+      {
+        "id": "InventoryReport.identifier",
+        "path": "InventoryReport.identifier",
+        "min": 1
+      },
+      {
+        "id": "InventoryReport.identifier.system",
+        "path": "InventoryReport.identifier.system",
+        "min": 1
+      },
+      {
+        "id": "InventoryReport.identifier.value",
+        "path": "InventoryReport.identifier.value",
+        "min": 1
+      },
+      {
+        "id": "InventoryReport.status",
+        "path": "InventoryReport.status",
+        "fixedCode": "active"
+      },
+      {
+        "id": "InventoryReport.countType",
+        "path": "InventoryReport.countType",
+        "fixedCode": "snapshot"
+      },
+      {
+        "id": "InventoryReport.inventoryListing.location",
+        "path": "InventoryReport.inventoryListing.location",
+        "type": [
+          {
+            "code": "Reference",
+            "targetProfile": [
+              "https://digit.org/fhir/StructureDefinition/DIGITHCMFacilityLocation"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "InventoryReport.inventoryListing.location.identifier.system",
+        "path": "InventoryReport.inventoryListing.location.identifier.system",
+        "fixedUri": "http://digit.org/fhir/facilityid"
+      },
+      {
+        "id": "InventoryReport.inventoryListing.item.quantity.code",
+        "path": "InventoryReport.inventoryListing.item.quantity.code",
+        "binding": {
+          "strength": "example",
+          "valueSet": "https://digit.org/fhir/ValueSet/Units"
+        }
+      },
+      {
+        "id": "InventoryReport.inventoryListing.item.item",
+        "path": "InventoryReport.inventoryListing.item.item",
+        "type": [
+          {
+            "code": "CodeableReference",
+            "targetProfile": [
+              "https://digit.org/fhir/StructureDefinition/HCMInventoryItem",
+              "http://hl7.org/fhir/StructureDefinition/Medication",
+              "http://hl7.org/fhir/StructureDefinition/Device",
+              "http://hl7.org/fhir/StructureDefinition/Medication",
+              "http://hl7.org/fhir/StructureDefinition/NutritionProduct",
+              "http://hl7.org/fhir/StructureDefinition/InventoryItem",
+              "http://hl7.org/fhir/StructureDefinition/BiologicallyDerivedProduct"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "InventoryReport.inventoryListing.item.item.reference",
+        "path": "InventoryReport.inventoryListing.item.item.reference",
+        "type": [
+          {
+            "code": "Reference",
+            "targetProfile": [
+              "https://digit.org/fhir/StructureDefinition/HCMInventoryItem"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "InventoryReport.inventoryListing.item.item.reference.identifier.system",
+        "path": "InventoryReport.inventoryListing.item.item.reference.identifier.system",
+        "fixedUri": "http://digit.org/fhir/productVariant-identifier"
+      }
+    ]
+  }
+}

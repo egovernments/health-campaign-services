@@ -1,0 +1,219 @@
+{
+  "resourceType": "StructureDefinition",
+  "url": "https://digit.org/fhir/StructureDefinition/DIGITHCMInventoryItem",
+  "version": "1.0.3",
+  "name": "DIGITHCMInventoryItem",
+  "title": "HCM InventoryItem",
+  "status": "active",
+  "experimental": false,
+  "date": "2025-08-10",
+  "publisher": "DIGIT HCM",
+  "description": "InventoryItem profile for DIGIT HCM supply-chain interoperability. Uses value discrimination on nameType.code and has no unsliced name.* constraints.",
+  "fhirVersion": "5.0.0",
+  "kind": "resource",
+  "abstract": false,
+  "type": "InventoryItem",
+  "baseDefinition": "http://hl7.org/fhir/StructureDefinition/InventoryItem",
+  "derivation": "constraint",
+  "differential": {
+    "element": [
+      {
+        "id": "InventoryItem.identifier",
+        "path": "InventoryItem.identifier",
+        "slicing": {
+          "discriminator": [
+            {
+              "type": "value",
+              "path": "system"
+            }
+          ],
+          "ordered": false,
+          "rules": "open"
+        },
+        "min": 3
+      },
+      {
+        "id": "InventoryItem.identifier:ProductID",
+        "path": "InventoryItem.identifier",
+        "sliceName": "ProductID",
+        "min": 1,
+        "max": "1"
+      },
+      {
+        "id": "InventoryItem.identifier:ProductID.system",
+        "path": "InventoryItem.identifier.system",
+        "min": 1,
+        "fixedUri": "http://digit.org/fhir/productID"
+      },
+      {
+        "id": "InventoryItem.identifier:ProductID.value",
+        "path": "InventoryItem.identifier.value",
+        "min": 1
+      },
+      {
+        "id": "InventoryItem.identifier:productVariant",
+        "path": "InventoryItem.identifier",
+        "sliceName": "productVariant",
+        "min": 1,
+        "max": "1"
+      },
+      {
+        "id": "InventoryItem.identifier:productVariant.system",
+        "path": "InventoryItem.identifier.system",
+        "min": 1,
+        "fixedUri": "http://digit.org/fhir/productVariant-identifier"
+      },
+      {
+        "id": "InventoryItem.identifier:productVariant.value",
+        "path": "InventoryItem.identifier.value",
+        "min": 1
+      },
+      {
+        "id": "InventoryItem.identifier:productVariantSku",
+        "path": "InventoryItem.identifier",
+        "sliceName": "productVariantSku",
+        "min": 1,
+        "max": "1"
+      },
+      {
+        "id": "InventoryItem.identifier:productVariantSku.system",
+        "path": "InventoryItem.identifier.system",
+        "min": 1,
+        "fixedUri": "http://digit.org/fhir/productVariantSku-identifier"
+      },
+      {
+        "id": "InventoryItem.identifier:productVariantSku.value",
+        "path": "InventoryItem.identifier.value",
+        "min": 1
+      },
+      {
+        "id": "InventoryItem.status",
+        "path": "InventoryItem.status",
+        "fixedCode": "active"
+      },
+      {
+        "id": "InventoryItem.category.coding.system",
+        "path": "InventoryItem.category.coding.system",
+        "fixedUri": "http://digit.org/fhir/CodeSystem/ProductVariant-Producttype"
+      },
+      {
+        "id": "InventoryItem.name",
+        "path": "InventoryItem.name",
+        "slicing": {
+          "discriminator": [
+            {
+              "type": "value",
+              "path": "nameType.code"
+            }
+          ],
+          "ordered": false,
+          "rules": "open"
+        },
+        "min": 2
+      },
+      {
+        "id": "InventoryItem.name:tradename",
+        "path": "InventoryItem.name",
+        "sliceName": "tradename",
+        "min": 1,
+        "max": "1"
+      },
+      {
+        "id": "InventoryItem.name:tradename.nameType.system",
+        "path": "InventoryItem.name.nameType.system",
+        "fixedUri": "http://hl7.org/fhir/inventoryitem-nametype"
+      },
+      {
+        "id": "InventoryItem.name:tradename.nameType.code",
+        "path": "InventoryItem.name.nameType.code",
+        "fixedCode": "trade-name"
+      },
+      {
+        "id": "InventoryItem.name:tradename.language",
+        "path": "InventoryItem.name.language",
+        "fixedCode": "en-US"
+      },
+      {
+        "id": "InventoryItem.name:commonName",
+        "path": "InventoryItem.name",
+        "sliceName": "commonName",
+        "min": 1,
+        "max": "1"
+      },
+      {
+        "id": "InventoryItem.name:commonName.nameType.system",
+        "path": "InventoryItem.name.nameType.system",
+        "fixedUri": "http://hl7.org/fhir/inventoryitem-nametype"
+      },
+      {
+        "id": "InventoryItem.name:commonName.nameType.code",
+        "path": "InventoryItem.name.nameType.code",
+        "fixedCode": "alias"
+      },
+      {
+        "id": "InventoryItem.responsibleOrganization.role.coding.system",
+        "path": "InventoryItem.responsibleOrganization.role.coding.system",
+        "fixedUri": "http://digit.org/fhir/CodeSystem/responsibleOrganization-role"
+      },
+      {
+        "id": "InventoryItem.responsibleOrganization.role.coding.code",
+        "path": "InventoryItem.responsibleOrganization.role.coding.code",
+        "fixedCode": "manufacturer"
+      },
+      {
+        "id": "InventoryItem.association.associationType.coding.system",
+        "path": "InventoryItem.association.associationType.coding.system",
+        "min": 1,
+        "fixedUri": "https://digit.org/CodeSystem/ProductAssociationType"
+      },
+      {
+        "id": "InventoryItem.association.associationType.coding.code",
+        "path": "InventoryItem.association.associationType.coding.code",
+        "min": 1
+      },
+      {
+        "id": "InventoryItem.association.relatedItem",
+        "path": "InventoryItem.association.relatedItem",
+        "type": [
+          {
+            "code": "Reference",
+            "targetProfile": [
+              "https://digit.org/fhir/StructureDefinition/DIGITHCMInventoryItem",
+              "http://hl7.org/fhir/StructureDefinition/InventoryItem",
+              "http://hl7.org/fhir/StructureDefinition/Medication",
+              "http://hl7.org/fhir/StructureDefinition/MedicationKnowledge",
+              "http://hl7.org/fhir/StructureDefinition/Device",
+              "http://hl7.org/fhir/StructureDefinition/DeviceDefinition",
+              "http://hl7.org/fhir/StructureDefinition/NutritionProduct",
+              "http://hl7.org/fhir/StructureDefinition/BiologicallyDerivedProduct"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "InventoryItem.instance.identifier.type.coding.system",
+        "path": "InventoryItem.instance.identifier.type.coding.system",
+        "min": 1
+      },
+      {
+        "id": "InventoryItem.instance.identifier.type.coding.code",
+        "path": "InventoryItem.instance.identifier.type.coding.code",
+        "min": 1
+      },
+      {
+        "id": "InventoryItem.instance.location",
+        "path": "InventoryItem.instance.location",
+        "type": [
+          {
+            "code": "Reference",
+            "targetProfile": [
+              "https://digit.org/fhir/StructureDefinition/DIGITHCMFacilityLocation",
+              "http://hl7.org/fhir/StructureDefinition/Location",
+              "https://digit.org/fhir/StructureDefinition/DIGITHCMBoundary"
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

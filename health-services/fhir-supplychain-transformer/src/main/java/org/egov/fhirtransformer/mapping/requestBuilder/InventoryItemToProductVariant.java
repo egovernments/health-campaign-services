@@ -1,0 +1,111 @@
+package org.egov.fhirtransformer.mapping.requestBuilder;
+
+import org.egov.common.contract.request.RequestInfo;
+import org.egov.common.models.core.URLParams;
+import org.egov.common.models.product.*;
+import org.egov.fhirtransformer.service.ApiIntegrationService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+
+/**
+ * Service responsible for transforming FHIR InventoryItem–derived
+ * {@link ProductVariant} data into DIGIT Product service requests.
+ */
+
+@Service
+public class InventoryItemToProductVariant {
+
+    @Autowired
+    private ApiIntegrationService apiIntegrationService;
+
+    @Autowired
+    private GenericCreateOrUpdateService genericCreateOrUpdateService;
+
+    @Value("${product.host}")
+    private String productHost;
+
+    @Value("${product.variant.create.endpoint}")
+    private String productVariantCreateEndpoint;
+
+    @Value("${product.variant.update.endpoint}")
+    private String productVariantUpdateEndpoint;
+
+    /**
+     * Transforms and persists ProductVariants derived from InventoryItems.
+     * @param productVariantMap map of ProductVariant ID to ProductVariant data;
+     *                          may be empty but not {@code null}
+     * @return map containing processing metrics
+     * @throws Exception if transformation or API invocation fails
+     */
+    public HashMap<String, Integer> transformInventoryItemToProductVariant(HashMap<String, ProductVariant> productVariantMap, RequestInfo requestInfo) throws Exception {
+        // Use the generic overloaded process: provide fetchExistingIds, create and update adapters
+        return genericCreateOrUpdateService.process(productVariantMap,
+                (productVariantIds) -> fetchExistingProductVariantIds(productVariantIds, requestInfo),
+                (toCreate, createUrl) -> createProductVariants(toCreate, createUrl, requestInfo),
+                (toUpdate, updateUrl) -> updateProductVariants(toUpdate, updateUrl, requestInfo),
+                productHost + productVariantCreateEndpoint,
+                productHost + productVariantUpdateEndpoint,
+                requestInfo,
+                "Error in Transforming InventoryItem To ProductVariant");
+    }
+
+    // Adapter: fetch existing IDs as flat list
+    private List<String> fetchExistingProductVariantIds(List<String> productVariantIds, RequestInfo requestInfo) throws Exception {
+        try{
+            URLParams urlParams = apiIntegrationService.formURLParams(productVariantIds);
+            ProductVariantSearch productVariantSearch = new ProductVariantSearch();
+            productVariantSearch.setId(productVariantIds);
+
+            ProductVariantSearchRequest productVariantSearchRequest = new ProductVariantSearchRequest();
+            productVariantSearchRequest.setRequestInfo(requestInfo);
+            productVariantSearchRequest.setProductVariant(productVariantSearch);
+
+            ProductVariantResponse productVariantResponse = apiIntegrationService.fetchAllProductVariants(urlParams, productVariantSearchRequest);
+
+            if (productVariantResponse.getProductVariant() == null){
+                return new ArrayList<>();
+            }
+            List<String> existingIds = new ArrayList<>();
+            for (ProductVariant productVariant : productVariantResponse.getProductVariant()) {
+                existingIds.add(productVariant.getId());
+            }
+            return existingIds;
+        } catch (Exception e){
+            throw new Exception("Error in fetchExisting productVariant: " + e.getMessage());
+        }
+    }
+
+    // Adapter: create list of ProductVariant using provided createUrl
+    private void createProductVariants(List<ProductVariant> toCreate, String createUrl, RequestInfo requestInfo) throws Exception {
+        try{
+            if (toCreate == null || toCreate.isEmpty()) return;
+            ProductVariantRequest productVariantRequest = new ProductVariantRequest();
+            productVariantRequest.setRequestInfo(requestInfo);
+            productVariantRequest.setProductVariant(toCreate);
+            productVariantRequest.setApiOperation(ApiOperation.CREATE);
+            apiIntegrationService.sendRequestToAPI(productVariantRequest, createUrl);
+        } catch (Exception e) {
+            throw new Exception("Error in createProductVariants: " + e.getMessage());
+        }
+    }
+
+    // Adapter: update list of ProductVariant using provided updateUrl
+    private void updateProductVariants(List<ProductVariant> toUpdate, String updateUrl, RequestInfo requestInfo) throws Exception {
+        try{
+            if (toUpdate == null || toUpdate.isEmpty()) return;
+            ProductVariantRequest productVariantRequest = new ProductVariantRequest();
+            productVariantRequest.setRequestInfo(requestInfo);
+            productVariantRequest.setProductVariant(toUpdate);
+            productVariantRequest.setApiOperation(ApiOperation.UPDATE);
+            apiIntegrationService.sendRequestToAPI(productVariantRequest, updateUrl);
+        } catch (Exception e) {
+            throw new Exception("Error in updateProductVariants: " + e.getMessage());
+        }
+    }
+
+    // ...existing legacy methods left for compatibility (not used by new flow)...
+}
