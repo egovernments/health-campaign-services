@@ -18,6 +18,6 @@ public class AttendanceDocumentEventRequest {
     @JsonProperty("RequestInfo")
     private RequestInfo requestInfo;
 
-    @JsonProperty("event")
+    @JsonProperty("attendanceDocumentEvent")
     private AttendanceDocumentEvent event;
 }
