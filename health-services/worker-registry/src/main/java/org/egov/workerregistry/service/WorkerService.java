@@ -299,10 +299,9 @@ public class WorkerService {
             }
 
             if (needsUpdate) {
-                enrichmentService.enrichUpdate(List.of(worker), requestInfo);
-                List<Worker> encrypted = workerEncryptionService.encrypt(List.of(worker), WorkerRegistryConstants.ENCRYPT_WORKER);
-                workerRepository.putInCache(encrypted);
-                workerRepository.update(encrypted, tenantId);
+                enrichmentService.enrichUpdate(workers, requestInfo);
+                workerRepository.putInCache(workers);
+                workerRepository.update(workers, tenantId);
                 log.info("Updated {} for worker: {}", event.getType(), workerId);
             } else {
                 log.info("Worker {} already has {} set, skipping update", workerId, event.getType());
