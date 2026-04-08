@@ -11,6 +11,7 @@ on:
         options:
           - health-services-common
           - health-services-models
+          - fhiradapter
           - product-17
           - product
           - project
@@ -61,6 +62,8 @@ on:
           - project-factory
           - excel-ingestion
           - boundary-management
+          - health-notification-service
+          - egov-notification-push
 
 env:
   DOCKER_USERNAME: ${{ vars.DOCKER_USERNAME }}
