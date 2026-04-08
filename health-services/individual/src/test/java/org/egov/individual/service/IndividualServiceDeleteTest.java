@@ -62,6 +62,21 @@ class IndividualServiceDeleteTest {
     @Mock
     private EnrichmentService enrichmentService;
 
+    @Mock
+    private IndividualEncryptionService encryptionService;
+
+    @Mock
+    private UserIntegrationService userIntegrationService;
+
+    @Mock
+    private NotificationService notificationService;
+
+    @Mock
+    private org.egov.individual.util.BeneficiaryIdGenUtil beneficiaryIdGenUtil;
+
+    @Mock
+    private org.egov.individual.util.OtpUtil otpUtil;
+
     @BeforeEach
     void setUp() {
         validators = Arrays.asList(nullIdValidator, nonExistentEntityValidator);
