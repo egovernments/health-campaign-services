@@ -128,6 +128,27 @@ public class DeviceTokenService {
 		producer.push(tenantId, properties.getDeleteDeviceTokenTopic(), request);
 	}
 
+	public void unregisterDeviceTokens(RequestInfo requestInfo, List<DeviceToken> deviceTokens) {
+		String userUuid = requestInfo.getUserInfo().getUuid();
+
+		for (DeviceToken token : deviceTokens) {
+			if (StringUtils.isEmpty(token.getDeviceToken())) {
+				throw new CustomException(ErrorConstants.MISSING_DEVICE_TOKEN_CODE, ErrorConstants.MISSING_DEVICE_TOKEN_MSG);
+			}
+			if (StringUtils.isEmpty(token.getUserId())) {
+				token.setUserId(userUuid);
+			}
+		}
+
+		DeviceTokenRequest request = DeviceTokenRequest.builder()
+				.requestInfo(requestInfo)
+				.deviceTokens(deviceTokens)
+				.build();
+		String tenantId = deviceTokens.get(0).getTenantId();
+		producer.push(tenantId, properties.getUnregisterDeviceTokenTopic(), request);
+		log.info("Published unregister request for {} device token(s) for user {}", deviceTokens.size(), userUuid);
+	}
+
 	public List<DeviceToken> getActiveTokensForUsers(List<String> userIds, String tenantId) {
 		return repository.fetchTokensByUserIds(userIds, tenantId);
 	}
