@@ -35,6 +35,7 @@ DAG_ID = os.getenv("DAG_ID")
 
 CUSTOM_REPORTS_AUTOMATION_TOPIC = os.getenv("CUSTOM_REPORTS_AUTOMATION_TOPIC", "save-hcm-report-metadata")
 KAFKA_BROKER = os.getenv("KAFKA_BROKER")
+IS_CENTRAL_INSTANCE_ENABLED = os.getenv("IS_CENTRAL_INSTANCE_ENABLED", "false").lower() == "true"
 
 PRODUCER_CONFIG = {
     "bootstrap.servers": KAFKA_BROKER,
@@ -96,7 +97,8 @@ def get_data_to_be_pushed(file_store_id):
         "trigger_frequency" : TRIGGER_FREQUENCY,
         "file_store_id" : file_store_id,
         "trigger_time" : normalize_timestamp_to_utc(TRIGGER_TIME),
-        "tenant_id" : TENANT_ID
+        "tenant_id" : TENANT_ID,
+        "report_dates" : str(START_DATE) + "_" + str(END_DATE)
     }
 
     return data
@@ -125,16 +127,20 @@ def create_zip_of_reports(folder_path, zip_name):
     Creates a ZIP file containing all files inside folder_path.
     Returns full path of created zip.
     """
+    print(f"[DEBUG] Starting Zip: Folder Path - {folder_path}, Zip Name - {zip_name}")
 
     zip_path = os.path.join(folder_path, zip_name)
-
-    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
-        for root, _, files in os.walk(folder_path):
-            for f in files:
-                file_path = os.path.join(root, f)
-                arcname = os.path.relpath(file_path, folder_path)
-                zipf.write(file_path, arcname)
-
+    print(f"[DEBUG] Zip Path: {zip_path}")
+    try:
+        with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
+            for root, _, files in os.walk(folder_path):
+                for f in files:
+                    file_path = os.path.join(root, f)
+                    arcname = os.path.relpath(file_path, folder_path)
+                    zipf.write(file_path, arcname)
+    except Exception as e:
+        print(f"❌ Error creating ZIP file: {e}")
+        sys.exit(3)
     print(f"📦 Created ZIP: {zip_path}")
     return zip_path
 
@@ -163,7 +169,7 @@ def upload_to_filestore(file_path):
     # Use context manager to ensure file handle closes
     with open(file_path, "rb") as f:
         files = {
-            "file": (os.path.basename(file_path), f, "application/zip")
+            "file": (os.path.basename(file_path), f, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
         }
 
         try:
@@ -301,13 +307,15 @@ except Exception as e:
 finally:
     file_name_substring = REPORT_FILE_NAME
     move_file = True
+    saved_files = []
     if move_file:
         matching_files = glob.glob(f"*{file_name_substring}*")  # Case-sensitive
         
         if matching_files:
             for file_name in matching_files:
                 if os.path.exists(file_name):
-                    save_file_to_folder(file_name)
+                    saved_path = save_file_to_folder(file_name)
+                    saved_files.append(saved_path)
                     print(f"Moved file: {file_name}")
                 else:
                     print(f"⚠ File not found, skipping: {file_name}")
@@ -323,28 +331,61 @@ finally:
         TRIGGER_FREQUENCY
     )
 
+    print(f"[DEBUG] Preparing to zip folder: {reports_folder}")
+    print(f"[DEBUG] Folder exists: {os.path.exists(reports_folder)}")
+    
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     zip_name = f"{REPORT_FILE_NAME}_{CAMPAIGN_IDENTIFIER}_{timestamp}.zip"
+# ===========================
+    # print(f"[DEBUG] Zip Name: {zip_name}")
 
-    zip_path = create_zip_of_reports(reports_folder, zip_name)
-
+    # zip_path = create_zip_of_reports(reports_folder, zip_name)
+    
+    # print(f"[DEBUG] Zip Path: {zip_path}")
+# ============================
     # --------------------------------
     #  UPLOAD ZIP TO FILESTORE SERVICE
     # --------------------------------
     try:
-        upload_response = upload_to_filestore(zip_path)
-        print(f"[DEBUG] FileStore response: {upload_response}")
+        # upload_response = upload_to_filestore(zip_path)
+        # print(f"[DEBUG] FileStore response: {upload_response}")
 
-        file_store_id = ""
+        # file_store_id = ""
 
-        if "files" in upload_response:
-            res = upload_response.get("files", [])
-            if len(res) > 0:
-                file_store_id = res[0].get("fileStoreId")
-                data = get_data_to_be_pushed(file_store_id)
+        # if "files" in upload_response:
+        #     res = upload_response.get("files", [])
+        #     if len(res) > 0:
+        #         file_store_id = res[0].get("fileStoreId")
+        #         data = get_data_to_be_pushed(file_store_id)
 
-                data_object = json.dumps(data)
-                send_to_kafka(producer=producer, topic=CUSTOM_REPORTS_AUTOMATION_TOPIC, message=data_object)
+        #         data_object = json.dumps(data)
+        #         kafka_topic = f"{TENANT_ID}-{CUSTOM_REPORTS_AUTOMATION_TOPIC}" if IS_CENTRAL_INSTANCE_ENABLED and TENANT_ID else CUSTOM_REPORTS_AUTOMATION_TOPIC
+        #         send_to_kafka(producer=producer, topic=kafka_topic, message=data_object)
+        for file_path in saved_files:
+            print(f"[DEBUG] Uploading file directly: {file_path}")
+            
+            upload_response = upload_to_filestore(file_path)
+            print(f"[DEBUG] FileStore response: {upload_response}")
+
+            if "files" in upload_response:
+                res = upload_response.get("files", [])
+                if len(res) > 0:
+                    file_store_id = res[0].get("fileStoreId")
+
+                    data = get_data_to_be_pushed(file_store_id)
+                    data_object = json.dumps(data)
+
+                    kafka_topic = (
+                        f"{TENANT_ID}-{CUSTOM_REPORTS_AUTOMATION_TOPIC}"
+                        if IS_CENTRAL_INSTANCE_ENABLED and TENANT_ID
+                        else CUSTOM_REPORTS_AUTOMATION_TOPIC
+                    )
+
+                    send_to_kafka(
+                        producer=producer,
+                        topic=kafka_topic,
+                        message=data_object
+                    )
         else:
             print(f"Error response : {upload_response}")
 

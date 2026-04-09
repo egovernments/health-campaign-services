@@ -28,11 +28,11 @@ file_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.p
 sys.path.append(file_path)
 
 from REPORTS_GENERATION.COMMON_UTILS.custom_date_utils import get_custom_dates_of_reports
-from COMMON_UTILS.common_utils import get_resp
+from COMMON_UTILS.common_utils import get_resp, es_index_url
 
-ES_HOUSEHOLD_INDEX = "http://elasticsearch-master.es-upgrade.svc.cluster.local:9200/household-index-v1/_search"
-ES_INDIVIDUAL_INDEX = "http://elasticsearch-master.es-upgrade.svc.cluster.local:9200/individual-index-v1/_search"
-ES_HHM_INDEX = "http://elasticsearch-master.es-upgrade.svc.cluster.local:9200/household-member-index-v1/_search"
+ES_HOUSEHOLD_INDEX = es_index_url("household-index-v1")
+ES_INDIVIDUAL_INDEX = es_index_url("individual-index-v1")
+ES_HHM_INDEX = es_index_url("household-member-index-v1")
 
 max_retries = 60
 retry_delay = 5

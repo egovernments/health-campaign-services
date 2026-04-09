@@ -31,13 +31,13 @@ file_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__fi
 sys.path.append(file_path)
 
 from COMMON_UTILS.custom_date_utils import get_custom_dates_of_reports
-from COMMON_UTILS.common_utils import get_resp
+from COMMON_UTILS.common_utils import get_resp, es_index_url
 
 warnings.filterwarnings("ignore", message="Unverified HTTPS request is being made.*")
 
-ES_TRANSFORMED_ATTENDANCE_REGISTER_INDEX = 'https://elasticsearch-data.es-cluster-v8:9200/transformed-attendance-register-index-v1/_search'
-ES_ATTENDANCE_LOG_INDEX = 'https://elasticsearch-data.es-cluster-v8:9200/attendance-log-index-v1/_search'
-ES_PROJECT_STAFF_INDEX = "https://elasticsearch-data.es-cluster-v8:9200/project-staff-index-v1/_search"
+ES_TRANSFORMED_ATTENDANCE_REGISTER_INDEX = es_index_url("transformed-attendance-register-index-v1")
+ES_ATTENDANCE_LOG_INDEX = es_index_url("attendance-log-index-v1")
+ES_PROJECT_STAFF_INDEX = es_index_url("project-staff-index-v1")
 
 # ES_ATTENDANCE_LOG_INDEX = "https://localhost:9200/attendance-log-index-v1/_search"
 # ES_TRANSFORMED_ATTENDANCE_REGISTER_INDEX = "https://localhost:9200/transformed-attendance-register-index-v1/_search"

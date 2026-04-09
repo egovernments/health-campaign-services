@@ -29,15 +29,15 @@ file_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__fi
 sys.path.append(file_path)
 
 from COMMON_UTILS.custom_date_utils import get_custom_dates_of_reports
-from COMMON_UTILS.common_utils import get_resp
+from COMMON_UTILS.common_utils import get_resp, es_index_url, es_scroll_url
 
 warnings.filterwarnings("ignore", message="Unverified HTTP request is being made.*")
 
 # === CONSTANTS ===
-ES_PROJECT_TASK_INDEX = "http://elasticsearch-master.es-upgrade.svc.cluster.local:9200/project-task-index-v1/_search"
-ES_INDIVIDUAL_INDEX = "http://elasticsearch-master.es-upgrade.svc.cluster.local:9200/individual-index-v1/_search"
-ES_SCROLL_API = "http://elasticsearch-master.es-upgrade.svc.cluster.local:9200/_search/scroll"
-ES_HOUSEHOLD_MEMBER_INDEX = "http://elasticsearch-master.es-upgrade.svc.cluster.local:9200/household-member-index-v1/_search"
+ES_PROJECT_TASK_INDEX = es_index_url("project-task-index-v1")
+ES_INDIVIDUAL_INDEX = es_index_url("individual-index-v1")
+ES_SCROLL_API = es_scroll_url()
+ES_HOUSEHOLD_MEMBER_INDEX = es_index_url("household-member-index-v1")
 DECRYPT_URL = "http://egov-enc-service.egov:8080/egov-enc-service/crypto/v1/_decrypt"
 
 # === DATE RANGE ===

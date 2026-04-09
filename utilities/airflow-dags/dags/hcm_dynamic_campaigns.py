@@ -703,7 +703,9 @@ with DAG(
                 #Kafka configurations
                 "CUSTOM_REPORTS_AUTOMATION_TOPIC" : os.getenv("CUSTOM_REPORTS_AUTOMATION_TOPIC"),
                 "KAFKA_BROKER" : KAFKA_BROKER,
-                "IS_CENTRAL_INSTANCE_ENABLED" : IS_CENTRAL_INSTANCE_ENABLED
+                "IS_CENTRAL_INSTANCE_ENABLED" : IS_CENTRAL_INSTANCE_ENABLED,
+                "CREATED_BY" : c.get("createdBy", ""),
+                "CREATED_TIME" : c.get("createdTime", "")
             }
 
             env_list.append(env_dict)

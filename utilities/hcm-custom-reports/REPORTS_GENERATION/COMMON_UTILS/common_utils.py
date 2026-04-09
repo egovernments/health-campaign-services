@@ -7,11 +7,35 @@ import pandas as pd
 import shutil
 import os
 from decouple import config
+import base64
+
+ELASTIC_PASSWORD = os.getenv('ELASTIC_PASSWORD')
+ELASTIC_USERNAME = os.getenv('ELASTIC_USERNAME')
+
+credentials = f"{ELASTIC_USERNAME}:{ELASTIC_PASSWORD}"
+encoded = base64.b64encode(credentials.encode()).decode()
+encoded_es_password = f"Basic {encoded}"
+
+ES_HOST = os.getenv('ES_HOST', 'https://elasticsearch-data.es-cluster-v8.svc.cluster.local:9200')
+TENANT_ID = os.getenv('TENANT_ID', '')
+IS_CENTRAL_INSTANCE_ENABLED = os.getenv('IS_CENTRAL_INSTANCE_ENABLED', 'false').lower() == 'true'
 
 PATH_TO_QUERIES_JSON = config('PATH_TO_QUERIES_JSON')
 PATH_TO_FINAL_REPORTS = config('PATH_TO_FINAL_REPORTS')
 max_retries = 30
 retry_delay = 5
+
+
+def es_index_url(index_name, suffix="/_search"):
+    """Build an Elasticsearch index URL, prefixing with tenantId when central instance is enabled."""
+    if IS_CENTRAL_INSTANCE_ENABLED and TENANT_ID:
+        index_name = f"{TENANT_ID}-{index_name}"
+    return f"{ES_HOST}/{index_name}{suffix}"
+
+
+def es_scroll_url():
+    """Return the Elasticsearch scroll API URL."""
+    return f"{ES_HOST}/_search/scroll"
 
 
 def get_resp(url, data, es=False):
@@ -26,7 +50,7 @@ def get_resp(url, data, es=False):
                 response = requests.post(
                     url,
                     data=json.dumps(data),
-                    headers={"Content-Type": "application/json", "Authorization": "Basic ZWxhc3RpYzpaRFJsT0RJME1UQTNNV1ppTVRGbFptRms="},
+                    headers={"Content-Type": "application/json", "Authorization": encoded_es_password},
                     verify=False,
                     timeout=30
                 )

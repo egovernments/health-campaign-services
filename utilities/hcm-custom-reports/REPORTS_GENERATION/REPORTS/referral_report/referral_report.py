@@ -27,13 +27,13 @@ sys.path.append(file_path)
 
 warnings.filterwarnings("ignore", message="Unverified HTTPS request is being made.*")
 
-from COMMON_UTILS.common_utils import get_resp
+from COMMON_UTILS.common_utils import get_resp, es_index_url, es_scroll_url
 from COMMON_UTILS.custom_date_utils import get_custom_dates_of_reports
 
 # ===== CONSTANTS =====
-REFERRAL_INDEX = "http://elasticsearch-master.es-upgrade.svc.cluster.local:9200/referral-index-v1/_search"
-INDIVIDUAL_INDEX = "http://elasticsearch-master.es-upgrade.svc.cluster.local:9200/individual-index-v1/_search"
-SCROLL_API = "http://elasticsearch-master.es-upgrade.svc.cluster.local:9200/_search/scroll"
+REFERRAL_INDEX = es_index_url("referral-index-v1")
+INDIVIDUAL_INDEX = es_index_url("individual-index-v1")
+SCROLL_API = es_scroll_url()
 
 SCROLL_TIME = "2m"
 PAGE_SIZE = 1000

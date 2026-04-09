@@ -24,7 +24,7 @@ END_DATE = args.end_date
 FILE_NAME = args.file_name
 
 
-ES_PROJECT_TASK_SEARCH = "http://elasticsearch-master.es-upgrade.svc.cluster.local:9200/project-task-index-v1/_search"
+
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 # es = Elasticsearch(["https://localhost:9200"], http_auth=('elastic', ELASTIC_CLIENT_PASSWORD), verify_certs=False)
@@ -33,7 +33,9 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 file_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.append(file_path)
 from COMMON_UTILS.custom_date_utils import get_custom_dates_of_reports
-from COMMON_UTILS.common_utils import get_resp
+from COMMON_UTILS.common_utils import get_resp, es_index_url
+
+ES_PROJECT_TASK_SEARCH = es_index_url("project-task-index-v1")
 
 DISTANCE = 5
 NEARBY_POINTS_LIMIT = 6

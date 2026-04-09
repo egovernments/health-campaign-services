@@ -1,0 +1,46 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: airflow-trigger-api
+  namespace: egov
+  labels:
+    app: airflow-trigger-api
+    group: health
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/limit-rpm: "1200"
+    nginx.ingress.kubernetes.io/lua-resty-waf: active
+    nginx.ingress.kubernetes.io/lua-resty-waf-allow-unknown-content-types: "true"
+    nginx.ingress.kubernetes.io/lua-resty-waf-debug: "true"
+    nginx.ingress.kubernetes.io/lua-resty-waf-process-multipart-body: "false"
+    nginx.ingress.kubernetes.io/lua-resty-waf-score-threshold: "10"
+    nginx.ingress.kubernetes.io/use-regex: "true"
+spec:
+  tls:
+    - hosts:
+        - mc-nigeria-uat.digit.org
+      secretName: mc-nigeria-uat.digit.org-tls-certs
+    - hosts:
+        - bauchi-hcm-uat.digit.org
+      secretName: bauchi-hcm-uat.digit.org-tls-certs
+  rules:
+    - host: mc-nigeria-uat.digit.org
+      http:
+        paths:
+          - path: /airflow-trigger-api
+            pathType: Prefix
+            backend:
+              service:
+                name: gateway
+                port:
+                  number: 8080
+    - host: bauchi-hcm-uat.digit.org
+      http:
+        paths:
+          - path: /airflow-trigger-api
+            pathType: Prefix
+            backend:
+              service:
+                name: gateway
+                port:
+                  number: 8080

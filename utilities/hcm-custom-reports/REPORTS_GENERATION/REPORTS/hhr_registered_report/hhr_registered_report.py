@@ -25,17 +25,17 @@ FILE_NAME = args.file_name
 file_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.append(file_path)
 
-from COMMON_UTILS.common_utils import get_resp
+from COMMON_UTILS.common_utils import get_resp, es_index_url, es_scroll_url
 from COMMON_UTILS.custom_date_utils import get_custom_dates_of_reports
 
 warnings.filterwarnings("ignore", message="Unverified HTTPS request is being made.*")
 
 # === CONSTANTS ===
-ES_HOUSEHOLD_INDEX = "http://elasticsearch-master.es-upgrade.svc.cluster.local:9200/household-index-v1/_search"
-ES_HOUSEHOLD_MEMBER_INDEX = "http://elasticsearch-master.es-upgrade.svc.cluster.local:9200/household-member-index-v1/_search"
-ES_INDIVIDUAL_INDEX = "http://elasticsearch-master.es-upgrade.svc.cluster.local:9200/individual-index-v1/_search"
-ES_PROJECT_BENEFICIARY_INDEX = "http://elasticsearch-master.es-upgrade.svc.cluster.local:9200/project-beneficiary-index-v1/_search"
-ES_SCROLL_API = "http://elasticsearch-master.es-upgrade.svc.cluster.local:9200/_search/scroll"
+ES_HOUSEHOLD_INDEX = es_index_url("household-index-v1")
+ES_HOUSEHOLD_MEMBER_INDEX = es_index_url("household-member-index-v1")
+ES_INDIVIDUAL_INDEX = es_index_url("individual-index-v1")
+ES_PROJECT_BENEFICIARY_INDEX = es_index_url("project-beneficiary-index-v1")
+ES_SCROLL_API = es_scroll_url()
 
 # === DATE RANGE ===
 lteTime, gteTime, start_date_str, end_date_str = get_custom_dates_of_reports(START_DATE, END_DATE)

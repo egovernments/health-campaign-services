@@ -1,0 +1,40 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: airflow-web
+  namespace: airflow
+  labels:
+    app: airflow-web
+    group: health
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/use-regex: "true"
+spec:
+  tls:
+    - hosts:
+        - mc-nigeria-uat.digit.org
+      secretName: mc-nigeria-uat.digit.org-tls-certs
+    - hosts:
+        - bauchi-hcm-uat.digit.org
+      secretName: bauchi-hcm-uat.digit.org-tls-certs
+  rules:
+    - host: mc-nigeria-uat.digit.org
+      http:
+        paths:
+          - path: /airflow
+            pathType: Prefix
+            backend:
+              service:
+                name: airflow-api-server
+                port:
+                  number: 8080
+    - host: bauchi-hcm-uat.digit.org
+      http:
+        paths:
+          - path: /airflow
+            pathType: Prefix
+            backend:
+              service:
+                name: airflow-api-server
+                port:
+                  number: 8080

@@ -1,0 +1,144 @@
+# apiVersion: v1
+# kind: ConfigMap
+# metadata:
+#   name: airflow-trigger-api-config
+#   namespace: egov
+# data:
+#   DB_HOST: ""                       # replace with RDS endpoint
+#   DB_PORT: "5432"
+#   DB_NAME: ""                       # replace with database name
+# ---
+# apiVersion: v1
+# kind: Secret
+# metadata:
+#   name: airflow-trigger-api-secret
+#   namespace: egov
+# type: Opaque
+# stringData:
+#   AIRFLOW_USERNAME: "admin"         # replace with actual username
+#   AIRFLOW_PASSWORD: "admin"         # replace with actual password
+#   DB_USERNAME: ""                   # replace with RDS username
+#   DB_PASSWORD: ""                   # replace with RDS password
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: airflow-trigger-api
+  namespace: egov
+  labels:
+    app: airflow-trigger-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: airflow-trigger-api
+  template:
+    metadata:
+      labels:
+        app: airflow-trigger-api
+    spec:
+      initContainers:
+        - name: run-migration
+          image: bhanuprakashmegov/airflow-custom-trigger:central1
+          command: ["python", "migrate.py"]
+          env:
+            - name: DB_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: egov-config
+                  key: db-host
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: egov-config
+                  key: db-name
+            - name: DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: db
+                  key: username
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: db
+                  key: password
+            - name: DB_SCHEMAS
+              value: "public,ba"             # comma-separated schemas, e.g. "schema1,schema2,schema3"
+      containers:
+        - name: airflow-trigger-api
+          image: bhanuprakashmegov/airflow-custom-trigger:central1
+          ports:
+            - containerPort: 8000
+          env:
+            - name: AIRFLOW_BASE_URL
+              value: "http://airflow-api-server.airflow.svc.cluster.local:8080"
+            - name: ALLOWED_ORIGINS
+              value: "*"    # lock this down to your React app's URL in prod
+            - name: AIRFLOW_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: airflow-admin-credentials
+                  key: username
+            - name: AIRFLOW_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: airflow-admin-credentials
+                  key: password
+            - name: DB_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: egov-config
+                  key: db-host
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: egov-config
+                  key: db-name
+            - name: DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: db
+                  key: username
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: db
+                  key: password
+            - name: IS_CENTRAL_INSTANCE_ENABLED
+              value: "true"              # set to "true" to query tenant-specific schemas
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: airflow-trigger-api
+  namespace: egov
+spec:
+  selector:
+    app: airflow-trigger-api
+  ports:
+    - port: 8000
+      targetPort: 8000
+  type: ClusterIP

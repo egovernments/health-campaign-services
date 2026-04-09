@@ -32,12 +32,13 @@ file_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.p
 sys.path.append(file_path)
 
 from REPORTS_GENERATION.COMMON_UTILS.custom_date_utils import get_custom_dates_of_reports
+from REPORTS_GENERATION.COMMON_UTILS.common_utils import es_index_url, es_scroll_url
 
 # ===========================
 # CONFIG
 # ===========================
-ES_STOCK_SEARCH = "http://elasticsearch-master.es-upgrade.svc.cluster.local:9200/stock-index-v1/_search"
-ES_SCROLL_API = "http://elasticsearch-master.es-upgrade.svc.cluster.local:9200/_search/scroll"
+ES_STOCK_SEARCH = es_index_url("stock-index-v1")
+ES_SCROLL_API = es_scroll_url()
 
 ELASTIC_AUTH = "Basic ZWxhc3RpYzpaRFJsT0RJME1UQTNNV1ppTVRGbFptRms="
 

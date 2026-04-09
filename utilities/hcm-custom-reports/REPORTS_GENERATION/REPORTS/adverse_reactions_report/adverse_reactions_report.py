@@ -27,12 +27,12 @@ sys.path.append(file_path)
 
 # Import custom utility functions
 from COMMON_UTILS.custom_date_utils import get_custom_dates_of_reports
-from COMMON_UTILS.common_utils import get_resp
+from COMMON_UTILS.common_utils import get_resp, es_index_url
 
 warnings.filterwarnings("ignore", message="Unverified HTTPS request is being made.*")
 
 # Elasticsearch index
-ES_REFERRAL_INDEX = 'http://elasticsearch-master.es-upgrade.svc.cluster.local:9200/referral-index-v1/_search'
+ES_REFERRAL_INDEX = es_index_url("referral-index-v1")
 
 # Get report time window
 lteTime, gteTime, start_date_str, end_date_str = get_custom_dates_of_reports(START_DATE, END_DATE)
