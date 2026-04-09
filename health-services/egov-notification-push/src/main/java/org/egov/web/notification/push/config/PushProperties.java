@@ -37,6 +37,9 @@ public class PushProperties {
     @Value("${kafka.topics.persister.delete.device.token}")
     private String deleteDeviceTokenTopic;
 
+    @Value("${kafka.topics.persister.unregister.device.token}")
+    private String unregisterDeviceTokenTopic;
+
     @Value("${state.level.tenantid.length:1}")
     private int tenantIdLength;
 
