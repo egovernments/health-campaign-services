@@ -36,6 +36,23 @@ config:
 # DAG Processor
 dagProcessor:
   enabled: true
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+    limits:
+      cpu: "250m"
+      memory: "512Mi"
+
+
+scheduler:
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "512Mi"
+    limits:
+      cpu: "300m"
+      memory: "1Gi"
 
 # Git-Sync for DAGs
 dags:
@@ -47,7 +64,7 @@ dags:
     ref: "v2-2-stable"
     depth: 1
     wait: 60
-    period: "5s"
+    period: "60s"
     maxFailures: 0
     subPath: ""
 
@@ -61,10 +78,10 @@ logs:
 workers:
   resources:
     limits:
-      cpu: "0.2"
+      cpu: "200m"
       memory: "768Mi"
     requests:
-      cpu: "0.1"
+      cpu: "100m"
       memory: "256Mi"
 
 # Extra environment variables
@@ -87,6 +104,8 @@ env:
     value: "mdms-v2/v2/_search"
   - name: TENANT_ID
     value: "ba"
+  - name: AIRFLOW__API__WORKERS
+    value: "1"
   - name: IS_CENTRAL_INSTANCE_ENABLED
     value: "true"
   - name: CENTRAL_TENANTS
@@ -160,6 +179,14 @@ postgresql:
   enabled: true
   auth:
     postgresPassword: VLXKZUdKbhy4+Q==
+  primary:
+    resources:
+      requests:
+        cpu: "100m"
+        memory: "256Mi"
+      limits:
+        cpu: "200m"
+        memory: "512Mi"
 
 # postgresql:
 #   enabled: true
@@ -180,7 +207,38 @@ webserver:
     email: admin@example.com
     firstName: Admin
     lastName: User
-
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "512Mi"
+    limits:
+      cpu: "250m"
+      memory: "1.5Gi"
 # StatsD
 statsd:
   enabled: true
+  resources:
+    requests:
+      cpu: "50m"
+      memory: "63Mi"
+    limits:
+      cpu: "100m"
+      memory: "128Mi"
+
+triggerer:
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "512Mi"
+    limits:
+      cpu: "200m"
+      memory: "1Gi"
+
+apiServer:
+  resources:
+    requests:
+      cpu: "200m"
+      memory: "1.5Gi"
+    limits:
+      cpu: "1000m"
+      memory: "2Gi"
