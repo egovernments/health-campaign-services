@@ -43,3 +43,16 @@ serviceMaps:
             - jsonPath: $.deviceTokens.*.deviceToken
             - jsonPath: $.deviceTokens.*.tenantId
             - jsonPath: $.deviceTokens.*.facilityId
+
+    - version: 1.0
+      description: Unregister device token (delete all rows for userId+deviceToken, regardless of facilityId)
+      fromTopic: unregister-push-device-token
+      isTransaction: true
+      queryMaps:
+        - query: >-
+            DELETE FROM eg_push_device_tokens
+            WHERE userid = ? AND devicetoken = ?
+          basePath: $.deviceTokens.*
+          jsonMaps:
+            - jsonPath: $.deviceTokens.*.userId
+            - jsonPath: $.deviceTokens.*.deviceToken

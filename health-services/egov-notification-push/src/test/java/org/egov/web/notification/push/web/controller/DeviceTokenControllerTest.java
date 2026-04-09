@@ -101,4 +101,32 @@ class DeviceTokenControllerTest {
                         .content(requestBody))
                 .andExpect(status().isOk());
     }
+
+    @Test
+    void unregisterDeviceToken_validRequest_returns200() throws Exception {
+        String requestBody = """
+                {
+                    "RequestInfo": {
+                        "apiId": "api",
+                        "ver": "1.0",
+                        "userInfo": {
+                            "uuid": "user-1"
+                        }
+                    },
+                    "deviceTokens": [
+                        {
+                            "deviceToken": "fcm-tok-to-unregister",
+                            "deviceType": "ANDROID",
+                            "userId": "user-1",
+                            "tenantId": "tenant1"
+                        }
+                    ]
+                }
+                """;
+
+        mockMvc.perform(post("/device-token/v1/_unregister")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isOk());
+    }
 }

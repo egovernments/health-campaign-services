@@ -40,6 +40,16 @@ public class DeviceTokenController {
 		return new ResponseEntity<>(response, HttpStatus.OK);
 	}
 
+	@PostMapping("_unregister")
+	@ResponseBody
+	public ResponseEntity<?> unregisterDeviceToken(@RequestBody @Valid DeviceTokenRequest request) {
+		deviceTokenService.unregisterDeviceTokens(request.getRequestInfo(), request.getDeviceTokens());
+		DeviceTokenResponse response = DeviceTokenResponse.builder()
+				.responseInfo(responseInfoFactory.createResponseInfoFromRequestInfo(request.getRequestInfo(), true))
+				.build();
+		return new ResponseEntity<>(response, HttpStatus.OK);
+	}
+
 	@PostMapping("_delete")
 	@ResponseBody
 	public ResponseEntity<?> deleteDeviceToken(@RequestBody @Valid DeviceTokenRequest request) {

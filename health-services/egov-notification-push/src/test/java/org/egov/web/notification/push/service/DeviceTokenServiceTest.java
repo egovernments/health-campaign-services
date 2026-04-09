@@ -174,4 +174,47 @@ class DeviceTokenServiceTest {
         assertEquals(expected, result);
         verify(repository).fetchTokensByFacilityId("fac-1", "t1");
     }
+
+    @Test
+    void unregisterDeviceTokens_validRequest_publishesToUnregisterTopic() {
+        when(properties.getUnregisterDeviceTokenTopic()).thenReturn("unregister-topic");
+
+        DeviceToken token = DeviceToken.builder()
+                .deviceToken("tok-to-unregister")
+                .userId("user-1")
+                .tenantId("t1")
+                .build();
+
+        RequestInfo requestInfo = createRequestInfo("user-1");
+        deviceTokenService.unregisterDeviceTokens(requestInfo, List.of(token));
+
+        verify(producer).push(eq("t1"), eq("unregister-topic"), any());
+    }
+
+    @Test
+    void unregisterDeviceTokens_emptyDeviceToken_throwsCustomException() {
+        DeviceToken token = DeviceToken.builder()
+                .deviceToken("")
+                .build();
+
+        RequestInfo requestInfo = createRequestInfo("user-1");
+
+        assertThrows(CustomException.class,
+                () -> deviceTokenService.unregisterDeviceTokens(requestInfo, List.of(token)));
+    }
+
+    @Test
+    void unregisterDeviceTokens_noUserId_setsFromRequestInfo() {
+        when(properties.getUnregisterDeviceTokenTopic()).thenReturn("unregister-topic");
+
+        DeviceToken token = DeviceToken.builder()
+                .deviceToken("tok")
+                .tenantId("t1")
+                .build();
+
+        RequestInfo requestInfo = createRequestInfo("requester-uuid");
+        deviceTokenService.unregisterDeviceTokens(requestInfo, List.of(token));
+
+        assertEquals("requester-uuid", token.getUserId());
+    }
 }
