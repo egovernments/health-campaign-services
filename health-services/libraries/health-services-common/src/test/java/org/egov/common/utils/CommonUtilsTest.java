@@ -209,7 +209,7 @@ class CommonUtilsTest {
 
                 assertEquals(auditDetails.getCreatedTime(), existingAuditDetails.getCreatedTime());
                 assertEquals(auditDetails.getCreatedBy(), existingAuditDetails.getCreatedBy());
-                assertEquals(auditDetails.getLastModifiedBy(), existingAuditDetails.getLastModifiedBy());
+                assertEquals(otherRequestInfo.getUserInfo().getUuid(), auditDetails.getLastModifiedBy());
                 assertTrue(auditDetails.getCreatedTime() != null
                                 && auditDetails.getLastModifiedTime() != null
                                 && auditDetails.getCreatedBy() != null
