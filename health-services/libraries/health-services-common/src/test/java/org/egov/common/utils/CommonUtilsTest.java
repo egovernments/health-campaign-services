@@ -555,8 +555,11 @@ class CommonUtilsTest {
                                 errorDetailsMap.get(otherObject).getErrors().get(0).getErrorCode());
                 assertEquals(Error.ErrorType.NON_RECOVERABLE,
                                 errorDetailsMap.get(otherObject).getErrors().get(0).getType());
-                assertTrue(errorDetailsMap.get(otherObject).getErrors().get(0)
-                                .getErrorMessage().startsWith("Database query failed:"));
+                String errorMessage = errorDetailsMap.get(otherObject).getErrors().get(0)
+                                .getErrorMessage();
+                assertTrue(errorMessage.startsWith("Database query failed:"));
+                assertFalse(errorMessage.contains("SELECT * FROM invalid_table"),
+                                "Error message should not leak raw SQL text");
         }
 
         @Test
@@ -825,15 +828,20 @@ class CommonUtilsTest {
                                                 .requestBody(new ObjectMapper().writeValueAsString(someRequest))
                                                 .build())
                                 .build());
-                ErrorHandler.exceptionAdviseInstance = Mockito.mock(ExceptionAdvise.class);
+                ExceptionAdvise original = ErrorHandler.exceptionAdviseInstance;
+                try {
+                        ErrorHandler.exceptionAdviseInstance = Mockito.mock(ExceptionAdvise.class);
 
-                CommonUtils.handleErrors(errorDetailsMap, true, "some-error-code");
+                        CommonUtils.handleErrors(errorDetailsMap, true, "some-error-code");
 
-                ArgumentCaptor<List<ErrorDetail>> argument = ArgumentCaptor.forClass(List.class);
-                verify(ErrorHandler.exceptionAdviseInstance, times(1))
-                                .exceptionHandler(argument.capture());
-                List<ErrorDetail> actual = argument.getValue();
-                assertEquals(expected.toString(), actual.toString());
+                        ArgumentCaptor<List<ErrorDetail>> argument = ArgumentCaptor.forClass(List.class);
+                        verify(ErrorHandler.exceptionAdviseInstance, times(1))
+                                        .exceptionHandler(argument.capture());
+                        List<ErrorDetail> actual = argument.getValue();
+                        assertEquals(expected.toString(), actual.toString());
+                } finally {
+                        ErrorHandler.exceptionAdviseInstance = original;
+                }
 
         }
 
