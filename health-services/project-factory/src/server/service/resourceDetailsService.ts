@@ -10,7 +10,8 @@ import {
   countResourcesByType,
   countTotalResourceDetails,
   toResourceDetailsResponse,
-  ResourceDetailRow
+  ResourceDetailRow,
+  hasAnyCreatingResource
 } from "../utils/resourceDetailsUtils";
 import { executeQuery, getTableName } from "../utils/db";
 import { getResourceConfigOrDefault, isRegisteredType } from "../config/resourceTypeRegistry";
@@ -50,16 +51,13 @@ export async function createResourceDetail(
     throwError("COMMON", 400, "RESOURCE_ADD_NOT_ALLOWED", "Cannot add resources to a cancelled campaign");
   }
 
-  // Upsert check: find existing active resource with same key
-  // Done before parent validation so result can be reused for the inprogress guard below
-  const existing = await findActiveResourceByUpsertKey(tenantId, campaignId, type, parentResourceId);
-
-  if (campaignStatus === campaignStatuses.inprogress) {
-    // "created" campaign: reject if a toCreate active resource is already queued for same key
-    if (existing && existing.status === resourceStatuses.toCreate) {
-      throwError("COMMON", 409, "RESOURCE_ALREADY_QUEUED", `Resource of type '${type}' is already queued for processing`);
-    }
+  if (await hasAnyCreatingResource(tenantId, campaignId)) {
+    throwError("COMMON", 409, "CAMPAIGN_RESOURCE_PROCESSING",
+      "Cannot add resources while campaign resources are currently being processed");
   }
+
+  // Upsert check: find existing active resource with same key
+  const existing = await findActiveResourceByUpsertKey(tenantId, campaignId, type, parentResourceId);
 
   // Validate parent if type is registered with parentType
   const typeConfig = getResourceConfigOrDefault(type);
@@ -146,6 +144,11 @@ export async function updateResourceDetail(
     throwError("COMMON", 400, "RESOURCE_ADD_NOT_ALLOWED", "Cannot update resources on a cancelled campaign");
   }
 
+  if (await hasAnyCreatingResource(tenantId, campaignId)) {
+    throwError("COMMON", 409, "CAMPAIGN_RESOURCE_PROCESSING",
+      "Cannot update resources while campaign resources are currently being processed");
+  }
+
   const existing = await getResourceDetailById(id, tenantId);
   if (!existing) {
     throwError("COMMON", 404, "NOT_FOUND", `Resource detail '${id}' not found`);
@@ -155,14 +158,6 @@ export async function updateResourceDetail(
   }
   if (existing!.status === resourceStatuses.creating) {
     throwError("COMMON", 409, "RESOURCE_PROCESSING", `Resource '${id}' is currently being processed`);
-  }
-
-  // Inprogress guard: same rule as createResourceDetail — reject if resource is already queued
-  if (campaignStatus === campaignStatuses.inprogress) {
-    if (existing!.status === resourceStatuses.toCreate) {
-      throwError("COMMON", 409, "RESOURCE_ALREADY_QUEUED",
-        `Resource '${id}' of type '${existing!.type}' is already queued for processing. Wait for it to complete or fail before updating.`);
-    }
   }
 
   // Deactivate old resource

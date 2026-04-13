@@ -74,36 +74,37 @@ export async function handleTaskForCampaign(messageObject: any) {
         try {
             await processRequest(resourceDetails, workBook, processTemplateConfig, localizationMap);
         } catch (error) {
-            console.log(error)
+            logger.error(`Process failed for campaign ${CampaignDetails?.id} type ${resourceType}: ${(error as Error)?.stack || error}`);
             await handleErrorDuringProcess(resourceDetails, error);
             throw error;
         }
         logger.info(`Process resource for campaign ${CampaignDetails?.id} : ${processName} completed..`);
 
         // Upload annotated workbook (with #status#/#errorDetails# columns) and persist resource result
+        let processedFileStoreId: string | undefined;
         try {
             enrichTemplateMetaData(workBook, locale, CampaignDetails?.id);
             const fileResponse = await createAndUploadFileWithOutRequest(workBook, resourceDetails?.tenantId);
-            const processedFileStoreId = fileResponse?.[0]?.fileStoreId;
-            if (processedFileStoreId) {
+            processedFileStoreId = fileResponse?.[0]?.fileStoreId;
+            if (processedFileStoreId && resource) {
                 // Keep in-memory update for any downstream code reading CampaignDetails.resources
-                if (resource) {
-                    updateResourceDetails(CampaignDetails, resource, { status: "completed", processedFileStoreId });
-                }
-                // Persist to eg_cm_resource_details via update-resource-details Kafka topic
-                await persistResourceDetailUpdate(
-                    CampaignDetails?.id,
-                    CampaignDetails?.tenantId,
-                    resourceType,
-                    resource?.parentResourceId,
-                    { status: "completed", processedFileStoreId },
-                    messageObject?.requestInfo?.userInfo?.uuid
-                );
+                updateResourceDetails(CampaignDetails, resource, { status: "completed", processedFileStoreId });
+            }
+            if (processedFileStoreId) {
                 logger.info(`Uploaded processed file for resource type ${resourceType}: ${processedFileStoreId}`);
             }
         } catch (uploadError) {
-            logger.warn(`Failed to upload processed file for resource type ${resourceType}: ${uploadError}. Continuing.`);
+            logger.warn(`Failed to upload processed file for resource type ${resourceType}: ${(uploadError as Error)?.stack || uploadError}. Continuing.`);
         }
+        // Always persist completed status regardless of whether file upload succeeded
+        await persistResourceDetailUpdate(
+            CampaignDetails?.id,
+            CampaignDetails?.tenantId,
+            resourceType,
+            resource?.parentResourceId,
+            { status: "completed", processedFileStoreId },
+            messageObject?.requestInfo?.userInfo?.uuid
+        );
 
         task.status = processStatuses.completed;
         // Add audit details for update
@@ -127,7 +128,7 @@ export async function handleTaskForCampaign(messageObject: any) {
             lastModifiedTime: currentTime
         };
         await produceModifiedMessages({ processes: [task] }, config?.kafka?.KAFKA_UPDATE_PROCESS_DATA_TOPIC, messageObject?.CampaignDetails?.tenantId);
-        logger.error(`Error in campaign creation process : ${error}`);
+        logger.error(`Error in campaign creation process: ${(error as Error)?.stack || error}`);
         // Record error on the resource entry
         try {
             const failedResourceType = getResourceType(messageObject?.task?.processName);
@@ -146,12 +147,20 @@ export async function handleTaskForCampaign(messageObject: any) {
                     messageObject?.CampaignDetails?.tenantId,
                     failedResourceType,
                     failedResource?.parentResourceId,
-                    { status: "failed" },
+                    {
+                        status: "failed",
+                        additionalDetails: {
+                            error: {
+                                code: (error as any)?.code || "INTERNAL_SERVER_ERROR",
+                                message: (error as any)?.message || String(error)
+                            }
+                        }
+                    },
                     messageObject?.requestInfo?.userInfo?.uuid
                 );
             }
         } catch (resourceUpdateError) {
-            logger.warn(`Failed to update resource error details: ${resourceUpdateError}`);
+            logger.warn(`Failed to update resource error details: ${(resourceUpdateError as Error)?.stack || resourceUpdateError}`);
         }
         await enrichAndPersistCampaignWithErrorProcessingTask(messageObject?.CampaignDetails, messageObject?.parentCampaign, messageObject?.requestInfo, error);
     }
@@ -178,7 +187,7 @@ async function persistResourceDetailUpdate(
     tenantId: string,
     resourceType: string,
     parentResourceId: string | null | undefined,
-    updates: { status: string; processedFileStoreId?: string },
+    updates: { status: string; processedFileStoreId?: string; additionalDetails?: Record<string, any> },
     userUuid: string
 ): Promise<void> {
     if (!campaignId || !tenantId || !resourceType) return;
@@ -224,7 +233,7 @@ async function persistResourceDetailUpdate(
             action: dbRow.action,
             isActive: true,
             hierarchyType: dbRow.hierarchytype || null,
-            additionalDetails: dbRow.additionaldetails || {},
+            additionalDetails: { ...(dbRow.additionaldetails || {}), ...(updates.additionalDetails || {}) },
             auditDetails: {
                 createdBy: dbRow.createdby,
                 createdTime: Number(dbRow.createdtime),

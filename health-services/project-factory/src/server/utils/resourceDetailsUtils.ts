@@ -2,6 +2,7 @@ import config from "../config";
 import { executeQuery, getTableName } from "./db";
 import { ResourceDetailsCriteria, Pagination } from "../config/models/resourceDetailsCriteria";
 import { ResourceDetailsResponse } from "../config/models/resourceTypes";
+import { resourceStatuses } from "../config/constants";
 
 export interface ResourceDetailRow {
   id: string;
@@ -226,4 +227,18 @@ export async function countTotalResourceDetails(
   const query = `SELECT COUNT(*) FROM ${tableName} WHERE ${conditions.join(" AND ")}`;
   const result = await executeQuery(query, values);
   return parseInt(result?.rows?.[0]?.count || "0", 10);
+}
+
+/**
+ * Returns true if any active resource for the campaign is currently in `creating` status.
+ * Used to block add/update operations while processing is in progress.
+ */
+export async function hasAnyCreatingResource(tenantId: string, campaignId: string): Promise<boolean> {
+  const rows = await searchResourceDetailsFromDB({
+    tenantId,
+    campaignId,
+    status: [resourceStatuses.creating],
+    isActive: true
+  });
+  return rows.length > 0;
 }
