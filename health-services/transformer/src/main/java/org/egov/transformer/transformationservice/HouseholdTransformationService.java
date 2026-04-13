@@ -9,12 +9,10 @@ import org.egov.common.models.household.Field;
 import org.egov.common.models.household.Household;
 import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.models.boundary.BoundaryHierarchyResult;
+import org.egov.transformer.models.devicetoken.DeviceToken;
 import org.egov.transformer.models.downstream.HouseholdIndexV1;
 import org.egov.transformer.producer.Producer;
-import org.egov.transformer.service.BoundaryService;
-import org.egov.transformer.service.HouseholdService;
-import org.egov.transformer.service.ProjectService;
-import org.egov.transformer.service.UserService;
+import org.egov.transformer.service.*;
 import org.egov.transformer.utils.CommonUtils;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
@@ -36,8 +34,9 @@ public class HouseholdTransformationService {
     private final ProjectService projectService;
     private final HouseholdService householdService;
     private final BoundaryService boundaryService;
+    private final DeviceTokenService deviceTokenService;
 
-    public HouseholdTransformationService(TransformerProperties transformerProperties, Producer producer, ObjectMapper objectMapper, UserService userService, CommonUtils commonUtils, ProjectService projectService, HouseholdService householdService, BoundaryService boundaryService) {
+    public HouseholdTransformationService(TransformerProperties transformerProperties, Producer producer, ObjectMapper objectMapper, UserService userService, CommonUtils commonUtils, ProjectService projectService, HouseholdService householdService, BoundaryService boundaryService, DeviceTokenService deviceTokenService) {
         this.transformerProperties = transformerProperties;
         this.producer = producer;
         this.objectMapper = objectMapper;
@@ -46,6 +45,7 @@ public class HouseholdTransformationService {
         this.projectService = projectService;
         this.householdService = householdService;
         this.boundaryService = boundaryService;
+        this.deviceTokenService = deviceTokenService;
     }
 
     public void transform(List<Household> householdList) {
@@ -63,6 +63,7 @@ public class HouseholdTransformationService {
     }
 
     private HouseholdIndexV1 transform(Household household) {
+        DeviceToken deviceToken = deviceTokenService.searchDeviceToken("026e5119-d2ce-4911-996d-a7b132ef34d5", "ba");
         householdService.searchHousehold(household.getClientReferenceId(), household.getTenantId());
         Map<String, String> boundaryHierarchy = null;
         Map<String, String> boundaryHierarchyCode = null;

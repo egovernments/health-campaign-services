@@ -62,6 +62,9 @@ public class TransformerProperties {
     @Value("${transformer.producer.stock.reconciliation.index.v1.topic}")
     private String transformerProducerStockReconciliationRegisterIndexV1Topic;
 
+    @Value("${transformer.producer.device.token.index.v1.topic}")
+    private String transformerProducerDeviceTokenIndexV1Topic;
+
     @Value("${egov.project.host}")
     private String projectHost;
 
@@ -112,6 +115,12 @@ public class TransformerProperties {
 
     @Value("${egov.search.facility.url}")
     private String facilitySearchUrl;
+
+    @Value("${egov.device.token.host}")
+    private String deviceTokenHost;
+
+    @Value("${egov.search.device.token.url}")
+    private String deviceTokenSearchUrl;
 
     @Value("${egov.search.servicedefinition.url}")
     private String serviceDefinitionSearchUrl;
