@@ -132,9 +132,11 @@ def create_zip_of_reports(folder_path, zip_name):
     zip_path = os.path.join(folder_path, zip_name)
     print(f"[DEBUG] Zip Path: {zip_path}")
     try:
-        with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
+        with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_STORED) as zipf:
             for root, _, files in os.walk(folder_path):
                 for f in files:
+                    if f.endswith(".zip"):
+                        continue
                     file_path = os.path.join(root, f)
                     arcname = os.path.relpath(file_path, folder_path)
                     zipf.write(file_path, arcname)
@@ -169,7 +171,8 @@ def upload_to_filestore(file_path):
     # Use context manager to ensure file handle closes
     with open(file_path, "rb") as f:
         files = {
-            "file": (os.path.basename(file_path), f, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+            # "file": (os.path.basename(file_path), f, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+            "file": (os.path.basename(file_path), f, "application/zip")
         }
 
         try:
@@ -337,57 +340,57 @@ finally:
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     zip_name = f"{REPORT_FILE_NAME}_{CAMPAIGN_IDENTIFIER}_{timestamp}.zip"
 # ===========================
-    # print(f"[DEBUG] Zip Name: {zip_name}")
+    print(f"[DEBUG] Zip Name: {zip_name}")
 
-    # zip_path = create_zip_of_reports(reports_folder, zip_name)
+    zip_path = create_zip_of_reports(reports_folder, zip_name)
     
-    # print(f"[DEBUG] Zip Path: {zip_path}")
+    print(f"[DEBUG] Zip Path: {zip_path}")
 # ============================
     # --------------------------------
     #  UPLOAD ZIP TO FILESTORE SERVICE
     # --------------------------------
     try:
-        # upload_response = upload_to_filestore(zip_path)
-        # print(f"[DEBUG] FileStore response: {upload_response}")
+        upload_response = upload_to_filestore(zip_path)
+        print(f"[DEBUG] FileStore response: {upload_response}")
 
-        # file_store_id = ""
+        file_store_id = ""
 
-        # if "files" in upload_response:
-        #     res = upload_response.get("files", [])
-        #     if len(res) > 0:
-        #         file_store_id = res[0].get("fileStoreId")
-        #         data = get_data_to_be_pushed(file_store_id)
+        if "files" in upload_response:
+            res = upload_response.get("files", [])
+            if len(res) > 0:
+                file_store_id = res[0].get("fileStoreId")
+                data = get_data_to_be_pushed(file_store_id)
 
-        #         data_object = json.dumps(data)
-        #         kafka_topic = f"{TENANT_ID}-{CUSTOM_REPORTS_AUTOMATION_TOPIC}" if IS_CENTRAL_INSTANCE_ENABLED and TENANT_ID else CUSTOM_REPORTS_AUTOMATION_TOPIC
-        #         send_to_kafka(producer=producer, topic=kafka_topic, message=data_object)
-        for file_path in saved_files:
-            print(f"[DEBUG] Uploading file directly: {file_path}")
+                data_object = json.dumps(data)
+                kafka_topic = f"{TENANT_ID}-{CUSTOM_REPORTS_AUTOMATION_TOPIC}" if IS_CENTRAL_INSTANCE_ENABLED and TENANT_ID else CUSTOM_REPORTS_AUTOMATION_TOPIC
+                send_to_kafka(producer=producer, topic=kafka_topic, message=data_object)
+        # for file_path in saved_files:
+        #     print(f"[DEBUG] Uploading file directly: {file_path}")
             
-            upload_response = upload_to_filestore(file_path)
-            print(f"[DEBUG] FileStore response: {upload_response}")
+        #     upload_response = upload_to_filestore(file_path)
+        #     print(f"[DEBUG] FileStore response: {upload_response}")
 
-            if "files" in upload_response:
-                res = upload_response.get("files", [])
-                if len(res) > 0:
-                    file_store_id = res[0].get("fileStoreId")
+        #     if "files" in upload_response:
+        #         res = upload_response.get("files", [])
+        #         if len(res) > 0:
+        #             file_store_id = res[0].get("fileStoreId")
 
-                    data = get_data_to_be_pushed(file_store_id)
-                    data_object = json.dumps(data)
+        #             data = get_data_to_be_pushed(file_store_id)
+        #             data_object = json.dumps(data)
 
-                    kafka_topic = (
-                        f"{TENANT_ID}-{CUSTOM_REPORTS_AUTOMATION_TOPIC}"
-                        if IS_CENTRAL_INSTANCE_ENABLED and TENANT_ID
-                        else CUSTOM_REPORTS_AUTOMATION_TOPIC
-                    )
+        #             kafka_topic = (
+        #                 f"{TENANT_ID}-{CUSTOM_REPORTS_AUTOMATION_TOPIC}"
+        #                 if IS_CENTRAL_INSTANCE_ENABLED and TENANT_ID
+        #                 else CUSTOM_REPORTS_AUTOMATION_TOPIC
+        #             )
 
-                    send_to_kafka(
-                        producer=producer,
-                        topic=kafka_topic,
-                        message=data_object
-                    )
-        else:
-            print(f"Error response : {upload_response}")
+        #             send_to_kafka(
+        #                 producer=producer,
+        #                 topic=kafka_topic,
+        #                 message=data_object
+        #             )
+        # else:
+        #     print(f"Error response : {upload_response}")
 
 
 

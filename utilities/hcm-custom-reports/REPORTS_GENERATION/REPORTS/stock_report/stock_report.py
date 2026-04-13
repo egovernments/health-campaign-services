@@ -32,7 +32,7 @@ file_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.p
 sys.path.append(file_path)
 
 from REPORTS_GENERATION.COMMON_UTILS.custom_date_utils import get_custom_dates_of_reports
-from REPORTS_GENERATION.COMMON_UTILS.common_utils import es_index_url, es_scroll_url
+from REPORTS_GENERATION.COMMON_UTILS.common_utils import get_resp, es_index_url, es_scroll_url
 
 # ===========================
 # CONFIG
@@ -60,20 +60,6 @@ if IDENTIFIER_TYPE == "projectTypeId":
 else:
     CAMPAIGN_FILTER_FIELD = "Data.campaignNumber.keyword"
     print(f"Using campaignNumber filter: {CAMPAIGN_IDENTIFIER}")
-
-# ===========================
-# COMMON ES CALL FUNCTION
-# ===========================
-def get_resp(url, data, es=False):
-    headers = {"Content-Type": "application/json"}
-    if es:
-        headers["Authorization"] = ELASTIC_AUTH
-
-    try:
-        return requests.post(url, json=data, headers=headers, verify=False)
-    except Exception as e:
-        print("ES error:", e)
-        return None
 
 # ===========================
 # QUERY
