@@ -2,6 +2,7 @@ package org.egov.common.models.stock;
 
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.Valid;
@@ -39,6 +40,7 @@ public class StockSearch extends EgovOfflineSearchModel {
     private String referenceId = null;
 
     @JsonProperty("wayBillNumber")
+    @JsonAlias({"waybillNumber"})
     private List<String> wayBillNumber = null;
 
     @JsonProperty("referenceIdType")
