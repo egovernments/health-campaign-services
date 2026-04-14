@@ -307,9 +307,12 @@ public class HierarchicalBoundaryUtil {
         // First pass: collect all boundary codes with their display names
         for (BoundaryUtil.BoundaryRowData boundary : boundaries) {
             List<String> path = boundary.getBoundaryPath();
-            for (String code : path) {
+            for (int i = 0; i < path.size(); i++) {
+                String code = path.get(i);
                 if (code != null) {
-                    codeToDisplayNameMap.putIfAbsent(code, localizationMap.getOrDefault(code, code));
+                    String displayName = localizationMap.getOrDefault(code, code);
+                    String levelTypeDisplayName = localizationMap.getOrDefault(levelTypes.get(i), levelTypes.get(i));
+                    codeToDisplayNameMap.putIfAbsent(code, displayName + " - " + levelTypeDisplayName);
                 }
             }
         }
@@ -696,7 +699,8 @@ public class HierarchicalBoundaryUtil {
                     String boundaryCodeAtLevel = boundaryPath.get(j);
                     if (boundaryCodeAtLevel != null && !boundaryCodeAtLevel.isEmpty()) {
                         String displayName = localizationMap.getOrDefault(boundaryCodeAtLevel, boundaryCodeAtLevel);
-                        cell.setCellValue(displayName);
+                        String typeName = localizationMap.getOrDefault(levelTypes.get(j), levelTypes.get(j));
+                        cell.setCellValue(displayName + " - " + typeName);
                     }
                 }
             }

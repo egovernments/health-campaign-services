@@ -254,6 +254,8 @@ public class BoundaryHierarchySheetGenerator implements IExcelPopulatorSheetGene
                     
                     if (boundaryCode != null && !boundaryCode.isEmpty()) {
                         boundaryName = localizationMap.getOrDefault(boundaryCode, boundaryCode);
+                        String typeName = localizationMap.getOrDefault(boundaryType, boundaryType);
+                        boundaryName = boundaryName + " - " + typeName;
                     }
                     
                     row.put(columnName, boundaryName);
