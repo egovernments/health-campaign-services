@@ -255,9 +255,17 @@ public class HierarchicalBoundaryUtil {
 
             formula.append("IF(").append(colRef).append("<>\"\",");
 
-            // Use VLOOKUP to find the boundary code from the display name to code mapping in columns D:E
+            // Build combination string: e.g., CONCATENATE(A2, "#", B2, "#", C2)
+            StringBuilder concatBuilder = new StringBuilder("CONCATENATE(");
+            for (int j = 0; j <= i; j++) {
+                if (j > 0) concatBuilder.append(",\"").append(BOUNDARY_SEPARATOR).append("\",");
+                concatBuilder.append(CellReference.convertNumToColString(visibleColIndices.get(j))).append(rowNumber);
+            }
+            concatBuilder.append(")");
+
+            // Use VLOOKUP to find the boundary code from the display name mapping in columns D:E
             // Use the correct row range where the mapping data actually exists
-            formula.append("IFERROR(VLOOKUP(").append(colRef)
+            formula.append("IFERROR(VLOOKUP(").append(concatBuilder.toString())
                    .append(",_h_SimpleLookup_h_!$D$").append(excelStartRow)
                    .append(":$E$").append(excelEndRow).append(",2,0),\"\")");
 
@@ -380,14 +388,28 @@ public class HierarchicalBoundaryUtil {
         }
         int childrenSectionEndRow = rowNum;
 
-        // SECTION 2: Display name to code mapping (for boundary code VLOOKUP)
-        // Structure: Column D = Display name, Column E = Code
+        // SECTION 2: Display name combination to code mapping (for boundary code VLOOKUP)
+        // Structure: Column D = Combination String, Column E = Code
         rowNum += 2; // Add spacing
         int displayNameMappingStartRow = rowNum;
-        for (Map.Entry<String, String> entry : codeToDisplayNameMap.entrySet()) {
+        
+        // Build map of combination strings to codes to avoid identical display name clashes
+        Map<String, String> comboToCodeMap = new HashMap<>();
+        for (BoundaryUtil.BoundaryRowData boundary : boundaries) {
+            StringBuilder comb = new StringBuilder();
+            for (String code : boundary.getBoundaryPath()) {
+                if (code != null) {
+                    if (comb.length() > 0) comb.append(BOUNDARY_SEPARATOR);
+                    comb.append(codeToDisplayNameMap.get(code));
+                    comboToCodeMap.put(comb.toString(), code);
+                }
+            }
+        }
+
+        for (Map.Entry<String, String> entry : comboToCodeMap.entrySet()) {
             Row mappingRow = lookupSheet.createRow(rowNum++);
-            mappingRow.createCell(3).setCellValue(entry.getValue()); // Column D: Display name
-            mappingRow.createCell(4).setCellValue(entry.getKey());    // Column E: Code
+            mappingRow.createCell(3).setCellValue(entry.getKey());   // Column D: Combination String
+            mappingRow.createCell(4).setCellValue(entry.getValue()); // Column E: Code
         }
         int displayNameMappingEndRow = rowNum;
 

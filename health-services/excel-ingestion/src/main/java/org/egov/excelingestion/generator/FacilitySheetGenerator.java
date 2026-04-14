@@ -373,8 +373,7 @@ public class FacilitySheetGenerator implements ISheetGenerator {
             if (boundaryCode != null) {
                 // Get localized value for the boundary code
                 String localizedValue = localizationMap.getOrDefault(boundaryCode, boundaryCode);
-                String localizedType = localizationMap.getOrDefault(boundaryType, boundaryType);
-                facility.put(columnKey, localizedValue + " - " + localizedType);
+                facility.put(columnKey, localizedValue);
             }
         }
     }
