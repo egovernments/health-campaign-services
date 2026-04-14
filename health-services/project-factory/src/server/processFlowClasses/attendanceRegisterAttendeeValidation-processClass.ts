@@ -10,7 +10,7 @@ import {
     attendanceErrorKeys,
     attendanceCacheKeys,
 } from "../config/constants";
-import { httpRequest } from "../utils/request";
+import { httpRequest, defaultheader } from "../utils/request";
 import { searchProjectTypeCampaignService } from "../service/campaignManageService";
 import config from "../config";
 
@@ -19,6 +19,9 @@ const MARKER_SHEET = attendanceSheetNames.MARKER;
 const APPROVER_SHEET = attendanceSheetNames.APPROVER;
 
 const SHEET_NAMES = [WORKER_SHEET, MARKER_SHEET, APPROVER_SHEET];
+
+const MDMS_EXCEL_INGESTION_GENERATE_SCHEMA = "HCM-ADMIN-CONSOLE.excelIngestionGenerate";
+const MDMS_ATTENDANCE_REGISTER_ATTENDEE_CONFIG_NAME = "attendanceRegisterAttendee";
 
 // Strict regex: dd-MM-yyyy (dash only) OR dd/MM/yyyy (slash only) — no mixed separators
 const DASH_DATE_REGEX = /^(\d{2})-(\d{2})-(\d{4})$/;
@@ -44,6 +47,10 @@ export class TemplateClass {
     ): Promise<SheetMap> {
         const tenantId = resourceDetails?.tenantId;
         logger.info(`Validating attendance register attendee file — tenantId=${tenantId}, campaignId=${resourceDetails?.campaignId}`);
+
+        // Fetch MDMS config once — role codes whose users may skip cross-register enrollment check
+        const multiRegisterAllowedRoles = await this.fetchMultiRegisterAllowedRoles(tenantId, resourceDetails?.requestInfo);
+        logger.info(`Multi-register allowed roles for tenant ${tenantId}: [${Array.from(multiRegisterAllowedRoles).join(", ")}]`);
 
         // Collect all rows from all sheets
         const allRows: { row: any; sheetName: string }[] = [];
@@ -112,7 +119,7 @@ export class TemplateClass {
                 usernames.push(username);
             }
         }
-        const usernameToIndividualId = await this.resolveIndividualIds(usernames, tenantId, resourceDetails?.requestInfo);
+        const { usernameToIndividualId, usernameToRoles } = await this.resolveIndividualIds(usernames, tenantId, resourceDetails?.requestInfo);
         const allIndividualIds = [...new Set(usernameToIndividualId.values())];
 
         // Fetch all enrollment records across ALL registers for cross-register validation
@@ -221,8 +228,11 @@ export class TemplateClass {
                 continue;
             }
 
-            // Block new enrollment if individual is already actively enrolled in another register
-            if (activeInOtherRegister && !existing) {
+            // Block new enrollment if individual is already actively enrolled in another register,
+            // unless this specific user has a role listed in MDMS multiRegisterAllowedRoles.
+            const userRoles: string[] = username ? (usernameToRoles.get(username) || []) : [];
+            const isExemptUser = multiRegisterAllowedRoles.size > 0 && userRoles.some((r) => multiRegisterAllowedRoles.has(r));
+            if (activeInOtherRegister && !existing && !isExemptUser) {
                 logger.debug(`Row ${row["!row#number!"]}: user ${username} already enrolled in register ${activeInOtherRegister.registerId}, cannot enroll in ${registerId}`);
                 this.addError(row, attendanceErrorKeys.ALREADY_ENROLLED_IN_ANOTHER_REGISTER, localizationMap);
                 continue;
@@ -303,15 +313,53 @@ export class TemplateClass {
     }
 
     /**
-     * Resolve usernames to individualIds via HRMS employee search.
+     * Fetch the set of role codes from MDMS multiRegisterAllowedRoles.
+     * Users whose roles intersect this set may be enrolled in multiple registers simultaneously.
+     */
+    private static async fetchMultiRegisterAllowedRoles(tenantId: string, requestInfo?: RequestInfo): Promise<Set<string>> {
+        const allowedRoles = new Set<string>();
+        try {
+            const url = config.host.mdmsV2 + config.paths.mdms_v2_search;
+            const header = {
+                ...defaultheader,
+                cachekey: `mdmsv2ExcelIngestionGenerate${tenantId}${MDMS_ATTENDANCE_REGISTER_ATTENDEE_CONFIG_NAME}`,
+            };
+            const requestBody = {
+                RequestInfo: requestInfo || {},
+                MdmsCriteria: {
+                    tenantId,
+                    schemaCode: MDMS_EXCEL_INGESTION_GENERATE_SCHEMA,
+                    filters: { excelIngestionGenerateName: MDMS_ATTENDANCE_REGISTER_ATTENDEE_CONFIG_NAME },
+                    limit: 1,
+                    offset: 0,
+                },
+            };
+            const response = await httpRequest(url, requestBody, undefined, undefined, undefined, header);
+            const data = response?.mdms?.[0]?.data;
+            if (!data) return allowedRoles;
+
+            const roles: string[] = data.multiRegisterAllowedRoles || [];
+            for (const role of roles) {
+                allowedRoles.add(role);
+            }
+        } catch (err: any) {
+            logger.warn(`Failed to fetch attendanceRegisterAttendee MDMS config for tenant ${tenantId}: ${err?.message}`);
+        }
+        return allowedRoles;
+    }
+
+    /**
+     * Resolve usernames to individualIds and role codes via HRMS employee search.
+     * Returns both usernameToIndividualId and usernameToRoles maps.
      */
     private static async resolveIndividualIds(
         usernames: string[],
         tenantId: string,
         requestInfo?: RequestInfo
-    ): Promise<Map<string, string>> {
-        const result = new Map<string, string>();
-        if (!usernames.length) return result;
+    ): Promise<{ usernameToIndividualId: Map<string, string>; usernameToRoles: Map<string, string[]> }> {
+        const usernameToIndividualId = new Map<string, string>();
+        const usernameToRoles = new Map<string, string[]>();
+        if (!usernames.length) return { usernameToIndividualId, usernameToRoles };
 
         const searchUrl = config.host.hrmsHost + config.paths.hrmsEmployeeSearch;
         const rootTenantId = tenantId.split(".")[0];
@@ -334,14 +382,19 @@ export class TemplateClass {
             for (const employees of responses) {
                 for (const emp of employees) {
                     if (emp?.code && emp?.user?.uuid) {
-                        result.set(emp.code, emp.user.uuid);
+                        usernameToIndividualId.set(emp.code, emp.user.uuid);
+                        // Capture role codes from user.roles[].code
+                        const roles: string[] = Array.isArray(emp?.user?.roles)
+                            ? emp.user.roles.map((r: any) => r?.code).filter(Boolean)
+                            : [];
+                        usernameToRoles.set(emp.code, roles);
                     }
                 }
             }
         }
 
-        logger.info(`Resolved ${result.size}/${usernames.length} usernames via HRMS`);
-        return result;
+        logger.info(`Resolved ${usernameToIndividualId.size}/${usernames.length} usernames via HRMS`);
+        return { usernameToIndividualId, usernameToRoles };
     }
 
     private static getCellAsString(value: any): string {

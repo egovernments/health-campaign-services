@@ -5,6 +5,8 @@ public class ProcessingConstants {
     
     // MDMS Configuration
     public static final String MDMS_SCHEMA_CODE = "HCM-ADMIN-CONSOLE.schemas";
+    public static final String MDMS_EXCEL_INGESTION_GENERATE_SCHEMA = "HCM-ADMIN-CONSOLE.excelIngestionGenerate";
+    public static final String MDMS_ATTENDANCE_REGISTER_ATTENDEE_CONFIG_NAME = "attendanceRegisterAttendee";
 
     // Column Keys
     public static final String BOUNDARY_CODE_COLUMN_KEY = "HCM_ADMIN_CONSOLE_BOUNDARY_CODE";
@@ -75,6 +77,8 @@ public class ProcessingConstants {
     public static final String HRMS_EMPLOYEE_CODE_KEY = "code";
     public static final String HRMS_EMPLOYEE_USER_KEY = "user";
     public static final String HRMS_USER_UUID_KEY = "uuid";
+    public static final String HRMS_USER_ROLES_KEY = "roles";
+    public static final String HRMS_ROLE_CODE_KEY = "code";
 
     // Common API Keys
     public static final String REQUEST_INFO_KEY = "RequestInfo";

@@ -10,8 +10,10 @@ import org.egov.excelingestion.repository.ServiceRequestRepository;
 import org.egov.excelingestion.service.BoundaryService;
 import org.egov.excelingestion.service.CampaignService;
 import org.egov.excelingestion.service.CryptoService;
+import org.egov.excelingestion.service.MDMSConfigService;
 import org.egov.excelingestion.service.MDMSService;
 import org.egov.excelingestion.util.SchemaColumnDefUtil;
+import org.egov.excelingestion.web.models.mdms.ExcelIngestionGenerateData;
 import org.egov.excelingestion.web.models.*;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.excelingestion.web.models.excel.ColumnDef;
@@ -41,19 +43,26 @@ import java.util.*;
 @Slf4j
 public class AttendanceRegisterAttendeeSheetGenerator implements IExcelPopulatorSheetGenerator {
 
-    // Role codes for classifying users into sheets (priority: APPROVER > MARKER > WORKER)
-    private static final Set<String> APPROVER_ROLES = Set.of("PROXIMITY_SUPERVISOR");
-    private static final Set<String> MARKER_ROLES = Set.of("WAREHOUSE_MANAGER", "TEAM_SUPERVISOR", "CAMPAIGN_SUPERVISOR");
-    private static final Set<String> WORKER_ROLES = Set.of("DISTRIBUTOR", "REGISTRAR", "FIELD_SUPPORT", "HEALTH_FACILITY_WORKER");
-
+    // Sheet name keys — used for MDMS config lookup and worker-sheet detection
     private static final String WORKER_SHEET = "HCM_REGISTER_WORKER_SHEET";
     private static final String MARKER_SHEET = "HCM_REGISTER_MARKER_SHEET";
     private static final String APPROVER_SHEET = "HCM_REGISTER_APPROVER_SHEET";
+
+    // Fallback role sets used when MDMS config is absent (safety net, avoids silent breakage)
+    private static final Map<String, List<String>> FALLBACK_ROLE_CONFIG = Map.of(
+            WORKER_SHEET,   List.of("DISTRIBUTOR", "REGISTRAR", "FIELD_SUPPORT", "HEALTH_FACILITY_WORKER"),
+            MARKER_SHEET,   List.of("WAREHOUSE_MANAGER", "TEAM_SUPERVISOR", "CAMPAIGN_SUPERVISOR"),
+            APPROVER_SHEET, List.of("PROXIMITY_SUPERVISOR")
+    );
+
+    // Sheet priority order: first match wins (APPROVER beats MARKER beats WORKER)
+    private static final List<String> SHEET_PRIORITY = List.of(APPROVER_SHEET, MARKER_SHEET, WORKER_SHEET);
 
     private static final int MAX_MULTISELECT_COLUMNS = 5;
     private static final int BULK_DECRYPT_BATCH_SIZE = 500;
 
     private final MDMSService mdmsService;
+    private final MDMSConfigService mdmsConfigService;
     private final CampaignService campaignService;
     private final BoundaryService boundaryService;
     private final CryptoService cryptoService;
@@ -64,6 +73,7 @@ public class AttendanceRegisterAttendeeSheetGenerator implements IExcelPopulator
 
     public AttendanceRegisterAttendeeSheetGenerator(
             MDMSService mdmsService,
+            MDMSConfigService mdmsConfigService,
             CampaignService campaignService,
             BoundaryService boundaryService,
             CryptoService cryptoService,
@@ -72,6 +82,7 @@ public class AttendanceRegisterAttendeeSheetGenerator implements IExcelPopulator
             CustomExceptionHandler exceptionHandler,
             SchemaColumnDefUtil schemaColumnDefUtil) {
         this.mdmsService = mdmsService;
+        this.mdmsConfigService = mdmsConfigService;
         this.campaignService = campaignService;
         this.boundaryService = boundaryService;
         this.cryptoService = cryptoService;
@@ -96,33 +107,38 @@ public class AttendanceRegisterAttendeeSheetGenerator implements IExcelPopulator
         // 1. Fetch schema from MDMS → convert to ColumnDefs
         List<ColumnDef> columnDefs = fetchSchemaColumnDefs(sheetConfig.getSchemaName(), tenantId, requestInfo);
 
-        // 2. Resolve registerId (from referenceId when referenceType is attendanceRegister, else additionalDetails)
+        // 2. Fetch role config from MDMS (with fallback to hardcoded defaults)
+        Map<String, List<String>> attendanceRoleConfig = fetchAttendanceRoleConfig(tenantId, requestInfo);
+        // Build role → sheet map from MDMS config (priority order: APPROVER > MARKER > WORKER)
+        Map<String, String> roleToSheetMap = buildRoleToSheetMap(attendanceRoleConfig);
+
+        // 3. Resolve registerId (from referenceId when referenceType is attendanceRegister, else additionalDetails)
         String registerId = resolveRegisterId(generateResource);
 
-        // 3. Fetch attendance register → get localityCode AND campaignNumber
+        // 4. Fetch attendance register → get localityCode AND campaignNumber
         RegisterDetails registerDetails = fetchRegisterDetails(registerId, tenantId, requestInfo);
         String localityCode = registerDetails.localityCode;
         String campaignNumber = registerDetails.campaignNumber;
 
-        // 4. Fetch boundary tree once and resolve allowed codes for this sheet's filter config
+        // 5. Fetch boundary tree once and resolve allowed codes for this sheet's filter config
         BoundarySearchResponse boundaryResponse = boundaryService.fetchBoundaryRelationship(
                 tenantId, hierarchyType, requestInfo);
         Set<String> allowedBoundaryCodes = resolveBoundaryFilterCodes(
                 boundaryResponse, localityCode, sheetConfig.getBoundaryFilter());
 
-        // 5. Fetch all completed user data for this campaign
+        // 6. Fetch all completed user data for this campaign
         List<Map<String, Object>> allUsers = campaignService.searchCampaignDataByType(
                 "user", ProcessingConstants.STATUS_COMPLETED, campaignNumber, tenantId, requestInfo);
 
         log.info("Fetched {} users for campaign {} in tenant {}", allUsers.size(), campaignNumber, tenantId);
 
-        // 6. Classify, filter, and build rows for this sheet
+        // 7. Classify, filter, and build rows for this sheet
         List<Map<String, Object>> filteredUsers = classifyAndFilterUsers(
-                allUsers, sheetName, allowedBoundaryCodes);
+                allUsers, sheetName, allowedBoundaryCodes, roleToSheetMap);
 
         log.info("Filtered {} users for sheet {}", filteredUsers.size(), sheetName);
 
-        // 7. Decrypt credentials and build data rows
+        // 8. Decrypt credentials and build data rows
         List<Map<String, Object>> dataRows = buildDataRows(
                 filteredUsers, registerDetails.serviceCode, localizationMap, requestInfo,
                 WORKER_SHEET.equals(sheetName));
@@ -451,11 +467,12 @@ public class AttendanceRegisterAttendeeSheetGenerator implements IExcelPopulator
 
     /**
      * Classify users by role and filter by allowed boundary codes for the current sheet.
-     * A user appears in at most one sheet — role priority (APPROVER > MARKER > WORKER) determines which.
+     * A user appears in at most one sheet — role priority order in SHEET_PRIORITY determines which sheet wins.
+     * roleToSheetMap is derived from MDMS attendanceRoleConfig (or fallback defaults).
      */
     private List<Map<String, Object>> classifyAndFilterUsers(
             List<Map<String, Object>> allUsers, String sheetName,
-            Set<String> allowedBoundaryCodes) {
+            Set<String> allowedBoundaryCodes, Map<String, String> roleToSheetMap) {
 
         List<Map<String, Object>> filtered = new ArrayList<>();
 
@@ -467,7 +484,7 @@ public class AttendanceRegisterAttendeeSheetGenerator implements IExcelPopulator
             if (userName.isEmpty()) continue;
 
             List<String> roleCodes = getRoleCodes(rawData);
-            String classifiedSheet = classifyUserToSheet(roleCodes);
+            String classifiedSheet = classifyUserToSheet(roleCodes, roleToSheetMap);
             if (classifiedSheet == null || !classifiedSheet.equals(sheetName)) continue;
 
             String boundaryCode = getStringValue(rawData, "HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY");
@@ -607,19 +624,57 @@ public class AttendanceRegisterAttendeeSheetGenerator implements IExcelPopulator
     }
 
     /**
-     * Classify user to sheet based on role codes (priority: APPROVER > MARKER > WORKER)
+     * Classify user to sheet based on role codes using the MDMS-driven roleToSheetMap.
+     * Priority is determined by SHEET_PRIORITY order (APPROVER > MARKER > WORKER).
+     * Returns null if no role matches any known sheet.
      */
-    private String classifyUserToSheet(List<String> roleCodes) {
-        for (String role : roleCodes) {
-            if (APPROVER_ROLES.contains(role)) return APPROVER_SHEET;
-        }
-        for (String role : roleCodes) {
-            if (MARKER_ROLES.contains(role)) return MARKER_SHEET;
-        }
-        for (String role : roleCodes) {
-            if (WORKER_ROLES.contains(role)) return WORKER_SHEET;
+    private String classifyUserToSheet(List<String> roleCodes, Map<String, String> roleToSheetMap) {
+        // Walk priority order — return the highest-priority sheet for which any role matches
+        for (String prioritySheet : SHEET_PRIORITY) {
+            for (String role : roleCodes) {
+                if (prioritySheet.equals(roleToSheetMap.get(role))) {
+                    return prioritySheet;
+                }
+            }
         }
         return null;
+    }
+
+    /**
+     * Build role → sheet map from MDMS attendanceRoleConfig.
+     * Iterates SHEET_PRIORITY (APPROVER → MARKER → WORKER) and uses putIfAbsent so the
+     * first (highest-priority) sheet wins for any role that appears in multiple sheets.
+     */
+    private Map<String, String> buildRoleToSheetMap(Map<String, List<String>> attendanceRoleConfig) {
+        Map<String, String> roleToSheet = new HashMap<>();
+        // First sheet in priority order wins — putIfAbsent skips subsequent lower-priority mappings
+        for (String sheet : SHEET_PRIORITY) {
+            List<String> roles = attendanceRoleConfig.getOrDefault(sheet, Collections.emptyList());
+            for (String role : roles) {
+                roleToSheet.putIfAbsent(role, sheet);
+            }
+        }
+        return roleToSheet;
+    }
+
+    /**
+     * Fetch attendanceRoleConfig from MDMS generate config.
+     * Falls back to FALLBACK_ROLE_CONFIG if MDMS returns no data.
+     */
+    private Map<String, List<String>> fetchAttendanceRoleConfig(String tenantId, RequestInfo requestInfo) {
+        try {
+            ExcelIngestionGenerateData generateData = mdmsConfigService.getExcelIngestionGenerateConfig(
+                    requestInfo, tenantId,
+                    ProcessingConstants.MDMS_ATTENDANCE_REGISTER_ATTENDEE_CONFIG_NAME);
+            if (generateData != null && !generateData.getAttendanceRoleConfig().isEmpty()) {
+                log.info("Loaded attendanceRoleConfig from MDMS for tenant {}", tenantId);
+                return generateData.getAttendanceRoleConfig();
+            }
+        } catch (Exception e) {
+            log.warn("Failed to fetch attendanceRoleConfig from MDMS for tenant {}: {}", tenantId, e.getMessage());
+        }
+        log.warn("Using fallback attendanceRoleConfig for tenant {}", tenantId);
+        return FALLBACK_ROLE_CONFIG;
     }
 
     private String getStringValue(Map<String, Object> map, String key) {

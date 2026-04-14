@@ -7,6 +7,7 @@ import org.egov.excelingestion.config.ExcelIngestionConfig;
 import org.egov.excelingestion.config.ValidationConstants;
 import org.egov.excelingestion.exception.CustomExceptionHandler;
 import org.egov.excelingestion.repository.ServiceRequestRepository;
+import org.egov.excelingestion.service.MDMSConfigService;
 import org.egov.excelingestion.service.ValidationService;
 import org.egov.excelingestion.util.EnrichmentUtil;
 import org.egov.excelingestion.util.ExcelUtil;
@@ -15,6 +16,7 @@ import org.egov.common.contract.request.RequestInfo;
 import org.egov.excelingestion.web.models.ValidationColumnInfo;
 import org.egov.excelingestion.web.models.ValidationError;
 import org.egov.excelingestion.config.ProcessingConstants;
+import org.egov.excelingestion.web.models.mdms.ExcelIngestionGenerateData;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
@@ -82,6 +84,7 @@ public class AttendanceRegisterAttendeeValidationProcessor implements IWorkbookP
     private static final String DEFAULT_ALREADY_ENROLLED_IN_ANOTHER_REGISTER = ValidationConstants.DEFAULT_ATTENDANCE_ALREADY_ENROLLED_IN_ANOTHER_REGISTER;
 
     private final ValidationService validationService;
+    private final MDMSConfigService mdmsConfigService;
     private final EnrichmentUtil enrichmentUtil;
     private final ExcelUtil excelUtil;
     private final ServiceRequestRepository serviceRequestRepository;
@@ -90,12 +93,14 @@ public class AttendanceRegisterAttendeeValidationProcessor implements IWorkbookP
 
     public AttendanceRegisterAttendeeValidationProcessor(
             ValidationService validationService,
+            MDMSConfigService mdmsConfigService,
             EnrichmentUtil enrichmentUtil,
             ExcelUtil excelUtil,
             ServiceRequestRepository serviceRequestRepository,
             ExcelIngestionConfig config,
             CustomExceptionHandler exceptionHandler) {
         this.validationService = validationService;
+        this.mdmsConfigService = mdmsConfigService;
         this.enrichmentUtil = enrichmentUtil;
         this.excelUtil = excelUtil;
         this.serviceRequestRepository = serviceRequestRepository;
@@ -146,8 +151,12 @@ public class AttendanceRegisterAttendeeValidationProcessor implements IWorkbookP
                 return workbook;
             }
 
-            // Resolve HRMS usernames → individualIds for truth-table validation
-            Map<String, String> usernameToIndividualId = resolveUsernames(sheetData, resource.getTenantId(), requestInfo);
+            // Fetch MDMS config — role codes allowed to skip cross-register enrollment check
+            Set<String> multiRegisterAllowedRoles = fetchMultiRegisterAllowedRoles(resource.getTenantId(), requestInfo);
+
+            // Resolve HRMS usernames → individualIds and role codes for truth-table validation
+            Map<String, List<String>> usernameToRoles = new HashMap<>();
+            Map<String, String> usernameToIndividualId = resolveUsernames(sheetData, usernameToRoles, resource.getTenantId(), requestInfo);
 
             // Detect if this is a worker sheet (has team code column) — needed before conditional fetch
             boolean isWorkerSheet = hasTeamCodeColumn(sheetData);
@@ -168,8 +177,8 @@ public class AttendanceRegisterAttendeeValidationProcessor implements IWorkbookP
             // Single-pass O(n) validation
             List<ValidationError> errors = new ArrayList<>();
             validateAttendeeData(sheetData, expectedRegisterId, registerContext,
-                    usernameToIndividualId, attendeeEnrollmentsMap, staffEnrollmentsMap,
-                    isWorkerSheet, staffType, errors, localizationMap);
+                    usernameToIndividualId, usernameToRoles, attendeeEnrollmentsMap, staffEnrollmentsMap,
+                    isWorkerSheet, staffType, multiRegisterAllowedRoles, errors, localizationMap);
 
             log.info("Attendee validation completed for sheet {} with {} errors", sheetName, errors.size());
 
@@ -203,10 +212,12 @@ public class AttendanceRegisterAttendeeValidationProcessor implements IWorkbookP
                                        String expectedRegisterId,
                                        RegisterContext registerContext,
                                        Map<String, String> usernameToIndividualId,
+                                       Map<String, List<String>> usernameToRoles,
                                        Map<String, List<Map<String, Object>>> attendeeEnrollmentsMap,
                                        Map<String, List<Map<String, Object>>> staffEnrollmentsMap,
                                        boolean isWorkerSheet,
                                        String staffType,
+                                       Set<String> multiRegisterAllowedRoles,
                                        List<ValidationError> errors,
                                        Map<String, String> localizationMap) {
 
@@ -287,10 +298,12 @@ public class AttendanceRegisterAttendeeValidationProcessor implements IWorkbookP
             if (rowErrors.isEmpty() && registerContext != null) {
                 String individualId = usernameToIndividualId.get(userName);
                 if (individualId != null && !individualId.isEmpty()) {
+                    List<String> userRoles = usernameToRoles.getOrDefault(userName, Collections.emptyList());
                     List<String> businessErrors = validateTruthTableRules(
                             individualId, enrollmentDate, deEnrollmentDate, teamCode,
                             isWorkerSheet, staffType, expectedRegisterId,
-                            attendeeEnrollmentsMap, staffEnrollmentsMap, localizationMap);
+                            attendeeEnrollmentsMap, staffEnrollmentsMap,
+                            multiRegisterAllowedRoles, userRoles, localizationMap);
                     rowErrors.addAll(businessErrors);
                 }
             }
@@ -321,6 +334,8 @@ public class AttendanceRegisterAttendeeValidationProcessor implements IWorkbookP
                                                   String currentRegisterId,
                                                   Map<String, List<Map<String, Object>>> attendeeEnrollmentsMap,
                                                   Map<String, List<Map<String, Object>>> staffEnrollmentsMap,
+                                                  Set<String> multiRegisterAllowedRoles,
+                                                  List<String> userRoles,
                                                   Map<String, String> localizationMap) {
         List<String> errors = new ArrayList<>();
 
@@ -363,8 +378,11 @@ public class AttendanceRegisterAttendeeValidationProcessor implements IWorkbookP
                 return errors;
             }
 
-            // Block new enrollment if individual is already actively enrolled in another register
-            if (activeInOtherRegister) {
+            // Block new enrollment if individual is already actively enrolled in another register,
+            // unless this specific user has a role listed in MDMS multiRegisterAllowedRoles.
+            boolean isExempt = !multiRegisterAllowedRoles.isEmpty()
+                    && userRoles.stream().anyMatch(multiRegisterAllowedRoles::contains);
+            if (activeInOtherRegister && !isExempt) {
                 errors.add(getLocalizedMessage(localizationMap, LOC_ALREADY_ENROLLED_IN_ANOTHER_REGISTER,
                         DEFAULT_ALREADY_ENROLLED_IN_ANOTHER_REGISTER));
                 return errors;
@@ -452,11 +470,24 @@ public class AttendanceRegisterAttendeeValidationProcessor implements IWorkbookP
         return epochMillisToLocalDate(epochMillis);
     }
 
+    /** Holds both the individualId (uuid) and role codes for one HRMS employee. */
+    private static class HrmsUserData {
+        final String code;
+        final String uuid;
+        final List<String> roles;
+        HrmsUserData(String code, String uuid, List<String> roles) {
+            this.code = code;
+            this.uuid = uuid;
+            this.roles = roles;
+        }
+    }
+
     /**
-     * Resolve usernames to individualIds via HRMS employee search.
-     * Returns map of username → individualId (uuid).
+     * Resolve usernames to individualIds and role codes via HRMS employee search.
+     * Populates both usernameToIndividualId (returned) and usernameToRolesOut (passed as output parameter).
      */
     private Map<String, String> resolveUsernames(List<Map<String, Object>> sheetData,
+                                                  Map<String, List<String>> usernameToRolesOut,
                                                   String tenantId,
                                                   RequestInfo requestInfo) {
         Map<String, String> result = new HashMap<>();
@@ -483,7 +514,7 @@ public class AttendanceRegisterAttendeeValidationProcessor implements IWorkbookP
             List<String> batch = usernameList.subList(i, end);
 
             // Fire all calls in this window in parallel using CompletableFuture
-            List<CompletableFuture<Map.Entry<String, String>>> futures = new ArrayList<>();
+            List<CompletableFuture<HrmsUserData>> futures = new ArrayList<>();
             for (String username : batch) {
                 futures.add(CompletableFuture.supplyAsync(() -> {
                     try {
@@ -509,7 +540,19 @@ public class AttendanceRegisterAttendeeValidationProcessor implements IWorkbookP
                                 String uuid = (user != null && user.get(ProcessingConstants.HRMS_USER_UUID_KEY) != null)
                                         ? String.valueOf(user.get(ProcessingConstants.HRMS_USER_UUID_KEY)).trim() : "";
                                 if (!code.isEmpty() && !uuid.isEmpty()) {
-                                    return Map.entry(code, uuid);
+                                    // Extract role codes from user.roles[].code
+                                    List<String> roleCodes = new ArrayList<>();
+                                    if (user.get(ProcessingConstants.HRMS_USER_ROLES_KEY) instanceof List) {
+                                        @SuppressWarnings("unchecked")
+                                        List<Map<String, Object>> roleList = (List<Map<String, Object>>) user.get(ProcessingConstants.HRMS_USER_ROLES_KEY);
+                                        for (Map<String, Object> roleObj : roleList) {
+                                            Object rc = roleObj.get(ProcessingConstants.HRMS_ROLE_CODE_KEY);
+                                            if (rc != null && !String.valueOf(rc).trim().isEmpty()) {
+                                                roleCodes.add(String.valueOf(rc).trim());
+                                            }
+                                        }
+                                    }
+                                    return new HrmsUserData(code, uuid, roleCodes);
                                 }
                             }
                         }
@@ -522,11 +565,12 @@ public class AttendanceRegisterAttendeeValidationProcessor implements IWorkbookP
 
             // Wait for all calls in this window to complete
             CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
-            for (CompletableFuture<Map.Entry<String, String>> future : futures) {
+            for (CompletableFuture<HrmsUserData> future : futures) {
                 try {
-                    Map.Entry<String, String> entry = future.get();
-                    if (entry != null) {
-                        result.put(entry.getKey(), entry.getValue());
+                    HrmsUserData data = future.get();
+                    if (data != null) {
+                        result.put(data.code, data.uuid);
+                        usernameToRolesOut.put(data.code, data.roles);
                     }
                 } catch (Exception e) {
                     log.warn("Error retrieving HRMS result: {}", e.getMessage());
@@ -564,6 +608,29 @@ public class AttendanceRegisterAttendeeValidationProcessor implements IWorkbookP
             return ProcessingConstants.STAFF_TYPE_APPROVER;
         }
         return ProcessingConstants.STAFF_TYPE_OWNER;
+    }
+
+    /**
+     * Fetch the set of role codes that are allowed to be enrolled in multiple attendance registers simultaneously.
+     * Returns the multiRegisterAllowedRoles list from MDMS as a Set for O(1) lookup.
+     * Returns an empty set if MDMS config is absent or the list is empty.
+     */
+    private Set<String> fetchMultiRegisterAllowedRoles(String tenantId, RequestInfo requestInfo) {
+        try {
+            ExcelIngestionGenerateData generateData = mdmsConfigService.getExcelIngestionGenerateConfig(
+                    requestInfo, tenantId,
+                    ProcessingConstants.MDMS_ATTENDANCE_REGISTER_ATTENDEE_CONFIG_NAME);
+            if (generateData == null) return Collections.emptySet();
+
+            List<String> allowedRoles = generateData.getMultiRegisterAllowedRoles();
+            if (allowedRoles.isEmpty()) return Collections.emptySet();
+
+            log.info("Multi-register allowed roles for tenant {}: {}", tenantId, allowedRoles);
+            return new HashSet<>(allowedRoles);
+        } catch (Exception e) {
+            log.warn("Failed to fetch multiRegisterAllowedRoles from MDMS for tenant {}: {}", tenantId, e.getMessage());
+            return Collections.emptySet();
+        }
     }
 
     /**
