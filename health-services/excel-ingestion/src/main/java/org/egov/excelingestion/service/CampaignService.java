@@ -239,11 +239,11 @@ public class CampaignService {
                 Map<String, Object> pagination = new HashMap<>();
                 pagination.put("limit", limit);
                 pagination.put("offset", offset);
-                searchCriteria.put("pagination", pagination);
 
                 Map<String, Object> payload = Map.of(
                     "RequestInfo", sanitizedRequestInfo,
-                    "SearchCriteria", searchCriteria
+                    "SearchCriteria", searchCriteria,
+                        "Pagination", pagination
                 );
 
                 String url = config.getCampaignDataSearchUrl();
