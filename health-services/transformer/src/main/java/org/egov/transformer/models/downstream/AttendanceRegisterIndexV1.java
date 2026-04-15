@@ -21,6 +21,16 @@ public class AttendanceRegisterIndexV1 {
     private AttendanceRegister attendanceRegister;
     @JsonProperty("attendeesInfo")
     private Map<String, Name> attendeesInfo;
+    @JsonProperty("staffsInfo")
+    private Map<String, Name> staffsInfo;
+    @JsonProperty("staffsCount")
+    private Long staffsCount;
+    @JsonProperty("attendeesCount")
+    private Long attendeesCount;
+    @JsonProperty("boundaryHierarchy")
+    private Map<String, String> boundaryHierarchy;
+    @JsonProperty("boundaryHierarchyCode")
+    private Map<String, String> boundaryHierarchyCode;
     @JsonProperty("transformerTimeStamp")
     private String transformerTimeStamp;
 }

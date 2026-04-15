@@ -56,6 +56,12 @@ public class TransformerProperties {
     @Value("${transformer.producer.attendance.log.index.v1.topic}")
     private String transformerProducerAttendanceLogIndexV1Topic;
 
+    @Value("${transformer.producer.attendee.index.v1.topic}")
+    private String transformerProducerAttendeeIndexV1Topic;
+
+    @Value("${transformer.producer.attendance.staff.index.v1.topic}")
+    private String transformerProducerAttendanceStaffIndexV1Topic;
+
     @Value("${transformer.producer.attendance.register.index.v1.topic}")
     private String transformerProducerAttendanceRegisterIndexV1Topic;
 
