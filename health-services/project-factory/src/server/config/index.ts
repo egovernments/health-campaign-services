@@ -41,6 +41,15 @@ const config = {
     userPasswordAutoGenerate: process.env.USER_PASSWORD_AUTO_GENERATE === "true",
     phoneNumberLength: process.env.PHONE_NUMBER_LENGTH ? parseInt(process.env.PHONE_NUMBER_LENGTH, 10) : 10,
   },
+  attendanceRegister: {
+    defaultEventType: process.env.ATTENDANCE_REGISTER_DEFAULT_EVENT_TYPE || "Training",
+    defaultSessions: process.env.ATTENDANCE_REGISTER_DEFAULT_SESSIONS ? parseInt(process.env.ATTENDANCE_REGISTER_DEFAULT_SESSIONS, 10) : 1,
+    batchSize: process.env.ATTENDANCE_BATCH_SIZE ? parseInt(process.env.ATTENDANCE_BATCH_SIZE, 10) : 50,
+    serviceCodeParallelSearchLimit: process.env.ATTENDANCE_SERVICE_CODE_PARALLEL_SEARCH_LIMIT ? parseInt(process.env.ATTENDANCE_SERVICE_CODE_PARALLEL_SEARCH_LIMIT, 10) : 50,
+  },
+  hrms: {
+    hrmsParallelSearchLimit: process.env.HRMS_PARALLEL_SEARCH_LIMIT ? parseInt(process.env.HRMS_PARALLEL_SEARCH_LIMIT, 10) : 100,
+  },
   cacheValues: {
     cacheEnabled: process.env.CACHE_ENABLED,
     resetCache: process.env.RESET_CACHE,
@@ -128,6 +137,8 @@ const config = {
     healthIndividualHost: process.env.EGOV_HEALTH_INDIVIDUAL_HOST || "https://unified-dev.digit.org/",
     planServiceHost: process.env.EGOV_PLAN_SERVICE_HOST || "https://unified-dev.digit.org/",
     censusServiceHost: process.env.EGOV_CENSUS_HOST || "https://unified-dev.digit.org/",
+    workerRegistryHost: process.env.EGOV_WORKER_REGISTRY_HOST || "https://unified-dev.digit.org/",
+    attendanceHost: process.env.EGOV_ATTENDANCE_HOST || "https://unified-dev.digit.org/",
   },
   // Paths for different services
   paths: {
@@ -168,10 +179,20 @@ const config = {
     planConfigSearch: process.env.EGOV_PLAN_FACILITY_CONFIG_SEARCH || "plan-service/config/_search",
     planSearch: process.env.EGOV_PLAN_SEARCH || "plan-service/plan/_search",
     censusSearch: process.env.EGOV_CENSUS_SEARCH || "census-service/_search",
+    workerRegistryBulkCreate: process.env.EGOV_WORKER_REGISTRY_BULK_CREATE || "worker/v1/bulk/_create",
+    workerRegistryBulkUpdate: process.env.EGOV_WORKER_REGISTRY_BULK_UPDATE || "worker/v1/bulk/_update",
+    workerRegistrySearch: process.env.EGOV_WORKER_REGISTRY_SEARCH || "worker/v1/_search",
     excelIngestionSheetSearch: process.env.EXCEL_INGESTION_SHEET_SEARCH || "excel-ingestion/v1/data/sheet/_search",
     excelIngestionProcess: process.env.EXCEL_INGESTION_PROCESS || "excel-ingestion/v1/data/process/_create",
     excelIngestionGenerate: process.env.EXCEL_INGESTION_GENERATE || "excel-ingestion/v1/data/generate/_init",
-    excelIngestionGenerateSearch:process.env.EXCEL_INGESTION_GENERATE_SEARCH || "excel-ingestion/v1/data/generate/_search",
+    excelIngestionGenerateSearch: process.env.EXCEL_INGESTION_GENERATE_SEARCH || "excel-ingestion/v1/data/generate/_search",
+    attendanceRegisterCreate: process.env.ATTENDANCE_REGISTER_CREATE_PATH || "health-attendance/v1/_create",
+    attendanceRegisterSearch: process.env.ATTENDANCE_REGISTER_SEARCH_PATH || "health-attendance/v1/_search",
+    attendanceRegisterUpdate: process.env.ATTENDANCE_REGISTER_UPDATE_PATH || "health-attendance/v1/_update",
+    attendanceAttendeeCreate: process.env.ATTENDANCE_ATTENDEE_CREATE_PATH || "health-attendance/attendee/v1/_create",
+    attendanceAttendeeUpdate: process.env.ATTENDANCE_ATTENDEE_UPDATE_PATH || "health-attendance/attendee/v1/_update",
+    attendanceStaffCreate: process.env.ATTENDANCE_STAFF_CREATE_PATH || "health-attendance/staff/v1/_create",
+    attendanceStaffUpdate: process.env.ATTENDANCE_STAFF_UPDATE_PATH || "health-attendance/staff/v1/_update",
   },
   // Values configuration
   values: {

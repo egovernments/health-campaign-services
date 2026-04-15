@@ -3,7 +3,6 @@ import { logger } from "../../utils/logger";
 import { httpRequest } from "../../utils/request";
 import config from "../../config/index";
 import { convertLocalisationResponseToMap } from "../../utils/localisationUtils";
-import { defaultRequestInfo } from "../../api/coreApis";
 
 let cachedResponse = {};
 
@@ -185,9 +184,16 @@ class Localisation {
   public cacheBurst = async (
   ) => {
     logger.info(`Calling localization cache burst api`);
-    const RequestInfo = defaultRequestInfo;
     const requestBody = {
-      RequestInfo
+      RequestInfo: {
+        apiId: "PROJECTFACTORY",
+        msgId: `${new Date().getTime()}|${config.localisation?.defaultLocale}`,
+        ...(config.isProduction && config.token && { authToken: config.token }),
+        userInfo: {
+          tenantId: config?.app?.defaultTenantId,
+          id: 1
+        }
+      }
     }
     await httpRequest(
       this.localizationHost + config.paths.cacheBurst,

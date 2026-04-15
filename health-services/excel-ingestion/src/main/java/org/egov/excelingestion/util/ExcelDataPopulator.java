@@ -548,14 +548,38 @@ public class ExcelDataPopulator {
                 
                 String formula = formulaBuilder.toString();
                 
-                // Apply formula starting from row 3 (first data row) to match validation expectations
-                for (int row = 3; row <= 101; row++) { // Apply to first 100 data rows (3-102)
+                // Apply formula to all data rows up to config limit (matching applyValidations range)
+                int actualDataRows = ExcelUtil.findActualLastRowWithData(sheet) + 1;
+                int maxRow = Math.max(actualDataRows, config.getExcelRowLimit());
+                for (int row = 3; row <= maxRow; row++) {
                     String rowFormula = formula.replace("3", String.valueOf(row));
                     Row excelRow = sheet.getRow(row - 1); // POI rows are 0-indexed, so row 3 = index 2
                     if (excelRow == null) {
                         excelRow = sheet.createRow(row - 1);
                     }
                     Cell cell = excelRow.getCell(hiddenColumnIndex);
+
+                    // If fillDataRows already wrote a combined value (e.g. "SUPERVISOR,DISTRIBUTOR"),
+                    // split it into the individual multiselect item columns so the formula can
+                    // reconstruct it correctly. Without this, the formula reads empty item columns
+                    // and evaluates to "".
+                    if (cell != null && cell.getCellType() == CellType.STRING) {
+                        String existing = cell.getStringCellValue();
+                        if (existing != null && !existing.trim().isEmpty()) {
+                            String[] parts = existing.split(",");
+                            for (int p = 0; p < parts.length && p < itemColumns.size(); p++) {
+                                String part = parts[p].trim();
+                                if (!part.isEmpty()) {
+                                    Cell itemCell = excelRow.getCell(itemColumns.get(p));
+                                    if (itemCell == null) {
+                                        itemCell = excelRow.createCell(itemColumns.get(p));
+                                    }
+                                    itemCell.setCellValue(part);
+                                }
+                            }
+                        }
+                    }
+
                     if (cell == null) {
                         cell = excelRow.createCell(hiddenColumnIndex);
                     }

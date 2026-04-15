@@ -4,11 +4,12 @@ import { logger } from "../utils/logger";
 import config from "../config";
 import { getCampaignDataRowsWithUniqueIdentifiers, throwError } from "../utils/genericUtils";
 import { dataRowStatuses, sheetDataRowStatuses } from "../config/constants";
-import { defaultRequestInfo, searchBoundaryRelationshipData } from "../api/coreApis";
+import { searchBoundaryRelationshipData } from "../api/coreApis";
 import { httpRequest } from "../utils/request";
 import { searchProjectTypeCampaignService } from "../service/campaignManageService";
 import { validateActiveFieldMinima, validateDatasWithSchema, validateMultiSelectUniqueness } from "../validators/campaignValidators";
 import { ResourceDetails } from "../config/models/resourceDetailsSchema";
+import { searchWorkersByIds } from "../utils/workerRegistryUtils";
 
 
 // This will be a dynamic template class for different types
@@ -26,13 +27,18 @@ export class TemplateClass {
         if (!userSheetData || !userSheetData?.length) {
             throwError("FILE", 400, "SHEET_MISSING_ERROR", `Sheet: '${getLocalizedName("HCM_ADMIN_CONSOLE_USER_LIST", localizationMap)}' is empty or not present`);
         }
+        // Reconstruct multiselect parent columns from individual _MULTISELECT_* columns
+        // Handles sheets where the CONCATENATE formula was missing beyond row 101
+        this.reconstructMultiSelectFields(userSheetData);
+
         const errors: any[] = [];
         const userSchema = templateConfig?.sheets?.filter((s: any) => s?.sheetName === "HCM_ADMIN_CONSOLE_USER_LIST")[0]?.schema;
         validateDatasWithSchema(userSheetData, userSchema, errors, localizationMap);
         validateActiveFieldMinima(userSheetData,"HCM_ADMIN_CONSOLE_USER_USAGE", errors);
-        await this.validatePhoneNumber(userSheetData, resourceDetails.tenantId, errors);
+        await this.validatePhoneNumber(userSheetData, resourceDetails.tenantId, errors, resourceDetails);
         await this.validateUserNames(userSheetData, resourceDetails, errors);
         await this.validateBoundaries(userSheetData, resourceDetails, errors);
+        await this.validateWorkerIds(userSheetData, resourceDetails.tenantId, errors, resourceDetails);
         validateMultiSelectUniqueness(userSheetData, userSchema, localizationMap, errors);
 
         this.processErrors(userSheetData, errors, resourceDetails);       
@@ -54,6 +60,10 @@ export class TemplateClass {
     private static processErrors(sheetData : any, errors : any[], resourceDetails : ResourceDetails) {
             for (const error of errors) {
                 const row = error.row - 3;
+                if (isNaN(row) || row < 0 || row >= sheetData.length || !sheetData[row]) {
+                    logger.warn(`processErrors: skipping error with invalid row index (raw=${error.row}): ${error.message}`);
+                    continue;
+                }
                 const existingError = sheetData[row]["#errorDetails#"];
     
                 if (existingError) {
@@ -74,7 +84,34 @@ export class TemplateClass {
         }
 
 
-    private static async validatePhoneNumber(userSheetData: any, tenantId: string, errors: any[]) {
+    private static reconstructMultiSelectFields(rows: any[]): void {
+        for (const row of rows) {
+            // Collect {parent -> [{index, value}]} preserving column order
+            const multiSelectParents: Record<string, { index: number; value: string }[]> = {};
+            for (const key of Object.keys(row)) {
+                const idx = key.indexOf("_MULTISELECT_");
+                if (idx > 0) {
+                    const parent = key.substring(0, idx);
+                    const suffix = parseInt(key.substring(idx + "_MULTISELECT_".length), 10);
+                    if (isNaN(suffix)) continue;
+                    const val = row[key];
+                    if (val && String(val).trim()) {
+                        if (!multiSelectParents[parent]) multiSelectParents[parent] = [];
+                        multiSelectParents[parent].push({ index: suffix, value: String(val).trim() });
+                    }
+                }
+            }
+            for (const parent of Object.keys(multiSelectParents)) {
+                const entries = multiSelectParents[parent];
+                if ((!row[parent] || !String(row[parent]).trim()) && entries.length > 0) {
+                    entries.sort((a, b) => a.index - b.index);
+                    row[parent] = entries.map(e => e.value).join(",");
+                }
+            }
+        }
+    }
+
+    private static async validatePhoneNumber(userSheetData: any, tenantId: string, errors: any[], resourceDetails?: any) {
         logger.info("Validating phone numbers...");
         const phoneNumbersToRowMap: any = {};
         for (let i = 0; i < userSheetData.length; i++) {
@@ -90,7 +127,7 @@ export class TemplateClass {
         logger.info(`Number of phone numbers not in campaign data: ${allPhoneNumbersNotInCampaignData?.length}`);
         logger.info(`Phone numbers not in campaign data: ${JSON.stringify(allPhoneNumbersNotInCampaignData)}`);
         const searchBody: any = {
-            RequestInfo: defaultRequestInfo.RequestInfo,
+            RequestInfo: resourceDetails?.requestInfo,
             Individual: {
             },
         };
@@ -131,7 +168,7 @@ export class TemplateClass {
                     `User with mobileNumber ${user?.mobileNumber} already exists in campaign data`
                 );
                 errors.push({
-                    row: phoneNumbersToRowMap[user?.mobileNumber],
+                    row: phoneNumbersToRowMap[String(user?.mobileNumber)],
                     message: `User with mobileNumber ${user?.mobileNumber} already exists and is not suitable for this campaign.`
                 });
             }
@@ -161,7 +198,7 @@ export class TemplateClass {
         }
         const allUserNamesToCheck = Object.keys(userNamesToRowMap);
         const searchBody: any = {
-            RequestInfo: defaultRequestInfo?.RequestInfo,
+            RequestInfo: resourceDetails?.requestInfo,
             Individual: {
                 username: []
             }
@@ -252,6 +289,44 @@ export class TemplateClass {
             }
         }
         logger.info("Boundary validation completed.");
+    }
+
+    private static async validateWorkerIds(userSheetData: any, tenantId: string, errors: any[], resourceDetails?: any) {
+        logger.info("Validating worker IDs...");
+        // Map workerId → all row numbers that reference it (handles duplicate IDs across rows)
+        const workerIdToRowsMap: Record<string, number[]> = {};
+        for (let i = 0; i < userSheetData.length; i++) {
+            const workerId = userSheetData[i]["HCM_ADMIN_CONSOLE_USER_WORKER_ID"];
+            if (workerId) {
+                const key = String(workerId);
+                if (!workerIdToRowsMap[key]) workerIdToRowsMap[key] = [];
+                workerIdToRowsMap[key].push(i + 3);
+            }
+        }
+        const allWorkerIds = Object.keys(workerIdToRowsMap);
+        if (!allWorkerIds.length) return;
+
+        const chunkSize = 50;
+        const foundIds = new Set<string>();
+        for (let i = 0; i < allWorkerIds.length; i += chunkSize) {
+            const chunk = allWorkerIds.slice(i, i + chunkSize);
+            const workers = await searchWorkersByIds(chunk, tenantId, resourceDetails?.requestInfo);
+            for (const worker of workers) {
+                if (worker.id) foundIds.add(String(worker.id));
+            }
+        }
+
+        for (const workerId of allWorkerIds) {
+            if (!foundIds.has(workerId)) {
+                for (const row of workerIdToRowsMap[workerId]) {
+                    errors.push({
+                        row,
+                        message: `Worker with ID ${workerId} does not exist in the worker registry.`
+                    });
+                }
+            }
+        }
+        logger.info("Worker ID validation completed.");
     }
 
     private static async getCampaignDetails(resourceDetails: any): Promise<any> {

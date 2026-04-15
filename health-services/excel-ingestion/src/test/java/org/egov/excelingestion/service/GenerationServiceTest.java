@@ -5,6 +5,7 @@ import org.egov.common.producer.Producer;
 import org.egov.excelingestion.repository.GeneratedFileRepository;
 import org.egov.excelingestion.util.RequestInfoConverter;
 import org.egov.excelingestion.web.models.*;
+import org.egov.common.contract.request.RequestInfo;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

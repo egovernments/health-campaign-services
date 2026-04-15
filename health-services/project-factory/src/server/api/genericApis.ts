@@ -1,3 +1,4 @@
+import { RequestInfo } from "../config/models/requestInfoSchema";
 import config from "../config"; // Import configuration settings
 import FormData from "form-data"; // Import FormData for handling multipart/form-data requests
 import { defaultheader, httpRequest } from "../utils/request"; // Import httpRequest function for making HTTP requests
@@ -7,7 +8,7 @@ import { generateFilteredBoundaryData, getConfigurableColumnHeadersBasedOnCampai
 import { getCampaignSearchResponse, getHierarchy } from './campaignApis';
 const _ = require('lodash'); // Import lodash library
 import { enrichTemplateMetaData, getExcelWorkbookFromFileURL } from "../utils/excelUtils";
-import { defaultRequestInfo, searchBoundaryRelationshipData, searchMDMSDataViaV2Api } from "./coreApis";
+import { searchBoundaryRelationshipData, searchMDMSDataViaV2Api } from "./coreApis";
 import { getLocaleFromRequestInfo } from "../utils/localisationUtils";
 import { MDMSModels } from "../models";
 
@@ -940,9 +941,10 @@ async function callMdmsTypeSchema(
   tenantId: string,
   isUpdate: boolean,
   type: any,
-  campaignType = "all"
+  campaignType = "all",
+  requestInfo?: RequestInfo
 ) {
-  const RequestInfo = defaultRequestInfo?.RequestInfo;
+  const RequestInfo = requestInfo;
   const requestBody = {
     RequestInfo,
     MdmsCriteria: {

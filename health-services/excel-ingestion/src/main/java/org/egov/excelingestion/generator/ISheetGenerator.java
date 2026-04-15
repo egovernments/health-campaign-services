@@ -2,7 +2,7 @@ package org.egov.excelingestion.generator;
 
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.egov.excelingestion.web.models.GenerateResource;
-import org.egov.excelingestion.web.models.RequestInfo;
+import org.egov.common.contract.request.RequestInfo;
 import org.egov.excelingestion.web.models.SheetGenerationConfig;
 
 /**
