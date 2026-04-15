@@ -298,8 +298,7 @@ class StockNotificationAdapterTest {
         when(mdmsService.fetchNotificationConfigByProjectType(any(), any()))
                 .thenThrow(new RuntimeException("MDMS down"));
 
-        List<NotificationEvent> events = adapter.buildNotificationEvents(stock, "topic");
-        assertTrue(events.isEmpty());
+        assertThrows(RuntimeException.class, () -> adapter.buildNotificationEvents(stock, "topic"));
     }
 
     @Test

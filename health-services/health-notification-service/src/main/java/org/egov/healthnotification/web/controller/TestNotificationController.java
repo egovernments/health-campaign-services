@@ -33,6 +33,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/test/v1/stock")
 @Slf4j
+@Profile("hns-local")
 public class TestNotificationController {
 
     private final StockNotificationAdapter stockAdapter;

@@ -35,8 +35,14 @@ bin/kafka-server-start.sh config/server.properties
 
 3. Create topics:
 ```bash
-bin/kafka-topics.sh --create --topic health-notification-consumer-topic --bootstrap-server localhost:9092
-bin/kafka-topics.sh --create --topic health-notification-producer-topic --bootstrap-server localhost:9092
+bin/kafka-topics.sh --create --topic save-scheduled-notification-topic --bootstrap-server localhost:9092
+bin/kafka-topics.sh --create --topic update-scheduled-notification-topic --bootstrap-server localhost:9092
+bin/kafka-topics.sh --create --topic save-stock-topic --bootstrap-server localhost:9092
+bin/kafka-topics.sh --create --topic update-stock-topic --bootstrap-server localhost:9092
+bin/kafka-topics.sh --create --topic save-hfreferral-topic --bootstrap-server localhost:9092
+bin/kafka-topics.sh --create --topic update-hfreferral-topic --bootstrap-server localhost:9092
+bin/kafka-topics.sh --create --topic egov.core.notification.sms --bootstrap-server localhost:9092
+bin/kafka-topics.sh --create --topic egov.core.notification.push --bootstrap-server localhost:9092
 ```
 
 ## Build and Run

@@ -79,6 +79,7 @@ public class ProjectTaskConsumer {
 
         } catch (Exception exception) {
             log.error("Error processing task create event from topic: {}", topic, exception);
+            throw new RuntimeException("Failed to process task create event from topic: " + topic, exception);
         }
     }
 

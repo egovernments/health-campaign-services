@@ -217,7 +217,7 @@ public class NotificationDispatchService {
         updateNotification(notification);
     }
 
-    private void markFailed(ScheduledNotification notification, String errorMessage) {
+    public void markFailed(ScheduledNotification notification, String errorMessage) {
         notification.setStatus(NotificationStatus.FAILED);
         notification.setAttempts(notification.getAttempts() + 1);
         notification.setLastAttemptAt(System.currentTimeMillis());

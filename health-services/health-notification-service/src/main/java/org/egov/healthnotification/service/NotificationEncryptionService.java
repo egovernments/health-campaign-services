@@ -7,16 +7,20 @@ import org.egov.healthnotification.util.EncryptionDecryptionUtil;
 import org.egov.healthnotification.web.models.ScheduledNotification;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 @Slf4j
 public class NotificationEncryptionService {
     private final EncryptionDecryptionUtil encryptionDecryptionUtil;
+    private final NotificationDispatchService notificationDispatchService;
 
-    public NotificationEncryptionService(EncryptionDecryptionUtil encryptionDecryptionUtil) {
+    public NotificationEncryptionService(EncryptionDecryptionUtil encryptionDecryptionUtil,
+                                         NotificationDispatchService notificationDispatchService) {
         this.encryptionDecryptionUtil = encryptionDecryptionUtil;
+        this.notificationDispatchService = notificationDispatchService;
     }
 
     public List<ScheduledNotification> encrypt(List<ScheduledNotification> notifications, String key) {
@@ -26,29 +30,34 @@ public class NotificationEncryptionService {
     }
 
     public List<ScheduledNotification> decrypt(List<ScheduledNotification> notifications, String key, RequestInfo requestInfo) {
-        List<ScheduledNotification> encryptedNotifications = filterEncryptedNotifications(notifications);
-        List<ScheduledNotification> decryptedNotifications = encryptionDecryptionUtil
-                .decryptObject(encryptedNotifications, key, requestInfo);
+        if (notifications == null || notifications.isEmpty()) {
+            return notifications;
+        }
 
-        if (notifications.size() > decryptedNotifications.size()) {
-            // add the already decrypted objects to the list
-            List<String> ids = decryptedNotifications.stream()
-                    .map(ScheduledNotification::getId)
-                    .collect(Collectors.toList());
-            for (ScheduledNotification notification : notifications) {
-                if (!ids.contains(notification.getId())) {
-                    decryptedNotifications.add(notification);
-                }
+        List<ScheduledNotification> decryptedNotifications = new ArrayList<>();
+        for (ScheduledNotification notification : notifications) {
+            if (!isEncrypted(notification)) {
+                decryptedNotifications.add(notification);
+                continue;
+            }
+
+            try {
+                decryptedNotifications.addAll(encryptionDecryptionUtil.decryptObject(
+                        Collections.singletonList(notification), key, requestInfo));
+            } catch (Exception exception) {
+                String errorMessage = String.format("Failed to decrypt notification id=%s: %s",
+                        notification.getId(), exception.getMessage());
+                log.error(errorMessage, exception);
+                notificationDispatchService.markFailed(notification, errorMessage);
             }
         }
+
         return decryptedNotifications;
     }
 
-    private List<ScheduledNotification> filterEncryptedNotifications(List<ScheduledNotification> notifications) {
-        return notifications.stream()
-                .filter(notification -> isCipherText(notification.getMobileNumber())
-                        || (notification.getContextData() != null && isCipherText(notification.getContextData().toString())))
-                .collect(Collectors.toList());
+    private boolean isEncrypted(ScheduledNotification notification) {
+        return isCipherText(notification.getMobileNumber())
+                || (notification.getContextData() != null && isCipherText(notification.getContextData().toString()));
     }
 
     private boolean isCipherText(String text) {

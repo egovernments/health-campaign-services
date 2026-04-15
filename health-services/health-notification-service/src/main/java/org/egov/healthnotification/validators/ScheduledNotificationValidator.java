@@ -83,22 +83,26 @@ public class ScheduledNotificationValidator {
             try {
                 boolean isDuplicate = repository.isDuplicate(
                         notification.getTenantId(),
+                        notification.getEntityType(),
                         notification.getEntityId(),
                         notification.getEventType(),
                         notification.getTemplateCode(),
-                        notification.getRecipientId());
+                        notification.getRecipientId(),
+                        notification.getScheduledAt());
 
                 if (isDuplicate) {
-                    log.info("Skipping duplicate notification: entityId={}, eventType={}, " +
-                                    "templateCode={}, recipientId={}",
-                            notification.getEntityId(), notification.getEventType(),
-                            notification.getTemplateCode(), notification.getRecipientId());
+                    log.info("Skipping duplicate notification: tenantId={}, entityType={}, entityId={}, eventType={}, " +
+                                    "templateCode={}, recipientId={}, scheduledAt={}",
+                            notification.getTenantId(), notification.getEntityType(), notification.getEntityId(),
+                            notification.getEventType(), notification.getTemplateCode(),
+                            notification.getRecipientId(), notification.getScheduledAt());
                     iterator.remove();
                 }
             } catch (InvalidTenantIdException e) {
-                log.error("Invalid tenant ID during duplicate check: {}. Skipping notification.",
+                log.error("Invalid tenant ID during duplicate check: {}. Failing validation.",
                         notification.getTenantId(), e);
-                iterator.remove();
+                throw new CustomException(Constants.INVALID_TENANT_ID,
+                        "Invalid tenant ID during duplicate check: " + notification.getTenantId());
             }
         }
         if (notifications.size() < beforeDupFilter) {
@@ -143,6 +147,18 @@ public class ScheduledNotificationValidator {
 
         if (notification.getRecipientType() == null) {
             errorMap.put(prefix + ".recipientType", Constants.MSG_RECIPIENT_TYPE_REQUIRED);
+        }
+
+        if (notification.getScheduledAt() == null) {
+            errorMap.put(prefix + ".scheduledAt", Constants.MSG_SCHEDULED_AT_REQUIRED);
+        }
+
+        if (notification.getContextData() == null) {
+            errorMap.put(prefix + ".contextData", Constants.MSG_CONTEXT_DATA_REQUIRED);
+        }
+
+        if (notification.getStatus() == null) {
+            errorMap.put(prefix + ".status", Constants.MSG_STATUS_REQUIRED);
         }
     }
 

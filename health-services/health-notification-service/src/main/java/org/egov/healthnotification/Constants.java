@@ -95,6 +95,9 @@ public class Constants {
     public static final String MSG_TEMPLATE_CODE_REQUIRED = "templateCode is required";
     public static final String MSG_RECIPIENT_ID_REQUIRED = "recipientId is required";
     public static final String MSG_RECIPIENT_TYPE_REQUIRED = "recipientType is required";
+    public static final String MSG_SCHEDULED_AT_REQUIRED = "scheduledAt is required";
+    public static final String MSG_CONTEXT_DATA_REQUIRED = "contextData is required";
+    public static final String MSG_STATUS_REQUIRED = "status is required";
 
     // ========== Task Filtering Constants ==========
     public static final String DELIVERY_STRATEGY_KEY = "deliveryStrategy";

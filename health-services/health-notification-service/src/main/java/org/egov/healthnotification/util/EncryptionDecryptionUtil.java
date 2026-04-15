@@ -161,15 +161,17 @@ public class EncryptionDecryptionUtil {
                     decryptNotificationFields(notification, requestInfo);
                     result.add(notification);
                 } catch (Exception e) {
-                    log.error("Failed to decrypt notification id={}: {}", notification.getId(), e.getMessage(), e);
-                    // Add notification as-is if decryption fails
-                    result.add(notification);
+                    throw new CustomException(Constants.ERROR_DECRYPTION_FAILED,
+                            "Failed to decrypt notification id=" + notification.getId() + ": " + e.getMessage());
                 }
             }
 
             log.info("Successfully decrypted {} notifications", result.size());
             return result;
 
+        } catch (CustomException e) {
+            log.error("Error occurred while decrypting", e);
+            throw e;
         } catch (Exception e) {
             log.error("Error occurred while decrypting", e);
             throw new CustomException(Constants.ERROR_DECRYPTION_FAILED,
