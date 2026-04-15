@@ -6,9 +6,8 @@ public interface Constants {
     String HOUSEHOLD = "HOUSEHOLD";
     String CYCLE_INDEX = "cycleIndex";
     String DOSE_INDEX = "doseIndex";
-    String DELIVERY_STRATEGY = "deliveryStrategy";
+    String BEDNET_PREFIX = "bednet";
 
-    String NULL_STRING = "null";
     String PREFIX_ZERO = "0";
 
     String QUANTITY_WASTED = "quantityWasted";
@@ -20,7 +19,6 @@ public interface Constants {
     String TASK_STATUS = "taskStatus";
     String PRODUCT_VARIANT_ID = "productVariantId";
     String MEMBER_COUNT = "memberCount";
-    String HOUSEHOLD_ID = "householdId";
     String ADMINISTRATION_NOT_SUCCESSFUL = "ADMINISTRATION_NOT_SUCCESSFUL";
 
     String PROJECT_STAFF_ROLES = "projectStaffRoles";
@@ -53,7 +51,6 @@ public interface Constants {
     String BOUNDARY_DATA = "boundaryData";
     String ID = "id";
     String COMMA = ",";
-    String TIME_STAMP_SPLIT = "T";
     Long DAY_MILLIS = 86400000L;
     String AGE = "age";
     String DATE_OF_BIRTH = "dateOfBirth";
@@ -115,16 +112,7 @@ public interface Constants {
     // User Action Constants
     String USER_ACTION_DAILY_PLAN = "USER_ACTION_DAILY_PLAN";
     String HCM_MODULE = "HCM";
-    String SUPERVISOR_ROLE_KEY = "SupervisorRole";
-    String SUB_BOUNDARY_TYPE_KEY = "SubBoundaryType";
-    String BOUNDARY_TYPE_KEY = "BoundaryType";
-    
-    // User Action Additional Details Keys
-    String SUPERVISOR_ROLE = "supervisorRole";
-    String SUB_BOUNDARY_TYPE = "subBoundaryType";
-    String BOUNDARY_TYPE = "boundaryType";
 
-    String DAY_OF_VISIT = "dayOfVisit";
     String VISITED_BOUNDARIES_SUFFIX = "_visited_boundaries";
     //vehicle tracking
     String TRIP_START_TIME = "tripStartTime";

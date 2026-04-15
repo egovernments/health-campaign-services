@@ -242,4 +242,8 @@ public class TransformerProperties {
 
     @Value("${transformer.consumer.custom.factory.topic.concurrency}")
     private Integer transformerConsumerCustomFactoryTopicConcurrency;
+
+    @Value("${icd.bednet.product.variants}")
+    private String icdBednetProductVariants;
+
 }

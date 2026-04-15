@@ -160,6 +160,16 @@ public class ProjectTaskTransformationService {
         if (!variantList.isEmpty()) {
             productName = String.join(COMMA, productService.getProductVariantNames(variantList, tenantId));
         }
+        String productVariantId = taskResource.getProductVariantId();
+        String householdId = beneficiaryInfo.containsKey(HOUSEHOLD_CLIENT_REFERENCE_ID) ? (String) beneficiaryInfo.get(HOUSEHOLD_CLIENT_REFERENCE_ID) : null;
+        Integer memberCount = beneficiaryInfo.containsKey(MEMBER_COUNT) ? (Integer) beneficiaryInfo.get(MEMBER_COUNT) : null;
+        if (INDIVIDUAL.equalsIgnoreCase(projectBeneficiaryType) && transformerProperties.getIcdBednetProductVariants().equalsIgnoreCase(productVariantId)) {
+            String projectBeneficiaryClientReferenceId = task.getProjectBeneficiaryClientReferenceId();
+            Map<String, Object> householdBeneficiaryInfo = getProjectBeneficiaryDetails(projectBeneficiaryClientReferenceId, HOUSEHOLD, tenantId);
+            householdId = householdBeneficiaryInfo.containsKey(HOUSEHOLD_CLIENT_REFERENCE_ID) ? (String) householdBeneficiaryInfo.get(HOUSEHOLD_CLIENT_REFERENCE_ID) : null;
+            memberCount = householdBeneficiaryInfo.containsKey(MEMBER_COUNT) ? (Integer) householdBeneficiaryInfo.get(MEMBER_COUNT) : null;
+            projectTypeId = BEDNET_PREFIX + HYPHEN + projectTypeId;
+        }
         ProjectTaskIndexV1 projectTaskIndexV1 = ProjectTaskIndexV1.builder()
                 .id(taskResource.getId())
                 .taskId(task.getId())
@@ -198,8 +208,8 @@ public class ProjectTaskTransformationService {
                 .boundaryHierarchyCode(boundaryHierarchyCode)
                 .projectType(projectType)
                 .projectTypeId(projectTypeId)
-                .householdId(beneficiaryInfo.containsKey(HOUSEHOLD_CLIENT_REFERENCE_ID) ? (String) beneficiaryInfo.get(HOUSEHOLD_CLIENT_REFERENCE_ID) : null)
-                .memberCount(beneficiaryInfo.containsKey(MEMBER_COUNT) ? (Integer) beneficiaryInfo.get(MEMBER_COUNT) : null)
+                .householdId(householdId)
+                .memberCount(memberCount)
                 .dateOfBirth(beneficiaryInfo.containsKey(DATE_OF_BIRTH) ? (Long) beneficiaryInfo.get(DATE_OF_BIRTH) : null)
                 .age(beneficiaryInfo.containsKey(AGE) ? (Integer) beneficiaryInfo.get(AGE) : null)
                 .gender(beneficiaryInfo.containsKey(GENDER) ? (String) beneficiaryInfo.get(GENDER) : null)
