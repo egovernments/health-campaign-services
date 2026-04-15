@@ -61,6 +61,7 @@ on:
           - project-factory
           - excel-ingestion
           - boundary-management
+          - egov-notification-push
           - worker-registry-java-17
 
 env:
