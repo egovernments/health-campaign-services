@@ -124,11 +124,38 @@ public class BoundaryColumnUtil {
         boundaryCodeHeaderCell.setCellValue(localizationMap.getOrDefault("HCM_ADMIN_CONSOLE_BOUNDARY_CODE", "HCM_ADMIN_CONSOLE_BOUNDARY_CODE"));
         boundaryCodeHeaderCell.setCellStyle(boundaryHeaderStyle);
 
+        // Create unique display texts for all boundaries to prevent collisions in VLOOKUP
+        Map<String, String> codeToUniqueDisplay = new HashMap<>();
+        Set<String> usedDisplays = new HashSet<>();
+
+        for (BoundaryUtil.BoundaryRowData boundary : filteredBoundaries) {
+            List<String> path = boundary.getBoundaryPath();
+            for (int i = 0; i < path.size(); i++) {
+                if (path.get(i) != null) {
+                    String boundaryCode = path.get(i);
+                    if (!codeToUniqueDisplay.containsKey(boundaryCode)) {
+                        String boundaryName = localizationMap.getOrDefault(boundaryCode, boundaryCode);
+                        String parentName = "";
+                        if (i > 0 && path.get(i-1) != null) {
+                            String parentCode = path.get(i-1);
+                            parentName = localizationMap.getOrDefault(parentCode, parentCode);
+                        }
+                        String displayText = parentName.isEmpty() ? boundaryName : boundaryName + " (" + parentName + ")";
+                        while (usedDisplays.contains(displayText)) {
+                            displayText = displayText + "\u200B";
+                        }
+                        usedDisplays.add(displayText);
+                        codeToUniqueDisplay.put(boundaryCode, displayText);
+                    }
+                }
+            }
+        }
+
         // Create level and boundary dropdowns with "Boundary (Parent)" format to avoid duplicates
-        createLevelAndBoundaryDropdowns(workbook, filteredBoundaries, levelTypes, hierarchyType, localizationMap);
+        createLevelAndBoundaryDropdowns(workbook, filteredBoundaries, levelTypes, hierarchyType, localizationMap, codeToUniqueDisplay);
 
         // Add boundary code mapping BEFORE data validations to ensure named range exists
-        addBoundaryCodeMapping(workbook, filteredBoundaries, localizationMap);
+        addBoundaryCodeMapping(workbook, filteredBoundaries, localizationMap, codeToUniqueDisplay);
 
         // Add data validation for level and boundary columns
         addLevelAndBoundaryDataValidations(workbook, sheet, lastSchemaCol, levelTypes, hierarchyType, localizationMap);
@@ -163,7 +190,8 @@ public class BoundaryColumnUtil {
      * Creates level dropdown and level-specific boundary dropdowns with "boundary (parent)" format to avoid duplicates
      */
     private void createLevelAndBoundaryDropdowns(XSSFWorkbook workbook, List<BoundaryUtil.BoundaryRowData> filteredBoundaries,
-                                                 List<String> levelTypes, String hierarchyType, Map<String, String> localizationMap) {
+                                                 List<String> levelTypes, String hierarchyType, Map<String, String> localizationMap,
+                                                 Map<String, String> codeToUniqueDisplay) {
 
         // Build levels and boundary options by level
         Set<String> availableLevels = new LinkedHashSet<>();
@@ -187,20 +215,11 @@ public class BoundaryColumnUtil {
             for (int i = 0; i < path.size(); i++) {
                 if (path.get(i) != null) {
                     String boundaryCode = path.get(i);
-                    String boundaryName = localizationMap.getOrDefault(boundaryCode, boundaryCode);
                     String boundaryType = levelTypes.get(i);
                     String levelKey = (hierarchyType + "_" + boundaryType).toUpperCase();
                     String localizedLevel = localizationMap.getOrDefault(levelKey, levelKey);
 
-                    // Get parent name if exists  
-                    String parentName = "";
-                    if (i > 0 && path.get(i-1) != null) {
-                        String parentCode = path.get(i-1);
-                        parentName = localizationMap.getOrDefault(parentCode, parentCode);
-                    }
-
-                    // Create display format: "Boundary (Parent)" or just "Boundary" if no parent
-                    String displayText = parentName.isEmpty() ? boundaryName : boundaryName + " (" + parentName + ")";
+                    String displayText = codeToUniqueDisplay.get(boundaryCode);
 
                     boundariesByLevel.get(localizedLevel).add(displayText);
                 }
@@ -280,7 +299,7 @@ public class BoundaryColumnUtil {
      * Creates boundary code mapping sheet for automatic code population
      */
     private void addBoundaryCodeMapping(XSSFWorkbook workbook, List<BoundaryUtil.BoundaryRowData> filteredBoundaries,
-                                        Map<String, String> localizationMap) {
+                                        Map<String, String> localizationMap, Map<String, String> codeToUniqueDisplay) {
         // Check if boundary code mapping sheet already exists (since this method may be called for multiple sheets)
         Sheet boundaryCodeMapSheet = workbook.getSheet("_h_BoundaryCodeMap_h_");
         if (boundaryCodeMapSheet != null) {
@@ -305,17 +324,7 @@ public class BoundaryColumnUtil {
             for (int i = 0; i < path.size(); i++) {
                 if (path.get(i) != null) {
                     String boundaryCode = path.get(i);
-                    String boundaryName = localizationMap.getOrDefault(boundaryCode, boundaryCode);
-
-                    // Get parent name if exists for display format
-                    String parentName = "";
-                    if (i > 0 && path.get(i-1) != null) {
-                        String parentCode = path.get(i-1);
-                        parentName = localizationMap.getOrDefault(parentCode, parentCode);
-                    }
-
-                    // Create display format: "Boundary (Parent)" or just "Boundary" if no parent
-                    String displayText = parentName.isEmpty() ? boundaryName : boundaryName + " (" + parentName + ")";
+                    String displayText = codeToUniqueDisplay.get(boundaryCode);
 
                     // Store mapping
                     displayToCodeMap.put(displayText, boundaryCode);
