@@ -1,6 +1,6 @@
 package org.egov.excelingestion.service;
 
-import org.egov.excelingestion.web.models.RequestInfo;
+import org.egov.common.contract.request.RequestInfo;
 import org.springframework.stereotype.Service;
 
 import java.util.HashMap;

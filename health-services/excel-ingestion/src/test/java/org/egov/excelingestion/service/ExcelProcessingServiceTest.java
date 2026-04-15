@@ -9,6 +9,7 @@ import org.egov.excelingestion.util.EnrichmentUtil;
 import org.egov.excelingestion.util.ExcelUtil;
 import org.egov.excelingestion.util.RequestInfoConverter;
 import org.egov.excelingestion.web.models.*;
+import org.egov.common.contract.request.RequestInfo;
 import org.egov.excelingestion.web.models.filestore.FileStoreResponse;
 import org.egov.excelingestion.web.models.filestore.FileInfo;
 import org.junit.jupiter.api.BeforeEach;

@@ -43,6 +43,9 @@ public class ExcelIngestionConfig {
     @Value("${excel.row.limit:5000}")
     private int excelRowLimit;
 
+    @Value("${excel.sheet.name.max.length:64}")
+    private int sheetNameMaxLength;
+
     @Value("${default.locale:en_IN}")
     private String defaultLocale;
 
@@ -67,6 +70,21 @@ public class ExcelIngestionConfig {
     @Value("${egov.facility.search.path}")
     private String facilitySearchPath;
 
+    @Value("${egov.attendance.host}")
+    private String attendanceHost;
+
+    @Value("${egov.attendance.register.search.path}")
+    private String attendanceRegisterSearchPath;
+
+    @Value("${egov.worker.registry.host}")
+    private String workerRegistryHost;
+
+    @Value("${egov.worker.registry.search.path}")
+    private String workerRegistrySearchPath;
+
+    @Value("${egov.worker.registry.search.batch.size:100}")
+    private int workerRegistrySearchBatchSize;
+
     private String defaultHeaderColor = "#93c47d";
 
     public String getHierarchySearchUrl() {
@@ -87,5 +105,13 @@ public class ExcelIngestionConfig {
 
     public String getFacilitySearchUrl() {
         return facilityHost + facilitySearchPath;
+    }
+
+    public String getAttendanceRegisterSearchUrl() {
+        return attendanceHost + attendanceRegisterSearchPath;
+    }
+
+    public String getWorkerRegistrySearchUrl() {
+        return workerRegistryHost + workerRegistrySearchPath;
     }
 }

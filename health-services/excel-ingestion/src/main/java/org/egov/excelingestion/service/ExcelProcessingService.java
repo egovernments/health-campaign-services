@@ -200,7 +200,7 @@ public class ExcelProcessingService {
      * Validates data in all sheets of the workbook using pre-fetched schemas
      */
     private List<ValidationError> validateExcelData(Workbook workbook, ProcessResource resource,
-                                                    org.egov.excelingestion.web.models.RequestInfo requestInfo, Map<String, String> localizationMap,
+                                                    org.egov.common.contract.request.RequestInfo requestInfo, Map<String, String> localizationMap,
                                                     Map<String, Map<String, Object>> preValidatedSchemas) {
         List<ValidationError> allErrors = new ArrayList<>();
 
@@ -239,7 +239,7 @@ public class ExcelProcessingService {
     private Map<String, Object> getSchemaForSheet(String sheetName, String type,
                                                   Map<String, String> localizationMap,
                                                   Map<String, Map<String, Object>> preValidatedSchemas,
-                                                  org.egov.excelingestion.web.models.RequestInfo requestInfo,
+                                                  org.egov.common.contract.request.RequestInfo requestInfo,
                                                   String tenantId) {
         try {
             // Get processor configuration
@@ -277,7 +277,7 @@ public class ExcelProcessingService {
     }
 
     /**
-     * Get localized sheet name with 31-char limit handling
+     * Get localized sheet name with configurable character limit
      */
     private String getLocalizedSheetName(String sheetKey, Map<String, String> localizationMap) {
         String localizedName = sheetKey;
@@ -286,9 +286,9 @@ public class ExcelProcessingService {
             localizedName = localizationMap.get(sheetKey);
         }
 
-        // Handle Excel's 31 character limit
-        if (localizedName.length() > 31) {
-            localizedName = localizedName.substring(0, 31);
+        int maxLength = config.getSheetNameMaxLength();
+        if (localizedName.length() > maxLength) {
+            localizedName = localizedName.substring(0, maxLength);
         }
 
         return localizedName;

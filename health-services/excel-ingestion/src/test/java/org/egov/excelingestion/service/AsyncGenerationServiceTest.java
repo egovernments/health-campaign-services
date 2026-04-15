@@ -4,6 +4,8 @@ import org.egov.common.producer.Producer;
 import org.egov.excelingestion.config.KafkaTopicConfig;
 import org.egov.excelingestion.constants.GenerationConstants;
 import org.egov.excelingestion.util.EnrichmentUtil;
+import org.egov.common.contract.request.RequestInfo;
+import org.egov.common.contract.request.User;
 import org.egov.excelingestion.web.models.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -154,7 +156,7 @@ class AsyncGenerationServiceTest {
     }
 
     private RequestInfo createRequestInfo() {
-        UserInfo userInfo = UserInfo.builder()
+        User userInfo = User.builder()
                 .uuid("user-123")
                 .build();
         

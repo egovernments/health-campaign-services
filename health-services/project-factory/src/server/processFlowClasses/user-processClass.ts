@@ -1,3 +1,4 @@
+import { withUserInfo } from "../config/models/requestInfoSchema";
 import { getLocalizedName } from "../utils/campaignUtils";
 import { SheetMap } from "../models/SheetMap";
 import { logger } from "../utils/logger";
@@ -8,10 +9,11 @@ import { produceModifiedMessages } from "../kafka/Producer";
 import config from "../config";
 import { DataTransformer } from "../utils/transFormUtil";
 import { transformConfigs } from "../config/transformConfigs";
-import { defaultRequestInfo } from "../api/coreApis";
 import { httpRequest } from "../utils/request";
 import { decrypt, encrypt } from "../utils/cryptUtils";
 import { validateResourceDetailsBeforeProcess } from "../utils/sheetManageUtils";
+import { WorkerData, createOrUpdateWorkers } from "../utils/workerRegistryUtils";
+import type { CampaignRecord } from "../utils/userBatchHandler";
 
 // This will be a dynamic template class for different types
 export class TemplateClass {
@@ -36,6 +38,80 @@ export class TemplateClass {
 
         const userDataWithMobileNumberButNotOfThisCampaign = await this.getUserDataWithMobileNumberButNotOfThisCampaign(campaign.campaignNumber, mobileNumbersInSheet, resourceDetails);
         const newUsers = await this.extractNewUsers(userSheetData, mobileKey, existingUsersForCampaign, userDataWithMobileNumberButNotOfThisCampaign, campaign.campaignNumber, resourceDetails);
+
+        // Update worker registry payment fields for cross-campaign users BEFORE persist
+        // so error fields are included in the initial SAVE
+        const crossCampaignWorkerUpdates: WorkerData[] = [];
+        const crossCampaignWorkerIdToEntries = new Map<string, any[]>();
+        const sheetRowByPhone: Record<string, any> = {};
+        for (const row of userSheetData) {
+            if (row?.[mobileKey]) sheetRowByPhone[String(row[mobileKey])] = row;
+        }
+        for (const entry of newUsers) {
+            if (entry.status !== dataRowStatuses.completed) continue;
+            const workerId = entry.data?.["HCM_ADMIN_CONSOLE_USER_WORKER_ID"];
+            if (!workerId) continue;
+            const sheetRow = sheetRowByPhone[String(entry.uniqueIdentifier)];
+            if (!sheetRow) continue;
+
+            const name = sheetRow["HCM_ADMIN_CONSOLE_USER_NAME"] || "";
+            const paymentProvider = sheetRow["HCM_ADMIN_CONSOLE_USER_PAYMENT_PROVIDER"] || "";
+            const payeePhoneNumber = sheetRow["HCM_ADMIN_CONSOLE_USER_PAYEE_PHONE_NUMBER"] || "";
+            const payeeName = sheetRow["HCM_ADMIN_CONSOLE_USER_PAYEE_NAME"] || "";
+            const bankAccount = sheetRow["HCM_ADMIN_CONSOLE_USER_BANK_ACCOUNT"] || "";
+            const bankCode = sheetRow["HCM_ADMIN_CONSOLE_USER_BANK_CODE"] || "";
+
+            if (name || paymentProvider || payeePhoneNumber || payeeName || bankAccount || bankCode) {
+                crossCampaignWorkerUpdates.push({
+                    name, paymentProvider, payeePhoneNumber, payeeName, bankAccount, bankCode,
+                    id: workerId, individualId: "", tenantId: resourceDetails.tenantId,
+                });
+                const entries = crossCampaignWorkerIdToEntries.get(workerId) || [];
+                entries.push(entry);
+                crossCampaignWorkerIdToEntries.set(workerId, entries);
+            }
+        }
+        const crossCampaignDedupMap = new Map<string, WorkerData>();
+        for (const w of crossCampaignWorkerUpdates) {
+            if (w.id) crossCampaignDedupMap.set(w.id, w);
+        }
+        const dedupedCrossCampaignUpdates = Array.from(crossCampaignDedupMap.values());
+        if (dedupedCrossCampaignUpdates.length > 0) {
+            try {
+                const workerRequestInfo = withUserInfo(resourceDetails.requestInfo, { tenantId: resourceDetails.tenantId });
+                const { individualIdToWorkerIdMap, errors } = await createOrUpdateWorkers(dedupedCrossCampaignUpdates, workerRequestInfo);
+                const updatedWorkerIds = new Set(individualIdToWorkerIdMap.values());
+                const errMsg = errors.length > 0 ? errors.join("; ") : "Worker not found in registry";
+                let failCount = 0;
+                for (const wu of dedupedCrossCampaignUpdates) {
+                    if (!updatedWorkerIds.has(wu.id as string)) {
+                        const entries = crossCampaignWorkerIdToEntries.get(wu.id as string) || [];
+                        for (const entry of entries) {
+                            entry.data["#status#"] = sheetDataRowStatuses.INVALID;
+                            entry.data["#errorDetails#"] = errMsg;
+                            failCount++;
+                        }
+                    }
+                }
+                if (failCount > 0) {
+                    logger.error(`Cross-campaign worker registry update: ${failCount} rows failed — ${errMsg}`);
+                } else {
+                    logger.info(`Updated payment fields for ${dedupedCrossCampaignUpdates.length} cross-campaign workers`);
+                }
+            } catch (err: unknown) {
+                const errMsg = err instanceof Error ? err.message : String(err);
+                logger.error("Cross-campaign worker registry update failed", err);
+                for (const wu of dedupedCrossCampaignUpdates) {
+                    const entries = crossCampaignWorkerIdToEntries.get(wu.id as string) || [];
+                    for (const entry of entries) {
+                        entry.data["#status#"] = sheetDataRowStatuses.INVALID;
+                        entry.data["#errorDetails#"] = errMsg;
+                    }
+                }
+            }
+        }
+
+        // Persist newUsers (with error fields already set on failed cross-campaign entries)
         await this.persistInBatches(newUsers, config.kafka.KAFKA_SAVE_SHEET_DATA_TOPIC, resourceDetails?.tenantId);
 
         await this.processBoundaryChanges(userSheetData, existingUsersForCampaign, newUsers, campaign.campaignNumber, resourceDetails);
@@ -50,7 +126,9 @@ export class TemplateClass {
         const allData = allCurrentUsers ? await Promise.all(allCurrentUsers.map(async (u: any, idx: number) => {
             logger.info(`Decrypting item number ${idx + 1}`);
             const data: any = u?.data;
-            data["#status#"] = sheetDataRowStatuses.CREATED;
+            if (!data["#errorDetails#"]) {
+                data["#status#"] = sheetDataRowStatuses.CREATED;
+            }
             data["UserName"] = decrypt(u?.data?.["UserName"]);
             data["Password"] = decrypt(u?.data?.["Password"]);
             return data;
@@ -87,7 +165,7 @@ export class TemplateClass {
             boundaryUniqueIdentifierToCurrentMapping[`${mapping?.uniqueIdentifierForData}#${mapping?.boundaryCode}`] = mapping;
         }
 
-        await this.processActiveRows(boundaryKey, usageKey, phoneKey, userSheetData, existingUserMobileToDataMapping, boundaryUniqueIdentifierToCurrentMapping, campaignNumber, tenantId);
+        await this.processActiveRows(boundaryKey, usageKey, phoneKey, userSheetData, existingUserMobileToDataMapping, boundaryUniqueIdentifierToCurrentMapping, campaignNumber, tenantId, resourceDetails);
         await this.processInactiveRows(boundaryKey, usageKey, phoneKey, userSheetData, existingUserMobileToDataMapping, boundaryUniqueIdentifierToCurrentMapping, campaignNumber, tenantId);
     }
 
@@ -99,12 +177,15 @@ export class TemplateClass {
         existingUserMobileToDataMapping: any,
         boundaryUniqueIdentifierToCurrentMapping: any,
         campaignNumber: string,
-        tenantId: string
+        tenantId: string,
+        resourceDetails: any
     ) {
         logger.info(`Processing active rows for user sheet...`);
         const newMappingRow: any[] = [];
         const demappingRows: any[] = [];
         const usersToBeUpdated: any[] = [];
+        const workerUpdates: WorkerData[] = [];
+        const workerIdToEntries = new Map<string, any[]>();
 
         for (const data of userSheetData) {
             const phone = String(data?.[phoneKey]);
@@ -177,6 +258,34 @@ export class TemplateClass {
                         usersToBeUpdated.push(existingEntry); // ✅ Push full entry
                     }
                 }
+
+                // Collect payment field updates from sheet row for worker-registry
+                const workerId = existingData?.["HCM_ADMIN_CONSOLE_USER_WORKER_ID"];
+                if (workerId) {
+                    const sheetName = data?.["HCM_ADMIN_CONSOLE_USER_NAME"] || "";
+                    const sheetPaymentProvider = data?.["HCM_ADMIN_CONSOLE_USER_PAYMENT_PROVIDER"] || "";
+                    const sheetPayeePhone = data?.["HCM_ADMIN_CONSOLE_USER_PAYEE_PHONE_NUMBER"] || "";
+                    const sheetPayeeName = data?.["HCM_ADMIN_CONSOLE_USER_PAYEE_NAME"] || "";
+                    const sheetBankAccount = data?.["HCM_ADMIN_CONSOLE_USER_BANK_ACCOUNT"] || "";
+                    const sheetBankCode = data?.["HCM_ADMIN_CONSOLE_USER_BANK_CODE"] || "";
+
+                    if (sheetName || sheetPaymentProvider || sheetPayeePhone || sheetPayeeName || sheetBankAccount || sheetBankCode) {
+                        workerUpdates.push({
+                            name: sheetName,
+                            paymentProvider: sheetPaymentProvider,
+                            payeePhoneNumber: sheetPayeePhone,
+                            payeeName: sheetPayeeName,
+                            bankAccount: sheetBankAccount,
+                            bankCode: sheetBankCode,
+                            id: workerId,
+                            individualId: "",
+                            tenantId,
+                        });
+                        const entries = workerIdToEntries.get(workerId) || [];
+                        entries.push(existingEntry);
+                        workerIdToEntries.set(workerId, entries);
+                    }
+                }
             }
             else{
                 for (const boundary of sheetBoundaries) {
@@ -191,6 +300,54 @@ export class TemplateClass {
                 }
             }
         }
+        // Send payment field updates to worker registry BEFORE Kafka sends
+        // so error fields are set on entries before boundary updates go out
+        const workerUpdateMap = new Map<string, WorkerData>();
+        for (const w of workerUpdates) {
+            if (w.id) workerUpdateMap.set(w.id, w);
+        }
+        const dedupedWorkerUpdates = Array.from(workerUpdateMap.values());
+        if (dedupedWorkerUpdates.length > 0) {
+            try {
+                const workerRequestInfo = withUserInfo(resourceDetails?.requestInfo, { tenantId });
+                const { individualIdToWorkerIdMap, errors } = await createOrUpdateWorkers(dedupedWorkerUpdates, workerRequestInfo);
+                const updatedWorkerIds = new Set(individualIdToWorkerIdMap.values());
+                const errMsg = errors.length > 0 ? errors.join("; ") : "Worker not found in registry";
+                let failCount = 0;
+                for (const wu of dedupedWorkerUpdates) {
+                    if (!updatedWorkerIds.has(wu.id as string)) {
+                        const entries = workerIdToEntries.get(wu.id as string) || [];
+                        for (const entry of entries) {
+                            entry.data["#status#"] = sheetDataRowStatuses.INVALID;
+                            entry.data["#errorDetails#"] = errMsg;
+                            if (!usersToBeUpdated.includes(entry)) {
+                                usersToBeUpdated.push(entry);
+                            }
+                            failCount++;
+                        }
+                    }
+                }
+                if (failCount > 0) {
+                    logger.error(`Worker registry payment update: ${failCount} rows failed — ${errMsg}`);
+                } else {
+                    logger.info(`Updated payment fields for ${dedupedWorkerUpdates.length} workers in worker registry`);
+                }
+            } catch (workerError: unknown) {
+                const errMsg = workerError instanceof Error ? workerError.message : String(workerError);
+                logger.error("Worker registry payment update failed", workerError);
+                for (const wu of dedupedWorkerUpdates) {
+                    const entries = workerIdToEntries.get(wu.id as string) || [];
+                    for (const entry of entries) {
+                        entry.data["#status#"] = sheetDataRowStatuses.INVALID;
+                        entry.data["#errorDetails#"] = errMsg;
+                        if (!usersToBeUpdated.includes(entry)) {
+                            usersToBeUpdated.push(entry);
+                        }
+                    }
+                }
+            }
+        }
+
         let batchSize = 100;
         for(let i = 0; i < newMappingRow.length; i += batchSize){
             const batch = newMappingRow.slice(i, i + batchSize);
@@ -204,9 +361,10 @@ export class TemplateClass {
             const batch = usersToBeUpdated.slice(i, i + batchSize);
             await produceModifiedMessages({ datas: batch }, config.kafka.KAFKA_UPDATE_SHEET_DATA_TOPIC, tenantId);
         }
+
         logger.info(`Done processing active rows for user sheet...`);
     }
-    
+
 
     private static async processInactiveRows(
         boundaryKey: string,
@@ -299,15 +457,18 @@ export class TemplateClass {
         for (const [mobile, row ] of Object.entries(userMap) as [string, any]) {
             if (existingMap?.[String(mobile)]) continue;
             if(existingMapWithAnotherCampaigns?.[String(mobile)]){
-                const data = existingMapWithAnotherCampaigns?.[String(mobile)]?.data;
-                data["HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY"] = row?.["HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY"];
-                data["HCM_ADMIN_CONSOLE_USER_USAGE"] = row?.["HCM_ADMIN_CONSOLE_USER_USAGE"];
+                const existingEntry = existingMapWithAnotherCampaigns?.[String(mobile)];
+                const data = {
+                    ...existingEntry?.data,
+                    "HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY": row?.["HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY"],
+                    "HCM_ADMIN_CONSOLE_USER_USAGE": row?.["HCM_ADMIN_CONSOLE_USER_USAGE"],
+                };
                 newEntries.push({
                     campaignNumber,
-                    data: existingMapWithAnotherCampaigns?.[String(mobile)]?.data,
+                    data,
                     type: resourceDetails?.type,
                     uniqueIdentifier: String(mobile),
-                    uniqueIdAfterProcess: existingMapWithAnotherCampaigns?.[String(mobile)]?.uniqueIdAfterProcess,
+                    uniqueIdAfterProcess: existingEntry?.uniqueIdAfterProcess,
                     status: dataRowStatuses.completed
                 });
             }
@@ -336,8 +497,9 @@ export class TemplateClass {
 
     static async createUserFromTableData(resourceDetails: any): Promise<any> {
         logger.info("Fetching campaign details...");
+        const tenantId = resourceDetails.tenantId;
         const response = await searchProjectTypeCampaignService({
-            tenantId: resourceDetails.tenantId,
+            tenantId: tenantId,
             ids: [resourceDetails?.campaignId],
         });
 
@@ -355,14 +517,21 @@ export class TemplateClass {
         logger.info(`${usersToCreate?.length} users to create`);
         const userRowDatas = usersToCreate?.map((u: any) => u?.data);
 
-        const transformConfig = { ...transformConfigs?.["employeeHrms"] };
-        transformConfig.metadata.tenantId = resourceDetails.tenantId;
+        const transformConfig = {
+            ...transformConfigs?.["employeeHrms"],
+            metadata: { ...transformConfigs?.["employeeHrms"]?.metadata }
+        };
+        transformConfig.metadata.tenantId = tenantId;
         transformConfig.metadata.hierarchy = resourceDetails.hierarchyType;
 
         const transformer = new DataTransformer(transformConfig);
 
         logger.info("Transforming user data...");
-        const transformedUsers = await transformer.transform(userRowDatas);
+        const requestInfo = resourceDetails?.requestInfo;
+        if (!requestInfo?.userInfo) {
+            throw new Error('RequestInfo with userInfo is required in resourceDetails for user transformation');
+        }
+        const transformedUsers = await transformer.transform(userRowDatas, requestInfo);
         logger.info(`${transformedUsers.length} users transformed`);
 
         const mobileToCampaignMap = this.buildMobileNumberToCampaignUserMap(allCurrentUsers);
@@ -370,24 +539,119 @@ export class TemplateClass {
         for (let i = 0; i < transformedUsers.length; i += BATCH_SIZE) {
             const batch = transformedUsers.slice(i, i + BATCH_SIZE);
             try {
-                const mobileToUserServiceMap = await this.createEmployeesAndGetServiceUuid(batch, userUuid);
+                const { mobileToServiceMap, mobileToIndividualIdMap } = await this.createEmployeesAndGetServiceUuid(batch, userUuid, resourceDetails);
 
                 const successfulUsers = [];
+                const workerDataList: WorkerData[] = [];
+
                 for (const user of batch) {
                     const mobile = String(user?.user?.mobileNumber);
-                    const serviceUuid = mobileToUserServiceMap[mobile];
+                    const serviceUuid = mobileToServiceMap[mobile];
+                    const individualId = mobileToIndividualIdMap[mobile];
                     const existing = mobileToCampaignMap[mobile];
                     if (existing) {
-                        existing.status = dataRowStatuses.completed;
-                        existing.data["UserService Uuids"] = serviceUuid;
-                        existing.data["UserName"] = encrypt(user?.user?.userName);
-                        existing.data["Password"] = encrypt(user?.user?.password);
-                        existing.uniqueIdAfterProcess = serviceUuid;
-                        successfulUsers.push(existing);
+                        if (serviceUuid) {
+                            // HRMS confirmed creation — mark completed
+                            existing.status = dataRowStatuses.completed;
+                            existing.data["UserService Uuids"] = serviceUuid;
+                            const userName = user?.user?.userName;
+                            const password = user?.user?.password;
+                            existing.data["UserName"] = userName ? encrypt(userName) : existing.data["UserName"];
+                            existing.data["Password"] = password ? encrypt(password) : existing.data["Password"];
+                            existing.uniqueIdAfterProcess = serviceUuid;
+                            successfulUsers.push(existing);
+
+                            // Collect worker data
+                            if (individualId) {
+                                workerDataList.push({
+                                    name: existing.data["HCM_ADMIN_CONSOLE_USER_NAME"] || "",
+                                    payeePhoneNumber: existing.data["HCM_ADMIN_CONSOLE_USER_PAYEE_PHONE_NUMBER"] || "",
+                                    paymentProvider: existing.data["HCM_ADMIN_CONSOLE_USER_PAYMENT_PROVIDER"] || "",
+                                    payeeName: existing.data["HCM_ADMIN_CONSOLE_USER_PAYEE_NAME"] || "",
+                                    bankAccount: existing.data["HCM_ADMIN_CONSOLE_USER_BANK_ACCOUNT"] || "",
+                                    bankCode: existing.data["HCM_ADMIN_CONSOLE_USER_BANK_CODE"] || "",
+                                    id: existing.data["HCM_ADMIN_CONSOLE_USER_WORKER_ID"] || "",
+                                    individualId,
+                                    tenantId: resourceDetails.tenantId,
+                                });
+                            } else {
+                                logger.warn(`User created in HRMS (mobile: ${mobile}) but individualId (user.uuid) missing in response — worker registry skipped`);
+                            }
+                        } else {
+                            // HRMS did not return this user — partial failure
+                            existing.status = dataRowStatuses.failed;
+                            logger.error(`HRMS did not return serviceUuid for mobile ${mobile} — marking user as failed`);
+                            successfulUsers.push(existing);
+                        }
                     }
                 }
 
                 logger.info(`Successfully created ${successfulUsers.length} users`);
+
+                // Create/update workers in worker registry BEFORE persist to capture worker IDs
+                if (workerDataList.length > 0) {
+                    // Build individualId → campaignRecords map (multiple phones can map to same individualId)
+                    const individualIdToRecords = new Map<string, CampaignRecord[]>();
+                    for (const [phone, indId] of Object.entries(mobileToIndividualIdMap)) {
+                        const record = mobileToCampaignMap[phone] as CampaignRecord | undefined;
+                        if (record) {
+                            const list = individualIdToRecords.get(indId) || [];
+                            list.push(record);
+                            individualIdToRecords.set(indId, list);
+                        }
+                    }
+
+                    try {
+                        const workerRequestInfo = withUserInfo(resourceDetails?.requestInfo, { tenantId });
+                        const { individualIdToWorkerIdMap, errors } = await createOrUpdateWorkers(workerDataList, workerRequestInfo);
+                        logger.info(`Worker registry integration completed for ${workerDataList.length} workers`);
+
+                        // Store worker IDs back in campaign data for successfully processed workers
+                        for (const workerData of workerDataList) {
+                            const workerId = individualIdToWorkerIdMap.get(workerData.individualId);
+                            if (workerId) {
+                                const records = individualIdToRecords.get(workerData.individualId) || [];
+                                for (const record of records) {
+                                    record.data["HCM_ADMIN_CONSOLE_USER_WORKER_ID"] = workerId;
+                                }
+                            }
+                        }
+
+                        // Mark rows as failed for workers that didn't get an ID back (partial failure)
+                        if (errors.length > 0) {
+                            const errMsg = errors.join("; ");
+                            logger.error("Worker registry integration had errors:", errMsg);
+                            const processedIds = new Set<string>();
+                            for (const w of workerDataList) {
+                                if (processedIds.has(w.individualId)) continue;
+                                processedIds.add(w.individualId);
+                                if (!individualIdToWorkerIdMap.has(w.individualId)) {
+                                    const records = individualIdToRecords.get(w.individualId) || [];
+                                    for (const record of records) {
+                                        record.status = dataRowStatuses.failed;
+                                        record.data["#status#"] = sheetDataRowStatuses.INVALID;
+                                        record.data["#errorDetails#"] = errMsg;
+                                    }
+                                }
+                            }
+                        }
+                    } catch (workerError: unknown) {
+                        const errMsg = workerError instanceof Error ? workerError.message : String(workerError);
+                        logger.error("Worker registry integration failed", workerError);
+                        const processedIds = new Set<string>();
+                        for (const w of workerDataList) {
+                            if (processedIds.has(w.individualId)) continue;
+                            processedIds.add(w.individualId);
+                            const records = individualIdToRecords.get(w.individualId) || [];
+                            for (const record of records) {
+                                record.status = dataRowStatuses.failed;
+                                record.data["#status#"] = sheetDataRowStatuses.INVALID;
+                                record.data["#errorDetails#"] = errMsg;
+                            }
+                        }
+                    }
+                }
+
                 await this.persistInBatches(successfulUsers, config.kafka.KAFKA_UPDATE_SHEET_DATA_TOPIC, resourceDetails.tenantId);
             } catch (err) {
                 console.error("Error in batch creation:", err);
@@ -421,10 +685,9 @@ export class TemplateClass {
 
 
 
-    static async createEmployeesAndGetServiceUuid(users: any[], userUuid: string) {
+    static async createEmployeesAndGetServiceUuid(users: any[], userUuid: string, resourceDetails?: any): Promise<{ mobileToServiceMap: Record<string, string>; mobileToIndividualIdMap: Record<string, string> }> {
         const url = config.host.hrmsHost + config.paths.hrmsEmployeeCreate;
-        const RequestInfo : any = defaultRequestInfo?.RequestInfo;
-        RequestInfo.userInfo.uuid = userUuid;
+        const RequestInfo = resourceDetails?.requestInfo;
         const requestBody = {
             RequestInfo,
             Employees: users,
@@ -432,11 +695,16 @@ export class TemplateClass {
 
         try {
             const response = await httpRequest(url, requestBody);
-            const map: any = {};
-            for (const user of response?.Employees) {
-                map[user?.user?.mobileNumber] = user?.user?.userServiceUuid;
+            const mobileToServiceMap: Record<string, string> = {};
+            const mobileToIndividualIdMap: Record<string, string> = {};
+            for (const employee of response?.Employees) {
+                const mobile = String(employee?.user?.mobileNumber);
+                mobileToServiceMap[mobile] = employee?.user?.userServiceUuid;
+                if (employee?.user?.uuid) {
+                    mobileToIndividualIdMap[mobile] = employee?.user?.uuid;
+                }
             }
-            return map;
+            return { mobileToServiceMap, mobileToIndividualIdMap };
         } catch (error: any) {
             console.error("Employee creation API failed:", error);
             throw new Error(error);

@@ -1,3 +1,4 @@
+import { RequestInfo } from "../config/models/requestInfoSchema";
 import createAndSearch from "../config/createAndSearch";
 import config from "../config";
 import { getFormattedStringForDebug, logger } from "../utils/logger";
@@ -13,10 +14,12 @@ import { searchCampaignDetailsSchema } from "../config/models/searchCampaignDeta
 import { campaignDetailsDraftSchema } from "../config/models/campaignDetailsDraftSchema";
 import { downloadRequestSchema } from "../config/models/downloadRequestSchema";
 import { createRequestSchema } from "../config/models/createRequestSchema"
+import { CampaignResource } from "../config/models/resourceTypes";
 import { getSheetData, getTargetWorkbook } from "../api/genericApis";
 const _ = require('lodash');
 import { searchProjectTypeCampaignService } from "../service/campaignManageService";
-import { campaignStatuses, resourceDataStatuses, usageColumnStatus } from "../config/constants";
+import { campaignStatuses, resourceDataStatuses, usageColumnStatus, errorKeys, errorModules } from "../config/constants";
+import { getAllAllowedTypes } from "../config/resourceTypeRegistry";
 import { getBoundaryColumnName, getBoundaryTabName } from "../utils/boundaryUtils";
 import addAjvErrors from "ajv-errors";
 import { generateTargetColumnsBasedOnDeliveryConditions, isDynamicTargetTemplateForProjectType, modifyDeliveryConditions } from "../utils/targetUtils";
@@ -27,6 +30,7 @@ import { getPvarIds } from "../utils/campaignMappingUtils";
 import { fetchProductVariants } from "../api/healthApis";
 import { validateFileMetaDataViaFileUrl } from "../utils/excelUtils";
 import { getLocaleFromRequest } from "../utils/localisationUtils";
+import { searchResourceDetailsFromDB } from "../utils/resourceDetailsUtils";
 import { ResourceDetails } from "../config/models/resourceDetailsSchema";
 import { fetchFileFromFilestore, searchBoundaryRelationshipDefinition } from "../api/coreApis";
 import { processTemplateConfigs } from "../config/processTemplateConfigs";
@@ -805,26 +809,25 @@ async function validateBoundaryOfResouces(CampaignDetails: any, request: any, lo
     }
 }
 
-async function validateProjectCampaignResources(resources: any, request: any) {
+async function validateProjectCampaignResources(resources: CampaignResource[] | undefined, request: any, CampaignDetails?: any) {
     const requiredTypes = ["user", "facility", "boundary"];
-    const allowedTypes = [...requiredTypes, "unified-console-resources"];
-    const typeCounts: any = {
-        "user": 0,
-        "facility": 0,
-        "boundary": 0,
-        "unified-console-resources": 0
-    };
+    // Use registry to allow all registered types (includes attendanceRegister, attendanceRegisterAttendee, etc.)
+    const allowedTypes = Array.from(new Set([...requiredTypes, "unified-console-resources", ...getAllAllowedTypes()]));
+    const typeCounts: any = {};
 
-    const missingTypes: string[] = [];
+    let missingTypes: string[] = [];
 
-    if (!resources || !Array.isArray(resources)) {
-        throwError("COMMON", 400, "VALIDATION_ERROR", "resources should be a non-empty array");
+    // resources may be absent when frontend uses /v1/resource-details/_create instead of body
+    const effectiveResources = Array.isArray(resources) ? resources : [];
+    // If resources was null/undefined, sync the new array back so parent fallback pushes propagate downstream
+    if (!Array.isArray(resources) && CampaignDetails) {
+        CampaignDetails.resources = effectiveResources;
     }
 
     // Check if this is a unified template campaign
-    const hasUnifiedResource = resources.some((resource: any) => resource?.type === "unified-console-resources");
+    const hasUnifiedResource = effectiveResources.some((resource: any) => resource?.type === "unified-console-resources");
 
-    for (const resource of resources) {
+    for (const resource of effectiveResources) {
         const { type } = resource;
         if (!type || !allowedTypes.includes(type)) {
             throwError(
@@ -834,7 +837,7 @@ async function validateProjectCampaignResources(resources: any, request: any) {
                 `Invalid resource type. Allowed types are: ${allowedTypes.join(', ')}`
             );
         }
-        typeCounts[type]++;
+        typeCounts[type] = (typeCounts[type] || 0) + 1;
     }
 
     // If unified-console-resources is present, it's valid on its own
@@ -845,10 +848,31 @@ async function validateProjectCampaignResources(resources: any, request: any) {
 
     // For regular campaigns, check for required types
     for (const type of requiredTypes) {
-        if (typeCounts[type] === 0) {
+        if (!typeCounts[type]) {
             missingTypes.push(type);
         }
     }
+
+    // If types are missing from request body, check eg_cm_resource_details table (new architecture)
+    if (missingTypes.length > 0 && CampaignDetails?.id && CampaignDetails?.tenantId) {
+        try {
+            const tableRows = await searchResourceDetailsFromDB({
+                tenantId: CampaignDetails.tenantId,
+                campaignId: CampaignDetails.id,
+                isActive: true,
+                excludeTypes: ['attendanceRegisterAttendee']
+            });
+            const tableTypes = new Set(tableRows.map((r: any) => r.type));
+            missingTypes = missingTypes.filter((t: string) => !tableTypes.has(t));
+            if (missingTypes.length === 0) {
+                logger.info(`All required resource types found in eg_cm_resource_details table for campaign ${CampaignDetails.id}`);
+                return;
+            }
+        } catch (err) {
+            logger.warn(`Failed to fetch resources from table during validation: ${err}`);
+        }
+    }
+
     if (!request?.body?.parentCampaign) {
         if (missingTypes.length > 0) {
             const missingTypesMessage = `Missing resources of types: ${missingTypes.join(', ')}`;
@@ -862,7 +886,7 @@ async function validateProjectCampaignResources(resources: any, request: any) {
         for (const missingType of missingTypes) {
             const fallback = parentResources.find((r: any) => r.type === missingType);
             if (fallback) {
-                resources.push(fallback);
+                effectiveResources.push(fallback);
                 console.log(`Added missing resource type "${missingType}" from parent campaign`);
             } else {
                 throwError(
@@ -951,11 +975,13 @@ async function validateCampaignName(request: any, actionInUrl: any) {
                         if (!request.body.CampaignDetails?.parentId) {
                             throwError("CAMPAIGN", 400, "CAMPAIGN_NAME_ERROR");
                         }
-                        else if (campaignWithMatchingName?.id != request.body.CampaignDetails?.parentId && campaignWithMatchingName?.id != request.body.CampaignDetails?.id) {
-                            throwError("CAMPAIGN", 400, "CAMPAIGN_NAME_ERROR");
-                        }
+                        // Child campaigns share the name of their parent (enforced above at parentCampaign name check).
+                        // Name conflicts for siblings are handled by validateMaxOneChildCampaign.
+                        // Skipping global name uniqueness check for child campaigns to allow deep hierarchies.
                     }
-                    else if (campaignWithMatchingName && actionInUrl == "update" && campaignWithMatchingName?.id != request.body.CampaignDetails?.id && campaignWithMatchingName?.id != request.body.CampaignDetails?.parentId) {
+                    else if (campaignWithMatchingName && actionInUrl == "update"
+                        && !request.body.CampaignDetails?.parentId
+                        && campaignWithMatchingName?.id != request.body.CampaignDetails?.id) {
                         throwError("CAMPAIGN", 400, "CAMPAIGN_NAME_ERROR");
                     }
                 }
@@ -1037,7 +1063,10 @@ async function validateProjectType(request: any, projectType: any, tenantId: any
 async function validateCampaignBody(request: any, CampaignDetails: any, actionInUrl: any) {
     const { hierarchyType, action, tenantId, resources, projectType } = CampaignDetails;
     if (action == "create") {
+        const savedResources = CampaignDetails.resources;
+        delete CampaignDetails.resources;
         validateProjectCampaignMissingFields(CampaignDetails);
+        CampaignDetails.resources = savedResources;
         await validateParent(request, actionInUrl);
         await validateMissingBoundaryFromParent(request?.body);
         validateProjectDatesForCampaign(request, CampaignDetails);
@@ -1049,11 +1078,14 @@ async function validateCampaignBody(request: any, CampaignDetails: any, actionIn
         await validateHierarchyType(request, hierarchyType, tenantId);
         await validateProjectType(request, projectType, tenantId);
         await validateProjectCampaignBoundaries(request?.body?.boundariesCombined, hierarchyType, tenantId, request);
-        await validateProjectCampaignResources(resources, request);
+        await validateProjectCampaignResources(resources, request, CampaignDetails);
         await validateProductVariant(request);
     }
     else {
+        const savedDraftResources = CampaignDetails.resources;
+        delete CampaignDetails.resources;
         validateDraftProjectCampaignMissingFields(CampaignDetails);
+        CampaignDetails.resources = savedDraftResources;
         await validateParent(request, actionInUrl);
         await validateMissingBoundaryFromParent(request?.body);
         // validateProjectDatesForCampaign(request, CampaignDetails);
@@ -1143,18 +1175,18 @@ async function validateProductVariant(request: any) {
         }
     });
     const pvarIds= getPvarIds(request?.body);
-    await validatePvarIds(pvarIds as string[],tenantId);
+    await validatePvarIds(pvarIds as string[], tenantId, request?.body?.RequestInfo);
     logger.info("Validated product variants successfully");
 }
 
-async function validatePvarIds(pvarIds: string[] , tenantId?: string) {
+async function validatePvarIds(pvarIds: string[], tenantId?: string, requestInfo?: RequestInfo) {
     // Validate that pvarIds is not null, undefined, or empty, and that no element is null or undefined
     if (!pvarIds?.length || pvarIds.some((id:any) => !id)) {
         throwError("COMMON", 400, "VALIDATION_ERROR", "productVariantId is required in every delivery rule's resources");
     }
 
     // Fetch product variants using the fetchProductVariants function
-    const allProductVariants = await fetchProductVariants(pvarIds,tenantId);
+    const allProductVariants = await fetchProductVariants(pvarIds, tenantId, requestInfo);
 
     // Extract the ids of the fetched product variants
     const fetchedIds = new Set(allProductVariants.map((pvar: any) => pvar?.id));
@@ -1323,7 +1355,7 @@ async function validatePlanFacility(request: any) {
     const planFacilitySearchResponse = await planFacilitySearch(request);
 
     if (planFacilitySearchResponse.PlanFacility.length === 0) {
-        throwError("COMMAN", 400, "Plan facilities not found");
+        throwError(errorModules.COMMON, 400, errorKeys.PLAN_FACILITIES_NOT_FOUND, "Plan facilities not found");
     }
 
     request.body.PlanFacility = planFacilitySearchResponse.PlanFacility;
@@ -1561,6 +1593,45 @@ export function validateMultiSelectUniqueness(datas : any[], schema : any, local
 }
 
 
+/**
+ * Validate the request body for the "Add Resources" API.
+ * Ensures campaign ID, tenantId, and resources array are present and valid.
+ */
+function validateAddResourcesRequest(request: any): void {
+    const campaignDetails = request?.body?.CampaignDetails;
+
+    if (!campaignDetails?.id) {
+        throwError("COMMON", 400, "VALIDATION_ERROR", "CampaignDetails.id is required");
+    }
+
+    if (!campaignDetails?.tenantId) {
+        throwError("COMMON", 400, "VALIDATION_ERROR", "CampaignDetails.tenantId is required");
+    }
+
+    const resources = campaignDetails?.resources;
+    if (!resources || !Array.isArray(resources) || resources.length === 0) {
+        throwError("COMMON", 400, "VALIDATION_ERROR", "CampaignDetails.resources must be a non-empty array");
+    }
+
+    const allowedTypes = getAllAllowedTypes();
+
+    for (let i = 0; i < resources.length; i++) {
+        const resource: CampaignResource = resources[i];
+        if (!resource?.type) {
+            throwError("COMMON", 400, "VALIDATION_ERROR", `resources[${i}].type is required`);
+        }
+        if (!allowedTypes.includes(resource.type)) {
+            throwError("COMMON", 400, "VALIDATION_ERROR", `resources[${i}].type "${resource.type}" is not a valid resource type. Allowed: ${allowedTypes.join(", ")}`);
+        }
+        if (!resource?.filestoreId) {
+            throwError("COMMON", 400, "VALIDATION_ERROR", `resources[${i}].filestoreId is required`);
+        }
+        if (!resource?.filename) {
+            throwError("COMMON", 400, "VALIDATION_ERROR", `resources[${i}].filename is required`);
+        }
+    }
+}
+
 export {
     validateSheetData,
     validateCreateRequest,
@@ -1574,5 +1645,6 @@ export {
     immediateValidationForTargetSheet,
     validateBoundaryOfResouces,
     validateParent,
-    validateMicroplanRequest
+    validateMicroplanRequest,
+    validateAddResourcesRequest
 }

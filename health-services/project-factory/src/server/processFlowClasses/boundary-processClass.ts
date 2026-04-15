@@ -1,6 +1,7 @@
+import { RequestInfo } from "../config/models/requestInfoSchema";
 import { searchProjectTypeCampaignService } from "../service/campaignManageService";
 import { SheetMap } from "../models/SheetMap";
-import { defaultRequestInfo, searchBoundaryRelationshipData, searchMDMSDataViaV2Api } from "../api/coreApis";
+import { searchBoundaryRelationshipData, searchMDMSDataViaV2Api } from "../api/coreApis";
 import { getLocalizedName, populateBoundariesRecursively } from "../utils/campaignUtils";
 import config from "../config";
 import { produceModifiedMessages } from "../kafka/Producer";
@@ -44,7 +45,7 @@ export class TemplateClass {
 
         await this.persistMappingData(currentMappingData, mappingDataFromSheet, resourceDetails);
         currentBoundaryData = await getRelatedDataWithCampaign(resourceDetails?.type, campaignNumber, resourceDetails?.tenantId);
-        await this.createAndUpdateProjects(currentBoundaryData, campaignDetails, boundaries, targetConfig);
+        await this.createAndUpdateProjects(currentBoundaryData, campaignDetails, boundaries, targetConfig, resourceDetails?.requestInfo);
         return {};
     }
 
@@ -121,15 +122,15 @@ export class TemplateClass {
         return allSheetMappingResourceData;
     }
 
-    private static async createAndUpdateProjects(currentBoundaryData: any[], campaignDetails: any, boundaries: any, targetConfig: any) {
+    private static async createAndUpdateProjects(currentBoundaryData: any[], campaignDetails: any, boundaries: any, targetConfig: any, requestInfo?: RequestInfo) {
         const boundaryChildrenToTypeAndParentMap: any = this.getBoundaryChildrenToTypeAndParentMap(boundaries, currentBoundaryData);
-        const { projectCreateBody, Projects } = await this.prepareProjectCreationContext(campaignDetails);
+        const { projectCreateBody, Projects } = await this.prepareProjectCreationContext(campaignDetails, requestInfo);
         const sortedBoundaryData = this.topologicallySortBoundaries(currentBoundaryData, boundaryChildrenToTypeAndParentMap);
         const sortedBoundaryDataForCreate = sortedBoundaryData.filter((d: any) => !d?.uniqueIdAfterProcess && (d?.status == dataRowStatuses.pending || d?.status == dataRowStatuses.failed));
         const sortedBoundaryDataForUpdate = sortedBoundaryData.filter((d: any) => d?.uniqueIdAfterProcess && (d?.status == dataRowStatuses.pending || d?.status == dataRowStatuses.failed));
         const useruuid = campaignDetails?.auditDetails?.createdBy;
-        await this.processProjectCreationInOrder(sortedBoundaryDataForCreate, campaignDetails?.tenantId, campaignDetails?.campaignNumber, targetConfig, projectCreateBody, Projects, boundaryChildrenToTypeAndParentMap, useruuid);
-        await this.processProjectUpdateInOrder(sortedBoundaryDataForUpdate, campaignDetails?.tenantId, campaignDetails?.campaignNumber, targetConfig, useruuid);
+        await this.processProjectCreationInOrder(sortedBoundaryDataForCreate, campaignDetails?.tenantId, campaignDetails?.campaignNumber, targetConfig, projectCreateBody, Projects, boundaryChildrenToTypeAndParentMap, useruuid, requestInfo);
+        await this.processProjectUpdateInOrder(sortedBoundaryDataForUpdate, campaignDetails?.tenantId, campaignDetails?.campaignNumber, targetConfig, useruuid, requestInfo);
     }
 
 
@@ -163,7 +164,7 @@ export class TemplateClass {
         return boundaryChildrenToTypeAndParentMap;
     }
 
-    private static async prepareProjectCreationContext(campaignDetails: any) {
+    private static async prepareProjectCreationContext(campaignDetails: any, requestInfo?: RequestInfo) {
 
         const MdmsCriteria : any = {
             tenantId: campaignDetails?.tenantId,
@@ -180,7 +181,7 @@ export class TemplateClass {
 
         const Projects = enrichProjectDetailsFromCampaignDetails(campaignDetails, mdmsResponse?.mdms?.[0]?.data);
         const projectCreateBody = {
-            RequestInfo: { ...defaultRequestInfo?.RequestInfo, userInfo: { uuid: campaignDetails?.auditDetails?.createdBy } },
+            RequestInfo: { ...requestInfo, userInfo: { uuid: campaignDetails?.auditDetails?.createdBy } },
             Projects
         };
 
@@ -230,14 +231,14 @@ export class TemplateClass {
         tenantId: string,
         campaignNumber: string,
         targetConfig: any,
-        useruuid: string
+        useruuid: string,
+        requestInfo?: RequestInfo
     ) {
         logger.info("Processing project update in order");
         for (const boundaryData of sortedBoundaryData) {
             const data = boundaryData?.data;
             const boundaryCode = data?.["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"];
-            const RequestInfo = JSON.parse(JSON.stringify(defaultRequestInfo?.RequestInfo));
-            RequestInfo.userInfo.uuid = useruuid;
+            const RequestInfo = requestInfo!;
             try {
                 const projectSearchResponse =
                     await fetchProjectsWithBoundaryCodeAndReferenceId(
@@ -318,7 +319,8 @@ export class TemplateClass {
         projectCreateBody: any,
         Projects: any,
         boundaryMap: Record<string, { type: string; parent: string | null; projectId?: string }>,
-        useruuid: string
+        useruuid: string,
+        requestInfo?: RequestInfo
     ) {
         logger.info("Processing project creation in order");
         for (const boundaryData of sortedBoundaryData) {
@@ -336,7 +338,7 @@ export class TemplateClass {
                     const parentProjectId = boundaryMap?.[parent]?.projectId;
                     Projects[0].parent = parentProjectId;
                     if(!config.values.skipParentProjectConfirmation) {
-                        await confirmProjectParentCreation(tenantId, useruuid, parentProjectId);
+                        await confirmProjectParentCreation(tenantId, useruuid, parentProjectId, requestInfo);
                     }
                 }
                 else if (parent && !boundaryMap?.[parent]?.projectId) {

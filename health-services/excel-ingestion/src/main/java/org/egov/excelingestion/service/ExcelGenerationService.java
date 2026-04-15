@@ -7,7 +7,7 @@ import org.egov.excelingestion.exception.CustomExceptionHandler;
 import org.egov.excelingestion.util.RequestInfoConverter;
 import org.egov.excelingestion.web.models.GenerateResource;
 import org.egov.excelingestion.web.models.ProcessorGenerationConfig;
-import org.egov.excelingestion.web.models.RequestInfo;
+import org.egov.common.contract.request.RequestInfo;
 import org.egov.excelingestion.web.models.SheetGenerationConfig;
 import org.egov.excelingestion.config.ExcelIngestionConfig;
 
@@ -94,7 +94,9 @@ public class ExcelGenerationService {
                     .generationClass(sheetGenerationConfig.getGenerationClass())
                     .isGenerationClassViaExcelPopulator(sheetGenerationConfig.getIsGenerationClassViaExcelPopulator() != null ? sheetGenerationConfig.getIsGenerationClassViaExcelPopulator() : false)
                     .order(sheetGenerationConfig.getOrder() != null ? sheetGenerationConfig.getOrder() : 1)
-                    .visible(sheetGenerationConfig.getVisible() != null ? sheetGenerationConfig.getVisible() : true);
+                    .visible(sheetGenerationConfig.getVisible() != null ? sheetGenerationConfig.getVisible() : true)
+                    .skipSchemaColumns(sheetGenerationConfig.getSkipSchemaColumns() != null ? sheetGenerationConfig.getSkipSchemaColumns() : false)
+                    .boundaryFilter(sheetGenerationConfig.getBoundaryFilter());
             
             sheets.add(builder.build());
         }

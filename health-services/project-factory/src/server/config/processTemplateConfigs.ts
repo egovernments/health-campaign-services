@@ -99,5 +99,83 @@ export const processTemplateConfigs: any = {
         ],
         enrichmentFunction: "enrichTargetProcessConfig",
         passFromController : true
+    },
+    attendanceRegister: {
+        sheets: [
+            {
+                sheetName: "HCM_ATTENDANCE_REGISTER_README",
+                lockWholeSheet: true
+            },
+            {
+                sheetName: "HCM_ATTENDANCE_REGISTER_LIST",
+                validateRowsGap: true,
+                schemaName: "attendance-register"
+            },
+            {
+                sheetName: "HCM_ADMIN_CONSOLE_BOUNDARY_DATA",
+                lockWholeSheet: true
+            }
+        ],
+        passFromController: true
+    },
+    attendanceRegisterValidation: {
+        sheets: [
+            {
+                sheetName: "HCM_ATTENDANCE_REGISTER_README",
+                lockWholeSheet: true
+            },
+            {
+                sheetName: "HCM_ATTENDANCE_REGISTER_LIST",
+                validateRowsGap: true,
+                schemaName: "attendance-register"
+            },
+            {
+                sheetName: "HCM_ADMIN_CONSOLE_BOUNDARY_DATA",
+                lockWholeSheet: true
+            }
+        ],
+        passFromController: true
+    },
+    attendanceRegisterAttendee: {
+        sheets: [
+            {
+                sheetName: "HCM_REGISTER_WORKER_SHEET",
+                validateRowsGap: true,
+                schemaName: "attendance-register-attendee-worker"
+            },
+            {
+                sheetName: "HCM_REGISTER_MARKER_SHEET",
+                validateRowsGap: true,
+                schemaName: "attendance-register-attendee-marker"
+            },
+            {
+                sheetName: "HCM_REGISTER_APPROVER_SHEET",
+                validateRowsGap: true,
+                schemaName: "attendance-register-attendee-approver"
+            }
+        ]
+    },
+    attendanceRegisterAttendeeValidation: {
+        sheets: [
+            {
+                sheetName: "HCM_REGISTER_WORKER_SHEET",
+                validateRowsGap: true,
+                schemaName: "attendance-register-attendee-worker",
+                lockWholeSheet: true
+            },
+            {
+                sheetName: "HCM_REGISTER_MARKER_SHEET",
+                validateRowsGap: true,
+                schemaName: "attendance-register-attendee-marker",
+                lockWholeSheet: true
+            },
+            {
+                sheetName: "HCM_REGISTER_APPROVER_SHEET",
+                validateRowsGap: true,
+                schemaName: "attendance-register-attendee-approver",
+                lockWholeSheet: true
+            }
+        ],
+        passFromController: true
     }
 }

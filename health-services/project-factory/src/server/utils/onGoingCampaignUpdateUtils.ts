@@ -1,11 +1,13 @@
 import { searchProjectTypeCampaignService } from "../service/campaignManageService";
 import { getLocalizedHeaders, throwError } from "./genericUtils";
+import { errorModules, errorKeys } from "../config/constants";
 import { httpRequest } from "./request";
 import config from "../config/index";
 import { getLocalizedName, populateBoundariesRecursively } from "./campaignUtils";
 import { logger } from "./logger";
 import { searchBoundaryRelationshipData } from "../api/coreApis";
 import { cloneDeep } from "lodash";
+import { CampaignResource } from "../config/models/resourceTypes";
 
 async function getParentCampaignObject(request: any, parentId: any) {
   try {
@@ -19,7 +21,7 @@ async function getParentCampaignObject(request: any, parentId: any) {
     return parentSearchResponse?.CampaignDetails?.[0];
   } catch (error) {
     logger.error("Error fetching parent campaign object:", error);
-    throwError("CAMPAIGN", 400, "PARENT_CAMPAIGN_ERROR", "Parent Campaign fetching error ");
+    throwError(errorModules.CAMPAIGN, 400, errorKeys.PARENT_CAMPAIGN_ERROR, "Parent Campaign fetching error ");
   }
 }
 
@@ -207,7 +209,7 @@ export async function validateMissingBoundaryFromParent(requestBody : any) {
       // as we've already confirmed it's not missing any from the parent.
       if (setOfBoundaryCodesFromCurrentCampaign.size !== parentBoundaryCodes.size) {
         const boundaryResource = CampaignDetails.resources?.find(
-          (r: any) => r.type === 'boundary' && r.filestoreId
+          (r: CampaignResource) => r.type === 'boundary' && r.filestoreId
         );
         const isUnifiedCampaign = CampaignDetails?.additionalDetails?.isUnifiedCampaign || false;
         if (!boundaryResource && !isUnifiedCampaign) {
@@ -406,11 +408,11 @@ async function fetchProjectFacilityWithProjectId(request: any, projectId: any, f
       return null
     }
   } catch (error: any) {
-    throwError("PROJECT", 500, "PROJECT_FACILTY_SEARCH_ERROR")
+    throwError(errorModules.PROJECT, 500, errorKeys.PROJECT_FACILITY_SEARCH_ERROR, "Error in project facility search")
   }
 }
 
-export async function getFileUrl(fileStoreId: any, tenantId: any) {
+export async function getFileUrl(fileStoreId: string, tenantId: string) {
   const fileResponse = await httpRequest(
     `${config.host.filestore}${config.paths.filestore}/url`,
     {},
@@ -419,7 +421,7 @@ export async function getFileUrl(fileStoreId: any, tenantId: any) {
   );
 
   if (!fileResponse || !fileResponse.fileStoreIds || !fileResponse.fileStoreIds[0] || !fileResponse.fileStoreIds[0].url) {
-    throwError("FILE", 400, "INVALID_FILE");
+    throwError(errorModules.FILE, 400, errorKeys.INVALID_FILE);
   } else {
     return fileResponse.fileStoreIds[0].url;
   }

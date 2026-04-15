@@ -3,11 +3,13 @@ package org.egov.excelingestion.processor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
 import org.egov.excelingestion.config.ExcelIngestionConfig;
+import org.egov.excelingestion.config.ProcessingConstants;
 import org.egov.excelingestion.config.ValidationConstants;
 import org.egov.excelingestion.config.ErrorConstants;
 import org.egov.excelingestion.service.ValidationService;
 import org.egov.excelingestion.exception.CustomExceptionHandler;
 import org.egov.excelingestion.web.models.*;
+import org.egov.common.contract.request.RequestInfo;
 import org.egov.excelingestion.util.LocalizationUtil;
 import org.egov.excelingestion.util.BoundaryUtil;
 import org.egov.excelingestion.util.EnrichmentUtil;
@@ -96,7 +98,10 @@ public class UserValidationProcessor implements IWorkbookProcessor {
             
             // Validate boundary codes against campaign boundaries
             validateCampaignBoundaries(sheetData, resource, requestInfo, errors, localizationMap);
-            
+
+            // Validate worker IDs against worker registry
+            validateWorkerIds(sheetData, resource.getTenantId(), requestInfo, errors, localizationMap);
+
             log.info("User validation completed with {} errors", errors.size());
 
             // Only add error columns if there are validation errors
@@ -600,6 +605,116 @@ public class UserValidationProcessor implements IWorkbookProcessor {
         }
         
         log.info("Campaign boundary validation completed");
+    }
+
+    /**
+     * Validate that each non-blank HCM_ADMIN_CONSOLE_USER_WORKER_ID exists in the worker registry.
+     * Fail-closed: if the registry call fails, all rows in the failing batch are marked invalid.
+     */
+    private void validateWorkerIds(List<Map<String, Object>> sheetData,
+                                    String tenantId,
+                                    RequestInfo requestInfo,
+                                    List<ValidationError> errors,
+                                    Map<String, String> localizationMap) {
+        log.info("Validating worker IDs for {} records", sheetData.size());
+
+        Map<String, List<Integer>> workerIdToRowsMap = new HashMap<>();
+        for (Map<String, Object> rowData : sheetData) {
+            String workerId = ExcelUtil.getValueAsString(rowData.get(ProcessingConstants.WORKER_ID_COLUMN_KEY));
+            if (workerId != null && !workerId.trim().isEmpty()) {
+                workerIdToRowsMap.computeIfAbsent(workerId.trim(), k -> new ArrayList<>())
+                        .add((Integer) rowData.get("__actualRowNumber__"));
+            }
+        }
+
+        if (workerIdToRowsMap.isEmpty()) {
+            log.info("No worker IDs to validate");
+            return;
+        }
+
+        List<String> allWorkerIds = new ArrayList<>(workerIdToRowsMap.keySet());
+        Set<String> foundWorkerIds = new HashSet<>();
+
+        int batchSize = config.getWorkerRegistrySearchBatchSize();
+        if (batchSize <= 0) {
+            batchSize = 100;
+        }
+        for (int i = 0; i < allWorkerIds.size(); i += batchSize) {
+            List<String> batch = allWorkerIds.subList(i, Math.min(i + batchSize, allWorkerIds.size()));
+            try {
+                List<Map<String, Object>> workers = searchWorkersByIds(batch, tenantId, requestInfo);
+                for (Map<String, Object> worker : workers) {
+                    String id = ExcelUtil.getValueAsString(worker.get("id"));
+                    if (id != null && !id.isEmpty()) {
+                        foundWorkerIds.add(id.trim());
+                    }
+                }
+            } catch (Exception e) {
+                log.error("Worker registry search failed for batch: {}", e.getMessage(), e);
+                String errorMsg = LocalizationUtil.getLocalizedMessage(localizationMap,
+                        ValidationConstants.LOC_USER_INVALID_WORKER_ID,
+                        ValidationConstants.DEFAULT_USER_INVALID_WORKER_ID);
+                for (String workerId : batch) {
+                    List<Integer> rowNumbers = workerIdToRowsMap.get(workerId);
+                    if (rowNumbers != null) {
+                        for (Integer rowNumber : rowNumbers) {
+                            ValidationError error = new ValidationError();
+                            error.setRowNumber(rowNumber);
+                            error.setErrorDetails(errorMsg);
+                            error.setStatus(ValidationConstants.STATUS_INVALID);
+                            errors.add(error);
+                        }
+                    }
+                }
+                foundWorkerIds.addAll(batch); // mark as handled to avoid duplicate errors
+            }
+        }
+
+        String errorMsg = LocalizationUtil.getLocalizedMessage(localizationMap,
+                ValidationConstants.LOC_USER_INVALID_WORKER_ID,
+                ValidationConstants.DEFAULT_USER_INVALID_WORKER_ID);
+        for (Map.Entry<String, List<Integer>> entry : workerIdToRowsMap.entrySet()) {
+            if (!foundWorkerIds.contains(entry.getKey())) {
+                for (Integer rowNumber : entry.getValue()) {
+                    ValidationError error = new ValidationError();
+                    error.setRowNumber(rowNumber);
+                    error.setErrorDetails(errorMsg);
+                    error.setStatus(ValidationConstants.STATUS_INVALID);
+                    errors.add(error);
+                }
+            }
+        }
+
+        log.info("Worker ID validation completed");
+    }
+
+    private List<Map<String, Object>> searchWorkersByIds(List<String> workerIds,
+                                                          String tenantId,
+                                                          RequestInfo requestInfo) throws Exception {
+        Map<String, Object> searchBody = new HashMap<>();
+        searchBody.put("RequestInfo", requestInfo);
+
+        Map<String, Object> workerSearch = new HashMap<>();
+        workerSearch.put("id", workerIds);
+        workerSearch.put("tenantId", tenantId);
+        searchBody.put("workerSearch", workerSearch);
+
+        StringBuilder urlWithParams = new StringBuilder(config.getWorkerRegistrySearchUrl())
+                .append("?limit=").append(workerIds.size())
+                .append("&offset=0&tenantId=").append(tenantId);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(searchBody, headers);
+
+        log.info("Searching worker registry for {} IDs", workerIds.size());
+        ResponseEntity<Map> response = restTemplate.exchange(
+                urlWithParams.toString(), HttpMethod.POST, entity, Map.class);
+
+        if (response.getBody() != null && response.getBody().get("workers") != null) {
+            return (List<Map<String, Object>>) response.getBody().get("workers");
+        }
+        return new ArrayList<>();
     }
 
     /**

@@ -9,7 +9,7 @@ import org.egov.excelingestion.util.RequestInfoConverter;
 import org.egov.excelingestion.web.models.BoundaryHierarchyResponse;
 import org.egov.excelingestion.web.models.GenerateResource;
 import org.egov.excelingestion.web.models.ProcessorGenerationConfig;
-import org.egov.excelingestion.web.models.RequestInfo;
+import org.egov.common.contract.request.RequestInfo;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 

@@ -1,7 +1,17 @@
+import { RequestInfo } from "../config/models/requestInfoSchema";
 import express from "express";
+import { v4 as uuidv4 } from "uuid";
 import { prepareAndProduceCancelMessage, processBasedOnAction, processFetchMicroPlan, searchProjectCampaignResourcData, updateCampaignAfterSearch, validateAndFetchCampaign } from "../utils/campaignUtils";
 import { logger } from "../utils/logger";
-import { validateMicroplanRequest, validateProjectCampaignRequest } from "../validators/campaignValidators";
+import { validateMicroplanRequest, validateProjectCampaignRequest, validateAddResourcesRequest } from "../validators/campaignValidators";
+import { campaignStatuses, processStatuses } from "../config/constants";
+import { createResourceDetail, updateResourceDetail, getCampaignStatusFromDB } from "./resourceDetailsService";
+import { findActiveResourceByUpsertKey } from "../utils/resourceDetailsUtils";
+import { prepareProcessesForResourceTypes, getCurrentProcesses } from "../utils/genericUtils";
+import config from "../config";
+import { produceModifiedMessages } from "../kafka/Producer";
+import { getRegistryEntry } from "../config/resourceTypeRegistry";
+import { CampaignResource, ResourceDetailsResponse, toCampaignResource } from "../config/models/resourceTypes";
 
 async function createProjectTypeCampaignService(request: express.Request) {
     // Validate the request for creating a project type campaign
@@ -9,8 +19,39 @@ async function createProjectTypeCampaignService(request: express.Request) {
     await validateProjectCampaignRequest(request, "create");
     logger.info("VALIDATED:: THE PROJECT TYPE CREATE REQUEST");
 
-    // Process the action based on the request type
+    // Generate campaign ID before resource upsert so resources can reference it.
+    // processBasedOnAction will skip ID generation if already set.
+    if (!request.body.CampaignDetails.id) {
+        request.body.CampaignDetails.id = uuidv4();
+    }
+
+    // Persist resources to eg_cm_resource_details BEFORE processBasedOnAction.
+    // processBasedOnAction sets campaign status to "creating" — resource guards would
+    // block after that. At this point the campaign doesn't exist in DB yet (status=null),
+    // so guards pass safely.
+    const resources: CampaignResource[] = request?.body?.CampaignDetails?.resources || [];
+    const tenantId = request?.body?.CampaignDetails?.tenantId;
+    const campaignId = request?.body?.CampaignDetails?.id;
+    const useruuid = request?.body?.RequestInfo?.userInfo?.uuid || "system";
+    if (resources.length > 0 && tenantId && campaignId) {
+        for (const res of resources) {
+            if (!res.type || !res.filestoreId) continue;
+            await createResourceDetail({
+                tenantId,
+                campaignId,
+                type: res.type,
+                parentResourceId: res.parentResourceId || null,
+                fileStoreId: res.filestoreId,
+                filename: res.filename || null,
+                additionalDetails: res.additionalDetails || {}
+            }, useruuid);
+            logger.info(`Persisted resource type=${res.type} to eg_cm_resource_details for campaign ${campaignId}`);
+        }
+    }
+
+    // Now transition campaign status to "creating" and start processing
     await processBasedOnAction(request, "create");
+
     return request?.body?.CampaignDetails;
 }
 
@@ -19,8 +60,51 @@ async function updateProjectTypeCampaignService(request: express.Request) {
     await validateProjectCampaignRequest(request, "update");
     logger.info("VALIDATED THE PROJECT TYPE UPDATE REQUEST");
 
-    // Process the action based on the request type
+    // Upsert resources BEFORE processBasedOnAction.
+    // processBasedOnAction sets campaign status to "creating" (when action=create) —
+    // resource guards would block after that. At this point the campaign still has its
+    // current status ("drafted" or "created"), so guards pass safely.
+    const requestResources = request?.body?.CampaignDetails?.resources || [];
+    const tenantId = request?.body?.CampaignDetails?.tenantId;
+    const campaignId = request?.body?.CampaignDetails?.id;
+    const useruuid = request?.body?.RequestInfo?.userInfo?.uuid || "system";
+    if (requestResources.length > 0 && tenantId && campaignId) {
+        for (const res of requestResources as CampaignResource[]) {
+            const fileStoreId = res.filestoreId;
+            if (!res.type || !fileStoreId) continue;
+            const existing = await findActiveResourceByUpsertKey(tenantId, campaignId, res.type, res.parentResourceId || null);
+            if (existing) {
+                await updateResourceDetail({
+                    id: existing.id,
+                    tenantId,
+                    campaignId,
+                    fileStoreId,
+                    filename: res.filename !== undefined ? res.filename : undefined
+                }, useruuid);
+                logger.info(`Updated existing resource id=${existing.id} type=${res.type} for campaign ${campaignId} via update`);
+            } else {
+                await createResourceDetail({
+                    tenantId,
+                    campaignId,
+                    type: res.type,
+                    parentResourceId: res.parentResourceId || null,
+                    fileStoreId,
+                    filename: res.filename || null,
+                    additionalDetails: res.additionalDetails || {}
+                }, useruuid);
+                logger.info(`Created new resource type=${res.type} for campaign ${campaignId} via update`);
+            }
+        }
+    }
+
+    // Now transition campaign status and start processing
     await processBasedOnAction(request, "update");
+
+    // Re-fetch campaign so response includes full resources from eg_cm_resource_details table
+    if (tenantId && campaignId) {
+        const freshResp = await searchProjectTypeCampaignService({ tenantId, ids: [campaignId] });
+        return freshResp?.CampaignDetails?.[0] || request?.body?.CampaignDetails;
+    }
     return request?.body?.CampaignDetails;
 }
 
@@ -51,11 +135,171 @@ async function cancelCampaignService(request: any) {
     return cancelledCampaign;
 }
 
+/**
+ * Add resources to an existing campaign.
+ * Delegates to the new resource details service.
+ * Resources are stored in eg_cm_resource_details, not in the campaign JSONB.
+ * Preserves backward-compatible request/response shape.
+ */
+async function addResourcesToCampaignService(request: express.Request) {
+    // Validate request
+    validateAddResourcesRequest(request);
+
+    const requestCampaignDetails = request?.body?.CampaignDetails;
+    const tenantId = requestCampaignDetails?.tenantId;
+    const campaignId = requestCampaignDetails?.id;
+    const useruuid = request?.body?.RequestInfo?.userInfo?.uuid || "system";
+    const newResources = requestCampaignDetails?.resources || [];
+
+    // Search for the existing campaign
+    const campaignResp = await searchProjectTypeCampaignService({ tenantId, ids: [campaignId] });
+    const existingCampaign = campaignResp?.CampaignDetails?.[0];
+
+    if (!existingCampaign) {
+        throw Object.assign(new Error("Campaign not found"), { status: 404, code: "CAMPAIGN_NOT_FOUND" });
+    }
+
+    const campaignStatus = existingCampaign?.status;
+    if (campaignStatus === campaignStatuses.started) {
+        throw Object.assign(
+            new Error(`Cannot add resources while campaign is actively processing (status: "${campaignStatus}")`),
+            { status: 400, code: "RESOURCE_ADD_NOT_ALLOWED" }
+        );
+    }
+    if (campaignStatus === campaignStatuses.cancelled) {
+        throw Object.assign(
+            new Error(`Cannot add resources to a cancelled campaign`),
+            { status: 400, code: "RESOURCE_ADD_NOT_ALLOWED" }
+        );
+    }
+    // drafted, inprogress (created), failed → allowed
+
+    // Delegate to resource details service — stores in eg_cm_resource_details
+    const createdResources: ResourceDetailsResponse[] = [];
+    const createdResourceTypes: string[] = [];
+    for (const res of newResources as CampaignResource[]) {
+        if (!res.type || !res.filestoreId) {
+            logger.warn(`Skipping resource with missing type or filestoreId: ${JSON.stringify(res)}`);
+            continue;
+        }
+        const created = await createResourceDetail({
+            tenantId,
+            campaignId,
+            type: res.type,
+            parentResourceId: res.parentResourceId || null,
+            fileStoreId: res.filestoreId,
+            filename: res.filename || null,
+            additionalDetails: res.additionalDetails || {}
+        }, useruuid);
+        createdResources.push(created);
+        createdResourceTypes.push(res.type);
+        logger.info(`Stored resource type=${res.type} id=${created.id} for campaign ${campaignId}`);
+    }
+
+    // Inject new resources into campaign object for task message (bypasses Kafka async lag).
+    // Re-fetching from DB would return stale data since resource is persisted via Kafka async.
+    const newCampaignResources: CampaignResource[] = createdResources.map(
+        (r: any) => toCampaignResource(r as ResourceDetailsResponse)
+    );
+    const campaignForTask = {
+        ...existingCampaign,
+        resources: [
+            ...(existingCampaign.resources || []).filter((r: any) =>
+                !createdResources.some((nr: any) => nr.type === r.type && (nr.parentResourceId || null) === (r.parentResourceId || null))
+            ),
+            ...newCampaignResources
+        ]
+    };
+
+    // Fresh status check before triggering to avoid acting on a cancelled/completed campaign
+    // that changed state between the initial fetch and this point.
+    if (createdResourceTypes.length > 0) {
+        const { status: freshStatus, campaignNumber: freshCampaignNumber } = await getCampaignStatusFromDB(campaignId, tenantId);
+        if (freshStatus === campaignStatuses.inprogress && freshCampaignNumber) {
+            await triggerResourceProcessingIfCreated(
+                campaignId, tenantId, freshCampaignNumber, campaignForTask, createdResourceTypes, useruuid, request?.body?.RequestInfo
+            );
+        }
+    }
+
+    logger.info(`Added ${createdResources.length} resource(s) to campaign ${campaignId}: ${createdResourceTypes.join(", ")}`);
+    return campaignForTask;
+}
+
+/**
+ * Trigger Kafka processing tasks for the given resource types on a created campaign.
+ * Resets process tasks to pending before triggering so failed processes can be retried.
+ */
+export async function triggerResourceProcessingIfCreated(
+    campaignId: string,
+    tenantId: string,
+    campaignNumber: string,
+    updatedCampaign: any,
+    resourceTypes: string[],
+    useruuid: string,
+    requestInfo: RequestInfo
+): Promise<void> {
+    await prepareProcessesForResourceTypes(campaignNumber, tenantId, resourceTypes, useruuid);
+    const allCurrentProcesses = await getCurrentProcesses(campaignNumber, tenantId);
+    for (const resType of resourceTypes) {
+        const registryEntry = getRegistryEntry(resType);
+        if (!registryEntry) continue;
+        const task = allCurrentProcesses.find((p: any) => p?.processName === registryEntry.processName);
+        if (task && task?.status === processStatuses.pending) {
+            await produceModifiedMessages({
+                task,
+                CampaignDetails: updatedCampaign,
+                useruuid,
+                requestInfo
+            }, config.kafka.KAFKA_START_ADMIN_CONSOLE_TASK_TOPIC, tenantId, registryEntry.kafkaKey);
+            logger.info(`Triggered processing task for type=${resType} on created campaign ${campaignId}`);
+        }
+    }
+}
+
+/**
+ * Fire-and-forget helper: fetch campaign and trigger processing if status is "created" (inprogress).
+ * Used by the resource details controller after creating/updating a resource.
+ */
+export async function triggerIfCampaignCreated(
+    campaignId: string,
+    tenantId: string,
+    resourceType: string,
+    useruuid: string,
+    requestInfo: RequestInfo,
+    newResourceDetails?: any   // optional: the just-created/updated ResourceDetails object
+): Promise<void> {
+    const campaignResp = await searchProjectTypeCampaignService({ tenantId, ids: [campaignId] });
+    const campaign = campaignResp?.CampaignDetails?.[0];
+    if (!campaign || campaign.status !== campaignStatuses.inprogress) return;
+    const campaignNumber = campaign.campaignNumber;
+    if (!campaignNumber) return;
+
+    // Inject new resource into campaign for task message (resource not in DB yet due to Kafka async)
+    let campaignForTask = campaign;
+    if (newResourceDetails) {
+        const newCampaignResource = toCampaignResource(newResourceDetails as ResourceDetailsResponse);
+        campaignForTask = {
+            ...campaign,
+            resources: [
+                ...(campaign.resources || []).filter((r: any) =>
+                    !(r.type === resourceType && (r.parentResourceId || null) === (newResourceDetails.parentResourceId || null))
+                ),
+                newCampaignResource
+            ]
+        };
+    }
+
+    await triggerResourceProcessingIfCreated(
+        campaignId, tenantId, campaignNumber, campaignForTask, [resourceType], useruuid, requestInfo
+    );
+}
 
 export {
     createProjectTypeCampaignService,
     updateProjectTypeCampaignService,
     searchProjectTypeCampaignService,
     fetchFromMicroplanService,
-    cancelCampaignService
+    cancelCampaignService,
+    addResourcesToCampaignService
 }

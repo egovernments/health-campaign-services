@@ -59,5 +59,43 @@ export const generationtTemplateConfigs : any = {
                 lockWholeSheet: true
             }
         ]
+    },
+
+    // Configuration for 'attendanceRegister' module
+    attendanceRegister: {
+        sheets: [
+            {
+                sheetName: "HCM_ATTENDANCE_REGISTER_README",
+                schemaName: "attendance-register-readme",
+                lockWholeSheet: true
+            },
+            {
+                sheetName: "HCM_ATTENDANCE_REGISTER_LIST",
+                schemaName: "attendance-register"
+            },
+            {
+                sheetName: "HCM_ADMIN_CONSOLE_BOUNDARY_DATA",
+                schemaName: "boundary-data",
+                lockWholeSheet: false
+            }
+        ]
+    },
+
+    // Configuration for 'attendanceRegisterAttendee' module
+    attendanceRegisterAttendee: {
+        sheets: [
+            {
+                sheetName: "HCM_REGISTER_WORKER_SHEET",
+                schemaName: "attendance-register-attendee-worker"
+            },
+            {
+                sheetName: "HCM_REGISTER_MARKER_SHEET",
+                schemaName: "attendance-register-attendee-marker"
+            },
+            {
+                sheetName: "HCM_REGISTER_APPROVER_SHEET",
+                schemaName: "attendance-register-attendee-approver"
+            }
+        ]
     }
 }
