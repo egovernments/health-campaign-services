@@ -11,6 +11,10 @@ import org.egov.transformer.config.TransformerProperties;
 import org.egov.transformer.http.client.ServiceRequestClient;
 import org.springframework.stereotype.Component;
 
+import org.egov.transformer.models.upstream.HouseholdMemberSearch;
+import org.egov.transformer.models.upstream.HouseholdMemberSearchRequest;
+
+
 import java.util.*;
 
 import static org.egov.transformer.Constants.*;
@@ -53,6 +57,34 @@ public class HouseholdService {
             return Collections.emptyList();
         }
         return response.getHouseholds();
+    }
+
+    public List<HouseholdMember> searchHouseholdMember(String indClientRefId, String tenantId) {
+        HouseholdMemberSearchRequest request = HouseholdMemberSearchRequest.builder()
+                .requestInfo(RequestInfo.builder().
+                        userInfo(User.builder()
+                                .uuid("transformer-uuid")
+                                .build())
+                        .build())
+                .householdMemberSearch(HouseholdMemberSearch.builder().
+                        individualClientReferenceId(Collections.singletonList(indClientRefId)).build())
+                .build();
+        HouseholdMemberBulkResponse response;
+        try {
+            StringBuilder uri = new StringBuilder();
+            uri.append(transformerProperties.getHouseholdHost())
+                    .append(transformerProperties.getHouseholdMemberSearchUrl())
+                    .append("?limit=").append(transformerProperties.getSearchApiLimit())
+                    .append("&offset=0")
+                    .append("&tenantId=").append(tenantId);
+            response = serviceRequestClient.fetchResult(uri,
+                    request,
+                    HouseholdMemberBulkResponse.class);
+        } catch (Exception e) {
+            log.error("Error while fetching householdMember for indClientRefId: {}. ExceptionDetails: {}", indClientRefId, ExceptionUtils.getStackTrace(e));
+            return Collections.emptyList();
+        }
+        return response.getHouseholdMembers();
     }
 
     public void additionalFieldsToDetails(ObjectNode additionalDetails, Object additionalFields) {

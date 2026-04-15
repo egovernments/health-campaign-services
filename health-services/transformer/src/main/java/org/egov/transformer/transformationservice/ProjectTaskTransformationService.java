@@ -8,6 +8,7 @@ import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.egov.common.models.household.Household;
 //import org.egov.common.models.project.*;
+import org.egov.common.models.household.HouseholdMember;
 import org.egov.common.models.project.AdditionalFields;
 import org.egov.common.models.project.Field;
 import org.egov.common.models.project.ProjectBeneficiary;
@@ -165,7 +166,7 @@ public class ProjectTaskTransformationService {
         Integer memberCount = beneficiaryInfo.containsKey(MEMBER_COUNT) ? (Integer) beneficiaryInfo.get(MEMBER_COUNT) : null;
         if (INDIVIDUAL.equalsIgnoreCase(projectBeneficiaryType) && transformerProperties.getIcdBednetProductVariants().equalsIgnoreCase(productVariantId)) {
             String projectBeneficiaryClientReferenceId = task.getProjectBeneficiaryClientReferenceId();
-            Map<String, Object> householdBeneficiaryInfo = getProjectBeneficiaryDetails(projectBeneficiaryClientReferenceId, HOUSEHOLD, tenantId);
+            Map<String, Object> householdBeneficiaryInfo = getHouseholdDetails(projectBeneficiaryClientReferenceId, tenantId);
             householdId = householdBeneficiaryInfo.containsKey(HOUSEHOLD_CLIENT_REFERENCE_ID) ? (String) householdBeneficiaryInfo.get(HOUSEHOLD_CLIENT_REFERENCE_ID) : null;
             memberCount = householdBeneficiaryInfo.containsKey(MEMBER_COUNT) ? (Integer) householdBeneficiaryInfo.get(MEMBER_COUNT) : null;
             projectTypeId = BEDNET_PREFIX + HYPHEN + projectTypeId;
@@ -360,6 +361,38 @@ public class ProjectTaskTransformationService {
         } else if (INDIVIDUAL.equalsIgnoreCase(projectBeneficiaryType)) {
             log.info("fetching individual details for INDIVIDUAL projectBeneficiaryType");
             projectBenfInfoMap = individualService.getIndividualInfo(beneficiaryClientRefId, tenantId);
+        }
+        return projectBenfInfoMap;
+    }
+
+    private Map<String, Object> getHouseholdDetails(String projectBeneficiaryClRefId, String tenantId) {
+        Map<String, Object> projectBenfInfoMap = new HashMap<>();
+
+        List<ProjectBeneficiary> projectBeneficiaries = projectService
+                .searchBeneficiary(projectBeneficiaryClRefId, tenantId);
+        if (CollectionUtils.isEmpty(projectBeneficiaries)) {
+            return projectBenfInfoMap;
+        }
+        ProjectBeneficiary projectBeneficiary = projectBeneficiaries.get(0);
+        String beneficiaryClientRefId = projectBeneficiary.getBeneficiaryClientReferenceId();
+
+        List<HouseholdMember> householdMembers = householdService.searchHouseholdMember(beneficiaryClientRefId, tenantId);
+        if (CollectionUtils.isEmpty(householdMembers)) {
+            return projectBenfInfoMap;
+        }
+
+        String householdClientReferenceId = householdMembers.get(0).getHouseholdClientReferenceId();
+
+        List<Household> households = householdService.searchHousehold(householdClientReferenceId, tenantId);
+        if (!CollectionUtils.isEmpty(households)) {
+            Integer memberCount = households.get(0).getMemberCount();
+            projectBenfInfoMap.put(MEMBER_COUNT, memberCount);
+            projectBenfInfoMap.put(HOUSEHOLD_CLIENT_REFERENCE_ID, households.get(0).getClientReferenceId());
+            if (ObjectUtils.isNotEmpty(households.get(0).getAdditionalFields()) && !CollectionUtils.isEmpty(households.get(0).getAdditionalFields().getFields())) {
+                projectBenfInfoMap.put("additionalFields", households.get(0).getAdditionalFields().getFields());
+            }
+        } else {
+            log.info("COULD NOT FIND HOUSEHOLD for clientReferenceId: {}", beneficiaryClientRefId);
         }
         return projectBenfInfoMap;
     }

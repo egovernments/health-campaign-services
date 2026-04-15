@@ -101,6 +101,9 @@ public class TransformerProperties {
     @Value("${egov.search.household.url}")
     private String householdSearchUrl;
 
+    @Value("${egov.search.household.member.url}")
+    private String householdMemberSearchUrl;
+
     @Value("${egov.individual.host}")
     private String individualHost;
 
