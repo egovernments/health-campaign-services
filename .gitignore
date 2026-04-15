@@ -84,8 +84,5 @@ Thumbs.db
 .DS_Store
 Thumbs.db
 
-#Node module
-/node_modules/.yarn-integrity
-
 utilities/project-factory/node_modules/*
 frontend/micro-ui/web/micro-ui-internals/node_modules/*
