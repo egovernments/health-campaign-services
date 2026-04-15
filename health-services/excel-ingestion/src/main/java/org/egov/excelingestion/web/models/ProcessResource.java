@@ -11,7 +11,6 @@ import java.util.Map;
 
 import org.apache.kafka.common.protocol.types.Field.Str;
 import org.egov.common.contract.models.AuditDetails;
-import org.egov.common.contract.request.RequestInfo;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -71,7 +70,4 @@ public class ProcessResource {
 
     @JsonProperty("processedStatus")
     private String processedStatus;
-
-    @JsonProperty("requestInfo")
-    private RequestInfo requestInfo;
 }

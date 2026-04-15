@@ -1,4 +1,3 @@
-import { RequestInfo } from "../config/models/requestInfoSchema";
 import { generationtTemplateConfigs } from "../config/generationtTemplateConfigs";
 import { processTemplateConfigs } from "../config/processTemplateConfigs";
 import { enrichProcessTemplateConfig, generateResource, initializeGenerateAndGetResponse, initializeProcessAndGetResponse, processResource } from "../utils/sheetManageUtils";
@@ -8,7 +7,7 @@ import { ResourceDetails } from "../config/models/resourceDetailsSchema";
 import { validateGenerateQuery, validateResourceDetails } from "../validators/campaignValidators";
 
 
-export async function generateDataService(generateRequestQuery: GenerateTemplateQuery, userUuid: string, locale : string = config.localisation.defaultLocale, requestInfo?: RequestInfo) {
+export async function generateDataService(generateRequestQuery: GenerateTemplateQuery, userUuid: string, locale : string = config.localisation.defaultLocale) {
     let { type, tenantId, hierarchyType, campaignId } = generateRequestQuery;
     await validateGenerateQuery(generateRequestQuery);
     tenantId = String(tenantId);
@@ -16,13 +15,7 @@ export async function generateDataService(generateRequestQuery: GenerateTemplate
     hierarchyType = String(hierarchyType);
     campaignId = String(campaignId);
     const generationTemplateConfig = JSON.parse(JSON.stringify(generationtTemplateConfigs?.[String(type)]));
-    const responseToSend = await initializeGenerateAndGetResponse(tenantId, type, hierarchyType, campaignId, userUuid, locale, requestInfo);
-    if (generateRequestQuery.registerId) {
-        responseToSend.additionalDetails = {
-            ...responseToSend.additionalDetails,
-            registerId: generateRequestQuery.registerId
-        };
-    }
+    const responseToSend = await initializeGenerateAndGetResponse(tenantId, type, hierarchyType, campaignId, userUuid, locale);
     generateResource(responseToSend, generationTemplateConfig);
     return responseToSend;
 }

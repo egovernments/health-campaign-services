@@ -1,4 +1,4 @@
-import { RequestInfo } from "../config/models/requestInfoSchema";
+import { defaultRequestInfo } from "../api/coreApis"; // Import default request metadata
 import { getFormattedStringForDebug, logger } from "./logger"; // Import logger for logging information and errors
 import { createDataService, downloadDataService, searchDataService } from "../service/dataManageService";
 import { throwError } from "./genericUtils";
@@ -19,8 +19,10 @@ export const downloadTemplate = async (
   requestBody?: any
 ) => {
   // Use request body info if provided, otherwise fall back to default
-  const searchBody = {
-    RequestInfo: requestBody?.RequestInfo
+  const searchBody = requestBody ? {
+    RequestInfo: requestBody.RequestInfo
+  } : {
+    ...defaultRequestInfo, // Include default request metadata
   };
 
   const params = {
@@ -117,7 +119,7 @@ const conditionForTermination = (downloadResponse: any) => {
 
 const conditionForTermination2 = (downloadResponse: any) => {
   logger.info(`current status ${downloadResponse?.[0]?.status}`)
-  return downloadResponse?.[0]?.status === "completed" && downloadResponse?.[0]?.processedFileStoreId;
+  return downloadResponse?.[0]?.status === "completed" && downloadResponse?.[0]?.processedFilestoreId;
 }
 
 export const createAndPollForCompletion = async (request: any) => {
@@ -135,7 +137,7 @@ export const createAndPollForCompletion = async (request: any) => {
 
     // Step 2: Poll for completion
     const polledResponse = await pollForTemplateGeneration(
-      () => searchData(resourceId, request?.body?.ResourceDetails?.tenantId, request?.body?.ResourceDetails?.type, request?.body?.RequestInfo),
+      () => searchData(resourceId, request?.body?.ResourceDetails?.tenantId, request?.body?.ResourceDetails?.type),
       conditionForTermination2,
       3000,
       30
@@ -151,13 +153,13 @@ export const createAndPollForCompletion = async (request: any) => {
 
 
 
-async function searchData(resourceId: any, tenantId: any, type: any, requestInfo?: RequestInfo) {
+async function searchData(resourceId: any, tenantId: any, type: any) {
   const SearchCriteria = {
     id: [resourceId],
     tenantId: tenantId,
     type: type
   };
-  const searchBody = { RequestInfo: requestInfo, SearchCriteria }
+  const searchBody = { ...defaultRequestInfo, SearchCriteria }
   const request: any = {
     body: { ...searchBody }
   }

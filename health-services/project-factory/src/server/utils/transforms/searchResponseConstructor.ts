@@ -1,19 +1,17 @@
-import { ResourceDetailRow } from "../resourceDetailsUtils";
-
 /**
  * Transforms generic resource data fetched from the database into a standardized format.
  *
  * @param {any[]} dbRows - The array of database rows to transform.
  * @returns {Object[]} - An array of transformed resource objects.
  */
-export const genericResourceTransformer = (dbRows: ResourceDetailRow[] = []) => {
-  return dbRows?.map((row: ResourceDetailRow) => ({
+export const genericResourceTransformer = (dbRows: any[] = []) => {
+  return dbRows?.map((row: any) => ({
     id: row?.id,
     tenantId: row?.tenantid,
     status: row?.status,
     action: row?.action,
     fileStoreId: row?.filestoreid,
-    processedFileStoreId: row?.processedfilestoreid,
+    processedFilestoreId: row?.processedfilestoreid,
     campaignId: row?.campaignid,
     type: row?.type,
     auditDetails: {

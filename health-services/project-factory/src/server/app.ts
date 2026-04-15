@@ -12,7 +12,6 @@ import { createProxyMiddleware } from "http-proxy-middleware";
 import * as v8 from "v8";
 import { logger } from "./utils/logger";
 import { Server } from "http";
-import { createTerminus } from "@godaddy/terminus";
 
 class App {
   public app: express.Application;
@@ -102,13 +101,6 @@ class App {
         logger.info(`App listening on port ${this.port}`);
         resolve(serverInstance);
       });
-    });
-
-    createTerminus(server, {
-      healthChecks: {
-        [`${config.app.contextPath}/health`]: async () => {}
-      },
-      logger: (msg, err) => logger.error(msg, err)
     });
 
     // Configure server timeouts

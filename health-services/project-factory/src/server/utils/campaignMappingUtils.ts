@@ -131,18 +131,17 @@ export async function handleFacilityMapping(mappingArray: any, campaignId: any, 
 
 export async function handleMappingTaskForCampaign(messageObject: any) {
     try {
-        const { CampaignDetails, task, requestInfo } = messageObject;
-        const processName = task?.processName;
-        const useruuid = requestInfo?.userInfo?.uuid;
+        const { CampaignDetails, task, useruuid } = messageObject;
+        const processName = task?.processName
         logger.info(`Mapping for campaign ${CampaignDetails?.id} : ${processName} started..`);
         if(processName == allProcesses.resourceMapping) {
-            await startResourceMapping(CampaignDetails, useruuid, requestInfo);
+            await startResourceMapping(CampaignDetails, useruuid);
         }
         else if(processName == allProcesses.facilityMapping) {
-            await startFacilityMappingAndDemapping(CampaignDetails, useruuid, requestInfo);
+            await startFacilityMappingAndDemapping(CampaignDetails, useruuid);
         }
         else if (processName == allProcesses.userMapping) {
-            await startUserMappingAndDemapping(CampaignDetails, useruuid, requestInfo);
+            await startUserMappingAndDemapping(CampaignDetails, useruuid);
         }
         task.status = processStatuses.completed;
         // Add audit details for update
@@ -160,13 +159,13 @@ export async function handleMappingTaskForCampaign(messageObject: any) {
         // Add audit details for failed status update
         const currentTime = Date.now();
         task.auditDetails = {
-            createdBy: task.auditDetails?.createdBy || messageObject?.requestInfo?.userInfo?.uuid,
+            createdBy: task.auditDetails?.createdBy || messageObject?.useruuid,
             createdTime: task.auditDetails?.createdTime || currentTime,
-            lastModifiedBy: messageObject?.requestInfo?.userInfo?.uuid,
+            lastModifiedBy: messageObject?.useruuid,
             lastModifiedTime: currentTime
         };
         await produceModifiedMessages({ processes: [task] }, config?.kafka?.KAFKA_UPDATE_PROCESS_DATA_TOPIC, messageObject?.CampaignDetails?.tenantId);
         logger.error(`Error in campaign mapping: ${error}`);
-        await enrichAndPersistCampaignWithErrorProcessingTask(messageObject?.CampaignDetails, messageObject?.parentCampaign, messageObject?.requestInfo, error);
+        await enrichAndPersistCampaignWithErrorProcessingTask(messageObject?.CampaignDetails, messageObject?.parentCampaign, messageObject?.useruuid, error);
     }
 }

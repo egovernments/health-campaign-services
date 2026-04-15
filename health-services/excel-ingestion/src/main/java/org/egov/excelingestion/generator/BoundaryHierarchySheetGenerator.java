@@ -10,7 +10,6 @@ import org.egov.excelingestion.service.MDMSService;
 import org.egov.excelingestion.util.BoundaryUtil;
 import org.egov.excelingestion.util.SchemaColumnDefUtil;
 import org.egov.excelingestion.web.models.*;
-import org.egov.common.contract.request.RequestInfo;
 import org.egov.excelingestion.web.models.CampaignSearchResponse;
 import org.egov.excelingestion.web.models.excel.ColumnDef;
 import org.springframework.stereotype.Component;
@@ -95,9 +94,9 @@ public class BoundaryHierarchySheetGenerator implements IExcelPopulatorSheetGene
             String projectType = campaignService.getProjectTypeFromCampaign(
                 generateResource.getReferenceId(), generateResource.getTenantId(), requestInfo);
             
-            // Fetch schema columns if projectType exists (skip if config says so)
+            // Fetch schema columns if projectType exists
             List<ColumnDef> schemaColumns = new ArrayList<>();
-            if (!Boolean.TRUE.equals(config.getSkipSchemaColumns()) && projectType != null && !projectType.isEmpty()) {
+            if (projectType != null && !projectType.isEmpty()) {
                 schemaColumns = fetchSchemaColumns(projectType, generateResource.getTenantId(), requestInfo);
             }
             

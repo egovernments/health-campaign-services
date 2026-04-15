@@ -188,7 +188,6 @@ class SearchValidationTest {
                 .type("EXCEL_IMPORT")
                 .hierarchyType("ADMIN")
                 .referenceId("ref-123")
-                .referenceType("campaign")
                 .fileStoreId("file-456")
                 .build();
 

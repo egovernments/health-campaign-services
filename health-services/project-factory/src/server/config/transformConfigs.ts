@@ -42,10 +42,6 @@ export const transformConfigs: any = {
                 value: 0
             },
             {
-                path: "$.user.type",
-                value: "EMPLOYEE"
-            },
-            {
                 path: "$.employeeType",
                 source: {
                     header: "HCM_ADMIN_CONSOLE_USER_EMPLOYMENT_TYPE",
@@ -130,10 +126,6 @@ export const transformConfigs: any = {
             {
                 path: "$.user.dob",
                 value: 0
-            },
-            {
-                path: "$.user.type",
-                value: "EMPLOYEE"
             },
             {
                 path: "$.employeeType",

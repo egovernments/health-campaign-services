@@ -1,7 +1,5 @@
 package org.egov.excelingestion.web.models;
 
-import org.egov.common.contract.request.RequestInfo;
-
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;

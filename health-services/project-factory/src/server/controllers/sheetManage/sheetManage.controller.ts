@@ -45,8 +45,7 @@ class SheetManageController {
             const userUuid = req.body?.RequestInfo?.userInfo?.uuid;
             const locale = getLocaleFromRequest(req);
 
-            const requestInfo = req.body?.RequestInfo;
-            const GeneratedResource = await generateDataService(generateTemplateQuery, userUuid, locale, requestInfo);
+            const GeneratedResource = await generateDataService(generateTemplateQuery, userUuid, locale);
 
             return sendResponse(res, { GeneratedResource }, req);
         } catch (e: any) {
@@ -73,7 +72,6 @@ class SheetManageController {
             const ResourceDetails: ResourceDetails = parsed.data;
             const userUuid = req.body?.RequestInfo?.userInfo?.uuid;
             const locale = getLocaleFromRequest(req);
-            ResourceDetails.requestInfo = req.body?.RequestInfo;
             filterResourceDetailType(ResourceDetails.type);
             const processedData = await processDataService(ResourceDetails, userUuid, locale);
             // Continue processing with validated `validData`
@@ -102,7 +100,6 @@ class SheetManageController {
             const ResourceDetails: ResourceDetails = parsed.data;
             const userUuid = req.body?.RequestInfo?.userInfo?.uuid;
             const locale = getLocaleFromRequest(req);
-            ResourceDetails.requestInfo = req.body?.RequestInfo;
             const processedData = await processDataService(ResourceDetails, userUuid, locale);
             // Continue processing with validated `validData`
             return sendResponse(res, { ResourceDetails: processedData }, req);

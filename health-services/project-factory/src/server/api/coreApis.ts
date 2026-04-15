@@ -1,10 +1,23 @@
-import { RequestInfo } from "../config/models/requestInfoSchema";
 // Import necessary types and utilities
 import { BoundaryModels, MDMSModels } from "../models";
 import config from "../config";
 import { defaultheader, httpRequest } from "../utils/request";
 import { logger } from "../utils/logger";
 
+// Default request information for MDMS API requests
+export const defaultRequestInfo: any = {
+  RequestInfo: {
+    apiId: "PROJECTFACTORY", // Identifier for the calling application,
+    msgId: `${new Date().getTime()}|${config.localisation.defaultLocale}`,
+    ...(config.isProduction && config.token && { authToken: config.token }),
+    ...{
+      userInfo: {
+        tenantId: config?.app?.defaultTenantId,
+        id: 1
+      }
+    },
+  },
+};
 
 /**
  * Searches MDMS data via the v2 API for specific unique identifiers.
@@ -23,8 +36,7 @@ import { logger } from "../utils/logger";
  */
 const searchMDMSDataViaV2Api = async (
   criteria: MDMSModels.MDMSv2RequestCriteria,
-  cacheEnabled: boolean = false,
-  requestInfo?: RequestInfo
+  cacheEnabled: boolean = false
 ): Promise<MDMSModels.MDMSv2Response> => {
   const apiUrl = `${config.host.mdmsV2}${config.paths.mdms_v2_search}`;
 
@@ -44,7 +56,7 @@ const searchMDMSDataViaV2Api = async (
 
   const requestBody = {
     MdmsCriteria: mdms,
-    RequestInfo: requestInfo
+    RequestInfo: defaultRequestInfo?.RequestInfo
   };
 
   const response: MDMSModels.MDMSv2Response = await httpRequest(
@@ -69,13 +81,12 @@ const searchMDMSDataViaV2Api = async (
  * @returns Promise resolving to the response containing schema definitions.
  */
 const searchMDMSSchema = async (
-  SchemaDefCriteria: MDMSModels.MDMSSchemaRequestCriteria,
-  requestInfo?: RequestInfo
+  SchemaDefCriteria: MDMSModels.MDMSSchemaRequestCriteria
 ): Promise<MDMSModels.MDMSSchemaResponse> => {
   // Construct the request body including schema criteria and default request info
   const requestBody = {
     ...SchemaDefCriteria,
-    RequestInfo: requestInfo,
+    ...defaultRequestInfo,
   };
 
   // Define the API URL for schema retrieval
@@ -101,13 +112,12 @@ const searchMDMSSchema = async (
  * @returns Promise resolving to the MDMS v1 search response.
  */
 const searchMDMSDataViaV1Api = async (
-  MdmsCriteria: MDMSModels.MDMSv1RequestCriteria,
-  requestInfo?: RequestInfo
+  MdmsCriteria: MDMSModels.MDMSv1RequestCriteria
 ): Promise<MDMSModels.MDMSv1Response> => {
   // Construct the request body with v1 search criteria and default request info
   const requestBody = {
     ...MdmsCriteria,
-    RequestInfo: requestInfo,
+    ...defaultRequestInfo,
   };
 
   // Define the API URL for MDMS v1 search
@@ -150,11 +160,10 @@ const searchBoundaryEntity = async (
   codes: string,
   limit: number = 100,
   offset: number = 0,
-  requestInfo?: RequestInfo
 ): Promise<BoundaryModels.BoundaryEntityResponse> => {
   // Prepare request body with default request information
   const requestBody = {
-    RequestInfo: requestInfo,
+    ...defaultRequestInfo,
   };
 
   // Construct API URL for boundary entity search
@@ -195,13 +204,12 @@ const searchBoundaryRelationshipData = async (
   hierarchyType: string,
   includeChildren: boolean = true,
   includeParents: boolean = true,
-  isCache?: boolean,
-  codes?: string,
-  requestInfo?: RequestInfo
+  isCache?:boolean,
+  codes?: string
 ): Promise<BoundaryModels.BoundaryHierarchyRelationshipResponse> => {
   // Prepare request body with default request information
   const requestBody = {
-    RequestInfo: requestInfo,
+    ...defaultRequestInfo,
   };
   const headers: any = {
     ...defaultheader,
@@ -252,13 +260,12 @@ const searchBoundaryRelationshipData = async (
  * const response = await searchBoundaryRelationshipDefinition(criteria);
  */
 const searchBoundaryRelationshipDefinition = async (
-  BoundaryTypeHierarchySearchCriteria: BoundaryModels.BoundaryHierarchyDefinitionSearchCriteria,
-  requestInfo?: RequestInfo
+  BoundaryTypeHierarchySearchCriteria: BoundaryModels.BoundaryHierarchyDefinitionSearchCriteria
 ): Promise<BoundaryModels.BoundaryHierarchyDefinitionResponse> => {
   // Prepare request body with search criteria and default request information
   const requestBody = {
     ...BoundaryTypeHierarchySearchCriteria,
-    RequestInfo: requestInfo,
+    ...defaultRequestInfo,
   };
 
   // Construct API URL for boundary hierarchy definition search
@@ -310,9 +317,10 @@ async function createMdmsData(
   tenantId: string,
   schemaCode: string,
   data: any,
-  requestInfo: RequestInfo
+  useruuid: string
 ): Promise<void> {
-  const RequestInfo = requestInfo;
+  const RequestInfo = { ...defaultRequestInfo?.RequestInfo };
+  RequestInfo.userInfo.uuid = useruuid;
 
   const requestBody = {
     RequestInfo,

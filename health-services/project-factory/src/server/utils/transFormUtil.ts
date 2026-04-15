@@ -7,7 +7,6 @@ import {
 } from "./campaignUtils";
 import { logger } from "./logger";
 import config from "../config";
-import { RequestInfo } from "../config/models/requestInfoSchema";
 
 type RowData = Record<string, any>;
 
@@ -47,13 +46,13 @@ export class DataTransformer {
     }
 
     /** Bulk entrypoint */
-    public async transform(rows: RowData[], requestInfo: RequestInfo): Promise<any> {
+    public async transform(rows: RowData[]): Promise<any> {
         if (!Array.isArray(rows)) {
             throw new Error("Input must be an array of row objects");
         }
         const mapped = rows.map(r => this.transformSingle(r));
         if (this.cfg.transFormBulk) {
-            return await this.hooks[this.cfg.transFormBulk](mapped, this.cfg, requestInfo);
+            return await this.hooks[this.cfg.transFormBulk](mapped, this.cfg);
         }
         return mapped;
     }
@@ -98,11 +97,8 @@ export class DataTransformer {
                 }
             }
 
-            // if no source fields produced any data, emit an empty array (no null objects)
-            if (maxLen === 0) {
-                this.assignByPath(out, `${base}[*]`, []);
-                continue;
-            }
+            // if no source fields produced anything, still emit one slot
+            if (maxLen === 0) maxLen = 1;
 
             const arrOut: any[] = [];
             for (let i = 0; i < maxLen; i++) {
@@ -295,18 +291,9 @@ export class DataTransformer {
         return data;
     }
 
-    private async transformBulkEmployee(data: any[], cfg: TransformConfig, requestInfo: RequestInfo): Promise<any[]> {
-        if (!requestInfo?.userInfo) {
-            throw new Error('RequestInfo.userInfo is required for IDGen username generation');
-        }
+    private async transformBulkEmployee(data: any[], cfg: TransformConfig): Promise<any[]> {
         const idReqs = createIdRequests(data);
-        let result: any = null;
-        if (idReqs.length > 0) {
-            result = await createUniqueUserNameViaIdGen(idReqs, requestInfo);
-            if (!result?.idResponses || result.idResponses.length === 0) {
-                throw new Error('IDGen failed: no ID responses returned. Check RequestInfo and IDGen service.');
-            }
-        }
+        const result = await createUniqueUserNameViaIdGen(idReqs);
         let idx = 0;
 
         logger.info("Enriching boundary type in jurisdictions…");
@@ -328,7 +315,7 @@ export class DataTransformer {
             // username/id
             const userName = item?.user?.userName ? String(item?.user?.userName)?.trim() : null;
             item.user.userName = userName;
-            if (!item.user.userName) {
+        if (!item.user.userName) {
                 const id = result.idResponses[idx++].id;
                 item.user.userName = id;
                 item.code = id;
