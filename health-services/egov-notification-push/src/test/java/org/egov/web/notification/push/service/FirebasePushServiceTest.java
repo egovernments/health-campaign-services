@@ -17,7 +17,6 @@ import org.egov.web.notification.push.config.PushProperties;
 import org.egov.web.notification.push.consumer.contract.PushNotificationRequest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -163,6 +162,25 @@ class FirebasePushServiceTest {
 
         // 5 tokens with batch size 2 = 3 batches (2, 2, 1)
         verify(firebaseMessaging, times(3)).sendEachForMulticast(any(MulticastMessage.class));
+    }
+
+    @Test
+    void sendPushNotification_multipleTokens_invalidBatchSize_usesDefault() throws Exception {
+        PushNotificationRequest request = PushNotificationRequest.builder()
+                .title("Title")
+                .body("Body")
+                .deviceTokens(Arrays.asList("token1", "token2"))
+                .build();
+
+        when(pushProperties.getFcmBatchSize()).thenReturn(0);
+
+        BatchResponse batchResponse = createBatchResponse(2, 0);
+        when(firebaseMessaging.sendEachForMulticast(any(MulticastMessage.class)))
+                .thenReturn(batchResponse);
+
+        firebasePushService.sendPushNotification(request);
+
+        verify(firebaseMessaging, times(1)).sendEachForMulticast(any(MulticastMessage.class));
     }
 
     @Test

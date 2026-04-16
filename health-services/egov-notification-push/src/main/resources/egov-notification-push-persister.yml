@@ -11,7 +11,7 @@ serviceMaps:
             INSERT INTO eg_push_device_tokens
             (id, userid, devicetoken, devicetype, tenantid, facilityid, userroles, createdby, createdtime, lastmodifiedby, lastmodifiedtime)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT (devicetoken, facilityid) DO UPDATE SET
+            ON CONFLICT (devicetoken, (COALESCE(facilityid, chr(31)))) DO UPDATE SET
             userid = EXCLUDED.userid, devicetype = EXCLUDED.devicetype, tenantid = EXCLUDED.tenantid,
             userroles = EXCLUDED.userroles,
             lastmodifiedby = EXCLUDED.lastmodifiedby, lastmodifiedtime = EXCLUDED.lastmodifiedtime
@@ -36,7 +36,7 @@ serviceMaps:
       queryMaps:
         - query: >-
             DELETE FROM eg_push_device_tokens
-            WHERE userid = ? AND devicetoken = ? AND tenantid = ? AND facilityid = ?
+            WHERE userid = ? AND devicetoken = ? AND tenantid = ? AND facilityid IS NOT DISTINCT FROM ?
           basePath: $.deviceTokens.*
           jsonMaps:
             - jsonPath: $.deviceTokens.*.userId

@@ -4,6 +4,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 import org.egov.tracer.model.CustomException;
 import org.egov.web.notification.push.config.PushProperties;
@@ -19,6 +20,8 @@ import lombok.extern.slf4j.Slf4j;
 @Repository
 @Slf4j
 public class DeviceTokenRepository {
+
+	private static final Pattern SAFE_SCHEMA_NAME = Pattern.compile("[A-Za-z_][A-Za-z0-9_]*");
 
 	@Autowired
 	private NamedParameterJdbcTemplate namedParameterJdbcTemplate;
@@ -39,8 +42,8 @@ public class DeviceTokenRepository {
 			return namedParameterJdbcTemplate.query(
 					DeviceTokenQueryBuilder.fetchTokensByUserIds(schema), params, rowMapper);
 		} catch (Exception e) {
-			log.error("Error while fetching device tokens: ", e);
-			return Collections.emptyList();
+			log.error("Error while fetching device tokens", e);
+			throw repositoryFailure("Error while fetching device tokens", e);
 		}
 	}
 
@@ -54,8 +57,8 @@ public class DeviceTokenRepository {
 			return namedParameterJdbcTemplate.query(
 					DeviceTokenQueryBuilder.fetchLatestTokenByUserIds(schema), params, rowMapper);
 		} catch (Exception e) {
-			log.error("Error while fetching latest device tokens: ", e);
-			return Collections.emptyList();
+			log.error("Error while fetching latest device tokens", e);
+			throw repositoryFailure("Error while fetching latest device tokens", e);
 		}
 	}
 
@@ -71,8 +74,8 @@ public class DeviceTokenRepository {
 		try {
 			return namedParameterJdbcTemplate.query(query, params, rowMapper);
 		} catch (Exception e) {
-			log.error("Error while fetching device tokens by facilityId: ", e);
-			return Collections.emptyList();
+			log.error("Error while fetching device tokens by facilityId", e);
+			throw repositoryFailure("Error while fetching device tokens by facilityId", e);
 		}
 	}
 
@@ -83,13 +86,13 @@ public class DeviceTokenRepository {
 		String schema = getSchemaFromTenantId(tenantId);
 		Map<String, Object> params = new HashMap<>();
 		params.put("facilityId", facilityId);
-		params.put("rolePattern", "%" + role + "%");
+		params.put("rolePattern", buildRolePattern(role));
 		try {
 			return namedParameterJdbcTemplate.query(
 					DeviceTokenQueryBuilder.fetchTokensByFacilityIdAndRole(schema), params, rowMapper);
 		} catch (Exception e) {
-			log.error("Error while fetching device tokens by facilityId and role: ", e);
-			return Collections.emptyList();
+			log.error("Error while fetching device tokens by facilityId and role", e);
+			throw repositoryFailure("Error while fetching device tokens by facilityId and role", e);
 		}
 	}
 
@@ -101,14 +104,14 @@ public class DeviceTokenRepository {
 		Map<String, Object> params = new HashMap<>();
 		params.put("facilityId", facilityId);
 		for (int i = 0; i < roles.size(); i++) {
-			params.put("rolePattern" + i, "%" + roles.get(i) + "%");
+			params.put("rolePattern" + i, buildRolePattern(roles.get(i)));
 		}
 		try {
 			return namedParameterJdbcTemplate.query(
 					DeviceTokenQueryBuilder.fetchTokensByFacilityIdAndRoles(schema, roles.size()), params, rowMapper);
 		} catch (Exception e) {
-			log.error("Error while fetching device tokens by facilityId and roles: ", e);
-			return Collections.emptyList();
+			log.error("Error while fetching device tokens by facilityId and roles", e);
+			throw repositoryFailure("Error while fetching device tokens by facilityId and roles", e);
 		}
 	}
 
@@ -122,8 +125,8 @@ public class DeviceTokenRepository {
 			return namedParameterJdbcTemplate.update(
 					DeviceTokenQueryBuilder.deleteByDeviceTokens(schema), params);
 		} catch (Exception e) {
-			log.error("Error while deleting stale device tokens: ", e);
-			return 0;
+			log.error("Error while deleting stale device tokens", e);
+			throw repositoryFailure("Error while deleting stale device tokens", e);
 		}
 	}
 
@@ -143,17 +146,34 @@ public class DeviceTokenRepository {
 				String[] parts = tenantId.split("\\.");
 				int position = properties.getSchemaIndexPosition();
 				if (position < parts.length) {
-					log.info("Central instance: derived schema='{}' from tenantId='{}'", parts[position], tenantId);
-					return parts[position];
+					String schema = validateSchemaName(parts[position], tenantId);
+					log.info("Central instance: derived schema='{}' from tenantId='{}'", schema, tenantId);
+					return schema;
 				}
 				throw new CustomException("INVALID_TENANT_ID", "Cannot derive schema from tenantId: " + tenantId);
 			}
-			log.info("Central instance: tenantId='{}' has no dot, using as schema directly", tenantId);
-			return tenantId;
+			String schema = validateSchemaName(tenantId, tenantId);
+			log.info("Central instance: tenantId='{}' has no dot, using as schema directly", schema);
+			return schema;
 		}
 		// Non-central: use default (public) schema
 		log.info("Non-central instance: using default (public) schema");
 		return null;
+	}
+
+	private String buildRolePattern(String role) {
+		return "%," + role + ",%";
+	}
+
+	private RuntimeException repositoryFailure(String message, Exception e) {
+		return new RuntimeException(message, e);
+	}
+
+	private String validateSchemaName(String schema, String tenantId) {
+		if (!SAFE_SCHEMA_NAME.matcher(schema).matches()) {
+			throw new CustomException("INVALID_TENANT_ID", "Unsafe schema derived from tenantId: " + tenantId);
+		}
+		return schema;
 	}
 
 }
