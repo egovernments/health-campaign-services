@@ -37,6 +37,7 @@ import org.egov.common.validator.Validator;
 import org.egov.tracer.model.CustomException;
 import org.egov.tracer.model.ErrorDetail;
 import org.egov.tracer.model.ErrorEntity;
+import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -985,6 +986,7 @@ public class CommonUtils {
                                                   String setPayloadMethodName) {
         Error.ErrorType errorType = Error.ErrorType.NON_RECOVERABLE;
         String errorCode = "INTERNAL_SERVER_ERROR";
+        String errorMessage = exception.getMessage();
         if (exception instanceof CustomException) {
             errorCode = ((CustomException) exception).getCode();
             // in case further cases come up, we can add more cases in a set and check using contains.
@@ -994,12 +996,17 @@ public class CommonUtils {
             } else {
                 errorType = Error.ErrorType.NON_RECOVERABLE;
             }
+        } else if (exception instanceof DataAccessException) {
+            errorCode = "QUERY_EXECUTION_ERROR";
+            errorType = Error.ErrorType.NON_RECOVERABLE;
+            Throwable rootCause = ((DataAccessException) exception).getMostSpecificCause();
+            errorMessage = "Database query failed: " + (rootCause != null ? rootCause.getMessage() : exception.getMessage());
         }
         List<Error> errorList = new ArrayList<>();
-        errorList.add(Error.builder().errorMessage(exception.getMessage())
+        errorList.add(Error.builder().errorMessage(errorMessage)
                 .errorCode(errorCode)
                 .type(errorType)
-                .exception(new CustomException(errorCode, exception.getMessage())).build());
+                .exception(new CustomException(errorCode, errorMessage)).build());
         Map<T, List<Error>> errorListMap = new HashMap<>();
         validPayloads.forEach(payload -> {
             if (errorListMap.containsKey(payload)) {

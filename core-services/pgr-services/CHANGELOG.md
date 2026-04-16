@@ -1,6 +1,10 @@
 # Changelog
 All notable changes to this module will be documented in this file.
 
+## 1.2.1 - 2026-03-04
+
+- Upgraded tracer version which now handles data access exception errors through the controller advisor, returning standardized DIGIT error responses.
+
 ### 1.2.0 - 2025-05-07
 * Upgraded Java version from 8 to 17 and updated pom.xml accordingly.
 * Integrated MultiStateInstanceUtil for schema-based multi-tenancy across repository, producer, and query builder layers.

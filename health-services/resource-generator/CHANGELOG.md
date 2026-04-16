@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.3 - 2026-03-04
+
+- Upgraded tracer version which now handles data access exception errors through the controller advisor, returning standardized DIGIT error responses.
+- Added OpenTelemetry BOM and Instrumentation BOM dependency management.
+
 ## 1.0.2 - 2025-05-06
 
 1. Added Draft API : Supports creating draft microplans, enabling estimation review before finalization.
