@@ -4,22 +4,24 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
+import org.egov.tracer.model.CustomException;
 import org.egov.web.notification.push.config.PushProperties;
 import org.egov.web.notification.push.repository.rowmappers.DeviceTokenRowMapper;
 import org.egov.web.notification.push.web.contract.DeviceToken;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
-
-import java.util.Map;
 
 @ExtendWith(MockitoExtension.class)
 class DeviceTokenRepositoryTest {
@@ -70,7 +72,7 @@ class DeviceTokenRepositoryTest {
     }
 
     @Test
-    void fetchTokensByUserIds_dbException_returnsEmpty() {
+    void fetchTokensByUserIds_dbException_throwsRuntimeException() {
         List<String> userIds = List.of("user-1");
 
         when(namedParameterJdbcTemplate.query(
@@ -79,9 +81,9 @@ class DeviceTokenRepositoryTest {
                 eq(rowMapper)))
                 .thenThrow(new RuntimeException("DB down"));
 
-        List<DeviceToken> result = repository.fetchTokensByUserIds(userIds, "ba");
-
-        assertTrue(result.isEmpty());
+        RuntimeException exception = assertThrows(RuntimeException.class,
+                () -> repository.fetchTokensByUserIds(userIds, "ba"));
+        assertEquals("Error while fetching device tokens", exception.getMessage());
     }
 
     @Test
@@ -117,15 +119,42 @@ class DeviceTokenRepositoryTest {
     }
 
     @Test
-    void fetchTokensByFacilityId_dbException_returnsEmpty() {
+    void fetchTokensByFacilityId_dbException_throwsRuntimeException() {
         when(namedParameterJdbcTemplate.query(
                 anyString(),
                 any(Map.class),
                 eq(rowMapper)))
                 .thenThrow(new RuntimeException("Connection refused"));
 
-        List<DeviceToken> result = repository.fetchTokensByFacilityId("fac-err", "ba");
+        RuntimeException exception = assertThrows(RuntimeException.class,
+                () -> repository.fetchTokensByFacilityId("fac-err", "ba"));
+        assertEquals("Error while fetching device tokens by facilityId", exception.getMessage());
+    }
 
-        assertTrue(result.isEmpty());
+    @Test
+    void fetchTokensByUserIds_unsafeDerivedSchema_throwsCustomException() {
+        when(properties.getIsCentralInstance()).thenReturn(true);
+        when(properties.getSchemaIndexPosition()).thenReturn(1);
+
+        CustomException exception = assertThrows(CustomException.class,
+                () -> repository.fetchTokensByUserIds(List.of("user-1"), "in.bad-schema.tenant"));
+
+        assertEquals("INVALID_TENANT_ID", exception.getCode());
+    }
+
+    @Test
+    void fetchTokensByFacilityIdAndRole_bindsWholeRolePattern() {
+        when(namedParameterJdbcTemplate.query(
+                anyString(),
+                any(Map.class),
+                eq(rowMapper)))
+                .thenReturn(Collections.emptyList());
+
+        repository.fetchTokensByFacilityIdAndRole("facility-1", "ANM", "ba");
+
+        ArgumentCaptor<Map<String, Object>> paramsCaptor = ArgumentCaptor.forClass(Map.class);
+        verify(namedParameterJdbcTemplate).query(anyString(), paramsCaptor.capture(), eq(rowMapper));
+
+        assertEquals("%,ANM,%", paramsCaptor.getValue().get("rolePattern"));
     }
 }

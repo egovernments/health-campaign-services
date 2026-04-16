@@ -48,6 +48,9 @@ public class DeviceTokenService {
 			if (StringUtils.isEmpty(token.getDeviceToken())) {
 				throw new CustomException(ErrorConstants.MISSING_DEVICE_TOKEN_CODE, ErrorConstants.MISSING_DEVICE_TOKEN_MSG);
 			}
+			if (StringUtils.isBlank(token.getDeviceType()) || !isValidDeviceType(token.getDeviceType())) {
+				throw new CustomException(ErrorConstants.INVALID_DEVICE_TYPE_CODE, ErrorConstants.INVALID_DEVICE_TYPE_MSG);
+			}
 
 			if (StringUtils.isEmpty(token.getUserId())) {
 				token.setUserId(userUuid);
@@ -171,7 +174,8 @@ public class DeviceTokenService {
 
 	public void deleteStaleTokens(List<String> deviceTokens, String tenantId) {
 		int deleted = repository.deleteByDeviceTokens(deviceTokens, tenantId);
-		log.info("Deleted {} stale device token row(s) for tokens: {}", deleted, deviceTokens);
+		int tokenCount = deviceTokens == null ? 0 : deviceTokens.size();
+		log.info("Deleted {} stale device token row(s) for {} token(s)", deleted, tokenCount);
 	}
 
 	/**

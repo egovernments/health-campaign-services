@@ -1,4 +1,4 @@
-FROM egovio/apline-jre:8u121
+FROM egovio/alpine-jre:8u121
 
 MAINTAINER eGov Foundation
 
