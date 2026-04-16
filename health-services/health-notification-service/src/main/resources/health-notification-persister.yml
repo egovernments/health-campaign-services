@@ -1,0 +1,71 @@
+serviceMaps:
+  serviceName: health-notification-service
+  mappings:
+    # ── INSERT: Save new scheduled notification ──
+    - version: 1.0
+      description: Persists scheduled notification
+      fromTopic: save-scheduled-notification-topic
+      isTransaction: true
+      queryMaps:
+        - query: >-
+            INSERT INTO scheduled_notification(
+              id, clientReferenceId, tenantId, eventType, entityId, entityType,
+              scheduledAt, createdAt, templateCode, recipientType, recipientId,
+              mobileNumber, contextData, status, attempts, lastAttemptAt,
+              errorMessage, isDeleted, rowVersion,
+              createdBy, createdTime, lastModifiedBy, lastModifiedTime
+            ) VALUES (?, ?, ?, ?, ?, ?, ?::DATE, ?::DATE, ?, ?, ?, ?, ?::JSONB, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.id
+            - jsonPath: $.*.clientReferenceId
+            - jsonPath: $.*.tenantId
+            - jsonPath: $.*.eventType
+            - jsonPath: $.*.entityId
+            - jsonPath: $.*.entityType
+            - jsonPath: $.*.scheduledAt
+              dbType: STRING
+            - jsonPath: $.*.createdAt
+              dbType: STRING
+            - jsonPath: $.*.templateCode
+            - jsonPath: $.*.recipientType
+            - jsonPath: $.*.recipientId
+            - jsonPath: $.*.mobileNumber
+            - jsonPath: $.*.contextData
+              type: JSON
+              dbType: STRING
+            - jsonPath: $.*.status
+            - jsonPath: $.*.attempts
+            - jsonPath: $.*.lastAttemptAt
+            - jsonPath: $.*.errorMessage
+            - jsonPath: $.*.isDeleted
+            - jsonPath: $.*.rowVersion
+            - jsonPath: $.*.auditDetails.createdBy
+            - jsonPath: $.*.auditDetails.createdTime
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+
+    # ── UPDATE: Update existing scheduled notification ──
+    - version: 1.0
+      description: Updates scheduled notification
+      fromTopic: update-scheduled-notification-topic
+      isTransaction: true
+      queryMaps:
+        - query: >-
+            UPDATE scheduled_notification SET
+              status = ?, attempts = ?, lastAttemptAt = ?, errorMessage = ?,
+              isDeleted = ?, rowVersion = ?,
+              lastModifiedBy = ?, lastModifiedTime = ?
+            WHERE id = ? AND tenantId = ?;
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.status
+            - jsonPath: $.*.attempts
+            - jsonPath: $.*.lastAttemptAt
+            - jsonPath: $.*.errorMessage
+            - jsonPath: $.*.isDeleted
+            - jsonPath: $.*.rowVersion
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.id
+            - jsonPath: $.*.tenantId
