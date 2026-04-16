@@ -8,7 +8,11 @@ import static org.mockito.Mockito.when;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.contract.request.User;
 import org.egov.tracer.model.CustomException;
@@ -21,6 +25,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.slf4j.LoggerFactory;
 
 @ExtendWith(MockitoExtension.class)
 class DeviceTokenServiceTest {
@@ -68,6 +73,20 @@ class DeviceTokenServiceTest {
         DeviceToken token = DeviceToken.builder()
                 .deviceToken("")
                 .deviceType("ANDROID")
+                .build();
+
+        RequestInfo requestInfo = createRequestInfo("user-1");
+
+        assertThrows(CustomException.class,
+                () -> deviceTokenService.registerDeviceTokens(requestInfo, List.of(token)));
+    }
+
+    @Test
+    void registerDeviceTokens_invalidDeviceType_throwsCustomException() {
+        DeviceToken token = DeviceToken.builder()
+                .deviceToken("fcm-token-123")
+                .deviceType("BLACKBERRY")
+                .tenantId("tenant1")
                 .build();
 
         RequestInfo requestInfo = createRequestInfo("user-1");
@@ -216,5 +235,29 @@ class DeviceTokenServiceTest {
         deviceTokenService.unregisterDeviceTokens(requestInfo, List.of(token));
 
         assertEquals("requester-uuid", token.getUserId());
+    }
+
+    @Test
+    void deleteStaleTokens_logsCountsWithoutLoggingTokenValues() {
+        List<String> deviceTokens = List.of("sensitive-token");
+        when(repository.deleteByDeviceTokens(deviceTokens, "tenant1")).thenReturn(1);
+
+        Logger logger = (Logger) LoggerFactory.getLogger(DeviceTokenService.class);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        logger.addAppender(appender);
+
+        try {
+            deviceTokenService.deleteStaleTokens(deviceTokens, "tenant1");
+        } finally {
+            logger.detachAppender(appender);
+        }
+
+        String logs = appender.list.stream()
+                .map(ILoggingEvent::getFormattedMessage)
+                .collect(Collectors.joining("\n"));
+
+        assertTrue(logs.contains("1 token(s)"));
+        assertFalse(logs.contains("sensitive-token"));
     }
 }
