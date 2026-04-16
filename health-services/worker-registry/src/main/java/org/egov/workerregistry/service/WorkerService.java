@@ -17,10 +17,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -204,6 +201,7 @@ public class WorkerService {
                                 )
                         ));
                 workerIds = workerIdIndividualIdsMap.keySet().stream().toList();
+                if (CollectionUtils.isEmpty(workerIds)) return Collections.emptyList();
             } catch (InvalidTenantIdException e) {
                 throw new CustomException(WorkerRegistryConstants.INVALID_TENANT_EXCEPTION, WorkerRegistryConstants.MSG_TENANT_ID_NOT_VALID);
             }
