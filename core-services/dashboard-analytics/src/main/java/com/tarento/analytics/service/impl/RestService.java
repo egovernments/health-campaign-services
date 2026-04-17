@@ -48,9 +48,12 @@ public class RestService {
      * @throws IOException
      */
 
-    public JsonNode search(String index, String searchQuery) {
+    public JsonNode search(String index, String searchQuery, String aggregationFilterPath) {
         //System.out.println("INSIDE REST");
         String url =( indexServiceHost) + index + indexServiceHostSearch;
+        if (aggregationFilterPath != null) {
+            url = url + "?filter_path=" + aggregationFilterPath;
+        }
         HttpHeaders headers = getHttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         //LOGGER.info("Index Name : " + index);

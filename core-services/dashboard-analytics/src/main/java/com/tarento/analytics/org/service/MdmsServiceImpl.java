@@ -143,7 +143,7 @@ public class MdmsServiceImpl implements ClientService {
             ObjectNode requestNode = queryService.getChartConfigurationQuery(requestDto, query, indexName, null);
 
             try {
-                ObjectNode aggrNode = (ObjectNode) restService.search(indexName, requestNode.toString());
+                ObjectNode aggrNode = (ObjectNode) restService.search(indexName, requestNode.toString(), null);
 
                 if(!ddrkey.equalsIgnoreCase("null")) bucket.add(((ObjectNode) aggrNode.get(Constants.JsonPaths.AGGREGATIONS)).put("key", ddrkey));
             } catch (Exception e) {

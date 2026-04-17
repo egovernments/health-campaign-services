@@ -191,7 +191,7 @@ public class TarentoServiceImpl implements ClientService {
 			ObjectNode objectNode = queryService.getChartConfigurationQueryRaw(request, query, indexName, interval);
 			try {
 				String queryStr = QUERY_MAPPER.writeValueAsString(objectNode);
-				JsonNode response = restService.search(indexName, queryStr);
+				JsonNode response = restService.search(indexName, queryStr, null);
 				String key = transformKey;
 				if (rawResponses.containsKey(key)) {
 					key = transformKey + "_" + randIndexCount++;
@@ -301,6 +301,7 @@ public class TarentoServiceImpl implements ClientService {
 		int randIndexCount = 1;
 		for(JsonNode query : queries) {
 			String module = query.get(Constants.JsonPaths.MODULE).asText();
+			String aggregationFilterPath = query.has("aggregationFilterPath") ? query.get("aggregationFilterPath").asText() : null;
 			if(request.getModuleLevel().equals(Constants.Modules.HOME_REVENUE) ||
 					request.getModuleLevel().equals(Constants.Modules.HOME_SERVICES) ||
 					query.get(Constants.JsonPaths.MODULE).asText().equals(Constants.Modules.COMMON) ||
@@ -310,7 +311,7 @@ public class TarentoServiceImpl implements ClientService {
 				ObjectNode objectNode = queryService.getChartConfigurationQuery(request, query, indexName, interval);
 				try {
 					String queryStr = QUERY_MAPPER.writeValueAsString(objectNode);
-					JsonNode aggrNode = restService.search(indexName, queryStr);
+					JsonNode aggrNode = restService.search(indexName, queryStr, aggregationFilterPath);
 					if(nodes.has(indexName)) {
 						indexName = indexName + "_" + randIndexCount;
 						randIndexCount += 1;
