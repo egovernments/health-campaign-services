@@ -20,8 +20,6 @@ import java.util.Map;
 public class AttendeeIndexV1 extends ProjectInfo {
     @JsonProperty("attendee")
     private IndividualEntry attendee;
-    @JsonProperty("attendeeName")
-    private Name attendeeName;
     @JsonProperty("userName")
     private String userName;
     @JsonProperty("nameOfUser")

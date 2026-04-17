@@ -21,8 +21,7 @@ import org.springframework.stereotype.Component;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import static org.egov.transformer.Constants.ROLE;
-import static org.egov.transformer.Constants.USERNAME;
+import static org.egov.transformer.Constants.*;
 
 @Slf4j
 @Component
@@ -95,10 +94,10 @@ public class AttendanceStaffTransformationService {
                 .build();
 
         if (individual != null && individual.getUserDetails() != null) {
-            attendanceStaffIndexV1.setStaffName(individual.getName());
 
             Map<String, String> userInfoMap = userService.getUserInfo(staff.getTenantId(), individual.getUserUuid());
             attendanceStaffIndexV1.setUserName(userInfoMap.get(USERNAME));
+            attendanceStaffIndexV1.setNameOfUser(userInfoMap.get(NAME));
             attendanceStaffIndexV1.setRole(userInfoMap.get(ROLE));
 
             BoundaryHierarchyResult boundaryHierarchyResult = getBoundaryHierarchyByCodeOrProjectId(individual.getUserUuid(), staff.getTenantId());
