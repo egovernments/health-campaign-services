@@ -19,14 +19,14 @@ import java.util.Map;
 public class AttendanceLogIndexV1 extends ProjectInfo {
     @JsonProperty("attendanceLog")
     private AttendanceLog attendanceLog;
-    @JsonProperty("givenName")
-    private String givenName;
-    @JsonProperty("familyName")
-    private String familyName;
-    @JsonProperty("attendeeName")
-    private Name attendeeName;
+    @JsonProperty("attendanceTakerUserName")
+    private String attendanceTakerUserName;
+    @JsonProperty("attendanceTakerNameOfUser")
+    private String attendanceTakerNameOfUser;
     @JsonProperty("userName")
     private String userName;
+    @JsonProperty("nameOfUser")
+    private String nameOfUser;
     @JsonProperty("role")
     private String role;
     @JsonProperty("attendanceTime")

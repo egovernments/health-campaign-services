@@ -20,9 +20,9 @@ public class AttendanceRegisterIndexV1 {
     @JsonProperty("attendanceRegister")
     private AttendanceRegister attendanceRegister;
     @JsonProperty("attendeesInfo")
-    private Map<String, Name> attendeesInfo;
+    private Map<String, Map<String, String>> attendeesInfo;
     @JsonProperty("staffsInfo")
-    private Map<String, Name> staffsInfo;
+    private Map<String, Map<String, String>> staffsInfo;
     @JsonProperty("staffsCount")
     private Long staffsCount;
     @JsonProperty("attendeesCount")

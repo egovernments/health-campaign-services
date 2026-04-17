@@ -78,41 +78,26 @@ public class AttendanceTransformationService {
         log.info("transformation successful for attendance log");
         producer.push(topic, transformedPayloadList);
 
-        log.info("transforming attendanceRegister for id {}", registerId);
-
-        if (attendanceRegister == null) {
-            log.info("Attendance Register is null Skipping transformation");
-            return;
-        }
-
-        AttendanceRegisterIndexV1 attendanceRegisterIndexV1 = transformRegister(attendanceRegister);
-
-        producer.push(attendanceRegisterTopic, Collections.singletonList(attendanceRegisterIndexV1));
-        log.info("transformation successful for attendance register");
     }
 
     public AttendanceLogIndexV1 transform(AttendanceLog attendanceLog, AttendanceRegister attendanceRegister) {
-        Name attendeeName = attendanceRegisterService.fetchAttendeesInfo(
+        String attendeeUserId = attendanceRegisterService.fetchAttendeesInfo(
                         Collections.singletonList(attendanceLog.getIndividualId()),
                         attendanceLog.getTenantId())
                 .get(attendanceLog.getIndividualId());
+        Map<String, String> attendeeUserInfo = attendeeUserId != null ? userService.getUserInfo(attendanceLog.getTenantId(), attendeeUserId) : new HashMap<>();
         Map<String, String> userInfoMap = userService.getUserInfo(attendanceLog.getTenantId(), attendanceLog.getAuditDetails().getCreatedBy());
 
         BoundaryHierarchyResult boundaryHierarchyResult = getBoundaryHierarchyByCodeOrProjectId(attendanceLog.getAdditionalDetails(), attendanceLog.getAuditDetails().getCreatedBy(), attendanceLog.getTenantId());
         Map<String, String> boundaryHierarchy = boundaryHierarchyResult.getBoundaryHierarchy();
         Map<String, String> boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
 
-        Individual individual = individualService.getIndividualById(attendanceLog.getIndividualId(), attendanceLog.getTenantId());
-        String individualUsername = null;
-        if(individual.getUserDetails() != null) {
-            individualUsername = individual.getUserDetails().getUsername();
-            attendanceLog.setUserName(individualUsername);
-        }
-
         AttendanceLogIndexV1 attendanceLogIndexV1 = AttendanceLogIndexV1.builder()
                 .attendanceLog(attendanceLog)
-                .attendeeName(attendeeName)
-                .userName(userInfoMap.get(USERNAME))
+                .userName(attendeeUserInfo.get(USERNAME))
+                .nameOfUser(attendeeUserInfo.get(NAME))
+                .attendanceTakerUserName(userInfoMap.get(USERNAME))
+                .attendanceTakerNameOfUser(userInfoMap.get(NAME))
                 .role(userInfoMap.get(ROLE))
                 .attendanceTime(commonUtils.getTimeStampFromEpoch(attendanceLog.getTime().longValue()))
                 .registerName(attendanceRegister != null ? attendanceRegister.getName() : null)
@@ -127,16 +112,6 @@ public class AttendanceTransformationService {
         return attendanceLogIndexV1;
     }
 
-    public AttendanceRegisterIndexV1 transformRegister(AttendanceRegister attendanceRegister) {
-        List<String> attendeesIndIds = attendanceRegister.getAttendees().stream().map(IndividualEntry::getIndividualId).collect(Collectors.toList());
-        Map<String, Name> attendeesInfo = attendanceRegisterService.fetchAttendeesInfo(attendeesIndIds, attendanceRegister.getTenantId());
-        AttendanceRegisterIndexV1 attendanceRegisterIndexV1 = AttendanceRegisterIndexV1.builder()
-                .attendanceRegister(attendanceRegister)
-                .attendeesInfo(attendeesInfo)
-                .transformerTimeStamp(commonUtils.getTimeStampFromEpoch(System.currentTimeMillis()))
-                .build();
-        return attendanceRegisterIndexV1;
-    }
 
     private BoundaryHierarchyResult getBoundaryHierarchyByCodeOrProjectId(JsonNode additionalDetails, String createdBy, String tenantId) {
         BoundaryHierarchyResult boundaryHierarchyResult = new BoundaryHierarchyResult();

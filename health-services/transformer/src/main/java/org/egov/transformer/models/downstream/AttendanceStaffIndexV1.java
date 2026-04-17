@@ -20,22 +20,14 @@ import java.util.Map;
 public class AttendanceStaffIndexV1 extends ProjectInfo {
     @JsonProperty("staff")
     private StaffPermission staff;
-    @JsonProperty("givenName")
-    private String givenName;
-    @JsonProperty("familyName")
-    private String familyName;
     @JsonProperty("staffName")
     private Name staffName;
     @JsonProperty("userName")
     private String userName;
-
     @JsonProperty("nameOfUser")
     private String nameOfUser;
-
     @JsonProperty("role")
     private String role;
-    @JsonProperty("attendanceTime")
-    private String attendanceTime;
     @JsonProperty("registerServiceCode")
     private String registerServiceCode;
     @JsonProperty("registerName")

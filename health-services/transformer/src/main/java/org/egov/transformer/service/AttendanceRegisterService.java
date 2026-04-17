@@ -32,7 +32,7 @@ public class AttendanceRegisterService {
 
     private static Map<String, AttendanceRegister> attendanceRegisterMapCache = new ConcurrentHashMap<>();
 
-    private static Map<String, Name> attendeesIdNameCache = new ConcurrentHashMap<>();
+    private static Map<String, String> attendeesIdUserIdCache = new ConcurrentHashMap<>();
 
     public AttendanceRegisterService(TransformerProperties stockConfiguration, ServiceRequestClient serviceRequestClient, UserService userService, IndividualService individualService) {
         this.properties = stockConfiguration;
@@ -76,20 +76,21 @@ public class AttendanceRegisterService {
         return null;
     }
 
-    public Map<String, Name> fetchAttendeesInfo(List<String> individualIds, String tenantId) {
-        return individualIds.stream().collect(Collectors.toMap(id -> id, id -> {
-            if (attendeesIdNameCache.containsKey(id)) {
-                return attendeesIdNameCache.get(id);
+    public Map<String, String> fetchAttendeesInfo(List<String> individualIds, String tenantId) {
+
+        Map<String, String> attendeesIdUserId = new HashMap<>();
+        for (String id : individualIds) {
+            if (attendeesIdUserIdCache.containsKey(id)) {
+                 attendeesIdUserId.put(id, attendeesIdUserIdCache.get(id));
             } else {
                 Individual individual = individualService.getIndividualById(id, tenantId);
-                Name attendeeName = (individual != null) ? individual.getName() : null;
-                if (attendeeName != null) {
-                    attendeesIdNameCache.put(id, attendeeName);
+                if (individual != null) {
+                    attendeesIdUserId.put(id, individual.getUserUuid());
+                    attendeesIdUserIdCache.put(id, individual.getUserUuid());
                 }
-                return attendeeName;
             }
-        }));
-
+        }
+        return attendeesIdUserId;
     }
 
 }

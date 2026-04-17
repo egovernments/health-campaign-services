@@ -1,6 +1,5 @@
 package org.egov.transformer.transformationservice;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -19,9 +18,7 @@ import org.egov.transformer.service.*;
 import org.egov.transformer.utils.CommonUtils;
 import org.springframework.stereotype.Component;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static org.egov.transformer.Constants.ROLE;
@@ -119,8 +116,25 @@ public class AttendanceStaffTransformationService {
         List<String> attendeesIndIds = attendanceRegister.getAttendees().stream().map(IndividualEntry::getIndividualId).collect(Collectors.toList());
         List<String> staffsIndIds = attendanceRegister.getStaff().stream().map(StaffPermission::getUserId).collect(Collectors.toList());
 
-        Map<String, Name> attendeesInfo = attendanceRegisterService.fetchAttendeesInfo(attendeesIndIds, attendanceRegister.getTenantId());
-        Map<String, Name> staffsInfo = attendanceRegisterService.fetchAttendeesInfo(staffsIndIds, attendanceRegister.getTenantId());
+        Map<String, String> attendeesUserIds = attendanceRegisterService.fetchAttendeesInfo(attendeesIndIds, attendanceRegister.getTenantId());
+        Map<String, String> staffsUserIds = attendanceRegisterService.fetchAttendeesInfo(staffsIndIds, attendanceRegister.getTenantId());
+
+        Map<String, Map<String, String>> attendeesInfo = new HashMap<>();
+        List<String> attendeeUserIds = new ArrayList<>(attendeesUserIds.values());
+
+        for (String userId : attendeeUserIds) {
+            Map<String, String> userInfoMap = userService.getUserInfo(attendanceRegister.getTenantId(), userId);
+            attendeesInfo.put(userId, userInfoMap);
+        }
+
+        Map<String, Map<String, String>> staffsInfo = new HashMap<>();
+        List<String> staffUserIds = new ArrayList<>(staffsUserIds.values());
+
+        for (String userId: staffUserIds) {
+            Map<String, String> userInfoMap = userService.getUserInfo(attendanceRegister.getTenantId(), userId);
+            staffsInfo.put(userId, userInfoMap);
+        }
+
         BoundaryHierarchyResult boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithProjectId(attendanceRegister.getReferenceId(), attendanceRegister.getTenantId());
 
         AttendanceRegisterIndexV1 attendanceRegisterIndexV1 = AttendanceRegisterIndexV1.builder()
