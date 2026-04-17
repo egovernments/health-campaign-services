@@ -84,7 +84,14 @@ public enum TaskStatus {
      * This status signifies that the task could not be completed because
      * the beneficiary was not present at the time of the visit.
      */
-    BENEFICIARY_ABSENT("BENEFICIARY_ABSENT");
+    BENEFICIARY_ABSENT("BENEFICIARY_ABSENT"),
+
+    /**
+     * Indicates that the beneficiary has been referred.
+     * This status signifies that the beneficiary has been referred to another
+     * service provider or facility for further assistance or care.
+     */
+    BENEFICIARY_REFERRED("BENEFICIARY_REFERRED");
 
     // The string value associated with the task status.
     private String value;
