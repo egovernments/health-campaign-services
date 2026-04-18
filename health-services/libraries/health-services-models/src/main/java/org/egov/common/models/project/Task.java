@@ -38,7 +38,7 @@ public class Task extends EgovOfflineModel {
     private String projectBeneficiaryId = null;
 
     @JsonProperty("projectBeneficiaryClientReferenceId")
-    @Size(min = 2, max = 64)
+    @Size(max = 64)
     private String projectBeneficiaryClientReferenceId = null;
 
     @JsonProperty("resources")
