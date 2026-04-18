@@ -41,7 +41,7 @@ import org.springframework.validation.annotation.Validated;
     private String clientReferenceId = null;
 
     @JsonProperty("doorNo")
-    @Size(min = 2, max = 64)
+    @Size(max = 64)
     private String doorNo = null;
 
     @JsonProperty("latitude")
@@ -63,31 +63,31 @@ import org.springframework.validation.annotation.Validated;
     private AddressType type = null;
 
     @JsonProperty("addressLine1")
-    @Size(min = 2, max = 256)
+    @Size(max = 256)
     private String addressLine1 = null;
 
     @JsonProperty("addressLine2")
-    @Size(min = 2, max = 256)
+    @Size(max = 256)
     private String addressLine2 = null;
 
     @JsonProperty("landmark")
-    @Size(min = 2, max = 256)
+    @Size(max = 256)
     private String landmark = null;
 
     @JsonProperty("city")
-    @Size(min = 2, max = 256)
+    @Size(max = 256)
     private String city = null;
 
     @JsonProperty("pincode")
-    @Size(min = 2, max = 64)
+    @Size(max = 64)
     private String pincode = null;
 
     @JsonProperty("buildingName")
-    @Size(min = 2, max = 256)
+    @Size(max = 256)
     private String buildingName = null;
 
     @JsonProperty("street")
-    @Size(min = 2, max = 256)
+    @Size(max = 256)
     private String street = null;
 
     @JsonProperty("boundaryType")
