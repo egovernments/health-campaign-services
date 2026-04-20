@@ -39,6 +39,7 @@ public class Constants {
     public static final String FIELD_SCHEDULED_NOTIFICATIONS = "scheduledNotifications";
     public static final String FIELD_RECIPIENT_TYPE = "recipientType";
     public static final String FIELD_RECIPIENT_ROLES = "recipientRoles";
+    public static final String FIELD_SENDER_ROLES = "senderRoles";
     public static final String FIELD_PLACEHOLDERS = "placeholders";
     public static final String FIELD_TEMPLATE_CODE = "templateCode";
     public static final String FIELD_LOCALE = "locale";
