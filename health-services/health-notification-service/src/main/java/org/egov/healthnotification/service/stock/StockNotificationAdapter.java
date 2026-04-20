@@ -25,12 +25,12 @@ import java.util.Map;
  *   - Event type is determined by the combination of additionalFields.stockEntryType + additionalFields.status
  *   - For ISSUED / RETURNED entries, status (IN_TRANSIT, ACCEPTED, REJECTED) determines the notification flow:
  *
- *     ISSUED  + IN_TRANSIT → STOCK_ISSUE (notify receiver)
- *     ISSUED  + ACCEPTED  → STOCK_RECEIVE (notify sender)
- *     ISSUED  + REJECTED  → STOCK_ISSUE_REJECT (notify sender)
- *     RETURNED + IN_TRANSIT → STOCK_REVERSE_ISSUE (notify receiver)
- *     RETURNED + ACCEPTED  → STOCK_REVERSE_ACCEPT (notify receiver)
- *     RETURNED + REJECTED  → STOCK_REVERSE_REJECT (notify receiver)
+ *     ISSUED  + IN_TRANSIT → STOCK_ISSUE (notify receiver B: stock is on its way)
+ *     ISSUED  + ACCEPTED  → STOCK_RECEIVE (notify sender A: B accepted)
+ *     ISSUED  + REJECTED  → STOCK_ISSUE_REJECT (notify sender A: B rejected)
+ *     RETURNED + IN_TRANSIT → STOCK_REVERSE_ISSUE (notify receiver A: return is on its way)
+ *     RETURNED + ACCEPTED  → STOCK_REVERSE_ACCEPT (notify sender B: A accepted the return)
+ *     RETURNED + REJECTED  → STOCK_REVERSE_REJECT (notify sender B: A rejected the return)
  *
  *   - DAMAGED entries retain legacy behavior (stockEntryType-only mapping)
  *   - Placeholders use sku (commodity name), mrnNumber (transaction ref) from additionalFields
@@ -243,12 +243,17 @@ public class StockNotificationAdapter {
     /**
      * Resolves the recipient facilityId based on stockEntryType + status combination.
      *
-     * ISSUED  + IN_TRANSIT → receiver gets the notification
-     * ISSUED  + ACCEPTED   → sender gets the notification (confirmation)
-     * ISSUED  + REJECTED   → sender gets the notification (rejection)
-     * RETURNED + IN_TRANSIT → receiver gets the notification
-     * RETURNED + ACCEPTED  → receiver gets the notification (the one who rejected originally)
-     * RETURNED + REJECTED  → receiver gets the notification (the one who rejected originally)
+     * ISSUED  + IN_TRANSIT → receiver (B) gets the notification: stock is on its way
+     * ISSUED  + ACCEPTED   → sender (A) gets the notification: B confirmed receipt
+     * ISSUED  + REJECTED   → sender (A) gets the notification: B rejected
+     * RETURNED + IN_TRANSIT → receiver (A) gets the notification: return is on its way
+     * RETURNED + ACCEPTED  → sender (B) gets the notification: A accepted the return
+     * RETURNED + REJECTED  → sender (B) gets the notification: A rejected the return
+     *
+     * In a RETURNED stock record the roles are flipped:
+     *   senderId = B (the facility that is returning the stock)
+     *   receiverId = A (the facility that receives the returned stock / decides to accept or reject)
+     * So when A acts on the return (ACCEPTED/REJECTED), B must be notified → use senderId.
      *
      * Fallback: uses primaryRole-based logic for backward compatibility.
      */
@@ -293,10 +298,20 @@ public class StockNotificationAdapter {
     }
 
     /**
-     * RETURNED recipient:
-     *   IN_TRANSIT → receiver (stock is being returned to them)
-     *   ACCEPTED   → receiver (the one who originally rejected, now accepts return)
-     *   REJECTED   → receiver (the one who originally rejected, rejects the return)
+     * RETURNED recipient resolution.
+     *
+     * <p>In a RETURNED stock record the sender/receiver roles are the <em>opposite</em>
+     * of the original ISSUED record:
+     * <ul>
+     *   <li>{@code senderId} = B — the facility that initiated the return</li>
+     *   <li>{@code receiverId} = A — the facility receiving the returned goods (original sender)</li>
+     * </ul>
+     *
+     * <ul>
+     *   <li>IN_TRANSIT → notify A ({@code receiverId}): the return is on its way to you</li>
+     *   <li>ACCEPTED   → notify B ({@code senderId}): A accepted your return ← <b>bug was here</b></li>
+     *   <li>REJECTED   → notify B ({@code senderId}): A rejected your return ← <b>bug was here</b></li>
+     * </ul>
      */
     private String resolveReturnedRecipient(Stock stock, String status) {
         switch (status) {
@@ -304,11 +319,11 @@ public class StockNotificationAdapter {
                 log.debug("RETURNED+IN_TRANSIT → recipient=receiverId={}", stock.getReceiverId());
                 return stock.getReceiverId();
             case Constants.STOCK_STATUS_ACCEPTED:
-                log.debug("RETURNED+ACCEPTED → recipient=receiverId={}", stock.getReceiverId());
-                return stock.getReceiverId();
+                log.debug("RETURNED+ACCEPTED → recipient=receiverId={}", stock.getSenderId());
+                return stock.getSenderId();
             case Constants.STOCK_STATUS_REJECTED:
-                log.debug("RETURNED+REJECTED → recipient=receiverId={}", stock.getReceiverId());
-                return stock.getReceiverId();
+                log.debug("RETURNED+REJECTED → recipient=receiverId={}", stock.getSenderId());
+                return stock.getSenderId();
             default:
                 return resolveRecipientByPrimaryRole(stock);
         }

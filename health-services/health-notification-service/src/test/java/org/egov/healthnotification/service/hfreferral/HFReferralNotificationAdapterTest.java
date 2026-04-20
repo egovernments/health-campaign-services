@@ -7,6 +7,7 @@ import static org.mockito.Mockito.when;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -16,6 +17,7 @@ import org.egov.healthnotification.Constants;
 import org.egov.healthnotification.config.HealthNotificationProperties;
 import org.egov.healthnotification.service.FacilityUserService;
 import org.egov.healthnotification.service.MdmsService;
+import org.egov.healthnotification.service.UserRoleService;
 import org.egov.healthnotification.web.models.MdmsV2Data;
 import org.egov.healthnotification.web.models.NotificationEvent;
 import org.egov.healthnotification.web.models.enums.NotificationChannel;
@@ -39,6 +41,9 @@ class HFReferralNotificationAdapterTest {
 
     @Mock
     private HealthNotificationProperties properties;
+
+    @Mock
+    private UserRoleService userRoleService;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -70,6 +75,10 @@ class HFReferralNotificationAdapterTest {
         additionalFields.set("fields", fields);
         record.set("additionalFields", additionalFields);
 
+        ObjectNode auditDetails = objectMapper.createObjectNode();
+        auditDetails.put("createdBy", "creator-uuid-1");
+        record.set("auditDetails", auditDetails);
+
         return record;
     }
 
@@ -81,6 +90,10 @@ class HFReferralNotificationAdapterTest {
     }
 
     private MdmsV2Data buildMdmsConfig(String eventType) {
+        return buildMdmsConfig(eventType, List.of());
+    }
+
+    private MdmsV2Data buildMdmsConfig(String eventType, List<String> senderRoles) {
         ObjectNode dataNode = objectMapper.createObjectNode();
         dataNode.put("campaignType", "PUSH-NOTIFICATION");
 
@@ -92,6 +105,12 @@ class HFReferralNotificationAdapterTest {
         ObjectNode eventNode = objectMapper.createObjectNode();
         eventNode.put("eventType", eventType);
         eventNode.put("enabled", true);
+
+        if (senderRoles != null && !senderRoles.isEmpty()) {
+            ArrayNode senderRolesNode = objectMapper.createArrayNode();
+            senderRoles.forEach(senderRolesNode::add);
+            eventNode.set(Constants.FIELD_SENDER_ROLES, senderRolesNode);
+        }
 
         ArrayNode scheduledNotifications = objectMapper.createArrayNode();
         ObjectNode schedNode = objectMapper.createObjectNode();
@@ -319,5 +338,34 @@ class HFReferralNotificationAdapterTest {
         assertEquals("", placeholders.get(Constants.PLACEHOLDER_REFERRAL_NAME));
         assertEquals("", placeholders.get(Constants.PLACEHOLDER_GENDER));
         assertEquals("", placeholders.get(Constants.PLACEHOLDER_AGE_IN_MONTHS));
+    }
+
+    @Test
+    void buildNotificationEvents_senderRoleDistributorAllowed_buildsEvent() {
+        ObjectNode record = buildHFReferralRecord();
+        MdmsV2Data config = buildMdmsConfig(Constants.EVENT_TYPE_REFERRAL_CREATED, List.of("DISTRIBUTOR"));
+
+        when(properties.getHfReferralCreateTopic()).thenReturn("save-hfreferral-topic");
+        when(mdmsService.fetchNotificationConfigByProjectType(any(), any())).thenReturn(config);
+        when(userRoleService.getRoleCodesForUser("creator-uuid-1", "ba")).thenReturn(Set.of("DISTRIBUTOR"));
+        when(facilityUserService.resolveProjectFacilityId(any(), any())).thenReturn("FAC-001");
+
+        List<NotificationEvent> events = adapter.buildNotificationEvents(record, "save-hfreferral-topic");
+
+        assertEquals(1, events.size());
+    }
+
+    @Test
+    void buildNotificationEvents_senderRoleNonDistributorBlocked_returnsEmpty() {
+        ObjectNode record = buildHFReferralRecord();
+        MdmsV2Data config = buildMdmsConfig(Constants.EVENT_TYPE_REFERRAL_CREATED, List.of("DISTRIBUTOR"));
+
+        when(properties.getHfReferralCreateTopic()).thenReturn("save-hfreferral-topic");
+        when(mdmsService.fetchNotificationConfigByProjectType(any(), any())).thenReturn(config);
+        when(userRoleService.getRoleCodesForUser("creator-uuid-1", "ba")).thenReturn(Set.of("HF_REFERRAL_USER"));
+
+        List<NotificationEvent> events = adapter.buildNotificationEvents(record, "save-hfreferral-topic");
+
+        assertTrue(events.isEmpty());
     }
 }

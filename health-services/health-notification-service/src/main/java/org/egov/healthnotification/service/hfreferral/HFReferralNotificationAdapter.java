@@ -6,6 +6,7 @@ import org.egov.healthnotification.Constants;
 import org.egov.healthnotification.config.HealthNotificationProperties;
 import org.egov.healthnotification.service.FacilityUserService;
 import org.egov.healthnotification.service.MdmsService;
+import org.egov.healthnotification.service.UserRoleService;
 import org.egov.healthnotification.web.models.MdmsV2Data;
 import org.egov.healthnotification.web.models.NotificationEvent;
 import org.egov.healthnotification.web.models.enums.NotificationChannel;
@@ -16,6 +17,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Translates HFReferral events into generic NotificationEvent(s).
@@ -28,6 +30,8 @@ import java.util.Map;
  *   - Message is a generic static string from localization — no placeholders
  *   - Navigation data carries referralCode, beneficiaryId etc. for app screen redirect
  *   - MDMS campaignType is "PUSH-NOTIFICATION", event type is REFERRAL_CREATED_PUSH_NOTIFICATION
+ *   - senderRoles gate: reads createdBy UUID from auditDetails, calls user service to get role codes,
+ *     and skips notification if no role matches the MDMS-configured senderRoles (e.g. DISTRIBUTOR)
  */
 @Service
 @Slf4j
@@ -36,14 +40,17 @@ public class HFReferralNotificationAdapter {
     private final MdmsService mdmsService;
     private final FacilityUserService facilityUserService;
     private final HealthNotificationProperties properties;
+    private final UserRoleService userRoleService;
 
     @Autowired
     public HFReferralNotificationAdapter(MdmsService mdmsService,
                                           FacilityUserService facilityUserService,
-                                          HealthNotificationProperties properties) {
+                                          HealthNotificationProperties properties,
+                                          UserRoleService userRoleService) {
         this.mdmsService = mdmsService;
         this.facilityUserService = facilityUserService;
         this.properties = properties;
+        this.userRoleService = userRoleService;
     }
 
     /**
@@ -100,6 +107,12 @@ public class HFReferralNotificationAdapter {
         // Extract locale
         List<String> locales = extractLocales(notificationConfig);
         String locale = (locales != null && !locales.isEmpty()) ? locales.get(0) : Constants.DEFAULT_LOCALE;
+
+        // Extract senderRoles from MDMS event config — gate: only allowed sender roles trigger notification
+        List<String> senderRoles = extractSenderRoles(eventConfig);
+        if (!isSenderRoleAllowed(record, tenantId, senderRoles, recordId)) {
+            return events;
+        }
 
         // Resolve projectFacilityId → facilityId via project facility search API
         String projectFacilityId = record.path("projectFacilityId").asText("");
@@ -232,6 +245,92 @@ public class HFReferralNotificationAdapter {
             }
         }
         return null;
+    }
+
+    /**
+     * Extracts all senderRoles from the MDMS eventConfig's senderRoles array.
+     * Returns an empty list if not configured (meaning: no role restriction).
+     */
+    private List<String> extractSenderRoles(JsonNode eventConfig) {
+        JsonNode senderRolesNode = eventConfig.path(Constants.FIELD_SENDER_ROLES);
+        List<String> roles = new ArrayList<>();
+        if (senderRolesNode.isArray() && senderRolesNode.size() > 0) {
+            for (JsonNode roleNode : senderRolesNode) {
+                String role = roleNode.asText(null);
+                if (role != null && !role.isBlank()) {
+                    roles.add(role);
+                }
+            }
+        }
+        if (!roles.isEmpty()) {
+            log.debug("Extracted senderRoles from MDMS: {}", roles);
+        }
+        return roles;
+    }
+
+    /**
+     * Fetches the role codes of the user who created the HFReferral.
+     *
+     * <p>Reads {@code auditDetails.createdBy} for the creator UUID, then calls
+     * the egov user service to get all roles assigned to that user.
+     *
+     * @param record   The raw HFReferral JSON record
+     * @param tenantId Tenant ID for user search
+     * @return set of role codes (e.g. {"DISTRIBUTOR"}), empty if not resolvable
+     */
+    private Set<String> extractCreatorRoleCodes(JsonNode record, String tenantId) {
+        String createdBy = record.path("auditDetails").path("createdBy").asText("");
+        if (createdBy.isBlank()) {
+            log.warn("No auditDetails.createdBy found in HFReferral record. Cannot resolve sender role.");
+            return Set.of();
+        }
+        log.debug("Fetching roles for HFReferral creator uuid={}", createdBy);
+        return userRoleService.getRoleCodesForUser(createdBy, tenantId);
+    }
+
+    /**
+     * Gates the push notification based on the sender's role.
+     *
+     * <p>Uses {@link Constants#FIELD_SENDER_ROLES} (value: {@code "senderRoles"}) both to
+     * read the allowed roles from the MDMS event config and as the semantic label for logging.
+     *
+     * <p>Rules:
+     * <ul>
+     *   <li>If {@code senderRoles} is empty (not configured in MDMS) — allow all senders.</li>
+     *   <li>If configured but the creator's role set is empty — skip.</li>
+     *   <li>If no intersection between creator roles and allowed roles — skip.</li>
+     *   <li>If at least one role intersects — allow.</li>
+     * </ul>
+     *
+     * @param record      The raw HFReferral JSON record
+     * @param tenantId    Tenant ID
+     * @param senderRoles Configured allowed sender roles from MDMS (may be empty)
+     * @param recordId    For logging
+     * @return {@code true} if notification should proceed, {@code false} to skip
+     */
+    private boolean isSenderRoleAllowed(JsonNode record, String tenantId,
+                                        List<String> senderRoles, String recordId) {
+        if (senderRoles == null || senderRoles.isEmpty()) {
+            log.debug("No senderRoles restriction in MDMS. Allowing notification for all roles.");
+            return true;
+        }
+
+        Set<String> creatorRoles = extractCreatorRoleCodes(record, tenantId);
+        if (creatorRoles.isEmpty()) {
+            log.info("HFReferral id={}: creator roles could not be resolved. " +
+                    "Skipping push notification (allowed senderRoles: {}).", recordId, senderRoles);
+            return false;
+        }
+
+        boolean allowed = creatorRoles.stream().anyMatch(senderRoles::contains);
+        if (!allowed) {
+            log.info("HFReferral id={}: creator roles {} do not include any allowed senderRoles {}. " +
+                    "Skipping push notification.", recordId, creatorRoles, senderRoles);
+        } else {
+            log.debug("HFReferral id={}: creator role(s) {} match allowed senderRoles. Proceeding.",
+                    recordId, creatorRoles);
+        }
+        return allowed;
     }
 
     /**

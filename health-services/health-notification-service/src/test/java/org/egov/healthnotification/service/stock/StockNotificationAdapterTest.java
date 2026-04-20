@@ -186,7 +186,7 @@ class StockNotificationAdapterTest {
     }
 
     @Test
-    void returnedAccepted_notifiesReceiver() {
+    void returnedAccepted_notifiesSender() {
         Stock stock = buildStock("RETURNED", "SENDER", "ACCEPTED");
         MdmsV2Data config = buildMdmsConfig(Constants.EVENT_TYPE_STOCK_REVERSE_ACCEPT);
 
@@ -197,12 +197,12 @@ class StockNotificationAdapterTest {
 
         assertEquals(1, events.size());
         assertEquals(Constants.EVENT_TYPE_STOCK_REVERSE_ACCEPT, events.get(0).getEventType());
-        // RETURNED + ACCEPTED → notify receiver
-        assertEquals("facility-receiver", events.get(0).getRecipientFacilityId());
+        // RETURNED + ACCEPTED → notify sender
+        assertEquals("facility-sender", events.get(0).getRecipientFacilityId());
     }
 
     @Test
-    void returnedRejected_notifiesReceiver() {
+    void returnedRejected_notifiesSender() {
         Stock stock = buildStock("RETURNED", "SENDER", "REJECTED");
         MdmsV2Data config = buildMdmsConfig(Constants.EVENT_TYPE_STOCK_REVERSE_REJECT);
 
@@ -213,8 +213,8 @@ class StockNotificationAdapterTest {
 
         assertEquals(1, events.size());
         assertEquals(Constants.EVENT_TYPE_STOCK_REVERSE_REJECT, events.get(0).getEventType());
-        // RETURNED + REJECTED → notify receiver
-        assertEquals("facility-receiver", events.get(0).getRecipientFacilityId());
+        // RETURNED + REJECTED → notify sender
+        assertEquals("facility-sender", events.get(0).getRecipientFacilityId());
     }
 
     // ═══════════════════════════════════════════════════════
