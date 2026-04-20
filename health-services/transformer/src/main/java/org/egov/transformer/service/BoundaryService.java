@@ -3,6 +3,7 @@ package org.egov.transformer.service;
 import com.jayway.jsonpath.JsonPath;
 import digit.models.coremodels.RequestInfoWrapper;
 import lombok.extern.slf4j.Slf4j;
+import org.egov.common.contract.request.User;
 import org.egov.common.models.project.Project;
 import org.egov.transformer.Constants;
 import org.egov.transformer.config.TransformerProperties;
@@ -144,6 +145,7 @@ public class BoundaryService {
         List<EnrichedBoundary> boundaries;
         RequestInfo requestInfo = RequestInfo.builder()
                 .authToken(transformerProperties.getBoundaryV2AuthToken())
+                .userInfo(User.builder().uuid("transformer-uui").tenantId(tenantId).build())
                 .build();
         BoundaryRelationshipRequest boundaryRequest = BoundaryRelationshipRequest.builder()
                 .requestInfo(requestInfo).build();

@@ -8,7 +8,7 @@ public interface Constants {
     String HOUSEHOLD = "HOUSEHOLD";
     String CYCLE_INDEX = "cycleIndex";
     String DOSE_INDEX = "doseIndex";
-    String DELIVERY_STRATEGY = "deliveryStrategy";
+    String COLON = ":";
 
     String NULL_STRING = "null";
     String PREFIX_ZERO = "0";

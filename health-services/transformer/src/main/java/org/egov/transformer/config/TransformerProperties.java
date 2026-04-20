@@ -233,4 +233,7 @@ public class TransformerProperties {
 
     @Value("${egov.project.factory.search.endpoint}")
     private String projectFactorySearchUrl;
+
+    @Value("${transformer.producer.user.action.index.v1.topic}")
+    private String transformerProducerUserActionIndexV1Topic;
 }
