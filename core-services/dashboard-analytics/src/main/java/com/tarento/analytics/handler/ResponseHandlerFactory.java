@@ -20,6 +20,8 @@ public class ResponseHandlerFactory {
     @Autowired
     private AdvanceTableChartResponseHandler advanceTableChartResponseHandler;
     @Autowired
+    private NestedAdvanceTableChartResponseHandler nestedAdvanceTableChartResponseHandler;
+    @Autowired
     private RawResponseHandler rawResponseHandler;
 
     public IResponseHandler getInstance(ChartType chartType) {
@@ -43,6 +45,8 @@ public class ResponseHandlerFactory {
 
         }   else if (chartType == chartType.XTABLE) {
             return advanceTableChartResponseHandler;
+        }   else if (chartType == chartType.XTABLE_NESTED) {
+            return nestedAdvanceTableChartResponseHandler;
         }
 
         return null;
