@@ -87,6 +87,13 @@ public enum TaskStatus {
     BENEFICIARY_ABSENT("BENEFICIARY_ABSENT"),
 
     /**
+     * Indicates that the beneficiary was referred.
+     * This status signifies that the task could not be completed because
+     * the beneficiary was referred at the time of the visit.
+     */
+    BENEFICIARY_REFERRED("BENEFICIARY_REFERRED"),
+
+    /**
      * Indicates that the beneficiary was given redose.
      */
     VISITED("VISITED");
