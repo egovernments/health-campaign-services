@@ -8,7 +8,8 @@ import config from '../config';
  * Mirrors the pattern used by getTableName in utils/db/index.ts
  */
 export function getTopicName(baseTopic: string, tenantId: string): string {
-    if (config.isEnvironmentCentralInstance) {
+    if (config.isEnvironmentCentralInstance && (!config.kafka.KAFKA_NON_CENTRAL_INSTANCE_TOPICS
+        || (config.kafka.KAFKA_NON_CENTRAL_INSTANCE_TOPICS.indexOf(baseTopic) == -1))) {
         const stateCode = tenantId.includes(".") ? tenantId.split(".")[0] : tenantId;
         return `${stateCode}-${baseTopic}`;
     }

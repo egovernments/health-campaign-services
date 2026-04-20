@@ -85,6 +85,7 @@ const config = {
     KAFKA_MAPPING_BATCH_TOPIC: process.env.KAFKA_MAPPING_BATCH_TOPIC || "hcm-mapping-batch",
     KAFKA_CAMPAIGN_MARK_FAILED_TOPIC: process.env.KAFKA_CAMPAIGN_MARK_FAILED_TOPIC || "hcm-campaign-mark-failed",
     KAFKA_NOTIFICATION_EMAIL_TOPIC: process.env.KAFKA_NOTIFICATION_EMAIL_TOPIC || "egov.core.notification.email",
+    KAFKA_NON_CENTRAL_INSTANCE_TOPICS: process.env.KAFKA_NON_CENTRAL_INSTANCE_TOPICS || "egov.core.notification.email",
   },
 
   // Database configuration
