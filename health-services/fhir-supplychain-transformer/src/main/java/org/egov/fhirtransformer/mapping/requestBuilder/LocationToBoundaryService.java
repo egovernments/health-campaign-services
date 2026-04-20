@@ -117,7 +117,7 @@ public class LocationToBoundaryService {
                 BoundaryRelationshipRequest boundaryRelationshipRequest = new BoundaryRelationshipRequest();
                 boundaryRelationshipRequest.setRequestInfo(requestInfo);
                 boundaryRelationshipRequest.setBoundaryRelationship(br);
-                apiIntegrationService.sendRequestToAPI(boundaryRelationshipRequest, createUrl);
+                apiIntegrationService.sendRequestToAPI(boundaryRelationshipRequest, createUrl, requestInfo);
             }
         } catch (Exception e) {
             throw new Exception("Error in createBoundaries: " + e.getMessage());
@@ -134,7 +134,7 @@ public class LocationToBoundaryService {
                 BoundaryRelationshipRequest boundaryRelationshipRequest = new BoundaryRelationshipRequest();
                 boundaryRelationshipRequest.setRequestInfo(requestInfo);
                 boundaryRelationshipRequest.setBoundaryRelationship(br);
-                apiIntegrationService.sendRequestToAPI(boundaryRelationshipRequest, updateUrl);
+                apiIntegrationService.sendRequestToAPI(boundaryRelationshipRequest, updateUrl, requestInfo);
             }
         } catch (Exception e) {
             throw new Exception("Error in updateBoundaries: " + e.getMessage());

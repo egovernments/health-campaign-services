@@ -85,7 +85,7 @@ public class SupplyDeliveryToStockService {
             StockBulkRequest stockBulkRequest = new StockBulkRequest();
             stockBulkRequest.setRequestInfo(requestInfo);
             stockBulkRequest.setStock(toCreate);
-            apiIntegrationService.sendRequestToAPI(stockBulkRequest, createUrl);
+            apiIntegrationService.sendRequestToAPI(stockBulkRequest, createUrl, requestInfo);
         } catch (Exception e) {
             throw new Exception("Error in createStocks: " + e.getMessage());
         }
@@ -98,7 +98,7 @@ public class SupplyDeliveryToStockService {
             StockBulkRequest stockBulkRequest = new StockBulkRequest();
             stockBulkRequest.setRequestInfo(requestInfo);
             stockBulkRequest.setStock(toUpdate);
-            apiIntegrationService.sendRequestToAPI(stockBulkRequest, updateUrl);
+            apiIntegrationService.sendRequestToAPI(stockBulkRequest, updateUrl, requestInfo);
         } catch (Exception e) {
             throw new Exception("Error in updateStocks: " + e.getMessage());
         }

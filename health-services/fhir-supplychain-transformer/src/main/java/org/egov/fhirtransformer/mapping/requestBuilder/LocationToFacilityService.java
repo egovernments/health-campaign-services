@@ -85,7 +85,7 @@ public class LocationToFacilityService {
             FacilityBulkRequest facilityBulkRequest = new FacilityBulkRequest();
             facilityBulkRequest.setRequestInfo(requestInfo);
             facilityBulkRequest.setFacilities(toCreate);
-            apiIntegrationService.sendRequestToAPI(facilityBulkRequest, createUrl);
+            apiIntegrationService.sendRequestToAPI(facilityBulkRequest, createUrl, requestInfo);
         } catch (Exception e) {
             throw new Exception("Error in createFacilities: " + e.getMessage());
         }
@@ -98,7 +98,7 @@ public class LocationToFacilityService {
             FacilityBulkRequest facilityBulkRequest = new FacilityBulkRequest();
             facilityBulkRequest.setRequestInfo(requestInfo);
             facilityBulkRequest.setFacilities(toUpdate);
-            apiIntegrationService.sendRequestToAPI(facilityBulkRequest, updateUrl);
+            apiIntegrationService.sendRequestToAPI(facilityBulkRequest, updateUrl, requestInfo);
         } catch (Exception e) {
             throw new Exception("Error in updateFacilities: " + e.getMessage());
         }

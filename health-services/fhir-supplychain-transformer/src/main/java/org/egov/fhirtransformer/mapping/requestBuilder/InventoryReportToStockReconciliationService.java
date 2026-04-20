@@ -84,7 +84,7 @@ public class InventoryReportToStockReconciliationService {
             StockReconciliationBulkRequest stockReconciliationBulkRequest = new StockReconciliationBulkRequest();
             stockReconciliationBulkRequest.setRequestInfo(requestInfo);
             stockReconciliationBulkRequest.setStockReconciliation(toCreate);
-            apiIntegrationService.sendRequestToAPI(stockReconciliationBulkRequest, createUrl);
+            apiIntegrationService.sendRequestToAPI(stockReconciliationBulkRequest, createUrl, requestInfo);
         } catch (Exception e) {
             throw new Exception("Error in createStockRecon: " + e.getMessage());
         }
@@ -97,7 +97,7 @@ public class InventoryReportToStockReconciliationService {
             StockReconciliationBulkRequest stockReconciliationBulkRequest = new StockReconciliationBulkRequest();
             stockReconciliationBulkRequest.setRequestInfo(requestInfo);
             stockReconciliationBulkRequest.setStockReconciliation(toUpdate);
-            apiIntegrationService.sendRequestToAPI(stockReconciliationBulkRequest, updateUrl);
+            apiIntegrationService.sendRequestToAPI(stockReconciliationBulkRequest, updateUrl, requestInfo);
         } catch (Exception e) {
             throw new Exception("Error in updateStockRecon: " + e.getMessage());
         }

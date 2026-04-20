@@ -87,7 +87,7 @@ public class InventoryItemToProductVariant {
             productVariantRequest.setRequestInfo(requestInfo);
             productVariantRequest.setProductVariant(toCreate);
             productVariantRequest.setApiOperation(ApiOperation.CREATE);
-            apiIntegrationService.sendRequestToAPI(productVariantRequest, createUrl);
+            apiIntegrationService.sendRequestToAPI(productVariantRequest, createUrl, requestInfo);
         } catch (Exception e) {
             throw new Exception("Error in createProductVariants: " + e.getMessage());
         }
@@ -101,7 +101,7 @@ public class InventoryItemToProductVariant {
             productVariantRequest.setRequestInfo(requestInfo);
             productVariantRequest.setProductVariant(toUpdate);
             productVariantRequest.setApiOperation(ApiOperation.UPDATE);
-            apiIntegrationService.sendRequestToAPI(productVariantRequest, updateUrl);
+            apiIntegrationService.sendRequestToAPI(productVariantRequest, updateUrl, requestInfo);
         } catch (Exception e) {
             throw new Exception("Error in updateProductVariants: " + e.getMessage());
         }

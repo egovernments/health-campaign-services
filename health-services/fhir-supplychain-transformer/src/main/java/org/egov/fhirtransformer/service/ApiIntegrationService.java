@@ -135,6 +135,7 @@ public class ApiIntegrationService {
         URI uri = formUri(urlParams, facilityHost + facilitySearchEndpoint);
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
+        addAuthHeader(headers, facilitySearchRequest.getRequestInfo());
         HttpEntity<FacilitySearchRequest> entity = new HttpEntity<>(facilitySearchRequest, headers);
 
         ResponseEntity<FacilityBulkResponse> response = restTemplate.exchange(
@@ -162,6 +163,7 @@ public class ApiIntegrationService {
         URI uri = formUri(urlParams, productHost + productVariantSearchEndpoint);
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
+        addAuthHeader(headers, productVariantSearchRequest.getRequestInfo());
         HttpEntity<ProductVariantSearchRequest> entity = new HttpEntity<>(productVariantSearchRequest, headers);
 
         ResponseEntity<ProductVariantResponse> response = restTemplate.exchange(
@@ -189,6 +191,7 @@ public class ApiIntegrationService {
         URI uri = formUri(urlParams, stockHost + stockSearchEndpoint);
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
+        addAuthHeader(headers, stockRequest.getRequestInfo());
         HttpEntity<StockSearchRequest> entity = new HttpEntity<>(stockRequest, headers);
 
         ResponseEntity<StockBulkResponse> response = restTemplate.exchange(
@@ -217,6 +220,7 @@ public class ApiIntegrationService {
         URI uri = formUri(urlParams, stockHost + stockReconciliationSearchEndpoint);
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
+        addAuthHeader(headers, stockReconciliationSearchRequest.getRequestInfo());
         HttpEntity<StockReconciliationSearchRequest> entity = new HttpEntity<>(stockReconciliationSearchRequest, headers);
 
         ResponseEntity<StockReconciliationBulkResponse> response = restTemplate.exchange(
@@ -270,10 +274,15 @@ public class ApiIntegrationService {
      * @return {@link ResponseEntity} containing {@link ResponseInfo}
      */
     public <T> ResponseEntity<ResponseInfo> sendRequestToAPI(T requestBody, String url) {
+        return sendRequestToAPI(requestBody, url, null);
+    }
+
+    public <T> ResponseEntity<ResponseInfo> sendRequestToAPI(T requestBody, String url, RequestInfo requestInfo) {
 
         URI uri = URI.create(url);
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
+        addAuthHeader(headers, requestInfo);
         HttpEntity<Object> entity = new HttpEntity<>(requestBody, headers);
         return restTemplate.exchange(
                 uri,
@@ -281,6 +290,12 @@ public class ApiIntegrationService {
                 entity,
                 ResponseInfo.class
         );
+    }
+
+    private void addAuthHeader(HttpHeaders headers, RequestInfo requestInfo) {
+        if (requestInfo != null && requestInfo.getAuthToken() != null && !requestInfo.getAuthToken().isEmpty()) {
+            headers.set("Authorization", requestInfo.getAuthToken());
+        }
     }
 
     /**
