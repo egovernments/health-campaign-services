@@ -249,7 +249,7 @@ public class HFReferralNotificationAdapter {
 
     /**
      * Extracts all senderRoles from the MDMS eventConfig's senderRoles array.
-     * Returns an empty list if not configured (meaning: no role restriction).
+     * Returns an empty list if not configured.
      */
     private List<String> extractSenderRoles(JsonNode eventConfig) {
         JsonNode senderRolesNode = eventConfig.path(Constants.FIELD_SENDER_ROLES);
@@ -285,7 +285,12 @@ public class HFReferralNotificationAdapter {
             return Set.of();
         }
         log.debug("Fetching roles for HFReferral creator uuid={}", createdBy);
-        return userRoleService.getRoleCodesForUser(createdBy, tenantId);
+        Set<String> creatorRoles = userRoleService.getRoleCodesForUser(createdBy, tenantId);
+        if (creatorRoles.isEmpty()) {
+            log.warn("Could not resolve creator roles for HFReferral creator uuid={}, tenantId={}",
+                    createdBy, tenantId);
+        }
+        return creatorRoles;
     }
 
     /**
@@ -296,7 +301,7 @@ public class HFReferralNotificationAdapter {
      *
      * <p>Rules:
      * <ul>
-     *   <li>If {@code senderRoles} is empty (not configured in MDMS) — allow all senders.</li>
+     *   <li>If {@code senderRoles} is empty (not configured in MDMS) — skip.</li>
      *   <li>If configured but the creator's role set is empty — skip.</li>
      *   <li>If no intersection between creator roles and allowed roles — skip.</li>
      *   <li>If at least one role intersects — allow.</li>
@@ -311,8 +316,8 @@ public class HFReferralNotificationAdapter {
     private boolean isSenderRoleAllowed(JsonNode record, String tenantId,
                                         List<String> senderRoles, String recordId) {
         if (senderRoles == null || senderRoles.isEmpty()) {
-            log.debug("No senderRoles restriction in MDMS. Allowing notification for all roles.");
-            return true;
+            log.info("HFReferral id={}: senderRoles not configured in MDMS. Skipping push notification.", recordId);
+            return false;
         }
 
         Set<String> creatorRoles = extractCreatorRoleCodes(record, tenantId);

@@ -90,7 +90,7 @@ class HFReferralNotificationAdapterTest {
     }
 
     private MdmsV2Data buildMdmsConfig(String eventType) {
-        return buildMdmsConfig(eventType, List.of());
+        return buildMdmsConfig(eventType, List.of("DISTRIBUTOR"));
     }
 
     private MdmsV2Data buildMdmsConfig(String eventType, List<String> senderRoles) {
@@ -133,6 +133,7 @@ class HFReferralNotificationAdapterTest {
         when(properties.getHfReferralCreateTopic()).thenReturn("save-hfreferral-topic");
         when(mdmsService.fetchNotificationConfigByProjectType(
                 eq(Constants.CAMPAIGN_TYPE_PUSH_NOTIFICATION), eq("ba"))).thenReturn(config);
+        when(userRoleService.getRoleCodesForUser("creator-uuid-1", "ba")).thenReturn(Set.of("DISTRIBUTOR"));
         when(facilityUserService.resolveProjectFacilityId(eq("PF-001"), eq("ba")))
                 .thenReturn("FAC-001");
 
@@ -159,6 +160,7 @@ class HFReferralNotificationAdapterTest {
 
         when(properties.getHfReferralCreateTopic()).thenReturn("save-hfreferral-topic");
         when(mdmsService.fetchNotificationConfigByProjectType(any(), any())).thenReturn(config);
+        when(userRoleService.getRoleCodesForUser("creator-uuid-1", "ba")).thenReturn(Set.of("DISTRIBUTOR"));
         when(facilityUserService.resolveProjectFacilityId(any(), any())).thenReturn("FAC-001");
 
         List<NotificationEvent> events = adapter.buildNotificationEvents(record, "ba-save-hfreferral-topic");
@@ -184,6 +186,7 @@ class HFReferralNotificationAdapterTest {
 
         when(properties.getHfReferralCreateTopic()).thenReturn("save-hfreferral-topic");
         when(mdmsService.fetchNotificationConfigByProjectType(any(), any())).thenReturn(config);
+        when(userRoleService.getRoleCodesForUser("creator-uuid-1", "ba")).thenReturn(Set.of("DISTRIBUTOR"));
         when(facilityUserService.resolveProjectFacilityId(any(), any())).thenReturn("FAC-001");
 
         List<NotificationEvent> events = adapter.buildNotificationEvents(record, "save-hfreferral-topic");
@@ -205,6 +208,7 @@ class HFReferralNotificationAdapterTest {
 
         when(properties.getHfReferralCreateTopic()).thenReturn("save-hfreferral-topic");
         when(mdmsService.fetchNotificationConfigByProjectType(any(), any())).thenReturn(config);
+        when(userRoleService.getRoleCodesForUser("creator-uuid-1", "ba")).thenReturn(Set.of("DISTRIBUTOR"));
         when(facilityUserService.resolveProjectFacilityId(any(), any())).thenReturn("FAC-001");
 
         List<NotificationEvent> events = adapter.buildNotificationEvents(record, "save-hfreferral-topic");
@@ -242,6 +246,7 @@ class HFReferralNotificationAdapterTest {
 
         when(properties.getHfReferralCreateTopic()).thenReturn("save-hfreferral-topic");
         when(mdmsService.fetchNotificationConfigByProjectType(any(), any())).thenReturn(config);
+        when(userRoleService.getRoleCodesForUser("creator-uuid-1", "ba")).thenReturn(Set.of("DISTRIBUTOR"));
 
         List<NotificationEvent> events = adapter.buildNotificationEvents(record, "save-hfreferral-topic");
 
@@ -255,6 +260,7 @@ class HFReferralNotificationAdapterTest {
 
         when(properties.getHfReferralCreateTopic()).thenReturn("save-hfreferral-topic");
         when(mdmsService.fetchNotificationConfigByProjectType(any(), any())).thenReturn(config);
+        when(userRoleService.getRoleCodesForUser("creator-uuid-1", "ba")).thenReturn(Set.of("DISTRIBUTOR"));
         when(facilityUserService.resolveProjectFacilityId(any(), any())).thenReturn(null);
 
         List<NotificationEvent> events = adapter.buildNotificationEvents(record, "save-hfreferral-topic");
@@ -306,6 +312,7 @@ class HFReferralNotificationAdapterTest {
 
         when(properties.getHfReferralCreateTopic()).thenReturn("save-hfreferral-topic");
         when(mdmsService.fetchNotificationConfigByProjectType(any(), any())).thenReturn(config);
+        when(userRoleService.getRoleCodesForUser("creator-uuid-1", "ba")).thenReturn(Set.of("DISTRIBUTOR"));
         when(facilityUserService.resolveProjectFacilityId(any(), any())).thenReturn("FAC-001");
 
         List<NotificationEvent> events = adapter.buildNotificationEvents(record, "save-hfreferral-topic");
@@ -324,11 +331,15 @@ class HFReferralNotificationAdapterTest {
         record.put("projectFacilityId", "PF-002");
         record.put("referralCode", "RCODE-002");
         record.put("symptom", "COUGH");
+        ObjectNode auditDetails = objectMapper.createObjectNode();
+        auditDetails.put("createdBy", "creator-uuid-1");
+        record.set("auditDetails", auditDetails);
 
         MdmsV2Data config = buildMdmsConfig(Constants.EVENT_TYPE_REFERRAL_CREATED);
 
         when(properties.getHfReferralCreateTopic()).thenReturn("save-hfreferral-topic");
         when(mdmsService.fetchNotificationConfigByProjectType(any(), any())).thenReturn(config);
+        when(userRoleService.getRoleCodesForUser("creator-uuid-1", "ba")).thenReturn(Set.of("DISTRIBUTOR"));
         when(facilityUserService.resolveProjectFacilityId(any(), any())).thenReturn("FAC-002");
 
         List<NotificationEvent> events = adapter.buildNotificationEvents(record, "save-hfreferral-topic");
@@ -338,6 +349,19 @@ class HFReferralNotificationAdapterTest {
         assertEquals("", placeholders.get(Constants.PLACEHOLDER_REFERRAL_NAME));
         assertEquals("", placeholders.get(Constants.PLACEHOLDER_GENDER));
         assertEquals("", placeholders.get(Constants.PLACEHOLDER_AGE_IN_MONTHS));
+    }
+
+    @Test
+    void buildNotificationEvents_senderRolesMissing_returnsEmpty() {
+        ObjectNode record = buildHFReferralRecord();
+        MdmsV2Data config = buildMdmsConfig(Constants.EVENT_TYPE_REFERRAL_CREATED, List.of());
+
+        when(properties.getHfReferralCreateTopic()).thenReturn("save-hfreferral-topic");
+        when(mdmsService.fetchNotificationConfigByProjectType(any(), any())).thenReturn(config);
+
+        List<NotificationEvent> events = adapter.buildNotificationEvents(record, "save-hfreferral-topic");
+
+        assertTrue(events.isEmpty());
     }
 
     @Test
