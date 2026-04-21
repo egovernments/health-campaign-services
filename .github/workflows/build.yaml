@@ -61,6 +61,7 @@ on:
           - project-factory
           - excel-ingestion
           - boundary-management
+          - health-notification-service
           - worker-registry-java-17
 
 env:
