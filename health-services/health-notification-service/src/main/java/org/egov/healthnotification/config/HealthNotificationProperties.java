@@ -112,6 +112,9 @@ public class HealthNotificationProperties {
     @Value("${notification.scheduler.max.fetch:10000}")
     private Integer schedulerMaxFetch;
 
+    @Value("${notification.scheduler.stale.in.progress.timeout.ms:900000}")
+    private Long schedulerStaleInProgressTimeoutMs;
+
     // Encryption Service
     @Value("${egov.enc.host}")
     private String encryptionServiceHost;

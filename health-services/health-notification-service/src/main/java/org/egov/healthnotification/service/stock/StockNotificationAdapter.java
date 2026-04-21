@@ -343,10 +343,10 @@ public class StockNotificationAdapter {
         } else if (Constants.ROLE_RECEIVER.equals(primaryRole)) {
             log.debug("primaryRole=RECEIVER → recipient facilityId={}", stock.getSenderId());
             return stock.getSenderId();
-        } else {
-            log.warn("Unknown primaryRole={}. Defaulting to receiverId={}", primaryRole, stock.getReceiverId());
-            return stock.getReceiverId();
         }
+
+        log.warn("Unknown primaryRole={} for stock id={}. Skipping notification.", primaryRole, stock.getId());
+        return null;
     }
 
     // ═══════════════════════════════════════════════════════
@@ -433,8 +433,8 @@ public class StockNotificationAdapter {
             return mdmsService.fetchNotificationConfigByProjectType(
                     Constants.CAMPAIGN_TYPE_PUSH_NOTIFICATION, tenantId);
         } catch (Exception e) {
-            log.error("Failed to fetch push notification config from MDMS: {}", e.getMessage());
-            return null;
+            log.error("Failed to fetch push notification config from MDMS for tenantId={}", tenantId, e);
+            throw new RuntimeException("Failed to fetch push notification config from MDMS", e);
         }
     }
 
@@ -484,10 +484,11 @@ public class StockNotificationAdapter {
      */
     private String extractTemplateCode(JsonNode eventConfig) {
         JsonNode scheduledNotifications = eventConfig.path(Constants.FIELD_SCHEDULED_NOTIFICATIONS);
-        if (scheduledNotifications.isArray() && scheduledNotifications.size() > 0) {
-            JsonNode first = scheduledNotifications.get(0);
-            if (first.path(Constants.FIELD_ENABLED).asBoolean(false)) {
-                return first.path(Constants.FIELD_TEMPLATE_CODE).asText(null);
+        if (scheduledNotifications.isArray()) {
+            for (JsonNode scheduledNotification : scheduledNotifications) {
+                if (scheduledNotification.path(Constants.FIELD_ENABLED).asBoolean(false)) {
+                    return scheduledNotification.path(Constants.FIELD_TEMPLATE_CODE).asText(null);
+                }
             }
         }
         return null;

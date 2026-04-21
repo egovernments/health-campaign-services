@@ -103,7 +103,14 @@ public class PostDistributionService {
                 }
 
                 // Event timestamp from task's clientAuditDetails
-                Long eventTimestamp = task.getClientAuditDetails().getCreatedTime();
+                Long eventTimestamp = task.getClientAuditDetails() != null
+                        ? task.getClientAuditDetails().getCreatedTime()
+                        : null;
+                if (eventTimestamp == null) {
+                    eventTimestamp = System.currentTimeMillis();
+                    log.warn("Task {} is missing clientAuditDetails.createdTime. Falling back to current time.",
+                            task.getId());
+                }
 
                 String projectType = project.getProjectType();
 
@@ -279,7 +286,7 @@ public class PostDistributionService {
                     .recipientId(recipientId)
                     .recipientType(recipientType)
                     .mobileNumber(recipientMobileNumber)
-                    .contextData(contextData)
+                    .contextData(new HashMap<>(contextData))
                     .scheduledAt(scheduledDate)
                     .createdAt(eventDate)
                     .status(NotificationStatus.PENDING)

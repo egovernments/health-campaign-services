@@ -14,7 +14,9 @@ serviceMaps:
               mobileNumber, contextData, status, attempts, lastAttemptAt,
               errorMessage, isDeleted, rowVersion,
               createdBy, createdTime, lastModifiedBy, lastModifiedTime
-            ) VALUES (?, ?, ?, ?, ?, ?, ?::DATE, ?::DATE, ?, ?, ?, ?, ?::JSONB, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+            ) VALUES (?, ?, ?, ?, ?, ?, ?::DATE, ?::DATE, ?, ?, ?, ?, ?::JSONB, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT (tenantId, entityType, entityId, eventType, templateCode, recipientId, scheduledAt)
+            WHERE isDeleted = false DO NOTHING;
           basePath: $.*
           jsonMaps:
             - jsonPath: $.*.id

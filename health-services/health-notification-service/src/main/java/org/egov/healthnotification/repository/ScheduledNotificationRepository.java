@@ -6,6 +6,7 @@ import org.egov.common.data.repository.GenericRepository;
 import org.egov.common.exception.InvalidTenantIdException;
 import org.egov.common.models.core.SearchResponse;
 import org.egov.common.producer.Producer;
+import org.egov.healthnotification.Constants;
 import org.egov.healthnotification.repository.rowmapper.ScheduledNotificationRowMapper;
 import org.egov.healthnotification.web.models.ScheduledNotification;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,6 +14,8 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
+import java.sql.Date;
+import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -108,17 +111,18 @@ public class ScheduledNotificationRepository extends GenericRepository<Scheduled
      * Used by the notification scheduler (runs daily) to pick up the day's batch.
      */
     public List<ScheduledNotification> fetchPendingNotifications(String tenantId,
-                                                                  java.time.LocalDate scheduledDate,
+                                                                  LocalDate scheduledDate,
                                                                   Integer batchSize) throws InvalidTenantIdException {
         log.info("Fetching pending notifications for date: {}, batchSize: {}", scheduledDate, batchSize);
 
         String query = String.format(
-                "SELECT * FROM %s.scheduled_notification WHERE status = :status AND scheduledAt = :scheduledAt AND isDeleted = false ORDER BY scheduledAt ASC LIMIT :limit",
+                "SELECT * FROM %s.scheduled_notification WHERE tenantId = :tenantId AND status = :status AND scheduledAt <= :scheduledAt AND isDeleted = false ORDER BY scheduledAt ASC LIMIT :limit",
                 SCHEMA_REPLACE_STRING);
 
         Map<String, Object> paramMap = new HashMap<>();
+        paramMap.put("tenantId", tenantId);
         paramMap.put("status", "PENDING");
-        paramMap.put("scheduledAt", java.sql.Date.valueOf(scheduledDate));
+        paramMap.put("scheduledAt", Date.valueOf(scheduledDate));
         paramMap.put("limit", batchSize);
 
         query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
@@ -128,23 +132,81 @@ public class ScheduledNotificationRepository extends GenericRepository<Scheduled
     }
 
     /**
+     * Atomically claims pending notifications by flipping them to IN_PROGRESS in the same statement
+     * that selects them. This prevents two scheduler instances from picking the same rows.
+     *
+     * Timed-out IN_PROGRESS rows are also reclaimable so a crashed scheduler instance does not
+     * leave notifications stuck forever.
+     */
+    public List<ScheduledNotification> claimPendingNotifications(String tenantId,
+                                                                 LocalDate scheduledDate,
+                                                                 Integer batchSize,
+                                                                 Long staleInProgressCutoffTime) throws InvalidTenantIdException {
+        log.info("Claiming pending notifications for date: {}, batchSize: {}", scheduledDate, batchSize);
+
+        String query = String.format(
+                "WITH claimed AS (" +
+                        "    SELECT id FROM %s.scheduled_notification " +
+                        "    WHERE tenantId = :tenantId AND scheduledAt <= :scheduledAt AND isDeleted = false " +
+                        "      AND (" +
+                        "          status = :pendingStatus " +
+                        "          OR (status = :inProgressStatus AND COALESCE(lastModifiedTime, 0) < :staleInProgressCutoffTime)" +
+                        "      ) " +
+                        "    ORDER BY CASE WHEN status = :pendingStatus THEN 0 ELSE 1 END, scheduledAt ASC, id ASC " +
+                        "    LIMIT :limit " +
+                        "    FOR UPDATE SKIP LOCKED" +
+                        ") " +
+                        "UPDATE %s.scheduled_notification sn " +
+                        "SET status = :inProgressStatus, " +
+                        "    rowVersion = COALESCE(sn.rowVersion, 0) + 1, " +
+                        "    lastModifiedBy = :lastModifiedBy, " +
+                        "    lastModifiedTime = :lastModifiedTime " +
+                        "FROM claimed " +
+                        "WHERE sn.id = claimed.id AND sn.tenantId = :tenantId " +
+                        "RETURNING sn.*",
+                SCHEMA_REPLACE_STRING, SCHEMA_REPLACE_STRING);
+
+        Map<String, Object> paramMap = new HashMap<>();
+        paramMap.put("tenantId", tenantId);
+        paramMap.put("pendingStatus", "PENDING");
+        paramMap.put("inProgressStatus", "IN_PROGRESS");
+        paramMap.put("scheduledAt", Date.valueOf(scheduledDate));
+        paramMap.put("limit", batchSize);
+        paramMap.put("staleInProgressCutoffTime", staleInProgressCutoffTime);
+        paramMap.put("lastModifiedBy", Constants.SYSTEM_USER);
+        paramMap.put("lastModifiedTime", System.currentTimeMillis());
+
+        query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
+        List<ScheduledNotification> results = this.namedParameterJdbcTemplate.query(query, paramMap, this.rowMapper);
+        log.info("Claimed {} pending notifications for date: {}", results.size(), scheduledDate);
+        return results;
+    }
+
+    /**
      * Checks if a duplicate notification already exists (same entity + event + template + recipient).
      * Prevents re-scheduling notifications for the same distribution event.
      */
-    public boolean isDuplicate(String tenantId, String entityId, String eventType,
-                                String templateCode, String recipientId) throws InvalidTenantIdException {
-        log.info("Checking for duplicate: entityId={}, eventType={}, templateCode={}, recipientId={}",
-                entityId, eventType, templateCode, recipientId);
+    public boolean isDuplicate(String tenantId, String entityType, String entityId, String eventType,
+                                String templateCode, String recipientId, LocalDate scheduledAt)
+            throws InvalidTenantIdException {
+        log.info("Checking for duplicate: tenantId={}, entityType={}, entityId={}, eventType={}, templateCode={}, recipientId={}, scheduledAt={}",
+                tenantId, entityType, entityId, eventType, templateCode, recipientId, scheduledAt);
 
         String query = String.format(
-                "SELECT * FROM %s.scheduled_notification WHERE entityId = :entityId AND eventType = :eventType AND templateCode = :templateCode AND recipientId = :recipientId AND isDeleted = false LIMIT 1",
+                "SELECT * FROM %s.scheduled_notification " +
+                        "WHERE tenantId = :tenantId AND entityType = :entityType AND entityId = :entityId " +
+                        "AND eventType = :eventType AND templateCode = :templateCode " +
+                        "AND recipientId = :recipientId AND scheduledAt = :scheduledAt AND isDeleted = false LIMIT 1",
                 SCHEMA_REPLACE_STRING);
 
         Map<String, Object> paramMap = new HashMap<>();
+        paramMap.put("tenantId", tenantId);
+        paramMap.put("entityType", entityType);
         paramMap.put("entityId", entityId);
         paramMap.put("eventType", eventType);
         paramMap.put("templateCode", templateCode);
         paramMap.put("recipientId", recipientId);
+        paramMap.put("scheduledAt", Date.valueOf(scheduledAt));
 
         query = multiStateInstanceUtil.replaceSchemaPlaceholder(query, tenantId);
         List<ScheduledNotification> results = this.namedParameterJdbcTemplate.query(query, paramMap, this.rowMapper);
@@ -196,7 +258,7 @@ public class ScheduledNotificationRepository extends GenericRepository<Scheduled
             hasCondition = true;
         }
 
-        if (Boolean.FALSE.equals(includeDeleted)) {
+        if (!Boolean.TRUE.equals(includeDeleted)) {
             queryBuilder.append(hasCondition ? " AND " : " WHERE ");
             queryBuilder.append("isDeleted = :isDeleted");
             paramsMap.put("isDeleted", false);

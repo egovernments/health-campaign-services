@@ -45,9 +45,9 @@ public class NotificationScheduler {
     /**
      * CRON job entry point.
      *
-     * Fetches all due notifications in one DB call, then dispatches in batches.
-     * Status updates go through Kafka (async), so we don't re-query — we process
-     * the full list fetched at the start of this run.
+     * Claims all due notifications in one DB call, then dispatches in batches.
+     * Claiming flips rows to IN_PROGRESS atomically so concurrent scheduler instances
+     * do not pick the same notifications.
      */
     @Scheduled(cron = "${notification.scheduler.cron:0 0 8 * * *}",
                zone = "${notification.timezone:UTC}")
@@ -55,27 +55,26 @@ public class NotificationScheduler {
         ZoneId timezone = ZoneId.of(properties.getNotificationTimezone());
         LocalDate today = LocalDate.now(timezone);
         int batchSize = properties.getSchedulerBatchSize();
+        long staleInProgressCutoffTime = System.currentTimeMillis() - properties.getSchedulerStaleInProgressTimeoutMs();
         String tenantId = properties.getStateLevelTenantId();
 
-        log.info("Scheduler triggered. today={} (timezone={}), batchSize={}, tenantId={}",
-                today, timezone, batchSize, tenantId);
+        log.info("Scheduler triggered. today={} (timezone={}), batchSize={}, tenantId={}, staleInProgressCutoffTime={}",
+                today, timezone, batchSize, tenantId, staleInProgressCutoffTime);
 
         try {
-            // Fetch due notifications, capped to prevent OOM on large backlogs.
+            // Claim due notifications, capped to prevent OOM on large backlogs.
+            // Stale IN_PROGRESS rows are reclaimable after the configured timeout.
             // Remaining rows (if any) will be picked up on the next scheduled run.
             int maxFetch = properties.getSchedulerMaxFetch();
-            List<ScheduledNotification> allDue = repository.fetchPendingNotifications(
-                    tenantId, today, maxFetch);
+            List<ScheduledNotification> allDue = repository.claimPendingNotifications(
+                    tenantId, today, maxFetch, staleInProgressCutoffTime);
 
             if (allDue.isEmpty()) {
-                log.info("No pending notifications due for today: {}", today);
+                log.info("No pending notifications due on or before today: {}", today);
                 return;
             }
 
-            log.info("Found {} pending notifications due for scheduledAt <= {}", allDue.size(), today);
-
-            // Mark all as IN_PROGRESS to prevent re-picking on next scheduler run
-            dispatchService.markBatchInProgress(allDue);
+            log.info("Claimed {} pending notifications due for scheduledAt<={}", allDue.size(), today);
 
             // Decrypt PII data (mobileNumber and contextData) after fetching
             RequestInfo requestInfo = RequestInfo.builder().build();
