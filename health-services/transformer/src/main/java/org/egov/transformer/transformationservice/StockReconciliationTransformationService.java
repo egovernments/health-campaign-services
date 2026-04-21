@@ -95,11 +95,11 @@ public class StockReconciliationTransformationService {
             additionalDetails = additionalFieldsToDetails(stockReconciliation.getAdditionalFields().getFields());
         }
         String projectIdProjectTypeId = commonUtils.projectDetailsFromUserId(stockReconciliation.getClientAuditDetails().getCreatedBy(), tenantId);
-
+        String projectId = stockReconciliation.getReferenceId();
         if (!StringUtils.isEmpty(projectIdProjectTypeId)) {
             projectTypeId = projectIdProjectTypeId.split(":")[1];
         }
-        String cycleIndex = commonUtils.fetchCycleIndexFromTime(tenantId, projectTypeId, stockReconciliation.getAuditDetails().getCreatedTime());
+        String cycleIndex = commonUtils.fetchCycleIndexFromProjectAdditionalDetails(tenantId, projectId, projectTypeId, stockReconciliation.getAuditDetails().getCreatedTime());
         additionalDetails.put(PROJECT_TYPE_ID, projectTypeId);
         additionalDetails.put(CYCLE_INDEX, cycleIndex);
 

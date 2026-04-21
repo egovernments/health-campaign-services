@@ -119,7 +119,7 @@ public class ServiceTaskTransformationService {
         boundaryHierarchyCode = boundaryHierarchyResult.getBoundaryHierarchyCode();
         String syncedTimeStamp = commonUtils.getTimeStampFromEpoch(service.getAuditDetails().getCreatedTime());
         Map<String, String> userInfoMap = userService.getUserInfo(service.getTenantId(), service.getAuditDetails().getCreatedBy());
-        String cycleIndex = commonUtils.fetchCycleIndexFromTime(tenantId, projectTypeId, service.getAuditDetails().getCreatedTime());
+        String cycleIndex = commonUtils.fetchCycleIndexFromProjectAdditionalDetails(tenantId, projectId, projectTypeId, service.getAuditDetails().getCreatedTime());
 
         additionalDetails.put(CYCLE_INDEX, cycleIndex);
         additionalDetails.put(PROJECT_TYPE_ID, projectTypeId);
