@@ -168,8 +168,15 @@ public class ReferralManagementService {
                                            Integer offset,
                                            String tenantId,
                                            Long lastChangedSince,
-                                           Boolean includeDeleted) throws InvalidTenantIdException {
+                                           Boolean includeDeleted,
+                                           Boolean includeOnlyUpdatedByOthers) throws InvalidTenantIdException {
         log.info("received request to search referrals");
+        
+        String lastModifiedByFilter = null;
+        if (lastChangedSince != null && Boolean.TRUE.equals(includeOnlyUpdatedByOthers)) {
+            lastModifiedByFilter = referralSearchRequest.getRequestInfo().getUserInfo().getUuid();
+        }
+
         String idFieldName = getIdFieldName(referralSearchRequest.getReferral());
         if (isSearchByIdOnly(referralSearchRequest.getReferral(), idFieldName)) {
             log.info("searching referrals by id");
@@ -182,11 +189,19 @@ public class ReferralManagementService {
                     .filter(havingTenantId(tenantId))
                     .filter(includeDeleted(includeDeleted))
                     .collect(Collectors.toList());
+            if (lastModifiedByFilter != null) {
+                String userUuid = lastModifiedByFilter;
+                referrals = referrals.stream().filter(referral -> {
+                    boolean createdByMe = userUuid.equals(referral.getAuditDetails().getCreatedBy());
+                    boolean lastModifiedByMe = userUuid.equals(referral.getAuditDetails().getLastModifiedBy());
+                    return !(createdByMe && lastModifiedByMe);
+                }).collect(Collectors.toList());
+            }
             return SearchResponse.<Referral>builder().response(referrals).build();
         }
         log.info("searching referrals using criteria");
         return referralRepository.find(referralSearchRequest.getReferral(),
-                limit, offset, tenantId, lastChangedSince, includeDeleted);
+                limit, offset, tenantId, lastChangedSince, includeDeleted, lastModifiedByFilter);
     }
 
     public Referral delete(ReferralRequest referralRequest) {
