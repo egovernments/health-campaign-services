@@ -6,6 +6,7 @@ import digit.models.coremodels.AuditDetails;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.egov.common.models.household.Household;
 import org.egov.common.models.project.*;
 import org.egov.transformer.config.TransformerProperties;
@@ -187,7 +188,7 @@ public class ProjectTaskTransformationService {
                 .syncedTimeStamp(syncedTimeStamp)
                 .syncedDate(commonUtils.getDateFromEpoch(task.getAuditDetails().getLastModifiedTime()))
                 .syncedTime(task.getAuditDetails().getLastModifiedTime())
-                .geoPoint(commonUtils.getGeoPoint(task.getAddress()))
+//                .geoPoint(commonUtils.getGeoPoint(task.getAddress()))
                 .administrationStatus(task.getStatus())
                 .boundaryHierarchy(boundaryHierarchy)
                 .boundaryHierarchyCode(boundaryHierarchyCode)
@@ -234,6 +235,18 @@ public class ProjectTaskTransformationService {
             additionalDetails.put(REASON_OF_REFUSAL, task.getStatus());
         }
         projectTaskIndexV1.setAdditionalDetails(additionalDetails);
+        List<Double> geoPoint = commonUtils.getGeoPoint(task.getAddress());
+        if (geoPoint == null && additionalDetails.has("latitude") && additionalDetails.has("longitude")) {
+            try {
+                double lat = Double.parseDouble(additionalDetails.get("latitude").toString());
+                double lng = Double.parseDouble(additionalDetails.get("longitude").toString());
+
+                geoPoint = Arrays.asList(lng, lat);
+            } catch (Exception e) {
+                log.info("ERROR while fetching geoPoint from additionalDetails setting to null, EXCEPTION : {}", ExceptionUtils.getStackTrace(e));
+            }
+        }
+        projectTaskIndexV1.setGeoPoint(geoPoint);
 
         return projectTaskIndexV1;
     }
