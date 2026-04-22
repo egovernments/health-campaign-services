@@ -183,13 +183,19 @@ public class StockService {
                                         Integer offset,
                                         String tenantId,
                                         Long lastChangedSince,
-                                        Boolean includeDeleted) throws Exception  {
+                                        Boolean includeDeleted,
+                                        Boolean includeOnlyUpdatedByOthers) throws Exception  {
         log.info("starting search method for stock");
 
         // Use lastSyncedTime from request body if provided, otherwise fall back to lastChangedSince from URL params
         Long effectiveLastChangedSince = stockSearchRequest.getStock().getLastSyncedTime() != null
                 ? stockSearchRequest.getStock().getLastSyncedTime()
                 : lastChangedSince;
+
+        String lastModifiedByFilter = null;
+        if (effectiveLastChangedSince != null && Boolean.TRUE.equals(includeOnlyUpdatedByOthers)) {
+            lastModifiedByFilter = stockSearchRequest.getRequestInfo().getUserInfo().getUuid();
+        }
 
         String idFieldName = getIdFieldName(stockSearchRequest.getStock());
         if (isSearchByIdOnly(stockSearchRequest.getStock(), idFieldName)) {
@@ -202,11 +208,19 @@ public class StockService {
                     .filter(havingTenantId(tenantId))
                     .filter(includeDeleted(includeDeleted))
                     .collect(Collectors.toList());
+            if (lastModifiedByFilter != null) {
+                String userUuid = lastModifiedByFilter;
+                stocks = stocks.stream().filter(stock -> {
+                    boolean createdByMe = userUuid.equals(stock.getAuditDetails().getCreatedBy());
+                    boolean lastModifiedByMe = userUuid.equals(stock.getAuditDetails().getLastModifiedBy());
+                    return !(createdByMe && lastModifiedByMe);
+                }).collect(Collectors.toList());
+            }
             return SearchResponse.<Stock>builder().response(stocks).build();
         }
 
         log.info("completed search method for stock");
         return stockRepository.findWithCount(stockSearchRequest.getStock(),
-                limit, offset, tenantId, effectiveLastChangedSince, includeDeleted);
+                limit, offset, tenantId, effectiveLastChangedSince, includeDeleted, lastModifiedByFilter);
     }
 }
