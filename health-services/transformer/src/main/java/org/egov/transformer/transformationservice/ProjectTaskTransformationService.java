@@ -238,8 +238,8 @@ public class ProjectTaskTransformationService {
         List<Double> geoPoint = commonUtils.getGeoPoint(task.getAddress());
         if (geoPoint == null && additionalDetails.has("latitude") && additionalDetails.has("longitude")) {
             try {
-                double lat = Double.parseDouble(additionalDetails.get("latitude").toString());
-                double lng = Double.parseDouble(additionalDetails.get("longitude").toString());
+                double lat = Double.parseDouble(additionalDetails.get("latitude").asText());
+                double lng = Double.parseDouble(additionalDetails.get("longitude").asText());
 
                 geoPoint = Arrays.asList(lng, lat);
             } catch (Exception e) {
