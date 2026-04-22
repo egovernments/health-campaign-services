@@ -8,7 +8,11 @@ public enum BeneficiaryType {
 
 		HOUSEHOLD("HOUSEHOLD"),
 
-		INDIVIDUAL("INDIVIDUAL");
+		INDIVIDUAL("INDIVIDUAL"),
+
+		PRODUCT("PRODUCT"),
+
+		SCHOOL("SCHOOL");
 
 		private String value;
 
