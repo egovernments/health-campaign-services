@@ -74,6 +74,24 @@ public class StockTransformationService {
 
         String transactingFacilityType = getTransactingFacilityType(stock), facilityType = getFacilityType(stock);
         String facilityId = getFacilityId(stock), transactingFacilityId = getTransactingFacilityId(stock);
+        String stockId = stock.getId();
+        if (ObjectUtils.isNotEmpty(stock.getAdditionalFields())) {
+            JsonNode additionalFieldsMap = commonUtils.convertAdditionalFieldsToMap(stock.getAdditionalFields());
+            JsonNode statusNode = additionalFieldsMap.get("status");
+
+            if (statusNode != null) {
+                String status = statusNode.asText();
+                if ("ACCEPTED".equalsIgnoreCase(status) || "REJECTED".equalsIgnoreCase(status)) {
+                    String tempTransactingFacilityType = transactingFacilityType;
+                    transactingFacilityType=facilityType;
+                    facilityType=tempTransactingFacilityType;
+                    String tempTransactingFacilityId = transactingFacilityId;
+                    transactingFacilityId=facilityId;
+                    facilityId=tempTransactingFacilityId;
+                    stockId = stockId + "-updatedby-" + stock.getClientAuditDetails().getLastModifiedBy();
+                }
+            }
+        }
         String facilityLevel = null, transactingFacilityLevel = null;
         Long facilityTarget = null;
         String facilityName, transactingFacilityName;
@@ -141,7 +159,7 @@ public class StockTransformationService {
         }
 
         StockIndexV1 stockIndexV1 = StockIndexV1.builder()
-                .id(stock.getId())
+                .id(stockId)
                 .clientReferenceId(stock.getClientReferenceId())
                 .tenantId(tenantId)
                 .productVariant(stock.getProductVariantId())
