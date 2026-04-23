@@ -192,9 +192,14 @@ public class StockService {
                 ? stockSearchRequest.getStock().getLastSyncedTime()
                 : lastChangedSince;
 
+        String currentUserUuid = stockSearchRequest.getRequestInfo() != null
+                && stockSearchRequest.getRequestInfo().getUserInfo() != null
+                ? stockSearchRequest.getRequestInfo().getUserInfo().getUuid()
+                : null;
+
         String lastModifiedByFilter = null;
-        if (effectiveLastChangedSince != null && Boolean.TRUE.equals(includeOnlyUpdatedByOthers)) {
-            lastModifiedByFilter = stockSearchRequest.getRequestInfo().getUserInfo().getUuid();
+        if (effectiveLastChangedSince != null && Boolean.TRUE.equals(includeOnlyUpdatedByOthers) && currentUserUuid != null) {
+            lastModifiedByFilter = currentUserUuid;
         }
 
         String idFieldName = getIdFieldName(stockSearchRequest.getStock());
@@ -211,9 +216,7 @@ public class StockService {
             if (lastModifiedByFilter != null) {
                 String userUuid = lastModifiedByFilter;
                 stocks = stocks.stream().filter(stock -> {
-                    boolean createdByMe = userUuid.equals(stock.getAuditDetails().getCreatedBy());
-                    boolean lastModifiedByMe = userUuid.equals(stock.getAuditDetails().getLastModifiedBy());
-                    return !(createdByMe && lastModifiedByMe);
+                    return !userUuid.equals(stock.getAuditDetails().getLastModifiedBy());
                 }).collect(Collectors.toList());
             }
             return SearchResponse.<Stock>builder().response(stocks).build();

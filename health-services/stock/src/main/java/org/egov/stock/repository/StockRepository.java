@@ -52,7 +52,7 @@ public class StockRepository extends GenericRepository<Stock> {
         if (lastChangedSince != null) {
             query += "AND lastModifiedTime>=:lastModifiedTime ";
         }
-        query += "AND NOT (createdBy=:lastModifiedByFilter AND lastModifiedBy=:lastModifiedByFilter) ";
+        query += "AND lastModifiedBy!=:lastModifiedByFilter ";
         query += "ORDER BY id ASC";
         Map<String, Object> paramsMap = selectQueryBuilder.getParamsMap();
         paramsMap.put("tenantId", tenantId);

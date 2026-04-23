@@ -85,7 +85,7 @@ public class ReferralRepository extends GenericRepository<Referral> {
         }
         
         if (lastModifiedByFilter != null) {
-            query = query + "and NOT (r.createdBy=:lastModifiedByFilter AND r.lastModifiedBy=:lastModifiedByFilter) ";
+            query = query + "and r.lastModifiedBy!=:lastModifiedByFilter ";
             paramsMap.put("lastModifiedByFilter", lastModifiedByFilter);
         }
 

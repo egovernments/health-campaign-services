@@ -172,9 +172,14 @@ public class ReferralManagementService {
                                            Boolean includeOnlyUpdatedByOthers) throws InvalidTenantIdException {
         log.info("received request to search referrals");
         
+        String currentUserUuid = referralSearchRequest.getRequestInfo() != null
+                && referralSearchRequest.getRequestInfo().getUserInfo() != null
+                ? referralSearchRequest.getRequestInfo().getUserInfo().getUuid()
+                : null;
+
         String lastModifiedByFilter = null;
-        if (lastChangedSince != null && Boolean.TRUE.equals(includeOnlyUpdatedByOthers)) {
-            lastModifiedByFilter = referralSearchRequest.getRequestInfo().getUserInfo().getUuid();
+        if (lastChangedSince != null && Boolean.TRUE.equals(includeOnlyUpdatedByOthers) && currentUserUuid != null) {
+            lastModifiedByFilter = currentUserUuid;
         }
 
         String idFieldName = getIdFieldName(referralSearchRequest.getReferral());
@@ -192,9 +197,7 @@ public class ReferralManagementService {
             if (lastModifiedByFilter != null) {
                 String userUuid = lastModifiedByFilter;
                 referrals = referrals.stream().filter(referral -> {
-                    boolean createdByMe = userUuid.equals(referral.getAuditDetails().getCreatedBy());
-                    boolean lastModifiedByMe = userUuid.equals(referral.getAuditDetails().getLastModifiedBy());
-                    return !(createdByMe && lastModifiedByMe);
+                    return !userUuid.equals(referral.getAuditDetails().getLastModifiedBy());
                 }).collect(Collectors.toList());
             }
             return SearchResponse.<Referral>builder().response(referrals).build();
