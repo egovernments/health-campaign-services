@@ -88,5 +88,9 @@ public class StockSearch extends EgovOfflineSearchModel {
     @JsonProperty("lastSyncedTime")
     @Exclude
     private Long lastSyncedTime = null;
+
+    @JsonProperty("campaignNumber")
+    @Size(min = 2, max = 64)
+    private String campaignNumber = null;
 }
 
