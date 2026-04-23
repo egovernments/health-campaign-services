@@ -30,7 +30,7 @@ public class StockRepository extends GenericRepository<Stock> {
                 stockRowMapper, Optional.of("stock"));
     }
 
-    public SearchResponse<Stock> findWithCount(Stock searchObject,
+    public SearchResponse<Stock> findWithCount(Object searchObject,
                                                Integer limit,
                                                Integer offset,
                                                String tenantId,
