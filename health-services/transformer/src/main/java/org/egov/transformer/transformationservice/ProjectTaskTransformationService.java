@@ -164,13 +164,7 @@ public class ProjectTaskTransformationService {
         String productVariantId = taskResource.getProductVariantId();
         String householdId = beneficiaryInfo.containsKey(HOUSEHOLD_CLIENT_REFERENCE_ID) ? (String) beneficiaryInfo.get(HOUSEHOLD_CLIENT_REFERENCE_ID) : null;
         Integer memberCount = beneficiaryInfo.containsKey(MEMBER_COUNT) ? (Integer) beneficiaryInfo.get(MEMBER_COUNT) : null;
-        if (INDIVIDUAL.equalsIgnoreCase(projectBeneficiaryType) && transformerProperties.getIcdBednetProductVariants().equalsIgnoreCase(productVariantId)) {
-            String projectBeneficiaryClientReferenceId = task.getProjectBeneficiaryClientReferenceId();
-            Map<String, Object> householdBeneficiaryInfo = getHouseholdDetails(projectBeneficiaryClientReferenceId, tenantId);
-            householdId = householdBeneficiaryInfo.containsKey(HOUSEHOLD_CLIENT_REFERENCE_ID) ? (String) householdBeneficiaryInfo.get(HOUSEHOLD_CLIENT_REFERENCE_ID) : null;
-            memberCount = householdBeneficiaryInfo.containsKey(MEMBER_COUNT) ? (Integer) householdBeneficiaryInfo.get(MEMBER_COUNT) : null;
-            projectTypeId = BEDNET_PREFIX + HYPHEN + projectTypeId;
-        }
+
         ProjectTaskIndexV1 projectTaskIndexV1 = ProjectTaskIndexV1.builder()
                 .id(taskResource.getId())
                 .taskId(task.getId())
@@ -208,9 +202,9 @@ public class ProjectTaskTransformationService {
                 .boundaryHierarchy(boundaryHierarchy)
                 .boundaryHierarchyCode(boundaryHierarchyCode)
                 .projectType(projectType)
-                .projectTypeId(projectTypeId)
-                .householdId(householdId)
-                .memberCount(memberCount)
+//                .projectTypeId(projectTypeId)
+//                .householdId(householdId)
+//                .memberCount(memberCount)
                 .dateOfBirth(beneficiaryInfo.containsKey(DATE_OF_BIRTH) ? (Long) beneficiaryInfo.get(DATE_OF_BIRTH) : null)
                 .age(beneficiaryInfo.containsKey(AGE) ? (Integer) beneficiaryInfo.get(AGE) : null)
                 .gender(beneficiaryInfo.containsKey(GENDER) ? (String) beneficiaryInfo.get(GENDER) : null)
@@ -232,7 +226,22 @@ public class ProjectTaskTransformationService {
 //            additionalDetails.put(HEIGHT, (Integer) beneficiaryInfo.get(HEIGHT));
 //            additionalDetails.put(DISABILITY_TYPE, (String) beneficiaryInfo.get(DISABILITY_TYPE));
 //        }
-
+        if ((additionalDetails.has("InterventionType") && BEDNET_PREFIX.equals(additionalDetails.get("InterventionType").asText()))
+            || (INDIVIDUAL.equalsIgnoreCase(projectBeneficiaryType) && transformerProperties.getIcdBednetProductVariants().equalsIgnoreCase(productVariantId))
+        ) {
+            String projectBeneficiaryClientReferenceId = task.getProjectBeneficiaryClientReferenceId();
+            Map<String, Object> householdBeneficiaryInfo = getHouseholdDetails(projectBeneficiaryClientReferenceId, tenantId);
+            householdId = householdBeneficiaryInfo.containsKey(HOUSEHOLD_CLIENT_REFERENCE_ID) ? (String) householdBeneficiaryInfo.get(HOUSEHOLD_CLIENT_REFERENCE_ID) : null;
+            memberCount = householdBeneficiaryInfo.containsKey(MEMBER_COUNT) ? (Integer) householdBeneficiaryInfo.get(MEMBER_COUNT) : null;
+            projectTypeId = BEDNET_PREFIX + HYPHEN + projectTypeId;
+            String bednetVariant = transformerProperties.getIcdBednetProductVariants();
+            productName = String.join(COMMA, productService.getProductVariantNames(Collections.singletonList(bednetVariant), tenantId));;
+            projectTaskIndexV1.setProductVariant(bednetVariant);
+            projectTaskIndexV1.setProductName(productName);
+        }
+        projectTaskIndexV1.setHouseholdId(householdId);
+        projectTaskIndexV1.setMemberCount(memberCount);
+        projectTaskIndexV1.setProjectTypeId(projectTypeId);
         if (beneficiaryInfo.containsKey("additionalFields")) {
             try {
                 householdService.additionalFieldsToDetails(additionalDetails, beneficiaryInfo.get("additionalFields"));
