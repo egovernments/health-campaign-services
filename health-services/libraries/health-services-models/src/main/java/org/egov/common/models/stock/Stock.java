@@ -93,5 +93,9 @@ public class Stock extends EgovOfflineModel {
     @JsonProperty("dateOfEntry")
     private Long dateOfEntry;
 
+    @JsonProperty("campaignNumber")
+    @Size(min = 2, max = 64)
+    private String campaignNumber;
+
 }
 
