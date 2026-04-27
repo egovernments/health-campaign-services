@@ -10,7 +10,10 @@ import org.egov.common.models.referralmanagement.beneficiarydownsync.Downsync;
 import org.egov.common.models.referralmanagement.beneficiarydownsync.DownsyncRequest;
 import org.egov.common.models.referralmanagement.beneficiarydownsync.DownsyncResponse;
 import org.egov.common.utils.ResponseInfoFactory;
+import org.egov.referralmanagement.service.DownsyncPregenService;
 import org.egov.referralmanagement.service.DownsyncService;
+import org.egov.referralmanagement.web.models.DownsyncFileLink;
+import org.egov.referralmanagement.web.models.PregenDownsyncResponse;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -22,6 +25,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 
+import java.util.List;
+
 @Slf4j
 @Controller
 @RequestMapping("/beneficiary-downsync")
@@ -30,18 +35,40 @@ public class BeneficiaryDownsyncController {
 	
 	private DownsyncService downsyncService;
 
+	private DownsyncPregenService pregenService;
+
 	private ObjectMapper mapper;
 
 	@Autowired
-	BeneficiaryDownsyncController (DownsyncService downsyncService, @Qualifier("objectMapper") ObjectMapper objectMapper){
+	BeneficiaryDownsyncController(DownsyncService downsyncService,
+								  DownsyncPregenService pregenService,
+								  @Qualifier("objectMapper") ObjectMapper objectMapper) {
 		this.downsyncService = downsyncService;
+		this.pregenService = pregenService;
 		this.mapper = objectMapper;
 	}
-	
+
     @PostMapping(value = "/v1/_get")
-    public ResponseEntity<DownsyncResponse> getBeneficiaryData(@ApiParam(value = "Capture details of Side Effect", required = true) @Valid @RequestBody DownsyncRequest request) {
+    public ResponseEntity<?> getBeneficiaryData(@ApiParam(value = "Capture details of Side Effect", required = true) @Valid @RequestBody DownsyncRequest request) {
 		log.info("UserUUID: {}", request.getRequestInfo().getUserInfo().getUuid());
 		log.info("Downsync RequestBody: {}", mapper.valueToTree(request).toString());
+
+		if (request.getDownsyncCriteria().getLastSyncedTime() == null) {
+			List<DownsyncFileLink> links = pregenService.getPregenLinks(request.getDownsyncCriteria());
+			if (links.isEmpty()) {
+				log.warn("No pre-generated files for locality={} tenant={} — generation not yet run",
+						request.getDownsyncCriteria().getLocality(), request.getDownsyncCriteria().getTenantId());
+				throw new CustomException("PREGEN_NOT_AVAILABLE",
+						"No pre-generated data available for this locality. Trigger a generation job first.");
+			}
+			log.info("Returning {} pre-generated file links for locality={}",
+					links.size(), request.getDownsyncCriteria().getLocality());
+			return ResponseEntity.ok(PregenDownsyncResponse.builder()
+					.responseInfo(ResponseInfoFactory.createResponseInfo(request.getRequestInfo(), true))
+					.downloadLinks(links)
+					.build());
+		}
+
         Downsync downsync = null;
         try {
             downsync = downsyncService.prepareDownsyncData(request);
@@ -54,7 +81,7 @@ public class BeneficiaryDownsyncController {
                 .responseInfo(ResponseInfoFactory
                         .createResponseInfo(request.getRequestInfo(), true))
                 .build();
-        
+
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
     }
 }
