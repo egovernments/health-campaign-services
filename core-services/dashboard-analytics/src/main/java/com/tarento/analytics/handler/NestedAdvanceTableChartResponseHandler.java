@@ -28,7 +28,9 @@ import java.util.stream.Collectors;
  * Flattens nested ES bucket aggregations into XTABLE rows.
  *
  * Config shape (in chart node):
- * - bucketHierarchy: [{ "aggName": "Country", "plotName": "Country" }, ...]
+ * - bucketHierarchy:
+ *   - ["Country","State","users","Attendance Date"]  (aggName == plotName)
+ *   - OR [{ "aggName": "users", "plotName": "UserName" }, ...] (rename)
  * - metricPaths: [{ "name": "Present Count", "path": "Present.Present Count.value", "valueType": "number" }, ...]
  */
 @Component
@@ -41,6 +43,8 @@ public class NestedAdvanceTableChartResponseHandler implements IResponseHandler 
     private static final String SPLIT_METRICS_PATHS = "splitMetricsPaths";
     private static final String SPLIT_METRICS_STR_VALUE = "splitMetricsBy";
     private static final String IGNORE_SPLIT_METRIC_PATHS = "ignoreSplitMetricPaths";
+    private static final String NON_SPLIT_METRIC_NAMES = "nonSplitMetricNames";
+    private static final String POST_SPLIT_COMPUTED_FIELDS = "postSplitComputedFields";
 
     private static final String H_AGG_NAME = "aggName";
     private static final String H_PLOT_NAME = "plotName";
@@ -48,6 +52,7 @@ public class NestedAdvanceTableChartResponseHandler implements IResponseHandler 
     private static final String M_NAME = "name";
     private static final String M_PATH = "path";
     private static final String M_VALUE_TYPE = "valueType";
+    private static final String M_FROM_AGG = "fromAgg";
 
     @Autowired
     private ObjectMapper mapper;
@@ -80,6 +85,7 @@ public class NestedAdvanceTableChartResponseHandler implements IResponseHandler 
         List<MetricSpec> metrics = parseMetrics(chartNode.get(METRIC_PATHS));
         List<String> splitAggNames = parseStringList(chartNode.get(SPLIT_METRICS_PATHS));
         Set<String> ignoreSplitMetricNames = new HashSet<>(parseStringList(chartNode.get(IGNORE_SPLIT_METRIC_PATHS)));
+        List<String> nonSplitMetricNames = parseStringList(chartNode.get(NON_SPLIT_METRIC_NAMES));
         SplitSpec splitSpec = buildSplitSpec(levels, splitAggNames);
 
         JsonNode topAgg = aggregationNode == null ? null : aggregationNode.findValue(levels.get(0).aggName);
@@ -102,16 +108,33 @@ public class NestedAdvanceTableChartResponseHandler implements IResponseHandler 
             applyComputedFields(requestDto, chartNode, rows);
         }
 
-        // excludedColumns
-        if (chartNode.has(EXCLUDED_COLUMNS) && chartNode.get(EXCLUDED_COLUMNS).isArray()) {
-            Set<String> excluded = mapper.convertValue(chartNode.get(EXCLUDED_COLUMNS), new TypeReference<List<String>>() {})
-                    .stream().collect(Collectors.toSet());
-            rows.forEach(d -> d.getPlots().removeIf(p -> excluded.contains(p.getName())));
+        boolean hasPostSplitComputed = chartNode.has(POST_SPLIT_COMPUTED_FIELDS) && chartNode.get(POST_SPLIT_COMPUTED_FIELDS).isArray();
+        if (!hasPostSplitComputed) {
+            // excludedColumns (legacy behavior: before split)
+            if (chartNode.has(EXCLUDED_COLUMNS) && chartNode.get(EXCLUDED_COLUMNS).isArray()) {
+                Set<String> excluded = mapper.convertValue(chartNode.get(EXCLUDED_COLUMNS), new TypeReference<List<String>>() {})
+                        .stream().collect(Collectors.toSet());
+                rows.forEach(d -> d.getPlots().removeIf(p -> excluded.contains(p.getName())));
+            }
         }
 
         // splitMetricsPaths (after computedFields + excludedColumns so computedFields can use base metric names)
         if (splitSpec.enabled) {
-            rows = splitRowsAfterCompute(rows, splitSpec, headerJoiner, ignoreSplitMetricNames);
+            rows = splitRowsAfterCompute(rows, splitSpec, headerJoiner, ignoreSplitMetricNames, nonSplitMetricNames);
+        }
+
+        // postSplitComputedFields (computed from consolidated day-wise columns)
+        if (hasPostSplitComputed) {
+            applyComputedFields(requestDto, chartNode, rows, chartNode.get(POST_SPLIT_COMPUTED_FIELDS));
+        }
+
+        if (hasPostSplitComputed) {
+            // excludedColumns (post-split) so helper fields remain available for postSplitComputedFields
+            if (chartNode.has(EXCLUDED_COLUMNS) && chartNode.get(EXCLUDED_COLUMNS).isArray()) {
+                Set<String> excluded = mapper.convertValue(chartNode.get(EXCLUDED_COLUMNS), new TypeReference<List<String>>() {})
+                        .stream().collect(Collectors.toSet());
+                rows.forEach(d -> d.getPlots().removeIf(p -> excluded.contains(p.getName())));
+            }
         }
 
         // XtableColumnOrder
@@ -155,9 +178,26 @@ public class NestedAdvanceTableChartResponseHandler implements IResponseHandler 
             int[] idx,
             List<Data> out
     ) {
+        flatten(levels, levelIndex, bucket, new ArrayList<>(), pathLabelsByPlotName, metrics, chartNode, headerJoiner, idx, out);
+    }
+
+    private void flatten(
+            List<LevelSpec> levels,
+            int levelIndex,
+            JsonNode bucket,
+            List<JsonNode> bucketStackByLevel,
+            LinkedHashMap<String, String> pathLabelsByPlotName,
+            List<MetricSpec> metrics,
+            JsonNode chartNode,
+            String headerJoiner,
+            int[] idx,
+            List<Data> out
+    ) {
         LevelSpec level = levels.get(levelIndex);
         String key = bucketKey(bucket);
         pathLabelsByPlotName.put(level.plotName, key);
+        ensureSize(bucketStackByLevel, levelIndex + 1);
+        bucketStackByLevel.set(levelIndex, bucket);
 
         boolean isLeaf = levelIndex == (levels.size() - 1);
         if (!isLeaf) {
@@ -168,7 +208,18 @@ public class NestedAdvanceTableChartResponseHandler implements IResponseHandler 
                 return;
             }
             for (JsonNode childBucket : nextBuckets) {
-                flatten(levels, levelIndex + 1, childBucket, new LinkedHashMap<>(pathLabelsByPlotName), metrics, chartNode, headerJoiner, idx, out);
+                flatten(
+                        levels,
+                        levelIndex + 1,
+                        childBucket,
+                        new ArrayList<>(bucketStackByLevel),
+                        new LinkedHashMap<>(pathLabelsByPlotName),
+                        metrics,
+                        chartNode,
+                        headerJoiner,
+                        idx,
+                        out
+                );
             }
             return;
         }
@@ -186,7 +237,8 @@ public class NestedAdvanceTableChartResponseHandler implements IResponseHandler 
         }
 
         for (MetricSpec ms : metrics) {
-            Double v = resolveNumber(bucket, ms.path);
+            JsonNode metricBase = resolveMetricBaseBucket(ms, levels, bucket, bucketStackByLevel);
+            Double v = resolveNumber(metricBase, ms.path);
             if (chartNode.get(IS_ROUND_OFF) != null && chartNode.get(IS_ROUND_OFF).asBoolean()) {
                 v = (double) Math.round(v);
             }
@@ -203,8 +255,18 @@ public class NestedAdvanceTableChartResponseHandler implements IResponseHandler 
         out.add(data);
     }
 
-    private List<Data> splitRowsAfterCompute(List<Data> rows, SplitSpec splitSpec, String headerJoiner, Set<String> ignoreSplitMetricNames) {
+    private List<Data> splitRowsAfterCompute(
+            List<Data> rows,
+            SplitSpec splitSpec,
+            String headerJoiner,
+            Set<String> ignoreSplitMetricNames,
+            List<String> nonSplitMetricNames
+    ) {
         LinkedHashMap<String, SplitRow> grouped = new LinkedHashMap<>();
+
+        Set<String> nonSplitSet = nonSplitMetricNames == null
+                ? Collections.emptySet()
+                : new HashSet<>(nonSplitMetricNames);
 
         for (Data row : rows) {
             Map<String, Plot> plotsByName = row.getPlots().stream()
@@ -233,6 +295,7 @@ public class NestedAdvanceTableChartResponseHandler implements IResponseHandler 
                     Plot p = plotsByName.get(plotName);
                     acc.prefixLabelsByPlotName.put(plotName, p == null ? null : p.getLabel());
                 }
+                acc.nonSplitMetricPlotsByName = new LinkedHashMap<>();
                 grouped.put(prefixKey, acc);
             }
 
@@ -240,6 +303,10 @@ public class NestedAdvanceTableChartResponseHandler implements IResponseHandler 
                 if (SERIAL_NUMBER.equals(p.getName())) continue;
                 if (isHierarchyPlot(splitSpec, p.getName())) continue; // drop Country/State/... from split metrics section
                 if (ignoreSplitMetricNames != null && ignoreSplitMetricNames.contains(p.getName())) continue;
+                if (nonSplitSet.contains(p.getName())) {
+                    acc.nonSplitMetricPlotsByName.putIfAbsent(p.getName(), clonePlot(p.getName(), p));
+                    continue;
+                }
                 String newName = splitJoined + headerJoiner + p.getName();
                 Plot np = new Plot(newName, p.getValue(), p.getSymbol());
                 np.setStrValue(SPLIT_METRICS_STR_VALUE);
@@ -264,6 +331,15 @@ public class NestedAdvanceTableChartResponseHandler implements IResponseHandler 
                 plots.add(p);
             }
 
+            if (nonSplitMetricNames != null && !nonSplitMetricNames.isEmpty()) {
+                for (String name : nonSplitMetricNames) {
+                    Plot p = sr.nonSplitMetricPlotsByName.get(name);
+                    if (p != null) plots.add(p);
+                }
+            } else {
+                plots.addAll(sr.nonSplitMetricPlotsByName.values());
+            }
+
             plots.addAll(sr.metricPlots.values());
 
             Data d = new Data(e.getKey(), sno++, null);
@@ -282,9 +358,13 @@ public class NestedAdvanceTableChartResponseHandler implements IResponseHandler 
     }
 
     private void applyComputedFields(AggregateRequestDto requestDto, JsonNode chartNode, List<Data> rows) {
+        applyComputedFields(requestDto, chartNode, rows, chartNode.get(COMPUTED_FIELDS));
+    }
+
+    private void applyComputedFields(AggregateRequestDto requestDto, JsonNode chartNode, List<Data> rows, JsonNode computedFieldsNode) {
         try {
             List<ComputedFields> computedFieldsList = mapper.readValue(
-                    chartNode.get(COMPUTED_FIELDS).toString(),
+                    computedFieldsNode.toString(),
                     new TypeReference<List<ComputedFields>>() {}
             );
             for (Data row : rows) {
@@ -381,11 +461,19 @@ public class NestedAdvanceTableChartResponseHandler implements IResponseHandler 
     private List<LevelSpec> parseLevels(ArrayNode hierarchy) {
         List<LevelSpec> out = new ArrayList<>();
         for (JsonNode n : hierarchy) {
-            if (!n.isObject()) continue;
-            String aggName = n.has(H_AGG_NAME) ? n.get(H_AGG_NAME).asText() : null;
-            String plotName = n.has(H_PLOT_NAME) ? n.get(H_PLOT_NAME).asText() : null;
-            if (StringUtils.isBlank(aggName) || StringUtils.isBlank(plotName)) continue;
-            out.add(new LevelSpec(aggName, plotName));
+            if (n == null) continue;
+            if (n.isTextual()) {
+                String v = n.asText();
+                if (StringUtils.isBlank(v)) continue;
+                out.add(new LevelSpec(v, v));
+                continue;
+            }
+            if (n.isObject()) {
+                String aggName = n.has(H_AGG_NAME) ? n.get(H_AGG_NAME).asText() : null;
+                String plotName = n.has(H_PLOT_NAME) ? n.get(H_PLOT_NAME).asText() : null;
+                if (StringUtils.isBlank(aggName) || StringUtils.isBlank(plotName)) continue;
+                out.add(new LevelSpec(aggName, plotName));
+            }
         }
         return out;
     }
@@ -400,8 +488,9 @@ public class NestedAdvanceTableChartResponseHandler implements IResponseHandler 
             String name = n.has(M_NAME) ? n.get(M_NAME).asText() : null;
             String path = n.has(M_PATH) ? n.get(M_PATH).asText() : null;
             String valueType = n.has(M_VALUE_TYPE) ? n.get(M_VALUE_TYPE).asText() : "number";
+            String fromAgg = n.has(M_FROM_AGG) ? n.get(M_FROM_AGG).asText() : null;
             if (StringUtils.isBlank(name) || StringUtils.isBlank(path)) continue;
-            out.add(new MetricSpec(name, path, valueType));
+            out.add(new MetricSpec(name, path, valueType, fromAgg));
         }
         return out;
     }
@@ -420,11 +509,13 @@ public class NestedAdvanceTableChartResponseHandler implements IResponseHandler 
         final String name;
         final String path;
         final String valueType;
+        final String fromAgg;
 
-        MetricSpec(String name, String path, String valueType) {
+        MetricSpec(String name, String path, String valueType, String fromAgg) {
             this.name = name;
             this.path = path;
             this.valueType = valueType;
+            this.fromAgg = StringUtils.isBlank(fromAgg) ? null : fromAgg;
         }
     }
 
@@ -458,6 +549,21 @@ public class NestedAdvanceTableChartResponseHandler implements IResponseHandler 
         return spec;
     }
 
+    private JsonNode resolveMetricBaseBucket(MetricSpec ms, List<LevelSpec> levels, JsonNode leafBucket, List<JsonNode> bucketStackByLevel) {
+        if (ms == null || ms.fromAgg == null) return leafBucket;
+        for (int i = 0; i < levels.size() && i < bucketStackByLevel.size(); i++) {
+            if (ms.fromAgg.equals(levels.get(i).aggName)) {
+                JsonNode b = bucketStackByLevel.get(i);
+                return b == null ? leafBucket : b;
+            }
+        }
+        return leafBucket;
+    }
+
+    private void ensureSize(List<JsonNode> list, int size) {
+        while (list.size() < size) list.add(null);
+    }
+
     private String joinLabels(List<LevelSpec> levels, int fromInclusive, int toExclusive,
                               LinkedHashMap<String, String> labelsByPlotName, String joiner) {
         List<String> parts = new ArrayList<>();
@@ -477,6 +583,14 @@ public class NestedAdvanceTableChartResponseHandler implements IResponseHandler 
     private static class SplitRow {
         LinkedHashMap<String, String> prefixLabelsByPlotName;
         LinkedHashMap<String, Plot> metricPlots = new LinkedHashMap<>();
+        LinkedHashMap<String, Plot> nonSplitMetricPlotsByName = new LinkedHashMap<>();
+    }
+
+    private Plot clonePlot(String name, Plot src) {
+        Plot p = new Plot(name, src.getValue(), src.getSymbol());
+        p.setLabel(src.getLabel());
+        p.setStrValue(src.getStrValue());
+        return p;
     }
 }
 
