@@ -99,10 +99,11 @@ public class ScheduledNotificationValidator {
                     iterator.remove();
                 }
             } catch (InvalidTenantIdException e) {
-                log.error("Invalid tenant ID during duplicate check: {}. Failing validation.",
+                // Soft-skip: invalid tenant should not crash the entire batch.
+                // No retry mechanism exists — hard failure here would lose all notifications in this batch.
+                log.error("Invalid tenant ID during duplicate check: {}. Skipping notification.",
                         notification.getTenantId(), e);
-                throw new CustomException(Constants.INVALID_TENANT_ID,
-                        "Invalid tenant ID during duplicate check: " + notification.getTenantId());
+                iterator.remove();
             }
         }
         if (notifications.size() < beforeDupFilter) {

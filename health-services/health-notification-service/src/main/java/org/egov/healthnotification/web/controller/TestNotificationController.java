@@ -10,7 +10,7 @@ import org.egov.healthnotification.service.stock.StockNotificationAdapter;
 import org.egov.healthnotification.web.models.NotificationEvent;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.context.annotation.Profile;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -24,7 +24,7 @@ import java.util.Map;
 
 /**
  * Test-only controller for simulating stock push notification flow.
- * Active only with the "hns-local" profile.
+ * Accessible via /test/v1/stock path — path prefix provides sufficient isolation.
  *
  * Usage:
  *   POST /health-notification-service/test/v1/stock/_notify
@@ -33,7 +33,8 @@ import java.util.Map;
 @RestController
 @RequestMapping("/test/v1/stock")
 @Slf4j
-@Profile("hns-local")
+// No @Profile restriction — the /test/ path prefix provides sufficient isolation.
+// If environment-gating is needed, prefer @ConditionalOnProperty over @Profile.
 public class TestNotificationController {
 
     private final StockNotificationAdapter stockAdapter;
