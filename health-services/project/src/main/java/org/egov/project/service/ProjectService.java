@@ -330,7 +330,7 @@ public class ProjectService {
         /*
          * Enrich project cascading dates based on the retrieved data
          */
-        projectEnrichment.enrichProjectCascadingDatesOnUpdate(project, projectFromDbWithAncestorsAndDescendants);
+        projectEnrichment.enrichProjectCascadingDatesOnUpdate(project, projectFromDbWithAncestorsAndDescendants, request.getRequestInfo());
     }
 
 
