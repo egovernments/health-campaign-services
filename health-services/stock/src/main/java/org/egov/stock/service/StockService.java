@@ -30,15 +30,7 @@ import org.egov.stock.validator.stock.SSenderIdReceiverIdEqualsValidator;
 import org.egov.stock.validator.stock.SUniqueEntityValidator;
 import org.egov.stock.validator.stock.SStockTransferPartiesValidator;
 import org.springframework.stereotype.Service;
-import org.springframework.util.ReflectionUtils;
-
-import static org.egov.common.utils.CommonUtils.getIdFieldName;
-import static org.egov.common.utils.CommonUtils.getIdMethod;
 import static org.egov.common.utils.CommonUtils.handleErrors;
-import static org.egov.common.utils.CommonUtils.havingTenantId;
-import static org.egov.common.utils.CommonUtils.includeDeleted;
-import static org.egov.common.utils.CommonUtils.isSearchByIdOnly;
-import static org.egov.common.utils.CommonUtils.lastChangedSince;
 import static org.egov.common.utils.CommonUtils.populateErrorDetails;
 import static org.egov.common.utils.CommonUtils.validate;
 import static org.egov.stock.Constants.GET_STOCK;
@@ -200,26 +192,6 @@ public class StockService {
         String lastModifiedByFilter = null;
         if (effectiveLastChangedSince != null && Boolean.TRUE.equals(includeOnlyUpdatedByOthers) && currentUserUuid != null) {
             lastModifiedByFilter = currentUserUuid;
-        }
-
-        String idFieldName = getIdFieldName(stockSearchRequest.getStock());
-        if (isSearchByIdOnly(stockSearchRequest.getStock(), idFieldName)) {
-            List<String> ids = (List<String>) ReflectionUtils.invokeMethod(getIdMethod(Collections
-                            .singletonList(stockSearchRequest.getStock())),
-                    stockSearchRequest.getStock());
-            // fetching stock with ids
-            List<Stock> stocks = stockRepository.findById(tenantId, ids, includeDeleted, idFieldName).stream()
-                    .filter(lastChangedSince(effectiveLastChangedSince))
-                    .filter(havingTenantId(tenantId))
-                    .filter(includeDeleted(includeDeleted))
-                    .collect(Collectors.toList());
-            if (lastModifiedByFilter != null) {
-                String userUuid = lastModifiedByFilter;
-                stocks = stocks.stream().filter(stock -> {
-                    return !userUuid.equals(stock.getAuditDetails().getLastModifiedBy());
-                }).collect(Collectors.toList());
-            }
-            return SearchResponse.<Stock>builder().response(stocks).build();
         }
 
         log.info("completed search method for stock");
