@@ -236,4 +236,16 @@ public class TransformerProperties {
 
     @Value("${transformer.producer.user.action.index.v1.topic}")
     private String transformerProducerUserActionIndexV1Topic;
+
+    @Value("${egov.workflow.host}")
+    private String workflowHost;
+
+    @Value("${egov.workflow.process.search.url}")
+    private String workflowProcessSearchUrl;
+
+    @Value("${transformer.producer.bill.index.v1.topic}")
+    private String transformerProducerBillIndexV1Topic;
+
+    @Value("${transformer.producer.billdetail.index.v1.topic}")
+    private String transformerProducerBillDetailIndexV1Topic;
 }
