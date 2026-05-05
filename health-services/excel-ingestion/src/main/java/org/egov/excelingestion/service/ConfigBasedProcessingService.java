@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.egov.excelingestion.config.ErrorConstants;
+import org.egov.excelingestion.config.ExcelIngestionConfig;
 import org.egov.excelingestion.config.KafkaTopicConfig;
 import org.egov.excelingestion.config.ProcessingConstants;
 import org.egov.excelingestion.web.models.mdms.ExcelIngestionProcessData;
@@ -14,7 +15,7 @@ import org.apache.poi.ss.usermodel.Workbook;
 import org.egov.excelingestion.processor.IWorkbookProcessor;
 import org.egov.excelingestion.processor.ISheetDataProcessor;
 import org.egov.excelingestion.web.models.ProcessResource;
-import org.egov.excelingestion.web.models.RequestInfo;
+import org.egov.common.contract.request.RequestInfo;
 import org.egov.excelingestion.web.models.ParsingCompleteEvent;
 import org.egov.excelingestion.web.models.SheetDataTemp;
 import org.egov.excelingestion.web.models.SheetGenerationResult;
@@ -44,19 +45,22 @@ public class ConfigBasedProcessingService {
     private final ApplicationContext applicationContext;
     private final Producer producer;
     private final KafkaTopicConfig kafkaTopicConfig;
+    private final ExcelIngestionConfig config;
 
     public ConfigBasedProcessingService(MDMSConfigService mdmsConfigService,
                                       CustomExceptionHandler exceptionHandler,
                                       MDMSService mdmsService,
                                       ApplicationContext applicationContext,
                                       Producer producer,
-                                      KafkaTopicConfig kafkaTopicConfig) {
+                                      KafkaTopicConfig kafkaTopicConfig,
+                                      ExcelIngestionConfig config) {
         this.mdmsConfigService = mdmsConfigService;
         this.exceptionHandler = exceptionHandler;
         this.mdmsService = mdmsService;
         this.applicationContext = applicationContext;
         this.producer = producer;
         this.kafkaTopicConfig = kafkaTopicConfig;
+        this.config = config;
     }
 
     /**
@@ -231,20 +235,20 @@ public class ConfigBasedProcessingService {
     }
 
     /**
-     * Get localized sheet name with 31-char limit handling
+     * Get localized sheet name with configurable character limit
      */
     private String getLocalizedSheetName(String sheetKey, Map<String, String> localizationMap) {
         String localizedName = sheetKey;
-        
+
         if (localizationMap != null && localizationMap.containsKey(sheetKey)) {
             localizedName = localizationMap.get(sheetKey);
         }
-        
-        // Handle Excel's 31 character limit
-        if (localizedName.length() > 31) {
-            localizedName = localizedName.substring(0, 31);
+
+        int maxLength = config.getSheetNameMaxLength();
+        if (localizedName.length() > maxLength) {
+            localizedName = localizedName.substring(0, maxLength);
         }
-        
+
         return localizedName;
     }
 
@@ -298,12 +302,19 @@ public class ConfigBasedProcessingService {
         // Process all sheets that have processors configured
         for (ProcessorSheetConfig sheetConfig : config) {
             String processorClass = sheetConfig.getProcessorClass();
-            if (processorClass == null) {
+            if (processorClass == null || processorClass.trim().isEmpty()) {
                 continue; // No processor configured for this sheet
             }
             
             String configuredSheetName = getLocalizedSheetName(sheetConfig.getSheetNameKey(), localizationMap);
-            
+
+            // Store the non-localized sheetNameKey in additionalDetails for processors
+            // that need to determine sheet type without relying on localized names
+            if (resource.getAdditionalDetails() == null) {
+                resource.setAdditionalDetails(new java.util.HashMap<>());
+            }
+            resource.getAdditionalDetails().put("sheetNameKey", sheetConfig.getSheetNameKey());
+
             // Load and execute processor
             try {
                 log.info("Using processor {} for sheet {}", processorClass, configuredSheetName);
@@ -414,11 +425,11 @@ public class ConfigBasedProcessingService {
                 data.add(rowData);
             }
         }
-        
+
+        ExcelUtil.reconstructMultiSelectValues(data);
         log.debug("Extracted {} rows with actual data from sheet: {}", data.size(), sheetName);
         return data;
     }
-    
 
     /**
      * Handle conditional persistence and event publishing for a sheet
@@ -505,10 +516,11 @@ public class ConfigBasedProcessingService {
         ExcelIngestionProcessData processData = mdmsConfigService.getExcelIngestionProcessConfig(requestInfo, resource.getTenantId(), resource.getType());
         String topic = processData.getProcessingResultTopic(); // Assuming this method exists
         if (topic != null && !topic.trim().isEmpty()) {
+            resource.setRequestInfo(requestInfo);
+            String resolvedTopic = producer.getResolvedTopicName(resource.getTenantId(), topic);
             producer.push(resource.getTenantId(), topic, resource);
-            log.info("Published processing result to topic: {} for processing type: {}, resource ID: {}", 
-                    topic, resource.getType(), resource.getId());
-            log.info("Processing result sent to topic for resource: {}", resource.getId());
+            log.info("Published processing result to topic: {} for processing type: {}, resource ID: {}",
+                    resolvedTopic, resource.getType(), resource.getId());
         } else {
             log.debug("No processing result topic configured for processing type: {}", resource.getType());
         }
@@ -548,17 +560,18 @@ public class ConfigBasedProcessingService {
                 
                 // Extract actual row number
                 Integer actualRowNumber = (Integer) rowData.get("__actualRowNumber__");
-                
-                // Remove __actualRowNumber__ from rowData
-                rowData.remove("__actualRowNumber__");
-                
+
+                // Copy rowData without __actualRowNumber__ to avoid mutating the shared cache
+                Map<String, Object> rowDataForPersist = new HashMap<>(rowData);
+                rowDataForPersist.remove("__actualRowNumber__");
+
                 SheetDataTemp sheetDataTemp = SheetDataTemp.builder()
                         .referenceId(resource.getReferenceId())
                         .tenantId(resource.getTenantId())
                         .fileStoreId(resource.getFileStoreId())
                         .sheetName(sheetName)
                         .rowNumber(actualRowNumber)
-                        .rowJson(rowData)
+                        .rowJson(rowDataForPersist)
                         .createdBy(extractCreatedByFromRequestInfo(requestInfo))
                         .createdTime(currentTime)
                         .deleteTime(deleteTime)
@@ -572,13 +585,14 @@ public class ConfigBasedProcessingService {
             message.put("sheetData", chunkDataList);
             
             // Push chunk to save-sheet-data-temp topic
+            String resolvedSheetDataTopic = producer.getResolvedTopicName(resource.getTenantId(), kafkaTopicConfig.getSheetDataSaveTopic());
             producer.push(resource.getTenantId(), kafkaTopicConfig.getSheetDataSaveTopic(), message);
-            
-            log.info("Published chunk {}/{} with {} records to save-sheet-data-temp topic for sheet: {}", 
-                    chunkIndex + 1, totalChunks, chunkDataList.size(), sheetName);
+
+            log.info("Published chunk {}/{} with {} records to topic: {} for sheet: {}",
+                    chunkIndex + 1, totalChunks, chunkDataList.size(), resolvedSheetDataTopic, sheetName);
         }
-        
-        log.info("Successfully published all {} records in {} chunks to save-sheet-data-temp topic for sheet: {}", 
-                totalRecords, totalChunks, sheetName);
+
+        log.info("Successfully published all {} records in {} chunks to topic: {} for sheet: {}",
+                totalRecords, totalChunks, producer.getResolvedTopicName(resource.getTenantId(), kafkaTopicConfig.getSheetDataSaveTopic()), sheetName);
     }
 }

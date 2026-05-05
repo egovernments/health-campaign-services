@@ -6,7 +6,7 @@ import org.egov.excelingestion.config.ProcessingConstants;
 import org.egov.excelingestion.util.RequestInfoConverter;
 import org.egov.excelingestion.web.models.ProcessResource;
 import org.egov.excelingestion.web.models.ProcessResourceRequest;
-import org.egov.excelingestion.web.models.RequestInfo;
+import org.egov.common.contract.request.RequestInfo;
 import org.egov.common.producer.Producer;
 import org.egov.tracer.model.CustomException;
 import org.springframework.beans.factory.annotation.Value;
@@ -76,7 +76,8 @@ public class AsyncProcessingService {
                 }
             }
             
-            log.info("Pushing COMPLETED update to Kafka - ID: {}, Status: {}", 
+            log.info("Pushing COMPLETED update to Kafka topic: {} - ID: {}, Status: {}",
+                    producer.getResolvedTopicName(processResource.getTenantId(), kafkaTopicConfig.getProcessingUpdateTopic()),
                     processResource.getId(), processResource.getStatus());
             producer.push(processResource.getTenantId(), kafkaTopicConfig.getProcessingUpdateTopic(), processResource);
             
@@ -114,7 +115,8 @@ public class AsyncProcessingService {
                 }
             }
             
-            log.info("Pushing FAILED update to Kafka - ID: {}, Status: {}", 
+            log.info("Pushing FAILED update to Kafka topic: {} - ID: {}, Status: {}",
+                    producer.getResolvedTopicName(processResource.getTenantId(), kafkaTopicConfig.getProcessingUpdateTopic()),
                     processResource.getId(), processResource.getStatus());
             producer.push(processResource.getTenantId(), kafkaTopicConfig.getProcessingUpdateTopic(), processResource);
         } finally {

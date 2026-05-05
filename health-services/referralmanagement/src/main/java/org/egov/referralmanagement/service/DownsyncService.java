@@ -41,6 +41,9 @@ import org.egov.common.models.referralmanagement.ReferralSearchRequest;
 import org.egov.common.models.referralmanagement.beneficiarydownsync.Downsync;
 import org.egov.common.models.referralmanagement.beneficiarydownsync.DownsyncCriteria;
 import org.egov.common.models.referralmanagement.beneficiarydownsync.DownsyncRequest;
+import org.egov.common.models.referralmanagement.hfreferral.HFReferral;
+import org.egov.common.models.referralmanagement.hfreferral.HFReferralSearch;
+import org.egov.common.models.referralmanagement.hfreferral.HFReferralSearchRequest;
 import org.egov.common.models.referralmanagement.sideeffect.SideEffect;
 import org.egov.common.models.referralmanagement.sideeffect.SideEffectSearch;
 import org.egov.common.models.referralmanagement.sideeffect.SideEffectSearchRequest;
@@ -72,6 +75,8 @@ public class DownsyncService {
 
     private ReferralManagementService referralService;
 
+    private HFReferralService hfReferralService;
+
     private MasterDataService masterDataService;
 
     private final MultiStateInstanceUtil multiStateInstanceUtil;
@@ -82,6 +87,7 @@ public class DownsyncService {
                             NamedParameterJdbcTemplate jdbcTemplate,
                             SideEffectService sideEffectService,
                             ReferralManagementService referralService,
+                            HFReferralService hfReferralService,
                             MasterDataService masterDataService, MultiStateInstanceUtil multiStateInstanceUtil) {
 
         this.restClient = serviceRequestClient;
@@ -89,6 +95,7 @@ public class DownsyncService {
         this.jdbcTemplate = jdbcTemplate;
         this.sideEffectService = sideEffectService;
         this.referralService = referralService;
+        this.hfReferralService = hfReferralService;
         this.masterDataService = masterDataService;
         this.multiStateInstanceUtil = multiStateInstanceUtil;
 
@@ -151,6 +158,9 @@ public class DownsyncService {
             /* ref search */
             referralSearch(downsyncRequest, downsync, beneficiaryClientRefIds);
         }
+
+        /* search hf referrals - HFReferrals can be directly created by Distributors */
+        hfReferralSearch(downsyncRequest, downsync);
 
 
         if (isSyncTimeAvailable || !CollectionUtils.isEmpty(taskClientRefIds)) {
@@ -216,7 +226,7 @@ public class DownsyncService {
         RequestInfo requestInfo = downsyncRequest.getRequestInfo();
         String tenantId = criteria.getTenantId();
 
-        List<String> individualIds = getPrimaryIds(tenantId, individualClientRefIds, "clientReferenceId", "INDIVIDUAL", criteria.getLastSyncedTime());
+        List<String> individualIds = getPrimaryIds(tenantId, individualClientRefIds, Constants.FIELD_CLIENT_REFERENCE_ID, Constants.TABLE_INDIVIDUAL, criteria.getLastSyncedTime());
 
         if (CollectionUtils.isEmpty(individualIds))
             return Collections.emptyList();
@@ -327,7 +337,7 @@ public class DownsyncService {
         Long lastChangedSince = downsyncRequest.getDownsyncCriteria().getLastSyncedTime();
         String tenantId = downsyncRequest.getDownsyncCriteria().getTenantId();
 
-        List<String> memberIds = getPrimaryIds(tenantId, householdClientReferenceIds, "householdClientReferenceId","HOUSEHOLD_MEMBER",lastChangedSince);
+        List<String> memberIds = getPrimaryIds(tenantId, householdClientReferenceIds, Constants.FIELD_HOUSEHOLD_CLIENT_REFERENCE_ID, Constants.TABLE_HOUSEHOLD_MEMBER, lastChangedSince);
 
         if (CollectionUtils.isEmpty(memberIds))
             return Collections.emptyList();
@@ -382,8 +392,8 @@ public class DownsyncService {
         List<String> beneficiaryIds = getPrimaryIds(
                 tenantId,
                 beneficiaryClientRefIds,
-                "beneficiaryclientreferenceid",
-                "PROJECT_BENEFICIARY",
+                Constants.FIELD_BENEFICIARY_CLIENT_REFERENCE_ID,
+                Constants.TABLE_PROJECT_BENEFICIARY,
                 lastChangedSince
         );
 
@@ -439,7 +449,7 @@ public class DownsyncService {
         RequestInfo requestInfo = downsyncRequest.getRequestInfo();
         String tenantId = criteria.getTenantId();
 
-        List<String> taskIds = getPrimaryIds(tenantId, beneficiaryClientRefIds, "projectBeneficiaryClientReferenceId", "PROJECT_TASK",
+        List<String> taskIds = getPrimaryIds(tenantId, beneficiaryClientRefIds, Constants.FIELD_PROJECT_BENEFICIARY_CLIENT_REFERENCE_ID, Constants.TABLE_PROJECT_TASK,
                 criteria.getLastSyncedTime());
 
         if(CollectionUtils.isEmpty(taskIds))
@@ -491,7 +501,7 @@ public class DownsyncService {
         String tenantId = criteria.getTenantId();
 
         /* FIXME SHOULD BE REMOVED AND TASK SEARCH SHOULD BE enhanced with list of client-ref-beneficiary ids*/
-        List<String> SEIds = getPrimaryIds(tenantId, taskClientRefIds, "taskClientReferenceId", "SIDE_EFFECT", criteria.getLastSyncedTime());
+        List<String> SEIds = getPrimaryIds(tenantId, taskClientRefIds, Constants.FIELD_TASK_CLIENT_REFERENCE_ID, Constants.TABLE_SIDE_EFFECT, criteria.getLastSyncedTime());
 
         if(CollectionUtils.isEmpty(SEIds))
             return;
@@ -575,6 +585,55 @@ public class DownsyncService {
         downsync.setReferrals(allReferrals);
     }
 
+
+    /**
+     * Searches for HFReferrals by projectId and sets them in the downsync object.
+     * HFReferrals can be directly created by Distributors, so they are fetched by projectId.
+     */
+    private void hfReferralSearch(DownsyncRequest downsyncRequest, Downsync downsync) throws InvalidTenantIdException {
+
+        DownsyncCriteria criteria = downsyncRequest.getDownsyncCriteria();
+        RequestInfo requestInfo = downsyncRequest.getRequestInfo();
+
+        List<String> hfReferralIds = getPrimaryIds(
+                criteria.getTenantId(),
+                Collections.singletonList(criteria.getProjectId()),
+                Constants.FIELD_PROJECT_ID,
+                Constants.TABLE_HF_REFERRAL,
+                criteria.getLastSyncedTime()
+        );
+
+        if (CollectionUtils.isEmpty(hfReferralIds))
+            return;
+
+        List<HFReferral> allHfReferrals = new ArrayList<>();
+        int batchSize = configs.getHfReferralSearchBatchSize();
+
+        for (int i = 0; i < hfReferralIds.size(); i += batchSize) {
+            List<String> batch = getIdsForBatch(batchSize, i, hfReferralIds);
+
+            HFReferralSearch search = HFReferralSearch.builder()
+                    .id(batch)
+                    .build();
+
+            HFReferralSearchRequest searchRequest = HFReferralSearchRequest.builder()
+                    .hfReferral(search)
+                    .requestInfo(requestInfo)
+                    .build();
+
+            List<HFReferral> hfReferrals = hfReferralService.search(
+                    searchRequest,
+                    batchSize,
+                    0,
+                    criteria.getTenantId(),
+                    criteria.getLastSyncedTime(),
+                    criteria.getIncludeDeleted()
+            ).getResponse();
+            allHfReferrals.addAll(hfReferrals);
+        }
+
+        downsync.setHfReferrals(allHfReferrals);
+    }
 
     /**
      * common method to fetch Ids with list of relation Ids like id of member with householdIds

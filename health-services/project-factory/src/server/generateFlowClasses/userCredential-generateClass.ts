@@ -6,6 +6,7 @@ import { searchBoundaryRelationshipData, searchBoundaryRelationshipDefinition } 
 import { logger } from "../utils/logger";
 import { dataRowStatuses, sheetDataRowStatuses } from "../config/constants";
 import { decrypt } from "../utils/cryptUtils";
+import { WorkerRegistryRecord, searchWorkersByIds } from "../utils/workerRegistryUtils";
 
 // This will be a dynamic template class for different types
 export class TemplateClass {
@@ -24,6 +25,34 @@ export class TemplateClass {
 
         // Prepare User List sheet
         const users = await getRelatedDataWithCampaign("user", campaignDetails?.campaignNumber, tenantId, dataRowStatuses.completed);
+
+        // Fetch decrypted payee details from worker registry for all users that have a stored workerId.
+        // Worker registry always decrypts fields server-side on search, so this guarantees plain-text values
+        // regardless of whether the DIGIT PII encryption service was available during batch processing.
+        const workerIdToWorkerMap = new Map<string, WorkerRegistryRecord>();
+        const requestInfo = responseToSend?.requestInfo;
+        if (requestInfo) {
+            const workerIds: string[] = users
+                .map((u: any) => u?.data?.["HCM_ADMIN_CONSOLE_USER_WORKER_ID"])
+                .filter((id: any): id is string => !!id);
+
+            if (workerIds.length > 0) {
+                try {
+                    const workers = await searchWorkersByIds(workerIds, tenantId, requestInfo);
+                    for (const worker of workers) {
+                        if (worker?.id) {
+                            workerIdToWorkerMap.set(worker.id, worker);
+                        }
+                    }
+                    logger.info(`Fetched ${workers.length} workers from worker registry for credential sheet`);
+                } catch (workerSearchError) {
+                    logger.error("Failed to fetch worker details for credential sheet — payee fields will fall back to stored values", workerSearchError);
+                }
+            }
+        } else {
+            logger.warn("requestInfo not available in responseToSend — skipping worker registry search for credential sheet");
+        }
+
         const userData = await Promise.all(users.map(async (u: any, idx: number) => {
             logger.info(`Decrypting item number ${idx + 1}`);
             const rawData = u?.data || {};
@@ -36,6 +65,23 @@ export class TemplateClass {
             localizedData["#status#"] = sheetDataRowStatuses.CREATED;
             localizedData["UserName"] = decrypt(rawData["UserName"]);
             localizedData["Password"] = decrypt(rawData["Password"]);
+
+            // Overlay decrypted payee details from worker registry search result.
+            // This replaces any potentially encrypted values that may have been stored
+            // in campaign_data during batch processing.
+            const workerId = rawData["HCM_ADMIN_CONSOLE_USER_WORKER_ID"];
+            if (workerId) {
+                const worker = workerIdToWorkerMap.get(workerId);
+                if (worker) {
+                    if (worker.payeeName) localizedData["HCM_ADMIN_CONSOLE_USER_PAYEE_NAME"] = worker.payeeName;
+                    if (worker.bankAccount) localizedData["HCM_ADMIN_CONSOLE_USER_BANK_ACCOUNT"] = worker.bankAccount;
+                    if (worker.bankCode) localizedData["HCM_ADMIN_CONSOLE_USER_BANK_CODE"] = worker.bankCode;
+                    if (worker.beneficiaryCode) localizedData["HCM_ADMIN_CONSOLE_USER_BENEFICIARY_CODE"] = worker.beneficiaryCode;
+                    if (worker.paymentProvider) localizedData["HCM_ADMIN_CONSOLE_USER_PAYMENT_PROVIDER"] = worker.paymentProvider;
+                    if (worker.payeePhoneNumber) localizedData["HCM_ADMIN_CONSOLE_USER_PAYEE_PHONE_NUMBER"] = worker.payeePhoneNumber;
+                }
+            }
+
             const boundaryCode = localizedData["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"] ;
             // Add localized boundary code
             if (boundaryCode && !localizedData["HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY"]){
@@ -179,7 +225,7 @@ export class TemplateClass {
 
             boundaryTypes.forEach((type: string, index: number) => {
                 const key = `${hierarchyType}_${type}`.toUpperCase();
-                result[key] = { orderNumber: -1 * (total - index), adjustHeight: true, color: '#f3842d', freezeColumn: true };
+                result[key] = { orderNumber: -1 * (total - index), adjustHeight: true, color: '#93c47d', freezeColumn: true };
             });
             result["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"] = { adjustHeight: true, width: 80, freezeColumn: true };
             logger.info(`Dynamic columns prepared for boundary data.`);

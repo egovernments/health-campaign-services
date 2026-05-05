@@ -1,7 +1,7 @@
+import { RequestInfo } from "../config/models/requestInfoSchema";
 import config from "../config"; // Import configuration settings
 import { httpRequest } from "../utils/request"; // Import httpRequest function for making HTTP requests
 import { logger } from "../utils/logger"; // Import logger for logging information and errors
-import { defaultRequestInfo } from "./coreApis"; // Import default request information
 
 /**
  * Searches for facilities associated with a specific plan configuration.
@@ -11,14 +11,15 @@ import { defaultRequestInfo } from "./coreApis"; // Import default request infor
  */
 export const searchPlanFacility = async (
   planConfigId: string,
-  tenantId: string
+  tenantId: string,
+  requestInfo?: RequestInfo
 ) => {
   const searchBody = {
     PlanFacilitySearchCriteria: {
       tenantId: tenantId,
       planConfigurationId: planConfigId,
     },
-    ...defaultRequestInfo, // Include default request metadata
+    RequestInfo: requestInfo,
   };
   logger.info(
     `Received a search request for plan facility with ID: ${planConfigId}`
@@ -40,7 +41,8 @@ export const searchPlanFacility = async (
 export const searchPlan = async (
   planConfigId: string,
   tenantId: string,
-  limit:number=1
+  limit: number = 1,
+  requestInfo?: RequestInfo
 ) => {
   const searchBody = {
     PlanSearchCriteria: {
@@ -51,7 +53,7 @@ export const searchPlan = async (
       limit: limit, // Limit the response to 1 result
       offset: 0, // Start from the first result
     },
-    ...defaultRequestInfo, // Include default request metadata
+    RequestInfo: requestInfo,
   };
   logger.info(
     `Received a search request for plans with ID: ${planConfigId}`
@@ -73,18 +75,18 @@ export const searchPlan = async (
 export const searchPlanCensus = async (
   planConfigId: string,
   tenantId: string,
-  limit:number=1
+  limit: number = 1,
+  requestInfo?: RequestInfo
 ) => {
   const searchBody = {
     CensusSearchCriteria: {
       tenantId: tenantId,
       source: planConfigId, // Use planConfigId as the source of the census data
       // areaCodes: boundaryCodes, // Specify area codes for the search
-      offset:0,
-      limit:limit,
+      offset: 0,
+      limit: limit,
     },
-
-    ...defaultRequestInfo, // Include default request metadata
+    RequestInfo: requestInfo,
   };
   logger.info(
     `Received a search request for census data with ID: ${planConfigId}`
@@ -104,14 +106,15 @@ export const searchPlanCensus = async (
  */
 export const searchPlanConfig = async (
   planConfigId: string,
-  tenantId: string
+  tenantId: string,
+  requestInfo?: RequestInfo
 ) => {
   const searchBody = {
     PlanConfigurationSearchCriteria: {
       tenantId: tenantId,
       id: planConfigId, // Specify the plan configuration ID
     },
-    ...defaultRequestInfo, // Include default request metadata
+    RequestInfo: requestInfo,
   };
   logger.info(
     `Received a search request for plan configuration with ID: ${planConfigId}`

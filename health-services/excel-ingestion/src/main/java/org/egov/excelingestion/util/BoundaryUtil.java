@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.egov.excelingestion.service.BoundaryService;
 import org.egov.excelingestion.service.CampaignService;
 import org.egov.excelingestion.web.models.*;
+import org.egov.common.contract.request.RequestInfo;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Component;
 
@@ -47,22 +48,32 @@ public class BoundaryUtil {
         }
         
         Set<String> processedCodes = new HashSet<>();
-        
-        // Find root boundary
-        Boundary rootBoundary = boundaries.stream()
-                .filter(b -> Boolean.TRUE.equals(b.getIsRoot()))
-                .findFirst()
-                .orElse(null);
-                
-        if (rootBoundary == null) {
-            log.error("No root boundary found in the boundaries list");
+
+        // Find starting boundaries: those whose parent is null or whose parent is not in the enriched list.
+        // This handles campaigns where boundaries start at a non-top level (e.g. Province-level boundaries
+        // whose geographic parent Country is not itself a campaign boundary).
+        Set<String> allCodes = boundaries.stream()
+                .map(Boundary::getCode)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        List<Boundary> startingBoundaries = boundaries.stream()
+                .filter(b -> b.getParent() == null || !allCodes.contains(b.getParent()))
+                .collect(Collectors.toList());
+
+        if (startingBoundaries.isEmpty()) {
+            log.error("No starting boundaries found in the boundaries list");
             return boundaryRows;
         }
-        
-        // Process boundaries starting from root
-        processBoundary(rootBoundary, boundaries, codeToEnrichedBoundary, boundaryRows, 
-                       processedCodes, new ArrayList<>(), levelTypes);
-        
+
+        log.info("Processing {} starting boundaries", startingBoundaries.size());
+
+        // Process each starting boundary independently
+        for (Boundary startBoundary : startingBoundaries) {
+            processBoundary(startBoundary, boundaries, codeToEnrichedBoundary, boundaryRows,
+                           processedCodes, new ArrayList<>(), levelTypes);
+        }
+
         return boundaryRows;
     }
 

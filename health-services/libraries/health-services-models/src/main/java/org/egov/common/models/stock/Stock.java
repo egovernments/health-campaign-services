@@ -1,5 +1,6 @@
 package org.egov.common.models.stock;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.Valid;
@@ -80,6 +81,7 @@ public class Stock extends EgovOfflineModel {
     private SenderReceiverType receiverType;
 
     @JsonProperty("wayBillNumber")
+    @JsonAlias({"waybillNumber"})
     @Size(min = 2, max = 200)
     private String wayBillNumber;
 
@@ -90,6 +92,10 @@ public class Stock extends EgovOfflineModel {
 
     @JsonProperty("dateOfEntry")
     private Long dateOfEntry;
+
+    @JsonProperty("campaignNumber")
+    @Size(min = 2, max = 64)
+    private String campaignNumber;
 
 }
 
