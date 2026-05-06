@@ -45,6 +45,9 @@ public class Downsync {
     @JsonProperty("Referrals")
     private List<Referral> Referrals;
 
+    @JsonProperty("BeneficiaryInfo")
+    private List<BeneficiaryInfo> BeneficiaryInfo;
+
     @JsonProperty("Services")
     private List<Service> services;
     
