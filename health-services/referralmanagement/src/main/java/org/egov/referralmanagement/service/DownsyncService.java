@@ -280,6 +280,12 @@ public class DownsyncService {
         return allIndividuals.stream().map(Individual::getClientReferenceId).collect(Collectors.toList());
     }
 
+    /** Builds and sets the BeneficiaryInfo list on the downsync object by joining household members
+     * with their individual, household, task status and referral data.
+     *
+     * @param downsync    downsync object holding all fetched entities
+     * @param hfReferrals HF referrals used to determine BeneficiaryReferred status
+     */
     private void constructBeneficiaryInfo(Downsync downsync, List<HFReferral> hfReferrals) {
         if (CollectionUtils.isEmpty(downsync.getHouseholdMembers()) || CollectionUtils.isEmpty(downsync.getIndividuals())) {
             downsync.setBeneficiaryInfo(Collections.emptyList());
@@ -324,6 +330,17 @@ public class DownsyncService {
         downsync.setBeneficiaryInfo(beneficiaryInfo);
     }
 
+    /** Maps a household member and its related individual, household, task status and referral
+     * into a flattened BeneficiaryInfo. Returns null if the individual is not found.
+     *
+     * @param householdMember         household member record
+     * @param individual              corresponding individual; null if not found
+     * @param household               corresponding household; null if not found
+     * @param taskStatusByKey         lookup map of latest task status keyed by beneficiary identifiers
+     * @param referredBeneficiaryKeys lookup map of latest referral keyed by beneficiary identifiers
+     * @param projectBeneficiaryByKey lookup map of project beneficiary keyed by all its identifiers
+     * @return populated BeneficiaryInfo, or null if individual is absent
+     */
     private BeneficiaryInfo toBeneficiaryInfo(HouseholdMember householdMember,
                                               Individual individual,
                                               Household household,
@@ -378,8 +395,13 @@ public class DownsyncService {
                 .build();
     }
 
-    // Indexes each ProjectBeneficiary by all 4 identifiers so tasks and referrals can be
-    // looked up regardless of which identifier a given service used when creating them.
+    /** Builds a lookup map of ProjectBeneficiary indexed by all 4 of its identifiers
+     * (id, clientReferenceId, beneficiaryId, beneficiaryClientReferenceId) so that tasks
+     * and referrals can be resolved regardless of which identifier a given service used.
+     *
+     * @param projectBeneficiaries list of project beneficiaries to index
+     * @return map from any beneficiary identifier to its ProjectBeneficiary
+     */
     private Map<String, ProjectBeneficiary> buildProjectBeneficiaryByKey(List<ProjectBeneficiary> projectBeneficiaries) {
         Map<String, ProjectBeneficiary> projectBeneficiaryByKey = new HashMap<>();
         if (CollectionUtils.isEmpty(projectBeneficiaries)) {
@@ -395,6 +417,13 @@ public class DownsyncService {
         return projectBeneficiaryByKey;
     }
 
+    /** Inserts the ProjectBeneficiary into the map under the given key only if the key is non-null
+     * and not already present (first-write wins to avoid overwriting with a less-specific lookup).
+     *
+     * @param projectBeneficiaryByKey target map
+     * @param key                     identifier key; skipped if null
+     * @param projectBeneficiary      value to insert
+     */
     private void putProjectBeneficiaryIfNotNull(Map<String, ProjectBeneficiary> projectBeneficiaryByKey,
                                                 String key,
                                                 ProjectBeneficiary projectBeneficiary) {
@@ -403,11 +432,16 @@ public class DownsyncService {
         }
     }
 
-    // Builds a map from every beneficiary identifier to its latest task status.
-    // Expanding to all ProjectBeneficiary keys ensures the status can be found by individual/household ID
-    // during candidate-key resolution, regardless of which identifier the task references.
-    // merge() with LatestTaskStatus::latest retains only the most recently created task per key,
-    // collapsing multi-cycle/dose history to a single status for display.
+    /** Builds a lookup map from every beneficiary identifier to its latest task status.
+     * Each task is also indexed by the underlying individual/household identifiers via
+     * the ProjectBeneficiary lookup so that resolution works by any candidate key.
+     * When a beneficiary has tasks across multiple cycles or doses, merge retains only
+     * the most recently created task per key.
+     *
+     * @param tasks                   list of tasks to index
+     * @param projectBeneficiaryByKey lookup map used to expand task keys to individual/household IDs
+     * @return map from any beneficiary identifier to its latest LatestTaskStatus
+     */
     private Map<String, LatestTaskStatus> buildTaskStatusByKey(List<Task> tasks,
                                                                Map<String, ProjectBeneficiary> projectBeneficiaryByKey) {
         Map<String, LatestTaskStatus> taskStatusByKey = new HashMap<>();
@@ -434,6 +468,13 @@ public class DownsyncService {
         return taskStatusByKey;
     }
 
+    /** Merges the given task status into the map under the given key, retaining the more
+     * recently created status when the key already exists. Skips null keys.
+     *
+     * @param taskStatusByKey target map
+     * @param key             identifier key; skipped if null
+     * @param taskStatus      task status to merge
+     */
     private void putTaskStatusIfNotNull(Map<String, LatestTaskStatus> taskStatusByKey,
                                         String key,
                                         LatestTaskStatus taskStatus) {
@@ -442,9 +483,14 @@ public class DownsyncService {
         }
     }
 
-    // Builds a map from every beneficiary identifier to its latest non-deleted HFReferral.
-    // HFReferrals store beneficiaryId which may be a PB id, so we expand to all PB keys
-    // to allow referral lookup by individual/household ID during candidate-key resolution.
+    /** Builds a lookup map from every beneficiary identifier to its latest non-deleted HFReferral.
+     * Since HFReferrals store a beneficiaryId that may be any ProjectBeneficiary identifier,
+     * the map is expanded to all PB keys so referrals can be found during candidate-key resolution.
+     *
+     * @param hfReferrals             list of HF referrals to index
+     * @param projectBeneficiaryByKey lookup map used to expand referral keys to individual/household IDs
+     * @return map from any beneficiary identifier to its latest LatestReferral
+     */
     private Map<String, LatestReferral> buildReferredBeneficiaryKeys(List<HFReferral> hfReferrals,
                                                                     Map<String, ProjectBeneficiary> projectBeneficiaryByKey) {
         if (CollectionUtils.isEmpty(hfReferrals)) {
@@ -474,6 +520,13 @@ public class DownsyncService {
         return referredBeneficiaryKeys;
     }
 
+    /** Merges the given referral into the map under the given key, retaining the more
+     * recent referral when the key already exists. Skips null keys.
+     *
+     * @param referredBeneficiaryKeys target map
+     * @param key                     identifier key; skipped if null
+     * @param referral                referral to merge
+     */
     private void putReferralTimeIfNotNull(Map<String, LatestReferral> referredBeneficiaryKeys,
                                           String key,
                                           LatestReferral referral) {
@@ -482,9 +535,19 @@ public class DownsyncService {
         }
     }
 
-    // Resolves the display status for a beneficiary by combining task history and referral state.
-    // BeneficiaryReferred takes priority over any task status when a referral matches the
-    // current cycle/dose — or when there are no tasks at all (referral without prior delivery).
+    /** Resolves the display taskStatus string for a beneficiary by combining task history
+     * and referral state across all possible beneficiary identifier keys.
+     * Returns "BeneficiaryReferred" when an active referral matches the current cycle/dose,
+     * or when a referral exists and no tasks have been recorded yet.
+     *
+     * @param individual              the individual to resolve status for
+     * @param householdMember         the household member record
+     * @param household               the household; may be null
+     * @param taskStatusByKey         lookup map of latest task status by beneficiary identifier
+     * @param referredBeneficiaryKeys lookup map of latest referral by beneficiary identifier
+     * @param projectBeneficiaryByKey lookup map used to expand candidate keys
+     * @return resolved status string, or null if no tasks and no referrals exist
+     */
     private String resolveTaskStatus(Individual individual,
                                      HouseholdMember householdMember,
                                      Household household,
@@ -511,6 +574,16 @@ public class DownsyncService {
         return latestTaskStatus == null ? null : latestTaskStatus.status();
     }
 
+    /** Collects all possible lookup keys for a beneficiary — individual IDs, household IDs,
+     * and all ProjectBeneficiary identifiers — used to look up task status and referrals
+     * from their respective maps.
+     *
+     * @param individual              source individual
+     * @param householdMember         source household member
+     * @param household               source household; may be null
+     * @param projectBeneficiaryByKey used to expand initial keys to all ProjectBeneficiary identifiers
+     * @return deduplicated list of all identifier keys for this beneficiary
+     */
     private List<String> getBeneficiaryCandidateKeys(Individual individual,
                                                      HouseholdMember householdMember,
                                                      Household household,
@@ -541,6 +614,11 @@ public class DownsyncService {
         return candidateKeys.stream().distinct().collect(Collectors.toList());
     }
 
+    /** Adds the key to the list only if it is non-null.
+     *
+     * @param keys target list
+     * @param key  value to add; skipped if null
+     */
     private void addIfNotNull(List<String> keys, String key) {
         if (key != null) {
             keys.add(key);
