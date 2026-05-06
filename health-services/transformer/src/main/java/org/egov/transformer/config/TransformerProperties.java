@@ -248,4 +248,14 @@ public class TransformerProperties {
 
     @Value("${transformer.producer.billdetail.index.v1.topic}")
     private String transformerProducerBillDetailIndexV1Topic;
+
+    @Value("${egov.bill.service.host}")
+    private String billServiceHost;
+
+    @Value("${egov.bill.search.url}")
+    private String billSearchUrl;
+
+    @Value("${transformer.producer.billreport.index.v1.topic}")
+    private String transformerProducerBillReportIndexV1Topic;
+
 }
