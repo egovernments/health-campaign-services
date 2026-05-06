@@ -1,0 +1,128 @@
+serviceMaps:
+  serviceName: boundary-management-service
+  mappings:
+    - version: 1.0
+      description: Creates generated boundary template record
+      fromTopic: create-generated-boundary-management
+      isTransaction: true
+      queryMaps:
+        - query: INSERT INTO eg_bm_generated_template (id, filestoreid, status, tenantid, hierarchytype, locale, createdby, createdtime, lastmodifiedby, lastmodifiedtime, additionaldetails, referenceid) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?) ON CONFLICT (id) DO NOTHING;
+          basePath: $.generatedResource.*
+          jsonMaps:
+            - jsonPath: $.generatedResource.*.id
+
+            - jsonPath: $.generatedResource.*.fileStoreid
+
+            - jsonPath: $.generatedResource.*.status
+
+            - jsonPath: $.generatedResource.*.tenantId
+
+            - jsonPath: $.generatedResource.*.hierarchyType
+
+            - jsonPath: $.generatedResource.*.locale
+
+            - jsonPath: $.generatedResource.*.auditDetails.createdBy
+              dbType: STRING
+              defaultValue: "system"
+
+            - jsonPath: $.generatedResource.*.auditDetails.createdTime
+
+            - jsonPath: $.generatedResource.*.auditDetails.lastModifiedBy
+              dbType: STRING
+              defaultValue: "system"
+
+            - jsonPath: $.generatedResource.*.auditDetails.lastModifiedTime
+
+            - jsonPath: $.generatedResource.*.additionalDetails
+              type: JSON
+              dbType: JSONB
+
+            - jsonPath: $.generatedResource.*.referenceId
+
+    - version: 1.0
+      description: Updates generated boundary template record
+      fromTopic: update-generated-boundary-management
+      isTransaction: true
+      queryMaps:
+        - query: UPDATE eg_bm_generated_template SET filestoreid = ?, status = ?, lastmodifiedby = ?, lastmodifiedtime = ?, additionaldetails = ?::jsonb WHERE id = ?;
+          basePath: $.generatedResource.*
+          jsonMaps:
+            - jsonPath: $.generatedResource.*.fileStoreid
+
+            - jsonPath: $.generatedResource.*.status
+
+            - jsonPath: $.generatedResource.*.auditDetails.lastModifiedBy
+              dbType: STRING
+              defaultValue: "system"
+
+            - jsonPath: $.generatedResource.*.auditDetails.lastModifiedTime
+
+            - jsonPath: $.generatedResource.*.additionalDetails
+              type: JSON
+              dbType: JSONB
+
+            - jsonPath: $.generatedResource.*.id
+
+    - version: 1.0
+      description: Creates processed boundary template record
+      fromTopic: create-processed-boundary-management
+      isTransaction: true
+      queryMaps:
+        - query: INSERT INTO eg_bm_processed_template (id, status, tenantid, hierarchytype, filestoreid, processedfilestoreid, action, createdby, createdtime, lastmodifiedby, lastmodifiedtime, additionaldetails, referenceid) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?) ON CONFLICT (id) DO NOTHING;
+          basePath: $.processedResource.*
+          jsonMaps:
+            - jsonPath: $.processedResource.*.id
+
+            - jsonPath: $.processedResource.*.status
+
+            - jsonPath: $.processedResource.*.tenantId
+
+            - jsonPath: $.processedResource.*.hierarchyType
+
+            - jsonPath: $.processedResource.*.fileStoreid
+
+            - jsonPath: $.processedResource.*.processedFileStoreid
+
+            - jsonPath: $.processedResource.*.action
+
+            - jsonPath: $.processedResource.*.auditDetails.createdBy
+              dbType: STRING
+              defaultValue: "system"
+
+            - jsonPath: $.processedResource.*.auditDetails.createdTime
+
+            - jsonPath: $.processedResource.*.auditDetails.lastModifiedBy
+              dbType: STRING
+              defaultValue: "system"
+
+            - jsonPath: $.processedResource.*.auditDetails.lastModifiedTime
+
+            - jsonPath: $.processedResource.*.additionalDetails
+              type: JSON
+              dbType: JSONB
+
+            - jsonPath: $.processedResource.*.referenceId
+
+    - version: 1.0
+      description: Updates processed boundary template record
+      fromTopic: update-processed-boundary-management
+      isTransaction: true
+      queryMaps:
+        - query: UPDATE eg_bm_processed_template SET status = ?, processedfilestoreid = ?, lastmodifiedby = ?, lastmodifiedtime = ?, additionaldetails = ?::jsonb WHERE id = ?;
+          basePath: $.processedResource.*
+          jsonMaps:
+            - jsonPath: $.processedResource.*.status
+
+            - jsonPath: $.processedResource.*.processedFileStoreid
+
+            - jsonPath: $.processedResource.*.auditDetails.lastModifiedBy
+              dbType: STRING
+              defaultValue: "system"
+
+            - jsonPath: $.processedResource.*.auditDetails.lastModifiedTime
+
+            - jsonPath: $.processedResource.*.additionalDetails
+              type: JSON
+              dbType: JSONB
+
+            - jsonPath: $.processedResource.*.id

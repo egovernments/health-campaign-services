@@ -1,0 +1,228 @@
+_format_version: '3.0'
+_transform: true
+
+consumers:
+- username: digit-dev
+  keyauth_credentials:
+  - key: digit-dev-api-key-change-me
+  tags: [development]
+- username: digit-admin
+  keyauth_credentials:
+  - key: digit-admin-api-key-change-me
+  tags: [admin]
+
+plugins:
+- name: cors
+  config:
+    origins: ['*']
+    methods: [GET, POST, PUT, PATCH, DELETE, OPTIONS]
+    headers: [Accept, Accept-Version, Content-Length, Content-Type, Authorization, X-API-Key, X-Requested-With, auth-token]
+    exposed_headers: [X-Auth-Token]
+    credentials: true
+    max_age: 3600
+- name: request-size-limiting
+  config:
+    allowed_payload_size: 50
+    size_unit: megabytes
+
+services:
+  # ==================== CORE DIGIT ====================
+  - name: mdms-service
+    url: http://egov-mdms-service:8094
+    routes:
+    - name: mdms-route
+      paths: [/mdms-v2]
+      strip_path: false
+    - name: mdms-v1-compat-route
+      paths: [/egov-mdms-service]
+      strip_path: false
+
+  - name: user-service
+    url: http://egov-user:8107
+    routes:
+    - name: user-route
+      paths: [/user]
+      strip_path: false
+  - name: user-auth-public
+    url: http://egov-user:8107
+    routes:
+    - name: user-oauth-route
+      paths: [/user/oauth/token]
+      strip_path: false
+      methods: [POST]
+
+  - name: enc-service
+    url: http://egov-enc-service:1234
+    routes:
+    - name: enc-route
+      paths: [/egov-enc-service]
+      strip_path: false
+
+  - name: idgen-service
+    url: http://egov-idgen:8088
+    routes:
+    - name: idgen-route
+      paths: [/egov-idgen]
+      strip_path: false
+
+  - name: workflow-service
+    url: http://egov-workflow-v2:8109
+    routes:
+    - name: workflow-route
+      paths: [/egov-workflow-v2]
+      strip_path: false
+
+  - name: localization-service
+    url: http://egov-localization:8096
+    routes:
+    - name: localization-route
+      paths: [/localization]
+      strip_path: false
+
+  - name: boundary-service
+    url: http://boundary-service:8081
+    routes:
+    - name: boundary-route
+      paths: [/boundary-service]
+      strip_path: false
+
+  - name: accesscontrol-service
+    url: http://egov-accesscontrol:8090
+    routes:
+    - name: accesscontrol-route
+      paths: [/access]
+      strip_path: false
+
+  - name: persister-service
+    url: http://egov-persister:8091
+    routes:
+    - name: persister-route
+      paths: [/common-persist]
+      strip_path: false
+
+  - name: filestore-service
+    url: http://egov-filestore:8083
+    routes:
+    - name: filestore-route
+      paths: [/filestore]
+      strip_path: false
+
+  - name: url-shortening-service
+    url: http://egov-url-shortening:8080
+    routes:
+    - name: url-shortening-route
+      paths: [/egov-url-shortening]
+      strip_path: false
+
+  # ==================== HCM SERVICES ====================
+  - name: health-hrms-service
+    url: http://health-hrms:8080
+    routes:
+    - name: health-hrms-route
+      paths: [/health-hrms]
+      strip_path: false
+
+  - name: beneficiary-idgen-service
+    url: http://beneficiary-idgen:8080
+    routes:
+    - name: beneficiary-idgen-route
+      paths: [/beneficiary-idgen]
+      strip_path: false
+
+  - name: health-individual-service
+    url: http://health-individual:8080
+    routes:
+    - name: health-individual-route
+      paths: [/health-individual]
+      strip_path: false
+
+  - name: household-service
+    url: http://household:8080
+    routes:
+    - name: household-route
+      paths: [/household]
+      strip_path: false
+
+  - name: facility-service
+    url: http://facility:8080
+    routes:
+    - name: facility-route
+      paths: [/facility]
+      strip_path: false
+
+  - name: product-service
+    url: http://product:8080
+    routes:
+    - name: product-route
+      paths: [/product]
+      strip_path: false
+
+  - name: health-project-service
+    url: http://health-project:8080
+    routes:
+    - name: health-project-route
+      paths: [/health-project]
+      strip_path: false
+
+  - name: stock-service
+    url: http://stock:8080
+    routes:
+    - name: stock-route
+      paths: [/stock]
+      strip_path: false
+
+  - name: referralmanagement-service
+    url: http://referralmanagement:8080
+    routes:
+    - name: referralmanagement-route
+      paths: [/referralmanagement]
+      strip_path: false
+
+  # ==================== HEALTH CHECK PROBES ====================
+  - name: health-mdms
+    url: http://egov-mdms-service:8094
+    routes:
+    - name: health-mdms-route
+      paths: [/health/mdms]
+      strip_path: true
+    plugins:
+    - name: request-transformer
+      config:
+        replace:
+          uri: /mdms-v2/health
+
+  - name: health-user
+    url: http://egov-user:8107
+    routes:
+    - name: health-user-route
+      paths: [/health/user]
+      strip_path: true
+    plugins:
+    - name: request-transformer
+      config:
+        replace:
+          uri: /user/health
+
+  - name: health-individual-probe
+    url: http://health-individual:8080
+    routes:
+    - name: health-individual-probe-route
+      paths: [/health/individual]
+      strip_path: true
+    plugins:
+    - name: request-transformer
+      config:
+        replace:
+          uri: /health-individual/health
+
+  - name: health-project-probe
+    url: http://health-project:8080
+    routes:
+    - name: health-project-probe-route
+      paths: [/health/project]
+      strip_path: true
+    plugins:
+    - name: request-transformer
+      config:
+        replace:
+          uri: /health-project/health

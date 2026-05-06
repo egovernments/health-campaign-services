@@ -1,0 +1,203 @@
+# Gatus Configuration for HCM (Health Campaign Management) Services
+# https://github.com/TwiN/gatus
+
+storage:
+  type: memory
+
+ui:
+  title: HCM Services - Health Dashboard
+  description: Real-time health monitoring for all HCM microservices
+
+endpoints:
+  # ==================== Infrastructure ====================
+  - name: PostgreSQL
+    group: Infrastructure
+    url: "tcp://postgres:5432"
+    interval: 30s
+    conditions:
+      - "[CONNECTED] == true"
+
+  - name: Redis
+    group: Infrastructure
+    url: "tcp://redis:6379"
+    interval: 30s
+    conditions:
+      - "[CONNECTED] == true"
+
+  - name: Redpanda (Kafka)
+    group: Infrastructure
+    url: "tcp://redpanda:9092"
+    interval: 30s
+    conditions:
+      - "[CONNECTED] == true"
+
+  - name: MinIO
+    group: Infrastructure
+    url: "http://minio:9000/minio/health/live"
+    interval: 30s
+    conditions:
+      - "[STATUS] == 200"
+
+  # ==================== Core DIGIT Services ====================
+  - name: MDMS Service
+    group: Core Services
+    url: "http://egov-mdms-service:8094/mdms-v2/health"
+    interval: 30s
+    conditions:
+      - "[STATUS] == 200"
+
+  - name: Encryption Service
+    group: Core Services
+    url: "http://egov-enc-service:1234/egov-enc-service/actuator/health"
+    interval: 30s
+    conditions:
+      - "[STATUS] == 200"
+
+  - name: ID Generation Service
+    group: Core Services
+    url: "http://egov-idgen:8088/egov-idgen/health"
+    interval: 30s
+    conditions:
+      - "[STATUS] == 200"
+
+  - name: User Service
+    group: Core Services
+    url: "http://egov-user:8107/user/health"
+    interval: 30s
+    conditions:
+      - "[STATUS] == 200"
+
+  - name: Workflow Service
+    group: Core Services
+    url: "http://egov-workflow-v2:8109/egov-workflow-v2/health"
+    interval: 30s
+    conditions:
+      - "[STATUS] == 200"
+
+  - name: Localization Service
+    group: Core Services
+    url: "http://egov-localization:8096/localization/actuator/health"
+    interval: 30s
+    conditions:
+      - "[STATUS] == 200"
+
+  - name: Boundary Service
+    group: Core Services
+    url: "http://boundary-service:8081/boundary-service/actuator/health"
+    interval: 30s
+    conditions:
+      - "[STATUS] == 200"
+
+  - name: Access Control Service
+    group: Core Services
+    url: "http://egov-accesscontrol:8090/access/health"
+    interval: 30s
+    conditions:
+      - "[STATUS] == 200"
+
+  - name: Persister Service
+    group: Core Services
+    url: "http://egov-persister:8091/common-persist/actuator/health"
+    interval: 30s
+    conditions:
+      - "[STATUS] == 200"
+
+  - name: Filestore Service
+    group: Core Services
+    url: "http://egov-filestore:8083/filestore/health"
+    interval: 30s
+    conditions:
+      - "[STATUS] == 200"
+
+  - name: URL Shortening Service
+    group: Core Services
+    url: "http://egov-url-shortening:8080/egov-url-shortening/actuator/health"
+    interval: 30s
+    conditions:
+      - "[STATUS] == 200"
+
+  # ==================== API Gateway ====================
+  - name: Kong Gateway (Proxy)
+    group: API Gateway
+    url: "http://kong:8000/"
+    interval: 30s
+    conditions:
+      - "[STATUS] < 500"
+
+  - name: Kong Admin API
+    group: API Gateway
+    url: "http://kong:8001/"
+    interval: 30s
+    conditions:
+      - "[STATUS] == 200"
+
+  - name: Kong Status
+    group: API Gateway
+    url: "http://kong:8100/status"
+    interval: 30s
+    conditions:
+      - "[STATUS] == 200"
+
+  # ==================== HCM Services ====================
+  - name: Health HRMS
+    group: HCM Services
+    url: "http://health-hrms:8080/health-hrms/actuator/health"
+    interval: 30s
+    conditions:
+      - "[STATUS] == 200"
+
+  - name: Beneficiary ID Generation
+    group: HCM Services
+    url: "http://beneficiary-idgen:8080/beneficiary-idgen/health"
+    interval: 30s
+    conditions:
+      - "[STATUS] == 200"
+
+  - name: Individual Service
+    group: HCM Services
+    url: "http://health-individual:8080/health-individual/actuator/health"
+    interval: 30s
+    conditions:
+      - "[STATUS] == 200"
+
+  - name: Household Service
+    group: HCM Services
+    url: "http://household:8080/household/actuator/health"
+    interval: 30s
+    conditions:
+      - "[STATUS] == 200"
+
+  - name: Facility Service
+    group: HCM Services
+    url: "http://facility:8080/facility/actuator/health"
+    interval: 30s
+    conditions:
+      - "[STATUS] == 200"
+
+  - name: Product Service
+    group: HCM Services
+    url: "http://product:8080/product/actuator/health"
+    interval: 30s
+    conditions:
+      - "[STATUS] == 200"
+
+  - name: Health Project Service
+    group: HCM Services
+    url: "http://health-project:8080/health-project/actuator/health"
+    interval: 30s
+    conditions:
+      - "[STATUS] == 200"
+
+  - name: Stock Service
+    group: HCM Services
+    url: "http://stock:8080/stock/actuator/health"
+    interval: 30s
+    conditions:
+      - "[STATUS] == 200"
+
+  - name: Referral Management Service
+    group: HCM Services
+    url: "http://referralmanagement:8080/referralmanagement/actuator/health"
+    interval: 30s
+    conditions:
+      - "[STATUS] == 200"
