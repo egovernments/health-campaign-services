@@ -272,7 +272,7 @@ export async function handleProcessingResult(messageObject: any) {
                 
                 // Process campaign data from all sheets in parallel
                 logger.info('=== PROCESSING ALL CAMPAIGN DATA TYPES IN PARALLEL ===');
-                const [, , expectedUserCount] = await Promise.all([
+                const [expectedBoundaryCount, , expectedUserCount] = await Promise.all([
                     processCampaignBoundariesFromExcelData(
                         messageObject.tenantId,
                         messageObject.fileStoreId,
@@ -296,7 +296,7 @@ export async function handleProcessingResult(messageObject: any) {
 
                 // Trigger background resource creation and mapping flow
                 logger.info('=== TRIGGERING BACKGROUND RESOURCE CREATION FLOW ===');
-                await triggerBackgroundResourceCreationFlow(messageObject.tenantId, campaignDetails, parentCampaign, locale, createdByEmail, messageObject?.requestInfo, expectedUserCount);
+                await triggerBackgroundResourceCreationFlow(messageObject.tenantId, campaignDetails, parentCampaign, locale, createdByEmail, messageObject?.requestInfo, expectedUserCount, expectedBoundaryCount);
             } else {
                 throw new Error('No temp data found to process for campaign');
             }
@@ -334,7 +334,7 @@ async function processCampaignBoundariesFromExcelData(
     fileStoreId: string,
     localizationMap: Record<string, string>,
     campaignDetails: any
-): Promise<void> {
+): Promise<number> {
     try {
         logger.info('=== PROCESSING CAMPAIGN BOUNDARIES FROM EXCEL DATA ===');
         
@@ -423,12 +423,13 @@ async function processCampaignBoundariesFromExcelData(
         logger.info(`Mapped targets to ${allBoundaryDataWithTargets.length} total boundaries (all hierarchy levels)`);
 
         // Step 8: Process all boundary data (with cascaded targets) and update eg_cm_campaign_data
-        await processBoundaryDataInCampaignTable(campaignNumber, tenantId, allBoundaryDataWithTargets, targetColumns);
+        const boundaryRowCount = await processBoundaryDataInCampaignTable(campaignNumber, tenantId, allBoundaryDataWithTargets, targetColumns);
 
         // Step 9: Process resource-boundary mappings for campaign resources
         await processResourceBoundaryMappings(campaignNumber, tenantId, boundaries, campaignDetails);
 
         logger.info('=== CAMPAIGN BOUNDARY PROCESSING COMPLETED ===');
+        return boundaryRowCount;
 
     } catch (error) {
         logger.error('Error processing campaign boundaries from excel data:', error);
@@ -579,11 +580,11 @@ function enrichDatasForParents(boundaries: any[], datas: any[], targetColumns: s
  * Process boundary data and update eg_cm_campaign_data table
  */
 async function processBoundaryDataInCampaignTable(
-    campaignNumber: string, 
-    tenantId: string, 
+    campaignNumber: string,
+    tenantId: string,
     boundaryDataList: any[],
     targetColumns: string[]
-): Promise<void> {
+): Promise<number> {
     if (boundaryDataList.length === 0) {
         return;
     }
@@ -658,6 +659,8 @@ async function processBoundaryDataInCampaignTable(
     } else {
         logger.info(`Campaign data table updated: ${newEntries.length} new, ${updatedEntries.length} updated`);
     }
+
+    return newEntries.length + updatedEntries.length;
 }
 
 /**
@@ -873,21 +876,24 @@ async function monitorCampaignDataCompletion(
             }
             
             const status = await checkCampaignDataCompletionStatus(campaignNumber, tenantId);
-            
+
             logger.info(`Campaign ${campaignNumber} polling attempt ${attempt}/${maxAttempts}: ${status.completedRows}/${status.totalRows} completed, ${status.failedRows} failed, ${status.pendingRows} pending`);
-            
-            if (status.anyFailed) {
-                logger.error(`Campaign ${campaignNumber} has failed data entries. Marking campaign as failed.`);
-                const failureError = new Error(`Data creation failed: ${status.failedRows} out of ${status.totalRows} data entries failed`);
-                await sendCampaignFailureMessage(campaignId, tenantId, failureError);
-                throw failureError;
-            }
-            
-            if (status.allCompleted && status.totalRows > 0) {
-                logger.info(`Campaign ${campaignNumber} data creation completed successfully. All ${status.totalRows} entries are completed.`);
-                // Mark all creation processes as completed
-                await markCreationProcessesAsCompleted(campaignNumber, tenantId, userUuid);
-                return;
+
+            // Only act once all rows have settled (no pending) — failing immediately while other
+            // types are still in progress would create ghost resources that can't be recalled.
+            if (status.totalRows > 0 && status.pendingRows === 0) {
+                if (status.anyFailed) {
+                    logger.error(`Campaign ${campaignNumber} has failed data entries. Marking campaign as failed.`);
+                    const failureError = new Error(`Data creation failed: ${status.failedRows} out of ${status.totalRows} data entries failed`);
+                    await sendCampaignFailureMessage(campaignId, tenantId, failureError);
+                    throw failureError;
+                }
+
+                if (status.allCompleted) {
+                    logger.info(`Campaign ${campaignNumber} data creation completed successfully. All ${status.totalRows} entries are completed.`);
+                    await markCreationProcessesAsCompleted(campaignNumber, tenantId, userUuid);
+                    return;
+                }
             }
             
             // If not the last attempt, wait before next poll
@@ -1375,10 +1381,10 @@ async function processCampaignUsersFromExcelData(
 
         logger.info(`Processing ${phoneNumbers.length} unique phone numbers`);
 
-        // Simple user processing logic
-        await processUsersSimple(userSheetData, phoneNumbers, campaignNumber, tenantId);
+        const count = await processUsersSimple(userSheetData, phoneNumbers, campaignNumber, tenantId);
 
         logger.info('=== CAMPAIGN USERS PROCESSING COMPLETED ===');
+        return count;
 
     } catch (error) {
         logger.error('Error processing campaign users from excel data:', error);
@@ -1569,6 +1575,7 @@ async function triggerBackgroundResourceCreationFlow(
     createdByEmail?: string,
     requestInfo?: RequestInfo,
     expectedUserCount?: number,
+    expectedBoundaryCount?: number,
 ): Promise<void> {
     try {
         const useruuid = campaignDetails?.auditDetails?.createdBy;
@@ -1593,7 +1600,7 @@ async function triggerBackgroundResourceCreationFlow(
                 // Create Projects, Facilities, and Users in parallel along with data completion polling
                 logger.info('Creating projects, facilities, and users in parallel with data completion monitoring...');
                 await Promise.all([
-                    createProjectsFromBoundaryData(campaignDetails, tenantId, requestInfo),
+                    createProjectsFromBoundaryData(campaignDetails, tenantId, requestInfo, expectedBoundaryCount),
                     createFacilitiesFromFacilityData(campaignDetails, tenantId, requestInfo),
                     createUsersFromUserData(campaignDetails, tenantId, requestInfo, expectedUserCount),
                     monitorCampaignDataCompletion(campaignDetails.campaignNumber, tenantId, campaignDetails.id, campaignAlreadyFailed, useruuid)
@@ -1677,11 +1684,11 @@ async function triggerBackgroundResourceCreationFlow(
 /**
  * Create projects from boundary data following the same pattern as boundary-processClass
  */
-async function createProjectsFromBoundaryData(campaignDetails: any, tenantId: string, requestInfo?: RequestInfo): Promise<void> {
+async function createProjectsFromBoundaryData(campaignDetails: any, tenantId: string, requestInfo?: RequestInfo, expectedBoundaryCount?: number): Promise<void> {
     try {
         const campaignNumber = campaignDetails.campaignNumber;
-        
-        // Get target configuration from MDMS 
+
+        // Get target configuration from MDMS
         const MdmsCriteria = {
             MdmsCriteria: {
                 tenantId,
@@ -1715,10 +1722,19 @@ async function createProjectsFromBoundaryData(campaignDetails: any, tenantId: st
             boundaryChildren
         );
         
-        // Get current boundary data using the same pattern as process classes
-        const currentBoundaryData = await getRelatedDataWithCampaign('boundary', campaignNumber, tenantId);
+        // Poll until boundary rows are persisted by the Kafka consumer before reading them.
+        // Boundary rows are written via Kafka from processBoundaryDataInCampaignTable; without
+        // this poll, the rows may not be in DB yet when the setImmediate fires.
+        const currentBoundaryData = expectedBoundaryCount && expectedBoundaryCount > 0
+            ? await pollUntilCount(
+                () => getRelatedDataWithCampaign('boundary', campaignNumber, tenantId),
+                expectedBoundaryCount,
+                { label: 'boundary data', timeoutMs: 120_000 }
+              )
+            : await getRelatedDataWithCampaign('boundary', campaignNumber, tenantId);
+
         logger.info(`Found ${currentBoundaryData.length} boundary records for project creation`);
-        
+
         if (currentBoundaryData.length === 0) {
             logger.warn('No boundary data found for project creation');
             return;
