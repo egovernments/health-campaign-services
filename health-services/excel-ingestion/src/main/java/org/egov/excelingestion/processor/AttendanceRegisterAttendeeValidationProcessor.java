@@ -147,6 +147,7 @@ public class AttendanceRegisterAttendeeValidationProcessor implements IWorkbookP
                     ValidationColumnInfo columnInfo = checkAndAddErrorColumns(sheet, localizationMap);
                     processValidationErrors(sheet, campaignErrors, columnInfo);
                 }
+                enrichmentUtil.logValidationErrors(resource.getReferenceId(), sheetName, campaignErrors);
                 enrichmentUtil.enrichErrorAndStatusInAdditionalDetails(resource, campaignErrors);
                 return workbook;
             }
@@ -181,6 +182,7 @@ public class AttendanceRegisterAttendeeValidationProcessor implements IWorkbookP
                     isWorkerSheet, staffType, multiRegisterAllowedRoles, errors, localizationMap);
 
             log.info("Attendee validation completed for sheet {} with {} errors", sheetName, errors.size());
+            enrichmentUtil.logValidationErrors(resource.getReferenceId(), sheetName, errors);
 
             // Add error columns if there are validation errors
             if (!errors.isEmpty()) {

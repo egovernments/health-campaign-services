@@ -4,6 +4,7 @@ jest.mock('../config', () => ({
   default: {
     isEnvironmentCentralInstance: false,
     kafkaConsumerTopicPrefix: '',
+    kafka: { KAFKA_NON_CENTRAL_INSTANCE_TOPICS: [] },
   },
   __esModule: true,
 }));

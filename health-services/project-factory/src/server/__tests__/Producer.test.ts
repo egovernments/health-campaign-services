@@ -34,6 +34,7 @@ jest.mock('kafkajs', () => ({
 jest.mock('../config', () => ({
   default: {
     isEnvironmentCentralInstance: false,
+    kafka: { KAFKA_NON_CENTRAL_INSTANCE_TOPICS: [] },
     host: {
       KAFKA_BROKER_HOST: 'localhost:9092',
     },

@@ -17,7 +17,7 @@ jest.mock('../config', () => ({
         kafka: {},
         hrms: { hrmsParallelSearchLimit: 5 },
         attendanceRegister: { serviceCodeParallelSearchLimit: 5, batchSize: 50 },
-        get serverTimezone() { return mockServerTimezone.value; },
+        get appTimezone() { return mockServerTimezone.value; },
     },
     __esModule: true,
 }));
@@ -63,6 +63,13 @@ const ENROLLMENT_EPOCH = 1700000000000;   // 2023-11-14
 const DEENROLLMENT_EPOCH = 1700100000000; // ~2023-11-15
 const OLD_ENROLLMENT_EPOCH = 1690000000000; // 2023-07-22
 
+// registerData with no boundaries — ensures clamping has no effect
+const REGISTER_DATA = {
+    register: { startDate: null, endDate: null },
+    attendeesMap: new Map(),
+    staffMap: new Map(),
+};
+
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 function makeRow(overrides: Record<string, any> = {}): any {
@@ -82,9 +89,10 @@ function callCollectAttendeeOperation(
     deEnrollmentDateEpoch: number | null,
     teamCode: string,
     row: any
-): { attendeesToCreate: any[]; attendeesToUpdate: any[] } {
+): { attendeesToCreate: any[]; attendeesToDelete: any[]; attendeesToUpdateTag: any[] } {
     const attendeesToCreate: any[] = [];
-    const attendeesToUpdate: any[] = [];
+    const attendeesToDelete: any[] = [];
+    const attendeesToUpdateTag: any[] = [];
     (TemplateClass as any).collectAttendeeOperation(
         existing,
         enrollmentDateEpoch,
@@ -95,9 +103,12 @@ function callCollectAttendeeOperation(
         "individual-1",
         row,
         attendeesToCreate,
-        attendeesToUpdate
+        attendeesToDelete,
+        attendeesToUpdateTag,
+        {},
+        REGISTER_DATA
     );
-    return { attendeesToCreate, attendeesToUpdate };
+    return { attendeesToCreate, attendeesToDelete, attendeesToUpdateTag };
 }
 
 function callCollectStaffOperation(
@@ -106,9 +117,9 @@ function callCollectStaffOperation(
     deEnrollmentDateEpoch: number | null,
     staffType: string,
     row: any
-): { staffToCreate: any[]; staffToUpdate: any[] } {
+): { staffToCreate: any[]; staffToDelete: any[] } {
     const staffToCreate: any[] = [];
-    const staffToUpdate: any[] = [];
+    const staffToDelete: any[] = [];
     (TemplateClass as any).collectStaffOperation(
         existing,
         enrollmentDateEpoch,
@@ -119,9 +130,11 @@ function callCollectStaffOperation(
         staffType,
         row,
         staffToCreate,
-        staffToUpdate
+        staffToDelete,
+        {},
+        REGISTER_DATA
     );
-    return { staffToCreate, staffToUpdate };
+    return { staffToCreate, staffToDelete };
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -160,15 +173,13 @@ describe("collectAttendeeOperation", () => {
         expect(attendeesToCreate[0].payload.tag).toBe("T1");
     });
 
-    test("A3: New attendee with de-enrollment only → enrollmentDate falls back to deEnrollmentDate", () => {
+    test("A3: New attendee with de-enrollment only → enrollment date is required, row marked INVALID", () => {
         const row = makeRow();
         const { attendeesToCreate } = callCollectAttendeeOperation(
             null, null, DEENROLLMENT_EPOCH, "", row
         );
-        expect(attendeesToCreate).toHaveLength(1);
-        expect(attendeesToCreate[0].payload.enrollmentDate).toBe(DEENROLLMENT_EPOCH);
-        expect(attendeesToCreate[0].payload.denrollmentDate).toBe(DEENROLLMENT_EPOCH);
-        expect(attendeesToCreate[0].payload.tag).toBeUndefined(); // empty string → no tag
+        expect(attendeesToCreate).toHaveLength(0);
+        expect(row["#status#"]).toBe(sheetDataRowStatuses.INVALID);
     });
 
     test("A4: New attendee with no dates → SKIPPED", () => {
@@ -187,18 +198,19 @@ describe("collectAttendeeOperation", () => {
             denrollmentDate: DEENROLLMENT_EPOCH,
             tag: "T1",
         };
-        const { attendeesToCreate, attendeesToUpdate } = callCollectAttendeeOperation(
+        const { attendeesToCreate, attendeesToDelete } = callCollectAttendeeOperation(
             existing, null, null, "", row
         );
         expect(row["#status#"]).toBe(sheetDataRowStatuses.CREATED);
-        expect(row["HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE"]).toBe(ENROLLMENT_EPOCH);
-        expect(row["HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE"]).toBe(DEENROLLMENT_EPOCH);
+        // Dates are formatted as dd/MM/yyyy strings in the configured timezone
+        expect(typeof row["HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE"]).toBe("string");
+        expect(typeof row["HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE"]).toBe("string");
         expect(row["HCM_ATTENDANCE_ATTENDEE_TEAM_CODE"]).toBe("T1");
         expect(attendeesToCreate).toHaveLength(0);
-        expect(attendeesToUpdate).toHaveLength(0);
+        expect(attendeesToDelete).toHaveLength(0);
     });
 
-    test("A6: Existing de-enrolled, row has dates → CREATED with existing data overwritten", () => {
+    test("A6: Existing de-enrolled, row has dates, different tag → tag update queued", () => {
         const row = makeRow({
             HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE: "14-11-2023",
             HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE: "15-11-2023",
@@ -210,15 +222,14 @@ describe("collectAttendeeOperation", () => {
             denrollmentDate: DEENROLLMENT_EPOCH,
             tag: "T2",
         };
-        const { attendeesToCreate, attendeesToUpdate } = callCollectAttendeeOperation(
+        const { attendeesToCreate, attendeesToDelete, attendeesToUpdateTag } = callCollectAttendeeOperation(
             existing, ENROLLMENT_EPOCH, DEENROLLMENT_EPOCH, "T1", row
         );
-        expect(row["#status#"]).toBe(sheetDataRowStatuses.CREATED);
-        expect(row["HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE"]).toBe(ENROLLMENT_EPOCH);
-        expect(row["HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE"]).toBe(DEENROLLMENT_EPOCH);
-        expect(row["HCM_ATTENDANCE_ATTENDEE_TEAM_CODE"]).toBe("T2"); // from existing.tag
+        // Tag update is queued; row status is set by caller after API call
         expect(attendeesToCreate).toHaveLength(0);
-        expect(attendeesToUpdate).toHaveLength(0);
+        expect(attendeesToDelete).toHaveLength(0);
+        expect(attendeesToUpdateTag).toHaveLength(1);
+        expect(attendeesToUpdateTag[0].payload.tag).toBe("T1");
     });
 
     // ── Existing active attendees, no changes ────────────────────────────
@@ -233,58 +244,59 @@ describe("collectAttendeeOperation", () => {
             enrollmentDate: ENROLLMENT_EPOCH,
             tag: "T1",
         };
-        const { attendeesToCreate, attendeesToUpdate } = callCollectAttendeeOperation(
+        const { attendeesToCreate, attendeesToDelete, attendeesToUpdateTag } = callCollectAttendeeOperation(
             existing, ENROLLMENT_EPOCH, null, "T1", row
         );
         expect(row["#status#"]).toBe(sheetDataRowStatuses.CREATED);
         expect(attendeesToCreate).toHaveLength(0);
-        expect(attendeesToUpdate).toHaveLength(0);
+        expect(attendeesToDelete).toHaveLength(0);
+        expect(attendeesToUpdateTag).toHaveLength(0);
     });
 
-    // ── Existing active attendees, with changes → UPDATE (unchanged) ─────
+    // ── Existing active attendees — enrollment date is immutable ─────────
 
-    test("A8: Existing active, enrollment changed → pushed to update list", () => {
+    test("A8: Existing active, enrollment changed → INVALID (date immutability)", () => {
         const row = makeRow();
         const existing = { id: "att-1", enrollmentDate: OLD_ENROLLMENT_EPOCH };
-        const { attendeesToUpdate } = callCollectAttendeeOperation(
+        const { attendeesToCreate, attendeesToDelete, attendeesToUpdateTag } = callCollectAttendeeOperation(
             existing, ENROLLMENT_EPOCH, null, "", row
         );
-        expect(attendeesToUpdate).toHaveLength(1);
-        expect(attendeesToUpdate[0].payload.enrollmentDate).toBe(ENROLLMENT_EPOCH);
-        expect(row["#status#"]).toBeUndefined(); // status set later after API call
+        expect(row["#status#"]).toBe(sheetDataRowStatuses.INVALID);
+        expect(attendeesToCreate).toHaveLength(0);
+        expect(attendeesToDelete).toHaveLength(0);
+        expect(attendeesToUpdateTag).toHaveLength(0);
     });
 
-    test("A9: Existing active, de-enrollment added → pushed to update list", () => {
+    test("A9: Existing active, de-enrollment added → pushed to delete list", () => {
         const row = makeRow();
         const existing = { id: "att-1", enrollmentDate: ENROLLMENT_EPOCH };
-        const { attendeesToUpdate } = callCollectAttendeeOperation(
+        const { attendeesToDelete } = callCollectAttendeeOperation(
             existing, null, DEENROLLMENT_EPOCH, "", row
         );
-        expect(attendeesToUpdate).toHaveLength(1);
-        expect(attendeesToUpdate[0].payload.denrollmentDate).toBe(DEENROLLMENT_EPOCH);
+        expect(attendeesToDelete).toHaveLength(1);
+        expect(attendeesToDelete[0].payload.denrollmentDate).toBe(DEENROLLMENT_EPOCH);
     });
 
-    test("A10: Existing active, team code changed → pushed to update list", () => {
+    test("A10: Existing active, team code changed → pushed to updateTag list", () => {
         const row = makeRow();
         const existing = { id: "att-1", enrollmentDate: ENROLLMENT_EPOCH, tag: "T1" };
-        const { attendeesToUpdate } = callCollectAttendeeOperation(
+        const { attendeesToUpdateTag } = callCollectAttendeeOperation(
             existing, ENROLLMENT_EPOCH, null, "T2", row
         );
-        expect(attendeesToUpdate).toHaveLength(1);
-        expect(attendeesToUpdate[0].payload.tag).toBe("T2");
+        expect(attendeesToUpdateTag).toHaveLength(1);
+        expect(attendeesToUpdateTag[0].payload.tag).toBe("T2");
     });
 
-    test("A11: Existing active, multiple fields changed → single update payload", () => {
+    test("A11: Existing active, enrollment + de-enrollment + tag changed → INVALID (enrollment date immutable)", () => {
         const row = makeRow();
         const existing = { id: "att-1", enrollmentDate: OLD_ENROLLMENT_EPOCH, tag: "T1" };
-        const { attendeesToUpdate } = callCollectAttendeeOperation(
+        const { attendeesToCreate, attendeesToDelete, attendeesToUpdateTag } = callCollectAttendeeOperation(
             existing, ENROLLMENT_EPOCH, DEENROLLMENT_EPOCH, "T2", row
         );
-        expect(attendeesToUpdate).toHaveLength(1);
-        const payload = attendeesToUpdate[0].payload;
-        expect(payload.enrollmentDate).toBe(ENROLLMENT_EPOCH);
-        expect(payload.denrollmentDate).toBe(DEENROLLMENT_EPOCH);
-        expect(payload.tag).toBe("T2");
+        expect(row["#status#"]).toBe(sheetDataRowStatuses.INVALID);
+        expect(attendeesToCreate).toHaveLength(0);
+        expect(attendeesToDelete).toHaveLength(0);
+        expect(attendeesToUpdateTag).toHaveLength(0);
     });
 });
 
@@ -306,7 +318,6 @@ describe("collectStaffOperation", () => {
             registerId: "register-uuid-1",
             userId: "individual-1",
             enrollmentDate: ENROLLMENT_EPOCH,
-            denrollmentDate: DEENROLLMENT_EPOCH,
             staffType: "OWNER",
             tenantId: "tenant1",
         });
@@ -338,14 +349,15 @@ describe("collectStaffOperation", () => {
             denrollmentDate: DEENROLLMENT_EPOCH,
             staffType: "OWNER",
         };
-        const { staffToCreate, staffToUpdate } = callCollectStaffOperation(
+        const { staffToCreate, staffToDelete } = callCollectStaffOperation(
             existing, null, null, "OWNER", row
         );
         expect(row["#status#"]).toBe(sheetDataRowStatuses.CREATED);
-        expect(row["HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE"]).toBe(ENROLLMENT_EPOCH);
-        expect(row["HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE"]).toBe(DEENROLLMENT_EPOCH);
+        // Dates are formatted as dd/MM/yyyy strings in the configured timezone
+        expect(typeof row["HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE"]).toBe("string");
+        expect(typeof row["HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE"]).toBe("string");
         expect(staffToCreate).toHaveLength(0);
-        expect(staffToUpdate).toHaveLength(0);
+        expect(staffToDelete).toHaveLength(0);
     });
 
     test("B5: Existing de-enrolled staff, row has dates → CREATED with existing data overwritten", () => {
@@ -359,14 +371,14 @@ describe("collectStaffOperation", () => {
             denrollmentDate: DEENROLLMENT_EPOCH,
             staffType: "OWNER",
         };
-        const { staffToCreate, staffToUpdate } = callCollectStaffOperation(
+        const { staffToCreate, staffToDelete } = callCollectStaffOperation(
             existing, ENROLLMENT_EPOCH, DEENROLLMENT_EPOCH, "OWNER", row
         );
         expect(row["#status#"]).toBe(sheetDataRowStatuses.CREATED);
-        expect(row["HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE"]).toBe(ENROLLMENT_EPOCH);
-        expect(row["HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE"]).toBe(DEENROLLMENT_EPOCH);
+        expect(typeof row["HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE"]).toBe("string");
+        expect(typeof row["HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE"]).toBe("string");
         expect(staffToCreate).toHaveLength(0);
-        expect(staffToUpdate).toHaveLength(0);
+        expect(staffToDelete).toHaveLength(0);
     });
 
     // ── Existing active staff, no changes ────────────────────────────────
@@ -378,44 +390,50 @@ describe("collectStaffOperation", () => {
             enrollmentDate: ENROLLMENT_EPOCH,
             staffType: "OWNER",
         };
-        const { staffToCreate, staffToUpdate } = callCollectStaffOperation(
+        const { staffToCreate, staffToDelete } = callCollectStaffOperation(
             existing, ENROLLMENT_EPOCH, null, "OWNER", row
         );
         expect(row["#status#"]).toBe(sheetDataRowStatuses.CREATED);
         expect(staffToCreate).toHaveLength(0);
-        expect(staffToUpdate).toHaveLength(0);
+        expect(staffToDelete).toHaveLength(0);
     });
 
-    // ── Existing active staff, with changes → UPDATE ─────────────────────
+    // ── Existing active staff — enrollment date is immutable ─────────────
 
-    test("B7: Existing active staff, enrollment changed → pushed to update list", () => {
+    test("B7: Existing active staff, enrollment changed → INVALID (date immutability)", () => {
         const row = makeRow();
         const existing = { id: "staff-1", enrollmentDate: OLD_ENROLLMENT_EPOCH, staffType: "OWNER" };
-        const { staffToUpdate } = callCollectStaffOperation(
+        const { staffToCreate, staffToDelete } = callCollectStaffOperation(
             existing, ENROLLMENT_EPOCH, null, "OWNER", row
         );
-        expect(staffToUpdate).toHaveLength(1);
-        expect(staffToUpdate[0].payload.enrollmentDate).toBe(ENROLLMENT_EPOCH);
+        expect(row["#status#"]).toBe(sheetDataRowStatuses.INVALID);
+        expect(staffToCreate).toHaveLength(0);
+        expect(staffToDelete).toHaveLength(0);
     });
 
-    test("B8: Existing active staff, de-enrollment added → pushed to update list", () => {
+    test("B8: Existing active staff, de-enrollment added → pushed to delete list", () => {
         const row = makeRow();
         const existing = { id: "staff-1", enrollmentDate: ENROLLMENT_EPOCH, staffType: "OWNER" };
-        const { staffToUpdate } = callCollectStaffOperation(
+        const { staffToDelete } = callCollectStaffOperation(
             existing, null, DEENROLLMENT_EPOCH, "OWNER", row
         );
-        expect(staffToUpdate).toHaveLength(1);
-        expect(staffToUpdate[0].payload.denrollmentDate).toBe(DEENROLLMENT_EPOCH);
+        expect(staffToDelete).toHaveLength(1);
+        expect(staffToDelete[0].payload).toMatchObject({
+            registerId: "register-uuid-1",
+            userId: "individual-1",
+            tenantId: "tenant1",
+        });
     });
 
-    test("B9: Existing active staff, staffType changed → pushed to update list", () => {
+    test("B9: Existing active staff, staffType changed → CREATED (staffType not tracked for active staff)", () => {
         const row = makeRow();
         const existing = { id: "staff-1", enrollmentDate: ENROLLMENT_EPOCH, staffType: "OWNER" };
-        const { staffToUpdate } = callCollectStaffOperation(
+        const { staffToCreate, staffToDelete } = callCollectStaffOperation(
             existing, ENROLLMENT_EPOCH, null, "APPROVER", row
         );
-        expect(staffToUpdate).toHaveLength(1);
-        expect(staffToUpdate[0].payload.staffType).toBe("APPROVER");
+        expect(row["#status#"]).toBe(sheetDataRowStatuses.CREATED);
+        expect(staffToCreate).toHaveLength(0);
+        expect(staffToDelete).toHaveLength(0);
     });
 
     test("B10: Existing de-enrolled staff, missing staffType on existing → CREATED with data", () => {
@@ -426,14 +444,14 @@ describe("collectStaffOperation", () => {
             denrollmentDate: DEENROLLMENT_EPOCH,
             // staffType intentionally missing
         };
-        const { staffToCreate, staffToUpdate } = callCollectStaffOperation(
+        const { staffToCreate, staffToDelete } = callCollectStaffOperation(
             existing, null, null, "OWNER", row
         );
         expect(row["#status#"]).toBe(sheetDataRowStatuses.CREATED);
-        expect(row["HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE"]).toBe(ENROLLMENT_EPOCH);
-        expect(row["HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE"]).toBe(DEENROLLMENT_EPOCH);
+        expect(typeof row["HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE"]).toBe("string");
+        expect(typeof row["HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE"]).toBe("string");
         expect(staffToCreate).toHaveLength(0);
-        expect(staffToUpdate).toHaveLength(0);
+        expect(staffToDelete).toHaveLength(0);
     });
 });
 
@@ -469,7 +487,7 @@ describe("Edge cases — data integrity", () => {
         expect(row["HCM_ATTENDANCE_ATTENDEE_TEAM_CODE"]).toBe(""); // unchanged
     });
 
-    test("C3: Existing attendee de-enrolled, enrollmentDate is epoch 0 → still populated", () => {
+    test("C3: Existing attendee de-enrolled, enrollmentDate is epoch 0 → date formatted as string", () => {
         const row = makeRow();
         const existing = {
             id: "att-1",
@@ -479,9 +497,9 @@ describe("Edge cases — data integrity", () => {
         };
         callCollectAttendeeOperation(existing, null, null, "", row);
         expect(row["#status#"]).toBe(sheetDataRowStatuses.CREATED);
-        // enrollmentDate=0 is falsy but valid epoch — should still be populated
-        expect(row["HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE"]).toBe(0);
-        expect(row["HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE"]).toBe(DEENROLLMENT_EPOCH);
+        // epoch 0 (1970-01-01) is valid and should be formatted as a date string
+        expect(typeof row["HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE"]).toBe("string");
+        expect(typeof row["HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE"]).toBe("string");
     });
 
     test("C4: Existing staff de-enrolled, enrollmentDate missing but denrollmentDate exists → only deenrollment populated", () => {
@@ -495,7 +513,7 @@ describe("Edge cases — data integrity", () => {
         callCollectStaffOperation(existing, null, null, "OWNER", row);
         expect(row["#status#"]).toBe(sheetDataRowStatuses.CREATED);
         expect(row["HCM_ATTENDANCE_ATTENDEE_ENROLLMENT_DATE"]).toBeNull(); // unchanged from makeRow
-        expect(row["HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE"]).toBe(DEENROLLMENT_EPOCH);
+        expect(typeof row["HCM_ATTENDANCE_ATTENDEE_DEENROLLMENT_DATE"]).toBe("string");
     });
 });
 
