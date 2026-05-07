@@ -1360,7 +1360,7 @@ async function processCampaignUsersFromExcelData(
 
         if (!userSheetData || userSheetData.length === 0) {
             logger.info('No users sheet data found');
-            return;
+            return 0;
         }
 
         logger.info(`Found ${userSheetData.length} records in users sheet`);
@@ -1376,7 +1376,7 @@ async function processCampaignUsersFromExcelData(
 
         if (phoneNumbers.length === 0) {
             logger.info('No phone numbers found in user sheet data');
-            return;
+            return 0;
         }
 
         logger.info(`Processing ${phoneNumbers.length} unique phone numbers`);
@@ -1400,7 +1400,7 @@ async function processUsersSimple(
     phoneNumbers: any[],
     campaignNumber: string,
     tenantId: string
-): Promise<void> {
+): Promise<number> {
     const PHONE_KEY = 'HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER';
     const BOUNDARY_KEY = 'HCM_ADMIN_CONSOLE_BOUNDARY_CODE';
     const USAGE_KEY = 'HCM_ADMIN_CONSOLE_USER_USAGE';
