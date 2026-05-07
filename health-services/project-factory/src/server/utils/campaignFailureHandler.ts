@@ -17,6 +17,8 @@ export async function sendCampaignFailureMessage(
             campaignId,
             tenantId,
             error: error.message || error.toString(),
+            errorCode: error?.code,
+            errorDescription: error?.description,
             timestamp: new Date().toISOString()
         };
         
@@ -72,7 +74,9 @@ export async function handleCampaignFailure(messageObject: any) {
         };
         
         // Use the existing error handling function to mark campaign as failed
-        const campaignError = new Error(`${error}`);
+        const campaignError: any = new Error(`${error}`);
+        campaignError.code = messageObject.errorCode;
+        campaignError.description = messageObject.errorDescription;
         await enrichAndPersistCampaignWithError(mockRequestBody, campaignError);
         
         logger.info(`Campaign ${campaignId} marked as failed successfully`);

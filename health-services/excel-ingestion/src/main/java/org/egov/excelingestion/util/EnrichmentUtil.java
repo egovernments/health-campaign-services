@@ -64,6 +64,20 @@ public class EnrichmentUtil {
      * @param resource The ProcessResource to enrich
      * @param validationErrors List of validation errors from current processing
      */
+    public void logValidationErrors(String referenceId, String sheetName, List<ValidationError> errors) {
+        if (errors == null || errors.isEmpty()) {
+            return;
+        }
+        for (ValidationError error : errors) {
+            if (ValidationConstants.STATUS_INVALID.equals(error.getStatus()) ||
+                    ValidationConstants.STATUS_ERROR.equals(error.getStatus())) {
+                log.error("VALIDATION_ERROR | referenceId={} | sheet={} | row={} | column={} | status={} | error={}",
+                        referenceId, sheetName, error.getRowNumber(), error.getColumnName(),
+                        error.getStatus(), error.getErrorDetails());
+            }
+        }
+    }
+
     public void enrichErrorAndStatusInAdditionalDetails(ProcessResource resource, List<ValidationError> validationErrors) {
         try {
             if (resource.getAdditionalDetails() == null) {

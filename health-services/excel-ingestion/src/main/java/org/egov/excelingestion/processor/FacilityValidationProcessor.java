@@ -82,6 +82,7 @@ public class FacilityValidationProcessor implements IWorkbookProcessor {
             validateCampaignBoundaries(sheetData, resource, requestInfo, errors, localizationMap);
             
             log.info("Facility validation completed with {} errors", errors.size());
+            enrichmentUtil.logValidationErrors(resource.getReferenceId(), sheetName, errors);
 
             // Only add error columns if there are validation errors and enrich existing if present
             if (!errors.isEmpty()) {

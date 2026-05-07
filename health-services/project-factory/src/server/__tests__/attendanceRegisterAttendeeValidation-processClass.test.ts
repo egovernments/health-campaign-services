@@ -14,7 +14,7 @@ jest.mock('../config', () => ({
         kafka: {},
         hrms: { hrmsParallelSearchLimit: 5 },
         attendanceRegister: { attendeeSearchPageSize: 100, staffSearchPageSize: 100 },
-        get serverTimezone() { return mockServerTimezone.value; },
+        get appTimezone() { return mockServerTimezone.value; },
     },
     __esModule: true,
 }));

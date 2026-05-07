@@ -114,6 +114,7 @@ public class UserValidationProcessor implements IWorkbookProcessor {
                     ValidationConstants.DEFAULT_BANK_CODE_WHITESPACE);
 
             log.info("User validation completed with {} errors", errors.size());
+            enrichmentUtil.logValidationErrors(resource.getReferenceId(), sheetName, errors);
 
             // Only add error columns if there are validation errors
             if (!errors.isEmpty()) {
