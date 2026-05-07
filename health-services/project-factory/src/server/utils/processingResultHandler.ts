@@ -353,7 +353,7 @@ async function processCampaignBoundariesFromExcelData(
         const response = await searchMDMSDataViaV2Api(MdmsCriteria, true);
         if (!response?.mdms?.[0]?.data) {
             logger.error(`Target Config not found for ${campaignDetails.projectType}`);
-            return;
+            return 0;
         }
 
         const targetConfig = response.mdms[0].data;
@@ -403,7 +403,7 @@ async function processCampaignBoundariesFromExcelData(
 
         if (!boundarySheetData || boundarySheetData.length === 0) {
             logger.warn('No boundary hierarchy sheet data found');
-            return;
+            return 0;
         }
 
         logger.info(`Found ${boundarySheetData.length} records in boundary hierarchy sheet`);
@@ -413,7 +413,7 @@ async function processCampaignBoundariesFromExcelData(
 
         if (sheetTargetData.length === 0) {
             logger.warn('No boundary target data found in sheets');
-            return;
+            return 0;
         }
 
         logger.info(`Extracted target data for ${sheetTargetData.length} boundaries from sheet`);
@@ -586,7 +586,7 @@ async function processBoundaryDataInCampaignTable(
     targetColumns: string[]
 ): Promise<number> {
     if (boundaryDataList.length === 0) {
-        return;
+        return 0;
     }
 
     const BOUNDARY_CODE_COLUMN = 'HCM_ADMIN_CONSOLE_BOUNDARY_CODE';
