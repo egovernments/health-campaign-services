@@ -1895,21 +1895,23 @@ export async function searchMappingData(searchParams: {
  * Fast check for campaign data completion status
  * Returns: { allCompleted: boolean, anyFailed: boolean, totalRows: number, completedRows: number, failedRows: number }
  */
-export async function checkCampaignDataCompletionStatus(campaignNumber: string, tenantId: string) {
+export async function checkCampaignDataCompletionStatus(campaignNumber: string, tenantId: string, type?: string) {
   try {
     const tableName = getTableName(config?.DB_CONFIG?.DB_CAMPAIGN_DATA_TABLE_NAME, tenantId);
-    
-    // Fast query to get status counts - only select minimal fields for performance
+
+    const queryParams: any[] = [campaignNumber];
+    const typeFilter = type ? `AND type = $${queryParams.push(type)}` : '';
+
     const queryString = `
-      SELECT 
+      SELECT
         status,
         COUNT(*) as count
-      FROM ${tableName} 
-      WHERE campaignNumber = $1 
+      FROM ${tableName}
+      WHERE campaignNumber = $1 ${typeFilter}
       GROUP BY status
     `;
-    
-    const result = await executeQuery(queryString, [campaignNumber]);
+
+    const result = await executeQuery(queryString, queryParams);
     
     let totalRows = 0;
     let completedRows = 0;
@@ -1997,6 +1999,25 @@ export async function checkCampaignMappingCompletionStatus(campaignNumber: strin
     logger.error('Error checking campaign mapping completion status:', error);
     throw error;
   }
+}
+
+export async function pollUntilCount<T>(
+  fetchFn: () => Promise<T[] | null>,
+  expectedCount: number,
+  options: { timeoutMs?: number; pollIntervalMs?: number; label?: string } = {}
+): Promise<T[]> {
+  const { timeoutMs = 120_000, pollIntervalMs = 1_000, label = 'data' } = options;
+  const deadline = Date.now() + timeoutMs;
+
+  while (Date.now() < deadline) {
+    const result = await fetchFn();
+    const count = result?.length ?? 0;
+    if (count >= expectedCount) return result as T[];
+    logger.info(`Waiting for ${label}: ${count}/${expectedCount} persisted`);
+    await new Promise(r => setTimeout(r, pollIntervalMs));
+  }
+
+  throw new Error(`Persistence timeout: ${label} not ready within ${timeoutMs}ms`);
 }
 
 export {

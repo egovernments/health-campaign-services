@@ -60,7 +60,15 @@ export class TemplateClass {
 
     private static processErrors(sheetData : any, errors : any[], resourceDetails : ResourceDetails) {
             for (const error of errors) {
+                if (error.row == null) {
+                    logger.warn(`Skipping error without row number: ${error.message}`);
+                    continue;
+                }
                 const row = error.row - 3;
+                if (row < 0 || row >= sheetData.length) {
+                    logger.warn(`Row index ${row} out of bounds for error: ${error.message}`);
+                    continue;
+                }
                 const existingError = sheetData[row]["#errorDetails#"];
 
                 if (existingError) {

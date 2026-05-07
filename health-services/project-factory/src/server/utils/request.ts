@@ -6,8 +6,9 @@ import { redis, checkRedisConnection, reconnectRedis } from "./redisUtils"; // I
 
 var Axios = require("axios").default; // Importing axios library
 var get = require("lodash/get"); // Importing get function from lodash library
+// Default 5-minute timeout; use HTTP_TIMEOUT_MS=0 env var to disable (file downloads).
 const axiosInstance = Axios.create({
-  timeout: 0, // Set timeout to 0 to wait indefinitely
+  timeout: Number(process.env.HTTP_TIMEOUT_MS ?? 300_000),
   maxContentLength: Infinity,
   maxBodyLength: Infinity,
   paramsSerializer: (params: any) => {

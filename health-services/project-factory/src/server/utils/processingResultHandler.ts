@@ -2,7 +2,7 @@ import { RequestInfo } from "../config/models/requestInfoSchema";
 import { logger } from './logger';
 import { searchSheetData } from './excelIngestionUtils';
 import { searchProjectTypeCampaignService } from '../service/campaignManageService';
-import { getRelatedDataWithCampaign, getMappingDataRelatedToCampaign, prepareProcessesInDb, getRelatedDataWithUniqueIdentifiers, checkCampaignDataCompletionStatus, checkCampaignMappingCompletionStatus, throwError, getCurrentProcesses } from './genericUtils';
+import { getRelatedDataWithCampaign, getMappingDataRelatedToCampaign, prepareProcessesInDb, getRelatedDataWithUniqueIdentifiers, checkCampaignDataCompletionStatus, checkCampaignMappingCompletionStatus, throwError, getCurrentProcesses, pollUntilCount } from './genericUtils';
 import { produceModifiedMessages } from '../kafka/Producer';
 import { dataRowStatuses, mappingStatuses, usageColumnStatus, campaignStatuses, allProcesses, processStatuses } from '../config/constants';
 import { searchMDMSDataViaV2Api, searchBoundaryRelationshipData } from '../api/coreApis';
@@ -228,11 +228,15 @@ export async function handleProcessingResult(messageObject: any) {
             return;
         }
         
-        // Add timing delay based on totalRowsProcessed 
-        // Minimum 5 seconds, or 8ms per row processed
-        const delayMs = Math.max(5000, totalRowsProcessed * 8);
-        logger.info(`=== WAITING ${delayMs}ms BEFORE PROCESSING (${totalRowsProcessed} rows * 8ms, min 5s) ===`);
-        await new Promise(resolve => setTimeout(resolve, delayMs));
+        // Poll until the ingestion service has persisted all rows before reading
+        if (totalRowsProcessed > 0) {
+            logger.info(`=== WAITING FOR INGESTION PERSISTER: expecting ${totalRowsProcessed} rows ===`);
+            await pollUntilCount(
+                () => searchSheetData(messageObject.tenantId, messageObject.referenceId, messageObject.fileStoreId, 5000),
+                totalRowsProcessed,
+                { label: 'ingestion sheet data', timeoutMs: 180_000 }
+            );
+        }
         
         // Check for errors
         if (messageObject.additionalDetails.errorCode) {
@@ -268,7 +272,7 @@ export async function handleProcessingResult(messageObject: any) {
                 
                 // Process campaign data from all sheets in parallel
                 logger.info('=== PROCESSING ALL CAMPAIGN DATA TYPES IN PARALLEL ===');
-                await Promise.all([
+                const [, , expectedUserCount] = await Promise.all([
                     processCampaignBoundariesFromExcelData(
                         messageObject.tenantId,
                         messageObject.fileStoreId,
@@ -289,10 +293,10 @@ export async function handleProcessingResult(messageObject: any) {
                     )
                 ]);
                 logger.info('=== ALL CAMPAIGN DATA PROCESSING COMPLETED ===');
-                
+
                 // Trigger background resource creation and mapping flow
                 logger.info('=== TRIGGERING BACKGROUND RESOURCE CREATION FLOW ===');
-                await triggerBackgroundResourceCreationFlow(messageObject.tenantId, campaignDetails, parentCampaign, locale, createdByEmail, messageObject?.requestInfo);
+                await triggerBackgroundResourceCreationFlow(messageObject.tenantId, campaignDetails, parentCampaign, locale, createdByEmail, messageObject?.requestInfo, expectedUserCount);
             } else {
                 throw new Error('No temp data found to process for campaign');
             }
@@ -1094,20 +1098,11 @@ async function markCampaignCompletedConditionally(
  */
 async function persistDataInBatches(dataList: any[], topic: string, tenantId: string): Promise<void> {
     const batchSize = 100;
-    
+
     for (let i = 0; i < dataList.length; i += batchSize) {
         const batch = dataList.slice(i, i + batchSize);
         await produceModifiedMessages({ datas: batch }, topic, tenantId);
-        
-        if (i + batchSize < dataList.length) {
-            await new Promise(resolve => setTimeout(resolve, 1000));
-        }
     }
-
-    // Wait for persistence to complete
-    const waitTime = Math.max(5000, dataList.length * 8);
-    logger.info(`Waiting ${waitTime}ms for persistence to complete`);
-    await new Promise(resolve => setTimeout(resolve, waitTime));
 }
 
 /**
@@ -1338,7 +1333,7 @@ async function processCampaignUsersFromExcelData(
     fileStoreId: string,
     localizationMap: Record<string, string>,
     campaignDetails: any
-): Promise<void> {
+): Promise<number> {
     try {
         logger.info('=== PROCESSING CAMPAIGN USERS FROM EXCEL DATA ===');
         
@@ -1502,6 +1497,7 @@ async function processUsersSimple(
     await handleUserBoundaryMappings(campaignNumber, tenantId, userBoundaryMappings);
     
     logger.info(`User processing completed: ${usersToSave.length} saved, ${usersToUpdate.length} updated, ${userBoundaryMappings.length} mappings processed`);
+    return usersToSave.length + usersToUpdate.length;
 }
 
 /**
@@ -1572,6 +1568,7 @@ async function triggerBackgroundResourceCreationFlow(
     locale: string,
     createdByEmail?: string,
     requestInfo?: RequestInfo,
+    expectedUserCount?: number,
 ): Promise<void> {
     try {
         const useruuid = campaignDetails?.auditDetails?.createdBy;
@@ -1598,7 +1595,7 @@ async function triggerBackgroundResourceCreationFlow(
                 await Promise.all([
                     createProjectsFromBoundaryData(campaignDetails, tenantId, requestInfo),
                     createFacilitiesFromFacilityData(campaignDetails, tenantId, requestInfo),
-                    createUsersFromUserData(campaignDetails, tenantId, requestInfo),
+                    createUsersFromUserData(campaignDetails, tenantId, requestInfo, expectedUserCount),
                     monitorCampaignDataCompletion(campaignDetails.campaignNumber, tenantId, campaignDetails.id, campaignAlreadyFailed, useruuid)
                 ]);
                 
@@ -2387,7 +2384,7 @@ async function startAllMappingsInBatches(
 /**
  * Create users via Kafka batch processing
  */
-async function createUsersFromUserData(campaignDetails: any, tenantId: string, requestInfo?: RequestInfo): Promise<void> {
+async function createUsersFromUserData(campaignDetails: any, tenantId: string, requestInfo?: RequestInfo, expectedUserCount?: number): Promise<void> {
     try {
         if (!requestInfo?.userInfo) {
             throw new Error('RequestInfo with userInfo is required for user creation batches');
@@ -2398,9 +2395,15 @@ async function createUsersFromUserData(campaignDetails: any, tenantId: string, r
         const userUuid = campaignDetails?.auditDetails?.createdBy;
 
         logger.info(`Creating users for campaign: ${campaignNumber} via Kafka batches`);
-        
-        // Get all existing users for this campaign from campaign data table
-        const allCurrentUsers = await getRelatedDataWithCampaign("user", campaignNumber, tenantId);
+
+        // Poll until all user rows are persisted before sending Kafka batches
+        const allCurrentUsers = expectedUserCount && expectedUserCount > 0
+            ? await pollUntilCount(
+                () => getRelatedDataWithCampaign("user", campaignNumber, tenantId),
+                expectedUserCount,
+                { label: 'user data', timeoutMs: 120_000 }
+              )
+            : await getRelatedDataWithCampaign("user", campaignNumber, tenantId);
         
         if (allCurrentUsers.length === 0) {
             logger.info('No user data found for user creation');
