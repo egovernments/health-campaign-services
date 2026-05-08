@@ -2,9 +2,9 @@ import { RequestInfo } from "../config/models/requestInfoSchema";
 import { logger } from './logger';
 import { searchSheetData } from './excelIngestionUtils';
 import { searchProjectTypeCampaignService } from '../service/campaignManageService';
-import { getRelatedDataWithCampaign, getMappingDataRelatedToCampaign, prepareProcessesInDb, getRelatedDataWithUniqueIdentifiers, checkCampaignDataCompletionStatus, checkCampaignMappingCompletionStatus, throwError, getCurrentProcesses, pollUntilCount } from './genericUtils';
+import { getRelatedDataWithCampaign, getMappingDataRelatedToCampaign, prepareProcessesInDb, getRelatedDataWithUniqueIdentifiers, checkCampaignDataCompletionStatus, checkCampaignMappingCompletionStatus, throwError, getCurrentProcesses, pollUntilCount, deleteCampaignDataFailedAndInvalid } from './genericUtils';
 import { produceModifiedMessages } from '../kafka/Producer';
-import { dataRowStatuses, mappingStatuses, usageColumnStatus, campaignStatuses, allProcesses, processStatuses } from '../config/constants';
+import { dataRowStatuses, mappingStatuses, usageColumnStatus, campaignStatuses, allProcesses, processStatuses, additionalDetailKeys, sheetValidationStatuses, errorCodes, errorModules, httpStatusCodes } from '../config/constants';
 import { searchMDMSDataViaV2Api, searchBoundaryRelationshipData } from '../api/coreApis';
 import { populateBoundariesRecursively, getLocalizedName, enrichAndPersistCampaignWithError, enrichAndPersistCampaignForCreateViaFlow2, userCredGeneration, markAllToCreateResourcesAsCompleted } from './campaignUtils';
 import { getLocalisationModuleName } from './localisationUtils';
@@ -184,7 +184,17 @@ export async function handleProcessingResult(messageObject: any) {
             logger.warn('Campaign is already marked as failed, skipping further processing');
             return;
         }
-        
+
+        // Clean up failed/invalid rows from prior attempts on same-campaign re-upload (user sheet only)
+        if (messageObject.type === 'user-microplan-ingestion') {
+            try {
+                await deleteCampaignDataFailedAndInvalid(campaignDetails.campaignNumber, 'user', messageObject.tenantId);
+            } catch (cleanupError) {
+                logger.error(`Failed to clean up prior failed/invalid rows:`, cleanupError);
+                throw cleanupError;
+            }
+        }
+
         // Fetch parent campaign if exists
         let parentCampaign = null;
         if (campaignDetails.parentId) {
@@ -206,10 +216,34 @@ export async function handleProcessingResult(messageObject: any) {
             }
         }
         
-        // Only proceed if validation status is valid
-        if (validationStatus !== 'valid' || messageObject.status !== 'completed') {
-            logger.warn('=== VALIDATION STATUS IS NOT VALID - STOPPING PROCESSING ===');
-            logger.warn(`Validation Status: ${validationStatus}, Message Status: ${messageObject.status}, cannot proceed with campaign data processing`);
+        // Read per-sheet validation statuses (if present)
+        const boundarySheetStatus = messageObject?.additionalDetails?.[additionalDetailKeys.boundarySheetStatus];
+        const facilitySheetStatus = messageObject?.additionalDetails?.[additionalDetailKeys.facilitySheetStatus];
+        const userSheetStatus = messageObject?.additionalDetails?.[additionalDetailKeys.userSheetStatus];
+
+        // Check message status first
+        if (messageObject.status !== 'completed') {
+            logger.warn('=== MESSAGE STATUS IS NOT COMPLETED - STOPPING PROCESSING ===');
+            logger.warn(`Message Status: ${messageObject.status}, cannot proceed with campaign data processing`);
+            throwError(errorModules.common, httpStatusCodes.badRequest, errorCodes.processingFailed, `Excel ingestion processing failed with status: ${messageObject.status}. Error: ${messageObject.additionalDetails?.errorMessage || 'unknown'}`);
+            return;
+        }
+
+        // Determine if we should hard-block (boundary or facility errors)
+        const hardBlock =
+            boundarySheetStatus === sheetValidationStatuses.invalid ||
+            facilitySheetStatus === sheetValidationStatuses.invalid ||
+            // Legacy fallback: if no per-sheet keys are set, use overall validationStatus
+            (
+                boundarySheetStatus === undefined &&
+                facilitySheetStatus === undefined &&
+                userSheetStatus === undefined &&
+                validationStatus !== sheetValidationStatuses.valid
+            );
+
+        if (hardBlock) {
+            logger.warn('=== HARD BLOCK: BOUNDARY OR FACILITY VALIDATION FAILED ===');
+            logger.warn(`Boundary Status: ${boundarySheetStatus}, Facility Status: ${facilitySheetStatus}, overall validationStatus: ${validationStatus}`);
 
             // Log all available error details so we can debug what went wrong
             if (messageObject.additionalDetails?.errorCode) {
@@ -221,11 +255,13 @@ export async function handleProcessingResult(messageObject: any) {
             }
             logger.warn(`Full additionalDetails: ${JSON.stringify(messageObject.additionalDetails)}`);
 
-            if (messageObject.status !== 'completed') {
-                throwError('COMMON', 400, 'PROCESSING_FAILED', `Excel ingestion processing failed with status: ${messageObject.status}. Error: ${messageObject.additionalDetails?.errorMessage || 'unknown'}`);
-            }
-            throwError('COMMON', 400, 'VALIDATION_ERROR_UNIFIED_CONSOLE_TEMPLATE', "Unified console template is not valid. Please correct the errors and try again.");
+            throwError(errorModules.common, httpStatusCodes.badRequest, errorCodes.validationErrorUnifiedConsoleTemplate, "Unified console template is not valid. Please correct the errors and try again.");
             return;
+        }
+
+        // If user sheet has errors but boundary/facility are valid, log and proceed
+        if (userSheetStatus === sheetValidationStatuses.invalid) {
+            logger.info(`Proceeding with campaign despite user-sheet validation errors: campaignNumber=${campaignDetails.campaignName}`);
         }
         
         // Poll until the ingestion service has persisted all rows before reading

@@ -131,12 +131,12 @@ public class BoundaryHierarchyTargetProcessor implements IWorkbookProcessor {
                 validationService.processValidationErrors(sheet, validationErrors, columnInfo, localizationMap);
                 
                 // Enrich resource additionalDetails with error count and status
-                enrichmentUtil.enrichErrorAndStatusInAdditionalDetails(resource, validationErrors);
+                enrichmentUtil.enrichErrorAndStatusInAdditionalDetails(resource, validationErrors, ValidationConstants.SHEET_KIND_BOUNDARY);
             } else {
                 log.info("No validation errors found, no error columns needed");
-                
+
                 // Still enrich with zero errors
-                enrichmentUtil.enrichErrorAndStatusInAdditionalDetails(resource, validationErrors);
+                enrichmentUtil.enrichErrorAndStatusInAdditionalDetails(resource, validationErrors, ValidationConstants.SHEET_KIND_BOUNDARY);
             }
             
             return workbook;

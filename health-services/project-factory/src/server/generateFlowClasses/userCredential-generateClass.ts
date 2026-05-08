@@ -4,7 +4,7 @@ import { getLocalizedName, populateBoundariesRecursively } from "../utils/campai
 import { searchProjectTypeCampaignService } from "../service/campaignManageService";
 import { searchBoundaryRelationshipData, searchBoundaryRelationshipDefinition } from "../api/coreApis";
 import { logger } from "../utils/logger";
-import { dataRowStatuses, sheetDataRowStatuses } from "../config/constants";
+import { dataRowStatuses, sheetDataRowStatuses, errorWorksheetName, campaignDataRowFields, userDataFields, userCredentialFields } from "../config/constants";
 import { decrypt } from "../utils/cryptUtils";
 import { WorkerRegistryRecord, searchWorkersByIds } from "../utils/workerRegistryUtils";
 
@@ -33,7 +33,7 @@ export class TemplateClass {
         const requestInfo = responseToSend?.requestInfo;
         if (requestInfo) {
             const workerIds: string[] = users
-                .map((u: any) => u?.data?.["HCM_ADMIN_CONSOLE_USER_WORKER_ID"])
+                .map((u: any) => u?.data?.[userDataFields.workerId])
                 .filter((id: any): id is string => !!id);
 
             if (workerIds.length > 0) {
@@ -62,51 +62,86 @@ export class TemplateClass {
                 localizedData[key] = rawData[key];
             }
 
-            localizedData["#status#"] = sheetDataRowStatuses.CREATED;
-            localizedData["UserName"] = decrypt(rawData["UserName"]);
-            localizedData["Password"] = decrypt(rawData["Password"]);
+            localizedData[campaignDataRowFields.status] = sheetDataRowStatuses.CREATED;
+            localizedData[userCredentialFields.userName] = decrypt(rawData[userCredentialFields.userName]);
+            localizedData[userCredentialFields.password] = decrypt(rawData[userCredentialFields.password]);
 
             // Overlay decrypted payee details from worker registry search result.
             // This replaces any potentially encrypted values that may have been stored
             // in campaign_data during batch processing.
-            const workerId = rawData["HCM_ADMIN_CONSOLE_USER_WORKER_ID"];
+            const workerId = rawData[userDataFields.workerId];
             if (workerId) {
                 const worker = workerIdToWorkerMap.get(workerId);
                 if (worker) {
-                    if (worker.payeeName) localizedData["HCM_ADMIN_CONSOLE_USER_PAYEE_NAME"] = worker.payeeName;
-                    if (worker.bankAccount) localizedData["HCM_ADMIN_CONSOLE_USER_BANK_ACCOUNT"] = worker.bankAccount;
-                    if (worker.bankCode) localizedData["HCM_ADMIN_CONSOLE_USER_BANK_CODE"] = worker.bankCode;
-                    if (worker.beneficiaryCode) localizedData["HCM_ADMIN_CONSOLE_USER_BENEFICIARY_CODE"] = worker.beneficiaryCode;
-                    if (worker.paymentProvider) localizedData["HCM_ADMIN_CONSOLE_USER_PAYMENT_PROVIDER"] = worker.paymentProvider;
-                    if (worker.payeePhoneNumber) localizedData["HCM_ADMIN_CONSOLE_USER_PAYEE_PHONE_NUMBER"] = worker.payeePhoneNumber;
+                    if (worker.payeeName) localizedData[userDataFields.payeeName] = worker.payeeName;
+                    if (worker.bankAccount) localizedData[userDataFields.bankAccount] = worker.bankAccount;
+                    if (worker.bankCode) localizedData[userDataFields.bankCode] = worker.bankCode;
+                    if (worker.beneficiaryCode) localizedData[userDataFields.beneficiaryCode] = worker.beneficiaryCode;
+                    if (worker.paymentProvider) localizedData[userDataFields.paymentProvider] = worker.paymentProvider;
+                    if (worker.payeePhoneNumber) localizedData[userDataFields.payeePhoneNumber] = worker.payeePhoneNumber;
                 }
             }
 
-            const boundaryCode = localizedData["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"] ;
+            const boundaryCode = localizedData[userDataFields.boundaryCode] ;
             // Add localized boundary code
-            if (boundaryCode && !localizedData["HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY"]){
-                localizedData["HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY"] = localizedData["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"];
+            if (boundaryCode && !localizedData[userDataFields.boundaryCodeMandatory]){
+                localizedData[userDataFields.boundaryCodeMandatory] = localizedData[userDataFields.boundaryCode];
             }
-            const boundaryMandatoryCode = localizedData["HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY"] ;
+            const boundaryMandatoryCode = localizedData[userDataFields.boundaryCodeMandatory] ;
             // Add boundary Name
-            if (!localizedData["HCM_ADMIN_CONSOLE_BOUNDARY_NAME"]) {
-                localizedData["HCM_ADMIN_CONSOLE_BOUNDARY_NAME"] = getLocalizedName(boundaryMandatoryCode, localizationMap);
+            if (!localizedData[userDataFields.boundaryName]) {
+                localizedData[userDataFields.boundaryName] = getLocalizedName(boundaryMandatoryCode, localizationMap);
             }
             return localizedData;
         }));
 
-        // Construct the final SheetMap
+        // Fetch failed/invalid rows for errors worksheet
+        const failedUsers = await getRelatedDataWithCampaign("user", campaignDetails?.campaignNumber, tenantId, dataRowStatuses.failed);
+
+        // Get all users and filter for those with INVALID status in data
+        const allUsers = await getRelatedDataWithCampaign("user", campaignDetails?.campaignNumber, tenantId);
+        const invalidUsers = allUsers.filter((u: any) => u?.data?.[campaignDataRowFields.status] === sheetDataRowStatuses.INVALID);
+
+        // Combine failed and invalid rows for errors worksheet
+        const erroredUsers = [...failedUsers, ...invalidUsers];
+
+        // Build errors worksheet data (same columns as main sheet + #status# + #errorDetails#)
+        const errorUserData = erroredUsers.map((u: any) => {
+            const rawData = u?.data || {};
+            const errorData: Record<string, any> = {};
+
+            // Copy all data except sensitive fields
+            for (const key in rawData) {
+                if (key === userCredentialFields.userName || key === userCredentialFields.password || key === userCredentialFields.userServiceUuids) {
+                    // Skip sensitive fields for error rows
+                    continue;
+                }
+                errorData[key] = rawData[key];
+            }
+
+            // Add status and error details
+            errorData[campaignDataRowFields.status] = rawData[campaignDataRowFields.status] || sheetDataRowStatuses.INVALID;
+            errorData[campaignDataRowFields.errorDetails] = rawData[campaignDataRowFields.errorDetails] || "";
+
+            return errorData;
+        });
+
+        // Construct the final SheetMap with both main and errors worksheets
         const sheetMap: SheetMap = {
             ["HCM_ADMIN_CONSOLE_USER_LIST"]: {
                 data: userData,
                 dynamicColumns: {
-                    ["Password"]: { hideColumn: false },
-                    ["HCM_ADMIN_CONSOLE_BOUNDARY_NAME"]: { hideColumn: false }
+                    [userCredentialFields.password]: { hideColumn: false },
+                    [userDataFields.boundaryName]: { hideColumn: false }
                 }
+            },
+            [errorWorksheetName]: {
+                data: errorUserData,
+                dynamicColumns: {}
             }
         };
 
-        logger.info(`SheetMap generated for template type: ${type}`);
+        logger.info(`SheetMap generated for template type: ${type} (${userData.length} created, ${errorUserData.length} errors)`);
         return sheetMap;
     }
 
@@ -182,7 +217,7 @@ export class TemplateClass {
             const entry: Record<string, string> = {};
 
             // Add main boundary code
-            entry["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"] = node.code;
+            entry[userDataFields.boundaryCode] = node.code;
 
             // Traverse current path
             const fullPath = [...path, node];
@@ -227,7 +262,7 @@ export class TemplateClass {
                 const key = `${hierarchyType}_${type}`.toUpperCase();
                 result[key] = { orderNumber: -1 * (total - index), adjustHeight: true, color: '#93c47d', freezeColumn: true };
             });
-            result["HCM_ADMIN_CONSOLE_BOUNDARY_CODE"] = { adjustHeight: true, width: 80, freezeColumn: true };
+            result[userDataFields.boundaryCode] = { adjustHeight: true, width: 80, freezeColumn: true };
             logger.info(`Dynamic columns prepared for boundary data.`);
             return result;
         } else {

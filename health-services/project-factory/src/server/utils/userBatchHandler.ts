@@ -2,7 +2,7 @@ import { RequestInfo, withUserInfo } from "../config/models/requestInfoSchema";
 import { logger } from './logger';
 import { httpRequest } from './request';
 import { produceModifiedMessages } from '../kafka/Producer';
-import { dataRowStatuses, sheetDataRowStatuses, campaignStatuses } from '../config/constants';
+import { dataRowStatuses, sheetDataRowStatuses, campaignStatuses, campaignDataRowFields, userDataFields, userCredentialFields } from '../config/constants';
 import { sendCampaignFailureMessage } from './campaignFailureHandler';
 import { searchProjectTypeCampaignService } from '../service/campaignManageService';
 import { DataTransformer } from './transFormUtil';
@@ -118,6 +118,10 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
         // Create only new users via HRMS API
         const createResult = await createUsersViaHrmsApi(transformedUsers, useruuid, messageObject.requestInfo);
 
+        // Check for per-user failures from HRMS fallback
+        const failedHrmsUsers: Record<string, string> = (global as any).__hrmsFailedUsers || {};
+        delete (global as any).__hrmsFailedUsers;
+
         // Merge already-existing users into the result so downstream logic treats them as created
         for (const [phone, existing] of Object.entries(alreadyExistingMap)) {
             createResult.mobileToUserServiceMap[phone] = existing.serviceUuid;
@@ -148,17 +152,26 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
             const serviceUuid = createResult.mobileToUserServiceMap[phoneNumber];
             const individualId = createResult.mobileToIndividualIdMap[phoneNumber];
             const transformedUser = phoneToTransformedUser.get(phoneNumber);
+            const hrmsError = failedHrmsUsers[phoneNumber];
 
-            if (serviceUuid) {
+            if (hrmsError) {
+                // Failure - mark row as failed with HRMS error
+                campaignRecord.status = dataRowStatuses.failed;
+                campaignRecord.data[campaignDataRowFields.status] = sheetDataRowStatuses.FAILED;
+                campaignRecord.data[campaignDataRowFields.errorDetails] = hrmsError;
+                updatedUsers.push(campaignRecord);
+                failureCount++;
+            } else if (serviceUuid) {
                 // Success - user created
                 campaignRecord.status = dataRowStatuses.completed;
                 const userName = transformedUser?.user?.userName;
                 const password = transformedUser?.user?.password;
                 campaignRecord.data = {
                     ...campaignRecord.data,
-                    "UserService Uuids": serviceUuid,
-                    "UserName": userName ? encrypt(userName) : campaignRecord.data["UserName"],
-                    "Password": password ? encrypt(password) : campaignRecord.data["Password"]
+                    [userCredentialFields.userServiceUuids]: serviceUuid,
+                    [userCredentialFields.userName]: userName ? encrypt(userName) : campaignRecord.data[userCredentialFields.userName],
+                    [userCredentialFields.password]: password ? encrypt(password) : campaignRecord.data[userCredentialFields.password],
+                    [campaignDataRowFields.status]: sheetDataRowStatuses.CREATED
                 };
                 campaignRecord.uniqueIdAfterProcess = serviceUuid;
                 updatedUsers.push(campaignRecord);
@@ -168,14 +181,14 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
                 if (individualId) {
                     const recordData = campaignRecord.data;
                     workerDataList.push({
-                        name: recordData["HCM_ADMIN_CONSOLE_USER_NAME"] || "",
-                        payeePhoneNumber: String(recordData["HCM_ADMIN_CONSOLE_USER_PAYEE_PHONE_NUMBER"] || ""),
-                        paymentProvider: recordData["HCM_ADMIN_CONSOLE_USER_PAYMENT_PROVIDER"] || "",
-                        payeeName: recordData["HCM_ADMIN_CONSOLE_USER_PAYEE_NAME"] || "",
-                        bankAccount: String(recordData["HCM_ADMIN_CONSOLE_USER_BANK_ACCOUNT"] || ""),
-                        bankCode: String(recordData["HCM_ADMIN_CONSOLE_USER_BANK_CODE"] || ""),
-                        beneficiaryCode: String(recordData["HCM_ADMIN_CONSOLE_USER_BENEFICIARY_CODE"] || ""),
-                        id: recordData["HCM_ADMIN_CONSOLE_USER_WORKER_ID"] || "",
+                        name: recordData[userDataFields.name] || "",
+                        payeePhoneNumber: String(recordData[userDataFields.payeePhoneNumber] || ""),
+                        paymentProvider: recordData[userDataFields.paymentProvider] || "",
+                        payeeName: recordData[userDataFields.payeeName] || "",
+                        bankAccount: String(recordData[userDataFields.bankAccount] || ""),
+                        bankCode: String(recordData[userDataFields.bankCode] || ""),
+                        beneficiaryCode: String(recordData[userDataFields.beneficiaryCode] || ""),
+                        id: recordData[userDataFields.workerId] || "",
                         individualId,
                         tenantId,
                     });
@@ -218,7 +231,7 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
                     if (workerId) {
                         const records = individualIdToRecords.get(workerData.individualId) || [];
                         for (const record of records) {
-                            record.data["HCM_ADMIN_CONSOLE_USER_WORKER_ID"] = workerId;
+                            record.data[userDataFields.workerId] = workerId;
                         }
                     }
                 }
@@ -254,24 +267,29 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
             }
         }
 
-        logger.info(`User batch ${batchNumber}/${totalBatches} completed: ${successCount} success, ${failureCount} failed`);
+        logger.info(`User batch ${batchNumber}/${totalBatches} completed: ${successCount} success, ${failureCount} failed (failures at HRMS/user level only — not campaign-blocking)`);
 
         // Update all users in campaign data table via persister
         if (updatedUsers.length > 0) {
-            await produceModifiedMessages(
-                { datas: updatedUsers }, 
-                config.kafka.KAFKA_UPDATE_SHEET_DATA_TOPIC, 
-                tenantId
-            );
-            logger.info(`Updated ${updatedUsers.length} users in campaign data via persister`);
+            try {
+                await produceModifiedMessages(
+                    { datas: updatedUsers },
+                    config.kafka.KAFKA_UPDATE_SHEET_DATA_TOPIC,
+                    tenantId
+                );
+                logger.info(`Updated ${updatedUsers.length} users in campaign data via persister`);
+            } catch (kafkaError) {
+                // System error: Kafka publish failed
+                logger.error(`Kafka publish failed while updating user batch results. Sending campaign failure message.`);
+                const systemError = new Error(`Failed to persist user batch results: ${kafkaError instanceof Error ? kafkaError.message : String(kafkaError)}`);
+                await sendCampaignFailureMessage(campaignId, tenantId, systemError);
+                throw kafkaError;
+            }
         }
-        
-        // If any users failed, send campaign failure message
-        if (failureCount > 0) {
-            logger.error(`User batch processing had ${failureCount} failures. Sending campaign failure message.`);
-            const batchError = new Error(`User batch processing failed: ${failureCount} out of ${uniqueIdentifiers.length} users failed in batch ${batchNumber}/${totalBatches}`);
-            await sendCampaignFailureMessage(campaignId, tenantId, batchError);
-        }
+
+        // Per-user HRMS failures do NOT trigger campaign failure
+        // Only system-level errors (Kafka, etc.) cause campaign failure
+        // Campaign will be marked as 'created' as long as processing completes
         
         logger.info(`=== USER BATCH PROCESSING COMPLETED ===`);
         
@@ -285,8 +303,8 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
         if (nonCompletedRecords.length > 0) {
             for (const record of nonCompletedRecords) {
                 record.status = dataRowStatuses.failed;
-                record.data["#status#"] = sheetDataRowStatuses.INVALID;
-                record.data["#errorDetails#"] = errMsg;
+                record.data[campaignDataRowFields.status] = sheetDataRowStatuses.INVALID;
+                record.data[campaignDataRowFields.errorDetails] = errMsg;
             }
             try {
                 await produceModifiedMessages(
@@ -309,7 +327,7 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
 }
 
 /**
- * Create users via HRMS API in batch
+ * Create users via HRMS API in batch, with per-user fallback on failure
  */
 async function createUsersViaHrmsApi(
     transformedUsers: any[],
@@ -329,35 +347,133 @@ async function createUsersViaHrmsApi(
             Employees: transformedUsers,
         };
 
-        logger.info(`Creating ${transformedUsers.length} employees via HRMS API`);
+        logger.info(`Creating ${transformedUsers.length} employees via HRMS API (batch)`);
 
-        const response = await httpRequest(url, requestBody);
+        try {
+            // Try batch creation first
+            const response = await httpRequest(url, requestBody);
 
-        // Build mobile to service UUID and individualId mappings
-        const mobileToUserServiceMap: Record<string, string> = {};
-        const mobileToIndividualIdMap: Record<string, string> = {};
-        if (response?.Employees) {
-            for (const employee of response.Employees) {
-                const mobileNumber = employee?.user?.mobileNumber;
-                const serviceUuid = employee?.user?.userServiceUuid;
-                const individualId = employee?.user?.uuid;
-                if (mobileNumber && serviceUuid) {
-                    mobileToUserServiceMap[String(mobileNumber)] = serviceUuid;
-                }
-                if (mobileNumber && individualId) {
-                    mobileToIndividualIdMap[String(mobileNumber)] = individualId;
+            // Build mobile to service UUID and individualId mappings
+            const mobileToUserServiceMap: Record<string, string> = {};
+            const mobileToIndividualIdMap: Record<string, string> = {};
+            if (response?.Employees) {
+                for (const employee of response.Employees) {
+                    const mobileNumber = employee?.user?.mobileNumber;
+                    const serviceUuid = employee?.user?.userServiceUuid;
+                    const individualId = employee?.user?.uuid;
+                    if (mobileNumber && serviceUuid) {
+                        mobileToUserServiceMap[String(mobileNumber)] = serviceUuid;
+                    }
+                    if (mobileNumber && individualId) {
+                        mobileToIndividualIdMap[String(mobileNumber)] = individualId;
+                    }
                 }
             }
+
+            logger.info(`Successfully created ${Object.keys(mobileToUserServiceMap).length} users via HRMS (batch)`);
+
+            return { mobileToUserServiceMap, mobileToIndividualIdMap };
+
+        } catch (batchError: any) {
+            // Batch failed, try per-user fallback
+            logger.warn(`HRMS batch failed; falling back to per-user calls for batch of ${transformedUsers.length}`);
+
+            const mobileToUserServiceMap: Record<string, string> = {};
+            const mobileToIndividualIdMap: Record<string, string> = {};
+
+            // Create per-user promises for each employee
+            const perUserPromises = transformedUsers.map(async (transformedUser) => {
+                const mobileNumber = String(transformedUser?.user?.mobileNumber ?? '');
+                try {
+                    const singleRequestBody = {
+                        RequestInfo,
+                        Employees: [transformedUser],
+                    };
+
+                    const response = await httpRequest(url, singleRequestBody);
+
+                    if (response?.Employees?.[0]) {
+                        const employee = response.Employees[0];
+                        const serviceUuid = employee?.user?.userServiceUuid;
+                        const individualId = employee?.user?.uuid;
+                        if (mobileNumber && serviceUuid) {
+                            mobileToUserServiceMap[mobileNumber] = serviceUuid;
+                        }
+                        if (mobileNumber && individualId) {
+                            mobileToIndividualIdMap[mobileNumber] = individualId;
+                        }
+                        return { success: true, mobileNumber };
+                    }
+                    return { success: false, mobileNumber, error: 'No employee data in response' };
+                } catch (perUserError: any) {
+                    // Extract concise error message (mirror workerRegistryUtils pattern)
+                    const errorMsg = extractHrmsErrorMessage(perUserError);
+                    return { success: false, mobileNumber, error: errorMsg };
+                }
+            });
+
+            // Wait for all per-user calls to complete
+            const results = await Promise.allSettled(perUserPromises);
+
+            // Log outcomes and track failures
+            let successCount = 0;
+            let failureCount = 0;
+            const failedMobiles: Record<string, string> = {};
+
+            for (const result of results) {
+                if (result.status === 'fulfilled') {
+                    const outcome = result.value;
+                    if (outcome?.success) {
+                        successCount++;
+                        logger.debug(`Per-user creation succeeded for ${outcome.mobileNumber}`);
+                    } else if (outcome?.error) {
+                        failureCount++;
+                        failedMobiles[outcome.mobileNumber] = outcome.error;
+                        logger.warn(`Per-user creation failed for ${outcome.mobileNumber}: ${outcome.error}`);
+                    }
+                } else {
+                    failureCount++;
+                    logger.error(`Per-user promise rejected:`, result.reason);
+                }
+            }
+
+            logger.info(`Per-user fallback complete: ${successCount} succeeded, ${failureCount} failed`);
+
+            // Store failed mobile numbers and errors in global state for caller to process
+            (global as any).__hrmsFailedUsers = failedMobiles;
+
+            return { mobileToUserServiceMap, mobileToIndividualIdMap };
         }
-
-        logger.info(`Successfully created ${Object.keys(mobileToUserServiceMap).length} users via HRMS`);
-
-        return { mobileToUserServiceMap, mobileToIndividualIdMap };
 
     } catch (error: any) {
         logger.error("HRMS employee creation failed :: " + (error?.stack || error?.message || error));
         throw new Error(`HRMS API failed: ${error.message || error}`);
     }
+}
+
+/**
+ * Extract concise error message from HRMS error response
+ */
+function extractHrmsErrorMessage(error: any): string {
+    if (error?.response?.data?.errorDetails?.[0]?.message) {
+        return error.response.data.errorDetails[0].message;
+    }
+    if (error?.response?.data?.error?.message) {
+        return error.response.data.error.message;
+    }
+    if (error?.response?.status === 400) {
+        return `HTTP 400: ${error.response.data?.message || 'Bad Request'}`;
+    }
+    if (error?.response?.status === 409) {
+        return `HTTP 409: Conflict (username or email already exists)`;
+    }
+    if (error?.code === 'ECONNABORTED' || error?.code === 'ETIMEDOUT') {
+        return 'Request timeout';
+    }
+    if (error?.message) {
+        return error.message;
+    }
+    return 'Unknown error';
 }
 
 /**

@@ -79,19 +79,23 @@ public class EnrichmentUtil {
     }
 
     public void enrichErrorAndStatusInAdditionalDetails(ProcessResource resource, List<ValidationError> validationErrors) {
+        enrichErrorAndStatusInAdditionalDetails(resource, validationErrors, null);
+    }
+
+    public void enrichErrorAndStatusInAdditionalDetails(ProcessResource resource, List<ValidationError> validationErrors, String sheetKind) {
         try {
             if (resource.getAdditionalDetails() == null) {
                 resource.setAdditionalDetails(new HashMap<>());
             }
-            
+
             Map<String, Object> additionalDetails = resource.getAdditionalDetails();
-            
+
             // Count actual validation errors (exclude valid status entries)
             long currentErrorCount = validationErrors.stream()
-                    .filter(error -> ValidationConstants.STATUS_INVALID.equals(error.getStatus()) || 
+                    .filter(error -> ValidationConstants.STATUS_INVALID.equals(error.getStatus()) ||
                                    ValidationConstants.STATUS_ERROR.equals(error.getStatus()))
                     .count();
-            
+
             // Get existing error count, if any
             Long existingErrorCount = 0L;
             if (additionalDetails.containsKey("totalErrors")) {
@@ -100,33 +104,79 @@ public class EnrichmentUtil {
                     existingErrorCount = ((Number) existing).longValue();
                 }
             }
-            
+
             // Add current errors to existing errors
             Long totalErrorCount = existingErrorCount + currentErrorCount;
             additionalDetails.put("totalErrors", totalErrorCount);
-            
-            // Determine overall validation status
-            String currentValidationStatus = totalErrorCount > 0 ? ValidationConstants.STATUS_INVALID : ValidationConstants.STATUS_VALID;
-            
-            // Update validation status (if there are any errors, overall status becomes INVALID)
-            String existingValidationStatus = (String) additionalDetails.get("validationStatus");
-            if (existingValidationStatus == null || ValidationConstants.STATUS_VALID.equals(existingValidationStatus)) {
-                // If no existing status or existing is VALID, use current status
-                additionalDetails.put("validationStatus", currentValidationStatus);
-            } else if (ValidationConstants.STATUS_INVALID.equals(existingValidationStatus) && ValidationConstants.STATUS_VALID.equals(currentValidationStatus)) {
-                // If existing is INVALID and current is VALID, keep INVALID (once invalid, stays invalid)
-                additionalDetails.put("validationStatus", ValidationConstants.STATUS_INVALID);
-            } else {
-                // For any other case, use current status
-                additionalDetails.put("validationStatus", currentValidationStatus);
+
+            // Set per-sheet status if sheetKind is provided
+            if (sheetKind != null && !sheetKind.isEmpty()) {
+                String perSheetStatus = currentErrorCount > 0 ? ValidationConstants.STATUS_INVALID : ValidationConstants.STATUS_VALID;
+                String statusKey = getPerSheetStatusKey(sheetKind);
+
+                // Only set the per-sheet status if not already set (once invalid, stays invalid)
+                if (!additionalDetails.containsKey(statusKey)) {
+                    additionalDetails.put(statusKey, perSheetStatus);
+                } else {
+                    String existing = (String) additionalDetails.get(statusKey);
+                    // Keep INVALID if already set, otherwise update to new status
+                    if (!ValidationConstants.STATUS_INVALID.equals(existing)) {
+                        additionalDetails.put(statusKey, perSheetStatus);
+                    }
+                }
             }
-            
-            log.info("Enriched additionalDetails for resource {}: existing errors={}, current errors={}, total errors={}, validation status={}", 
-                    resource.getId(), existingErrorCount, currentErrorCount, totalErrorCount, additionalDetails.get("validationStatus"));
-            
+
+            // Determine overall validation status (AND logic: invalid if any sheet is invalid)
+            String currentValidationStatus = computeOverallValidationStatus(additionalDetails);
+            additionalDetails.put("validationStatus", currentValidationStatus);
+
+            log.info("Enriched additionalDetails for resource {}: sheet={}, errors={}, total errors={}, validation status={}",
+                    resource.getId(), sheetKind, currentErrorCount, totalErrorCount, currentValidationStatus);
+
         } catch (Exception e) {
             log.error("Error enriching additionalDetails with error count and status: {}", e.getMessage(), e);
         }
+    }
+
+    private String getPerSheetStatusKey(String sheetKind) {
+        switch (sheetKind) {
+            case ValidationConstants.SHEET_KIND_USER:
+                return ValidationConstants.ADDITIONAL_DETAILS_USER_SHEET_STATUS;
+            case ValidationConstants.SHEET_KIND_BOUNDARY:
+                return ValidationConstants.ADDITIONAL_DETAILS_BOUNDARY_SHEET_STATUS;
+            case ValidationConstants.SHEET_KIND_FACILITY:
+                return ValidationConstants.ADDITIONAL_DETAILS_FACILITY_SHEET_STATUS;
+            default:
+                return null;
+        }
+    }
+
+    private String computeOverallValidationStatus(Map<String, Object> additionalDetails) {
+        // Check per-sheet statuses if they exist
+        String userStatus = (String) additionalDetails.get(ValidationConstants.ADDITIONAL_DETAILS_USER_SHEET_STATUS);
+        String boundaryStatus = (String) additionalDetails.get(ValidationConstants.ADDITIONAL_DETAILS_BOUNDARY_SHEET_STATUS);
+        String facilityStatus = (String) additionalDetails.get(ValidationConstants.ADDITIONAL_DETAILS_FACILITY_SHEET_STATUS);
+
+        // If any per-sheet status is set and is invalid, overall is invalid
+        if (ValidationConstants.STATUS_INVALID.equals(userStatus) ||
+            ValidationConstants.STATUS_INVALID.equals(boundaryStatus) ||
+            ValidationConstants.STATUS_INVALID.equals(facilityStatus)) {
+            return ValidationConstants.STATUS_INVALID;
+        }
+
+        // If any per-sheet status is valid, continue checking
+        if (userStatus != null || boundaryStatus != null || facilityStatus != null) {
+            // All per-sheet statuses are either valid or not set
+            return ValidationConstants.STATUS_VALID;
+        }
+
+        // Fallback: use totalErrors for backward compatibility (no per-sheet keys set)
+        Object totalErrors = additionalDetails.get("totalErrors");
+        if (totalErrors instanceof Number && ((Number) totalErrors).longValue() > 0) {
+            return ValidationConstants.STATUS_INVALID;
+        }
+
+        return ValidationConstants.STATUS_VALID;
     }
 
     /**

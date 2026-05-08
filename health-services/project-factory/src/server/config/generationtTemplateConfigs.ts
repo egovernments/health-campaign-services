@@ -1,4 +1,5 @@
 // Configuration object for defining sheet templates for different modules (like user, boundary)
+import { errorWorksheetName } from "./constants";
 
 export const generationtTemplateConfigs : any = {
     // Configuration for the 'user' module
@@ -28,6 +29,12 @@ export const generationtTemplateConfigs : any = {
                 sheetName: "HCM_ADMIN_CONSOLE_USER_LIST",
                 schemaName: "user",
                 lockWholeSheet: true
+            },
+            {
+                sheetName: errorWorksheetName,
+                schemaName: "user",
+                lockWholeSheet: false,
+                optional: true
             }
         ],
     },

@@ -136,7 +136,7 @@ class UserValidationProcessorTest {
         
         // Check that validation was performed (verify restTemplate was called)
         verify(restTemplate, atLeastOnce()).exchange(anyString(), any(), any(), eq(Map.class));
-        verify(enrichmentUtil).enrichErrorAndStatusInAdditionalDetails(eq(resource), any());
+        verify(enrichmentUtil).enrichErrorAndStatusInAdditionalDetails(eq(resource), any(), anyString());
     }
 
     @Test
@@ -169,7 +169,7 @@ class UserValidationProcessorTest {
         
         // Check that validation was performed (verify restTemplate was called)
         verify(restTemplate, atLeastOnce()).exchange(anyString(), any(), any(), eq(Map.class));
-        verify(enrichmentUtil).enrichErrorAndStatusInAdditionalDetails(eq(resource), any());
+        verify(enrichmentUtil).enrichErrorAndStatusInAdditionalDetails(eq(resource), any(), anyString());
     }
 
     @Test
@@ -194,7 +194,7 @@ class UserValidationProcessorTest {
         
         // Check that validation was performed (verify restTemplate was called)
         verify(restTemplate, atLeastOnce()).exchange(anyString(), any(), any(), eq(Map.class));
-        verify(enrichmentUtil).enrichErrorAndStatusInAdditionalDetails(eq(resource), any());
+        verify(enrichmentUtil).enrichErrorAndStatusInAdditionalDetails(eq(resource), any(), anyString());
         
         // Verify validation service was not called to add error columns (no errors found)
         verify(validationService, never()).addValidationColumns(any(), any());

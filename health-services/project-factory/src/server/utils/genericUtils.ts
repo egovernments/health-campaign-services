@@ -1445,6 +1445,32 @@ export async function getRelatedDataWithCampaign(type: string, campaignNumber: s
   return rows;
 }
 
+export async function deleteCampaignDataFailedAndInvalid(
+  campaignNumber: string,
+  type: string,
+  tenantId: string
+): Promise<{ deletedCount: number }> {
+  try {
+    const tableName = getTableName(config?.DB_CONFIG?.DB_CAMPAIGN_DATA_TABLE_NAME, tenantId);
+    const queryString = `DELETE FROM ${tableName}
+      WHERE campaignnumber = $1
+        AND type = $2
+        AND (status = 'failed' OR data->>'#status#' = 'INVALID')`;
+
+    const result = await executeQuery(queryString, [campaignNumber, type]);
+    const deletedCount = result?.rowCount || 0;
+
+    if (deletedCount > 0) {
+      logger.info(`Cleaned up ${deletedCount} failed/invalid rows for campaign ${campaignNumber} type ${type} before re-validation`);
+    }
+
+    return { deletedCount };
+  } catch (error) {
+    logger.error(`Error deleting failed/invalid rows for campaign ${campaignNumber}:`, error);
+    throw error;
+  }
+}
+
 export async function getRelatedDataWithUniqueIdentifiers(type : string, uniqueIdentifiers : any[], tenantId : string, status ?: string ){
   const tableName = getTableName(config?.DB_CONFIG?.DB_CAMPAIGN_DATA_TABLE_NAME, tenantId);
   let queryString = `SELECT * FROM ${tableName} WHERE type = $1`;

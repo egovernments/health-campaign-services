@@ -159,7 +159,7 @@ public class BoundaryHierarchyTargetProcessorTest {
         assertNotNull(result);
         verify(validationService).addValidationColumns(sheet, localizationMap);
         verify(validationService).processValidationErrors(sheet, validationErrors, columnInfo, localizationMap);
-        verify(enrichmentUtil).enrichErrorAndStatusInAdditionalDetails(resource, validationErrors);
+        verify(enrichmentUtil).enrichErrorAndStatusInAdditionalDetails(eq(resource), eq(validationErrors), anyString());
     }
 
     @Test
@@ -214,7 +214,7 @@ public class BoundaryHierarchyTargetProcessorTest {
         assertNotNull(result);
         verify(validationService, never()).addValidationColumns(any(), any());
         verify(validationService, never()).processValidationErrors(any(), any(), any(), any());
-        verify(enrichmentUtil).enrichErrorAndStatusInAdditionalDetails(resource, validationErrors);
+        verify(enrichmentUtil).enrichErrorAndStatusInAdditionalDetails(eq(resource), eq(validationErrors), anyString());
     }
 
     @Test

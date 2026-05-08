@@ -98,8 +98,8 @@ public class FacilityValidationProcessor implements IWorkbookProcessor {
             }
             
             // Enrich resource additional details with error information
-            enrichmentUtil.enrichErrorAndStatusInAdditionalDetails(resource, errors);
-            
+            enrichmentUtil.enrichErrorAndStatusInAdditionalDetails(resource, errors, ValidationConstants.SHEET_KIND_FACILITY);
+
             return workbook;
 
         } catch (Exception e) {

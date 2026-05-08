@@ -179,7 +179,8 @@ export const sheetDataRowStatuses = {
     CREATED: "CREATED",
     SKIPPED: "SKIPPED",
     EXISTING: "EXISTING",
-    UPDATED: "UPDATED"
+    UPDATED: "UPDATED",
+    FAILED: "FAILED"
 }
 
 // Attendance Register Attendee — Sheet Names
@@ -281,6 +282,85 @@ export const usageColumnStatus = {
 export const resourceTypes = {
     unifiedConsoleResources: "unified-console-resources"
 }
+
+// Per-sheet validation status keys (from excel-ingestion)
+export const additionalDetailKeys = {
+    validationStatus: "validationStatus",
+    userSheetStatus: "userSheetStatus",
+    boundarySheetStatus: "boundarySheetStatus",
+    facilitySheetStatus: "facilitySheetStatus",
+} as const;
+
+// Sheet validation status values
+export const sheetValidationStatuses = {
+    valid: "valid",
+    invalid: "invalid",
+} as const;
+
+// Campaign data row field names
+export const campaignDataRowFields = {
+    status: "#status#",
+    errorDetails: "#errorDetails#",
+} as const;
+
+// User credential fields (authentication)
+export const userCredentialFields = {
+    userName: "UserName",
+    password: "Password",
+    userServiceUuids: "UserService Uuids",
+} as const;
+
+// User data field names in campaign data
+export const userDataFields = {
+    workerId: "HCM_ADMIN_CONSOLE_USER_WORKER_ID",
+    name: "HCM_ADMIN_CONSOLE_USER_NAME",
+    payeePhoneNumber: "HCM_ADMIN_CONSOLE_USER_PAYEE_PHONE_NUMBER",
+    paymentProvider: "HCM_ADMIN_CONSOLE_USER_PAYMENT_PROVIDER",
+    payeeName: "HCM_ADMIN_CONSOLE_USER_PAYEE_NAME",
+    bankAccount: "HCM_ADMIN_CONSOLE_USER_BANK_ACCOUNT",
+    bankCode: "HCM_ADMIN_CONSOLE_USER_BANK_CODE",
+    beneficiaryCode: "HCM_ADMIN_CONSOLE_USER_BENEFICIARY_CODE",
+    boundaryCode: "HCM_ADMIN_CONSOLE_BOUNDARY_CODE",
+    boundaryCodeMandatory: "HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY",
+    boundaryName: "HCM_ADMIN_CONSOLE_BOUNDARY_NAME",
+} as const;
+
+// MDMS schema code for template validation
+export const mdmsSchemaCodeConfig = {
+    schemaCode: "HCM-ADMIN-CONSOLE.schemas",
+} as const;
+
+// Schema validation and template loading log tags
+export const schemaValidationLogTags = {
+    optionalSheetNotFound: "[OPTIONAL_SHEET_MISSING]",
+    optionalSchemaMissing: "[MDMS_SCHEMA_MISSING]",
+    requiredSchemaMissing: "[MDMS_SCHEMA_ERROR]",
+} as const;
+
+// HTTP status codes
+export const httpStatusCodes = {
+    badRequest: 400,
+    conflict: 409,
+    internalServerError: 500,
+} as const;
+
+// Error module names for throwError
+export const errorModules = {
+    common: "COMMON",
+    file: "FILE",
+} as const;
+
+// Error codes for concurrent upload and validation
+export const errorCodes = {
+    campaignProcessingInProgress: "CAMPAIGN_PROCESSING_IN_PROGRESS",
+    validationError: "VALIDATION_ERROR",
+    processingFailed: "PROCESSING_FAILED",
+    validationErrorUnifiedConsoleTemplate: "VALIDATION_ERROR_UNIFIED_CONSOLE_TEMPLATE",
+} as const;
+
+// Error worksheet name in credential xlsx
+export const errorWorksheetName = "HCM_ADMIN_CONSOLE_USER_ERRORS";
+
 // Retrieves the error object containing the error code, message, and notFound flag.
 export const getErrorCodes = (module: string, key: string): Error => {
     // Retrieve the error message from the CONSTANTS object

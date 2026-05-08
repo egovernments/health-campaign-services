@@ -130,7 +130,7 @@ public class UserValidationProcessor implements IWorkbookProcessor {
             }
             
             // Enrich resource additional details with error information
-            enrichmentUtil.enrichErrorAndStatusInAdditionalDetails(resource, errors);
+            enrichmentUtil.enrichErrorAndStatusInAdditionalDetails(resource, errors, ValidationConstants.SHEET_KIND_USER);
             
             return workbook;
 

@@ -74,6 +74,16 @@ public class ValidationConstants {
     public static final String DEFAULT_ATTENDANCE_REGISTER_ID_MISMATCH = "Register ID does not match expected register";
     public static final String DEFAULT_ATTENDANCE_REGISTER_WRONG_CAMPAIGN = "Register already exists in a different campaign";
 
+    // Per-sheet status keys for additionalDetails
+    public static final String ADDITIONAL_DETAILS_USER_SHEET_STATUS     = "userSheetStatus";
+    public static final String ADDITIONAL_DETAILS_BOUNDARY_SHEET_STATUS = "boundarySheetStatus";
+    public static final String ADDITIONAL_DETAILS_FACILITY_SHEET_STATUS = "facilitySheetStatus";
+
+    // Sheet kind identifiers
+    public static final String SHEET_KIND_USER     = "user";
+    public static final String SHEET_KIND_BOUNDARY = "boundary";
+    public static final String SHEET_KIND_FACILITY = "facility";
+
     private ValidationConstants() {
         // Private constructor to prevent instantiation
     }

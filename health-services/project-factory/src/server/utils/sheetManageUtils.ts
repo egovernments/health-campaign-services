@@ -11,7 +11,7 @@ import { adjustRowHeight, enrichTemplateMetaData, freezeUnfreezeColumns, getExce
 import * as path from 'path';
 import { ColumnProperties, SheetMap } from "../models/SheetMap";
 import { logger } from "./logger";
-import { generatedResourceStatuses, resourceStatuses } from "../config/constants";
+import { generatedResourceStatuses, resourceStatuses, schemaValidationLogTags, mdmsSchemaCodeConfig } from "../config/constants";
 import fs from 'fs';
 import { ResourceDetails } from "../config/models/resourceDetailsSchema";
 import { fetchFileFromFilestore } from "../api/coreApis";
@@ -213,10 +213,16 @@ export function checkAllRowsConsistency(jsonData: any) {
 export async function processRequest(ResourceDetails: any, workBook: any, templateConfig: any, localizationMap: any) {
     validateFileCmapaignIdInMetaData(workBook, ResourceDetails?.campaignId);
     const wholeSheetData: any = {};
+    const sheetsToRemove: string[] = [];
     for (const sheet of templateConfig?.sheets || []) {
         const sheetName = getLocalizedName(sheet?.sheetName, localizationMap);
         const worksheet = workBook.getWorksheet(sheetName);
         if(!worksheet) {
+            if (sheet?.optional) {
+                logger.warn(`${schemaValidationLogTags.optionalSheetNotFound} Optional sheet not found in file: ${sheet?.sheetName} (localized: ${sheetName})`);
+                sheetsToRemove.push(sheet?.sheetName);
+                continue;
+            }
             throwError("FILE", 400, "SHEET_MISSING_ERROR", `Sheet: '${sheetName}' not found in the uploaded file.`);
         }
         const sheetData = getSheetDataFromWorksheet(worksheet);
@@ -224,8 +230,24 @@ export async function processRequest(ResourceDetails: any, workBook: any, templa
         if (sheet?.validateRowsGap) checkAllRowsConsistency(jsonData);
         wholeSheetData[sheetName] = jsonData;
         if(!sheet?.schemaName) continue;
-        const schema = await callMdmsSchema(ResourceDetails?.tenantId, sheet?.schemaName);
-        sheet.schema = schema;
+        try {
+            const schema = await callMdmsSchema(ResourceDetails?.tenantId, sheet?.schemaName);
+            sheet.schema = schema;
+        } catch (schemaError) {
+            if (sheet?.optional) {
+                logger.warn(`${schemaValidationLogTags.optionalSchemaMissing} Optional sheet skipped: ${sheet?.sheetName} (schema: ${sheet?.schemaName}, tenant: ${ResourceDetails?.tenantId}, MDMS code: ${mdmsSchemaCodeConfig.schemaCode})`);
+                sheetsToRemove.push(sheet?.sheetName);
+                delete wholeSheetData[sheetName];
+            } else {
+                logger.error(`${schemaValidationLogTags.requiredSchemaMissing} Required schema missing: ${sheet?.schemaName} for sheet ${sheet?.sheetName} (tenant: ${ResourceDetails?.tenantId}, MDMS code: ${mdmsSchemaCodeConfig.schemaCode}) — add schema to MDMS before retrying`);
+                throw schemaError;
+            }
+        }
+    }
+    // Remove optional sheets that couldn't load their schemas
+    if (sheetsToRemove.length > 0) {
+        templateConfig.sheets = templateConfig.sheets.filter((s: any) => !sheetsToRemove.includes(s?.sheetName));
+        logger.info(`Removed optional sheet(s) with missing schemas or not in file: ${sheetsToRemove.join(", ")}`);
     }
     // Only process expected sheets - ignore any extra sheets in the workbook
     logger.info(`Processing only required sheets, ignoring any extra sheets that may exist`);
@@ -350,10 +372,26 @@ export async function handleErrorDuringProcess(ResourceDetails: any, error: any)
 async function createBasicTemplateViaConfig(responseToSend: any, templateConfig: any, localizationMap: any) {
     const newWorkbook = new ExcelJS.Workbook();
     const tenantId = responseToSend?.tenantId;
+    const sheetsToRemove: string[] = [];
     for (const sheet of templateConfig?.sheets) {
         const schemaName = sheet?.schemaName;
-        const schema = await callMdmsSchema(tenantId, schemaName);
-        sheet.schema = schema;
+        try {
+            const schema = await callMdmsSchema(tenantId, schemaName);
+            sheet.schema = schema;
+        } catch (schemaError) {
+            if (sheet?.optional) {
+                logger.warn(`${schemaValidationLogTags.optionalSchemaMissing} Optional sheet skipped: ${sheet?.sheetName} (schema: ${schemaName}, tenant: ${tenantId}, MDMS code: ${mdmsSchemaCodeConfig.schemaCode}) — ensure schema exists in MDMS if required`);
+                sheetsToRemove.push(sheet?.sheetName);
+            } else {
+                logger.error(`${schemaValidationLogTags.requiredSchemaMissing} Required schema missing: ${schemaName} for sheet ${sheet?.sheetName} (tenant: ${tenantId}, MDMS code: ${mdmsSchemaCodeConfig.schemaCode}) — add schema to MDMS before retrying`);
+                throw schemaError;
+            }
+        }
+    }
+    // Remove optional sheets that couldn't load their schemas
+    if (sheetsToRemove.length > 0) {
+        templateConfig.sheets = templateConfig.sheets.filter((s: any) => !sheetsToRemove.includes(s?.sheetName));
+        logger.info(`Removed optional sheet(s) with missing schemas: ${sheetsToRemove.join(", ")}`);
     }
     const className = `${responseToSend?.type}-generateClass`;
     let classFilePath = path.join(__dirname, '..', 'generateFlowClasses', `${className}.js`);
