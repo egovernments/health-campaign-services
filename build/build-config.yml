@@ -389,4 +389,3 @@ config:
         dockerfile: "build/maven-java17/Dockerfile"
       - work-dir: "health-services/excel-ingestion/src/main/resources/db"
         image-name: "excel-ingestion-db"
-

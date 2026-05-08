@@ -62,6 +62,7 @@ on:
           - project-factory
           - excel-ingestion
           - boundary-management
+          - worker-registry-java-17
           - health-notification-service
           - egov-notification-push
 
