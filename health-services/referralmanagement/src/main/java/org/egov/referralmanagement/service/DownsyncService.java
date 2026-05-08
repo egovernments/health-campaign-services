@@ -1,7 +1,5 @@
 package org.egov.referralmanagement.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -10,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import lombok.extern.slf4j.Slf4j;
 import org.egov.common.contract.models.AuditDetails;
@@ -28,7 +27,6 @@ import org.egov.common.models.household.HouseholdMemberSearch;
 import org.egov.common.models.household.HouseholdMemberSearchRequest;
 import org.egov.common.models.household.HouseholdSearch;
 import org.egov.common.models.household.HouseholdSearchRequest;
-import org.egov.common.models.individual.Identifier;
 import org.egov.common.models.individual.Individual;
 import org.egov.common.models.individual.IndividualBulkResponse;
 import org.egov.common.models.individual.IndividualSearch;
@@ -60,6 +58,7 @@ import org.egov.common.models.service.ServiceSearchRequest;
 import org.egov.common.utils.MultiStateInstanceUtil;
 import org.egov.referralmanagement.Constants;
 import org.egov.referralmanagement.config.ReferralManagementConfiguration;
+import org.egov.referralmanagement.repository.rowmapper.BeneficiaryInfoRowMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -88,7 +87,7 @@ public class DownsyncService {
 
     private MasterDataService masterDataService;
 
-    private ObjectMapper objectMapper;
+    private final BeneficiaryInfoRowMapper beneficiaryInfoRowMapper;
 
     private final MultiStateInstanceUtil multiStateInstanceUtil;
 
@@ -100,7 +99,7 @@ public class DownsyncService {
                             ReferralManagementService referralService,
                             HFReferralService hfReferralService,
                             MasterDataService masterDataService,
-                            ObjectMapper objectMapper,
+                            BeneficiaryInfoRowMapper beneficiaryInfoRowMapper,
                             MultiStateInstanceUtil multiStateInstanceUtil) {
 
         this.restClient = serviceRequestClient;
@@ -110,7 +109,7 @@ public class DownsyncService {
         this.referralService = referralService;
         this.hfReferralService = hfReferralService;
         this.masterDataService = masterDataService;
-        this.objectMapper = objectMapper;
+        this.beneficiaryInfoRowMapper = beneficiaryInfoRowMapper;
         this.multiStateInstanceUtil = multiStateInstanceUtil;
 
     }
@@ -316,83 +315,18 @@ public class DownsyncService {
         Map<String, LatestReferral> referredBeneficiaryKeys = buildReferredBeneficiaryKeys(hfReferrals, projectBeneficiaryByKey);
 
         List<BeneficiaryInfo> beneficiaryInfo = downsync.getHouseholdMembers().stream()
-                .map(householdMember -> toBeneficiaryInfo(
-                        householdMember,
-                        individualByClientReferenceId.get(householdMember.getIndividualClientReferenceId()),
-                        householdByClientReferenceId.get(householdMember.getHouseholdClientReferenceId()),
-                        taskStatusByKey,
-                        referredBeneficiaryKeys,
-                        projectBeneficiaryByKey
-                ))
+                .map(householdMember -> {
+                    Individual individual = individualByClientReferenceId.get(householdMember.getIndividualClientReferenceId());
+                    Household household = householdByClientReferenceId.get(householdMember.getHouseholdClientReferenceId());
+                    String taskStatus = individual == null ? null
+                            : resolveTaskStatus(individual, householdMember, household,
+                                    taskStatusByKey, referredBeneficiaryKeys, projectBeneficiaryByKey);
+                    return beneficiaryInfoRowMapper.toBeneficiaryInfo(householdMember, individual, household, taskStatus);
+                })
                 .filter(Objects::nonNull)
                 .collect(Collectors.toList());
 
         downsync.setBeneficiaryInfo(beneficiaryInfo);
-    }
-
-    /** Maps a household member and its related individual, household, task status and referral
-     * into a flattened BeneficiaryInfo. Returns null if the individual is not found.
-     *
-     * @param householdMember         household member record
-     * @param individual              corresponding individual; null if not found
-     * @param household               corresponding household; null if not found
-     * @param taskStatusByKey         lookup map of latest task status keyed by beneficiary identifiers
-     * @param referredBeneficiaryKeys lookup map of latest referral keyed by beneficiary identifiers
-     * @param projectBeneficiaryByKey lookup map of project beneficiary keyed by all its identifiers
-     * @return populated BeneficiaryInfo, or null if individual is absent
-     */
-    private BeneficiaryInfo toBeneficiaryInfo(HouseholdMember householdMember,
-                                              Individual individual,
-                                              Household household,
-                                              Map<String, LatestTaskStatus> taskStatusByKey,
-                                              Map<String, LatestReferral> referredBeneficiaryKeys,
-                                              Map<String, ProjectBeneficiary> projectBeneficiaryByKey) {
-        if (individual == null) {
-            return null;
-        }
-
-        Identifier identifier = getPrimaryIdentifier(individual);
-        AuditDetails auditDetails = individual.getAuditDetails();
-        AuditDetails clientAuditDetails = individual.getClientAuditDetails();
-
-        org.egov.common.models.household.Address householdAddress = household == null ? null : household.getAddress();
-        org.egov.common.models.individual.Address individualAddress = getPrimaryAddress(individual);
-
-        Double latitude = householdAddress == null ? null : householdAddress.getLatitude();
-        Double longitude = householdAddress == null ? null : householdAddress.getLongitude();
-        if (latitude == null) {
-            latitude = getLatitude(individualAddress);
-        }
-        if (longitude == null) {
-            longitude = getLongitude(individualAddress);
-        }
-
-        return BeneficiaryInfo.builder()
-                .id(individual.getId())
-                .householdClientReferenceId(householdMember.getHouseholdClientReferenceId())
-                .givenName(individual.getName() == null ? null : individual.getName().getGivenName())
-                .identifierType(identifier == null ? null : identifier.getIdentifierType())
-                .identifierId(identifier == null ? null : identifier.getIdentifierId())
-                .isHead(householdMember.getIsHeadOfHousehold())
-                .taskStatus(resolveTaskStatus(individual, householdMember, household, taskStatusByKey,
-                        referredBeneficiaryKeys, projectBeneficiaryByKey))
-                .mobileNumber(individual.getMobileNumber())
-                .latitude(latitude)
-                .longitude(longitude)
-                .auditCreatedBy(auditDetails == null ? null : auditDetails.getCreatedBy())
-                .auditCreatedTime(auditDetails == null ? null : auditDetails.getCreatedTime())
-                .clientCreatedBy(clientAuditDetails == null ? null : clientAuditDetails.getCreatedBy())
-                .clientCreatedTime(clientAuditDetails == null ? null : clientAuditDetails.getCreatedTime())
-                .clientModifiedBy(clientAuditDetails == null ? null : clientAuditDetails.getLastModifiedBy())
-                .clientModifiedTime(clientAuditDetails == null ? null : clientAuditDetails.getLastModifiedTime())
-                .auditModifiedBy(auditDetails == null ? null : auditDetails.getLastModifiedBy())
-                .auditModifiedTime(auditDetails == null ? null : auditDetails.getLastModifiedTime())
-                .clientReferenceId(individual.getClientReferenceId())
-                .tenantId(individual.getTenantId())
-                .isDeleted(isDeleted(individual, householdMember, household))
-                .rowVersion(individual.getRowVersion())
-                .additionalFields(serializeAdditionalFields(individual.getAdditionalFields()))
-                .build();
     }
 
     /** Builds a lookup map of ProjectBeneficiary indexed by all 4 of its identifiers
@@ -408,28 +342,11 @@ public class DownsyncService {
             return projectBeneficiaryByKey;
         }
 
-        projectBeneficiaries.forEach(projectBeneficiary -> {
-            putProjectBeneficiaryIfNotNull(projectBeneficiaryByKey, projectBeneficiary.getId(), projectBeneficiary);
-            putProjectBeneficiaryIfNotNull(projectBeneficiaryByKey, projectBeneficiary.getClientReferenceId(), projectBeneficiary);
-            putProjectBeneficiaryIfNotNull(projectBeneficiaryByKey, projectBeneficiary.getBeneficiaryId(), projectBeneficiary);
-            putProjectBeneficiaryIfNotNull(projectBeneficiaryByKey, projectBeneficiary.getBeneficiaryClientReferenceId(), projectBeneficiary);
-        });
+        projectBeneficiaries.forEach(pb ->
+                Stream.of(pb.getId(), pb.getClientReferenceId(), pb.getBeneficiaryId(), pb.getBeneficiaryClientReferenceId())
+                        .filter(Objects::nonNull)
+                        .forEach(key -> projectBeneficiaryByKey.putIfAbsent(key, pb)));
         return projectBeneficiaryByKey;
-    }
-
-    /** Inserts the ProjectBeneficiary into the map under the given key only if the key is non-null
-     * and not already present (first-write wins to avoid overwriting with a less-specific lookup).
-     *
-     * @param projectBeneficiaryByKey target map
-     * @param key                     identifier key; skipped if null
-     * @param projectBeneficiary      value to insert
-     */
-    private void putProjectBeneficiaryIfNotNull(Map<String, ProjectBeneficiary> projectBeneficiaryByKey,
-                                                String key,
-                                                ProjectBeneficiary projectBeneficiary) {
-        if (key != null) {
-            projectBeneficiaryByKey.putIfAbsent(key, projectBeneficiary);
-        }
     }
 
     /** Builds a lookup map from every beneficiary identifier to its latest task status.
@@ -454,33 +371,20 @@ public class DownsyncService {
                 .forEach(task -> {
                     LatestTaskStatus taskStatus = LatestTaskStatus.from(task);
                     String projectBeneficiaryClientReferenceId = task.getProjectBeneficiaryClientReferenceId();
-                    putTaskStatusIfNotNull(taskStatusByKey, projectBeneficiaryClientReferenceId, taskStatus);
+                    if (projectBeneficiaryClientReferenceId != null) {
+                        taskStatusByKey.merge(projectBeneficiaryClientReferenceId, taskStatus, LatestTaskStatus::latest);
+                    }
 
                     ProjectBeneficiary projectBeneficiary =
                             projectBeneficiaryByKey.get(projectBeneficiaryClientReferenceId);
                     if (projectBeneficiary != null) {
-                        putTaskStatusIfNotNull(taskStatusByKey, projectBeneficiary.getId(), taskStatus);
-                        putTaskStatusIfNotNull(taskStatusByKey, projectBeneficiary.getClientReferenceId(), taskStatus);
-                        putTaskStatusIfNotNull(taskStatusByKey, projectBeneficiary.getBeneficiaryId(), taskStatus);
-                        putTaskStatusIfNotNull(taskStatusByKey, projectBeneficiary.getBeneficiaryClientReferenceId(), taskStatus);
+                        Stream.of(projectBeneficiary.getId(), projectBeneficiary.getClientReferenceId(),
+                                  projectBeneficiary.getBeneficiaryId(), projectBeneficiary.getBeneficiaryClientReferenceId())
+                                .filter(Objects::nonNull)
+                                .forEach(key -> taskStatusByKey.merge(key, taskStatus, LatestTaskStatus::latest));
                     }
                 });
         return taskStatusByKey;
-    }
-
-    /** Merges the given task status into the map under the given key, retaining the more
-     * recently created status when the key already exists. Skips null keys.
-     *
-     * @param taskStatusByKey target map
-     * @param key             identifier key; skipped if null
-     * @param taskStatus      task status to merge
-     */
-    private void putTaskStatusIfNotNull(Map<String, LatestTaskStatus> taskStatusByKey,
-                                        String key,
-                                        LatestTaskStatus taskStatus) {
-        if (key != null) {
-            taskStatusByKey.merge(key, taskStatus, LatestTaskStatus::latest);
-        }
     }
 
     /** Builds a lookup map from every beneficiary identifier to its latest non-deleted HFReferral.
@@ -500,39 +404,23 @@ public class DownsyncService {
         Map<String, LatestReferral> referredBeneficiaryKeys = new HashMap<>();
         hfReferrals.stream()
                 .filter(hfReferral -> !Boolean.TRUE.equals(hfReferral.getIsDeleted()))
-                .forEach(hfReferral -> putReferralTimeIfNotNull(
-                        referredBeneficiaryKeys,
-                        hfReferral.getBeneficiaryId(),
-                        LatestReferral.from(hfReferral)
-                ));
+                .forEach(hfReferral -> {
+                    String key = hfReferral.getBeneficiaryId();
+                    if (key != null) referredBeneficiaryKeys.merge(key, LatestReferral.from(hfReferral), LatestReferral::latest);
+                });
 
         // Snapshot before expanding so newly added keys don't trigger further expansion.
         new HashMap<>(referredBeneficiaryKeys).forEach((beneficiaryId, referral) -> {
             ProjectBeneficiary projectBeneficiary = projectBeneficiaryByKey.get(beneficiaryId);
             if (projectBeneficiary != null) {
-                putReferralTimeIfNotNull(referredBeneficiaryKeys, projectBeneficiary.getId(), referral);
-                putReferralTimeIfNotNull(referredBeneficiaryKeys, projectBeneficiary.getClientReferenceId(), referral);
-                putReferralTimeIfNotNull(referredBeneficiaryKeys, projectBeneficiary.getBeneficiaryId(), referral);
-                putReferralTimeIfNotNull(referredBeneficiaryKeys, projectBeneficiary.getBeneficiaryClientReferenceId(), referral);
+                Stream.of(projectBeneficiary.getId(), projectBeneficiary.getClientReferenceId(),
+                          projectBeneficiary.getBeneficiaryId(), projectBeneficiary.getBeneficiaryClientReferenceId())
+                        .filter(Objects::nonNull)
+                        .forEach(key -> referredBeneficiaryKeys.merge(key, referral, LatestReferral::latest));
             }
         });
 
         return referredBeneficiaryKeys;
-    }
-
-    /** Merges the given referral into the map under the given key, retaining the more
-     * recent referral when the key already exists. Skips null keys.
-     *
-     * @param referredBeneficiaryKeys target map
-     * @param key                     identifier key; skipped if null
-     * @param referral                referral to merge
-     */
-    private void putReferralTimeIfNotNull(Map<String, LatestReferral> referredBeneficiaryKeys,
-                                          String key,
-                                          LatestReferral referral) {
-        if (key != null) {
-            referredBeneficiaryKeys.merge(key, referral, LatestReferral::latest);
-        }
     }
 
     /** Resolves the display taskStatus string for a beneficiary by combining task history
@@ -589,42 +477,33 @@ public class DownsyncService {
                                                      Household household,
                                                      Map<String, ProjectBeneficiary> projectBeneficiaryByKey) {
         List<String> candidateKeys = new ArrayList<>();
-        addIfNotNull(candidateKeys, individual.getId());
-        addIfNotNull(candidateKeys, individual.getClientReferenceId());
-        addIfNotNull(candidateKeys, householdMember.getIndividualId());
-        addIfNotNull(candidateKeys, householdMember.getIndividualClientReferenceId());
-        addIfNotNull(candidateKeys, householdMember.getHouseholdId());
-        addIfNotNull(candidateKeys, householdMember.getHouseholdClientReferenceId());
+        Stream.of(individual.getId(), individual.getClientReferenceId(),
+                  householdMember.getIndividualId(), householdMember.getIndividualClientReferenceId(),
+                  householdMember.getHouseholdId(), householdMember.getHouseholdClientReferenceId())
+                .filter(Objects::nonNull)
+                .forEach(candidateKeys::add);
+
         if (household != null) {
-            addIfNotNull(candidateKeys, household.getId());
-            addIfNotNull(candidateKeys, household.getClientReferenceId());
+            Stream.of(household.getId(), household.getClientReferenceId())
+                    .filter(Objects::nonNull)
+                    .forEach(candidateKeys::add);
         }
 
         // Snapshot before expanding so keys added during this loop don't cause further iterations.
         new ArrayList<>(candidateKeys).forEach(candidateKey -> {
             ProjectBeneficiary projectBeneficiary = projectBeneficiaryByKey.get(candidateKey);
             if (projectBeneficiary != null) {
-                addIfNotNull(candidateKeys, projectBeneficiary.getId());
-                addIfNotNull(candidateKeys, projectBeneficiary.getClientReferenceId());
-                addIfNotNull(candidateKeys, projectBeneficiary.getBeneficiaryId());
-                addIfNotNull(candidateKeys, projectBeneficiary.getBeneficiaryClientReferenceId());
+                Stream.of(projectBeneficiary.getId(), projectBeneficiary.getClientReferenceId(),
+                          projectBeneficiary.getBeneficiaryId(), projectBeneficiary.getBeneficiaryClientReferenceId())
+                        .filter(Objects::nonNull)
+                        .forEach(candidateKeys::add);
             }
         });
 
         return candidateKeys.stream().distinct().collect(Collectors.toList());
     }
 
-    /** Adds the key to the list only if it is non-null.
-     *
-     * @param keys target list
-     * @param key  value to add; skipped if null
-     */
-    private void addIfNotNull(List<String> keys, String key) {
-        if (key != null) {
-            keys.add(key);
-        }
-    }
-
+    /** Holds the status and timing metadata for the most recent task in a given beneficiary scope. */
     private static class LatestTaskStatus {
         private final String status;
         private final Long resetTime;
@@ -640,6 +519,11 @@ public class DownsyncService {
             this.auditTime = auditTime;
         }
 
+        /** Creates a LatestTaskStatus snapshot from a Task.
+         *
+         * @param task the task to extract status, cycle, dose and timing from
+         * @return new LatestTaskStatus
+         */
         private static LatestTaskStatus from(Task task) {
             Long auditTime = getCreatedTime(task.getAuditDetails());
             String cycleId = getAdditionalFieldValue(task.getAdditionalFields(), "cycleId");
@@ -656,6 +540,12 @@ public class DownsyncService {
             );
         }
 
+        /** Returns the more recent of two instances by auditTime.
+         *
+         * @param existing    current value
+         * @param replacement incoming value
+         * @return the instance with the higher auditTime
+         */
         private static LatestTaskStatus latest(LatestTaskStatus existing, LatestTaskStatus replacement) {
             return compare(replacement, existing) >= 0 ? replacement : existing;
         }
@@ -677,6 +567,7 @@ public class DownsyncService {
         }
     }
 
+    /** Holds the timing and cycle/dose metadata for the most recent HF referral in a given beneficiary scope. */
     private static class LatestReferral {
         private final Long referralTime;
         private final String cycleId;
@@ -688,6 +579,11 @@ public class DownsyncService {
             this.dose = dose;
         }
 
+        /** Creates a LatestReferral snapshot from an HFReferral.
+         *
+         * @param hfReferral the referral to extract timing, cycle and dose from
+         * @return new LatestReferral
+         */
         private static LatestReferral from(HFReferral hfReferral) {
             AuditDetails auditDetails = hfReferral.getAuditDetails();
             return new LatestReferral(
@@ -697,13 +593,23 @@ public class DownsyncService {
             );
         }
 
+        /** Returns the more recent of two instances by referralTime.
+         *
+         * @param existing    current value
+         * @param replacement incoming value
+         * @return the instance with the higher referralTime
+         */
         private static LatestReferral latest(LatestReferral existing, LatestReferral replacement) {
             return replacement.referralTime() >= existing.referralTime() ? replacement : existing;
         }
 
-        // Determines whether this referral overrides the given task status.
-        // When cycleId/dose are present on the referral, match by cycle+dose (null on referral = wildcard).
-        // When absent, fall back to time: referral must have occurred after the task was created.
+        /** Returns true when this referral should override the given task status.
+         * Matches by cycle+dose when either is present on the referral (null = wildcard).
+         * Falls back to time-based matching when neither cycle nor dose is recorded.
+         *
+         * @param taskStatus the task status to compare against
+         * @return true if this referral supersedes the task status
+         */
         private boolean matches(LatestTaskStatus taskStatus) {
             boolean hasReferralCycleDose = cycleId != null || dose != null;
             if (hasReferralCycleDose) {
@@ -717,6 +623,12 @@ public class DownsyncService {
         }
     }
 
+    /** Looks up a value from AdditionalFields by key using case-insensitive matching.
+     *
+     * @param additionalFields the fields to search; may be null
+     * @param key              the field key to find
+     * @return the value for the first matching key, or null if not found
+     */
     private static String getAdditionalFieldValue(AdditionalFields additionalFields, String key) {
         if (additionalFields == null || CollectionUtils.isEmpty(additionalFields.getFields())) {
             return null;
@@ -730,11 +642,21 @@ public class DownsyncService {
                 .orElse(null);
     }
 
-    // null on `first` (the referral field) acts as a wildcard — matches any task value.
+    /** Returns true when first equals second, treating null first as a wildcard that matches any second.
+     *
+     * @param first  the referral field; null means match any value
+     * @param second the task field to compare against
+     * @return true if first is null or equal to second
+     */
     private static boolean isSameValue(String first, String second) {
         return first == null || first.equals(second);
     }
 
+    /** Returns the most recent audit timestamp, preferring lastModifiedTime over createdTime.
+     *
+     * @param auditDetails audit details to read from; may be null
+     * @return best available audit timestamp, or 0 if none found
+     */
     private static Long getAuditTime(AuditDetails auditDetails) {
         if (auditDetails == null) {
             return 0L;
@@ -742,6 +664,11 @@ public class DownsyncService {
         return firstTime(auditDetails.getLastModifiedTime(), auditDetails.getCreatedTime(), 0L);
     }
 
+    /** Returns the creation timestamp from audit details, falling back to lastModifiedTime if absent.
+     *
+     * @param auditDetails audit details to read from; may be null
+     * @return best available creation timestamp, or 0 if none found
+     */
     private static Long getCreatedTime(AuditDetails auditDetails) {
         if (auditDetails == null) {
             return 0L;
@@ -749,6 +676,11 @@ public class DownsyncService {
         return firstTime(auditDetails.getCreatedTime(), auditDetails.getLastModifiedTime(), 0L);
     }
 
+    /** Returns the first time value that is non-null and positive from the ordered candidates, or 0.
+     *
+     * @param times ordered candidates to try
+     * @return first valid timestamp, or 0 if none found
+     */
     private static Long firstTime(Long... times) {
         for (Long time : times) {
             if (time != null && time > 0L) {
@@ -756,51 +688,6 @@ public class DownsyncService {
             }
         }
         return 0L;
-    }
-
-    private Identifier getPrimaryIdentifier(Individual individual) {
-        if (CollectionUtils.isEmpty(individual.getIdentifiers())) {
-            return null;
-        }
-
-        return individual.getIdentifiers().stream()
-                .filter(identifier -> !Boolean.TRUE.equals(identifier.getIsDeleted()))
-                .findFirst()
-                .orElse(individual.getIdentifiers().get(0));
-    }
-
-    private org.egov.common.models.individual.Address getPrimaryAddress(Individual individual) {
-        if (CollectionUtils.isEmpty(individual.getAddress())) {
-            return null;
-        }
-        return individual.getAddress().get(0);
-    }
-
-    private Double getLatitude(org.egov.common.models.individual.Address address) {
-        return address == null ? null : address.getLatitude();
-    }
-
-    private Double getLongitude(org.egov.common.models.individual.Address address) {
-        return address == null ? null : address.getLongitude();
-    }
-
-    private Boolean isDeleted(Individual individual, HouseholdMember householdMember, Household household) {
-        return Boolean.TRUE.equals(individual.getIsDeleted())
-                || Boolean.TRUE.equals(householdMember.getIsDeleted())
-                || (household != null && Boolean.TRUE.equals(household.getIsDeleted()));
-    }
-
-    private String serializeAdditionalFields(Object additionalFields) {
-        if (additionalFields == null) {
-            return null;
-        }
-
-        try {
-            return objectMapper.writeValueAsString(additionalFields);
-        } catch (JsonProcessingException e) {
-            log.warn("Failed to serialize beneficiary info additionalFields", e);
-            return null;
-        }
     }
 
     /** Fetches service request services in batch of configured size based on household and individual
@@ -1078,6 +965,13 @@ public class DownsyncService {
         downsync.setSideEffects(allSideEffects);
     }
 
+    /** Fetches all Referrals for the given beneficiary client reference ids using pagination
+     * and sets them on the downsync object.
+     *
+     * @param downsyncRequest         downsync request containing criteria and requestInfo
+     * @param downsync                downsync object to populate with referrals
+     * @param beneficiaryClientRefIds beneficiary client reference ids to search by
+     */
     private void referralSearch(DownsyncRequest downsyncRequest, Downsync downsync,
                                 List<String> beneficiaryClientRefIds) throws InvalidTenantIdException {
 
@@ -1090,22 +984,19 @@ public class DownsyncService {
 
         List<Referral> allReferrals = new ArrayList<>();
 
-        /* get batch size to fetch project tasks from environment */
         int batchSize = configs.getReferralSearchBatchSize();
+
+        ReferralSearchRequest searchRequest = ReferralSearchRequest.builder()
+                .referral(ReferralSearch.builder()
+                        .projectBeneficiaryClientReferenceId(beneficiaryClientRefIds)
+                        .build())
+                .requestInfo(requestInfo)
+                .build();
 
         int fetched = 0;
         Long totalCount;
 
         do {
-            ReferralSearch search = ReferralSearch.builder()
-                    .projectBeneficiaryClientReferenceId(beneficiaryClientRefIds)
-                    .build();
-
-            ReferralSearchRequest searchRequest = ReferralSearchRequest.builder()
-                    .referral(search)
-                    .requestInfo(requestInfo)
-                    .build();
-
             SearchResponse<Referral> searchResponse = referralService.search(
                     searchRequest,
                     batchSize,
@@ -1116,15 +1007,22 @@ public class DownsyncService {
             );
 
             totalCount = searchResponse.getTotalCount();
-            List<Referral> referrals = searchResponse.getResponse();
-            allReferrals.addAll(referrals);
-
+            allReferrals.addAll(searchResponse.getResponse());
             fetched += batchSize;
         } while (fetched < totalCount);
 
         downsync.setReferrals(allReferrals);
     }
 
+    /** Fetches HF referrals for all beneficiary identifier variants in batch and returns them.
+     * Expands the input client reference ids with all ProjectBeneficiary identifier variants
+     * so that referrals stored by any of the four PB IDs are captured.
+     *
+     * @param downsyncRequest         downsync request containing criteria and requestInfo
+     * @param downsync                downsync object to read fetched project beneficiaries from
+     * @param beneficiaryClientRefIds beneficiary client reference ids
+     * @return list of all fetched HF referrals (used for taskStatus resolution; not set on downsync)
+     */
     private List<HFReferral> searchHFReferrals(DownsyncRequest downsyncRequest,
                                                Downsync downsync,
                                                List<String> beneficiaryClientRefIds) throws InvalidTenantIdException {
@@ -1175,6 +1073,14 @@ public class DownsyncService {
         return allHFReferrals;
     }
 
+    /** Builds the combined list of beneficiary IDs for HF referral lookup by merging the input
+     * client reference ids with all four identifier variants from each ProjectBeneficiary,
+     * so that referrals recorded by any ID variant are captured.
+     *
+     * @param downsync                downsync object holding fetched project beneficiaries
+     * @param beneficiaryClientRefIds input client reference ids from the caller
+     * @return deduplicated list of all beneficiary identifiers to use for HF referral lookup
+     */
     private List<String> getHFReferralBeneficiaryIds(Downsync downsync, List<String> beneficiaryClientRefIds) {
         List<String> beneficiaryIds = new ArrayList<>();
         if (!CollectionUtils.isEmpty(beneficiaryClientRefIds)) {
@@ -1182,12 +1088,10 @@ public class DownsyncService {
         }
 
         if (!CollectionUtils.isEmpty(downsync.getProjectBeneficiaries())) {
-            downsync.getProjectBeneficiaries().forEach(projectBeneficiary -> {
-                addIfNotNull(beneficiaryIds, projectBeneficiary.getId());
-                addIfNotNull(beneficiaryIds, projectBeneficiary.getClientReferenceId());
-                addIfNotNull(beneficiaryIds, projectBeneficiary.getBeneficiaryId());
-                addIfNotNull(beneficiaryIds, projectBeneficiary.getBeneficiaryClientReferenceId());
-            });
+            downsync.getProjectBeneficiaries().forEach(pb ->
+                    Stream.of(pb.getId(), pb.getClientReferenceId(), pb.getBeneficiaryId(), pb.getBeneficiaryClientReferenceId())
+                            .filter(Objects::nonNull)
+                            .forEach(beneficiaryIds::add));
         }
 
         return beneficiaryIds.stream().distinct().collect(Collectors.toList());
