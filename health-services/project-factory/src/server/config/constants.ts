@@ -153,7 +153,11 @@ export const mappingStatuses = {
     mapped : "mapped",
     toBeDeMapped : "toBeDeMapped",
     deMapped : "deMapped",
-    failed : "failed"
+    failed : "failed",
+    // Mapping was not attempted because its dependency (e.g. the user
+    // referenced by a project-staff mapping) was never created. Treated
+    // as resolved by the mapping monitor — does not block campaign success.
+    skipped : "skipped"
 }
 
 export const processStatuses = {

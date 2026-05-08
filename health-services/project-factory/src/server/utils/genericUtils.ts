@@ -1974,44 +1974,55 @@ export async function checkCampaignDataCompletionStatus(campaignNumber: string, 
 }
 
 /**
- * Fast check for campaign mapping completion status
- * Returns: { allCompleted: boolean, anyFailed: boolean, totalMappings: number, completedMappings: number, failedMappings: number }
+ * Fast check for campaign mapping completion status.
+ * Pass `type` (e.g. 'user', 'facility', 'resource') to scope the count to a single
+ * mapping type — used by the mapping monitor to apply per-type blocking policy
+ * (facility/resource hard-block; user is non-blocking).
+ *
+ * Mappings in `mapped`, `deMapped`, or `skipped` state count toward completion.
+ * `skipped` covers mappings whose dependency (e.g. a failed user) means the
+ * mapping was intentionally not attempted — these must not block the campaign.
+ *
+ * Returns: { allCompleted, anyFailed, totalMappings, completedMappings, failedMappings, pendingMappings }
  */
-export async function checkCampaignMappingCompletionStatus(campaignNumber: string, tenantId: string) {
+export async function checkCampaignMappingCompletionStatus(campaignNumber: string, tenantId: string, type?: string) {
   try {
     const tableName = getTableName(config?.DB_CONFIG?.DB_CAMPAIGN_MAPPING_DATA_TABLE_NAME, tenantId);
-    
-    // Fast query to get mapping status counts - only select minimal fields for performance
+
     const queryString = `
-      SELECT 
+      SELECT
         status,
         COUNT(*) as count
-      FROM ${tableName} 
-      WHERE campaignNumber = $1 
+      FROM ${tableName}
+      WHERE campaignNumber = $1
+        AND ($2::text IS NULL OR type = $2)
       GROUP BY status
     `;
-    
-    const result = await executeQuery(queryString, [campaignNumber]);
-    
+
+    const result = await executeQuery(queryString, [campaignNumber, type ?? null]);
+
     let totalMappings = 0;
     let completedMappings = 0;
     let failedMappings = 0;
-    
-    // Process the grouped results using constants
+
     result.rows.forEach((row: any) => {
       const count = parseInt(row.count);
       totalMappings += count;
-      
-      if (row.status === mappingStatuses.mapped || row.status === mappingStatuses.deMapped) {
+
+      if (
+        row.status === mappingStatuses.mapped ||
+        row.status === mappingStatuses.deMapped ||
+        row.status === mappingStatuses.skipped
+      ) {
         completedMappings += count;
       } else if (row.status === mappingStatuses.failed) {
         failedMappings += count;
       }
     });
-    
+
     const allCompleted = totalMappings > 0 && completedMappings === totalMappings;
     const anyFailed = failedMappings > 0;
-    
+
     return {
       allCompleted,
       anyFailed,
@@ -2020,7 +2031,7 @@ export async function checkCampaignMappingCompletionStatus(campaignNumber: strin
       failedMappings,
       pendingMappings: totalMappings - completedMappings - failedMappings
     };
-    
+
   } catch (error) {
     logger.error('Error checking campaign mapping completion status:', error);
     throw error;

@@ -116,6 +116,12 @@ public class UserValidationProcessor implements IWorkbookProcessor {
             log.info("User validation completed with {} errors", errors.size());
             enrichmentUtil.logValidationErrors(resource.getReferenceId(), sheetName, errors);
 
+            // Tag every row in the cached sheetData with its per-row validity so the
+            // persistence step (saveSheetDataToTemp) writes it into rowJson, allowing
+            // downstream consumers (project-factory) to skip invalid rows without
+            // re-running validation.
+            enrichSheetDataWithRowStatus(sheetData, errors);
+
             // Only add error columns if there are validation errors
             if (!errors.isEmpty()) {
                 log.info("Found {} validation errors, adding error columns", errors.size());
@@ -139,6 +145,40 @@ public class UserValidationProcessor implements IWorkbookProcessor {
             exceptionHandler.throwCustomException(ErrorConstants.USER_VALIDATION_FAILED, 
                 ErrorConstants.USER_VALIDATION_FAILED_MESSAGE + ": " + e.getMessage(), e);
             return workbook; // never reached
+        }
+    }
+
+    /**
+     * Tag each row in the cached sheetData with #status# and #errorDetails#.
+     * sheetData is the cached list reference returned by convertSheetToMapListCached;
+     * mutations propagate to the persistence path that re-fetches the same cached list.
+     * Errors are matched to rows via the existing __actualRowNumber__ marker.
+     */
+    private void enrichSheetDataWithRowStatus(List<Map<String, Object>> sheetData,
+                                              List<ValidationError> errors) {
+        Map<Integer, List<String>> errorsByRow = new HashMap<>();
+        for (ValidationError err : errors) {
+            Integer rowNum = err.getRowNumber();
+            if (rowNum == null) continue;
+            String detail = err.getErrorDetails();
+            if (detail == null || detail.isEmpty()) continue;
+            errorsByRow.computeIfAbsent(rowNum, k -> new ArrayList<>()).add(detail);
+        }
+
+        for (Map<String, Object> rowData : sheetData) {
+            Integer rowNumber = (Integer) rowData.get("__actualRowNumber__");
+            List<String> rowErrors = rowNumber == null ? null : errorsByRow.get(rowNumber);
+            if (rowErrors != null && !rowErrors.isEmpty()) {
+                rowData.put(ValidationConstants.ROW_JSON_STATUS_KEY, ValidationConstants.ROW_STATUS_INVALID);
+                Set<String> dedup = new LinkedHashSet<>(rowErrors);
+                rowData.put(ValidationConstants.ROW_JSON_ERROR_DETAILS_KEY, String.join("; ", dedup));
+            } else {
+                // Only set VALID if not already invalid from a prior pass
+                Object existing = rowData.get(ValidationConstants.ROW_JSON_STATUS_KEY);
+                if (!ValidationConstants.ROW_STATUS_INVALID.equals(existing)) {
+                    rowData.put(ValidationConstants.ROW_JSON_STATUS_KEY, ValidationConstants.ROW_STATUS_VALID);
+                }
+            }
         }
     }
 

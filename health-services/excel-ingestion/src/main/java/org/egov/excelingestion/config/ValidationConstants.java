@@ -84,6 +84,17 @@ public class ValidationConstants {
     public static final String SHEET_KIND_BOUNDARY = "boundary";
     public static final String SHEET_KIND_FACILITY = "facility";
 
+    // Per-row JSON keys for downstream consumers (e.g. project-factory).
+    // Stored on each persisted rowJson so consumers can tell invalid rows
+    // apart without re-running validation.
+    public static final String ROW_JSON_STATUS_KEY = "#status#";
+    public static final String ROW_JSON_ERROR_DETAILS_KEY = "#errorDetails#";
+
+    // Row-level status values written into ROW_JSON_STATUS_KEY.
+    // Match project-factory's sheetDataRowStatuses values (uppercase).
+    public static final String ROW_STATUS_INVALID = "INVALID";
+    public static final String ROW_STATUS_VALID = "VALID";
+
     private ValidationConstants() {
         // Private constructor to prevent instantiation
     }

@@ -4,7 +4,7 @@ import { searchSheetData } from './excelIngestionUtils';
 import { searchProjectTypeCampaignService } from '../service/campaignManageService';
 import { getRelatedDataWithCampaign, getMappingDataRelatedToCampaign, prepareProcessesInDb, getRelatedDataWithUniqueIdentifiers, checkCampaignDataCompletionStatus, checkCampaignMappingCompletionStatus, throwError, getCurrentProcesses, pollUntilCount, deleteCampaignDataFailedAndInvalid } from './genericUtils';
 import { produceModifiedMessages } from '../kafka/Producer';
-import { dataRowStatuses, mappingStatuses, usageColumnStatus, campaignStatuses, allProcesses, processStatuses, additionalDetailKeys, sheetValidationStatuses, errorCodes, errorModules, httpStatusCodes } from '../config/constants';
+import { dataRowStatuses, mappingStatuses, usageColumnStatus, campaignStatuses, allProcesses, processStatuses, additionalDetailKeys, sheetValidationStatuses, errorCodes, errorModules, httpStatusCodes, campaignDataRowFields, sheetDataRowStatuses } from '../config/constants';
 import { searchMDMSDataViaV2Api, searchBoundaryRelationshipData } from '../api/coreApis';
 import { populateBoundariesRecursively, getLocalizedName, enrichAndPersistCampaignWithError, enrichAndPersistCampaignForCreateViaFlow2, userCredGeneration, markAllToCreateResourcesAsCompleted } from './campaignUtils';
 import { getLocalisationModuleName } from './localisationUtils';
@@ -911,22 +911,39 @@ async function monitorCampaignDataCompletion(
                 logger.warn(`Could not check campaign status, continuing with data monitoring: ${campaignCheckError}`);
             }
             
+            // Check boundary and facility status (hard-blocking failures)
+            const boundaryStatus = await checkCampaignDataCompletionStatus(campaignNumber, tenantId, 'boundary');
+            const facilityStatus = await checkCampaignDataCompletionStatus(campaignNumber, tenantId, 'facility');
+
+            // Check user status (non-blocking failures allowed)
+            const userStatus = await checkCampaignDataCompletionStatus(campaignNumber, tenantId, 'user');
+
+            // Overall status
             const status = await checkCampaignDataCompletionStatus(campaignNumber, tenantId);
 
             logger.info(`Campaign ${campaignNumber} polling attempt ${attempt}/${maxAttempts}: ${status.completedRows}/${status.totalRows} completed, ${status.failedRows} failed, ${status.pendingRows} pending`);
+            logger.info(`  Boundary: ${boundaryStatus.completedRows}/${boundaryStatus.totalRows} completed, ${boundaryStatus.failedRows} failed`);
+            logger.info(`  Facility: ${facilityStatus.completedRows}/${facilityStatus.totalRows} completed, ${facilityStatus.failedRows} failed`);
+            logger.info(`  User: ${userStatus.completedRows}/${userStatus.totalRows} completed, ${userStatus.failedRows} failed`);
 
             // Only act once all rows have settled (no pending) — failing immediately while other
             // types are still in progress would create ghost resources that can't be recalled.
             if (status.totalRows > 0 && status.pendingRows === 0) {
-                if (status.anyFailed) {
-                    logger.error(`Campaign ${campaignNumber} has failed data entries. Marking campaign as failed.`);
-                    const failureError = new Error(`Data creation failed: ${status.failedRows} out of ${status.totalRows} data entries failed`);
+                // Hard-block: boundary or facility failures prevent campaign success
+                if (boundaryStatus.anyFailed || facilityStatus.anyFailed) {
+                    logger.error(`Campaign ${campaignNumber} has hard-blocking failures (boundary: ${boundaryStatus.failedRows} failed, facility: ${facilityStatus.failedRows} failed). Marking campaign as failed.`);
+                    const failureError = new Error(`Boundary/Facility creation failed: boundary ${boundaryStatus.failedRows} failed, facility ${facilityStatus.failedRows} failed`);
                     await sendCampaignFailureMessage(campaignId, tenantId, failureError);
                     throw failureError;
                 }
 
-                if (status.allCompleted) {
-                    logger.info(`Campaign ${campaignNumber} data creation completed successfully. All ${status.totalRows} entries are completed.`);
+                // Non-blocking: user failures are allowed, log them but continue
+                if (userStatus.anyFailed) {
+                    logger.warn(`Campaign ${campaignNumber} has user-level failures: ${userStatus.failedRows} out of ${userStatus.totalRows} users failed. Failures are non-blocking and visible in error worksheet.`);
+                }
+
+                if (status.allCompleted || (status.totalRows > 0 && status.failedRows > 0 && status.pendingRows === 0 && !boundaryStatus.anyFailed && !facilityStatus.anyFailed)) {
+                    logger.info(`Campaign ${campaignNumber} data creation completed. Boundary/Facility validation passed. (${status.completedRows} completed, ${status.failedRows} failed)`);
                     await markCreationProcessesAsCompleted(campaignNumber, tenantId, userUuid);
                     return;
                 }
@@ -1042,20 +1059,36 @@ async function monitorCampaignMappingCompletion(
                 logger.warn(`Could not check campaign status, continuing with mapping monitoring: ${campaignCheckError}`);
             }
             
-            const status = await checkCampaignMappingCompletionStatus(campaignNumber, tenantId);
-            
-            logger.info(`Campaign ${campaignNumber} mapping attempt ${attempt}/${maxAttempts}: ${status.completedMappings}/${status.totalMappings} completed, ${status.failedMappings} failed, ${status.pendingMappings} pending`);
-            
-            if (status.anyFailed) {
-                logger.error(`Campaign ${campaignNumber} has failed mappings. Marking campaign as failed.`);
-                const failureError = new Error(`Mapping failed: ${status.failedMappings} out of ${status.totalMappings} mappings failed`);
+            // Per-type breakdown: facility/resource failures hard-block the campaign;
+            // user-mapping failures are non-blocking (parallel to user data failures
+            // in monitorCampaignDataCompletion).
+            const [overall, facilityMappingStatus, resourceMappingStatus, userMappingStatus] = await Promise.all([
+                checkCampaignMappingCompletionStatus(campaignNumber, tenantId),
+                checkCampaignMappingCompletionStatus(campaignNumber, tenantId, 'facility'),
+                checkCampaignMappingCompletionStatus(campaignNumber, tenantId, 'resource'),
+                checkCampaignMappingCompletionStatus(campaignNumber, tenantId, 'user'),
+            ]);
+
+            logger.info(`Campaign ${campaignNumber} mapping attempt ${attempt}/${maxAttempts}: ${overall.completedMappings}/${overall.totalMappings} completed, ${overall.failedMappings} failed, ${overall.pendingMappings} pending`);
+            logger.info(`  Facility: ${facilityMappingStatus.completedMappings}/${facilityMappingStatus.totalMappings} completed, ${facilityMappingStatus.failedMappings} failed`);
+            logger.info(`  Resource: ${resourceMappingStatus.completedMappings}/${resourceMappingStatus.totalMappings} completed, ${resourceMappingStatus.failedMappings} failed`);
+            logger.info(`  User:     ${userMappingStatus.completedMappings}/${userMappingStatus.totalMappings} completed, ${userMappingStatus.failedMappings} failed`);
+
+            if (facilityMappingStatus.anyFailed || resourceMappingStatus.anyFailed) {
+                logger.error(`Campaign ${campaignNumber} has hard-blocking mapping failures (facility: ${facilityMappingStatus.failedMappings}, resource: ${resourceMappingStatus.failedMappings}). Marking campaign as failed.`);
+                const failureError = new Error(`Mapping failed: facility ${facilityMappingStatus.failedMappings} failed, resource ${resourceMappingStatus.failedMappings} failed`);
                 await sendCampaignFailureMessage(campaignId, tenantId, failureError);
                 throw failureError;
             }
-            
-            if (status.allCompleted && status.totalMappings > 0) {
-                logger.info(`Campaign ${campaignNumber} mapping completed successfully. All ${status.totalMappings} mappings are completed.`);
-                // Mark all mapping processes as completed
+
+            if (userMappingStatus.anyFailed) {
+                logger.warn(`Campaign ${campaignNumber} has user-mapping failures: ${userMappingStatus.failedMappings} out of ${userMappingStatus.totalMappings}. Failures are non-blocking and visible in the credential sheet.`);
+            }
+
+            // All mapping rows have been resolved (mapped / deMapped / skipped / failed)
+            // and no facility/resource failures remain — proceed to completion.
+            if (overall.totalMappings > 0 && overall.pendingMappings === 0) {
+                logger.info(`Campaign ${campaignNumber} mapping resolved. (${overall.completedMappings} completed, ${overall.failedMappings} failed — user-only failures tolerated)`);
                 await markMappingProcessesAsCompleted(campaignNumber, tenantId, userUuid);
                 return;
             }
@@ -1461,19 +1494,37 @@ async function processUsersSimple(
     const usersToSave: any[] = [];
     const usersToUpdate: any[] = [];
     const userBoundaryMappings: any[] = [];
-    
+    // Phones whose sheet row is sheet-invalid. handleUserBoundaryMappings uses
+    // this to preserve their existing mappings (don't demap a user just because
+    // a later sheet upload had a validation error on their row).
+    const invalidUserPhones = new Set<string>();
+
     userSheetData.forEach(record => {
         const rowJson = record.rowjson || {};
         const phoneNumber = String(rowJson[PHONE_KEY]).trim();
         const boundaryCode = rowJson[BOUNDARY_KEY];
         const usage = rowJson[USAGE_KEY];
-        
+
         if (!phoneNumber || phoneNumber === 'undefined') return;
-        
+
+        // excel-ingestion tags rowjson with #status# = INVALID for rows that
+        // failed sheet validation. We persist those rows so they appear in the
+        // credential sheet, but skip HRMS creation and mapping for them.
+        const sheetRowStatus = rowJson?.[campaignDataRowFields.status];
+        const isInvalidFromSheet = sheetRowStatus === sheetDataRowStatuses.INVALID;
+        if (isInvalidFromSheet) invalidUserPhones.add(phoneNumber);
+
         const currentUser = currentUserMap.get(phoneNumber);
         const otherUser = otherUserMap.get(phoneNumber);
-        
+
         if (currentUser) {
+            if (isInvalidFromSheet) {
+                // Sheet validation failed for an already-created user — don't
+                // overwrite their boundary/usage with values that just failed
+                // validation. Leave their data and existing mappings untouched.
+                logger.info(`Sheet-invalid row for already-created user ${phoneNumber}; preserving existing record and mappings`);
+                return;
+            }
             // User exists in current campaign - check if boundary and usage need to be updated
             const existingBoundary = currentUser.data[BOUNDARY_KEY];
             const existingUsage = currentUser.data[USAGE_KEY];
@@ -1485,10 +1536,10 @@ async function processUsersSimple(
                 });
                 logger.info(`Updated boundary for user ${phoneNumber}: ${existingBoundary} -> ${boundaryCode}`);
             }
-        } else if (otherUser) {
+        } else if (otherUser && !isInvalidFromSheet) {
             // User exists in other campaign - reuse with all fields preserved except boundary and usage
             const reusedData = { ...otherUser.data, [BOUNDARY_KEY]: boundaryCode, [USAGE_KEY]: usage };
-            
+
             usersToSave.push({
                 campaignNumber,
                 data: reusedData,
@@ -1498,8 +1549,20 @@ async function processUsersSimple(
                 status: dataRowStatuses.completed
             });
             logger.info(`Reused user ${phoneNumber} from other campaign with new boundary: ${boundaryCode}`);
+        } else if (isInvalidFromSheet) {
+            // Sheet-invalid new user — persist as failed (visible in credential sheet),
+            // skip HRMS, skip boundary mapping creation.
+            usersToSave.push({
+                campaignNumber,
+                data: rowJson,
+                type: 'user',
+                uniqueIdentifier: phoneNumber,
+                uniqueIdAfterProcess: null,
+                status: dataRowStatuses.failed
+            });
+            logger.info(`Skipping HRMS for invalid user ${phoneNumber}; marked failed for credential sheet visibility`);
         } else {
-            // Completely new user
+            // Completely new valid user
             usersToSave.push({
                 campaignNumber,
                 data: rowJson,
@@ -1510,9 +1573,10 @@ async function processUsersSimple(
             });
             logger.info(`Added new user ${phoneNumber}`);
         }
-        
-        // Prepare boundary mappings for active users
-        if (usage === usageColumnStatus.active && boundaryCode) {
+
+        // Boundary mappings: only for valid active users. Invalid rows skip
+        // mapping entirely so the staff-creation step doesn't cascade-fail.
+        if (!isInvalidFromSheet && usage === usageColumnStatus.active && boundaryCode) {
             const boundaries = boundaryCode.split(',').map((b: string) => b.trim()).filter(Boolean);
             boundaries.forEach((boundary : String ) => {
                 userBoundaryMappings.push({
@@ -1535,35 +1599,40 @@ async function processUsersSimple(
         await persistDataInBatches(usersToUpdate, config.kafka.KAFKA_UPDATE_SHEET_DATA_TOPIC, tenantId);
     }
     
-    // Step 5: Handle boundary mappings
-    await handleUserBoundaryMappings(campaignNumber, tenantId, userBoundaryMappings);
+    // Step 5: Handle boundary mappings — invalidUserPhones lets the helper
+    // preserve mappings for users whose sheet row failed validation.
+    await handleUserBoundaryMappings(campaignNumber, tenantId, userBoundaryMappings, invalidUserPhones);
     
     logger.info(`User processing completed: ${usersToSave.length} saved, ${usersToUpdate.length} updated, ${userBoundaryMappings.length} mappings processed`);
     return usersToSave.length + usersToUpdate.length;
 }
 
 /**
- * Handle user boundary mappings - active users get mapped, inactive get demapped
+ * Handle user boundary mappings - active users get mapped, inactive get demapped.
+ * `invalidUserPhones` lists users whose sheet row was sheet-invalid in this
+ * upload — their existing mappings are preserved (not demapped) so a transient
+ * validation error on a re-upload doesn't tear down a working user's mapping.
  */
 async function handleUserBoundaryMappings(
     campaignNumber: string,
     tenantId: string,
-    newMappings: any[]
+    newMappings: any[],
+    invalidUserPhones: Set<string> = new Set()
 ): Promise<void> {
     // Get existing mappings for this campaign
     const existingMappings = await getMappingDataRelatedToCampaign('user', campaignNumber, tenantId);
     const existingMappingSet = new Set(
         existingMappings.map((m: any) => `${m.uniqueIdentifierForData}#${m.boundaryCode}`)
     );
-    
+
     // Prepare new mappings to be created
     const mappingsToCreate: any[] = [];
     const newMappingSet = new Set();
-    
+
     newMappings.forEach(mapping => {
         const key = `${mapping.phoneNumber}#${mapping.boundaryCode}`;
         newMappingSet.add(key);
-        
+
         if (!existingMappingSet.has(key)) {
             mappingsToCreate.push({
                 campaignNumber,
@@ -1575,10 +1644,13 @@ async function handleUserBoundaryMappings(
             });
         }
     });
-    
-    // Prepare mappings to be demapped (exist in DB but not in new mappings)
+
+    // Prepare mappings to be demapped (exist in DB but not in new mappings).
+    // Skip mappings whose user appears in this sheet but with sheet-invalid
+    // status — preserving their existing mapping until the row is fixed.
     const mappingsToDemap: any[] = [];
     existingMappings.forEach((existing: any) => {
+        if (invalidUserPhones.has(existing.uniqueIdentifierForData)) return;
         const key = `${existing.uniqueIdentifierForData}#${existing.boundaryCode}`;
         if (!newMappingSet.has(key) && existing.status !== mappingStatuses.toBeDeMapped) {
             mappingsToDemap.push({
@@ -2464,9 +2536,14 @@ async function createUsersFromUserData(campaignDetails: any, tenantId: string, r
         
         logger.info(`Found ${allCurrentUsers.length} user records in campaign data`);
         
-        // Filter users that need creation (pending or failed status)
+        // Filter users that need creation (pending or failed status), but
+        // exclude rows flagged as sheet-invalid — those were marked failed
+        // upstream as a sheet-validation outcome and must not be retried.
         const usersToCreate = allCurrentUsers.filter(
-            (u: any) => u?.status === dataRowStatuses.pending || u?.status === dataRowStatuses.failed
+            (u: any) =>
+                (u?.status === dataRowStatuses.pending ||
+                 u?.status === dataRowStatuses.failed) &&
+                u?.data?.[campaignDataRowFields.status] !== sheetDataRowStatuses.INVALID
         );
         
         if (usersToCreate.length === 0) {

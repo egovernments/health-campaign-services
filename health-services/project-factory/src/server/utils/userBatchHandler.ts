@@ -297,13 +297,15 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
         logger.error('Error in handleUserBatch:', error);
         const errMsg = error instanceof Error ? error.message : String(error);
 
-        // Mark all non-completed rows in this batch as failed so the sheet reflects the error
+        // Mark all non-completed rows in this batch as failed so the credential
+        // sheet reflects the error. These are HRMS-side failures, distinct from
+        // sheet-validation INVALID rows — keep them tagged FAILED.
         const allRecords = Object.values(messageObject.userData);
         const nonCompletedRecords = allRecords.filter(r => r.status !== dataRowStatuses.completed);
         if (nonCompletedRecords.length > 0) {
             for (const record of nonCompletedRecords) {
                 record.status = dataRowStatuses.failed;
-                record.data[campaignDataRowFields.status] = sheetDataRowStatuses.INVALID;
+                record.data[campaignDataRowFields.status] = sheetDataRowStatuses.FAILED;
                 record.data[campaignDataRowFields.errorDetails] = errMsg;
             }
             try {
@@ -313,16 +315,22 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
                     messageObject.tenantId
                 );
             } catch (persistError) {
+                // Persistence failed — without this update the campaign monitor
+                // would never observe the failed rows and would hang. Escalate.
                 logger.error("Failed to persist failed row statuses after batch error:", persistError);
+                await sendCampaignFailureMessage(
+                    messageObject.campaignId,
+                    messageObject.tenantId,
+                    new Error(`User batch persistence failed after error '${errMsg}': ${persistError instanceof Error ? persistError.message : String(persistError)}`)
+                );
+                return;
             }
         }
 
-        const batchError = new Error(`User batch processing error: ${errMsg}`);
-        await sendCampaignFailureMessage(
-            messageObject.campaignId,
-            messageObject.tenantId,
-            batchError
-        );
+        // User-batch failures are non-blocking by policy — the per-row failures
+        // are now visible to the data/mapping monitors, which apply non-blocking
+        // semantics for user-type rows. Do NOT mark the campaign as failed.
+        logger.error(`User batch ${messageObject.batchNumber}/${messageObject.totalBatches} failed (non-blocking): ${errMsg}`);
     }
 }
 

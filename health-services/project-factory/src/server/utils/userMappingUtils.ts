@@ -34,6 +34,17 @@ export async function startUserMapping(campaignDetails: any, useruuid: string, r
         try {
             const projectId = boundaryToProjectIdMapping[allCurrentMappingsToDo[i]?.boundaryCode];
             const userId = phoneToUserIdMapping[allCurrentMappingsToDo[i]?.uniqueIdentifierForData];
+
+            // No user means HRMS creation failed or the row was sheet-invalid.
+            // Skip the staff API call and mark the mapping as skipped — does
+            // not fail the campaign.
+            if (!userId) {
+                allCurrentMappingsToDo[i].status = mappingStatuses.skipped;
+                await produceModifiedMessages({ datas: [allCurrentMappingsToDo[i]] }, config.kafka.KAFKA_UPDATE_MAPPING_DATA_TOPIC, campaignDetails.tenantId);
+                logger.info(`Skipping user mapping for ${allCurrentMappingsToDo[i]?.uniqueIdentifierForData} — user not created`);
+                continue;
+            }
+
             const ProjectStaff = {
                 tenantId: campaignDetails.tenantId,
                 projectId,
@@ -53,9 +64,15 @@ export async function startUserMapping(campaignDetails: any, useruuid: string, r
             await produceModifiedMessages({ datas: [allCurrentMappingsToDo[i]] }, config.kafka.KAFKA_UPDATE_MAPPING_DATA_TOPIC, campaignDetails.tenantId);
         }
         catch (error) {
-            // Log the error if the API call fails
+            // Genuine staff API error — mark this mapping as failed and continue
+            // with the rest. User-level mapping failures are non-blocking.
             logger.error(`Failed to create project staff for user with phone ${allCurrentMappingsToDo[i]?.uniqueIdentifierForData}:`, error);
-            throw error; // Rethrow the error to propagate it
+            allCurrentMappingsToDo[i].status = mappingStatuses.failed;
+            try {
+                await produceModifiedMessages({ datas: [allCurrentMappingsToDo[i]] }, config.kafka.KAFKA_UPDATE_MAPPING_DATA_TOPIC, campaignDetails.tenantId);
+            } catch (persistError) {
+                logger.error(`Failed to persist failed user mapping status for ${allCurrentMappingsToDo[i]?.uniqueIdentifierForData}:`, persistError);
+            }
         }
     }
 }
@@ -81,15 +98,22 @@ export async function startUserDemapping(campaignDetails: any, useruuid: string,
             const projectId = boundaryToProjectIdMapping[allCurrentMappingsToDeMap[i]?.boundaryCode];
             const userId = phoneToUserIdMapping[allCurrentMappingsToDeMap[i]?.uniqueIdentifierForData];
             if(!userId || !projectId || !allCurrentMappingsToDeMap[i]?.mappingId){
+                // No server-side state to undo — drop the local mapping row.
                 await produceModifiedMessages({ datas: [allCurrentMappingsToDeMap[i]] }, config.kafka.KAFKA_DELETE_MAPPING_DATA_TOPIC, campaignDetails.tenantId);
+                continue;
             }
             await fetchProjectStaffWsearchProjectStaff(RequestInfo, campaignDetails.tenantId, projectId, userId);
             await produceModifiedMessages({ datas: [allCurrentMappingsToDeMap[i]] }, config.kafka.KAFKA_DELETE_MAPPING_DATA_TOPIC, campaignDetails.tenantId);
         }
         catch (error) {
-            // Log the error if the API call fails
+            // Genuine demap API error — mark failed (non-blocking) and continue.
             logger.error(`Failed to demap project staff for user with phone ${allCurrentMappingsToDeMap[i]?.uniqueIdentifierForData}:`, error);
-            throw error; // Rethrow the error to propagate it
+            allCurrentMappingsToDeMap[i].status = mappingStatuses.failed;
+            try {
+                await produceModifiedMessages({ datas: [allCurrentMappingsToDeMap[i]] }, config.kafka.KAFKA_UPDATE_MAPPING_DATA_TOPIC, campaignDetails.tenantId);
+            } catch (persistError) {
+                logger.error(`Failed to persist failed user demap status for ${allCurrentMappingsToDeMap[i]?.uniqueIdentifierForData}:`, persistError);
+            }
         }
     }
 }

@@ -291,8 +291,19 @@ async function processUserMappings(
             const projectId = boundaryToProjectId[mapping.boundaryCode];
             const userId = userMap[mapping.uniqueIdentifierForData];
 
-            if (!projectId || !userId) {
-                throw new Error(`Missing project/user ID for ${mapping.uniqueIdentifierForData}`);
+            // If the user wasn't created (HRMS failure or sheet-invalid row),
+            // skip the project-staff API call entirely. Marking the mapping
+            // `skipped` lets the mapping monitor count it as resolved so the
+            // campaign can still complete.
+            if (!userId) {
+                mapping.status = mappingStatuses.skipped;
+                updateBatch.push(mapping);
+                logger.info(`Skipping user mapping for ${mapping.uniqueIdentifierForData} — user not created`);
+                return;
+            }
+
+            if (!projectId) {
+                throw new Error(`Missing project ID for ${mapping.uniqueIdentifierForData}`);
             }
 
             const ProjectStaff = {
@@ -431,7 +442,14 @@ async function processUserDemappings(
             const userId = userMap[mapping.uniqueIdentifierForData];
             const mappingId = mapping.mappingId;
 
-            if (!projectId || !userId || !mappingId) {
+            // No user means there was nothing to demap server-side — drop the
+            // local mapping row directly.
+            if (!userId) {
+                deleteBatch.push(mapping);
+                return;
+            }
+
+            if (!projectId || !mappingId) {
                 // Direct delete for invalid mappings
                 deleteBatch.push(mapping); // Collect for batch deletion
                 return;

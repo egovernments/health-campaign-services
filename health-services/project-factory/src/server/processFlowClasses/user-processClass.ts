@@ -61,7 +61,14 @@ export class TemplateClass {
             logger.info(`Processing item number ${idx + 1} with status ${u?.status}`);
             const data: any = u?.data;
             if (u?.status === dataRowStatuses.failed) {
-                data["#status#"] = sheetDataRowStatuses.INVALID;
+                // Preserve the failure discriminator already written by the
+                // ingest/HRMS path:
+                //   sheet-validation invalid → INVALID
+                //   HRMS-create failed       → FAILED
+                // Default to INVALID for legacy rows that don't carry a tag.
+                if (!data["#status#"]) {
+                    data["#status#"] = sheetDataRowStatuses.INVALID;
+                }
                 return data;
             }
             data["#status#"] = sheetDataRowStatuses.CREATED;
