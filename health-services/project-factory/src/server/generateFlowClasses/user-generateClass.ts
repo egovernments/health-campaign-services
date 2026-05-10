@@ -5,7 +5,7 @@ import { searchProjectTypeCampaignService } from "../service/campaignManageServi
 import { searchBoundaryRelationshipData, searchBoundaryRelationshipDefinition } from "../api/coreApis";
 import { logger } from "../utils/logger";
 import { dataRowStatuses, sheetDataRowStatuses } from "../config/constants";
-import { decrypt } from "../utils/cryptUtils";
+import { bulkDecrypt } from "../utils/cryptUtils";
 
 // This will be a dynamic template class for different types
 export class TemplateClass {
@@ -37,6 +37,25 @@ export class TemplateClass {
 
         // Prepare User List sheet
         const users = await getRelatedDataWithCampaign(type, campaignNumber, tenantId, dataRowStatuses.completed);
+        logger.info(`Decrypting ${users.length} users`);
+
+        const encryptedUserNames: string[] = [];
+        const encryptedPasswords: string[] = [];
+        for (const u of users) {
+            const rawData = u?.data || {};
+            encryptedUserNames.push(rawData["UserName"]);
+            encryptedPasswords.push(rawData["Password"]);
+        }
+
+        // bulkDecrypt is capped at 500 entries per call, so chunk both arrays in lockstep.
+        const BULK_DECRYPT_CHUNK = 500;
+        const decryptedUserNames: string[] = [];
+        const decryptedPasswords: string[] = [];
+        for (let i = 0; i < encryptedUserNames.length; i += BULK_DECRYPT_CHUNK) {
+            decryptedUserNames.push(...bulkDecrypt(encryptedUserNames.slice(i, i + BULK_DECRYPT_CHUNK)));
+            decryptedPasswords.push(...bulkDecrypt(encryptedPasswords.slice(i, i + BULK_DECRYPT_CHUNK)));
+        }
+
         const userData = users.map((u: any, idx: number) => {
             const rawData = u?.data || {};
             const localizedData: Record<string, any> = {};
@@ -44,9 +63,8 @@ export class TemplateClass {
                 localizedData[key] = rawData[key];
             }
             localizedData["#status#"] = sheetDataRowStatuses.CREATED;
-            logger.info(`Decrypting item number ${idx + 1}`);
-            localizedData["UserName"] = decrypt(rawData["UserName"]);
-            localizedData["Password"] = decrypt(rawData["Password"]);
+            localizedData["UserName"] = decryptedUserNames[idx];
+            localizedData["Password"] = decryptedPasswords[idx];
             return localizedData;
         });
 

@@ -5,7 +5,7 @@ import { searchProjectTypeCampaignService } from "../service/campaignManageServi
 import { searchBoundaryRelationshipData, searchBoundaryRelationshipDefinition } from "../api/coreApis";
 import { logger } from "../utils/logger";
 import { dataRowStatuses, sheetDataRowStatuses } from "../config/constants";
-import { decrypt } from "../utils/cryptUtils";
+import { bulkDecrypt } from "../utils/cryptUtils";
 import { WorkerRegistryRecord, searchWorkersByIds } from "../utils/workerRegistryUtils";
 
 // This will be a dynamic template class for different types
@@ -53,8 +53,26 @@ export class TemplateClass {
             logger.warn("requestInfo not available in responseToSend — skipping worker registry search for credential sheet");
         }
 
-        const userData = await Promise.all(users.map(async (u: any, idx: number) => {
-            logger.info(`Decrypting item number ${idx + 1}`);
+        logger.info(`Decrypting ${users.length} users`);
+
+        const encryptedUserNames: string[] = [];
+        const encryptedPasswords: string[] = [];
+        for (const u of users) {
+            const rawData = u?.data || {};
+            encryptedUserNames.push(rawData["UserName"]);
+            encryptedPasswords.push(rawData["Password"]);
+        }
+
+        // bulkDecrypt is capped at 500 entries per call, so chunk both arrays in lockstep.
+        const BULK_DECRYPT_CHUNK = 500;
+        const decryptedUserNames: string[] = [];
+        const decryptedPasswords: string[] = [];
+        for (let i = 0; i < encryptedUserNames.length; i += BULK_DECRYPT_CHUNK) {
+            decryptedUserNames.push(...bulkDecrypt(encryptedUserNames.slice(i, i + BULK_DECRYPT_CHUNK)));
+            decryptedPasswords.push(...bulkDecrypt(encryptedPasswords.slice(i, i + BULK_DECRYPT_CHUNK)));
+        }
+
+        const userData = users.map((u: any, idx: number) => {
             const rawData = u?.data || {};
             const localizedData: Record<string, any> = {};
 
@@ -63,8 +81,8 @@ export class TemplateClass {
             }
 
             localizedData["#status#"] = sheetDataRowStatuses.CREATED;
-            localizedData["UserName"] = decrypt(rawData["UserName"]);
-            localizedData["Password"] = decrypt(rawData["Password"]);
+            localizedData["UserName"] = decryptedUserNames[idx];
+            localizedData["Password"] = decryptedPasswords[idx];
 
             // Overlay decrypted payee details from worker registry search result.
             // This replaces any potentially encrypted values that may have been stored
@@ -93,7 +111,7 @@ export class TemplateClass {
                 localizedData["HCM_ADMIN_CONSOLE_BOUNDARY_NAME"] = getLocalizedName(boundaryMandatoryCode, localizationMap);
             }
             return localizedData;
-        }));
+        });
 
         // Construct the final SheetMap
         const sheetMap: SheetMap = {
