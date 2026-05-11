@@ -6,7 +6,6 @@ on:
       - allValidations
       - master
       - master-nigeria-go-deep-2
-      - checklist-clone-fix
 
 env:
   DOCKER_USERNAME: ${{ vars.DOCKER_USERNAME }}
