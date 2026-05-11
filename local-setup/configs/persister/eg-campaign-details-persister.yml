@@ -1,0 +1,93 @@
+serviceMaps:
+  serviceName: Campaign Service
+  mappings:
+  - version: 1.0
+    name: Campaign
+    description: Persists Campaign details in the eg_campaign_details table
+    fromTopic: save-campaign-details
+    isTransaction: true
+    queryMaps:
+      - query: INSERT INTO eg_campaign_details(id, fileStoreId, tenantId, status, campaignType, projectTypeId, campaignName, campaignNumber, createdby, lastmodifiedby, createdtime, lastmodifiedtime, additionalDetails) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+        basePath: campaignDetails
+        jsonMaps:
+          - jsonPath: $.campaignDetails.id
+          - jsonPath: $.campaignDetails.fileStoreId
+          - jsonPath: $.campaignDetails.tenantId
+          - jsonPath: $.campaignDetails.status
+          - jsonPath: $.campaignDetails.campaignType
+          - jsonPath: $.campaignDetails.projectTypeId
+          - jsonPath: $.campaignDetails.campaignName
+          - jsonPath: $.campaignDetails.campaignNumber
+          - jsonPath: $.campaignDetails.auditDetails.createdBy
+          - jsonPath: $.campaignDetails.auditDetails.lastModifiedBy
+          - jsonPath: $.campaignDetails.auditDetails.createdTime
+          - jsonPath: $.campaignDetails.auditDetails.lastModifiedTime
+          - jsonPath: $.campaignDetails.additionalDetails
+
+  - version: 1.0
+    name: UpdateCampaign
+    description: Updates Campaign details in the eg_campaign_details table
+    fromTopic: update-campaign-details
+    isTransaction: true
+    queryMaps:
+      - query: UPDATE eg_campaign_details SET status = ?, lastmodifiedby = ?, lastmodifiedtime = ? WHERE id = ?;
+        basePath: campaignDetails
+        jsonMaps:
+          - jsonPath: $.campaignDetails.status
+          - jsonPath: $.campaignDetails.auditDetails.lastModifiedBy
+          - jsonPath: $.campaignDetails.auditDetails.lastModifiedTime
+          - jsonPath: $.campaignDetails.id
+
+  - version: 1.0
+    name: IngestionDetails
+    description: Persists ingestion details in the eg_campaign_ingestionDetails table
+    fromTopic: save-ingestion-details
+    isTransaction: true
+    queryMaps:
+      - query: INSERT INTO eg_campaign_ingestionDetails(id, campaignId, fileStoreId, tenantId, ingestionNumber, jobId, status, ingestionType, createdby, lastmodifiedby, createdtime, lastmodifiedtime, additionalDetails) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+        basePath: ingestionData
+        jsonMaps:
+          - jsonPath: $.ingestionData.id
+          - jsonPath: $.ingestionData.campaignId
+          - jsonPath: $.ingestionData.fileStoreId
+          - jsonPath: $.ingestionData.tenantId
+          - jsonPath: $.ingestionData.ingestionNumber
+          - jsonPath: $.ingestionData.jobId
+          - jsonPath: $.ingestionData.state
+          - jsonPath: $.ingestionData.ingestionType
+          - jsonPath: $.ingestionData.auditDetails.createdBy
+          - jsonPath: $.ingestionData.auditDetails.lastModifiedBy
+          - jsonPath: $.ingestionData.auditDetails.createdTime
+          - jsonPath: $.ingestionData.auditDetails.lastModifiedTime
+          - jsonPath: $.ingestionData.additionalDetails
+
+  - version: 1.0
+    name: UpdateIngestionDetails
+    description: Updates ingestion details in the eg_campaign_ingestionDetails table
+    fromTopic: update-ingestion-details
+    isTransaction: true
+    queryMaps:
+      - query: UPDATE eg_campaign_ingestionDetails SET status = ?, ingestionNumber = ?, jobId = ?, lastmodifiedby = ?, lastmodifiedtime = ? WHERE id = ?;
+        basePath: ingestionData
+        jsonMaps:
+          - jsonPath: $.ingestionData.state
+          - jsonPath: $.ingestionData.ingestionNumber
+          - jsonPath: $.ingestionData.jobId
+          - jsonPath: $.ingestionData.auditDetails.lastModifiedBy
+          - jsonPath: $.ingestionData.auditDetails.lastModifiedTime
+          - jsonPath: $.ingestionData.id
+
+  - version: 1.0
+    name: UpdateCampaignErrors
+    description: Updates campaign errors in the eg_campaign_details table
+    fromTopic: update-campaign-errors
+    isTransaction: true
+    queryMaps:
+      - query: UPDATE eg_campaign_ingestionDetails SET status = ?, lastmodifiedby = ?, lastmodifiedtime = ?,additionaldetails = ? WHERE id = ?;
+        basePath: campaignDetails
+        jsonMaps:
+          - jsonPath: $.campaignDetails.status
+          - jsonPath: $.campaignDetails.auditDetails.lastModifiedBy
+          - jsonPath: $.campaignDetails.auditDetails.lastModifiedTime
+          - jsonPath: $.campaignDetails.additionalDetails
+          - jsonPath: $.campaignDetails.id

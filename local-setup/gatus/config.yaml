@@ -201,3 +201,31 @@ endpoints:
     interval: 30s
     conditions:
       - "[STATUS] == 200"
+
+  - name: Health Attendance Service
+    group: HCM Services
+    url: "http://health-attendance:8080/health-attendance/actuator/health"
+    interval: 30s
+    conditions:
+      - "[STATUS] == 200"
+
+  - name: Health Expense Service
+    group: HCM Services
+    url: "http://health-expense:8080/health-expense/actuator/health"
+    interval: 30s
+    conditions:
+      - "[STATUS] == 200"
+
+  - name: Health Expense Calculator Service
+    group: HCM Services
+    url: "http://health-expense-calculator:8080/health-expense-calculator/actuator/health"
+    interval: 30s
+    conditions:
+      - "[STATUS] == 200"
+
+  - name: Health Muster Roll Service
+    group: HCM Services
+    url: "http://health-muster-roll:8080/health-muster-roll/actuator/health"
+    interval: 30s
+    conditions:
+      - "[STATUS] == 200"

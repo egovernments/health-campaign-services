@@ -33,4 +33,4 @@ serviceMaps:
 
             - jsonPath: $.AuditLogs.*.integrityHash
 
-            - jsonPath: $.AuditLogs.*.auditcorrelationid
+            - jsonPath: $.AuditLogs.*.auditCorrelationId

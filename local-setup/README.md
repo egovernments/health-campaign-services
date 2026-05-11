@@ -50,6 +50,10 @@ All services are healthy when every row in Gatus turns green — typically 3–5
 | 28105 | health-project |
 | 28106 | stock |
 | 28108 | referral-management |
+| 28110 | health-expense-calculator |
+| 28111 | health-muster-roll |
+| 28112 | health-attendance |
+| 28113 | health-expense |
 
 ## Directory Structure
 
@@ -116,7 +120,7 @@ Tables:
 - `boundary_hierarchy` — hierarchy definition (e.g. state → district → block)
 - `boundary_relationship` — parent-child relationships between boundaries
 
-The pre-seeded tenant is `statea.g` / `pg` (Punjab). Boundaries include `PB` (state) and `PB_AMR` (Amritsar district) as examples.
+The pre-seeded tenant is `mz` (Mozambique). The seed is sourced from the unified UAT pg_dump (`seed_data_dump_v2.0.sql`) and contains ~41K boundaries, ~32K boundary relationships, and ~6.3K MDMS rows across 44 modules (HCM-*, Workflow, ACCESSCONTROL-*, etc.). User/role/HRMS tables are not pre-seeded — Flyway creates empty schemas on first boot.
 
 **To add real boundaries**: Use the boundary-service API at `http://localhost:28000/boundary-service/boundary/v1/_create`.
 
@@ -267,7 +271,7 @@ All API calls should go through Kong on port **28000**. Include the header `X-AP
 | Service | Username | Password / Key |
 |---|---|---|
 | PostgreSQL | egov | egov123 |
-| MinIO | egov-user | egov-password |
+| MinIO | minioadmin | minioadmin |
 | Kong API Key | — | `digit-dev-api-key-change-me` |
 | Portainer | (set on first visit) | — |
 | Grafana | (no login — anonymous admin) | — |

@@ -6,8 +6,15 @@ serviceMaps:
       description: Persists a batch of unique IDs into the id_pool table
       fromTopic: save-in-id-pool
       isTransaction: true
+      isAuditEnabled: true
+      module: HEALTH-IDGEN
+      objecIdJsonPath: $.id
+      tenantIdJsonPath: $.tenantId
+      userUuidJsonPath: $.[0].auditDetails.createdBy
+      transactionCodeJsonPath: $.id
+      auditAttributeBasePath: $.idPool.*
       queryMaps:
-        - query: INSERT INTO id_pool (id, status, tenantId, additionalFields, createdBy, lastModifiedBy, createdTime, lastModifiedTime, rowVersion)
+        - query: INSERT INTO health.id_pool (id, status, tenantId, additionalFields, createdBy, lastModifiedBy, createdTime, lastModifiedTime, rowVersion)
             VALUES (?, 'UNASSIGNED', ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT (id) DO NOTHING;
           basePath: $.idPool.*
@@ -28,9 +35,16 @@ serviceMaps:
       description: Updates status of IDs dynamically
       fromTopic: update-id-pool-status
       isTransaction: true
+      isAuditEnabled: true
+      module: HEALTH-IDGEN
+      objecIdJsonPath: $.id
+      tenantIdJsonPath: $.tenantId
+      userUuidJsonPath: $.[0].auditDetails.createdBy
+      transactionCodeJsonPath: $.id
+      auditAttributeBasePath: $.idPool.*
       queryMaps:
         - query: |
-            UPDATE id_pool SET status = ?, lastModifiedBy = ?, lastModifiedTime = ?, additionalFields = ?
+            UPDATE health.id_pool SET status = ?, lastModifiedBy = ?, lastModifiedTime = ?, additionalFields = ?
             WHERE id = ?;
           basePath: $.idPool.*
           jsonMaps:
@@ -41,4 +55,3 @@ serviceMaps:
               type: JSON
               dbType: JSONB
             - jsonPath: $.idPool.*.id
-

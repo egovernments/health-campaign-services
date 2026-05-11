@@ -36,12 +36,6 @@ serviceMaps:
       description: Persists the mdms data
       fromTopic: save-mdms-data
       isTransaction: true
-      isAuditEnabled: true
-      module: MDMS
-      objecIdJsonPath: $.id
-      tenantIdJsonPath: $.tenantId
-      transactionCodeJsonPath: $.uniqueIdentifier
-      auditAttributeBasePath: $.Mdms
       queryMaps:
         - query: INSERT INTO eg_mdms_data (id, tenantid, uniqueidentifier, schemacode, data, isactive, createdby, lastmodifiedby, createdtime, lastmodifiedtime) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
           basePath: $.Mdms
@@ -72,12 +66,6 @@ serviceMaps:
       description: Updates the mdms data
       fromTopic: update-mdms-data
       isTransaction: true
-      isAuditEnabled: true
-      module: MDMS
-      objecIdJsonPath: $.id
-      tenantIdJsonPath: $.tenantId
-      transactionCodeJsonPath: $.uniqueIdentifier
-      auditAttributeBasePath: $.Mdms
       queryMaps:
         - query: UPDATE eg_mdms_data SET data = ?, isActive = ?, lastModifiedBy = ?, lastModifiedTime = ? WHERE id = ?;
           basePath: $.Mdms

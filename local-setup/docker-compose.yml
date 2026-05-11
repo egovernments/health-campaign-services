@@ -50,7 +50,7 @@ services:
       DEFAULT_POOL_SIZE: 25
       MIN_POOL_SIZE: 5
       RESERVE_POOL_SIZE: 5
-      AUTH_TYPE: scram-sha-256
+      AUTH_TYPE: md5
     depends_on:
       postgres-db:
         condition: service_healthy
@@ -165,7 +165,7 @@ services:
   # Flyway disabled — schemas pre-loaded via full-dump.sql
 
   mdms-backend:
-    image: egovio/mdms-v2:v2.9.2-4a60f20
+    image: egovio/mdms-v2:master-1e8d2bb
     container_name: hcm-mdms-backend
     depends_on:
       pgbouncer:
@@ -242,8 +242,8 @@ services:
       MASTER_PASSWORD_PROVIDER: software
       EGOV_MDMS_HOST: http://egov-mdms-service:8094
       EGOV_MDMS_SEARCH_ENDPOINT: /mdms-v2/v1/_search
-      EGOV_STATE_LEVEL_TENANT_ID: pg
-      STATE_LEVEL_TENANT_ID: pg
+      EGOV_STATE_LEVEL_TENANT_ID: mz
+      STATE_LEVEL_TENANT_ID: mz
       OTEL_TRACES_EXPORTER: none
       JAVA_TOOL_OPTIONS: -Xms64m -Xmx192m
     ports:
@@ -263,7 +263,7 @@ services:
       - hcm-network
 
   egov-idgen:
-    image: egovio/egov-idgen:v2.9.2-4a60f20
+    image: egovio/egov-idgen:master-1e8d2bb
     container_name: hcm-egov-idgen
     depends_on:
       pgbouncer:
@@ -307,7 +307,7 @@ services:
       - hcm-network
 
   egov-user:
-    image: egovio/egov-user:master-fa75ba8
+    image: egovio/egov-user:sandbox-log-f4a87d0
     container_name: hcm-egov-user
     depends_on:
       pgbouncer:
@@ -337,8 +337,8 @@ services:
       EGOV_ENC_HOST: http://egov-enc-service:1234
       EGOV_IDGEN_HOST: http://egov-idgen:8088
       EGOV_ACCESSCONTROL_HOST: http://egov-accesscontrol:8090
-      EGOV_STATE_LEVEL_TENANT_ID: pg
-      STATE_LEVEL_TENANT_ID: pg
+      EGOV_STATE_LEVEL_TENANT_ID: mz
+      STATE_LEVEL_TENANT_ID: mz
       OTEL_TRACES_EXPORTER: none
       JAVA_TOOL_OPTIONS: -Xms128m -Xmx384m
     ports:
@@ -358,7 +358,7 @@ services:
       - hcm-network
 
   egov-accesscontrol:
-    image: egovio/egov-accesscontrol:v2.9.2-4a60f20
+    image: egovio/egov-accesscontrol:master-1e8d2bb
     container_name: hcm-egov-accesscontrol
     depends_on:
       pgbouncer:
@@ -396,7 +396,7 @@ services:
       - hcm-network
 
   egov-workflow-v2:
-    image: egovio/egov-workflow-v2:v2.9.2-4a60f20
+    image: egovio/egov-workflow-v2:parallel-workflows-lazy-injection-1ace233
     container_name: hcm-egov-workflow-v2
     depends_on:
       pgbouncer:
@@ -406,7 +406,7 @@ services:
       egov-idgen:
         condition: service_healthy
     environment:
-      SPRING_DATASOURCE_URL: jdbc:otel:postgresql://postgres:5432/egov
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/egov
       SPRING_DATASOURCE_USERNAME: egov
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-egov123}
       SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE: "5"
@@ -418,8 +418,8 @@ services:
       EGOV_MDMS_HOST: http://egov-mdms-service:8094/
       EGOV_MDMS_SEARCH_ENDPOINT: mdms-v2/v1/_search
       EGOV_USER_HOST: http://egov-user:8107/
-      STATE_LEVEL_TENANT_ID: pg
-      EGOV_STATE_LEVEL_TENANT_ID: pg
+      STATE_LEVEL_TENANT_ID: mz
+      EGOV_STATE_LEVEL_TENANT_ID: mz
       IS_ENVIRONMENT_CENTRAL_INSTANCE: 'false'
       OTEL_TRACES_EXPORTER: none
       JAVA_TOOL_OPTIONS: -Xms64m -Xmx256m
@@ -440,7 +440,7 @@ services:
       - hcm-network
 
   egov-localization:
-    image: egovio/egov-localization:v2.9.2-4a60f20
+    image: egovio/egov-localization:redis-localization-key-5c0a4c4
     container_name: hcm-egov-localization
     depends_on:
       pgbouncer:
@@ -452,7 +452,7 @@ services:
       egov-mdms-service:
         condition: service_healthy
     environment:
-      SPRING_DATASOURCE_URL: jdbc:otel:postgresql://postgres:5432/egov
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/egov
       SPRING_DATASOURCE_USERNAME: egov
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-egov123}
       SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE: "5"
@@ -481,7 +481,7 @@ services:
       - hcm-network
 
   boundary-service:
-    image: egovio/boundary-service:v2.9.2-4a60f20
+    image: egovio/boundary-service:master-1e8d2bb
     container_name: hcm-boundary-service
     depends_on:
       pgbouncer:
@@ -507,7 +507,7 @@ services:
       EGOV_USER_HOST: http://egov-user:8107
       EGOV_IDGEN_HOST: http://egov-idgen:8088
       EGOV_LOCALIZATION_HOST: http://egov-localization:8096
-      STATE_LEVEL_TENANT_ID: pg
+      STATE_LEVEL_TENANT_ID: mz
       OTEL_TRACES_EXPORTER: none
       OTEL_INSTRUMENTATION_JDBC_ENABLED: 'false'
       MANAGEMENT_HEALTH_DB_ENABLED: 'false'
@@ -529,7 +529,7 @@ services:
       - hcm-network
 
   egov-filestore:
-    image: egovio/egov-filestore:v2.9.2-4a60f20
+    image: egovio/egov-filestore:master-1e8d2bb
     container_name: hcm-egov-filestore
     depends_on:
       pgbouncer:
@@ -573,7 +573,7 @@ services:
       - hcm-network
 
   egov-url-shortening:
-    image: egovio/egov-url-shortening:v2.9.2-4a60f20
+    image: egovio/egov-url-shortening:master-1e8d2bb
     container_name: hcm-egov-url-shortening
     depends_on:
       pgbouncer:
@@ -606,7 +606,7 @@ services:
 
   # egov-persister: reads ALL YAMLs from /persister-config including HCM ones
   egov-persister:
-    image: egovio/egov-persister:v2.9.2-4a60f20
+    image: egovio/egov-persister:master-3b238aa
     container_name: hcm-egov-persister
     depends_on:
       pgbouncer:
@@ -649,7 +649,7 @@ services:
   # These run Flyway on startup to create their DB schemas.
 
   health-hrms:
-    image: egovio/health-hrms:master-b91815e
+    image: egovio/health-hrms:master-eb25d83
     container_name: hcm-health-hrms
     depends_on:
       pgbouncer:
@@ -707,7 +707,7 @@ services:
       KAFKA_TOPICS_SAVE_SERVICE: save-hrms-employee
       KAFKA_TOPICS_UPDATE_SERVICE: update-hrms-employee
       KAFKA_TOPICS_NOTIFICATION_SMS: egov.core.notification.sms
-      STATE_LEVEL_TENANT_ID: pg
+      STATE_LEVEL_TENANT_ID: mz
       EGOV_STATELEVEL_TENANT: pg
       EGOV_SERVICES_DATA_SYNC_EMPLOYEE_REQUIRED: 'false'
       OTEL_TRACES_EXPORTER: none
@@ -729,7 +729,7 @@ services:
       - hcm-network
 
   beneficiary-idgen:
-    image: egovio/beneficiary-idgen:master-b91815e
+    image: egovio/beneficiary-idgen:master-eb25d83
     container_name: hcm-beneficiary-idgen
     depends_on:
       pgbouncer:
@@ -813,7 +813,7 @@ services:
       - hcm-network
 
   health-individual:
-    image: egovio/health-individual:master-b91815e
+    image: egovio/health-individual:Individual-master-register-studio-d307985
     container_name: hcm-health-individual
     depends_on:
       pgbouncer:
@@ -880,7 +880,7 @@ services:
       EGOV_BOUNDARY_SEARCH_URL: /boundary-service/boundary/_search
       EGOV_BOUNDARY_HIERARCHY_NAME: ADMIN
       EGOV_LOCALIZATION_HOST: http://egov-localization:8096
-      STATE_LEVEL_TENANT_ID: pg
+      STATE_LEVEL_TENANT_ID: mz
       NOTIFICATION_SMS_ENABLED: 'false'
       INDIVIDUAL.CONSUMER.BULK.CREATE.TOPIC: individual-consumer-bulk-create-topic
       INDIVIDUAL.CONSUMER.BULK.UPDATE.TOPIC: individual-consumer-bulk-update-topic
@@ -908,7 +908,7 @@ services:
       - hcm-network
 
   household:
-    image: egovio/household:master-b91815e
+    image: egovio/household:HCMPRE-1870-errorHandlingForQueryIssues-34e8b4c
     container_name: hcm-household
     depends_on:
       pgbouncer:
@@ -948,7 +948,7 @@ services:
       EGOV_IDGEN_PATH: egov-idgen/id/_generate
       EGOV_IDGEN_INTEGRATION_ENABLED: 'true'
       HOUSEHOLD.IDGEN.ID.FORMAT: household.id
-      STATE_LEVEL_TENANT_ID: pg
+      STATE_LEVEL_TENANT_ID: mz
       HOUSEHOLD.KAFKA.CREATE.TOPIC: save-household-topic
       HOUSEHOLD.KAFKA.UPDATE.TOPIC: update-household-topic
       HOUSEHOLD.KAFKA.DELETE.TOPIC: delete-household-topic
@@ -980,7 +980,7 @@ services:
       - hcm-network
 
   facility:
-    image: egovio/facility:master-b91815e
+    image: egovio/facility:master-eb25d83
     container_name: hcm-facility
     depends_on:
       pgbouncer:
@@ -1018,7 +1018,7 @@ services:
       EGOV_IDGEN_PATH: egov-idgen/id/_generate
       EGOV_IDGEN_INTEGRATION_ENABLED: 'true'
       FACILITY.IDGEN.ID.FORMAT: facility.id
-      STATE_LEVEL_TENANT_ID: pg
+      STATE_LEVEL_TENANT_ID: mz
       FACILITY.KAFKA.CREATE.TOPIC: save-facility-topic
       FACILITY.KAFKA.UPDATE.TOPIC: update-facility-topic
       FACILITY.KAFKA.DELETE.TOPIC: delete-facility-topic
@@ -1044,7 +1044,7 @@ services:
       - hcm-network
 
   product:
-    image: egovio/product:master-b91815e
+    image: egovio/product:master-eb25d83
     container_name: hcm-product
     depends_on:
       pgbouncer:
@@ -1081,7 +1081,7 @@ services:
       EGOV_IDGEN_HOST: http://egov-idgen:8088
       EGOV_IDGEN_PATH: egov-idgen/id/_generate
       EGOV_IDGEN_INTEGRATION_ENABLED: 'true'
-      STATE_LEVEL_TENANT_ID: pg
+      STATE_LEVEL_TENANT_ID: mz
       PRODUCT.KAFKA.CREATE.TOPIC: save-product-topic
       PRODUCT.KAFKA.UPDATE.TOPIC: update-product-topic
       PRODUCT.VARIANT.KAFKA.CREATE.TOPIC: save-product-variant-topic
@@ -1105,7 +1105,7 @@ services:
       - hcm-network
 
   health-project:
-    image: egovio/health-project:master-b91815e
+    image: egovio/health-project:featurefacilitysearch-f20c740
     container_name: hcm-health-project
     depends_on:
       pgbouncer:
@@ -1179,7 +1179,7 @@ services:
       EGOV_SEARCH_PRODUCT_VARIANT_URL: /product/variant/v1/_search
       EGOV_FACILITY_HOST: http://facility:8080
       EGOV_SEARCH_FACILITY_URL: /facility/v1/_search
-      STATE_LEVEL_TENANT_ID: pg
+      STATE_LEVEL_TENANT_ID: mz
       SEARCH_API_LIMIT: "1000"
       PROJECT.DOCUMENT.ID.VERIFICATION.REQUIRED: 'false'
       PROJECT.MANAGEMENT.SYSTEM.KAFKA.CREATE.TOPIC: save-project
@@ -1235,7 +1235,7 @@ services:
       - hcm-network
 
   stock:
-    image: egovio/stock:master-b91815e
+    image: egovio/stock:master-eb25d83
     container_name: hcm-stock
     depends_on:
       pgbouncer:
@@ -1290,7 +1290,7 @@ services:
       EGOV_USER_HOST: http://egov-user:8107
       EGOV_USER_INTEGRATION_ENABLED: 'true'
       EGOV_SEARCH_USER_URL: /user/_search
-      STATE_LEVEL_TENANT_ID: pg
+      STATE_LEVEL_TENANT_ID: mz
       SEARCH_API_LIMIT: "1000"
       STOCK.KAFKA.CREATE.TOPIC: save-stock-topic
       STOCK.KAFKA.UPDATE.TOPIC: update-stock-topic
@@ -1321,7 +1321,7 @@ services:
       - hcm-network
 
   referralmanagement:
-    image: egovio/referralmanagement:master-b91815e
+    image: egovio/referralmanagement:nigeria-go-deep-HfReferral-conflicts-bbd24d6
     container_name: hcm-referralmanagement
     depends_on:
       pgbouncer:
@@ -1366,7 +1366,7 @@ services:
       EGOV_IDGEN_INTEGRATION_ENABLED: 'true'
       REFERRALMANAGEMENT.SIDEEFFECT.IDGEN.ID.FORMAT: referralmanagement.sideeffect.id
       REFERRALMANAGEMENT.REFERRAL.IDGEN.ID.FORMAT: referralmanagement.referral.id
-      STATE_LEVEL_TENANT_ID: pg
+      STATE_LEVEL_TENANT_ID: mz
       REFERRALMANAGEMENT.SIDEEFFECT.KAFKA.CREATE.TOPIC: save-side-effect-topic
       REFERRALMANAGEMENT.SIDEEFFECT.KAFKA.UPDATE.TOPIC: update-side-effect-topic
       REFERRALMANAGEMENT.SIDEEFFECT.KAFKA.DELETE.TOPIC: delete-side-effect-topic
@@ -1388,6 +1388,396 @@ services:
       - "28108:8080"
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8080/referralmanagement/actuator/health >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 180s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.25'
+    networks:
+      - hcm-network
+
+  health-attendance:
+    image: egovio/health-attendance:HCMPRE-1870-DataAccessErrorHandling-a7b1e6b
+    container_name: hcm-health-attendance
+    depends_on:
+      pgbouncer:
+        condition: service_healthy
+      redpanda:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      egov-mdms-service:
+        condition: service_healthy
+      egov-idgen:
+        condition: service_healthy
+      egov-user:
+        condition: service_healthy
+      egov-workflow-v2:
+        condition: service_healthy
+      egov-persister:
+        condition: service_healthy
+      health-individual:
+        condition: service_healthy
+      health-hrms:
+        condition: service_healthy
+      health-project:
+        condition: service_healthy
+      boundary-service:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/egov
+      SPRING_DATASOURCE_USERNAME: egov
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-egov123}
+      SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE: "5"
+      SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE: "2"
+      SPRING_FLYWAY_URL: jdbc:postgresql://postgres:5432/egov
+      SPRING_FLYWAY_USER: egov
+      SPRING_FLYWAY_PASSWORD: ${POSTGRES_PASSWORD:-egov123}
+      SPRING_FLYWAY_ENABLED: 'true'
+      SPRING_FLYWAY_BASELINE_ON_MIGRATE: 'true'
+      SPRING_FLYWAY_VALIDATE_ON_MIGRATE: 'false'
+      SPRING_FLYWAY_SCHEMAS: attendance_schema
+      KAFKA_BOOTSTRAP_SERVERS: redpanda:9092
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: redpanda:9092
+      SPRING_KAFKA_CONSUMER_GROUP_ID: health-attendance
+      SERVER_PORT: 8080
+      SERVER_CONTEXT_PATH: /health-attendance
+      SERVER_SERVLET_CONTEXT-PATH: /health-attendance
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
+      SPRING_CACHE_TYPE: redis
+      SPRING_CACHE_REDIS_TIME-TO-LIVE: "60"
+      SPRING_CACHE_AUTOEXPIRY: 'true'
+      EGOV_MDMS_HOST: http://egov-mdms-service:8094
+      EGOV_MDMS_SEARCH_ENDPOINT: /egov-mdms-service/v1/_search
+      EGOV_MDMS_V2_HOST: http://egov-mdms-service:8094
+      EGOV_MDMS_V2_SEARCH_ENDPOINT: /egov-mdms-service/v1/_search
+      EGOV_IDGEN_HOST: http://egov-idgen:8088
+      EGOV_USER_HOST: http://egov-user:8107
+      EGOV_WORKFLOW_HOST: http://egov-workflow-v2:8109
+      EGOV_HRMS_HOST: http://health-hrms:8080
+      EGOV_HRMS_SEARCH_ENDPOINT: health-hrms/employees/_search
+      EGOV_PROJECT_HOST: http://health-project:8080
+      EGOV_PROJECT_STAFF_SEARCH_ENDPOINT: health-project/staff/v1/_search
+      EGOV_BOUNDARY_HOST: http://boundary-service:8081
+      EGOV_BOUNDARY_SEARCH_URL: /boundary-service/boundary/_search
+      EGOV_EXPENSE_CALCULATOR_HOST: http://health-expense-calculator:8080
+      EGOV_MUSTER_ROLL_HOST: http://health-muster-roll:8080
+      WORKS_INDIVIDUAL_HOST: http://health-individual:8080
+      WORKS_INDIVIDUAL_SEARCH_ENDPOINT: health-individual/v1/_search
+      ATTENDANCE_LOG_KAFKA_CREATE_TOPIC: save-attendance-log-health
+      ATTENDANCE_LOG_KAFKA_UPDATE_TOPIC: update-attendance-log-health
+      ATTENDANCE_REGISTER_KAFKA_CREATE_TOPIC: save-attendance-health
+      ATTENDANCE_REGISTER_KAFKA_UPDATE_TOPIC: update-attendance-health
+      ATTENDANCE_STAFF_KAFKA_CREATE_TOPIC: save-staff-health
+      ATTENDANCE_STAFF_KAFKA_UPDATE_TOPIC: update-staff-health
+      ATTENDANCE_ATTENDEE_KAFKA_CREATE_TOPIC: save-attendee-health
+      ATTENDANCE_ATTENDEE_KAFKA_UPDATE_TOPIC: update-attendee-health
+      PROJECT.STAFF.ATTENDANCE.TOPIC: project-staff-attendance-health-topic
+      ATTENDANCE_REGISTER_DEFAULT_LIMIT: "20"
+      ATTENDANCE_REGISTER_FIRST_STAFF_INSERT_ENABLED: 'false'
+      ATTENDANCE_REGISTER_OPEN_SEARCH_ENABLED_ROLES: SUPERUSER,EMPLOYEE,DISTRICT_SUPERVISOR,SYSTEM_ADMINISTRATOR,NATIONAL_SUPERVISOR,DISTRIBUTOR,CAMPAIGN_SUPERVISOR
+      ATTENDANCE_REGISTER_SEARCH_CHECK_PROJECT_ENABLED: 'true'
+      ATTENDANCE_REGISTER_REVIEW_STATUS_ENABLED: 'true'
+      ATTENDANCE_REGISTER_REVIEW_STATUS_INIT_VALUE: PENDINGFORAPPROVAL
+      ATTENDANCE_REGISTER_BOUNDARY_SEARCH_ENABLED: 'true'
+      ATTENDANCE_REGISTER_STATUS_MAP: "{APPROVED: 'APPROVED', PENDINGFORAPPROVAL: 'PENDINGFORAPPROVAL'}"
+      ATTENDANCE_REGISTER_FIRST_OWNER_STAFF_ENABLED: 'true'
+      ATTENDANCE_LOG_OPEN_SEARCH_ENABLED: 'true'
+      PROJECT_STAFF_ATTENDANCE_REGISTER_ENABLED: 'false'
+      EGOV_EXPENSE_CALCULATOR_BILLING_PERIOD_SEARCH_ENDPOINT: health-expense-calculator/billing-config/v1/periods/_search
+      EGOV_MUSTER_ROLL_SEARCH_ENDPOINT: health-muster-roll/v1/_search
+      STATE_LEVEL_TENANT_ID: mz
+      OTEL_TRACES_EXPORTER: none
+      JAVA_TOOL_OPTIONS: -Xms128m -Xmx384m
+    ports:
+      - "28112:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/health-attendance/actuator/health >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 180s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.25'
+    networks:
+      - hcm-network
+
+  health-expense:
+    image: egovio/health-expense:master-89c74d7
+    container_name: hcm-health-expense
+    depends_on:
+      pgbouncer:
+        condition: service_healthy
+      redpanda:
+        condition: service_healthy
+      egov-mdms-service:
+        condition: service_healthy
+      egov-idgen:
+        condition: service_healthy
+      egov-user:
+        condition: service_healthy
+      egov-workflow-v2:
+        condition: service_healthy
+      egov-localization:
+        condition: service_healthy
+      egov-url-shortening:
+        condition: service_healthy
+      egov-persister:
+        condition: service_healthy
+      health-hrms:
+        condition: service_healthy
+      health-individual:
+        condition: service_healthy
+      health-project:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/egov
+      SPRING_DATASOURCE_USERNAME: egov
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-egov123}
+      SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE: "5"
+      SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE: "2"
+      SPRING_FLYWAY_URL: jdbc:postgresql://postgres:5432/egov
+      SPRING_FLYWAY_USER: egov
+      SPRING_FLYWAY_PASSWORD: ${POSTGRES_PASSWORD:-egov123}
+      SPRING_FLYWAY_ENABLED: 'true'
+      SPRING_FLYWAY_BASELINE_ON_MIGRATE: 'true'
+      SPRING_FLYWAY_VALIDATE_ON_MIGRATE: 'false'
+      SPRING_FLYWAY_SCHEMAS: expense_schema
+      KAFKA_BOOTSTRAP_SERVERS: redpanda:9092
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: redpanda:9092
+      SPRING_KAFKA_CONSUMER_GROUP_ID: health-expense
+      SERVER_PORT: 8080
+      SERVER_CONTEXT_PATH: /health-expense
+      SERVER_SERVLET_CONTEXT-PATH: /health-expense
+      EGOV_MDMS_HOST: http://egov-mdms-service:8094
+      EGOV_MDMS_V2_HOST: http://egov-mdms-service:8094
+      EGOV_MDMS_V2_SEARCH_ENDPOINT: /egov-mdms-service/v1/_search
+      EGOV_IDGEN_HOST: http://egov-idgen:8088
+      EGOV_HRMS_HOST: http://health-hrms:8080
+      EGOV_LOCALIZATION_HOST: http://egov-localization:8096
+      EGOV_WORKFLOW_HOST: http://egov-workflow-v2:8109
+      EGOV_URL_SHORTNER_HOST: http://egov-url-shortening:8080
+      EGOV_USER_HOST: http://egov-user:8107
+      WORKS_INDIVIDUAL_HOST: http://health-individual:8080
+      PROJECT_SERVICE_HOST: http://health-project:8080
+      PROJECT_SEARCH_PATH: health-project/v1/_search
+      EXPENSE_BILLING_BILL_CREATE: expense-bill-create-health
+      EXPENSE_BILLING_BILL_UPDATE: expense-bill-update-health
+      KAFKA_TOPICS_NOTIFICATION_SMS: egov.core.notification.sms
+      IS_HEALTH_CONTEXT_ENABLED: 'true'
+      BUSINESS_WORKFLOW_STATUS_MAP: "{'EXPENSE.WAGES':'false'}"
+      EXPENSE_BILLING_DEFAULT_OFFSET: "0"
+      EXPENSE_BILLING_DEFAULT_LIMIT: "100"
+      EXPENSE_BILLING_SEARCH_MAX_LIMIT: "200"
+      SPRING_KAFKA_PRODUCER_PROPERTIES_MAX_REQUEST_SIZE: "10485760"
+      STATE_LEVEL_TENANT_ID: mz
+      OTEL_TRACES_EXPORTER: none
+      JAVA_TOOL_OPTIONS: -Xms128m -Xmx384m
+    ports:
+      - "28113:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/health-expense/actuator/health >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 180s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.25'
+    networks:
+      - hcm-network
+
+  health-expense-calculator:
+    image: egovio/health-expense-calculator:master-89c74d7
+    container_name: hcm-health-expense-calculator
+    depends_on:
+      pgbouncer:
+        condition: service_healthy
+      redpanda:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      egov-mdms-service:
+        condition: service_healthy
+      egov-idgen:
+        condition: service_healthy
+      egov-localization:
+        condition: service_healthy
+      egov-filestore:
+        condition: service_healthy
+      egov-persister:
+        condition: service_healthy
+      health-individual:
+        condition: service_healthy
+      health-project:
+        condition: service_healthy
+      boundary-service:
+        condition: service_healthy
+      health-expense:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/egov
+      SPRING_DATASOURCE_USERNAME: egov
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-egov123}
+      SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE: "5"
+      SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE: "2"
+      SPRING_FLYWAY_URL: jdbc:postgresql://postgres:5432/egov
+      SPRING_FLYWAY_USER: egov
+      SPRING_FLYWAY_PASSWORD: ${POSTGRES_PASSWORD:-egov123}
+      SPRING_FLYWAY_ENABLED: 'true'
+      SPRING_FLYWAY_BASELINE_ON_MIGRATE: 'true'
+      SPRING_FLYWAY_VALIDATE_ON_MIGRATE: 'false'
+      SPRING_FLYWAY_SCHEMAS: expense_calculator_schema
+      KAFKA_BOOTSTRAP_SERVERS: redpanda:9092
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: redpanda:9092
+      SPRING_KAFKA_CONSUMER_GROUP_ID: health-expense-calculator
+      SERVER_PORT: 8080
+      SERVER_CONTEXT_PATH: /health-expense-calculator
+      SERVER_SERVLET_CONTEXT-PATH: /health-expense-calculator
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: "6379"
+      EXPENSE_CALCULATOR_CONSUME_TOPIC: calculate-musterroll-health
+      EXPENSE_CALCULATOR_ERROR_TOPIC: calculate-error-health
+      EXPENSE_CALCULATOR_CREATE_BILL_TOPIC: calculate-billmeta-health
+      EGOV_MUSTERROLL_HOST: http://health-muster-roll:8080
+      EGOV_BILL_HOST: http://health-expense:8080
+      EGOV_MDMS_HOST: http://egov-mdms-service:8094
+      EGOV_MDMS_SEARCH_ENDPOINT: egov-mdms-service/v1/_search
+      EGOV_MDMS_V2_SEARCH_ENDPOINT: mdms-v2/v1/_search
+      EGOV_IDGEN_HOST: http://egov-idgen:8088
+      EGOV_INDIVIDUAL_HOST: http://health-individual:8080
+      WORKS_ATTENDANCE_LOG_HOST: http://health-attendance:8080
+      EGOV_BOUNDARY_HOST: http://boundary-service:8081
+      EGOV_BOUNDARY_SEARCH_URL: /boundary-service/boundary-relationships/_search
+      PROJECT_SERVICE_HOST: http://health-project:8080
+      PROJECT_SEARCH_PATH: health-project/v1/_search
+      EGOV_FILESTORE_HOST: http://egov-filestore:8083
+      EGOV_LOCALIZATION_HOST: http://egov-localization:8096
+      EXPENSE_BILLING_BILL_CREATE: expense-bill-create-health
+      BILLING_FREQUENCY_CUSTOM_MINIMUM_DAYS: "1"
+      IS_ATTENDANCE_APPROVAL_REQUIRED: "true"
+      REPORT_HEADER_TITLE: Health Campaign Payment Report
+      REPORT_DATE_TIME_FORMAT: "dd/MM/yyyy HH:mm:ss z"
+      REGISTER_BATCH_SIZE: "15"
+      BILL_GENERATION_ASYNC_ENABLED: "true"
+      BILL_GENERATION_ASYNC_TOPIC: bill-generation-async-topic
+      STATE_LEVEL_TENANT_ID: mz
+      OTEL_TRACES_EXPORTER: none
+      JAVA_TOOL_OPTIONS: -Xms128m -Xmx384m
+    ports:
+      - "28110:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/health-expense-calculator/actuator/health >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 180s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.25'
+    networks:
+      - hcm-network
+
+  health-muster-roll:
+    image: egovio/health-muster-roll:master-89c74d7
+    container_name: hcm-health-muster-roll
+    depends_on:
+      pgbouncer:
+        condition: service_healthy
+      redpanda:
+        condition: service_healthy
+      egov-mdms-service:
+        condition: service_healthy
+      egov-idgen:
+        condition: service_healthy
+      egov-user:
+        condition: service_healthy
+      egov-workflow-v2:
+        condition: service_healthy
+      egov-localization:
+        condition: service_healthy
+      egov-persister:
+        condition: service_healthy
+      health-individual:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/egov
+      SPRING_DATASOURCE_USERNAME: egov
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-egov123}
+      SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE: "5"
+      SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE: "2"
+      SPRING_FLYWAY_URL: jdbc:postgresql://postgres:5432/egov
+      SPRING_FLYWAY_USER: egov
+      SPRING_FLYWAY_PASSWORD: ${POSTGRES_PASSWORD:-egov123}
+      SPRING_FLYWAY_ENABLED: 'true'
+      SPRING_FLYWAY_BASELINE_ON_MIGRATE: 'true'
+      SPRING_FLYWAY_VALIDATE_ON_MIGRATE: 'false'
+      SPRING_FLYWAY_SCHEMAS: muster_roll_schema
+      KAFKA_BOOTSTRAP_SERVERS: redpanda:9092
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: redpanda:9092
+      SPRING_KAFKA_CONSUMER_GROUP_ID: health-muster-roll
+      SERVER_PORT: 8080
+      SERVER_CONTEXT_PATH: /health-muster-roll
+      SERVER_SERVLET_CONTEXT-PATH: /health-muster-roll
+      EGOV_MDMS_HOST: http://egov-mdms-service:8094
+      EGOV_MDMS_V2_HOST: http://egov-mdms-service:8094
+      EGOV_MDMS_V2_SEARCH_ENDPOINT: egov-mdms-service/v1/_search
+      EGOV_IDGEN_HOST: http://egov-idgen:8088
+      EGOV_USER_HOST: http://egov-user:8107
+      EGOV_WORKFLOW_HOST: http://egov-workflow-v2:8109
+      WORKS_ATTENDANCE_LOG_HOST: http://health-attendance:8080
+      WORKS_INDIVIDUAL_HOST: http://health-individual:8080
+      EGOV_LOCALIZATION_HOST: http://egov-localization:8096
+      WORKS_EXPENSE_CALCULATOR_HOST: http://health-expense-calculator:8080
+      APP_TIMEZONE: Africa/Lagos
+      MUSTERROLL_KAFKA_CREATE_TOPIC: save-musterroll-health
+      MUSTERROLL_KAFKA_UPDATE_TOPIC: update-musterroll-health
+      MUSTERROLL_KAFKA_CALCULATE_TOPIC: calculate-musterroll-health
+      KAFKA_TOPICS_NOTIFICATION_SMS: egov.core.notification.sms
+      EGOV_USER_CONTEXT_PATH: user
+      EGOV_USER_CREATE_PATH: /users/_createnovalidate
+      EGOV_USER_SEARCH_PATH: /v1/_search
+      EGOV_USER_UPDATE_PATH: /users/_updatenovalidate
+      MUSTERROLL_NOWORKFLOW_CREATE_STATUS: APPROVAL_PENDING
+      MUSTERROLL_DEFAULT_OFFSET: "0"
+      MUSTERROLL_DEFAULT_LIMIT: "100"
+      MUSTERROLL_SEARCH_MAX_LIMIT: "200"
+      MUSTERROLL_WORKFLOW_BUSINESS_SERVICE: HCMMUSTERROLL
+      WORKS_ATTENDANCE_LOG_SEARCH_ENDPOINT: health-attendance/log/v1/_search
+      WORKS_ATTENDANCE_REGISTER_SEARCH_ENDPOINT: health-attendance/v1/_search
+      WORKS_ATTENDANCE_REGISTER_UPDATE_ENDPOINT: health-attendance/v1/_update
+      WORKS_ATTENDANCE_REGISTER_SEARCH_LIMIT: "100"
+      WORKS_INDIVIDUAL_SEARCH_ENDPOINT: health-individual/v1/_search
+      WORKS_EXPENSE_CALCULATOR_ENDPOINT: health-expense-calculator/v1/_estimate
+      MUSTER_RESTRICTED_SEARCH_ROLES: PLACEHOLDER_ROLE
+      NOTIFICATION_SMS_ENABLED: "false"
+      MUSTERROLL_UPDATE_RECOMPUTE_ATTENDANCE_ENABLED: "false"
+      MUSTERROLL_INDIVIDUAL_ENTRY_ROLES_ENABLED: "false"
+      MUSTERROLL_VALIDATE_START_DATE_MONDAY_ENABLED: "false"
+      MUSTERROLL_ADD_BANK_ACCOUNT_DETAILS_ENABLED: "false"
+      MUSTERROLL_UPDATE_ATTENDANCE_REGISTER_REVIEW_STATUS_ENABLED: "true"
+      MUSTERROLL_WORKFLOW_ENABLED: "true"
+      MUSTERROLL_VALIDATE_ATTENDANCE_REGISTER_ENABLED: "true"
+      MUSTERROLL_SET_DEFAULT_DURATION_ENABLED: "false"
+      STATE_LEVEL_TENANT_ID: mz
+      OTEL_TRACES_EXPORTER: none
+      JAVA_TOOL_OPTIONS: -Xms128m -Xmx384m
+    ports:
+      - "28111:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/health-muster-roll/actuator/health >/dev/null 2>&1 || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5

@@ -178,6 +178,34 @@ services:
       paths: [/referralmanagement]
       strip_path: false
 
+  - name: health-attendance-service
+    url: http://health-attendance:8080
+    routes:
+    - name: health-attendance-route
+      paths: [/health-attendance]
+      strip_path: false
+
+  - name: health-expense-service
+    url: http://health-expense:8080
+    routes:
+    - name: health-expense-route
+      paths: [/health-expense]
+      strip_path: false
+
+  - name: health-expense-calculator-service
+    url: http://health-expense-calculator:8080
+    routes:
+    - name: health-expense-calculator-route
+      paths: [/health-expense-calculator]
+      strip_path: false
+
+  - name: health-muster-roll-service
+    url: http://health-muster-roll:8080
+    routes:
+    - name: health-muster-roll-route
+      paths: [/health-muster-roll]
+      strip_path: false
+
   # ==================== HEALTH CHECK PROBES ====================
   - name: health-mdms
     url: http://egov-mdms-service:8094
