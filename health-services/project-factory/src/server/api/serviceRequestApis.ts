@@ -1,22 +1,22 @@
+import { RequestInfo } from "../config/models/requestInfoSchema";
 import config from "../config";
 import { defaultheader, httpRequest } from "../utils/request";
 import { getFormattedStringForDebug, logger } from "../utils/logger";
-import { defaultRequestInfo } from "./coreApis";
 
 export type ServiceDefinition = any;
 
 export async function searchServiceDefinitions(
   tenantId: string,
   codes: string[],
-  includeDeleted: boolean = true
+  includeDeleted: boolean = true,
+  requestInfo?: RequestInfo
 ): Promise<ServiceDefinition[]> {
   if (!tenantId) throw Error("tenantId is required for service definition search");
   if (!Array.isArray(codes) || !codes.length) return [];
 
   const url = `${config.host.serviceRequestHost}${config.paths.serviceDefinitionSearch}`;
-  const RequestInfo = { ...defaultRequestInfo?.RequestInfo };
   const requestBody = {
-    RequestInfo,
+    RequestInfo: requestInfo,
     tenantId,
     ServiceDefinitionCriteria: {
       tenantId,
@@ -37,12 +37,12 @@ export async function searchServiceDefinitions(
 
 export async function createServiceDefinition(
   tenantId: string,
-  serviceDefinition: ServiceDefinition
+  serviceDefinition: ServiceDefinition,
+  requestInfo?: RequestInfo
 ): Promise<ServiceDefinition> {
   const url = `${config.host.serviceRequestHost}${config.paths.serviceDefinitionCreate}`;
-  const RequestInfo = { ...defaultRequestInfo?.RequestInfo };
   const requestBody = {
-    RequestInfo,
+    RequestInfo: requestInfo,
     ServiceDefinition: {
       ...serviceDefinition,
       tenantId: serviceDefinition?.tenantId || tenantId,
