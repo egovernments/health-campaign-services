@@ -281,6 +281,9 @@ export const usageColumnStatus = {
 export const resourceTypes = {
     unifiedConsoleResources: "unified-console-resources"
 }
+
+// Max number of strings that can be passed to bulkDecrypt in a single call.
+export const BULK_DECRYPT_MAX_BATCH = 500;
 // Retrieves the error object containing the error code, message, and notFound flag.
 export const getErrorCodes = (module: string, key: string): Error => {
     // Retrieve the error message from the CONSTANTS object

@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import config from '../config';
+import { BULK_DECRYPT_MAX_BATCH } from '../config/constants';
 
 const BASE_SECRET: any = config.basesecret;
 const ALGORITHM = 'aes-256-cbc';
@@ -30,12 +31,12 @@ export function decrypt(encryptedText: string): string {
     return decrypted.toString('utf8');
 }
 
-// Bulk decrypt function for performance - max 500 strings
+// Bulk decrypt function for performance - max BULK_DECRYPT_MAX_BATCH strings
 export function bulkDecrypt(encryptedTexts: string[]): string[] {
-    if (encryptedTexts.length > 500) {
-        throw new Error('Cannot decrypt more than 500 strings at once');
+    if (encryptedTexts.length > BULK_DECRYPT_MAX_BATCH) {
+        throw new Error(`Cannot decrypt more than ${BULK_DECRYPT_MAX_BATCH} strings at once`);
     }
-    
+
     return encryptedTexts.map(encryptedText => {
         try {
             return decrypt(encryptedText);

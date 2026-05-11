@@ -4,7 +4,7 @@ import { getLocalizedName, populateBoundariesRecursively } from "../utils/campai
 import { searchProjectTypeCampaignService } from "../service/campaignManageService";
 import { searchBoundaryRelationshipData, searchBoundaryRelationshipDefinition } from "../api/coreApis";
 import { logger } from "../utils/logger";
-import { dataRowStatuses, sheetDataRowStatuses } from "../config/constants";
+import { BULK_DECRYPT_MAX_BATCH, dataRowStatuses, sheetDataRowStatuses } from "../config/constants";
 import { bulkDecrypt } from "../utils/cryptUtils";
 
 // This will be a dynamic template class for different types
@@ -47,13 +47,12 @@ export class TemplateClass {
             encryptedPasswords.push(rawData["Password"]);
         }
 
-        // bulkDecrypt is capped at 500 entries per call, so chunk both arrays in lockstep.
-        const BULK_DECRYPT_CHUNK = 500;
+        // bulkDecrypt is capped at BULK_DECRYPT_MAX_BATCH entries per call, so chunk both arrays in lockstep.
         const decryptedUserNames: string[] = [];
         const decryptedPasswords: string[] = [];
-        for (let i = 0; i < encryptedUserNames.length; i += BULK_DECRYPT_CHUNK) {
-            decryptedUserNames.push(...bulkDecrypt(encryptedUserNames.slice(i, i + BULK_DECRYPT_CHUNK)));
-            decryptedPasswords.push(...bulkDecrypt(encryptedPasswords.slice(i, i + BULK_DECRYPT_CHUNK)));
+        for (let i = 0; i < encryptedUserNames.length; i += BULK_DECRYPT_MAX_BATCH) {
+            decryptedUserNames.push(...bulkDecrypt(encryptedUserNames.slice(i, i + BULK_DECRYPT_MAX_BATCH)));
+            decryptedPasswords.push(...bulkDecrypt(encryptedPasswords.slice(i, i + BULK_DECRYPT_MAX_BATCH)));
         }
 
         const userData = users.map((u: any, idx: number) => {
