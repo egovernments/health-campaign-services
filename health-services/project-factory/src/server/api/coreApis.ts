@@ -5,6 +5,19 @@ import config from "../config";
 import { defaultheader, httpRequest } from "../utils/request";
 import { logger } from "../utils/logger";
 
+// Default request information for MDMS API requests
+export const defaultRequestInfo: any = {
+  RequestInfo: {
+    apiId: "PROJECTFACTORY", // Identifier for the calling application,
+    msgId: `${new Date().getTime()}|${config.localisation.defaultLocale}`,
+    ...(config.isProduction && config.token && { authToken: config.token }),
+    ...{
+      userInfo: {
+        id: 1
+      }
+    },
+  },
+};
 
 /**
  * Searches MDMS data via the v2 API for specific unique identifiers.
