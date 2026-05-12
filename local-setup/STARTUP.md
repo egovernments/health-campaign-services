@@ -58,8 +58,17 @@ cd health-campaign-services/local-setup
 
 ## 2. Fetch the DB seed dump (automatic)
 
-`db/full-dump.sql` is **not in git** (size > 100 MB). It is hosted on Google Drive
-(file id `1c3k_DBIP4s-Rhsdfu66s2TATGJCkTABz`, ~560 MB).
+`db/full-dump.sql` is a **single consolidated dump** that contains everything needed
+to test campaign creation end-to-end:
+
+- core schema (boundary + MDMS + HCM domain tables)
+- OAuth client + SYSTEM admin user (9 roles)
+- 100 sample campaigns, 500 HRMS employees, 1000 users, 1500 user-role rows
+- a `DO $$ ... $$` block at the end that auto-shifts campaign start/end dates to
+  `NOW()` / `NOW() + 90 days` so seed campaigns are always "active" when you boot
+
+It is **not in git** (size > 100 MB). It is hosted on Google Drive
+(file id `1l4Gxg3w6F1uj7d4vwHpdGfG3DPJI3-tu`, ~560 MB).
 
 Paste the block below — it installs `gdown` if missing, downloads only when the file
 isn't already present, and verifies the size.
@@ -69,12 +78,12 @@ mkdir -p db
 if [ ! -s db/full-dump.sql ] || [ "$(stat -c%s db/full-dump.sql 2>/dev/null || stat -f%z db/full-dump.sql)" -lt 100000000 ]; then
   command -v gdown >/dev/null 2>&1 || pip install --user --quiet gdown
   export PATH="$HOME/.local/bin:$PATH"
-  gdown --id 1c3k_DBIP4s-Rhsdfu66s2TATGJCkTABz -O db/full-dump.sql
+  gdown --id 1l4Gxg3w6F1uj7d4vwHpdGfG3DPJI3-tu -O db/full-dump.sql
 fi
 ls -lh db/full-dump.sql
 ```
 
-Manual fallback: open https://drive.google.com/file/d/1c3k_DBIP4s-Rhsdfu66s2TATGJCkTABz/view,
+Manual fallback: open https://drive.google.com/file/d/1l4Gxg3w6F1uj7d4vwHpdGfG3DPJI3-tu/view,
 click **Download anyway**, save as `local-setup/db/full-dump.sql`.
 
 ## 3. Bring the stack up

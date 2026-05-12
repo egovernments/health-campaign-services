@@ -21,8 +21,6 @@ services:
     volumes:
       - hcm_postgres_data:/var/lib/postgresql/data
       - ./db/full-dump.sql:/docker-entrypoint-initdb.d/01-full-dump.sql:ro
-      - ./db/03-bootstrap-user.sql:/docker-entrypoint-initdb.d/03-bootstrap-user.sql:ro
-      - ./db/04-seed-campaign.sql:/docker-entrypoint-initdb.d/04-seed-campaign.sql:ro
     ports:
       - "25432:5432"
     healthcheck:
@@ -70,28 +68,6 @@ services:
       hcm-network:
         aliases:
           - postgres
-
-  # One-shot: shifts date-anchored seed rows (campaigns, plans, etc.) to be
-  # "current" at every `docker compose up`. Safe to re-run; SQL handles missing
-  # tables. Exits 0 after running.
-  db-refresh-dates:
-    image: postgres:16-alpine
-    container_name: hcm-db-refresh-dates
-    depends_on:
-      postgres-db:
-        condition: service_healthy
-    environment:
-      PGPASSWORD: ${POSTGRES_PASSWORD:-egov123}
-    volumes:
-      - ./db/refresh-dynamic-dates.sql:/refresh.sql:ro
-    command: ["psql", "-h", "postgres-db", "-U", "egov", "-d", "egov", "-f", "/refresh.sql"]
-    restart: "no"
-    networks:
-      - hcm-network
-
-
-  # One-shot: ensure consumer topics exist so project-factory + other Node services
-  # don't crash on first boot. Exits 0 after creating (or skipping if present).
   kafka-topics-init:
     image: redpandadata/redpanda:v24.1.1
     container_name: hcm-kafka-topics-init

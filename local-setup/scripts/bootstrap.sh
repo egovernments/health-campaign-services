@@ -87,7 +87,7 @@ docker compose ps >/dev/null 2>&1 || DK="sudo -A docker"
 # ── 3. Fetch the DB seed dump ──────────────────────────────────────────────
 c_g "[3/7] Fetching DB seed dump (skipped if already present)"
 DUMP=db/full-dump.sql
-DUMP_ID=1c3k_DBIP4s-Rhsdfu66s2TATGJCkTABz
+DUMP_ID=1l4Gxg3w6F1uj7d4vwHpdGfG3DPJI3-tu
 mkdir -p db
 SIZE=0; [ -f "$DUMP" ] && SIZE=$(stat -c%s "$DUMP" 2>/dev/null || stat -f%z "$DUMP")
 if [ "$SIZE" -lt 100000000 ]; then

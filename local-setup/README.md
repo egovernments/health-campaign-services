@@ -322,7 +322,7 @@ After all rows are green in Gatus, run this smoke test (see `STARTUP.md §5` for
 ```
 
 ### Test user
-The DB bootstrap (`db/03-bootstrap-user.sql`) seeds one `SYSTEM` user in `eg_user`:
+The DB seed dump (`db/full-dump.sql`, a single consolidated file) seeds one `SYSTEM` user in `eg_user`:
 
 | Field | Value |
 |---|---|
