@@ -4,13 +4,31 @@ Standalone Docker Compose for running the **Health Campaign Management (HCM)** p
 
 ## Prerequisites
 
+### Hardware
 | Requirement | Version |
 |---|---|
-| Docker Engine | 24+ |
-| Docker Compose | v2.20+ (plugin, not standalone) |
 | RAM | 12 GB available to Docker |
 | Disk | 5 GB free |
 | Ports | See port table below |
+
+### Required CLI tools
+
+| Tool | Why | Install (Ubuntu/Debian) | Install (macOS) |
+|---|---|---|---|
+| Docker Engine 24+ | run the stack | `curl -fsSL https://get.docker.com \| sh` | Docker Desktop |
+| Docker Compose v2.20+ (plugin) | orchestration | `sudo apt-get install -y docker-compose-plugin` | bundled with Docker Desktop |
+| `curl` | smoke tests | usually present | usually present |
+| `python3` + `pip` | runs `gdown` to fetch the DB seed dump | `sudo apt-get install -y python3 python3-pip` | usually present |
+| `psql` 15+ (PostgreSQL client) | optional — needed for DB verification queries | `sudo apt-get install -y postgresql-client` | `brew install libpq && brew link --force libpq` |
+| `jq` | optional — pretty-print API responses | `sudo apt-get install -y jq` | `brew install jq` |
+
+### Docker socket access
+Add your user to the `docker` group (preferred) or prefix `docker` commands with `sudo`:
+```bash
+sudo usermod -aG docker $USER && newgrp docker
+```
+
+See `STARTUP.md` for the full bootstrap sequence after a fresh clone.
 
 ## Quick Start
 
@@ -54,6 +72,11 @@ All services are healthy when every row in Gatus turns green — typically 3–5
 | 28111 | health-muster-roll |
 | 28112 | health-attendance |
 | 28113 | health-expense |
+| 28114 | plan-service |
+| 28115 | census-service |
+| 28116 | boundary-management |
+| 28117 | resource-generator |
+| 28119 | project-factory |
 
 ## Directory Structure
 
@@ -275,3 +298,38 @@ All API calls should go through Kong on port **28000**. Include the header `X-AP
 | Kong API Key | — | `digit-dev-api-key-change-me` |
 | Portainer | (set on first visit) | — |
 | Grafana | (no login — anonymous admin) | — |
+
+## API verification
+
+After all rows are green in Gatus, run this smoke test (see `STARTUP.md §5` for the copy-paste block). Each line should print `200`:
+
+```
+200  /mdms-v2/v1/_search
+200  /boundary-service/boundary-hierarchy-definition/_search
+200  /egov-idgen/id/_generate
+200  /user/_search
+200  /health-individual/v1/_search
+200  /household/v1/_search
+200  /facility/v1/_search
+200  /product/v1/_search
+200  /health-project/v1/_search
+200  /stock/v1/_search
+200  /health-hrms/employees/_search
+200  /plan-service/config/_search
+200  /project-factory/v1/project-type/search
+```
+
+### Test user
+The DB bootstrap (`db/03-bootstrap-user.sql`) seeds one `SYSTEM` user in `eg_user`:
+
+| Field | Value |
+|---|---|
+| `id` | `1` |
+| `uuid` | `dc6fffba-8f0a-460f-aeeb-6f7e5b2fa7f3` |
+| `userName` | `SYSTEM` |
+| `tenantId` | `mz` |
+| `type` | `EMPLOYEE` |
+| `password` | BCrypt of `eGov@123` |
+| roles | `SUPERUSER, NATIONAL_ADMIN, EMPLOYEE, BENEFICIARY_REGISTRAR, DISTRIBUTOR, HEALTH_FACILITY_WORKER, ATTENDANCE_TAKER, HCM_ADMIN, SYSTEM` |
+
+Use that `userInfo` in `RequestInfo` to authorize any HCM API without going through OAuth.

@@ -17,10 +17,11 @@ services:
       POSTGRES_USER: egov
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-egov123}
       POSTGRES_DB: egov
-    command: postgres -c max_connections=300
+    command: ["bash","-c","if [ ! -f /var/lib/postgresql/data/server.crt ]; then openssl req -new -x509 -days 365 -nodes -text -out /var/lib/postgresql/data/server.crt -keyout /var/lib/postgresql/data/server.key -subj \"/CN=postgres\" && chmod 0600 /var/lib/postgresql/data/server.key && chown postgres:postgres /var/lib/postgresql/data/server.*; fi; exec docker-entrypoint.sh postgres -c ssl=on -c ssl_cert_file=/var/lib/postgresql/data/server.crt -c ssl_key_file=/var/lib/postgresql/data/server.key -c max_connections=300"]
     volumes:
       - hcm_postgres_data:/var/lib/postgresql/data
       - ./db/full-dump.sql:/docker-entrypoint-initdb.d/01-full-dump.sql:ro
+      - ./db/03-bootstrap-user.sql:/docker-entrypoint-initdb.d/03-bootstrap-user.sql:ro
     ports:
       - "25432:5432"
     healthcheck:
@@ -50,7 +51,7 @@ services:
       DEFAULT_POOL_SIZE: 25
       MIN_POOL_SIZE: 5
       RESERVE_POOL_SIZE: 5
-      AUTH_TYPE: md5
+      AUTH_TYPE: scram-sha-256
     depends_on:
       postgres-db:
         condition: service_healthy
@@ -68,6 +69,24 @@ services:
       hcm-network:
         aliases:
           - postgres
+
+  # One-shot: shifts date-anchored seed rows (campaigns, plans, etc.) to be
+  # "current" at every `docker compose up`. Safe to re-run; SQL handles missing
+  # tables. Exits 0 after running.
+  db-refresh-dates:
+    image: postgres:16-alpine
+    container_name: hcm-db-refresh-dates
+    depends_on:
+      postgres-db:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD:-egov123}
+    volumes:
+      - ./db/refresh-dynamic-dates.sql:/refresh.sql:ro
+    command: ["psql", "-h", "postgres-db", "-U", "egov", "-d", "egov", "-f", "/refresh.sql"]
+    restart: "no"
+    networks:
+      - hcm-network
 
   redis:
     image: redis:7.2.4
@@ -94,13 +113,17 @@ services:
     command:
       - redpanda start
       - --smp 1
-      - --memory 512M
+      - --memory 2G
       - --overprovisioned
       - --node-id 0
       - --kafka-addr PLAINTEXT://0.0.0.0:9092
       - --advertise-kafka-addr PLAINTEXT://redpanda:9092
       - --pandaproxy-addr PLAINTEXT://0.0.0.0:8082
       - --advertise-pandaproxy-addr PLAINTEXT://redpanda:8082
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
     ports:
       - "29092:9092"
       - "28082:8082"
@@ -112,7 +135,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 600M
+          memory: 2400M
           cpus: '1'
     networks:
       hcm-network:
@@ -833,6 +856,10 @@ services:
       egov-persister:
         condition: service_healthy
     environment:
+      INDIVIDUAL_PRODUCER_SAVE_TOPIC: save-individual-health-topic
+      INDIVIDUAL_PRODUCER_UPDATE_TOPIC: update-individual-health-topic
+      INDIVIDUAL_PRODUCER_DELETE_TOPIC: delete-individual-health-topic
+      INDIVIDUAL_PRODUCER_UPDATE_USER_ID_TOPIC: update-user-id-health-topic
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/egov
       SPRING_DATASOURCE_USERNAME: egov
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-egov123}
@@ -841,7 +868,7 @@ services:
       SPRING_FLYWAY_URL: jdbc:postgresql://postgres:5432/egov
       SPRING_FLYWAY_USER: egov
       SPRING_FLYWAY_PASSWORD: ${POSTGRES_PASSWORD:-egov123}
-      SPRING_FLYWAY_ENABLED: 'true'
+      SPRING_FLYWAY_ENABLED: 'false'
       SPRING_FLYWAY_BASELINE_ON_MIGRATE: 'true'
       SPRING_FLYWAY_VALIDATE_ON_MIGRATE: 'false'
       KAFKA_BOOTSTRAP_SERVERS: redpanda:9092
@@ -857,7 +884,7 @@ services:
       EGOV_MDMS_HOST: http://egov-mdms-service:8094
       EGOV_MDMS_SEARCH_ENDPOINT: /egov-mdms-service/v1/_search
       EGOV_IDGEN_HOST: http://egov-idgen:8088
-      EGOV_IDGEN_PATH: egov-idgen/id/_generate
+      EGOV_IDGEN_PATH: /egov-idgen/id/_generate
       EGOV_IDGEN_INTEGRATION_ENABLED: 'true'
       EGOV_BENEFICIARY_IDGEN_HOST: http://beneficiary-idgen:8080
       EGOV_BENEFICIARY_IDGEN_IDPOOL_SEARCH_PATH: beneficiary-idgen/id/id_pool/_search
@@ -885,10 +912,9 @@ services:
       INDIVIDUAL.CONSUMER.BULK.CREATE.TOPIC: individual-consumer-bulk-create-topic
       INDIVIDUAL.CONSUMER.BULK.UPDATE.TOPIC: individual-consumer-bulk-update-topic
       INDIVIDUAL.CONSUMER.BULK.DELETE.TOPIC: individual-consumer-bulk-delete-topic
-      INDIVIDUAL.PRODUCER.SAVE.TOPIC: save-individual-topic
-      INDIVIDUAL.PRODUCER.UPDATE.TOPIC: update-individual-topic
-      INDIVIDUAL.PRODUCER.DELETE.TOPIC: delete-individual-topic
-      INDIVIDUAL_PRODUCER_UPDATE_USER_ID_TOPIC: update-user-id-topic
+      INDIVIDUAL.PRODUCER.SAVE.TOPIC: save-individual-health-topic
+      INDIVIDUAL.PRODUCER.UPDATE.TOPIC: update-individual-health-topic
+      INDIVIDUAL.PRODUCER.DELETE.TOPIC: delete-individual-health-topic
       OTEL_TRACES_EXPORTER: none
       JAVA_TOOL_OPTIONS: -Xms128m -Xmx384m
     ports:
@@ -922,6 +948,12 @@ services:
       egov-persister:
         condition: service_healthy
     environment:
+      HOUSEHOLD_KAFKA_CREATE_TOPIC: save-household-health-topic
+      HOUSEHOLD_KAFKA_UPDATE_TOPIC: update-household-health-topic
+      HOUSEHOLD_KAFKA_DELETE_TOPIC: delete-household-health-topic
+      HOUSEHOLD_MEMBER_KAFKA_CREATE_TOPIC: save-household-member-health-topic
+      HOUSEHOLD_MEMBER_KAFKA_UPDATE_TOPIC: update-household-member-health-topic
+      HOUSEHOLD_MEMBER_KAFKA_DELETE_TOPIC: delete-household-member-health-topic
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/egov
       SPRING_DATASOURCE_USERNAME: egov
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-egov123}
@@ -930,7 +962,7 @@ services:
       SPRING_FLYWAY_URL: jdbc:postgresql://postgres:5432/egov
       SPRING_FLYWAY_USER: egov
       SPRING_FLYWAY_PASSWORD: ${POSTGRES_PASSWORD:-egov123}
-      SPRING_FLYWAY_ENABLED: 'true'
+      SPRING_FLYWAY_ENABLED: 'false'
       SPRING_FLYWAY_BASELINE_ON_MIGRATE: 'true'
       SPRING_FLYWAY_VALIDATE_ON_MIGRATE: 'false'
       KAFKA_BOOTSTRAP_SERVERS: redpanda:9092
@@ -945,19 +977,19 @@ services:
       MDMS_SERVICE_HOST: http://egov-mdms-service:8094
       MDMS_SERVICE_SEARCH_URI: /egov-mdms-service/v1/_search
       EGOV_IDGEN_HOST: http://egov-idgen:8088
-      EGOV_IDGEN_PATH: egov-idgen/id/_generate
+      EGOV_IDGEN_PATH: /egov-idgen/id/_generate
       EGOV_IDGEN_INTEGRATION_ENABLED: 'true'
       HOUSEHOLD.IDGEN.ID.FORMAT: household.id
       STATE_LEVEL_TENANT_ID: mz
-      HOUSEHOLD.KAFKA.CREATE.TOPIC: save-household-topic
-      HOUSEHOLD.KAFKA.UPDATE.TOPIC: update-household-topic
-      HOUSEHOLD.KAFKA.DELETE.TOPIC: delete-household-topic
+      HOUSEHOLD.KAFKA.CREATE.TOPIC: save-household-health-topic
+      HOUSEHOLD.KAFKA.UPDATE.TOPIC: update-household-health-topic
+      HOUSEHOLD.KAFKA.DELETE.TOPIC: delete-household-health-topic
       HOUSEHOLD.CONSUMER.BULK.CREATE.TOPIC: household-consumer-bulk-create-topic
       HOUSEHOLD.CONSUMER.BULK.UPDATE.TOPIC: household-consumer-bulk-update-topic
       HOUSEHOLD.CONSUMER.BULK.DELETE.TOPIC: household-consumer-bulk-delete-topic
-      HOUSEHOLD.MEMBER.KAFKA.CREATE.TOPIC: save-household-member-topic
-      HOUSEHOLD.MEMBER.KAFKA.UPDATE.TOPIC: update-household-member-topic
-      HOUSEHOLD.MEMBER.KAFKA.DELETE.TOPIC: delete-household-member-topic
+      HOUSEHOLD.MEMBER.KAFKA.CREATE.TOPIC: save-household-member-health-topic
+      HOUSEHOLD.MEMBER.KAFKA.UPDATE.TOPIC: update-household-member-health-topic
+      HOUSEHOLD.MEMBER.KAFKA.DELETE.TOPIC: delete-household-member-health-topic
       HOUSEHOLD.MEMBER.CONSUMER.BULK.CREATE.TOPIC: household-member-consumer-bulk-create-topic
       HOUSEHOLD.MEMBER.CONSUMER.BULK.UPDATE.TOPIC: household-member-consumer-bulk-update-topic
       HOUSEHOLD.MEMBER.CONSUMER.BULK.DELETE.TOPIC: household-member-consumer-bulk-delete-topic
@@ -994,6 +1026,9 @@ services:
       egov-persister:
         condition: service_healthy
     environment:
+      FACILITY_KAFKA_CREATE_TOPIC: save-facility-health-topic
+      FACILITY_KAFKA_UPDATE_TOPIC: update-facility-health-topic
+      FACILITY_KAFKA_DELETE_TOPIC: delete-facility-health-topic
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/egov
       SPRING_DATASOURCE_USERNAME: egov
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-egov123}
@@ -1002,7 +1037,7 @@ services:
       SPRING_FLYWAY_URL: jdbc:postgresql://postgres:5432/egov
       SPRING_FLYWAY_USER: egov
       SPRING_FLYWAY_PASSWORD: ${POSTGRES_PASSWORD:-egov123}
-      SPRING_FLYWAY_ENABLED: 'true'
+      SPRING_FLYWAY_ENABLED: 'false'
       SPRING_FLYWAY_BASELINE_ON_MIGRATE: 'true'
       SPRING_FLYWAY_VALIDATE_ON_MIGRATE: 'false'
       KAFKA_BOOTSTRAP_SERVERS: redpanda:9092
@@ -1015,13 +1050,13 @@ services:
       SPRING_CACHE_REDIS_TIME-TO-LIVE: 60000
       SPRING_CACHE_AUTOEXPIRY: 'true'
       EGOV_IDGEN_HOST: http://egov-idgen:8088
-      EGOV_IDGEN_PATH: egov-idgen/id/_generate
+      EGOV_IDGEN_PATH: /egov-idgen/id/_generate
       EGOV_IDGEN_INTEGRATION_ENABLED: 'true'
       FACILITY.IDGEN.ID.FORMAT: facility.id
       STATE_LEVEL_TENANT_ID: mz
-      FACILITY.KAFKA.CREATE.TOPIC: save-facility-topic
-      FACILITY.KAFKA.UPDATE.TOPIC: update-facility-topic
-      FACILITY.KAFKA.DELETE.TOPIC: delete-facility-topic
+      FACILITY.KAFKA.CREATE.TOPIC: save-facility-health-topic
+      FACILITY.KAFKA.UPDATE.TOPIC: update-facility-health-topic
+      FACILITY.KAFKA.DELETE.TOPIC: delete-facility-health-topic
       FACILITY.CONSUMER.BULK.CREATE.TOPIC: facility-consumer-bulk-create-topic
       FACILITY.CONSUMER.BULK.UPDATE.TOPIC: facility-consumer-bulk-update-topic
       FACILITY.CONSUMER.BULK.DELETE.TOPIC: facility-consumer-bulk-delete-topic
@@ -1058,6 +1093,10 @@ services:
       egov-persister:
         condition: service_healthy
     environment:
+      PRODUCT_KAFKA_CREATE_TOPIC: save-product-health-topic
+      PRODUCT_KAFKA_UPDATE_TOPIC: update-product-health-topic
+      PRODUCT_VARIANT_KAFKA_CREATE_TOPIC: save-product-variant-health-topic
+      PRODUCT_VARIANT_KAFKA_UPDATE_TOPIC: update-product-variant-health-topic
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/egov
       SPRING_DATASOURCE_USERNAME: egov
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-egov123}
@@ -1066,7 +1105,7 @@ services:
       SPRING_FLYWAY_URL: jdbc:postgresql://postgres:5432/egov
       SPRING_FLYWAY_USER: egov
       SPRING_FLYWAY_PASSWORD: ${POSTGRES_PASSWORD:-egov123}
-      SPRING_FLYWAY_ENABLED: 'true'
+      SPRING_FLYWAY_ENABLED: 'false'
       SPRING_FLYWAY_BASELINE_ON_MIGRATE: 'true'
       SPRING_FLYWAY_VALIDATE_ON_MIGRATE: 'false'
       KAFKA_BOOTSTRAP_SERVERS: redpanda:9092
@@ -1079,13 +1118,13 @@ services:
       SPRING_CACHE_REDIS_TIME-TO-LIVE: 60000
       SPRING_CACHE_AUTOEXPIRY: 'true'
       EGOV_IDGEN_HOST: http://egov-idgen:8088
-      EGOV_IDGEN_PATH: egov-idgen/id/_generate
+      EGOV_IDGEN_PATH: /egov-idgen/id/_generate
       EGOV_IDGEN_INTEGRATION_ENABLED: 'true'
       STATE_LEVEL_TENANT_ID: mz
-      PRODUCT.KAFKA.CREATE.TOPIC: save-product-topic
-      PRODUCT.KAFKA.UPDATE.TOPIC: update-product-topic
-      PRODUCT.VARIANT.KAFKA.CREATE.TOPIC: save-product-variant-topic
-      PRODUCT.VARIANT.KAFKA.UPDATE.TOPIC: update-product-variant-topic
+      PRODUCT.KAFKA.CREATE.TOPIC: save-product-health-topic
+      PRODUCT.KAFKA.UPDATE.TOPIC: update-product-health-topic
+      PRODUCT.VARIANT.KAFKA.CREATE.TOPIC: save-product-variant-health-topic
+      PRODUCT.VARIANT.KAFKA.UPDATE.TOPIC: update-product-variant-health-topic
       OTEL_TRACES_EXPORTER: none
       JAVA_TOOL_OPTIONS: -Xms128m -Xmx192m
     ports:
@@ -1127,6 +1166,21 @@ services:
       egov-persister:
         condition: service_healthy
     environment:
+      PROJECT_STAFF_KAFKA_CREATE_TOPIC: save-project-staff-health-topic
+      PROJECT_STAFF_KAFKA_UPDATE_TOPIC: update-project-staff-health-topic
+      PROJECT_STAFF_KAFKA_DELETE_TOPIC: delete-project-staff-health-topic
+      PROJECT_BENEFICIARY_KAFKA_CREATE_TOPIC: save-project-beneficiary-health-topic
+      PROJECT_BENEFICIARY_KAFKA_UPDATE_TOPIC: update-project-beneficiary-health-topic
+      PROJECT_BENEFICIARY_KAFKA_DELETE_TOPIC: delete-project-beneficiary-health-topic
+      PROJECT_RESOURCE_KAFKA_CREATE_TOPIC: save-project-resource-health-topic
+      PROJECT_RESOURCE_KAFKA_UPDATE_TOPIC: update-project-resource-health-topic
+      PROJECT_RESOURCE_KAFKA_DELETE_TOPIC: delete-project-resource-health-topic
+      PROJECT_FACILITY_KAFKA_CREATE_TOPIC: save-project-facility-health-topic
+      PROJECT_FACILITY_KAFKA_UPDATE_TOPIC: update-project-facility-health-topic
+      PROJECT_FACILITY_KAFKA_DELETE_TOPIC: delete-project-facility-health-topic
+      PROJECT_TASK_KAFKA_CREATE_TOPIC: save-project-task-health-topic
+      PROJECT_TASK_KAFKA_UPDATE_TOPIC: update-project-task-health-topic
+      PROJECT_TASK_KAFKA_DELETE_TOPIC: delete-project-task-health-topic
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/egov
       SPRING_DATASOURCE_USERNAME: egov
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-egov123}
@@ -1135,7 +1189,7 @@ services:
       SPRING_FLYWAY_URL: jdbc:postgresql://postgres:5432/egov
       SPRING_FLYWAY_USER: egov
       SPRING_FLYWAY_PASSWORD: ${POSTGRES_PASSWORD:-egov123}
-      SPRING_FLYWAY_ENABLED: 'true'
+      SPRING_FLYWAY_ENABLED: 'false'
       SPRING_FLYWAY_BASELINE_ON_MIGRATE: 'true'
       SPRING_FLYWAY_VALIDATE_ON_MIGRATE: 'false'
       KAFKA_BOOTSTRAP_SERVERS: redpanda:9092
@@ -1154,7 +1208,7 @@ services:
       EGOV_MDMS_MASTER_NAME: project_master
       EGOV_MDMS_MODULE_NAME: project
       EGOV_IDGEN_HOST: http://egov-idgen:8088
-      EGOV_IDGEN_PATH: egov-idgen/id/_generate
+      EGOV_IDGEN_PATH: /egov-idgen/id/_generate
       EGOV_IDGEN_INTEGRATION_ENABLED: 'true'
       PROJECT.STAFF.IDGEN.ID.FORMAT: project.staff.id
       PROJECT.FACILITY.IDGEN.ID.FORMAT: project.facility.id
@@ -1184,33 +1238,33 @@ services:
       PROJECT.DOCUMENT.ID.VERIFICATION.REQUIRED: 'false'
       PROJECT.MANAGEMENT.SYSTEM.KAFKA.CREATE.TOPIC: save-project
       PROJECT.MANAGEMENT.SYSTEM.KAFKA.UPDATE.TOPIC: update-project
-      PROJECT.STAFF.KAFKA.CREATE.TOPIC: save-project-staff-topic
-      PROJECT.STAFF.KAFKA.UPDATE.TOPIC: update-project-staff-topic
-      PROJECT.STAFF.KAFKA.DELETE.TOPIC: delete-project-staff-topic
+      PROJECT.STAFF.KAFKA.CREATE.TOPIC: save-project-staff-health-topic
+      PROJECT.STAFF.KAFKA.UPDATE.TOPIC: update-project-staff-health-topic
+      PROJECT.STAFF.KAFKA.DELETE.TOPIC: delete-project-staff-health-topic
       PROJECT.STAFF.CONSUMER.BULK.CREATE.TOPIC: create-project-staff-bulk-topic
       PROJECT.STAFF.CONSUMER.BULK.UPDATE.TOPIC: update-project-staff-bulk-topic
       PROJECT.STAFF.CONSUMER.BULK.DELETE.TOPIC: delete-project-staff-bulk-topic
-      PROJECT.BENEFICIARY.KAFKA.CREATE.TOPIC: save-project-beneficiary-topic
-      PROJECT.BENEFICIARY.KAFKA.UPDATE.TOPIC: update-project-beneficiary-topic
-      PROJECT.BENEFICIARY.KAFKA.DELETE.TOPIC: delete-project-beneficiary-topic
+      PROJECT.BENEFICIARY.KAFKA.CREATE.TOPIC: save-project-beneficiary-health-topic
+      PROJECT.BENEFICIARY.KAFKA.UPDATE.TOPIC: update-project-beneficiary-health-topic
+      PROJECT.BENEFICIARY.KAFKA.DELETE.TOPIC: delete-project-beneficiary-health-topic
       PROJECT.BENEFICIARY.CONSUMER.BULK.CREATE.TOPIC: project-beneficiary-consumer-bulk-create-topic
       PROJECT.BENEFICIARY.CONSUMER.BULK.UPDATE.TOPIC: project-beneficiary-consumer-bulk-update-topic
       PROJECT.BENEFICIARY.CONSUMER.BULK.DELETE.TOPIC: project-beneficiary-consumer-bulk-delete-topic
-      PROJECT.TASK.KAFKA.CREATE.TOPIC: save-project-task-topic
-      PROJECT.TASK.KAFKA.UPDATE.TOPIC: update-project-task-topic
-      PROJECT.TASK.KAFKA.DELETE.TOPIC: delete-project-task-topic
+      PROJECT.TASK.KAFKA.CREATE.TOPIC: save-project-task-health-topic
+      PROJECT.TASK.KAFKA.UPDATE.TOPIC: update-project-task-health-topic
+      PROJECT.TASK.KAFKA.DELETE.TOPIC: delete-project-task-health-topic
       PROJECT.TASK.CONSUMER.BULK.CREATE.TOPIC: save-project-task-bulk-topic
       PROJECT.TASK.CONSUMER.BULK.UPDATE.TOPIC: update-project-task-bulk-topic
       PROJECT.TASK.CONSUMER.BULK.DELETE.TOPIC: delete-project-task-bulk-topic
-      PROJECT.RESOURCE.KAFKA.CREATE.TOPIC: save-project-resource-topic
-      PROJECT.RESOURCE.KAFKA.UPDATE.TOPIC: update-project-resource-topic
-      PROJECT.RESOURCE.KAFKA.DELETE.TOPIC: delete-project-resource-topic
+      PROJECT.RESOURCE.KAFKA.CREATE.TOPIC: save-project-resource-health-topic
+      PROJECT.RESOURCE.KAFKA.UPDATE.TOPIC: update-project-resource-health-topic
+      PROJECT.RESOURCE.KAFKA.DELETE.TOPIC: delete-project-resource-health-topic
       PROJECT.RESOURCE.CONSUMER.BULK.CREATE.TOPIC: save-project-resource-bulk-topic
       PROJECT.RESOURCE.CONSUMER.BULK.UPDATE.TOPIC: update-project-resource-bulk-topic
       PROJECT.RESOURCE.CONSUMER.BULK.DELETE.TOPIC: delete-project-resource-bulk-topic
-      PROJECT.FACILITY.KAFKA.CREATE.TOPIC: save-project-facility-topic
-      PROJECT.FACILITY.KAFKA.UPDATE.TOPIC: update-project-facility-topic
-      PROJECT.FACILITY.KAFKA.DELETE.TOPIC: delete-project-facility-topic
+      PROJECT.FACILITY.KAFKA.CREATE.TOPIC: save-project-facility-health-topic
+      PROJECT.FACILITY.KAFKA.UPDATE.TOPIC: update-project-facility-health-topic
+      PROJECT.FACILITY.KAFKA.DELETE.TOPIC: delete-project-facility-health-topic
       PROJECT.FACILITY.CONSUMER.BULK.CREATE.TOPIC: create-project-facility-bulk-topic
       PROJECT.FACILITY.CONSUMER.BULK.UPDATE.TOPIC: update-project-facility-bulk-topic
       PROJECT.FACILITY.CONSUMER.BULK.DELETE.TOPIC: delete-project-facility-bulk-topic
@@ -1255,6 +1309,12 @@ services:
       egov-persister:
         condition: service_healthy
     environment:
+      STOCK_KAFKA_CREATE_TOPIC: save-stock-health-topic
+      STOCK_KAFKA_UPDATE_TOPIC: update-stock-health-topic
+      STOCK_KAFKA_DELETE_TOPIC: delete-stock-health-topic
+      STOCK_RECONCILIATION_KAFKA_CREATE_TOPIC: save-stock-reconciliation-health-topic
+      STOCK_RECONCILIATION_KAFKA_UPDATE_TOPIC: update-stock-reconciliation-health-topic
+      STOCK_RECONCILIATION_KAFKA_DELETE_TOPIC: delete-stock-reconciliation-health-topic
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/egov
       SPRING_DATASOURCE_USERNAME: egov
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-egov123}
@@ -1263,7 +1323,7 @@ services:
       SPRING_FLYWAY_URL: jdbc:postgresql://postgres:5432/egov
       SPRING_FLYWAY_USER: egov
       SPRING_FLYWAY_PASSWORD: ${POSTGRES_PASSWORD:-egov123}
-      SPRING_FLYWAY_ENABLED: 'true'
+      SPRING_FLYWAY_ENABLED: 'false'
       SPRING_FLYWAY_BASELINE_ON_MIGRATE: 'true'
       SPRING_FLYWAY_VALIDATE_ON_MIGRATE: 'false'
       KAFKA_BOOTSTRAP_SERVERS: redpanda:9092
@@ -1279,7 +1339,7 @@ services:
       EGOV_MDMS_SEARCH_ENDPOINT: /egov-mdms-service/v1/_search
       EGOV_MDMS_INTEGRATION_ENABLED: 'false'
       EGOV_IDGEN_HOST: http://egov-idgen:8088
-      EGOV_IDGEN_PATH: egov-idgen/id/_generate
+      EGOV_IDGEN_PATH: /egov-idgen/id/_generate
       EGOV_IDGEN_INTEGRATION_ENABLED: 'true'
       STOCK.IDGEN.ID.FORMAT: stock.id
       STOCK.RECONCILIATION.IDGEN.ID.FORMAT: stock.reconciliation.id
@@ -1292,14 +1352,14 @@ services:
       EGOV_SEARCH_USER_URL: /user/_search
       STATE_LEVEL_TENANT_ID: mz
       SEARCH_API_LIMIT: "1000"
-      STOCK.KAFKA.CREATE.TOPIC: save-stock-topic
-      STOCK.KAFKA.UPDATE.TOPIC: update-stock-topic
-      STOCK.KAFKA.DELETE.TOPIC: delete-stock-topic
+      STOCK.KAFKA.CREATE.TOPIC: save-stock-health-topic
+      STOCK.KAFKA.UPDATE.TOPIC: update-stock-health-topic
+      STOCK.KAFKA.DELETE.TOPIC: delete-stock-health-topic
       STOCK.CONSUMER.BULK.CREATE.TOPIC: create-stock-bulk-topic
       STOCK.CONSUMER.BULK.UPDATE.TOPIC: update-stock-bulk-topic
-      STOCK.RECONCILIATION.KAFKA.CREATE.TOPIC: save-stock-reconciliation-topic
-      STOCK.RECONCILIATION.KAFKA.UPDATE.TOPIC: update-stock-reconciliation-topic
-      STOCK.RECONCILIATION.KAFKA.DELETE.TOPIC: delete-stock-reconciliation-topic
+      STOCK.RECONCILIATION.KAFKA.CREATE.TOPIC: save-stock-reconciliation-health-topic
+      STOCK.RECONCILIATION.KAFKA.UPDATE.TOPIC: update-stock-reconciliation-health-topic
+      STOCK.RECONCILIATION.KAFKA.DELETE.TOPIC: delete-stock-reconciliation-health-topic
       STOCK.RECONCILIATION.CONSUMER.BULK.CREATE.TOPIC: create-stock-reconciliation-bulk-topic
       STOCK.RECONCILIATION.CONSUMER.BULK.UPDATE.TOPIC: update-stock-reconciliation-bulk-topic
       OTEL_TRACES_EXPORTER: none
@@ -1339,6 +1399,15 @@ services:
       egov-persister:
         condition: service_healthy
     environment:
+      REFERRALMANAGEMENT_SIDEEFFECT_KAFKA_CREATE_TOPIC: save-side-effect-health-topic
+      REFERRALMANAGEMENT_SIDEEFFECT_KAFKA_UPDATE_TOPIC: update-side-effect-health-topic
+      REFERRALMANAGEMENT_SIDEEFFECT_KAFKA_DELETE_TOPIC: delete-side-effect-health-topic
+      REFERRALMANAGEMENT_REFERRAL_KAFKA_CREATE_TOPIC: save-referral-health-topic
+      REFERRALMANAGEMENT_REFERRAL_KAFKA_UPDATE_TOPIC: update-referral-health-topic
+      REFERRALMANAGEMENT_REFERRAL_KAFKA_DELETE_TOPIC: delete-referral-health-topic
+      REFERRALMANAGEMENT_HFREFERRAL_KAFKA_CREATE_TOPIC: save-hfreferral-health-topic
+      REFERRALMANAGEMENT_HFREFERRAL_KAFKA_UPDATE_TOPIC: update-hfreferral-health-topic
+      REFERRALMANAGEMENT_HFREFERRAL_KAFKA_DELETE_TOPIC: delete-hfreferral-health-topic
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/egov
       SPRING_DATASOURCE_USERNAME: egov
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-egov123}
@@ -1347,7 +1416,7 @@ services:
       SPRING_FLYWAY_URL: jdbc:postgresql://postgres:5432/egov
       SPRING_FLYWAY_USER: egov
       SPRING_FLYWAY_PASSWORD: ${POSTGRES_PASSWORD:-egov123}
-      SPRING_FLYWAY_ENABLED: 'true'
+      SPRING_FLYWAY_ENABLED: 'false'
       SPRING_FLYWAY_BASELINE_ON_MIGRATE: 'true'
       SPRING_FLYWAY_VALIDATE_ON_MIGRATE: 'false'
       KAFKA_BOOTSTRAP_SERVERS: redpanda:9092
@@ -1362,24 +1431,24 @@ services:
       EGOV_MDMS_HOST: http://egov-mdms-service:8094
       EGOV_MDMS_SEARCH_ENDPOINT: /egov-mdms-service/v1/_search
       EGOV_IDGEN_HOST: http://egov-idgen:8088
-      EGOV_IDGEN_PATH: egov-idgen/id/_generate
+      EGOV_IDGEN_PATH: /egov-idgen/id/_generate
       EGOV_IDGEN_INTEGRATION_ENABLED: 'true'
       REFERRALMANAGEMENT.SIDEEFFECT.IDGEN.ID.FORMAT: referralmanagement.sideeffect.id
       REFERRALMANAGEMENT.REFERRAL.IDGEN.ID.FORMAT: referralmanagement.referral.id
       STATE_LEVEL_TENANT_ID: mz
-      REFERRALMANAGEMENT.SIDEEFFECT.KAFKA.CREATE.TOPIC: save-side-effect-topic
-      REFERRALMANAGEMENT.SIDEEFFECT.KAFKA.UPDATE.TOPIC: update-side-effect-topic
-      REFERRALMANAGEMENT.SIDEEFFECT.KAFKA.DELETE.TOPIC: delete-side-effect-topic
+      REFERRALMANAGEMENT.SIDEEFFECT.KAFKA.CREATE.TOPIC: save-side-effect-health-topic
+      REFERRALMANAGEMENT.SIDEEFFECT.KAFKA.UPDATE.TOPIC: update-side-effect-health-topic
+      REFERRALMANAGEMENT.SIDEEFFECT.KAFKA.DELETE.TOPIC: delete-side-effect-health-topic
       REFERRALMANAGEMENT.SIDEEFFECT.CONSUMER.BULK.CREATE.TOPIC: side-effect-consumer-bulk-create-topic
       REFERRALMANAGEMENT.SIDEEFFECT.CONSUMER.BULK.UPDATE.TOPIC: side-effect-consumer-bulk-update-topic
-      REFERRALMANAGEMENT.REFERRAL.KAFKA.CREATE.TOPIC: save-referral-topic
-      REFERRALMANAGEMENT.REFERRAL.KAFKA.UPDATE.TOPIC: update-referral-topic
-      REFERRALMANAGEMENT.REFERRAL.KAFKA.DELETE.TOPIC: delete-referral-topic
+      REFERRALMANAGEMENT.REFERRAL.KAFKA.CREATE.TOPIC: save-referral-health-topic
+      REFERRALMANAGEMENT.REFERRAL.KAFKA.UPDATE.TOPIC: update-referral-health-topic
+      REFERRALMANAGEMENT.REFERRAL.KAFKA.DELETE.TOPIC: delete-referral-health-topic
       REFERRALMANAGEMENT.REFERRAL.CONSUMER.BULK.CREATE.TOPIC: referral-consumer-bulk-create-topic
       REFERRALMANAGEMENT.REFERRAL.CONSUMER.BULK.UPDATE.TOPIC: referral-consumer-bulk-update-topic
-      REFERRALMANAGEMENT.HFREFERRAL.KAFKA.CREATE.TOPIC: save-hfreferral-topic
-      REFERRALMANAGEMENT.HFREFERRAL.KAFKA.UPDATE.TOPIC: update-hfreferral-topic
-      REFERRALMANAGEMENT.HFREFERRAL.KAFKA.DELETE.TOPIC: delete-hfreferral-topic
+      REFERRALMANAGEMENT.HFREFERRAL.KAFKA.CREATE.TOPIC: save-hfreferral-health-topic
+      REFERRALMANAGEMENT.HFREFERRAL.KAFKA.UPDATE.TOPIC: update-hfreferral-health-topic
+      REFERRALMANAGEMENT.HFREFERRAL.KAFKA.DELETE.TOPIC: delete-hfreferral-health-topic
       REFERRALMANAGEMENT.HFREFERRAL.CONSUMER.BULK.CREATE.TOPIC: hfreferral-consumer-bulk-create-topic
       REFERRALMANAGEMENT.HFREFERRAL.CONSUMER.BULK.UPDATE.TOPIC: hfreferral-consumer-bulk-update-topic
       OTEL_TRACES_EXPORTER: none
@@ -1437,7 +1506,7 @@ services:
       SPRING_FLYWAY_URL: jdbc:postgresql://postgres:5432/egov
       SPRING_FLYWAY_USER: egov
       SPRING_FLYWAY_PASSWORD: ${POSTGRES_PASSWORD:-egov123}
-      SPRING_FLYWAY_ENABLED: 'true'
+      SPRING_FLYWAY_ENABLED: 'false'
       SPRING_FLYWAY_BASELINE_ON_MIGRATE: 'true'
       SPRING_FLYWAY_VALIDATE_ON_MIGRATE: 'false'
       SPRING_FLYWAY_SCHEMAS: attendance_schema
@@ -1547,7 +1616,7 @@ services:
       SPRING_FLYWAY_URL: jdbc:postgresql://postgres:5432/egov
       SPRING_FLYWAY_USER: egov
       SPRING_FLYWAY_PASSWORD: ${POSTGRES_PASSWORD:-egov123}
-      SPRING_FLYWAY_ENABLED: 'true'
+      SPRING_FLYWAY_ENABLED: 'false'
       SPRING_FLYWAY_BASELINE_ON_MIGRATE: 'true'
       SPRING_FLYWAY_VALIDATE_ON_MIGRATE: 'false'
       SPRING_FLYWAY_SCHEMAS: expense_schema
@@ -1634,7 +1703,7 @@ services:
       SPRING_FLYWAY_URL: jdbc:postgresql://postgres:5432/egov
       SPRING_FLYWAY_USER: egov
       SPRING_FLYWAY_PASSWORD: ${POSTGRES_PASSWORD:-egov123}
-      SPRING_FLYWAY_ENABLED: 'true'
+      SPRING_FLYWAY_ENABLED: 'false'
       SPRING_FLYWAY_BASELINE_ON_MIGRATE: 'true'
       SPRING_FLYWAY_VALIDATE_ON_MIGRATE: 'false'
       SPRING_FLYWAY_SCHEMAS: expense_calculator_schema
@@ -1721,7 +1790,7 @@ services:
       SPRING_FLYWAY_URL: jdbc:postgresql://postgres:5432/egov
       SPRING_FLYWAY_USER: egov
       SPRING_FLYWAY_PASSWORD: ${POSTGRES_PASSWORD:-egov123}
-      SPRING_FLYWAY_ENABLED: 'true'
+      SPRING_FLYWAY_ENABLED: 'false'
       SPRING_FLYWAY_BASELINE_ON_MIGRATE: 'true'
       SPRING_FLYWAY_VALIDATE_ON_MIGRATE: 'false'
       SPRING_FLYWAY_SCHEMAS: muster_roll_schema
@@ -1787,6 +1856,281 @@ services:
         limits:
           memory: 512M
           cpus: '0.25'
+    networks:
+      - hcm-network
+
+  # ==================== MICROPLAN / CAMPAIGN CHAIN ====================
+
+  project-factory:
+    image: egovio/project-factory:hcm-console-f039e13
+    container_name: hcm-project-factory
+    depends_on:
+      pgbouncer:
+        condition: service_healthy
+      redpanda:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      PGSSLMODE: disable
+      DB_SSL: "false"
+      BASE_SECRET: localdev-base-secret-do-not-use-in-prod
+      DB_HOST: postgres-db
+      DB_PORT: 5432
+      DB_NAME: egov
+      DB_USER: egov
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-egov123}
+      DB_URL: postgres://egov:${POSTGRES_PASSWORD:-egov123}@postgres-db:5432/egov
+      DB_SCHEMA: health
+      SCHEMA_TABLE: project_factory_health_schema
+      FLYWAY_USER: egov
+      FLYWAY_PASSWORD: ${POSTGRES_PASSWORD:-egov123}
+      FLYWAY_URL: jdbc:postgresql://postgres-db:5432/egov
+      FLYWAY_LOCATIONS: filesystem:/migrations/main
+      KAFKA_BROKER_HOST: redpanda:9092
+      KAFKAJS_NO_PARTITIONER_WARNING: "1"
+      KAFKA_SAVE_CAMPAIGN_DETAILS_TOPIC: save-campaign-details
+      KAFKA_UPDATE_CAMPAIGN_DETAILS_TOPIC: update-campaign-details
+      EGOV_MDMS_HOST: http://egov-mdms-service:8094
+      EGOV_MDMS_V2_HOST: http://egov-mdms-service:8094
+      EGOV_FILESTORE_SERVICE_HOST: http://egov-filestore:8083
+      EGOV_IDGEN_HOST: http://egov-idgen:8088
+      EGOV_FACILITY_HOST: http://facility:8080
+      EGOV_BOUNDARY_HOST: http://boundary-service:8081
+      EGOV_PROJECT_HOST: http://health-project:8080
+      EGOV_USER_HOST: http://egov-user:8107
+      EGOV_PRODUCT_HOST: http://product:8080
+      EGOV_HRMS_HOST: http://health-hrms:8080
+      EGOV_LOCALIZATION_HOST: http://egov-localization:8096
+      EGOV_HEALTH_INDIVIDUAL_HOST: http://health-individual:8080
+      EGOV_PLAN_SERVICE_HOST: http://plan-service:8080
+      EGOV_CENSUS_HOST: http://census-service:8080
+      EGOV_AUDIT_HOST: http://egov-persister:8091
+      EGOV_HOST: http://kong:8000/
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      CONTEXT_PATH: /project-factory
+      CMP_IDGEN_FORMAT: CMP-[cy:yyyy-MM-dd]-[SEQ_EG_CMP_ID]
+      CMP_IDGEN_IDNAME: campaign.number
+      DEFAULT_TENANT_ID: mz
+    ports:
+      - "28119:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/project-factory/health >/dev/null 2>&1 || exit 0"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+          cpus: '0.5'
+    networks:
+      - hcm-network
+
+  plan-service:
+    image: egovio/plan-service:microplanning-dev-c29e502
+    container_name: hcm-plan-service
+    depends_on:
+      pgbouncer:
+        condition: service_healthy
+      redpanda:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/egov
+      SPRING_DATASOURCE_USERNAME: egov
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-egov123}
+      SPRING_FLYWAY_ENABLED: 'true'
+      SPRING_FLYWAY_URL: jdbc:postgresql://postgres-db:5432/egov
+      SPRING_FLYWAY_USER: egov
+      SPRING_FLYWAY_PASSWORD: ${POSTGRES_PASSWORD:-egov123}
+      SPRING_FLYWAY_BASELINE_ON_MIGRATE: 'true'
+      SPRING_FLYWAY_VALIDATE_ON_MIGRATE: 'false'
+      KAFKA_BOOTSTRAP_SERVERS: redpanda:9092
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: redpanda:9092
+      SPRING_KAFKA_CONSUMER_GROUP_ID: plan-service
+      KAFKA_CONFIG_BOOTSTRAP_SERVER_CONFIG: redpanda:9092
+      SERVER_PORT: 8080
+      SERVER_SERVLET_CONTEXT_PATH: /plan-service
+      STATE_LEVEL_TENANT_ID: mz
+      EGOV_MDMS_HOST: http://egov-mdms-service:8094
+      EGOV_MDMS_SEARCH_ENDPOINT: /egov-mdms-service/v1/_search
+      EGOV_MDMS_SEARCH_V2_ENDPOINT: /egov-mdms-service/v2/_search
+      EGOV_MDMS_INTEGRATION_ENABLED: 'true'
+      EGOV_USER_SERVICE_HOST: http://egov-user:8107
+      EGOV_PROJECT_FACTORY_HOST: http://project-factory:8080
+      EGOV_FACILITY_HOST: http://facility:8080
+      EGOV_WORKFLOW_HOST: http://egov-workflow-v2:8109
+      EGOV_BOUNDARY_SERVICE_HOST: http://boundary-service:8081
+      EGOV_CENSUS_HOST: http://census-service:8080
+      OTEL_TRACES_EXPORTER: none
+      JAVA_TOOL_OPTIONS: -Xms192m -Xmx512m
+    ports:
+      - "28114:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/plan-service/health >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 8
+      start_period: 120s
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+          cpus: '0.5'
+    networks:
+      - hcm-network
+
+  census-service:
+    image: egovio/census-service:microplanning-dev-c29e502
+    container_name: hcm-census-service
+    depends_on:
+      pgbouncer:
+        condition: service_healthy
+      redpanda:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/egov
+      SPRING_DATASOURCE_USERNAME: egov
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-egov123}
+      SPRING_FLYWAY_ENABLED: 'true'
+      SPRING_FLYWAY_URL: jdbc:postgresql://postgres-db:5432/egov
+      SPRING_FLYWAY_USER: egov
+      SPRING_FLYWAY_PASSWORD: ${POSTGRES_PASSWORD:-egov123}
+      SPRING_FLYWAY_BASELINE_ON_MIGRATE: 'true'
+      SPRING_FLYWAY_VALIDATE_ON_MIGRATE: 'false'
+      KAFKA_BOOTSTRAP_SERVERS: redpanda:9092
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: redpanda:9092
+      SPRING_KAFKA_CONSUMER_GROUP_ID: census-service
+      KAFKA_CONFIG_BOOTSTRAP_SERVER_CONFIG: redpanda:9092
+      SERVER_PORT: 8080
+      SERVER_SERVLET_CONTEXT_PATH: /census-service
+      STATE_LEVEL_TENANT_ID: mz
+      EGOV_BOUNDARY_SERVICE_HOST: http://boundary-service:8081
+      EGOV_PLAN_SERVICE_HOST: http://plan-service:8080
+      EGOV_WORKFLOW_HOST: http://egov-workflow-v2:8109
+      OTEL_TRACES_EXPORTER: none
+      JAVA_TOOL_OPTIONS: -Xms128m -Xmx384m
+    ports:
+      - "28115:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/census-service/health >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 8
+      start_period: 120s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+    networks:
+      - hcm-network
+
+  boundary-management:
+    image: egovio/boundary-management:master-aa57e79
+    container_name: hcm-boundary-management
+    depends_on:
+      pgbouncer:
+        condition: service_healthy
+      redpanda:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      PGSSLMODE: disable
+      DB_SSL: "false"
+      DB_HOST: postgres-db
+      DB_PORT: 5432
+      DB_NAME: egov
+      DB_USER: egov
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-egov123}
+      DB_URL: postgres://egov:${POSTGRES_PASSWORD:-egov123}@postgres-db:5432/egov
+      DB_SCHEMA: health
+      SCHEMA_TABLE: boundary_management_health_schema
+      FLYWAY_USER: egov
+      FLYWAY_PASSWORD: ${POSTGRES_PASSWORD:-egov123}
+      FLYWAY_URL: jdbc:postgresql://postgres-db:5432/egov
+      FLYWAY_LOCATIONS: filesystem:/migrations/main
+      KAFKA_BROKER_HOST: redpanda:9092
+      KAFKAJS_NO_PARTITIONER_WARNING: "1"
+      KAFKA_CREATE_PROCESSED_BOUNDARY_MANAGEMENT_TOPIC: create-processed-boundary-management
+      KAFKA_UPDATE_PROCESSED_BOUNDARY_MANAGEMENT_TOPIC: update-processed-boundary-management
+      KAFKA_UPDATE_GENERATED_BOUNDARY_MANAGEMENT_TOPIC: update-generated-boundary-management
+      KAFKA_CREATE_GENERATED_BOUNDARY_MANAGEMENT_TOPIC: create-generated-boundary-management
+      EGOV_MDMS_HOST: http://egov-mdms-service:8094
+      EGOV_MDMS_V2_HOST: http://egov-mdms-service:8094
+      EGOV_FILESTORE_SERVICE_HOST: http://egov-filestore:8083
+      EGOV_BOUNDARY_HOST: http://boundary-service:8081
+      EGOV_LOCALIZATION_HOST: http://egov-localization:8096
+      EGOV_HOST: http://kong:8000/
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      CONTEXT_PATH: /boundary-management
+      DEFAULT_TENANT_ID: mz
+      LOCALE: en_MZ
+      LOCALIZATION_MODULE: hcm-admin-schemas
+      CACHE_ENABLED: 'true'
+    ports:
+      - "28116:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/boundary-management/health >/dev/null 2>&1 || exit 0"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+          cpus: '0.5'
+    networks:
+      - hcm-network
+
+  resource-generator:
+    image: egovio/resource-generator:microplanning-dev-0aca221
+    container_name: hcm-resource-generator
+    depends_on:
+      pgbouncer:
+        condition: service_healthy
+      redpanda:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/egov
+      SPRING_DATASOURCE_USERNAME: egov
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-egov123}
+      SPRING_FLYWAY_ENABLED: 'false'
+      KAFKA_BOOTSTRAP_SERVERS: redpanda:9092
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: redpanda:9092
+      SPRING_KAFKA_CONSUMER_GROUP_ID: resource-generator
+      KAFKA_CONFIG_BOOTSTRAP_SERVER_CONFIG: redpanda:9092
+      SERVER_PORT: 8080
+      SERVER_SERVLET_CONTEXT_PATH: /resource-generator
+      STATE_LEVEL_TENANT_ID: mz
+      EGOV_MDMS_HOST: http://egov-mdms-service:8094
+      EGOV_MDMS_SEARCH_ENDPOINT: /egov-mdms-service/v1/_search
+      EGOV_FILESTORE_SERVICE_HOST: http://egov-filestore:8083
+      EGOV_PLAN_CONFIG_HOST: http://plan-service:8080
+      EGOV_PROJECT_FACTORY_HOST: http://project-factory:8080
+      EGOV_BOUNDARY_SERVICE_HOST: http://boundary-service:8081
+      EGOV_LOCALE_SERVICE_HOST: http://egov-localization:8096
+      EGOV_CENSUS_HOST: http://census-service:8080
+      OTEL_TRACES_EXPORTER: none
+      JAVA_TOOL_OPTIONS: -Xms128m -Xmx384m
+    ports:
+      - "28117:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/resource-generator/health >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 8
+      start_period: 120s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
     networks:
       - hcm-network
 

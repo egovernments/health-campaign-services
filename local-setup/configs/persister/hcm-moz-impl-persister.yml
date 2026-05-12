@@ -1,0 +1,344 @@
+serviceMaps:
+  serviceName: hcm-moz-impl-services
+  mappings:
+    - version: 1.0
+      description: Persists DHIS2 Records into the tables
+      fromTopic: create-dhis2-record
+      isTransaction: true
+      queryMaps:
+        - query: INSERT INTO eg_dhis2_record(dhis2RecordInternalID,dhis2Id,parentId,dhis2EntityType,dhis2DataPayload,source,createdBy,lastModifiedBy,createdTime,lastModifiedTime) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.dhis2RecordInternalID
+            - jsonPath: $.*.dhis2Id
+            - jsonPath: $.*.parentId
+            - jsonPath: $.*.dhis2EntityType
+            - jsonPath: $.*.dhis2DataPayload
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.*.source
+            - jsonPath: $.*.auditDetails.createdBy
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.createdTime
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+
+    - version: 1.0
+      description: Updates DHIS2 records into the tables
+      fromTopic: update-dhis2-record
+      isTransaction: true  
+      queryMaps:
+        - query: UPDATE eg_dhis2_record SET  dhis2Id= ?, dhis2EntityType=?, dhis2DataPayload=?, lastModifiedTime=?, lastModifiedBy=?  WHERE dhis2RecordInternalID=?;
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.dhis2Id
+            - jsonPath: $.*.dhis2EntityType
+            - jsonPath: $.*.dhis2DataPayload
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.dhis2RecordInternalID
+
+    - version: 1.0
+      description: Persists DIGIT Records into the tables
+      fromTopic: create-digit-record
+      isTransaction: true
+      queryMaps:
+        - query: INSERT INTO eg_digit_record(digitRecordInternalId,digitId,parentId,referenceId,digitEntityType,digitDataPayload,source,createdBy,lastModifiedBy,createdTime,lastModifiedTime) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.digitRecordInternalId
+            - jsonPath: $.*.digitId
+            - jsonPath: $.*.parentId
+            - jsonPath: $.*.referenceId
+            - jsonPath: $.*.digitEntityType
+            - jsonPath: $.*.digitDataPayload
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.*.source
+            - jsonPath: $.*.auditDetails.createdBy
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.createdTime
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+
+    - version: 1.0
+      description: Updates DIGIT records into the tables
+      fromTopic: update-digit-record    
+      isTransaction: true
+      queryMaps:
+        - query: UPDATE eg_digit_record SET  digitId= ?,referenceId=? ,digitEntityType=?, digitDataPayload=?, lastModifiedTime=?, lastModifiedBy=? WHERE digitRecordInternalId=?;
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.digitId
+            - jsonPath: $.*.referenceId
+            - jsonPath: $.*.digitEntityType
+            - jsonPath: $.*.digitDataPayload
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.digitRecordInternalId
+
+    - version: 1.0
+      description: Persists DHIS2 to Digit identifiers mapping into the tables
+      fromTopic: create-dhis2-digit-mapping
+      isTransaction: true
+      queryMaps:
+        - query: INSERT INTO eg_digit_mapping(digitMappingId, dhis2RecordInternalID, digitId, parentId, rowVersion, digitEntityType, createdBy,lastModifiedBy,createdTime,lastModifiedTime) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.digitMappingId
+            - jsonPath: $.*.dhis2RecordInternalID
+            - jsonPath: $.*.digitId
+            - jsonPath: $.*.parentId
+            - jsonPath: $.*.rowVersion
+            - jsonPath: $.*.digitEntityType
+            - jsonPath: $.*.auditDetails.createdBy
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.createdTime
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+
+    - version: 1.0
+      description: Updates DHIS2 to Digit identifiers mapping into the tables
+      fromTopic: update-dhis2-digit-mapping
+      isTransaction: true
+      queryMaps:
+        - query: UPDATE eg_digit_mapping SET  digitId= ?, digitEntityType=?, dhis2RecordInternalID=?, lastModifiedTime=?, lastModifiedBy=?, rowVersion=?  WHERE digitMappingId=?;
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.digitId
+            - jsonPath: $.*.digitEntityType
+            - jsonPath: $.*.dhis2RecordInternalID
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.rowVersion
+            - jsonPath: $.*.digitMappingId
+
+    - version: 1.0
+      description: Persists Digit to DHIS2 identifiers mapping into the tables
+      fromTopic: create-digit-dhis2-mapping
+      isTransaction: true
+      queryMaps:
+        - query: INSERT INTO eg_dhis2_mapping(dhis2MappingId, digitRecordInternalId, dhis2d,parentId,dhis2EntityType, createdBy,lastModifiedBy,createdTime,lastModifiedTime) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.dhis2MappingId
+            - jsonPath: $.*.digitRecordInternalId
+            - jsonPath: $.*.dhis2d
+            - jsonPath: $.*.parentId
+            - jsonPath: $.*.dhis2EntityType
+            - jsonPath: $.*.auditDetails.createdBy
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.createdTime
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+
+    - version: 1.0
+      description: Updates Digit to DHIS2 identifiers mapping into the tables
+      fromTopic: update-digit-dhis2-mapping
+      isTransaction: true
+      queryMaps:
+        - query: UPDATE eg_dhis2_mapping SET  dhis2d= ?, dhis2EntityType=?, digitRecordInternalId=?, lastModifiedTime=?, lastModifiedBy=? WHERE dhis2MappingId=?;
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.dhis2d
+            - jsonPath: $.*.dhis2EntityType
+            - jsonPath: $.*.digitRecordInternalId
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.dhis2MappingId
+
+    - version: 1.0
+      description: Persists DHIS2 to Digit transformation job history into the tables
+      fromTopic: create-dhis2-job
+      isTransaction: true
+      queryMaps:
+        - query: INSERT INTO eg_scheduler_job_history(jobID, jobType, jobName, executionStartTime, executionCompletionTime, executionStatus, executionRetryCount, createdBy,lastModifiedBy,createdTime,lastModifiedTime,syncCount,ingestionNumber,userId,fileStoreId,province,ingestionDetails) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+          basePath: $.Job
+          jsonMaps:
+            - jsonPath: $.Job.jobID
+            - jsonPath: $.Job.jobType
+            - jsonPath: $.Job.jobName
+            - jsonPath: $.Job.executionStartTime
+            - jsonPath: $.Job.executionCompletionTime
+            - jsonPath: $.Job.executionStatus
+            - jsonPath: $.Job.executionRetryCount
+            - jsonPath: $.Job.auditDetails.createdBy
+            - jsonPath: $.Job.auditDetails.lastModifiedBy
+            - jsonPath: $.Job.auditDetails.createdTime
+            - jsonPath: $.Job.auditDetails.lastModifiedTime
+            - jsonPath: $.Job.syncCount
+            - jsonPath: $.Job.ingestionNumber
+            - jsonPath: $.Job.userId
+            - jsonPath: $.Job.fileStoreId
+            - jsonPath: $.Job.province
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.*.ingestionDetails
+              type: JSON
+              dbType: JSONB
+
+    - version: 1.0
+      description: Update DHIS2 to Digit transformation job history in table
+      fromTopic: update-dhis2-job
+      isTransaction: true
+      queryMaps:
+        - query: UPDATE eg_scheduler_job_history SET executionStatus = ?, executionCompletionTime = ?, executionRetryCount = ?, syncCount = ? WHERE jobID=?;
+          basePath: $.Job
+          jsonMaps:
+            - jsonPath: $.Job.executionStatus
+            - jsonPath: $.Job.executionCompletionTime
+            - jsonPath: $.Job.executionRetryCount
+            - jsonPath: $.Job.syncCount
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.Job.jobID
+
+    - version: 1.0
+      description: Delete DHIS2 to Digit transformation job history in table
+      fromTopic: delete-dhis2-job
+      isTransaction: true
+      queryMaps:
+        - query: DELETE FROM eg_scheduler_job_history WHERE jobID=?;
+          basePath: $.Job
+          jsonMaps:
+            - jsonPath: $.Job.jobID
+
+
+    - version: 1.0
+      description: Persists Boundary data into the table
+      fromTopic: create-boundary-data
+      isTransaction: true
+      queryMaps:
+        - query: INSERT INTO eg_dhis2_boundary(id, name, parent, path, children, boundaryLevel, boundary, source, campaignStartDate, campaignEndDate, totalHouseholds, targetedHouseholds, totalIndividuals, targetedIndividuals, bednetsEstimated, totalBednets, createdBy, lastModifiedBy, createdTime, lastModifiedTime) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (id) DO UPDATE SET name=?, parent=?, path=?, children=?, boundaryLevel=?, boundary=?, source=?, lastModifiedBy=?, lastModifiedTime=?, campaignStartDate=?, campaignEndDate=?, totalHouseholds=?, targetedHouseholds=?, totalIndividuals=?, targetedIndividuals=?, bednetsEstimated=?, totalBednets=?;
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.id
+
+            - jsonPath: $.*.name
+
+            - jsonPath: $.*.parent
+
+            - jsonPath: $.*.path
+
+            - jsonPath: $.*.children
+
+            - jsonPath: $.*.boundaryLevel
+
+            - jsonPath: $.*.boundary
+
+            - jsonPath: $.*.source
+
+            - jsonPath: $.*.campaignStartDate
+
+            - jsonPath: $.*.campaignEndDate
+
+            - jsonPath: $.*.totalHouseholds
+
+            - jsonPath: $.*.targetedHouseholds
+
+            - jsonPath: $.*.totalIndividuals
+
+            - jsonPath: $.*.targetedIndividuals
+
+            - jsonPath: $.*.bednetsEstimated
+
+            - jsonPath: $.*.totalBednets
+
+            - jsonPath: $.*.auditDetails.createdBy
+
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+
+            - jsonPath: $.*.auditDetails.createdTime
+
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+
+            - jsonPath: $.*.name
+
+            - jsonPath: $.*.parent
+
+            - jsonPath: $.*.path
+
+            - jsonPath: $.*.children
+
+            - jsonPath: $.*.boundaryLevel
+
+            - jsonPath: $.*.boundary
+
+            - jsonPath: $.*.source
+
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+
+            - jsonPath: $.*.campaignStartDate
+
+            - jsonPath: $.*.campaignEndDate
+
+            - jsonPath: $.*.totalHouseholds
+
+            - jsonPath: $.*.targetedHouseholds
+
+            - jsonPath: $.*.totalIndividuals
+
+            - jsonPath: $.*.targetedIndividuals
+
+            - jsonPath: $.*.bednetsEstimated
+
+            - jsonPath: $.*.totalBednets
+
+    - version: 1.0
+      description: Persists HCM events into the table
+      fromTopic: create-hcm-event-history
+      isTransaction: true
+      queryMaps:
+        - query: INSERT INTO eg_hcm_event_history(eventId, jobId, url, payload, status, message, createdBy, lastModifiedBy, createdTime, lastModifiedTime, ingestionNumber,userId,fileStoreId) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.eventID
+
+            - jsonPath: $.*.jobID
+
+            - jsonPath: $.*.url
+
+            - jsonPath: $.*.payload
+              type: JSON
+              dbType: JSONB
+
+            - jsonPath: $.*.status
+
+            - jsonPath: $.*.message
+
+            - jsonPath: $.*.auditDetails.createdBy
+
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+
+            - jsonPath: $.*.auditDetails.createdTime
+
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+
+            - jsonPath: $.*.ingestionNumber
+
+            - jsonPath: $.*.userId
+
+            - jsonPath: $.*.fileStoreId
+        
+    - version: 1.0
+      description: Reset the eg_dhis2_boundary table
+      fromTopic: reset-boundary-topic
+      isTransaction: true
+      queryMaps:
+        - query: DELETE FROM eg_dhis2_boundary where ?;
+          basePath: $
+          jsonMaps:
+            - jsonPath: $.value
+            
+    - version: 1.0
+      description: Reset the eg_digit_mapping table
+      fromTopic: reset-digitMapping-topic
+      isTransaction: true
+      queryMaps:
+        - query: DELETE FROM eg_digit_mapping where ?;
+          basePath: $
+          jsonMaps:
+            - jsonPath: $.value            
+            

@@ -1,0 +1,113 @@
+serviceMaps:
+  serviceName: project
+  mappings:
+    - version: 1.0
+      description: Saves a user action task
+      fromTopic: save-user-action-project-task-health-topic
+      isTransaction: true
+      isAuditEnabled: true
+      module: PROJECT
+      objecIdJsonPath: $.id
+      tenantIdJsonPath: $.tenantId
+      userUuidJsonPath: $.[0].auditDetails.createdBy
+      transactionCodeJsonPath: $.clientReferenceId
+      auditAttributeBasePath: $.*
+      queryMaps:
+        - query: INSERT INTO health.USER_ACTION(id, clientreferenceid, tenantid, projectid, latitude, longitude, locationaccuracy, boundarycode, action, beneficiarytag, resourcetag, status, additionaldetails, createdby, createdtime, lastmodifiedby, lastmodifiedtime, clientcreatedtime, clientlastmodifiedtime, clientcreatedby, clientlastmodifiedby, rowversion) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.id
+            - jsonPath: $.*.clientReferenceId
+            - jsonPath: $.*.tenantId
+            - jsonPath: $.*.projectId
+            - jsonPath: $.*.latitude
+            - jsonPath: $.*.longitude
+            - jsonPath: $.*.locationAccuracy
+            - jsonPath: $.*.boundaryCode
+            - jsonPath: $.*.action
+            - jsonPath: $.*.beneficiaryTag
+            - jsonPath: $.*.resourceTag
+            - jsonPath: $.*.status
+            - jsonPath: $.*.additionalFields
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.*.auditDetails.createdBy
+            - jsonPath: $.*.auditDetails.createdTime
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.clientAuditDetails.createdTime
+            - jsonPath: $.*.clientAuditDetails.lastModifiedTime
+            - jsonPath: $.*.clientAuditDetails.createdBy
+            - jsonPath: $.*.clientAuditDetails.lastModifiedBy
+            - jsonPath: $.*.rowVersion
+
+    - version: 1.0
+      description: Updates a user action task
+      fromTopic: update-user-action-project-task-health-topic
+      isTransaction: true
+      isAuditEnabled: true
+      module: PROJECT
+      objecIdJsonPath: $.id
+      tenantIdJsonPath: $.tenantId
+      userUuidJsonPath: $.[0].auditDetails.createdBy
+      transactionCodeJsonPath: $.clientReferenceId
+      auditAttributeBasePath: $.*
+      queryMaps:
+        - query: UPDATE health.USER_ACTION SET tenantId = ?, projectId = ?, latitude = ?, longitude = ?, locationaccuracy = ?, boundarycode = ?, action = ?, beneficiarytag = ?, resourcetag = ?, status = ?, additionalDetails = ?, lastModifiedBy = ?, lastModifiedTime = ?, rowVersion = ?, clientLastModifiedTime = ?, clientLastModifiedBy = ? WHERE ID = ?;
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.tenantId
+            - jsonPath: $.*.projectId
+            - jsonPath: $.*.latitude
+            - jsonPath: $.*.longitude
+            - jsonPath: $.*.locationAccuracy
+            - jsonPath: $.*.boundaryCode
+            - jsonPath: $.*.action
+            - jsonPath: $.*.beneficiaryTag
+            - jsonPath: $.*.resourceTag
+            - jsonPath: $.*.status
+            - jsonPath: $.*.additionalFields
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.rowVersion
+            - jsonPath: $.*.clientAuditDetails.lastModifiedTime
+            - jsonPath: $.*.clientAuditDetails.lastModifiedBy
+            - jsonPath: $.*.id
+
+    - version: 1.0
+      description: Saves a location tracking task
+      fromTopic: save-location-capture-project-health-topic
+      isTransaction: true
+      isAuditEnabled: true
+      module: PROJECT
+      objecIdJsonPath: $.id
+      tenantIdJsonPath: $.tenantId
+      userUuidJsonPath: $.[0].auditDetails.createdBy
+      transactionCodeJsonPath: $.clientReferenceId
+      auditAttributeBasePath: $.*
+      queryMaps:
+        - query: INSERT INTO health.USER_LOCATION(id, clientreferenceid, tenantid, projectid, latitude, longitude, locationaccuracy, boundarycode, action, additionaldetails, createdby, createdtime, lastmodifiedby, lastmodifiedtime, clientcreatedtime, clientlastmodifiedtime, clientcreatedby, clientlastmodifiedby) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);
+          basePath: $.*
+          jsonMaps:
+            - jsonPath: $.*.id
+            - jsonPath: $.*.clientReferenceId
+            - jsonPath: $.*.tenantId
+            - jsonPath: $.*.projectId
+            - jsonPath: $.*.latitude
+            - jsonPath: $.*.longitude
+            - jsonPath: $.*.locationAccuracy
+            - jsonPath: $.*.boundaryCode
+            - jsonPath: $.*.action
+            - jsonPath: $.*.additionalFields
+              type: JSON
+              dbType: JSONB
+            - jsonPath: $.*.auditDetails.createdBy
+            - jsonPath: $.*.auditDetails.createdTime
+            - jsonPath: $.*.auditDetails.lastModifiedBy
+            - jsonPath: $.*.auditDetails.lastModifiedTime
+            - jsonPath: $.*.clientAuditDetails.createdTime
+            - jsonPath: $.*.clientAuditDetails.lastModifiedTime
+            - jsonPath: $.*.clientAuditDetails.createdBy
+            - jsonPath: $.*.clientAuditDetails.lastModifiedBy

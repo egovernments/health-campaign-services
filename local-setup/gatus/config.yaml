@@ -229,3 +229,46 @@ endpoints:
     interval: 30s
     conditions:
       - "[STATUS] == 200"
+
+  - name: Project Factory
+    group: HCM Services
+    url: "http://project-factory:8080/project-factory/health"
+    method: POST
+    headers:
+      Content-Type: application/json
+    body: '{"RequestInfo":{"apiId":"hcm","ver":".01","ts":1,"msgId":"health"}}'
+    interval: 30s
+    conditions:
+      - "[STATUS] < 500"
+
+  - name: Plan Service
+    group: HCM Services
+    url: "http://plan-service:8080/plan-service/health"
+    interval: 30s
+    conditions:
+      - "[STATUS] == 200"
+
+  - name: Census Service
+    group: HCM Services
+    url: "http://census-service:8080/census-service/health"
+    interval: 30s
+    conditions:
+      - "[STATUS] == 200"
+
+  - name: Boundary Management
+    group: HCM Services
+    url: "http://boundary-management:8080/boundary-management/health"
+    method: POST
+    headers:
+      Content-Type: application/json
+    body: '{"RequestInfo":{"apiId":"hcm","ver":".01","ts":1,"msgId":"health"}}'
+    interval: 30s
+    conditions:
+      - "[STATUS] < 500"
+
+  - name: Resource Generator
+    group: HCM Services
+    url: "http://resource-generator:8080/resource-generator/health"
+    interval: 30s
+    conditions:
+      - "[STATUS] == 200"

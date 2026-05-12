@@ -254,3 +254,40 @@ services:
       config:
         replace:
           uri: /health-project/health
+
+  # ==================== MICROPLAN / CAMPAIGN CHAIN ====================
+
+  - name: project-factory-service
+    url: http://project-factory:8080
+    routes:
+    - name: project-factory-route
+      paths: [/project-factory]
+      strip_path: false
+
+  - name: plan-service
+    url: http://plan-service:8080
+    routes:
+    - name: plan-service-route
+      paths: [/plan-service]
+      strip_path: false
+
+  - name: census-service
+    url: http://census-service:8080
+    routes:
+    - name: census-service-route
+      paths: [/census-service]
+      strip_path: false
+
+  - name: boundary-management-service
+    url: http://boundary-management:8080
+    routes:
+    - name: boundary-management-route
+      paths: [/boundary-management]
+      strip_path: false
+
+  - name: resource-generator-service
+    url: http://resource-generator:8080
+    routes:
+    - name: resource-generator-route
+      paths: [/resource-generator]
+      strip_path: false
