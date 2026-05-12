@@ -17,11 +17,12 @@ services:
       POSTGRES_USER: egov
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-egov123}
       POSTGRES_DB: egov
-    command: ["bash","-c","if [ ! -f /var/lib/postgresql/data/server.crt ]; then openssl req -new -x509 -days 365 -nodes -text -out /var/lib/postgresql/data/server.crt -keyout /var/lib/postgresql/data/server.key -subj \"/CN=postgres\" && chmod 0600 /var/lib/postgresql/data/server.key && chown postgres:postgres /var/lib/postgresql/data/server.*; fi; exec docker-entrypoint.sh postgres -c ssl=on -c ssl_cert_file=/var/lib/postgresql/data/server.crt -c ssl_key_file=/var/lib/postgresql/data/server.key -c max_connections=300"]
+    command: ["bash","-c","mkdir -p /etc/postgresql-ssl && if [ ! -f /etc/postgresql-ssl/server.crt ]; then openssl req -new -x509 -days 365 -nodes -text -out /etc/postgresql-ssl/server.crt -keyout /etc/postgresql-ssl/server.key -subj \"/CN=postgres\" && chmod 0600 /etc/postgresql-ssl/server.key && chown postgres:postgres /etc/postgresql-ssl/server.*; fi; exec docker-entrypoint.sh postgres -c ssl=on -c ssl_cert_file=/etc/postgresql-ssl/server.crt -c ssl_key_file=/etc/postgresql-ssl/server.key -c max_connections=300"]
     volumes:
       - hcm_postgres_data:/var/lib/postgresql/data
       - ./db/full-dump.sql:/docker-entrypoint-initdb.d/01-full-dump.sql:ro
       - ./db/03-bootstrap-user.sql:/docker-entrypoint-initdb.d/03-bootstrap-user.sql:ro
+      - ./db/04-seed-campaign.sql:/docker-entrypoint-initdb.d/04-seed-campaign.sql:ro
     ports:
       - "25432:5432"
     healthcheck:
@@ -84,6 +85,28 @@ services:
     volumes:
       - ./db/refresh-dynamic-dates.sql:/refresh.sql:ro
     command: ["psql", "-h", "postgres-db", "-U", "egov", "-d", "egov", "-f", "/refresh.sql"]
+    restart: "no"
+    networks:
+      - hcm-network
+
+
+  # One-shot: ensure consumer topics exist so project-factory + other Node services
+  # don't crash on first boot. Exits 0 after creating (or skipping if present).
+  kafka-topics-init:
+    image: redpandadata/redpanda:v24.1.1
+    container_name: hcm-kafka-topics-init
+    depends_on:
+      redpanda:
+        condition: service_healthy
+    entrypoint: ["/bin/bash","-c"]
+    command:
+      - |
+        for t in start-admin-console-task start-admin-console-mapping-task \
+                 test-topic-project-factory hcm-processing-result \
+                 hcm-facility-create-batch hcm-user-create-batch \
+                 hcm-mapping-batch hcm-campaign-mark-failed; do
+          rpk topic create -X brokers=redpanda:9092 "$$t" 2>&1 | tail -1
+        done
     restart: "no"
     networks:
       - hcm-network
@@ -1865,6 +1888,8 @@ services:
     image: egovio/project-factory:hcm-console-f039e13
     container_name: hcm-project-factory
     depends_on:
+      kafka-topics-init:
+        condition: service_completed_successfully
       pgbouncer:
         condition: service_healthy
       redpanda:

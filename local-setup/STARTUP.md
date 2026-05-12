@@ -2,6 +2,20 @@
 
 Run these steps after a fresh `git clone`. Everything boots from this directory.
 
+## TL;DR — single command
+
+After cloning, **one** bash command brings everything up (installs prerequisites, downloads the dump, starts the stack, waits for health, creates required Kafka topics, runs the 13-API smoke test):
+
+```bash
+cd local-setup && ./scripts/bootstrap.sh
+```
+
+Requires sudo only when a CLI prereq is missing (docker / python3 / pip / psql / jq / openssl). Idempotent — safe to re-run; previously-completed steps are skipped.
+
+Read the rest of this doc if you want to understand each step or run them manually.
+
+---
+
 ## 0. Prerequisites
 
 ### Hardware
@@ -108,13 +122,13 @@ p /mdms-v2/v1/_search                                          "${RI},\"MdmsCrit
 p /boundary-service/boundary-hierarchy-definition/_search      "${RI},\"BoundaryTypeHierarchySearchCriteria\":{\"tenantId\":\"mz\",\"limit\":5}}"
 p /egov-idgen/id/_generate                                     "${RI},\"idRequests\":[{\"idName\":\"individual.id\",\"tenantId\":\"mz\",\"format\":\"IND-[SEQ_INDIVIDUAL_ID]\",\"count\":1}]}"
 p '/user/_search'                                              "${RI},\"tenantId\":\"mz\",\"userType\":\"EMPLOYEE\",\"userName\":\"SYSTEM\"}"
-p '/health-individual/v1/_search?tenantId=mz&limit=5'          "${RI},\"Individual\":{}}"
-p '/household/v1/_search?tenantId=mz&limit=5'                  "${RI},\"Household\":{}}"
-p '/facility/v1/_search?tenantId=mz&limit=5'                   "${RI},\"Facility\":{}}"
-p '/product/v1/_search?tenantId=mz&limit=5'                    "${RI},\"Product\":{}}"
-p '/health-project/v1/_search?tenantId=mz&limit=5'             "${RI},\"Projects\":[{\"tenantId\":\"mz\",\"name\":\"%\"}]}"
-p '/stock/v1/_search?tenantId=mz&limit=5'                      "${RI},\"Stock\":{}}"
-p '/health-hrms/employees/_search?tenantId=mz&limit=5'         "${RI}"
+p '/health-individual/v1/_search?tenantId=mz&limit=5&offset=0'          "${RI},\"Individual\":{}}"
+p '/household/v1/_search?tenantId=mz&limit=5&offset=0'                  "${RI},\"Household\":{}}"
+p '/facility/v1/_search?tenantId=mz&limit=5&offset=0'                   "${RI},\"Facility\":{}}"
+p '/product/v1/_search?tenantId=mz&limit=5&offset=0'                    "${RI},\"Product\":{}}"
+p '/health-project/v1/_search?tenantId=mz&limit=5&offset=0'             "${RI},\"Projects\":[{\"tenantId\":\"mz\",\"name\":\"%\"}]}"
+p '/stock/v1/_search?tenantId=mz&limit=5&offset=0'                      "${RI},\"Stock\":{}}"
+p '/health-hrms/employees/_search?tenantId=mz&limit=5&offset=0'         "${RI}"
 p /plan-service/config/_search                                 "${RI},\"PlanConfigurationSearchCriteria\":{\"tenantId\":\"mz\"}}"
 p /project-factory/v1/project-type/search                      "${RI},\"CampaignDetails\":{\"tenantId\":\"mz\",\"status\":[\"drafted\",\"created\",\"started\",\"completed\"],\"pagination\":{\"limit\":5}}}"
 ```

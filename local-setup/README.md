@@ -32,13 +32,15 @@ See `STARTUP.md` for the full bootstrap sequence after a fresh clone.
 
 ## Quick Start
 
+After a fresh `git clone`, the single command below installs prereqs, fetches the DB dump, brings the stack up, creates required Kafka topics, and runs a 13-API smoke test:
+
 ```bash
-docker compose up -d
+cd local-setup && ./scripts/bootstrap.sh
 ```
 
-Watch services come online at **http://localhost:28889** (Gatus dashboard).
+For manual / step-by-step setup, see **`STARTUP.md`**.
 
-All services are healthy when every row in Gatus turns green — typically 3–5 minutes on first boot.
+Watch services come online at **http://localhost:28889** (Gatus dashboard). All services are healthy when every row turns green — typically 3–5 minutes on first boot.
 
 ## Ports
 
