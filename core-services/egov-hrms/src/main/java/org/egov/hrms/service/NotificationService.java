@@ -145,9 +145,23 @@ public class NotificationService {
 	 */
 	public String getMessage(EmployeeRequest request,String msgCode) {
 		String tenantId = request.getEmployees().get(0).getTenantId().split("\\.")[0];
-		Map<String, Map<String, String>> localizedMessageMap = getLocalisedMessages(request.getRequestInfo(), tenantId, 
+		Map<String, Map<String, String>> localizedMessageMap = getLocalisedMessages(request.getRequestInfo(), tenantId,
 				HRMSConstants.HRMS_LOCALIZATION_ENG_LOCALE_CODE, HRMSConstants.HRMS_LOCALIZATION_MODULE_CODE);
-		return localizedMessageMap.get(HRMSConstants.HRMS_LOCALIZATION_ENG_LOCALE_CODE +"|"+tenantId).get(msgCode);
+
+		String key = HRMSConstants.HRMS_LOCALIZATION_ENG_LOCALE_CODE + "|" + tenantId;
+		Map<String, String> localeMessages = localizedMessageMap.get(key);
+
+		if (localeMessages == null) {
+			log.error("Localization messages not found for key: {}. Localization service may have failed.", key);
+			return null;
+		}
+
+		String message = localeMessages.get(msgCode);
+		if (message == null) {
+			log.error("Message not found for message code: {} in locale: {}", msgCode, key);
+		}
+
+		return message;
 	}
 	
 	/**
