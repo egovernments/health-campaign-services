@@ -35,11 +35,12 @@ public class HrmsConsumer {
     public void listenUpdateEmployeeData(final HashMap<String, Object> record,@Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
             EmployeeRequest employeeRequest = mapper.convertValue(record, EmployeeRequest.class);
+            String tenantId = employeeRequest.getEmployees().get(0).getTenantId();
 
             if(topic.equals(propertiesManager.getHrmsEmailNotifTopic())) {
                 notificationService.processEmailNotification(employeeRequest);
             } else {
-                hrmsProducer.push(propertiesManager.getUpdateEmployeeTopic(), employeeRequest);
+                hrmsProducer.push(tenantId,propertiesManager.getUpdateEmployeeTopic(), employeeRequest);
                 notificationService.sendReactivationNotification(employeeRequest);
             }
         } catch (final Exception e) {
