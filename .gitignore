@@ -87,7 +87,6 @@ Thumbs.db
 utilities/project-factory/node_modules/*
 frontend/micro-ui/web/micro-ui-internals/node_modules/*
 # ─── HCM local-setup: large / generated artefacts ─────────────────────────
-local-setup/db/full-dump.sql
 local-setup/db/*.bak
 local-setup/db/full-dump.sql.*
 local-setup/docker-compose.yml.bak.*

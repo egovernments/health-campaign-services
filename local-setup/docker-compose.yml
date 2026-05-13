@@ -1892,21 +1892,21 @@ services:
       KAFKAJS_NO_PARTITIONER_WARNING: "1"
       KAFKA_SAVE_CAMPAIGN_DETAILS_TOPIC: save-campaign-details
       KAFKA_UPDATE_CAMPAIGN_DETAILS_TOPIC: update-campaign-details
-      EGOV_MDMS_HOST: http://egov-mdms-service:8094
-      EGOV_MDMS_V2_HOST: http://egov-mdms-service:8094
-      EGOV_FILESTORE_SERVICE_HOST: http://egov-filestore:8083
-      EGOV_IDGEN_HOST: http://egov-idgen:8088
-      EGOV_FACILITY_HOST: http://facility:8080
-      EGOV_BOUNDARY_HOST: http://boundary-service:8081
-      EGOV_PROJECT_HOST: http://health-project:8080
-      EGOV_USER_HOST: http://egov-user:8107
-      EGOV_PRODUCT_HOST: http://product:8080
-      EGOV_HRMS_HOST: http://health-hrms:8080
-      EGOV_LOCALIZATION_HOST: http://egov-localization:8096
-      EGOV_HEALTH_INDIVIDUAL_HOST: http://health-individual:8080
-      EGOV_PLAN_SERVICE_HOST: http://plan-service:8080
-      EGOV_CENSUS_HOST: http://census-service:8080
-      EGOV_AUDIT_HOST: http://egov-persister:8091
+      EGOV_MDMS_HOST: http://egov-mdms-service:8094/
+      EGOV_MDMS_V2_HOST: http://egov-mdms-service:8094/
+      EGOV_FILESTORE_SERVICE_HOST: http://egov-filestore:8083/
+      EGOV_IDGEN_HOST: http://egov-idgen:8088/
+      EGOV_FACILITY_HOST: http://facility:8080/
+      EGOV_BOUNDARY_HOST: http://boundary-service:8081/
+      EGOV_PROJECT_HOST: http://health-project:8080/
+      EGOV_USER_HOST: http://egov-user:8107/
+      EGOV_PRODUCT_HOST: http://product:8080/
+      EGOV_HRMS_HOST: http://health-hrms:8080/
+      EGOV_LOCALIZATION_HOST: http://egov-localization:8096/
+      EGOV_HEALTH_INDIVIDUAL_HOST: http://health-individual:8080/
+      EGOV_PLAN_SERVICE_HOST: http://plan-service:8080/
+      EGOV_CENSUS_HOST: http://census-service:8080/
+      EGOV_AUDIT_HOST: http://egov-persister:8091/
       EGOV_HOST: http://kong:8000/
       REDIS_HOST: redis
       REDIS_PORT: 6379

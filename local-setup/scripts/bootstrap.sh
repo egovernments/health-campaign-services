@@ -84,18 +84,12 @@ docker compose version 2>/dev/null || true
 DK="docker"
 docker compose ps >/dev/null 2>&1 || DK="sudo -A docker"
 
-# ── 3. Fetch the DB seed dump ──────────────────────────────────────────────
-c_g "[3/7] Fetching DB seed dump (skipped if already present)"
+# ── 3. Verify the DB seed dump is present (shipped in git) ────────────────
+c_g "[3/7] Verifying DB seed dump is present"
 DUMP=db/full-dump.sql
-DUMP_ID=1l4Gxg3w6F1uj7d4vwHpdGfG3DPJI3-tu
-mkdir -p db
-SIZE=0; [ -f "$DUMP" ] && SIZE=$(stat -c%s "$DUMP" 2>/dev/null || stat -f%z "$DUMP")
-if [ "$SIZE" -lt 100000000 ]; then
-  command -v gdown >/dev/null 2>&1 || pip install --user --quiet --break-system-packages gdown 2>/dev/null || pip install --user --quiet gdown
-  export PATH="$HOME/.local/bin:$PATH"
-  gdown --id "$DUMP_ID" -O "$DUMP"
-else
-  echo "  ✓ $DUMP already present ($(numfmt --to=iec --suffix=B "$SIZE" 2>/dev/null || echo "$SIZE bytes"))"
+if [ ! -s "$DUMP" ]; then
+  c_r "  ✗ $DUMP is missing. It is committed to the repo; did the clone succeed?"
+  exit 1
 fi
 ls -lh "$DUMP"
 
