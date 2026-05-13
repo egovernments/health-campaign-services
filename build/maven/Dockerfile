@@ -12,7 +12,7 @@ RUN mvn -B -f pom.xml package
 
 
 # ─────────────── RUNTIME STAGE ───────────────
-FROM egovio/alpine-jre-8 AS runtime
+FROM eclipse-temurin:8-jre AS runtime
 WORKDIR /opt/egov
 
 # Pull in the fat JAR and our startup script
