@@ -181,4 +181,13 @@ public class ReferralManagementConfiguration {
     @Value("${egov.downsync.presigned.url.expiry.secs:86400}")
     private int presignedUrlExpirySecs;
 
+    @Value("${egov.enc.host:}")
+    private String encHost;
+
+    @Value("${egov.enc.decrypt.endpoint:/egov-enc-service/crypto/v1/_decrypt}")
+    private String encDecryptEndpoint;
+
+    @Value("${egov.downsync.stale.threshold.hours:8}")
+    private int downsyncStaleThresholdHours;
+
 }

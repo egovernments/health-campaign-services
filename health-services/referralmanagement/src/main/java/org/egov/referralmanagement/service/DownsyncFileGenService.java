@@ -1,7 +1,10 @@
 package org.egov.referralmanagement.service;
 
 import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
@@ -11,6 +14,7 @@ import org.egov.referralmanagement.config.ReferralManagementConfiguration;
 import org.egov.referralmanagement.repository.DownsyncGenerationJobRepository;
 import org.egov.referralmanagement.service.DownsyncS3Service.S3Result;
 import org.egov.referralmanagement.web.models.LocalityDownsyncCriteria;
+import org.egov.tracer.model.CustomException;
 import org.postgresql.util.PGobject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -22,12 +26,17 @@ import org.springframework.jdbc.core.namedparam.SqlParameterSource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.web.client.RestClientException;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.web.client.RestTemplate;
 
 import java.io.IOException;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -228,6 +237,8 @@ public class DownsyncFileGenService {
             "         'lastModifiedBy', tr.lastModifiedBy, 'lastModifiedTime', tr.lastModifiedTime)" +
             "     )) AS resources_json" +
             "   FROM {schema}.TASK_RESOURCE tr" +
+            "   JOIN {schema}.PROJECT_TASK pt2 ON pt2.id = tr.taskId" +
+            "     AND pt2.projectId = :projectId AND pt2.isDeleted = false" +
             "   WHERE tr.isDeleted = false" +
             "   GROUP BY tr.taskId" +
             " ) res_agg ON res_agg.taskId = pt.id" +
@@ -242,6 +253,20 @@ public class DownsyncFileGenService {
     @Autowired private DownsyncGenerationJobRepository jobRepository;
     @Autowired private DownsyncS3Service s3Service;
 
+    private RestTemplate restTemplate;
+    private static final int CURSOR_FETCH_SIZE = 1000;
+
+    private static final List<String> IND_COLS = List.of(
+            "id", "clientReferenceId", "tenantId", "individualId", "userId", "userUuid",
+            "givenName", "familyName", "otherNames", "dateOfBirth",
+            "gender", "bloodGroup", "mobileNumber", "altContactNumber", "email",
+            "fatherName", "husbandName", "relationship", "photo",
+            "isSystemUser", "isSystemUserActive", "rowVersion", "isDeleted", "additionalDetails",
+            "addresses_json", "identifiers_json", "skills_json",
+            "createdBy", "createdTime", "lastModifiedBy", "lastModifiedTime",
+            "clientCreatedBy", "clientCreatedTime", "clientLastModifiedBy", "clientLastModifiedTime"
+    );
+
     private ExecutorService wardPool;
     private TransactionTemplate readOnlyTx;
 
@@ -250,6 +275,10 @@ public class DownsyncFileGenService {
         wardPool   = Executors.newFixedThreadPool(config.getWardPoolSize());
         readOnlyTx = new TransactionTemplate(txManager);
         readOnlyTx.setReadOnly(true);
+        SimpleClientHttpRequestFactory httpFactory = new SimpleClientHttpRequestFactory();
+        httpFactory.setConnectTimeout(5_000);
+        httpFactory.setReadTimeout(30_000);
+        restTemplate = new RestTemplate(httpFactory);
     }
 
     @PreDestroy
@@ -271,24 +300,32 @@ public class DownsyncFileGenService {
         String localityRowId = criteria.getLocalityRowId();
         jobRepository.updateLocalityStarted(tid, localityRowId, System.currentTimeMillis());
         try {
-            if (!isRegistryStale(tid, criteria.getLocality())) {
-                log.info("Registry SKIPPED (fresh) — locality={} tenant={}", criteria.getLocality(), tid);
-                jobRepository.updateLocalityCompleted(tid, localityRowId, "SKIPPED", null, System.currentTimeMillis());
-                markFilesSkipped(tid, localityRowId);
-                return;
-            }
-
             List<String> fileTypesToRun = jobRepository.findResumableFileTypes(tid, localityRowId);
             if (fileTypesToRun.isEmpty()) {
                 jobRepository.updateLocalityCompleted(tid, localityRowId, "SUCCESS", null, System.currentTimeMillis());
                 return;
             }
 
-            boolean anyFailed = false;
-            for (String ft : fileTypesToRun)
-                if (!runRegistryFile(ft, criteria, localityRowId).success()) anyFailed = true;
+            int skipped = 0, failed = 0;
+            for (String ft : fileTypesToRun) {
+                if (!criteria.isForceRefresh()) {
+                    String skipReason = getFileSkipReason(criteria, ft);
+                    if (skipReason != null) {
+                        log.info("File SKIPPED — type={} locality={} reason={}", ft, criteria.getLocality(), skipReason);
+                        jobRepository.updateFileCompleted(tid, localityRowId, ft, "SKIPPED",
+                                null, null, null, skipReason, System.currentTimeMillis());
+                        skipped++;
+                        continue;
+                    }
+                }
+                if (!runRegistryFile(ft, criteria, localityRowId).success()) failed++;
+            }
 
-            String localityStatus = anyFailed ? "PARTIAL_SUCCESS" : "SUCCESS";
+            String localityStatus;
+            if (skipped == fileTypesToRun.size())   localityStatus = "SKIPPED";
+            else if (failed == 0)                   localityStatus = "SUCCESS";
+            else                                    localityStatus = "PARTIAL_SUCCESS";
+
             jobRepository.updateLocalityCompleted(tid, localityRowId, localityStatus, null, System.currentTimeMillis());
             log.info("Registry locality {} → {}", criteria.getLocality(), localityStatus);
         } catch (Exception e) {
@@ -318,11 +355,26 @@ public class DownsyncFileGenService {
                 return;
             }
 
-            boolean anyFailed = false;
-            for (String ft : fileTypesToRun)
-                if (!runProjectFile(ft, criteria, localityRowId).success()) anyFailed = true;
+            int skipped = 0, failed = 0;
+            for (String ft : fileTypesToRun) {
+                if (!criteria.isForceRefresh()) {
+                    String skipReason = getFileSkipReason(criteria, ft);
+                    if (skipReason != null) {
+                        log.info("File SKIPPED — type={} locality={} reason={}", ft, criteria.getLocality(), skipReason);
+                        jobRepository.updateFileCompleted(tid, localityRowId, ft, "SKIPPED",
+                                null, null, null, skipReason, System.currentTimeMillis());
+                        skipped++;
+                        continue;
+                    }
+                }
+                if (!runProjectFile(ft, criteria, localityRowId).success()) failed++;
+            }
 
-            String localityStatus = anyFailed ? "PARTIAL_SUCCESS" : "SUCCESS";
+            String localityStatus;
+            if (skipped == fileTypesToRun.size())   localityStatus = "SKIPPED";
+            else if (failed == 0)                   localityStatus = "SUCCESS";
+            else                                    localityStatus = "PARTIAL_SUCCESS";
+
             jobRepository.updateLocalityCompleted(tid, localityRowId, localityStatus, null, System.currentTimeMillis());
             log.info("Project locality {} → {}", criteria.getLocality(), localityStatus);
         } catch (Exception e) {
@@ -334,12 +386,45 @@ public class DownsyncFileGenService {
 
     // ── Staleness check ───────────────────────────────────────────────────────
 
-    public boolean isRegistryStale(String tenantId, String locality) {
-        Long lastFileEndTime = jobRepository.findLatestRegistryFileEndTime(tenantId, locality);
-        if (lastFileEndTime == null) return true;
-        Long maxModified = jobRepository.findMaxHouseholdModifiedTime(tenantId, locality);
-        if (maxModified == null) return false;
-        return maxModified > lastFileEndTime;
+    /**
+     * Returns null if the file must be regenerated, or a skip reason string if it can be skipped.
+     * Each file type is checked against its own data source(s).
+     */
+    public String getFileSkipReason(LocalityDownsyncCriteria c, String fileType) {
+        String tenantId  = c.getTenantId();
+        String locality  = c.getLocality();
+        String projectId = c.getProjectId();
+
+        Long lastEndTime = projectId == null
+                ? jobRepository.findLatestFileEndTime(tenantId, locality, fileType)
+                : jobRepository.findLatestProjectFileEndTime(tenantId, locality, projectId, fileType);
+        if (lastEndTime == null) return null;
+
+        Long maxModified = switch (fileType) {
+            case "HH_MEMBERS"  -> maxOf(
+                    jobRepository.findMaxHouseholdModifiedTime(tenantId, locality),
+                    jobRepository.findMaxHhMemberModifiedTime(tenantId, locality));
+            case "INDIVIDUALS" -> jobRepository.findMaxIndividualModifiedTime(tenantId, locality);
+            case "BENE_AE_REF" -> maxOf(
+                    jobRepository.findMaxBeneficiaryModifiedTime(tenantId, locality, projectId),
+                    jobRepository.findMaxSideEffectModifiedTime(tenantId, locality, projectId),
+                    jobRepository.findMaxReferralModifiedTime(tenantId, locality, projectId),
+                    jobRepository.findMaxHfReferralModifiedTime(tenantId, locality, projectId));
+            case "TASKS"       -> jobRepository.findMaxTaskModifiedTime(tenantId, locality, projectId);
+            default            -> null;
+        };
+
+        if (maxModified == null) return "Skipped: no data found in locality";
+        if (maxModified > lastEndTime) return null;
+        return "Skipped: no data changes since last generation";
+    }
+
+    private Long maxOf(Long... values) {
+        Long result = null;
+        for (Long v : values) {
+            if (v != null && (result == null || v > result)) result = v;
+        }
+        return result;
     }
 
     // ── File dispatchers ──────────────────────────────────────────────────────
@@ -348,7 +433,8 @@ public class DownsyncFileGenService {
         return switch (fileType) {
             case "HH_MEMBERS"  -> streamHhMembersFile(c, rowId);
             case "INDIVIDUALS" -> streamIndividualsFile(c, rowId);
-            default -> throw new IllegalArgumentException("Unknown registry file type: " + fileType);
+            default -> throw new CustomException("UNKNOWN_REGISTRY_FILE_TYPE",
+                    "Unrecognised registry file type '" + fileType + "'. Expected one of: HH_MEMBERS, INDIVIDUALS.");
         };
     }
 
@@ -356,7 +442,8 @@ public class DownsyncFileGenService {
         return switch (fileType) {
             case "BENE_AE_REF" -> streamBeneAeRefFile(c, rowId);
             case "TASKS"       -> streamTasksFile(c, rowId);
-            default -> throw new IllegalArgumentException("Unknown project file type: " + fileType);
+            default -> throw new CustomException("UNKNOWN_PROJECT_FILE_TYPE",
+                    "Unrecognised project file type '" + fileType + "'. Expected one of: BENE_AE_REF, TASKS.");
         };
     }
 
@@ -387,7 +474,7 @@ public class DownsyncFileGenService {
         jobRepository.updateFileStarted(tid, rowId, "INDIVIDUALS", System.currentTimeMillis());
         try {
             S3Result s3 = s3Service.streamToS3(key, gzip ->
-                    streamQuery(gzip, resolveSql(INDIVIDUAL_QUERY, tid), localityParams(c), "INDIVIDUAL"));
+                    streamIndividualQuery(gzip, resolveSql(INDIVIDUAL_QUERY, tid), localityParams(c)));
             jobRepository.updateFileCompleted(tid, rowId, "INDIVIDUALS", "SUCCESS",
                     s3.rowCount() > 0 ? key : null, s3.rowCount(), s3.fileSize(), null, System.currentTimeMillis());
             return new FileResult("INDIVIDUALS", true, s3.rowCount() > 0 ? key : null, s3.rowCount(), null);
@@ -451,7 +538,7 @@ public class DownsyncFileGenService {
                     con -> {
                         PreparedStatement ps = con.prepareStatement(positionalSql,
                                 ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
-                        ps.setFetchSize(1000);
+                        ps.setFetchSize(CURSOR_FETCH_SIZE);
                         for (int i = 0; i < positionalParams.length; i++)
                             ps.setObject(i + 1, positionalParams[i]);
                         return ps;
@@ -474,7 +561,8 @@ public class DownsyncFileGenService {
                                 gen.close();
                             }
                         } catch (IOException | SQLException e) {
-                            throw new RuntimeException("Stream error for " + typeTag, e);
+                            throw new CustomException(typeTag + "_STREAM_ERROR",
+                                    "Failed to stream entity type '" + typeTag + "' to NDJSON output. Cause: " + e.getMessage());
                         }
                         return null;
                     }
@@ -497,7 +585,10 @@ public class DownsyncFileGenService {
             case "REFERRAL"           -> writeReferral(gen, rs);
             case "HF_REFERRAL"        -> writeHfReferral(gen, rs);
             case "PROJECT_TASK"       -> writeProjectTask(gen, rs);
-            default -> throw new IllegalArgumentException("Unknown type tag: " + typeTag);
+            default -> throw new CustomException("UNKNOWN_ENTITY_TYPE_TAG",
+                    "No writer registered for entity type '" + typeTag + "'. " +
+                    "Supported types: HOUSEHOLD, HOUSEHOLD_MEMBER, INDIVIDUAL, PROJECT_BENEFICIARY, " +
+                    "SIDE_EFFECT, REFERRAL, HF_REFERRAL, PROJECT_TASK.");
         }
     }
 
@@ -701,6 +792,267 @@ public class DownsyncFileGenService {
         wClientAudit(gen, rs);
     }
 
+    // ── Individual decrypt-and-stream (buffer per cursor page) ───────────────
+
+    private long streamIndividualQuery(GZIPOutputStream gzip, String namedSql, Map<String, Object> params) {
+        ParsedSql parsed = NamedParameterUtils.parseSqlStatement(namedSql);
+        SqlParameterSource paramSource = new MapSqlParameterSource(params);
+        String positionalSql = NamedParameterUtils.substituteNamedParameters(parsed, paramSource);
+        Object[] positionalParams = NamedParameterUtils.buildValueArray(parsed, paramSource, null);
+
+        long[] count = {0};
+        readOnlyTx.execute(status -> {
+            namedJdbcTemplate.getJdbcTemplate().query(
+                con -> {
+                    PreparedStatement ps = con.prepareStatement(positionalSql,
+                            ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
+                    ps.setFetchSize(CURSOR_FETCH_SIZE);
+                    for (int i = 0; i < positionalParams.length; i++)
+                        ps.setObject(i + 1, positionalParams[i]);
+                    return ps;
+                },
+                (ResultSet rs) -> {
+                    try {
+                        JsonGenerator gen = objectMapper.getFactory().createGenerator(gzip);
+                        gen.disable(JsonGenerator.Feature.AUTO_CLOSE_TARGET);
+                        try {
+                            List<Map<String, Object>> buffer = new ArrayList<>(CURSOR_FETCH_SIZE);
+                            while (rs.next()) {
+                                buffer.add(readIndividualRow(rs));
+                                if (buffer.size() == CURSOR_FETCH_SIZE) {
+                                    decryptIndividualBatch(buffer);
+                                    writeIndividualBuffer(gen, buffer);
+                                    count[0] += buffer.size();
+                                    buffer.clear();
+                                }
+                            }
+                            if (!buffer.isEmpty()) {
+                                decryptIndividualBatch(buffer);
+                                writeIndividualBuffer(gen, buffer);
+                                count[0] += buffer.size();
+                            }
+                        } finally {
+                            gen.flush();
+                            gen.close();
+                        }
+                    } catch (IOException | SQLException e) {
+                        throw new CustomException("INDIVIDUAL_STREAM_ERROR",
+                                "Failed to buffer or write INDIVIDUAL rows during NDJSON generation. Cause: " + e.getMessage());
+                    }
+                    return null;
+                }
+            );
+            return null;
+        });
+        return count[0];
+    }
+
+    private Map<String, Object> readIndividualRow(ResultSet rs) throws SQLException {
+        Map<String, Object> row = new LinkedHashMap<>(IND_COLS.size() * 2);
+        for (String col : IND_COLS)
+            row.put(col, rs.getObject(col));
+        return row;
+    }
+
+    private void decryptIndividualBatch(List<Map<String, Object>> batch) {
+        List<Integer> targets = new ArrayList<>();
+        ArrayNode payload = objectMapper.createArrayNode();
+
+        for (int i = 0; i < batch.size(); i++) {
+            Map<String, Object> row = batch.get(i);
+            String mobile = (String) row.get("mobileNumber");
+            JsonNode identifiers = parseIdentifiersJson(row.get("identifiers_json"));
+            boolean mobileEnc = isCipherText(mobile);
+            boolean identEnc  = hasEncryptedIdentifier(identifiers);
+            if (!mobileEnc && !identEnc) continue;
+
+            ObjectNode node = objectMapper.createObjectNode();
+            if (mobileEnc) node.put("mobileNumber", mobile);
+            if (identEnc)  node.set("identifiers", identifiers);
+            payload.add(node);
+            targets.add(i);
+        }
+
+        if (targets.isEmpty()) return;
+
+        String decryptUrl = config.getEncHost() + config.getEncDecryptEndpoint();
+        JsonNode decrypted;
+        try {
+            decrypted = restTemplate.postForObject(decryptUrl, payload, JsonNode.class);
+        } catch (RestClientException e) {
+            throw new CustomException("ENC_SERVICE_DECRYPT_FAILED",
+                    "HTTP call to enc-service decrypt endpoint '" + decryptUrl + "' failed for a batch of "
+                    + targets.size() + " individual(s). Verify egov.enc.host and egov.enc.decrypt.endpoint config. Cause: " + e.getMessage());
+        }
+
+        if (decrypted == null || !decrypted.isArray()) {
+            throw new CustomException("ENC_SERVICE_INVALID_RESPONSE",
+                    "Enc-service decrypt endpoint '" + decryptUrl + "' returned a null or non-array response "
+                    + "for a batch of " + targets.size() + " individual(s). Expected a JSON array of the same size.");
+        }
+
+        if (decrypted.size() != targets.size()) {
+            throw new CustomException("ENC_SERVICE_RESPONSE_SIZE_MISMATCH",
+                    "Enc-service decrypt endpoint returned " + decrypted.size() + " element(s) but "
+                    + targets.size() + " were sent. Cannot safely map decrypted values back to their rows.");
+        }
+
+        for (int j = 0; j < targets.size(); j++) {
+            Map<String, Object> row = batch.get(targets.get(j));
+            JsonNode dec = decrypted.get(j);
+            if (dec.has("mobileNumber"))
+                row.put("mobileNumber", dec.get("mobileNumber").asText(null));
+            if (dec.has("identifiers"))
+                row.put("identifiers_json", dec.get("identifiers").toString());
+        }
+    }
+
+    private static boolean isCipherText(String text) {
+        // EGOV cipher format: <UUID>|<base64>  — UUID is exactly 36 chars with dashes at [8,13,18,23]
+        if (text == null || text.length() < 38) return false;
+        if (text.charAt(8) != '-' || text.charAt(13) != '-'
+                || text.charAt(18) != '-' || text.charAt(23) != '-'
+                || text.charAt(36) != '|') return false;
+        String base64 = text.substring(37);
+        return !base64.isEmpty() && (base64.length() % 4 == 0 || base64.endsWith("="));
+    }
+
+    private JsonNode parseIdentifiersJson(Object pgObj) {
+        if (pgObj == null) return null;
+        String json = pgObj instanceof PGobject pg ? pg.getValue() : pgObj.toString();
+        if (json == null) return null;
+        try {
+            return objectMapper.readTree(json);
+        } catch (IOException e) {
+            throw new CustomException("IDENTIFIERS_JSON_PARSE_ERROR",
+                    "Failed to parse identifiers_json column value as JSON array. " +
+                    "Raw value starts with: '" + json.substring(0, Math.min(json.length(), 100)) + "'. Cause: " + e.getMessage());
+        }
+    }
+
+    private boolean hasEncryptedIdentifier(JsonNode identifiers) {
+        if (identifiers == null || !identifiers.isArray()) return false;
+        for (JsonNode id : identifiers) {
+            JsonNode v = id.get("identifierId");
+            if (v != null && isCipherText(v.asText(null))) return true;
+        }
+        return false;
+    }
+
+    private void writeIndividualBuffer(JsonGenerator gen, List<Map<String, Object>> buffer)
+            throws IOException {
+        for (Map<String, Object> row : buffer) {
+            gen.writeStartObject();
+            gen.writeStringField("_t", "INDIVIDUAL");
+            writeIndividualFromMap(gen, row);
+            gen.writeEndObject();
+            gen.writeRaw('\n');
+        }
+    }
+
+    private void writeIndividualFromMap(JsonGenerator gen, Map<String, Object> row) throws IOException {
+        wsm(gen, "id",                row, "id");
+        wsm(gen, "clientReferenceId", row, "clientReferenceId");
+        wsm(gen, "tenantId",          row, "tenantId");
+        wsm(gen, "individualId",      row, "individualId");
+        wsm(gen, "userId",            row, "userId");
+        wsm(gen, "userUuid",          row, "userUuid");
+
+        gen.writeFieldName("name");
+        gen.writeStartObject();
+        wsm(gen, "givenName",  row, "givenName");
+        wsm(gen, "familyName", row, "familyName");
+        wsm(gen, "otherNames", row, "otherNames");
+        gen.writeEndObject();
+
+        Object dob = row.get("dateOfBirth");
+        if (dob == null) gen.writeNullField("dateOfBirth");
+        else gen.writeStringField("dateOfBirth", ((java.sql.Date) dob).toLocalDate().format(DOB_FMT));
+
+        wsm(gen, "gender",             row, "gender");
+        wsm(gen, "bloodGroup",         row, "bloodGroup");
+        wsm(gen, "mobileNumber",       row, "mobileNumber");
+        wsm(gen, "altContactNumber",   row, "altContactNumber");
+        wsm(gen, "email",              row, "email");
+        wsm(gen, "fatherName",         row, "fatherName");
+        wsm(gen, "husbandName",        row, "husbandName");
+        wsm(gen, "relationship",       row, "relationship");
+        wsm(gen, "photo",              row, "photo");
+        wbm(gen, "isSystemUser",       row, "isSystemUser");
+        wbm(gen, "isSystemUserActive", row, "isSystemUserActive");
+        wim(gen, "rowVersion",         row, "rowVersion");
+        wbm(gen, "isDeleted",          row, "isDeleted");
+        wjsonm(gen, "additionalFields", row, "additionalDetails");
+        wjsonm(gen, "address",         row, "addresses_json");
+        wjsonm(gen, "identifiers",     row, "identifiers_json");
+        wjsonm(gen, "skills",          row, "skills_json");
+
+        gen.writeFieldName("auditDetails");
+        gen.writeStartObject();
+        wsm(gen, "createdBy",        row, "createdBy");
+        wlm(gen, "createdTime",      row, "createdTime");
+        wsm(gen, "lastModifiedBy",   row, "lastModifiedBy");
+        wlm(gen, "lastModifiedTime", row, "lastModifiedTime");
+        gen.writeEndObject();
+
+        gen.writeFieldName("clientAuditDetails");
+        gen.writeStartObject();
+        wsm(gen, "createdBy",        row, "clientCreatedBy");
+        wlm(gen, "createdTime",      row, "clientCreatedTime");
+        wsm(gen, "lastModifiedBy",   row, "clientLastModifiedBy");
+        wlm(gen, "lastModifiedTime", row, "clientLastModifiedTime");
+        gen.writeEndObject();
+    }
+
+    // ── Map-based write helpers (mirror RS-based ones for buffered individual rows) ──
+
+    private void wsm(JsonGenerator gen, String field, Map<String, Object> row, String col)
+            throws IOException {
+        Object v = row.get(col);
+        if (v == null) gen.writeNullField(field);
+        else gen.writeStringField(field, (String) v);
+    }
+
+    private void wlm(JsonGenerator gen, String field, Map<String, Object> row, String col)
+            throws IOException {
+        Object v = row.get(col);
+        if (v == null) gen.writeNullField(field);
+        else gen.writeNumberField(field, ((Number) v).longValue());
+    }
+
+    private void wim(JsonGenerator gen, String field, Map<String, Object> row, String col)
+            throws IOException {
+        Object v = row.get(col);
+        if (v == null) gen.writeNullField(field);
+        else gen.writeNumberField(field, ((Number) v).intValue());
+    }
+
+    private void wbm(JsonGenerator gen, String field, Map<String, Object> row, String col)
+            throws IOException {
+        Object v = row.get(col);
+        if (v == null) gen.writeNullField(field);
+        else gen.writeBooleanField(field, (Boolean) v);
+    }
+
+    private void wjsonm(JsonGenerator gen, String field, Map<String, Object> row, String col)
+            throws IOException {
+        Object val = row.get(col);
+        if (val == null) {
+            gen.writeNullField(field);
+        } else if (val instanceof PGobject pg) {
+            gen.writeFieldName(field);
+            String v = pg.getValue();
+            if (v != null) gen.writeRawValue(v);
+            else gen.writeNull();
+        } else if (val instanceof String s) {
+            // identifiers_json patched in-place as String after decrypt
+            gen.writeFieldName(field);
+            gen.writeRawValue(s);
+        } else {
+            gen.writeNullField(field);
+        }
+    }
+
     // ── JSON write helpers ────────────────────────────────────────────────────
 
     private void ws(JsonGenerator gen, String field, ResultSet rs, String col)
@@ -800,7 +1152,9 @@ public class DownsyncFileGenService {
         try {
             return multiStateInstanceUtil.replaceSchemaPlaceholder(template, tenantId);
         } catch (InvalidTenantIdException e) {
-            throw new RuntimeException("Invalid tenantId: " + tenantId, e);
+            throw new CustomException("INVALID_TENANT_ID",
+                    "Cannot resolve DB schema for tenantId '" + tenantId + "'. " +
+                    "Verify 'is.environment.central.instance' and 'state.schema.index.position.tenantid' config. Cause: " + e.getMessage());
         }
     }
 
@@ -811,12 +1165,6 @@ public class DownsyncFileGenService {
     private String s3ProjectKey(LocalityDownsyncCriteria c, String fileType) {
         String rootProjectId = c.getRootProjectId() != null ? c.getRootProjectId() : c.getProjectId();
         return c.getTenantId() + "/" + rootProjectId + "/" + c.getLocality() + "/" + fileType + ".ndjson.gz";
-    }
-
-    private void markFilesSkipped(String tenantId, String localityRowId) {
-        for (String ft : REGISTRY_FILE_TYPES)
-            jobRepository.updateFileCompleted(tenantId, localityRowId, ft, "SKIPPED",
-                    null, null, null, null, System.currentTimeMillis());
     }
 
     private String truncate(String msg) {

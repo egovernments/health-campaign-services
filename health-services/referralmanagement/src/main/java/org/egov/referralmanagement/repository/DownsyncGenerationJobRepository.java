@@ -45,8 +45,13 @@ public class DownsyncGenerationJobRepository {
             "WHERE id=:id";
 
     private static final String FIND_IN_PROGRESS_JOBS_IN_SCHEMA =
-            "SELECT id, tenantId, projectId, createdBy FROM {schema}.downsync_generation_job " +
+            "SELECT id, tenantId, projectId, createdBy, rowVersion FROM {schema}.downsync_generation_job " +
             "WHERE status = 'IN_PROGRESS'";
+
+    private static final String CLAIM_RESUME_JOB =
+            "UPDATE {schema}.downsync_generation_job " +
+            "SET rowVersion = rowVersion + 1, lastModifiedBy = 'system-resume', lastModifiedTime = :now " +
+            "WHERE id = :id AND status = 'IN_PROGRESS' AND rowVersion = :expectedRowVersion";
 
     private static final String HAS_IN_PROGRESS_JOB =
             "SELECT COUNT(*) FROM {schema}.downsync_generation_job " +
@@ -65,11 +70,11 @@ public class DownsyncGenerationJobRepository {
 
     private static final String COUNT_LOCALITIES_DONE =
             "SELECT COUNT(*) FROM {schema}.downsync_generation_locality " +
-            "WHERE jobId = :jobId AND status IN ('SUCCESS','PARTIAL_SUCCESS','FAILED')";
+            "WHERE jobId = :jobId AND status IN ('SUCCESS','SKIPPED','PARTIAL_SUCCESS','FAILED')";
 
     private static final String COUNT_OUTCOMES =
             "SELECT " +
-            "  COALESCE(SUM(CASE WHEN status = 'SUCCESS' THEN 1 ELSE 0 END), 0) AS succeeded, " +
+            "  COALESCE(SUM(CASE WHEN status IN ('SUCCESS','SKIPPED') THEN 1 ELSE 0 END), 0) AS succeeded, " +
             "  COALESCE(SUM(CASE WHEN status IN ('FAILED','PARTIAL_SUCCESS') THEN 1 ELSE 0 END), 0) AS failed " +
             "FROM {schema}.downsync_generation_locality WHERE jobId = :jobId";
 
@@ -88,19 +93,16 @@ public class DownsyncGenerationJobRepository {
             "WHERE id=:id";
 
     private static final String FIND_LATEST_FILES_FOR_LOCALITY =
-            "SELECT f.fileType, f.s3Key, f.recordCount " +
+            "SELECT DISTINCT ON (f.fileType) f.fileType, f.s3Key, f.recordCount " +
             "FROM {schema}.downsync_locality_file f " +
-            "WHERE f.localityRowId = ( " +
-            "  SELECT l.id FROM {schema}.downsync_generation_locality l " +
-            "  INNER JOIN {schema}.downsync_generation_job j ON j.id = l.jobId " +
-            "  WHERE l.tenantId = :tenantId " +
-            "    AND l.locality = :locality " +
-            "    AND ((:projectId IS NULL AND l.projectId IS NULL) OR l.projectId = :projectId) " +
-            "    AND l.status IN ('SUCCESS','PARTIAL_SUCCESS') " +
-            "    AND j.status IN ('COMPLETED','PARTIAL_FAILURE') " +
-            "  ORDER BY l.createdTime DESC LIMIT 1 " +
-            ") " +
-            "AND f.status = 'SUCCESS' AND f.s3Key IS NOT NULL";
+            "JOIN {schema}.downsync_generation_locality l ON l.id = f.localityRowId " +
+            "JOIN {schema}.downsync_generation_job j ON j.id = l.jobId " +
+            "WHERE l.tenantId = :tenantId " +
+            "  AND l.locality = :locality " +
+            "  AND ((:projectId IS NULL AND l.projectId IS NULL) OR l.projectId = :projectId) " +
+            "  AND j.status IN ('COMPLETED','PARTIAL_FAILURE') " +
+            "  AND f.status = 'SUCCESS' AND f.s3Key IS NOT NULL " +
+            "ORDER BY f.fileType, f.endTime DESC";
 
     private static final String FIND_ALL_LOCALITIES_BY_JOB =
             "SELECT id, tenantId, projectId, locality, category, status, failureReason, " +
@@ -134,8 +136,10 @@ public class DownsyncGenerationJobRepository {
     // ── New queries for registry staleness and locality resolution ─────────────
 
     private static final String FETCH_ALL_LOCALITIES =
-            "SELECT DISTINCT localitycode FROM {schema}.household_address_mv " +
-            "WHERE tenantid = :tenantId AND isdeleted = false AND localitycode IS NOT NULL";
+            "SELECT DISTINCT a.localitycode " +
+            "FROM {schema}.household h " +
+            "JOIN {schema}.address a ON (h.addressid)::text = (a.id)::text " +
+            "WHERE h.tenantid = :tenantId AND h.isdeleted = false AND a.localitycode IS NOT NULL";
 
     private static final String FETCH_PROJECT_LOCALITY_MAPPING =
             "SELECT pa.projectid, pa.boundary AS locality " +
@@ -145,24 +149,112 @@ public class DownsyncGenerationJobRepository {
             "  AND p.id != :rootProjectId " +
             "  AND pa.boundary IS NOT NULL";
 
-    private static final String FIND_LATEST_REGISTRY_FILE_END_TIME =
+    private static final String FIND_LATEST_FILE_END_TIME =
             "SELECT MAX(f.endTime) " +
             "FROM {schema}.downsync_locality_file f " +
-            "WHERE f.localityRowId = ( " +
-            "  SELECT l.id FROM {schema}.downsync_generation_locality l " +
-            "  INNER JOIN {schema}.downsync_generation_job j ON j.id = l.jobId " +
-            "  WHERE l.tenantId = :tenantId " +
-            "    AND l.locality = :locality " +
-            "    AND l.projectId IS NULL " +
-            "    AND l.status IN ('SUCCESS','PARTIAL_SUCCESS') " +
-            "    AND j.status IN ('COMPLETED','PARTIAL_FAILURE') " +
-            "  ORDER BY l.createdTime DESC LIMIT 1 " +
-            ") " +
-            "AND f.fileType = 'HH_MEMBERS' AND f.status = 'SUCCESS'";
+            "JOIN {schema}.downsync_generation_locality l ON l.id = f.localityRowId " +
+            "JOIN {schema}.downsync_generation_job j ON j.id = l.jobId " +
+            "WHERE l.tenantId = :tenantId " +
+            "  AND l.locality = :locality " +
+            "  AND l.projectId IS NULL " +
+            "  AND j.status IN ('COMPLETED','PARTIAL_FAILURE') " +
+            "  AND f.fileType = :fileType AND f.status = 'SUCCESS'";
 
     private static final String FIND_MAX_HOUSEHOLD_MODIFIED_TIME =
             "SELECT MAX(lastmodifiedtime) FROM {schema}.household_address_mv " +
             "WHERE localitycode = :locality AND tenantid = :tenantId AND isdeleted = false";
+
+    private static final String FIND_MAX_HH_MEMBER_MODIFIED_TIME =
+            "SELECT MAX(hm.lastmodifiedtime) " +
+            "FROM {schema}.HOUSEHOLD_MEMBER hm " +
+            "JOIN {schema}.household h ON (hm.householdClientReferenceId)::text = (h.clientReferenceId)::text " +
+            "JOIN {schema}.address a ON (h.addressid)::text = (a.id)::text " +
+            "WHERE a.localitycode = :locality AND h.tenantid = :tenantId " +
+            "  AND h.isdeleted = false AND hm.isDeleted = false";
+
+    private static final String FIND_MAX_INDIVIDUAL_MODIFIED_TIME =
+            "SELECT MAX(ind.lastmodifiedtime) " +
+            "FROM {schema}.individual ind " +
+            "JOIN {schema}.HOUSEHOLD_MEMBER hm " +
+            "  ON (ind.clientReferenceId)::text = (hm.individualClientReferenceId)::text " +
+            "JOIN {schema}.household h ON (hm.householdClientReferenceId)::text = (h.clientReferenceId)::text " +
+            "JOIN {schema}.address a ON (h.addressid)::text = (a.id)::text " +
+            "WHERE a.localitycode = :locality AND h.tenantid = :tenantId " +
+            "  AND h.isdeleted = false AND hm.isDeleted = false AND ind.isDeleted = false";
+
+    // ── Project file staleness queries ────────────────────────────────────────
+
+    private static final String FIND_LATEST_PROJECT_FILE_END_TIME =
+            "SELECT MAX(f.endTime) " +
+            "FROM {schema}.downsync_locality_file f " +
+            "JOIN {schema}.downsync_generation_locality l ON l.id = f.localityRowId " +
+            "JOIN {schema}.downsync_generation_job j ON j.id = l.jobId " +
+            "WHERE l.tenantId = :tenantId " +
+            "  AND l.locality = :locality " +
+            "  AND l.projectId = :projectId " +
+            "  AND j.status IN ('COMPLETED','PARTIAL_FAILURE') " +
+            "  AND f.fileType = :fileType AND f.status = 'SUCCESS'";
+
+    // Reusable subquery: all beneficiary clientReferenceIds in a given project+locality
+    private static final String BENE_LOCALITY_SUBQUERY =
+            "SELECT pb.clientReferenceId FROM {schema}.PROJECT_BENEFICIARY pb " +
+            "WHERE pb.projectId = :projectId AND pb.isDeleted = false " +
+            "AND pb.beneficiaryClientReferenceId IN (" +
+            "  SELECT clientReferenceId FROM {schema}.household_address_mv " +
+            "  WHERE localitycode = :locality AND isdeleted = false " +
+            "  UNION " +
+            "  SELECT hm.individualClientReferenceId " +
+            "  FROM {schema}.HOUSEHOLD_MEMBER hm " +
+            "  WHERE hm.isDeleted = false " +
+            "  AND hm.householdClientReferenceId IN (" +
+            "    SELECT clientReferenceId FROM {schema}.household_address_mv " +
+            "    WHERE localitycode = :locality AND isdeleted = false" +
+            "  )" +
+            ")";
+
+    private static final String FIND_MAX_BENEFICIARY_MODIFIED_TIME =
+            "SELECT MAX(pb.lastmodifiedtime) FROM {schema}.PROJECT_BENEFICIARY pb " +
+            "WHERE pb.projectId = :projectId AND pb.isDeleted = false " +
+            "AND pb.beneficiaryClientReferenceId IN (" +
+            "  SELECT clientReferenceId FROM {schema}.household_address_mv " +
+            "  WHERE localitycode = :locality AND isdeleted = false " +
+            "  UNION " +
+            "  SELECT hm.individualClientReferenceId FROM {schema}.HOUSEHOLD_MEMBER hm " +
+            "  WHERE hm.isDeleted = false " +
+            "  AND hm.householdClientReferenceId IN (" +
+            "    SELECT clientReferenceId FROM {schema}.household_address_mv " +
+            "    WHERE localitycode = :locality AND isdeleted = false" +
+            "  )" +
+            ")";
+
+    private static final String FIND_MAX_SIDE_EFFECT_MODIFIED_TIME =
+            "SELECT MAX(se.lastmodifiedtime) FROM {schema}.SIDE_EFFECT se " +
+            "WHERE se.isDeleted = false " +
+            "AND se.projectBeneficiaryClientReferenceId IN (" + BENE_LOCALITY_SUBQUERY + ")";
+
+    private static final String FIND_MAX_REFERRAL_MODIFIED_TIME =
+            "SELECT MAX(r.lastmodifiedtime) FROM {schema}.REFERRAL r " +
+            "WHERE r.projectid = :projectId AND r.isDeleted = false " +
+            "AND r.projectBeneficiaryClientReferenceId IN (" + BENE_LOCALITY_SUBQUERY + ")";
+
+    private static final String FIND_MAX_HF_REFERRAL_MODIFIED_TIME =
+            "SELECT MAX(hfr.lastmodifiedtime) FROM {schema}.HF_REFERRAL hfr " +
+            "WHERE hfr.projectid = :projectId AND hfr.localitycode = :locality AND hfr.isdeleted = false";
+
+    private static final String FIND_MAX_TASK_MODIFIED_TIME =
+            "SELECT MAX(pt.lastmodifiedtime) FROM {schema}.PROJECT_TASK pt " +
+            "WHERE pt.projectId = :projectId AND pt.isDeleted = false " +
+            "AND pt.projectBeneficiaryClientReferenceId IN (" + BENE_LOCALITY_SUBQUERY + ")";
+
+    private static final String REFRESH_HOUSEHOLD_ADDRESS_MV =
+            "REFRESH MATERIALIZED VIEW CONCURRENTLY {schema}.household_address_mv";
+
+    private static final String FIND_MAX_HOUSEHOLD_MODIFIED_TIME_TENANT =
+            "SELECT MAX(lastmodifiedtime) FROM {schema}.household WHERE tenantid = :tenantId";
+
+    private static final String FIND_LAST_COMPLETED_JOB_TIME =
+            "SELECT MAX(createdTime) FROM {schema}.downsync_generation_job " +
+            "WHERE tenantId = :tenantId AND status IN ('COMPLETED','PARTIAL_FAILURE')";
 
     private static final String FIND_LEAF_PROJECT_ID_FOR_LOCALITY =
             "SELECT pa.projectid " +
@@ -224,6 +316,20 @@ public class DownsyncGenerationJobRepository {
                 .addValue("lastModifiedTime", job.getLastModifiedTime()));
     }
 
+    /**
+     * Atomically claims a resume job using optimistic locking on rowVersion.
+     * Returns true only if this pod wins the race (rowsAffected == 1).
+     * If another pod already claimed it, rowVersion will have changed and this returns false.
+     */
+    public boolean claimResumeJob(String tenantId, String jobId, long expectedRowVersion) {
+        int rows = jdbcTemplate.update(resolveSql(CLAIM_RESUME_JOB, tenantId),
+                new MapSqlParameterSource()
+                        .addValue("id", jobId)
+                        .addValue("expectedRowVersion", expectedRowVersion)
+                        .addValue("now", System.currentTimeMillis()));
+        return rows == 1;
+    }
+
     public boolean hasInProgressJob(String tenantId) {
         Integer count = jdbcTemplate.queryForObject(resolveSql(HAS_IN_PROGRESS_JOB, tenantId),
                 new MapSqlParameterSource("tenantId", tenantId), Integer.class);
@@ -244,6 +350,7 @@ public class DownsyncGenerationJobRepository {
                                     .tenantId(rs.getString("tenantId"))
                                     .projectId(rs.getString("projectId"))
                                     .createdBy(rs.getString("createdBy"))
+                                    .rowVersion(rs.getLong("rowVersion"))
                                     .build()).stream();
                 })
                 .toList();
@@ -489,16 +596,49 @@ public class DownsyncGenerationJobRepository {
                 (rs, i) -> new String[]{rs.getString("projectid"), rs.getString("locality")});
     }
 
-    /** Returns the endTime of the last successful HH_MEMBERS file for this locality, or null. */
-    public Long findLatestRegistryFileEndTime(String tenantId, String locality) {
-        return jdbcTemplate.queryForObject(resolveSql(FIND_LATEST_REGISTRY_FILE_END_TIME, tenantId),
+    /** Returns the endTime of the last successful generation of fileType for this locality, or null. */
+    public Long findLatestFileEndTime(String tenantId, String locality, String fileType) {
+        return jdbcTemplate.queryForObject(resolveSql(FIND_LATEST_FILE_END_TIME, tenantId),
                 new MapSqlParameterSource()
                         .addValue("tenantId", tenantId)
-                        .addValue("locality", locality),
+                        .addValue("locality", locality)
+                        .addValue("fileType", fileType),
                 Long.class);
     }
 
-    /** Returns MAX(lastmodifiedtime) from household_address_mv for locality, or null. */
+    /** Refreshes household_address_mv for the given tenant schema using CONCURRENTLY (non-blocking). */
+    public void refreshHouseholdAddressMv(String tenantId) {
+        jdbcTemplate.getJdbcTemplate().execute(resolveSql(REFRESH_HOUSEHOLD_ADDRESS_MV, tenantId));
+    }
+
+    /**
+     * Returns true if household_address_mv should be refreshed before this job.
+     * Compares MAX(household.lastmodifiedtime) against the last completed job's createdTime.
+     * Defaults to true on any error so the job never proceeds with a potentially stale MV.
+     */
+    public boolean shouldRefreshMv(String tenantId) {
+        try {
+            Long lastJobTime = jdbcTemplate.queryForObject(
+                    resolveSql(FIND_LAST_COMPLETED_JOB_TIME, tenantId),
+                    new MapSqlParameterSource("tenantId", tenantId), Long.class);
+
+            if (lastJobTime == null) return true;
+
+            Long householdMax = jdbcTemplate.queryForObject(
+                    resolveSql(FIND_MAX_HOUSEHOLD_MODIFIED_TIME_TENANT, tenantId),
+                    new MapSqlParameterSource("tenantId", tenantId), Long.class);
+
+            if (householdMax == null) return false;
+
+            return householdMax > lastJobTime;
+        } catch (Exception e) {
+            log.warn("MV refresh check failed for tenant={}, defaulting to refresh. Cause: {}",
+                    tenantId, e.getMessage());
+            return true;
+        }
+    }
+
+    /** Returns MAX(lastmodifiedtime) from household_address_mv for the locality, or null. */
     public Long findMaxHouseholdModifiedTime(String tenantId, String locality) {
         return jdbcTemplate.queryForObject(resolveSql(FIND_MAX_HOUSEHOLD_MODIFIED_TIME, tenantId),
                 new MapSqlParameterSource()
@@ -507,7 +647,71 @@ public class DownsyncGenerationJobRepository {
                 Long.class);
     }
 
-    /** Finds the leaf projectId for a given (rootProjectId, locality) pair. */
+    /** Returns MAX(lastmodifiedtime) from HOUSEHOLD_MEMBER for the locality, or null. */
+    public Long findMaxHhMemberModifiedTime(String tenantId, String locality) {
+        return jdbcTemplate.queryForObject(resolveSql(FIND_MAX_HH_MEMBER_MODIFIED_TIME, tenantId),
+                new MapSqlParameterSource()
+                        .addValue("tenantId", tenantId)
+                        .addValue("locality", locality),
+                Long.class);
+    }
+
+    /** Returns MAX(lastmodifiedtime) from individual for the locality, or null. */
+    public Long findMaxIndividualModifiedTime(String tenantId, String locality) {
+        return jdbcTemplate.queryForObject(resolveSql(FIND_MAX_INDIVIDUAL_MODIFIED_TIME, tenantId),
+                new MapSqlParameterSource()
+                        .addValue("tenantId", tenantId)
+                        .addValue("locality", locality),
+                Long.class);
+    }
+
+    /** Returns the endTime of the last successful generation of fileType for this project locality, or null. */
+    public Long findLatestProjectFileEndTime(String tenantId, String locality, String projectId, String fileType) {
+        return jdbcTemplate.queryForObject(resolveSql(FIND_LATEST_PROJECT_FILE_END_TIME, tenantId),
+                new MapSqlParameterSource()
+                        .addValue("tenantId", tenantId)
+                        .addValue("locality", locality)
+                        .addValue("projectId", projectId)
+                        .addValue("fileType", fileType),
+                Long.class);
+    }
+
+    public Long findMaxBeneficiaryModifiedTime(String tenantId, String locality, String projectId) {
+        return jdbcTemplate.queryForObject(resolveSql(FIND_MAX_BENEFICIARY_MODIFIED_TIME, tenantId),
+                new MapSqlParameterSource()
+                        .addValue("tenantId", tenantId).addValue("locality", locality).addValue("projectId", projectId),
+                Long.class);
+    }
+
+    public Long findMaxSideEffectModifiedTime(String tenantId, String locality, String projectId) {
+        return jdbcTemplate.queryForObject(resolveSql(FIND_MAX_SIDE_EFFECT_MODIFIED_TIME, tenantId),
+                new MapSqlParameterSource()
+                        .addValue("tenantId", tenantId).addValue("locality", locality).addValue("projectId", projectId),
+                Long.class);
+    }
+
+    public Long findMaxReferralModifiedTime(String tenantId, String locality, String projectId) {
+        return jdbcTemplate.queryForObject(resolveSql(FIND_MAX_REFERRAL_MODIFIED_TIME, tenantId),
+                new MapSqlParameterSource()
+                        .addValue("tenantId", tenantId).addValue("locality", locality).addValue("projectId", projectId),
+                Long.class);
+    }
+
+    public Long findMaxHfReferralModifiedTime(String tenantId, String locality, String projectId) {
+        return jdbcTemplate.queryForObject(resolveSql(FIND_MAX_HF_REFERRAL_MODIFIED_TIME, tenantId),
+                new MapSqlParameterSource()
+                        .addValue("tenantId", tenantId).addValue("locality", locality).addValue("projectId", projectId),
+                Long.class);
+    }
+
+    public Long findMaxTaskModifiedTime(String tenantId, String locality, String projectId) {
+        return jdbcTemplate.queryForObject(resolveSql(FIND_MAX_TASK_MODIFIED_TIME, tenantId),
+                new MapSqlParameterSource()
+                        .addValue("tenantId", tenantId).addValue("locality", locality).addValue("projectId", projectId),
+                Long.class);
+    }
+
+    /** Finds the leaf projectId for a given (rootProjectId, locality) pair. Used by DownsyncPregenService. */
     public String findLeafProjectIdForLocality(String tenantId, String rootProjectId, String locality) {
         List<String> rows = jdbcTemplate.queryForList(
                 resolveSql(FIND_LEAF_PROJECT_ID_FOR_LOCALITY, tenantId),
@@ -517,4 +721,5 @@ public class DownsyncGenerationJobRepository {
                 String.class);
         return rows.isEmpty() ? null : rows.get(0);
     }
+
 }

@@ -50,12 +50,24 @@ public class DownsyncJobResumeRunner implements ApplicationRunner {
     }
 
     private void resumeJob(DownsyncGenerationJob job) {
+        if (!jobRepository.claimResumeJob(job.getTenantId(), job.getId(), job.getRowVersion())) {
+            log.info("Job {} already claimed by another pod — skipping resume", job.getId());
+            jobRegistry.release(job.getTenantId(), job.getProjectId());
+            return;
+        }
         log.info("Resuming job {} for tenant {}", job.getId(), job.getTenantId());
         try {
             List<DownsyncGenerationLocality> resumable =
                     jobRepository.findResumableLocalities(job.getTenantId(), job.getId());
 
             if (!resumable.isEmpty()) {
+                if (jobRepository.shouldRefreshMv(job.getTenantId())) {
+                    log.info("Refreshing household_address_mv on resume — tenant={}", job.getTenantId());
+                    jobRepository.refreshHouseholdAddressMv(job.getTenantId());
+                } else {
+                    log.info("Skipping household_address_mv refresh on resume — tenant={}", job.getTenantId());
+                }
+
                 List<LocalityDownsyncCriteria> registryCriteria = resumable.stream()
                         .filter(l -> "REGISTRY".equals(l.getCategory()))
                         .map(l -> LocalityDownsyncCriteria.builder()
@@ -94,7 +106,7 @@ public class DownsyncJobResumeRunner implements ApplicationRunner {
 
             jobRepository.updateJob(DownsyncGenerationJob.builder()
                     .id(job.getId()).tenantId(job.getTenantId())
-                    .totalRequested(succeeded + failed)
+                    .totalRequested(job.getTotalRequested() != null ? job.getTotalRequested() : succeeded + failed)
                     .totalSucceeded(succeeded).totalFailed(failed)
                     .status(status).lastModifiedBy("system-resume")
                     .lastModifiedTime(System.currentTimeMillis())

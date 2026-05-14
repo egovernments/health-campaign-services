@@ -20,4 +20,6 @@ public class DownsyncFileGenRequest {
     private String tenantId;
 
     private String rootProjectId;
+
+    private boolean forceRefresh = false;
 }

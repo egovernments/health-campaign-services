@@ -19,4 +19,5 @@ public class LocalityDownsyncCriteria {
     private String localityRowId;   // set at job creation, used for DB audit updates
     private String category;        // REGISTRY | PROJECT
     private String rootProjectId;   // used for S3 key construction in PROJECT files
+    private boolean forceRefresh;   // when true, bypass staleness check
 }

@@ -121,7 +121,7 @@ public class DownsyncFileGenController {
             }
             registryCriteria.add(LocalityDownsyncCriteria.builder()
                     .locality(loc).tenantId(tenantId).localityRowId(rowId)
-                    .category("REGISTRY").build());
+                    .category("REGISTRY").forceRefresh(request.isForceRefresh()).build());
         }
 
         // ── Build and insert PROJECT locality + file rows ─────────────────────
@@ -142,7 +142,7 @@ public class DownsyncFileGenController {
             projectCriteria.add(LocalityDownsyncCriteria.builder()
                     .locality(loc).tenantId(tenantId).projectId(leafProjectId)
                     .rootProjectId(rootProjectId).localityRowId(rowId)
-                    .category("PROJECT").build());
+                    .category("PROJECT").forceRefresh(request.isForceRefresh()).build());
         }
 
         // ── Acquire locks — after inserts, before async kick-off ─────────────
@@ -165,15 +165,43 @@ public class DownsyncFileGenController {
         final List<LocalityDownsyncCriteria> finalProject  = projectCriteria;
         final String finalRootProjectId = rootProjectId;
 
-        CompletableFuture<Void> registryFuture = CompletableFuture.runAsync(
-                () -> downsyncFileGenService.generateRegistry(finalRegistry, jobId));
+        // household_address_mv is the locality-scoping join for both registry and project queries —
+        // refresh only if household data has changed since the last completed job.
+        CompletableFuture<Void> mvFuture = CompletableFuture.runAsync(() -> {
+            try {
+                if (jobRepository.shouldRefreshMv(tenantId)) {
+                    log.info("Refreshing household_address_mv — tenant={}", tenantId);
+                    jobRepository.refreshHouseholdAddressMv(tenantId);
+                } else {
+                    log.info("Skipping household_address_mv refresh, no household changes since last job — tenant={}", tenantId);
+                }
+            } catch (Exception e) {
+                log.error("household_address_mv refresh failed for tenant={}: {}", tenantId, e.getMessage(), e);
+                throw e;
+            }
+        });
+
+        CompletableFuture<Void> registryFuture = finalRegistry.isEmpty()
+                ? CompletableFuture.completedFuture(null)
+                : mvFuture.thenRunAsync(() -> downsyncFileGenService.generateRegistry(finalRegistry, jobId));
+
         CompletableFuture<Void> projectFuture = finalProject.isEmpty()
                 ? CompletableFuture.completedFuture(null)
-                : CompletableFuture.runAsync(() -> downsyncFileGenService.generateProject(finalProject, jobId));
+                : mvFuture.thenRunAsync(() -> downsyncFileGenService.generateProject(finalProject, jobId));
 
         CompletableFuture.allOf(registryFuture, projectFuture).whenComplete((v, ex) -> {
             jobRegistry.releaseRegistry(tenantId);
             jobRegistry.releaseProject(tenantId, finalRootProjectId);
+
+            if (ex != null) {
+                log.error("Job {} failed with unhandled exception: {}", jobId, ex.getMessage(), ex);
+                jobRepository.updateJob(DownsyncGenerationJob.builder()
+                        .id(jobId).tenantId(tenantId)
+                        .totalRequested(totalRequested).totalSucceeded(0).totalFailed(totalRequested)
+                        .status("FAILED").lastModifiedBy(createdBy)
+                        .lastModifiedTime(System.currentTimeMillis()).build());
+                return;
+            }
 
             Map<String, Integer> counts = jobRepository.countOutcomes(tenantId, jobId);
             int succeeded = counts.getOrDefault("succeeded", 0);

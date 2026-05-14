@@ -6,7 +6,6 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
@@ -57,7 +56,6 @@ import org.egov.referralmanagement.Constants;
 import org.egov.referralmanagement.config.ReferralManagementConfiguration;
 import org.egov.referralmanagement.repository.HouseholdRepository;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
@@ -86,9 +84,6 @@ public class DownsyncService {
     private final MultiStateInstanceUtil multiStateInstanceUtil;
 
     private HouseholdRepository householdRepository;
-
-    @Autowired
-    RedisTemplate<String, Object> redisTemplate;
 
     @Autowired
     public DownsyncService( ServiceRequestClient serviceRequestClient,
@@ -122,13 +117,6 @@ public class DownsyncService {
         Downsync downsync = new Downsync();
         DownsyncCriteria downsyncCriteria = downsyncRequest.getDownsyncCriteria();
 
-        String key = downsyncCriteria.getLocality() + downsyncCriteria.getOffset() + downsyncCriteria.getLimit();
-
-        Object obj = getFromCache(key);
-        if (null != obj) {
-            return (Downsync) obj;
-        }
-
         List<Household> households = null;
         List<String> householdClientRefIds = null;
         List<String> individualClientRefIds = null;
@@ -136,12 +124,12 @@ public class DownsyncService {
         List<String> taskClientRefIds = null;
 
 
-        downsync.setDownsyncCriteria(downsyncCriteria);
-        // removing incremental downsync for matview flow
+        boolean isSyncTimeAvailable = null != downsyncCriteria.getLastSyncedTime();
+        // removing incremental downsync for matview flow — mutate after capturing isSyncTimeAvailable
         if (configs.isEnableMatviewSearch()) {
             downsyncCriteria.setLastSyncedTime(null);
         }
-        boolean isSyncTimeAvailable = null != downsyncCriteria.getLastSyncedTime();
+        downsync.setDownsyncCriteria(downsyncCriteria);
 
         //Project project = getProjectType(downsyncRequest);
         LinkedHashMap<String, Object> projectType = masterDataService.getProjectType(downsyncRequest);
@@ -195,8 +183,6 @@ public class DownsyncService {
         if (configs.getServiceRequestDownsyncEnabled()) {
             searchServices(downsyncRequest, downsync, individualClientRefIds, householdClientRefIds);
         }
-
-        cacheByKey(downsync, key);
 
         return downsync;
     }
@@ -587,7 +573,7 @@ public class DownsyncService {
         int batchSize = configs.getReferralSearchBatchSize();
 
         int fetched = 0;
-        Long totalCount;
+        long totalCount = 0;
 
         do {
             ReferralSearch search = ReferralSearch.builder()
@@ -608,11 +594,12 @@ public class DownsyncService {
                     criteria.getIncludeDeleted()
             );
 
-            totalCount = searchResponse.getTotalCount();
+            totalCount = searchResponse.getTotalCount() != null ? searchResponse.getTotalCount() : 0L;
             List<Referral> referrals = searchResponse.getResponse();
+            if (CollectionUtils.isEmpty(referrals)) break;
             allReferrals.addAll(referrals);
 
-            fetched += batchSize;
+            fetched += referrals.size();
         } while (fetched < totalCount);
 
         downsync.setReferrals(allReferrals);
@@ -748,27 +735,6 @@ public class DownsyncService {
             url.append("&lastChangedSince=").append(criteria.getLastSyncedTime());
 
         return url;
-    }
-
-    private void cacheByKey(Downsync downsync, String key) {
-        try {
-            redisTemplate.opsForValue().set(key, downsync);
-            redisTemplate.expire(key, 600l, TimeUnit.SECONDS);
-        } catch (Exception exception) {
-            log.warn("Error while saving to cache: {}", ExceptionUtils.getStackTrace(exception));
-        }
-    }
-
-    private Object getFromCache(String key) {
-
-        Object res = null;
-
-        try {
-            res = redisTemplate.opsForValue().get(key);
-        } catch (Exception exception) {
-            log.warn("Error while retrieving from cache: {}", ExceptionUtils.getStackTrace(exception));
-        }
-        return res;
     }
 
 }

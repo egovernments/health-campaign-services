@@ -50,6 +50,7 @@ public class DownsyncS3Service {
      * returns S3Result(0, null). Otherwise returns the row count and compressed file size.
      */
     public S3Result streamToS3(String s3Key, StreamWriter writer) {
+        abortOrphanedUploads(s3Key);
         String uploadId = null;
         try {
             uploadId = s3Client.createMultipartUpload(
@@ -94,7 +95,8 @@ public class DownsyncS3Service {
                             .bucket(config.getS3Bucket()).key(s3Key).uploadId(uploadId).build());
                 } catch (Exception ignored) {}
             }
-            throw new RuntimeException("S3 upload failed: " + s3Key, e);
+            String cause = e.getCause() != null ? e.getCause().getMessage() : e.getMessage();
+            throw new RuntimeException("S3 upload failed: " + s3Key + ". Cause: " + cause, e);
         }
     }
 
@@ -113,6 +115,22 @@ public class DownsyncS3Service {
     }
 
     // ── Private ───────────────────────────────────────────────────────────────
+
+    private void abortOrphanedUploads(String s3Key) {
+        try {
+            ListMultipartUploadsResponse list = s3Client.listMultipartUploads(
+                    ListMultipartUploadsRequest.builder()
+                            .bucket(config.getS3Bucket()).prefix(s3Key).build());
+            for (MultipartUpload u : list.uploads()) {
+                if (!u.key().equals(s3Key)) continue;
+                s3Client.abortMultipartUpload(AbortMultipartUploadRequest.builder()
+                        .bucket(config.getS3Bucket()).key(s3Key).uploadId(u.uploadId()).build());
+                log.info("Aborted orphaned multipart upload — key={} uploadId={}", s3Key, u.uploadId());
+            }
+        } catch (Exception e) {
+            log.warn("Could not list/abort orphaned uploads for key={}: {}", s3Key, e.getMessage());
+        }
+    }
 
     private Long headObjectSize(String s3Key) {
         try {
