@@ -43,7 +43,7 @@ public class BillTransformationService {
     public void transform(Bill bill) {
 
         String billTopic = transformerProperties.getTransformerProducerBillIndexV1Topic();
-        String billDetailTopic = transformerProperties.getTransformerProducerBillDetailIndexV1Topic();
+//        String billDetailTopic = transformerProperties.getTransformerProducerBillDetailIndexV1Topic();
         log.info("transforming BILL for id {}", bill.getId());
 
         Map<String, Object> wfStatusInfo =  billService.getWorkflowSummary(bill.getBillNumber(), bill.getTenantId());
@@ -51,13 +51,26 @@ public class BillTransformationService {
         BillIndexV1 billIndexV1 = transformBill(bill, wfStatusInfo);
         producer.push(billTopic, billIndexV1);
 
-        List<BillDetailIndexV1> billDetailIndexV1List = transformBillDetails(bill.getBillDetails(), wfStatusInfo, bill.getLocalityCode());
-        producer.push(billDetailTopic, billDetailIndexV1List);
+//        List<BillDetailIndexV1> billDetailIndexV1List = transformBillDetails(bill.getBillDetails(), wfStatusInfo, bill.getLocalityCode());
+//        producer.push(billDetailTopic, billDetailIndexV1List);
         log.info("transformation successful for BILL for id {}", bill.getId());
 
 
     }
 
+    public void transform(BillDetail billDetail) {
+        Bill bill = billService.searchBill(billDetail.getBillId(), billDetail.getTenantId());
+        String billDetailTopic = transformerProperties.getTransformerProducerBillDetailIndexV1Topic();
+        log.info("transforming BILL DETAIL for id {}", billDetail.getId());
+
+        Map<String, Object> wfStatusInfo =  billService.getWorkflowSummary(bill.getBillNumber(), billDetail.getTenantId());
+
+        List<BillDetailIndexV1> billDetailIndexV1List = transformBillDetails(Collections.singletonList(billDetail), wfStatusInfo, bill.getLocalityCode());
+        producer.push(billDetailTopic, billDetailIndexV1List);
+        log.info("transformation successful for BILL DETAIL for id {}", billDetail.getId());
+
+
+    }
     public BillIndexV1 transformBill(Bill bill, Map<String, Object> wfStatusInfo) {
         String localityCode = bill.getLocalityCode();
 
@@ -94,29 +107,32 @@ public class BillTransformationService {
 
             Map<String, String> userInfoMap = userService.getUserInfo(billDetail.getTenantId(), billDetail.getAuditDetails().getLastModifiedBy());
 
-            BillDetailIndexV1 billDetailIndexV1 = BillDetailIndexV1.builder()
-                    .id(billDetail.getId())
-                    .billDetail(billDetail)
-                    .wfStatusInfo(billDetailsWfStatusInfo)
-                    .billWfStatusInfo(wfStatusInfo)
-                    .userName(userInfoMap.get(USERNAME))
-                    .nameOfUser(userInfoMap.get(NAME))
-                    .role(userInfoMap.get(ROLE))
-                    .boundaryHierarchy(boundaryHierarchy)
-                    .boundaryHierarchyCode(boundaryHierarchyCode)
-                    .build();
-            commonUtils.addProjectDetailsForUserIdAndTenantId(billDetailIndexV1,
-                    billDetail.getAuditDetails().getLastModifiedBy(),
-                    billDetail.getTenantId());
+            BillDetailIndexV1 original = buildBillDetailIndex(
+                    billDetail,
+                    wfStatusInfo,
+                    billDetailsWfStatusInfo,
+                    userInfoMap,
+                    boundaryHierarchy,
+                    boundaryHierarchyCode
+            );
 
-            Boolean billDetailEdited = getEditTimestamp(billDetail.getAdditionalDetails()) != null;
-            billDetailIndexV1.setBillDetailEdited(billDetailEdited);
+            original.setBillDetailEdited(false);
+            billDetailIndexV1List.add(original);
+            String editTimestamp = getEditTimestamp(billDetail.getAdditionalDetails());
 
-            if (billDetailEdited) {
-                billDetailIndexV1.setId(billDetail.getId() + HYPHEN + getEditTimestamp(billDetail.getAdditionalDetails()));
+            if (editTimestamp != null) {
+                BillDetailIndexV1 editedCopy = buildBillDetailIndex(
+                        billDetail,
+                        wfStatusInfo,
+                        billDetailsWfStatusInfo,
+                        userInfoMap,
+                        boundaryHierarchy,
+                        boundaryHierarchyCode
+                );
+                editedCopy.setBillDetailEdited(true);
+                editedCopy.setId(billDetail.getId() + HYPHEN + editTimestamp);
+                billDetailIndexV1List.add(editedCopy);
             }
-
-            billDetailIndexV1List.add(billDetailIndexV1);
         }
         return billDetailIndexV1List;
     }
@@ -142,6 +158,35 @@ public class BillTransformationService {
         }
 
         return null;
+    }
+
+    private BillDetailIndexV1 buildBillDetailIndex(
+            BillDetail billDetail,
+            Map<String, Object> wfStatusInfo,
+            Map<String, Object> billDetailsWfStatusInfo,
+            Map<String, String> userInfoMap,
+            Map<String, String> boundaryHierarchy,
+            Map<String, String> boundaryHierarchyCode) {
+
+        BillDetailIndexV1 index = BillDetailIndexV1.builder()
+                .id(billDetail.getId())
+                .billDetail(billDetail)
+                .wfStatusInfo(billDetailsWfStatusInfo)
+                .billWfStatusInfo(wfStatusInfo)
+                .userName(userInfoMap.get(USERNAME))
+                .nameOfUser(userInfoMap.get(NAME))
+                .role(userInfoMap.get(ROLE))
+                .boundaryHierarchy(boundaryHierarchy)
+                .boundaryHierarchyCode(boundaryHierarchyCode)
+                .build();
+
+        commonUtils.addProjectDetailsForUserIdAndTenantId(
+                index,
+                billDetail.getAuditDetails().getLastModifiedBy(),
+                billDetail.getTenantId()
+        );
+
+        return index;
     }
 }
 

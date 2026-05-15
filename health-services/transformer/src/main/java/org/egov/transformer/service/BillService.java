@@ -32,7 +32,7 @@ public class BillService {
         }
         return null;
     }
-    private Bill searchBill(String billId, String tenantId) {
+    public Bill searchBill(String billId, String tenantId) {
 
         StringBuilder url = new StringBuilder().append(transformerProperties.getBillServiceHost());
         url.append(transformerProperties.getBillSearchUrl());

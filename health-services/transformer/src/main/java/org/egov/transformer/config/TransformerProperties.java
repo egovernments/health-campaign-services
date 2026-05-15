@@ -249,6 +249,9 @@ public class TransformerProperties {
     @Value("${transformer.producer.billdetail.index.v1.topic}")
     private String transformerProducerBillDetailIndexV1Topic;
 
+    @Value("${transformer.producer.musterroll.index.v1.topic}")
+    private String transformerProducerMusterRollIndexV1Topic;
+
     @Value("${egov.bill.service.host}")
     private String billServiceHost;
 
