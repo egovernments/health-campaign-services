@@ -389,3 +389,9 @@ config:
         dockerfile: "build/maven-java17/Dockerfile"
       - work-dir: "health-services/excel-ingestion/src/main/resources/db"
         image-name: "excel-ingestion-db"
+
+  - name: "builds/health-campaign-services/utilities/airflow-trigger-service"
+    build:
+      - work-dir: "utilities/airflow-trigger-service/api"
+        image-name: "airflow-trigger-service"
+        dockerfile: "utilities/airflow-trigger-service/api/Dockerfile"
