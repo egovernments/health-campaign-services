@@ -1,5 +1,6 @@
 package org.egov.transformer.consumer;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
@@ -31,7 +32,11 @@ public class BillDetailConsumer {
     public void consumeBillDetails(ConsumerRecord<String, Object> payload,
                                      @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         try {
-            BillDetail billDetail = objectMapper.readValue((String) payload.value(), BillDetail.class);
+            JsonNode root = objectMapper.readTree((String) payload.value());
+            BillDetail billDetail = objectMapper.treeToValue(
+                    root.get("billDetail"),
+                    BillDetail.class
+            );
             billTransformationService.transform(billDetail);
         } catch (Exception exception) {
             log.error("TRANSFORMER error in bill detail consumer {}", ExceptionUtils.getStackTrace(exception));
