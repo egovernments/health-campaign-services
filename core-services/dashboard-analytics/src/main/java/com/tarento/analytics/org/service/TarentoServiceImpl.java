@@ -195,7 +195,7 @@ public class TarentoServiceImpl implements ClientService {
 						: "";
 				// rawDocuments queries carry full ES body (size/_source/query) in aggrQuery,
 				// so use the "raw" builder to preserve that and just merge filters.
-				ObjectNode objectNode = "rawDocuments".equalsIgnoreCase(transformData)
+				ObjectNode objectNode = !transformData.isEmpty()
 						? queryService.getChartConfigurationQueryRaw(request, query, indexName, interval)
 						: queryService.getChartConfigurationQuery(request, query, indexName, interval);
 				try {
