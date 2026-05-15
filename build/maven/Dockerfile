@@ -9,7 +9,7 @@ COPY build/maven/start.sh ./start.sh
 COPY ${WORK_DIR}/src           ./src
 
 # Build the app (skip tests for speed)
-RUN mvn -B -f pom.xml package -DskipTests
+RUN mvn -B -f pom.xml package
 
 
 # ─────────────── RUNTIME STAGE ───────────────
