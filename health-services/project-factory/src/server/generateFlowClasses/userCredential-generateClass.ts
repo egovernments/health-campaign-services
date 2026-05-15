@@ -95,15 +95,12 @@ export class TemplateClass {
             return localizedData;
         }));
 
-        // Fetch failed/invalid rows for errors worksheet
-        const failedUsers = await getRelatedDataWithCampaign("user", campaignDetails?.campaignNumber, tenantId, dataRowStatuses.failed);
-
-        // Get all users and filter for those with INVALID status in data
-        const allUsers = await getRelatedDataWithCampaign("user", campaignDetails?.campaignNumber, tenantId);
-        const invalidUsers = allUsers.filter((u: any) => u?.data?.[campaignDataRowFields.status] === sheetDataRowStatuses.INVALID);
-
-        // Combine failed and invalid rows for errors worksheet
-        const erroredUsers = [...failedUsers, ...invalidUsers];
+        // Fetch failed/invalid rows for errors worksheet.
+        // All error rows (both sheet-INVALID and HRMS-FAILED) are stored in the DB
+        // with status=failed, so a single query on that status is sufficient.
+        // The separate allUsers+filter approach was producing duplicate entries for
+        // rows tagged {status:"failed", data["#status#"]:"INVALID"}.
+        const erroredUsers = await getRelatedDataWithCampaign("user", campaignDetails?.campaignNumber, tenantId, dataRowStatuses.failed);
 
         // Build errors worksheet data (same columns as main sheet + #status# + #errorDetails#)
         const errorUserData = erroredUsers.map((u: any) => {
@@ -120,7 +117,7 @@ export class TemplateClass {
             }
 
             // Add status and error details
-            errorData[campaignDataRowFields.status] = rawData[campaignDataRowFields.status] || sheetDataRowStatuses.INVALID;
+            errorData[campaignDataRowFields.status] = rawData[campaignDataRowFields.status] || sheetDataRowStatuses.FAILED;
             errorData[campaignDataRowFields.errorDetails] = rawData[campaignDataRowFields.errorDetails] || "";
 
             return errorData;

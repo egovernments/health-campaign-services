@@ -185,8 +185,15 @@ export async function handleProcessingResult(messageObject: any) {
             return;
         }
 
-        // Clean up failed/invalid rows from prior attempts on same-campaign re-upload (user sheet only)
-        if (messageObject.type === 'user-microplan-ingestion') {
+        // Clean up failed/invalid user rows from prior attempts on same-campaign re-upload.
+        // Use a positive check: only run for known user-data upload types ('user-microplan-ingestion'
+        // or the unified console template whose type name contains 'unified').
+        // Attendance register uploads (type contains 'attendance') must never trigger this cleanup
+        // even when they arrive with referenceType='campaign' (legacy path in the AR processor).
+        const messageType = String(messageObject.type || '').toLowerCase();
+        const isUserOrUnifiedUpload =
+            messageType.includes('user') || messageType.includes('unified');
+        if (isUserOrUnifiedUpload) {
             try {
                 await deleteCampaignDataFailedAndInvalid(campaignDetails.campaignNumber, 'user', messageObject.tenantId);
             } catch (cleanupError) {
@@ -1471,7 +1478,10 @@ async function processUsersSimple(
     tenantId: string
 ): Promise<number> {
     const PHONE_KEY = 'HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER';
-    const BOUNDARY_KEY = 'HCM_ADMIN_CONSOLE_BOUNDARY_CODE';
+    // Use the mandatory boundary key — this is what validation, transforms, and
+    // downstream mapping logic all read.  The non-mandatory _BOUNDARY_CODE key
+    // is an alias that only exists on some sheet layouts.
+    const BOUNDARY_KEY = 'HCM_ADMIN_CONSOLE_BOUNDARY_CODE_MANDATORY';
     const USAGE_KEY = 'HCM_ADMIN_CONSOLE_USER_USAGE';
     
     // Step 1: Get existing users from current campaign
@@ -1519,10 +1529,30 @@ async function processUsersSimple(
 
         if (currentUser) {
             if (isInvalidFromSheet) {
-                // Sheet validation failed for an already-created user — don't
-                // overwrite their boundary/usage with values that just failed
-                // validation. Leave their data and existing mappings untouched.
-                logger.info(`Sheet-invalid row for already-created user ${phoneNumber}; preserving existing record and mappings`);
+                if (currentUser.status === dataRowStatuses.completed) {
+                    // This user already exists in HRMS.  A later re-upload that
+                    // has a validation error on their row must NOT overwrite a
+                    // working user's boundary/usage or discard their credentials.
+                    logger.info(`Sheet-invalid row for completed user ${phoneNumber}; preserving existing record and mappings`);
+                    return;
+                }
+                // The user is failed or pending and the new sheet row is invalid.
+                // Tag their DB record as INVALID so the HRMS dispatch filter
+                // (data["#status#"] !== INVALID) blocks any retry attempt.
+                const updatedRecord = {
+                    ...currentUser,
+                    status: dataRowStatuses.failed,
+                    data: {
+                        ...currentUser.data,
+                        [campaignDataRowFields.status]: sheetDataRowStatuses.INVALID,
+                        [campaignDataRowFields.errorDetails]:
+                            rowJson[campaignDataRowFields.errorDetails] ||
+                            currentUser.data[campaignDataRowFields.errorDetails] ||
+                            "",
+                    },
+                };
+                usersToUpdate.push(updatedRecord);
+                logger.info(`Sheet-invalid row for failed/pending user ${phoneNumber}; updated to INVALID to block HRMS retry`);
                 return;
             }
             // User exists in current campaign - check if boundary and usage need to be updated

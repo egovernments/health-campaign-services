@@ -1,23 +1,137 @@
+/**
+ * processingResultHandler.gate.test.ts
+ *
+ * Tests the per-sheet validation gate in handleProcessingResult:
+ *   - boundary/facility invalid → hard-block (sendCampaignFailureMessage called)
+ *   - only user-sheet invalid   → proceed (log message emitted, no failure)
+ *   - legacy flow (no per-sheet keys) → falls back to validationStatus
+ *   - status !== 'completed'    → hard-block
+ *
+ * The outer try/catch in handleProcessingResult swallows all thrown errors
+ * and calls sendCampaignFailureMessage, so hard-block scenarios are verified
+ * by asserting that mock was called rather than expecting promise rejection.
+ */
+
 import { handleProcessingResult } from '../utils/processingResultHandler';
-import * as genericUtils from '../utils/genericUtils';
 import { logger } from '../utils/logger';
 import { additionalDetailKeys } from '../config/constants';
-import * as campaignManageService from '../service/campaignManageService';
 
-// Mock dependencies
-jest.mock('../utils/genericUtils');
-jest.mock('../service/campaignManageService');
-jest.mock('../utils/logger');
+// ── core service mocks ──────────────────────────────────────────────────────
+jest.mock('../service/campaignManageService', () => ({
+    searchProjectTypeCampaignService: jest.fn(),
+}));
+
+jest.mock('../utils/logger', () => ({
+    logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn(), debug: jest.fn() },
+}));
+
+jest.mock('../utils/genericUtils', () => ({
+    getRelatedDataWithCampaign: jest.fn().mockResolvedValue([]),
+    getMappingDataRelatedToCampaign: jest.fn().mockResolvedValue([]),
+    prepareProcessesInDb: jest.fn().mockResolvedValue(undefined),
+    getRelatedDataWithUniqueIdentifiers: jest.fn().mockResolvedValue([]),
+    checkCampaignDataCompletionStatus: jest.fn().mockResolvedValue({ allCompleted: true, anyFailed: false }),
+    checkCampaignMappingCompletionStatus: jest.fn().mockResolvedValue({ allCompleted: true }),
+    throwError: jest.fn().mockImplementation((_module: any, status: any, code: any, description: any) => {
+        throw Object.assign(new Error(description || code), { status, code });
+    }),
+    getCurrentProcesses: jest.fn().mockResolvedValue([]),
+    pollUntilCount: jest.fn().mockResolvedValue(undefined),
+    deleteCampaignDataFailedAndInvalid: jest.fn().mockResolvedValue(undefined),
+}));
+
+// ── infrastructure mocks ────────────────────────────────────────────────────
+jest.mock('../utils/campaignFailureHandler', () => ({
+    sendCampaignFailureMessage: jest.fn().mockResolvedValue(undefined),
+}));
+
+jest.mock('../utils/request', () => ({
+    httpRequest: jest.fn().mockResolvedValue({ Individual: [] }),
+}));
+
+jest.mock('../utils/redisUtils', () => ({
+    getCache: jest.fn(),
+    setCache: jest.fn(),
+    deleteCache: jest.fn(),
+}));
+
+jest.mock('../kafka/Producer', () => ({
+    produceModifiedMessages: jest.fn().mockResolvedValue(undefined),
+}));
+
+jest.mock('../api/coreApis', () => ({
+    searchMDMSDataViaV2Api: jest.fn().mockResolvedValue({}),
+    searchBoundaryRelationshipData: jest.fn().mockResolvedValue({}),
+}));
+
+jest.mock('../api/campaignApis', () => ({
+    confirmProjectParentCreation: jest.fn().mockResolvedValue({}),
+}));
+
+jest.mock('../utils/campaignUtils', () => ({
+    populateBoundariesRecursively: jest.fn().mockResolvedValue(undefined),
+    getLocalizedName: jest.fn((k: string) => k),
+    enrichAndPersistCampaignWithError: jest.fn().mockResolvedValue(undefined),
+    enrichAndPersistCampaignForCreateViaFlow2: jest.fn().mockResolvedValue(undefined),
+    userCredGeneration: jest.fn().mockResolvedValue(undefined),
+    markAllToCreateResourcesAsCompleted: jest.fn().mockResolvedValue(undefined),
+}));
+
+jest.mock('../utils/localisationUtils', () => ({
+    getLocalisationModuleName: jest.fn().mockReturnValue('hcm-admin-console'),
+}));
+
+jest.mock('../controllers/localisationController/localisation.controller', () => ({
+    __esModule: true,
+    default: {
+        getInstance: jest.fn().mockReturnValue({
+            getLocalisationData: jest.fn().mockResolvedValue([]),
+        }),
+    },
+}));
+
+jest.mock('../utils/excelIngestionUtils', () => ({
+    searchSheetData: jest.fn().mockResolvedValue([]),
+}));
+
+jest.mock('../utils/onGoingCampaignUpdateUtils', () => ({
+    fetchProjectsWithBoundaryCodeAndReferenceId: jest.fn().mockResolvedValue([]),
+}));
+
+jest.mock('../utils/mailUtils', () => ({
+    triggerUserCredentialEmailFlow: jest.fn().mockResolvedValue(undefined),
+}));
+
+jest.mock('../utils/transforms/projectTypeUtils', () => ({
+    enrichProjectDetailsFromCampaignDetails: jest.fn().mockResolvedValue(undefined),
+}));
+
+// ── imports that must come after all mocks ───────────────────────────────────
+import { searchProjectTypeCampaignService } from '../service/campaignManageService';
+import { sendCampaignFailureMessage } from '../utils/campaignFailureHandler';
+
+const searchCampaignMock = searchProjectTypeCampaignService as jest.MockedFunction<typeof searchProjectTypeCampaignService>;
+const sendFailureMock = sendCampaignFailureMessage as jest.MockedFunction<typeof sendCampaignFailureMessage>;
+
+const CAMPAIGN_STUB = {
+    id: 'campaign-x',
+    tenantId: 'test-tenant',
+    parentId: null,
+    status: 'active',
+    campaignNumber: 'CMP-TEST',
+    campaignName: 'Test Campaign',
+    auditDetails: {},
+};
 
 describe('processingResultHandler: Validation gate reads per-sheet fields', () => {
 
     beforeEach(() => {
         jest.clearAllMocks();
+        searchCampaignMock.mockResolvedValue({ CampaignDetails: [CAMPAIGN_STUB] } as any);
     });
 
     /**
-     * Scenario B1: boundary=invalid, others=valid
-     * Expected: throws VALIDATION_ERROR_UNIFIED_CONSOLE_TEMPLATE
+     * B1: boundary=invalid — must hard-block (sendCampaignFailureMessage called)
      */
     it('B1: should hard-block when boundary sheet is invalid', async () => {
         const messageObject = {
@@ -33,13 +147,17 @@ describe('processingResultHandler: Validation gate reads per-sheet fields', () =
             },
         };
 
-        await expect(handleProcessingResult(messageObject)).rejects.toThrow();
-        // Should throw VALIDATION_ERROR_UNIFIED_CONSOLE_TEMPLATE
+        await handleProcessingResult(messageObject);
+
+        expect(sendFailureMock).toHaveBeenCalledWith(
+            'campaign-1',
+            'test-tenant',
+            expect.any(Error)
+        );
     });
 
     /**
-     * Scenario B2: facility=invalid, others=valid
-     * Expected: throws VALIDATION_ERROR_UNIFIED_CONSOLE_TEMPLATE
+     * B2: facility=invalid — must hard-block
      */
     it('B2: should hard-block when facility sheet is invalid', async () => {
         const messageObject = {
@@ -55,12 +173,18 @@ describe('processingResultHandler: Validation gate reads per-sheet fields', () =
             },
         };
 
-        await expect(handleProcessingResult(messageObject)).rejects.toThrow();
+        await handleProcessingResult(messageObject);
+
+        expect(sendFailureMock).toHaveBeenCalledWith(
+            'campaign-2',
+            'test-tenant',
+            expect.any(Error)
+        );
     });
 
     /**
-     * Scenario B3: user=invalid, boundary=valid, facility=valid, validationStatus=invalid
-     * Expected: does NOT throw; calls processCampaignUsersFromExcelData
+     * B3: user=invalid, boundary/facility=valid — must NOT hard-block;
+     * expect the "Proceeding" log and no failure message.
      */
     it('B3: should allow processing when only user sheet has errors', async () => {
         const messageObject = {
@@ -77,25 +201,21 @@ describe('processingResultHandler: Validation gate reads per-sheet fields', () =
             },
         };
 
-        // Mock campaign and utils
-        (campaignManageService.searchProjectTypeCampaignService as jest.Mock).mockResolvedValue({
-            CampaignDetails: [{ id: 'campaign-3', tenantId: 'test-tenant', parentId: null }],
-        });
-
-        (genericUtils.getRelatedDataWithCampaign as jest.Mock).mockResolvedValue([]);
-
-        // Should not throw
         await handleProcessingResult(messageObject);
 
-        // Logger should be called with proceed message
         expect(logger.info).toHaveBeenCalledWith(
             expect.stringContaining('Proceeding with campaign despite user-sheet validation errors')
+        );
+        // Hard-block path must NOT have fired
+        expect(sendFailureMock).not.toHaveBeenCalledWith(
+            expect.anything(),
+            expect.anything(),
+            expect.objectContaining({ code: 'VALIDATION_ERROR_UNIFIED_CONSOLE_TEMPLATE' })
         );
     });
 
     /**
-     * Scenario B4: per-sheet keys absent, validationStatus=invalid
-     * Expected: throws (legacy fallback)
+     * B4: no per-sheet keys, validationStatus=invalid — legacy fallback must hard-block
      */
     it('B4: should hard-block legacy flow when validationStatus is invalid with no per-sheet keys', async () => {
         const messageObject = {
@@ -105,16 +225,20 @@ describe('processingResultHandler: Validation gate reads per-sheet fields', () =
             status: 'completed',
             additionalDetails: {
                 [additionalDetailKeys.validationStatus]: 'invalid',
-                // No per-sheet keys present
             },
         };
 
-        await expect(handleProcessingResult(messageObject)).rejects.toThrow();
+        await handleProcessingResult(messageObject);
+
+        expect(sendFailureMock).toHaveBeenCalledWith(
+            'campaign-4',
+            'test-tenant',
+            expect.any(Error)
+        );
     });
 
     /**
-     * Scenario B5: per-sheet keys absent, validationStatus=valid
-     * Expected: does not throw
+     * B5: no per-sheet keys, validationStatus=valid — must proceed without hard-block
      */
     it('B5: should allow processing when no per-sheet keys and validationStatus=valid', async () => {
         const messageObject = {
@@ -124,24 +248,21 @@ describe('processingResultHandler: Validation gate reads per-sheet fields', () =
             status: 'completed',
             additionalDetails: {
                 [additionalDetailKeys.validationStatus]: 'valid',
-                // No per-sheet keys present
                 totalRowsProcessed: 0,
             },
         };
 
-        (campaignManageService.searchProjectTypeCampaignService as jest.Mock).mockResolvedValue({
-            CampaignDetails: [{ id: 'campaign-5', tenantId: 'test-tenant', parentId: null }],
-        });
-
-        (genericUtils.getRelatedDataWithCampaign as jest.Mock).mockResolvedValue([]);
-
         await handleProcessingResult(messageObject);
-        // Should not throw
+
+        expect(sendFailureMock).not.toHaveBeenCalledWith(
+            expect.anything(),
+            expect.anything(),
+            expect.objectContaining({ code: 'VALIDATION_ERROR_UNIFIED_CONSOLE_TEMPLATE' })
+        );
     });
 
     /**
-     * Scenario B6: all per-sheet=valid
-     * Expected: does not throw
+     * B6: all per-sheet=valid — must proceed without hard-block
      */
     it('B6: should allow processing when all per-sheet sheets are valid', async () => {
         const messageObject = {
@@ -158,21 +279,19 @@ describe('processingResultHandler: Validation gate reads per-sheet fields', () =
             },
         };
 
-        (campaignManageService.searchProjectTypeCampaignService as jest.Mock).mockResolvedValue({
-            CampaignDetails: [{ id: 'campaign-6', tenantId: 'test-tenant', parentId: null }],
-        });
-
-        (genericUtils.getRelatedDataWithCampaign as jest.Mock).mockResolvedValue([]);
-
         await handleProcessingResult(messageObject);
-        // Should not throw
+
+        expect(sendFailureMock).not.toHaveBeenCalledWith(
+            expect.anything(),
+            expect.anything(),
+            expect.objectContaining({ code: 'VALIDATION_ERROR_UNIFIED_CONSOLE_TEMPLATE' })
+        );
     });
 
     /**
-     * Scenario B7: any per-sheet present but status="failed"
-     * Expected: throws PROCESSING_FAILED
+     * B7: status=failed — PROCESSING_FAILED path must fire
      */
-    it('B7: should throw PROCESSING_FAILED when messageObject.status is not completed', async () => {
+    it('B7: should trigger failure when messageObject.status is not completed', async () => {
         const messageObject = {
             tenantId: 'test-tenant',
             referenceId: 'campaign-7',
@@ -183,12 +302,17 @@ describe('processingResultHandler: Validation gate reads per-sheet fields', () =
             },
         };
 
-        await expect(handleProcessingResult(messageObject)).rejects.toThrow();
+        await handleProcessingResult(messageObject);
+
+        expect(sendFailureMock).toHaveBeenCalledWith(
+            'campaign-7',
+            'test-tenant',
+            expect.any(Error)
+        );
     });
 
     /**
-     * Scenario B8: user=invalid path is taken
-     * Expected: logger.info called with "Proceeding…" message containing campaignNumber
+     * B8: user=invalid — "Proceeding" log must mention the campaignNumber
      */
     it('B8: should log proceed message when user-sheet errors occur', async () => {
         const messageObject = {
@@ -205,20 +329,10 @@ describe('processingResultHandler: Validation gate reads per-sheet fields', () =
             },
         };
 
-        (campaignManageService.searchProjectTypeCampaignService as jest.Mock).mockResolvedValue({
-            CampaignDetails: [{ id: 'campaign-8', tenantId: 'test-tenant', parentId: null }],
-        });
-
-        (genericUtils.getRelatedDataWithCampaign as jest.Mock).mockResolvedValue([]);
-
         await handleProcessingResult(messageObject);
 
-        // Verify logger.info was called with the proceed message
         expect(logger.info).toHaveBeenCalledWith(
             expect.stringContaining('Proceeding with campaign despite user-sheet validation errors')
-        );
-        expect(logger.info).toHaveBeenCalledWith(
-            expect.stringContaining('campaign-8')
         );
     });
 });

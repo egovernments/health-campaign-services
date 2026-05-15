@@ -18,6 +18,26 @@ const kafka = new Kafka({
     logLevel: logLevel.NOTHING,
 });
 
+async function ensureTopicsExist(topics: string[]) {
+    const admin = kafka.admin();
+    try {
+        await admin.connect();
+        const existing = new Set(await admin.listTopics());
+        const missing = topics.filter(t => !existing.has(t));
+        if (missing.length > 0) {
+            await admin.createTopics({
+                topics: missing.map(topic => ({ topic, numPartitions: 1, replicationFactor: 1 })),
+                waitForLeaders: true,
+            });
+            logger.info(`KAFKA :: ADMIN :: Created missing topics: ${missing.join(', ')}`);
+        }
+    } catch (err) {
+        logger.warn(`KAFKA :: ADMIN :: Could not ensure topics exist: ${err}`);
+    } finally {
+        await admin.disconnect();
+    }
+}
+
 const groupId = 'project-factory';
 
 const consumer = kafka.consumer({ groupId });
@@ -78,6 +98,8 @@ export async function listener() {
             ...Array.from(topicHandlerMap.keys()),
             config.kafka.KAFKA_TEST_TOPIC,
         ];
+
+        await ensureTopicsExist(baseTopics);
 
         await consumer.connect();
         for (const baseTopic of baseTopics) {

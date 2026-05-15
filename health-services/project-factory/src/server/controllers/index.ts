@@ -5,7 +5,10 @@ import sheetManageController from "./sheetManage/sheetManage.controller";
 import CryptoController from "./cryptoController/crypto.controller";
 import ResourceDetailsController from "./resourceDetails/resourceDetails.controller";
 
-listener();
+listener().catch((err: unknown) => {
+    console.error(`[FATAL] Kafka listener failed to start: ${err}`);
+    process.exit(1);
+});
 
 const controllers = [
   new campaignManageController(),

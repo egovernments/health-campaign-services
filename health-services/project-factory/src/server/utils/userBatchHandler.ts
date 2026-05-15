@@ -78,9 +78,31 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
             return;
         }
 
+        // Defence-in-depth: even though the dispatcher filters out sheet-invalid
+        // rows before publishing, re-check here so HRMS is never called for a
+        // row tagged INVALID by excel-ingestion regardless of how the batch was
+        // produced.
+        const sheetInvalidIdentifiers = uniqueIdentifiers.filter(
+            id => userData[id]?.data?.[campaignDataRowFields.status] === sheetDataRowStatuses.INVALID
+        );
+        if (sheetInvalidIdentifiers.length > 0) {
+            logger.warn(
+                `Skipping HRMS create for ${sheetInvalidIdentifiers.length} sheet-invalid row(s) in batch ${batchNumber}/${totalBatches}: ${JSON.stringify(sheetInvalidIdentifiers)}`
+            );
+            sheetInvalidIdentifiers.forEach(id => {
+                const record = userData[id];
+                if (record) {
+                    record.status = dataRowStatuses.failed;
+                }
+            });
+        }
+        const eligibleIdentifiers = uniqueIdentifiers.filter(
+            id => userData[id]?.data?.[campaignDataRowFields.status] !== sheetDataRowStatuses.INVALID
+        );
+
         // Check which users already exist in HRMS — skip those to stay idempotent on retry
-        const alreadyExistingMap = await fetchExistingUsersByPhone(uniqueIdentifiers, tenantId, messageObject.requestInfo);
-        const phoneNumbersNeedingCreation = uniqueIdentifiers.filter(p => !alreadyExistingMap[String(p)]);
+        const alreadyExistingMap = await fetchExistingUsersByPhone(eligibleIdentifiers, tenantId, messageObject.requestInfo);
+        const phoneNumbersNeedingCreation = eligibleIdentifiers.filter(p => !alreadyExistingMap[String(p)]);
 
         // Mark already-existing users as completed immediately without calling HRMS
         uniqueIdentifiers.forEach(uniqueIdentifier => {
@@ -196,8 +218,13 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
 
                 logger.info(`User created: ${transformedUser?.user?.userName} with service UUID: ${serviceUuid}`);
             } else {
-                // Failure - mark user as failed
+                // HRMS batch returned without a serviceUuid for this user — treat
+                // as an HRMS-side failure so the errors worksheet shows FAILED (not
+                // INVALID) and the retry gate allows re-creation on the next upload.
                 campaignRecord.status = dataRowStatuses.failed;
+                campaignRecord.data[campaignDataRowFields.status] = sheetDataRowStatuses.FAILED;
+                campaignRecord.data[campaignDataRowFields.errorDetails] =
+                    "HRMS did not return a service UUID for this user";
                 updatedUsers.push(campaignRecord);
                 failureCount++;
 
@@ -491,7 +518,11 @@ function extractHrmsErrorMessage(error: any): string {
 function markWorkerRecordsFailed(records: CampaignRecord[], errMsg: string): number {
     for (const record of records) {
         record.status = dataRowStatuses.failed;
-        record.data["#status#"] = sheetDataRowStatuses.INVALID;
+        // Worker-registry failures are an HRMS-side error, not a sheet-validation
+        // error — tag as FAILED so the errors worksheet shows the correct status
+        // and so the HRMS retry gate (data["#status#"] !== INVALID) doesn't block
+        // re-creation on a future upload.
+        record.data["#status#"] = sheetDataRowStatuses.FAILED;
         record.data["#errorDetails#"] = errMsg;
     }
     return records.length;
@@ -521,7 +552,7 @@ async function fetchExistingUsersByPhone(
             );
             for (const individual of response?.Individual ?? []) {
                 const phone = String(individual?.mobileNumber ?? '');
-                const serviceUuid = individual?.userServiceUuid ?? individual?.userDetails?.userServiceUuid ?? '';
+                const serviceUuid = individual?.userUuid ?? '';
                 const individualId = individual?.id ?? '';
                 if (phone && serviceUuid) {
                     result[phone] = { serviceUuid, individualId };

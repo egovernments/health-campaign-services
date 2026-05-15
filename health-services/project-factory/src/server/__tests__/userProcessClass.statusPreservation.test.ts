@@ -161,7 +161,7 @@ describe('TemplateClass.process — credential sheet preserves INVALID/FAILED di
         expect(byPhone['+91-3']['Password']).toBe('decrypted-enc-pwd');
     });
 
-    it('falls back to #status#=INVALID for legacy failed rows that have no discriminator', async () => {
+    it('falls back to #status#=FAILED for legacy failed rows that have no discriminator', async () => {
         const legacyFailedRow = {
             status: dataRowStatuses.failed,
             data: { 'HCM_ADMIN_CONSOLE_USER_PHONE_NUMBER': '+91-9' },
@@ -176,6 +176,6 @@ describe('TemplateClass.process — credential sheet preserves INVALID/FAILED di
 
         const sheetMap = await TemplateClass.process(resourceDetails, wholeSheetData, localizationMap, {});
         const data = (sheetMap as any)['HCM_ADMIN_CONSOLE_USER_LIST'].data as any[];
-        expect(data[0]['#status#']).toBe(sheetDataRowStatuses.INVALID);
+        expect(data[0]['#status#']).toBe(sheetDataRowStatuses.FAILED);
     });
 });

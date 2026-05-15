@@ -65,9 +65,9 @@ export class TemplateClass {
                 // ingest/HRMS path:
                 //   sheet-validation invalid → INVALID
                 //   HRMS-create failed       → FAILED
-                // Default to INVALID for legacy rows that don't carry a tag.
+                // Default to FAILED for legacy rows that don't carry a tag (HRMS-level failures).
                 if (!data["#status#"]) {
-                    data["#status#"] = sheetDataRowStatuses.INVALID;
+                    data["#status#"] = sheetDataRowStatuses.FAILED;
                 }
                 return data;
             }
@@ -493,7 +493,9 @@ export class TemplateClass {
 
         const allCurrentUsers = await getRelatedDataWithCampaign("user", campaignNumber, resourceDetails?.tenantId);
         const usersToCreate = allCurrentUsers?.filter(
-            (user: any) => user?.status === dataRowStatuses.pending || user?.status === dataRowStatuses.failed
+            (user: any) =>
+                (user?.status === dataRowStatuses.pending || user?.status === dataRowStatuses.failed) &&
+                user?.data?.["#status#"] !== sheetDataRowStatuses.INVALID
         );
 
         logger.info(`${usersToCreate?.length} users to create`);
@@ -607,7 +609,7 @@ export class TemplateClass {
                                     const records = individualIdToRecords.get(w.individualId) || [];
                                     for (const record of records) {
                                         record.status = dataRowStatuses.failed;
-                                        record.data["#status#"] = sheetDataRowStatuses.INVALID;
+                                        record.data["#status#"] = sheetDataRowStatuses.FAILED;
                                         record.data["#errorDetails#"] = errMsg;
                                     }
                                 }
@@ -623,7 +625,7 @@ export class TemplateClass {
                             const records = individualIdToRecords.get(w.individualId) || [];
                             for (const record of records) {
                                 record.status = dataRowStatuses.failed;
-                                record.data["#status#"] = sheetDataRowStatuses.INVALID;
+                                record.data["#status#"] = sheetDataRowStatuses.FAILED;
                                 record.data["#errorDetails#"] = errMsg;
                             }
                         }
@@ -659,7 +661,7 @@ export class TemplateClass {
         const failedUsers = usersToCreate.filter((u: any) => batchMobileSet.has(String(u?.data?.[phoneKey])));
         failedUsers.forEach(u => {
             u.status = dataRowStatuses.failed;
-            u.data["#status#"] = sheetDataRowStatuses.INVALID;
+            u.data["#status#"] = sheetDataRowStatuses.FAILED;
             if (errMsg) u.data["#errorDetails#"] = errMsg;
         });
         logger.warn(`${failedUsers.length} users failed in batch`);
