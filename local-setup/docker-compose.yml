@@ -1905,6 +1905,7 @@ services:
       EGOV_LOCALIZATION_HOST: http://egov-localization:8096/
       EGOV_HEALTH_INDIVIDUAL_HOST: http://health-individual:8080/
       EGOV_PLAN_SERVICE_HOST: http://plan-service:8080/
+      EXCEL_INGESTION_HOST: http://excel-ingestion:8080/
       EGOV_CENSUS_HOST: http://census-service:8080/
       EGOV_AUDIT_HOST: http://egov-persister:8091/
       EGOV_HOST: http://kong:8000/
@@ -2131,6 +2132,93 @@ services:
       resources:
         limits:
           memory: 512M
+          cpus: '0.5'
+    networks:
+      - hcm-network
+
+  # ── Excel ingestion (post-create campaign processing) ────────────────────
+  excel-ingestion-db:
+    image: egovio/excel-ingestion-db:master-b5b81ec
+    container_name: hcm-excel-ingestion-db
+    depends_on:
+      postgres-db:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:postgresql://postgres-db:5432/egov
+      SCHEMA_NAME: health
+      SCHEMA_TABLE: excel_ingestion_flyway_history
+      FLYWAY_USER: egov
+      FLYWAY_PASSWORD: ${POSTGRES_PASSWORD:-egov123}
+      FLYWAY_LOCATIONS: filesystem:/flyway/sql
+      FLYWAY_BASELINE_ON_MIGRATE: 'true'
+      FLYWAY_BASELINE_VERSION: '0'
+      FLYWAY_OUT_OF_ORDER: 'true'
+    restart: "no"
+    networks:
+      - hcm-network
+
+  excel-ingestion:
+    image: egovio/excel-ingestion:master-b5b81ec
+    container_name: hcm-excel-ingestion
+    depends_on:
+      pgbouncer:
+        condition: service_healthy
+      redpanda:
+        condition: service_healthy
+    environment:
+      SERVER_PORT: 8080
+      SERVER_SERVLET_CONTEXT_PATH: /excel-ingestion
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/egov
+      SPRING_DATASOURCE_USERNAME: egov
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-egov123}
+      SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.postgresql.Driver
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT: org.hibernate.dialect.PostgreSQLDialect
+      DB_HOST: postgres-db
+      DB_PORT: 5432
+      DB_NAME: egov
+      DB_SCHEMA: health
+      FLYWAY_ENABLED: 'false'
+      SPRING_FLYWAY_ENABLED: 'false'
+      KAFKA_CONFIG_BOOTSTRAP_SERVER_CONFIG: redpanda:9092
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: redpanda:9092
+      SPRING_KAFKA_PRODUCER_KEY_SERIALIZER: org.apache.kafka.common.serialization.StringSerializer
+      SPRING_KAFKA_PRODUCER_VALUE_SERIALIZER: org.springframework.kafka.support.serializer.JsonSerializer
+      EGOV_BOUNDARY_HOST: http://boundary-service:8081/
+      EGOV_FILESTORE_HOST: http://egov-filestore:8083/
+      EGOV_CAMPAIGN_HOST: http://project-factory:8080/
+      EGOV_HEALTH_INDIVIDUAL_HOST: http://health-individual:8080/
+      EGOV_FACILITY_HOST: http://facility:8080/
+      EGOV_LOCALIZATION_HOST: http://egov-localization:8096/
+      EGOV_MDMS_HOST: http://egov-mdms-service:8094/
+      EGOV_CAMPAIGN_DATA_SEARCH_PATH: project-factory/v1/data/campaign/_search
+      EGOV_CAMPAIGN_CRYPTO_BULK_DECRYPT_PATH: project-factory/v1/crypto/_bulkDecrypt
+      EGOV_HEALTH_INDIVIDUAL_SEARCH_PATH: health-individual/v1/_search
+      EGOV_HIERARCHY_SEARCH_URL: boundary-service/boundary-hierarchy-definition/_search
+      EGOV_BOUNDARY_RELATIONSHIP_SEARCH_URL: boundary-service/boundary-relationships/_search
+      EGOV_FACILITY_SEARCH_PATH: facility/v1/_search
+      EGOV_FILESTORE_UPLOAD_ENDPOINT: filestore/v1/files
+      EGOV_FILESTORE_URL_ENDPOINT: filestore/v1/files/url
+      EGOV_LOCALIZATION_SEARCH_PATH: localization/messages/v1/_search
+      EGOV_MDMS_SEARCH_PATH: egov-mdms-service/v2/_search
+      DEFAULT_LOCALE: en_IN
+      MANAGEMENT_HEALTH_REDIS_ENABLED: 'false'
+      MANAGEMENT_ENDPOINTS_WEB_BASE_PATH: /
+      OTEL_TRACES_EXPORTER: none
+      APP_TIMEZONE: Africa/Lagos
+      JAVA_OPTS: -Xmx512m -Xms128m
+    ports:
+      - "28118:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/excel-ingestion/health >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 8
+      start_period: 120s
+    deploy:
+      resources:
+        limits:
+          memory: 768M
           cpus: '0.5'
     networks:
       - hcm-network

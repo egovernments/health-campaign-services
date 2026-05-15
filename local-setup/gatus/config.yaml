@@ -272,3 +272,10 @@ endpoints:
     interval: 30s
     conditions:
       - "[STATUS] == 200"
+
+  - name: Excel Ingestion
+    group: HCM Services
+    url: "http://excel-ingestion:8080/excel-ingestion/health"
+    interval: 30s
+    conditions:
+      - "[STATUS] == 200"

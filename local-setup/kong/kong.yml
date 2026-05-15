@@ -291,3 +291,10 @@ services:
     - name: resource-generator-route
       paths: [/resource-generator]
       strip_path: false
+
+  - name: excel-ingestion-service
+    url: http://excel-ingestion:8080
+    routes:
+    - name: excel-ingestion-route
+      paths: [/excel-ingestion]
+      strip_path: false
