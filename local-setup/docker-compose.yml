@@ -992,6 +992,11 @@ services:
       HOUSEHOLD.MEMBER.CONSUMER.BULK.CREATE.TOPIC: household-member-consumer-bulk-create-topic
       HOUSEHOLD.MEMBER.CONSUMER.BULK.UPDATE.TOPIC: household-member-consumer-bulk-update-topic
       HOUSEHOLD.MEMBER.CONSUMER.BULK.DELETE.TOPIC: household-member-consumer-bulk-delete-topic
+      EGOV_INDIVIDUAL_HOST: http://health-individual:8080
+      EGOV_INDIVIDUAL_SEARCH_URL: /health-individual/v1/_search
+      EGOV_BOUNDARY_HOST: http://boundary-service:8081
+      EGOV_BOUNDARY_SEARCH_URL: /boundary-service/boundary/_search
+      EGOV_BOUNDARY_HIERARCHY_NAME: ADMIN
       OTEL_TRACES_EXPORTER: none
       JAVA_TOOL_OPTIONS: -Xms128m -Xmx384m
     ports:
@@ -1059,6 +1064,9 @@ services:
       FACILITY.CONSUMER.BULK.CREATE.TOPIC: facility-consumer-bulk-create-topic
       FACILITY.CONSUMER.BULK.UPDATE.TOPIC: facility-consumer-bulk-update-topic
       FACILITY.CONSUMER.BULK.DELETE.TOPIC: facility-consumer-bulk-delete-topic
+      EGOV_BOUNDARY_HOST: http://boundary-service:8081
+      EGOV_BOUNDARY_SEARCH_URL: /boundary-service/boundary/_search
+      EGOV_BOUNDARY_HIERARCHY_NAME: ADMIN
       OTEL_TRACES_EXPORTER: none
       JAVA_TOOL_OPTIONS: -Xms128m -Xmx384m
     ports:
@@ -1228,6 +1236,7 @@ services:
       EGOV_SEARCH_HOUSEHOLD_URL: /household/v1/_search
       EGOV_INDIVIDUAL_HOST: http://health-individual:8080
       EGOV_SEARCH_INDIVIDUAL_URL: /health-individual/v1/_search
+      EGOV_USER_ID_VALIDATOR: egov-user
       EGOV_PRODUCT_HOST: http://product:8080
       EGOV_SEARCH_PRODUCT_VARIANT_URL: /product/variant/v1/_search
       EGOV_FACILITY_HOST: http://facility:8080
@@ -1235,8 +1244,10 @@ services:
       STATE_LEVEL_TENANT_ID: mz
       SEARCH_API_LIMIT: "1000"
       PROJECT.DOCUMENT.ID.VERIFICATION.REQUIRED: 'false'
-      PROJECT.MANAGEMENT.SYSTEM.KAFKA.CREATE.TOPIC: save-project
-      PROJECT.MANAGEMENT.SYSTEM.KAFKA.UPDATE.TOPIC: update-project
+      PROJECT.MANAGEMENT.SYSTEM.KAFKA.CREATE.TOPIC: save-project-health
+      PROJECT.MANAGEMENT.SYSTEM.KAFKA.UPDATE.TOPIC: update-project-health
+      PROJECT_MANAGEMENT_SYSTEM_KAFKA_CREATE_TOPIC: save-project-health
+      PROJECT_MANAGEMENT_SYSTEM_KAFKA_UPDATE_TOPIC: update-project-health
       PROJECT.STAFF.KAFKA.CREATE.TOPIC: save-project-staff-health-topic
       PROJECT.STAFF.KAFKA.UPDATE.TOPIC: update-project-staff-health-topic
       PROJECT.STAFF.KAFKA.DELETE.TOPIC: delete-project-staff-health-topic
@@ -1349,6 +1360,8 @@ services:
       EGOV_USER_HOST: http://egov-user:8107
       EGOV_USER_INTEGRATION_ENABLED: 'true'
       EGOV_SEARCH_USER_URL: /user/_search
+      EGOV_PRODUCT_HOST: http://product:8080
+      EGOV_SEARCH_PRODUCT_VARIANT_URL: /product/variant/v1/_search
       STATE_LEVEL_TENANT_ID: mz
       SEARCH_API_LIMIT: "1000"
       STOCK.KAFKA.CREATE.TOPIC: save-stock-health-topic
@@ -1434,6 +1447,16 @@ services:
       EGOV_IDGEN_INTEGRATION_ENABLED: 'true'
       REFERRALMANAGEMENT.SIDEEFFECT.IDGEN.ID.FORMAT: referralmanagement.sideeffect.id
       REFERRALMANAGEMENT.REFERRAL.IDGEN.ID.FORMAT: referralmanagement.referral.id
+      EGOV_PROJECT_HOST: http://health-project:8080
+      EGOV_SEARCH_PROJECT_URL: /health-project/v1/_search
+      EGOV_SEARCH_PROJECT_BENEFICIARY_URL: /health-project/beneficiary/v1/_search
+      EGOV_SEARCH_PROJECT_FACILITY_URL: /health-project/facility/v1/_search
+      EGOV_SEARCH_PROJECT_TASK_URL: /health-project/task/v1/_search
+      EGOV_FACILITY_HOST: http://facility:8080
+      EGOV_HOUSEHOLD_HOST: http://household:8080
+      EGOV_INDIVIDUAL_HOST: http://health-individual:8080
+      EGOV_INDIVIDUAL_SEARCH_URL: /health-individual/v1/_search
+      EGOV_USER_HOST: http://egov-user:8107
       STATE_LEVEL_TENANT_ID: mz
       REFERRALMANAGEMENT.SIDEEFFECT.KAFKA.CREATE.TOPIC: save-side-effect-health-topic
       REFERRALMANAGEMENT.SIDEEFFECT.KAFKA.UPDATE.TOPIC: update-side-effect-health-topic
@@ -1456,6 +1479,98 @@ services:
       - "28108:8080"
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8080/referralmanagement/actuator/health >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 180s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.25'
+    networks:
+      - hcm-network
+
+  pgr-services:
+    image: egovio/pgr-services:v2.9.0-8b3aa24-4
+    container_name: hcm-pgr-services
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
+    depends_on:
+      pgbouncer:
+        condition: service_healthy
+      redpanda:
+        condition: service_healthy
+      egov-mdms-service:
+        condition: service_healthy
+      egov-workflow-v2:
+        condition: service_healthy
+      egov-persister:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/egov
+      SPRING_DATASOURCE_USERNAME: egov
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-egov123}
+      SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.postgresql.Driver
+      SPRING_FLYWAY_URL: jdbc:postgresql://postgres-db:5432/egov
+      SPRING_FLYWAY_USER: egov
+      SPRING_FLYWAY_PASSWORD: ${POSTGRES_PASSWORD:-egov123}
+      SPRING_FLYWAY_ENABLED: 'false'
+      FLYWAY_ENABLED: 'false'
+      SPRING_FLYWAY_BASELINE_ON_MIGRATE: 'true'
+      KAFKA_BOOTSTRAP_SERVERS: redpanda:9092
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: redpanda:9092
+      KAFKA_CONFIG_BOOTSTRAP_SERVER_CONFIG: redpanda:9092
+      SPRING_KAFKA_CONSUMER_GROUP_ID: egov-pgr-services
+      SPRING_KAFKA_PRODUCER_KEY_SERIALIZER: org.apache.kafka.common.serialization.StringSerializer
+      SERVER_PORT: 8080
+      SERVER_SERVLET_CONTEXT_PATH: /pgr
+      MANAGEMENT_ENDPOINTS_WEB_BASE_PATH: /
+      SECURITY_BASIC_ENABLED: 'false'
+      MANAGEMENT_SECURITY_ENABLED: 'false'
+      EGOV_MDMS_HOST: http://egov-mdms-service:8094
+      EGOV_MDMS_SEARCH_ENDPOINT: /egov-mdms-service/v1/_search
+      EGOV_WORKFLOW_HOST: http://kong:8000
+      EGOV_WORKFLOW_TRANSITION_PATH: /egov-workflow-v2/egov-wf/process/_transition
+      EGOV_WORKFLOW_BUSINESSSERVICE_SEARCH_PATH: /egov-workflow-v2/egov-wf/businessservice/_search
+      EGOV_USER_HOST: http://egov-user:8107
+      EGOV_USER_INTEGRATION_ENABLED: 'true'
+      EGOV_IDGEN_HOST: http://egov-idgen:8088
+      EGOV_IDGEN_PATH: /egov-idgen/id/_generate
+      EGOV_IDGEN_INTEGRATION_ENABLED: 'true'
+      EGOV_LOCALIZATION_HOST: http://egov-localization:8096
+      EGOV_LOCALIZATION_SEARCH_ENDPOINT: /localization/messages/v1/_search
+      EGOV_HRMS_HOST: http://health-hrms:8080
+      EGOV_HRMS_SEARCH_ENDPOINT: health-hrms/employees/_search
+      EGOV_FILESTORE_HOST: http://egov-filestore:8083
+      EGOV_LOCATION_HOST: http://boundary-service:8081
+      EGOV_LOCATION_CONTEXT_PATH: /boundary-service/boundary
+      EGOV_UI_APP_HOST: http://localhost:28000
+      NOTIFICATION_SMS_ENABLED: 'false'
+      NOTIFICATION_EMAIL_ENABLED: 'false'
+      NEW_COMPLAINT_ENABLED: 'true'
+      REASSIGN_COMPLAINT_ENABLED: 'true'
+      REOPEN_COMPLAINT_ENABLED: 'true'
+      COMMENT_BY_EMPLOYEE_NOTIF_ENABLED: 'false'
+      NOTIFICATION_ALLOWED_ON_STATUS: 'open,assigned,rejected,resolved'
+      EGOV_USR_EVENTS_NOTIFICATION_ENABLED: 'false'
+      EGOV_USR_EVENTS_CREATE_TOPIC: persist-user-events-async
+      PGR_KAFKA_CREATE_TOPIC: save-pgr-request-health
+      PGR_KAFKA_UPDATE_TOPIC: update-pgr-request-health
+      PGR_KAFKA_MIGRATION_PERSISTER_TOPIC: save-pgr-request-batch-health
+      PERSISTER_SAVE_TRANSITION_WF_TOPIC: save-wf-transitions-health
+      PERSISTER_SAVE_TRANSITION_WF_MIGRATION_TOPIC: save-wf-transitions-batch-health
+      TRACER_OPENTRACING_ENABLED: 'false'
+      OTEL_TRACES_EXPORTER: none
+      JAVA_TOOL_OPTIONS: -Xms192m -Xmx384m
+      STATE_LEVEL_TENANT_ID: mz
+    ports:
+      - "28190:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/pgr/health >/dev/null 2>&1 || wget -qO- http://localhost:8080/health >/dev/null 2>&1 || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5

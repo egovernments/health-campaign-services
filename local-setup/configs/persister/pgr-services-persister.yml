@@ -95,7 +95,17 @@ serviceMaps:
     isTransaction: true
     queryMaps:
 
-    - query: UPDATE health.eg_pgr_service_v2 SET servicecode=?, rating = ?,servicerequestid=?, description=?, accountid=?, additionaldetails=?, applicationstatus=?, lastmodifiedby=?, lastmodifiedtime=? WHERE id=?;
+    - query: |
+        UPDATE health.eg_pgr_service_v2 SET servicecode=?, rating=?, servicerequestid=?, description=?, accountid=?, additionaldetails=?,
+          applicationstatus = CASE
+            WHEN ? = 'RESOLVE' THEN 'RESOLVED'
+            WHEN ? = 'ASSIGN'  THEN 'PENDINGATLB'
+            WHEN ? = 'REJECT'  THEN 'REJECTED'
+            WHEN ? = 'CLOSE'   THEN 'CLOSEDAFTERRESOLUTION'
+            WHEN ? = 'REOPEN'  THEN 'PENDINGFORASSIGNMENT'
+            ELSE COALESCE(?, applicationstatus)
+          END,
+          lastmodifiedby=?, lastmodifiedtime=? WHERE id=?;
       basePath: service
       jsonMaps:
       - jsonPath: $.service.serviceCode
@@ -111,6 +121,16 @@ serviceMaps:
       - jsonPath: $.service.additionalDetail
         type: JSON
         dbType: JSONB
+
+      - jsonPath: $.workflow.action
+
+      - jsonPath: $.workflow.action
+
+      - jsonPath: $.workflow.action
+
+      - jsonPath: $.workflow.action
+
+      - jsonPath: $.workflow.action
 
       - jsonPath: $.service.applicationStatus
 

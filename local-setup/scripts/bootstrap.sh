@@ -112,6 +112,26 @@ print(0 if not d else min(int(e.get("results",[{}])[-1].get("success",False)) fo
 done
 echo
 
+# ── 5b. Encrypt SYSTEM user PII for OAuth login (idempotent) ──────────────
+# eg_user.username/name/mobilenumber must be stored as deterministically-
+# encrypted ciphertext for egov-user's OAuth lookup to find the seeded
+# SYSTEM admin. We call enc-service at runtime so the ciphertext is bound
+# to the tenant key the local enc-service generated on first call.
+c_g "[5b/7] Encrypting SYSTEM user PII so OAuth login works"
+ENC_JSON=$(curl -s -m 15 -X POST 'http://localhost:21234/egov-enc-service/crypto/v1/_encrypt' \
+  -H 'Content-Type: application/json' \
+  -d '{"RequestInfo":{"apiId":"hcm","ver":".01","ts":1,"msgId":"x","userInfo":{"id":1,"uuid":"dc6fffba-8f0a-460f-aeeb-6f7e5b2fa7f3","userName":"SYSTEM","tenantId":"mz","type":"EMPLOYEE","roles":[{"code":"SUPERUSER","tenantId":"mz"}]}},"encryptionRequests":[{"tenantId":"mz","type":"Normal","value":"SYSTEM"},{"tenantId":"mz","type":"Normal","value":"System Admin"},{"tenantId":"mz","type":"Normal","value":"9999999999"}]}' || true)
+ENC_USERNAME=$(printf '%s' "$ENC_JSON" | python3 -c 'import json,sys;d=json.load(sys.stdin);print(d[0])' 2>/dev/null || true)
+ENC_NAME=$(printf '%s' "$ENC_JSON"     | python3 -c 'import json,sys;d=json.load(sys.stdin);print(d[1])' 2>/dev/null || true)
+ENC_MOBILE=$(printf '%s' "$ENC_JSON"   | python3 -c 'import json,sys;d=json.load(sys.stdin);print(d[2])' 2>/dev/null || true)
+if [ -n "$ENC_USERNAME" ] && [ -n "$ENC_NAME" ] && [ -n "$ENC_MOBILE" ]; then
+  $DK exec hcm-postgres psql -U egov -d egov -v ON_ERROR_STOP=1 -c \
+    "UPDATE public.eg_user SET username='$ENC_USERNAME', name='$ENC_NAME', mobilenumber='$ENC_MOBILE' WHERE id=1 AND uuid='dc6fffba-8f0a-460f-aeeb-6f7e5b2fa7f3' AND username='SYSTEM';" >/dev/null 2>&1 || true
+  echo "  ✓ SYSTEM user PII encrypted in eg_user"
+else
+  c_y "  ⚠ enc-service returned unexpected payload; OAuth login may fail. Response: $ENC_JSON"
+fi
+
 # ── 6. Kafka topic init (project-factory consumer topics) ──────────────────
 c_g "[6/7] Ensuring project-factory consumer topics exist in Redpanda"
 PF_TOPICS=(start-admin-console-task start-admin-console-mapping-task
