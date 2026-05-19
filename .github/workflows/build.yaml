@@ -292,34 +292,32 @@ jobs:
           echo "db=$SCOPE-db" >> $GITHUB_OUTPUT
 
       - name: Build and Push Application Image
-        run: |
-          CACHE_BUST_ARG=""
-          if [ "${{ github.event.inputs.force_refresh_deps }}" = "true" ]; then
-            CACHE_BUST_ARG="--build-arg DEPS_CACHE_BUST=1"
-          fi
-          docker buildx build \
-            --platform linux/amd64,linux/arm64 \
-            --build-arg WORK_DIR=${{ needs.resolve-config.outputs.service_work_dir }} \
-            --file ${{ needs.resolve-config.outputs.service_dockerfile }} \
-            --tag egovio/${{ needs.resolve-config.outputs.service_image_name }}:${{ needs.resolve-config.outputs.tag }} \
-            --cache-from "type=gha,scope=${{ steps.cache-scope.outputs.app }}" \
-            --cache-to "type=gha,mode=max,scope=${{ steps.cache-scope.outputs.app }}" \
-            $CACHE_BUST_ARG \
-            --push \
-            .
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          file: ${{ needs.resolve-config.outputs.service_dockerfile }}
+          build-args: |
+            WORK_DIR=${{ needs.resolve-config.outputs.service_work_dir }}
+            ${{ github.event.inputs.force_refresh_deps == 'true' && 'DEPS_CACHE_BUST=1' || '' }}
+          tags: egovio/${{ needs.resolve-config.outputs.service_image_name }}:${{ needs.resolve-config.outputs.tag }}
+          cache-from: type=gha,scope=${{ steps.cache-scope.outputs.app }}
+          cache-to: type=gha,mode=max,scope=${{ steps.cache-scope.outputs.app }}
+          push: true
 
       - name: Build and Push DB Image
         if: ${{ needs.resolve-config.outputs.db_folder_exists == 'true' }}
-        run: |
-          docker buildx build \
-            --platform linux/amd64,linux/arm64 \
-            --build-arg WORK_DIR=${{ needs.resolve-config.outputs.db_work_dir }} \
-            --file ${{ needs.resolve-config.outputs.db_dockerfile }} \
-            --tag egovio/${{ needs.resolve-config.outputs.db_image_name }}:${{ needs.resolve-config.outputs.tag }} \
-            --cache-from "type=gha,scope=${{ steps.cache-scope.outputs.db }}" \
-            --cache-to "type=gha,mode=max,scope=${{ steps.cache-scope.outputs.db }}" \
-            --push \
-            ${{ needs.resolve-config.outputs.db_work_dir }}
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ needs.resolve-config.outputs.db_work_dir }}
+          platforms: linux/amd64,linux/arm64
+          file: ${{ needs.resolve-config.outputs.db_dockerfile }}
+          build-args: |
+            WORK_DIR=${{ needs.resolve-config.outputs.db_work_dir }}
+          tags: egovio/${{ needs.resolve-config.outputs.db_image_name }}:${{ needs.resolve-config.outputs.tag }}
+          cache-from: type=gha,scope=${{ steps.cache-scope.outputs.db }}
+          cache-to: type=gha,mode=max,scope=${{ steps.cache-scope.outputs.db }}
+          push: true
 
       - name: Inspect Application Image
         run: |
