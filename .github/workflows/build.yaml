@@ -95,7 +95,6 @@ jobs:
         run: |
           COMMIT_MSG=$(git log -1 --pretty=format:'%s')
           COMMIT_AUTHOR=$(git log -1 --pretty=format:'%an')
-          COMMIT_EMAIL=$(git log -1 --pretty=format:'%ae')
           COMMIT_DATE=$(git log -1 --pretty=format:'%ad' --date=format:'%Y-%m-%d %H:%M:%S UTC')
           COMMIT_RELATIVE=$(git log -1 --pretty=format:'%ar')
           COMMIT_HASH=$(git rev-parse HEAD)
@@ -104,7 +103,7 @@ jobs:
           echo "| | |" >> $GITHUB_STEP_SUMMARY
           echo "|---|---|" >> $GITHUB_STEP_SUMMARY
           echo "| 💬 **Message** | $COMMIT_MSG |" >> $GITHUB_STEP_SUMMARY
-          echo "| 👤 **Author** | $COMMIT_AUTHOR &lt;$COMMIT_EMAIL&gt; |" >> $GITHUB_STEP_SUMMARY
+          echo "| 👤 **Author** | $COMMIT_AUTHOR |" >> $GITHUB_STEP_SUMMARY
           echo "| 🕐 **Time** | $COMMIT_DATE ($COMMIT_RELATIVE) |" >> $GITHUB_STEP_SUMMARY
           echo "| 🔑 **Hash** | \`$COMMIT_HASH\` |" >> $GITHUB_STEP_SUMMARY
 
@@ -305,8 +304,8 @@ jobs:
             --build-arg WORK_DIR=${{ needs.resolve-config.outputs.service_work_dir }} \
             --file ${{ needs.resolve-config.outputs.service_dockerfile }} \
             --tag egovio/${{ needs.resolve-config.outputs.service_image_name }}:${{ needs.resolve-config.outputs.tag }}-${{ matrix.arch }} \
-            --cache-from type=gha,scope=${{ github.workflow }}-${{ matrix.arch }}-${{ github.event.inputs.pipeline_name }} \
-            --cache-to type=gha,mode=max,scope=${{ github.workflow }}-${{ matrix.arch }}-${{ github.event.inputs.pipeline_name }} \
+            --cache-from "type=gha,scope=${{ github.workflow }}-${{ matrix.arch }}-${{ github.event.inputs.pipeline_name }}" \
+            --cache-to "type=gha,mode=max,scope=${{ github.workflow }}-${{ matrix.arch }}-${{ github.event.inputs.pipeline_name }}" \
             $CACHE_BUST_ARG \
             --push \
             --iidfile digest.txt \
@@ -320,8 +319,8 @@ jobs:
             --build-arg WORK_DIR=${{ needs.resolve-config.outputs.db_work_dir }} \
             --file ${{ needs.resolve-config.outputs.db_dockerfile }} \
             --tag egovio/${{ needs.resolve-config.outputs.db_image_name }}:${{ needs.resolve-config.outputs.tag }}-${{ matrix.arch }} \
-            --cache-from type=gha,scope=${{ github.workflow }}-${{ matrix.arch }}-${{ github.event.inputs.pipeline_name }}-db \
-            --cache-to type=gha,mode=max,scope=${{ github.workflow }}-${{ matrix.arch }}-${{ github.event.inputs.pipeline_name }}-db \
+            --cache-from "type=gha,scope=${{ github.workflow }}-${{ matrix.arch }}-${{ github.event.inputs.pipeline_name }}-db" \
+            --cache-to "type=gha,mode=max,scope=${{ github.workflow }}-${{ matrix.arch }}-${{ github.event.inputs.pipeline_name }}-db" \
             --push \
             --iidfile db-digest.txt \
             ${{ needs.resolve-config.outputs.db_work_dir }}
