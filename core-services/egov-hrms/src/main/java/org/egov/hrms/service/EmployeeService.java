@@ -426,7 +426,7 @@ public class EmployeeService {
 		});
 
 		// Push the updated employee request to the HRMS topic for further processing
-		hrmsProducer.push(tenantId, propertiesManager.getUpdateTopic(), employeeRequest);
+		hrmsProducer.push(propertiesManager.getUpdateTopic(), employeeRequest);
 
 		// (Optional) Send reactivation notifications if needed
 		// notificationService.sendReactivationNotification(employeeRequest);

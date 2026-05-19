@@ -40,7 +40,7 @@ public class HrmsConsumer {
             if(topic.equals(propertiesManager.getHrmsEmailNotifTopic())) {
                 notificationService.processEmailNotification(employeeRequest);
             } else {
-                hrmsProducer.push(tenantId,propertiesManager.getUpdateEmployeeTopic(), employeeRequest);
+                hrmsProducer.push(tenantId, propertiesManager.getUpdateEmployeeTopic(), employeeRequest);
                 notificationService.sendReactivationNotification(employeeRequest);
             }
         } catch (final Exception e) {
