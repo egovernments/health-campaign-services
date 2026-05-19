@@ -1,5 +1,5 @@
 name: Build Pipeline
-run-name: Build ${{ github.event.inputs.pipeline_name }}
+run-name: "Build ${{ github.event.inputs.pipeline_name }} #${{ github.run_number }}"
 
 on:
   workflow_dispatch:
@@ -64,6 +64,11 @@ on:
           - boundary-management
           - health-notification-service
           - egov-notification-push
+      force_refresh_deps:
+        description: 'Force re-download Maven dependencies (bypasses dep cache)'
+        type: boolean
+        default: false
+        required: false
 
 env:
   DOCKER_USERNAME: ${{ vars.DOCKER_USERNAME }}
@@ -85,6 +90,23 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
+
+      - name: Add Commit Info to Summary
+        run: |
+          COMMIT_MSG=$(git log -1 --pretty=format:'%s')
+          COMMIT_AUTHOR=$(git log -1 --pretty=format:'%an')
+          COMMIT_EMAIL=$(git log -1 --pretty=format:'%ae')
+          COMMIT_DATE=$(git log -1 --pretty=format:'%ad' --date=format:'%Y-%m-%d %H:%M:%S UTC')
+          COMMIT_RELATIVE=$(git log -1 --pretty=format:'%ar')
+          COMMIT_HASH=$(git rev-parse HEAD)
+
+          echo "#### 📝 Last Commit" >> $GITHUB_STEP_SUMMARY
+          echo "| | |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| 💬 **Message** | $COMMIT_MSG |" >> $GITHUB_STEP_SUMMARY
+          echo "| 👤 **Author** | $COMMIT_AUTHOR &lt;$COMMIT_EMAIL&gt; |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🕐 **Time** | $COMMIT_DATE ($COMMIT_RELATIVE) |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🔑 **Hash** | \`$COMMIT_HASH\` |" >> $GITHUB_STEP_SUMMARY
 
       - name: Install yq
         run: |
@@ -173,15 +195,21 @@ jobs:
           fi
 
           # Step 11. Put summary for the step
-          echo "#### Application Config Summary" >> $GITHUB_STEP_SUMMARY
-          echo "Application Work Directory - $SERVICE_WORK_DIR" >> $GITHUB_STEP_SUMMARY
-          echo "Image Name - $SERVICE_IMAGE_NAME" >> $GITHUB_STEP_SUMMARY
-          echo "Dockerfile Path - $SERVICE_DOCKERFILE" >> $GITHUB_STEP_SUMMARY
-          
-          echo "#### DB Config Summary" >> $GITHUB_STEP_SUMMARY
-          echo "Application Work Directory - $DB_WORK_DIR" >> $GITHUB_STEP_SUMMARY
-          echo "Image Name - $DB_IMAGE_NAME" >> $GITHUB_STEP_SUMMARY
-          echo "Dockerfile Path - $DB_DOCKERFILE" >> $GITHUB_STEP_SUMMARY
+          echo "#### 🔧 Application Config" >> $GITHUB_STEP_SUMMARY
+          echo "| Field | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| Work Directory | \`$SERVICE_WORK_DIR\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Image Name | \`$SERVICE_IMAGE_NAME\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Dockerfile | \`$SERVICE_DOCKERFILE\` |" >> $GITHUB_STEP_SUMMARY
+
+          if [ -n "$DB_IMAGE_NAME" ]; then
+            echo "#### 🗄️ DB Config" >> $GITHUB_STEP_SUMMARY
+            echo "| Field | Value |" >> $GITHUB_STEP_SUMMARY
+            echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+            echo "| Work Directory | \`$DB_WORK_DIR\` |" >> $GITHUB_STEP_SUMMARY
+            echo "| Image Name | \`$DB_IMAGE_NAME\` |" >> $GITHUB_STEP_SUMMARY
+            echo "| Dockerfile | \`$DB_DOCKERFILE\` |" >> $GITHUB_STEP_SUMMARY
+          fi
 
       - name: Check if DB folder exists
         id: check-db-folder
@@ -228,6 +256,9 @@ jobs:
             NEXT_TAG="${LATEST_TAG:-${BRANCH}-${COMMIT_HASH}}"
           fi
 
+          # Append build number for unique, traceable tags
+          NEXT_TAG="${NEXT_TAG}-${{ github.run_number }}"
+
           echo "tag=$NEXT_TAG" >> "$GITHUB_OUTPUT"
           echo "NEXT_TAG=$NEXT_TAG" >> "$GITHUB_ENV"
           echo "tag - $NEXT_TAG" >> $GITHUB_STEP_SUMMARY
@@ -257,14 +288,6 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Cache Docker Layers
-        uses: actions/cache@v3
-        with:
-          path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-${{ matrix.arch }}-buildx-${{ github.event.inputs.pipeline_name }}-${{ github.ref_name }}
-          restore-keys: |
-            ${{ runner.os }}-${{ matrix.arch }}-buildx-${{ github.event.inputs.pipeline_name }}-
-
       - name: Docker Login
         uses: docker/login-action@v2
         with:
@@ -273,13 +296,18 @@ jobs:
 
       - name: Build and Push Application Image
         run: |
+          CACHE_BUST_ARG=""
+          if [ "${{ github.event.inputs.force_refresh_deps }}" = "true" ]; then
+            CACHE_BUST_ARG="--build-arg DEPS_CACHE_BUST=1"
+          fi
           docker buildx build \
             --platform ${{ matrix.platform }} \
             --build-arg WORK_DIR=${{ needs.resolve-config.outputs.service_work_dir }} \
             --file ${{ needs.resolve-config.outputs.service_dockerfile }} \
             --tag egovio/${{ needs.resolve-config.outputs.service_image_name }}:${{ needs.resolve-config.outputs.tag }}-${{ matrix.arch }} \
-            --cache-from=type=local,src=/tmp/.buildx-cache \
-            --cache-to=type=local,dest=/tmp/.buildx-cache,mode=max \
+            --cache-from type=gha,scope=${{ github.workflow }}-${{ matrix.arch }}-${{ github.event.inputs.pipeline_name }} \
+            --cache-to type=gha,mode=max,scope=${{ github.workflow }}-${{ matrix.arch }}-${{ github.event.inputs.pipeline_name }} \
+            $CACHE_BUST_ARG \
             --push \
             --iidfile digest.txt \
             .
@@ -292,8 +320,8 @@ jobs:
             --build-arg WORK_DIR=${{ needs.resolve-config.outputs.db_work_dir }} \
             --file ${{ needs.resolve-config.outputs.db_dockerfile }} \
             --tag egovio/${{ needs.resolve-config.outputs.db_image_name }}:${{ needs.resolve-config.outputs.tag }}-${{ matrix.arch }} \
-            --cache-from=type=local,src=/tmp/.buildx-cache \
-            --cache-to=type=local,dest=/tmp/.buildx-cache,mode=max \
+            --cache-from type=gha,scope=${{ github.workflow }}-${{ matrix.arch }}-${{ github.event.inputs.pipeline_name }}-db \
+            --cache-to type=gha,mode=max,scope=${{ github.workflow }}-${{ matrix.arch }}-${{ github.event.inputs.pipeline_name }}-db \
             --push \
             --iidfile db-digest.txt \
             ${{ needs.resolve-config.outputs.db_work_dir }}
