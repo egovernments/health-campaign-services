@@ -4,18 +4,11 @@
           xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0
                               http://maven.apache.org/xsd/settings-1.0.0.xsd">
   <mirrors>
-    <!--
-      Route ALL repositories except egov Nexus repos directly to Maven Central.
-      Standard artifacts (Spring Boot, Hibernate, PostgreSQL, etc.) never hit Nexus.
-      egov artifacts (org.egov*, org.egov.services*, org.egov.common*) reach Nexus
-      directly because their repo IDs are excluded from this mirror via the ! prefix.
-      repo.digit.org is also excluded for services that declare it in pom.xml.
-    -->
     <mirror>
-      <id>central-direct</id>
-      <name>Route non-egov repos to Central</name>
-      <url>https://repo.maven.apache.org/maven2</url>
-      <mirrorOf>*,!repo.egovernments.org,!repo.egovernments.org.snapshots,!repo.digit.org</mirrorOf>
+      <id>nexus-public</id>
+      <name>Nexus Public Group</name>
+      <url>https://nexus-repo.egovernments.org/nexus/content/groups/public</url>
+      <mirrorOf>*</mirrorOf>
     </mirror>
   </mirrors>
 </settings>
