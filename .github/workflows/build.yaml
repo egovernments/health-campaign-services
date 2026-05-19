@@ -77,7 +77,7 @@ env:
 jobs:
   resolve-config:
     name: Resolve ${{ github.event.inputs.pipeline_name }} config
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       service_work_dir:   ${{ steps.setenv.outputs.SERVICE_WORK_DIR }}
       service_image_name: ${{ steps.setenv.outputs.SERVICE_IMAGE_NAME }}
@@ -89,7 +89,7 @@ jobs:
       tag:                ${{ steps.tag.outputs.tag }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Add Commit Info to Summary
         run: |
@@ -271,7 +271,7 @@ jobs:
         include:
           - arch: amd64
             platform: linux/amd64
-            runner: ubuntu-latest
+            runner: ubuntu-24.04
           - arch: arm64
             platform: linux/arm64
             runner: ubuntu-24.04-arm
@@ -283,13 +283,13 @@ jobs:
       arm64_digest_db: ${{ steps.digest_db_arm64.outputs.digest }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Docker Login
-        uses: docker/login-action@v2
+        uses: docker/login-action@v4
         with:
           username: ${{ env.DOCKER_USERNAME }}
           password: ${{ env.DOCKER_PASSWORD }}
@@ -369,10 +369,10 @@ jobs:
   create-manifest:
     name: Create and Push Manifest
     needs: [resolve-config, build-matrix]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Docker Login
-        uses: docker/login-action@v2
+        uses: docker/login-action@v4
         with:
           username: ${{ env.DOCKER_USERNAME }}
           password: ${{ env.DOCKER_PASSWORD }}
