@@ -270,6 +270,22 @@ public class CommonUtils {
         return findCycleIndex(campCycles, createdTime);
     }
 
+    public String getHierarchyTypeFromProject(Project project) {
+        try {
+            JsonNode additionalDetails = objectMapper.valueToTree(project.getAdditionalDetails());
+            if (additionalDetails != null && !additionalDetails.isMissingNode()
+                    && additionalDetails.hasNonNull("hierarchyType")) {
+                String hierarchyType = additionalDetails.get("hierarchyType").asText(null);
+                if (StringUtils.isNotBlank(hierarchyType)) {
+                    return hierarchyType;
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to fetch hierarchyType from project additionalDetails for projectId: {}", project.getId());
+        }
+        return properties.getBoundaryHierarchyName();
+    }
+
     public String fetchCycleIndexFromTime(String tenantId, String projectTypeId, Long createdTime) {
         JsonNode projectType = projectService.fetchProjectTypes(tenantId, null, projectTypeId);
         if (projectType.has(CYCLES)) {
@@ -356,6 +372,7 @@ public class CommonUtils {
 
         if (ObjectUtils.isNotEmpty(projectStaff)) {
             Project project = projectService.getProject(projectStaff.getProjectId(), tenantId);
+            String hierarchyType = getHierarchyTypeFromProject(project);
             if (ObjectUtils.isNotEmpty(project)) {
                 String campaignId = projectFactoryService.getCampaignIdFromCampaignNumber(project.getTenantId(), true, project.getReferenceID());
                 projectInfo.setProjectTypeId(project.getProjectTypeId());
@@ -364,6 +381,7 @@ public class CommonUtils {
                 projectInfo.setProjectName(project.getName());
                 projectInfo.setCampaignNumber(project.getReferenceID());
                 projectInfo.setCampaignId(campaignId);
+                projectInfo.setHierarchyType(hierarchyType);
                 userIdVsProjectInfoCache.put(userId, projectInfo);
             }
         }

@@ -154,12 +154,12 @@ public class AttendeeTransformationService {
 
     private BoundaryHierarchyResult getBoundaryHierarchyByCodeOrProjectId(JsonNode additionalDetails, String createdBy, String tenantId) {
         BoundaryHierarchyResult boundaryHierarchyResult = new BoundaryHierarchyResult();
+        ProjectInfo projectInfo = commonUtils.projectDetailsFromUserId(createdBy,tenantId);
         String boundaryCode = commonUtils.getLocalityCodeFromAdditionalFields(null, additionalDetails);
         if (StringUtils.isNotEmpty(boundaryCode)) {
-            boundaryHierarchyResult =  boundaryService.getBoundaryHierarchyWithLocalityCode(boundaryCode, tenantId);
+            boundaryHierarchyResult =  boundaryService.getBoundaryHierarchyWithLocalityCode(boundaryCode, tenantId,projectInfo.getHierarchyType());
         }
         else {
-            ProjectInfo projectInfo = commonUtils.projectDetailsFromUserId(createdBy,tenantId);
             if (ObjectUtils.isNotEmpty(projectInfo) && StringUtils.isNotEmpty(projectInfo.getProjectId())) {
                 String projectId = projectInfo.getProjectId();
                 boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithProjectId(projectId, tenantId);

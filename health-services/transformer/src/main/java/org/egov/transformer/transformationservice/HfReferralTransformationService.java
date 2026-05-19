@@ -69,13 +69,14 @@ public class HfReferralTransformationService {
         String tenantId = hfReferral.getTenantId();
         String projectId = hfReferral.getProjectId();
         Project project = projectService.getProject(projectId, tenantId);
+        String hierarchyType = commonUtils.getHierarchyTypeFromProject(project);
         String projectTypeId = project.getProjectTypeId();
         String projectType = project.getProjectType();
         AdditionalFields additionalFields = hfReferral.getAdditionalFields();
         String localityCode = commonUtils.getLocalityCodeFromAdditionalFields(additionalFields);
         BoundaryHierarchyResult boundaryHierarchyResult = null;
         if(localityCode != null) {
-            boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(localityCode, tenantId);
+            boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithLocalityCode(localityCode, tenantId,hierarchyType);
         } else {
             boundaryHierarchyResult = boundaryService.getBoundaryHierarchyWithProjectId(projectId, tenantId);
         }
@@ -102,7 +103,7 @@ public class HfReferralTransformationService {
                 .syncedDate(commonUtils.getDateFromEpoch(hfReferral.getAuditDetails().getLastModifiedTime()))
                 .additionalDetails(additionalDetails)
                 .build();
-        hfReferralIndexV1.setProjectInfo(projectId, projectType, projectTypeId, project.getName());
+        hfReferralIndexV1.setProjectInfo(projectId, projectType, projectTypeId, project.getName(),hierarchyType);
         hfReferralIndexV1.setCampaignNumber(project.getReferenceID());
         hfReferralIndexV1.setCampaignId(campaignId);
 
