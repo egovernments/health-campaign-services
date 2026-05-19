@@ -2058,7 +2058,7 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/egov
       SPRING_DATASOURCE_USERNAME: egov
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-egov123}
-      SPRING_FLYWAY_ENABLED: 'true'
+      SPRING_FLYWAY_ENABLED: 'false'
       SPRING_FLYWAY_URL: jdbc:postgresql://postgres-db:5432/egov
       SPRING_FLYWAY_USER: egov
       SPRING_FLYWAY_PASSWORD: ${POSTGRES_PASSWORD:-egov123}
@@ -2111,7 +2111,7 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/egov
       SPRING_DATASOURCE_USERNAME: egov
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-egov123}
-      SPRING_FLYWAY_ENABLED: 'true'
+      SPRING_FLYWAY_ENABLED: 'false'
       SPRING_FLYWAY_URL: jdbc:postgresql://postgres-db:5432/egov
       SPRING_FLYWAY_USER: egov
       SPRING_FLYWAY_PASSWORD: ${POSTGRES_PASSWORD:-egov123}
@@ -2255,6 +2255,7 @@ services:
   excel-ingestion-db:
     image: egovio/excel-ingestion-db:master-b5b81ec
     container_name: hcm-excel-ingestion-db
+    entrypoint: ["true"]   # dump already has the schema; skip flyway-only init container
     depends_on:
       postgres-db:
         condition: service_healthy
@@ -2266,7 +2267,6 @@ services:
       FLYWAY_PASSWORD: ${POSTGRES_PASSWORD:-egov123}
       FLYWAY_LOCATIONS: filesystem:/flyway/sql
       FLYWAY_BASELINE_ON_MIGRATE: 'true'
-      FLYWAY_BASELINE_VERSION: '0'
       FLYWAY_OUT_OF_ORDER: 'true'
     restart: "no"
     networks:
