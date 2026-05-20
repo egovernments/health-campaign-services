@@ -65,6 +65,7 @@ DB_PORT = os.getenv("DB_PORT", "5432")
 DB_NAME = os.getenv("DB_NAME", "")
 DB_USERNAME = os.getenv("DB_USERNAME", "")
 DB_PASSWORD = os.getenv("DB_PASSWORD", "")
+DB_SCHEMA = os.getenv("DB_SCHEMA", "public")
 IS_CENTRAL_INSTANCE_ENABLED = os.getenv("IS_CENTRAL_INSTANCE_ENABLED", "false").lower() == "true"
 
 
@@ -72,6 +73,7 @@ def _get_db_conn():
     return psycopg2.connect(
         host=DB_HOST, port=DB_PORT, dbname=DB_NAME,
         user=DB_USERNAME, password=DB_PASSWORD,
+        options=f"-c search_path={DB_SCHEMA}",
     )
 
 
