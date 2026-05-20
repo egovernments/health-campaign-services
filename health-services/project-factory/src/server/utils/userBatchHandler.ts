@@ -2,7 +2,7 @@ import { RequestInfo, withUserInfo } from "../config/models/requestInfoSchema";
 import { logger } from './logger';
 import { httpRequest } from './request';
 import { produceModifiedMessages } from '../kafka/Producer';
-import { dataRowStatuses, sheetDataRowStatuses, campaignStatuses, campaignDataRowFields, userDataFields, userCredentialFields } from '../config/constants';
+import { dataRowStatuses, sheetDataRowStatuses, campaignStatuses, campaignDataRowFields, userDataFields, userCredentialFields, errorCodes, campaignDataRetryFields, ERROR_HISTORY_MAX_ENTRIES } from '../config/constants';
 import { sendCampaignFailureMessage } from './campaignFailureHandler';
 import { searchProjectTypeCampaignService } from '../service/campaignManageService';
 import { DataTransformer } from './transFormUtil';
@@ -103,19 +103,36 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
         // Check which users already exist in HRMS — skip those to stay idempotent on retry
         const alreadyExistingMap = await fetchExistingUsersByPhone(eligibleIdentifiers, tenantId, messageObject.requestInfo);
         const phoneNumbersNeedingCreation = eligibleIdentifiers.filter(p => !alreadyExistingMap[String(p)]);
+        const retryRowCount = uniqueIdentifiers.filter(id => userData[id]?.status === dataRowStatuses.failed).length;
+        logger.info(`HRMS pre-check: ${Object.keys(alreadyExistingMap).length}/${eligibleIdentifiers.length} phone(s) already in HRMS; ${phoneNumbersNeedingCreation.length} need HRMS create; ${retryRowCount} of these are retries of previously-failed rows`);
 
-        // Mark already-existing users as completed immediately without calling HRMS
+        // Mark already-existing users as completed immediately without calling HRMS.
+        // If the phone exists under a different name in HRMS, log the discrepancy
+        // and treat HRMS as source of truth (do not overwrite HRMS).
         uniqueIdentifiers.forEach(uniqueIdentifier => {
             const existing = alreadyExistingMap[String(uniqueIdentifier)];
-            if (existing) {
-                const campaignRecord = userData[uniqueIdentifier];
-                campaignRecord.status = dataRowStatuses.completed;
-                campaignRecord.data = {
-                    ...campaignRecord.data,
-                    "UserService Uuids": existing.serviceUuid,
-                };
-                campaignRecord.uniqueIdAfterProcess = existing.serviceUuid;
-                logger.info(`User ${uniqueIdentifier} already exists in HRMS — reusing serviceUuid ${existing.serviceUuid}`);
+            if (!existing) return;
+
+            const campaignRecord = userData[uniqueIdentifier];
+            const sheetName = normalizeNameForCompare(campaignRecord?.data?.[userDataFields.name]);
+            const hrmsName = normalizeNameForCompare(existing.existingName);
+
+            const wasRetry = campaignRecord.status === dataRowStatuses.failed;
+            campaignRecord.status = dataRowStatuses.completed;
+            campaignRecord.data = {
+                ...campaignRecord.data,
+                [userCredentialFields.userServiceUuids]: existing.serviceUuid,
+            };
+            campaignRecord.uniqueIdAfterProcess = existing.serviceUuid;
+
+            if (sheetName && hrmsName && sheetName !== hrmsName) {
+                const reason = `${errorCodes.hrmsPhoneReusedDifferentUser}: phone exists in HRMS as '${existing.existingName}' but sheet provided '${campaignRecord?.data?.[userDataFields.name] ?? ''}'. HRMS user kept as source of truth.`;
+                logger.warn(`Phone ${uniqueIdentifier} → ${reason}`);
+                // Surface the discrepancy on the row so operators can see it on the credential sheet's error column,
+                // without flipping status back to failed (HRMS user is still valid for this row's purposes).
+                campaignRecord.data[campaignDataRowFields.errorDetails] = reason;
+            } else {
+                logger.info(`Row for phone ${uniqueIdentifier} already in HRMS (serviceUuid ${existing.serviceUuid}) — marking completed without create${wasRetry ? ' (retry=true)' : ''}`);
             }
         });
 
@@ -176,13 +193,16 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
             const transformedUser = phoneToTransformedUser.get(phoneNumber);
             const hrmsError = failedHrmsUsers[phoneNumber];
 
+            const wasRetry = campaignRecord.status === dataRowStatuses.failed;
+
             if (hrmsError) {
                 // Failure - mark row as failed with HRMS error
                 campaignRecord.status = dataRowStatuses.failed;
                 campaignRecord.data[campaignDataRowFields.status] = sheetDataRowStatuses.FAILED;
-                campaignRecord.data[campaignDataRowFields.errorDetails] = hrmsError;
+                appendErrorHistory(campaignRecord, hrmsError);
                 updatedUsers.push(campaignRecord);
                 failureCount++;
+                logger.warn(`HRMS create failed for phone ${phoneNumber}${wasRetry ? ' (retry=true)' : ''}: ${hrmsError}`);
             } else if (serviceUuid) {
                 // Success - user created
                 campaignRecord.status = dataRowStatuses.completed;
@@ -198,6 +218,9 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
                 campaignRecord.uniqueIdAfterProcess = serviceUuid;
                 updatedUsers.push(campaignRecord);
                 successCount++;
+                if (wasRetry) {
+                    logger.info(`HRMS create succeeded on retry for phone ${phoneNumber}: serviceUuid ${serviceUuid}`);
+                }
 
                 // Collect worker data from campaign record
                 if (individualId) {
@@ -223,12 +246,11 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
                 // INVALID) and the retry gate allows re-creation on the next upload.
                 campaignRecord.status = dataRowStatuses.failed;
                 campaignRecord.data[campaignDataRowFields.status] = sheetDataRowStatuses.FAILED;
-                campaignRecord.data[campaignDataRowFields.errorDetails] =
-                    "HRMS did not return a service UUID for this user";
+                appendErrorHistory(campaignRecord, "HRMS did not return a service UUID for this user");
                 updatedUsers.push(campaignRecord);
                 failureCount++;
 
-                logger.error(`Failed to create user with phone: ${phoneNumber}`);
+                logger.error(`Failed to create user with phone: ${phoneNumber}${wasRetry ? ' (retry=true)' : ''}`);
             }
         });
 
@@ -333,7 +355,7 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
             for (const record of nonCompletedRecords) {
                 record.status = dataRowStatuses.failed;
                 record.data[campaignDataRowFields.status] = sheetDataRowStatuses.FAILED;
-                record.data[campaignDataRowFields.errorDetails] = errMsg;
+                appendErrorHistory(record, errMsg);
             }
             try {
                 await produceModifiedMessages(
@@ -529,19 +551,56 @@ function markWorkerRecordsFailed(records: CampaignRecord[], errMsg: string): num
 }
 
 /**
- * Search Individual service for the given phone numbers and return a map of
- * phone → { serviceUuid, individualId } for those that already exist in HRMS.
- * Used to make batch processing idempotent on retry.
+ * Shape returned by the HRMS idempotency pre-check.
+ * existingName is the constructed full name from Individual.name parts
+ * (givenName + otherNames + familyName, blanks trimmed) — used to detect
+ * phone-reused-for-different-user mismatches.
  */
-async function fetchExistingUsersByPhone(
+export interface ExistingHrmsUser {
+    serviceUuid: string;
+    individualId: string;
+    existingName: string;
+}
+
+/**
+ * Build a full-name string from the Individual service's Name sub-object so
+ * we can compare against the sheet's single-column HCM_ADMIN_CONSOLE_USER_NAME.
+ */
+function buildFullNameFromIndividual(individual: any): string {
+    const parts = [
+        individual?.name?.givenName,
+        individual?.name?.otherNames,
+        individual?.name?.familyName,
+    ].filter((p: any) => typeof p === 'string' && p.trim().length > 0);
+    return parts.join(' ').trim();
+}
+
+/**
+ * Normalize a name for case/whitespace-insensitive equality comparison.
+ * Returns lowercased, single-space-collapsed string.
+ */
+export function normalizeNameForCompare(raw: any): string {
+    if (raw == null) return '';
+    return String(raw).trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+/**
+ * Search Individual service for the given phone numbers and return a map of
+ * phone → { serviceUuid, individualId, existingName } for those that already
+ * exist in HRMS. Used to make batch processing idempotent on retry and to
+ * detect phone-reused-for-different-user cases.
+ */
+export async function fetchExistingUsersByPhone(
     phoneNumbers: string[],
     tenantId: string,
     requestInfo: RequestInfo
-): Promise<Record<string, { serviceUuid: string; individualId: string }>> {
-    const result: Record<string, { serviceUuid: string; individualId: string }> = {};
+): Promise<Record<string, ExistingHrmsUser>> {
+    const result: Record<string, ExistingHrmsUser> = {};
     if (phoneNumbers.length === 0) return result;
 
     const searchBatchSize = 50;
+    logger.info(`Retry pre-check: searching Individual service for ${phoneNumbers.length} phone(s) in ${Math.ceil(phoneNumbers.length / searchBatchSize)} batch(es)`);
+
     for (let i = 0; i < phoneNumbers.length; i += searchBatchSize) {
         const batch = phoneNumbers.slice(i, i + searchBatchSize);
         try {
@@ -555,13 +614,42 @@ async function fetchExistingUsersByPhone(
                 const serviceUuid = individual?.userUuid ?? '';
                 const individualId = individual?.id ?? '';
                 if (phone && serviceUuid) {
-                    result[phone] = { serviceUuid, individualId };
+                    result[phone] = {
+                        serviceUuid,
+                        individualId,
+                        existingName: buildFullNameFromIndividual(individual),
+                    };
                 }
             }
+            logger.info(`Retry pre-check batch [${i}–${i + batch.length}]: queried ${batch.length} phone(s), matched ${Object.keys(result).length - (i === 0 ? 0 : Object.keys(result).length - batch.length)} cumulative`);
         } catch (err) {
             // Non-fatal: if the lookup fails, proceed with creation — HRMS will reject duplicates
             logger.warn(`Idempotency pre-check failed for batch starting at index ${i}: ${err}`);
         }
     }
     return result;
+}
+
+/**
+ * Append an attempt outcome to a row's error history, capped at the last
+ * ERROR_HISTORY_MAX_ENTRIES entries. Also overwrites the legacy
+ * data["#errorDetails#"] field with the latest error for backwards
+ * compatibility with credential-sheet rendering.
+ *
+ * Exported so user-processClass.ts can mark rows failed with the same
+ * history-chaining semantics.
+ */
+export function appendErrorHistory(record: CampaignRecord, errMsg: string): void {
+    if (!record?.data) return;
+
+    record.data[campaignDataRowFields.errorDetails] = errMsg;
+
+    const history: any[] = Array.isArray((record.data as any)[campaignDataRetryFields.errorHistory])
+        ? [...(record.data as any)[campaignDataRetryFields.errorHistory]]
+        : [];
+    history.push({ attemptedAt: Date.now(), error: errMsg });
+    if (history.length > ERROR_HISTORY_MAX_ENTRIES) {
+        history.splice(0, history.length - ERROR_HISTORY_MAX_ENTRIES);
+    }
+    (record.data as any)[campaignDataRetryFields.errorHistory] = history;
 }
