@@ -279,3 +279,25 @@ endpoints:
     interval: 30s
     conditions:
       - "[STATUS] == 200"
+
+  # ==================== UI ====================
+  - name: Payments UI
+    group: UI
+    url: "http://payments-ui:80/payments-ui/"
+    interval: 30s
+    conditions:
+      - "[STATUS] == 200"
+
+  - name: Workbench UI
+    group: UI
+    url: "http://workbench-ui:80/workbench-ui/"
+    interval: 30s
+    conditions:
+      - "[STATUS] == 200"
+
+  - name: Frontend Proxy
+    group: UI
+    url: "http://frontend-proxy:80/health"
+    interval: 30s
+    conditions:
+      - "[STATUS] == 200"

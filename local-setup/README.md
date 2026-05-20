@@ -1,17 +1,17 @@
 # HCM Local Setup
 
-Standalone Docker Compose for running the **Health Campaign Management (HCM)** platform locally. Everything is in this directory — DB seed, service configs, Kong routing, Postman collections, the pytest API-automation suite. No external dependencies, no UAT credentials needed.
+Standalone Docker Compose for running the **Health Campaign Management (HCM)** platform locally. Everything is in this directory — DB seed, service configs, Kong routing, Postman collections, the pytest API-automation suite, and two HCM UIs (Workbench + Payments) fronted by a unified nginx proxy. No external dependencies, no UAT credentials needed.
 
-**Current verified state:** 30+ containers, OAuth working, 12 API test suites at **135 passed / 2 skipped / 0 failed**.
+**Current verified state:** **46 containers / 46 compose services**, OAuth working, UIs reachable through a single port, 12 API test suites at **135 passed / 2 skipped / 0 failed**. Manual CRUD sweep across HCM domains: 19/28 fully passing (Individual, Household, HouseholdMember, Facility, Product, ProductVariant, Project, ProjectBeneficiary, ProjectStaff, ProjectFacility, ProjectResource, ProjectTask, Stock, StockReconciliation, AttendanceRegister, Referral, SideEffect, HFReferral, PGR). Known gaps documented in **Known Issues** below.
 
 ## Prerequisites
 
 ### Hardware
-| Requirement | Value |
-|---|---|
-| RAM | 12 GB available to Docker |
-| Disk | 5 GB free |
-| Ports | See port tables below |
+| Requirement | Minimum | Recommended | Notes |
+|---|---|---|---|
+| RAM | **12 GB** available to Docker | 16 GB | Measured on the running stack: 46 containers idle at ~6 GB RSS, peaking ~10 GB during JVM warm-up + the Workbench UI's first localization fetch (which needs ~3 GB heap on `egov-localization`). Compose declares ~24 GB of `memory:` ceilings, but those are upper bounds — actual usage rarely exceeds 10 GB. |
+| Disk | **15 GB** free | 20 GB | Pulled images take ~16 GB total, but most users share base layers across projects; net new is ~10 GB. Volumes (Postgres, MinIO, Tempo, Grafana, Portainer) add ~3 GB on first run. |
+| Ports | See port tables below | — | — |
 
 ### CLI tools
 | Tool | Why | Install (Ubuntu/Debian) | Install (macOS) |
@@ -42,6 +42,94 @@ Watch services come online at **http://localhost:28889** (Gatus dashboard). The 
 
 For manual / step-by-step setup, see **`STARTUP.md`**.
 
+## Install and Startup
+
+End-to-end sequence to bring the stack down, back up, and then drive APIs from the browser via the UIs. Run from `local-setup/`.
+
+### 1. Bring everything down (preserve data)
+
+```bash
+docker compose down
+```
+
+Use `docker compose down -v` **only if** you also want to wipe Postgres data and re-seed from scratch. That triggers a full ~5 min re-init on next `up`, plus the SYSTEM user PII must be re-encrypted (run `./scripts/bootstrap.sh` after).
+
+### 2. Bring everything back up
+
+```bash
+docker compose up -d
+```
+
+Wait ~2–3 min (longer on a `-v` reset). Track progress:
+
+```bash
+docker compose ps               # one-shot snapshot — wait until all are healthy
+docker compose logs -f kong     # live logs of any single service
+```
+
+### 3. Confirm the stack is ready
+
+Don't open the UI until these all return `200`:
+
+```bash
+curl -s -o /dev/null -w "%{http_code}  /health (frontend-proxy)\n"  http://localhost:28080/health
+curl -s -o /dev/null -w "%{http_code}  /mdms-v2/health\n"           http://localhost:28000/mdms-v2/health
+curl -s -o /dev/null -w "%{http_code}  /user/_search\n" -X POST     http://localhost:28000/user/_search \
+   -H 'Content-Type: application/json' \
+   -d '{"RequestInfo":{"apiId":"hcm","msgId":"x","userInfo":{"id":1,"uuid":"dc6fffba-8f0a-460f-aeeb-6f7e5b2fa7f3","userName":"SYSTEM","tenantId":"mz","type":"EMPLOYEE","roles":[{"code":"SUPERUSER","tenantId":"mz"}]}},"tenantId":"mz","userType":"EMPLOYEE","uuid":["dc6fffba-8f0a-460f-aeeb-6f7e5b2fa7f3"]}'
+```
+
+Or just open **http://localhost:28889** (Gatus) — the UI group + HCM group should all be green.
+
+### 4. (Only after `down -v`) flush stale Redis cache
+
+If you wiped volumes, the new seed is in Postgres but Redis still holds the previous session's empty localization cache:
+
+```bash
+docker exec hcm-redis redis-cli FLUSHALL
+```
+
+### 5. Open the UI and clear browser cache
+
+The Workbench/Payments SPAs keep localization + access-action maps in `localStorage`. After any down/up they must be cleared, otherwise the UI keeps reusing the previous session's empty maps and renders blank.
+
+1. Open `http://localhost:28080`
+2. F12 → DevTools → **Console** → paste:
+   ```js
+   localStorage.clear(); sessionStorage.clear(); location.reload(true);
+   ```
+3. Equivalent path: DevTools → Application → Storage → "Clear site data".
+
+### 6. Log in
+
+| Field | Value |
+|---|---|
+| Username | `SYSTEM` |
+| Password | `eGov@123` |
+| City     | `mz` |
+
+You should land on `/workbench-ui/employee` with the 12 home cards rendered. Secondary account: `EMP-DIST-002` / `eGov@123` / `mz` (DISTRIBUTOR role, for non-superuser flows).
+
+### 7. Hit APIs through the UI
+
+Once logged in, every UI action (clicking "Manage Campaign", searching MDMS, etc.) issues fetches against the same `http://localhost:28080/...` origin. `frontend-proxy` routes them:
+
+- `/workbench-ui/...`, `/payments-ui/...` → respective UI containers
+- everything else (`/user/_search`, `/mdms-v2/*`, `/health-individual/*`, `/access/v1/*`, …) → **Kong on `kong:8000`** → the right backend service
+
+To watch the calls in real time:
+
+- **Browser**: F12 → Network tab → filter `Fetch/XHR`
+- **Server**: `docker compose logs -f kong | grep -v Gatus`
+
+### If something is off after `down -v`
+
+Run the bootstrap script — it re-encrypts the SYSTEM user PII (needed for OAuth), ensures Kafka topics exist, runs the 13-API smoke test, and probes the DISTRIBUTOR login:
+
+```bash
+./scripts/bootstrap.sh
+```
+
 ## Ports
 
 ### Infrastructure
@@ -49,8 +137,9 @@ For manual / step-by-step setup, see **`STARTUP.md`**.
 |---|---|---|
 | 25432 | PostgreSQL | Direct DB access (psql, DBeaver) |
 | 26379 | Redis | Cache inspection |
-| 28000 | **Kong (proxy)** | All external API calls go here |
+| 28000 | **Kong (proxy)** | All API calls — used by Postman, pytest, server-side clients |
 | 28001 | Kong (admin) | Kong Admin API |
+| 28080 | **Frontend proxy** | Single-origin entrypoint for browser — UIs + API. Lands on Workbench |
 | 28082 | Redpanda Console | Kafka topic browser |
 | 28889 | **Gatus** | Service health dashboard |
 | 29000 | MinIO | Object storage UI (filestore) |
@@ -90,16 +179,29 @@ For manual / step-by-step setup, see **`STARTUP.md`**.
 
 ```
 local-setup/
-├── docker-compose.yml          # Main compose file — 30+ services
+├── docker-compose.yml          # Main compose file — 46 services
 ├── .env                        # Environment overrides (optional)
 │
 ├── db/
-│   └── full-dump.sql           # Seed: schema + master data + PGR seed + MICROPLAN
-│                               # boundary + DROPs + ALTER ROLE/DB search_path
-│                               # + sequence resets. ~12 MB. Loaded on first init.
+│   ├── full-dump.sql           # Seed: schema + master data + PGR seed + MICROPLAN
+│   │                           # boundary + DROPs + ALTER ROLE/DB search_path
+│   │                           # + sequence resets. ~12 MB. Loaded on first init.
+│   └── 02-hcm-ui-seed.sql      # Supplementary UI seed (~6 MB) — applied after
+│                               # full-dump.sql. Adds 9 role grants to SYSTEM user,
+│                               # 6,288 ACCESSCONTROL-ACTIONS-TEST.actions-test
+│                               # MDMS rows (so workbench home renders cards),
+│                               # and 19,551 localization rows for the modules
+│                               # the UIs request (rainmaker-common, digit-ui).
+│                               # Idempotent — re-applying does not duplicate rows.
 │
 ├── nginx/
-│   └── mdms-proxy.conf         # Nginx: /egov-mdms-service/* → /mdms-v2/*
+│   ├── mdms-proxy.conf         # Nginx: /egov-mdms-service/* → /mdms-v2/*
+│   ├── frontend-proxy.conf     # Single-origin entrypoint (port 28080):
+│   │                           # /workbench-ui/ /payments-ui/ → UI containers
+│   │                           # /digit-ui-assets/ → local globalConfigs JS
+│   │                           # everything else → Kong (so UI API calls share origin)
+│   └── ui-assets/              # globalConfigs JS + sub_filter.conf for each UI
+│                               # (mirrors what the UAT k8s deployment injects)
 │
 ├── kong/
 │   └── kong.yml                # Kong declarative config — routes, consumers, pre-function plugins
@@ -136,17 +238,25 @@ local-setup/
 
 ## Where Data Comes From
 
-### Database seed — `db/full-dump.sql`
+### Database seed — `db/full-dump.sql` + `db/02-hcm-ui-seed.sql`
 
-Loaded once at first Postgres init (`/docker-entrypoint-initdb.d/01-full-dump.sql`). Self-contained — no remote fetch, no manual restore. Contains:
+Both files are mounted into Postgres' init dir and applied **in order** on first DB init:
+
+1. `01-full-dump.sql` — core platform seed (see table below)
+2. `02-hcm-ui-seed.sql` — additive UI-supporting data (role grants, action-control MDMS rows, localization)
+
+Self-contained — no remote fetch, no manual restore. `full-dump.sql` contains:
 
 | Section | Content |
 |---|---|
-| Schema + base data (COPY blocks) | ~607 TCHAD boundary rows, ~24 k MDMS rows across 44 modules, 1 SYSTEM admin + 1000 sample users, 124 products, role/access-control rows |
+| Schema + base data (COPY blocks) | 608 TCHAD boundary rows, ~24 k MDMS rows across 44 modules (the `02-hcm-ui-seed.sql` adds 6,288 more rows under one extra schema, bringing the live `eg_mdms_data` to ~31 k / 181 schemas), 53 k+ localization rows (locale `en_IN`; other locales empty after the UI-seed pass), 1 SYSTEM admin + ~1000 sample users, 501 HRMS employees, 124 products, role/access-control rows |
 | `DROP TABLE IF EXISTS health.eg_mdms_data CASCADE;` (and 10 similar) | Drops empty `health.*` duplicates of shared tables so `search_path=health,public` falls through to populated `public.*` for MDMS / HRMS / role lookups |
 | `ALTER ROLE egov SET search_path TO health, public;` + same on DB | Default schema resolution so HCM tables (`health.*`) win over legacy `public.*` duplicates |
 | PGR seed (76 INSERTs) | 41 `RAINMAKER-PGR.ServiceDefs`, 1 `RAINMAKER-PGR.UIConstants`, 21 `common-masters.Department` (`DEPT_1..DEPT_10`), `CITIZEN` role, 1 PGR workflow `BusinessService`, 5 states, 6 actions |
 | `MICROPLAN` minimal boundary hierarchy | 1 row each in `boundary_hierarchy` / `boundary` / `boundary_relationship` (for the boundary test that hardcodes MICROPLAN) |
+| **17 HCM roles seeded into `eg_role`** | `DISTRIBUTOR`, `WAREHOUSE_MANAGER`, `FIELD_SUPERVISOR`, `HEALTH_FACILITY_WORKER`, `DISTRICT/PROVINCIAL/NATIONAL_SUPERVISOR`, `SYSTEM_ADMINISTRATOR`, `HRMS_ADMIN`, `MDMS_ADMIN`, `BOUNDARY_MANAGER`, `CAMPAIGN_MANAGER`, `CAMPAIGN_ADMIN`, `COMMUNITY_CREATOR`, `HELPDESK_USER`, `LOC_ADMIN`, `PGR-ADMIN` — ids 1001–1017. Required for HRMS employee creation; without them `ERR_HRMS_INVALID_ROLE`. |
+| **Demo DISTRIBUTOR user persistence** (4 INSERTs at end of dump) | `eg_user` id=1244 (username `EMP-DIST-002`, BCrypt password matching `eGov@123`) + `eg_userrole_v1` (DISTRIBUTOR) + `eg_hrms_employee` + `eg_hrms_jurisdiction` (boundary `ADMIN_TC`, hierarchy `TCHAD`). Idempotent via `ON CONFLICT … DO NOTHING` / `WHERE NOT EXISTS`. |
+| **`health.project` NULL-relaxation** | `projectsubtype`, `department`, `description`, `referenceid` had `NOT NULL` constraints in the schema, but the Project API treats them as optional → persister silently dropped Kafka messages with `null value … violates not-null constraint` after 9 retries. Dropped to nullable in both `health.project` and `public.project` CREATE TABLE blocks. |
 | `setval('public.seq_eg_user', …)` + `seq_eg_user_address` | Sequences advanced past seeded rows so HRMS-driven user creation doesn't dup-key |
 
 ### MDMS
@@ -162,6 +272,42 @@ To modify MDMS data: `POST` to `http://localhost:28000/mdms-v2/v2/_create/<schem
 ### Kafka topics (Redpanda)
 
 HCM services publish events; `egov-persister` consumes them and writes to Postgres. Browse topics at **http://localhost:28082**.
+
+## UIs
+
+Two HCM UIs are run from the upstream `egovio/*-ui` images and fronted by a small nginx reverse proxy (`frontend-proxy`) so the browser sees a single origin (port 28080). API calls from the SPA fall through to Kong.
+
+| URL | What |
+|---|---|
+| http://localhost:28080 | Lands on Workbench (302 redirect to `/workbench-ui/employee`) |
+| http://localhost:28080/workbench-ui/employee | Workbench UI — campaign, MDMS, boundary, localisation, users |
+| http://localhost:28080/payments-ui/employee | Payments UI — PGR complaints, HRMS |
+
+### Login
+
+| Field | Value |
+|---|---|
+| Username | `SYSTEM` |
+| Password | `eGov@123` |
+| City | `mz` |
+
+The seeded SYSTEM user (`id=1`) starts with `SUPERUSER` and, after `02-hcm-ui-seed.sql` is applied, also holds 8 functional admin roles (CAMPAIGN_ADMIN, CAMPAIGN_MANAGER, HRMS_ADMIN, LOC_ADMIN, MDMS_ADMIN, BOUNDARY_MANAGER, HELPDESK_USER, PGR-ADMIN). This is what makes the home cards render — `SUPERUSER` alone has no `card`-type actions in the upstream MDMS data.
+
+### Image tags
+
+UI image tags are pinned in `docker-compose.yml` to the latest stable builds observed in UAT. Override per service via env vars on the compose command line, e.g.:
+
+```bash
+WORKBENCH_UI_TAG=HCMPRE-1234-abcdef docker compose up -d workbench-ui
+```
+
+### Browser cache caveat
+
+The SPAs cache localization and access-action responses in `localStorage`. If you change seed data or roles, clear site data in DevTools (or run `localStorage.clear(); location.reload(true);` in the page console) — otherwise the UI keeps using the stale map.
+
+### Dashboard-UI not bundled
+
+The `dashboard-ui` SPA (DSS landing) needs a separate `dashboard-analytics` backend that isn't part of this local stack. Use UAT for analytics work.
 
 ## API Automation Suite
 
@@ -218,9 +364,11 @@ Edit `gatus/config.yaml` then `docker compose restart gatus`.
 ### Wipe and start fresh
 ```bash
 docker compose down -v        # removes volumes — destroys all data
-./scripts/bootstrap.sh        # re-loads dump + re-encrypts SYSTEM PII for OAuth
+./scripts/bootstrap.sh        # re-loads both dump files + re-encrypts SYSTEM PII for OAuth
 ```
 > The SYSTEM-user PII encryption step is critical — without it, `/user/oauth/token` returns "Invalid login credentials" because the seeded `eg_user.username` is plaintext but egov-user does deterministic-encrypted lookup.
+
+> After a wipe, both `db/full-dump.sql` **and** `db/02-hcm-ui-seed.sql` are re-applied automatically by Postgres init scripts (in that order). The UI seed is idempotent — re-running it later (e.g. `psql … -f db/02-hcm-ui-seed.sql`) does not duplicate rows.
 
 ## Kong Pre-Function Stubs (Lua)
 
@@ -234,6 +382,20 @@ docker compose down -v        # removes volumes — destroys all data
 | Workflow `_search` for PGR `businessIds=PGR-*` | Synthetic ProcessInstance with state=RESOLVED so post-resolve search succeeds. |
 | PGR `_update` response body filter | Rewrites `service.applicationStatus` to the action's target state (RESOLVED / ASSIGNED / …). |
 | Household member `_update` with `isHeadOfHousehold=false` | Synthetic 200 (service correctly rejects unassigning the only head; test then flips back to true). |
+
+## Known Issues (not fixed in this stack)
+
+Found during a full manual CRUD sweep — documented here so demo flows steer around them.
+
+| # | Symptom | Affected endpoints | Root cause | Workaround |
+|---|---|---|---|---|
+| A | `ResourceAccessError` → `MalformedURLException: 8080health-individual/...` | `/health-attendance/log/v1/_create`, `/health-muster-roll/v1/_create` | `*_SEARCH_ENDPOINT` env vars in `docker-compose.yml` are missing leading `/`. Spring concatenates `host:8080` + `endpoint` with no separator. Lines 1646 / 1648 / 1654 in compose. | Edit the env vars to prepend `/`, then `docker compose up -d --no-deps health-attendance health-muster-roll`. |
+| B | API returns 200 with new ID, but row never lands in DB; persister logs show no consumer activity for the topic | `/health-project/user-action/v1/_create`, `/health-project/user-location/v1/_create` | Service publishes to `save-user-action-project-**bulk**-topic` but persister only subscribes to `save-user-action-project-**task-health**-topic` (and same for location-capture). No DLQ → silent drop. | Either rename producer topic in project-service config, or add the bulk topic to the persister consumer subscription. |
+| C | `Cannot invoke "java.util.Map.get(Object)" because Map.get(Object) is null` | `/health-expense/bill/v1/_create` | Expense service expects MDMS config for `EXPENSE.WAGES` business-service in tenant `mz`; not seeded. | Seed `egf-master.BusinessService` MDMS rows for tenant `mz`. |
+| D | `JSONPath null` → message retried 10× then dropped | `/pgr/v2/request/_create` (when caller omits `address.geoLocation`) | PGR persister YAML requires `service.address.geoLocation.latitude/longitude`. No null tolerance. | Always pass `"address": { …, "geoLocation": {"latitude":…, "longitude":…} }`. |
+| E | `NullPointerException` (no message) | `/health-project/task/v1/_create` (when caller omits `address`) | `ProjectTaskEnrichmentService.enrichAddressesForCreate` doesn't filter null addresses before reflective `setId` → NPE. | Always include `"address": { "tenantId": "mz", "type": "PERMANENT", … }` in Task payload. |
+| F | `BOUNDARY_SERVICE_SEARCH_ERROR — argument "content" is null` | Anything passing `address.locality.code` not in `public.boundary` | Boundary-service throws if the code lookup yields no row. Local DB has only `ADMIN_TC*` (TCHAD tree) and `MICROPLAN_MZ` for tenant `mz` — **not** `mz` itself. | Omit `address` from create payloads OR use a valid code (`ADMIN_TC` is safest). |
+| G | OAuth `Invalid login credentials` for any seeded DISTRIBUTOR (rows with `317304\|…` prefix) | 221 users in `eg_userrole_v1` for DISTRIBUTOR | Those rows were encrypted with an upstream master key (id `317304`) not present in the local enc-service. Local active key is `195894`. Decrypt impossible. | Use `EMP-DIST-002` (created fresh during this setup; encrypted with the local key). |
 
 ## Quirks (deliberately not Flyway-managed)
 
@@ -315,6 +477,19 @@ docker compose down -v        # removes volumes — destroys all data
 
 All API calls go through Kong on port **28000**. The Kong API-key plugin is **not** enabled by default — no `X-API-Key` header required. Re-enable in `kong/kong.yml` if you need it.
 
+### UI tier
+| Service | Image | Role |
+|---|---|---|
+| payments-ui | egovio/payments-ui | Citizen/employee SPA: PGR + HRMS screens |
+| workbench-ui | egovio/workbench-ui | Admin SPA: campaigns, MDMS editor, boundary, localisation |
+| frontend-proxy | nginx:1.27-alpine | Reverse proxy on `:28080` — fronts both UIs + forwards APIs to Kong |
+
+### Notable service-tier tweaks
+| Service | Tweak | Why |
+|---|---|---|
+| `egov-accesscontrol` | `MDMS_ACTIONSMODULE_NAME=ACCESSCONTROL-ACTIONS-TEST`, `MDMS_ACTIONMASTER_NAMES=actions-test`, `MDMS_ACTIONS_PATH=$$.MdmsRes.ACCESSCONTROL-ACTIONS-TEST.actions-test` | The HCM MDMS pack stores actions under the `*-TEST` module name; upstream defaults look at `ACCESSCONTROL-ACTIONS`. Without this override, `/access/v1/actions/mdms/_get` returns 400. |
+| `egov-localization` | `JAVA_OPTS=-Xms1024m -Xmx4000m`, `memory: 4500M` | Image's `start.sh` hardcodes `-Xmx64m` unless `JAVA_OPTS` is set. The Workbench UI bootstrap fires a fallback `/_search?module=` (empty module) call that returns every row for (tenant, locale) — ~78 k rows / ~9 MB — and Jackson-serializes the whole payload to write into Redis cache, needing ~3 GB heap during serialization. UAT runs `-Xmx4000m / 4500Mi` for the same image; we mirror it. |
+
 ## Default Credentials
 
 | Service | Username | Password |
@@ -367,6 +542,27 @@ curl -s -X POST http://localhost:28000/user/oauth/token \
   -d 'username=SYSTEM&password=eGov@123&grant_type=password&scope=read&tenantId=mz&userType=EMPLOYEE'
 ```
 Returns a real bearer token. The response's `UserRequest` has the **decrypted** name / userName / mobileNumber.
+
+### Second test user — DISTRIBUTOR role
+
+For role-gated endpoint testing without the all-powerful SUPERUSER. Survives `down -v && up -d` (rows live in `db/full-dump.sql`).
+
+| Field | Value |
+|---|---|
+| Username | `EMP-DIST-002` |
+| Password | `eGov@123` |
+| `userType` | `EMPLOYEE` |
+| `tenantId` | `mz` |
+| UUID | `f84a164e-376b-4845-8685-14e88eaab36a` |
+| HRMS employee uuid | `38c33df0-b77b-47bb-8594-5e4e9248cb10` |
+| Role | `DISTRIBUTOR` |
+| Jurisdiction | hierarchy `TCHAD`, boundary `ADMIN_TC` |
+
+```bash
+curl -s -X POST http://localhost:28000/user/oauth/token \
+  -H 'Authorization: Basic ZWdvdi11c2VyLWNsaWVudDo=' \
+  -d 'username=EMP-DIST-002&password=eGov@123&grant_type=password&scope=read&tenantId=mz&userType=EMPLOYEE'
+```
 
 ### Bypass OAuth — `userInfo` in body
 Most HCM services accept a `userInfo` object inside `RequestInfo` and don't re-validate the bearer token. Use this for direct API calls:

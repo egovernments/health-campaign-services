@@ -21,6 +21,7 @@ services:
     volumes:
       - hcm_postgres_data:/var/lib/postgresql/data
       - ./db/full-dump.sql:/docker-entrypoint-initdb.d/01-full-dump.sql:ro
+      - ./db/02-hcm-ui-seed.sql:/docker-entrypoint-initdb.d/02-hcm-ui-seed.sql:ro
     ports:
       - "25432:5432"
     healthcheck:
@@ -399,6 +400,12 @@ services:
       KAFKA_BOOTSTRAP_SERVERS: redpanda:9092
       SERVER_PORT: 8090
       EGOV_MDMS_HOST: http://egov-mdms-service:8094/
+      # HCM stores actions under ACCESSCONTROL-ACTIONS-TEST / actions-test
+      # (not the upstream default ACCESSCONTROL-ACTIONS / actions). Point
+      # /access/v1/actions/mdms/_get at the right MDMS location.
+      MDMS_ACTIONSMODULE_NAME: ACCESSCONTROL-ACTIONS-TEST
+      MDMS_ACTIONMASTER_NAMES: actions-test
+      MDMS_ACTIONS_PATH: $$.MdmsRes.ACCESSCONTROL-ACTIONS-TEST.actions-test
       OTEL_TRACES_EXPORTER: none
       JAVA_TOOL_OPTIONS: -Xms64m -Xmx192m
     ports:
@@ -485,7 +492,15 @@ services:
       SPRING_REDIS_PORT: 6379
       SERVER_PORT: 8096
       OTEL_TRACES_EXPORTER: none
-      JAVA_TOOL_OPTIONS: -Xms64m -Xmx256m
+      # The image's start.sh hardcodes -Xmx64m unless JAVA_OPTS is set.
+      # The Workbench UI's bootstrap chain includes a fallback localization
+      # call with empty `module` query param — egov-localization fetches every
+      # row for (tenantId, locale) and Jackson-serializes the entire payload
+      # to write into Redis cache. With ~73k rows per locale in this seed,
+      # that needs ~3 GB of heap during serialization. UAT runs at -Xmx4000m
+      # for the same image (egov-localization:redis-localization-key-5c0a4c4),
+      # so we mirror it. The call is harmless in UAT because heap is sized for it.
+      JAVA_OPTS: -Xms1024m -Xmx4000m
     ports:
       - "28096:8096"
     healthcheck:
@@ -497,8 +512,8 @@ services:
     deploy:
       resources:
         limits:
-          memory: 384M
-          cpus: '0.5'
+          memory: 4500M
+          cpus: '1'
     networks:
       - hcm-network
 
@@ -2335,6 +2350,80 @@ services:
         limits:
           memory: 768M
           cpus: '0.5'
+    networks:
+      - hcm-network
+
+  # ==================== UI ====================
+  # UI image tags are pinned to the latest stable builds observed in UAT
+  # (cluster: unified-uat, namespace: health) on 2026-05-20.
+  # Override per-service via env vars (e.g. PAYMENTS_UI_TAG=xxxx docker compose up).
+
+  payments-ui:
+    image: egovio/payments-ui:${PAYMENTS_UI_TAG:-HCMPRE-3987-dd275ab}
+    container_name: hcm-payments-ui
+    volumes:
+      - ./nginx/ui-assets/sub_filter_payments.conf:/etc/nginx/conf.d/sub_filter.conf:ro
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1/payments-ui/"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: '0.25'
+    networks:
+      - hcm-network
+
+  workbench-ui:
+    image: egovio/workbench-ui:${WORKBENCH_UI_TAG:-HCMPRE-3928-7685fda}
+    container_name: hcm-workbench-ui
+    volumes:
+      - ./nginx/ui-assets/sub_filter_workbench.conf:/etc/nginx/conf.d/sub_filter.conf:ro
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1/workbench-ui/"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: '0.25'
+    networks:
+      - hcm-network
+
+  # Single-origin entrypoint that fronts the UIs and forwards API calls to Kong.
+  # Browse http://localhost:28080 (→ redirects to /workbench-ui/employee).
+  frontend-proxy:
+    image: nginx:1.27-alpine
+    container_name: hcm-frontend-proxy
+    volumes:
+      - ./nginx/frontend-proxy.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/ui-assets:/usr/share/nginx/html/digit-ui-assets:ro
+    ports:
+      - "28080:80"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    depends_on:
+      payments-ui:
+        condition: service_started
+      workbench-ui:
+        condition: service_started
+      kong:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+          cpus: '0.1'
     networks:
       - hcm-network
 

@@ -19,8 +19,8 @@ Read the rest of this doc if you want to understand each step or run them manual
 ## 0. Prerequisites
 
 ### Hardware
-- 12 GB RAM available to Docker
-- 5 GB free disk
+- **12 GB RAM** available to Docker (recommended 16 GB). Measured idle RSS across 46 containers is ~6 GB, peaks ~10 GB during JVM warm-up + the Workbench UI's first localization fetch (which alone needs ~3 GB on `egov-localization`).
+- **15 GB free disk** (recommended 20 GB). Images take ~16 GB total but most users share base layers; volumes add ~3 GB on first run.
 
 ### Required CLI tools
 
@@ -29,7 +29,7 @@ Read the rest of this doc if you want to understand each step or run them manual
 | Docker Engine 24+ | run the stack | `curl -fsSL https://get.docker.com \| sh` | Docker Desktop |
 | Docker Compose v2.20+ | orchestration | `sudo apt-get install -y docker-compose-plugin` | bundled with Docker Desktop |
 | `curl` | smoke tests | usually present | usually present |
-| `python3` + `pip` | runs the dump downloader `gdown` | `sudo apt-get install -y python3 python3-pip` | usually present |
+| `python3` + `pip` | runs the bootstrap helper (PII encryption, smoke test) | `sudo apt-get install -y python3 python3-pip` | usually present |
 | `psql` (PostgreSQL client) | optional, but verification queries below assume it | `sudo apt-get install -y postgresql-client` | `brew install libpq && brew link --force libpq` |
 | `jq` | optional, pretty-print JSON | `sudo apt-get install -y jq` | `brew install jq` |
 
@@ -56,21 +56,16 @@ git clone https://github.com/egovernments/health-campaign-services.git
 cd health-campaign-services/local-setup
 ```
 
-## 2. DB seed dump is in the repo
+## 2. DB seed dumps are in the repo
 
-`db/full-dump.sql` (~12 MB, **TCHAD hierarchy only**) is committed to git. After a clone it's already in place — no separate download step.
+Two SQL files in `db/` are committed and auto-loaded by Postgres on first init:
 
-The file contains everything needed to test campaign creation end-to-end:
+| File | Size | Purpose |
+|---|---|---|
+| `db/full-dump.sql` | ~12 MB | Core platform seed — schema, MDMS, boundary (TCHAD + MICROPLAN), ~133 k localization rows (locale `en_IN`), OAuth client, 1 SYSTEM admin + ~1000 sample users, 501 HRMS employees, 31 campaigns, role/access-control rows. Includes: **17 HCM roles seeded into `eg_role` for tenant mz** (DISTRIBUTOR, WAREHOUSE_MANAGER, etc.), **demo DISTRIBUTOR user** `EMP-DIST-002` (4 INSERTs at the end), **`health.project` NULL relaxation** on `projectsubtype`/`department`/`description`/`referenceid`, and a `DO $$ … $$` block that anchors campaign `startdate`/`enddate` to `NOW()` / `NOW()+90d` on first load. |
+| `db/02-hcm-ui-seed.sql` | ~6 MB | UI-supporting seed — grants 9 functional admin roles to SYSTEM user, seeds 6,288 `ACCESSCONTROL-ACTIONS-TEST.actions-test` rows so the Workbench home renders cards, and 19,551 localization rows for `rainmaker-common` + `digit-ui` × 4 locales. Idempotent. |
 
-- core schema (boundary + MDMS + HCM domain tables)
-- 607 boundary rows for the TCHAD hierarchy (COUNTRY → PROVINCE → DISTRICT → HEALTHCENTER)
-- ~24 k MDMS rows (trimmed to modules used by HCM flows)
-- OAuth client + SYSTEM admin user with 9 roles
-- 31 sample TCHAD campaigns, 500 HRMS employees, 1000 sample users
-- a `DO $$ … $$` block at the end that anchors campaign `startdate`/`enddate`
-  to `NOW()` / `NOW() + 90 days` on first load
-
-If anyone trims/regenerates the dump, ensure it stays **< 100 MB** (GitHub's hard limit per file).
+Postgres applies them in name order (`01-`, `02-`). If anyone trims/regenerates either file, ensure each stays **< 100 MB** (GitHub's hard limit per file).
 
 ## 3. Bring the stack up
 
@@ -78,7 +73,7 @@ If anyone trims/regenerates the dump, ensure it stays **< 100 MB** (GitHub's har
 docker compose up -d
 ```
 
-First boot pulls images and seeds the DB — typically **3–5 minutes**.
+First boot pulls images and seeds the DB — typically **8–15 minutes** depending on link speed (46 services, ~16 GB of images). Subsequent boots are **~2 minutes** (only JVM warm-up).
 
 ## 4. Verify
 
@@ -136,11 +131,37 @@ All 13 endpoints should return `200`. If any returns `400` with `msgId is requir
 
 | URL | Purpose |
 |---|---|
+| http://localhost:28080 | Frontend proxy (UI entrypoint — redirects to Workbench) |
+| http://localhost:28080/workbench-ui/employee | Workbench UI |
+| http://localhost:28080/payments-ui/employee | Payments UI |
 | http://localhost:28889 | Gatus — service health |
 | http://localhost:13000 | Grafana — traces (admin/admin) |
 | http://localhost:29009 | Portainer — container UI |
 | http://localhost:29001 | MinIO console |
 | http://localhost:28002 | Kong Manager |
+
+### UI login
+
+| Field | Value |
+|---|---|
+| Username | `SYSTEM` |
+| Password | `eGov@123` |
+| City | `mz` |
+
+**Secondary test account** (DISTRIBUTOR role, for non-superuser flows):
+
+| Field | Value |
+|---|---|
+| Username | `EMP-DIST-002` |
+| Password | `eGov@123` |
+| City | `mz` |
+| Role | `DISTRIBUTOR` (jurisdiction: TCHAD / ADMIN_TC) |
+
+If the UI looks blank or shows raw codes (`HCM_…`) after seed changes, the SPA is using cached localStorage. In DevTools console:
+
+```js
+localStorage.clear(); sessionStorage.clear(); location.reload(true);
+```
 
 ## Common commands
 
@@ -162,10 +183,18 @@ docker compose down -v
 
 | Symptom | Fix |
 |---|---|
-| Containers say `healthy` but API hangs | `docker compose restart pgbouncer egov-user` — pgbouncer caches DNS failures |
+| Containers say `healthy` but API hangs | `docker compose restart pgbouncer egov-user` — pgbouncer caches DNS failures, JVM caches negative DNS for enc-service |
 | `eg_user` / `oauth_client_details` missing | DB dump did not load — re-fetch `db/full-dump.sql`, then `docker compose down -v && docker compose up -d` |
+| Workbench home blank after login | `02-hcm-ui-seed.sql` didn't apply, or browser cache is stale. Apply seed manually: `cat db/02-hcm-ui-seed.sql \| docker exec -i hcm-postgres psql -U egov -d egov`, then flush redis (`docker exec hcm-redis redis-cli FLUSHALL`) and clear browser localStorage. |
+| UI labels show as raw codes (`TENANT_TENANTS_MZ`) | Localization cache miss. Flush redis as above and hard-reload after clearing site data. |
+| `/access/v1/actions/mdms/_get` returns 400 `Missing property MdmsRes.ACCESSCONTROL-ACTIONS` | The 3 env vars on `egov-accesscontrol` (`MDMS_ACTIONSMODULE_NAME`, `MDMS_ACTIONMASTER_NAMES`, `MDMS_ACTIONS_PATH`) were stripped. Re-add per `docker-compose.yml`. |
 | Port already in use | Another local stack is running — `docker compose down` it first, or change the mapped port in `docker-compose.yml` |
 | First boot stuck > 10 min | Check `docker compose logs egov-user` — usually slow JVM startup, not a real error |
+| `BOUNDARY_SERVICE_SEARCH_ERROR — argument "content" is null` on HCM create payloads | Caller passed `address.locality.code` that doesn't exist in `public.boundary`. Local DB has `ADMIN_TC*` (TCHAD tree) and `MICROPLAN_MZ` — **not** `mz`. Either omit `address` or use a valid code (`ADMIN_TC`). |
+| HRMS create fails with `ERR_HRMS_USER_CREATION_FAILED` | egov-user wasn't fully started when HRMS called it (slow JVM warm-up). Wait ~2 min after compose up and retry. If persistent, `docker compose restart kong` to clear DNS cache. |
+| HRMS create fails with `ERR_HRMS_INVALID_ROLE` | The role you passed isn't in `eg_role` for tenant `mz`. The dump seeds 18 (SUPERUSER + 17 HCM roles). For new custom roles, add to `eg_role` first. |
+| Project create returns 200 but search returns nothing | Project field is missing one of `projectsubtype`/`department`/`description`/`referenceid`. Pre-fix, the dump had `NOT NULL` on those four. Current dump has them nullable. If you imported an older dump, run `ALTER TABLE health.project ALTER COLUMN description DROP NOT NULL;` (and the other three). |
+| `/health-attendance/log/v1/_create` or muster-roll create returns `ResourceAccessError` | Docker-compose `*_SEARCH_ENDPOINT` env vars on attendance / muster-roll services are missing leading `/`. See README "Known Issues" section. |
 
 ## Next steps
 

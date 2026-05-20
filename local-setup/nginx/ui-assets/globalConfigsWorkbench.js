@@ -1,0 +1,47 @@
+// Local docker-compose variant of UAT globalConfigsWorkbench.js
+var globalConfigs = (function () {
+  var stateTenantId = 'mz';
+  var gmaps_api_key = '';
+  var contextPath = 'workbench-ui';
+  var configModuleName = 'commonHCMUiConfig';
+  var centralInstanceEnabled = false;
+  var localeRegion = "IN";
+  var localeDefault = "en";
+  var mdmsContext = "egov-mdms-service";
+  var footerBWLogoURL = "/digit-ui-assets/digit-footer-bw.png";
+  var footerLogoURL = "/digit-ui-assets/digit-footer.png";
+  var digitHomeURL = 'https://www.digit.org/';
+  var assetS3Bucket = 'egov-dev-assets';
+  var hrmsContext = "health-hrms";
+  var projectContext = "health-project";
+  var invalidEmployeeRoles = ["CBO_ADMIN", "ORG_ADMIN", "ORG_STAFF", "SYSTEM"];
+  var mdmsFeatures = { bulkDownload: true, bulkUpload: true, JSONEdit: true };
+  var uiThemeConfig = { headerTheme: "light", sideNavTheme: "light", sideNavVariant: "primary" };
+  var getConfig = function (key) {
+    if (key === 'STATE_LEVEL_TENANT_ID') return stateTenantId;
+    if (key === 'GMAPS_API_KEY') return gmaps_api_key;
+    if (key === "ROLE_BASED_HOMECARD") return true;
+    if (key === "HEADER_THEME") return uiThemeConfig?.headerTheme;
+    if (key === "SIDENAV_THEME") return uiThemeConfig?.sideNavTheme;
+    if (key === "SIDENAV_VARIANT") return uiThemeConfig?.sideNavVariant;
+    if (key === 'ENABLE_SINGLEINSTANCE') return centralInstanceEnabled;
+    if (key === 'DIGIT_FOOTER_BW') return footerBWLogoURL;
+    if (key === 'DIGIT_FOOTER') return footerLogoURL;
+    if (key === 'DIGIT_HOME_URL') return digitHomeURL;
+    if (key === 'S3BUCKET') return assetS3Bucket;
+    if (key === 'CONTEXT_PATH') return contextPath;
+    if (key === 'UICONFIG_MODULENAME') return configModuleName;
+    if (key === "LOCALE_REGION") return localeRegion;
+    if (key === "LOCALE_DEFAULT") return localeDefault;
+    if (key === "ENABLE_JSON_EDIT") return mdmsFeatures?.JSONEdit;
+    if (key === "ENABLE_MDMS_BULK_UPLOAD") return mdmsFeatures?.bulkUpload;
+    if (key === "ENABLE_MDMS_BULK_DOWNLOAD") return mdmsFeatures?.bulkDownload;
+    if (key === "MDMS_CONTEXT_PATH") return mdmsContext;
+    if (key === "PROJECT_SERVICE_PATH") return projectContext;
+    if (key === "HRMS_CONTEXT_PATH") return hrmsContext;
+    if (key === "MDMS_V2_CONTEXT_PATH") return mdmsContext;
+    if (key === "MDMS_V1_CONTEXT_PATH") return mdmsContext;
+    if (key === 'INVALIDROLES') return invalidEmployeeRoles;
+  };
+  return { getConfig };
+}());

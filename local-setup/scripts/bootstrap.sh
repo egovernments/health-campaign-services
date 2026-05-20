@@ -1,8 +1,17 @@
 #!/usr/bin/env bash
 # HCM local-setup bootstrap.
-# One-shot: installs prerequisites, fetches the DB dump, brings the stack up,
-# waits for it to be healthy, then runs the smoke test.
+# One-shot: installs prerequisites, brings the stack up,
+# encrypts SYSTEM user PII so OAuth works, ensures Kafka topics, restarts Kong,
+# then runs a 13-API smoke test and a DISTRIBUTOR login probe.
 # Idempotent — safe to re-run.
+#
+# Seed data lives in db/full-dump.sql (~12 MB) + db/02-hcm-ui-seed.sql (~6 MB),
+# both committed to the repo and auto-applied by Postgres on first init.
+# The dump includes: schema, MDMS, boundary (TCHAD + MICROPLAN), ~133k localization
+# rows (en_IN), 1 SYSTEM admin + ~1000 sample users, 501 HRMS employees,
+# 18 HCM roles in eg_role for tenant mz,
+# a demo DISTRIBUTOR user (EMP-DIST-002 / eGov@123) for non-SUPERUSER testing,
+# and a NULL-relaxation patch on health.project optional columns.
 #
 # Usage:
 #   cd local-setup && ./scripts/bootstrap.sh
@@ -94,8 +103,48 @@ fi
 ls -lh "$DUMP"
 
 # ── 4. Start the stack ─────────────────────────────────────────────────────
-c_g "[4/7] Starting the stack (docker compose up -d)"
-$DK compose up -d
+# docker-compose uses strict depends_on: service_healthy. A single transient
+# health-probe failure on one container causes compose to abort and leave many
+# downstream containers in "Created" state. We retry up to 5 times: each pass
+# kicks the still-pending containers + restarts anything Exited/unhealthy.
+c_g "[4/7] Starting the stack (docker compose up -d, with healing)"
+for attempt in 1 2 3 4 5; do
+  if $DK compose up -d 2>&1 | tee /tmp/_compose_up.$$.log; then
+    # If compose exited cleanly, we're done with this phase.
+    : # success — proceed
+    break
+  fi
+
+  # Compose aborted. Find stragglers and try to heal them.
+  echo "  ↻ attempt $attempt: compose hit a dependency failure; healing stragglers..."
+
+  # Restart anything that is Exited with non-zero status or currently unhealthy.
+  # `docker compose ps -q` returns container IDs of services in this project.
+  pending=$($DK compose ps --status=created -q 2>/dev/null || true)
+  bad=$($DK ps --filter "health=unhealthy" --format '{{.Names}}' 2>/dev/null | grep '^hcm-' || true)
+
+  if [ -n "$bad" ]; then
+    echo "  ↻ restarting unhealthy: $bad"
+    for c in $bad; do $DK restart "$c" >/dev/null 2>&1 || true; done
+  fi
+  if [ -n "$pending" ]; then
+    echo "  ↻ starting Created containers ($(echo "$pending" | wc -l) waiting)"
+    for c in $pending; do $DK start "$c" >/dev/null 2>&1 || true; done
+  fi
+
+  # Give unhealthy services time to pass their next probe before the next pass.
+  sleep 30
+done
+rm -f /tmp/_compose_up.$$.log
+
+# Final safety net: kick anything still in Created state (the compose loop
+# above may have exited cleanly on its 5th try while some containers were
+# still waiting on a slow JVM warm-up).
+still_created=$($DK compose ps --status=created -q 2>/dev/null || true)
+if [ -n "$still_created" ]; then
+  c_y "  ⚠ some containers still in Created state; forcing start"
+  for c in $still_created; do $DK start "$c" >/dev/null 2>&1 || true; done
+fi
 
 # ── 5. Wait for Gatus to report all healthy ────────────────────────────────
 c_g "[5/7] Waiting for services to become healthy (up to 8 min)"
@@ -196,4 +245,39 @@ post("/project-factory/v1/project-type/search",
         "pagination":{"limit":5}}})
 PYS
 
-c_g "✅ Bootstrap complete. Dashboard: http://localhost:28889"
+# ── 7b. Verify the demo DISTRIBUTOR login works ───────────────────────────
+# This user is shipped in db/full-dump.sql so it survives `down -v && up -d`.
+# A 200 here proves OAuth + role-binding + jurisdiction seed are all wired.
+c_g "[7b/7] Probing demo DISTRIBUTOR login (EMP-DIST-002 / eGov@123)"
+DIST_CODE=$(curl -s -o /dev/null -m 15 -X POST 'http://localhost:28000/user/oauth/token' \
+  -H 'Authorization: Basic ZWdvdi11c2VyLWNsaWVudDo=' \
+  -d 'username=EMP-DIST-002&password=eGov@123&grant_type=password&scope=read&tenantId=mz&userType=EMPLOYEE' \
+  -w "%{http_code}")
+if [ "$DIST_CODE" = "200" ]; then
+  echo "  ✓ 200  /user/oauth/token  (DISTRIBUTOR login OK)"
+else
+  c_y "  ⚠ $DIST_CODE  DISTRIBUTOR login failed — was the dump fully loaded?"
+fi
+
+# ── 8. Final summary: list anything still not happy ───────────────────────
+not_happy=$($DK ps --filter "health=unhealthy" --format '{{.Names}}' 2>/dev/null | grep '^hcm-' || true)
+still_created=$($DK compose ps --status=created --format '{{.Name}}' 2>/dev/null || true)
+exited_bad=$($DK ps -a --filter "status=exited" --format '{{.Names}} {{.Status}}' 2>/dev/null \
+              | grep '^hcm-' | grep -v 'Exited (0)' || true)
+
+if [ -n "$not_happy" ] || [ -n "$still_created" ] || [ -n "$exited_bad" ]; then
+  c_y "⚠  Bootstrap finished but some containers still need attention:"
+  [ -n "$not_happy" ]    && echo "   unhealthy:   $not_happy"
+  [ -n "$still_created" ] && echo "   not started: $still_created"
+  [ -n "$exited_bad" ]   && echo "   exited:      $exited_bad"
+  echo "   → Try: docker compose up -d   (re-runs only stragglers)"
+  echo "   → Or:  docker compose logs -f <service-name>   for diagnostics"
+fi
+
+c_g "✅ Bootstrap complete."
+echo
+echo "  Service health (Gatus)   http://localhost:28889"
+echo "  Workbench UI             http://localhost:28080/workbench-ui/employee"
+echo "  Payments UI              http://localhost:28080/payments-ui/employee"
+echo "  Admin login              SYSTEM / eGov@123 / city: mz"
+echo "  Distributor login        EMP-DIST-002 / eGov@123 / city: mz"
