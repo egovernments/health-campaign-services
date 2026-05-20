@@ -100,6 +100,12 @@ public class MdmsApiMappings {
                 JsonNode ddrCode = tenant.findValue(Constants.MDMSKeys.DISTRICT_CODE);
                 JsonNode ddrName = tenant.findValue(Constants.MDMSKeys.DDR_NAME);
 
+                if (ddrCode == null || ddrName == null) {
+                    logger.warn("Skipping tenant {} - missing districtCode/ddrName in MDMS entry",
+                            tenantId != null ? tenantId.asText() : "<no code>");
+                    continue;
+                }
+
                 //JsonNode name = tenant.findValue(NAME);
                 //if(!codeValues.containsKey(tenantId.asText())) codeValues.put(tenantId.asText(), name.asText());
                 String cityName = ulbCityNamesMappings.get(tenantId.asText());
@@ -133,6 +139,7 @@ public class MdmsApiMappings {
 
             }
         } catch (Exception e){
+            logger.error("Failed to fetch DDR's from mdms", e);
             throw new CustomException("MDMS_ERROR","Failed to fetch DDR's from mdms");
         }
         ddrValueMap.entrySet().removeIf(map -> map.getValue().size()==0);
