@@ -2,7 +2,7 @@ import { RequestInfo, withUserInfo } from "../config/models/requestInfoSchema";
 import { logger } from './logger';
 import { httpRequest } from './request';
 import { produceModifiedMessages } from '../kafka/Producer';
-import { dataRowStatuses, sheetDataRowStatuses, campaignStatuses, campaignDataRowFields, userDataFields, userCredentialFields, errorCodes, campaignDataRetryFields, ERROR_HISTORY_MAX_ENTRIES } from '../config/constants';
+import { dataRowStatuses, sheetDataRowStatuses, campaignStatuses, campaignDataRowFields, userDataFields, userCredentialFields, errorCodes } from '../config/constants';
 import { sendCampaignFailureMessage } from './campaignFailureHandler';
 import { searchProjectTypeCampaignService } from '../service/campaignManageService';
 import { DataTransformer } from './transFormUtil';
@@ -199,7 +199,7 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
                 // Failure - mark row as failed with HRMS error
                 campaignRecord.status = dataRowStatuses.failed;
                 campaignRecord.data[campaignDataRowFields.status] = sheetDataRowStatuses.FAILED;
-                appendErrorHistory(campaignRecord, hrmsError);
+                campaignRecord.data[campaignDataRowFields.errorDetails] = hrmsError;
                 updatedUsers.push(campaignRecord);
                 failureCount++;
                 logger.warn(`HRMS create failed for phone ${phoneNumber}${wasRetry ? ' (retry=true)' : ''}: ${hrmsError}`);
@@ -246,7 +246,7 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
                 // INVALID) and the retry gate allows re-creation on the next upload.
                 campaignRecord.status = dataRowStatuses.failed;
                 campaignRecord.data[campaignDataRowFields.status] = sheetDataRowStatuses.FAILED;
-                appendErrorHistory(campaignRecord, "HRMS did not return a service UUID for this user");
+                campaignRecord.data[campaignDataRowFields.errorDetails] = "HRMS did not return a service UUID for this user";
                 updatedUsers.push(campaignRecord);
                 failureCount++;
 
@@ -355,7 +355,7 @@ export async function handleUserBatch(messageObject: UserBatchMessage): Promise<
             for (const record of nonCompletedRecords) {
                 record.status = dataRowStatuses.failed;
                 record.data[campaignDataRowFields.status] = sheetDataRowStatuses.FAILED;
-                appendErrorHistory(record, errMsg);
+                record.data[campaignDataRowFields.errorDetails] = errMsg;
             }
             try {
                 await produceModifiedMessages(
@@ -628,28 +628,4 @@ export async function fetchExistingUsersByPhone(
         }
     }
     return result;
-}
-
-/**
- * Append an attempt outcome to a row's error history, capped at the last
- * ERROR_HISTORY_MAX_ENTRIES entries. Also overwrites the legacy
- * data["#errorDetails#"] field with the latest error for backwards
- * compatibility with credential-sheet rendering.
- *
- * Exported so user-processClass.ts can mark rows failed with the same
- * history-chaining semantics.
- */
-export function appendErrorHistory(record: CampaignRecord, errMsg: string): void {
-    if (!record?.data) return;
-
-    record.data[campaignDataRowFields.errorDetails] = errMsg;
-
-    const history: any[] = Array.isArray((record.data as any)[campaignDataRetryFields.errorHistory])
-        ? [...(record.data as any)[campaignDataRetryFields.errorHistory]]
-        : [];
-    history.push({ attemptedAt: Date.now(), error: errMsg });
-    if (history.length > ERROR_HISTORY_MAX_ENTRIES) {
-        history.splice(0, history.length - ERROR_HISTORY_MAX_ENTRIES);
-    }
-    (record.data as any)[campaignDataRetryFields.errorHistory] = history;
 }

@@ -14,7 +14,7 @@ import { decrypt, encrypt } from "../utils/cryptUtils";
 import { validateResourceDetailsBeforeProcess } from "../utils/sheetManageUtils";
 import { WorkerData, WorkerRegistryRecord, createOrUpdateWorkers, searchWorkersByIds } from "../utils/workerRegistryUtils";
 import { validatePaymentFields } from "../utils/paymentValidationUtils";
-import { appendErrorHistory, fetchExistingUsersByPhone, normalizeNameForCompare, type CampaignRecord } from "../utils/userBatchHandler";
+import { fetchExistingUsersByPhone, normalizeNameForCompare, type CampaignRecord } from "../utils/userBatchHandler";
 
 // This will be a dynamic template class for different types
 export class TemplateClass {
@@ -669,7 +669,7 @@ export class TemplateClass {
                                     for (const record of records) {
                                         record.status = dataRowStatuses.failed;
                                         record.data[campaignDataRowFields.status] = sheetDataRowStatuses.FAILED;
-                                        appendErrorHistory(record, errMsg);
+                                        record.data[campaignDataRowFields.errorDetails] = errMsg;
                                     }
                                 }
                             }
@@ -685,7 +685,7 @@ export class TemplateClass {
                             for (const record of records) {
                                 record.status = dataRowStatuses.failed;
                                 record.data[campaignDataRowFields.status] = sheetDataRowStatuses.FAILED;
-                                appendErrorHistory(record, errMsg);
+                                record.data[campaignDataRowFields.errorDetails] = errMsg;
                             }
                         }
                     }

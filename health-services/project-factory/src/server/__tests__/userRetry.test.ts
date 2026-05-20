@@ -9,7 +9,7 @@
  *    transitions from failed → completed without a new HRMS create attempt.
  */
 import { handleUserBatch } from '../utils/userBatchHandler';
-import { dataRowStatuses, sheetDataRowStatuses, campaignDataRowFields, campaignDataRetryFields, errorCodes, userDataFields, userCredentialFields } from '../config/constants';
+import { dataRowStatuses, sheetDataRowStatuses, campaignDataRowFields, errorCodes, userDataFields, userCredentialFields } from '../config/constants';
 
 jest.mock('../utils/logger', () => ({
     logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn(), debug: jest.fn() },
@@ -59,10 +59,12 @@ jest.mock('../config', () => ({
 import { searchProjectTypeCampaignService } from '../service/campaignManageService';
 import { produceModifiedMessages } from '../kafka/Producer';
 import { httpRequest } from '../utils/request';
+import { logger } from '../utils/logger';
 
 const searchCampaignMock = searchProjectTypeCampaignService as jest.MockedFunction<typeof searchProjectTypeCampaignService>;
 const produceMock = produceModifiedMessages as jest.MockedFunction<typeof produceModifiedMessages>;
 const httpMock = httpRequest as jest.MockedFunction<typeof httpRequest>;
+const loggerMock = logger as jest.Mocked<typeof logger>;
 
 const PHONE = '+91-1234567890';
 const TENANT = 'tn';
@@ -176,7 +178,6 @@ describe('handleUserBatch — retry idempotency + mismatch detection', () => {
         const msg: any = buildMsg({
             [campaignDataRowFields.status]: sheetDataRowStatuses.FAILED,
             [campaignDataRowFields.errorDetails]: 'prior HRMS timeout',
-            [campaignDataRetryFields.errorHistory]: [{ attemptedAt: 1, error: 'prior HRMS timeout' }],
         }, dataRowStatuses.failed);
 
         await handleUserBatch(msg);
@@ -184,8 +185,5 @@ describe('handleUserBatch — retry idempotency + mismatch detection', () => {
         const row = msg.userData[PHONE];
         expect(row.status).toBe(dataRowStatuses.completed);
         expect(row.uniqueIdAfterProcess).toBe('svc-uuid-1');
-        // Error history from prior attempt is preserved (not cleared on absorb)
-        expect(Array.isArray(row.data[campaignDataRetryFields.errorHistory])).toBe(true);
-        expect(row.data[campaignDataRetryFields.errorHistory].length).toBeGreaterThan(0);
     });
 });
