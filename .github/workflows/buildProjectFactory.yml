@@ -5,6 +5,7 @@ on:
     branches:
       - allValidations
       - master
+      - nigeria-go-deep-2-userRetryCampaign
 
 env:
   DOCKER_USERNAME: ${{ vars.DOCKER_USERNAME }}
