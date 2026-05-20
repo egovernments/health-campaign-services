@@ -64,7 +64,7 @@ public class HRMSUtils {
 
 	public String generateMobileNumber() {
 		Random random = new Random();
-		long min = 1000000000L;
+		long min = 6000000000L;
 		long max = 9999999999L;
 		long mobileNumber = Math.abs(random.nextLong() % (max - min + 1)) + min;
 		return Long.toString(mobileNumber);
