@@ -126,17 +126,16 @@ public class ProjectBeneficiaryTransformationService {
     }
 
     private void checkMandatoryFieldExists(ObjectNode additionalDetails, String beneficiaryClientReferenceId, String tenantId) {
-        boolean isAnyFieldMissing = false;
-
+        List<String> missingKeys = new ArrayList<>();
         for (String key : mandatoryFields) {
             JsonNode value = additionalDetails.get(key);
-            if (!additionalDetails.has(key) || !additionalDetails.hasNonNull(key) || value.asText().isEmpty()) {
-                isAnyFieldMissing = true;
-                break;
+            //Check if the value exists or if it is null or empty
+            if (value == null || value.isNull() || (value.isTextual() && value.asText().trim().isEmpty())) {
+                missingKeys.add(key);
             }
         }
-        if (isAnyFieldMissing) {
-            addRequiredFieldsInAdditionalDetails(additionalDetails, beneficiaryClientReferenceId, tenantId);
+        if (!missingKeys.isEmpty()) {
+            addRequiredFieldsInAdditionalDetails(additionalDetails, beneficiaryClientReferenceId, tenantId, missingKeys);
         }
     }
 
@@ -198,17 +197,15 @@ public class ProjectBeneficiaryTransformationService {
         }
     }
 
-    private void addRequiredFieldsInAdditionalDetails(ObjectNode additionalDetails, String beneficiaryClientReferenceId, String tenantId) {
+    private void addRequiredFieldsInAdditionalDetails(ObjectNode additionalDetails, String beneficiaryClientReferenceId, String tenantId, List<String> missingKeys) {
         Map<String, Object> individualInfo = individualService.getIndividualInfo(beneficiaryClientReferenceId, tenantId);
-        for(String key : mandatoryFields) {
-            if (!additionalDetails.has(key) || !additionalDetails.hasNonNull(key)) {
-                log.info("Adding missing value of required key : {}", key);
-                if (key.equals(AGE_IN_MONTHS)) {
-                    putValueBasedOnTypeObjectBased(additionalDetails, key, individualInfo.get(AGE), individualInfoFieldsTypeMap.get(key));
-                }
-                else {
-                    putValueBasedOnTypeObjectBased(additionalDetails, key, individualInfo.get(key), individualInfoFieldsTypeMap.get(key));
-                }
+        for(String key : missingKeys) {
+            log.info("Adding missing value of required key : {}", key);
+            if (key.equals(AGE_IN_MONTHS)) {
+                putValueBasedOnTypeObjectBased(additionalDetails, key, individualInfo.get(AGE), individualInfoFieldsTypeMap.get(key));
+            }
+            else {
+                putValueBasedOnTypeObjectBased(additionalDetails, key, individualInfo.get(key), individualInfoFieldsTypeMap.get(key));
             }
         }
     }
