@@ -68,6 +68,9 @@ public class TransformerProperties {
     @Value("${transformer.producer.stock.reconciliation.index.v1.topic}")
     private String transformerProducerStockReconciliationRegisterIndexV1Topic;
 
+    @Value("${transformer.producer.project.beneficiary.index.v1.topic}")
+    private String transformerProducerProjectBeneficiaryIndexV1Topic;
+
     @Value("${egov.project.host}")
     private String projectHost;
 

@@ -112,4 +112,9 @@ public interface Constants {
     String HOUSEHOLD_CLIENT_REFERENCE_ID = "householdClientReferenceId";
     String UNIQUE_BENEFICIARY_ID = "uniqueBeneficiaryId";
 
+    String IS_GUEST_MEMBER = "isGuestMember";
+    String IS_HEAD_OF_HOUSEHOLD = "isHeadOfHousehold";
+    String AGE_IN_MONTHS = "ageInMonths";
+
+
 }
