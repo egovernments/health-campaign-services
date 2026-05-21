@@ -1,5 +1,6 @@
 package org.egov.transformer.transformationservice;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 
@@ -128,7 +129,8 @@ public class ProjectBeneficiaryTransformationService {
         boolean isAnyFieldMissing = false;
 
         for (String key : mandatoryFields) {
-            if (!additionalDetails.hasNonNull(key)) {
+            JsonNode value = additionalDetails.get(key);
+            if (!additionalDetails.has(key) || !additionalDetails.hasNonNull(key) || value.asText().isEmpty()) {
                 isAnyFieldMissing = true;
                 break;
             }
@@ -199,7 +201,7 @@ public class ProjectBeneficiaryTransformationService {
     private void addRequiredFieldsInAdditionalDetails(ObjectNode additionalDetails, String beneficiaryClientReferenceId, String tenantId) {
         Map<String, Object> individualInfo = individualService.getIndividualInfo(beneficiaryClientReferenceId, tenantId);
         for(String key : mandatoryFields) {
-            if (!additionalDetails.has(key) && additionalDetails.hasNonNull(key)) {
+            if (!additionalDetails.has(key) || !additionalDetails.hasNonNull(key)) {
                 log.info("Adding missing value of required key : {}", key);
                 if (key.equals(AGE_IN_MONTHS)) {
                     putValueBasedOnTypeObjectBased(additionalDetails, key, individualInfo.get(AGE), individualInfoFieldsTypeMap.get(key));
