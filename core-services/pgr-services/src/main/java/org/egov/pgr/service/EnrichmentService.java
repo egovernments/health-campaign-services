@@ -20,7 +20,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static org.egov.pgr.util.PGRConstants.USERTYPE_CITIZEN;
-
+import static org.egov.pgr.util.PGRConstants.USERTYPE_EMPLOYEE;
 @org.springframework.stereotype.Service
 public class EnrichmentService {
 
@@ -52,9 +52,9 @@ public class EnrichmentService {
         Service service = serviceRequest.getService();
         Workflow workflow = serviceRequest.getWorkflow();
         String tenantId = service.getTenantId();
-
-        // Enrich accountId of the logged in citizen
-        if(requestInfo.getUserInfo().getType().equalsIgnoreCase(USERTYPE_CITIZEN))
+        // Enrich accountId of the logged in citizen or employee
+        if(requestInfo.getUserInfo().getType().equalsIgnoreCase(USERTYPE_CITIZEN)
+                || requestInfo.getUserInfo().getType().equalsIgnoreCase(USERTYPE_EMPLOYEE))
             serviceRequest.getService().setAccountId(requestInfo.getUserInfo().getUuid());
 
         userService.callUserService(serviceRequest);
