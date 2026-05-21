@@ -5,7 +5,7 @@
 # then runs a 13-API smoke test and a DISTRIBUTOR login probe.
 # Idempotent — safe to re-run.
 #
-# Seed data lives in db/full-dump.sql (~12 MB) + db/02-hcm-ui-seed.sql (~6 MB),
+# Seed data lives in db/full-dump.sql (~34 MB) + db/02-hcm-ui-seed.sql (~6 MB),
 # both committed to the repo and auto-applied by Postgres on first init.
 # The dump includes: schema, MDMS, boundary (TCHAD + MICROPLAN), ~133k localization
 # rows (en_IN), 1 SYSTEM admin + ~1000 sample users, 501 HRMS employees,

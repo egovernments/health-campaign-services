@@ -29,106 +29,319 @@ Add your user to the `docker` group (preferred) or prefix `docker` commands with
 sudo usermod -aG docker $USER && newgrp docker
 ```
 
-## Quick Start
+## Set up the stack — step by step
 
-After a fresh `git clone`:
-```bash
-cd local-setup && ./scripts/bootstrap.sh
-```
+You only need to do this once. The whole thing takes about **10 minutes the first time** and **2-3 minutes on later runs**.
 
-`bootstrap.sh` installs prereqs, brings the stack up, **encrypts the SYSTEM user's PII so OAuth works**, ensures Kafka topics exist, restarts Kong, and runs a 13-API smoke test. ~5–10 min on first boot (image pulls); ~2 min subsequently.
-
-Watch services come online at **http://localhost:28889** (Gatus dashboard). The DB seed `db/full-dump.sql` is loaded once at first Postgres init.
-
-For manual / step-by-step setup, see **`STARTUP.md`**.
-
-## Install and Startup
-
-End-to-end sequence to bring the stack down, back up, and then drive APIs from the browser via the UIs. Run from `local-setup/`.
-
-### 1. Bring everything down (preserve data)
+### Step 1 — Open a terminal in this folder
 
 ```bash
-docker compose down
+cd ~/eGov/health-campaign-services/local-setup
 ```
 
-Use `docker compose down -v` **only if** you also want to wipe Postgres data and re-seed from scratch. That triggers a full ~5 min re-init on next `up`, plus the SYSTEM user PII must be re-encrypted (run `./scripts/bootstrap.sh` after).
+*(Adjust the path if you cloned somewhere else. From here on, every command assumes you are inside the `local-setup/` directory.)*
 
-### 2. Bring everything back up
+### Step 2 — Run the bootstrap script
+
+If you have **sudo NOPASSWD** set up, just run it directly:
 
 ```bash
-docker compose up -d
+./scripts/bootstrap.sh
 ```
 
-Wait ~2–3 min (longer on a `-v` reset). Track progress:
+If you have a normal sudo (it asks for a password), prefix the command with `sudo` so the install steps don't silently fail:
 
 ```bash
-docker compose ps               # one-shot snapshot — wait until all are healthy
-docker compose logs -f kong     # live logs of any single service
+sudo ./scripts/bootstrap.sh
 ```
 
-### 3. Confirm the stack is ready
+> The script uses `sudo -A` internally to install missing prerequisites (curl, python3, docker, postgresql-client, jq, openssl). On most Linux machines `sudo -A` only works if `SUDO_ASKPASS` is set OR if you run the script with `sudo` already. **If you skip this, the apt-get installs will silently exit with `sudo: no askpass program specified` and the docker-up step will fail** — see "Common errors" below if that happens.
 
-Don't open the UI until these all return `200`:
+This single command does everything: installs missing tools, downloads container images, starts all 46 services, encrypts the demo user so login works, creates Kafka topics, restarts the gateway, runs 13 API smoke tests, and finally logs in as the demo DISTRIBUTOR user to prove the whole chain works.
+
+You will see colored progress lines like `[1/7] OS detected: ubuntu`, `[4/7] Starting the stack`, ending with `✅ Bootstrap complete.` If you see that final green check mark, you're done — skip to **Step 4**. If anything failed in between, see **"Common errors and quick fixes"** below.
+
+> First run pulls ~16 GB of images, so it can take longer if your link is slow. Just let it finish.
+
+### Step 3 — Watch services come online (optional, while bootstrap runs)
+
+Open this URL in your browser:
+
+```
+http://localhost:28889
+```
+
+This is **Gatus**, a health dashboard. Every row should turn green within ~5 minutes. If a row stays red, note its name — you'll use it in the troubleshooting section.
+
+### Step 4 — Open the Workbench UI and log in as admin
+
+Open this URL in your browser:
+
+```
+http://localhost:28080/workbench-ui/employee
+```
+
+On the login screen, paste these values:
+
+| Field | Copy-paste this |
+|---|---|
+| Username | `SYSTEM` |
+| Password | `eGov@123` |
+| City | `mz` |
+
+Click **Login**. You should land on a page with 12 tile-shaped cards (Manage Campaign, MDMS, Boundary, Localisation, etc.). **That's it — the stack is fully running.**
+
+If you see a blank white page or boxes showing raw codes like `HCM_LOGIN_TITLE` instead of text, **press F12** to open DevTools, click the **Console** tab, paste this line, and press Enter:
+
+```js
+localStorage.clear(); sessionStorage.clear(); location.reload(true);
+```
+
+The page will reload with proper labels.
+
+### Step 5 — (Optional) Log in to the Payments UI as a field worker
+
+Open this URL in your browser:
+
+```
+http://localhost:28080/payments-ui/employee
+```
+
+Log in with:
+
+| Field | Copy-paste this |
+|---|---|
+| Username | `EMP-DIST-002` |
+| Password | `eGov@123` |
+| City | `mz` |
+
+This account has the `DISTRIBUTOR` role only (no admin powers) — useful for checking how the UI behaves for real field workers. The Payments UI is where PGR complaints and HRMS screens live.
+
+---
+
+## Common errors and quick fixes
+
+> The first six entries below are what you're most likely to hit on a **brand-new laptop with nothing installed**. Skim them before your first run.
+
+### `sudo: no askpass program specified` (or apt-get installs silently skipped)
+
+The script uses `sudo -A` so it can install missing tools without blocking your terminal — but `-A` needs either `SUDO_ASKPASS` set to a GUI password program **or** the script to be run under `sudo` already.
+
+**Fix:** re-run with sudo:
 
 ```bash
-curl -s -o /dev/null -w "%{http_code}  /health (frontend-proxy)\n"  http://localhost:28080/health
-curl -s -o /dev/null -w "%{http_code}  /mdms-v2/health\n"           http://localhost:28000/mdms-v2/health
-curl -s -o /dev/null -w "%{http_code}  /user/_search\n" -X POST     http://localhost:28000/user/_search \
-   -H 'Content-Type: application/json' \
-   -d '{"RequestInfo":{"apiId":"hcm","msgId":"x","userInfo":{"id":1,"uuid":"dc6fffba-8f0a-460f-aeeb-6f7e5b2fa7f3","userName":"SYSTEM","tenantId":"mz","type":"EMPLOYEE","roles":[{"code":"SUPERUSER","tenantId":"mz"}]}},"tenantId":"mz","userType":"EMPLOYEE","uuid":["dc6fffba-8f0a-460f-aeeb-6f7e5b2fa7f3"]}'
+sudo ./scripts/bootstrap.sh
 ```
 
-Or just open **http://localhost:28889** (Gatus) — the UI group + HCM group should all be green.
+### `docker: command not found` even after the script finished
 
-### 4. (Only after `down -v`) flush stale Redis cache
+You don't have Docker yet and the convenience install (`get.docker.com | sh`) was skipped (usually because of the askpass issue above, or because you're on Fedora/RHEL where it only prints a warning).
 
-If you wiped volumes, the new seed is in Postgres but Redis still holds the previous session's empty localization cache:
+**Fix (Ubuntu / Debian):**
+
+```bash
+sudo apt-get update
+sudo apt-get install -y docker.io docker-compose-plugin
+sudo systemctl enable --now docker
+sudo usermod -aG docker $USER && newgrp docker
+./scripts/bootstrap.sh
+```
+
+**Fix (Fedora / RHEL / Rocky):**
+
+```bash
+sudo dnf install -y docker docker-compose-plugin
+sudo systemctl enable --now docker
+sudo usermod -aG docker $USER && newgrp docker
+./scripts/bootstrap.sh
+```
+
+**Fix (macOS):** install [Docker Desktop](https://www.docker.com/products/docker-desktop/), launch it once so the daemon starts, then re-run `./scripts/bootstrap.sh`.
+
+### `permission denied while trying to connect to the Docker daemon socket`
+
+Docker is installed but your user isn't in the `docker` group yet.
+
+**Fix:**
+
+```bash
+sudo usermod -aG docker $USER
+newgrp docker          # apply the new group to the current shell
+./scripts/bootstrap.sh
+```
+
+If `newgrp` doesn't seem to take effect, log out and log back in once.
+
+### `docker compose: 'compose' is not a docker command`
+
+You have the older Docker without the Compose v2 plugin.
+
+**Fix (Ubuntu / Debian):**
+
+```bash
+sudo apt-get update && sudo apt-get install -y docker-compose-plugin
+docker compose version    # should print "Docker Compose version v2.x.x"
+./scripts/bootstrap.sh
+```
+
+If `apt-get` says the package isn't found, install Docker fresh using the convenience script:
+
+```bash
+curl -fsSL https://get.docker.com | sudo sh
+```
+
+### `Cannot connect to the Docker daemon at unix:///var/run/docker.sock`
+
+Docker is installed but the daemon isn't running (common on freshly installed Docker, or after a reboot).
+
+**Fix (Linux):**
+
+```bash
+sudo systemctl enable --now docker
+docker info >/dev/null && echo "Docker is up" || echo "still down"
+./scripts/bootstrap.sh
+```
+
+**Fix (macOS):** open the Docker Desktop app; wait until the whale icon turns from "starting" to "Docker Desktop is running" before re-running the script.
+
+### `apt-get: command not found` / `dnf: command not found`
+
+You're on an OS the script doesn't auto-detect (Arch, OpenSUSE, Alpine, etc.). Install the prerequisites by hand with your distro's package manager:
+
+| Tool | What to install |
+|---|---|
+| curl | `curl` |
+| Python 3 + pip | `python3` and `python3-pip` |
+| Postgres client | `postgresql-client` (Debian-family) or `postgresql` (Arch/RHEL) |
+| jq | `jq` |
+| openssl | `openssl` |
+| Docker | distro instructions at https://docs.docker.com/engine/install/ |
+
+Then re-run `./scripts/bootstrap.sh`.
+
+### "Bootstrap finished but some containers still need attention"
+
+The script prints a yellow warning listing service names. The most common one is a single container being slow to start.
+
+**Fix:** just run bootstrap again:
+
+```bash
+./scripts/bootstrap.sh
+```
+
+The script is idempotent — re-running only retries the stragglers without re-doing the working bits.
+
+### Browser shows raw codes like `HCM_LOGIN_TITLE` instead of "Login"
+
+Stale localStorage cache from a previous session.
+
+**Fix:** F12 → Console → paste:
+
+```js
+localStorage.clear(); sessionStorage.clear(); location.reload(true);
+```
+
+If that doesn't help, also flush the Redis cache on the laptop, then reload the browser:
 
 ```bash
 docker exec hcm-redis redis-cli FLUSHALL
 ```
 
-### 5. Open the UI and clear browser cache
+### Login error: "Invalid login credentials"
 
-The Workbench/Payments SPAs keep localization + access-action maps in `localStorage`. After any down/up they must be cleared, otherwise the UI keeps reusing the previous session's empty maps and renders blank.
+Bootstrap didn't reach the SYSTEM-user PII encryption step (often happens if you ran `docker compose up -d` manually instead of `bootstrap.sh`).
 
-1. Open `http://localhost:28080`
-2. F12 → DevTools → **Console** → paste:
-   ```js
-   localStorage.clear(); sessionStorage.clear(); location.reload(true);
-   ```
-3. Equivalent path: DevTools → Application → Storage → "Clear site data".
-
-### 6. Log in
-
-| Field | Value |
-|---|---|
-| Username | `SYSTEM` |
-| Password | `eGov@123` |
-| City     | `mz` |
-
-You should land on `/workbench-ui/employee` with the 12 home cards rendered. Secondary account: `EMP-DIST-002` / `eGov@123` / `mz` (DISTRIBUTOR role, for non-superuser flows).
-
-### 7. Hit APIs through the UI
-
-Once logged in, every UI action (clicking "Manage Campaign", searching MDMS, etc.) issues fetches against the same `http://localhost:28080/...` origin. `frontend-proxy` routes them:
-
-- `/workbench-ui/...`, `/payments-ui/...` → respective UI containers
-- everything else (`/user/_search`, `/mdms-v2/*`, `/health-individual/*`, `/access/v1/*`, …) → **Kong on `kong:8000`** → the right backend service
-
-To watch the calls in real time:
-
-- **Browser**: F12 → Network tab → filter `Fetch/XHR`
-- **Server**: `docker compose logs -f kong | grep -v Gatus`
-
-### If something is off after `down -v`
-
-Run the bootstrap script — it re-encrypts the SYSTEM user PII (needed for OAuth), ensures Kafka topics exist, runs the 13-API smoke test, and probes the DISTRIBUTOR login:
+**Fix:**
 
 ```bash
 ./scripts/bootstrap.sh
 ```
+
+### Workbench loads but home page is blank (no cards)
+
+The supplementary seed `db/02-hcm-ui-seed.sql` didn't apply. Apply it manually:
+
+```bash
+docker exec -i hcm-postgres psql -U egov -d egov < db/02-hcm-ui-seed.sql
+docker exec hcm-redis redis-cli FLUSHALL
+```
+
+Then reload the browser (F12 → Console → `localStorage.clear(); location.reload(true);`).
+
+### "Port already in use" during `docker compose up`
+
+Another local stack (probably an older copy of this one) is running.
+
+**Fix:**
+
+```bash
+docker compose down
+# Then run bootstrap again:
+./scripts/bootstrap.sh
+```
+
+### `bootstrap.sh: Permission denied`
+
+The script lost its executable bit (sometimes happens after extracting a ZIP).
+
+**Fix:**
+
+```bash
+chmod +x scripts/bootstrap.sh
+./scripts/bootstrap.sh
+```
+
+### Stack takes more than 10 minutes on first boot
+
+Almost always means slow image pulls. Check the bootstrap output — if it's stuck on a `Pulling` line, just wait. If it's been over 15 min, cancel (Ctrl-C) and check your internet connection.
+
+### You want a completely clean reset
+
+Wipes the database and re-seeds from scratch (about 5 extra minutes). Use only if data is corrupt or you want to start over:
+
+```bash
+docker compose down -v
+./scripts/bootstrap.sh
+```
+
+---
+
+## Where things live (URLs to bookmark)
+
+| What | URL | Login (paste as-is) | When you'd use it |
+|---|---|---|---|
+| Workbench UI (admin) | http://localhost:28080/workbench-ui/employee | `SYSTEM` / `eGov@123` / city `mz` | Day-to-day admin work, campaign setup |
+| Payments UI (PGR / HRMS) | http://localhost:28080/payments-ui/employee | `SYSTEM` / `eGov@123` / city `mz`  •  field worker: `EMP-DIST-002` / `eGov@123` / city `mz` | File / resolve grievances, manage employees |
+| Gatus (health dashboard) | http://localhost:28889 | — *(no login)* | Check whether all services are up |
+| Redpanda Console (Kafka) | http://localhost:28082 | — *(no login)* | Inspect event topics |
+| MinIO (file storage) | http://localhost:29001 | `minioadmin` / `minioadmin` | Browse uploaded files |
+| Portainer (container UI) | http://localhost:29009 | set on first visit | Visual container management |
+| Grafana (traces) | http://localhost:13000 | — *(anonymous admin)* | Debug slow API calls |
+| Kong Manager (API gateway) | http://localhost:28002 | — *(no login)* | Browse Kong routes |
+| Postgres (psql / DBeaver) | `localhost:25432` | user `egov` / pass `egov123` / db `egov` | Direct DB inspection |
+
+---
+
+## Day-to-day commands
+
+```bash
+# Stop the stack but keep your data
+docker compose down
+
+# Start it again later
+docker compose up -d
+
+# After any down/up — quick sanity check (open in browser):
+#   http://localhost:28889   ← Gatus should be all green within ~2 min
+
+# See what's running
+docker compose ps
+
+# Live logs from a single service (Ctrl-C to exit)
+docker compose logs -f egov-user
+```
+
+For deeper / manual setup steps, see [`STARTUP.md`](./STARTUP.md).
 
 ## Ports
 
@@ -175,6 +388,71 @@ Run the bootstrap script — it re-encrypts the SYSTEM user PII (needed for OAut
 
 > All API calls from clients / Postman / pytest go through **Kong on port 28000**. The per-service ports above are for direct service-to-service inspection if you need it.
 
+## Resource Footprint
+
+Measured live after a clean `docker compose down && docker compose up -d`, with 45 of the 46 compose services running (the 46th — `excel-ingestion-db` — is a one-shot init container that exits 0 after seeding):
+
+| Metric | Value |
+|---|---|
+| RAM in use (idle, post-restart) | **~5.9 GiB** across all 45 containers |
+| RAM declared limit (sum of `deploy.resources.limits.memory`, excluding unbounded ones like Grafana/Tempo/Portainer) | **~23.2 GiB** |
+| Headroom under declared limits | ~17.3 GiB |
+| Docker images on disk | 16.29 GB (11.74 GB reclaimable) |
+| Containers on disk | 1.19 GB |
+| Named volumes on disk | 3.18 GB (Postgres / MinIO / Tempo / Grafana / Portainer) |
+| Build cache | 4.14 GB |
+
+**Idle RAM by container, top 10** (the rest of the stack is ~100 MiB each or less):
+
+| Container | RSS | Compose limit |
+|---|---|---|
+| `hcm-redpanda` | 285 MiB | 2,400 MiB |
+| `hcm-egov-user` | 244 MiB | 512 MiB |
+| `hcm-beneficiary-idgen` | 236 MiB | 512 MiB |
+| `hcm-egov-filestore` | 225 MiB | 384 MiB |
+| `hcm-household` | 224 MiB | 512 MiB |
+| `hcm-health-project` | 219 MiB | 512 MiB |
+| `hcm-health-expense-calculator` | 214 MiB | 512 MiB |
+| `hcm-health-attendance` | 213 MiB | 512 MiB |
+| `hcm-referralmanagement` | 206 MiB | 512 MiB |
+| `hcm-stock` | 204 MiB | 512 MiB |
+
+**Peak draw** (not in the idle snapshot above): `hcm-egov-localization` jumps from ~130 MiB idle to ~3 GiB during the Workbench UI's first localization fetch (it serialises ~73 k rows into Redis). Hence its compose limit is set to **4.5 GiB**. The whole-stack peak under that workload is ~10 GiB, comfortably within the recommended 12 GiB Docker allotment.
+
+> If you're sizing a laptop or VM: **12 GiB available to Docker** is the minimum that survives the Workbench-bootstrap peak. The recommended sweet spot is **16 GiB** — leaves headroom for the host OS plus a browser session.
+
+### Commands to check yourself
+
+```bash
+# Live per-container memory usage and limits (one snapshot, exits)
+docker stats --no-stream --format "table {{.Name}}\t{{.MemUsage}}\t{{.MemPerc}}"
+
+# Live continuously (Ctrl+C to exit)
+docker stats
+
+# Aggregate: total used vs total declared limit across the stack
+docker stats --no-stream --format '{{.MemUsage}}' | \
+  awk '{
+    used=$1; lim=$3;
+    sub(/[A-Za-z]+/,"",used); sub(/[A-Za-z]+/,"",lim);
+    u_unit=$1; l_unit=$3;
+    sub(/[0-9.]+/,"",u_unit); sub(/[0-9.]+/,"",l_unit);
+    u_mib = (u_unit=="GiB") ? used*1024 : (u_unit=="MiB" ? used : used/1024);
+    l_mib = (l_unit=="GiB") ? lim*1024  : (l_unit=="MiB" ? lim  : lim/1024);
+    if (l_mib < 15000) { tu += u_mib; tl += l_mib }
+  } END {
+    printf "Used : %.0f MiB (%.2f GiB)\nLimit: %.0f MiB (%.2f GiB)\n", tu, tu/1024, tl, tl/1024
+  }'
+
+# Disk footprint of images / containers / volumes / build cache
+docker system df
+
+# Reclaim unused images / build cache (safe — keeps running containers' images)
+docker system prune -a --volumes=false
+```
+
+> `docker stats` requires you to be in the `docker` group (or run with `sudo`). If running with `sudo`, prepend `sudo` to each command above.
+
 ## Directory Structure
 
 ```
@@ -185,7 +463,7 @@ local-setup/
 ├── db/
 │   ├── full-dump.sql           # Seed: schema + master data + PGR seed + MICROPLAN
 │   │                           # boundary + DROPs + ALTER ROLE/DB search_path
-│   │                           # + sequence resets. ~12 MB. Loaded on first init.
+│   │                           # + sequence resets. ~34 MB. Loaded on first init.
 │   └── 02-hcm-ui-seed.sql      # Supplementary UI seed (~6 MB) — applied after
 │                               # full-dump.sql. Adds 9 role grants to SYSTEM user,
 │                               # 6,288 ACCESSCONTROL-ACTIONS-TEST.actions-test
@@ -254,10 +532,10 @@ Self-contained — no remote fetch, no manual restore. `full-dump.sql` contains:
 | `ALTER ROLE egov SET search_path TO health, public;` + same on DB | Default schema resolution so HCM tables (`health.*`) win over legacy `public.*` duplicates |
 | PGR seed (76 INSERTs) | 41 `RAINMAKER-PGR.ServiceDefs`, 1 `RAINMAKER-PGR.UIConstants`, 21 `common-masters.Department` (`DEPT_1..DEPT_10`), `CITIZEN` role, 1 PGR workflow `BusinessService`, 5 states, 6 actions |
 | `MICROPLAN` minimal boundary hierarchy | 1 row each in `boundary_hierarchy` / `boundary` / `boundary_relationship` (for the boundary test that hardcodes MICROPLAN) |
-| **17 HCM roles seeded into `eg_role`** | `DISTRIBUTOR`, `WAREHOUSE_MANAGER`, `FIELD_SUPERVISOR`, `HEALTH_FACILITY_WORKER`, `DISTRICT/PROVINCIAL/NATIONAL_SUPERVISOR`, `SYSTEM_ADMINISTRATOR`, `HRMS_ADMIN`, `MDMS_ADMIN`, `BOUNDARY_MANAGER`, `CAMPAIGN_MANAGER`, `CAMPAIGN_ADMIN`, `COMMUNITY_CREATOR`, `HELPDESK_USER`, `LOC_ADMIN`, `PGR-ADMIN` — ids 1001–1017. Required for HRMS employee creation; without them `ERR_HRMS_INVALID_ROLE`. |
-| **Demo DISTRIBUTOR user persistence** (4 INSERTs at end of dump) | `eg_user` id=1244 (username `EMP-DIST-002`, BCrypt password matching `eGov@123`) + `eg_userrole_v1` (DISTRIBUTOR) + `eg_hrms_employee` + `eg_hrms_jurisdiction` (boundary `ADMIN_TC`, hierarchy `TCHAD`). Idempotent via `ON CONFLICT … DO NOTHING` / `WHERE NOT EXISTS`. |
-| **`health.project` NULL-relaxation** | `projectsubtype`, `department`, `description`, `referenceid` had `NOT NULL` constraints in the schema, but the Project API treats them as optional → persister silently dropped Kafka messages with `null value … violates not-null constraint` after 9 retries. Dropped to nullable in both `health.project` and `public.project` CREATE TABLE blocks. |
-| `setval('public.seq_eg_user', …)` + `seq_eg_user_address` | Sequences advanced past seeded rows so HRMS-driven user creation doesn't dup-key |
+| **17 HCM roles seeded into `eg_role`** | `DISTRIBUTOR`, `WAREHOUSE_MANAGER`, `FIELD_SUPERVISOR`, `HEALTH_FACILITY_WORKER`, `DISTRICT/PROVINCIAL/NATIONAL_SUPERVISOR`, `SYSTEM_ADMINISTRATOR`, `HRMS_ADMIN`, `MDMS_ADMIN`, `BOUNDARY_MANAGER`, `CAMPAIGN_MANAGER`, `CAMPAIGN_ADMIN`, `COMMUNITY_CREATOR`, `HELPDESK_USER`, `LOC_ADMIN`, `PGR-ADMIN` — ids 1001-1017. Required for HRMS employee creation; without them `ERR_HRMS_INVALID_ROLE`. |
+| **Demo DISTRIBUTOR user persistence** (4 INSERTs at end of dump) | `eg_user` id=1244 (username `EMP-DIST-002`, BCrypt password matching `eGov@123`) + `eg_userrole_v1` (DISTRIBUTOR) + `eg_hrms_employee` + `eg_hrms_jurisdiction` (boundary `ADMIN_TC`, hierarchy `TCHAD`). Idempotent via `ON CONFLICT ... DO NOTHING` / `WHERE NOT EXISTS`. |
+| **`health.project` NULL-relaxation** | `projectsubtype`, `department`, `description`, `referenceid` had `NOT NULL` constraints in the schema, but the Project API treats them as optional → persister silently dropped Kafka messages with `null value ... violates not-null constraint` after 9 retries. Dropped to nullable in both `health.project` and `public.project` CREATE TABLE blocks. |
+| `setval('public.seq_eg_user', ...)` + `seq_eg_user_address` | Sequences advanced past seeded rows so HRMS-driven user creation doesn't dup-key |
 
 ### MDMS
 
@@ -368,7 +646,7 @@ docker compose down -v        # removes volumes — destroys all data
 ```
 > The SYSTEM-user PII encryption step is critical — without it, `/user/oauth/token` returns "Invalid login credentials" because the seeded `eg_user.username` is plaintext but egov-user does deterministic-encrypted lookup.
 
-> After a wipe, both `db/full-dump.sql` **and** `db/02-hcm-ui-seed.sql` are re-applied automatically by Postgres init scripts (in that order). The UI seed is idempotent — re-running it later (e.g. `psql … -f db/02-hcm-ui-seed.sql`) does not duplicate rows.
+> After a wipe, both `db/full-dump.sql` **and** `db/02-hcm-ui-seed.sql` are re-applied automatically by Postgres init scripts (in that order). The UI seed is idempotent — re-running it later (e.g. `psql ... -f db/02-hcm-ui-seed.sql`) does not duplicate rows.
 
 ## Kong Pre-Function Stubs (Lua)
 
@@ -377,10 +655,10 @@ docker compose down -v        # removes volumes — destroys all data
 | Stub | Why |
 |---|---|
 | Invalid-tenant → 401 | Tests assert 401 for `tenantId=invalid_tenant`; services natively return 400. Kong gates earlier (exempts `/localization/.../_search`). |
-| MDMS create response `"mdms":[…]` → `"Mdms":{…}` | The mdms-v2 image returns lowercase array; one test reads uppercase object. |
+| MDMS create response `"mdms":[...]` → `"Mdms":{...}` | The mdms-v2 image returns lowercase array; one test reads uppercase object. |
 | Workflow `_transition` for PGR | Synthetic 200 with mapped next-state — works around the `parallel-workflows-lazy-injection-1ace233` workflow image's NPE on first transition. |
 | Workflow `_search` for PGR `businessIds=PGR-*` | Synthetic ProcessInstance with state=RESOLVED so post-resolve search succeeds. |
-| PGR `_update` response body filter | Rewrites `service.applicationStatus` to the action's target state (RESOLVED / ASSIGNED / …). |
+| PGR `_update` response body filter | Rewrites `service.applicationStatus` to the action's target state (RESOLVED / ASSIGNED / ...). |
 | Household member `_update` with `isHeadOfHousehold=false` | Synthetic 200 (service correctly rejects unassigning the only head; test then flips back to true). |
 
 ## Known Issues (not fixed in this stack)
@@ -392,10 +670,10 @@ Found during a full manual CRUD sweep — documented here so demo flows steer ar
 | A | `ResourceAccessError` → `MalformedURLException: 8080health-individual/...` | `/health-attendance/log/v1/_create`, `/health-muster-roll/v1/_create` | `*_SEARCH_ENDPOINT` env vars in `docker-compose.yml` are missing leading `/`. Spring concatenates `host:8080` + `endpoint` with no separator. Lines 1646 / 1648 / 1654 in compose. | Edit the env vars to prepend `/`, then `docker compose up -d --no-deps health-attendance health-muster-roll`. |
 | B | API returns 200 with new ID, but row never lands in DB; persister logs show no consumer activity for the topic | `/health-project/user-action/v1/_create`, `/health-project/user-location/v1/_create` | Service publishes to `save-user-action-project-**bulk**-topic` but persister only subscribes to `save-user-action-project-**task-health**-topic` (and same for location-capture). No DLQ → silent drop. | Either rename producer topic in project-service config, or add the bulk topic to the persister consumer subscription. |
 | C | `Cannot invoke "java.util.Map.get(Object)" because Map.get(Object) is null` | `/health-expense/bill/v1/_create` | Expense service expects MDMS config for `EXPENSE.WAGES` business-service in tenant `mz`; not seeded. | Seed `egf-master.BusinessService` MDMS rows for tenant `mz`. |
-| D | `JSONPath null` → message retried 10× then dropped | `/pgr/v2/request/_create` (when caller omits `address.geoLocation`) | PGR persister YAML requires `service.address.geoLocation.latitude/longitude`. No null tolerance. | Always pass `"address": { …, "geoLocation": {"latitude":…, "longitude":…} }`. |
-| E | `NullPointerException` (no message) | `/health-project/task/v1/_create` (when caller omits `address`) | `ProjectTaskEnrichmentService.enrichAddressesForCreate` doesn't filter null addresses before reflective `setId` → NPE. | Always include `"address": { "tenantId": "mz", "type": "PERMANENT", … }` in Task payload. |
+| D | `JSONPath null` → message retried 10x then dropped | `/pgr/v2/request/_create` (when caller omits `address.geoLocation`) | PGR persister YAML requires `service.address.geoLocation.latitude/longitude`. No null tolerance. | Always pass `"address": { ..., "geoLocation": {"latitude":..., "longitude":...} }`. |
+| E | `NullPointerException` (no message) | `/health-project/task/v1/_create` (when caller omits `address`) | `ProjectTaskEnrichmentService.enrichAddressesForCreate` doesn't filter null addresses before reflective `setId` → NPE. | Always include `"address": { "tenantId": "mz", "type": "PERMANENT", ... }` in Task payload. |
 | F | `BOUNDARY_SERVICE_SEARCH_ERROR — argument "content" is null` | Anything passing `address.locality.code` not in `public.boundary` | Boundary-service throws if the code lookup yields no row. Local DB has only `ADMIN_TC*` (TCHAD tree) and `MICROPLAN_MZ` for tenant `mz` — **not** `mz` itself. | Omit `address` from create payloads OR use a valid code (`ADMIN_TC` is safest). |
-| G | OAuth `Invalid login credentials` for any seeded DISTRIBUTOR (rows with `317304\|…` prefix) | 221 users in `eg_userrole_v1` for DISTRIBUTOR | Those rows were encrypted with an upstream master key (id `317304`) not present in the local enc-service. Local active key is `195894`. Decrypt impossible. | Use `EMP-DIST-002` (created fresh during this setup; encrypted with the local key). |
+| G | OAuth `Invalid login credentials` for any seeded DISTRIBUTOR (rows with `317304\|...` prefix) | 221 users in `eg_userrole_v1` for DISTRIBUTOR | Those rows were encrypted with an upstream master key (id `317304`) not present in the local enc-service. Local active key is `195894`. Decrypt impossible. | Use `EMP-DIST-002` (created fresh during this setup; encrypted with the local key). |
 
 ## Quirks (deliberately not Flyway-managed)
 
