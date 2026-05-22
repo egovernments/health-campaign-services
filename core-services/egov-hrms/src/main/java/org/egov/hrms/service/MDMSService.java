@@ -156,6 +156,69 @@ public class MDMSService {
 
 
 	/**
+	 * Fetches UserValidation data from MDMS for mobile number pattern
+	 *
+	 * @param requestInfo
+	 * @param tenantId
+	 * @return Mobile pattern or null if not found
+	 */
+	public String fetchMobileNumberPattern(RequestInfo requestInfo, String tenantId) {
+		try {
+			StringBuilder uri = new StringBuilder();
+			uri.append(mdmsHost).append(mdmsEndpoint);
+
+			// Create MDMS request for UserValidation
+			List<ModuleDetail> moduleDetails = new ArrayList<>();
+			ModuleDetail moduleDetail = new ModuleDetail();
+			moduleDetail.setModuleName("common-masters");
+
+			List<MasterDetail> masterDetails = new ArrayList<>();
+			MasterDetail masterDetail = MasterDetail.builder()
+					.name("UserValidation")
+					.filter("[?(@.fieldType == 'mobile')]")
+					.build();
+			masterDetails.add(masterDetail);
+			moduleDetail.setMasterDetails(masterDetails);
+			moduleDetails.add(moduleDetail);
+
+			MdmsCriteria mdmsCriteria = MdmsCriteria.builder()
+					.tenantId(tenantId)
+					.moduleDetails(moduleDetails)
+					.build();
+
+			MdmsCriteriaReq request = MdmsCriteriaReq.builder()
+					.requestInfo(requestInfo)
+					.mdmsCriteria(mdmsCriteria)
+					.build();
+
+			// Make the MDMS call
+			MdmsResponse response = restTemplate.postForObject(uri.toString(), request, MdmsResponse.class);
+
+			// Extract pattern from response
+			if (response != null && response.getMdmsRes() != null) {
+				Object commonMastersObj = response.getMdmsRes().get("common-masters");
+				if (commonMastersObj != null) {
+					Map<String, Object> commonMasters = (Map<String, Object>) commonMastersObj;
+					Object userValidationObj = commonMasters.get("UserValidation");
+					if (userValidationObj != null && userValidationObj instanceof List) {
+						List<Map<String, Object>> userValidations = (List<Map<String, Object>>) userValidationObj;
+						if (!userValidations.isEmpty()) {
+							Map<String, Object> userValidation = userValidations.get(0);
+							Map<String, Object> rules = (Map<String, Object>) userValidation.get("rules");
+							if (rules != null) {
+								return (String) rules.get("pattern");
+							}
+						}
+					}
+				}
+			}
+		} catch (Exception e) {
+			log.error("Error fetching mobile number pattern from MDMS: ", e);
+		}
+		return null;
+	}
+
+	/**
 	 * Prepares request for MDMS in order to fetch all the required masters for Boundary Data.
 	 *
 	 * @param uri

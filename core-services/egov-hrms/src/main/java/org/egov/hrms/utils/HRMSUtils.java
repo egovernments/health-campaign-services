@@ -4,11 +4,17 @@ import java.security.SecureRandom;
 import java.util.List;
 import java.util.Random;
 
+import org.egov.common.contract.request.RequestInfo;
+import org.egov.hrms.service.MDMSService;
 import org.egov.hrms.web.contract.EmployeeSearchCriteria;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
 @Service
 public class HRMSUtils {
 	
@@ -17,6 +23,9 @@ public class HRMSUtils {
 
 	@Value("${egov.pwd.allowed.special.characters}")
 	private String allowedPasswordSpecialCharacters;
+
+	@Autowired
+	private MDMSService mdmsService;
 	
 	/**
 	 * Generates random password for the user to login. Process:
@@ -62,10 +71,51 @@ public class HRMSUtils {
 				|| !CollectionUtils.isEmpty(criteria.getDepartments()) || !CollectionUtils.isEmpty(criteria.getDesignations()));
 	}
 
-	public String generateMobileNumber() {
+	public String generateMobileNumber(RequestInfo requestInfo, String tenantId) {
 		Random random = new Random();
+
+		// Fetch mobile pattern from MDMS
+		String pattern = mdmsService.fetchMobileNumberPattern(requestInfo, tenantId);
+
+		// Default values
 		long min = 6000000000L;
 		long max = 9999999999L;
+
+		try {
+			// If pattern exists, parse it and generate number based on pattern
+			if (pattern != null && pattern.matches("\\^\\[\\d+-\\d+\\]\\[0-9\\]\\{\\d+\\}\\$")) {
+				// Extract first digit range (e.g., from "^[6-9][0-9]{9}$" extract 6-9)
+				int startIdx = pattern.indexOf('[');
+				int endIdx = pattern.indexOf(']');
+				String firstDigitRange = pattern.substring(startIdx + 1, endIdx);
+				String[] range = firstDigitRange.split("-");
+				int minFirstDigit = Integer.parseInt(range[0]);
+				int maxFirstDigit = Integer.parseInt(range[1]);
+
+				// Extract remaining digits count (e.g., from {9} extract 9)
+				int braceStart = pattern.indexOf('{');
+				int braceEnd = pattern.indexOf('}');
+				String digitCountStr = pattern.substring(braceStart + 1, braceEnd);
+				int remainingDigits = Integer.parseInt(digitCountStr);
+
+				// Generate first digit
+				int firstDigit = minFirstDigit + random.nextInt(maxFirstDigit - minFirstDigit + 1);
+
+				// Generate remaining digits
+				StringBuilder mobileNumber = new StringBuilder();
+				mobileNumber.append(firstDigit);
+
+				for (int i = 0; i < remainingDigits; i++) {
+					mobileNumber.append(random.nextInt(10));
+				}
+
+				return mobileNumber.toString();
+			}
+		} catch (Exception e) {
+			log.warn("Failed to parse mobile pattern: " + pattern + ". Using default generation.", e);
+		}
+
+		// Default generation if pattern is not available or parsing fails
 		long mobileNumber = Math.abs(random.nextLong() % (max - min + 1)) + min;
 		return Long.toString(mobileNumber);
 	}
