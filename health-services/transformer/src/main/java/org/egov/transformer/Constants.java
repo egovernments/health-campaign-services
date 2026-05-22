@@ -115,4 +115,8 @@ public interface Constants {
     String PROJECT_TYPE = "projectType";
 
     String REDIS_CACHE_PREFIX = "transformer:";
+
+    String ES_FIELD_ACTIVE = "active";
+    
+    String ES_FIELD_EFFECTIVE_DATE = "effectiveDate";
 }
